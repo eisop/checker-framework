@@ -1,8 +1,11 @@
 import de.undercouch.gradle.tasks.download.Download
+import org.gradle.api.tasks.testing.TestDescriptor
+import org.gradle.api.tasks.testing.TestListener
+import org.gradle.api.tasks.testing.TestResult
 
 plugins {
     // https://plugins.gradle.org/plugin/com.gradleup.shadow
-    id 'com.gradleup.shadow' version '8.3.10'
+    id 'com.gradleup.shadow' version '8.3.11'
     // https://plugins.gradle.org/plugin/de.undercouch.download
     id 'de.undercouch.download' version '5.7.0'
     id 'java'
@@ -17,7 +20,7 @@ plugins {
     // Code formatting; defines targets "spotlessApply" and "spotlessCheck".
     // https://github.com/diffplug/spotless/tags ; see tags starting "gradle/"
     // Only works on JDK 11+ (even including the plugin crashes Gradle on JDK 8).
-    id 'com.diffplug.spotless' version '8.5.1'
+    id 'com.diffplug.spotless' version '8.6.0'
 }
 
 // There is another `repositories { ... }` block below; if you change this one, change that one as well.
@@ -58,7 +61,10 @@ ext {
     // On a Java 9+ JVM, use the host javac, default source/target, and required module flags.
     isJava8 = (useJdkVersionInt == 8)
 
-    // As of 2025-04-28 (Lombok 1.18.38), delombok supports JDK 24-ea but not JDK 24 proper; see https://projectlombok.org/changelog .
+    // delombok lags behind JDK GA releases; skip delombok-dependent tests when running on
+    // a JDK newer than what the pinned Lombok version supports.  See
+    // https://projectlombok.org/changelog and bump this threshold (or remove it) when the
+    // current 'versions.lombok' below catches up to the JDK in use.
     skipDelombok = (useJdkVersionInt >= 24)
 
     // NO-AFU - keep these variables live so tasks in checker/build.gradle configure without issue.
@@ -74,10 +80,6 @@ ext {
     demosDir = "${parentDir}/checker-framework.demos"
 
     javadocMemberLevel = JavadocMemberLevel.PROTECTED
-
-    // The local git repository, typically in the .git directory, but not for worktrees.
-    // This value is always overwritten, but Gradle needs the variable to be initialized.
-    localRepo = '.git'
 
     versions = [
         autoValue       : '1.11.1',
@@ -98,12 +100,6 @@ ext {
     ]
 }
 
-// Enable exec/javaexec
-interface InjectedExecOps {
-    @Inject
-    ExecOperations getExecOps()
-}
-
 // Keep in sync with check in
 // framework/src/main/java/org/checkerframework/framework/source/SourceChecker.java .
 switch (JavaVersion.current()) {
@@ -118,21 +114,30 @@ switch (JavaVersion.current()) {
         break;
 }
 
-task setLocalRepo(type:Exec) {
+// Git hooks are installed into the main worktree's .git directory.  'git worktree list' prints
+// the main worktree first, and the first whitespace-delimited token of its output is that
+// worktree's path (this resolves correctly whether the build runs in the main checkout or a
+// linked worktree).
+//
+// This is computed with providers.exec rather than an Exec task that captures its output into a
+// ByteArrayOutputStream: under the configuration cache an Exec task's standardOutput is part of
+// the serialized task state, and a ByteArrayOutputStream cannot be serialized (only
+// System.out/System.err are allowed).  providers.exec instead exposes the output as a
+// Provider<String> whose value becomes a configuration-cache input, and feeding the derived
+// Provider into 'into' lets the destination resolve lazily without mutating shared project state
+// at execution time.
+def gitHooksDir = providers.exec {
     commandLine 'git', 'worktree', 'list'
-    standardOutput = new ByteArrayOutputStream()
-    doLast {
-        String worktreeList = standardOutput.toString()
-        localRepo = worktreeList.substring(0, worktreeList.indexOf(' ')) + '/.git'
-    }
+}.standardOutput.asText.map { String worktreeList ->
+    worktreeList.substring(0, worktreeList.indexOf(' ')) + '/.git/hooks'
 }
 
 // No group so it does not show up in the output of `gradlew tasks`
-task installGitHooks(type: Copy, dependsOn: 'setLocalRepo') {
+tasks.register('installGitHooks', Copy) {
     description = 'Copies git hooks to .git directory'
     from files('checker/bin-devel/git.post-merge', 'checker/bin-devel/git.pre-commit')
     rename('git\\.(.*)', '$1')
-    into localRepo + '/hooks'
+    into gitHooksDir
 }
 
 apply plugin: 'com.diffplug.spotless'
@@ -145,7 +150,7 @@ spotless {
     //  > Could not create task ':checker-qual:spotlessJavaCheck'.
     //     > Could not create task ':checker-qual:spotlessJava'.
     //        > File signature can only be created for existing regular files, given:
-    //          .../checker-framework/checker-qual/build/libs/checker-qual-3.25.1-SNAPSHOT.jar
+    //          .../checker-framework/checker-qual/build/libs/checker-qual-VERSION-SNAPSHOT.jar
     predeclareDepsFromBuildscript()
 }
 
@@ -207,11 +212,11 @@ allprojects { currentProj ->
     dependencies {
         if (useJdkVersionInt >= 21) {
             // Only include Error Prone when its minimum version is met. It will not always be enabled.
-            errorprone group: 'com.google.errorprone', name: 'error_prone_core', version: versions.errorprone
+            errorprone("com.google.errorprone:error_prone_core:${versions.errorprone}")
         }
 
         // Always define javacJar, not just when `isJava8` is true, because we redistribute it in checker/build.gradle.
-        javacJar group: 'com.google.errorprone', name: 'javac', version: "9+181-r4173-1"
+        javacJar("com.google.errorprone:javac:9+181-r4173-1")
 
         allProjects subprojects
     }
@@ -447,45 +452,50 @@ allprojects { currentProj ->
         // Add the fat checker.jar to the classpath of every Javadoc task. This allows Javadoc in
         // any module to reference classes in any other module.
         // Also, build and use ManualTaglet as a taglet.
-        tasks.withType(Javadoc) {
-            // Similar test in framework-test/build.gradle
+        tasks.withType(Javadoc).configureEach {
+            // Similar test further below and in framework-test/build.gradle
             def tagletVersion = isJava8 ? 'tagletJdk8' : 'taglet'
 
             dependsOn(':checker:shadowJar')
             dependsOn(":framework-test:${tagletVersion}Classes")
 
+            options.encoding = 'UTF-8'
+            // javadocDoclintAll and javadocPrivate set their own member level.
+            if (!name.equals('javadocDoclintAll') && !name.equals('javadocPrivate')) {
+                options.memberLevel = javadocMemberLevel
+            }
+            classpath += configurations.getByName('checkerFatJar').asFileTree
+            if (isJava8) {
+                classpath += configurations.javacJar
+            }
+            options.taglets 'org.checkerframework.taglet.ManualTaglet'
+
+            options.tagletPath(project(':framework-test').layout.buildDirectory.dir("classes/java/${tagletVersion}").get().asFile)
+
+            if (!isJava8) {
+                options.addBooleanOption('-add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED', true)
+                options.addBooleanOption('-add-exports=jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED', true)
+                options.addBooleanOption('-add-exports=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED', true)
+                options.addBooleanOption('-add-exports=jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED', true)
+                options.addBooleanOption('-add-exports=jdk.compiler/com.sun.tools.javac.model=ALL-UNNAMED', true)
+                options.addBooleanOption('-add-exports=jdk.compiler/com.sun.tools.javac.processing=ALL-UNNAMED', true)
+                options.addBooleanOption('-add-exports=jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED', true)
+                options.addBooleanOption('-add-exports=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED', true)
+                options.addBooleanOption('-add-exports=jdk.compiler/com.sun.tools.javac.comp=ALL-UNNAMED', true)
+            }
+
+            // "-Xwerror" requires Javadoc everywhere.  Currently, CI jobs require Javadoc only
+            // on changed lines.  Enable -Xwerror in the future when all Javadoc exists.
+            // options.addBooleanOption('Xwerror', true)
+            options.addStringOption('Xmaxwarns', '99999')
+
+            // Javadoc looks for this CSS file; create it when the task runs (it must not be created
+            // at configuration time). Uses the task's own destinationDir and plain file I/O, so no
+            // Project script object (file/ant) is referenced from the task action.
             doFirst {
-                options.encoding = 'UTF-8'
-                if (!name.equals('javadocDoclintAll')) {
-                    options.memberLevel = javadocMemberLevel
-                }
-                classpath += configurations.getByName('checkerFatJar').asFileTree
-                if (isJava8) {
-                    classpath += configurations.javacJar
-                }
-                options.taglets 'org.checkerframework.taglet.ManualTaglet'
-                options.tagletPath(project(':framework-test').sourceSets."${tagletVersion}".output.classesDirs.getFiles() as File[])
-
-                // This file is looked for by Javadoc.
-                file("${destinationDir}/resources/fonts/").mkdirs()
-                ant.touch(file: "${destinationDir}/resources/fonts/dejavu.css")
-
-                if (!isJava8) {
-                    options.addBooleanOption('-add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED', true)
-                    options.addBooleanOption('-add-exports=jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED', true)
-                    options.addBooleanOption('-add-exports=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED', true)
-                    options.addBooleanOption('-add-exports=jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED', true)
-                    options.addBooleanOption('-add-exports=jdk.compiler/com.sun.tools.javac.model=ALL-UNNAMED', true)
-                    options.addBooleanOption('-add-exports=jdk.compiler/com.sun.tools.javac.processing=ALL-UNNAMED', true)
-                    options.addBooleanOption('-add-exports=jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED', true)
-                    options.addBooleanOption('-add-exports=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED', true)
-                    options.addBooleanOption('-add-exports=jdk.compiler/com.sun.tools.javac.comp=ALL-UNNAMED', true)
-                }
-
-                // "-Xwerror" requires Javadoc everywhere.  Currently, CI jobs require Javadoc only
-                // on changed lines.  Enable -Xwerror in the future when all Javadoc exists.
-                // options.addBooleanOption('Xwerror', true)
-                options.addStringOption('Xmaxwarns', '99999')
+                def fontsDir = new File(destinationDir, 'resources/fonts')
+                fontsDir.mkdirs()
+                new File(fontsDir, 'dejavu.css').createNewFile()
             }
         }
 
@@ -638,7 +648,8 @@ allprojects { currentProj ->
     } // end afterEvaluate
 } // end allProjects
 
-task version(group: 'Documentation') {
+tasks.register('version') {
+    group = 'Documentation'
     description = 'Print Checker Framework version'
     doLast {
         println version
@@ -655,16 +666,18 @@ task version(group: 'Documentation') {
  * @param args list of arguments to pass to the checker
  */
 def createCheckTypeTask(projectName, taskName, checker, args = []) {
-    project("${projectName}").tasks.create(name: "check${taskName}", type: JavaCompile, dependsOn: ':checker:shadowJar') {
+    def proj = project("${projectName}")
+    proj.tasks.register("check${taskName}", JavaCompile) {
+        dependsOn ':checker:shadowJar'
         description = "Run the ${taskName} Checker on the main sources."
         group = 'Verification'
         // Always run the task.
         outputs.upToDateWhen { false }
-        source = project("${projectName}").sourceSets.main.java
-        classpath = files(project("${projectName}").compileJava.classpath,project(':checker-qual').sourceSets.main.output)
-        destinationDirectory = file("${buildDir}")
+        source = proj.sourceSets.main.java
+        classpath = files(proj.compileJava.classpath, project(':checker-qual').sourceSets.main.output)
+        destinationDirectory = layout.buildDirectory
 
-        options.annotationProcessorPath = files(project(':checker').tasks.shadowJar.archiveFile)
+        options.annotationProcessorPath = files(project(':checker').tasks.named('shadowJar').flatMap { it.archiveFile })
         options.compilerArgs += [
             '-processor',
             "${checker}",
@@ -696,7 +709,8 @@ def createCheckTypeTask(projectName, taskName, checker, args = []) {
     }
 }
 
-task htmlValidate(type: Exec, group: 'Format') {
+tasks.register('htmlValidate', Exec) {
+    group = 'Format'
     description = 'Validate that HTML files are well-formed'
     // This is the Nu Html Checker (v.Nu): https://github.com/validator/validator
     executable 'html5validator'
@@ -727,15 +741,25 @@ def javadocDirs = [
 
 def requireJavadocDirs = javadocDirs
 
+// The wrapping '[ ]' is required.  'requireJavadocDirs += someSourceDirectorySet'
+// would resolve Groovy's plus(List, Iterable) overload (SourceDirectorySet is
+// Iterable<File> but not a Collection) and flatten the set into individual File
+// elements.  The 'it.srcDirs' access where requireJavadocDirs is consumed expects
+// each element to be a SourceDirectorySet, as the entries of javadocDirs are, so we
+// must append the SourceDirectorySet as a single element via plus(List, Collection).
 project(':checker').afterEvaluate {
-    requireJavadocDirs += project(':checker').sourceSets.testannotations.allJava
+    requireJavadocDirs += [
+        project(':checker').sourceSets.testannotations.allJava
+    ]
 }
 
 project(':framework').afterEvaluate {
-    requireJavadocDirs += project(':framework').sourceSets.testannotations.allJava
+    requireJavadocDirs += [
+        project(':framework').sourceSets.testannotations.allJava
+    ]
 }
 
-task addFavicon(type: Exec) {
+tasks.register('addFavicon', Exec) {
     dependsOn 'getHtmlTools'
     dependsOn 'allJavadoc'
     workingDir "${rootDir}/docs/api"
@@ -744,11 +768,14 @@ task addFavicon(type: Exec) {
         '.',
         'favicon-checkerframework.png'
     ]
+    def injectedFiles = project.objects.newInstance(InjectedFileOps)
+    def faviconSrc = layout.projectDirectory.file('docs/logo/Checkmark/CFCheckmark_favicon.png').asFile
+    def apiDir = layout.projectDirectory.dir('docs/api').asFile
     doFirst {
-        copy {
-            from 'docs/logo/Checkmark/CFCheckmark_favicon.png'
+        injectedFiles.fs.copy {
+            from faviconSrc
             rename('CFCheckmark_favicon.png', 'favicon-checkerframework.png')
-            into "${rootDir}/docs/api"
+            into apiDir
         }
     }
 }
@@ -759,17 +786,16 @@ task addFavicon(type: Exec) {
 //   It's needed to create the Javadoc jars that we release in Maven Central.
 // To make javadoc for only one subproject, run `./gradlew javadoc`
 //   in the subproject or `./gradlew :checker:javadoc` at the top level.
-task allJavadoc(type: Javadoc, group: 'Documentation') {
+tasks.register('allJavadoc', Javadoc) {
+    group = 'Documentation'
     description = 'Generates API documentation that includes all the modules.'
     dependsOn(':checker:shadowJar', 'getPlumeScripts')
     destinationDir = file("${rootDir}/docs/api")
     source javadocDirs
 
-    doFirst {
-        source(
-                project(':framework-test').sourceSets."${isJava8 ? 'tagletJdk8' : 'taglet'}".allJava
-                )
-    }
+    // Similar test further up and in framework-test/build.gradle
+    def tagletVersion = isJava8 ? 'tagletJdk8' : 'taglet'
+    source project(':framework-test').sourceSets."${tagletVersion}".allJava
 
     classpath = configurations.allProjects
 
@@ -784,13 +810,13 @@ task allJavadoc(type: Javadoc, group: 'Documentation') {
 }
 
 // See documentation for allJavadoc task.
-javadoc.dependsOn(allJavadoc)
+tasks.named('javadoc').configure { dependsOn 'allJavadoc' }
 
-task cleanManual(type: Exec) {
+tasks.register('cleanManual', Exec) {
     description = 'Clean the manual'
     commandLine 'make', '-C', 'docs/manual', 'clean'
 }
-clean.dependsOn(cleanManual)
+clean.dependsOn('cleanManual')
 clean {
     delete(file("${rootDir}/docs/api"))
 }
@@ -803,7 +829,8 @@ dependencies {
     requireJavadoc 'org.plumelib:require-javadoc:2.0.0'
 }
 
-task requireJavadoc(type: JavaExec, group: 'Documentation') {
+tasks.register('requireJavadoc', JavaExec) {
+    group = 'Documentation'
     description = 'Ensures that Javadoc documentation exists in source code.'
     mainClass = 'org.plumelib.javadoc.RequireJavadoc'
     classpath = configurations.requireJavadoc
@@ -835,7 +862,7 @@ task requireJavadoc(type: JavaExec, group: 'Documentation') {
  * @return the new task
  */
 def createJavadocTask(taskName, taskDescription, memberLevel) {
-    tasks.create(name: taskName, type: Javadoc) {
+    tasks.register(taskName, Javadoc) {
         description = taskDescription
         destinationDir = file("${rootDir}/docs/tmpapi")
         destinationDir.mkdirs()
@@ -860,15 +887,17 @@ def createJavadocTask(taskName, taskDescription, memberLevel) {
 
 createJavadocTask('javadocDoclintAll', 'Runs javadoc with -Xdoclint:all option.', JavadocMemberLevel.PRIVATE)
 
-task manual(type: Exec, group: 'Documentation') {
+tasks.register('manual', Exec) {
+    group = 'Documentation'
     description = 'Build the manual'
     commandLine 'make', '-C', 'docs/manual', 'all'
 }
 
 // No group so it does not show up in the output of `gradlew tasks`
-task downloadJtreg(type: Download) {
+tasks.register('downloadJtreg', Download) {
     description = 'Downloads and unpacks jtreg.'
-    onlyIf { !(new File("${jtregHome}/lib/jtreg.jar").exists()) }
+    def jtregHomeDir = jtregHome
+    onlyIf { !new File(jtregHomeDir + '/lib/jtreg.jar').exists() }
     // src 'https://ci.adoptopenjdk.net/view/Dependencies/job/jtreg/lastSuccessfulBuild/artifact/jtreg-4.2.0-tip.tar.gz'
     // If ci.adoptopenjdk.net is down, use this copy.
     // src 'https://checkerframework.org/jtreg-4.2.0-tip.tar.gz'
@@ -880,15 +909,16 @@ task downloadJtreg(type: Download) {
     retries 3
 
     def injected = project.objects.newInstance(InjectedExecOps)
+    def injectedFiles = project.objects.newInstance(InjectedFileOps)
 
     doLast {
-        copy {
+        injectedFiles.fs.copy {
             // Use 'tarTree' when downloading a .tar.gz file
-            from zipTree(dest)
-            into "${jtregHome}/.."
+            from injectedFiles.archives.zipTree(dest)
+            into new File(jtregHomeDir).parentFile
         }
         injected.execOps.exec {
-            commandLine('chmod',  '+x', "${jtregHome}/bin/jtdiff", "${jtregHome}/bin/jtreg")
+            commandLine('chmod', '+x', jtregHomeDir + '/bin/jtdiff', jtregHomeDir + '/bin/jtreg')
         }
     }
 }
@@ -930,18 +960,20 @@ tasks.register('getDemos', CloneTask) {
 }
 
 // No group so it does not show up in the output of `gradlew tasks`
-task pythonIsInstalled(type: Exec) {
+tasks.register('pythonIsInstalled', Exec) {
     description = 'Check that the python3 executable is installed.'
     executable = 'python3'
     args '--version'
 }
 
-task docTags(type: Exec, group: 'Emacs') {
+tasks.register('docTags', Exec) {
+    group = 'Emacs'
     commandLine 'make', '-C', 'docs/manual', 'tags'
 }
 
-task tags(type: Exec, group: 'Emacs') {
-    dependsOn docTags
+tasks.register('tags', Exec) {
+    group = 'Emacs'
+    dependsOn 'docTags'
     description = 'Create Emacs TAGS table'
     // running this task will also run the tags task in the subprojects, which is defined later in this file.
     commandLine 'etags', '-i', 'checker/TAGS', '-i', 'checker-qual/TAGS', '-i', 'checker-util/TAGS', '-i', 'dataflow/TAGS', '-i', 'framework/TAGS', '-i', 'framework-test/TAGS', '-i', 'javacutil/TAGS', '-i', 'docs/manual/TAGS'
@@ -993,7 +1025,7 @@ subprojects {
     }
 
     if (!project.name.startsWith('checker-qual-android')) {
-        task tags(type: Exec) {
+        tasks.register('tags', Exec) {
             description = 'Create Emacs TAGS table'
             // `ctags -e -f TAGS` used to work in place of `etags`, but apparently no longer.
             commandLine 'bash', '-c', "find . \\( -name build -o -name jtreg -o -name tests \\) -prune -o -name '*.java' -print | sort-directory-order | xargs etags"
@@ -1087,14 +1119,15 @@ subprojects {
         // Add jtregTests to framework and checker modules.
         // Jtreg only works on Java 11+.
         if (useJdkVersionInt >= 11 && (isFramework || isChecker)) {
-            tasks.create(name: 'jtregTests', type: Exec, group: 'Verification') {
+            tasks.register('jtregTests', Exec) {
+                group = 'Verification'
                 description = 'Run the jtreg tests. Requires jtreg to be installed.'
                 dependsOn(':downloadJtreg')
                 dependsOn('compileJava')
                 dependsOn('compileTestJava')
                 dependsOn('shadowJar')
 
-                String jtregOutput = "${buildDir}/jtreg"
+                String jtregOutput = layout.buildDirectory.dir('jtreg').get().asFile.absolutePath
                 String name = 'all'
                 String tests = '.'
 
@@ -1153,7 +1186,7 @@ subprojects {
         // Regex [\\\\/] matches Unix and Windows directory separators.
         sourceSets.test.allJava.filter {it.path.matches('.*test[\\\\/]junit.*')}.forEach { file ->
             String junitClassName = file.name.replaceAll('.java', '')
-            tasks.create(name: "${junitClassName}", type: Test) {
+            tasks.register(junitClassName, Test) {
                 description = "Run ${junitClassName} tests."
                 include "**/${name}.class"
                 testClassesDirs = testing.suites.test.sources.output.classesDirs
@@ -1177,7 +1210,7 @@ subprojects {
             if (!System.getenv('TF_BUILD')?.equals('True')) {
                 // Not running under Azure Pipelines CI.
 
-                maxParallelForks = Runtime.runtime.availableProcessors() ?: 1
+                maxParallelForks = Runtime.runtime.availableProcessors()
             } else {
                 // Running under Azure Pipelines CI.
 
@@ -1208,10 +1241,11 @@ subprojects {
                 systemProperties += ['emit.test.debug': 'true']
             }
 
+            // Always re-run tests.  This must live at the test task level.
+            outputs.upToDateWhen { false }
+
             testLogging {
                 showStandardStreams = true
-                // Always run the tests
-                outputs.upToDateWhen { false }
 
                 // Show the found unexpected diagnostics and expected diagnostics not found.
                 exceptionFormat = 'full'
@@ -1222,22 +1256,30 @@ subprojects {
             }
 
             // After each test, print a summary.
-            afterSuite { desc, result ->
-                if (desc.getClassName() != null) {
-                    long mils = result.getEndTime() - result.getStartTime()
-                    double seconds = mils / 1000.0
+            addTestListener(new TestListener() {
+                        @Override void beforeSuite(TestDescriptor suite) {}
+                        @Override void beforeTest(TestDescriptor test) {}
+                        @Override void afterTest(TestDescriptor test, TestResult result) {}
 
-                    println "Testsuite: ${desc.getClassName()}\n" +
-                            "Tests run: ${result.testCount}, " +
-                            "Failures: ${result.failedTestCount}, " +
-                            "Skipped: ${result.skippedTestCount}, " +
-                            "Time elapsed: ${seconds} sec\n"
-                }
-            }
+                        @Override
+                        void afterSuite(TestDescriptor desc, TestResult result) {
+                            if (desc.getClassName() != null) {
+                                long mils = result.getEndTime() - result.getStartTime()
+                                double seconds = mils / 1000.0
+
+                                println "Testsuite: ${desc.getClassName()}\n" +
+                                        "Tests run: ${result.testCount}, " +
+                                        "Failures: ${result.failedTestCount}, " +
+                                        "Skipped: ${result.skippedTestCount}, " +
+                                        "Time elapsed: ${seconds} sec\n"
+                            }
+                        }
+                    })
         }
 
         // Create a nonJunitTests task per project
-        tasks.create(name: 'nonJunitTests', group: 'Verification') {
+        tasks.register('nonJunitTests') {
+            group = 'Verification'
             description = 'Run all Checker Framework tests except for the JUnit tests and inference tests.'
             if (useJdkVersionInt >= 11 && (isFramework || isChecker)) {
                 dependsOn('jtregTests')
@@ -1259,21 +1301,24 @@ subprojects {
         }
 
         // Create an inferenceTests task per project
-        tasks.create(name: 'inferenceTests', group: 'Verification') {
+        tasks.register('inferenceTests') {
+            group = 'Verification'
             description = 'Run inference tests.'
             if (isChecker) {
                 // NO-AFU: Needs to depend on future AFU version of CF
                 // dependsOn('inferenceTests-part1', 'inferenceTests-part1')
             }
         }
-        tasks.create(name: 'inferenceTests-part1', group: 'Verification') {
+        tasks.register('inferenceTests-part1') {
+            group = 'Verification'
             description = 'Run inference tests (part 1).'
             if (isChecker) {
                 // NO-AFU: Needs to depend on future AFU version of CF
                 // dependsOn('ainferTest', 'wpiManyTest')
             }
         }
-        tasks.create(name: 'inferenceTests-part2', group: 'Verification') {
+        tasks.register('inferenceTests-part2') {
+            group = 'Verification'
             description = 'Run inference tests (part 2).'
             if (isChecker) {
                 // NO-AFU: Needs to depend on future AFU version of CF
@@ -1284,15 +1329,18 @@ subprojects {
         // Create a typecheck task per project (dogfooding the Checker Framework on itself).
         // This isn't a test of the Checker Framework as the test and nonJunitTests tasks are.
         // Tasks such as 'checkInterning' are constructed by createCheckTypeTask.
-        tasks.create(name: 'typecheck', group: 'Verification') {
+        tasks.register('typecheck') {
+            group = 'Verification'
             description = 'Run the Checker Framework on itself'
             dependsOn('typecheck-part1', 'typecheck-part2')
         }
-        tasks.create(name: 'typecheck-part1', group: 'Verification') {
+        tasks.register('typecheck-part1') {
+            group = 'Verification'
             description = 'Run the Checker Framework on itself (part 1)'
             dependsOn('checkFormatter', 'checkInterning', 'checkOptional', 'checkPurity')
         }
-        tasks.create(name: 'typecheck-part2', group: 'Verification') {
+        tasks.register('typecheck-part2') {
+            group = 'Verification'
             description = 'Run the Checker Framework on itself (part 2)'
             dependsOn('checkResourceLeak', 'checkSignature')
             if (isFramework || isChecker) {
@@ -1303,19 +1351,27 @@ subprojects {
 
         // Create an allTests task per project.
         // allTests = test + nonJunitTests + inferenceTests + typecheck
-        tasks.create(name: 'allTests', group: 'Verification') {
+        tasks.register('allTests') {
+            group = 'Verification'
             description = 'Run all Checker Framework tests'
             // The 'test' target is just the JUnit tests.
             dependsOn('test', 'nonJunitTests', 'inferenceTests', 'typecheck')
         }
 
-        task javadocPrivate(dependsOn: javadoc) {
-            doFirst {
-                javadocMemberLevel = JavadocMemberLevel.PRIVATE
-            }
-            doLast {
-                javadocMemberLevel = JavadocMemberLevel.PROTECTED
-            }
+        // Generates Javadoc including private members. This is a dedicated Javadoc task with its
+        // own output directory, rather than a toggle of the shared 'javadoc' task.
+        tasks.register('javadocPrivate', Javadoc) {
+            description = 'Generates Javadoc API documentation, including private members.'
+            group = 'Documentation'
+            source = sourceSets.main.allJava
+            classpath += sourceSets.main.output + sourceSets.main.compileClasspath
+            // Match the build's other Javadoc tasks (checker-qual's regular 'javadoc' and the
+            // aggregate javadoc tasks): do not infer a module path. Otherwise checker-qual's
+            // module-info.class on the classpath makes Javadoc attempt module-path inference and
+            // fail.
+            modularity.inferModulePath = false
+            destinationDir = layout.buildDirectory.dir('docs/javadocPrivate').get().asFile
+            options.memberLevel = JavadocMemberLevel.PRIVATE
         }
     }
 }
@@ -1329,9 +1385,10 @@ assemble.dependsOn(':checker:assembleForJavac')
 
 assemble.mustRunAfter(clean)
 
-task buildAll(group: 'Build') {
+tasks.register('buildAll') {
+    group = 'Build'
     description = 'Build all jar files, including source and javadoc jars'
-    dependsOn(allJavadoc)
+    dependsOn('allJavadoc')
     subprojects { Project subproject ->
         dependsOn("${subproject.name}:assemble")
         dependsOn("${subproject.name}:javadocJar")
@@ -1341,16 +1398,17 @@ task buildAll(group: 'Build') {
     dependsOn('checker:assembleForJavac')
 }
 
-task releaseBuild(group: 'Build') {
+tasks.register('releaseBuild') {
+    group = 'Build'
     description = 'Cleans, then builds everything required for a release'
     dependsOn(clean)
-    dependsOn(buildAll)
+    dependsOn('buildAll')
 }
 
 // No group so it does not show up in the output of `gradlew tasks`
-task releaseAndTest {
+tasks.register('releaseAndTest') {
     description = 'Build everything required for a release and run allTests'
-    dependsOn(releaseBuild)
+    dependsOn('releaseBuild')
     subprojects { Project subproject ->
         dependsOn("${subproject.name}:allTests")
     }

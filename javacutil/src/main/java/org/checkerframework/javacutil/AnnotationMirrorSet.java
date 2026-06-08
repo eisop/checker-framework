@@ -1,5 +1,6 @@
 package org.checkerframework.javacutil;
 
+import org.checkerframework.checker.index.qual.IndexFor;
 import org.checkerframework.checker.initialization.qual.UnknownInitialization;
 import org.checkerframework.checker.nullness.qual.KeyFor;
 import org.checkerframework.checker.nullness.qual.KeyForBottom;
@@ -188,6 +189,20 @@ public class AnnotationMirrorSet
         return unmodifiable ? new ReadOnlyIter<@KeyFor("this") AnnotationMirror>(it) : it;
     }
 
+    /**
+     * Returns the element at the given index in this set's insertion order. The backing store is an
+     * {@link ArrayList}, so this set has a stable iteration order; this accessor lets hot callers
+     * iterate by index (in conjunction with {@link #size()}) without allocating an {@link Iterator}
+     * on every traversal. Iterating an {@code AnnotationMirrorSet} via {@code iterator()} was the
+     * single largest source of {@code ArrayList$Itr} allocations in nullness-checking JFR traces.
+     *
+     * @param index the index, in {@code [0, size())}
+     * @return the element at {@code index}
+     */
+    public AnnotationMirror get(@IndexFor("this") int index) {
+        return shadowList.get(index);
+    }
+
     @Override
     public Object[] toArray() {
         return shadowList.toArray();
@@ -261,9 +276,21 @@ public class AnnotationMirrorSet
             Collection<? extends AnnotationMirror> c) {
         // Returns true if any element was newly added, per Set.addAll's specified contract.
         boolean changed = false;
-        for (AnnotationMirror a : c) {
-            if (add(a)) {
-                changed = true;
+        if (c instanceof AnnotationMirrorSet) {
+            // Iterate the backing list by index to avoid allocating an Iterator; addAll from
+            // another AnnotationMirrorSet (e.g. the copy constructor and DeepCopyable.deepCopy) is
+            // a hot path.
+            ArrayList<? extends AnnotationMirror> other = ((AnnotationMirrorSet) c).shadowList;
+            for (int i = 0, n = other.size(); i < n; ++i) {
+                if (add(other.get(i))) {
+                    changed = true;
+                }
+            }
+        } else {
+            for (AnnotationMirror a : c) {
+                if (add(a)) {
+                    changed = true;
+                }
             }
         }
         return changed;
