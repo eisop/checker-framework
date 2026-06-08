@@ -702,6 +702,22 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
     }
 
     /**
+     * Adds multiple annotations to this type. An {@link AnnotationMirrorSet}-typed overload of
+     * {@link #addAnnotations(Iterable)}: overload resolution prefers it for the many callers that
+     * pass {@link #getAnnotationsField()} or {@link #getAnnotations()}, letting them iterate by
+     * index rather than allocating an {@code Iterator}. Iterating an {@code AnnotationMirrorSet}
+     * was the single largest source of {@code ArrayList$Itr} allocations in nullness-checking JFR
+     * traces, and this method was its largest caller.
+     *
+     * @param annotations the annotations to add
+     */
+    public void addAnnotations(AnnotationMirrorSet annotations) {
+        for (int i = 0, n = annotations.size(); i < n; ++i) {
+            this.addAnnotation(annotations.get(i));
+        }
+    }
+
+    /**
      * Adds only the annotations in {@code annotations} that the type does not already have a
      * primary annotation in the same hierarchy.
      *
@@ -716,6 +732,20 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
     public void addMissingAnnotations(Iterable<? extends AnnotationMirror> annotations) {
         for (AnnotationMirror a : annotations) {
             addMissingAnnotation(a);
+        }
+    }
+
+    /**
+     * Adds only the annotations in {@code annotations} for which the type does not already have a
+     * primary annotation in the same hierarchy. An {@link AnnotationMirrorSet}-typed overload of
+     * {@link #addMissingAnnotations(Iterable)} that iterates by index instead of allocating an
+     * {@code Iterator}.
+     *
+     * @param annotations the annotations to add
+     */
+    public void addMissingAnnotations(AnnotationMirrorSet annotations) {
+        for (int i = 0, n = annotations.size(); i < n; ++i) {
+            addMissingAnnotation(annotations.get(i));
         }
     }
 
@@ -746,6 +776,20 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
     public void replaceAnnotations(Iterable<? extends AnnotationMirror> replAnnos) {
         for (AnnotationMirror a : replAnnos) {
             this.replaceAnnotation(a);
+        }
+    }
+
+    /**
+     * Adds multiple annotations to this type, removing any existing primary annotations from the
+     * same qualifier hierarchy first. An {@link AnnotationMirrorSet}-typed overload of {@link
+     * #replaceAnnotations(Iterable)} that iterates by index instead of allocating an {@code
+     * Iterator}.
+     *
+     * @param replAnnos the annotations to replace
+     */
+    public void replaceAnnotations(AnnotationMirrorSet replAnnos) {
+        for (int i = 0, n = replAnnos.size(); i < n; ++i) {
+            this.replaceAnnotation(replAnnos.get(i));
         }
     }
 

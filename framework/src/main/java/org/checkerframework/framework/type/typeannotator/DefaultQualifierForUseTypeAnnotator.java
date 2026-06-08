@@ -4,7 +4,6 @@ import org.checkerframework.checker.signature.qual.CanonicalName;
 import org.checkerframework.framework.qual.DefaultQualifierForUse;
 import org.checkerframework.framework.qual.NoDefaultQualifierForUse;
 import org.checkerframework.framework.type.AnnotatedTypeFactory;
-import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedDeclaredType;
 import org.checkerframework.framework.type.QualifierHierarchy;
 import org.checkerframework.javacutil.AnnotationBuilder;
@@ -135,8 +134,10 @@ public class DefaultQualifierForUseTypeAnnotator extends TypeAnnotator {
      * @return the annotations explicitly written on the element
      */
     protected AnnotationMirrorSet getExplicitAnnos(Element element) {
-        AnnotatedTypeMirror explicitAnnoOnDecl = atypeFactory.fromElement(element);
-        return explicitAnnoOnDecl.getAnnotations();
+        // Read the cached element type's primary annotations directly rather than calling
+        // fromElement(element).getAnnotations(), which deep-copies the entire type on every cache
+        // hit only for this method to read its top-level annotations and discard the copy.
+        return atypeFactory.getElementAnnotations(element);
     }
 
     /**

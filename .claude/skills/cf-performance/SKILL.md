@@ -35,15 +35,27 @@ for the full list and rationale.
 
 ## Capturing a clean JFR trace
 
-A naïve `./gradlew test` JFR capture **will be corrupted**: parallel test
-workers (default `maxParallelForks > 1`) write to the same JFR file and
-the constant pool gets shredded. The capture script handles this; use it.
+A naïve `./gradlew test` JFR capture **will be corrupted**: every JVM the
+build spawns (the Gradle launcher, the daemon, the test worker, any forked
+javac) inherits `JAVA_TOOL_OPTIONS` and, if they share one `filename=`,
+they clobber each other and shred the constant pool — the trace comes back
+with `<null>` thread names and is dominated by the launcher's idle frames
+(`sun.nio.ch.EPoll.wait`, `ProcessHandleImpl.waitForProcessExit0`) instead
+of the type-checking work. The capture script handles this by giving each
+JVM its own per-PID file (the JFR `%p` filename token); use it.
 
 ```
 ./checker/bin-devel/record-jfr.sh -o cf.jfr -- \
-    ./gradlew :checker:NullnessTest --tests "..." \
+    ./gradlew --no-daemon :checker:NullnessTest --tests "..." \
               -PmaxParallelForks=1
 ```
+
+This writes `cf-<pid>.jfr` for each JVM. **The type-checking worker is the
+largest file.** Pass all of them to the analyzer (below); the small
+launcher/daemon files contribute almost no `ExecutionSample`s. With
+`-PmaxParallelForks=1` and a `Test` task, Gradle's `forkEvery` may still
+restart the worker, so the work can be split across two or three large
+files — aggregate them.
 
 Or for direct `javac` invocations on a real downstream project (Oscar EMR,
 JSpecify reference checker, etc.), use the script's `--javac` mode:
@@ -65,28 +77,55 @@ asking for 5ms wastes the configuration; it stays at 10ms.
 
 ## Analyzing the trace
 
-Quick triage:
+**Do not use `jfr view` or `jfr print`.** On JDK 25 both crash with a
+`StringIndexOutOfBoundsException` in `ValueFormatter.formatMethod` /
+`PrettyWriter.formatMethod` on some mangled method signatures — not just
+occasionally, but on the first frame they hit, so `jfr view hot-methods`,
+`jfr view allocation-by-class`, and `jfr print --json` are all unusable.
+`jfr summary` still works (it prints no method names).
+
+Use the in-repo analyzer, which reads the recording directly via
+`jdk.jfr.consumer.RecordingFile` and bypasses the broken formatter:
 
 ```
-jfr view hot-methods cf.jfr | head -40
-jfr view allocation-by-class cf.jfr | head -40
-jfr summary cf.jfr
+# Top self-time, total-time, and allocation-by-class (pass all per-PID files):
+java .claude/skills/cf-performance/jfr-analyze.java top cf-*.jfr
+
+# Attribute a hot JDK leaf back to the nearest CF frame:
+java .claude/skills/cf-performance/jfr-analyze.java self java.util.HashMap.getNode \
+    org.checkerframework cf-*.jfr
+
+# Attribute allocations of a class to the nearest CF frame:
+java .claude/skills/cf-performance/jfr-analyze.java alloc '[Ljava.lang.Object;' \
+    org.checkerframework cf-*.jfr
+java .claude/skills/cf-performance/jfr-analyze.java alloc 'ArrayList$Itr' \
+    org.checkerframework cf-*.jfr
 ```
 
-Drill into a specific method via JSON:
+For *architectural* work (when the leaf profile is flat), the inclusive /
+context modes are what make progress — use them, not leaf self-time:
 
 ```
-jfr print --json --events jdk.ExecutionSample cf.jfr
-    | jq -c '.recording.events[] | select(.values.sampledThread.javaName=="main")
-        | .values.stackTrace.frames[].method
-        | .type.name + "." + .name'
-    | sort | uniq -c | sort -rn | head -50
+# High-level wall-clock breakdown: on-CPU Java by CF subsystem, + GC + native idle.
+# Start here for "where does checkNullness spend time".
+java .claude/skills/cf-performance/jfr-analyze.java phase cf-*.jfr
+
+# Inclusive time: which high-level operation dominates (it nests, unlike self-time).
+java .claude/skills/cf-performance/jfr-analyze.java inclusive org.checkerframework cf-*.jfr
+
+# Where one subsystem spends its self-time:
+java .claude/skills/cf-performance/jfr-analyze.java under performFlowAnalysis cf-*.jfr
+
+# Attribute a cost to a calling context (e.g. is this mostly under stub parsing?):
+java .claude/skills/cf-performance/jfr-analyze.java cooccur getDeclAnnotation AnnotationFileParser cf-*.jfr
 ```
 
-If `jfr print` crashes on certain method names (it sometimes does on
-generic methods with very long mangled signatures), fall back to a
-small Java program using `jdk.jfr.consumer.RecordingFile` directly.
-Example skeleton in the script comments.
+Self-time is computed from `jdk.ExecutionSample` ONLY. Including
+`jdk.NativeMethodSample` pollutes the leaderboard with idle native frames
+(`EPoll.wait` on the Gradle worker's messaging thread can be >50% of the
+combined samples). `getThread()` is `null` in these traces, so per-thread
+filtering does not work — but the compilation is single-threaded, so every
+`ExecutionSample` is real work and no filtering is needed.
 
 ## What to look for
 

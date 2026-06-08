@@ -80,6 +80,31 @@ so small per-call wins paid back substantially.
   patch initially shipped with a regression in `addAll` semantics; the
   fix preserves the non-standard fast-path return-`true`-if-any-new
   contract.
+- **PR #1776** — *Index-based iteration of `AnnotationMirrorSet`
+  on hot paths.* JFR `allNullnessTests -PmaxParallelForks=1` attributed
+  80% of all `ArrayList$Itr` TLAB allocations (6,523 of 8,143 events,
+  4.24% of total TLAB traffic) to `AnnotationMirrorSet.iterator()`, with
+  the iterator-allocating callers concentrated in
+  `AnnotatedTypeMirror.addAnnotations` (33%), `AnnotationMirrorSet.addAll`
+  (14%), `ElementQualifierHierarchy`/`NoElementQualifierHierarchy`
+  .findAnnotationInSameHierarchy (17.5% combined), and
+  `AnnotatedTypeFactory.getDeclAnnotation` (10%). Added a public
+  `AnnotationMirrorSet.get(int)` accessor (the backing store is already an
+  `ArrayList`, so iteration order is stable) and routed those sites through
+  index-based loops, following the overload-resolution pattern of PR #1775:
+  `addAnnotations`/`addMissingAnnotations`/`replaceAnnotations` gained
+  `AnnotationMirrorSet`-typed overloads that the ~69 call sites passing
+  `getAnnotationsField()`/`getAnnotations()` bind to automatically;
+  `addAll` got an `instanceof AnnotationMirrorSet` fast path; the two
+  qualifier-hierarchy methods got an `instanceof` fast path; and
+  `getDeclAnnotation`'s two loops (over an already-`AnnotationMirrorSet`-typed
+  local) became index loops. Re-measured on the same workload: `ArrayList$Itr`
+  dropped to 3,172 events (1.81%), `AnnotationMirrorSet.iterator()` calls
+  dropped 6,523 → 1,530 (−77%), and `AnnotationMirrorSet$ReadOnlyIter`
+  (751 events) left the profile entirely. The `Object[]`/`IdentityHashMap`
+  allocation path and CPU self-time were unchanged. `CFAbstractValue.validateSet`
+  was deliberately left alone: it runs only under `assert`, so its iterator
+  allocation never occurs in production (`-da`) runs.
 - **PR #1669** — *Improve equality and comparisons of annotation
   names.* Introduced `AnnotationUtils.annotationNameAsName`, which
   returns the underlying `Name` without ever allocating a `String`. Hot
@@ -127,6 +152,60 @@ so small per-call wins paid back substantially.
   `CollectionsPlume.mapList` lambda calls with direct pre-sized `new ArrayList<>(size)` loops.
   Removes lambda-dispatch overhead and allocates the destination list at the correct capacity
   immediately, avoiding internal growth copies.
+- **PR # 1776** — *Reuse the `QualifierDefaults` defaulting scanner instead of
+  constructing one per application.* `QualifierDefaults.applyDefaultsElement` created a fresh
+  `DefaultApplierElement`, whose constructor created a fresh `DefaultApplierElementImpl` — an
+  `AnnotatedTypeScanner` whose `visitedNodes` `IdentityHashMap` is pre-sized to 64 (a 256-slot
+  `Object[]`) — for *every* type defaulted. On a realistic single compilation
+  (`:checker:checkNullness`, isolated forked-javac worker, 3,337 samples) this was the largest
+  single allocation source after the copier: `Object[]` was 61% of all TLAB events, and 17% of
+  those `Object[]`s came from `AnnotatedTypeScanner.<init>`, of which 76% (3,360 events ≈ 8% of
+  *all* TLAB events) were `DefaultApplierElementImpl` construction. The
+  `AnnotatedTypeScanner` Javadoc explicitly says not to construct a scanner per use but to store
+  and reuse one. Fix: `DefaultApplierElementImpl.outer` became non-final, and a single scanner is
+  parked in a `QualifierDefaults.pooledApplierImpl` field and borrowed/returned around each
+  `applyDefault` (`borrowApplierImpl`/`returnApplierImpl`). `AnnotatedTypeScanner.visit` already
+  resets all scan state, so reuse is transparent. Safety: defaulting is not re-entrant into
+  `applyDefault` (the scan only reads caches — `elementToBoundType`, `getPath` — and adds
+  annotations; verified `getBoundType` and the per-location branches do not call back into
+  `getAnnotatedType`/defaulting), and the pool is a size-1 slot that is `null` exactly while
+  borrowed, so any *hypothetical* re-entrant borrow allocates a fresh scanner rather than
+  corrupting the parked one — correctness never depends on non-re-entrancy. Confined to the javac
+  main thread like the other caches. Re-measured on the same worker: `AnnotatedTypeScanner.<init>`
+  `Object[]` allocations dropped 4,415 → 1,090 (−75%); `DefaultApplierElementImpl` (both the object
+  and its map) left the allocation profile entirely; total TLAB events −5.7% (42,738 → 40,314) at
+  an unchanged sample count; `DefaultApplierElementImpl.scan` self-time unchanged (no CPU
+  regression). The 1,090 residual scanner constructions are now dominated (77%) by
+  `ElementAnnotationApplier$TypeVarAnnotator`, addressed next.
+- **PR #1776** — *Reuse two more per-use scanners: `TypeVarAnnotator` and the
+  `isValidStructurally` structural scanner.* Same anti-pattern as the `QualifierDefaults` entry
+  above, found by re-running the `:checker:checkNullness` allocation analysis after it.
+  (1) `ElementAnnotationApplier.apply` constructed `new TypeVarAnnotator()` (a stateless
+  `AnnotatedTypeScanner`) per call — 839 `Object[]` events, ~2% of TLAB, the largest remaining
+  scanner construction. Pooled in a `static AtomicReference<TypeVarAnnotator>`: `getAndSet(null)`
+  borrows, `set` returns. An `AtomicReference` (not a plain field, unlike the `QualifierDefaults`
+  case) because `apply` is `static` and shared across factories/threads in the Gradle daemon and
+  language server, and because `TypeVarAnnotator.visitTypeVariable` calls back into `applyInternal`
+  (possible re-entrancy); a concurrent or re-entrant borrow sees `null` and allocates its own, so
+  correctness never depends on single-threaded or non-re-entrant use.
+  (2) `BaseTypeValidator.isValidStructurally` built a `SimpleAnnotatedTypeScanner` per call (234
+  events). The validator is per-checker and main-thread-confined and the structural scan is not
+  re-entrant (it is called once per top-level type from `isValid`, and its action only reads
+  annotations), so the scanner is now a lazily-initialized field (lazy, not a field initializer, to
+  avoid `this` escaping during construction; the captured `isTopLevelValidType` still dispatches to
+  subclass overrides). Combined effect, measured across the four `checkNullness` worker traces:
+  total `AnnotatedTypeScanner.<init>` `Object[]` allocations 4,415 → 1,090 (#1) → 290 (TypeVar) →
+  48 (isValidStructurally), i.e. **−99% overall**. The 48 residuals are `TypesIntoElements$TCConvert`
+  (30, ~0.08% of TLAB) and `typeinference8 InvocationType` (18) — both negligible; per-use scanner
+  construction is no longer a meaningful allocation source. **Caveat (measured):** none of these
+  moved single-compile wall-clock — `checkNullness` is not GC-bound at `-Xmx512m`, so the with/without
+  delta was inside ±10% run-to-run noise (see the timing note). The value is GC/memory-pressure
+  reduction (tight heaps, concurrent collectors, long-lived daemon/LSP JVMs), not single-compile
+  latency. **General pattern** for any future scanner found constructed per use: a
+  main-thread-confined scanner can reuse a plain size-1 pool field (like `QualifierDefaults`); a
+  `static`/shared one needs an `AtomicReference.getAndSet` pool (like `TypeVarAnnotator`) to stay
+  correct under daemon/LSP concurrency and re-entrancy — the `null`-while-borrowed state doubles as
+  the re-entrancy guard.
 
 ### Element and name caching
 
@@ -147,6 +226,48 @@ so small per-call wins paid back substantially.
   javac `Symbol.PackageSymbol`, reads the enclosing package directly from the `owner` field
   instead of calling `Elements#getPackageElement(String)`. Falls back to the original
   string-based lookup for non-javac implementations.
+
+### Annotation-file (stub) parsing
+
+- **PR #1776** — *Share the annotated-JDK stub AST across compilations.*
+  Inclusive-time analysis of `allNullnessTests -PmaxParallelForks=1` (the run is
+  many small per-directory compilations in one worker JVM) showed
+  `AnnotationFileParser.parseStubFile` at ~32% and the JavaParser parse itself
+  (`com.github.javaparser.*`) at 14.4% of execution samples — the annotated JDK is
+  re-read and re-parsed from scratch by every compilation, because `stubTypes` is a
+  per-`AnnotatedTypeFactory` field. The JDK stub text is fixed for a given JVM and
+  its JavaParser AST does not depend on the javac context (only the later
+  `process*` resolution does), and JDK-stub processing is read-only on the AST
+  (verified: the only AST mutation, `concatenateAddedStringLiterals`, is
+  ajava-only). So `AnnotationFileParser.parseStubUnit` now memoizes the
+  `StubUnit` for `JDK_STUB` files in a static `ConcurrentHashMap` keyed by jar-entry
+  name; each compilation still re-runs `process*` against its own model. Re-measured
+  on the same workload: `parseStubUnitForJdk` inclusive dropped 10.0% → 2.1%,
+  `com.github.javaparser.*` 14.4% → 7.2%, the JavaParser allocation classes
+  (`Token` 1,643, `Position` 1,612, `JavaToken` 1,023, `Range` 784 TLAB events)
+  left the top-35 entirely, and total TLAB events fell 3.4% (175,677 → 169,675).
+  A single user compilation parses each JDK class once either way, so the win is
+  for multi-compilation JVMs: the test suite (a tracked metric), the Gradle daemon,
+  and the language server. The cache is bounded by the number of distinct JDK stub
+  classes (a few hundred) and is shared, so it is a fixed cost, not per-compilation
+  garbage. Correctness re-verified with `allNullnessTests`, `IndexTest`,
+  `SignatureTest`, `NullnessTest`, `InterningTest`, `ValueTest`, and the
+  `:checker:test`, `:framework:test`, `:javacutil:test`, `:dataflow:test` suites.
+- **PR #1776** — *Avoid the defensive deep copy in read-only
+  `fromElement` consumers.* `AnnotatedTypeFactory.fromElement` returns
+  `cached.deepCopy()` on every cache hit so callers may mutate the result; this is
+  the second-largest `Object[]` allocation source (`AnnotatedTypeCopier.visit`, the
+  per-copy `IdentityHashMap`). Added `getElementAnnotations(Element)`, which returns
+  the cached type's primary annotations directly (`getAnnotations()` already returns
+  an unmodifiable set and cached types are never mutated, so this is safe), and
+  routed `DefaultQualifierForUseTypeAnnotator.getExplicitAnnos` — a read-only caller
+  that only needs the element's primary annotations — through it. Honest impact note:
+  on the profiled workloads the measured delta is within noise, because
+  `getExplicitAnnos` runs ~95% of the time *during* stub parsing, where the element
+  cache is cold and `fromElement` takes the compute (no-copy) path anyway. The
+  change is correct and removes the copy on the warm-cache path (repeated
+  default-for-use queries on already-cached elements, as in large multi-round
+  projects); it is kept on that basis, not on a measured win here.
 
 ### Cache sizes and synchronization
 
@@ -435,16 +556,171 @@ capture format above.
   `normalizeAndCheck`. Still needs the thread-reachability audit and daemon/LSP
   memory analysis before any change.
 
+A June 2026 inclusive-time / co-occurrence investigation (looking for
+*architectural* redundancy rather than leaf hot spots, since the leaf profile is
+now flat) surfaced two further candidates. Both are blocked by correctness
+invariants, which is why the campaign left them:
+
+- **`AnnotatedTypeMirror.directSupertypes()` recomputes on every call.** It runs
+  `SupertypeFinder.directSupertypes(this)` and wraps the result in a fresh
+  `Collections.unmodifiableList` each time, with no per-instance cache; in a single
+  real compilation (`checkNullness`) it is ~11% inclusive, and the lazy JDK-stub
+  loading cascade (see below) calls it on the same classes at several recursion
+  levels. **Blocker:** a declared type's supertype *annotations* depend on the
+  type's own primary annotations, which defaulting and flow refinement mutate after
+  the type is created, so a naive per-instance cache would hand back stale
+  supertypes. A safe version needs either copy-on-write annotation sets or an
+  invalidation hook tied to annotation mutation — i.e. it rides on the larger
+  "make ATMs immutable" work, not a standalone patch.
+- **The lazy JDK-stub cascade runs the full type-annotation pipeline during
+  parsing, uncached.** Stacks captured on `allNullnessTests` show
+  `maybeParseEnclosingJdkClass` → `annotateSupertypes` → `directSupertypes` →
+  `addComputedTypeAnnotations` → `DefaultQualifierForUseTypeAnnotator` →
+  `getExplicitAnnos` → `fromElement` → `maybeParseEnclosingJdkClass` … repeating 3–4
+  times in one stack: computing the defaults/supertypes of one JDK class pulls in
+  another class's stub, whose own defaults/supertypes are then computed, all while
+  `stubTypes.isParsing()` disables the factory caches, so the same work is redone
+  during real checking. The static `StubUnit` cache above removes the *parse* half
+  of this; the *resolution/defaulting* half remains. **Blocker:** the
+  caching-disabled-during-parsing rule exists because partially-loaded stubs yield
+  incomplete annotations; changing when defaults are computed for JDK supertypes is
+  correctness-sensitive and needs its own design.
+
+### Realistic-workload venues (June 2026 `checkNullness` investigation)
+
+Context for future sessions: the leaf self-time profile is flat (no single CF leaf
+above ~3.6%), so the campaign's per-leaf wins are exhausted. The remaining cost is
+*architectural* — the per-node type-computation pipeline. Use inclusive-time and
+allocation analysis, not leaf self-time, to make progress.
+
+**Pick the right workload.** `allNullnessTests` is dominated by test-harness
+amplification — it runs hundreds of tiny per-directory compilations in one worker
+JVM, so JDK-stub work (parse + resolve) is ~28–32% inclusive there but only ~6% in a
+real single compilation. For *realistic* venues, profile a single forked-javac
+compile: `:checker:checkNullness` (then isolate the worker `cknull-<pid>.jfr` — the
+file whose stacks contain `GenericAnnotatedTypeFactory.performFlowAnalysis`; the
+launcher/daemon/shadowJar files are noise). In that worker: flow analysis ≈ 38%
+inclusive, `getAnnotatedType` ≈ 47%, and — crucially — `Object[]` is ~61% of all TLAB
+events, ~91% of which are `IdentityHashMap` backing arrays from `AnnotatedTypeScanner`
+(`reset` 52%, `<init>` 17%) and `AnnotatedTypeCopier.visit` (22%). Flow analysis's own
+self-time *is* the type pipeline (scanning, defaulting, copying, map lookups,
+`TreePath`, symbol completion), not dataflow logic — the dataflow framework itself
+(`CFStore`/`CFValue`) does not appear in self-time.
+
+**Where the wall-clock goes** (from `jfr-analyze.java phase` on the worker, June 2026,
+post-scanner-reuse). The compile is **CPU-bound**: ~96% on-CPU Java, GC pauses only
+~1.35 s (~4%, `sumOfPauses`), and real I/O ≈ 0 (the many `NativeMethodSample`s are
+99.5% `EPoll.wait` on the idle Gradle messaging thread — exclude them). The on-CPU Java
+time splits, mutually exclusively by innermost subsystem (so the type computation that
+dataflow and the visitor *trigger* is attributed to the type factory, not to them):
+- **Annotated-type computation ≈ 54%** — `getAnnotatedType`/`fromElement`, defaulting,
+  supertypes, ATM copying/scanning, plus its `javacutil` support (`ElementUtils`,
+  `AnnotationUtils`, qualifier-hierarchy lookups, which make up most of the separate
+  "Other CF" 14% bucket). This is the core cost and where the campaign focused.
+- **javac internals ≈ 32%** — but **~77% of that is CF-triggered** (forced
+  `Symbol.complete`/`apiComplete`, `Name`/UTF-8 decoding via `Convert.utf2chars`,
+  `TreePath` construction, tree walks). Only ~7% of the *total* is javac's autonomous
+  front-end (parse/enter/attribute). So ~25% of all time is **CF reaching into javac**.
+- **Dataflow machinery ≈ 5%** (CFG build + fixpoint + transfer/store, excluding the type
+  lookups it calls — note this is the *exclusive* figure; flow analysis is ~38%
+  *inclusive* precisely because it triggers so much type computation).
+- **Stub/JDK annotation loading ≈ 3%** (small in one compile; the ~28% monster only in
+  the test suite). **Visitor check logic itself ≈ 1%** — almost all cost is *producing*
+  the annotated types, not checking them.
+
+Two takeaways for picking venues: (1) GC/allocation is not the wall-clock bottleneck on
+a single compile (which is why the scanner-reuse and `AnnotationMirrorSet` allocation
+wins did not move single-compile time — their value is GC pressure at scale); CPU is.
+(2) The largest non-obvious CPU slice is CF driving javac (symbol completion + name
+decoding + tree/path walks), bigger than dataflow + stubs + visitor combined.
+
+Open venues, roughly by tractability:
+
+- **Reduce ATM deep copying (`AnnotatedTypeCopier.visit` = 22% of `Object[]`).**
+  Defensive deep copies exist only because ATMs are mutable (every `fromElement`
+  cache hit, many `getAnnotatedType` paths). `ATF.getElementAnnotations` (committed)
+  was a one-caller nibble. The real lever is **copy-on-write annotation sets or
+  immutable ATMs**; this also unblocks the `directSupertypes` cache above. Large,
+  architectural, high value.
+- **`IdentityHashMap` pre-sizing (52% of `Object[]`, from `reset()`).** Pre-sized to
+  64 → a 256-slot `Object[]` per scan, most visiting 1–3 nodes. *Settled* for
+  realloc-vs-`clear()` and pre-size-64 (see the applied "Re-measured June 2026"
+  note), but those measurements were CPU self-time on `allNullnessTests`. The
+  realistic worker shows `Object[]` at 61% of allocations, so the **GC** side of the
+  tradeoff is heavier than when last measured. Only revisit with *wall-clock + GC
+  pause* data on a realistic compile (e.g. an adaptive/smaller initial size, or
+  size-aware reset) — allocation-count alone will not overturn the prior CPU finding.
+- **CF driving javac internals — the biggest realistic CPU lever (~25% of total).** The
+  wall-clock breakdown above attributes ~25% of all time to CF reaching into javac:
+  forced `Symbol.complete`/`apiComplete` (from `getKind`/`createType`/
+  `CFAbstractValue.canBeMissingAnnotations`/`getErased`/`ElementUtils.isTypeElement`),
+  `Name`/UTF-8 decoding (`Convert.utf2chars`/`utf2string`, `Utf8NameTable.equals` — every
+  time CF compares or stringifies a `Name` that isn't yet decoded/interned), and repeated
+  `TreePath` construction/tree walks. PR #1763 (`getKind()` overrides) and PR #1673
+  (interned-name caching) each chipped at one facet. This is bigger than dataflow + stubs
+  + visitor combined and is the highest-leverage remaining CPU target for realistic
+  compiles; it is incremental, not architectural — audit the remaining forcers/decoders
+  that already have (or could cache) the needed info. Confirmed real, not the
+  `assert`-guarded `validateSet` path (`:checker:checkNullness`'s forked javac runs without
+  `-ea`).
+- **Redundant type computation across the flow fixpoint (the 38%).** Flow analysis
+  recomputes node types across iterations; the self-time is the type pipeline.
+  Memoizing flow-insensitive node types within a run could help but is hard because
+  of flow-sensitivity. Architectural.
+
+Investigated and **rejected** this session:
+
+- **Changing `TreeUtils.annotationsFrom*` to return `AnnotationMirrorSet`** (so the
+  `addAnnotations` callers hit the index-based overload). Rejected: it is a public-API
+  return-type break on `TreeUtils` (used by downstream checkers) rippling through ~15
+  internal callers that declare the result as `List`, it shifts `List` (ordered,
+  duplicates) to `Set` (dedups by `areSame`) semantics, and only ~2 of ~18 callers
+  pass the result straight to `addAnnotations` — and both are cold per-tree
+  construction paths. Net: large break + semantic risk to remove two cold iterators.
+- **A new `AnnotationMirrorSet.singleton(anno)` factory** for the
+  `addMissingAnnotations(Collections.singleton(x))` sites. Rejected in favor of the
+  existing singular `addMissingAnnotation(x)` (committed): the singular method
+  allocates *nothing*, whereas an `AnnotationMirrorSet` singleton allocates an
+  `ArrayList`-backed set — heavier than the JDK's immutable singleton. Rule for future:
+  a single annotation → the singular `add/addMissing/replaceAnnotation` method, never a
+  one-element collection.
+
 ---
 
 ## Reproducing measurements
 
 Use [`checker/bin-devel/record-jfr.sh`](../../checker/bin-devel/record-jfr.sh)
-for trace capture; see
+for trace capture and
+[`.claude/skills/cf-performance/jfr-analyze.java`](../../.claude/skills/cf-performance/jfr-analyze.java)
+for analysis; see
 [`.claude/skills/cf-performance/SKILL.md`](../../.claude/skills/cf-performance/SKILL.md)
-for the analysis pipeline and the known pitfalls (parallel-worker
-constant-pool corruption, the silent 10 ms `MIN_SAMPLE_PERIOD` floor,
-Maven multi-module filename handling). Always re-capture on the same
-workload after applying a patch to confirm the targeted self-time
-percentage moved. A patch that passes tests but doesn't move the
-profile is wrong by definition.
+for the analysis pipeline and the known pitfalls (the silent 10 ms
+`MIN_SAMPLE_PERIOD` floor, Maven multi-module filename handling). Always
+re-capture on the same workload after applying a patch to confirm the
+targeted self-time percentage moved. A patch that passes tests but doesn't
+move the profile is wrong by definition.
+
+Three tooling-reliability bugs were found and fixed in June 2026 while
+auditing whether the profiler gave trustworthy data; all three silently
+produced misleading traces:
+
+- **`stackdepth` was being ignored.** It was passed inside
+  `-XX:StartFlightRecording=`, where it is not a valid option (the JVM
+  warns `The .jfc option/setting 'stackdepth' doesn't exist.` and falls
+  back to depth 64). It is a `-XX:FlightRecorderOptions` option and must be
+  set there; `record-jfr.sh` now does.
+- **Same-filename clobbering.** `JAVA_TOOL_OPTIONS`/`GRADLE_OPTS` reach
+  every JVM the build spawns (launcher, daemon, test worker, forked javac).
+  Pointing them all at one `filename=` made them overwrite each other and
+  corrupt the constant pool — traces came back with `<null>` thread names
+  and a leaderboard dominated by the launcher's idle frames
+  (`EPoll.wait` ~49%, `ProcessHandleImpl.waitForProcessExit0` ~21%) rather
+  than type-checking. `record-jfr.sh` now uses the JFR `%p` filename token
+  so each JVM writes its own file; the largest is the worker.
+- **`jfr print`/`jfr view` crash on JDK 25** with a
+  `StringIndexOutOfBoundsException` in `ValueFormatter.formatMethod` /
+  `PrettyWriter.formatMethod`, making the documented `jfr view hot-methods`
+  pipeline unusable. `jfr-analyze.java` reads the recording via
+  `jdk.jfr.consumer.RecordingFile` and avoids the broken formatter. It also
+  computes self-time from `jdk.ExecutionSample` only — including
+  `jdk.NativeMethodSample` floods the leaderboard with idle native frames.

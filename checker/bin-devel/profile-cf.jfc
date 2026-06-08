@@ -6,9 +6,13 @@
 
   - Method sampling kept at 10 ms (the documented MIN_SAMPLE_PERIOD floor;
     asking for less is silently clamped).
-  - Stack depth raised to 256: CF stacks routinely exceed 64 frames
-    through visitor + dataflow + qualifier-hierarchy layers, and the
-    default depth (64) truncates the most interesting top frames.
+  - Stack depth: CF stacks routinely exceed 64 frames through visitor +
+    dataflow + qualifier-hierarchy layers, and the default depth (64)
+    truncates the most interesting top frames. Stack depth is NOT a .jfc
+    setting and CANNOT be set here or on -XX:StartFlightRecording (the JVM
+    warns "The .jfc option/setting 'stackdepth' doesn't exist." and falls
+    back to 64). It must be set via -XX:FlightRecorderOptions=stackdepth=256,
+    which record-jfr.sh does.
   - Allocation sampling disabled. It is the most expensive event in
     `profile.jfc` and produces multi-megabyte output without giving
     finer-grained data than `jdk.ObjectAllocationInNewTLAB` (kept).
@@ -20,9 +24,13 @@
   - `jdk.SocketRead`/`jdk.SocketWrite`/`jdk.FileRead`/`jdk.FileWrite`
     disabled — CF is CPU-bound on the workloads we care about.
 
-  Usage:
+  Usage (prefer record-jfr.sh, which assembles these flags correctly):
+      -XX:FlightRecorderOptions=stackdepth=256 \
       -XX:StartFlightRecording=settings=checker/bin-devel/profile-cf.jfc,\
-       filename=/abs/path/cf.jfr,dumponexit=true,stackdepth=256
+       filename=/abs/path/cf-%p.jfr,dumponexit=true
+
+  Analyze with .claude/skills/cf-performance/jfr-analyze.java: `jfr print`/`jfr view`
+  crash on JDK 25 (ValueFormatter.formatMethod) and cannot be used.
 -->
 <configuration version="2.0" label="EISOP CF profile" description="CF-tuned profiling"
                provider="EISOP">
