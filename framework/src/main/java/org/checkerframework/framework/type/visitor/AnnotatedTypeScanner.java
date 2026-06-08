@@ -14,6 +14,7 @@ import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedUnionTyp
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedWildcardType;
 
 import java.util.IdentityHashMap;
+import java.util.List;
 
 /**
  * An {@code AnnotatedTypeScanner} visits an {@link AnnotatedTypeMirror} and all of its child {@link
@@ -231,26 +232,38 @@ public abstract class AnnotatedTypeScanner<R, P> implements AnnotatedTypeVisitor
     }
 
     /**
-     * Scan all the types and returns the reduced result.
+     * Scans all the types in the list and returns the reduced result. Uses index-based access to
+     * avoid allocating an iterator for the (typically unmodifiable) list.
      *
-     * @param types types to scan
+     * @param types types to scan; may be null
      * @param p the parameter to use
      * @return the reduced result of scanning all the types
      */
-    protected R scan(@Nullable Iterable<? extends AnnotatedTypeMirror> types, P p) {
+    protected R scan(@Nullable List<? extends AnnotatedTypeMirror> types, P p) {
         if (types == null) {
             return defaultResult;
         }
-        R r = defaultResult;
-        boolean first = true;
-        for (AnnotatedTypeMirror type : types) {
-            r = (first ? scan(type, p) : scanAndReduce(type, p, r));
-            first = false;
+        int n = types.size();
+        if (n == 0) {
+            return defaultResult;
+        }
+        R r = scan(types.get(0), p);
+        for (int i = 1; i < n; ++i) {
+            r = scanAndReduce(types.get(i), p, r);
         }
         return r;
     }
 
-    protected R scanAndReduce(Iterable<? extends AnnotatedTypeMirror> types, P p, R r) {
+    /**
+     * Scans all types in {@code types} with parameter {@code p} and reduces the result with {@code
+     * r}. Uses index-based access to avoid allocating an iterator.
+     *
+     * @param types types to scan; may be null
+     * @param p parameter to use when scanning
+     * @param r result to combine with the result of scanning {@code types}
+     * @return the combination of {@code r} with the result of scanning all types
+     */
+    protected R scanAndReduce(@Nullable List<? extends AnnotatedTypeMirror> types, P p, R r) {
         return reduce(scan(types, p), r);
     }
 
