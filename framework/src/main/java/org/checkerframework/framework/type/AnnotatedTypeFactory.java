@@ -1730,6 +1730,32 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     }
 
     /**
+     * Returns the primary annotations on the type that {@link #fromElement(Element)} computes for
+     * {@code elt}, without the defensive deep copy that {@code fromElement} makes on every cache
+     * hit.
+     *
+     * <p>{@code fromElement} hands out a freshly deep-copied, mutable type so that callers may
+     * modify it. Callers that only read an element's primary annotations do not need that copy:
+     * when the type is cached, this returns the cached type's primary annotations directly. {@link
+     * AnnotatedTypeMirror#getAnnotations()} already returns an unmodifiable set, and cached types
+     * are never mutated, so the result is safe to read. The result must not be retained and
+     * mutated.
+     *
+     * @param elt the element
+     * @return the primary annotations {@code fromElement} would put on {@code elt}'s type; the
+     *     caller must treat the result as read-only
+     */
+    public AnnotationMirrorSet getElementAnnotations(Element elt) {
+        if (shouldCache) {
+            AnnotatedTypeMirror cached = elementCache.get(elt);
+            if (cached != null) {
+                return cached.getAnnotations();
+            }
+        }
+        return fromElement(elt).getAnnotations();
+    }
+
+    /**
      * Returns an AnnotatedDeclaredType with explicit annotations from the ClassTree {@code tree}.
      *
      * @param tree the class declaration
@@ -4251,7 +4277,10 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             Element elt, @FullyQualifiedName String annoName, boolean checkAliases) {
         AnnotationMirrorSet declAnnos = getDeclAnnotations(elt);
 
-        for (AnnotationMirror am : declAnnos) {
+        // Iterate by index rather than via an Iterator: getDeclAnnotation is a hot path and was a
+        // notable AnnotationMirrorSet iterator-allocation site in JFR traces.
+        for (int i = 0, n = declAnnos.size(); i < n; ++i) {
+            AnnotationMirror am = declAnnos.get(i);
             if (AnnotationUtils.areSameByName(am, annoName)) {
                 return am;
             }
@@ -4264,7 +4293,8 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         if (aliases == null) {
             return null;
         }
-        for (AnnotationMirror am : declAnnos) {
+        for (int i = 0, n = declAnnos.size(); i < n; ++i) {
+            AnnotationMirror am = declAnnos.get(i);
             AnnotationMirror match = aliases.get(AnnotationUtils.annotationName(am));
             if (match != null) {
                 return match;

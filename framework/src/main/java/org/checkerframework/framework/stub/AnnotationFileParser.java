@@ -102,6 +102,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.stream.Collectors;
 
 import javax.annotation.processing.ProcessingEnvironment;
@@ -206,6 +208,22 @@ public class AnnotationFileParser {
      */
     // Not final in order to accommodate a default value.
     private @Nullable StubUnit stubUnit;
+
+    /**
+     * Cache of parsed annotated-JDK stub ASTs, keyed by jar-entry name (for example {@code
+     * "java/lang/Object.java"}). The JDK stub text is fixed for a given JVM and its JavaParser AST
+     * is independent of the javac compilation context, so the (relatively expensive) parse is
+     * shared across all compilations in the JVM; see {@link #parseStubUnit}. Only the parse is
+     * shared -- each compilation re-runs the {@code process*} methods to resolve the AST against
+     * its own model.
+     *
+     * <p>Safe because JDK-stub processing only reads the AST. The cache is bounded by the number of
+     * distinct JDK stub classes (a few hundred), so retaining it for the JVM lifetime is a fixed,
+     * shared cost rather than per-compilation garbage. {@link ConcurrentHashMap} guards concurrent
+     * access from the language server and Gradle daemon.
+     */
+    private static final ConcurrentMap<String, StubUnit> jdkStubUnitCache =
+            new ConcurrentHashMap<>();
 
     /** The processing environment */
     private final ProcessingEnvironment processingEnv;
@@ -796,7 +814,25 @@ public class AnnotationFileParser {
         stubDebug(
                 "started parsing annotation file %s for %s",
                 filename, atypeFactory.getClass().getSimpleName());
-        stubUnit = JavaParserUtil.parseStubUnit(inputStream);
+        // Annotated-JDK stubs are maintained inside the Checker Framework: a parse error there
+        // is the CF team's problem, not an end user's, so skip JavaToken retention for the speed
+        // win.  User-supplied stubs go through the diagnostic-quality parser.
+        if (fileType == AnnotationFileType.JDK_STUB) {
+            // The annotated-JDK stub text is identical across every compilation in a JVM (it is
+            // bundled in the checker on the classpath and does not depend on the javac context),
+            // and JDK-stub processing is read-only on the AST -- unlike ajava, it never calls
+            // concatenateAddedStringLiterals or otherwise mutates nodes. So the JavaParser parse,
+            // which the profiles show is a large share of stub-parsing cost, can be shared across
+            // compilations: each compilation still re-runs process*() to resolve the cached AST
+            // against its own javac model. The test harness, the Gradle daemon, and the language
+            // server all run many compilations per JVM and benefit; a single compilation parses
+            // each JDK class once either way. See jdkStubUnitCache.
+            stubUnit =
+                    jdkStubUnitCache.computeIfAbsent(
+                            filename, k -> JavaParserUtil.parseStubUnitForJdk(inputStream));
+        } else {
+            stubUnit = JavaParserUtil.parseStubUnit(inputStream);
+        }
 
         // getImportedAnnotations() also modifies importedConstants and importedTypes. This should
         // be refactored to be nicer.
