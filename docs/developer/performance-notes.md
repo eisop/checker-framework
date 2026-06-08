@@ -173,6 +173,48 @@ so small per-call wins paid back substantially.
   instead of calling `Elements#getPackageElement(String)`. Falls back to the original
   string-based lookup for non-javac implementations.
 
+### Annotation-file (stub) parsing
+
+- **(pending review)** — *Share the annotated-JDK stub AST across compilations.*
+  Inclusive-time analysis of `allNullnessTests -PmaxParallelForks=1` (the run is
+  many small per-directory compilations in one worker JVM) showed
+  `AnnotationFileParser.parseStubFile` at ~32% and the JavaParser parse itself
+  (`com.github.javaparser.*`) at 14.4% of execution samples — the annotated JDK is
+  re-read and re-parsed from scratch by every compilation, because `stubTypes` is a
+  per-`AnnotatedTypeFactory` field. The JDK stub text is fixed for a given JVM and
+  its JavaParser AST does not depend on the javac context (only the later
+  `process*` resolution does), and JDK-stub processing is read-only on the AST
+  (verified: the only AST mutation, `concatenateAddedStringLiterals`, is
+  ajava-only). So `AnnotationFileParser.parseStubUnit` now memoizes the
+  `StubUnit` for `JDK_STUB` files in a static `ConcurrentHashMap` keyed by jar-entry
+  name; each compilation still re-runs `process*` against its own model. Re-measured
+  on the same workload: `parseStubUnitForJdk` inclusive dropped 10.0% → 2.1%,
+  `com.github.javaparser.*` 14.4% → 7.2%, the JavaParser allocation classes
+  (`Token` 1,643, `Position` 1,612, `JavaToken` 1,023, `Range` 784 TLAB events)
+  left the top-35 entirely, and total TLAB events fell 3.4% (175,677 → 169,675).
+  A single user compilation parses each JDK class once either way, so the win is
+  for multi-compilation JVMs: the test suite (a tracked metric), the Gradle daemon,
+  and the language server. The cache is bounded by the number of distinct JDK stub
+  classes (a few hundred) and is shared, so it is a fixed cost, not per-compilation
+  garbage. Correctness re-verified with `allNullnessTests`, `IndexTest`,
+  `SignatureTest`, `NullnessTest`, `InterningTest`, `ValueTest`, and the
+  `:checker:test`, `:framework:test`, `:javacutil:test`, `:dataflow:test` suites.
+- **(pending review)** — *Avoid the defensive deep copy in read-only
+  `fromElement` consumers.* `AnnotatedTypeFactory.fromElement` returns
+  `cached.deepCopy()` on every cache hit so callers may mutate the result; this is
+  the second-largest `Object[]` allocation source (`AnnotatedTypeCopier.visit`, the
+  per-copy `IdentityHashMap`). Added `getElementAnnotations(Element)`, which returns
+  the cached type's primary annotations directly (`getAnnotations()` already returns
+  an unmodifiable set and cached types are never mutated, so this is safe), and
+  routed `DefaultQualifierForUseTypeAnnotator.getExplicitAnnos` — a read-only caller
+  that only needs the element's primary annotations — through it. Honest impact note:
+  on the profiled workloads the measured delta is within noise, because
+  `getExplicitAnnos` runs ~95% of the time *during* stub parsing, where the element
+  cache is cold and `fromElement` takes the compute (no-copy) path anyway. The
+  change is correct and removes the copy on the warm-cache path (repeated
+  default-for-use queries on already-cached elements, as in large multi-round
+  projects); it is kept on that basis, not on a measured win here.
+
 ### Cache sizes and synchronization
 
 - **PR #1665** — *Increase default cache size from 300 to 2000.*
@@ -459,6 +501,36 @@ capture format above.
   `isSupportedQualifier`, `AnnotationFileElementTypes`, and
   `normalizeAndCheck`. Still needs the thread-reachability audit and daemon/LSP
   memory analysis before any change.
+
+A June 2026 inclusive-time / co-occurrence investigation (looking for
+*architectural* redundancy rather than leaf hot spots, since the leaf profile is
+now flat) surfaced two further candidates. Both are blocked by correctness
+invariants, which is why the campaign left them:
+
+- **`AnnotatedTypeMirror.directSupertypes()` recomputes on every call.** It runs
+  `SupertypeFinder.directSupertypes(this)` and wraps the result in a fresh
+  `Collections.unmodifiableList` each time, with no per-instance cache; in a single
+  real compilation (`checkNullness`) it is ~11% inclusive, and the lazy JDK-stub
+  loading cascade (see below) calls it on the same classes at several recursion
+  levels. **Blocker:** a declared type's supertype *annotations* depend on the
+  type's own primary annotations, which defaulting and flow refinement mutate after
+  the type is created, so a naive per-instance cache would hand back stale
+  supertypes. A safe version needs either copy-on-write annotation sets or an
+  invalidation hook tied to annotation mutation — i.e. it rides on the larger
+  "make ATMs immutable" work, not a standalone patch.
+- **The lazy JDK-stub cascade runs the full type-annotation pipeline during
+  parsing, uncached.** Stacks captured on `allNullnessTests` show
+  `maybeParseEnclosingJdkClass` → `annotateSupertypes` → `directSupertypes` →
+  `addComputedTypeAnnotations` → `DefaultQualifierForUseTypeAnnotator` →
+  `getExplicitAnnos` → `fromElement` → `maybeParseEnclosingJdkClass` … repeating 3–4
+  times in one stack: computing the defaults/supertypes of one JDK class pulls in
+  another class's stub, whose own defaults/supertypes are then computed, all while
+  `stubTypes.isParsing()` disables the factory caches, so the same work is redone
+  during real checking. The static `StubUnit` cache above removes the *parse* half
+  of this; the *resolution/defaulting* half remains. **Blocker:** the
+  caching-disabled-during-parsing rule exists because partially-loaded stubs yield
+  incomplete annotations; changing when defaults are computed for JDK supertypes is
+  correctness-sensitive and needs its own design.
 
 ---
 

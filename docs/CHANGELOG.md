@@ -9,6 +9,17 @@ Version 3.49.5-eisop2 (May ?, 2026)
 given index in iteration order, letting hot callers iterate by index without
 allocating an `Iterator`.
 
+`AnnotatedTypeFactory` has a new `getElementAnnotations(Element)` method that
+returns an element's primary annotations without the defensive deep copy that
+`fromElement` makes on every cache hit; for read-only callers that only need the
+primary annotations.
+
+Performance: the annotated-JDK stub AST is now parsed once per JVM and shared
+across compilations instead of being re-parsed for every compilation. This speeds
+up multi-compilation JVMs such as the test suite, the Gradle daemon, and the
+language server (the JavaParser parse share of `allNullnessTests` roughly halved);
+a single compilation is unaffected.
+
 Fixed a bug that caused an IndexOutOfBoundsException for lambdas in varargs,
 for type systems that had the Aliasing Checker as a subchecker, like the
 Optional Checker.
