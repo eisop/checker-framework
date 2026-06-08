@@ -5,6 +5,10 @@ Version 3.49.5-eisop2 (May ?, 2026)
 
 **Implementation details:**
 
+`AnnotationMirrorSet` has a new `get(int)` method that returns the element at a
+given index in iteration order, letting hot callers iterate by index without
+allocating an `Iterator`.
+
 Fixed a bug that caused an IndexOutOfBoundsException for lambdas in varargs,
 for type systems that had the Aliasing Checker as a subchecker, like the
 Optional Checker.

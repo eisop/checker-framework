@@ -115,23 +115,46 @@ if [[ "$DURATION" != "0" ]]; then
   DUR_CLAUSE="duration=${DURATION}s,"
 fi
 
-JFR_FLAG="-XX:StartFlightRecording=${DUR_CLAUSE}settings=${JFC_FILE},filename=${OUT},dumponexit=true,stackdepth=256"
+# stackdepth is a -XX:FlightRecorderOptions option, NOT a -XX:StartFlightRecording
+# option. Putting it on StartFlightRecording makes the JVM print
+#   "The .jfc option/setting 'stackdepth' doesn't exist."
+# and silently fall back to the default depth of 64, which truncates the
+# leaf-most callers of the deep visitor + dataflow + qualifier-hierarchy stacks
+# this profile is meant to capture. It must be set separately.
+RECORDER_OPTS="-XX:FlightRecorderOptions=stackdepth=256"
 
 if [[ $JAVAC_MODE -eq 1 ]]; then
+  # Single forked javac: it is the only JVM, so a fixed filename is unambiguous.
+  JFR_FLAG="-XX:StartFlightRecording=${DUR_CLAUSE}settings=${JFC_FILE},filename=${OUT},dumponexit=true"
   # Prepend -J-prefixed flags to the next command.
   CMD=("$1")
   shift
-  exec "${CMD[@]}" "-J${JFR_FLAG}" "$@"
+  exec "${CMD[@]}" "-J${RECORDER_OPTS}" "-J${JFR_FLAG}" "$@"
 else
-  # Gradle / generic-JVM mode: append to GRADLE_OPTS / JAVA_TOOL_OPTIONS.
-  export GRADLE_OPTS="${GRADLE_OPTS:-} ${JFR_FLAG}"
-  # Also set JAVA_TOOL_OPTIONS so Gradle test JVMs inherit it. Warning:
-  # this makes *every* spawned JVM record, including helpers — and unless
-  # you've set -PmaxParallelForks=1 the parallel test workers will trash
-  # the trace.
-  export JAVA_TOOL_OPTIONS="${JAVA_TOOL_OPTIONS:-} ${JFR_FLAG}"
-  echo "JFR flags will be applied via GRADLE_OPTS and JAVA_TOOL_OPTIONS:" >&2
-  echo "  $JFR_FLAG" >&2
-  echo "Reminder: Gradle test runs need -PmaxParallelForks=1 to avoid trace corruption." >&2
+  # Gradle / generic-JVM mode: JAVA_TOOL_OPTIONS is inherited by *every* JVM the
+  # build spawns — the Gradle launcher, the daemon, the test worker, and any
+  # forked javac. If they all share one filename= they clobber each other (last
+  # writer wins) and shred the constant pool, so the trace comes back with
+  # <null> thread names and is dominated by the launcher's idle frames
+  # (EPoll.wait, ProcessHandleImpl.waitForProcessExit0) rather than the
+  # compilation work. Use the JFR %p filename token so each JVM writes its own
+  # file; the worker that does the type-checking is the largest one.
+  #
+  # We intentionally do NOT set GRADLE_OPTS: recording the launcher/daemon JVM
+  # only adds idle-trace noise files. JAVA_TOOL_OPTIONS alone reaches the worker.
+  case "$OUT" in
+    *%p*) OUT_PATTERN="$OUT" ;;
+    *.jfr) OUT_PATTERN="${OUT%.jfr}-%p.jfr" ;;
+    *) OUT_PATTERN="${OUT}-%p" ;;
+  esac
+  JFR_FLAG="-XX:StartFlightRecording=${DUR_CLAUSE}settings=${JFC_FILE},filename=${OUT_PATTERN},dumponexit=true"
+  export JAVA_TOOL_OPTIONS="${JAVA_TOOL_OPTIONS:-} ${RECORDER_OPTS} ${JFR_FLAG}"
+  echo "JFR flags will be applied via JAVA_TOOL_OPTIONS:" >&2
+  echo "  ${RECORDER_OPTS} ${JFR_FLAG}" >&2
+  echo "Each JVM writes its own file (the %p PID token). The type-checking" >&2
+  echo "worker is the largest file; analyze that one. Other files (launcher," >&2
+  echo "daemon) are idle-trace noise and can be deleted." >&2
+  echo "Reminder: Gradle test runs need -PmaxParallelForks=1 so there is a" >&2
+  echo "single worker rather than several sharing the workload." >&2
   exec "$@"
 fi

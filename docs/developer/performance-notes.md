@@ -80,6 +80,31 @@ so small per-call wins paid back substantially.
   patch initially shipped with a regression in `addAll` semantics; the
   fix preserves the non-standard fast-path return-`true`-if-any-new
   contract.
+- **(pending review)** — *Index-based iteration of `AnnotationMirrorSet`
+  on hot paths.* JFR `allNullnessTests -PmaxParallelForks=1` attributed
+  80% of all `ArrayList$Itr` TLAB allocations (6,523 of 8,143 events,
+  4.24% of total TLAB traffic) to `AnnotationMirrorSet.iterator()`, with
+  the iterator-allocating callers concentrated in
+  `AnnotatedTypeMirror.addAnnotations` (33%), `AnnotationMirrorSet.addAll`
+  (14%), `ElementQualifierHierarchy`/`NoElementQualifierHierarchy`
+  .findAnnotationInSameHierarchy (17.5% combined), and
+  `AnnotatedTypeFactory.getDeclAnnotation` (10%). Added a public
+  `AnnotationMirrorSet.get(int)` accessor (the backing store is already an
+  `ArrayList`, so iteration order is stable) and routed those sites through
+  index-based loops, following the overload-resolution pattern of PR #1775:
+  `addAnnotations`/`addMissingAnnotations`/`replaceAnnotations` gained
+  `AnnotationMirrorSet`-typed overloads that the ~69 call sites passing
+  `getAnnotationsField()`/`getAnnotations()` bind to automatically;
+  `addAll` got an `instanceof AnnotationMirrorSet` fast path; the two
+  qualifier-hierarchy methods got an `instanceof` fast path; and
+  `getDeclAnnotation`'s two loops (over an already-`AnnotationMirrorSet`-typed
+  local) became index loops. Re-measured on the same workload: `ArrayList$Itr`
+  dropped to 3,172 events (1.81%), `AnnotationMirrorSet.iterator()` calls
+  dropped 6,523 → 1,530 (−77%), and `AnnotationMirrorSet$ReadOnlyIter`
+  (751 events) left the profile entirely. The `Object[]`/`IdentityHashMap`
+  allocation path and CPU self-time were unchanged. `CFAbstractValue.validateSet`
+  was deliberately left alone: it runs only under `assert`, so its iterator
+  allocation never occurs in production (`-da`) runs.
 - **PR #1669** — *Improve equality and comparisons of annotation
   names.* Introduced `AnnotationUtils.annotationNameAsName`, which
   returns the underlying `Name` without ever allocating a `String`. Hot
@@ -440,11 +465,37 @@ capture format above.
 ## Reproducing measurements
 
 Use [`checker/bin-devel/record-jfr.sh`](../../checker/bin-devel/record-jfr.sh)
-for trace capture; see
+for trace capture and
+[`.claude/skills/cf-performance/jfr-analyze.java`](../../.claude/skills/cf-performance/jfr-analyze.java)
+for analysis; see
 [`.claude/skills/cf-performance/SKILL.md`](../../.claude/skills/cf-performance/SKILL.md)
-for the analysis pipeline and the known pitfalls (parallel-worker
-constant-pool corruption, the silent 10 ms `MIN_SAMPLE_PERIOD` floor,
-Maven multi-module filename handling). Always re-capture on the same
-workload after applying a patch to confirm the targeted self-time
-percentage moved. A patch that passes tests but doesn't move the
-profile is wrong by definition.
+for the analysis pipeline and the known pitfalls (the silent 10 ms
+`MIN_SAMPLE_PERIOD` floor, Maven multi-module filename handling). Always
+re-capture on the same workload after applying a patch to confirm the
+targeted self-time percentage moved. A patch that passes tests but doesn't
+move the profile is wrong by definition.
+
+Three tooling-reliability bugs were found and fixed in June 2026 while
+auditing whether the profiler gave trustworthy data; all three silently
+produced misleading traces:
+
+- **`stackdepth` was being ignored.** It was passed inside
+  `-XX:StartFlightRecording=`, where it is not a valid option (the JVM
+  warns `The .jfc option/setting 'stackdepth' doesn't exist.` and falls
+  back to depth 64). It is a `-XX:FlightRecorderOptions` option and must be
+  set there; `record-jfr.sh` now does.
+- **Same-filename clobbering.** `JAVA_TOOL_OPTIONS`/`GRADLE_OPTS` reach
+  every JVM the build spawns (launcher, daemon, test worker, forked javac).
+  Pointing them all at one `filename=` made them overwrite each other and
+  corrupt the constant pool — traces came back with `<null>` thread names
+  and a leaderboard dominated by the launcher's idle frames
+  (`EPoll.wait` ~49%, `ProcessHandleImpl.waitForProcessExit0` ~21%) rather
+  than type-checking. `record-jfr.sh` now uses the JFR `%p` filename token
+  so each JVM writes its own file; the largest is the worker.
+- **`jfr print`/`jfr view` crash on JDK 25** with a
+  `StringIndexOutOfBoundsException` in `ValueFormatter.formatMethod` /
+  `PrettyWriter.formatMethod`, making the documented `jfr view hot-methods`
+  pipeline unusable. `jfr-analyze.java` reads the recording via
+  `jdk.jfr.consumer.RecordingFile` and avoids the broken formatter. It also
+  computes self-time from `jdk.ExecutionSample` only — including
+  `jdk.NativeMethodSample` floods the leaderboard with idle native frames.
