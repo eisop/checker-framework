@@ -80,7 +80,7 @@ so small per-call wins paid back substantially.
   patch initially shipped with a regression in `addAll` semantics; the
   fix preserves the non-standard fast-path return-`true`-if-any-new
   contract.
-- **(pending review)** — *Index-based iteration of `AnnotationMirrorSet`
+- **PR #1776** — *Index-based iteration of `AnnotationMirrorSet`
   on hot paths.* JFR `allNullnessTests -PmaxParallelForks=1` attributed
   80% of all `ArrayList$Itr` TLAB allocations (6,523 of 8,143 events,
   4.24% of total TLAB traffic) to `AnnotationMirrorSet.iterator()`, with
@@ -152,7 +152,7 @@ so small per-call wins paid back substantially.
   `CollectionsPlume.mapList` lambda calls with direct pre-sized `new ArrayList<>(size)` loops.
   Removes lambda-dispatch overhead and allocates the destination list at the correct capacity
   immediately, avoiding internal growth copies.
-- **(pending review)** — *Reuse the `QualifierDefaults` defaulting scanner instead of
+- **PR # 1776** — *Reuse the `QualifierDefaults` defaulting scanner instead of
   constructing one per application.* `QualifierDefaults.applyDefaultsElement` created a fresh
   `DefaultApplierElement`, whose constructor created a fresh `DefaultApplierElementImpl` — an
   `AnnotatedTypeScanner` whose `visitedNodes` `IdentityHashMap` is pre-sized to 64 (a 256-slot
@@ -177,7 +177,7 @@ so small per-call wins paid back substantially.
   an unchanged sample count; `DefaultApplierElementImpl.scan` self-time unchanged (no CPU
   regression). The 1,090 residual scanner constructions are now dominated (77%) by
   `ElementAnnotationApplier$TypeVarAnnotator`, addressed next.
-- **(pending review)** — *Reuse two more per-use scanners: `TypeVarAnnotator` and the
+- **PR #1776** — *Reuse two more per-use scanners: `TypeVarAnnotator` and the
   `isValidStructurally` structural scanner.* Same anti-pattern as the `QualifierDefaults` entry
   above, found by re-running the `:checker:checkNullness` allocation analysis after it.
   (1) `ElementAnnotationApplier.apply` constructed `new TypeVarAnnotator()` (a stateless
@@ -229,7 +229,7 @@ so small per-call wins paid back substantially.
 
 ### Annotation-file (stub) parsing
 
-- **(pending review)** — *Share the annotated-JDK stub AST across compilations.*
+- **PR #1776** — *Share the annotated-JDK stub AST across compilations.*
   Inclusive-time analysis of `allNullnessTests -PmaxParallelForks=1` (the run is
   many small per-directory compilations in one worker JVM) showed
   `AnnotationFileParser.parseStubFile` at ~32% and the JavaParser parse itself
@@ -253,7 +253,7 @@ so small per-call wins paid back substantially.
   garbage. Correctness re-verified with `allNullnessTests`, `IndexTest`,
   `SignatureTest`, `NullnessTest`, `InterningTest`, `ValueTest`, and the
   `:checker:test`, `:framework:test`, `:javacutil:test`, `:dataflow:test` suites.
-- **(pending review)** — *Avoid the defensive deep copy in read-only
+- **PR #1776** — *Avoid the defensive deep copy in read-only
   `fromElement` consumers.* `AnnotatedTypeFactory.fromElement` returns
   `cached.deepCopy()` on every cache hit so callers may mutate the result; this is
   the second-largest `Object[]` allocation source (`AnnotatedTypeCopier.visit`, the
