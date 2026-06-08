@@ -607,6 +607,33 @@ self-time *is* the type pipeline (scanning, defaulting, copying, map lookups,
 `TreePath`, symbol completion), not dataflow logic — the dataflow framework itself
 (`CFStore`/`CFValue`) does not appear in self-time.
 
+**Where the wall-clock goes** (from `jfr-analyze.java phase` on the worker, June 2026,
+post-scanner-reuse). The compile is **CPU-bound**: ~96% on-CPU Java, GC pauses only
+~1.35 s (~4%, `sumOfPauses`), and real I/O ≈ 0 (the many `NativeMethodSample`s are
+99.5% `EPoll.wait` on the idle Gradle messaging thread — exclude them). The on-CPU Java
+time splits, mutually exclusively by innermost subsystem (so the type computation that
+dataflow and the visitor *trigger* is attributed to the type factory, not to them):
+- **Annotated-type computation ≈ 54%** — `getAnnotatedType`/`fromElement`, defaulting,
+  supertypes, ATM copying/scanning, plus its `javacutil` support (`ElementUtils`,
+  `AnnotationUtils`, qualifier-hierarchy lookups, which make up most of the separate
+  "Other CF" 14% bucket). This is the core cost and where the campaign focused.
+- **javac internals ≈ 32%** — but **~77% of that is CF-triggered** (forced
+  `Symbol.complete`/`apiComplete`, `Name`/UTF-8 decoding via `Convert.utf2chars`,
+  `TreePath` construction, tree walks). Only ~7% of the *total* is javac's autonomous
+  front-end (parse/enter/attribute). So ~25% of all time is **CF reaching into javac**.
+- **Dataflow machinery ≈ 5%** (CFG build + fixpoint + transfer/store, excluding the type
+  lookups it calls — note this is the *exclusive* figure; flow analysis is ~38%
+  *inclusive* precisely because it triggers so much type computation).
+- **Stub/JDK annotation loading ≈ 3%** (small in one compile; the ~28% monster only in
+  the test suite). **Visitor check logic itself ≈ 1%** — almost all cost is *producing*
+  the annotated types, not checking them.
+
+Two takeaways for picking venues: (1) GC/allocation is not the wall-clock bottleneck on
+a single compile (which is why the scanner-reuse and `AnnotationMirrorSet` allocation
+wins did not move single-compile time — their value is GC pressure at scale); CPU is.
+(2) The largest non-obvious CPU slice is CF driving javac (symbol completion + name
+decoding + tree/path walks), bigger than dataflow + stubs + visitor combined.
+
 Open venues, roughly by tractability:
 
 - **Reduce ATM deep copying (`AnnotatedTypeCopier.visit` = 22% of `Object[]`).**
@@ -623,12 +650,19 @@ Open venues, roughly by tractability:
   tradeoff is heavier than when last measured. Only revisit with *wall-clock + GC
   pause* data on a realistic compile (e.g. an adaptive/smaller initial size, or
   size-aware reset) — allocation-count alone will not overturn the prior CPU finding.
-- **Forced javac symbol completion (`Symbol.complete`/`apiComplete` ≈ 3.3% self).**
-  Driven during flow analysis by `getKind`/`createType`/`CFAbstractValue.canBeMissingAnnotations`/
-  `getErased`/`ElementUtils.isTypeElement`. PR #1763 started this with constant
-  `getKind()` overrides. Confirmed real (not the `assert`-guarded `validateSet` path:
-  `:checker:checkNullness`'s forked javac runs without `-ea`). Incremental; audit
-  remaining forcers that already have the needed info cheaply.
+- **CF driving javac internals — the biggest realistic CPU lever (~25% of total).** The
+  wall-clock breakdown above attributes ~25% of all time to CF reaching into javac:
+  forced `Symbol.complete`/`apiComplete` (from `getKind`/`createType`/
+  `CFAbstractValue.canBeMissingAnnotations`/`getErased`/`ElementUtils.isTypeElement`),
+  `Name`/UTF-8 decoding (`Convert.utf2chars`/`utf2string`, `Utf8NameTable.equals` — every
+  time CF compares or stringifies a `Name` that isn't yet decoded/interned), and repeated
+  `TreePath` construction/tree walks. PR #1763 (`getKind()` overrides) and PR #1673
+  (interned-name caching) each chipped at one facet. This is bigger than dataflow + stubs
+  + visitor combined and is the highest-leverage remaining CPU target for realistic
+  compiles; it is incremental, not architectural — audit the remaining forcers/decoders
+  that already have (or could cache) the needed info. Confirmed real, not the
+  `assert`-guarded `validateSet` path (`:checker:checkNullness`'s forked javac runs without
+  `-ea`).
 - **Redundant type computation across the flow fixpoint (the 38%).** Flow analysis
   recomputes node types across iterations; the self-time is the type pipeline.
   Memoizing flow-insensitive node types within a run could help but is hard because

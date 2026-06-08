@@ -102,6 +102,24 @@ java .claude/skills/cf-performance/jfr-analyze.java alloc 'ArrayList$Itr' \
     org.checkerframework cf-*.jfr
 ```
 
+For *architectural* work (when the leaf profile is flat), the inclusive /
+context modes are what make progress — use them, not leaf self-time:
+
+```
+# High-level wall-clock breakdown: on-CPU Java by CF subsystem, + GC + native idle.
+# Start here for "where does checkNullness spend time".
+java .claude/skills/cf-performance/jfr-analyze.java phase cf-*.jfr
+
+# Inclusive time: which high-level operation dominates (it nests, unlike self-time).
+java .claude/skills/cf-performance/jfr-analyze.java inclusive org.checkerframework cf-*.jfr
+
+# Where one subsystem spends its self-time:
+java .claude/skills/cf-performance/jfr-analyze.java under performFlowAnalysis cf-*.jfr
+
+# Attribute a cost to a calling context (e.g. is this mostly under stub parsing?):
+java .claude/skills/cf-performance/jfr-analyze.java cooccur getDeclAnnotation AnnotationFileParser cf-*.jfr
+```
+
 Self-time is computed from `jdk.ExecutionSample` ONLY. Including
 `jdk.NativeMethodSample` pollutes the leaderboard with idle native frames
 (`EPoll.wait` on the Gradle worker's messaging thread can be >50% of the
