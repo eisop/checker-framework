@@ -501,7 +501,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     public boolean shouldCache;
 
     /** Size of LRU cache if one isn't specified using the atfCacheSize option. */
-    private static final int DEFAULT_CACHE_SIZE = 2000;
+    private static final int DEFAULT_CACHE_SIZE = 2048;
 
     /** Mapping from a Tree to its annotated type; defaults have been applied. */
     private final Map<Tree, AnnotatedTypeMirror> classAndMethodTreeCache;
@@ -529,6 +529,18 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * programmer wrote.
      */
     private final Map<Element, AnnotatedTypeMirror> elementCache;
+
+    /**
+     * Mapping from an Element to its fully-computed annotated type: the result of {@link
+     * #getAnnotatedType(Element)}, <em>after</em> {@link #addComputedTypeAnnotations(Element,
+     * AnnotatedTypeMirror)} (type annotators, qualifier-parameter defaults, and qualifier
+     * defaulting). Unlike {@link #elementCache} (which holds the pre-defaults type), a hit here
+     * skips the entire post-{@code fromElement} pipeline, which JFR shows is dominated by the
+     * defaulting walk. The declaration type of an element is flow-insensitive, so this is a pure
+     * function of the element for checkers where {@link #shouldCacheElementType} holds. Null when
+     * {@code !shouldCache}. Stores and returns deep copies, since callers mutate the result.
+     */
+    private final @Nullable Map<Element, AnnotatedTypeMirror> elementTypeCache;
 
     /** Mapping from an Element to the source Tree of the declaration. */
     private final Map<Element, Tree> elementToTreeCache;
@@ -636,6 +648,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             this.fromMemberTreeCache = CollectionsPlume.createLruCache(cacheSize);
             this.fromTypeTreeCache = CollectionsPlume.createLruCache(cacheSize);
             this.elementCache = CollectionsPlume.createLruCache(cacheSize);
+            this.elementTypeCache = CollectionsPlume.createLruCache(cacheSize);
             this.elementToTreeCache = CollectionsPlume.createLruCache(cacheSize);
             this.methodAsMemberOfCache = CollectionsPlume.createLruCache(cacheSize);
             this.directSupertypesCache = CollectionsPlume.createLruCache(cacheSize);
@@ -646,6 +659,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             this.fromMemberTreeCache = null;
             this.fromTypeTreeCache = null;
             this.elementCache = null;
+            this.elementTypeCache = null;
             this.elementToTreeCache = null;
             this.methodAsMemberOfCache = null;
             this.directSupertypesCache = null;
@@ -1059,6 +1073,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             // There is no need to clear the following cache, it is limited by cache size and it
             // contents won't change between compilation units.
             // elementCache.clear();
+            // elementTypeCache.clear();
             // cacheDeclAnnos.clear();
             // methodDeclaresPolyCache.clear();
         }
@@ -1488,11 +1503,39 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         if (elt == null) {
             throw new BugInCF("AnnotatedTypeFactory.getAnnotatedType: null element");
         }
+        // Cache the fully-computed (post-defaults) declaration type. The declaration type is
+        // flow-insensitive, so for checkers where shouldCacheElementType() holds it is a pure
+        // function of the element; a hit skips the whole fromElement + addComputedTypeAnnotations
+        // pipeline (JFR shows it is dominated by the defaulting walk). Deep-copy on store/return,
+        // since callers mutate the result.
+        boolean useCache = shouldCache && shouldCacheElementType();
+        if (useCache) {
+            AnnotatedTypeMirror cached = elementTypeCache.get(elt);
+            if (cached != null) {
+                return cached.deepCopy();
+            }
+        }
         // Annotations explicitly written in the source code,
         // or obtained from bytecode.
         AnnotatedTypeMirror type = fromElement(elt);
         addComputedTypeAnnotations(elt, type);
+        if (useCache) {
+            elementTypeCache.put(elt, type.deepCopy());
+        }
         return type;
+    }
+
+    /**
+     * Whether {@link #getAnnotatedType(Element)} results may be cached in {@link
+     * #elementTypeCache}. Returns true by default. A checker whose {@link
+     * #addComputedTypeAnnotations(Element, AnnotatedTypeMirror)} is not a pure function of the
+     * element (i.e., it reads use-site or other mutable state when computing an element's
+     * declaration type) must override this to return false.
+     *
+     * @return true if the fully-computed element-type cache is sound for this checker
+     */
+    protected boolean shouldCacheElementType() {
+        return true;
     }
 
     /**
