@@ -2947,8 +2947,11 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
                 return false;
             }
             MethodAsMemberOfCacheKey other = (MethodAsMemberOfCacheKey) o;
-            return methodElt == other.methodElt
-                    && structuralComparer().visit(receiverType, other.receiverType, null);
+            @SuppressWarnings("interning:not.interned")
+            boolean res =
+                    methodElt == other.methodElt
+                            && structuralComparer().visit(receiverType, other.receiverType, null);
+            return res;
         }
     }
 
