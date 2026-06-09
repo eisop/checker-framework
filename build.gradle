@@ -695,6 +695,7 @@ def createCheckTypeTask(projectName, taskName, checker, args = []) {
         options.compilerArgs += args
 
         // TODO: the options below should be inherited from JavaCompile. Why does this need to be repeated?
+        options.fork = true
         if (isJava8) {
             options.compilerArgs += [
                 '-source',
@@ -703,7 +704,6 @@ def createCheckTypeTask(projectName, taskName, checker, args = []) {
                 '8'
             ]
         } else {
-            options.fork = true
             options.forkOptions.jvmArgs += compilerArgsForRunningCF
         }
     }
