@@ -33,10 +33,37 @@ LRU caches; `Long`→`long` in `BaseTypeVisitor.checkSlowTypechecking`;
 static `EnumSet` for `validateWildCardTargetLocation`. See the notes file
 for the full list and rationale.
 
+## Profile the whole build, not one subproject
+
+**The realistic workload is the unqualified `./gradlew checknullness`, not
+`:checker:checkNullness`.** The unqualified task runs the checker over **all
+~10 subprojects** (checker, checker-qual{,-android}, checker-util, dataflow,
+docs, framework, framework-perf, framework-test, javacutil). Gradle routes
+every one of those forked compiles through a **single persistent
+compiler-worker JVM**, so the full build still yields one dominant worker file
+— but that file now contains all ten compiles: **~15–17k `ExecutionSample`s /
+~155–170 s on-CPU**. A qualified `:checker:checkNullness` captures **one**
+subproject (~2.6k samples / ~26 s) and undercounts build-level impact by
+roughly 2×: an optimization that looks like "−22%" on that slice can be ~−9%
+on the build. (This bit once — a cache reported as −22%/−26% on the
+`:checker:checkNullness` slice was ~−9% cold / ~−13% warm-daemon end-to-end;
+see the `performance-notes.md` full-build A/B table.)
+
+**Always report the whole-worker sample delta + wall clock as the headline,
+never one phase's inclusive %.** The `phase` mode of the analyzer prints the
+recording's wall span and fires a `*** SCOPE WARNING ***` when a trace has
+< 6000 `ExecutionSample`s — i.e. when you've profiled a slice. Heed it.
+
+For a clean A/B, measure both sides identically — build the processor
+`shadowJar` on each side (the forked javac uses it as the annotation
+processor, so framework changes only take effect after a rebuild), and use the
+same `--no-daemon` invocation (a warm daemon shaves per-fork JVM startup and
+shifts the wall-clock baseline).
+
 ## Capturing a clean JFR trace
 
 A naïve `./gradlew test` JFR capture **will be corrupted**: every JVM the
-build spawns (the Gradle launcher, the daemon, the test worker, any forked
+build spawns (the Gradle launcher, the daemon, the worker, any forked
 javac) inherits `JAVA_TOOL_OPTIONS` and, if they share one `filename=`,
 they clobber each other and shred the constant pool — the trace comes back
 with `<null>` thread names and is dominated by the launcher's idle frames
@@ -44,18 +71,27 @@ with `<null>` thread names and is dominated by the launcher's idle frames
 of the type-checking work. The capture script handles this by giving each
 JVM its own per-PID file (the JFR `%p` filename token); use it.
 
+For the full realistic build, run the unqualified task `--no-daemon` so the
+gradle JVM (and the forks it spawns) inherit the JFR env directly:
+
 ```
 ./checker/bin-devel/record-jfr.sh -o cf.jfr -- \
-    ./gradlew --no-daemon :checker:NullnessTest --tests "..." \
-              -PmaxParallelForks=1
+    ./gradlew --no-daemon checknullness
 ```
 
-This writes `cf-<pid>.jfr` for each JVM. **The type-checking worker is the
-largest file.** Pass all of them to the analyzer (below); the small
-launcher/daemon files contribute almost no `ExecutionSample`s. With
-`-PmaxParallelForks=1` and a `Test` task, Gradle's `forkEvery` may still
-restart the worker, so the work can be split across two or three large
-files — aggregate them.
+This writes `cf-<pid>.jfr` for each JVM. **The type-checking worker is by far
+the largest file** (the others — gradle JVM, idle helpers — are tens to
+hundreds of KB; the worker is 100s of MB). Pass all of them to the analyzer
+(below); the small files contribute almost no `ExecutionSample`s. Sanity-check
+the `phase` output: a full build is ~15k+ samples / ~155 s+ span and must NOT
+print the scope warning. (`outputs.upToDateWhen { false }` makes these tasks
+always re-run, so no `--rerun` is needed.)
+
+To profile a *single* subproject deliberately — e.g. to iterate fast on a
+checker-specific hot path — use `:checker:NullnessTest --tests "..."
+-PmaxParallelForks=1`; with a `Test` task, Gradle's `forkEvery` may restart
+the worker, splitting work across two or three large files — aggregate them.
+But validate the final win on the full `checknullness`, not the slice.
 
 Or for direct `javac` invocations on a real downstream project (Oscar EMR,
 JSpecify reference checker, etc.), use the script's `--javac` mode:
@@ -107,7 +143,9 @@ context modes are what make progress — use them, not leaf self-time:
 
 ```
 # High-level wall-clock breakdown: on-CPU Java by CF subsystem, + GC + native idle.
-# Start here for "where does checkNullness spend time".
+# Start here for "where does checkNullness spend time". Prints the recording wall
+# span and a *** SCOPE WARNING *** if the trace is a single-subproject slice
+# (< 6000 samples) rather than the full ~15k-sample build.
 java .claude/skills/cf-performance/jfr-analyze.java phase cf-*.jfr
 
 # Inclusive time: which high-level operation dominates (it nests, unlike self-time).
@@ -170,6 +208,10 @@ Before submitting, always:
 2. `./gradlew :framework:test :javacutil:test :dataflow:test` — fast.
 3. The relevant checker test, e.g. `./gradlew :checker:NullnessTest`.
 4. Ideally `./gradlew alltests` — the canonical regression catch.
-5. Re-capture JFR on the same workload and confirm the targeted self-time
-   percentage dropped. If it didn't, the patch is wrong even if the tests
-   pass.
+5. Re-capture JFR on the **full** workload (`./gradlew --no-daemon
+   checknullness`, all subprojects — confirm `phase` shows no scope warning)
+   and confirm the targeted metric moved. Report the **whole-worker sample
+   delta and wall-clock A/B** (caches vs. reverted, `shadowJar` rebuilt each
+   side), not a single phase's inclusive %. A patch that passes tests but
+   doesn't move the full-build profile is wrong by definition — and one that
+   only moves a single-subproject slice is overstated.
