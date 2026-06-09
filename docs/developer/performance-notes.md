@@ -835,15 +835,17 @@ not single-leaf. Re-prioritized venues:
     scan-equivalents/call vs. ~9.3 today — roughly a **3× cut** in defaulting work (defaulting is a
     single-digit-% slice of self-time, so expect a few % end-to-end; confirm with a full-build A/B).
   - **Refinement — split by path, because the two want different keys.** The **element path** (91.6%,
-    `annotate(Element, type)` from `fromElement`/`getAnnotatedType`) has an input type that is a *pure
-    function of the element*, so it can be keyed on the **element identity (cheap)**, no structural hash
-    needed; this redundancy largely overlaps `elementCache` (LRU 2000) *eviction churn*, so it may be
-    captured more simply by an element-keyed defaulting cache or by enlarging `elementCache` — lower
-    risk, no `ATM.hashCode` cost. The **tree path** (88.0%, `annotate(Tree, type)`) has use-site-specific
-    types and genuinely needs the **structural `(scope, type)` key**; it pays the uncached-`ATM.hashCode`
-    key cost (the immutability-plan risk #2 — measure that the hash walk does not eat the win), but 9.3
-    scans/call × 88% repeat says it still pays. The tree path is the novel part; the element path may be
-    a `elementCache`-sizing footnote.
+    `annotate(Element, type)` from `getAnnotatedType`) has an input type that is a *pure function of the
+    element*, so it can be keyed on the **element identity (cheap)**, no structural hash needed. **NB
+    (corrected): this redundancy is NOT `elementCache` eviction churn** — see the `elementCache`
+    measurement below: `elementCache` already hits ~92%, but it stores the type *before* defaults
+    (`fromElement`'s contract), and defaulting (`annotate(Element, type)`) runs *after* `fromElement` on
+    every `getAnnotatedType` call regardless of the cache hit. So the element path needs its own
+    **post-defaults** memoization (a new cache keyed on element identity), which enlarging `elementCache`
+    would *not* provide. The **tree path** (88.0%, `annotate(Tree, type)`) has use-site-specific types
+    and genuinely needs the **structural `(scope, type)` key**; it pays the uncached-`ATM.hashCode` key
+    cost (the immutability-plan risk #2 — measure that the hash walk does not eat the win), but 9.3
+    scans/call × 88% repeat says it still pays. Both paths are real; the tree path is the novel part.
   - **Soundness + validation.** Defaulting only *adds missing* annotations and is deterministic given
     `(scope, input-type-structure)`, so the structural repeats produce identical outputs; cache with
     copy-on-store/return, same recipe as the `asMemberOf`/`directSupertypes` caches. Validate via
@@ -852,6 +854,65 @@ not single-leaf. Re-prioritized venues:
     needs the full `checknullness` A/B); and the ~9.3 multiplier assumes each `applyDefault` ≈ a full
     scan — if some short-circuit, both the savings *and* the key/copy cost shrink together, so the
     favorable ratio is robust but the magnitude is not yet pinned.
+
+- **Phase 1 (element path) — APPLIED (pending review).** Implemented the value-returning element-keyed
+  cache: a new `AnnotatedTypeFactory.elementTypeCache` (`LRU(getCacheSize())`, deep-copy on
+  store/return) memoizes the *fully-computed* `getAnnotatedType(Element)` result (post `fromElement` +
+  `addComputedTypeAnnotations`, i.e. after type annotators + qualifier defaulting). A hit returns a deep
+  copy and skips the whole pipeline. Cheap **element-identity** key (no `ATM.hashCode`); no poly guard
+  needed (declaration defaulting does not resolve `@Poly` from arguments — like `directSupertypes`);
+  overridable `shouldCacheElementType()` opt-out (default true) for checkers whose
+  `addComputedTypeAnnotations(Element, …)` is not a pure function of the element. Not cleared between
+  CUs (element-keyed, stable — same as `elementCache`). **Correctness:** full `:framework:test` +
+  `:javacutil:test` + `:dataflow:test` + `:checker:test` pass (0 diagnostic failures) — no bundled
+  checker needed the opt-out. **Performance — `≈10%` wall clock (worth keeping).** Mechanism (single
+  `--no-daemon` back-to-back, full `./gradlew checknullness`): element-path defaulting roughly halved —
+  `DefaultApplierElementImpl.scan` 361→247 (−32%), `DefaultApplierElement.shouldBeAnnotated` 135→63
+  (−53%) — and the **type-factory phase dropped −15.2%** (5,594→4,742 samples). Wall clock, the metric
+  that matters (warm-daemon, 3–4 reps/side, median): **baseline PR 1777 2m34s → isolated Phase 1 2m19s,
+  ≈ −15 s / −10%, and the Phase-1 reps were tightly clustered (2m19s ×3–4) vs the baseline's 152–157 s
+  spread.** This is a real, consistent win — **keep Phase 1.**
+  **Two measurement traps this corrected (see "Measuring wall-clock effects" in the SKILL):**
+  (1) my *first* read called it "≈2%/noise" — that was a single `--no-daemon` run; cold per-fork JVM
+  startup dilutes the type-checking gain and a single run is noise-dominated. The warm-daemon
+  multi-rep wall-clock is the reliable measure (≈10%). (2) An intermediate A/B that *mixed* Phase 1
+  with a `directSupertypes`-cap experiment showed **zero** wall-clock change — because the two effects
+  cancelled (see the next bullet). **Never A/B two changes at once.**
+  **Phase 2 (tree path, structural `(scope, type)` key + write-back) deferred** per plan — re-profile
+  after Phase 1 to see whether tree-path defaulting is still worth its write-back tax.
+
+- **Do NOT shrink the heavy caches to save memory — MEASURED, the cap is worth ≈10% wall clock.**
+  PR 1777's two LRU caches add **≈ +50–70 MB retained live heap** on a full `checknullness` (measured
+  master vs branch via post-GC `jdk.GCHeapSummary` "After GC": median 207→259 MB, p90 358→426 MB; both
+  caches fill to their 2000 cap; `directSupertypes` stores `List<AnnotatedDeclaredType>`, the heaviest
+  per entry). That footprint is JDK-independent but caused **memory pressure on Java 8 CI specifically**
+  (root cause: on Java 8 the `check*` tasks ran *in-process in the shared Gradle daemon* heap, not
+  forked — fixed separately by forking them, PR #1778). The tempting fix — halve the cache size — was
+  **tried and rejected**: `directSupertypes` at `cacheSize/2` (1000) is a **≈10% wall-clock regression**
+  (the mixed Phase-1+`directSupertypes@half` A/B landed at 2m34s, i.e. the shrink gave back *all* of
+  Phase 1's ≈15 s gain), far worse than its 90.5%→81% hit-rate delta suggested. Per-factory hit-rate
+  vs cap (measured): `directSupertypes` 256/512/1024/2000 → 54.6/65.3/81.2/90.5%; `asMemberOf` →
+  49.3/60.0/69.8/80.2%. **Conclusion: keep all caches at full `cacheSize`.** The right way to cut their
+  memory without losing speed is reducing *per-entry weight* — the immutability program (shared frozen
+  values, no `deepCopy`) — not reducing entry count. (`elementCache` rejected-unbounding note below is
+  the dual: don't *grow* element caches either.)
+
+- **`elementCache` unbounding / enlarging — MEASURED, REJECTED (not worth it).** Question raised: since
+  `elementCache` is element-keyed, should it cache all elements (drop the `LRU(2000)`)? The "no limit
+  for element keys" reasoning does *not* transfer: unlike the `Boolean`/`AnnotationMirrorSet`-valued
+  element caches (`methodDeclaresPolyCache`, `cacheDeclAnnos`), `elementCache`'s value is a deep-copied
+  full `AnnotatedTypeMirror` (heavy), and it is a shared base-class cache facing arbitrary downstream
+  projects, so unbounding risks OOM on large builds. Instrumented the `fromElement` get/put on
+  `:framework:checkNullness` (shadow LRUs at 2000 / 32000 / unbounded, aggregated across the nullness
+  checker's factories): **real `LRU(2000)` already hits 91.9%; `LRU(32000)` and unbounded both hit 92.9%
+  — only +1.0 pp — and they are *equal* because the largest single factory holds just 19,398 distinct
+  elements, well under 32000, so unbounded buys nothing over a modest bump.** Verdict: not worth
+  changing — a +1 pp hit-rate gain on a cache that already hits ~92%, against an OOM risk on large
+  downstream projects (whose distinct-element count can exceed 32000, where unbounded *would* diverge).
+  **Key correction this produced:** the element-path defaulting redundancy (above) is **not**
+  `elementCache` eviction churn — `elementCache` stores the *pre-defaults* type and defaulting re-runs
+  *after* `fromElement` on every `getAnnotatedType`, so enlarging `elementCache` would not reduce
+  defaulting cost; the defaulting venue needs its own post-defaults cache.
 
 - **`HashMap.getNode` (3.38% self) is flat and distributed — no single fix.** Nearest-CF split:
   `getDeclAnnotations` 27% (already cached in `cacheDeclAnnos`; the cost is the lookup itself, not a

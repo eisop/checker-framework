@@ -51,6 +51,9 @@
 //                                          idle share. Answers "where does checkNullness
 //                                          spend wall-clock". Bucket markers are
 //                                          CF-specific; see phaseBucket().
+//   heap   <file...>                       Retained (post-GC live) heap from jdk.GCHeapSummary
+//                                          "After GC" events: max/p90/median. For memory A/B
+//                                          (master-vs-branch delta = added retained footprint).
 //
 // WHY THIS EXISTS: on JDK 25 the stock `jfr print` and `jfr view` commands crash
 // with a StringIndexOutOfBoundsException in ValueFormatter.formatMethod /
@@ -111,7 +114,8 @@ public class jfr_analyze {
         if (args.length == 0) {
             System.err.println(
                     "usage: java jfr-analyze.java"
-                            + " <top|self|alloc|inclusive|under|cooccur|phase> [args] <file.jfr...>");
+                            + " <top|self|alloc|inclusive|under|cooccur|phase|heap> [args]"
+                            + " <file.jfr...>");
             System.exit(2);
         }
         String mode = args[0];
@@ -122,9 +126,59 @@ public class jfr_analyze {
             case "under" -> under(args[1], args, 2);
             case "cooccur" -> cooccur(args[1], args[2], args, 3);
             case "phase" -> phase(args, 1);
+            case "heap" -> heap(args, 1);
             // No subcommand: treat all args as files, run "top".
             default -> top(args, 0);
         }
+    }
+
+    /**
+     * Live-heap trajectory from jdk.GCHeapSummary "After GC" events: the retained (post-collection)
+     * heap over the run. Max post-GC heap ~ peak retained memory; the master-vs-branch delta is the
+     * added retained footprint (e.g. of a new cache). GC-implementation-agnostic (uses the generic
+     * GCHeapSummary heapUsed).
+     */
+    static void heap(String[] args, int start) throws Exception {
+        java.util.List<Long> afterGc = new java.util.ArrayList<>();
+        for (int i = start; i < args.length; i++) {
+            try (RecordingFile rf = new RecordingFile(Paths.get(args[i]))) {
+                while (rf.hasMoreEvents()) {
+                    RecordedEvent e = rf.readEvent();
+                    if (!e.getEventType().getName().equals("jdk.GCHeapSummary")) {
+                        continue;
+                    }
+                    String when = "";
+                    try {
+                        when = e.getString("when");
+                    } catch (Exception ex) {
+                        // some recordings lack the field; keep all
+                    }
+                    if (when != null && when.contains("Before")) {
+                        continue; // keep only "After GC" = live/retained
+                    }
+                    try {
+                        afterGc.add(e.getLong("heapUsed"));
+                    } catch (Exception ex) {
+                        // skip
+                    }
+                }
+            }
+        }
+        if (afterGc.isEmpty()) {
+            System.out.println("No GCHeapSummary 'After GC' events found.");
+            return;
+        }
+        java.util.Collections.sort(afterGc);
+        long max = afterGc.get(afterGc.size() - 1);
+        long median = afterGc.get(afterGc.size() / 2);
+        long p90 = afterGc.get((int) (afterGc.size() * 0.90));
+        double mb = 1024.0 * 1024.0;
+        System.out.printf(
+                "Post-GC live heap (jdk.GCHeapSummary, After GC): samples=%d%n"
+                    + "  max   = %.1f MB%n"
+                    + "  p90   = %.1f MB%n"
+                    + "  median= %.1f MB%n",
+                afterGc.size(), max / mb, p90 / mb, median / mb);
     }
 
     /** Inclusive (total) time for frames under a package prefix. */

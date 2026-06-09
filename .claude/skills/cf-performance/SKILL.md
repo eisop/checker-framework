@@ -156,6 +156,11 @@ java .claude/skills/cf-performance/jfr-analyze.java under performFlowAnalysis cf
 
 # Attribute a cost to a calling context (e.g. is this mostly under stub parsing?):
 java .claude/skills/cf-performance/jfr-analyze.java cooccur getDeclAnnotation AnnotationFileParser cf-*.jfr
+
+# Retained (post-GC live) heap from jdk.GCHeapSummary "After GC" events — for memory A/B
+# (e.g. does a new cache increase live heap?). Report max + p90 + median; the master-vs-branch
+# delta is the added retained footprint. (profile-cf.jfc already captures GCHeapSummary.)
+java .claude/skills/cf-performance/jfr-analyze.java heap cf-*.jfr
 ```
 
 Self-time is computed from `jdk.ExecutionSample` ONLY. Including
@@ -164,6 +169,45 @@ Self-time is computed from `jdk.ExecutionSample` ONLY. Including
 combined samples). `getThread()` is `null` in these traces, so per-thread
 filtering does not work — but the compilation is single-threaded, so every
 `ExecutionSample` is real work and no filtering is needed.
+
+## Measuring wall-clock effects (the A/B that decides if a change is worth it)
+
+JFR self-time / `phase` percentages are for **mechanism** ("which leaf
+dropped, which subsystem shrank"). They are *not* a reliable read of the
+**end-to-end** effect — a clear −15% in one phase can be a real ≈10% on the
+build or lost in noise. For the number that decides whether to ship, measure
+**wall clock**, and measure it the way it actually gets run. Hard-won rules:
+
+- **Use the daemon (warm), not `--no-daemon`.** A single `--no-daemon` run
+  *undercounts*: cold per-fork JVM startup dilutes the type-checking gain, and
+  one run is noise-dominated. (A real example: an element-type cache read as
+  "≈2%/noise" from one `--no-daemon` run measured **≈10%** under warm-daemon
+  reps — 2m34s → 2m19s.) Run `./gradlew checknullness` (no flags) as the user does.
+- **Rebuild the processor `shadowJar` on each side** (the forked javac uses it
+  as the annotation processor, so framework changes only take effect after
+  `:checker:shadowJar`). Stash exactly the runtime files to flip sides.
+- **Warm, then take a median of ≥3 reps/side.** Discard the first 1–2 runs
+  after a `shadowJar` change (the persistent compiler-worker JVM JIT is cold);
+  read Gradle's own "BUILD SUCCESSFUL in Xm Ys". Watch for a downward warming
+  trend — if reps are still dropping, warm more. Tightly clustered reps (e.g.
+  2m19s ×4) are the signal; a 5–10 s spread is normal noise.
+- **No JFR / `JAVA_TOOL_OPTIONS` during wall-clock reps** — recording perturbs
+  timing. Do mechanism (JFR) and wall-clock (plain) in separate runs.
+- **NEVER A/B two changes at once.** They can cancel and read as "no effect."
+  (Real example: Phase 1 (≈ −10%) measured together with a `directSupertypes`
+  cache-shrink (≈ +10%) netted *zero* wall-clock change; isolating each showed
+  both effects clearly.) One variable per A/B.
+- **Cross-session warmth is a confound.** Baseline and treatment measured in
+  separate daemon sessions can drift; if the gap is small, interleave
+  A/B/A/B/A/B. If it's large and the treatment reps are tightly clustered well
+  outside the baseline spread, that's usually conclusive enough.
+
+For **retained-memory** A/B (does a cache grow live heap?), use the `heap`
+mode above on a traced run of each side; the post-GC-live-heap delta is the
+added footprint. Caveat learned: shrinking a cache to reclaim that memory is
+**not free** — a `directSupertypes` cap halving recovered ~half its footprint
+but cost ≈10% wall clock (far more than its hit-rate delta implied). Cut
+*per-entry weight*, not entry count, when memory matters.
 
 ## What to look for
 
