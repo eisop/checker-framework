@@ -817,16 +817,41 @@ not single-leaf. Re-prioritized venues:
   info it already has (e.g. a `TypeKind` it could read without completing the symbol, or an interned
   `String` it could compare instead of decoding a `Name`).
 
-- **The defaulting walk is the largest *CF-controlled* leaf cluster.** `QualifierDefaults`
-  `DefaultApplierElementImpl.scan` plus `AnnotatedTypeScanner.visitDeclared`/`scan`/`reduce` together
-  are the biggest type-factory leaf group. Defaulting re-runs a full type-tree scan applying
-  element-based defaults on `getAnnotatedType` paths. Candidate: memoize the defaulting *result* per
-  element where the applied defaults are a pure function of the element (declaration-site defaulting),
-  separate from use-site/path-dependent defaulting which cannot be element-keyed. Feasibility unknown
-  until it is determined how much defaulting is redundant recompute for the same element vs. genuinely
-  location-dependent — measure before building. Medium size, medium confidence; validate the same way
-  as the ATM caches (`alltests` *diagnostics*, never a recompute cross-check — see the non-idempotency
-  trap above).
+- **The defaulting walk is the largest *CF-controlled* leaf cluster — FEASIBILITY MEASURED (June
+  2026), verdict: highly memoizable, worth building.** `QualifierDefaults.DefaultApplierElementImpl.scan`
+  plus `AnnotatedTypeScanner.visitDeclared`/`scan`/`reduce` are the biggest type-factory leaf group.
+  Note `QualifierDefaults.elementDefaults` *already* caches the per-element *DefaultSet*; the profiled
+  cost is the *application* — `applyDefaultsElement` scans the whole type tree once per `Default`.
+  Instrumented `applyDefaultsElement` on `:framework:checkNullness` (one fork, ≥3.0M calls, ~28M scans),
+  keying each call on `(identityHashCode(scope), structural ATM.hashCode of the input type BEFORE
+  mutation)` — a 64-bit composite, so hash-collision inflation is negligible at ~300k distinct keys:
+  - **scans per call ≈ 9.32** — each call triggers ~9 full type-tree scans (one per default in the set
+    + checked/unchecked-code defaults). High multiplier: a single cache hit elides all ~9 at once.
+  - **repeat rate (same `(scope, input-type-structure)` already seen): tree-path 88.0%** (1.41M calls,
+    168k distinct), **element-path 91.6%** (1.59M calls, 133k distinct). So defaulting is overwhelmingly
+    *redundant recompute*, not use-site-unique — the core feasibility question is answered yes.
+  - **Cost model favors a cache.** Per call a `(scope, structural-type)` cache costs ~1 `ATM.hashCode`
+    walk (≈1 scan-equivalent) for the key + a deep-copy on a hit; amortized at ~90% hit that is ~2.9
+    scan-equivalents/call vs. ~9.3 today — roughly a **3× cut** in defaulting work (defaulting is a
+    single-digit-% slice of self-time, so expect a few % end-to-end; confirm with a full-build A/B).
+  - **Refinement — split by path, because the two want different keys.** The **element path** (91.6%,
+    `annotate(Element, type)` from `fromElement`/`getAnnotatedType`) has an input type that is a *pure
+    function of the element*, so it can be keyed on the **element identity (cheap)**, no structural hash
+    needed; this redundancy largely overlaps `elementCache` (LRU 2000) *eviction churn*, so it may be
+    captured more simply by an element-keyed defaulting cache or by enlarging `elementCache` — lower
+    risk, no `ATM.hashCode` cost. The **tree path** (88.0%, `annotate(Tree, type)`) has use-site-specific
+    types and genuinely needs the **structural `(scope, type)` key**; it pays the uncached-`ATM.hashCode`
+    key cost (the immutability-plan risk #2 — measure that the hash walk does not eat the win), but 9.3
+    scans/call × 88% repeat says it still pays. The tree path is the novel part; the element path may be
+    a `elementCache`-sizing footnote.
+  - **Soundness + validation.** Defaulting only *adds missing* annotations and is deterministic given
+    `(scope, input-type-structure)`, so the structural repeats produce identical outputs; cache with
+    copy-on-store/return, same recipe as the `asMemberOf`/`directSupertypes` caches. Validate via
+    `alltests` **diagnostics**, never a recompute cross-check (the non-idempotency trap above).
+  - **Honest bounds:** numbers are from *one* subproject (ratios should generalize, but the absolute %
+    needs the full `checknullness` A/B); and the ~9.3 multiplier assumes each `applyDefault` ≈ a full
+    scan — if some short-circuit, both the savings *and* the key/copy cost shrink together, so the
+    favorable ratio is robust but the magnitude is not yet pinned.
 
 - **`HashMap.getNode` (3.38% self) is flat and distributed — no single fix.** Nearest-CF split:
   `getDeclAnnotations` 27% (already cached in `cacheDeclAnnos`; the cost is the lookup itself, not a
