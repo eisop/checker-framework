@@ -169,18 +169,21 @@ public abstract class AnnotatedTypeScanner<R, P> implements AnnotatedTypeVisitor
     }
 
     /**
-     * The default IdentityHashMap max capacity is 32, which causes a resize at 21 elements. Traces
-     * showed that this was frequently reached, resulting in resizes of the map. This higher
-     * expected maximum size should avoid resizes of the visitedNodes map.
+     * The {@code IdentityHashMap} {@code expectedMaxSize} (expected entry count, not a table size)
+     * for the {@code visitedNodes} map and the per-visit maps in {@code AnnotatedTypeCopier} and
+     * {@code EquivalentAtmComboScanner}. A value of 8 makes the constructor allocate a 32-slot
+     * {@code Object[]} that holds 10 entries before its first resize. Most scans visit only 1 to 3
+     * nodes, so the map rarely grows; these per-scan arrays are the framework's largest transient
+     * {@code Object[]} allocation source, so keeping them small reduces GC pressure.
      */
-    public static final int VISITED_NODES_EXPECTED_MAX_SIZE = 64;
+    public static final int VISITED_NODES_INITIAL_CAPACITY = 8;
 
     /**
      * To prevent infinite loops. Should only be re-assigned in reset, see note there. No code
      * should re-assign the field or hold an alias to this object.
      */
     protected IdentityHashMap<AnnotatedTypeMirror, R> visitedNodes =
-            new IdentityHashMap<>(VISITED_NODES_EXPECTED_MAX_SIZE);
+            new IdentityHashMap<>(VISITED_NODES_INITIAL_CAPACITY);
 
     /**
      * Reset the scanner to allow reuse of the same instance. Subclasses should override this method
@@ -191,7 +194,7 @@ public abstract class AnnotatedTypeScanner<R, P> implements AnnotatedTypeVisitor
         // to be more efficient to create a new instance.
         // visitedNodes.clear();
         if (!visitedNodes.isEmpty()) {
-            visitedNodes = new IdentityHashMap<>(VISITED_NODES_EXPECTED_MAX_SIZE);
+            visitedNodes = new IdentityHashMap<>(VISITED_NODES_INITIAL_CAPACITY);
         }
     }
 
