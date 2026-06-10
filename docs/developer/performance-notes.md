@@ -140,14 +140,41 @@ so small per-call wins paid back substantially.
 - **PR #1671** — *Increase the `AnnotatedTypeScanner#visitedNodes`
   map size.* Pre-sizes the `IdentityHashMap` to 64 to eliminate the
   early-resize storms previously visible in allocation profiles.
-- **Re-measured June 2026** — `reset()` uses `new IdentityHashMap<>(VISITED_NODES_EXPECTED_MAX_SIZE)`
-  rather than `clear()`. Leaf-frame self-time on `allNullnessTests -PmaxParallelForks=1`:
+- **Re-measured June 2026** — `reset()` uses `new IdentityHashMap<>(VISITED_NODES_INITIAL_CAPACITY)`
+  rather than `clear()` (the constant was then named `VISITED_NODES_EXPECTED_MAX_SIZE` and equal to 64). Leaf-frame self-time on `allNullnessTests -PmaxParallelForks=1`:
   `IdentityHashMap.clear` = 3.42% (668/19479 samples); `IdentityHashMap.init` net after
   background subtraction ≈ 1.27% (456 total − 180 background = 276 samples, /20809).
   `clear()` wins on object allocation (1.09% vs 1.48% of TLAB events) but loses on CPU:
   `IdentityHashMap.clear()` walks all 128 table slots explicitly in Java; TLAB allocation
   uses JVM bulk zeroing. The pre-sizing in PR #1671 is what makes `clear()` more expensive —
   pre-sizing enlarged the array that must be explicitly zeroed.
+- **PR #1785 — reduced the pre-size from 64 to 8 (June 2026); renamed the constant to
+  `VISITED_NODES_INITIAL_CAPACITY`.** Resolves the open candidate that used to sit in the
+  short list below. The realistic worker (`checknullness`, all subprojects) showed `Object[]`
+  at ~61% of TLAB allocations, ~91% of them these `IdentityHashMap` backing arrays from
+  `AnnotatedTypeScanner.reset`/`<init>` and `AnnotatedTypeCopier.visit`; PR #1671's pre-size of
+  64 backs a 256-slot `Object[]` per scan while most scans visit only 1–3 nodes. The constructor
+  argument is `IdentityHashMap`'s `expectedMaxSize`, not a table size: it allocates a power-of-two
+  backing array large enough to hold that many entries without resizing — so 4/8/16/32 back
+  16/32/64/128-slot `Object[]`s that first resize at 6/11/22/42 entries, and 16 is byte-for-byte
+  the no-arg default. A 4/8/16/32 JFR sweep (one full-build capture each) measured (on-CPU samples
+  / wall span / GC collections / `Object[]` near CF / `reset`-site `Object[]`):
+    - 4: 13,246 / 174 s / 667 / 21,490 / 2,803 — *worst*: resize-storm rehash on deeper types.
+    - 8: 12,218 / 159 s / 458 / 36,767 / 8,379 — *best* GC and CPU; ~26% less map allocation than the default.
+    - 16: 12,448 / 162 s / 504 / 43,091 / 11,370 — the JDK default size.
+    - 32: 12,366 / 163 s / 554 / 86,226 / 31,019 — double the default allocation, no CPU gain.
+
+  8 is the chosen value: resizing at 11 instead of 6 clears the 6–10-node tail that made 4 resize,
+  so it matches the default on CPU/GC while still allocating less. Among 8/16/32 the CPU/wall
+  numbers sit inside the ~3% run-to-run noise (a separate warm-daemon wall-clock A/B of 16 vs the
+  shipped 64 — `shadowJar` rebuilt per side, first rep per block discarded, two interleaved passes
+  — was a wash, both median 136 s over a 130–138 s spread), so the win is GC/footprint, not wall
+  clock, exactly as the CPU-bound (~96% on-CPU, ~4% GC) profile predicts. An audit of the other
+  ~60 `IdentityHashMap`s found just one more transient small-map worth pre-sizing —
+  `ElementAnnotationUtil.annotateViaTypeAnnoPosition`'s `wildcardToAnnos` (≤2 entries, pre-sized to
+  4 with its own rationale, unrelated to the visitor maps); the long-lived caches and per-analysis
+  dataflow stores hold many entries and must keep the default, since pre-sizing them small would
+  reintroduce resize storms.
 - **PR #1763** — *Pre-sized `ArrayList` copies in `AnnotatedTypeCopier`.* Replaced
   `CollectionsPlume.mapList` lambda calls with direct pre-sized `new ArrayList<>(size)` loops.
   Removes lambda-dispatch overhead and allocates the destination list at the correct capacity
@@ -548,6 +575,20 @@ the prior finding. A fresh hypothesis is not new evidence.
 - **`AnnotatedTypeMirror.getEffectiveAnnotations` caching.** JFR-
   attributed self-time was ~0.05% on the alltests trace and ~0.1% on
   the Oscar EMR (~4000 file) trace. Not a hotspot.
+- **Pre-sizing `AnnotationMirrorSet`'s backing array (June 2026, during PR #1785).**
+  `AnnotationMirrorSet.<init>` was the 2nd-largest `Object[]` source in the `checknullness`
+  worker (18.77%, 6,901 samples, behind only the visitor maps). But it is not oversized: the
+  set is array-backed by `shadowList = new ArrayList<>(2)`, already a 2-element `Object[2]`.
+  With compressed oops (the realistic-heap case) and 8-byte object alignment, `Object[1]`
+  (20 B → padded 24 B) and `Object[2]` (24 B) cost the *same* 24 bytes, so shrinking to 1 saves
+  nothing and would force a resize on every 2-element set (common: multi-hierarchy qualifier
+  sets, declaration-annotation sets). `Object[2]` is already at the alignment floor while holding
+  two without resizing; the 18.77% is allocation *volume* (one tiny array per set, and sets are
+  created constantly), which a capacity argument cannot reduce. Cutting it needs *fewer* set
+  instances — empty/singleton sentinels or a lazy/specialized backing store — which is an
+  architectural, correctness-sensitive change to a hot `Set`/`DeepCopyable` path, not a size
+  tweak. The empty-set case is already partly handled (the `emptySet()` sentinel and the
+  `getAnnotations()` `isEmpty()` short-circuit).
 - **`CFAbstractStore.copyMap` allocation avoidance.** `new HashMap<>(emptyMap)`
   and `new HashMap<>()` produce identical JIT output once the map is
   written to; the "savings" were illusory.
@@ -645,7 +686,7 @@ A May 2026 review closed out every item previously on this list:
   the doc comment on the base `getKind()`).
 - **Pre-sizing `AnnotatedTypeCopier`'s per-visit map** — *already done.*
   `AnnotatedTypeCopier.visit` constructs its `IdentityHashMap` with
-  `AnnotatedTypeScanner.VISITED_NODES_EXPECTED_MAX_SIZE` (64), the same
+  `AnnotatedTypeScanner.VISITED_NODES_INITIAL_CAPACITY` (8), the same
   pre-sizing as `AnnotatedTypeScanner.visitedNodes`.
 - **`==` fast-path in `isSupportedQualifier`** — *rejected;* see the Tried and
   rejected section for the measurement.
@@ -1150,14 +1191,6 @@ not single-leaf. Re-prioritized venues:
   non-diagnostic path (an unguarded message build); if it is only the stub parser, there is nothing to
   fix here. Sub-0.5% either way — low priority.
 
-- **`IdentityHashMap` pre-sizing (52% of `Object[]`, from `reset()`).** Pre-sized to
-  64 → a 256-slot `Object[]` per scan, most visiting 1–3 nodes. *Settled* for
-  realloc-vs-`clear()` and pre-size-64 (see the applied "Re-measured June 2026"
-  note), but those measurements were CPU self-time on `allNullnessTests`. The
-  realistic worker shows `Object[]` at 61% of allocations, so the **GC** side of the
-  tradeoff is heavier than when last measured. Only revisit with *wall-clock + GC
-  pause* data on a realistic compile (e.g. an adaptive/smaller initial size, or
-  size-aware reset) — allocation-count alone will not overturn the prior CPU finding.
 - **CF driving javac internals — the biggest realistic CPU lever (~25% of total).** The
   wall-clock breakdown above attributes ~25% of all time to CF reaching into javac:
   forced `Symbol.complete`/`apiComplete` (from `getKind`/`createType`/
