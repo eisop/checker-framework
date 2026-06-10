@@ -3674,7 +3674,7 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
      * map is necessary because dataflow does not create a {@code Node} for a {@code
      * ParenthesizedTree}.
      */
-    private final Map<Tree, ParenthesizedTree> parenMapping = new HashMap<>();
+    private final IdentityHashMap<Tree, ParenthesizedTree> parenMapping = new IdentityHashMap<>();
 
     @Override
     public Node visitParenthesized(ParenthesizedTree tree, Void p) {

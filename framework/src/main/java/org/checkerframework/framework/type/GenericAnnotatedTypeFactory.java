@@ -324,7 +324,7 @@ public abstract class GenericAnnotatedTypeFactory<
      *
      * <p>The initial capacity of the map is set by {@link #getCacheSize()}.
      */
-    protected @MonotonicNonNull Map<Tree, ControlFlowGraph> subcheckerSharedCFG;
+    protected @MonotonicNonNull IdentityHashMap<Tree, ControlFlowGraph> subcheckerSharedCFG;
 
     /**
      * If true, {@link #setRoot(CompilationUnitTree)} should clear the {@link #subcheckerSharedCFG}
@@ -1123,7 +1123,7 @@ public abstract class GenericAnnotatedTypeFactory<
     }
 
     /** Map from ClassTree to their dataflow analysis state. */
-    protected final Map<ClassTree, ScanState> scannedClasses = new HashMap<>();
+    protected final IdentityHashMap<ClassTree, ScanState> scannedClasses = new IdentityHashMap<>();
 
     /*
      * A set of trees whose corresponding nodes are reachable. This is not an exhaustive set of
@@ -3181,7 +3181,7 @@ public abstract class GenericAnnotatedTypeFactory<
         if (parentIsThisChecker) {
             // This is the ultimate parent.
             if (this.subcheckerSharedCFG == null) {
-                this.subcheckerSharedCFG = new HashMap<>(getCacheSize());
+                this.subcheckerSharedCFG = new IdentityHashMap<>(getCacheSize());
             }
             if (!this.subcheckerSharedCFG.containsKey(tree)) {
                 this.subcheckerSharedCFG.put(tree, cfg);
