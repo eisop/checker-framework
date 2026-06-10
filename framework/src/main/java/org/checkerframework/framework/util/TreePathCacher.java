@@ -19,6 +19,19 @@ import java.util.IdentityHashMap;
  */
 public class TreePathCacher extends TreeScanner<TreePath, Tree> {
 
+    /**
+     * Caches the {@link TreePath} of every {@link Tree} scanned so far, including the intermediate
+     * trees on the way to a search target; these are reused when later targets share a prefix. A
+     * {@code null} value is meaningful: it records that a target was searched for via {@link
+     * #getPath} but is not present in the compilation unit, so the unit is not re-scanned for it.
+     * See {@link #getCachedPath} for how the two readings of a {@code null} lookup are
+     * distinguished.
+     *
+     * <p>This is an {@link IdentityHashMap} rather than a {@link java.util.HashMap} because javac
+     * {@link Tree}s do not override {@code Object}'s identity {@code equals}/{@code hashCode};
+     * keying by identity is therefore equivalent in behavior while avoiding the per-entry node
+     * allocation and virtual {@code equals}/{@code hashCode} dispatch.
+     */
     private final IdentityHashMap<Tree, @Nullable TreePath> foundPaths = new IdentityHashMap<>(32);
 
     /**
