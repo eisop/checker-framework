@@ -1821,4 +1821,12 @@ public class ValueAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
         }
         return super.isImmutable(type);
     }
+
+    @Override
+    protected boolean shouldCacheMethodAsMemberOf() {
+        // The Value Checker computes a method's result type from the actual argument values (e.g.
+        // Math.min, String.length on a constant), so the method-as-member-of type is call-dependent
+        // and must not be cached on (method, receiver).
+        return false;
+    }
 }

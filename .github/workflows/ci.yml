@@ -50,7 +50,7 @@ jobs:
           # Caching handled by gradle/actions/setup-gradle below.
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v6.1.0
+        uses: gradle/actions/setup-gradle@v6.1.1
         with:
           # Allow cache writes on PR runs so subsequent reruns on the same PR
           # restore the previous run's Gradle home instead of rebuilding from
@@ -109,7 +109,7 @@ jobs:
           distribution: 'zulu'
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v6.1.0
+        uses: gradle/actions/setup-gradle@v6.1.1
         with:
           cache-read-only: false
 
@@ -221,7 +221,7 @@ jobs:
           echo "org.gradle.java.home=$JAVA_HOME_${{ env.PRIMARY_JDK }}_X64" >> ~/.gradle/gradle.properties
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v6.1.0
+        uses: gradle/actions/setup-gradle@v6.1.1
         with:
           cache-read-only: false
 
@@ -271,7 +271,7 @@ jobs:
           distribution: 'zulu'
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v6.1.0
+        uses: gradle/actions/setup-gradle@v6.1.1
         with:
           cache-read-only: false
 
