@@ -361,6 +361,55 @@ so small per-call wins paid back substantially.
   and `AnnotationConverter`: iterate `map.entrySet()` instead of `map.keySet()`
   followed by `map.get(key)`, eliminating a redundant second hash lookup per
   iteration.
+- **PR #1781** — *`IdentityHashMap` for caches keyed by `Element`/`Tree`.* javac `Symbol`s
+  and `JCTree`s use identity `equals`/`hashCode` (they do not override `Object`'s),
+  so a `HashMap` keyed by them was *already* an identity map — switching to
+  `IdentityHashMap` does not change behavior, it just drops the per-entry `Node`
+  allocation (open addressing) and replaces the virtual `hashCode()`/`equals()`
+  dispatch with `System.identityHashCode`/`==`. Converted six long-lived,
+  identity-keyed maps that had been left as `HashMap`:
+  - `AnnotatedTypeFactory.cacheDeclAnnos` (`Element` → `AnnotationMirrorSet`;
+    populated by the hot `getDeclAnnotations`),
+  - `GenericAnnotatedTypeFactory.subcheckerSharedCFG` (`Tree` → `ControlFlowGraph`;
+    pre-sized to `getCacheSize()`),
+  - `GenericAnnotatedTypeFactory.scannedClasses` (`ClassTree` → `ScanState`),
+  - `TreePathCacher.foundPaths` (`Tree` → `TreePath`),
+  - `CFGTranslationPhaseOne.parenMapping` (`Tree` → `ParenthesizedTree`; built
+    per-method during CFG construction),
+  - `AbstractAnalysis.finalLocalValues` (`VariableElement` → abstract value) —
+    this one was the lone `HashMap` among siblings (`nodeValues`, `inputs`,
+    `treeLookup`, `postfixLookup`) that were *already* `IdentityHashMap`.
+
+  **Safety rule for this conversion.** `IdentityHashMap.equals`/`hashCode` compare
+  *values* by reference too (they intentionally violate the `Map.equals` contract),
+  so only convert a map that is never `Map.equals`-compared. The dataflow *fixpoint*
+  compares `CFAbstractStore`s, not these maps, and none of the six is passed to
+  `Map.equals` — verify this before converting any further map. Audited but **left
+  as `HashMap`**: method-local short-lived maps (`InferenceResult`,
+  `DependentTypesHelper.checkTypesForErrorKey`, `BaseTypeVisitor` javaparser pairing)
+  where there is no entry-allocation pressure to remove, the stub-parser
+  `AnnotationFileParser.atypes` (cold for real workloads — stub parsing only
+  dominates in test-harness amplification), and the 4-entry
+  `LombokSupport.defaultedElements`.
+
+  **Measured impact (full-build A/B, June 2026).** This is an allocation/dispatch
+  reduction, not a measurable speedup. Wall clock on `./gradlew checknullness` (all
+  ~10 subprojects, warm daemon, processor `shadowJar` rebuilt each side, median of
+  ≥3 warm reps) was **~2m34 s with vs. ~2m32 s without — within run-to-run noise**;
+  the build-level gain is below the wall-clock floor. The mechanism is real but small
+  in the JFR profile (full-build `--no-daemon` traces): `HashMap$Node` dropped from
+  **3.21% → 2.76%** of TLAB allocation events (6,856 vs. 7,315 absolute — fewer even
+  though that branch trace sampled ~10% *more* total allocation), and with the
+  `[Ljava.util.HashMap$Node;` backing arrays the HashMap internals fell **4.66% →
+  4.02%**. Leaf self-time in `HashMap.getNode` fell **3.38% → 2.27%**, partly offset by
+  `IdentityHashMap.get` rising **1.28% → 1.50%** (cheaper per call: `identityHashCode`
+  + `==` + flat-array probe vs. virtual `hashCode`/`equals` + `Node` chase). Retained
+  memory was **unchanged**: post-GC live heap maxed at 512 MB on both sides with p90/median
+  within noise, and GC count/summed-pause were flat (647/7.86 s vs. 660/7.93 s) — the flat
+  `Object[]` of `IdentityHashMap` is roughly memory-neutral against `HashMap`'s
+  `Node[]`-plus-`Node`s for these small, long-lived maps. The takeaway: file such
+  identity-map conversions for their cumulative GC-pressure relief, not for a standalone
+  wall-clock win.
 - **Gotcha — avoid `Objects.hash(...)` / `Arrays.hashCode(...)` on hot paths.**
   `Objects.hash(a, b, ...)` is varargs, so each call allocates an `Object[]` *and*
   autoboxes every primitive argument to its wrapper — e.g. `Objects.hash(int, int)`
