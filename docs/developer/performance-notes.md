@@ -361,6 +361,18 @@ so small per-call wins paid back substantially.
   and `AnnotationConverter`: iterate `map.entrySet()` instead of `map.keySet()`
   followed by `map.get(key)`, eliminating a redundant second hash lookup per
   iteration.
+- **Gotcha — avoid `Objects.hash(...)` / `Arrays.hashCode(...)` on hot paths.**
+  `Objects.hash(a, b, ...)` is varargs, so each call allocates an `Object[]` *and*
+  autoboxes every primitive argument to its wrapper — e.g. `Objects.hash(int, int)`
+  is three allocations (the array + two `Integer`s) per call. On a per-node /
+  per-invocation path (cache-key constructors, `hashCode()` overrides) write the
+  polynomial by hand instead: `int h = 31 * a + b;` (or `h = 31 * h + next;` for
+  more fields). This mirrors the `HashcodeAtmVisitor` boxing/lambda removal
+  (PR #1672) and was applied to the `methodFromUse` cache-key constructor
+  (`MethodAsMemberOfCacheKey`), which builds a key on every cached method
+  invocation. The two-arg `Objects.equals` is fine (no array/boxing); only the
+  varargs `hash`/`Arrays.hashCode` family allocates. Precompute the result into a
+  `final int hash` field when the key is immutable, as both new cache keys do.
 
 ### Value Checker
 
@@ -641,7 +653,307 @@ Open venues, roughly by tractability:
   cache hit, many `getAnnotatedType` paths). `ATF.getElementAnnotations` (committed)
   was a one-caller nibble. The real lever is **copy-on-write annotation sets or
   immutable ATMs**; this also unblocks the `directSupertypes` cache above. Large,
-  architectural, high value.
+  architectural, high value. **This is now an active staged program — see
+  "AnnotatedTypeMirror value-semantics program" below.**
+
+### AnnotatedTypeMirror value-semantics program (in progress, June 2026)
+
+Goal: make ATMs effectively immutable / copy-on-write so `deepCopy`/`shallowCopy` can be
+deleted and fully-computed types become sound value-keyed cache keys/values — unblocking
+caches for the realistic-workload hot paths (`methodFromUse`/`asMemberOf` ~23% inclusive,
+`directSupertypes` ~13.5%) and removing the ~22%-of-`Object[]` defensive-copy cost. Staged,
+each stage `alltests`-gated and JFR-measured; full design in the session plan.
+
+**Validation spike (DONE, GO).** A throwaway `methodFromUse` cache (non-generic methods, key
+`(methodElt, structural receiverType, inferTypeArgs)`, copy-on-store/return) on
+`:checker:checkNullness`: **66.7% hit rate**, `AnnotatedTypes.asMemberOf` (12.4% inclusive)
+eliminated on hits, net allocation down even with the copy-tax, ~5% fewer on-CPU samples; the
+structural-key hashing and copy-tax stayed below the inclusive threshold (cheap). Payoff confirmed.
+
+**Standalone caching needs poly-handling + opt-outs — but NOT the full immutability program.**
+Two experiments settled this; a methodological trap nearly sent us down the wrong road, so the
+correction is recorded carefully.
+
+*The recompute cross-check is INVALID for this computation.* A natural validator — on a cache hit,
+recompute `computeMethodTypeAsMemberOf` and `assert` it structurally equals the cached value — fired
+across **~20 checkers** (with either identity-based or `Types.isSameType`-based comparison). It looked
+like a deep "value-identity wall." **It was an artifact:** an idempotency probe (compute the same
+`(tree, methodElt, receiverType)` *twice in a row* and compare) showed the two results have *identical*
+`toString()` but compare **unequal** — because substitution / capture conversion mints **fresh
+type-variable and captured-type instances on every call** (`isSameType(CAP#1, CAP#2) == false`). So
+the recompute cross-check can *never* succeed on any type-variable- or capture-bearing result,
+regardless of whether the cache is actually correct. **Do not use a recompute-and-compare cross-check
+to validate ATM-producing caches; validate with `alltests` diagnostics instead.** (`EqualityAtmComparer`
+also compares underlying types by identity — line 55, `ut1.equals(ut2)`, javac `Type` has no value
+`equals`, `@SuppressWarnings("TypeEquals") // TODO` — which contributes, but `isSameType` does not fix
+it because of the fresh-capture issue above.)
+
+*The real breakage, validated by diagnostics (cache on, cross-check OFF), is bounded — ~9 suites:*
+`NullnessTest` (3, polymorphic qualifiers), `H1H2CheckerTest`/`SubtypingEncryptedTest` (poly),
+`ValueTest`/`ValueIgnoreRangeOverflow`/`ValueNonNullStringsConcatenation`/`ValueUncheckedDefaults`
+(the Value checker — its method results are call-/argument-dependent), `IndexTest` (MethodVal
+reflection), `InitializedFieldsValueTest`. The ~20-checker "breadth" was the cross-check artifact, not
+real. So caching the `(methodElt, receiverType)`-determined substitution is sound for most checkers;
+it is unsound where the method type is genuinely call-dependent (polymorphic-qualifier resolution;
+Value; reflection).
+
+*Decision — bounded, not the megaproject.* The wall-clock-win cache is achievable with:
+(1) a **polymorphic-qualifier guard** — skip caching when the method's *declared* type contains a
+`@Poly*` qualifier (must check the **declared** type, not the `computeMethodTypeAsMemberOf` result:
+`methodFromUsePreSubstitution` — its boolean param is literally `resolvePolyQuals` — resolves the
+poly qualifiers to concrete ones before the result, so scanning the result misses them; cached per
+element);
+(2) a **per-checker opt-out predicate** `shouldCacheMethodAsMemberOf()` (default true) for genuinely
+call-dependent checkers — overridden false in `ValueAnnotatedTypeFactory` (results computed from
+argument values) and `MethodValAnnotatedTypeFactory` (reflection);
+(3) **validate via `alltests` diagnostics**, NOT a recompute cross-check.
+The copy-tax for value stability is cheap (measured). This is bounded work, far less than the
+immutability rewrite. **The immutability program is therefore decoupled: it remains worthwhile for the
+*allocation* win (deleting `deepCopy`, ~22% of `Object[]`) and the clean end-state, but it is NOT a
+prerequisite for the wall-clock-win cache.**
+
+**APPLIED (pending review).** The cache as above is implemented in
+`AnnotatedTypeFactory.methodFromUse` (the inner 4-arg overload): cache the
+`(methodElt, receiverType)`-determined `computeMethodTypeAsMemberOf` result, keyed with a cache-local
+`isSameType`-based structural comparison (`IsSameTypeAtmComparer`, so structurally-equal receivers
+share an entry and distinct captures stay distinct, without touching the global `ATM.equals`);
+deep-copy on store/return; skip declared-`@Poly*` methods; `Value`/`MethodVal` opt out.
+**Correctness:** full `:framework:test` + `:checker:test` pass (0 diagnostic failures); the framework
+nullness self-check passes. **Performance — single-subproject slice (`:checker:checkNullness`, two
+captures):** `asMemberOf` inclusive 12.4% → absent; on-CPU Java samples 3,443 → ~2,690 (−22% *of that
+one worker*); GC pause down too. A cache *hit* skips all of `computeMethodTypeAsMemberOf` (including the
+`getAnnotatedType(methodElt)` deep-copy and fake-overrides), which is why the win exceeds `asMemberOf`
+alone. **CAVEAT — this −22% is a slice, not the build** (see the full-build A/B below): it is the
+on-CPU type-factory work of *one* forked compile, which is a minority of `./gradlew checknullness`
+wall-clock (10 subprojects + per-fork JVM startup + parse/enter/attribute). Always state the
+combined-cache full-build number, not this slice, as the headline.
+
+*Future venue — defer poly resolution past the cache boundary to drop the guard (and cache poly
+methods too).* The poly guard and the type-variable non-guard are not a fundamental asymmetry; they are
+an artifact of *where in the `methodFromUse` pipeline* each call-site specialization happens relative to
+where the cache stores its value. The cache stores `computeMethodTypeAsMemberOf` (stops after
+`asMemberOf`). **Method type arguments are substituted *after* the cache** — `findTypeArguments` +
+`typeVarSubstitutor.substitute` run per call on the `deepCopy()` (inner `methodFromUse`, ~lines
+2735–2747) — so the cached value is still *generic* in the method's type variables and two calls with the
+same `(methodElt, receiverType)` but different (explicit or inferred) type arguments correctly diverge on
+their own copies. That is exactly why the key is `(methodElt, receiverType)`, not `(…, typeArgs)`, and
+why type variables need **no** guard; guarding them would needlessly disable the cache for every generic
+method. **Polymorphic qualifiers, by contrast, are resolved *inside* the cached computation** — at
+`methodFromUsePreSubstitution(tree, …, resolvePolyQuals)` (~line 2792), which reads the call-site
+arguments and bakes concrete qualifiers in — so the stored value is already specialized to one call
+site's arguments, which the key does not capture; hence the guard. **If poly resolution were moved to a
+post-cache, per-call step (the same side of the boundary as type-arg substitution), the cached value
+would be poly-generic and the declared-`@Poly*` guard could be deleted** — recovering the
+Nullness/H1H2/Subtyping suites that currently bypass the cache. Larger and riskier than the guard
+(it relocates `methodFromUsePreSubstitution`'s poly handling onto the copy and must preserve the
+arguments→qualifiers resolution semantics), so deferred; the guard is the bounded, sound choice for now.
+Note the base `methodFromUsePreSubstitution` is empty and its only contract is the `resolvePolyQuals`
+parameter, so the declared-`@Poly*` guard covers exactly the tree-dependent work that bakes into the
+cached value; an override doing *other* tree-dependent work there must use the `shouldCacheMethodAsMemberOf()`
+opt-out instead (which is why Value/MethodVal disable the cache wholesale).
+
+**`directSupertypes` cache — APPLIED (pending review), same recipe.** `directSupertypes(type)` is a
+pure function of `type`'s structure and annotations (the only hook, `postDirectSuperTypes(type,
+supertypes)`, takes no tree/args; it copies the receiver's effective annotations and applies
+element-based defaults), so — unlike `methodFromUse` — it needs **no poly guard and no per-checker
+opt-out**. `AnnotatedTypeFactory.getDirectSupertypes(AnnotatedDeclaredType)` caches it, keyed on the
+type with the same cache-local `isSameType` structural comparison; deep-copy on store/return (callers
+mutate the supertypes' annotations); `AnnotatedDeclaredType.directSupertypes()` delegates to it.
+**Correctness:** full `:framework:test` + `:checker:test` pass (0 failures); framework nullness
+self-check passes. **Performance (single-subproject slice, `:checker:checkNullness`):**
+`directSupertypes` 13.5% inclusive → absent; primarily an **allocation** win — TLAB events −13.5%
+(`Object[]` −17.5%) — plus a modest ~5% on-CPU on that slice.
+
+**Full-build A/B — the headline numbers (June 2026).** The slice figures above (`−22%`, `−26%`) badly
+*overstated* the build-level impact because they profiled a single forked compile (~2,600 samples /
+~26 s), whereas the unqualified `./gradlew checknullness` runs the checker over **10 subprojects**
+(checker, checker-qual{,-android}, checker-util, dataflow, docs, framework, framework-perf,
+framework-test, javacutil), all routed through **one persistent Gradle compiler-worker JVM**. Profiling
+the full task (`--no-daemon`, JFR on every JVM via `JAVA_TOOL_OPTIONS`, then analyzing the one large
+worker file) gives a complete trace of ~15.5–17k samples / ~155–172 s — 6× the slice. Clean A/B,
+both caches applied vs. reverted (processor `shadowJar` rebuilt each side, identical `--no-daemon` run):
+
+| metric (full `./gradlew checknullness`) | baseline | with caches | delta |
+|---|---|---|---|
+| on-CPU Java samples (whole worker) | 17,227 | 15,555 | **−9.7%** |
+| Type-factory phase samples | 7,121 | 5,893 | **−17.2%** |
+| wall clock, `--no-daemon` | 229 s | 209 s | **−8.7%** |
+| wall clock, warm daemon (user-observed) | ~180 s | ~157 s | **~−13%** |
+
+So the two caches are worth **~9% (cold) to ~13% (warm-daemon) end-to-end wall clock**, and ~17% of the
+type-factory phase specifically — a real, solid win, but roughly half what the single-worker slice
+implied. TLAB allocation is down correspondingly. Both caches are decoupled from the immutability
+program. **Methodology lesson (do not repeat): profile `./gradlew checknullness` (the full
+multi-subproject task), not `:checker:checkNullness` (one subproject), and report the whole-worker
+sample delta + wall clock, never a single phase's inclusive % as if it were the build.** The
+`record-jfr.sh` "analyze the largest file, the rest is noise" advice is correct *for a single-project
+task* but silently undercounts here, because the largest file is the only real worker and it contains
+all 10 compiles — analyze it, but know it is the whole build, not one subproject.
+
+**Post-cache re-profile — next venues (June 2026, full-build worker, 15,555 on-CPU samples).**
+With both caches applied, the `jfr-analyze.java phase` breakdown on the full `./gradlew checknullness`
+worker: **Type factory 37.9%** (baseline 41.3% — the two caches removed ~3.4 points of the total, i.e.
+−17% within the phase), **javac internals 34.7%** (now the *relative* leader), Other CF 13.3%,
+Dataflow 6.8%, Stub 4.2%, Visitor 3.0%. The leaf self-time profile is very flat — no CF leaf above
+~3% (`HashMap.getNode` 3.4%, `QualifierDefaults$DefaultApplierElementImpl.scan` 2.9%,
+`AnnotatedTypeScanner.scan` 2.8%) — so the remaining work is squarely architectural / aggregate,
+not single-leaf. Re-prioritized venues:
+
+- **CF driving javac internals is now the largest phase (33.6%) and the highest-leverage target.**
+  This subsumes the "CF driving javac internals (~25%)" bullet below, which is still accurate but was
+  measured pre-cache; the caches shrank the type-factory phase around it, so it is now proportionally
+  larger. Concrete forcers seen in this trace, by `jfr-analyze.java under`/nearest-CF attribution:
+  `Symbol.complete`/`apiComplete` (1.50%/0.97% self) are reached from `AnnotatedTypeFactory.createType`,
+  `CFAbstractValue.canBeMissingAnnotations` (it sits on the stack above `Symbol.complete` via its
+  `typeMirror.getKind()` chain at `CFAbstractValue.java:153–161`; the static overload is called
+  directly from the `mostSpecific`/`leastUpperBound`/`greatestLowerBound` dataflow merges at
+  :301/:573/:717, *not* only the `assert`-guarded `validateSet` at :110 — confirmed, the forked javac
+  runs without `-ea`. **Hypothesis, not verified:** that `getKind()` itself forces completion — javac
+  `Type.getKind()` is usually cheap, so the completion may be triggered by a sibling call in the merge
+  and merely co-sampled; confirm the exact forcer before optimizing here),
+  and `ElementUtils.isTypeElement`/`overriddenMethods`. `Convert.utf2chars` (1.29% self) is `Name`/UTF-8
+  decoding; its nearest-CF callers split between legitimate stub work (`AnnotationFileParser.findElement`)
+  and `TreeUtils.isConstructor`/`isEnumSuperCall`. Incremental, not architectural: audit each forcer for
+  info it already has (e.g. a `TypeKind` it could read without completing the symbol, or an interned
+  `String` it could compare instead of decoding a `Name`).
+
+- **The defaulting walk is the largest *CF-controlled* leaf cluster — FEASIBILITY MEASURED (June
+  2026), verdict: highly memoizable, worth building.** `QualifierDefaults.DefaultApplierElementImpl.scan`
+  plus `AnnotatedTypeScanner.visitDeclared`/`scan`/`reduce` are the biggest type-factory leaf group.
+  Note `QualifierDefaults.elementDefaults` *already* caches the per-element *DefaultSet*; the profiled
+  cost is the *application* — `applyDefaultsElement` scans the whole type tree once per `Default`.
+  Instrumented `applyDefaultsElement` on `:framework:checkNullness` (one fork, ≥3.0M calls, ~28M scans),
+  keying each call on `(identityHashCode(scope), structural ATM.hashCode of the input type BEFORE
+  mutation)` — a 64-bit composite, so hash-collision inflation is negligible at ~300k distinct keys:
+  - **scans per call ≈ 9.32** — each call triggers ~9 full type-tree scans (one per default in the set
+    + checked/unchecked-code defaults). High multiplier: a single cache hit elides all ~9 at once.
+  - **repeat rate (same `(scope, input-type-structure)` already seen): tree-path 88.0%** (1.41M calls,
+    168k distinct), **element-path 91.6%** (1.59M calls, 133k distinct). So defaulting is overwhelmingly
+    *redundant recompute*, not use-site-unique — the core feasibility question is answered yes.
+  - **Cost model favors a cache.** Per call a `(scope, structural-type)` cache costs ~1 `ATM.hashCode`
+    walk (≈1 scan-equivalent) for the key + a deep-copy on a hit; amortized at ~90% hit that is ~2.9
+    scan-equivalents/call vs. ~9.3 today — roughly a **3× cut** in defaulting work (defaulting is a
+    single-digit-% slice of self-time, so expect a few % end-to-end; confirm with a full-build A/B).
+  - **Refinement — split by path, because the two want different keys.** The **element path** (91.6%,
+    `annotate(Element, type)` from `getAnnotatedType`) has an input type that is a *pure function of the
+    element*, so it can be keyed on the **element identity (cheap)**, no structural hash needed. **NB
+    (corrected): this redundancy is NOT `elementCache` eviction churn** — see the `elementCache`
+    measurement below: `elementCache` already hits ~92%, but it stores the type *before* defaults
+    (`fromElement`'s contract), and defaulting (`annotate(Element, type)`) runs *after* `fromElement` on
+    every `getAnnotatedType` call regardless of the cache hit. So the element path needs its own
+    **post-defaults** memoization (a new cache keyed on element identity), which enlarging `elementCache`
+    would *not* provide. The **tree path** (88.0%, `annotate(Tree, type)`) has use-site-specific types
+    and genuinely needs the **structural `(scope, type)` key**; it pays the uncached-`ATM.hashCode` key
+    cost (the immutability-plan risk #2 — measure that the hash walk does not eat the win), but 9.3
+    scans/call × 88% repeat says it still pays. Both paths are real; the tree path is the novel part.
+  - **Soundness + validation.** Defaulting only *adds missing* annotations and is deterministic given
+    `(scope, input-type-structure)`, so the structural repeats produce identical outputs; cache with
+    copy-on-store/return, same recipe as the `asMemberOf`/`directSupertypes` caches. Validate via
+    `alltests` **diagnostics**, never a recompute cross-check (the non-idempotency trap above).
+  - **Honest bounds:** numbers are from *one* subproject (ratios should generalize, but the absolute %
+    needs the full `checknullness` A/B); and the ~9.3 multiplier assumes each `applyDefault` ≈ a full
+    scan — if some short-circuit, both the savings *and* the key/copy cost shrink together, so the
+    favorable ratio is robust but the magnitude is not yet pinned.
+
+- **Phase 1 (element path) — APPLIED (pending review).** Implemented the value-returning element-keyed
+  cache: a new `AnnotatedTypeFactory.elementTypeCache` (`LRU(getCacheSize())`, deep-copy on
+  store/return) memoizes the *fully-computed* `getAnnotatedType(Element)` result (post `fromElement` +
+  `addComputedTypeAnnotations`, i.e. after type annotators + qualifier defaulting). A hit returns a deep
+  copy and skips the whole pipeline. Cheap **element-identity** key (no `ATM.hashCode`); no poly guard
+  needed (declaration defaulting does not resolve `@Poly` from arguments — like `directSupertypes`);
+  overridable `shouldCacheElementType()` opt-out (default true) for checkers whose
+  `addComputedTypeAnnotations(Element, …)` is not a pure function of the element. Not cleared between
+  CUs (element-keyed, stable — same as `elementCache`). **Correctness:** full `:framework:test` +
+  `:javacutil:test` + `:dataflow:test` + `:checker:test` pass (0 diagnostic failures) — no bundled
+  checker needed the opt-out. **Performance — `≈10%` wall clock (worth keeping).** Mechanism (single
+  `--no-daemon` back-to-back, full `./gradlew checknullness`): element-path defaulting roughly halved —
+  `DefaultApplierElementImpl.scan` 361→247 (−32%), `DefaultApplierElement.shouldBeAnnotated` 135→63
+  (−53%) — and the **type-factory phase dropped −15.2%** (5,594→4,742 samples). Wall clock, the metric
+  that matters (warm-daemon, 3–4 reps/side, median): **baseline PR 1777 2m34s → isolated Phase 1 2m19s,
+  ≈ −15 s / −10%, and the Phase-1 reps were tightly clustered (2m19s ×3–4) vs the baseline's 152–157 s
+  spread.** This is a real, consistent win — **keep Phase 1.**
+  **Two measurement traps this corrected (see "Measuring wall-clock effects" in the SKILL):**
+  (1) my *first* read called it "≈2%/noise" — that was a single `--no-daemon` run; cold per-fork JVM
+  startup dilutes the type-checking gain and a single run is noise-dominated. The warm-daemon
+  multi-rep wall-clock is the reliable measure (≈10%). (2) An intermediate A/B that *mixed* Phase 1
+  with a `directSupertypes`-cap experiment showed **zero** wall-clock change — because the two effects
+  cancelled (see the next bullet). **Never A/B two changes at once.**
+  **Phase 2 (tree path, structural `(scope, type)` key + write-back) deferred** per plan — re-profile
+  after Phase 1 to see whether tree-path defaulting is still worth its write-back tax.
+
+- **`constructorFromUse` cache (analog of `methodFromUse`) — IMPLEMENTED, MEASURED, REJECTED.** A
+  tempting target: `constructorFromUse` is ~12% inclusive (even on the fully-cached branch), and a
+  spike showed a **96.4% hit rate** on `(ctor, instantiated-type)` with only **1.7% anonymous**
+  (skipped) and **~176 distinct keys** (so ~free on memory). Implemented the full cache (same recipe
+  as `methodFromUse`: structural key, deep-copy on store/return, poly guard, `shouldCacheConstructorFromUse`
+  opt-out defaulting to the method opt-out, anonymous-class carve-out, plus a `type.deepCopy()` on the
+  *stored key* because the instantiated `type` can alias the returned constructor's in-place-mutated
+  return type). **Correctness: full `:framework:test`/`:javacutil:test`/`:dataflow:test`/`:checker:test`
+  pass (0 failures).** **But the warm-daemon wall-clock A/B (cache on vs off via the opt-out, Phase 1
+  constant) showed NO benefit — 2m21s vs 2m19s, i.e. flat-to-slightly-negative.** Why the 96% hit rate
+  didn't translate (the lesson): the deep-copy-cache **overhead floor** — a structural key hash
+  (`type.hashCode()`, an uncached ATM walk) on *every* call + a deep-copy on hit + a deep-copy of the
+  stored key ≈ 2 type-walks — roughly *equals* the work a hit saves, because the saved part is just the
+  constructor `asMemberOf` (`getAnnotatedType(ctor)` is already Phase-1-cached) and constructors are
+  **infrequent** (~5–10k calls), so the fixed overhead never amortizes. Contrast `methodFromUse`/
+  `directSupertypes`, which save *more* than the tax per hit **and** fire far more often.
+  **Takeaways:** (1) hit rate is necessary but not sufficient — always confirm with the wall-clock A/B;
+  (2) a cache only wins when (per-hit saving − deep-copy tax) × frequency is positive, which immutability
+  (removing the deep-copy tax) would change — so this could be worth revisiting *after* immutability,
+  but not before. Reverted.
+
+- **Do NOT shrink the heavy caches to save memory — MEASURED, the cap is worth ≈10% wall clock.**
+  PR 1777's two LRU caches add **≈ +50–70 MB retained live heap** on a full `checknullness` (measured
+  master vs branch via post-GC `jdk.GCHeapSummary` "After GC": median 207→259 MB, p90 358→426 MB; both
+  caches fill to their 2000 cap; `directSupertypes` stores `List<AnnotatedDeclaredType>`, the heaviest
+  per entry). That footprint is JDK-independent but caused **memory pressure on Java 8 CI specifically**
+  (root cause: on Java 8 the `check*` tasks ran *in-process in the shared Gradle daemon* heap, not
+  forked — fixed separately by forking them, PR #1778). The tempting fix — halve the cache size — was
+  **tried and rejected**: `directSupertypes` at `cacheSize/2` (1000) is a **≈10% wall-clock regression**
+  (the mixed Phase-1+`directSupertypes@half` A/B landed at 2m34s, i.e. the shrink gave back *all* of
+  Phase 1's ≈15 s gain), far worse than its 90.5%→81% hit-rate delta suggested. Per-factory hit-rate
+  vs cap (measured): `directSupertypes` 256/512/1024/2000 → 54.6/65.3/81.2/90.5%; `asMemberOf` →
+  49.3/60.0/69.8/80.2%. **Conclusion: keep all caches at full `cacheSize`.** The right way to cut their
+  memory without losing speed is reducing *per-entry weight* — the immutability program (shared frozen
+  values, no `deepCopy`) — not reducing entry count. (`elementCache` rejected-unbounding note below is
+  the dual: don't *grow* element caches either.)
+
+- **`elementCache` unbounding / enlarging — MEASURED, REJECTED (not worth it).** Question raised: since
+  `elementCache` is element-keyed, should it cache all elements (drop the `LRU(2000)`)? The "no limit
+  for element keys" reasoning does *not* transfer: unlike the `Boolean`/`AnnotationMirrorSet`-valued
+  element caches (`methodDeclaresPolyCache`, `cacheDeclAnnos`), `elementCache`'s value is a deep-copied
+  full `AnnotatedTypeMirror` (heavy), and it is a shared base-class cache facing arbitrary downstream
+  projects, so unbounding risks OOM on large builds. Instrumented the `fromElement` get/put on
+  `:framework:checkNullness` (shadow LRUs at 2000 / 32000 / unbounded, aggregated across the nullness
+  checker's factories): **real `LRU(2000)` already hits 91.9%; `LRU(32000)` and unbounded both hit 92.9%
+  — only +1.0 pp — and they are *equal* because the largest single factory holds just 19,398 distinct
+  elements, well under 32000, so unbounded buys nothing over a modest bump.** Verdict: not worth
+  changing — a +1 pp hit-rate gain on a cache that already hits ~92%, against an OOM risk on large
+  downstream projects (whose distinct-element count can exceed 32000, where unbounded *would* diverge).
+  **Key correction this produced:** the element-path defaulting redundancy (above) is **not**
+  `elementCache` eviction churn — `elementCache` stores the *pre-defaults* type and defaulting re-runs
+  *after* `fromElement` on every `getAnnotatedType`, so enlarging `elementCache` would not reduce
+  defaulting cost; the defaulting venue needs its own post-defaults cache.
+
+- **`HashMap.getNode` (3.38% self) is flat and distributed — no single fix.** Nearest-CF split:
+  `getDeclAnnotations` 27% (already cached in `cacheDeclAnnos`; the cost is the lookup itself, not a
+  recompute), `isSupportedQualifier` 10.5% (a `Set<String>.contains` on the supported-qualifier names),
+  `fromElement`/`getDeclAnnotation`/`declarationFromElement` the remainder. These are unavoidable map
+  lookups on already-cached data; the only lever is reducing *call frequency* (fewer
+  `getDeclAnnotations`/`isSupportedQualifier` calls per node), not the per-lookup cost. Low value as a
+  direct target; better addressed indirectly if the defaulting/CF-into-javac venues reduce node visits.
+
+- **Annotation *formatting* in the hot path — confirm before chasing (likely a non-issue).**
+  `AnnotationUtils.toStringSimple` and `DefaultAnnotationFormatter.isInvisibleQualified` appear under
+  `Convert.utf2chars`, which would be alarming (formatting should only run for diagnostics). But
+  `isInvisibleQualified` is called *only* from `DefaultAnnotationFormatter.formatAnnotationString`
+  (ATM `toString`), and `toStringSimple` from `CFAbstractValue.toString`/`toStringSimple` and the stub
+  parser — and the co-located nearest-CF frame is `AnnotationFileParser.findElement`, i.e. the **stub
+  parser** legitimately decoding/matching annotation names, not type-checking. Before optimizing,
+  confirm with a stack sample whether any `ATM.toString`/`CFAbstractValue.toString` is invoked from a
+  non-diagnostic path (an unguarded message build); if it is only the stub parser, there is nothing to
+  fix here. Sub-0.5% either way — low priority.
+
 - **`IdentityHashMap` pre-sizing (52% of `Object[]`, from `reset()`).** Pre-sized to
   64 → a 256-slot `Object[]` per scan, most visiting 1–3 nodes. *Settled* for
   realloc-vs-`clear()` and pre-size-64 (see the applied "Re-measured June 2026"

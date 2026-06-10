@@ -1282,7 +1282,7 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
 
         @Override
         public List<AnnotatedDeclaredType> directSupertypes() {
-            return Collections.unmodifiableList(SupertypeFinder.directSupertypes(this));
+            return atypeFactory.getDirectSupertypes(this);
         }
 
         @Override

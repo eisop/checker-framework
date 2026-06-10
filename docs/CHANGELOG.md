@@ -4,7 +4,7 @@ Version 3.49.5-eisop2 (June ?, 2026)
 **User-visible changes:**
 
 Further performance improvements. `allNullnessTests` down to below 2 minutes
-and `checkNullness` to below 3 minutes (last release: 2.5 and 4 minutes,
+and `checkNullness` to around 2.5 minutes (last release: 2.5 and 4 minutes,
 respectively). Several optimizations also reduce GC pressure.
 
 **Implementation details:**
@@ -31,6 +31,10 @@ reused — the `QualifierDefaults` defaulting scanner, `ElementAnnotationApplier
 `TypeVarAnnotator`, and `BaseTypeValidator`'s structural-validity scanner — instead of
 allocating a scanner (and its `IdentityHashMap`) for every type. This removes ~99% of
 per-use scanner-construction allocations in realistic compilations.
+
+Performance: new caches in the `AnnotatedTypeFactory`: `methodAsMemberOfCache`
+to cache method types, `directSupertypesCache` to cache direct supertypes, and
+`elementTypeCache` to cache defaulted Element types.
 
 Fixed a bug that caused an IndexOutOfBoundsException for lambdas in varargs,
 for type systems that had the Aliasing Checker as a subchecker, like the
