@@ -40,6 +40,9 @@ public class TreePathCacher extends TreeScanner<TreePath, Tree> {
      */
     private @Nullable TreePath path;
 
+    /** Construct a TreePathCacher. */
+    public TreePathCacher() {}
+
     /**
      * Returns true if the tree is cached.
      *
