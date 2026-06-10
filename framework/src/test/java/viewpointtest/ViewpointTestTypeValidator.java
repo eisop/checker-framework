@@ -19,9 +19,11 @@ import javax.lang.model.element.TypeElement;
 /** The type validator for the Viewpoint Test Checker. */
 public class ViewpointTestTypeValidator extends BaseTypeValidator {
 
+    /** Error key for {@code @Lost} in adapted type parameter bounds. */
     private static final @CompilerMessageKey String LOST_IN_BOUNDS =
             "viewpointtest.lost.in.bounds";
 
+    /** The annotated type factory for the Viewpoint Test Checker. */
     private final ViewpointTestAnnotatedTypeFactory viewpointTypeFactory;
 
     /**

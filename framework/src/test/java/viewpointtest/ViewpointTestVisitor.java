@@ -14,8 +14,10 @@ import org.checkerframework.framework.util.AnnotatedTypes;
 /** The visitor for the Viewpoint Test Checker. */
 public class ViewpointTestVisitor extends BaseTypeVisitor<ViewpointTestAnnotatedTypeFactory> {
 
+    /** Error key for {@code @Lost} in assignment targets. */
     private static final @CompilerMessageKey String LOST_LHS = "viewpointtest.lost.lhs";
 
+    /** Error key for {@code @Lost} in adapted parameter types. */
     private static final @CompilerMessageKey String LOST_PARAMETER = "viewpointtest.lost.parameter";
 
     /**
