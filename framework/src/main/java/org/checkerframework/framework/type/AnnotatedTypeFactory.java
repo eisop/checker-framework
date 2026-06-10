@@ -341,7 +341,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * A cache used to store elements whose declaration annotations have already been stored by
      * calling the method {@link #getDeclAnnotations(Element)}.
      */
-    private final Map<Element, AnnotationMirrorSet> cacheDeclAnnos;
+    private final IdentityHashMap<Element, AnnotationMirrorSet> cacheDeclAnnos;
 
     /**
      * A set containing declaration annotations that should be inherited. A declaration annotation
@@ -634,7 +634,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         this.ajavaTypes = new AnnotationFileElementTypes(this);
         this.currentFileAjavaTypes = null;
 
-        this.cacheDeclAnnos = new HashMap<>();
+        this.cacheDeclAnnos = new IdentityHashMap<>();
         this.methodDeclaresPolyCache = new IdentityHashMap<>();
 
         // get the shared instance from the checker

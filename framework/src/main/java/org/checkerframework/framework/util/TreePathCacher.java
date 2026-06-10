@@ -8,8 +8,7 @@ import com.sun.source.util.TreeScanner;
 import org.checkerframework.checker.interning.qual.FindDistinct;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-import java.util.HashMap;
-import java.util.Map;
+import java.util.IdentityHashMap;
 
 /**
  * TreePathCacher is a TreeScanner that creates and caches a TreePath for a target Tree.
@@ -20,7 +19,7 @@ import java.util.Map;
  */
 public class TreePathCacher extends TreeScanner<TreePath, Tree> {
 
-    private final Map<Tree, @Nullable TreePath> foundPaths = new HashMap<>(32);
+    private final IdentityHashMap<Tree, @Nullable TreePath> foundPaths = new IdentityHashMap<>(32);
 
     /**
      * The TreePath of the previous tree scanned. It is always set back to null after a scan has
