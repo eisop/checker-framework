@@ -881,6 +881,27 @@ not single-leaf. Re-prioritized venues:
   **Phase 2 (tree path, structural `(scope, type)` key + write-back) deferred** per plan — re-profile
   after Phase 1 to see whether tree-path defaulting is still worth its write-back tax.
 
+- **`constructorFromUse` cache (analog of `methodFromUse`) — IMPLEMENTED, MEASURED, REJECTED.** A
+  tempting target: `constructorFromUse` is ~12% inclusive (even on the fully-cached branch), and a
+  spike showed a **96.4% hit rate** on `(ctor, instantiated-type)` with only **1.7% anonymous**
+  (skipped) and **~176 distinct keys** (so ~free on memory). Implemented the full cache (same recipe
+  as `methodFromUse`: structural key, deep-copy on store/return, poly guard, `shouldCacheConstructorFromUse`
+  opt-out defaulting to the method opt-out, anonymous-class carve-out, plus a `type.deepCopy()` on the
+  *stored key* because the instantiated `type` can alias the returned constructor's in-place-mutated
+  return type). **Correctness: full `:framework:test`/`:javacutil:test`/`:dataflow:test`/`:checker:test`
+  pass (0 failures).** **But the warm-daemon wall-clock A/B (cache on vs off via the opt-out, Phase 1
+  constant) showed NO benefit — 2m21s vs 2m19s, i.e. flat-to-slightly-negative.** Why the 96% hit rate
+  didn't translate (the lesson): the deep-copy-cache **overhead floor** — a structural key hash
+  (`type.hashCode()`, an uncached ATM walk) on *every* call + a deep-copy on hit + a deep-copy of the
+  stored key ≈ 2 type-walks — roughly *equals* the work a hit saves, because the saved part is just the
+  constructor `asMemberOf` (`getAnnotatedType(ctor)` is already Phase-1-cached) and constructors are
+  **infrequent** (~5–10k calls), so the fixed overhead never amortizes. Contrast `methodFromUse`/
+  `directSupertypes`, which save *more* than the tax per hit **and** fire far more often.
+  **Takeaways:** (1) hit rate is necessary but not sufficient — always confirm with the wall-clock A/B;
+  (2) a cache only wins when (per-hit saving − deep-copy tax) × frequency is positive, which immutability
+  (removing the deep-copy tax) would change — so this could be worth revisiting *after* immutability,
+  but not before. Reverted.
+
 - **Do NOT shrink the heavy caches to save memory — MEASURED, the cap is worth ≈10% wall clock.**
   PR 1777's two LRU caches add **≈ +50–70 MB retained live heap** on a full `checknullness` (measured
   master vs branch via post-GC `jdk.GCHeapSummary` "After GC": median 207→259 MB, p90 358→426 MB; both
