@@ -34,12 +34,14 @@ public class LostNonReflexive {
         // :: error: (assignment.type.incompatible)
         @Bottom Object botObj = obj.get();
 
-        // :: error: (new.class.type.invalid)
+        // :: error: (new.class.type.invalid) :: error: (viewpointtest.lost.parameter)
         new LostNonReflexive(obj.f);
-        // :: error: (new.class.type.invalid)
+        // :: error: (new.class.type.invalid) :: error: (viewpointtest.lost.parameter)
         new LostNonReflexive(bottomObj);
 
+        // :: error: (viewpointtest.lost.parameter)
         this.set(obj.f);
+        // :: error: (viewpointtest.lost.parameter)
         this.set(bottomObj);
 
         obj.f2.identity();

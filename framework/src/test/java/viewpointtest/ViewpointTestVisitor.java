@@ -1,18 +1,23 @@
 package viewpointtest;
 
-import com.sun.source.tree.AssignmentTree;
-import com.sun.source.tree.CompoundAssignmentTree;
+import com.sun.source.tree.ExpressionTree;
 import com.sun.source.tree.NewClassTree;
 import com.sun.source.tree.Tree;
-import com.sun.source.tree.UnaryTree;
 
 import org.checkerframework.common.basetype.BaseTypeChecker;
+import org.checkerframework.common.basetype.BaseTypeValidator;
 import org.checkerframework.common.basetype.BaseTypeVisitor;
+import org.checkerframework.checker.compilermsgs.qual.CompilerMessageKey;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.util.AnnotatedTypes;
 
 /** The visitor for the Viewpoint Test Checker. */
 public class ViewpointTestVisitor extends BaseTypeVisitor<ViewpointTestAnnotatedTypeFactory> {
+
+    private static final @CompilerMessageKey String LOST_LHS = "viewpointtest.lost.lhs";
+
+    private static final @CompilerMessageKey String LOST_PARAMETER = "viewpointtest.lost.parameter";
+
     /**
      * Create a new ViewpointTestVisitor.
      *
@@ -22,6 +27,13 @@ public class ViewpointTestVisitor extends BaseTypeVisitor<ViewpointTestAnnotated
         super(checker);
     }
 
+    /** Create the type validator for the Viewpoint Test Checker. */
+    @Override
+    protected BaseTypeValidator createTypeValidator() {
+        return new ViewpointTestTypeValidator(checker, this, atypeFactory);
+    }
+
+    /** Report an error if object creation has an invalid result type. */
     @Override
     public Void visitNewClass(NewClassTree tree, Void p) {
         AnnotatedTypeMirror type = atypeFactory.getAnnotatedType(tree);
@@ -31,41 +43,42 @@ public class ViewpointTestVisitor extends BaseTypeVisitor<ViewpointTestAnnotated
         return super.visitNewClass(tree, p);
     }
 
+    /** Report an error if an assignment left-hand side contains {@code @Lost}. */
     @Override
-    public Void visitAssignment(AssignmentTree tree, Void p) {
-        checkLostLhs(tree.getVariable(), tree);
-        return super.visitAssignment(tree, p);
-    }
-
-    @Override
-    public Void visitCompoundAssignment(CompoundAssignmentTree tree, Void p) {
-        checkLostLhs(tree.getVariable(), tree);
-        return super.visitCompoundAssignment(tree, p);
-    }
-
-    @Override
-    public Void visitUnary(UnaryTree tree, Void p) {
-        Tree.Kind treeKind = tree.getKind();
-        if (treeKind == Tree.Kind.PREFIX_DECREMENT
-                || treeKind == Tree.Kind.PREFIX_INCREMENT
-                || treeKind == Tree.Kind.POSTFIX_DECREMENT
-                || treeKind == Tree.Kind.POSTFIX_INCREMENT) {
-            checkLostLhs(tree.getExpression(), tree);
+    protected boolean commonAssignmentCheck(
+            Tree varTree,
+            ExpressionTree valueExpTree,
+            @CompilerMessageKey String errorKey,
+            Object... extraArgs) {
+        boolean result = super.commonAssignmentCheck(varTree, valueExpTree, errorKey, extraArgs);
+        AnnotatedTypeMirror varType = atypeFactory.getAnnotatedTypeLhs(varTree);
+        if (AnnotatedTypes.containsModifier(varType, atypeFactory.LOST)) {
+            checker.reportError(valueExpTree, LOST_LHS);
+            result = false;
         }
-        return super.visitUnary(tree, p);
+        return result;
     }
 
-    /**
-     * Report an error if {@code variableTree}, interpreted as an assignment left-hand side,
-     * contains {@code @Lost}.
-     *
-     * @param variableTree the assignment target to check
-     * @param errorTree the tree on which to report the error
-     */
-    private void checkLostLhs(Tree variableTree, Tree errorTree) {
-        AnnotatedTypeMirror variableType = atypeFactory.getAnnotatedTypeLhs(variableTree);
-        if (AnnotatedTypes.containsModifier(variableType, atypeFactory.LOST)) {
-            checker.reportError(errorTree, "viewpointtest.lost.lhs");
+    /** Report an error if a pseudo-assignment target contains {@code @Lost}. */
+    @Override
+    protected boolean commonAssignmentCheck(
+            AnnotatedTypeMirror varType,
+            AnnotatedTypeMirror valueType,
+            Tree valueExpTree,
+            @CompilerMessageKey String errorKey,
+            Object... extraArgs) {
+        boolean result =
+                super.commonAssignmentCheck(varType, valueType, valueExpTree, errorKey, extraArgs);
+        if (AnnotatedTypes.containsModifier(varType, atypeFactory.LOST)) {
+            if (errorKey.equals("argument.type.incompatible")
+                    || errorKey.equals("varargs.type.incompatible")) {
+                checker.reportError(valueExpTree, LOST_PARAMETER);
+            } else if (errorKey.equals("unary.increment.type.incompatible")
+                    || errorKey.equals("unary.decrement.type.incompatible")) {
+                checker.reportError(valueExpTree, LOST_LHS);
+            }
+            result = false;
         }
+        return result;
     }
 }
