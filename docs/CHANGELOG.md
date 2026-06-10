@@ -36,6 +36,14 @@ Performance: new caches in the `AnnotatedTypeFactory`: `methodAsMemberOfCache`
 to cache method types, `directSupertypesCache` to cache direct supertypes, and
 `elementTypeCache` to cache defaulted Element types.
 
+Performance: reduced the `AnnotatedTypeScanner`, `AnnotatedTypeCopier`, and
+`EquivalentAtmComboScanner` visitor-map pre-size from 64 to 8 (constant
+`VISITED_NODES_INITIAL_CAPACITY`). These per-scan `IdentityHashMap` backing
+arrays were the largest transient-allocation source in realistic compilations,
+and most scans visit only a few nodes; the smaller pre-size cuts that allocation
+substantially and lowers GC pressure with no wall-clock cost. Also pre-sized the
+small `wildcardToAnnos` map in `ElementAnnotationUtil` to 4.
+
 Fixed a bug that caused an IndexOutOfBoundsException for lambdas in varargs,
 for type systems that had the Aliasing Checker as a subchecker, like the
 Optional Checker.
