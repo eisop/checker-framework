@@ -27,13 +27,11 @@ public class ViewpointTestVisitor extends BaseTypeVisitor<ViewpointTestAnnotated
         super(checker);
     }
 
-    /** Create the type validator for the Viewpoint Test Checker. */
     @Override
     protected BaseTypeValidator createTypeValidator() {
         return new ViewpointTestTypeValidator(checker, this, atypeFactory);
     }
 
-    /** Report an error if object creation has an invalid result type. */
     @Override
     public Void visitNewClass(NewClassTree tree, Void p) {
         AnnotatedTypeMirror type = atypeFactory.getAnnotatedType(tree);
@@ -43,7 +41,6 @@ public class ViewpointTestVisitor extends BaseTypeVisitor<ViewpointTestAnnotated
         return super.visitNewClass(tree, p);
     }
 
-    /** Report an error if an assignment left-hand side contains {@code @Lost}. */
     @Override
     protected boolean commonAssignmentCheck(
             Tree varTree,
@@ -59,7 +56,6 @@ public class ViewpointTestVisitor extends BaseTypeVisitor<ViewpointTestAnnotated
         return result;
     }
 
-    /** Report an error if a pseudo-assignment target contains {@code @Lost}. */
     @Override
     protected boolean commonAssignmentCheck(
             AnnotatedTypeMirror varType,

@@ -39,7 +39,6 @@ public class ViewpointTestTypeValidator extends BaseTypeValidator {
         viewpointTypeFactory = atypeFactory;
     }
 
-    /** Report an error if a type parameter bound contains {@code @Lost} after viewpoint adaptation. */
     @Override
     protected Void visitParameterizedType(AnnotatedDeclaredType type, ParameterizedTypeTree tree) {
         if (TreeUtils.isDiamondTree(tree)) {
