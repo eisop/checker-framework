@@ -2,11 +2,10 @@ package viewpointtest;
 
 import com.sun.source.tree.ParameterizedTypeTree;
 
+import org.checkerframework.checker.compilermsgs.qual.CompilerMessageKey;
 import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.common.basetype.BaseTypeValidator;
 import org.checkerframework.common.basetype.BaseTypeVisitor;
-import org.checkerframework.checker.compilermsgs.qual.CompilerMessageKey;
-import org.checkerframework.framework.type.AnnotatedTypeFactory;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedDeclaredType;
 import org.checkerframework.framework.type.AnnotatedTypeParameterBounds;
 import org.checkerframework.framework.util.AnnotatedTypes;
@@ -20,8 +19,7 @@ import javax.lang.model.element.TypeElement;
 public class ViewpointTestTypeValidator extends BaseTypeValidator {
 
     /** Error key for {@code @Lost} in adapted type parameter bounds. */
-    private static final @CompilerMessageKey String LOST_IN_BOUNDS =
-            "viewpointtest.lost.in.bounds";
+    private static final @CompilerMessageKey String LOST_IN_BOUNDS = "viewpointtest.lost.in.bounds";
 
     /** The annotated type factory for the Viewpoint Test Checker. */
     private final ViewpointTestAnnotatedTypeFactory viewpointTypeFactory;
@@ -54,8 +52,7 @@ public class ViewpointTestTypeValidator extends BaseTypeValidator {
         List<AnnotatedTypeParameterBounds> typeParamBounds =
                 atypeFactory.typeVariablesFromUse(type, element);
         for (AnnotatedTypeParameterBounds atpb : typeParamBounds) {
-            if (AnnotatedTypes.containsModifier(
-                            atpb.getUpperBound(), viewpointTypeFactory.LOST)
+            if (AnnotatedTypes.containsModifier(atpb.getUpperBound(), viewpointTypeFactory.LOST)
                     || AnnotatedTypes.containsModifier(
                             atpb.getLowerBound(), viewpointTypeFactory.LOST)) {
                 checker.reportError(tree, LOST_IN_BOUNDS);
