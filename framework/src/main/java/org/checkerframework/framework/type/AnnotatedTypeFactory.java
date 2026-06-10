@@ -4307,11 +4307,34 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             case CONSTRUCTOR:
                 fromElt = trees.getTree(elt);
                 break;
+            case TYPE_PARAMETER:
+                // TreeInfo.declarationFor does not match type parameters, so it scans the whole
+                // compilation unit only to return null. Skip that scan.
+                fromElt = null;
+                break;
             default:
+                // The remaining kinds with a declaration tree are variables (local variables,
+                // parameters, resource and exception parameters), whose declaration is inside the
+                // enclosing method/class. Scan only that enclosing subtree rather than the whole
+                // compilation unit -- TreeInfo.declarationFor(sym, root) was ~13% of the compile.
+                // trees.getTree on the enclosing *method* is cheap (position-based, the path the
+                // method case above uses), unlike trees.getTree on a local, which itself scans.
+                // Fall back to the whole compilation unit if the enclosing tree is unavailable or
+                // does not contain the declaration.
+                Element enclosing = elt.getEnclosingElement();
+                Tree enclosingTree = enclosing == null ? null : trees.getTree(enclosing);
                 fromElt =
-                        com.sun.tools.javac.tree.TreeInfo.declarationFor(
-                                (com.sun.tools.javac.code.Symbol) elt,
-                                (com.sun.tools.javac.tree.JCTree) root);
+                        enclosingTree instanceof com.sun.tools.javac.tree.JCTree
+                                ? com.sun.tools.javac.tree.TreeInfo.declarationFor(
+                                        (com.sun.tools.javac.code.Symbol) elt,
+                                        (com.sun.tools.javac.tree.JCTree) enclosingTree)
+                                : null;
+                if (fromElt == null) {
+                    fromElt =
+                            com.sun.tools.javac.tree.TreeInfo.declarationFor(
+                                    (com.sun.tools.javac.code.Symbol) elt,
+                                    (com.sun.tools.javac.tree.JCTree) root);
+                }
                 break;
         }
         if (shouldCache) {

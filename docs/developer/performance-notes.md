@@ -508,6 +508,35 @@ auditing the same files.
   against `TypeMirror.toString()`. Previously, nested classes and array types
   could be silently mismatched. Surfaced during the performance review sweep.
 
+### Type-computation caches and declaration-tree lookup (June 2026)
+
+The methodology, full A/B numbers, and the rejected variants are in the value-semantics narrative
+under "Short list"; this is the canonical applied summary.
+
+- **PR #1777** — *`methodAsMemberOf`, `directSupertypes`, and `elementType` caches.* Three caches on
+  the `getAnnotatedType` hot paths, each storing/returning deep copies (ATMs are mutable):
+  (1) **`methodAsMemberOfCache`** memoizes the `(method, receiver-type)`-determined substitution base
+  inside `methodFromUse` (skips the declared-`@Poly*` guard; `Value`/`MethodVal` opt out via
+  `shouldCacheMethodAsMemberOf`); (2) **`directSupertypesCache`** memoizes `directSupertypes(type)` (a
+  pure function of the type — no poly guard or opt-out needed); (3) **`elementTypeCache`** memoizes the
+  fully-computed (post-defaults) `getAnnotatedType(Element)` result (cheap element-identity key,
+  `shouldCacheElementType` opt-out). Structural keys use a cache-local `Types.isSameType` comparison
+  (`IsSameTypeAtmComparer`), not the global `ATM.equals`. **Full-build warm-daemon A/B** (`./gradlew
+  checknullness`): the `methodAsMemberOf`+`directSupertypes` caches ≈ −9% cold / −13% warm; `elementType`
+  (Phase 1) ≈ −10% on its own. Validate ATM-producing caches with `alltests` *diagnostics*, never a
+  recompute cross-check (substitution mints fresh captures, so identical results compare `isSameType`-
+  unequal — see the narrative). PR #1778 forks the Java-8 `check*` tasks so these caches' retained heap
+  no longer piles into the shared Gradle daemon.
+- **`declarationFromElement`: scan the enclosing method subtree, not the whole compilation unit
+  (applied, PR #1780).** `TreeInfo.declarationFor(sym, root)` scanned the whole CU per local/
+  parameter to find its declaration tree — JFR-attributed at ~13% of a `checknullness` compile.
+  Replaced with `TreeInfo.declarationFor(sym, trees.getTree(elt.getEnclosingElement()))` (scan only the
+  enclosing method/class), with a fallback to the full-CU scan, plus a short-circuit returning `null`
+  for `TYPE_PARAMETER` (it scanned the whole CU only to return null). Same-session traced A/B:
+  `declarationFromElement` −33%, **total on-CPU −5.1%**. Key distinction from the rejected
+  `trees.getTree(localVar)` variant: `trees.getTree` on the *enclosing method* is cheap (position-based),
+  whereas on the *local itself* it internally scans.
+
 ---
 
 ## Tried and rejected
@@ -564,6 +593,35 @@ the prior finding. A fresh hypothesis is not new evidence.
   that. The linear-scan variant also gives up the public `Set<String>`
   return type of `getSupportedTypeQualifierNames` and adds a correctness
   dependency on every caller passing an interned string. Not worth it.
+- **`constructorFromUse` cache (analog of the `methodFromUse`/`asMemberOf` cache).** Implemented,
+  validated correct (all suites pass), measured **flat-to-slightly-negative** despite a **96.4% hit
+  rate**. The deep-copy-cache overhead floor (structural key hash + deep-copy on hit + deep-copy of
+  the stored key ≈ 2 type-walks) roughly *equals* the work a hit saves, because the saved part is just
+  the constructor `asMemberOf` (`getAnnotatedType(ctor)` is already element-cached) and constructors are
+  infrequent (~5–10k calls). Lesson: hit rate is necessary but not sufficient — confirm with the
+  wall-clock A/B. Revisit only if immutability removes the deep-copy tax. Full detail in the
+  value-semantics narrative below.
+- **Deferring polymorphic-qualifier resolution past the `methodFromUse` cache (to drop the `@Poly*`
+  guard).** Clean design exists (route the hook by the cached per-element poly check; no per-call cost),
+  but **payoff is negligible**: an instrumented `checknullness` found only **0.1% of cacheable method
+  calls (322/250,000) are on poly-declared methods** — the guard already admits 99.9% of calls. Keep the
+  guard. (Would help a checker whose calls are dominated by polymorphic methods; not the realistic target.)
+- **`declarationFromElement` via `trees.getTree(localVar)`.** Verified to return the identical tree
+  (8,124/8,124 match) but a **no-op**: `trees.getTree` for a local/parameter internally calls the same
+  `TreeInfo$DeclScanner` — it relocates the scan, it does not avoid it. Lesson: verifying the *result*
+  matches is not verifying the *cost* drops; confirm the expensive leaf disappears. (The fix that *did*
+  work — scanning the enclosing method subtree — is in Applied optimizations.)
+- **`declarationFromElement` via a single-pass declaration map.** Build a per-CU `element → VariableTree`
+  map in one `TreeScanner` pass, replacing per-element scans with lookups. Correct after a fix, but
+  **flat**: javac **defers attribution of lambda/generic-method bodies**, so the variables that dominate
+  the cost have null symbols when the pass runs and are skipped; they later miss the map and fall back to
+  the full scan (`DeclScanner` stayed 99.7% under `declarationFromElement`). Pre-population can't win —
+  the expensive variables aren't attributed at any single build point.
+- **Shrinking the new heavy caches (`directSupertypes` at `cacheSize/2`) to reclaim memory.** Measured a
+  **~10% wall-clock regression** (it gave back essentially all of the `elementType`/Phase-1 gain) — far
+  worse than its 90.5%→81% hit-rate delta suggested. The new caches' +50–70 MB retained heap is the price
+  of the perf; the right way to cut it is reducing per-entry weight (immutability), not entry count. Keep
+  all caches at full `cacheSize`.
 
 ---
 
@@ -622,17 +680,11 @@ A June 2026 inclusive-time / co-occurrence investigation (looking for
 now flat) surfaced two further candidates. Both are blocked by correctness
 invariants, which is why the campaign left them:
 
-- **`AnnotatedTypeMirror.directSupertypes()` recomputes on every call.** It runs
-  `SupertypeFinder.directSupertypes(this)` and wraps the result in a fresh
-  `Collections.unmodifiableList` each time, with no per-instance cache; in a single
-  real compilation (`checkNullness`) it is ~11% inclusive, and the lazy JDK-stub
-  loading cascade (see below) calls it on the same classes at several recursion
-  levels. **Blocker:** a declared type's supertype *annotations* depend on the
-  type's own primary annotations, which defaulting and flow refinement mutate after
-  the type is created, so a naive per-instance cache would hand back stale
-  supertypes. A safe version needs either copy-on-write annotation sets or an
-  invalidation hook tied to annotation mutation — i.e. it rides on the larger
-  "make ATMs immutable" work, not a standalone patch.
+- **`AnnotatedTypeMirror.directSupertypes()` recomputes on every call — RESOLVED (PR #1777).** It ran
+  `SupertypeFinder.directSupertypes(this)` with no cache (~11–13% inclusive on `checkNullness`). The
+  blocker noted here (supertype annotations depend on mutable primary annotations) was sidestepped by
+  caching at the `AnnotatedTypeFactory.getDirectSupertypes` boundary with a structural key and
+  deep-copy on store/return (not a per-`ATM`-instance cache). See Applied optimizations.
 - **The lazy JDK-stub cascade runs the full type-annotation pipeline during
   parsing, uncached.** Stacks captured on `allNullnessTests` show
   `maybeParseEnclosingJdkClass` → `annotateSupertypes` → `directSupertypes` →
@@ -705,13 +757,25 @@ Open venues, roughly by tractability:
   architectural, high value. **This is now an active staged program — see
   "AnnotatedTypeMirror value-semantics program" below.**
 
-### AnnotatedTypeMirror value-semantics program (in progress, June 2026)
+### AnnotatedTypeMirror value-semantics program + cache campaign (narrative; June 2026)
 
-Goal: make ATMs effectively immutable / copy-on-write so `deepCopy`/`shallowCopy` can be
-deleted and fully-computed types become sound value-keyed cache keys/values — unblocking
-caches for the realistic-workload hot paths (`methodFromUse`/`asMemberOf` ~23% inclusive,
-`directSupertypes` ~13.5%) and removing the ~22%-of-`Object[]` defensive-copy cost. Staged,
-each stage `alltests`-gated and JFR-measured; full design in the session plan.
+This subsection is the **detailed methodology log** for the cache campaign and the (still-open)
+immutability program. Canonical statuses live in the top-level sections; this is the "how we got
+there" record. **Status map:**
+- **Shipped** (see Applied optimizations): the `methodAsMemberOf`, `directSupertypes`, and
+  `elementType`/Phase-1 caches (PR #1777); the smaller-scope `declarationFromElement` scan (PR #1780).
+- **Tried and rejected** (see that section): `constructorFromUse` cache, poly-deferral,
+  `declarationFromElement` via `trees.getTree`/single-pass-map, shrinking the heavy caches.
+- **Open** (see "Open items" at the end of Short list): the immutability program itself (delete
+  `deepCopy`), and Defaulting Phase 2 (tree-path memoization).
+
+Goal of the immutability program: make ATMs effectively immutable / copy-on-write so
+`deepCopy`/`shallowCopy` can be deleted and the cache boundaries stop paying the deep-copy tax
+(`AnnotatedTypeCopier` ~2% self-time + the dominant share of `Object[]` allocation) — and the
++50–70 MB the shipped caches retain goes away. Staged, each stage `alltests`-gated and JFR-measured;
+full design in the session plan. **This is the recommended next direction** — it is the one lever the
+evidence positively points to (the shipped caches proved valuable *and* proved the deep-copy cost),
+now that the per-leaf profile is flat.
 
 **Validation spike (DONE, GO).** A throwaway `methodFromUse` cache (non-generic methods, key
 `(methodElt, structural receiverType, inferTypeArgs)`, copy-on-store/return) on
@@ -761,7 +825,7 @@ immutability rewrite. **The immutability program is therefore decoupled: it rema
 *allocation* win (deleting `deepCopy`, ~22% of `Object[]`) and the clean end-state, but it is NOT a
 prerequisite for the wall-clock-win cache.**
 
-**APPLIED (pending review).** The cache as above is implemented in
+**`methodFromUse`/`asMemberOf` cache — APPLIED in PR #1777.** The cache as above is implemented in
 `AnnotatedTypeFactory.methodFromUse` (the inner 4-arg overload): cache the
 `(methodElt, receiverType)`-determined `computeMethodTypeAsMemberOf` result, keyed with a cache-local
 `isSameType`-based structural comparison (`IsSameTypeAtmComparer`, so structurally-equal receivers
@@ -777,8 +841,24 @@ on-CPU type-factory work of *one* forked compile, which is a minority of `./grad
 wall-clock (10 subprojects + per-fork JVM startup + parse/enter/attribute). Always state the
 combined-cache full-build number, not this slice, as the headline.
 
-*Future venue — defer poly resolution past the cache boundary to drop the guard (and cache poly
-methods too).* The poly guard and the type-variable non-guard are not a fundamental asymmetry; they are
+*Deferring poly resolution past the cache — DESIGNED + PAYOFF MEASURED, NOT WORTH IT (for realistic
+workloads).* The idea: drop the declared-`@Poly*` guard so poly methods are cached too, by running
+`methodFromUsePreSubstitution` per-call after the cache instead of inside `computeMethodTypeAsMemberOf`.
+The clean design avoids any per-call cost: keep the **cached** per-element `methodDeclaresPolymorphicQualifier`
+check and use it to *route* the hook (run it inside the cached compute for non-poly methods — unchanged;
+defer it to a per-call copy only for poly methods), rather than to *block* caching. So non-poly methods
+are untouched and poly methods would gain a cached `asMemberOf`. **But the payoff is negligible:** an
+instrumented full `./gradlew checknullness` found that **only 0.1% of cacheable method calls (322 of
+250,000) are on poly-declared methods** — the guard already lets 99.9% of method calls into the cache
+(86% hit rate). Caching the remaining 0.1% (even at their 88% would-be hit rate) is ≈ zero wall-clock,
+not worth the soundness risk of reordering poly resolution after `asMemberOf`/viewpoint-adapt (and after
+MustCall's non-owning→top adjustment, which shares the hook). The design is sound and *would* help a
+checker whose calls are dominated by polymorphic methods, but that is not the realistic target. **Keep
+the guard.** (Lesson, again: a "drop the guard / extend the proven cache" idea still needs its payoff
+measured — the guard turned out to cost 0.1% of coverage, not the meaningful slice assumed.) Mechanism
+detail retained below for whoever revisits it:
+
+The poly guard and the type-variable non-guard are not a fundamental asymmetry; they are
 an artifact of *where in the `methodFromUse` pipeline* each call-site specialization happens relative to
 where the cache stores its value. The cache stores `computeMethodTypeAsMemberOf` (stops after
 `asMemberOf`). **Method type arguments are substituted *after* the cache** — `findTypeArguments` +
@@ -801,7 +881,7 @@ parameter, so the declared-`@Poly*` guard covers exactly the tree-dependent work
 cached value; an override doing *other* tree-dependent work there must use the `shouldCacheMethodAsMemberOf()`
 opt-out instead (which is why Value/MethodVal disable the cache wholesale).
 
-**`directSupertypes` cache — APPLIED (pending review), same recipe.** `directSupertypes(type)` is a
+**`directSupertypes` cache — APPLIED in PR #1777.** `directSupertypes(type)` is a
 pure function of `type`'s structure and annotations (the only hook, `postDirectSuperTypes(type,
 supertypes)`, takes no tree/args; it copies the receiver's effective annotations and applies
 element-based defaults), so — unlike `methodFromUse` — it needs **no poly guard and no per-checker
@@ -848,7 +928,74 @@ Dataflow 6.8%, Stub 4.2%, Visitor 3.0%. The leaf self-time profile is very flat 
 `AnnotatedTypeScanner.scan` 2.8%) — so the remaining work is squarely architectural / aggregate,
 not single-leaf. Re-prioritized venues:
 
-- **CF driving javac internals is now the largest phase (33.6%) and the highest-leverage target.**
+- **CF driving javac internals — RE-MEASURED on current HEAD (Phase 1 + all caches committed), and
+  the picture changed substantially.** Fresh full `./gradlew checknullness` trace: 12,182 on-CPU
+  samples (down from ~14.7k — the committed work landed), **javac internals now the #1 phase at
+  37.2%** (type factory 34%). The breakdown is *not* what the pre-cache bullet below assumed:
+  - **`AnnotatedTypeFactory.declarationFromElement` = 13.1% (1,597 samples) — the single largest
+    CF→javac cost, but no cheap fix found yet.** It caches (`elementToTreeCache`, cleared per CU) but
+    the *miss* path's `default` branch — local variables, parameters, resource/exception params, type
+    params — calls `TreeInfo.declarationFor(sym, root)`, which **scans the whole compilation-unit tree**
+    to find one declaration (~95% of its self-time is `JCIdent.accept`/`DeclScanner.scan`/`TreeScanner.scan`;
+    hit rate only ~9%; the scan branch is ~19.5% of misses but ~all the cost).
+    **Tried `trees.getTree(elt)` for the 4 variable kinds — VERIFIED CORRECT, but a NO-OP, reverted.**
+    The hope: `trees.getTree` is the position-based path class/method/field already use and which does
+    not show up in the `DeclScanner` cost. Correctness checked exhaustively (instrumented: 8,124/8,124
+    match vs the scan, 0 differ, 0 missed; `:framework`/`:javacutil`/`:dataflow`/`:checker` tests all
+    pass) — but the warm-daemon A/B was flat (total on-CPU 12,182→12,140, `declarationFromElement`
+    1,597→1,517) because **`trees.getTree` for a local/parameter internally calls the same
+    `TreeInfo$DeclScanner`** — it relocates the scan, it doesn't avoid it (post-change, `DeclScanner` is
+    still 100% under `declarationFromElement`). Lesson (again): verifying the *result* matches is not
+    verifying the *cost* drops — for a "use a different API" change, confirm the expensive leaf
+    disappears, not just that the output is identical.
+    **Single-pass declaration map — IMPLEMENTED, MEASURED, REJECTED (defeated by deferred
+    attribution).** Built a per-CU `IdentityHashMap<Element,Tree>` via one `TreeScanner` pass over
+    `root` (recording each `VariableTree`'s `.sym → tree`, keyed exactly as `TreeInfo.declarationFor`
+    matches), lazily on first variable query, invalidated in `setRoot`, with a scan fallback and a
+    null-`.sym` skip. **Correctness:** after fixing a crash (the eager pass hit `VariableTree`s whose
+    symbol is not yet set — `TreeUtils.elementFromDeclaration` *throws* on a null symbol; switched to a
+    direct null-safe `.sym` read), full `:framework:test` + `:checker:test` pass. **But the warm-daemon
+    A/B was flat** (treatment 130–142s vs baseline 131–133s). The traced run shows why: the single pass
+    was cheap (`getRootVariableDeclarations` 11 samples) but **`DeclScanner` was still 1,327 samples,
+    99.7% under `declarationFromElement` via the fallback** — i.e. the map was nearly empty. Root cause:
+    **javac defers attribution of lambda/generic-method bodies**, so the variables that dominate the cost
+    have *null symbols* when the single pass runs and are skipped; they get a symbol later, miss the map,
+    and fall back to the full scan. And for the variables the map *does* miss, it is redundant with the
+    existing per-element `elementToTreeCache` (one scan then cached either way). So pre-population can't
+    win here — the expensive variables aren't attributed at any single build point. Reverted.
+    **`declarationFromElement` smaller-scope scan — APPLIED in PR #1780.** Instead of
+    `TreeInfo.declarationFor(sym, root)` (scan the whole CU), scan only the variable's *enclosing
+    method/class* subtree: `TreeInfo.declarationFor(sym, trees.getTree(elt.getEnclosingElement()))`,
+    falling back to the whole-CU scan if the enclosing tree is unavailable or does not contain the
+    declaration. The key difference from the failed `trees.getTree(localVar)`: here `trees.getTree`
+    is called on the **enclosing method** (cheap, position-based — the path the class/method/field
+    case already uses), *not* on the local (which internally scans). It attacks per-scan *size*, so
+    it sidesteps the attribution-timing problem that killed the single-pass map. Also short-circuits
+    `TYPE_PARAMETER` to `null` (it was scanning the whole CU only to return null — ~8% of default-branch
+    calls). **Correctness:** full `:framework:test` + `:checker:test` pass (the fallback covers any
+    edge case where the enclosing subtree lacks the declaration, e.g. some initializer-block locals).
+    **Performance (same-session traced A/B on full `checknullness`):** `declarationFromElement`
+    1,695 → 1,139 (**−33%**), `DeclScanner` 1,652 → 1,099 (−33%), **total on-CPU 12,284 → 11,658
+    (−5.1%)**; warm-daemon wall clock ~2–4% (noisy). The ~33% (not ~90%) reduction reflects that
+    enclosing methods are a non-trivial fraction of their files plus some fallbacks; scoping tighter
+    than the method (no element exists for a block) would need a different mechanism. This is the
+    real lever on `declarationFromElement` that `trees.getTree` (relocates the scan) and the
+    single-pass map (defeated by deferred attribution) both missed.
+  - **Symbol completion is now small (~2.4%): largely solved.** `apiComplete` 1.46% + `ClassSymbol.complete`
+    0.48% + `ClassFinder.complete` 0.48%. The earlier "1.50%/0.97% leaders" are gone (PR #1763 getKind
+    overrides + Phase 1 cutting `createType` traffic). The `getKind`→completion hypothesis is *resolved*:
+    `CFAbstractValue.canBeMissingAnnotations` does sit above `apiComplete` (31% of `apiComplete`, ~0.46%
+    of total) and `createType` the rest — real but minor.
+  - **Name decoding ~2.3%** (`Convert.utf2chars` 1.43% + `utf2string` 0.86%). The "annotation formatting
+    in the hot path" question is *resolved, opposite to the prior guess*: 36% of `utf2chars` is under
+    `DefaultAnnotationFormatter.isInvisibleQualified` (22%) + `AnnotationUtils.toStringSimple` (14%) — i.e.
+    `ATM.toString`/`CFAbstractValue.toString` invoked **during type-checking, not the stub parser**. Worth
+    a look for an unguarded `toString`, but small (~0.5%).
+
+  Stale pre-cache attribution kept below for history:
+
+- **CF driving javac internals (pre-cache attribution, superseded by the re-measurement above) is now
+  the largest phase (33.6%) and the highest-leverage target.**
   This subsumes the "CF driving javac internals (~25%)" bullet below, which is still accurate but was
   measured pre-cache; the caches shrank the type-factory phase around it, so it is now proportionally
   larger. Concrete forcers seen in this trace, by `jfr-analyze.java under`/nearest-CF attribution:
@@ -904,7 +1051,7 @@ not single-leaf. Re-prioritized venues:
     scan — if some short-circuit, both the savings *and* the key/copy cost shrink together, so the
     favorable ratio is robust but the magnitude is not yet pinned.
 
-- **Phase 1 (element path) — APPLIED (pending review).** Implemented the value-returning element-keyed
+- **`elementType` cache (Phase 1) — APPLIED in PR #1777.** Implemented the value-returning element-keyed
   cache: a new `AnnotatedTypeFactory.elementTypeCache` (`LRU(getCacheSize())`, deep-copy on
   store/return) memoizes the *fully-computed* `getAnnotatedType(Element)` result (post `fromElement` +
   `addComputedTypeAnnotations`, i.e. after type annotators + qualifier defaulting). A hit returns a deep
@@ -1045,6 +1192,28 @@ Investigated and **rejected** this session:
   `ArrayList`-backed set — heavier than the JDK's immutable singleton. Rule for future:
   a single annotation → the singular `add/addMissing/replaceAnnotation` method, never a
   one-element collection.
+
+#### Open venues (current — global trace after the smaller-scope `declarationFromElement` scan)
+
+A fresh full-`checknullness` trace (11,009 on-CPU samples; javac internals 35.8% / type factory 34.6%)
+has a **flat leaf profile (no leaf > ~3%)** — the per-leaf hot spots are mined out. Remaining
+CF-controllable clusters and their state, highest-leverage first:
+
+1. **Immutability program (recommended next).** The deep-copy tax (`AnnotatedTypeCopier` ~2% self-time
+   + dominant `Object[]` allocation share) is what the shipped caches pay and is the +50–70 MB retained
+   heap. The one lever the evidence positively supports; large/staged. See the narrative header above.
+2. **Defaulting Phase 2 (tree-path memoization).** Measured 88% `(scope, type)` repeat on the tree path,
+   ~9.3 scans/call; per-CU clearing bounds the memory. *Gate on a within-CU-repeat measurement first*,
+   and note it carries the same write-back tax that sank the `constructorFromUse` cache (real flat-risk).
+3. **`getPath` / TreePath construction (~3.2%).** 68% of `TreePath.<init>` is under
+   `AnnotatedTypeFactory.getPath`'s slow path (`TreePath.getPath(root, tree)` scan on cache miss +
+   heuristic failure). The heuristics + `treePathCache` are already tuned; no obvious cheap win.
+4. **`declarationFromElement` residual (~5–7%).** Still the largest single javac-interaction cost after
+   the smaller-scope scan; residual is method-subtree scanning. The cheap levers are exhausted (scoping
+   tighter than a method has no element; `trees.getTree` and the single-pass map were rejected).
+5. **Small / blocked:** `ElementUtils.qualifiedNameCache` (`synchronizedMap`+`WeakHashMap` lock/expunge,
+   ~0.58%, blocked on a thread-reachability + daemon-memory audit — see Short list above); annotation
+   formatting in the hot path (~0.5%, confirm it is type-checking not the stub parser before chasing).
 
 ---
 
