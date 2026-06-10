@@ -174,13 +174,26 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
      * @return list of reasons the type is invalid, or empty list if the type is valid
      */
     protected List<DiagMessage> isValidStructurally(AnnotatedTypeMirror type) {
-        SimpleAnnotatedTypeScanner<List<DiagMessage>, Void> scanner =
-                new SimpleAnnotatedTypeScanner<>(
-                        (atm, p) -> isTopLevelValidType(atm),
-                        DiagMessage::mergeLists,
-                        Collections.emptyList());
-        return scanner.visit(type, null);
+        if (structuralScanner == null) {
+            // Created lazily (rather than in a field initializer) to keep `this` from escaping
+            // during construction; the captured `isTopLevelValidType` is dispatched dynamically, so
+            // subclass overrides still apply. A single scanner is reused across calls -- it was a
+            // per-call allocation source (its visitedNodes IdentityHashMap) in checkNullness traces
+            // -- which is safe because this validator is confined to the javac main thread and
+            // SimpleAnnotatedTypeScanner.visit resets its state on each call. isValidStructurally
+            // is not re-entrant: it is called once per top-level type and its scan only reads
+            // annotations.
+            structuralScanner =
+                    new SimpleAnnotatedTypeScanner<>(
+                            (atm, p) -> isTopLevelValidType(atm),
+                            DiagMessage::mergeLists,
+                            Collections.emptyList());
+        }
+        return structuralScanner.visit(type, null);
     }
+
+    /** The reusable scanner backing {@link #isValidStructurally}; see there. */
+    private @Nullable SimpleAnnotatedTypeScanner<List<DiagMessage>, Void> structuralScanner = null;
 
     /**
      * Checks every property listed in {@link #isValidStructurally}, but only for the top level

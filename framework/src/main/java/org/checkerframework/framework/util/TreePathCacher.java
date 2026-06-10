@@ -116,6 +116,10 @@ public class TreePathCacher extends TreeScanner<TreePath, Tree> {
          * @param path the result of {@link #getPath}
          */
         Result(TreePath path) {
+            // Disable stack trace writing and suppression: this exception is used purely for
+            // control flow inside TreePathCacher#getPath, is caught two frames above, and is
+            // never logged or rethrown.
+            super(null, null, false, false);
             this.path = path;
         }
     }

@@ -4,7 +4,6 @@ import org.checkerframework.checker.signature.qual.CanonicalName;
 import org.checkerframework.framework.qual.DefaultQualifierForUse;
 import org.checkerframework.framework.qual.NoDefaultQualifierForUse;
 import org.checkerframework.framework.type.AnnotatedTypeFactory;
-import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedDeclaredType;
 import org.checkerframework.framework.type.QualifierHierarchy;
 import org.checkerframework.javacutil.AnnotationBuilder;
@@ -55,7 +54,13 @@ public class DefaultQualifierForUseTypeAnnotator extends TypeAnnotator {
     public Void visitDeclared(AnnotatedDeclaredType type, Void aVoid) {
         Element element = type.getUnderlyingType().asElement();
         AnnotationMirrorSet annosToApply = getDefaultAnnosForUses(element);
-        type.addMissingAnnotations(annosToApply);
+        // The empty case is overwhelmingly common: most type elements have no
+        // @DefaultQualifierForUse, and getDefaultAnnosForUses returns the shared empty set for
+        // them.  Skip the addMissingAnnotations call (and the iterator allocation it implies)
+        // in that case.
+        if (!annosToApply.isEmpty()) {
+            type.addMissingAnnotations(annosToApply);
+        }
         return super.visitDeclared(type, aVoid);
     }
 
@@ -106,6 +111,13 @@ public class DefaultQualifierForUseTypeAnnotator extends TypeAnnotator {
                 }
             }
         }
+        // Canonicalize the empty result to a shared sentinel.  Most elements have no
+        // @DefaultQualifierForUse and produce an empty set; sharing the unmodifiable empty
+        // singleton avoids retaining a fresh AnnotationMirrorSet (and its backing ArrayList)
+        // per cached element.
+        if (annosToApply.isEmpty()) {
+            annosToApply = AnnotationMirrorSet.emptySet();
+        }
         // If parsing stub files, then the annosToApply is incomplete, so don't cache them.
         if (atypeFactory.shouldCache
                 && !atypeFactory.stubTypes.isParsing()
@@ -122,8 +134,10 @@ public class DefaultQualifierForUseTypeAnnotator extends TypeAnnotator {
      * @return the annotations explicitly written on the element
      */
     protected AnnotationMirrorSet getExplicitAnnos(Element element) {
-        AnnotatedTypeMirror explicitAnnoOnDecl = atypeFactory.fromElement(element);
-        return explicitAnnoOnDecl.getAnnotations();
+        // Read the cached element type's primary annotations directly rather than calling
+        // fromElement(element).getAnnotations(), which deep-copies the entire type on every cache
+        // hit only for this method to read its top-level annotations and discard the copy.
+        return atypeFactory.getElementAnnotations(element);
     }
 
     /**
