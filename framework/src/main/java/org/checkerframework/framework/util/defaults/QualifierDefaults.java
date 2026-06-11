@@ -21,7 +21,6 @@ import org.checkerframework.framework.type.AnnotatedTypeFactory;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedDeclaredType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedExecutableType;
-import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedNoType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedTypeVariable;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedUnionType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedWildcardType;
@@ -893,6 +892,51 @@ public class QualifierDefaults {
         return new DefaultApplierElement(atypeFactory, annotationScope, type, fromTree);
     }
 
+    /**
+     * A reusable {@link DefaultApplierElementImpl} scanner, parked here between uses. Constructing
+     * a scanner per {@link DefaultApplierElement#applyDefault} call was a major allocation source:
+     * a realistic single-compilation ({@code checkNullness}) JFR trace attributed ~8% of all TLAB
+     * events to the {@code visitedNodes} {@code IdentityHashMap} that the constructor pre-sizes.
+     * Defaulting is not re-entrant into {@code applyDefault} (the scan only reads caches and adds
+     * annotations), so one scanner can be reused across applications; {@link
+     * AnnotatedTypeScanner#visit} resets all scan state on each call. The field is {@code null}
+     * exactly while the scanner is borrowed, which doubles as a re-entrancy guard: a (hypothetical)
+     * nested borrow sees {@code null} and falls back to allocating a fresh scanner, so correctness
+     * never depends on non-re-entrancy. Confined to the javac main thread, like the other caches on
+     * this object.
+     */
+    private @Nullable DefaultApplierElementImpl pooledApplierImpl;
+
+    /**
+     * Returns a {@link DefaultApplierElementImpl} bound to {@code outer}, reusing the pooled
+     * instance if one is available (the common case) or allocating a fresh one if the pool is empty
+     * (first call, or a re-entrant borrow). Pair every call with {@link #returnApplierImpl}.
+     *
+     * @param outer the element supplying the per-application state for this defaulting pass
+     * @return a scanner whose {@code outer} is {@code outer}
+     */
+    private DefaultApplierElementImpl borrowApplierImpl(DefaultApplierElement outer) {
+        DefaultApplierElementImpl impl = pooledApplierImpl;
+        if (impl == null) {
+            return new DefaultApplierElementImpl(outer);
+        }
+        // Mark the pool empty so a re-entrant borrow allocates its own scanner instead of
+        // corrupting this one's state.
+        pooledApplierImpl = null;
+        impl.outer = outer;
+        return impl;
+    }
+
+    /**
+     * Returns a scanner borrowed from {@link #borrowApplierImpl} to the pool so the next defaulting
+     * pass can reuse it.
+     *
+     * @param impl the scanner to park
+     */
+    private void returnApplierImpl(DefaultApplierElementImpl impl) {
+        pooledApplierImpl = impl;
+    }
+
     /** A default applier element. */
     protected class DefaultApplierElement {
 
@@ -923,9 +967,6 @@ public class QualifierDefaults {
          */
         protected TypeUseLocation location;
 
-        /** The default element applier implementation. */
-        protected final DefaultApplierElementImpl impl;
-
         /**
          * Create an instance.
          *
@@ -948,7 +989,6 @@ public class QualifierDefaults {
                     (atypeFactory instanceof GenericAnnotatedTypeFactory<?, ?, ?, ?>)
                             && ((GenericAnnotatedTypeFactory<?, ?, ?, ?>) atypeFactory)
                                     .getShouldDefaultTypeVarLocals();
-            this.impl = new DefaultApplierElementImpl(this);
         }
 
         /**
@@ -958,25 +998,38 @@ public class QualifierDefaults {
          */
         public void applyDefault(Default def) {
             this.location = def.location;
-            impl.visit(type, def.anno);
+            // Borrow a reusable scanner rather than allocating a DefaultApplierElementImpl (and its
+            // visitedNodes IdentityHashMap) per call; see borrowApplierImpl.
+            DefaultApplierElementImpl impl = borrowApplierImpl(this);
+            try {
+                impl.visit(type, def.anno);
+            } finally {
+                returnApplierImpl(impl);
+            }
         }
 
         /**
          * Returns true if the given qualifier should be applied to the given type. Currently we do
-         * not apply defaults to void types, packages, wildcards, and type variables.
+         * not apply defaults to void types, none types, wildcards, type variables, packages, and
+         * modules.
          *
          * @param type type to which qual would be applied
          * @return true if this application should proceed
          */
         protected boolean shouldBeAnnotated(AnnotatedTypeMirror type) {
-            return type != null
-                    // TODO: executables themselves should not be annotated
-                    // For some reason h1h2checker-tests fails with this.
-                    // || type.getKind() == TypeKind.EXECUTABLE
-                    && type.getKind() != TypeKind.NONE
-                    && type.getKind() != TypeKind.WILDCARD
-                    && type.getKind() != TypeKind.TYPEVAR
-                    && !(type instanceof AnnotatedNoType);
+            if (type == null) {
+                return false;
+            }
+            // TODO: executables themselves should not be annotated
+            // For some reason h1h2checker-tests fails with this:
+            // || k == TypeKind.EXECUTABLE
+            TypeKind k = type.getKind();
+            return k != TypeKind.NONE
+                    && k != TypeKind.WILDCARD
+                    && k != TypeKind.TYPEVAR
+                    && k != TypeKind.VOID
+                    && k != TypeKind.PACKAGE
+                    && k != TypeKind.MODULE;
         }
 
         /**
@@ -994,10 +1047,22 @@ public class QualifierDefaults {
         }
     }
 
+    /** The implementation of default application as an annotated type scanner. */
     // Only reason this cannot be `static` is call to `getBoundType`.
     protected class DefaultApplierElementImpl extends AnnotatedTypeScanner<Void, AnnotationMirror> {
-        private final DefaultApplierElement outer;
+        /**
+         * The element holding the per-application state (type, scope, location). Not final: a
+         * single instance is reused across {@link DefaultApplierElement#applyDefault} calls (see
+         * {@link QualifierDefaults#borrowApplierImpl}), with {@code outer} re-pointed at each
+         * borrow.
+         */
+        private DefaultApplierElement outer;
 
+        /**
+         * Construct a new instance.
+         *
+         * @param outer the outer instance to use
+         */
         protected DefaultApplierElementImpl(DefaultApplierElement outer) {
             this.outer = outer;
         }

@@ -1,9 +1,48 @@
-Version 3.49.5-eisop2 (May ?, 2026)
+Version 3.49.5-eisop2 (June ?, 2026)
 -----------------------------------
 
 **User-visible changes:**
 
+Further performance improvements. `allNullnessTests` down to below 2 minutes
+and `checkNullness` to around 2.5 minutes (last release: 2.5 and 4 minutes,
+respectively). Several optimizations also reduce GC pressure.
+
 **Implementation details:**
+
+Enabled the Gradle configuration cache, speeding up build times.
+
+`AnnotationMirrorSet` has a new `get(int)` method that returns the element at a
+given index in iteration order, letting hot callers iterate by index without
+allocating an `Iterator`.
+
+`AnnotatedTypeFactory` has a new `getElementAnnotations(Element)` method that
+returns an element's primary annotations without the defensive deep copy that
+`fromElement` makes on every cache hit; for read-only callers that only need the
+primary annotations.
+
+Performance: the annotated-JDK stub AST is now parsed once per JVM and shared
+across compilations instead of being re-parsed for every compilation. This speeds
+up multi-compilation JVMs such as the test suite, the Gradle daemon, and the
+language server (the JavaParser parse share of `allNullnessTests` roughly halved);
+a single compilation is unaffected.
+
+Performance: several `AnnotatedTypeScanner`s that were constructed per use are now
+reused — the `QualifierDefaults` defaulting scanner, `ElementAnnotationApplier`'s
+`TypeVarAnnotator`, and `BaseTypeValidator`'s structural-validity scanner — instead of
+allocating a scanner (and its `IdentityHashMap`) for every type. This removes ~99% of
+per-use scanner-construction allocations in realistic compilations.
+
+Performance: new caches in the `AnnotatedTypeFactory`: `methodAsMemberOfCache`
+to cache method types, `directSupertypesCache` to cache direct supertypes, and
+`elementTypeCache` to cache defaulted Element types.
+
+Performance: reduced the `AnnotatedTypeScanner`, `AnnotatedTypeCopier`, and
+`EquivalentAtmComboScanner` visitor-map pre-size from 64 to 8 (constant
+`VISITED_NODES_INITIAL_CAPACITY`). These per-scan `IdentityHashMap` backing
+arrays were the largest transient-allocation source in realistic compilations,
+and most scans visit only a few nodes; the smaller pre-size cuts that allocation
+substantially and lowers GC pressure with no wall-clock cost. Also pre-sized the
+small `wildcardToAnnos` map in `ElementAnnotationUtil` to 4.
 
 Fixed a bug that caused an IndexOutOfBoundsException for lambdas in varargs,
 for type systems that had the Aliasing Checker as a subchecker, like the
