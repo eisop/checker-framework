@@ -93,7 +93,7 @@ public class AnnotatedTypeCopier
     @Override
     public AnnotatedTypeMirror visit(AnnotatedTypeMirror type) {
         return type.accept(
-                this, new IdentityHashMap<>(AnnotatedTypeScanner.VISITED_NODES_EXPECTED_MAX_SIZE));
+                this, new IdentityHashMap<>(AnnotatedTypeScanner.VISITED_NODES_INITIAL_CAPACITY));
     }
 
     @Override

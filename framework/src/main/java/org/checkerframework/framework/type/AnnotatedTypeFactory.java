@@ -341,7 +341,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * A cache used to store elements whose declaration annotations have already been stored by
      * calling the method {@link #getDeclAnnotations(Element)}.
      */
-    private final Map<Element, AnnotationMirrorSet> cacheDeclAnnos;
+    private final IdentityHashMap<Element, AnnotationMirrorSet> cacheDeclAnnos;
 
     /**
      * A set containing declaration annotations that should be inherited. A declaration annotation
@@ -501,7 +501,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     public boolean shouldCache;
 
     /** Size of LRU cache if one isn't specified using the atfCacheSize option. */
-    private static final int DEFAULT_CACHE_SIZE = 2000;
+    private static final int DEFAULT_CACHE_SIZE = 2048;
 
     /** Mapping from a Tree to its annotated type; defaults have been applied. */
     private final Map<Tree, AnnotatedTypeMirror> classAndMethodTreeCache;
@@ -530,8 +530,59 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      */
     private final Map<Element, AnnotatedTypeMirror> elementCache;
 
+    /**
+     * Mapping from an Element to its fully-computed annotated type: the result of {@link
+     * #getAnnotatedType(Element)}, <em>after</em> {@link #addComputedTypeAnnotations(Element,
+     * AnnotatedTypeMirror)} (type annotators, qualifier-parameter defaults, and qualifier
+     * defaulting). Unlike {@link #elementCache} (which holds the pre-defaults type), a hit here
+     * skips the entire post-{@code fromElement} pipeline, which JFR shows is dominated by the
+     * defaulting walk. The declaration type of an element is flow-insensitive, so this is a pure
+     * function of the element for checkers where {@link #shouldCacheElementType} holds. Null when
+     * {@code !shouldCache}. Stores and returns deep copies, since callers mutate the result.
+     */
+    private final @Nullable Map<Element, AnnotatedTypeMirror> elementTypeCache;
+
     /** Mapping from an Element to the source Tree of the declaration. */
     private final Map<Element, Tree> elementToTreeCache;
+
+    /**
+     * Cache for the substituted method type from {@link #computeMethodTypeAsMemberOf} — the
+     * method's type viewed as a member of a receiver type, before call-site type-argument
+     * inference. Keyed on {@code (method element, receiver type)} (see {@link
+     * MethodAsMemberOfCacheKey}). Null when {@code !shouldCache}. Not used for method types
+     * containing a polymorphic qualifier, nor by checkers whose method types are call-dependent
+     * (see {@link #shouldCacheMethodAsMemberOf}).
+     */
+    private final @Nullable Map<MethodAsMemberOfCacheKey, AnnotatedExecutableType>
+            methodAsMemberOfCache;
+
+    /**
+     * Structural comparison for {@link #methodAsMemberOfCache} keys, using {@code Types.isSameType}
+     * for underlying types (value equality) rather than the identity-based global {@code
+     * AnnotatedTypeMirror.equals}, so structurally-equal receivers (e.g. two {@code List<String>}
+     * instances) share a cache entry while distinct captures stay distinct. Lazily initialized
+     * (needs {@link #types}); does NOT change the global {@code AnnotatedTypeMirror.equals}.
+     */
+    private @Nullable IsSameTypeAtmComparer structuralComparer;
+
+    /** Reusable scanner for {@link #containsPolymorphicQualifier}; lazily initialized. */
+    private @Nullable SimpleAnnotatedTypeScanner<Boolean, Void> polyQualifierScanner;
+
+    /**
+     * Caches, per method element, whether its declared type contains a polymorphic qualifier. Such
+     * methods are not cached in {@link #methodAsMemberOfCache} because {@code
+     * methodFromUsePreSubstitution} resolves their qualifiers per call from the arguments.
+     */
+    private final IdentityHashMap<ExecutableElement, Boolean> methodDeclaresPolyCache;
+
+    /**
+     * Cache for {@link #getDirectSupertypes}: a declared type to its direct supertypes. Keyed on
+     * the type, compared structurally (see {@link DirectSupertypesCacheKey}). {@code
+     * directSupertypes} is a pure function of its argument's structure and annotations (no
+     * tree/arguments), so the structural key is sound. Null when {@code !shouldCache}.
+     */
+    private final @Nullable Map<DirectSupertypesCacheKey, List<AnnotatedDeclaredType>>
+            directSupertypesCache;
 
     /** Mapping from a Tree to its TreePath. Shared between all instances. */
     private final TreePathCacher treePathCache;
@@ -583,7 +634,8 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         this.ajavaTypes = new AnnotationFileElementTypes(this);
         this.currentFileAjavaTypes = null;
 
-        this.cacheDeclAnnos = new HashMap<>();
+        this.cacheDeclAnnos = new IdentityHashMap<>();
+        this.methodDeclaresPolyCache = new IdentityHashMap<>();
 
         // get the shared instance from the checker
         this.treePathCache = checker.getTreePathCacher();
@@ -596,7 +648,10 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             this.fromMemberTreeCache = CollectionsPlume.createLruCache(cacheSize);
             this.fromTypeTreeCache = CollectionsPlume.createLruCache(cacheSize);
             this.elementCache = CollectionsPlume.createLruCache(cacheSize);
+            this.elementTypeCache = CollectionsPlume.createLruCache(cacheSize);
             this.elementToTreeCache = CollectionsPlume.createLruCache(cacheSize);
+            this.methodAsMemberOfCache = CollectionsPlume.createLruCache(cacheSize);
+            this.directSupertypesCache = CollectionsPlume.createLruCache(cacheSize);
             this.annotationClassNames = new IdentityHashMap<>();
         } else {
             this.classAndMethodTreeCache = null;
@@ -604,7 +659,10 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             this.fromMemberTreeCache = null;
             this.fromTypeTreeCache = null;
             this.elementCache = null;
+            this.elementTypeCache = null;
             this.elementToTreeCache = null;
+            this.methodAsMemberOfCache = null;
+            this.directSupertypesCache = null;
             this.annotationClassNames = null;
         }
 
@@ -1015,6 +1073,9 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             // There is no need to clear the following cache, it is limited by cache size and it
             // contents won't change between compilation units.
             // elementCache.clear();
+            // elementTypeCache.clear();
+            // cacheDeclAnnos.clear();
+            // methodDeclaresPolyCache.clear();
         }
 
         if (root != null && checker.hasOption("ajava")) {
@@ -1442,11 +1503,39 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         if (elt == null) {
             throw new BugInCF("AnnotatedTypeFactory.getAnnotatedType: null element");
         }
+        // Cache the fully-computed (post-defaults) declaration type. The declaration type is
+        // flow-insensitive, so for checkers where shouldCacheElementType() holds it is a pure
+        // function of the element; a hit skips the whole fromElement + addComputedTypeAnnotations
+        // pipeline (JFR shows it is dominated by the defaulting walk). Deep-copy on store/return,
+        // since callers mutate the result.
+        boolean useCache = shouldCache && shouldCacheElementType();
+        if (useCache) {
+            AnnotatedTypeMirror cached = elementTypeCache.get(elt);
+            if (cached != null) {
+                return cached.deepCopy();
+            }
+        }
         // Annotations explicitly written in the source code,
         // or obtained from bytecode.
         AnnotatedTypeMirror type = fromElement(elt);
         addComputedTypeAnnotations(elt, type);
+        if (useCache) {
+            elementTypeCache.put(elt, type.deepCopy());
+        }
         return type;
+    }
+
+    /**
+     * Whether {@link #getAnnotatedType(Element)} results may be cached in {@link
+     * #elementTypeCache}. Returns true by default. A checker whose {@link
+     * #addComputedTypeAnnotations(Element, AnnotatedTypeMirror)} is not a pure function of the
+     * element (i.e., it reads use-site or other mutable state when computing an element's
+     * declaration type) must override this to return false.
+     *
+     * @return true if the fully-computed element-type cache is sound for this checker
+     */
+    protected boolean shouldCacheElementType() {
+        return true;
     }
 
     /**
@@ -2661,21 +2750,32 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             ExecutableElement methodElt,
             AnnotatedTypeMirror receiverType,
             boolean inferTypeArgs) {
-        AnnotatedExecutableType memberTypeWithoutOverrides =
-                getAnnotatedType(methodElt); // get unsubstituted type
-        AnnotatedExecutableType memberTypeWithOverrides =
-                applyFakeOverrides(receiverType, methodElt, memberTypeWithoutOverrides);
-        memberTypeWithOverrides = applyRecordTypesToAccessors(methodElt, memberTypeWithOverrides);
-        methodFromUsePreSubstitution(tree, memberTypeWithOverrides, inferTypeArgs);
-
-        // Perform viewpoint adaption before type argument substitution.
-        if (viewpointAdapter != null) {
-            viewpointAdapter.viewpointAdaptMethod(receiverType, methodElt, memberTypeWithOverrides);
+        // Cache the (methodElt, receiverType)-determined substitution base (fake overrides +
+        // viewpoint adaptation + asMemberOf), since the same method is invoked on the same receiver
+        // type at many call sites. Everything call-site-dependent -- type-argument inference,
+        // polymorphic-qualifier resolution, unchecked-conversion and getClass adjustments below --
+        // runs per call on a copy. Two soundness conditions: (1) do not cache a method type that
+        // contains a polymorphic qualifier (its annotations are resolved per call from the
+        // arguments); (2) checkers whose method types are otherwise call-dependent (e.g. Value,
+        // MethodVal) opt out via shouldCacheMethodAsMemberOf.
+        MethodAsMemberOfCacheKey cacheKey =
+                (shouldCache
+                                && receiverType != null
+                                && shouldCacheMethodAsMemberOf()
+                                && !methodDeclaresPolymorphicQualifier(methodElt))
+                        ? new MethodAsMemberOfCacheKey(methodElt, receiverType)
+                        : null;
+        AnnotatedExecutableType methodType;
+        AnnotatedExecutableType cachedMethodType =
+                cacheKey == null ? null : methodAsMemberOfCache.get(cacheKey);
+        if (cachedMethodType != null) {
+            methodType = cachedMethodType.deepCopy();
+        } else {
+            methodType = computeMethodTypeAsMemberOf(tree, methodElt, receiverType, inferTypeArgs);
+            if (cacheKey != null) {
+                methodAsMemberOfCache.put(cacheKey, methodType.deepCopy());
+            }
         }
-
-        AnnotatedExecutableType methodType =
-                AnnotatedTypes.asMemberOf(
-                        types, this, receiverType, methodElt, memberTypeWithOverrides);
         List<AnnotatedTypeMirror> typeargs = new ArrayList<>(methodElt.getTypeParameters().size());
 
         TypeArguments typeArguments =
@@ -2709,6 +2809,272 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         }
 
         return new ParameterizedExecutableType(methodType, typeargs);
+    }
+
+    /**
+     * Computes the type of {@code methodElt} as a member of {@code receiverType} (fake overrides +
+     * viewpoint adaptation + {@link AnnotatedTypes#asMemberOf}), before call-site type-argument
+     * inference. The result depends only on {@code methodElt} and {@code receiverType}; see {@link
+     * #methodFromUse(ExpressionTree, ExecutableElement, AnnotatedTypeMirror, boolean)}.
+     *
+     * @param tree the invocation/reference tree (used only by {@code methodFromUsePreSubstitution})
+     * @param methodElt the invoked method
+     * @param receiverType the receiver type
+     * @param inferTypeArgs passed through to {@code methodFromUsePreSubstitution}
+     * @return the method's type as a member of {@code receiverType}
+     */
+    private AnnotatedExecutableType computeMethodTypeAsMemberOf(
+            ExpressionTree tree,
+            ExecutableElement methodElt,
+            AnnotatedTypeMirror receiverType,
+            boolean inferTypeArgs) {
+        AnnotatedExecutableType memberTypeWithoutOverrides =
+                getAnnotatedType(methodElt); // get unsubstituted type
+        AnnotatedExecutableType memberTypeWithOverrides =
+                applyFakeOverrides(receiverType, methodElt, memberTypeWithoutOverrides);
+        memberTypeWithOverrides = applyRecordTypesToAccessors(methodElt, memberTypeWithOverrides);
+        methodFromUsePreSubstitution(tree, memberTypeWithOverrides, inferTypeArgs);
+
+        // Perform viewpoint adaption before type argument substitution.
+        if (viewpointAdapter != null) {
+            viewpointAdapter.viewpointAdaptMethod(receiverType, methodElt, memberTypeWithOverrides);
+        }
+
+        return AnnotatedTypes.asMemberOf(
+                types, this, receiverType, methodElt, memberTypeWithOverrides);
+    }
+
+    /**
+     * Whether {@link #methodAsMemberOfCache} may be used. Returns true by default. A checker whose
+     * method types are call-site-dependent in a way not captured by {@code (method, receiver)} --
+     * e.g. the Value Checker (results computed from argument values) or the MethodVal/Reflection
+     * Checker -- must override this to return false.
+     *
+     * @return true if the method-as-member-of cache is sound for this checker
+     */
+    protected boolean shouldCacheMethodAsMemberOf() {
+        return true;
+    }
+
+    /**
+     * Returns true if {@code methodElt}'s declared type contains a polymorphic qualifier. Checked
+     * on the declared (pre-substitution) type rather than the result of {@link
+     * #computeMethodTypeAsMemberOf}, because {@code methodFromUsePreSubstitution} may already have
+     * resolved the polymorphic qualifiers to concrete ones by then. Cached per element.
+     *
+     * @param methodElt a method
+     * @return true if the method's declared type uses a polymorphic qualifier
+     */
+    private boolean methodDeclaresPolymorphicQualifier(ExecutableElement methodElt) {
+        Boolean cached = methodDeclaresPolyCache.get(methodElt);
+        if (cached != null) {
+            return cached;
+        }
+        boolean result = containsPolymorphicQualifier(getAnnotatedType(methodElt));
+        methodDeclaresPolyCache.put(methodElt, result);
+        return result;
+    }
+
+    /**
+     * Returns true if {@code type} contains a polymorphic qualifier anywhere.
+     *
+     * @param type a type
+     * @return true if {@code type} contains a polymorphic qualifier
+     */
+    private boolean containsPolymorphicQualifier(AnnotatedTypeMirror type) {
+        if (polyQualifierScanner == null) {
+            QualifierHierarchy qh = getQualifierHierarchy();
+            polyQualifierScanner =
+                    new SimpleAnnotatedTypeScanner<>(
+                            (atm, unused) -> {
+                                for (AnnotationMirror anno : atm.getAnnotations()) {
+                                    if (qh.isPolymorphicQualifier(anno)) {
+                                        return true;
+                                    }
+                                }
+                                return false;
+                            },
+                            Boolean::logicalOr,
+                            false);
+        }
+        return polyQualifierScanner.visit(type, null);
+    }
+
+    /**
+     * Returns the cache-local structural comparer (lazily created); see {@link
+     * #structuralComparer}.
+     *
+     * @return the structural comparer
+     */
+    private IsSameTypeAtmComparer structuralComparer() {
+        if (structuralComparer == null) {
+            structuralComparer = new IsSameTypeAtmComparer(types);
+        }
+        return structuralComparer;
+    }
+
+    /**
+     * Compares {@link AnnotatedTypeMirror}s for structural value equality using {@code
+     * Types.isSameType} for underlying types (rather than the identity comparison the global {@code
+     * AnnotatedTypeMirror.equals} uses) plus the same primary-annotation comparison. Used only for
+     * the {@link #methodAsMemberOfCache} key.
+     */
+    private static final class IsSameTypeAtmComparer extends EqualityAtmComparer {
+        /** For {@code isSameType}. */
+        private final Types types;
+
+        /**
+         * Creates a comparer.
+         *
+         * @param types the Types utility
+         */
+        IsSameTypeAtmComparer(Types types) {
+            this.types = types;
+        }
+
+        @Override
+        protected boolean compare(
+                @Nullable AnnotatedTypeMirror type1, @Nullable AnnotatedTypeMirror type2) {
+            if (type1 == type2) {
+                return true;
+            }
+            if (type1 == null || type2 == null) {
+                return false;
+            }
+            return types.isSameType(type1.getUnderlyingType(), type2.getUnderlyingType())
+                    && arePrimaryAnnosEqual(type1, type2);
+        }
+    }
+
+    /**
+     * Key for {@link #methodAsMemberOfCache}: a method element (compared by identity) and a
+     * receiver type (compared structurally via {@link #structuralComparer}, hashed by {@code
+     * AnnotatedTypeMirror.hashCode}, which is {@code toString}-based and consistent with {@code
+     * isSameType} in the common case; a hash mismatch only costs a missed hit, never correctness).
+     */
+    private final class MethodAsMemberOfCacheKey {
+        /** The invoked method. */
+        private final ExecutableElement methodElt;
+
+        /** The receiver type; never null. */
+        private final AnnotatedTypeMirror receiverType;
+
+        /** Precomputed hash. */
+        private final int hash;
+
+        /**
+         * Creates a key.
+         *
+         * @param methodElt the invoked method
+         * @param receiverType the (non-null) receiver type
+         */
+        MethodAsMemberOfCacheKey(ExecutableElement methodElt, AnnotatedTypeMirror receiverType) {
+            this.methodElt = methodElt;
+            this.receiverType = receiverType;
+            // Manual hash (not Objects.hash) to avoid the varargs-array + Integer-boxing
+            // allocations on this per-invocation hot path.
+            this.hash = 31 * System.identityHashCode(methodElt) + receiverType.hashCode();
+        }
+
+        @Override
+        public int hashCode() {
+            return hash;
+        }
+
+        @Override
+        public boolean equals(@Nullable Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (!(o instanceof MethodAsMemberOfCacheKey)) {
+                return false;
+            }
+            MethodAsMemberOfCacheKey other = (MethodAsMemberOfCacheKey) o;
+            @SuppressWarnings("interning:not.interned")
+            boolean res =
+                    methodElt == other.methodElt
+                            && structuralComparer().visit(receiverType, other.receiverType, null);
+            return res;
+        }
+    }
+
+    /**
+     * Returns the direct supertypes of {@code type}: the result of {@link
+     * SupertypeFinder#directSupertypes(AnnotatedDeclaredType)}, cached. {@code directSupertypes} is
+     * a pure function of {@code type}'s structure and annotations (no tree or call arguments), so
+     * the structural {@code (type)} key is sound; the same structural type's supertypes are
+     * recomputed constantly while walking type hierarchies ({@code asSuper}, {@code
+     * allSupertypes}). Stores and returns deep copies, since callers mutate the supertypes'
+     * annotations.
+     *
+     * @param type a declared type
+     * @return the direct supertypes of {@code type} (an unmodifiable list)
+     */
+    public List<AnnotatedDeclaredType> getDirectSupertypes(AnnotatedDeclaredType type) {
+        DirectSupertypesCacheKey key = shouldCache ? new DirectSupertypesCacheKey(type) : null;
+        List<AnnotatedDeclaredType> cached = key == null ? null : directSupertypesCache.get(key);
+        if (cached != null) {
+            return Collections.unmodifiableList(deepCopySupertypes(cached));
+        }
+        List<AnnotatedDeclaredType> result = SupertypeFinder.directSupertypes(type);
+        if (key != null) {
+            directSupertypesCache.put(key, deepCopySupertypes(result));
+        }
+        return Collections.unmodifiableList(result);
+    }
+
+    /**
+     * Deep-copies a list of supertypes, so {@link #directSupertypesCache} never aliases a mutable
+     * type into or out of the cache.
+     *
+     * @param supertypes a list of supertypes
+     * @return a list of deep copies
+     */
+    private List<AnnotatedDeclaredType> deepCopySupertypes(List<AnnotatedDeclaredType> supertypes) {
+        List<AnnotatedDeclaredType> copy = new ArrayList<>(supertypes.size());
+        for (AnnotatedDeclaredType supertype : supertypes) {
+            copy.add(supertype.deepCopy());
+        }
+        return copy;
+    }
+
+    /**
+     * Key for {@link #directSupertypesCache}: a declared type compared structurally via {@link
+     * #structuralComparer} (hashed by {@code AnnotatedTypeMirror.hashCode}; a hash mismatch only
+     * costs a missed hit, never correctness).
+     */
+    private final class DirectSupertypesCacheKey {
+        /** The type whose supertypes are cached. */
+        private final AnnotatedDeclaredType type;
+
+        /** Precomputed hash. */
+        private final int hash;
+
+        /**
+         * Creates a key.
+         *
+         * @param type the type whose supertypes are cached
+         */
+        DirectSupertypesCacheKey(AnnotatedDeclaredType type) {
+            this.type = type;
+            this.hash = type.hashCode();
+        }
+
+        @Override
+        public int hashCode() {
+            return hash;
+        }
+
+        @Override
+        public boolean equals(@Nullable Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (!(o instanceof DirectSupertypesCacheKey)) {
+                return false;
+            }
+            return structuralComparer().visit(type, ((DirectSupertypesCacheKey) o).type, null);
+        }
     }
 
     /**
@@ -3941,11 +4307,34 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             case CONSTRUCTOR:
                 fromElt = trees.getTree(elt);
                 break;
+            case TYPE_PARAMETER:
+                // TreeInfo.declarationFor does not match type parameters, so it scans the whole
+                // compilation unit only to return null. Skip that scan.
+                fromElt = null;
+                break;
             default:
+                // The remaining kinds with a declaration tree are variables (local variables,
+                // parameters, resource and exception parameters), whose declaration is inside the
+                // enclosing method/class. Scan only that enclosing subtree rather than the whole
+                // compilation unit -- TreeInfo.declarationFor(sym, root) was ~13% of the compile.
+                // trees.getTree on the enclosing *method* is cheap (position-based, the path the
+                // method case above uses), unlike trees.getTree on a local, which itself scans.
+                // Fall back to the whole compilation unit if the enclosing tree is unavailable or
+                // does not contain the declaration.
+                Element enclosing = elt.getEnclosingElement();
+                Tree enclosingTree = enclosing == null ? null : trees.getTree(enclosing);
                 fromElt =
-                        com.sun.tools.javac.tree.TreeInfo.declarationFor(
-                                (com.sun.tools.javac.code.Symbol) elt,
-                                (com.sun.tools.javac.tree.JCTree) root);
+                        enclosingTree instanceof com.sun.tools.javac.tree.JCTree
+                                ? com.sun.tools.javac.tree.TreeInfo.declarationFor(
+                                        (com.sun.tools.javac.code.Symbol) elt,
+                                        (com.sun.tools.javac.tree.JCTree) enclosingTree)
+                                : null;
+                if (fromElt == null) {
+                    fromElt =
+                            com.sun.tools.javac.tree.TreeInfo.declarationFor(
+                                    (com.sun.tools.javac.code.Symbol) elt,
+                                    (com.sun.tools.javac.tree.JCTree) root);
+                }
                 break;
         }
         if (shouldCache) {

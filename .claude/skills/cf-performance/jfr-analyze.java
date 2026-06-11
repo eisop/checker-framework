@@ -9,6 +9,20 @@
 // largest one, but aggregating them all is harmless (launcher/daemon files
 // contribute almost no ExecutionSamples).
 //
+// SCOPE — profile the WHOLE build, not one subproject. The realistic workload
+// is the unqualified `./gradlew checknullness` (and friends): it runs the
+// checker over ALL ~10 subprojects (checker, checker-qual{,-android},
+// checker-util, dataflow, docs, framework, framework-perf, framework-test,
+// javacutil), and Gradle routes every one of those forked compiles through a
+// SINGLE persistent compiler-worker JVM -- so the full build still produces one
+// dominant worker file, but it contains all ten compiles (~15-17k
+// ExecutionSamples / ~155-170 s on-CPU). A qualified `:checker:checkNullness`
+// captures only ONE subproject (~2.6k samples / ~26 s) and badly undercounts:
+// a win measured on that slice can be ~2x its true build-level impact. The
+// `phase` mode prints the wall span and a SCOPE warning when a trace looks like
+// a single-subproject slice -- heed it, and always report the whole-worker
+// sample delta + wall clock as the headline, never one phase's inclusive %.
+//
 // Modes:
 //   top    <file...>                       Top self-time (leaf), total-time, and
 //                                          allocation-by-class tables. The default.
@@ -37,6 +51,9 @@
 //                                          idle share. Answers "where does checkNullness
 //                                          spend wall-clock". Bucket markers are
 //                                          CF-specific; see phaseBucket().
+//   heap   <file...>                       Retained (post-GC live) heap from jdk.GCHeapSummary
+//                                          "After GC" events: max/p90/median. For memory A/B
+//                                          (master-vs-branch delta = added retained footprint).
 //
 // WHY THIS EXISTS: on JDK 25 the stock `jfr print` and `jfr view` commands crash
 // with a StringIndexOutOfBoundsException in ValueFormatter.formatMethod /
@@ -97,7 +114,8 @@ public class jfr_analyze {
         if (args.length == 0) {
             System.err.println(
                     "usage: java jfr-analyze.java"
-                            + " <top|self|alloc|inclusive|under|cooccur|phase> [args] <file.jfr...>");
+                            + " <top|self|alloc|inclusive|under|cooccur|phase|heap> [args]"
+                            + " <file.jfr...>");
             System.exit(2);
         }
         String mode = args[0];
@@ -108,9 +126,59 @@ public class jfr_analyze {
             case "under" -> under(args[1], args, 2);
             case "cooccur" -> cooccur(args[1], args[2], args, 3);
             case "phase" -> phase(args, 1);
+            case "heap" -> heap(args, 1);
             // No subcommand: treat all args as files, run "top".
             default -> top(args, 0);
         }
+    }
+
+    /**
+     * Live-heap trajectory from jdk.GCHeapSummary "After GC" events: the retained (post-collection)
+     * heap over the run. Max post-GC heap ~ peak retained memory; the master-vs-branch delta is the
+     * added retained footprint (e.g. of a new cache). GC-implementation-agnostic (uses the generic
+     * GCHeapSummary heapUsed).
+     */
+    static void heap(String[] args, int start) throws Exception {
+        java.util.List<Long> afterGc = new java.util.ArrayList<>();
+        for (int i = start; i < args.length; i++) {
+            try (RecordingFile rf = new RecordingFile(Paths.get(args[i]))) {
+                while (rf.hasMoreEvents()) {
+                    RecordedEvent e = rf.readEvent();
+                    if (!e.getEventType().getName().equals("jdk.GCHeapSummary")) {
+                        continue;
+                    }
+                    String when = "";
+                    try {
+                        when = e.getString("when");
+                    } catch (Exception ex) {
+                        // some recordings lack the field; keep all
+                    }
+                    if (when != null && when.contains("Before")) {
+                        continue; // keep only "After GC" = live/retained
+                    }
+                    try {
+                        afterGc.add(e.getLong("heapUsed"));
+                    } catch (Exception ex) {
+                        // skip
+                    }
+                }
+            }
+        }
+        if (afterGc.isEmpty()) {
+            System.out.println("No GCHeapSummary 'After GC' events found.");
+            return;
+        }
+        java.util.Collections.sort(afterGc);
+        long max = afterGc.get(afterGc.size() - 1);
+        long median = afterGc.get(afterGc.size() / 2);
+        long p90 = afterGc.get((int) (afterGc.size() * 0.90));
+        double mb = 1024.0 * 1024.0;
+        System.out.printf(
+                "Post-GC live heap (jdk.GCHeapSummary, After GC): samples=%d%n"
+                    + "  max   = %.1f MB%n"
+                    + "  p90   = %.1f MB%n"
+                    + "  median= %.1f MB%n",
+                afterGc.size(), max / mb, p90 / mb, median / mb);
     }
 
     /** Inclusive (total) time for frames under a package prefix. */
@@ -380,6 +448,7 @@ public class jfr_analyze {
         Map<String, Long> bucket = new HashMap<>();
         long exec = 0, nativeIdle = 0, nativeReal = 0, gcPauseNanos = 0;
         int gcCount = 0;
+        java.time.Instant spanStart = null, spanEnd = null;
         for (int i = start; i < args.length; i++) {
             try (RecordingFile rf = new RecordingFile(Paths.get(args[i]))) {
                 while (rf.hasMoreEvents()) {
@@ -390,6 +459,9 @@ public class jfr_analyze {
                         if (st == null || st.getFrames().isEmpty()) {
                             continue;
                         }
+                        java.time.Instant t = e.getStartTime();
+                        if (spanStart == null || t.isBefore(spanStart)) spanStart = t;
+                        if (spanEnd == null || t.isAfter(spanEnd)) spanEnd = t;
                         exec++;
                         bucket.merge(phaseBucket(st.getFrames()), 1L, Long::sum);
                     } else if (type.equals("jdk.NativeMethodSample")) {
@@ -416,11 +488,28 @@ public class jfr_analyze {
             }
         }
         // ExecutionSample period is 10 ms (the .jfc floor), so #samples * 10ms approximates on-CPU time.
+        double spanSec =
+                (spanStart == null || spanEnd == null)
+                        ? 0
+                        : java.time.Duration.between(spanStart, spanEnd).toMillis() / 1000.0;
         System.out.printf(
-                "On-CPU Java: %d ExecutionSamples (~%.1f s at 10ms).  GC: %d collections, %.0f ms summed pause.%n",
-                exec, exec * 0.010, gcCount, gcPauseNanos / 1e6);
+                "On-CPU Java: %d ExecutionSamples (~%.1f s at 10ms).  Recording span: %.0f s wall."
+                        + "  GC: %d collections, %.0f ms summed pause.%n",
+                exec, exec * 0.010, spanSec, gcCount, gcPauseNanos / 1e6);
         System.out.printf(
                 "Native samples: %d idle (EPoll/park -- not work) + %d real I/O.%n", nativeIdle, nativeReal);
+        // Scope guard: the full `./gradlew checknullness` (all ~10 subprojects, one worker JVM) is
+        // ~15-17k samples / ~155-170 s. A trace this small is almost certainly a single-subproject
+        // slice (e.g. `:checker:checkNullness`), which undercounts build-level impact ~2x.
+        if (exec < 6000) {
+            System.out.printf(
+                    "%n*** SCOPE WARNING: only %d ExecutionSamples (~%.0f s on-CPU). This looks like a%n"
+                        + "*** SINGLE-SUBPROJECT slice, not the full build. Re-profile the unqualified%n"
+                        + "*** `./gradlew checknullness` (all ~10 subprojects route through one worker"
+                        + " JVM)%n"
+                        + "*** and report the whole-worker sample delta + wall clock, not this slice.%n",
+                    exec, exec * 0.010);
+        }
         printTable("ON-CPU JAVA BY SUBSYSTEM (innermost marker, mutually exclusive)", bucket, exec, 15);
     }
 }

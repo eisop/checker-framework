@@ -308,8 +308,11 @@ public class ElementAnnotationUtil {
     static void annotateViaTypeAnnoPosition(
             AnnotatedTypeMirror type, Collection<TypeCompound> annos)
             throws UnexpectedAnnotationLocationException {
+        // This holds one entry per annotated wildcard in the type, typically 0 to 2. Pre-size to
+        // 4 (an Object[16] table that holds 5 entries before its first resize) rather than the
+        // default Object[64].
         IdentityHashMap<AnnotatedWildcardType, WildcardBoundAnnos> wildcardToAnnos =
-                new IdentityHashMap<>();
+                new IdentityHashMap<>(4);
         for (TypeCompound anno : annos) {
             AnnotatedTypeMirror target =
                     getTypeAtLocation(type, anno.position.location, anno, false);
