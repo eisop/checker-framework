@@ -13,6 +13,7 @@ import org.junit.Test;
 
 import java.net.URI;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 import javax.tools.JavaCompiler;
@@ -65,15 +66,17 @@ public class TreePathCacherTest {
      */
     private static CompilationUnitTree parse(String className, String code) throws Exception {
         JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
-        JavacTask task =
-                (JavacTask)
-                        compiler.getTask(
-                                null,
-                                null,
-                                null,
-                                List.of("-proc:none"),
-                                null,
-                                List.of(source(className, code)));
+        // Assign to CompilationTask before downcasting: a direct cast on getTask(...) is flagged
+        // as a redundant cast by compilers whose getTask is declared to return JavacTask.
+        JavaCompiler.CompilationTask compilationTask =
+                compiler.getTask(
+                        null,
+                        null,
+                        null,
+                        Collections.singletonList("-proc:none"),
+                        null,
+                        Collections.singletonList(source(className, code)));
+        JavacTask task = (JavacTask) compilationTask;
         return task.parse().iterator().next();
     }
 
