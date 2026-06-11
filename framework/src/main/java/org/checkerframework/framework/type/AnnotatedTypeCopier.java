@@ -90,10 +90,31 @@ public class AnnotatedTypeCopier
         this(true);
     }
 
+    /**
+     * Thread-local pool for the IdentityHashMap used during copy operations to avoid allocation.
+     */
+    private static final ThreadLocal<IdentityHashMap<AnnotatedTypeMirror, AnnotatedTypeMirror>>
+            mapPool =
+                    ThreadLocal.withInitial(
+                            () ->
+                                    new IdentityHashMap<>(
+                                            AnnotatedTypeScanner.VISITED_NODES_INITIAL_CAPACITY));
+
     @Override
     public AnnotatedTypeMirror visit(AnnotatedTypeMirror type) {
-        return type.accept(
-                this, new IdentityHashMap<>(AnnotatedTypeScanner.VISITED_NODES_INITIAL_CAPACITY));
+        IdentityHashMap<AnnotatedTypeMirror, AnnotatedTypeMirror> map = mapPool.get();
+        boolean mustClear = !map.isEmpty();
+        if (mustClear) {
+            // Safe fallback if re-entrant or map was not properly cleared.
+            map = new IdentityHashMap<>(AnnotatedTypeScanner.VISITED_NODES_INITIAL_CAPACITY);
+        }
+        try {
+            return type.accept(this, map);
+        } finally {
+            if (!mustClear) {
+                map.clear();
+            }
+        }
     }
 
     @Override
