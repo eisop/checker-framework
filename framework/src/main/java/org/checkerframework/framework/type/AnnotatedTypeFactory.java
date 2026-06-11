@@ -4417,9 +4417,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
 
         TreePath currentPath = visitorTreePath;
         if (currentPath == null) {
-            TreePath path = TreePath.getPath(root, tree);
-            treePathCache.addPath(tree, path);
-            return path;
+            return treePathCache.getPath(root, tree);
         }
 
         // This method uses multiple heuristics to avoid calling
@@ -4450,9 +4448,8 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             }
         }
 
-        TreePath pathWithinSubtree = TreePath.getPath(currentPath, tree);
+        TreePath pathWithinSubtree = treePathCache.getPath(currentPath, tree);
         if (pathWithinSubtree != null) {
-            treePathCache.addPath(tree, pathWithinSubtree);
             return pathWithinSubtree;
         }
 
