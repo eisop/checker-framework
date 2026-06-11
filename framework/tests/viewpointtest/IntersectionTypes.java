@@ -10,7 +10,8 @@ public class IntersectionTypes {
     interface Bar {}
 
     interface Accessor {
-        @ReceiverDependentQual Object get();
+        @ReceiverDependentQual
+        Object get();
 
         void set(@ReceiverDependentQual Object o);
     }
@@ -27,17 +28,24 @@ public class IntersectionTypes {
 
     <T extends Foo & Bar> void call(T p) {}
 
-    // TODO: Re-enable after deciding the expected behavior for mixed explicit annotations on
-    // intersection bounds. See https://github.com/eisop/checker-framework/issues/1735.
-    // <T extends @A Foo & @B Bar> void callAnnotatedBounds(T p) {}
-
     <T extends Foo & Accessor> void callAccessor(T p) {}
+
+    class ViewpointAdaptedIntersectionBound<T extends @ReceiverDependentQual Accessor & Foo> {
+        void viewpointAdaptedIntersectionBound(@A T p, @A Object aObj, @B Object bObj) {
+            @A Object adapted = p.get();
+            // :: error: (assignment.type.incompatible)
+            @B Object notAdaptedToB = p.get();
+
+            p.set(aObj);
+            // :: error: (argument.type.incompatible)
+            p.set(bObj);
+        }
+    }
 
     void foo(@A Object aObj, @B Object bObj) {
         // :: warning: (cast.unsafe.constructor.invocation)
         Baz baz = new @A Baz();
         call(baz);
-        // callAnnotatedBounds(baz);
         callAccessor(baz);
 
         @A Object adapted = baz.get();
@@ -70,4 +78,10 @@ public class IntersectionTypes {
     class E extends D<BC> {}
 
     <T extends BType<T> & CType<T>> void callBC(T p) {}
+
+    // Documents the current decision for https://github.com/eisop/checker-framework/issues/1735:
+    // when multiple bounds in an intersection type have explicit qualifiers in the same hierarchy,
+    // the later qualifier is ignored.
+    // :: warning: (explicit.annotation.ignored)
+    <T extends @A Foo & @B Bar> void callAnnotatedBounds(T p) {}
 }
