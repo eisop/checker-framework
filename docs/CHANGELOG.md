@@ -44,6 +44,14 @@ and most scans visit only a few nodes; the smaller pre-size cuts that allocation
 substantially and lowers GC pressure with no wall-clock cost. Also pre-sized the
 small `wildcardToAnnos` map in `ElementAnnotationUtil` to 4.
 
+Performance: `CFCFGBuilder` now obtains each method/lambda body's `TreePath` from the
+checker's shared `TreePathCacher` instead of an uncached `Trees.getPath` search per
+body. The old search was quadratic in bodies-per-file (each rescanned the preceding
+bodies) and was the largest `TreePath` allocator; caching it removes that quadratic.
+The effect scales with methods-per-file: negligible on small files, but large on very
+large or machine-generated single-class files (e.g. −33% allocation, −6.5% wall clock
+on a 1500-method class).
+
 Fixed a bug that caused an IndexOutOfBoundsException for lambdas in varargs,
 for type systems that had the Aliasing Checker as a subchecker, like the
 Optional Checker.
