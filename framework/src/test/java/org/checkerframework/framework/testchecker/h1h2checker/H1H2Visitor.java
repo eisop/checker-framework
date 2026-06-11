@@ -47,8 +47,16 @@ public class H1H2Visitor extends BaseTypeVisitor<H1H2AnnotatedTypeFactory> {
         return superResult;
     }
 
+    /** Type validator that treats {@link H1Invalid} as an invalid type. */
     private final class H1H2TypeValidator extends BaseTypeValidator {
 
+        /**
+         * Creates an {@link H1H2TypeValidator}.
+         *
+         * @param checker the associated checker
+         * @param visitor the associated visitor
+         * @param atypeFactory the associated type factory
+         */
         H1H2TypeValidator(
                 BaseTypeChecker checker,
                 BaseTypeVisitor<?> visitor,
