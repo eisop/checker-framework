@@ -1610,6 +1610,26 @@ public abstract class GenericAnnotatedTypeFactory<
             boolean updateInitializationStore,
             boolean isStatic,
             @Nullable Store capturedStore) {
+        // Prime the cache with this method body's path, built in O(1) from the enclosing class
+        // path, so the getPath(root, code) lookups below (in CFCFGBuilder.build, and when the
+        // visitor path is set before performAnalysis) are cache hits rather than an O(members) scan
+        // from the compilation-unit root -- which, once per body, is quadratic over a class with
+        // many methods. Only done for methods, whose body path is an unambiguous two-step extension
+        // of the class path (class -> method -> body); lambdas and initializers (rarer / nested)
+        // fall through to the normal lookup.
+        if (ast.getKind() == UnderlyingAST.Kind.METHOD) {
+            UnderlyingAST.CFGMethod cfgMethod = (UnderlyingAST.CFGMethod) ast;
+            TreePath classPath = getVisitorTreePath();
+            Tree body = cfgMethod.getCode();
+            if (classPath != null
+                    && classPath.getLeaf() == cfgMethod.getClassTree()
+                    && body != null) {
+                checker.getTreePathCacher()
+                        .addPath(
+                                body,
+                                new TreePath(new TreePath(classPath, cfgMethod.getMethod()), body));
+            }
+        }
         ControlFlowGraph cfg =
                 CFCFGBuilder.build(this.getRoot(), ast, checker, this, processingEnv);
         /*
@@ -1634,7 +1654,21 @@ public abstract class GenericAnnotatedTypeFactory<
         } else {
             transfer.setFixedInitialStore(capturedStore);
         }
-        analysis.performAnalysis(cfg, fieldValues);
+        // Point the visitor path at the body being analyzed. getPath() -- used by, e.g.,
+        // type-argument inference triggered during the analysis below -- uses visitorTreePath as a
+        // search-start hint. performFlowAnalysis sets it to the enclosing *class*, so a lookup for
+        // a tree inside this body rescans the whole class subtree, which is quadratic in the number
+        // of members. The body's path was just cached by CFCFGBuilder.build above, so this is a
+        // cache hit; query the cacher directly (not getPath) so this does not itself depend on
+        // visitorTreePath. Restored in the finally so the class path is back in place for the rest
+        // of performFlowAnalysis.
+        TreePath prevVisitorTreePath = getVisitorTreePath();
+        setVisitorTreePath(checker.getTreePathCacher().getPath(this.getRoot(), ast.getCode()));
+        try {
+            analysis.performAnalysis(cfg, fieldValues);
+        } finally {
+            setVisitorTreePath(prevVisitorTreePath);
+        }
         AnalysisResult<Value, Store> result = analysis.getResult();
 
         // store result
