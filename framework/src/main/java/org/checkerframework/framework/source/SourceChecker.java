@@ -836,14 +836,16 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      * Returns a list containing this checker name and all checkers it is a part of (that is,
      * checkers that called it).
      *
-     * <p>This list determines which {@code @AnnotatedFor} annotations are recognized as covering
-     * this checker.
+     * <p>This list has two uses:
      *
-     * <p>This method is related to {@link #getSuppressWarningsPrefixes()}. By default, {@link
-     * #getSuppressWarningsPrefixes()} includes lower-case prefixes derived from all checker names
-     * returned by this method. For example, if an override adds the name of an abstract parent class
-     * that this checker extends, the parent class's lower-case checker name is also accepted as a
-     * {@code @SuppressWarnings} prefix.
+     * <ul>
+     *   <li>It determines which {@code @AnnotatedFor} annotations are recognized as covering this
+     *       checker.
+     *   <li>By default, {@link #getSuppressWarningsPrefixes()} includes lower-case prefixes derived
+     *       from all checker names returned by this method. For example, if an override adds the
+     *       name of an abstract parent class that this checker extends, the parent class's
+     *       lower-case checker name is also accepted as a {@code @SuppressWarnings} prefix.
+     * </ul>
      *
      * @return a list containing this checker name and all checkers it is a part of (that is,
      *     checkers that called it)
