@@ -9,9 +9,8 @@ public class TypeRefinement {
     // :: error: (type.invalid)
     @H1Top Object o3 = getH1Invalid();
 
-    @H1Invalid
     // :: error: (type.invalid)
-    Object getH1Invalid() {
+    @H1Invalid Object getH1Invalid() {
         // :: error: (type.invalid)
         return new @H1Invalid Object();
     }
