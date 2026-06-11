@@ -545,6 +545,31 @@ so small per-call wins paid back substantially.
     case fails on the subtree-only variant). The original outward-expanding scan is correct
     and is now documented in the code.
 
+- **PR #1789 — linear (instead of quadratic) `getPath` searches (June 2026).** Even after #1786 +
+  #1788, a single class with very many methods allocated *super-linearly* (6000-method class: 32 GB,
+  ~2.5–2.7×/doubling). A nearest-CF-frame allocation capture on a `gen-sized-program.py` size sweep
+  traced **57% of allocation at 6000 methods** to `com.sun.tools.javac.util.List$2` iterators that
+  `TreeScanner` allocates while `TreePathCacher.scan` *traverses* the tree — i.e. `getPath` searches
+  rescanning the whole class (**268M node visits** at 1500 methods). Instrumenting `getPath` showed
+  the targets were almost always local; they were just searched from too broad a start. Three causes,
+  all fixed by starting each search from the tightest known path:
+  - `AnnotatedTypeFactory.getPath`'s final fallback searched from `visitorTreePath` climbed up a
+    *fixed two levels*; for a method-body path that overshoots to the **class**, forcing a whole-class
+    rescan. It now searches from the original (tightest) `visitorTreePath` (the second overload still
+    expands outward for non-local targets). Alone this cut traversal 268M → 38.5M (−86%).
+  - `GenericAnnotatedTypeFactory.performFlowAnalysis` pinned `visitorTreePath` to the enclosing
+    *class*; flow-analysis-time inference lookups now run against the **body** being analyzed.
+    (A no-op by itself — the climb above negated it — but needed together with the first fix.)
+  - `CFCFGBuilder`'s per-body `getPath(root, code)` scanned from the compilation-unit root (O(members)
+    per body). `analyze` now primes that body's path in O(1) from the class path (`class → method →
+    body`, an unambiguous extension; methods only — lambdas/initializers fall through), so the lookup
+    is a cache hit.
+  Result: per-method allocation went from *rising* (3.3 → 5.4 MB/method, quadratic) to *flat*
+  (2.6 → 2.5 MB/method, linear); 6000-method class **32.1 GB → 14.8 GB (−54%)**, growing with size.
+  **No effect on normal code** (all-systems unchanged) and **no correctness risk**: all three are
+  search *hints* — `getPath` always returns the correct path (guarded by
+  `framework/util/TreePathCacherTest`'s JDK-equivalence check). Validated with `alltests`.
+
 ### Value Checker
 
 - **PR #1647** — *Cache a frequent conversion in the Value Checker.*
@@ -1353,12 +1378,12 @@ CF-controllable clusters and their state, highest-leverage first:
    `TreePath.<init>` was under `AnnotatedTypeFactory.getPath`'s slow path (uncached
    `TreePath.getPath(root, tree)` scans on cache miss + heuristic failure). PR #1786 caches the
    per-body lookup; PR #1788 makes `TreePathCacher` lazy and routes `getPath` through it, removing
-   most of that allocation. **Residual (new, open):** a single class with very many methods still
-   allocates *super-linearly* even after both (deterministic harness, lazy cacher: 1500 methods 4.9
-   GB → 3000 11.8 GB → 6000 32.1 GB, ~2.5–2.7× per doubling), so an O(members²) cost remains
-   *somewhere off* the now-cached `getPath` path. Type-argument inference re-walking outer paths is a
-   suspect. Next step: a size sweep (`gen-sized-program.py`) plus an `alloc`-by-nearest-CF-frame
-   capture to locate the surviving quadratic before proposing anything.
+   most of that allocation. **Residual — RESOLVED by PR #1789.** A single class with very many
+   methods still allocated *super-linearly* after #1786/#1788 (1500 methods 4.9 GB → 3000 11.8 GB →
+   6000 32.1 GB, ~2.5–2.7× per doubling). An `alloc`-by-nearest-CF-frame capture (via a
+   `gen-sized-program.py` size sweep) traced it to `getPath` searches that rescanned the whole class
+   per lookup; PR #1789 starts those searches from the tightest known path, making it linear (6000
+   methods 32.1 GB → 14.8 GB). See "Linear `getPath` searches" in Applied optimizations.
 4. **`declarationFromElement` residual (~5–7%).** Still the largest single javac-interaction cost after
    the smaller-scope scan; residual is method-subtree scanning. The cheap levers are exhausted (scoping
    tighter than a method has no element; `trees.getTree` and the single-pass map were rejected).

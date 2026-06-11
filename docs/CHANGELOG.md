@@ -59,6 +59,13 @@ allocation when many paths are requested from one compilation unit; on a 1500-me
 it roughly halves total allocation again on top of the previous change, with no effect on
 normal code. No user-visible behavior change.
 
+Performance: `AnnotatedTypeFactory.getPath` and dataflow now search for tree paths from the
+tightest known starting point instead of rescanning the whole compilation unit. Previously a
+path lookup during checking or flow analysis could rescan an entire class, making allocation
+quadratic in the number of members; it is now linear. On a 6000-method class this roughly
+halves total allocation (~32 GB to ~15 GB); on normal code there is no change. No user-visible
+behavior change.
+
 Fixed a bug that caused an IndexOutOfBoundsException for lambdas in varargs,
 for type systems that had the Aliasing Checker as a subchecker, like the
 Optional Checker.
