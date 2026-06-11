@@ -58,7 +58,7 @@ public class TreePathCacher extends TreeScanner<TreePath, Tree> {
      * @param target the tree to search for
      * @return true if the tree is cached
      */
-    public boolean isCached(Tree target) {
+    public boolean isCached(@FindDistinct Tree target) {
         return foundPaths.containsKey(target);
     }
 
@@ -110,16 +110,15 @@ public class TreePathCacher extends TreeScanner<TreePath, Tree> {
             return null;
         }
 
-        TreePath path = new TreePath(root);
-        if (path.getLeaf() == target) {
-            return path;
+        if (root == target) {
+            return new TreePath(root);
         }
 
         CompilationUnitTree prevRoot = this.currentRoot;
         int prevStackSize = this.currentStack.size();
         this.currentRoot = root;
         try {
-            super.scan(path, target);
+            this.scan(root, target);
         } catch (Result result) {
             return result.path;
         } finally {

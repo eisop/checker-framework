@@ -4448,13 +4448,10 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             }
         }
 
-        TreePath pathWithinSubtree = treePathCache.getPath(currentPath, tree);
-        if (pathWithinSubtree != null) {
-            return pathWithinSubtree;
-        }
-
-        // climb the current path till we see that
+        // Climb the current path till we see that tree.
         // Works when getPath called on the enclosing method, enclosing class.
+        // Doing this before starting an AST scan avoids traversing the compilation unit for
+        // ancestors.
         TreePath current = currentPath;
         while (current != null) {
             treePathCache.addPath(current.getLeaf(), current);
@@ -4464,8 +4461,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             current = current.getParentPath();
         }
 
-        // OK, we give up. Use the cache to look up.
-        return treePathCache.getPath(root, tree);
+        return treePathCache.getPath(currentPath, tree);
     }
 
     /**
