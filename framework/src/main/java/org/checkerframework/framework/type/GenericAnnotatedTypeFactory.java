@@ -1585,6 +1585,18 @@ public abstract class GenericAnnotatedTypeFactory<
             };
 
     /**
+     * Returns true if {@code path}'s leaf is (by reference) the given {@code tree}.
+     *
+     * @param path a tree path
+     * @param tree a tree
+     * @return true if {@code path}'s leaf is {@code tree}
+     */
+    @SuppressWarnings("interning:not.interned") // reference equality on AST nodes is intended
+    private static boolean treePathLeafIs(TreePath path, Tree tree) {
+        return path.getLeaf() == tree;
+    }
+
+    /**
      * Analyze the AST {@code ast} and store the result. Additional operations that should be
      * performed after analysis should be implemented in {@link #postAnalyze(ControlFlowGraph)}.
      *
@@ -1622,8 +1634,8 @@ public abstract class GenericAnnotatedTypeFactory<
             TreePath classPath = getVisitorTreePath();
             Tree body = cfgMethod.getCode();
             if (classPath != null
-                    && classPath.getLeaf() == cfgMethod.getClassTree()
-                    && body != null) {
+                    && body != null
+                    && treePathLeafIs(classPath, cfgMethod.getClassTree())) {
                 checker.getTreePathCacher()
                         .addPath(
                                 body,
