@@ -10,8 +10,7 @@ public class IntersectionTypes {
     interface Bar {}
 
     interface Accessor {
-        @ReceiverDependentQual
-        Object get();
+        @ReceiverDependentQual Object get();
 
         void set(@ReceiverDependentQual Object o);
     }
