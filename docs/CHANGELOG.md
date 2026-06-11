@@ -1,4 +1,4 @@
-Version 3.49.5-eisop2 (May ?, 2026)
+Version 3.49.5-eisop2 (June ?, 2026)
 -----------------------------------
 
 **User-visible changes:**
@@ -8,7 +8,61 @@ supported by the active checker is written on a supertype in an `extends` or `im
 clause. A checker that wants to allow annotations on supertypes can override
 `BaseTypeVisitor#checkAnnotationOnSupertype(Tree)` to do nothing.
 
+Further performance improvements. `allNullnessTests` down to below 2 minutes
+and `checkNullness` to around 2.5 minutes (last release: 2.5 and 4 minutes,
+respectively). Several optimizations also reduce GC pressure.
+
 **Implementation details:**
+
+Enabled the Gradle configuration cache, speeding up build times.
+
+`AnnotationMirrorSet` has a new `get(int)` method that returns the element at a
+given index in iteration order, letting hot callers iterate by index without
+allocating an `Iterator`.
+
+`AnnotatedTypeFactory` has a new `getElementAnnotations(Element)` method that
+returns an element's primary annotations without the defensive deep copy that
+`fromElement` makes on every cache hit; for read-only callers that only need the
+primary annotations.
+
+Performance: the annotated-JDK stub AST is now parsed once per JVM and shared
+across compilations instead of being re-parsed for every compilation. This speeds
+up multi-compilation JVMs such as the test suite, the Gradle daemon, and the
+language server (the JavaParser parse share of `allNullnessTests` roughly halved);
+a single compilation is unaffected.
+
+Performance: several `AnnotatedTypeScanner`s that were constructed per use are now
+reused — the `QualifierDefaults` defaulting scanner, `ElementAnnotationApplier`'s
+`TypeVarAnnotator`, and `BaseTypeValidator`'s structural-validity scanner — instead of
+allocating a scanner (and its `IdentityHashMap`) for every type. This removes ~99% of
+per-use scanner-construction allocations in realistic compilations.
+
+Performance: new caches in the `AnnotatedTypeFactory`: `methodAsMemberOfCache`
+to cache method types, `directSupertypesCache` to cache direct supertypes, and
+`elementTypeCache` to cache defaulted Element types.
+
+Performance: reduced the `AnnotatedTypeScanner`, `AnnotatedTypeCopier`, and
+`EquivalentAtmComboScanner` visitor-map pre-size from 64 to 8 (constant
+`VISITED_NODES_INITIAL_CAPACITY`). These per-scan `IdentityHashMap` backing
+arrays were the largest transient-allocation source in realistic compilations,
+and most scans visit only a few nodes; the smaller pre-size cuts that allocation
+substantially and lowers GC pressure with no wall-clock cost. Also pre-sized the
+small `wildcardToAnnos` map in `ElementAnnotationUtil` to 4.
+
+Performance: `CFCFGBuilder` now obtains each method/lambda body's `TreePath` from the
+checker's shared `TreePathCacher` instead of an uncached `Trees.getPath` search per
+body. The old search was quadratic in bodies-per-file (each rescanned the preceding
+bodies) and was the largest `TreePath` allocator; caching it removes that quadratic.
+The effect scales with methods-per-file: negligible on small files, but large on very
+large or machine-generated single-class files (e.g. −33% allocation, −6.5% wall clock
+on a 1500-method class).
+
+Performance: `TreePathCacher` now builds each `TreePath` lazily — it allocates only the
+nodes on the path to the requested tree, instead of one for every tree it scans past — and
+`AnnotatedTypeFactory.getPath` routes its searches through the cacher. This further reduces
+allocation when many paths are requested from one compilation unit; on a 1500-method class
+it roughly halves total allocation again on top of the previous change, with no effect on
+normal code. No user-visible behavior change.
 
 Fixed a bug that caused an IndexOutOfBoundsException for lambdas in varargs,
 for type systems that had the Aliasing Checker as a subchecker, like the

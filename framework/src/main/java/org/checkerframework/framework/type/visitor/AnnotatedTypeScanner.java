@@ -14,6 +14,7 @@ import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedUnionTyp
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedWildcardType;
 
 import java.util.IdentityHashMap;
+import java.util.List;
 
 /**
  * An {@code AnnotatedTypeScanner} visits an {@link AnnotatedTypeMirror} and all of its child {@link
@@ -168,18 +169,21 @@ public abstract class AnnotatedTypeScanner<R, P> implements AnnotatedTypeVisitor
     }
 
     /**
-     * The default IdentityHashMap max capacity is 32, which causes a resize at 21 elements. Traces
-     * showed that this was frequently reached, resulting in resizes of the map. This higher
-     * expected maximum size should avoid resizes of the visitedNodes map.
+     * The {@code IdentityHashMap} {@code expectedMaxSize} (expected entry count, not a table size)
+     * for the {@code visitedNodes} map and the per-visit maps in {@code AnnotatedTypeCopier} and
+     * {@code EquivalentAtmComboScanner}. A value of 8 makes the constructor allocate a 32-slot
+     * {@code Object[]} that holds 10 entries before its first resize. Most scans visit only 1 to 3
+     * nodes, so the map rarely grows; these per-scan arrays are the framework's largest transient
+     * {@code Object[]} allocation source, so keeping them small reduces GC pressure.
      */
-    public static final int VISITED_NODES_EXPECTED_MAX_SIZE = 64;
+    public static final int VISITED_NODES_INITIAL_CAPACITY = 8;
 
     /**
      * To prevent infinite loops. Should only be re-assigned in reset, see note there. No code
      * should re-assign the field or hold an alias to this object.
      */
     protected IdentityHashMap<AnnotatedTypeMirror, R> visitedNodes =
-            new IdentityHashMap<>(VISITED_NODES_EXPECTED_MAX_SIZE);
+            new IdentityHashMap<>(VISITED_NODES_INITIAL_CAPACITY);
 
     /**
      * Reset the scanner to allow reuse of the same instance. Subclasses should override this method
@@ -190,7 +194,7 @@ public abstract class AnnotatedTypeScanner<R, P> implements AnnotatedTypeVisitor
         // to be more efficient to create a new instance.
         // visitedNodes.clear();
         if (!visitedNodes.isEmpty()) {
-            visitedNodes = new IdentityHashMap<>(VISITED_NODES_EXPECTED_MAX_SIZE);
+            visitedNodes = new IdentityHashMap<>(VISITED_NODES_INITIAL_CAPACITY);
         }
     }
 
@@ -231,26 +235,38 @@ public abstract class AnnotatedTypeScanner<R, P> implements AnnotatedTypeVisitor
     }
 
     /**
-     * Scan all the types and returns the reduced result.
+     * Scans all the types in the list and returns the reduced result. Uses index-based access to
+     * avoid allocating an iterator for the (typically unmodifiable) list.
      *
-     * @param types types to scan
+     * @param types types to scan; may be null
      * @param p the parameter to use
      * @return the reduced result of scanning all the types
      */
-    protected R scan(@Nullable Iterable<? extends AnnotatedTypeMirror> types, P p) {
+    protected R scan(@Nullable List<? extends AnnotatedTypeMirror> types, P p) {
         if (types == null) {
             return defaultResult;
         }
-        R r = defaultResult;
-        boolean first = true;
-        for (AnnotatedTypeMirror type : types) {
-            r = (first ? scan(type, p) : scanAndReduce(type, p, r));
-            first = false;
+        int n = types.size();
+        if (n == 0) {
+            return defaultResult;
+        }
+        R r = scan(types.get(0), p);
+        for (int i = 1; i < n; ++i) {
+            r = scanAndReduce(types.get(i), p, r);
         }
         return r;
     }
 
-    protected R scanAndReduce(Iterable<? extends AnnotatedTypeMirror> types, P p, R r) {
+    /**
+     * Scans all types in {@code types} with parameter {@code p} and reduces the result with {@code
+     * r}. Uses index-based access to avoid allocating an iterator.
+     *
+     * @param types types to scan; may be null
+     * @param p parameter to use when scanning
+     * @param r result to combine with the result of scanning {@code types}
+     * @return the combination of {@code r} with the result of scanning all types
+     */
+    protected R scanAndReduce(@Nullable List<? extends AnnotatedTypeMirror> types, P p, R r) {
         return reduce(scan(types, p), r);
     }
 
