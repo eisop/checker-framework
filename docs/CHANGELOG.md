@@ -52,6 +52,13 @@ The effect scales with methods-per-file: negligible on small files, but large on
 large or machine-generated single-class files (e.g. −33% allocation, −6.5% wall clock
 on a 1500-method class).
 
+Performance: `TreePathCacher` now builds each `TreePath` lazily — it allocates only the
+nodes on the path to the requested tree, instead of one for every tree it scans past — and
+`AnnotatedTypeFactory.getPath` routes its searches through the cacher. This further reduces
+allocation when many paths are requested from one compilation unit; on a 1500-method class
+it roughly halves total allocation again on top of the previous change, with no effect on
+normal code. No user-visible behavior change.
+
 Fixed a bug that caused an IndexOutOfBoundsException for lambdas in varargs,
 for type systems that had the Aliasing Checker as a subchecker, like the
 Optional Checker.
