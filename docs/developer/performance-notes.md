@@ -450,6 +450,75 @@ so small per-call wins paid back substantially.
   varargs `hash`/`Arrays.hashCode` family allocates. Precompute the result into a
   `final int hash` field when the key is immutable, as both new cache keys do.
 
+### CFG-builder body-path lookup
+
+- **PR #1786 — cache the per-body `TreePath` lookup in `CFCFGBuilder` (June 2026).**
+  `CFGTranslationPhaseOne.process(CompilationUnitTree, UnderlyingAST)` (line ~527)
+  computed the body's path with an *uncached* `trees.getPath(root, code)` — a JDK
+  `Trees.PathFinder` `TreeScanner` that allocates a `new TreePath` per node visited
+  while searching from the compilation-unit root down to the body, **once per method
+  / lambda / initializer body**. For the *k*-th body in a file it re-scans the
+  preceding *k*−1 bodies, so cost is **quadratic in bodies-per-compilation-unit**.
+  This was the single largest `TreePath` allocator: on a full `checknullness`
+  `--no-daemon` trace, `CFGTranslationPhaseOne.process` was the nearest-CF frame for
+  **70%** of `com.sun.source.util.TreePath` allocation samples (2146 of 3057), vs. the
+  per-tree path extension at `CFGTranslationPhaseOne.scan` (line ~562) at only
+  **0.56%** (17 samples) — see the rejected "lazy path stack" note below.
+
+  **Fix.** `CFCFGBuilder.build` already holds `checker` and `atypeFactory`, so it
+  owns the checker's shared `TreePathCacher` (the same instance the `AnnotatedTypeFactory`
+  populates during visiting). Replace the uncached search with
+  `checker.getTreePathCacher().getPath(root, underlyingAST.getCode())` and feed the
+  result into the existing `process(TreePath, UnderlyingAST)` overload. The cacher
+  serves the enclosing class/method prefix from cache (warmed by visiting) and caches
+  each node's path once, collapsing the per-body re-scan from O(bodies × file) toward
+  O(file). **No class move is needed** — the framework-side caller already has the
+  cache; the dataflow `CFGBuilder.build` standalone-tool path (used by `CFGProcessor`,
+  which has no checker) is left on `trees.getPath`. This is a ~6-line change at one
+  call site, no dataflow API change. It only does `getPath(root, realBodyTree)`
+  lookups against the real AST keyed by tree identity, so none of the artificial-tree
+  / bulk-population hazards of caching from the per-tree CFG traversal apply.
+
+  **Measured allocation (deterministic `ThreadMXBean.getThreadAllocatedBytes` via JFR
+  `ThreadAllocationStatistics`, single forked `javac`, one class of *N* trivial
+  generic-call methods).** The win scales with methods-per-file, exactly as the
+  quadratic predicts:
+
+  | methods / file | master | cached | reduction |
+  | --- | --- | --- | --- |
+  | 100  |    524 MB |    506 MB |  −3.5% |
+  | 300  |  1,453 MB |  1,251 MB | −13.9% |
+  | 600  |  3,525 MB |  2,737 MB | −22.4% |
+  | 1500 | 15,192 MB | 10,193 MB | −32.9% (wall −6.5%, 46.3 → 43.3 s) |
+
+  On the all-systems corpus (267 *tiny* files, 1–3 bodies each) the effect is **~0%
+  (noise)** — there is no per-file body reuse to exploit. On the realistic CF build the
+  site is ~1.4% of total allocation (70% of `TreePath`, which is ~2% of TLAB events),
+  so a normal mixed codebase sees a low-single-digit allocation reduction; the large
+  numbers are worst-case protection for machine-generated or very large single-class
+  files, where it removes a genuine quadratic. Wall clock tracks allocation (only
+  measurable where allocation is large). The shared cache now retains the body-prefix
+  paths it builds (bounded by the compilation unit — the same eager-scan caching the
+  cacher already does on `AnnotatedTypeFactory.getPath` fallbacks). Validated with
+  `framework`/`dataflow`/`NullnessTest` and `alltests`.
+
+  **Synergy with a lazy `TreePathCacher` (follow-up candidate).** The eager
+  `TreePathCacher.getPath` caches a `TreePath` for *every* node it DFS-traverses while
+  searching for the target — so each per-body lookup added here caches the preceding
+  bodies' internal nodes too, even though only body trees are ever queried. On large
+  files that is O(file-nodes) of needless cached allocation. A lazy cacher whose scan
+  allocates only the path *to the target* (the uncommitted `buildPathForStack` rewrite,
+  "State A") removes it. Measured **on top of** this body-path caching (deterministic
+  harness): **−4.0%** allocation on all-systems and **−51.6%** on the 1500-method class
+  (−67.5% vs. master combined; `NullnessTest`/`framework:test` pass). Standalone — without
+  this body-path caching — the same lazy rewrite was only ~1% on realistic builds (its
+  `getPath` traffic was just the rare `AnnotatedTypeFactory` fallback), so the two changes
+  are **synergistic**: routing per-body lookups through the cacher is what makes the lazy
+  scan pay off. Caveat: the lazy rewrite's second `getPath(TreePath, Tree)` overload is
+  subtle (its correctness rests on non-obvious cache-collapse behavior — small "cleanups"
+  to it crashed type-argument inference during review); pursue it as a separate,
+  carefully-reviewed change gated on `alltests`, not bundled with this one.
+
 ### Value Checker
 
 - **PR #1647** — *Cache a frequent conversion in the Value Checker.*
@@ -575,6 +644,22 @@ the prior finding. A fresh hypothesis is not new evidence.
 - **`AnnotatedTypeMirror.getEffectiveAnnotations` caching.** JFR-
   attributed self-time was ~0.05% on the alltests trace and ~0.1% on
   the Oscar EMR (~4000 file) trace. Not a hotspot.
+- **Lazy path stack in `CFGTranslationPhaseOne.scan` (June 2026, during PR #1786).** `scan` eagerly does
+  `new TreePath(path, tree)` for *every* tree it visits to maintain `getCurrentPath()`,
+  and most of those paths are never queried (only `MethodInvocationNode`, 1 of 78 node
+  types, retains one; the other 22 of 23 `getCurrentPath()` call sites feed
+  `TreePathUtil` helpers that extract a fact and drop the path). The proposed fix: keep
+  a `Tree` stack and materialize the `TreePath` lazily on `getCurrentPath()`, allocating
+  nothing for unqueried trees. **Rejected as not worth it: the target is negligible.**
+  Pure-counting instrumentation (no behavior change; it also *simulates* the lazy stack's
+  allocation count) on the all-systems corpus measured **eagerAllocs = 11,665 (~373 KB)**
+  for the whole 267-file run, of which the lazy stack would save 47.9% — i.e. ~178 KB
+  against a ~6 GB total. The JFR agrees: `CFGTranslationPhaseOne.scan` (line ~562) is
+  only **0.56%** of `TreePath` allocation (17 samples), ≈0.01% of total. The "70% of
+  `TreePath` allocs in the CFG builder" headline is **not** this line — it is the body-path
+  *search* at `process` / line ~527 (see the applied "CFG-builder body-path lookup" note),
+  which caching fixes for ~6 lines instead of a risky rewrite of dataflow's central
+  traversal.
 - **Pre-sizing `AnnotationMirrorSet`'s backing array (June 2026, during PR #1785).**
   `AnnotationMirrorSet.<init>` was the 2nd-largest `Object[]` source in the `checknullness`
   worker (18.77%, 6,901 samples, behind only the visitor maps). But it is not oversized: the

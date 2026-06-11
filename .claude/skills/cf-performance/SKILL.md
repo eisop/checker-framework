@@ -170,6 +170,60 @@ combined samples). `getThread()` is `null` in these traces, so per-thread
 filtering does not work — but the compilation is single-threaded, so every
 `ExecutionSample` is real work and no filtering is needed.
 
+## Measuring allocation deterministically (when TLAB sampling is too noisy)
+
+JFR's allocation events (`jdk.ObjectAllocationSample`, TLAB) are **sampled**: two
+identical runs of these workloads vary ~2× in per-class allocation counts (real example:
+`TreePath` read 3060 vs. 1376 samples across two identical runs), which buries any sub-2%
+allocation change. The `alloc`/`top` modes above are for **attribution** (which CF frame
+allocates a class), *not* for the magnitude of a small change.
+
+For magnitude, read `jdk.ThreadAllocationStatistics` instead — it reports each thread's
+**cumulative** bytes allocated (not sampled), so a deterministic single-process workload
+reproduces to ~0.15%. Run one forked `javac` over a fixed source set and read it back:
+
+```
+checker/bin/javac \
+  -J-XX:StartFlightRecording=settings=profile,filename=run.jfr,dumponexit=true \
+  -processor nullness -d /tmp/out  Foo.java ...
+java .claude/skills/cf-performance/alloc-total.java run.jfr
+```
+
+Median of ≥3 runs/side; a real change clears the ~0.5% run-to-run band. This is the
+allocation analogue of the wall-clock A/B below and caught a −4% change TLAB sampling
+could not resolve. (`-J` forwards the flag to the forked compiler JVM — `checker/bin/javac`
+is `CheckerMain`, which forks. Use a single source set so there is one compile thread.)
+It measures exactly the checker + javac allocation, independent of GC/JIT scheduling.
+
+## Detecting super-linear (quadratic) costs with a size sweep
+
+The all-systems corpus is 267 **tiny** files (1–3 method bodies each): a good
+getPath / per-file-fixed-cost stressor, but **blind to any cost that is super-linear in a
+per-compilation-unit dimension** — those wash out at small N. The per-body `Trees.getPath`
+search in CFG construction (PR #1786) was **quadratic in methods-per-file** yet measured
+**~0% on all-systems**; only a size sweep exposed it:
+
+| methods/file | master | after | reduction |
+| --- | --- | --- | --- |
+| 100  |    524 MB |    506 MB |  −3.5% |
+| 600  |  3525 MB |  2737 MB | −22.4% |
+| 1500 | 15192 MB | 10193 MB | −32.9% |
+
+Generate the inputs and sweep with the deterministic reader:
+
+```
+for n in 100 300 600 1500; do
+  .claude/skills/cf-performance/gen-sized-program.py $n > /tmp/Big$n.java
+done
+# A/B each Big$n.java per side (allocation reader above); plot allocation/wall vs. n.
+```
+
+A curve that is super-linear on master and flattens after the change is the quadratic's
+signature. **Report both ends:** small-N is the realistic per-file cost (typically
+low-single-digit), large-N is worst-case protection (machine-generated / giant
+single-class files). Tune the generator's method body for other mechanisms (deep
+expression nesting, many fields, large `switch`).
+
 ## Measuring wall-clock effects (the A/B that decides if a change is worth it)
 
 JFR self-time / `phase` percentages are for **mechanism** ("which leaf
@@ -208,6 +262,24 @@ added footprint. Caveat learned: shrinking a cache to reclaim that memory is
 **not free** — a `directSupertypes` cap halving recovered ~half its footprint
 but cost ≈10% wall clock (far more than its hit-rate delta implied). Cut
 *per-entry weight*, not entry count, when memory matters.
+
+## Two habits that paid off
+
+- **Size a risky change before building it — instrument and *simulate*.** Before
+  rewriting a hot path, add pure-counting instrumentation that *also* simulates the
+  proposed variant's metric, changing no behavior. A counter on the eager `new TreePath`
+  in `CFGTranslationPhaseOne.scan` that *also* simulated a lazy-stack alternative showed
+  the lazy version would save 47.9% of only **0.56%** of `TreePath` allocation (~0.01% of
+  total) — rejected in minutes, no risky rewrite of dataflow's central traversal. The JFR
+  `alloc` nearest-CF attribution is what tells you which line to instrument (here it
+  separated the per-tree `scan`, 0.56%, from the body-path `process`, 70%).
+- **Re-measure marginal or "rejected" optimizations after a related change lands.** An
+  optimization's value scales with the **traffic** through the code it touches, and another
+  change can amplify it. A lazy `TreePathCacher` was ~1–4% standalone, but layered on
+  PR #1786 (which routes one `getPath` per body through the cacher) it was **−51%** on a
+  1500-method file — synergy, not additivity. A "not worth it" verdict is not permanent
+  across an evolving hot path; the *Tried and rejected* section is a starting point, not a
+  closed book.
 
 ## What to look for
 
@@ -251,7 +323,11 @@ Before submitting, always:
 1. `./gradlew assemble` — must succeed.
 2. `./gradlew :framework:test :javacutil:test :dataflow:test` — fast.
 3. The relevant checker test, e.g. `./gradlew :checker:NullnessTest`.
-4. Ideally `./gradlew alltests` — the canonical regression catch.
+4. Ideally `./gradlew alltests` — the canonical regression catch. If it fails *only*
+   on `:checker:jtregTests` / `:checker:jtregJdk11Tests` with `No java executable at
+   java`, that is an environment issue, **not a regression**: `JAVA_HOME` is unset. Set
+   it (`JAVA_HOME=$(dirname $(dirname $(readlink -f $(which java))))`) and re-run those
+   two tasks; the JUnit suites are unaffected.
 5. Re-capture JFR on the **full** workload (`./gradlew --no-daemon
    checknullness`, all subprojects — confirm `phase` shows no scope warning)
    and confirm the targeted metric moved. Report the **whole-worker sample

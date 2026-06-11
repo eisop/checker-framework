@@ -523,7 +523,12 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
      * @return a PhaseOneResult
      */
     public PhaseOneResult process(CompilationUnitTree root, UnderlyingAST underlyingAST) {
-        // TODO: Isn't this costly? Is there no cache we can reuse?
+        // This Trees.getPath is an uncached full-tree search (a PathFinder scan from the
+        // compilation-unit root down to the body), so calling it once per body is quadratic in
+        // bodies-per-file. The checker pipeline avoids it: CFCFGBuilder.build serves the body
+        // path from the checker's shared TreePathCacher and calls process(TreePath, ...)
+        // directly. This overload is the uncached fallback for callers that have no cacher (the
+        // standalone CFGProcessor tool); there it runs once per body and is not on a hot path.
         TreePath bodyPath = trees.getPath(root, underlyingAST.getCode());
         assert bodyPath != null;
         return process(bodyPath, underlyingAST);
@@ -559,6 +564,11 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
         @SuppressWarnings("interning:not.interned") // Looking for exact match.
         boolean treeIsLeaf = path.getLeaf() != tree;
         if (treeIsLeaf) {
+            // One TreePath is allocated per visited tree to maintain getCurrentPath(). Despite the
+            // volume, this is not a hotspot: a JFR allocation trace attributes only ~0.56% of
+            // TreePath allocation (~0.01% of total) to this line. Materializing the path lazily (a
+            // Tree stack built on demand in getCurrentPath()) was measured to save <0.01% of total
+            // allocation and rejected; see docs/developer/performance-notes.md ("Lazy path stack").
             path = new TreePath(path, tree);
         }
         try {
