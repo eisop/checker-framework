@@ -502,22 +502,48 @@ so small per-call wins paid back substantially.
   cacher already does on `AnnotatedTypeFactory.getPath` fallbacks). Validated with
   `framework`/`dataflow`/`NullnessTest` and `alltests`.
 
-  **Synergy with a lazy `TreePathCacher` (follow-up candidate).** The eager
-  `TreePathCacher.getPath` caches a `TreePath` for *every* node it DFS-traverses while
-  searching for the target — so each per-body lookup added here caches the preceding
-  bodies' internal nodes too, even though only body trees are ever queried. On large
-  files that is O(file-nodes) of needless cached allocation. A lazy cacher whose scan
-  allocates only the path *to the target* (the uncommitted `buildPathForStack` rewrite,
-  "State A") removes it. Measured **on top of** this body-path caching (deterministic
-  harness): **−4.0%** allocation on all-systems and **−51.6%** on the 1500-method class
-  (−67.5% vs. master combined; `NullnessTest`/`framework:test` pass). Standalone — without
-  this body-path caching — the same lazy rewrite was only ~1% on realistic builds (its
-  `getPath` traffic was just the rare `AnnotatedTypeFactory` fallback), so the two changes
-  are **synergistic**: routing per-body lookups through the cacher is what makes the lazy
-  scan pay off. Caveat: the lazy rewrite's second `getPath(TreePath, Tree)` overload is
-  subtle (its correctness rests on non-obvious cache-collapse behavior — small "cleanups"
-  to it crashed type-argument inference during review); pursue it as a separate,
-  carefully-reviewed change gated on `alltests`, not bundled with this one.
+- **PR #1788 — make `TreePathCacher` lazy and route `AnnotatedTypeFactory.getPath` through
+  it (June 2026).** Builds on PR #1786 (already in master). PR #1786 routes one
+  `TreePathCacher.getPath` lookup per method body; but the eager `getPath` caches a
+  `TreePath` for *every* node it DFS-traverses to reach the target, so on a large class each
+  body lookup also caches the preceding bodies' internal nodes — O(file-nodes) of needless
+  cached allocation, even though only body trees are ever queried. This change (a) makes the
+  cacher lazy: `scan` only pushes/pops a `currentStack` and allocates nothing, and
+  `buildPathForStack` materializes only the root-to-target path once the target is reached;
+  and (b) routes `AnnotatedTypeFactory.getPath`'s two non-heuristic call sites through the
+  cacher so they share that lazy cache. Measured (deterministic harness): **−4.0%**
+  allocation on all-systems and **−51.6%** on a 1500-method class; passes full `alltests`.
+  Three findings each cost a wasted attempt:
+
+  - **The two halves must ship together.** The lazy cacher *without* the `getPath` call-site
+    rerouting is *worse* than the eager cacher (1500-method class: 12.3 GB vs. 10.2 GB),
+    because the eager cacher's broad node-caching is exactly what warms the cache for the
+    per-body lookups; going lazy removes that warming unless the `getPath` sites repopulate
+    it. Hence both halves are in one change.
+  - **The `getPath(TreePath, Tree)` overload's locality is load-bearing on large classes.**
+    It scans `currentPath`'s subtree *first* and expands outward (it relies on
+    `TreeScanner.scan(Iterable, P)` visiting the path leaf-first), so a target near the
+    visitor path is found without rescanning the whole unit. A "simplified" variant that
+    just delegates to `getPath(root, target)` is byte-identical on normal code (all-systems
+    5979 vs. 5982 MB) but reintroduces a residual O(members) rescan at that site, and the
+    gap to the full version *widens* with class size:
+
+    | methods/class | full (locality scan) | simplified (delegate to root) | delegate overhead |
+    | --- | --- | --- | --- |
+    | 1500 |  4936 MB |  5407 MB |  +9.5% |
+    | 3000 | 11805 MB | 13686 MB | +15.9% |
+    | 6000 | 32076 MB | 39444 MB | +23.0% (+7.4 GB) |
+
+    So the extra overload earns its keep: invisible to users (contained in `TreePathCacher`)
+    and decisive only for very large or machine-generated single-class files.
+  - **Do not narrow that overload to a subtree-only scan.** Replacing `super.scan(rootPath,
+    target)` with `super.scan(rootPath.getLeaf(), target)` (and seeding/`put(null)` tweaks)
+    *looks* cleaner but is wrong: it returns null for out-of-subtree targets and caches that
+    null as "absent from the unit", crashing type-argument inference on
+    `all-systems/TypeVarVarArgs.java`. It passes `NullnessTest`, so it is not caught there;
+    `framework/util/TreePathCacherTest` guards it directly (the `secondOverloadFindsOut...`
+    case fails on the subtree-only variant). The original outward-expanding scan is correct
+    and is now documented in the code.
 
 ### Value Checker
 
@@ -748,6 +774,27 @@ the prior finding. A fresh hypothesis is not new evidence.
   worse than its 90.5%→81% hit-rate delta suggested. The new caches' +50–70 MB retained heap is the price
   of the perf; the right way to cut it is reducing per-entry weight (immutability), not entry count. Keep
   all caches at full `cacheSize`.
+- **`TypeKind` as a field on `AnnotatedTypeMirror`** — *superseded by PR #1763, do not
+  implement.* The goal (avoid the heap hop through `underlyingType.getKind()`) is already
+  met more cheaply: every subclass whose kind is constant (`AnnotatedDeclaredType`,
+  `AnnotatedArrayType`, `AnnotatedExecutableType`, `AnnotatedTypeVariable`,
+  `AnnotatedNullType`, `AnnotatedWildcardType`, `AnnotatedIntersectionType`,
+  `AnnotatedUnionType`) overrides `getKind()` to return the constant inline (PR #1763) —
+  zero memory and zero indirection, strictly better than the proposed ~8 MB field. Only
+  `AnnotatedPrimitiveType` and `AnnotatedNoType` fall through to the base method, and for
+  them `underlyingType.getKind()` is cheap and does not force symbol completion (see the
+  doc comment on the base `getKind()`).
+- **Dropping `MethodInvocationNode`'s `TreePath` field.** It is the only one of 78 `Node` types that
+  retains a `TreePath` (captured cheaply from `getCurrentPath()` at CFG-build time), for two
+  framework consumers — WPI's `isRecursiveCall` (`enclosingMethod`) and `AliasingTransfer` (the
+  invocation's parent). Investigated June 2026 (PR #1788 session) as a memory save and found **not
+  worth it**: CFGs are per-compilation-unit (`subcheckerSharedCFG` is cleared on `setRoot`,
+  `flowResult` nulled), so the paths are transient, not retained program-wide. Reconstructing on
+  demand (`atypeFactory.getPath(node.getTree())`) is feasible — both consumers hold the factory — but
+  must preserve behavior for *synthetic* invocation nodes (desugared
+  `iterator()`/`hasNext()`/`next()`/`close()`, which `AliasingTransfer` also visits). If ever touched,
+  do it for decoupling (WPI could read the enclosing method from `CFGMethod.getMethod()` instead of
+  walking the path), not for memory.
 
 ---
 
@@ -755,30 +802,6 @@ the prior finding. A fresh hypothesis is not new evidence.
 
 Candidates raised in profiling sessions but not yet implemented. Capture
 format: hot method, hypothesis, blockers/open questions.
-
-A May 2026 review closed out every item previously on this list:
-
-- **`TypeKind` as a field on `AnnotatedTypeMirror`** — *superseded, do not
-  implement.* The goal (avoid the heap hop through `underlyingType.getKind()`)
-  is already met by a cheaper mechanism: every subclass whose kind is constant
-  (`AnnotatedDeclaredType`, `AnnotatedArrayType`, `AnnotatedExecutableType`,
-  `AnnotatedTypeVariable`, `AnnotatedNullType`, `AnnotatedWildcardType`,
-  `AnnotatedIntersectionType`, `AnnotatedUnionType`) overrides `getKind()` to
-  return the constant inline. That costs zero memory and zero indirection,
-  strictly better than the proposed ~8 MB field. Only `AnnotatedPrimitiveType`
-  and `AnnotatedNoType` fall through to the base method, and for them
-  `underlyingType.getKind()` is cheap and does not force symbol completion (see
-  the doc comment on the base `getKind()`).
-- **Pre-sizing `AnnotatedTypeCopier`'s per-visit map** — *already done.*
-  `AnnotatedTypeCopier.visit` constructs its `IdentityHashMap` with
-  `AnnotatedTypeScanner.VISITED_NODES_INITIAL_CAPACITY` (8), the same
-  pre-sizing as `AnnotatedTypeScanner.visitedNodes`.
-- **`==` fast-path in `isSupportedQualifier`** — *rejected;* see the Tried and
-  rejected section for the measurement.
-
-The items above were each closed during the May 2026 review. One new candidate
-is currently open; add others below as profiling surfaces them, with the
-capture format above.
 
 - **`ElementUtils.qualifiedNameCache` backing map.** Hot method
   (`getQualifiedName` underlies `annotationName`, `getBinaryName`, the `isX`
@@ -800,17 +823,20 @@ capture format above.
   `isSupportedQualifier`, `AnnotationFileElementTypes`, and
   `normalizeAndCheck`. Still needs the thread-reachability audit and daemon/LSP
   memory analysis before any change.
+- **`MethodInvocationNode.hashCode()` uses `Objects.hash(target, arguments)`.** That is the
+  varargs `Object[]` + autoboxing antipattern called out in Applied optimizations ("avoid
+  `Objects.hash`/`Arrays.hashCode` on hot paths") — each call allocates an `Object[]`. `Node`
+  hash/equals back the dataflow worklists and stores, so it *may* be hot; but most dataflow maps are
+  `IdentityHashMap` (identity, not structural), so first confirm with a JFR/alloc capture that
+  `MethodInvocationNode.hashCode` is actually reached. If so, replace with `31 * target.hashCode() +
+  arguments.hashCode()` (the field is immutable, so it could be precomputed). Spotted while auditing
+  `MethodInvocationNode` during the PR #1788 session; not yet measured.
 
 A June 2026 inclusive-time / co-occurrence investigation (looking for
 *architectural* redundancy rather than leaf hot spots, since the leaf profile is
-now flat) surfaced two further candidates. Both are blocked by correctness
-invariants, which is why the campaign left them:
+now flat) surfaced a further candidate, blocked by a correctness invariant, which
+is why the campaign left it:
 
-- **`AnnotatedTypeMirror.directSupertypes()` recomputes on every call — RESOLVED (PR #1777).** It ran
-  `SupertypeFinder.directSupertypes(this)` with no cache (~11–13% inclusive on `checkNullness`). The
-  blocker noted here (supertype annotations depend on mutable primary annotations) was sidestepped by
-  caching at the `AnnotatedTypeFactory.getDirectSupertypes` boundary with a structural key and
-  deep-copy on store/return (not a per-`ATM`-instance cache). See Applied optimizations.
 - **The lazy JDK-stub cascade runs the full type-annotation pipeline during
   parsing, uncached.** Stacks captured on `allNullnessTests` show
   `maybeParseEnclosingJdkClass` → `annotateSupertypes` → `directSupertypes` →
@@ -1323,9 +1349,16 @@ CF-controllable clusters and their state, highest-leverage first:
 2. **Defaulting Phase 2 (tree-path memoization).** Measured 88% `(scope, type)` repeat on the tree path,
    ~9.3 scans/call; per-CU clearing bounds the memory. *Gate on a within-CU-repeat measurement first*,
    and note it carries the same write-back tax that sank the `constructorFromUse` cache (real flat-risk).
-3. **`getPath` / TreePath construction (~3.2%).** 68% of `TreePath.<init>` is under
-   `AnnotatedTypeFactory.getPath`'s slow path (`TreePath.getPath(root, tree)` scan on cache miss +
-   heuristic failure). The heuristics + `treePathCache` are already tuned; no obvious cheap win.
+3. **`getPath` / TreePath construction (~3.2%) — largely addressed by PR #1786 + #1788.** 68% of
+   `TreePath.<init>` was under `AnnotatedTypeFactory.getPath`'s slow path (uncached
+   `TreePath.getPath(root, tree)` scans on cache miss + heuristic failure). PR #1786 caches the
+   per-body lookup; PR #1788 makes `TreePathCacher` lazy and routes `getPath` through it, removing
+   most of that allocation. **Residual (new, open):** a single class with very many methods still
+   allocates *super-linearly* even after both (deterministic harness, lazy cacher: 1500 methods 4.9
+   GB → 3000 11.8 GB → 6000 32.1 GB, ~2.5–2.7× per doubling), so an O(members²) cost remains
+   *somewhere off* the now-cached `getPath` path. Type-argument inference re-walking outer paths is a
+   suspect. Next step: a size sweep (`gen-sized-program.py`) plus an `alloc`-by-nearest-CF-frame
+   capture to locate the surviving quadratic before proposing anything.
 4. **`declarationFromElement` residual (~5–7%).** Still the largest single javac-interaction cost after
    the smaller-scope scan; residual is method-subtree scanning. The cheap levers are exhausted (scoping
    tighter than a method has no element; `trees.getTree` and the single-pass map were rejected).
