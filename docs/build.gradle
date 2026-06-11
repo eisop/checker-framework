@@ -1,0 +1,12 @@
+clean {
+    def injected = project.objects.newInstance(InjectedExecOps)
+    def examplesDir = file('examples')
+
+    delete('api/')
+    doLast {
+        injected.execOps.exec {
+            workingDir = examplesDir
+            commandLine 'make', 'clean'
+        }
+    }
+}

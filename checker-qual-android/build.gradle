@@ -1,11 +1,15 @@
 evaluationDependsOn(':checker-qual')
 
-task copySources(type: Copy) {
-    description 'Copy checker-qual source to checker-qual-android'
+tasks.register('copySources', Copy) {
+    description = 'Copy checker-qual source to checker-qual-android'
     includeEmptyDirs = false
+    def injectedFiles = project.objects.newInstance(InjectedFileOps)
+    def generatedSrcDir = layout.buildDirectory.dir("generated/sources/main/java")
     doFirst {
         // Delete the directory in case a previously copied file should no longer be in checker-qual
-        delete file(layout.buildDirectory.dir("generated/sources/main/java"))
+        injectedFiles.fs.delete {
+            delete(generatedSrcDir)
+        }
     }
     from files(project(':checker-qual').sourceSets.main.java)
     include '**/*.java'
@@ -20,16 +24,28 @@ task copySources(type: Copy) {
     into file(layout.buildDirectory.dir("generated/sources/main/java"))
 
     filePermissions {
-        user.read = true
-        group.read = true
-        other.read = true
+        user {
+            read = true
+            write = false
+            execute = false
+        }
+        group {
+            read = true
+            write = false
+            execute = false
+        }
+        other {
+            read = true
+            write = false
+            execute = false
+        }
     }
 }
 
 sourceSets {
     main {
         java {
-            srcDir(copySources)
+            srcDir(tasks.named('copySources'))
         }
     }
 }
@@ -42,14 +58,16 @@ final checkerQualAndroidPom(publication) {
     publication.from components.java
     publication.pom {
         name = 'Checker Qual Android'
-        description = 'checker-qual-android contains annotations (type qualifiers) that a programmer\n' +
-                'writes to specify Java code for type-checking by the Checker Framework.\n' +
-                '\n' +
-                'The checker-qual-android artifact is identical to the checker-qual\n' +
-                'artifact, except that in checker-qual-android annotations have classfile\n' +
-                'retention.  The default Android Gradle plugin retains types annotated with\n' +
-                'runtime annotations in the main dex, but strips out class-retention\n' +
-                'annotations.\n'
+        description =
+                String.join(System.lineSeparator(),
+                'checker-qual-android contains annotations (type qualifiers) that a programmer',
+                'writes to specify Java code for type-checking by the Checker Framework.',
+                '',
+                'The checker-qual-android artifact is identical to the checker-qual',
+                'artifact, except that in checker-qual-android annotations have classfile',
+                'retention.  The default Android Gradle plugin retains types annotated with',
+                'runtime annotations in the main dex, but strips out class-retention',
+                'annotations.')
         licenses {
             license {
                 name = 'The MIT License'

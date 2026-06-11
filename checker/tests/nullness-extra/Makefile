@@ -61,3 +61,17 @@ issue5174:
 
 # All tests: passing and failing
 .PHONY: all skipped ${PASSING_TESTS}
+
+clean:
+	$(MAKE) -C compat clean
+	$(MAKE) -C issue265 clean
+	$(MAKE) -C issue309 clean
+	$(MAKE) -C issue502 clean
+	$(MAKE) -C issue559 clean
+	$(MAKE) -C issue594 clean
+	$(MAKE) -C multiple-errors clean
+	$(MAKE) -C package-anno clean
+	$(MAKE) -C shorthand clean
+	$(MAKE) -C issue607 clean
+	$(MAKE) -C issue3597 clean
+	$(MAKE) -C issue5174 clean

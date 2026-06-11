@@ -3,8 +3,7 @@ import viewpointtest.quals.B;
 import viewpointtest.quals.ReceiverDependentQual;
 import viewpointtest.quals.Top;
 
-@ReceiverDependentQual
-class TestGetAnnotatedLhs {
+@ReceiverDependentQual class TestGetAnnotatedLhs {
     @ReceiverDependentQual Object f;
 
     @SuppressWarnings({
@@ -12,14 +11,14 @@ class TestGetAnnotatedLhs {
         "super.invocation.invalid",
         "cast.unsafe.constructor.invocation"
     })
-    @ReceiverDependentQual
-    TestGetAnnotatedLhs() {
+    @ReceiverDependentQual TestGetAnnotatedLhs() {
         this.f = new @ReceiverDependentQual Object();
     }
 
     @SuppressWarnings({"cast.unsafe.constructor.invocation"})
     void topWithRefinement() {
         TestGetAnnotatedLhs a = new @A TestGetAnnotatedLhs();
+        // :: error: (new.class.type.invalid)
         TestGetAnnotatedLhs top = new @Top TestGetAnnotatedLhs();
         top = a;
         // When checking the below assignment, GenericAnnotatedTypeFactory#getAnnotatedTypeLhs()
@@ -35,10 +34,11 @@ class TestGetAnnotatedLhs {
 
     @SuppressWarnings({"cast.unsafe.constructor.invocation"})
     void topWithoutRefinement() {
+        // :: error: (new.class.type.invalid)
         TestGetAnnotatedLhs top = new @Top TestGetAnnotatedLhs();
-        // See #576.
-        // :TODO: error: (assignment.type.incompatible)
+        // :: error: (assignment.type.incompatible)
         top.f = new @B Object();
+        // :: error: (assignment.type.incompatible)
         top.f = new @A Object();
     }
 }

@@ -1,19 +1,35 @@
 // @below-java21-jdk-skip-test
 
-// None of the WPI formats support the new Java 21 languages features, so skip inference until they
+// None of the WPI formats supports the new Java 21 languages features, so skip inference until they
 // do.
 // @infer-jaifs-skip-test
 // @infer-ajava-skip-test
 // @infer-stubs-skip-test
+
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 public class FlowSwitch {
 
     void test0(Number n) {
         String s = null;
         switch (n) {
-            default:
+            // :: warning: (nulltest.redundant)
+            case null, default:
                 {
-                    // TODO: this should issue a dereference of nullable error.
+                    // As n is non-null, this cannot produce an NPE.
+                    n.toString();
+                    s = "";
+                }
+        }
+        s.toString();
+    }
+
+    void test0Nbl(@Nullable Number n) {
+        String s = null;
+        switch (n) {
+            case null, default:
+                {
+                    // :: error: (dereference.of.nullable)
                     n.toString();
                     s = "";
                 }
@@ -27,7 +43,8 @@ public class FlowSwitch {
             case -1, 1:
                 msg = "-1 or 1";
                 break;
-            case Integer j when j > 0:
+            case Integer j
+            when j > 0:
                 msg = "pos";
                 break;
             case Integer j:

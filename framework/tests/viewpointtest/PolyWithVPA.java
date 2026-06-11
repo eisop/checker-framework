@@ -2,8 +2,7 @@ import viewpointtest.quals.*;
 
 public class PolyWithVPA {
     static class PolyClass {
-        @ReceiverDependentQual
-        Object foo(@PolyVP Object o) {
+        @ReceiverDependentQual Object foo(@PolyVP Object o) {
             return null;
         }
     }

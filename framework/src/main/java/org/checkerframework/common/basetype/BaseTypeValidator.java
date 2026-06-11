@@ -37,10 +37,11 @@ import org.checkerframework.javacutil.TypesUtils;
 import org.plumelib.util.ArrayMap;
 import org.plumelib.util.IPair;
 
-import java.util.Arrays;
 import java.util.Collections;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.TypeElement;
@@ -173,13 +174,26 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
      * @return list of reasons the type is invalid, or empty list if the type is valid
      */
     protected List<DiagMessage> isValidStructurally(AnnotatedTypeMirror type) {
-        SimpleAnnotatedTypeScanner<List<DiagMessage>, Void> scanner =
-                new SimpleAnnotatedTypeScanner<>(
-                        (atm, p) -> isTopLevelValidType(atm),
-                        DiagMessage::mergeLists,
-                        Collections.emptyList());
-        return scanner.visit(type, null);
+        if (structuralScanner == null) {
+            // Created lazily (rather than in a field initializer) to keep `this` from escaping
+            // during construction; the captured `isTopLevelValidType` is dispatched dynamically, so
+            // subclass overrides still apply. A single scanner is reused across calls -- it was a
+            // per-call allocation source (its visitedNodes IdentityHashMap) in checkNullness traces
+            // -- which is safe because this validator is confined to the javac main thread and
+            // SimpleAnnotatedTypeScanner.visit resets its state on each call. isValidStructurally
+            // is not re-entrant: it is called once per top-level type and its scan only reads
+            // annotations.
+            structuralScanner =
+                    new SimpleAnnotatedTypeScanner<>(
+                            (atm, p) -> isTopLevelValidType(atm),
+                            DiagMessage::mergeLists,
+                            Collections.emptyList());
+        }
+        return structuralScanner.visit(type, null);
     }
+
+    /** The reusable scanner backing {@link #isValidStructurally}; see there. */
+    private @Nullable SimpleAnnotatedTypeScanner<List<DiagMessage>, Void> structuralScanner = null;
 
     /**
      * Checks every property listed in {@link #isValidStructurally}, but only for the top level
@@ -302,13 +316,6 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
         }
 
         boolean skipChecks = checker.shouldSkipUses(type.getUnderlyingType().asElement());
-        if (type.containsUninferredTypeArguments()) {
-            if (!atypeFactory.ignoreUninferredTypeArguments) {
-                // TODO: document the logic here.
-                isValid = true;
-            }
-            return null;
-        }
 
         if (checkTopLevelDeclaredOrPrimitiveType && !skipChecks) {
             // Ensure that type use is a subtype of the element type
@@ -458,7 +465,7 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
             case NEW_CLASS:
                 NewClassTree nct = (NewClassTree) tree;
                 ExpressionTree nctid = nct.getIdentifier();
-                if (nctid.getKind() == Tree.Kind.PARAMETERIZED_TYPE) {
+                if (nctid instanceof ParameterizedTypeTree) {
                     typeargtree = (ParameterizedTypeTree) nctid;
                     /*
                      * This is quite tricky... for anonymous class instantiations,
@@ -628,6 +635,13 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
                 if (!atypeFactory
                         .getTypeHierarchy()
                         .isSubtype(captureTypeVarUB, wildcard.getExtendsBound())) {
+                    // For most captured type variables, this will trivially hold, as capturing
+                    // incorporated the extends bound of the wildcard into the upper bound of the
+                    // type variable.
+                    // This will fail if the bound and the wildcard have generic types and there is
+                    // no appropriate GLB.
+                    // This issues an error for types that cannot be satisfied, because the two
+                    // bounds have contradictory requirements.
                     checker.reportError(
                             tree.getTypeArguments().get(i),
                             "type.argument.type.incompatible",
@@ -722,11 +736,26 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
         } else {
             // When upperBoundAnnos.size() != lowerBoundAnnos.size() one of the two bound types will
             // be reported as invalid.  Therefore, we do not do any other comparisons nor do we
-            // report
-            // a bound.
+            // report a bound.
             return true;
         }
     }
+
+    /** The type-use locations permissible for wildcard super bounds. */
+    private static final Set<TypeUseLocation> WILDCARD_SUPER_BOUND_LOCATIONS =
+            EnumSet.of(
+                    TypeUseLocation.ALL,
+                    TypeUseLocation.LOWER_BOUND,
+                    TypeUseLocation.IMPLICIT_LOWER_BOUND,
+                    TypeUseLocation.EXPLICIT_LOWER_BOUND);
+
+    /** The type-use locations permissible for wildcard extends bounds. */
+    private static final Set<TypeUseLocation> WILDCARD_EXTENDS_BOUND_LOCATIONS =
+            EnumSet.of(
+                    TypeUseLocation.ALL,
+                    TypeUseLocation.UPPER_BOUND,
+                    TypeUseLocation.IMPLICIT_UPPER_BOUND,
+                    TypeUseLocation.EXPLICIT_UPPER_BOUND);
 
     /**
      * Validate if qualifiers on wildcard are permitted by {@link
@@ -737,7 +766,7 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
      * @param tree the tree of this type
      */
     protected void validateWildCardTargetLocation(AnnotatedWildcardType type, Tree tree) {
-        if (visitor.ignoreTargetLocations) {
+        if (visitor.ignoreTargetLocations || visitor.noQualHasTargetLocations) {
             return;
         }
 
@@ -748,13 +777,7 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
             // that the qualifier can be written on any type use.
             // Otherwise, for a valid use of qualifier on the super bound, that qualifier must
             // declare one of these four type-use locations in the @TargetLocations meta-annotation.
-            List<TypeUseLocation> lowerLocations =
-                    Arrays.asList(
-                            TypeUseLocation.ALL,
-                            TypeUseLocation.LOWER_BOUND,
-                            TypeUseLocation.IMPLICIT_LOWER_BOUND,
-                            TypeUseLocation.EXPLICIT_LOWER_BOUND);
-            if (locations == null || locations.stream().anyMatch(lowerLocations::contains)) {
+            if (locations == null || containsAny(locations, WILDCARD_SUPER_BOUND_LOCATIONS)) {
                 continue;
             }
 
@@ -768,13 +791,7 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
         for (AnnotationMirror am : type.getExtendsBound().getAnnotations()) {
             List<TypeUseLocation> locations =
                     visitor.qualAllowedLocations.get(AnnotationUtils.annotationName(am));
-            List<TypeUseLocation> upperLocations =
-                    Arrays.asList(
-                            TypeUseLocation.ALL,
-                            TypeUseLocation.UPPER_BOUND,
-                            TypeUseLocation.IMPLICIT_UPPER_BOUND,
-                            TypeUseLocation.EXPLICIT_UPPER_BOUND);
-            if (locations == null || locations.stream().anyMatch(upperLocations::contains)) {
+            if (locations == null || containsAny(locations, WILDCARD_EXTENDS_BOUND_LOCATIONS)) {
                 continue;
             }
 
@@ -784,5 +801,22 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
                     type.getExtendsBound().getAnnotations().toString(),
                     "EXTENDS_WILDCARD");
         }
+    }
+
+    /**
+     * Check whether the list contains any of the permitted locations.
+     *
+     * @param locations the locations to check
+     * @param permitted the permitted locations
+     * @return whether locations contains any of the permitted locations
+     */
+    private static boolean containsAny(
+            List<TypeUseLocation> locations, Set<TypeUseLocation> permitted) {
+        for (int i = 0, n = locations.size(); i < n; ++i) {
+            if (permitted.contains(locations.get(i))) {
+                return true;
+            }
+        }
+        return false;
     }
 }

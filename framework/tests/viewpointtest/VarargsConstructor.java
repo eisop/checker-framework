@@ -7,16 +7,17 @@ public class VarargsConstructor {
     VarargsConstructor(String str, Object... args) {}
 
     @SuppressWarnings({"inconsistent.constructor.type", "super.invocation.invalid"})
-    @ReceiverDependentQual
-    VarargsConstructor(@ReceiverDependentQual Object... args) {}
+    @ReceiverDependentQual VarargsConstructor(@ReceiverDependentQual Object... args) {}
 
     void foo() {
-        VarargsConstructor a = new VarargsConstructor("testStr", new Object());
+        // :: warning: (cast.unsafe.constructor.invocation)
+        VarargsConstructor a = new @A VarargsConstructor("testStr", new @A Object());
     }
 
     void invokeConstructor(@A Object aObj, @B Object bObj, @Top Object topObj) {
         @A Object a = new @A VarargsConstructor(aObj);
         @B Object b = new @B VarargsConstructor(bObj);
+        // :: error: (argument.type.incompatible) :: error: (new.class.type.invalid)
         @Top Object top = new @Top VarargsConstructor(topObj);
         // :: error: (argument.type.incompatible)
         new @A VarargsConstructor(bObj);
@@ -25,20 +26,23 @@ public class VarargsConstructor {
     }
 
     class Inner {
-        @SuppressWarnings({"inconsistent.constructor.type", "super.invocation.invalid"})
-        @ReceiverDependentQual
-        Inner(@ReceiverDependentQual Object... args) {}
+        // :: warning: (inconsistent.constructor.type) :: error:(super.invocation.invalid)
+        @ReceiverDependentQual Inner(@ReceiverDependentQual Object... args) {}
 
         void foo() {
+            // :: error: (new.class.type.invalid)
             Inner a = new Inner();
-            Inner b = new Inner(new Object());
-            Inner c = VarargsConstructor.this.new Inner();
-            Inner d = VarargsConstructor.this.new Inner(new Object());
+            // :: warning: (cast.unsafe.constructor.invocation)
+            Inner b = new @A Inner(new @A Object());
+            Inner c = VarargsConstructor.this.new @A Inner();
+            // :: warning: (cast.unsafe.constructor.invocation)
+            Inner d = VarargsConstructor.this.new @A Inner(new @A Object());
         }
 
         void invokeConstructor(@A Object aObj, @B Object bObj, @Top Object topObj) {
             @A Object a = new @A Inner(aObj);
             @B Object b = new @B Inner(bObj);
+            // :: error: (argument.type.incompatible) :: error: (new.class.type.invalid)
             @Top Object top = new @Top Inner(topObj);
             // :: error: (argument.type.incompatible)
             new @A Inner(bObj);
@@ -49,13 +53,18 @@ public class VarargsConstructor {
 
     void testAnonymousClass(@A Object aObj, @B Object bObj, @Top Object topObj) {
         Object o =
-                new VarargsConstructor("testStr", new Object()) {
+                // :: warning: (cast.unsafe.constructor.invocation)
+                new @A VarargsConstructor("testStr", new @A Object()) {
                     void foo() {
-                        VarargsConstructor a = new VarargsConstructor("testStr", new Object());
+                        VarargsConstructor a =
+                                // :: warning: (cast.unsafe.constructor.invocation)
+                                new @A VarargsConstructor("testStr", new @A Object());
                     }
                 };
         @A Object a = new @A VarargsConstructor(aObj) {};
         @B Object b = new @B VarargsConstructor(bObj) {};
+        // :: error: (argument.type.incompatible) :: error: (new.class.type.invalid) :: error:
+        // (varargs.type.incompatible)
         @Top Object top = new @Top VarargsConstructor(topObj) {};
         // :: error: (argument.type.incompatible)
         new @A VarargsConstructor(bObj) {};

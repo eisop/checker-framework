@@ -76,7 +76,7 @@ public class RegexVisitor extends BaseTypeVisitor<RegexAnnotatedTypeFactory> {
              * Pattern.LITERAL flag is passed.
              */
             ExpressionTree flagParam = tree.getArguments().get(1);
-            if (flagParam.getKind() == Tree.Kind.MEMBER_SELECT) {
+            if (flagParam instanceof MemberSelectTree) {
                 MemberSelectTree memSelect = (MemberSelectTree) flagParam;
                 if (TreeUtils.isSpecificFieldAccess(memSelect, patternLiteral)) {
                     // This is a call to Pattern.compile with the Pattern.LITERAL flag so the first

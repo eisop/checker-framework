@@ -1,5 +1,5 @@
 # All targets
-.PHONY: all skipped issue618
+.PHONY: all clean skipped issue618
 
 # Tests that are currently passing
 all: issue618
@@ -9,3 +9,6 @@ skipped:
 
 issue618:
 	make -C issue618
+
+clean:
+	make -C issue618 clean

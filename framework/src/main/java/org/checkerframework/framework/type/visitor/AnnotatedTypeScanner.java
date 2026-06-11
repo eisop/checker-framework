@@ -14,6 +14,7 @@ import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedUnionTyp
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedWildcardType;
 
 import java.util.IdentityHashMap;
+import java.util.List;
 
 /**
  * An {@code AnnotatedTypeScanner} visits an {@link AnnotatedTypeMirror} and all of its child {@link
@@ -60,7 +61,7 @@ import java.util.IdentityHashMap;
  *
  *    {@literal @}Override
  *     public Integer visitTypeVariable(AnnotatedTypeVariable type, Void p) {
- *         return reduce(super.visitTypeVariable(type, p), 1);
+ *         return reduce(1, super.visitTypeVariable(type, p));
  *     }
  * }
  * </pre>
@@ -91,6 +92,13 @@ public abstract class AnnotatedTypeScanner<R, P> implements AnnotatedTypeVisitor
     /**
      * Reduces two results into a single result.
      *
+     * <p>Convention: {@code add} is the newly-produced contribution being folded in - either the
+     * current type's own contribution from {@code defaultAction}, or a freshly-scanned sibling.
+     * {@code acc} is the accumulator - either the result from recursively visiting the current
+     * type's children (its subtree), or a running sum across already-processed siblings. Callers in
+     * {@link AnnotatedTypeScanner} and its subclasses always pass arguments in this order, so
+     * implementors of non-commutative reduce functions can rely on it.
+     *
      * @param <R> the result type
      */
     @FunctionalInterface
@@ -99,11 +107,11 @@ public abstract class AnnotatedTypeScanner<R, P> implements AnnotatedTypeVisitor
         /**
          * Returns the combination of two results.
          *
-         * @param r1 the first result
-         * @param r2 the second result
+         * @param add the new contribution being folded in (current node or next sibling)
+         * @param acc the accumulated subtree or sibling result so far
          * @return the combination of the two results
          */
-        R reduce(R r1, R r2);
+        R reduce(R add, R acc);
     }
 
     /** The reduce function to use. */
@@ -160,15 +168,34 @@ public abstract class AnnotatedTypeScanner<R, P> implements AnnotatedTypeVisitor
         this(null, null);
     }
 
-    // To prevent infinite loops
-    protected final IdentityHashMap<AnnotatedTypeMirror, R> visitedNodes = new IdentityHashMap<>();
+    /**
+     * The {@code IdentityHashMap} {@code expectedMaxSize} (expected entry count, not a table size)
+     * for the {@code visitedNodes} map and the per-visit maps in {@code AnnotatedTypeCopier} and
+     * {@code EquivalentAtmComboScanner}. A value of 8 makes the constructor allocate a 32-slot
+     * {@code Object[]} that holds 10 entries before its first resize. Most scans visit only 1 to 3
+     * nodes, so the map rarely grows; these per-scan arrays are the framework's largest transient
+     * {@code Object[]} allocation source, so keeping them small reduces GC pressure.
+     */
+    public static final int VISITED_NODES_INITIAL_CAPACITY = 8;
+
+    /**
+     * To prevent infinite loops. Should only be re-assigned in reset, see note there. No code
+     * should re-assign the field or hold an alias to this object.
+     */
+    protected IdentityHashMap<AnnotatedTypeMirror, R> visitedNodes =
+            new IdentityHashMap<>(VISITED_NODES_INITIAL_CAPACITY);
 
     /**
      * Reset the scanner to allow reuse of the same instance. Subclasses should override this method
      * to clear their additional state; they must call the super implementation.
      */
     public void reset() {
-        visitedNodes.clear();
+        // Instead of re-using the same visitedNodes instance and clear-ing it, profiling showed it
+        // to be more efficient to create a new instance.
+        // visitedNodes.clear();
+        if (!visitedNodes.isEmpty()) {
+            visitedNodes = new IdentityHashMap<>(VISITED_NODES_INITIAL_CAPACITY);
+        }
     }
 
     /**
@@ -208,26 +235,38 @@ public abstract class AnnotatedTypeScanner<R, P> implements AnnotatedTypeVisitor
     }
 
     /**
-     * Scan all the types and returns the reduced result.
+     * Scans all the types in the list and returns the reduced result. Uses index-based access to
+     * avoid allocating an iterator for the (typically unmodifiable) list.
      *
-     * @param types types to scan
+     * @param types types to scan; may be null
      * @param p the parameter to use
      * @return the reduced result of scanning all the types
      */
-    protected R scan(@Nullable Iterable<? extends AnnotatedTypeMirror> types, P p) {
+    protected R scan(@Nullable List<? extends AnnotatedTypeMirror> types, P p) {
         if (types == null) {
             return defaultResult;
         }
-        R r = defaultResult;
-        boolean first = true;
-        for (AnnotatedTypeMirror type : types) {
-            r = (first ? scan(type, p) : scanAndReduce(type, p, r));
-            first = false;
+        int n = types.size();
+        if (n == 0) {
+            return defaultResult;
+        }
+        R r = scan(types.get(0), p);
+        for (int i = 1; i < n; ++i) {
+            r = scanAndReduce(types.get(i), p, r);
         }
         return r;
     }
 
-    protected R scanAndReduce(Iterable<? extends AnnotatedTypeMirror> types, P p, R r) {
+    /**
+     * Scans all types in {@code types} with parameter {@code p} and reduces the result with {@code
+     * r}. Uses index-based access to avoid allocating an iterator.
+     *
+     * @param types types to scan; may be null
+     * @param p parameter to use when scanning
+     * @param r result to combine with the result of scanning {@code types}
+     * @return the combination of {@code r} with the result of scanning all types
+     */
+    protected R scanAndReduce(@Nullable List<? extends AnnotatedTypeMirror> types, P p, R r) {
         return reduce(scan(types, p), r);
     }
 
@@ -244,17 +283,17 @@ public abstract class AnnotatedTypeScanner<R, P> implements AnnotatedTypeVisitor
     }
 
     /**
-     * Combines {@code r1} and {@code r2} and returns the result. The default implementation returns
-     * {@code r1} if it is not null; otherwise, it returns {@code r2}.
+     * Combines {@code add} and {@code acc} and returns the result. The default implementation
+     * returns {@code add} if it is not null; otherwise, it returns {@code acc}.
      *
-     * @param r1 a result of scan, nonnull if {@link #defaultResult} is nonnull and this method
+     * @param add a result of scan, nonnull if {@link #defaultResult} is nonnull and this method
      *     never returns null
-     * @param r2 a result of scan, nonnull if {@link #defaultResult} is nonnull and this method
+     * @param acc a result of scan, nonnull if {@link #defaultResult} is nonnull and this method
      *     never returns null
-     * @return the combination of {@code r1} and {@code r2}
+     * @return the combination of {@code add} and {@code acc}
      */
-    protected R reduce(R r1, R r2) {
-        return reduceFunction.reduce(r1, r2);
+    protected R reduce(R add, R acc) {
+        return reduceFunction.reduce(add, acc);
     }
 
     @Override
