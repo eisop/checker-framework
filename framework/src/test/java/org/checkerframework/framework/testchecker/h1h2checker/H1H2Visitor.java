@@ -32,13 +32,16 @@ public class H1H2Visitor extends BaseTypeVisitor<H1H2AnnotatedTypeFactory> {
             ExpressionTree valueExpTree,
             @CompilerMessageKey String errorKey,
             Object... extraArgs) {
+        AnnotationMirror h1Invalid = AnnotationBuilder.fromClass(elements, H1Invalid.class);
+        boolean invalidLhs =
+                AnnotatedTypes.containsModifier(
+                        atypeFactory.getAnnotatedTypeLhs(varTree), h1Invalid);
         boolean superResult =
                 super.commonAssignmentCheck(varTree, valueExpTree, errorKey, extraArgs);
-        AnnotationMirror h1Invalid = AnnotationBuilder.fromClass(elements, H1Invalid.class);
-        if (superResult
-                && varTree.toString().contains("commonAssignment")
-                && AnnotatedTypes.containsModifier(
-                        atypeFactory.getAnnotatedType(varTree), h1Invalid)) {
+        // This is a regression-test sentinel for BaseTypeVisitor.commonAssignmentCheck(Tree, ...).
+        // If the parent returns true after validateType rejects an invalid LHS, this warning is
+        // unexpected and the test fails.
+        if (superResult && invalidLhs) {
             checker.reportWarning(varTree, "h1h2checker.commonassignment.parent.succeeded");
         }
         return superResult;
