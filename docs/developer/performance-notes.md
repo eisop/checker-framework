@@ -700,6 +700,40 @@ under "Short list"; this is the canonical applied summary.
   `declarationFromElement` −33%, **total on-CPU −5.1%**. Key distinction from the rejected
   `trees.getTree(localVar)` variant: `trees.getTree` on the *enclosing method* is cheap (position-based),
   whereas on the *local itself* it internally scans.
+- **PR #1791** — *Per-CU `IdentityHashMap` tree caches, one-pass declaration scan, pooled copier map.*
+  Three changes that remove cache thrash and redundant recomputation on large compilation units:
+  (1) **LRU → `IdentityHashMap`.** `classAndMethodTreeCache`, `fromExpressionTreeCache`,
+  `fromMemberTreeCache`, `fromTypeTreeCache`, and `elementToTreeCache` were bounded
+  `CollectionsPlume.createLruCache(2048)` maps. On a large CU the live tree set overflows 2048, so the
+  LRU evicts still-needed entries and re-`getAnnotatedType`s them — each miss recomputes *and*
+  `deepCopy()`s the ATM (`classAndMethodTreeCache.put(tree, type.deepCopy())`). Plain `IdentityHashMap`s
+  (Tree/Element keys are identity-compared anyway) remove the eviction thrash; they stay bounded in
+  practice because `setRoot` already clears all five per compilation unit, so peak size is one CU's tree
+  count, not the whole build. This swap alone is the bulk of the win.
+  (2) **`DeclarationScanner` (extends PR #1780).** Rather than `TreeInfo.declarationFor(sym,
+  enclosingTree)` per local/parameter, the first lookup into a given enclosing method/class scans that
+  subtree once and records every variable/method/class declaration into `elementToTreeCache`; a
+  `scannedEnclosingTrees` identity set (also cleared in `setRoot`) makes the scan once-per-subtree so
+  sibling lookups hit the cache. Falls back to the full-CU `TreeInfo.declarationFor` if the scan misses.
+  (3) **`AnnotatedTypeCopier` map pool.** `visit` allocated a fresh `IdentityHashMap` per copy; it now
+  borrows a thread-local pooled map (cleared after use, fresh-map fallback if re-entrant).
+  **Deterministic allocation A/B** (single forked `javac`, `jdk.ThreadAllocationStatistics`; see
+  Reproducing measurements): total bytes allocated **−14.5% / −17.1% / −19.2%** on 300- / 600- /
+  1500-method single-class files and **−6.6%** on an 80-file (15-method) corpus — the win grows with
+  per-CU size, since that is when the 2048 LRU thrashes. The LRU→`IdentityHashMap` swap on its own is
+  −10% to −13.5%; the scanner and copier pool add the rest. **Wall clock is roughly neutral** (≈ −3% at
+  1500 methods, within noise) on heap-generous single-file compiles — these are not GC-bound, so the
+  reduced allocation does not shorten them; the payoff is GC pressure / memory headroom, most relevant
+  under default heap on a many-CU warm-daemon build. *Build/measure caveat:* flipping sides with `git
+  stash` does **not** reliably recompile — `:framework:compileJava` reports `UP-TO-DATE` and serves the
+  other side's classes — so force `--rerun-tasks` and gate each run by decompiling the shipped
+  `checker/dist/checker.jar` (e.g. count `createLruCache` call sites in `AnnotatedTypeFactory`: 9 on
+  master, 4 with this change). An un-gated early A/B read this change as ~0%, a false negative from two
+  stale shadowJars. Dropped from the original proposal as separately risky and *not* part of the
+  allocation win: a never-cleared `IdentityHashMap<AnnotationMirror, QualifierKind>` in the qualifier
+  hierarchies (unbounded over a whole build) and disabling the per-CU
+  `defaultQualifierForUseTypeAnnotator.clearCache()` (cross-CU staleness — the cache reads element
+  annotated types that stubs/ajava refine).
 
 ---
 
