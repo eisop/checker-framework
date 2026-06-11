@@ -66,6 +66,11 @@ quadratic in the number of members; it is now linear. On a 6000-method class thi
 halves total allocation (~32 GB to ~15 GB); on normal code there is no change. No user-visible
 behavior change.
 
+Performance: iterating an unmodifiable `AnnotationMirrorSet` no longer allocates the backing
+list's iterator; the read-only iterator now walks the backing list by index. This removes the
+single largest remaining source of `Iterator` allocation in type checking. No user-visible
+behavior change.
+
 Fixed a bug that caused an IndexOutOfBoundsException for lambdas in varargs,
 for type systems that had the Aliasing Checker as a subchecker, like the
 Optional Checker.
