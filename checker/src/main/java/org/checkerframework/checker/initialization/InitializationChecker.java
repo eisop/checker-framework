@@ -109,9 +109,6 @@ public abstract class InitializationChecker extends BaseTypeChecker {
         // "fbc" is for backward compatibility only; you should use
         // "initialization" instead.
         result.add("fbc");
-        // The default prefix "initialization" must be added manually because this checker class
-        // is abstract and its subclasses are not named "InitializationChecker".
-        result.add("initialization");
         return result;
     }
 

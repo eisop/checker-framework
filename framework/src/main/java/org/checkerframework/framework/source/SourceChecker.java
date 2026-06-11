@@ -839,13 +839,11 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      * <p>This list determines which {@code @AnnotatedFor} annotations are recognized as covering
      * this checker.
      *
-     * <p>Note: {@link #getUpstreamCheckerNames()} and {@link #getSuppressWarningsPrefixes()} are a
-     * related pair and should be kept in sync. If you override this method to add an additional
-     * checker name (for example, the name of an abstract parent class that this checker extends),
-     * you should also override {@link #getSuppressWarningsPrefixes()} to add the corresponding
-     * {@code @SuppressWarnings} prefix for that checker. Otherwise, code marked
-     * {@code @AnnotatedFor} for the parent will be checked, but {@code @SuppressWarnings} written
-     * with the parent's prefix will not be honored (or vice versa).
+     * <p>This method is related to {@link #getSuppressWarningsPrefixes()}. By default, {@link
+     * #getSuppressWarningsPrefixes()} includes lower-case prefixes derived from all checker names
+     * returned by this method. For example, if an override adds the name of an abstract parent class
+     * that this checker extends, the parent class's lower-case checker name is also accepted as a
+     * {@code @SuppressWarnings} prefix.
      *
      * @return a list containing this checker name and all checkers it is a part of (that is,
      *     checkers that called it)
@@ -3074,12 +3072,10 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      *
      * <p>The collection must not be empty and must not contain only {@link #SUPPRESS_ALL_PREFIX}.
      *
-     * <p>Note: {@link #getSuppressWarningsPrefixes()} and {@link #getUpstreamCheckerNames()} are a
-     * related pair and should be kept in sync. If you override this method to add an additional
-     * prefix (for example, the prefix of an abstract parent class that this checker extends), you
-     * should also override {@link #getUpstreamCheckerNames()} to add the corresponding checker
-     * name. Otherwise, {@code @SuppressWarnings} written with the parent's prefix will be honored,
-     * but code marked {@code @AnnotatedFor} for the parent will not be checked (or vice versa).
+     * <p>This method is related to {@link #getUpstreamCheckerNames()}. By default, the returned set
+     * includes lower-case prefixes derived from all checker names returned by {@link
+     * #getUpstreamCheckerNames()}, unless this checker class has a {@link SuppressWarningsPrefix}
+     * meta-annotation.
      *
      * @return non-empty modifiable set of lower-case prefixes for SuppressWarnings strings
      * @see #getUpstreamCheckerNames()
@@ -3091,8 +3087,9 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     /**
      * Returns a sorted set of SuppressWarnings prefixes read from the {@link
      * SuppressWarningsPrefix} meta-annotation on the checker class. Or if no {@link
-     * SuppressWarningsPrefix} is used, the checker name is used. {@link #SUPPRESS_ALL_PREFIX} is
-     * also added, at the end, unless {@link #useAllcheckersPrefix} is false.
+     * SuppressWarningsPrefix} is used, prefixes are inferred from the upstream checker names.
+     * {@link #SUPPRESS_ALL_PREFIX} is also added, at the end, unless {@link #useAllcheckersPrefix}
+     * is false.
      *
      * @return a sorted set of SuppressWarnings prefixes
      */
@@ -3110,9 +3107,11 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
             return prefixes;
         }
 
-        // No @SuppressWarningsPrefixes annotation, by default infer key from class name.
-        String defaultPrefix = getDefaultSuppressWarningsPrefix();
-        prefixes.add(defaultPrefix);
+        // No @SuppressWarningsPrefixes annotation, by default infer keys from upstream checker
+        // names.
+        for (String checkerName : getUpstreamCheckerNames()) {
+            prefixes.add(getDefaultSuppressWarningsPrefix(checkerName));
+        }
         return prefixes;
     }
 
@@ -3122,7 +3121,18 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      * @return the default SuppressWarnings prefix for this checker based on the checker name
      */
     private String getDefaultSuppressWarningsPrefix() {
-        String className = this.getClass().getSimpleName();
+        return getDefaultSuppressWarningsPrefix(this.getClass().getSimpleName());
+    }
+
+    /**
+     * Returns the default SuppressWarnings prefix for the given checker name.
+     *
+     * @param checkerName a fully-qualified or simple checker class name
+     * @return the default SuppressWarnings prefix for the given checker name
+     */
+    private static String getDefaultSuppressWarningsPrefix(String checkerName) {
+        int lastDot = checkerName.lastIndexOf('.');
+        String className = lastDot == -1 ? checkerName : checkerName.substring(lastDot + 1);
         int indexOfChecker = className.lastIndexOf("Checker");
         if (indexOfChecker == -1) {
             indexOfChecker = className.lastIndexOf("Subchecker");
