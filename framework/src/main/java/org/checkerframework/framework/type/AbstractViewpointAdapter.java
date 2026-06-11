@@ -472,7 +472,7 @@ public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
     /**
      * Returns a copy of {@code source} whose bounds have been adapted by {@code adaptBound}.
      *
-     * @param source intersection type whose bounds are adapted
+     * @param source intersection type whose bounds should be adapted
      * @param adaptBound function that adapts one bound
      * @return a copy of {@code source} with adapted bounds
      */
