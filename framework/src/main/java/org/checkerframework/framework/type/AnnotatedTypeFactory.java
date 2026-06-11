@@ -6601,6 +6601,9 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * unit, which would be much more expensive.
      */
     private class DeclarationScanner extends com.sun.source.util.TreeScanner<Void, Void> {
+        /** Create a DeclarationScanner. */
+        DeclarationScanner() {}
+
         @Override
         public Void visitVariable(VariableTree node, Void p) {
             com.sun.tools.javac.code.Symbol sym =
