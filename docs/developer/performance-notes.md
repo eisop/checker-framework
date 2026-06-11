@@ -105,6 +105,23 @@ so small per-call wins paid back substantially.
   allocation path and CPU self-time were unchanged. `CFAbstractValue.validateSet`
   was deliberately left alone: it runs only under `assert`, so its iterator
   allocation never occurs in production (`-da`) runs.
+- **PR #1790 — index-based `AnnotationMirrorSet` iterator (June 2026).** PR #1776 converted the
+  heaviest *direct* callers to `get(int)` loops, but the remaining `for`-each / `forEach` callers
+  (`AnnotationUtils.areSame`/`getSame`, dependent-types and inference lambdas, ...) still went through
+  `iterator()`, which was the single largest surviving `ArrayList$Itr` source (57% of it on the
+  all-systems corpus). `iterator()` allocated the backing `ArrayList`'s own iterator *and*, for an
+  unmodifiable set, wrapped it in a `ReadOnlyIter` — two allocations per traversal. `ReadOnlyIter` now
+  walks the backing list by index (`get(i)`/`size()`) instead of wrapping an iterator, so the
+  unmodifiable case (the common one) no longer allocates the `ArrayList$Itr` at all — the wrapper was
+  already being allocated, so this is pure waste removed, and it fixes *every* caller (including
+  lambdas) in one place with no caller churn. A **mutable** set still returns the backing iterator, on
+  purpose: that preserves `remove()` and concurrent-modification detection, which a bare index walk
+  cannot. Measured: `ArrayList$Itr` **5.39% → 3.68%** of TLAB events (the eliminated 58 samples are
+  the unmodifiable iterations; the residual 38%-of-`iterator()` is mutable sets, kept for safety);
+  deterministic all-systems allocation **5951 → 5884 MB (−1.1%)**, no normal-code regression; passes
+  `alltests`. The other remaining iterator allocations are not cheaply/safely index-convertible:
+  javac's cons-`List` (`get(i)` is O(i)), map iterators (`LinkedHashMap`), and `CollectionsPlume.mapList`
+  over an unknown `List` impl.
 - **PR #1669** — *Improve equality and comparisons of annotation
   names.* Introduced `AnnotationUtils.annotationNameAsName`, which
   returns the underlying `Name` without ever allocating a `String`. Hot
