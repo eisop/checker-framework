@@ -18,6 +18,7 @@ import org.checkerframework.dataflow.expression.FieldAccess;
 import org.checkerframework.dataflow.expression.JavaExpression;
 import org.checkerframework.framework.flow.CFAbstractTransfer;
 import org.checkerframework.framework.flow.CFValue;
+import org.checkerframework.javacutil.InternalUtils;
 import org.checkerframework.javacutil.TreePathUtil;
 import org.checkerframework.javacutil.TreeUtils;
 
@@ -75,7 +76,7 @@ public class InitializationTransfer
         List<VariableElement> result = new ArrayList<>();
         MethodInvocationTree tree = node.getTree();
         ExecutableElement method = TreeUtils.elementFromUse(tree);
-        boolean isConstructor = method.getSimpleName().contentEquals("<init>");
+        boolean isConstructor = InternalUtils.isInitName(method.getSimpleName());
         Node receiver = node.getTarget().getReceiver();
 
         if (isConstructor && receiver instanceof ThisNode) {
@@ -84,14 +85,14 @@ public class InitializationTransfer
                     (methodSelect instanceof IdentifierTree)
                             ? ((IdentifierTree) methodSelect).getName()
                             : ((MemberSelectTree) methodSelect).getIdentifier();
-            if (methodName.contentEquals("this")) {
+            if (InternalUtils.isThisName(methodName)) {
                 // Case 1: After a call to the constructor of the same class, all
                 // fields are guaranteed to be initialized.
                 ClassTree clazz =
                         TreePathUtil.enclosingClass(analysis.getTypeFactory().getPath(tree));
                 TypeElement clazzElem = TreeUtils.elementFromDeclaration(clazz);
                 markFieldsAsInitialized(result, clazzElem);
-            } else if (methodName.contentEquals("super")) {
+            } else if (InternalUtils.isSuperName(methodName)) {
                 // Case 4: After a call to the constructor of the super class, all
                 // fields of any super class are guaranteed to be initialized.
                 ClassTree clazz =

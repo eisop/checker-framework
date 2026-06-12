@@ -288,7 +288,7 @@ public class StubGenerator {
      * <p>It indicates whether the field is {@code protected}.
      */
     private void printFieldDecl(VariableElement field) {
-        if ("class".equals(field.getSimpleName().toString())) {
+        if (field.getSimpleName().contentEquals("class")) {
             error("Cannot write class literals in stub files.");
             return;
         }

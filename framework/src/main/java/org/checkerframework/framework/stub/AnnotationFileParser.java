@@ -81,6 +81,7 @@ import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.ElementUtils;
+import org.checkerframework.javacutil.InternalUtils;
 import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TypesUtils;
 import org.checkerframework.javacutil.UserError;
@@ -643,7 +644,7 @@ public class AnnotationFileParser {
                             for (VariableElement field :
                                     ElementUtils.getAllFieldsIn(enclType, elements)) {
                                 // field.getSimpleName() is a CharSequence, not a String
-                                if (fieldName.equals(field.getSimpleName().toString())) {
+                                if (InternalUtils.sameName(field.getSimpleName(), fieldName)) {
                                     importedConstants.add(imported);
                                 }
                             }
@@ -1785,7 +1786,7 @@ public class AnnotationFileParser {
         VariableDeclarator fieldVarDecl = null;
         String eltName = elt.getSimpleName().toString();
         for (VariableDeclarator var : decl.getVariables()) {
-            if (var.getName().toString().equals(eltName)) {
+            if (var.getName().getIdentifier().equals(eltName)) {
                 fieldVarDecl = var;
                 break;
             }
@@ -2193,7 +2194,8 @@ public class AnnotationFileParser {
                 continue;
             }
             ExecutableElement candidate = (ExecutableElement) elt;
-            if (!candidate.getSimpleName().contentEquals(methodDecl.getName().getIdentifier())) {
+            if (!InternalUtils.sameName(
+                    candidate.getSimpleName(), methodDecl.getName().getIdentifier())) {
                 continue;
             }
             List<? extends VariableElement> candidateParams = candidate.getParameters();
@@ -2290,7 +2292,7 @@ public class AnnotationFileParser {
                 Element javacElement = javacTypeInternal.asElement();
                 // Check both fully-qualified name and simple name.
                 return javacElement.toString().equals(javaParserString)
-                        || javacElement.getSimpleName().contentEquals(javaParserString);
+                        || InternalUtils.sameName(javacElement.getSimpleName(), javaParserString);
 
             case ARRAY:
                 return javaParserType.isArrayType()
@@ -2351,11 +2353,8 @@ public class AnnotationFileParser {
             NodeWithRange<?> astNode) {
         String typeString = type.getNameAsString();
         for (AnnotatedDeclaredType supertype : types) {
-            if (supertype
-                    .getUnderlyingType()
-                    .asElement()
-                    .getSimpleName()
-                    .contentEquals(typeString)) {
+            if (InternalUtils.sameName(
+                    supertype.getUnderlyingType().asElement().getSimpleName(), typeString)) {
                 return supertype;
             }
         }
@@ -2383,7 +2382,7 @@ public class AnnotationFileParser {
     private @Nullable Element findElement(TypeElement typeElt, ClassOrInterfaceDeclaration ciDecl) {
         String wantedClassOrInterfaceName = ciDecl.getNameAsString();
         for (TypeElement typeElement : ElementUtils.getAllTypeElementsIn(typeElt)) {
-            if (wantedClassOrInterfaceName.equals(typeElement.getSimpleName().toString())) {
+            if (InternalUtils.sameName(typeElement.getSimpleName(), wantedClassOrInterfaceName)) {
                 return typeElement;
             }
         }
@@ -2413,7 +2412,7 @@ public class AnnotationFileParser {
     private @Nullable Element findElement(TypeElement typeElt, EnumDeclaration enumDecl) {
         String wantedEnumName = enumDecl.getNameAsString();
         for (TypeElement typeElement : ElementUtils.getAllTypeElementsIn(typeElt)) {
-            if (wantedEnumName.equals(typeElement.getSimpleName().toString())) {
+            if (InternalUtils.sameName(typeElement.getSimpleName(), wantedEnumName)) {
                 return typeElement;
             }
         }
@@ -2486,7 +2485,7 @@ public class AnnotationFileParser {
         String wantedMethodString = AnnotationFileUtil.toString(methodDecl);
         for (ExecutableElement method : methodsInTypeElement(typeElt)) {
             if (wantedMethodParams == method.getParameters().size()
-                    && wantedMethodName.contentEquals(method.getSimpleName().toString())
+                    && InternalUtils.sameName(method.getSimpleName(), wantedMethodName)
                     && ElementUtils.getSimpleSignature(method).equals(wantedMethodString)) {
                 return method;
             }
@@ -2586,7 +2585,7 @@ public class AnnotationFileParser {
             TypeElement typeElt, String fieldName, NodeWithRange<?> astNode) {
         for (VariableElement field : ElementUtils.getAllFieldsIn(typeElt, elements)) {
             // field.getSimpleName() is a CharSequence, not a String
-            if (fieldName.equals(field.getSimpleName().toString())) {
+            if (InternalUtils.sameName(field.getSimpleName(), fieldName)) {
                 return field;
             }
         }

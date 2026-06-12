@@ -176,7 +176,7 @@ public final class TreeUtils {
      * @return true iff tree describes a constructor
      */
     public static boolean isConstructor(MethodTree tree) {
-        return tree.getName().contentEquals("<init>");
+        return InternalUtils.isInitName(tree.getName());
     }
 
     /**
@@ -207,7 +207,7 @@ public final class TreeUtils {
      * @return true iff tree is a call to the given method
      */
     private static boolean isNamedMethodCall(String name, MethodInvocationTree tree) {
-        return getMethodName(tree.getMethodSelect()).contentEquals(name);
+        return InternalUtils.sameName(methodName(tree), name);
     }
 
     /**
@@ -254,7 +254,7 @@ public final class TreeUtils {
             tr = ((MemberSelectTree) tr).getExpression();
             if (tr instanceof IdentifierTree) {
                 Name ident = ((IdentifierTree) tr).getName();
-                return ident.contentEquals("this") || ident.contentEquals("super");
+                return InternalUtils.isThisName(ident) || InternalUtils.isSuperName(ident);
             }
         }
 
@@ -905,7 +905,7 @@ public final class TreeUtils {
         MethodInvocationTree invocation =
                 (MethodInvocationTree) ((ExpressionStatementTree) st).getExpression();
 
-        return "this".contentEquals(TreeUtils.methodName(invocation));
+        return InternalUtils.isThisName(TreeUtils.methodName(invocation));
     }
 
     /**
@@ -1383,7 +1383,7 @@ public final class TreeUtils {
             throw new UserError("Configuration problem! Could not load type: " + typeName);
         }
         for (ExecutableElement exec : ElementFilter.methodsIn(typeElt.getEnclosedElements())) {
-            if (exec.getSimpleName().contentEquals(methodName)
+            if (InternalUtils.sameName(exec.getSimpleName(), methodName)
                     && exec.getParameters().size() == params) {
                 methods.add(exec);
             }
@@ -1428,7 +1428,7 @@ public final class TreeUtils {
             throw new UserError("Configuration problem! Could not load type: " + typeName);
         }
         for (ExecutableElement exec : ElementFilter.methodsIn(typeElt.getEnclosedElements())) {
-            if (exec.getSimpleName().contentEquals(methodName)
+            if (InternalUtils.sameName(exec.getSimpleName(), methodName)
                     && exec.getParameters().size() == paramTypes.length) {
                 boolean typesMatch = true;
                 List<? extends VariableElement> params = exec.getParameters();
@@ -1449,7 +1449,7 @@ public final class TreeUtils {
         // Didn't find an answer.  Compose an error message.
         List<String> candidates = new ArrayList<>();
         for (ExecutableElement exec : ElementFilter.methodsIn(typeElt.getEnclosedElements())) {
-            if (exec.getSimpleName().contentEquals(methodName)) {
+            if (InternalUtils.sameName(exec.getSimpleName(), methodName)) {
                 candidates.add(executableElementToString(exec));
             }
         }
@@ -1487,7 +1487,7 @@ public final class TreeUtils {
      */
     public static boolean isExplicitThisDereference(ExpressionTree expr) {
         if (expr instanceof IdentifierTree
-                && ((IdentifierTree) expr).getName().contentEquals("this")) {
+                && InternalUtils.isThisName(((IdentifierTree) expr).getName())) {
             // Explicit this reference "this"
             return true;
         }
@@ -1497,7 +1497,7 @@ public final class TreeUtils {
         }
 
         MemberSelectTree memSelTree = (MemberSelectTree) expr;
-        if (memSelTree.getIdentifier().contentEquals("this")) {
+        if (InternalUtils.isThisName(memSelTree.getIdentifier())) {
             // Outer this reference "C.this"
             return true;
         }
@@ -1518,7 +1518,7 @@ public final class TreeUtils {
         if (!(tree instanceof MemberSelectTree)) {
             return false;
         }
-        return "class".equals(((MemberSelectTree) tree).getIdentifier().toString());
+        return InternalUtils.sameName(((MemberSelectTree) tree).getIdentifier(), "class");
     }
 
     /**
@@ -1568,8 +1568,8 @@ public final class TreeUtils {
             assert isUseOfElement(ident) : "@AssumeAssertion(nullness): tree kind";
             Element el = TreeUtils.elementFromUse(ident);
             if (el.getKind().isField()
-                    && !ident.getName().contentEquals("this")
-                    && !ident.getName().contentEquals("super")) {
+                    && !InternalUtils.isThisName(ident.getName())
+                    && !InternalUtils.isSuperName(ident.getName())) {
                 return (VariableElement) el;
             }
         }
@@ -1633,8 +1633,9 @@ public final class TreeUtils {
         } else if (tree instanceof IdentifierTree) {
             // implicit method access
             IdentifierTree ident = (IdentifierTree) tree;
-            // The field "super" and "this" are also legal methods
-            if (ident.getName().contentEquals("super") || ident.getName().contentEquals("this")) {
+            // The names "this" and "super" are also legal methods.
+            if (InternalUtils.isThisName(ident.getName())
+                    || InternalUtils.isSuperName(ident.getName())) {
                 return true;
             }
             assert isUseOfElement(ident) : "@AssumeAssertion(nullness): tree kind";
@@ -1704,7 +1705,7 @@ public final class TreeUtils {
             @FullyQualifiedName String typeName, String fieldName, ProcessingEnvironment env) {
         TypeElement mapElt = env.getElementUtils().getTypeElement(typeName);
         for (VariableElement var : ElementFilter.fieldsIn(mapElt.getEnclosedElements())) {
-            if (var.getSimpleName().contentEquals(fieldName)) {
+            if (InternalUtils.sameName(var.getSimpleName(), fieldName)) {
                 return var;
             }
         }
@@ -1730,11 +1731,14 @@ public final class TreeUtils {
     public static boolean isEnumSuperCall(MethodInvocationTree tree) {
         ExecutableElement ex = TreeUtils.elementFromUse(tree);
         assert ex != null : "@AssumeAssertion(nullness): tree kind";
+        // Check the method name first: it is an interned-name comparison and false for
+        // most invocations, so the class-name comparison is usually skipped.
+        if (!InternalUtils.isInitName(ex.getSimpleName())) {
+            return false;
+        }
         Name name = ElementUtils.getQualifiedClassName(ex);
         assert name != null : "@AssumeAssertion(nullness): assumption";
-        boolean correctClass = name.contentEquals("java.lang.Enum");
-        boolean correctMethod = ex.getSimpleName().contentEquals("<init>");
-        return correctClass && correctMethod;
+        return InternalUtils.isJavaLangEnumName(name);
     }
 
     /**

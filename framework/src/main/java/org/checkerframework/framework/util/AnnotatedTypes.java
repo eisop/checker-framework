@@ -28,6 +28,7 @@ import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.ElementUtils;
+import org.checkerframework.javacutil.InternalUtils;
 import org.checkerframework.javacutil.SystemUtil;
 import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TypesUtils;
@@ -474,7 +475,7 @@ public class AnnotatedTypes {
 
         // The below is checking for a super() call where the super type is a raw type.
         // See framework/tests/all-systems/RawSuper.java for an example.
-        if (method.getSimpleName().contentEquals("<init>")) {
+        if (InternalUtils.isInitName(method.getSimpleName())) {
             ExecutableElement constructor = (ExecutableElement) method;
             TypeMirror constructorClass = types.erasure(constructor.getEnclosingElement().asType());
             TypeMirror directSuper = types.directSupertypes(receiver.getUnderlyingType()).get(0);
