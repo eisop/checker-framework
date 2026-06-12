@@ -190,6 +190,9 @@ public abstract class AnnotatedTypeScanner<R, P> implements AnnotatedTypeVisitor
 
     /**
      * Returns true if {@code type} has already been visited (possibly with a {@code null} result).
+     *
+     * @param type the type to look up
+     * @return true if {@code type} has already been visited
      */
     protected final boolean hasVisited(AnnotatedTypeMirror type) {
         return visitedNodes != null && visitedNodes.containsKey(type);
@@ -200,12 +203,21 @@ public abstract class AnnotatedTypeScanner<R, P> implements AnnotatedTypeVisitor
      * ambiguous: it means either "not visited" or "visited with a {@code null} result". When that
      * distinction matters (a scanner that stores {@code null} as an in-progress sentinel), guard
      * with {@link #hasVisited} first.
+     *
+     * @param type the type to look up
+     * @return the result stored for {@code type}, or {@code null} if absent or stored as {@code
+     *     null}
      */
     protected final R getVisited(AnnotatedTypeMirror type) {
         return visitedNodes == null ? null : visitedNodes.get(type);
     }
 
-    /** Records {@code type} as visited with the given result, allocating the map on first use. */
+    /**
+     * Records {@code type} as visited with the given result, allocating the map on first use.
+     *
+     * @param type the type to record as visited
+     * @param result the result to store for {@code type}
+     */
     protected final void markVisited(AnnotatedTypeMirror type, R result) {
         if (visitedNodes == null) {
             visitedNodes = new IdentityHashMap<>(VISITED_NODES_INITIAL_CAPACITY);
