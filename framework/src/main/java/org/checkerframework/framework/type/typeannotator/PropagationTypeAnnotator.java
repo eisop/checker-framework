@@ -122,10 +122,10 @@ public class PropagationTypeAnnotator extends TypeAnnotator {
      */
     @Override
     public Void visitWildcard(AnnotatedWildcardType wildcard, Void aVoid) {
-        if (visitedNodes.containsKey(wildcard) || pause) {
+        if (hasVisited(wildcard) || pause) {
             return null;
         }
-        visitedNodes.put(wildcard, null);
+        markVisited(wildcard, null);
 
         Element typeParamElement = TypesUtils.wildcardToTypeParam(wildcard.getUnderlyingType());
         if (typeParamElement == null && !parents.isEmpty()) {
