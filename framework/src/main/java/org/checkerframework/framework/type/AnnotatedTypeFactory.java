@@ -4330,13 +4330,26 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
                 // Fall back to the whole compilation unit if the enclosing tree is unavailable or
                 // does not contain the declaration.
                 Element enclosing = elt.getEnclosingElement();
-                Tree enclosingTree = enclosing == null ? null : trees.getTree(enclosing);
+                Tree enclosingTree = null;
+                while (enclosing != null) {
+                    enclosingTree = trees.getTree(enclosing);
+                    if (enclosingTree != null) {
+                        break;
+                    }
+                    enclosing = enclosing.getEnclosingElement();
+                }
                 if (shouldCache
                         && enclosingTree != null
                         && scannedEnclosingTrees.add(enclosingTree)) {
                     new DeclarationScanner().scan(enclosingTree, null);
                 }
                 fromElt = shouldCache ? elementToTreeCache.get(elt) : null;
+                if (fromElt == null && enclosingTree != null) {
+                    fromElt =
+                            com.sun.tools.javac.tree.TreeInfo.declarationFor(
+                                    (com.sun.tools.javac.code.Symbol) elt,
+                                    (com.sun.tools.javac.tree.JCTree) enclosingTree);
+                }
                 if (fromElt == null) {
                     fromElt =
                             com.sun.tools.javac.tree.TreeInfo.declarationFor(
