@@ -16,6 +16,11 @@ public class ExplicitThisNode extends ThisNode {
 
     protected final IdentifierTree tree;
 
+    /**
+     * Creates a node for the given "this" identifier.
+     *
+     * @param t the identifier tree for "this"
+     */
     public ExplicitThisNode(IdentifierTree t) {
         super(TreeUtils.typeOf(t));
         assert InternalUtils.isThisName(t.getName());

@@ -24,6 +24,11 @@ public class SuperNode extends Node {
 
     protected final IdentifierTree tree;
 
+    /**
+     * Creates a node for the given "super" identifier.
+     *
+     * @param t the identifier tree for "super"
+     */
     public SuperNode(IdentifierTree t) {
         super(TreeUtils.typeOf(t));
         assert InternalUtils.isSuperName(t.getName());

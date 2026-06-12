@@ -286,6 +286,8 @@ public class StubGenerator {
      * Helper method that outputs the field declaration for the given field.
      *
      * <p>It indicates whether the field is {@code protected}.
+     *
+     * @param field the field to print
      */
     private void printFieldDecl(VariableElement field) {
         if (field.getSimpleName().contentEquals("class")) {
