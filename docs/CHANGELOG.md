@@ -44,6 +44,16 @@ and most scans visit only a few nodes; the smaller pre-size cuts that allocation
 substantially and lowers GC pressure with no wall-clock cost. Also pre-sized the
 small `wildcardToAnnos` map in `ElementAnnotationUtil` to 4.
 
+`AnnotatedTypeScanner.visitedNodes` is now `private` and lazily allocated: the
+`IdentityHashMap` is created on the first stored node rather than in a field
+initializer, so scans that touch no recursive type allocate nothing. Subclasses
+now go through three `protected final` accessors — `hasVisited`, `getVisited`,
+and `markVisited` — instead of touching the field directly, which centralizes the
+lazy-null invariant in one place. This is primarily an encapsulation change;
+allocation and wall clock are unchanged within measurement noise (the eager-vs-lazy
+map allocation count is essentially the same once the previous per-use scanner
+pooling is in place).
+
 Performance: `CFCFGBuilder` now obtains each method/lambda body's `TreePath` from the
 checker's shared `TreePathCacher` instead of an uncached `Trees.getPath` search per
 body. The old search was quadratic in bodies-per-file (each rescanned the preceding
