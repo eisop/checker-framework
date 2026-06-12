@@ -225,10 +225,13 @@ public class InternalUtils {
             com.sun.tools.javac.util.Name n = (com.sun.tools.javac.util.Name) name;
             String expectedString = expected.toString();
             NameCache c = nameCache;
-            if (c == null || c.table != n.table) {
+            @SuppressWarnings("interning:not.interned")
+            boolean needInit = (c == null || c.table != n.table);
+            if (needInit) {
                 c = new NameCache(n.table);
                 nameCache = c;
             }
+            @SuppressWarnings("nullness:dereference.of.nullable") // from needsInit
             com.sun.tools.javac.util.Name target = c.map.get(expectedString);
             if (target == null) {
                 target = n.table.fromString(expectedString);
@@ -256,7 +259,9 @@ public class InternalUtils {
                 && name2 instanceof com.sun.tools.javac.util.Name) {
             com.sun.tools.javac.util.Name n1 = (com.sun.tools.javac.util.Name) name1;
             com.sun.tools.javac.util.Name n2 = (com.sun.tools.javac.util.Name) name2;
-            if (n1.table == n2.table) {
+            @SuppressWarnings("interning:not.interned")
+            boolean sameTable = (n1.table == n2.table);
+            if (sameTable) {
                 return n1 == n2;
             }
         }
