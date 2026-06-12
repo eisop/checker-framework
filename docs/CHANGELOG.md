@@ -81,6 +81,22 @@ list's iterator; the read-only iterator now walks the backing list by index. Thi
 single largest remaining source of `Iterator` allocation in type checking. No user-visible
 behavior change.
 
+Performance: `InternalUtils` has new helpers (`isInitName`, `isThisName`, `isSuperName`,
+`isValueName`, `isJavaLangObjectName`, `isJavaLangEnumName`) that compare a javac `Name`
+against the table's pre-interned name by identity instead of `Name.contentEquals`, which
+decodes the name's UTF-8 bytes into a fresh `String` on every call on byte-backed name
+tables (javac's default before JDK 23, and what Gradle's `-XDuseUnsharedTable` forces on
+all JDK versions). All call sites that compared a `Name` against these fixed literals
+(`TreeUtils.isConstructor`, `TreeUtils.isEnumSuperCall`, identifier `this`/`super` checks
+in dataflow and the checkers, annotation-element `value` checks) now use them. For
+comparisons against dynamic-but-bounded strings (annotation element names, method names a
+checker matches against), the new `InternalUtils.sameName(Name, CharSequence)` interns the
+target into the name's own table through a table-validated cache and compares by identity
+(~6x faster, allocation-free, on byte-backed tables); `sameName(Name, Name)` compares
+same-table names by identity. `AnnotationUtils.getElementValue` and
+`AnnotationBuilder.findElement` — the hottest `Name` comparisons in the Called Methods,
+Must Call, and Resource Leak checkers — now use it. No user-visible behavior change.
+
 Performance: the `AnnotatedTypeFactory` tree-type caches (`classAndMethodTreeCache`,
 `fromExpressionTreeCache`, `fromMemberTreeCache`, `fromTypeTreeCache`, and `elementToTreeCache`) are
 now unbounded `IdentityHashMap`s cleared per compilation unit, rather than LRU caches capped at 2048
