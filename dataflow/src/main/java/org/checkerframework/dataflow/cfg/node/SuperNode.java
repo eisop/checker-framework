@@ -22,6 +22,7 @@ import java.util.Collections;
  */
 public class SuperNode extends Node {
 
+    /** The identifier tree for "super". */
     protected final IdentifierTree tree;
 
     /**

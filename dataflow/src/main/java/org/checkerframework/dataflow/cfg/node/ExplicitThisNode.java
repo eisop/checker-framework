@@ -14,6 +14,7 @@ import org.checkerframework.javacutil.TreeUtils;
  */
 public class ExplicitThisNode extends ThisNode {
 
+    /** The identifier tree for "this". */
     protected final IdentifierTree tree;
 
     /**
