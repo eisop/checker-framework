@@ -250,6 +250,30 @@ so small per-call wins paid back substantially.
   `static`/shared one needs an `AtomicReference.getAndSet` pool (like `TypeVarAnnotator`) to stay
   correct under daemon/LSP concurrency and re-entrancy — the `null`-while-borrowed state doubles as
   the re-entrancy guard.
+- **PR #1794 — lazy `visitedNodes` (June 2026); encapsulation, measured perf-neutral.** Made
+  `AnnotatedTypeScanner.visitedNodes` `private` and lazily allocated: the field starts `null` and
+  the `IdentityHashMap` is created on the first stored node (`markVisited`) instead of in a field
+  initializer, and `reset()` nulls the field instead of conditionally reallocating. The seven
+  subclasses that touched the field directly (`BaseTypeValidator`, `TypesIntoElements`,
+  `PropagationTypeAnnotator`, `QualifierDefaults`, `DependentTypesHelper`,
+  `DoubleAnnotatedTypeScanner`, and the base class) now go through three `protected final` accessors
+  `hasVisited`/`getVisited`/`markVisited`, centralizing the lazy-null invariant. **A/B (PR #1794
+  vs. its merge-base):** deterministic `ThreadAllocationStatistics` on a 300-method file, 6
+  interleaved rounds, was **−0.18%** total allocation (median 880.2 → 878.6 MB) — inside the
+  ~0.5% run-to-run band; wall clock flat. A full-build `--no-daemon checknullness` JFR capture per
+  side confirmed the *mechanism* — the eager `Object[]` allocation at `AnnotatedTypeScanner.reset`
+  (the #1 CF `Object[]` site, ~29% of CF `Object[]` events on the base side) and at `<init>`
+  disappears, reappearing only at `markVisited` (the lazy first-put) — but on-CPU samples, GC
+  collections, and post-GC retained heap were all within single-run noise. **Why it is a wash:**
+  PR #1646 already deferred the empty-case realloc, and the per-use scanner pooling above already
+  removed ~99% of per-construction map allocations, so the base path was already mostly lazy; the
+  lazy field only additionally skips allocation for the narrow "reset a non-empty map, then visit no
+  recursive type" case. Distinct from the rejected `clear()` idea (see *Tried and rejected*): there
+  is no explicit Java-loop zeroing — the win, where it exists, is *skipping* the allocation entirely,
+  not making the reuse cheaper. Shipped for the encapsulation (one enforced place for the null
+  invariant; `private` field; storage strategy decoupled from subclasses), not for a perf number.
+  One source-compat note: `visitedNodes` going `protected` → `private` is incompatible for any
+  third-party `AnnotatedTypeScanner` subclass that referenced the field directly.
 
 ### Element and name caching
 
