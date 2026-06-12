@@ -504,25 +504,25 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     private static final int DEFAULT_CACHE_SIZE = 2048;
 
     /** Mapping from a Tree to its annotated type; defaults have been applied. */
-    private final Map<Tree, AnnotatedTypeMirror> classAndMethodTreeCache;
+    private final IdentityHashMap<Tree, AnnotatedTypeMirror> classAndMethodTreeCache;
 
     /**
      * Mapping from an expression tree to its annotated type; before defaults are applied, just what
      * the programmer wrote.
      */
-    protected final Map<Tree, AnnotatedTypeMirror> fromExpressionTreeCache;
+    protected final IdentityHashMap<Tree, AnnotatedTypeMirror> fromExpressionTreeCache;
 
     /**
      * Mapping from a member tree to its annotated type; before defaults are applied, just what the
      * programmer wrote.
      */
-    protected final Map<Tree, AnnotatedTypeMirror> fromMemberTreeCache;
+    protected final IdentityHashMap<Tree, AnnotatedTypeMirror> fromMemberTreeCache;
 
     /**
      * Mapping from a type tree to its annotated type; before defaults are applied, just what the
      * programmer wrote.
      */
-    protected final Map<Tree, AnnotatedTypeMirror> fromTypeTreeCache;
+    protected final IdentityHashMap<Tree, AnnotatedTypeMirror> fromTypeTreeCache;
 
     /**
      * Mapping from an Element to its annotated type; before defaults are applied, just what the
@@ -543,7 +543,12 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     private final @Nullable Map<Element, AnnotatedTypeMirror> elementTypeCache;
 
     /** Mapping from an Element to the source Tree of the declaration. */
-    private final Map<Element, Tree> elementToTreeCache;
+    private final IdentityHashMap<Element, Tree> elementToTreeCache;
+
+    /**
+     * Set of enclosing trees (like MethodTree/ClassTree) already scanned for variable declarations.
+     */
+    private final @Nullable Set<Tree> scannedEnclosingTrees;
 
     /**
      * Cache for the substituted method type from {@link #computeMethodTypeAsMemberOf} — the
@@ -643,13 +648,14 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         this.shouldCache = !checker.hasOption("atfDoNotCache");
         if (shouldCache) {
             int cacheSize = getCacheSize();
-            this.classAndMethodTreeCache = CollectionsPlume.createLruCache(cacheSize);
-            this.fromExpressionTreeCache = CollectionsPlume.createLruCache(cacheSize);
-            this.fromMemberTreeCache = CollectionsPlume.createLruCache(cacheSize);
-            this.fromTypeTreeCache = CollectionsPlume.createLruCache(cacheSize);
+            this.classAndMethodTreeCache = new IdentityHashMap<>();
+            this.fromExpressionTreeCache = new IdentityHashMap<>();
+            this.fromMemberTreeCache = new IdentityHashMap<>();
+            this.fromTypeTreeCache = new IdentityHashMap<>();
             this.elementCache = CollectionsPlume.createLruCache(cacheSize);
             this.elementTypeCache = CollectionsPlume.createLruCache(cacheSize);
-            this.elementToTreeCache = CollectionsPlume.createLruCache(cacheSize);
+            this.elementToTreeCache = new IdentityHashMap<>();
+            this.scannedEnclosingTrees = Collections.newSetFromMap(new IdentityHashMap<>());
             this.methodAsMemberOfCache = CollectionsPlume.createLruCache(cacheSize);
             this.directSupertypesCache = CollectionsPlume.createLruCache(cacheSize);
             this.annotationClassNames = new IdentityHashMap<>();
@@ -661,6 +667,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             this.elementCache = null;
             this.elementTypeCache = null;
             this.elementToTreeCache = null;
+            this.scannedEnclosingTrees = null;
             this.methodAsMemberOfCache = null;
             this.directSupertypesCache = null;
             this.annotationClassNames = null;
@@ -1065,6 +1072,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             // Clear the caches with trees because once the compilation unit changes,
             // the trees may be modified and lose type arguments.
             elementToTreeCache.clear();
+            scannedEnclosingTrees.clear();
             fromExpressionTreeCache.clear();
             fromMemberTreeCache.clear();
             fromTypeTreeCache.clear();
@@ -4323,12 +4331,12 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
                 // does not contain the declaration.
                 Element enclosing = elt.getEnclosingElement();
                 Tree enclosingTree = enclosing == null ? null : trees.getTree(enclosing);
-                fromElt =
-                        enclosingTree instanceof com.sun.tools.javac.tree.JCTree
-                                ? com.sun.tools.javac.tree.TreeInfo.declarationFor(
-                                        (com.sun.tools.javac.code.Symbol) elt,
-                                        (com.sun.tools.javac.tree.JCTree) enclosingTree)
-                                : null;
+                if (shouldCache
+                        && enclosingTree != null
+                        && scannedEnclosingTrees.add(enclosingTree)) {
+                    new DeclarationScanner().scan(enclosingTree, null);
+                }
+                fromElt = shouldCache ? elementToTreeCache.get(elt) : null;
                 if (fromElt == null) {
                     fromElt =
                             com.sun.tools.javac.tree.TreeInfo.declarationFor(
@@ -6582,5 +6590,51 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             }
         }
         return false;
+    }
+
+    /**
+     * A scanner that maps symbols to their declaration trees and populates {@link
+     * #elementToTreeCache}.
+     *
+     * <p>This scanner is used to look up trees for variables, methods, and classes within an
+     * enclosing scope (such as a method or a class) rather than scanning the entire compilation
+     * unit, which would be much more expensive.
+     */
+    private class DeclarationScanner extends com.sun.source.util.TreeScanner<Void, Void> {
+        /** Create a DeclarationScanner. */
+        DeclarationScanner() {}
+
+        @Override
+        public Void visitVariable(VariableTree node, Void p) {
+            com.sun.tools.javac.code.Symbol sym =
+                    com.sun.tools.javac.tree.TreeInfo.symbolFor(
+                            (com.sun.tools.javac.tree.JCTree) node);
+            if (sym != null) {
+                elementToTreeCache.put(sym, node);
+            }
+            return super.visitVariable(node, p);
+        }
+
+        @Override
+        public Void visitMethod(MethodTree node, Void p) {
+            com.sun.tools.javac.code.Symbol sym =
+                    com.sun.tools.javac.tree.TreeInfo.symbolFor(
+                            (com.sun.tools.javac.tree.JCTree) node);
+            if (sym != null) {
+                elementToTreeCache.put(sym, node);
+            }
+            return super.visitMethod(node, p);
+        }
+
+        @Override
+        public Void visitClass(ClassTree node, Void p) {
+            com.sun.tools.javac.code.Symbol sym =
+                    com.sun.tools.javac.tree.TreeInfo.symbolFor(
+                            (com.sun.tools.javac.tree.JCTree) node);
+            if (sym != null) {
+                elementToTreeCache.put(sym, node);
+            }
+            return super.visitClass(node, p);
+        }
     }
 }

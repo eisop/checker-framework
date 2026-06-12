@@ -71,6 +71,17 @@ list's iterator; the read-only iterator now walks the backing list by index. Thi
 single largest remaining source of `Iterator` allocation in type checking. No user-visible
 behavior change.
 
+Performance: the `AnnotatedTypeFactory` tree-type caches (`classAndMethodTreeCache`,
+`fromExpressionTreeCache`, `fromMemberTreeCache`, `fromTypeTreeCache`, and `elementToTreeCache`) are
+now unbounded `IdentityHashMap`s cleared per compilation unit, rather than LRU caches capped at 2048
+entries. On a large compilation unit the live tree set overflowed the cap, so the LRU evicted
+still-needed entries and recomputed (and deep-copied) their annotated types; the per-compilation-unit
+`IdentityHashMap` removes that thrash. A single pass over each enclosing method/class now records all of
+its declaration trees instead of re-scanning per local variable, and `AnnotatedTypeCopier` reuses a
+thread-local map instead of allocating one per copy. Total allocation on large single-class files
+dropped 14-19% (e.g. -19% on a 1500-method class) and about 7% on a many-file corpus; wall clock is
+roughly unchanged, the gain being reduced GC pressure. No user-visible behavior change.
+
 Fixed a bug that caused an IndexOutOfBoundsException for lambdas in varargs,
 for type systems that had the Aliasing Checker as a subchecker, like the
 Optional Checker.
