@@ -734,6 +734,27 @@ under "Short list"; this is the canonical applied summary.
   hierarchies (unbounded over a whole build) and disabling the per-CU
   `defaultQualifierForUseTypeAnnotator.clearCache()` (cross-CU staleness — the cache reads element
   annotated types that stubs/ajava refine).
+- **`declarationFromElement` fallback: scan the enclosing subtree, not the whole CU; walk the
+  enclosing chain (PR #1793, June 2026).** Two refinements to the variable/
+  parameter path's *fallback* (the case PR #1791's `DeclarationScanner` left on the full-CU scan —
+  when the scan missed or `shouldCache` is off). (1) **Subtree fallback.** When `elementToTreeCache`
+  has no entry, try `TreeInfo.declarationFor(sym, enclosingTree)` (scan only the enclosing method/
+  class subtree) *before* the full-CU `TreeInfo.declarationFor(sym, root)`. (2) **Enclosing-chain
+  walk.** Master took `trees.getTree(elt.getEnclosingElement())` once and, if it was null, fell
+  straight to the whole-CU scan; the change walks `getEnclosingElement()` upward until a non-null
+  tree is found, so the subtree scan applies (and the `DeclarationScanner` gets primed) even when the
+  immediate enclosing element has no tree. Both `declarationFor(sym, enclosingTree)` and
+  `declarationFor(sym, root)` match by symbol identity, so the returned tree is unchanged — the only
+  difference is how many tree nodes the scan visits. **Deterministic A/B** (single forked `javac`;
+  size sweep of `gen-sized-program.py`, drift-controlled interleave — see Reproducing measurements):
+  **wall-clock −11% / −15% / −26%** on 300- / 600- / 1500-method single-class files, **neutral at
+  ≤100 methods** (3.2–4.5 s, JVM-startup-dominated) and on a 30-method file. **Allocation is flat**
+  (`jdk.ThreadAllocationStatistics` within the ~0.3% run-to-run band at every size) — this is a
+  scan-node / CPU change, not an allocation change. The win is super-linear in CU size and zero on
+  typical small files: it is **worst-case protection** for large or machine-generated single-class
+  compilation units (where master's full-CU fallback scan is super-linear in CU size), never a
+  regression. Same flattening signature as the PR #1786 body-path quadratic; like that one it is
+  invisible on the tiny-file all-systems corpus and only a size sweep exposes it.
 
 ---
 
@@ -743,6 +764,62 @@ Bring new evidence before revisiting any of these — a JFR trace on a
 workload not previously considered, or a measurement that contradicts
 the prior finding. A fresh hypothesis is not new evidence.
 
+- **`AnnotationMirror → QualifierKind` second-level cache in qualifier hierarchies (June 2026).**
+  `NoElementQualifierHierarchy.getQualifierKind(AnnotationMirror)` and the matching method in
+  `ElementQualifierHierarchy` already use an `elementToQualifierKind: IdentityHashMap<TypeElement,
+  QualifierKind>` (PR #1670) that resolves the kind in O(1) via a single identity probe on a tiny map
+  (~3–5 entries for Nullness, ~15–20 for Value). Proposed: add a second-level
+  `annoToQualifierKindMap: IdentityHashMap<AnnotationMirror, QualifierKind>` so that repeat queries
+  for the same `AnnotationMirror` instance bypass the TypeElement extraction entirely.
+
+  **The miss path that is being "saved" is already free.** For a `Attribute.Compound` annotation
+  (the common case), `getAnnotationType().asElement()` reduces to two direct field reads
+  (`anno.type.tsym`) — the same cost as an `IdentityHashMap` probe after JIT devirtualization.
+  There is nothing to save: the second-level cache adds overhead on misses (an `instanceof` check
+  plus a `put`) and is neutral on hits (trades one two-field-read path for one identity lookup),
+  netting to zero or slightly negative.
+
+  **A/B (deterministic `jdk.ThreadAllocationStatistics`, single forked `javac`):**
+
+  | corpus | master | branch | delta |
+  | --- | --- | --- | --- |
+  | Nullness checker, 600-method class (`NoElementQualifierHierarchy`) | 1396.8 MB | 1397.9 MB | **+0.08%** (noise) |
+  | Value checker, 300-method `@IntRange` class (`ElementQualifierHierarchy`) | 194.7 MB | 195.0 MB | **+0.15%** (noise) |
+
+  Both within the ~0.5% run-to-run band. **Rejected on measurement: flat allocation, and for
+  `ElementQualifierHierarchy` the map grows unboundedly** — the Value checker processes many
+  distinct `@IntRange(from=X, to=Y)` instances whose `AnnotationMirror` identity is unique per
+  value combination, so `annoToQualifierKindMap` accumulates one entry per distinct annotation
+  instance seen over the whole build with no bound or clear. **General lesson: a second-level
+  cache in front of an already-O(1) tiny-map lookup provides no benefit — the cost being
+  "saved" is on the order of two field reads, below any measurable threshold.**
+
+- **Keeping the `DefaultQualifierForUseTypeAnnotator` cache warm across compilation units (June 2026).**
+  `GenericAnnotatedTypeFactory.setRoot` clears `defaultQualifierForUseTypeAnnotator`'s
+  `elementToDefaults` (Element → default-for-use qualifiers) per compilation unit, alongside the other
+  per-CU caches. Proposed: stop clearing it, so defaults computed for a library element (e.g.
+  `java.util.Map`) in one CU are reused in later CUs. **The cache-hit win is real but a vanity metric —
+  it does not move allocation or CPU.** Instrumented hit/miss counters (runtime-toggled with
+  `-Ddqfu.noclear`) over a 120-file corpus that references many distinct JDK types: warm cuts misses
+  from **18,396 to 2,331 (−87%)**, since the per-CU clear was flushing ~16.6k entries that each later CU
+  re-missed. (A simpler corpus that mostly uses `Object`/generics shows almost nothing — 1,252 → 936 —
+  so this needs a *diverse-library-type* corpus to exercise at all.) But the deterministic
+  allocation A/B (`jdk.ThreadAllocationStatistics`) was **−0.2%, within noise** on both corpora, and
+  on-CPU `ExecutionSample` count did not move (warm side nominally higher, inside ±5–10% sampling
+  noise). The reason the misses are nearly free to recompute: `getDefaultAnnosForUses` already
+  canonicalizes the overwhelmingly-common empty result to the shared `AnnotationMirrorSet.emptySet()`
+  sentinel, so a miss on a type with no `@DefaultQualifierForUse` (≈ every JDK type) allocates only a
+  tiny transient set that is immediately discarded — 16k misses ≈ 1 MB against a 2.2 GB total.
+  **Rejected:** no measurable allocation/CPU benefit, and it trades away a correctness invariant — the
+  cache reads element annotated types (`getExplicitAnnos` → `getElementAnnotations`) that stub/ajava
+  loading can refine across compilation units, so a warm entry can go stale (independent of WPI). A
+  checker that makes heavy use of `@DefaultQualifierForUse` (non-empty default sets) could show a
+  different allocation profile and would be worth re-measuring before revisiting; for `NullnessChecker`
+  the change is all cost, no measurable gain. **General lesson: a cache-hit-rate improvement is not a
+  performance result. When the miss path is already cheap (here, an empty-set sentinel), eliminating
+  misses changes neither allocation nor wall clock — always confirm a hit-rate gain on the deterministic
+  allocation / on-CPU A/B before crediting it, and exercise element-keyed caches with a realistic,
+  diverse corpus, since trivial synthetic inputs under-fill them.**
 - **`AnnotatedTypeMirror.getEffectiveAnnotations` caching.** JFR-
   attributed self-time was ~0.05% on the alltests trace and ~0.1% on
   the Oscar EMR (~4000 file) trace. Not a hotspot.
@@ -871,6 +948,44 @@ the prior finding. A fresh hypothesis is not new evidence.
   `iterator()`/`hasNext()`/`next()`/`close()`, which `AliasingTransfer` also visits). If ever touched,
   do it for decoupling (WPI could read the enclosing method from `CFGMethod.getMethod()` instead of
   walking the path), not for memory.
+- **Equal-store short-circuit in the analysis store merge (explored for PR #1793, June 2026).** In
+  `ForwardAnalysisImpl.mergeStores` (and the two merge sites in `BackwardAnalysisImpl`), check
+  `newStore.equals(previousStore)` before calling `leastUpperBound`/`widenedUpperBound`, and reuse the
+  existing store when equal — skipping the LUB, which allocates a fresh store and its five maps. The
+  intent: avoid the throwaway LUB allocation at fixpoint when a merge does not change the store.
+  **A/B (deterministic `jdk.ThreadAllocationStatistics` + wall clock; `gen-sized-program.py` and a
+  loop-heavy variant, drift-controlled interleave of prebuilt jars):** allocation **−1.1% to −1.5%**,
+  consistent across sizes and on the loop corpus — real but small. **Wall clock neutral-to-worse**:
+  flat at ≤300 methods, **+4–5% on the loop-heavy 600-method corpus** (master ~59 s → ~62 s,
+  interleaved). **Rejected: the allocation saving is below the wall-clock cost it adds.** The reason is
+  structural and worth recording, because "skip the LUB when nothing changed" looks free but is not:
+    - `CFAbstractStore.equals` already has an **O(1) size fast-path** (compare the five map sizes; the
+      size-only `hashCode` matches) — so merges where the live-variable *set* changed are already
+      rejected for free. The cost the short-circuit pays is the **same-size, different-value** case —
+      the *dominant* case during loop fixpoint convergence, where the variable set is stable while
+      abstract values refine. There `equals` must fall through to `supersetOf` and walk every entry.
+    - On that case the short-circuit does a **double walk**: the failed `equals` walk, then the LUB
+      walk it could not skip. Master does one walk. That extra per-merge walk is the wall-clock
+      regression.
+  **Alternatives explored, both dead ends:**
+    - **`==` instead of `.equals` (reference identity).** Cheaper (a pointer compare, never a walk),
+      but on the same Loop600 interleave allocation came back to **−0.2% (master, within noise)** — the
+      equal stores at merge points are *distinct objects* (content-equal, not reference-equal), so `==`
+      fires almost never and the allocation win vanishes. Wall clock stayed at master. Net: nothing.
+    - **Fold the equality detection into the single LUB walk** (`upperBoundOrPrevious`: track during
+      `upperBound`'s existing entry walk whether the result equals `previous`, and return `previous`
+      when so). This removes the double walk — but `upperBound` still allocates `newStore` at line 1171
+      before it can know the result, so it **loses the allocation saving** and only restores wall-clock
+      parity with master. No net win, added complexity. The two goals are in tension: saving the
+      allocation requires knowing equality *before* building `newStore` (a pre-walk = the short-circuit,
+      with its double-walk tax), while avoiding the double walk requires building `newStore` first.
+      Determining same-size equality *is* a full walk, of the same order as the LUB it would skip.
+  **Revisit only with new evidence on a memory-bound workload.** The whole prize is ~1.4% allocation
+  with no CPU win; on a heap-generous compile that is invisible. It could convert to a real win only
+  under default heap on a many-CU warm-daemon build where GC pressure dominates (the regime where
+  PR #1791's allocation cuts pay off) — measure there before reconsidering, not on single-file
+  allocation totals. See the Short list for the one way to make the same-size `equals` cheap enough
+  (a maintained content hash) and why it was not pursued.
 
 ---
 
@@ -907,6 +1022,18 @@ format: hot method, hypothesis, blockers/open questions.
   `MethodInvocationNode.hashCode` is actually reached. If so, replace with `31 * target.hashCode() +
   arguments.hashCode()` (the field is immutable, so it could be precomputed). Spotted while auditing
   `MethodInvocationNode` during the PR #1788 session; not yet measured.
+- **Maintained content hash on `CFAbstractStore` to make same-size `equals` O(1).** The only way to
+  rescue the rejected equal-store merge short-circuit (see Tried and rejected): the residual cost is
+  the same-size/different-value `supersetOf` walk, which a running content hash — updated incrementally
+  on every `put`/`remove`/`clearValue`/`insertValue` and compared before the walk — could reject in
+  O(1). Blockers, none cheap: (1) it replaces the deliberately-cheap size-only `hashCode` with one that
+  must stay consistent across *all* store mutation sites (the exact mutable-cache-invariant hazard
+  CLAUDE.md flags for `AnnotatedTypeMirror`); (2) on the loop-fixpoint case the store changes every
+  iteration, so the hash is recomputed/invalidated each time and the saving may not materialize; (3)
+  the ceiling is the ~1.4% allocation the short-circuit was already worth — no CPU win. Only worth
+  prototyping if a memory-bound `checknullness` A/B (default heap, warm daemon) first shows that
+  allocation delta converting to wall clock. Spotted June 2026 (PR #1793 review) while auditing why
+  `==`/`.equals` could not make the store short-circuit pay off.
 
 A June 2026 inclusive-time / co-occurrence investigation (looking for
 *architectural* redundancy rather than leaf hot spots, since the leaf profile is
