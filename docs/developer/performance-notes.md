@@ -112,6 +112,22 @@ so small per-call wins paid back substantially.
   (Guava et al.), not just `alltests`, before extending the shared-frozen-return pattern to any further
   cache.** The lesson: a frozen-master *tripwire* that still returns `deepCopy()` is safe (the master is
   never handed out); *returning* the shared frozen value is what creates the reparenting hazard.
+  **Can the flip be salvaged? Three options, with a cost ladder (the answer is "not without copy-on-write"):**
+  (1) *Fix each reparenting site* (the nine copy-on-frozen guards, plus a tenth for this wildcard/type-var
+  bound). Cheap per site, but the obvious construction sites (`BoundsInitializer`, the wildcard visitor)
+  already build fresh, so the frozen child enters through a subtler path; the guarantee needed ("nothing
+  ever reparents a child of a shared frozen master") is a convention, not enforced — Guava found what
+  `alltests` + nine fixes missed, and the next codebase could find an eleventh. Not shippable for ~1%.
+  (2) *Deep guard at the choke point* — `deepCopy()` if **any** node is frozen, not just the root. Complete
+  for the choke-point mutator, but the scan cost scales with the type and frozen children appear whenever a
+  type embeds a cached generic bound (common), so it copies about as often as today and likely erases the
+  ~1% — net-neutral-to-negative; measurement-gated, unpromising. (3) *Copy-on-write ATMs* — a frozen node's
+  mutators return a fresh shallow node instead of throwing, so sharing is safe regardless of who reparents
+  what; the whole bug class disappears. **This is the only complete fix, and it would make all eight caches
+  flippable, not just `elementType` — so its payoff is the combined copy elimination, not ~1%.** It is a
+  separate, measured architectural project (see "the recommended next direction" in the Short list and the
+  copy-on-write notes below), not a patch to this PR. Verdict: keep the flip reverted; pursue the allocation
+  win, if at all, via copy-on-write as its own effort.
 - **Post-mortem: why the immutability allocation win came in at ~1%, not the projected large payoff.** The
   program was motivated by an earlier profile attributing `AnnotatedTypeCopier.visit` ~2% on-CPU self-time
   and **the dominant share of `Object[]` TLAB allocation (~22%)**. A fresh full-`checknullness` trace taken
