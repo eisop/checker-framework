@@ -72,6 +72,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.IdentityHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
@@ -3143,10 +3144,17 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     //
 
     /**
-     * Tests whether the class owner of the passed element is an unannotated class and matches the
-     * pattern specified in the {@code checker.skipUses} property.
+     * Cache for {@link #shouldSkipUses(Element)}. Maps the qualified name of an enclosing class to
+     * whether its uses should be skipped.
+     */
+    private final IdentityHashMap<javax.lang.model.element.Name, Boolean> shouldSkipUsesCache =
+            new IdentityHashMap<>();
+
+    /**
+     * Tests whether the class owner of the passed element matches the pattern specified in the
+     * {@code checker.skipUses} property.
      *
-     * @param element an element
+     * @param element the element
      * @return true iff the enclosing class of element should be skipped
      */
     public final boolean shouldSkipUses(@Nullable Element element) {
@@ -3158,11 +3166,19 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
             throw new BugInCF(
                     "enclosingTypeElement(%s [%s]) => null%n", element, element.getClass());
         }
+        javax.lang.model.element.Name qualifiedName = typeElement.getQualifiedName();
+        Boolean cached = shouldSkipUsesCache.get(qualifiedName);
+        if (cached != null) {
+            return cached;
+        }
+
         @SuppressWarnings("signature:assignment.type.incompatible" // TypeElement.toString():
         // @FullyQualifiedName
         )
         @FullyQualifiedName String name = typeElement.toString();
-        return shouldSkipUses(name);
+        boolean result = shouldSkipUses(name);
+        shouldSkipUsesCache.put(qualifiedName, result);
+        return result;
     }
 
     /**
