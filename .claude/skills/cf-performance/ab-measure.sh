@@ -24,11 +24,17 @@ while getopts "n:l:" opt; do
   case "$opt" in
     n) REPS="$OPTARG" ;;
     l) LABEL="$OPTARG" ;;
-    *) echo "usage: ab-measure.sh [-n REPS] [-l LABEL] <File.java>..." >&2; exit 2 ;;
+    *)
+      echo "usage: ab-measure.sh [-n REPS] [-l LABEL] <File.java>..." >&2
+      exit 2
+      ;;
   esac
 done
 shift $((OPTIND - 1))
-[ "$#" -ge 1 ] || { echo "usage: ab-measure.sh [-n REPS] [-l LABEL] <File.java>..." >&2; exit 2; }
+[ "$#" -ge 1 ] || {
+  echo "usage: ab-measure.sh [-n REPS] [-l LABEL] <File.java>..." >&2
+  exit 2
+}
 
 SKILL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO="$(cd "$SKILL_DIR/../../.." && pwd)"
@@ -37,7 +43,10 @@ ALLOC="$SKILL_DIR/alloc-total.java"
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 
-[ -x "$JAVAC" ] || { echo "no checker/bin/javac at $JAVAC -- run ./gradlew assembleForJavac" >&2; exit 1; }
+[ -x "$JAVAC" ] || {
+  echo "no checker/bin/javac at $JAVAC -- run ./gradlew assembleForJavac" >&2
+  exit 1
+}
 
 median() { python3 -c "import sys; xs=sorted(float(x) for x in sys.argv[1:]); print(f'{xs[len(xs)//2]:.2f}')" "$@"; }
 
@@ -47,9 +56,9 @@ for prog in "$@"; do
   allocs=()
   for _ in $(seq "$REPS"); do
     "$JAVAC" -J-XX:StartFlightRecording=settings=profile,filename="$TMP/r.jfr",dumponexit=true \
-      -processor nullness -d "$TMP/out" "$prog" >/dev/null 2>&1 || true
-    mb="$(java "$ALLOC" "$TMP/r.jfr" 2>/dev/null \
-          | grep -oE '= [0-9.]+ MB' | grep -oE '[0-9.]+' || echo 0)"
+      -processor nullness -d "$TMP/out" "$prog" > /dev/null 2>&1 || true
+    mb="$(java "$ALLOC" "$TMP/r.jfr" 2> /dev/null \
+      | grep -oE '= [0-9.]+ MB' | grep -oE '[0-9.]+' || echo 0)"
     allocs+=("$mb")
   done
   walls=()
