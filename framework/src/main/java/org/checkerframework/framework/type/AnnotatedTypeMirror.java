@@ -2358,10 +2358,22 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
             }
         }
 
+        /**
+         * Returns the upper and lower bounds of this type variable, forcing their lazy
+         * initialization if necessary.
+         *
+         * @return the bounds of this type variable
+         */
         public AnnotatedTypeParameterBounds getBounds() {
             return new AnnotatedTypeParameterBounds(getUpperBound(), getLowerBound());
         }
 
+        /**
+         * Returns the upper and lower bound fields of this type variable directly, without forcing
+         * lazy initialization (the fields may be null).
+         *
+         * @return the bound fields of this type variable
+         */
         public AnnotatedTypeParameterBounds getBoundFields() {
             return new AnnotatedTypeParameterBounds(getUpperBoundField(), getLowerBoundField());
         }
@@ -2695,6 +2707,11 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
             }
         }
 
+        /**
+         * Copies this wildcard's primary annotations onto its extends and super bounds, replacing
+         * any existing annotations in the same hierarchy. Has no effect if this wildcard has no
+         * primary annotations or the bounds are not yet initialized.
+         */
         private void fixupBoundAnnotations() {
             if (!this.getAnnotationsField().isEmpty()) {
                 if (superBound != null) {
