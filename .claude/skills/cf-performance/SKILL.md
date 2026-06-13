@@ -195,6 +195,30 @@ could not resolve. (`-J` forwards the flag to the forked compiler JVM — `check
 is `CheckerMain`, which forks. Use a single source set so there is one compile thread.)
 It measures exactly the checker + javac allocation, independent of GC/JIT scheduling.
 
+`ab-measure.sh` automates this for one build side — it runs each given source file REPS
+times and prints the median allocation **and** median wall (in separate runs, since JFR
+perturbs timing):
+
+```
+git checkout <baseline>  && ./gradlew assembleForJavac && \
+    .claude/skills/cf-performance/ab-measure.sh -l master Big300.java Varargs.java
+git checkout <treatment> && ./gradlew assembleForJavac && \
+    .claude/skills/cf-performance/ab-measure.sh -l branch Big300.java Varargs.java
+```
+
+Two cautions about this deterministic-allocation measurement:
+
+- **A `settings=profile` trace does NOT carry TLAB / `ObjectAllocationSample` events**, so
+  `jfr-analyze.java top`/`alloc` on it report `TLAB events: 0` and attribute nothing. Use
+  these single-`javac` traces only for *magnitude* (`alloc-total.java` reads
+  `ThreadAllocationStatistics`) and self-time; for allocation-*by-class attribution* capture
+  with `record-jfr.sh`'s JFC instead.
+- **It is blind to pure-CPU / traversal wins.** A change that does fewer scans / less work but
+  allocates the same shows up flat here (the shallow-location defaulting shortcut cut scan
+  calls 10% with *flat* allocation). Classify your change first: for an allocation change use
+  this; for a CPU/traversal change measure wall and/or on-CPU `ExecutionSample` counts, or
+  instrument an operation counter (below).
+
 ## Detecting super-linear (quadratic) costs with a size sweep
 
 The all-systems corpus is 267 **tiny** files (1–3 method bodies each): a good
@@ -221,8 +245,10 @@ done
 A curve that is super-linear on master and flattens after the change is the quadratic's
 signature. **Report both ends:** small-N is the realistic per-file cost (typically
 low-single-digit), large-N is worst-case protection (machine-generated / giant
-single-class files). Tune the generator's method body for other mechanisms (deep
-expression nesting, many fields, large `switch`).
+single-class files). The generator's `--shape` flag selects which machinery the body
+stresses (`generic` default, `vararg`, `deep-nesting`, `many-fields`) — e.g. `--shape
+vararg` stresses `AnnotatedExecutableType` copying and is what exposed PR #1798's copier
+vararg-aliasing bug; add a shape there for other mechanisms (large `switch`, etc.).
 
 ## Measuring wall-clock effects (the A/B that decides if a change is worth it)
 
@@ -280,6 +306,51 @@ but cost ≈10% wall clock (far more than its hit-rate delta implied). Cut
   1500-method file — synergy, not additivity. A "not worth it" verdict is not permanent
   across an evolving hot path; the *Tried and rejected* section is a starting point, not a
   closed book.
+- **Measure the *addressable fraction* before building anything that helps only a subset.**
+  If a change only helps when some condition holds (the type is frozen, the consumer is
+  read-only, the default is a top-level location), first count how often that condition is
+  actually true on a real workload — the cheapest possible experiment. Several PR #1798
+  dead-ends died in minutes this way: caching `hashCode` on frozen types (**0%** of
+  `hashCode` calls hit frozen types — all hot hash targets are mutable copies); the
+  shallow-location defaulting shortcut (only **10%** of scans, over cheap types). The recipe:
+  a `static AtomicLong` counter + a JVM shutdown hook that prints to stderr, and a
+  `-Dflag`-gated toggle so you can A/B both variants in *one* build (no rebuild). This is the
+  no-behavior-change cousin of "instrument and simulate" above.
+- **Count ≠ cost (companion to "hit-rate ≠ win").** Reducing the *number* of operations is
+  not a win if the skipped operations are cheap. The shallow defaulting shortcut cut scan
+  *calls* 10% but allocation was flat, because the skipped scans were over cheap `Object`
+  types; the expensive scans (deep `OTHERWISE`/bound traversals over generic types) were
+  untouched. Measure the cost of the work you remove, not its count.
+
+## Removing a defensive copy (the opposite of adding a cache)
+
+Most of this skill is about *adding* a cache to save recomputation. *Removing* a defensive
+copy (e.g. making a cache return a shared immutable value instead of a fresh `deepCopy()`)
+is a distinct kind of work with its own failure mode, learned the hard way in PR #1798.
+
+- **The defensive copy is usually load-bearing — confirm before trying to remove it.** A
+  cache that hands out `deepCopy()` on every hit does so because *consumers mutate the
+  result*. Before returning a shared value instead, find out who mutates it. If consumers
+  mutate, a "boundary flip" (return the shared value, copy-on-mutate at each consumer) only
+  **moves** the copy; it does not remove it. PR #1798 confirmed this four times for
+  `AnnotatedTypeMirror`: defaulting, flow refinement, type-argument inference, and
+  `constructorFromUse` all mutate `getAnnotatedType` results, so every flip relocated the
+  copy. The real win then needs copy-on-write or eliminating the redundant work, not a flip.
+- **Freeze-as-bug-finder.** To enumerate which consumers mutate a value you want to share,
+  make the value reject mutation (a `frozen` flag that throws on the mutators) and run the
+  suite — each crash is a mutating call site, with a stack. Far faster than auditing call
+  sites by hand.
+- **When freezing / an assertion flushes a *cluster* of failures, suspect ONE shared
+  copier/construction bug before concluding the aliasing is pervasive.** PR #1798's ~13-case
+  flush looked like the construction pipeline aliased cached substructure everywhere; it was
+  a single `AnnotatedTypeCopier` bug (it aliased the vararg type instead of copying it, so
+  `deepCopy` was not actually deep). Fixing that one bug made all the freezing green.
+- **A benign latent aliasing bug may have no wrong-result symptom.** That copier bug never
+  produced a wrong diagnostic on master (its only post-copy mutator, defaulting, is
+  idempotent), so no checker-test program demonstrates it without the freeze enforcement; the
+  regression test (`checker/tests/nullness/VarargCacheAliasing.java`) only fails under
+  freezing. A pure correctness fix like this needs a unit test asserting `deepCopy`
+  independence, or it ships together with the enforcement that makes it observable.
 
 ## What to look for
 
