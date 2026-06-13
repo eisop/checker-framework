@@ -112,6 +112,46 @@ Fixed a bug that caused an IndexOutOfBoundsException for lambdas in varargs,
 for type systems that had the Aliasing Checker as a subchecker, like the
 Optional Checker.
 
+Performance: `BaseTypeVisitor.FoundRequired.found` and `.required` are now
+typed as `Object` instead of `String`; their `toString()` returns the
+lazily-formatted annotated-type string. This defers `AnnotatedTypeMirror.toString()`
+(which traverses the type structure and decodes UTF-8 names) until a diagnostic is
+actually emitted, so suppressed errors pay no formatting cost. **API change:**
+callers that read these fields into a `String` variable must call `.toString()`
+explicitly.
+
+Performance: `AnnotationFileParser.annosInPackage`, `annosInType`, and
+`createNameToAnnotationMap` now return
+`IdentityHashMap<javax.lang.model.element.Name, TypeElement>` instead of
+`Map<String, TypeElement>`, keyed by the live `Name` objects from the
+compilation's name table. The same change applies to
+`InsertAjavaAnnotations.FileState.allAnnotations` and the `TypeAnnotationMover`
+constructor parameter. Within one compilation's `Elements` instance, same-content
+names are interned to the same object, so identity comparison is correct and avoids
+UTF-8 decodes on every annotation lookup. **API changes:** callers of the three
+`AnnotationFileParser` methods and the `TypeAnnotationMover` constructor must
+update their declared types from `Map<String, TypeElement>` to
+`IdentityHashMap<Name, TypeElement>`.
+
+Performance: `SourceChecker.shouldSkipUses(Element)` now caches results per
+enclosing-class qualified `Name`, avoiding a repeated `Symbol.toString()` UTF-8
+decode and regex match for every element within the same class. No behavior change.
+
+Performance: `LocalVariableNode.hashCode()` and `equals()` now read the variable
+name as a `Name` directly from the tree instead of going through `getName()` (which
+decodes to `String`). `equals` uses `InternalUtils.sameName`; `hashCode` uses
+`Name.hashCode()` directly (which returns the name-table byte offset — no decode).
+No behavior change.
+
+Performance: `Variable.computeHashCode` and `ProperType.computeHashCode` in the
+type-inference-8 subsystem no longer call `toString()` to compute a hash; they use
+`Name.hashCode()` and `TypeKind` instead. No behavior change.
+
+Together the above changes (PR #1797) reduce `Convert.utf2chars` +
+`Convert.utf2string` self-time from ~2.3% to ~0.89% of a full `checknullness`
+build; wall-clock A/B shows ~5% improvement on `checknullness` (~135 s → ~128 s,
+median of four warm-daemon reps per side).
+
 **Closed issues:**
 
 
