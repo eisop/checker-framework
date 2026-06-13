@@ -68,7 +68,7 @@ def vararg(n: int) -> str:
             f"        List<String> xs{i} = Arrays.asList(s{i}, s{i}, s{i});",
             f"        List<String> ys{i} = Arrays.asList(s{i});",
             f'        String f{i} = String.format("%s %s", s{i}, s{i});',
-            f'        java.lang.reflect.Method mm{i} ='
+            f"        java.lang.reflect.Method mm{i} ="
             f' Big.class.getMethod("m{i}", String.class);',
             "    }",
         ]
@@ -109,10 +109,17 @@ SHAPES = {
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Generate a sized Java program for perf sweeps.")
-    parser.add_argument("n", type=int, help="number of methods (or fields, for many-fields)")
+    parser = argparse.ArgumentParser(
+        description="Generate a sized Java program for perf sweeps."
+    )
     parser.add_argument(
-        "--shape", choices=sorted(SHAPES), default="generic", help="method-body shape to stress"
+        "n", type=int, help="number of methods (or fields, for many-fields)"
+    )
+    parser.add_argument(
+        "--shape",
+        choices=sorted(SHAPES),
+        default="generic",
+        help="method-body shape to stress",
     )
     args = parser.parse_args()
     sys.stdout.write(SHAPES[args.shape](args.n))
