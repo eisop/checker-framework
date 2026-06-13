@@ -288,6 +288,11 @@ public class KeyForAnnotatedTypeFactory
             if (!hasDependentType(declaredMethodType)) {
                 return;
             }
+            // declaredMethodType is viewpoint-adapted in place below, so it must not be a shared
+            // frozen value returned from the elementType cache.
+            if (declaredMethodType.isFrozen()) {
+                declaredMethodType = declaredMethodType.deepCopy();
+            }
 
             StringToJavaExpression stringToJavaExpr;
             stringToJavaExpr =

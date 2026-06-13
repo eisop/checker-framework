@@ -44,6 +44,11 @@ public final class SyntheticArrays {
             Element methodElem, AnnotatedArrayType newReturnType) {
         AnnotatedExecutableType method =
                 (AnnotatedExecutableType) newReturnType.atypeFactory.getAnnotatedType(methodElem);
+        // getAnnotatedType may return a shared frozen value from the elementType cache; this method
+        // mutates the result and the caller mutates it further, so it must be exclusively owned.
+        if (method.isFrozen()) {
+            method = method.deepCopy();
+        }
         method.setReturnType(newReturnType);
         return method;
     }

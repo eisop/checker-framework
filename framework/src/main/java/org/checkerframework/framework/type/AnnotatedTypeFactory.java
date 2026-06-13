@@ -1520,7 +1520,8 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         if (useCache) {
             AnnotatedTypeMirror cached = elementTypeCache.get(elt);
             if (cached != null) {
-                return cached.deepCopy();
+                // Frozen, shared without copying; mutating callers must deepCopy() first.
+                return cached;
             }
         }
         // Annotations explicitly written in the source code,
@@ -2846,6 +2847,9 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             boolean inferTypeArgs) {
         AnnotatedExecutableType memberTypeWithoutOverrides =
                 getAnnotatedType(methodElt); // get unsubstituted type
+        if (memberTypeWithoutOverrides.isFrozen()) {
+            memberTypeWithoutOverrides = memberTypeWithoutOverrides.deepCopy();
+        }
         AnnotatedExecutableType memberTypeWithOverrides =
                 applyFakeOverrides(receiverType, methodElt, memberTypeWithoutOverrides);
         memberTypeWithOverrides = applyRecordTypesToAccessors(methodElt, memberTypeWithOverrides);
@@ -3407,6 +3411,9 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             }
         } else {
             type = getAnnotatedType(TypesUtils.getTypeElement(type.underlyingType));
+            if (type.isFrozen()) {
+                type = type.deepCopy();
+            }
             // Add explicit annotations below.
             type.clearAnnotations();
         }
@@ -3429,6 +3436,9 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
 
         ExecutableElement ctor = TreeUtils.elementFromUse(tree);
         AnnotatedExecutableType con = getAnnotatedType(ctor); // get unsubstituted type
+        if (con.isFrozen()) {
+            con = con.deepCopy();
+        }
         constructorFromUsePreSubstitution(tree, con, inferTypeArgs);
 
         if (tree.getClassBody() != null) {
@@ -3442,6 +3452,9 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             // 5. copy annotations on the return type to `con`.
             ExecutableElement superCtor = TreeUtils.getSuperConstructor(tree);
             AnnotatedExecutableType superCon = getAnnotatedType(superCtor);
+            if (superCon.isFrozen()) {
+                superCon = superCon.deepCopy();
+            }
             constructorFromUsePreSubstitution(tree, superCon, inferTypeArgs);
             superCon =
                     AnnotatedTypes.asMemberOf(types, this, type, superCon.getElement(), superCon);
