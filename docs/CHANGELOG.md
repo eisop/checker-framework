@@ -108,6 +108,13 @@ thread-local map instead of allocating one per copy. Total allocation on large s
 dropped 14-19% (e.g. -19% on a 1500-method class) and about 7% on a many-file corpus; wall clock is
 roughly unchanged, the gain being reduced GC pressure. No user-visible behavior change.
 
+`AnnotatedTypeMirror` has new `freeze()` and `isFrozen()` methods. Freezing a type
+makes it (and every type reachable from it) reject primary-annotation changes,
+throwing `BugInCF` on an attempted mutation; lazy initialization of bounds and type
+arguments is still permitted. This is the first step toward sharing cached types
+without defensive deep copies. The mechanism is not yet used in production, so there
+is no behavior change.
+
 Fixed a bug that caused an IndexOutOfBoundsException for lambdas in varargs,
 for type systems that had the Aliasing Checker as a subchecker, like the
 Optional Checker.
