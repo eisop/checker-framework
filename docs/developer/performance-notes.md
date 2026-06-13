@@ -1821,15 +1821,33 @@ copy. It does not work, because the dominant consumers mutate what they get back
   `applyDefaultsElement` does N full scans, one per `Default` — so a *full* single-pass merge could pay,
   but it is a high-risk refactor of the recursive bound logic with a ~2% ceiling.)
 
-**Where this leaves the program.** The cache-return `deepCopy` is load-bearing because defaulting, flow
-refinement, type-argument inference, and `constructorFromUse` all mutate the returned type. A boundary flip
-just relocates the copy. The allocation win requires one of two larger, measurement-gated changes, neither a
-boundary flip: (1) **copy-on-write** (a frozen node's mutator returns a fresh node sharing unchanged
-children) — but note the dominant consumers (defaulting/flow) rewrite *every* node, so COW mainly helps point
-mutations (inference, single-hierarchy refinement), not the whole-tree re-annotate; or (2) **eliminating the
-redundant re-annotation** itself (Defaulting Phase 2). Prototype + JFR-A/B before flipping anything. Until
-then the immutability program is paused at its shipped foundation (PR #1798), and the higher-leverage perf
-target is CF→javac internals (see the open venues).
+**Where this leaves the program.** A boundary flip *is* achievable — but it relocates the copy to each
+mutating consumer rather than removing it, so the realized win is only the read-only-consumer fraction.
+Two findings refine the earlier "blocked" verdict:
+
+- **The cross-cutting blocker was one latent bug, now fixed (PR #1798): side-effecting equality.**
+  `ValueAnnotatedTypeFactory`'s `arePrimaryAnnosEqual` override normalized its operands by mutating them
+  (`replaceAnnotation`) before comparing. That fired during *every* cache flip (it runs in subtyping/equality,
+  which all cache results flow through). Made non-mutating (compute the canonical annotations, compare without
+  mutating). It is the prerequisite for any flip and a correctness fix on its own.
+- **`classAndMethodTreeCache` flip shipped (PR #1798) — green, but modest.** With the equality fix plus
+  copy-on-frozen at the ~6 mutating consumers it flushed (`getMethodReturnType`, `getSelfType`, the
+  `getAnnotatedType(Tree)` pipeline choke-point, `constructorFromUse`'s enclosing type, and
+  `ValueVisitor.checkOverride`), the flip is green on the full suite. **But deterministic A/B is ~−1% on a
+  method-heavy file and ~0% on realistic code — `classAndMethodTreeCache` is low-volume.** Shipped for
+  GC-relief + to establish the copy-on-frozen consumer-fix pattern.
+- **The high-volume `elementTypeCache` is mutation-dominated, so likely also modest.** Its flip flushed
+  108 events; its dominant consumer is `asMemberOf` (every method call via `methodFromUse`), which mutates the
+  result (poly resolution, substitution, `postAsMemberOf`). Flipping it needs `asMemberOf` to copy-on-frozen
+  on its alias-return paths, which moves the copy back — limiting the win to read-only element-type queries.
+  Not pursued: large fix set, likely-modest win.
+
+So the per-cache lesson: the flip is *mechanically* unblockable (copy-on-frozen at the enumerated mutating
+consumers; the freeze tripwire makes it incrementally safe), but the high-volume caches' hot consumers mutate,
+so the realized win is small. The larger allocation win still needs **copy-on-write** (mutator returns a fresh
+node sharing unchanged children — though the whole-tree re-annotators like defaulting/flow get no benefit) or
+**eliminating redundant re-annotation** (Defaulting Phase 2). Prototype + JFR-A/B before more flips. The
+higher-leverage perf target remains CF→javac internals (see the open venues).
 
 #### Open venues (current — global trace after the smaller-scope `declarationFromElement` scan)
 
@@ -1837,14 +1855,15 @@ A fresh full-`checknullness` trace (11,009 on-CPU samples; javac internals 35.8%
 has a **flat leaf profile (no leaf > ~3%)** — the per-leaf hot spots are mined out. Remaining
 CF-controllable clusters and their state, highest-leverage first:
 
-1. **Immutability program — foundation shipped (PR #1798), allocation win BLOCKED.** The `freeze()`
-   mechanism + the `AnnotatedTypeCopier` vararg-aliasing fix + freezing all eight cache masters shipped
-   in PR #1798 (behavior- and perf-neutral; it enforces the no-mutate-cached-types invariant). But the
-   deep-copy tax it was meant to remove is **load-bearing**: four attempts (PR #1798 session) confirmed
-   the dominant cache consumers mutate the returned type, so dropping the copy needs copy-on-write or
-   eliminating redundant re-annotation, *not* a boundary flip. No longer the "recommended next"; see the
-   narrative ("PR #1798 — load-bearing-copy finding") and Tried and rejected. Re-open only with a
-   copy-on-write prototype, measured.
+1. **Immutability program — foundation + first flip shipped (PR #1798); remaining win small per cache.**
+   Shipped: the `freeze()` mechanism, the `AnnotatedTypeCopier` vararg-aliasing fix, freezing all eight
+   cache masters, the non-mutating-equality fix, and the first boundary flip (`classAndMethodTreeCache`
+   returns the shared frozen value, with copy-on-frozen at its mutating consumers). The flip is **green but
+   ~−1%/~0%** (low-volume cache). The flip technique is mechanically unblockable (copy-on-frozen at the
+   enumerated mutating consumers), but the high-volume caches' dominant consumers mutate (`elementTypeCache`
+   → `asMemberOf`), so their realized win is also likely modest. The larger win needs copy-on-write or
+   eliminating redundant re-annotation, *not* more boundary flips — see the narrative ("Where this leaves
+   the program") and Tried and rejected. Re-open with a copy-on-write prototype, measured.
 2. **Defaulting Phase 2 (tree-path memoization).** Measured 88% `(scope, type)` repeat on the tree path,
    ~9.3 scans/call; per-CU clearing bounds the memory. *Gate on a within-CU-repeat measurement first*,
    and note it carries the same write-back tax that sank the `constructorFromUse` cache (real flat-risk).
