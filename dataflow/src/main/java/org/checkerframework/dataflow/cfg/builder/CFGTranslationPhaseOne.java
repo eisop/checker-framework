@@ -144,6 +144,7 @@ import org.checkerframework.javacutil.AnnotationProvider;
 import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.ElementUtils;
+import org.checkerframework.javacutil.InternalUtils;
 import org.checkerframework.javacutil.SystemUtil;
 import org.checkerframework.javacutil.TreePathUtil;
 import org.checkerframework.javacutil.TreeUtils;
@@ -3438,7 +3439,7 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
             switch (element.getKind()) {
                 case FIELD:
                     // Note that "this"/"super" is a field, but not a field access.
-                    if (element.getSimpleName().contentEquals("this")) {
+                    if (InternalUtils.isThisName(element.getSimpleName())) {
                         node = new ExplicitThisNode(tree);
                     } else {
                         node = new SuperNode(tree);

@@ -46,6 +46,7 @@ import org.checkerframework.framework.util.QualifierKind;
 import org.checkerframework.javacutil.AnnotationBuilder;
 import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.ElementUtils;
+import org.checkerframework.javacutil.InternalUtils;
 import org.checkerframework.javacutil.TreePathUtil;
 import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TypesUtils;
@@ -414,7 +415,7 @@ public abstract class InitializationParentAnnotatedTypeFactory
         Name when = AnnotationUtils.getElementValueClassName(unused, unusedWhenElement);
         for (AnnotationMirror anno : receiverAnnos) {
             Name annoName = ((TypeElement) anno.getAnnotationType().asElement()).getQualifiedName();
-            if (annoName.contentEquals(when)) {
+            if (InternalUtils.sameName(annoName, when)) {
                 return true;
             }
         }

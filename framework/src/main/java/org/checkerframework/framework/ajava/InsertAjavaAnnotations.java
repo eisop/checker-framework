@@ -43,15 +43,15 @@ import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.HashSet;
+import java.util.IdentityHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.StringJoiner;
 
 import javax.lang.model.element.ElementKind;
+import javax.lang.model.element.Name;
 import javax.lang.model.element.PackageElement;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.util.Elements;
@@ -173,7 +173,7 @@ public class InsertAjavaAnnotations {
          * <p>The map is populated from import statements and also when parsing a file that uses the
          * fully qualified name of an annotation it doesn't import.
          */
-        private @MonotonicNonNull Map<String, TypeElement> allAnnotations = null;
+        private @MonotonicNonNull IdentityHashMap<Name, TypeElement> allAnnotations = null;
 
         /** The annotation insertions seen so far. */
         final List<Insertion> insertions = new ArrayList<>();
@@ -437,12 +437,12 @@ public class InsertAjavaAnnotations {
      *     Two entries for each annotation: one for the simple name and another for the
      *     fully-qualified name, with the same value.
      */
-    private Map<String, TypeElement> getImportedAnnotations(CompilationUnit cu) {
+    private IdentityHashMap<Name, TypeElement> getImportedAnnotations(CompilationUnit cu) {
         if (cu.getImports() == null) {
-            return Collections.emptyMap();
+            return new IdentityHashMap<>();
         }
 
-        Map<String, TypeElement> result = new HashMap<>();
+        IdentityHashMap<Name, TypeElement> result = new IdentityHashMap<>();
         for (ImportDeclaration importDecl : cu.getImports()) {
             if (importDecl.isAsterisk()) {
                 @SuppressWarnings("signature" // https://tinyurl.com/cfissue/3094:
@@ -474,7 +474,7 @@ public class InsertAjavaAnnotations {
                 if (importType != null && importType.getKind() == ElementKind.ANNOTATION_TYPE) {
                     TypeElement annoElt = elements.getTypeElement(imported);
                     if (annoElt != null) {
-                        result.put(annoElt.getSimpleName().toString(), annoElt);
+                        result.put(annoElt.getSimpleName(), annoElt);
                     }
                 }
             }

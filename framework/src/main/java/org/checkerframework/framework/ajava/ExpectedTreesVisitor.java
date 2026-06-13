@@ -26,6 +26,7 @@ import com.sun.source.tree.Tree;
 import com.sun.source.tree.VariableTree;
 import com.sun.source.tree.WhileLoopTree;
 
+import org.checkerframework.javacutil.InternalUtils;
 import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TreeUtilsAfterJava11.BindingPatternUtils;
 import org.checkerframework.javacutil.TreeUtilsAfterJava11.SwitchExpressionUtils;
@@ -183,8 +184,8 @@ public class ExpectedTreesVisitor extends TreeScannerWithDefaults {
             MethodInvocationTree invocation = (MethodInvocationTree) tree.getExpression();
             if (invocation.getMethodSelect() instanceof IdentifierTree) {
                 IdentifierTree identifier = (IdentifierTree) invocation.getMethodSelect();
-                if (identifier.getName().contentEquals("this")
-                        || identifier.getName().contentEquals("super")) {
+                if (InternalUtils.isThisName(identifier.getName())
+                        || InternalUtils.isSuperName(identifier.getName())) {
                     trees.remove(tree);
                     trees.remove(identifier);
                 }
@@ -344,7 +345,7 @@ public class ExpectedTreesVisitor extends TreeScannerWithDefaults {
             // Constructors cannot be declared in an anonymous class, so don't add them.
             if (member instanceof MethodTree) {
                 MethodTree methodTree = (MethodTree) member;
-                if (methodTree.getName().contentEquals("<init>")) {
+                if (InternalUtils.isInitName(methodTree.getName())) {
                     continue;
                 }
             }

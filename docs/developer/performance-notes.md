@@ -294,6 +294,63 @@ so small per-call wins paid back substantially.
   javac `Symbol.PackageSymbol`, reads the enclosing package directly from the `owner` field
   instead of calling `Elements#getPackageElement(String)`. Falls back to the original
   string-based lookup for non-javac implementations.
+- **PR #1796** — *Interned-`Name` identity comparison for fixed name literals.* New
+  `InternalUtils` helpers (`isInitName`, `isThisName`, `isSuperName`, `isValueName`,
+  `isJavaLangObjectName`, `isJavaLangEnumName`) compare a javac `Name` against its own
+  table's pre-interned name (`n == n.table.names.init` etc. — uses the *name's own* table, so
+  no cross-context identity assumption) with a `contentEquals` fallback for non-javac
+  `Name`s. Converted the utf2chars-profiled sites — `TreeUtils.isConstructor`/
+  `isEnumSuperCall` (the latter also reordered to check `<init>` before the class name), the
+  `this`/`super` identifier checks in `TreeUtils`,
+  `TypeFromExpressionVisitor.visitIdentifier`/`visitMemberSelect`, `ParamApplier.isReceiver`,
+  `ElementUtils.isObject` — and then the remaining ~25 fixed-literal `contentEquals` sites
+  across dataflow (`CFGTranslationPhaseOne`, `JavaExpression`, `SuperNode`,
+  `ExplicitThisNode`), framework, and the checkers (initialization, interning, nullness,
+  lock, units). Full-build `checknullness` JFR: every converted site left the
+  `Convert.utf2chars`/`utf2string` attribution (was ~30 of 275 utf2* samples ≈ 0.23% of all
+  samples), so the end-to-end effect is real but sub-0.5% — not resolvable in wall clock.
+  Microbenchmark on a byte-backed name table: 12x faster and ~66 B/op allocation removed vs
+  `contentEquals`; neutral on `StringNameTable`. Only names with pre-interned `Names` fields
+  available on JDK 11+ are used (`init`, `_this`, `_super`, `value`, `java_lang_Object`,
+  `java_lang_Enum`); `names.yield` (JDK 13+) was deliberately not used.
+
+  **General `sameName(Name, CharSequence)` with a table-validated static cache (also
+  PR #1796).** For arbitrary (non-pre-interned) target strings, the naive per-call form
+  `n == n.table.fromString(literal)` is a dud — measured (8.2M mixed hit/miss ops): ~12%
+  faster but 28% *more* allocation than `contentEquals` on a byte-backed table (it
+  re-encodes the literal per call), and 1.8x *slower* on `StringNameTable`. A naive static
+  `Map<String, Name>` is unsound in multi-compilation JVMs (the test suite, a language
+  server): a cached `Name` from a previous compilation's table compares `==`-false against
+  content-equal names from the new table. The applied design closes both holes: a single
+  `volatile` holder pinning `(Name.Table, ConcurrentHashMap<String, Name>)` that
+  `sameName` discards whenever it sees a name from a different table — stale answers are
+  impossible, the worst case is a cache rebuild on table switch. Measured: **5.8 ns/op,
+  zero allocation vs `contentEquals`'s 36.8 ns/op + ~66 B/op on byte-backed tables (6.4x)**;
+  on `StringNameTable` 5.7 vs 4.7 ns/op (~neutral). Converted the dynamic-but-bounded-target
+  sites: `AnnotationUtils.getElementValue`'s element-name loops (the **#1 utf2* consumer for
+  the Resource Leak Checker** — 66 of 201 utf2* samples on `checkResourceLeak`, invisible on
+  `checknullness`; hot-site profiles are checker-specific), `AnnotationBuilder.findElement`,
+  `ElementUtils`/`TreeUtils` method/field-name lookups, `JavaExpressionParseUtil` identifier
+  resolution, the stub parser's `findElement` family, and `SetOfTypes.anyOfTheseNames` (via
+  `ElementUtils.getQualifiedName`'s interned cache). Cardinality caveat: each distinct probe
+  string is interned into the compiler's name table and cached for the compilation, so
+  `sameName` is only for bounded target sets (annotation element names, configured method
+  names, source identifiers) — not arbitrary unbounded input.
+
+  **Key environmental facts (verified June 2026):** (1) which `Name.Table` javac uses decides
+  whether `Name.toString()`/`contentEquals` decode UTF-8 per call: byte-backed
+  `SharedNameTable` is the default before JDK 23, `StringNameTable` (decode-free, cached
+  `toString`) since JDK 23. (2) **Gradle passes `-XDuseUnsharedTable` to every forked javac**
+  (verified in a `--debug` compile log), forcing the byte-backed table on *all* JDK versions —
+  so under Gradle (this project's own build, most users' builds) the decode cost is alive on
+  JDK 25/26 too, while plain-javac/Maven runs on JDK 23+ don't have it. Measure name-decode
+  changes with `-XDuseUnsharedTable`, or the A/B silently tests the wrong table. (3) Do NOT
+  compare a `Name` char-by-char (`charAt` loop): base `Name.length()`/`charAt()` call
+  `toString()` per invocation, so that is N+1 decodes instead of `contentEquals`'s one
+  (measured 2.8x slower interpreted, 545 MB extra allocation per 8M ops on JDK 21); the
+  raw-byte APIs (`getUtf8Length`/`getUtf8Bytes`/`map`) are version-specific and *re-encode*
+  on `StringNameTable` (measured 5x slower) — identity against an interned `Name` is the only
+  variant that wins on every table.
 
 ### Annotation-file (stub) parsing
 
@@ -321,6 +378,21 @@ so small per-call wins paid back substantially.
   garbage. Correctness re-verified with `allNullnessTests`, `IndexTest`,
   `SignatureTest`, `NullnessTest`, `InterningTest`, `ValueTest`, and the
   `:checker:test`, `:framework:test`, `:javacutil:test`, `:dataflow:test` suites.
+- **PR #1797 — `IdentityHashMap<Name, TypeElement>` for annotation name maps (June 2026).**
+  The annotation-name lookup maps in `AnnotationFileParser`, `InsertAjavaAnnotations`, and
+  `TypeAnnotationMover` previously used `HashMap<String, TypeElement>`, requiring `Name.toString()`
+  (a UTF-8 decode on byte-backed tables) at every map-build site. Changed to
+  `IdentityHashMap<Name, TypeElement>`: keys are the `Name` objects returned by
+  `getSimpleName()` / `getQualifiedName()` directly, and lookups use `elements.getName(s)` to
+  intern a JavaParser `String` into the same table, guaranteeing identity equality within one
+  compilation. Also removed a redundant `elements.getName(annoElt.getSimpleName())` call in
+  `AnnotationFileParser.getImportedAnnotations` — `getSimpleName()` already returns an interned
+  `Name` from the same table, so the round-trip was a decode-and-re-intern no-op. Safety: all maps
+  are built and consumed within a single compilation's `Elements` instance, so same-table identity
+  holds; the `getAnnotation` fallback (`elements.getTypeElement(fqn)` + `createNameToAnnotationMap`)
+  handles first-encounter FQN annotations and populates both simple-name and FQN entries for future
+  hits.
+
 - **PR #1776** — *Avoid the defensive deep copy in read-only
   `fromElement` consumers.* `AnnotatedTypeFactory.fromElement` returns
   `cached.deepCopy()` on every cache hit so callers may mutate the result; this is
@@ -372,6 +444,15 @@ so small per-call wins paid back substantially.
   gap; `FieldAccess` and similar pay +8 bytes. Peak overhead measured
   at ~128 bytes for a large method, well worth the savings on store-
   comparison hot paths.
+- **PR #1797 — `LocalVariableNode.hashCode`/`equals` avoid `getName()` and `Objects.hash()` (June 2026).**
+  Both methods previously called `getName()`, which calls `Name.toString()` (a UTF-8 decode on
+  byte-backed tables). Changed to read the `Name` directly from the tree
+  (`IdentifierTree.getName()` / `VariableTree.getName()`) for both operations: `equals` uses
+  `InternalUtils.sameName`; `hashCode` calls `name.hashCode()` directly — on `SharedNameTable`
+  this returns the byte-table `index`, which is content-stable via interning, no decode needed.
+  Also removes the `Objects.hash(name)` varargs call, which allocated an `Object[]` per invocation
+  (the varargs antipattern flagged in Applied optimizations → Generic map/lookup patterns).
+
 - **PR #1765** — *`BinaryOperation.hashCode` symmetry fix.* For commutative operations,
   `equals()` ignores operand order; the hash code must match. Replaced the
   order-dependent `Objects.hash(kind, left, right)` with
@@ -678,6 +759,33 @@ mix of perf, clarification, and small correctness fixes:
   the shared `AnnotationMirrorSet.emptySet()` sentinel, avoiding a retained backing
   `ArrayList` per cached element. `QualifierDefaults.shouldBeAnnotated`: hoisted repeated
   `getKind()` calls into a local.
+
+- **PR #1797 — `FoundRequired` lazy type formatting (June 2026).** `BaseTypeVisitor.FoundRequired`
+  previously computed `ATM.toString()`/`toString(true)` eagerly in the constructor, paying full
+  ATM-formatting cost even when the reported error would be suppressed by `@SuppressWarnings` or
+  `-AsuppressWarnings`. Changed `found`/`required` fields from `String` to `Object` with anonymous
+  inner classes whose `toString()` evaluates the ATM format lazily; `shouldPrintVerbose` result is
+  memoized in a `verboseComputed`/`verbose` pair shared across both objects, so it is called at most
+  once regardless of which field is stringified first. Also lazified the concatenated
+  parameter-name prefix string in `checkMethodInvocabilityError`. CF's own sources suppress
+  thousands of warnings, so the deferred cost is often zero. Wall-clock impact is proportional to
+  suppression rate on the profiled workload; on the `checkNullness` build of CF itself the delta
+  is within the noise floor (see A/B note in the name-decoding narrative below).
+- **PR #1797 — `SourceChecker.shouldSkipUses` cache (June 2026).** Previously called
+  `typeElement.toString()` (a `Symbol.toString()` → `Name.toString()` UTF-8 decode) and matched
+  against a compiled regex on every invocation. Added an `IdentityHashMap<Name, Boolean>` cache
+  keyed on `typeElement.getQualifiedName()` (identity-stable within one compilation's name table):
+  first-visit still decodes and matches, but repeat visits for the same enclosing class are O(1).
+  Reduces the `utf2string` attribution to cache-miss-only (4 samples in the post-fix profile).
+- **PR #1797 — `Variable.computeHashCode` and `ProperType.computeHashCode` avoid `toString()` (June 2026).**
+  `Variable.computeHashCode` hashed `elt.getSimpleName().toString()`, decoding the byte-backed `Name`
+  on every hash computation. Changed to `elt.getSimpleName().hashCode()`, which returns the
+  byte-table `index` (content-stable via interning, no decode). `ProperType.computeHashCode` hashed
+  `properType.toString()` — an `ATM.toString()` call on every type-inference cache lookup. Replaced
+  with `TypeKind.hashCode() + 31 * elt.getSimpleName().hashCode()` (element extracted for
+  `DeclaredType` and `TypeVariable`; other kinds hash by kind alone). The new `ProperType` hash is
+  weaker (no package component), but hash collisions only affect map distribution, not correctness
+  (`equals` is unchanged).
 
 ### Correctness fixes adjacent to the perf work
 
@@ -1368,8 +1476,20 @@ not single-leaf. Re-prioritized venues:
   - **Name decoding ~2.3%** (`Convert.utf2chars` 1.43% + `utf2string` 0.86%). The "annotation formatting
     in the hot path" question is *resolved, opposite to the prior guess*: 36% of `utf2chars` is under
     `DefaultAnnotationFormatter.isInvisibleQualified` (22%) + `AnnotationUtils.toStringSimple` (14%) — i.e.
-    `ATM.toString`/`CFAbstractValue.toString` invoked **during type-checking, not the stub parser**. Worth
-    a look for an unguarded `toString`, but small (~0.5%).
+    `ATM.toString`/`CFAbstractValue.toString` invoked **during type-checking, not the stub parser**.
+    *Update (PR #1796):* the name-*comparison* share of this slice is addressed (interned-`Name`
+    identity helpers + `sameName`); what remains is the *formatting/stringification* share — the
+    unguarded `toString` was found (see the eager-error-formatting bullet below), plus
+    `ProperType.computeHashCode` (hashes `toString()`) and `SourceChecker.shouldSkipUses`
+    (`Symbol.toString()` per call for a regex match).
+    *Update (PR #1797, June 2026):* the stringification share is now addressed — `FoundRequired`
+    formatting is lazy, `shouldSkipUses` is cached, `ProperType`/`Variable` hash without
+    `toString()`, `LocalVariableNode.hashCode`/`equals` read `Name` directly, and the annotation
+    name maps use `IdentityHashMap<Name>`. Measured full-build (`./gradlew checknullness`)
+    warm-daemon A/B: branch ~2m10s, master ~2m16–18s (~7s, consistently one-sided but near the
+    5–10s noise floor — as expected for a ~0.9% utf2* share). JFR: `utf2chars` 0.57% +
+    `utf2string` 0.32% = **0.89% combined** (down from the ~2.3% pre-#1796 level); remaining
+    callers are cold stub-parsing paths, diagnostic-only formatting, and first-visit cache misses.
 
   Stale pre-cache attribution kept below for history:
 
@@ -1390,7 +1510,8 @@ not single-leaf. Re-prioritized venues:
   decoding; its nearest-CF callers split between legitimate stub work (`AnnotationFileParser.findElement`)
   and `TreeUtils.isConstructor`/`isEnumSuperCall`. Incremental, not architectural: audit each forcer for
   info it already has (e.g. a `TypeKind` it could read without completing the symbol, or an interned
-  `String` it could compare instead of decoding a `Name`).
+  `String` it could compare instead of decoding a `Name`). *Update: the name-comparison callers named
+  here (`isConstructor`, `isEnumSuperCall`, `findElement`) were addressed by PR #1796.*
 
 - **The defaulting walk is the largest *CF-controlled* leaf cluster — FEASIBILITY MEASURED (June
   2026), verdict: highly memoizable, worth building.** `QualifierDefaults.DefaultApplierElementImpl.scan`
@@ -1518,16 +1639,17 @@ not single-leaf. Re-prioritized venues:
   `getDeclAnnotations`/`isSupportedQualifier` calls per node), not the per-lookup cost. Low value as a
   direct target; better addressed indirectly if the defaulting/CF-into-javac venues reduce node visits.
 
-- **Annotation *formatting* in the hot path — confirm before chasing (likely a non-issue).**
-  `AnnotationUtils.toStringSimple` and `DefaultAnnotationFormatter.isInvisibleQualified` appear under
-  `Convert.utf2chars`, which would be alarming (formatting should only run for diagnostics). But
-  `isInvisibleQualified` is called *only* from `DefaultAnnotationFormatter.formatAnnotationString`
-  (ATM `toString`), and `toStringSimple` from `CFAbstractValue.toString`/`toStringSimple` and the stub
-  parser — and the co-located nearest-CF frame is `AnnotationFileParser.findElement`, i.e. the **stub
-  parser** legitimately decoding/matching annotation names, not type-checking. Before optimizing,
-  confirm with a stack sample whether any `ATM.toString`/`CFAbstractValue.toString` is invoked from a
-  non-diagnostic path (an unguarded message build); if it is only the stub parser, there is nothing to
-  fix here. Sub-0.5% either way — low priority.
+- **Annotation *formatting* in the hot path — APPLIED in PR #1797 (June 2026).** Stack samples on
+  the full `checknullness` build settled the "confirm before chasing" question: 148 samples (~1.1%)
+  contained `AnnotatedTypeMirror.toString`, and the callers were **not** diagnostics-only. The two
+  paths: (1) `BaseTypeVisitor.checkContainsSameToString` — a static `SimpleAnnotatedTypeScanner`
+  whose lambda calls `type.toString()` *and* `type.toString(true)` on **every component of every
+  type** — invoked via `containsSameToString` from `FoundRequired.of` and `shouldPrintVerbose`;
+  (2) `reportCommonAssignmentError`/`reportMethodInvocabilityError`, which built `FoundRequired`
+  (i.e. formatted both full types) **before** `checker.reportError`, so the formatting cost was
+  paid even when the warning was subsequently suppressed. Fix: `FoundRequired.found`/`required`
+  changed from `String` to lazy `Object` wrappers; `shouldPrintVerbose` result memoized. See the
+  Applied optimizations entry above for the measured A/B.
 
 - **CF driving javac internals — the biggest realistic CPU lever (~25% of total).** The
   wall-clock breakdown above attributes ~25% of all time to CF reaching into javac:
@@ -1535,8 +1657,12 @@ not single-leaf. Re-prioritized venues:
   `CFAbstractValue.canBeMissingAnnotations`/`getErased`/`ElementUtils.isTypeElement`),
   `Name`/UTF-8 decoding (`Convert.utf2chars`/`utf2string`, `Utf8NameTable.equals` — every
   time CF compares or stringifies a `Name` that isn't yet decoded/interned), and repeated
-  `TreePath` construction/tree walks. PR #1763 (`getKind()` overrides) and PR #1673
-  (interned-name caching) each chipped at one facet. This is bigger than dataflow + stubs
+  `TreePath` construction/tree walks. PR #1763 (`getKind()` overrides), PR #1673
+  (interned-name caching), PR #1796 (interned-`Name` identity comparison — removed the
+  name-*comparison* share), and PR #1797 (lazy `FoundRequired` formatting, `shouldSkipUses`
+  cache, `ProperType`/`Variable`/`LocalVariableNode` hash fixes, `IdentityHashMap<Name>`
+  annotation maps — removed the stringification share; combined utf2* now **0.89%** on the full
+  `checknullness` build) each chipped at one facet. This is bigger than dataflow + stubs
   + visitor combined and is the highest-leverage remaining CPU target for realistic
   compiles; it is incremental, not architectural — audit the remaining forcers/decoders
   that already have (or could cache) the needed info. Confirmed real, not the
@@ -1590,8 +1716,9 @@ CF-controllable clusters and their state, highest-leverage first:
    the smaller-scope scan; residual is method-subtree scanning. The cheap levers are exhausted (scoping
    tighter than a method has no element; `trees.getTree` and the single-pass map were rejected).
 5. **Small / blocked:** `ElementUtils.qualifiedNameCache` (`synchronizedMap`+`WeakHashMap` lock/expunge,
-   ~0.58%, blocked on a thread-reachability + daemon-memory audit — see Short list above); annotation
-   formatting in the hot path (~0.5%, confirm it is type-checking not the stub parser before chasing).
+   ~0.58%, blocked on a thread-reachability + daemon-memory audit — see Short list above). Annotation
+   formatting in the hot path is now **resolved** (PR #1797 lazy `FoundRequired`); remaining utf2*
+   at 0.89% is cold-path / first-visit-miss only.
 
 ---
 
