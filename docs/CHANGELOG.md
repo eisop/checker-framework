@@ -133,15 +133,6 @@ copy on every hit; the few callers that mutate the result copy it first. This re
 deep copy per cache hit for the read-only majority of callers. No user-visible behavior
 change.
 
-Performance: `getAnnotatedType(Element)` (`elementTypeCache`) now returns the shared
-frozen cached type instead of a deep copy on every hit; the callers that mutate the
-result -- `computeMethodTypeAsMemberOf`, `constructorFromUse`, `AnnotatedTypes.asMemberOf`,
-`SyntheticArrays.replaceReturnType`, `DependentTypesHelper`'s viewpoint adaptation, and
-the stub parser's fake-override handling -- copy it first. This removes a deep copy per
-cache hit for the read-only majority of callers; deterministic allocation drops about 1%
-on generic-call-heavy code and is within measurement noise elsewhere. No user-visible
-behavior change.
-
 Fixed a bug that caused an IndexOutOfBoundsException for lambdas in varargs,
 for type systems that had the Aliasing Checker as a subchecker, like the
 Optional Checker.

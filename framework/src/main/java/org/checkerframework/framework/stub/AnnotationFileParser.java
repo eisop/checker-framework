@@ -2318,10 +2318,6 @@ public class AnnotationFileParser {
             ExecutableElement element, CallableDeclaration<?> decl, TypeElement fakeLocation) {
         // This is a fresh type, which this code may side-effect.
         AnnotatedExecutableType methodType = atypeFactory.getAnnotatedType(element);
-        if (methodType.isFrozen()) {
-            // getAnnotatedType may return a shared frozen value from the elementType cache.
-            methodType = methodType.deepCopy();
-        }
 
         // Here is a hacky solution that does not use the visitor.  It just handles the return type.
         // TODO: Walk the type and the declaration, copying annotations from the declaration to the

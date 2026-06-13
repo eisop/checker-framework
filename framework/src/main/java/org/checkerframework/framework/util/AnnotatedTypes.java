@@ -358,9 +358,6 @@ public class AnnotatedTypes {
             @Nullable AnnotatedTypeMirror t,
             Element elem,
             AnnotatedTypeMirror elemType) {
-        if (elemType.isFrozen()) {
-            elemType = elemType.deepCopy();
-        }
         // asMemberOf is only for fields, variables, and methods!
         // Otherwise, simply use fromElement.
         switch (elem.getKind()) {

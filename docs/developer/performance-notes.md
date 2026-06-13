@@ -85,24 +85,33 @@ so small per-call wins paid back substantially.
   Caches still `deepCopy()` on every hit, so this is **behavior-neutral and measured perf-neutral**
   (deterministic allocation ±0.1% incl. a vararg-heavy workload; `freeze()` below the on-CPU sampling
   threshold). Shipped for the enforced invariant and the bug fix, not a perf number.
-- **PR #1798 (cont.) — `classAndMethodTreeCache` and `elementTypeCache` boundary flips.** The two
-  post-pipeline caches now **return the shared frozen master instead of `deepCopy()`ing on every hit**;
-  the minority of callers that mutate the result copy-on-frozen at the mutation site. The cross-cutting
-  enabler was making `StructuralEqualityComparer.arePrimaryAnnosEqual` non-mutating (the Value Checker's
-  override used to normalize its operands in place, which both prevents comparing a shared immutable type
-  and is a side-effecting equality). Measured incremental win of the `elementTypeCache` flip, deterministic
-  `ThreadAllocationStatistics`, median of 3, **on top of the already-shipped `classAndMethodTreeCache`
-  flip**: **−0.75%** (Big300) / **−0.97%** (Big600) on generic-call-heavy code; **within noise** on
-  non-generic-call-heavy code (the `methodAsMemberOfCache` hit short-circuits before `elementTypeCache` is
-  consulted) and on generic-varargs code (dominated by type-argument inference, which copies regardless).
-  `classAndMethodTreeCache` is similarly ~−1% / noise (low-volume). **Honest verdict: the win is modest
-  (~1% on generic code, noise elsewhere), not the −5.3% an earlier estimate suggested — that number was
-  never reproduced against this baseline.** The copy-on-frozen consumer sites (nine for `elementTypeCache`)
-  are enumerated in the narrative. Still worth shipping for the enforced invariant and the read-only-majority copy elimination,
-  but it is a GC-pressure / groundwork change, not a wall-clock lever. The boundary flip *does* pay (small)
-  once the master is frozen and consumers copy lazily; the earlier blanket "flip does not pay" verdict
-  (Tried and rejected) was specific to the raw *Element* boundary feeding the always-mutating tree pipeline,
-  not the post-defaults `getAnnotatedType(Element)` cache flipped here.
+- **PR #1798 (cont.) — `classAndMethodTreeCache` boundary flip (kept); `elementTypeCache` flip
+  (REVERTED).** The cross-cutting enabler was making `StructuralEqualityComparer.arePrimaryAnnosEqual`
+  non-mutating (the Value Checker's override used to normalize its operands in place, which both prevents
+  comparing a shared immutable type and is a side-effecting equality). Both post-pipeline caches were then
+  flipped to **return the shared frozen master instead of `deepCopy()`ing on every hit**, with the minority
+  of mutating callers copy-on-frozen at the mutation site. Measured win was modest: deterministic
+  `ThreadAllocationStatistics` (median of 3) **−0.75%** (Big300) / **−0.97%** (Big600) on generic-call code,
+  within noise elsewhere — ~1%, not the −5.3% an earlier estimate suggested (never reproduced against this
+  baseline; the copier was already cheap, see the post-mortem above).
+  **The `elementTypeCache` flip was then reverted: a full Guava nullness build (`test-guava.sh`, not covered
+  by `alltests`) crashed with `BugInCF` "Attempted to mutate a frozen AnnotatedTypeMirror with underlying
+  type java.lang.Object".** Root cause: a consumer lifts a *sub-component* of the shared frozen master — an
+  unbounded wildcard's implicit `Object` upper bound, derived from a JDK generic's cached type-parameter
+  bound (`Function<?, K>` with `K extends Comparable`) — into a *fresh, non-frozen* result type;
+  `addComputedTypeAnnotations` then mutates the frozen child. The nine copy-on-frozen guards all copy at the
+  **root** (`if (type.isFrozen()) deepCopy()`), so a non-frozen root holding a frozen child slips through —
+  a hazard the root-level guard cannot catch and that escaped both `alltests` and the nine fixes. This is
+  **structural to returning a shared frozen value**: any path that reparents a child of the shared master is
+  a latent crash, unenumerable short of running every downstream project. For a ~1% win that is not worth
+  it; reverted (commit message references the Guava crash). Regression test:
+  `checker/tests/nullness/ElementTypeCacheWildcardBound.java` (minimized from
+  `com.google.common.collect.SortedLists.binarySearch`). **The `classAndMethodTreeCache` flip is kept** — it
+  is much lower-traffic (class/method declaration trees) and survived the full Guava build and `alltests` —
+  but it carries the same residual embedded-frozen-component risk in principle; **re-run downstream builds
+  (Guava et al.), not just `alltests`, before extending the shared-frozen-return pattern to any further
+  cache.** The lesson: a frozen-master *tripwire* that still returns `deepCopy()` is safe (the master is
+  never handed out); *returning* the shared frozen value is what creates the reparenting hazard.
 - **Post-mortem: why the immutability allocation win came in at ~1%, not the projected large payoff.** The
   program was motivated by an earlier profile attributing `AnnotatedTypeCopier.visit` ~2% on-CPU self-time
   and **the dominant share of `Object[]` TLAB allocation (~22%)**. A fresh full-`checknullness` trace taken
