@@ -306,6 +306,18 @@ but cost ≈10% wall clock (far more than its hit-rate delta implied). Cut
   1500-method file — synergy, not additivity. A "not worth it" verdict is not permanent
   across an evolving hot path; the *Tried and rejected* section is a starting point, not a
   closed book.
+- **Re-trace the current baseline before committing to a multi-PR plan — a logged hotspot may
+  already be gone.** The same traffic-changes-value effect runs in reverse: an optimization
+  named as "the recommended next direction" in `performance-notes.md` can be overtaken by
+  intervening commits. The PR #1798 immutability program was sized off a logged
+  "`AnnotatedTypeCopier` ≈ 2% self-time / ~22% of `Object[]` allocation" figure; a fresh
+  full-`checknullness` trace *at the start of the work* would have shown it was already
+  ~0.76% / ~1.5% — earlier caches (PR #1777), the thread-local copier map, and lazy
+  `visitedNodes` had harvested it — so the boundary flips had little left to remove and came in
+  at ~1%, not the projected large win. Profile **today's** code before planning, not the
+  number in the log. Corollary: **never repeat a prior-session A/B number — re-measure against
+  the current baseline.** A/B deltas do not compose; the −5.3% from one session did not
+  reproduce once an earlier flip had already shipped (the baseline moved under it).
 - **Measure the *addressable fraction* before building anything that helps only a subset.**
   If a change only helps when some condition holds (the type is frozen, the consumer is
   read-only, the default is a top-level location), first count how often that condition is
@@ -321,6 +333,15 @@ but cost ≈10% wall clock (far more than its hit-rate delta implied). Cut
   *calls* 10% but allocation was flat, because the skipped scans were over cheap `Object`
   types; the expensive scans (deep `OTHERWISE`/bound traversals over generic types) were
   untouched. Measure the cost of the work you remove, not its count.
+- **A flat A/B can mean the workload never reached your code — confirm the path is hit.**
+  Before trusting a null result, check the change is actually exercised on that workload. Two
+  PR #1798 A/Bs read flat for exactly this reason: a non-generic-call program showed nothing
+  for the `elementTypeCache` flip because non-generic calls hit `methodAsMemberOfCache`, which
+  short-circuits *before* `elementTypeCache` is consulted; a generic-varargs program was
+  dominated by type-argument inference (which copies regardless), drowning the flip. The cheap
+  guard is a counter on the code you changed — if it never fires, "no effect" is a workload
+  bug, not a verdict on the change. Pair this with picking a workload that *maximizes* traffic
+  through the target (the size-sweep / shape generators exist for this).
 
 ## Removing a defensive copy (the opposite of adding a cache)
 
@@ -328,14 +349,22 @@ Most of this skill is about *adding* a cache to save recomputation. *Removing* a
 copy (e.g. making a cache return a shared immutable value instead of a fresh `deepCopy()`)
 is a distinct kind of work with its own failure mode, learned the hard way in PR #1798.
 
-- **The defensive copy is usually load-bearing — confirm before trying to remove it.** A
-  cache that hands out `deepCopy()` on every hit does so because *consumers mutate the
-  result*. Before returning a shared value instead, find out who mutates it. If consumers
-  mutate, a "boundary flip" (return the shared value, copy-on-mutate at each consumer) only
-  **moves** the copy; it does not remove it. PR #1798 confirmed this four times for
-  `AnnotatedTypeMirror`: defaulting, flow refinement, type-argument inference, and
-  `constructorFromUse` all mutate `getAnnotatedType` results, so every flip relocated the
-  copy. The real win then needs copy-on-write or eliminating the redundant work, not a flip.
+- **A boundary flip pays only if the cache's *hot* consumer is read-only — and you cannot
+  tell that from the freeze flush.** A cache that hands out `deepCopy()` on every hit does so
+  because *some* consumer mutates the result. The question is not *whether* a consumer mutates
+  but whether the **dominant** one does. If the hot consumer rewrites the whole result — the
+  tree pipeline (defaulting + flow refinement + annotators), type-argument inference, or
+  `asSuper` — the flip just **moves** the copy to that consumer and is a wash (PR #1798:
+  `elementCache`-into-the-tree-pipeline, the `methodFromUse`/inference copy-elision, and the
+  `directSupertypesCache`/`AsSuperVisitor` flip all relocated the copy). But if the hot
+  consumers are mostly read-only, the flip removes a real copy: the `elementTypeCache` and
+  `classAndMethodTreeCache` flips shipped this way — though only **~1%**, because by then the
+  copier was already cheap (see "re-trace before planning"). **The trap:** the freeze flush
+  (below) enumerates only the *mutating* consumers — it is structurally blind to the read-only
+  majority, so reasoning "look at all these mutators, the flip won't pay" is survivorship bias.
+  Reasoning from the flush is how I first wrongly called these flips a wash. **Measure the
+  read-only fraction directly** (a counter at the cache-return: how often is the result mutated
+  before the next cache call?), don't infer it from who shows up in the flush.
 - **Freeze-as-bug-finder.** To enumerate which consumers mutate a value you want to share,
   make the value reject mutation (a `frozen` flag that throws on the mutators) and run the
   suite — each crash is a mutating call site, with a stack. Far faster than auditing call
