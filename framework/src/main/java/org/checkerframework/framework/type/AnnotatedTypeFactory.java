@@ -1528,7 +1528,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         AnnotatedTypeMirror type = fromElement(elt);
         addComputedTypeAnnotations(elt, type);
         if (useCache) {
-            elementTypeCache.put(elt, type.deepCopy());
+            elementTypeCache.put(elt, frozenDeepCopy(type));
         }
         return type;
     }
@@ -1605,7 +1605,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
 
         if (shouldCache && (isClassTree || tree instanceof MethodTree)) {
             // Don't cache VARIABLE
-            classAndMethodTreeCache.put(tree, type.deepCopy());
+            classAndMethodTreeCache.put(tree, frozenDeepCopy(type));
         } else {
             // No caching otherwise
         }
@@ -1821,7 +1821,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
                 && !stubTypes.isParsing()
                 && !ajavaTypes.isParsing()
                 && (currentFileAjavaTypes == null || !currentFileAjavaTypes.isParsing())) {
-            elementCache.put(elt, type.deepCopy());
+            elementCache.put(elt, frozenDeepCopy(type));
         }
         return type;
     }
@@ -1907,7 +1907,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         }
 
         if (shouldCache) {
-            fromMemberTreeCache.put(tree, result.deepCopy());
+            fromMemberTreeCache.put(tree, frozenDeepCopy(result));
         }
 
         return result;
@@ -1994,7 +1994,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
                 && !(tree instanceof NewClassTree)
                 && !(tree instanceof NewArrayTree)
                 && !(tree instanceof ConditionalExpressionTree)) {
-            fromExpressionTreeCache.put(tree, result.deepCopy());
+            fromExpressionTreeCache.put(tree, frozenDeepCopy(result));
         }
         return result;
     }
@@ -2022,7 +2022,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         AnnotatedTypeMirror result = TypeFromTree.fromTypeTree(this, tree);
 
         if (shouldCache) {
-            fromTypeTreeCache.put(tree, result.deepCopy());
+            fromTypeTreeCache.put(tree, frozenDeepCopy(result));
         }
         return result;
     }
@@ -2781,7 +2781,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         } else {
             methodType = computeMethodTypeAsMemberOf(tree, methodElt, receiverType, inferTypeArgs);
             if (cacheKey != null) {
-                methodAsMemberOfCache.put(cacheKey, methodType.deepCopy());
+                methodAsMemberOfCache.put(cacheKey, frozenDeepCopy(methodType));
             }
         }
         List<AnnotatedTypeMirror> typeargs = new ArrayList<>(methodElt.getTypeParameters().size());
@@ -3026,7 +3026,11 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         }
         List<AnnotatedDeclaredType> result = SupertypeFinder.directSupertypes(type);
         if (key != null) {
-            directSupertypesCache.put(key, deepCopySupertypes(result));
+            List<AnnotatedDeclaredType> masters = deepCopySupertypes(result);
+            for (int i = 0, n = masters.size(); i < n; ++i) {
+                masters.get(i).freeze();
+            }
+            directSupertypesCache.put(key, masters);
         }
         return Collections.unmodifiableList(result);
     }
@@ -3043,6 +3047,24 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         for (AnnotatedDeclaredType supertype : supertypes) {
             copy.add(supertype.deepCopy());
         }
+        return copy;
+    }
+
+    /**
+     * Returns a frozen deep copy of {@code type}, for use as a cache master. The caches store a
+     * private {@code deepCopy()} of every value and hand out a fresh {@code deepCopy()} on each
+     * hit, so the stored copy is never aliased; freezing it makes it effectively immutable, turning
+     * any latent in-place mutation of a cached type into an immediate {@code BugInCF} rather than
+     * silent corruption of the shared value.
+     *
+     * @param <T> the type of {@code type}
+     * @param type the type to copy and freeze
+     * @return a frozen deep copy of {@code type}
+     */
+    private static <T extends AnnotatedTypeMirror> T frozenDeepCopy(T type) {
+        @SuppressWarnings("unchecked") // deepCopy() preserves the runtime type
+        T copy = (T) type.deepCopy();
+        copy.freeze();
         return copy;
     }
 

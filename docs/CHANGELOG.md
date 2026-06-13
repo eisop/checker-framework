@@ -115,6 +115,14 @@ arguments is still permitted. This is the first step toward sharing cached types
 without defensive deep copies. The mechanism is not yet used in production, so there
 is no behavior change.
 
+Fixed a latent aliasing bug in `AnnotatedTypeCopier`: when copying an executable
+type, the copy shared the original's vararg type instead of copying it, so
+`deepCopy()` did not produce a fully independent type. The annotated-type caches in
+`AnnotatedTypeFactory` now freeze the value they store (the masters), so a future
+in-place mutation of a cached type fails fast with `BugInCF` instead of silently
+corrupting the shared value; the caches still hand out a fresh deep copy on every
+hit, so there is no behavior change.
+
 Fixed a bug that caused an IndexOutOfBoundsException for lambdas in varargs,
 for type systems that had the Aliasing Checker as a subchecker, like the
 Optional Checker.
