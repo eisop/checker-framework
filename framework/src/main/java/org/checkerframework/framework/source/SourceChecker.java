@@ -836,8 +836,20 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      * Returns a list containing this checker name and all checkers it is a part of (that is,
      * checkers that called it).
      *
+     * <p>This list has two uses:
+     *
+     * <ul>
+     *   <li>It determines which {@code @AnnotatedFor} annotations are recognized as covering this
+     *       checker.
+     *   <li>By default, {@link #getSuppressWarningsPrefixes()} includes lower-case prefixes derived
+     *       from all checker names returned by this method. For example, if an override adds the
+     *       name of an abstract parent class that this checker extends, the parent class's
+     *       lower-case checker name is also accepted as a {@code @SuppressWarnings} prefix.
+     * </ul>
+     *
      * @return a list containing this checker name and all checkers it is a part of (that is,
      *     checkers that called it)
+     * @see #getSuppressWarningsPrefixes()
      */
     public List<@FullyQualifiedName String> getUpstreamCheckerNames() {
         if (upstreamCheckerNames == null) {
@@ -3062,7 +3074,13 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      *
      * <p>The collection must not be empty and must not contain only {@link #SUPPRESS_ALL_PREFIX}.
      *
+     * <p>This method is related to {@link #getUpstreamCheckerNames()}. By default, the returned set
+     * includes lower-case prefixes derived from all checker names returned by {@link
+     * #getUpstreamCheckerNames()}, unless this checker class has a {@link SuppressWarningsPrefix}
+     * meta-annotation.
+     *
      * @return non-empty modifiable set of lower-case prefixes for SuppressWarnings strings
+     * @see #getUpstreamCheckerNames()
      */
     public NavigableSet<String> getSuppressWarningsPrefixes() {
         return getStandardSuppressWarningsPrefixes();
@@ -3071,8 +3089,9 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     /**
      * Returns a sorted set of SuppressWarnings prefixes read from the {@link
      * SuppressWarningsPrefix} meta-annotation on the checker class. Or if no {@link
-     * SuppressWarningsPrefix} is used, the checker name is used. {@link #SUPPRESS_ALL_PREFIX} is
-     * also added, at the end, unless {@link #useAllcheckersPrefix} is false.
+     * SuppressWarningsPrefix} is used, prefixes are inferred from the upstream checker names.
+     * {@link #SUPPRESS_ALL_PREFIX} is also added, at the end, unless {@link #useAllcheckersPrefix}
+     * is false.
      *
      * @return a sorted set of SuppressWarnings prefixes
      */
@@ -3090,9 +3109,11 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
             return prefixes;
         }
 
-        // No @SuppressWarningsPrefixes annotation, by default infer key from class name.
-        String defaultPrefix = getDefaultSuppressWarningsPrefix();
-        prefixes.add(defaultPrefix);
+        // No @SuppressWarningsPrefixes annotation, by default infer keys from upstream checker
+        // names.
+        for (String checkerName : getUpstreamCheckerNames()) {
+            prefixes.add(getDefaultSuppressWarningsPrefix(checkerName));
+        }
         return prefixes;
     }
 
@@ -3102,7 +3123,18 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      * @return the default SuppressWarnings prefix for this checker based on the checker name
      */
     private String getDefaultSuppressWarningsPrefix() {
-        String className = this.getClass().getSimpleName();
+        return getDefaultSuppressWarningsPrefix(this.getClass().getSimpleName());
+    }
+
+    /**
+     * Returns the default SuppressWarnings prefix for the given checker name.
+     *
+     * @param checkerName a fully-qualified or simple checker class name
+     * @return the default SuppressWarnings prefix for the given checker name
+     */
+    private static String getDefaultSuppressWarningsPrefix(String checkerName) {
+        int lastDot = checkerName.lastIndexOf('.');
+        String className = lastDot == -1 ? checkerName : checkerName.substring(lastDot + 1);
         int indexOfChecker = className.lastIndexOf("Checker");
         if (indexOfChecker == -1) {
             indexOfChecker = className.lastIndexOf("Subchecker");
