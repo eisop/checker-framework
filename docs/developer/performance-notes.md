@@ -84,9 +84,40 @@ so small per-call wins paid back substantially.
   the copy instead of copying it, so `deepCopy()` of an executable type was not fully independent.
   Caches still `deepCopy()` on every hit, so this is **behavior-neutral and measured perf-neutral**
   (deterministic allocation ±0.1% incl. a vararg-heavy workload; `freeze()` below the on-CPU sampling
-  threshold). Shipped for the enforced invariant and the bug fix, not a perf number; the *allocation*
-  win it was meant to unlock (dropping the copy-on-return) is blocked — see the narrative and Tried and
-  rejected.
+  threshold). Shipped for the enforced invariant and the bug fix, not a perf number.
+- **PR #1798 (cont.) — `classAndMethodTreeCache` and `elementTypeCache` boundary flips.** The two
+  post-pipeline caches now **return the shared frozen master instead of `deepCopy()`ing on every hit**;
+  the minority of callers that mutate the result copy-on-frozen at the mutation site. The cross-cutting
+  enabler was making `StructuralEqualityComparer.arePrimaryAnnosEqual` non-mutating (the Value Checker's
+  override used to normalize its operands in place, which both prevents comparing a shared immutable type
+  and is a side-effecting equality). Measured incremental win of the `elementTypeCache` flip, deterministic
+  `ThreadAllocationStatistics`, median of 3, **on top of the already-shipped `classAndMethodTreeCache`
+  flip**: **−0.75%** (Big300) / **−0.97%** (Big600) on generic-call-heavy code; **within noise** on
+  non-generic-call-heavy code (the `methodAsMemberOfCache` hit short-circuits before `elementTypeCache` is
+  consulted) and on generic-varargs code (dominated by type-argument inference, which copies regardless).
+  `classAndMethodTreeCache` is similarly ~−1% / noise (low-volume). **Honest verdict: the win is modest
+  (~1% on generic code, noise elsewhere), not the −5.3% an earlier estimate suggested — that number was
+  never reproduced against this baseline.** The copy-on-frozen consumer sites (nine for `elementTypeCache`)
+  are enumerated in the narrative. Still worth shipping for the enforced invariant and the read-only-majority copy elimination,
+  but it is a GC-pressure / groundwork change, not a wall-clock lever. The boundary flip *does* pay (small)
+  once the master is frozen and consumers copy lazily; the earlier blanket "flip does not pay" verdict
+  (Tried and rejected) was specific to the raw *Element* boundary feeding the always-mutating tree pipeline,
+  not the post-defaults `getAnnotatedType(Element)` cache flipped here.
+- **Post-mortem: why the immutability allocation win came in at ~1%, not the projected large payoff.** The
+  program was motivated by an earlier profile attributing `AnnotatedTypeCopier.visit` ~2% on-CPU self-time
+  and **the dominant share of `Object[]` TLAB allocation (~22%)**. A fresh full-`checknullness` trace taken
+  *after* this PR (11.8k `ExecutionSample`s, 156 s span) shows that figure is **stale**: `AnnotatedTypeCopier`
+  is now **~0.76% self-time and ~1-1.5% of allocation**. The intervening work — the PR #1777
+  `methodAsMemberOf`/`directSupertypes`/`elementType` caches, the thread-local copier `originalToCopy` map,
+  and lazy `AnnotatedTypeScanner.visitedNodes` — had already harvested most of the copier allocation the
+  immutability program was meant to remove. So by the time the boundary flips landed there was little copier
+  cost left to delete, and the flip removes only the per-hit copy for the read-only-majority of consumers
+  (≈1%). **Lesson: re-trace the current baseline before committing to an architectural plan built on an
+  older profile — an allocation hotspot named in this log may already have been shrunk by later commits.**
+  The current `checknullness` CPU profile is **flat** (hottest leaf `IdentityHashMap.get` at 2.98%, spread
+  across ~10 callers); the largest remaining *addressable* allocation slices are `AnnotatedTypeScanner.markVisited`'s
+  per-scan `IdentityHashMap` (~5% of allocation) and `AnnotationMirrorSet` construction+iteration (~6-10%),
+  each a careful per-item job with low-single-digit wall-clock upside, not a large lever.
 
 ### `AnnotationMirrorSet` and annotation utilities
 
@@ -914,15 +945,28 @@ Bring new evidence before revisiting any of these — a JFR trace on a
 workload not previously considered, or a measurement that contradicts
 the prior finding. A fresh hypothesis is not new evidence.
 
-- **Cache-boundary flips after freezing the masters (PR #1798 session).** With cache masters frozen
-  (PR #1798), the plan was to return the shared frozen instance instead of `deepCopy()`ing on every
-  hit. **Rejected: the cache-return copy is load-bearing.** The dominant consumers mutate the returned
-  type — qualifier defaulting, flow refinement (`DefaultInferredTypesApplier`), the type annotators,
-  `constructorFromUse` (`getAnnotatedType(elt)` then `clearAnnotations`), and type-argument inference
-  (`typeinference8.Resolution.resolveWithLowerBounds` mutates the method type in place). So a flip only
-  **moves** the copy to each consumer; it does not remove it. Tried and reverted: the Element-boundary
-  flip and the `methodFromUse` on-hit copy-elision. Removing the copy needs copy-on-write or eliminating
-  redundant re-annotation, not a flip. Full detail in the value-semantics narrative.
+- **Cache-boundary flips after freezing the masters — PARTIALLY SUPERSEDED (PR #1798).** The first cut
+  rejected boundary flips wholesale: "the cache-return copy is load-bearing; the dominant consumers
+  mutate the returned type, so a flip only moves the copy." **That was survivorship bias from the
+  `BugInCF` flush** — the flush only enumerates the *mutating* consumers, not the read-only majority, so
+  reasoning from it overcounts the cost. A direct measurement of the read-only fraction (65–88% for
+  `getAnnotatedType(Element)`) and a deterministic allocation A/B then showed the **`elementTypeCache`
+  and `classAndMethodTreeCache` flips DO pay (small): ~−1% on generic-call-heavy code, noise elsewhere**
+  (NOT the −5.3% an earlier estimate suggested — never reproduced against the post-flip baseline). Both
+  shipped in PR #1798 (see the foundation section). The lesson stands for three *other* flips that were
+  tried and genuinely do not pay, because their consumer is *always* mutating: (a) the raw **Element
+  boundary feeding the tree pipeline** — `TypeFromExpressionVisitor` → `addComputedTypeAnnotations`
+  (defaulting + flow refinement + annotators) rewrites the whole type every time; (b) the **`methodFromUse`
+  on-hit copy-elision** — type-argument inference (`typeinference8.Resolution.resolveWithLowerBounds`)
+  mutates the method type in place; and (c) the **`directSupertypesCache` flip** — its dominant consumer is
+  `AsSuperVisitor` (the cache exists *because* `asSuper`/`allSupertypes` recompute supertypes constantly),
+  which mutates each returned supertype in place (`copyPrimaryAnnos`, `setUpperBound`, `fixupBoundAnnotations`
+  via `visitDeclared_{Typevar,Wildcard,Intersection}`); flipping it (return the frozen masters, skip the
+  per-hit `deepCopySupertypes`) flushed 60 `BugInCF`s, all in `AsSuperVisitor`, and fixing them would
+  relocate the per-hit copy into `AsSuperVisitor` — fired once per asSuper walk-step, the same frequency —
+  a provable wash. Reverted. Rule of thumb confirmed: **a post-pipeline cache whose hits are mostly
+  read-only pays from a flip; a cache whose hot consumer rewrites the result in place does not — and you
+  can tell which from whether the hot consumer (tree pipeline / inference / asSuper) is in the flush.**
 - **Caching `AnnotatedTypeMirror.hashCode()` on frozen types (PR #1798 session).** The standing idea
   (the hash can't be cached *because* ATMs are mutable) is unblocked for frozen types — but
   instrumentation showed **0.0% of `hashCode()` calls land on frozen types** (every hot hash target is a
