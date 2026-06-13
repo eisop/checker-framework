@@ -1579,7 +1579,9 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         if (shouldCache) {
             AnnotatedTypeMirror cached = classAndMethodTreeCache.get(tree);
             if (cached != null) {
-                return cached.deepCopy();
+                // The cached (post-pipeline) type is frozen and shared without copying; callers
+                // that mutate the result must deepCopy() it first.
+                return cached;
             }
         }
 
@@ -1598,6 +1600,12 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
                             + tree.getKind());
         }
 
+        // The from* result can be a shared frozen cache value (e.g. an expression whose type is a
+        // class/method type served from classAndMethodTreeCache); addComputedTypeAnnotations
+        // mutates the type, so copy it first when frozen.
+        if (type.isFrozen()) {
+            type = type.deepCopy();
+        }
         addComputedTypeAnnotations(tree, type);
         if (tree instanceof TypeCastTree) {
             type = applyCaptureConversion(type);
@@ -3409,6 +3417,11 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         // Get the enclosing type of the constructor, if one exists.
         // this.new InnerClass()
         AnnotatedDeclaredType enclosingType = (AnnotatedDeclaredType) getReceiverType(tree);
+        if (enclosingType != null && enclosingType.isFrozen()) {
+            // getReceiverType may return a shared frozen cache value; it is embedded in `type` and
+            // mutated by addComputedTypeAnnotations below, so copy it first.
+            enclosingType = enclosingType.deepCopy();
+        }
         type.setEnclosingType(enclosingType);
 
         // Add computed annotations to the type.
@@ -3612,6 +3625,11 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     public AnnotatedTypeMirror getMethodReturnType(MethodTree m) {
         AnnotatedExecutableType methodType = getAnnotatedType(m);
         AnnotatedTypeMirror ret = methodType.getReturnType();
+        // getAnnotatedType(m) may be a shared frozen cache value; callers of this method (and its
+        // overrides) mutate the returned type, so hand back a mutable copy in that case.
+        if (ret.isFrozen()) {
+            ret = ret.deepCopy();
+        }
         return ret;
     }
 
