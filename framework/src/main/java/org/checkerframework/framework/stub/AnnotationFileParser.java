@@ -112,6 +112,7 @@ import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
+import javax.lang.model.element.Name;
 import javax.lang.model.element.PackageElement;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
@@ -248,7 +249,7 @@ public class AnnotationFileParser {
      *
      * @see #getImportedAnnotations
      */
-    private Map<String, TypeElement> allAnnotations;
+    private IdentityHashMap<Name, TypeElement> allAnnotations;
 
     /**
      * A list of the fully-qualified names of enum constants and static fields with constant values
@@ -503,7 +504,7 @@ public class AnnotationFileParser {
      * @param packageElement a package
      * @return a map from annotation name to TypeElement
      */
-    public static Map<String, TypeElement> annosInPackage(PackageElement packageElement) {
+    public static IdentityHashMap<Name, TypeElement> annosInPackage(PackageElement packageElement) {
         return createNameToAnnotationMap(
                 ElementFilter.typesIn(packageElement.getEnclosedElements()));
     }
@@ -515,7 +516,7 @@ public class AnnotationFileParser {
      * @param typeElement a type
      * @return a map from annotation name to TypeElement
      */
-    public static Map<String, TypeElement> annosInType(TypeElement typeElement) {
+    public static IdentityHashMap<Name, TypeElement> annosInType(TypeElement typeElement) {
         return createNameToAnnotationMap(ElementFilter.typesIn(typeElement.getEnclosedElements()));
     }
 
@@ -525,13 +526,13 @@ public class AnnotationFileParser {
      * @param typeElements the elements whose annotations to retrieve
      * @return a map from annotation names (both fully-qualified and simple names) to TypeElement
      */
-    public static Map<String, TypeElement> createNameToAnnotationMap(
+    public static IdentityHashMap<Name, TypeElement> createNameToAnnotationMap(
             List<TypeElement> typeElements) {
-        Map<String, TypeElement> result = new HashMap<>();
+        IdentityHashMap<Name, TypeElement> result = new IdentityHashMap<>();
         for (TypeElement typeElm : typeElements) {
             if (typeElm.getKind() == ElementKind.ANNOTATION_TYPE) {
-                putIfAbsent(result, typeElm.getSimpleName().toString(), typeElm);
-                putIfAbsent(result, ElementUtils.getQualifiedName(typeElm), typeElm);
+                putIfAbsent(result, typeElm.getSimpleName(), typeElm);
+                putIfAbsent(result, typeElm.getQualifiedName(), typeElm);
             }
         }
         return result;
@@ -575,8 +576,8 @@ public class AnnotationFileParser {
      *     fully-qualified name, with the same value.
      * @see #allAnnotations
      */
-    private Map<String, TypeElement> getImportedAnnotations() {
-        Map<String, TypeElement> result = new HashMap<>();
+    private IdentityHashMap<Name, TypeElement> getImportedAnnotations() {
+        IdentityHashMap<Name, TypeElement> result = new IdentityHashMap<>();
 
         // TODO: The size can be greater than 1, but this ignores all but the first element.
         assert !stubUnit.getCompilationUnits().isEmpty();
@@ -653,7 +654,7 @@ public class AnnotationFileParser {
                         // Single annotation or nested annotation.
                         TypeElement annoElt = elements.getTypeElement(imported);
                         if (annoElt != null) {
-                            putIfAbsent(result, annoElt.getSimpleName().toString(), annoElt);
+                            putIfAbsent(result, annoElt.getSimpleName(), annoElt);
                             importedTypes.put(annoElt.getSimpleName().toString(), annoElt);
                         } else {
                             stubWarnNotFound(importDecl, "could not load import: " + imported);
@@ -2686,10 +2687,11 @@ public class AnnotationFileParser {
      * @return the AnnotationMirror for the annotation, or null if it cannot be built
      */
     private @Nullable AnnotationMirror getAnnotation(
-            AnnotationExpr annotation, Map<String, TypeElement> allAnnotations) {
+            AnnotationExpr annotation, Map<Name, TypeElement> allAnnotations) {
         @SuppressWarnings("signature") // https://tinyurl.com/cfissue/3094
         @FullyQualifiedName String annoNameFq = annotation.getNameAsString();
-        TypeElement annoTypeElt = allAnnotations.get(annoNameFq);
+        Name annoNameObj = elements.getName(annoNameFq);
+        TypeElement annoTypeElt = allAnnotations.get(annoNameObj);
         if (annoTypeElt == null) {
             // If the annotation was not imported, then #getImportedAnnotations did not add it to
             // the allAnnotations field. This code adds the annotation when it is encountered (i.e.
