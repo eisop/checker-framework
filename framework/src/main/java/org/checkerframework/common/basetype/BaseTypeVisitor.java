@@ -109,6 +109,7 @@ import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.ElementUtils;
+import org.checkerframework.javacutil.InternalUtils;
 import org.checkerframework.javacutil.SwitchExpressionScanner;
 import org.checkerframework.javacutil.SwitchExpressionScanner.FunctionalSwitchExpressionScanner;
 import org.checkerframework.javacutil.SystemUtil;
@@ -1862,7 +1863,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                             issueError = false;
                         break;
                     case PARAMETER:
-                        if (((VariableTree) tree).getName().contentEquals("this")) {
+                        if (InternalUtils.isThisName(((VariableTree) tree).getName())) {
                             if (locations.contains(TypeUseLocation.RECEIVER)) {
                                 issueError = false;
                             }
@@ -2680,8 +2681,8 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         TypeElement annoType = (TypeElement) TreeInfo.symbol((JCTree) tree.getAnnotationType());
 
         Name annoName = annoType.getQualifiedName();
-        if (annoName.contentEquals(DefaultQualifier.class.getName())
-                || annoName.contentEquals(SuppressWarnings.class.getName())) {
+        if (InternalUtils.sameName(annoName, DefaultQualifier.class.getName())
+                || InternalUtils.sameName(annoName, SuppressWarnings.class.getName())) {
             // Skip these two annotations, as we don't care about the arguments to them.
             return null;
         }

@@ -53,6 +53,7 @@ import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedPrimitiv
 import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.ElementUtils;
+import org.checkerframework.javacutil.InternalUtils;
 import org.checkerframework.javacutil.TreePathUtil;
 import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TreeUtilsAfterJava11;
@@ -238,7 +239,7 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
                 // Note that this method should return non-null only for fields of this class, not
                 // fields of any other class, including outer classes.
                 if (!(receiver instanceof IdentifierTree)
-                        || !((IdentifierTree) receiver).getName().contentEquals("this")) {
+                        || !InternalUtils.isThisName(((IdentifierTree) receiver).getName())) {
                     return null;
                 }
             // fallthrough

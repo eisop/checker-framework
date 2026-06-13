@@ -62,6 +62,7 @@ import org.checkerframework.framework.util.JavaParserUtil;
 import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.ElementUtils;
+import org.checkerframework.javacutil.InternalUtils;
 import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TypeSystemError;
 import org.plumelib.util.ArraySet;
@@ -784,7 +785,7 @@ public class WholeProgramInferenceJavaParserStorage
                                 throw new BugInCF(
                                         "Missing getFullyQualifiedName() for " + javaParserClass);
                             }
-                            if ("".contentEquals(tree.getSimpleName())) {
+                            if (InternalUtils.sameName(tree.getSimpleName(), "")) {
                                 @SuppressWarnings(
                                         "signature:assignment" // computed from string concatenation
                                 )
