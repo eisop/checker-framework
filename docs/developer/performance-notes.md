@@ -70,6 +70,24 @@ so small per-call wins paid back substantially.
   `AnnotatedNoType` fall through to the base, where the underlying `getKind()`
   is cheap.
 
+### `AnnotatedTypeMirror` immutability foundation
+
+- **PR #1798** — *`freeze()` mechanism + `AnnotatedTypeCopier` vararg-aliasing fix + frozen cache
+  masters.* The foundation of the value-semantics program (full narrative under "AnnotatedTypeMirror
+  value-semantics program" in Short list). Adds a `frozen` bit to `AnnotatedTypeMirror`, a
+  `checkMutable()` guard on the three primary-annotation sinks (with
+  `AnnotationMirrorSet.makeUnmodifiable()` as a backstop), and a cycle-safe deep `freeze()` that freezes
+  only already-initialized components (lazy getters freeze what they create later). Freezes the master
+  stored at all eight `AnnotatedTypeFactory` caches, so a latent in-place mutation of a cached type now
+  fails fast with `BugInCF` instead of silently corrupting a shared value. Freezing flushed — and the PR
+  fixes — a real `AnnotatedTypeCopier.visitExecutable` bug: it aliased the original's vararg type into
+  the copy instead of copying it, so `deepCopy()` of an executable type was not fully independent.
+  Caches still `deepCopy()` on every hit, so this is **behavior-neutral and measured perf-neutral**
+  (deterministic allocation ±0.1% incl. a vararg-heavy workload; `freeze()` below the on-CPU sampling
+  threshold). Shipped for the enforced invariant and the bug fix, not a perf number; the *allocation*
+  win it was meant to unlock (dropping the copy-on-return) is blocked — see the narrative and Tried and
+  rejected.
+
 ### `AnnotationMirrorSet` and annotation utilities
 
 - **PR #1649** — *Reimplement `AnnotationMirrorSet` using an
@@ -896,6 +914,27 @@ Bring new evidence before revisiting any of these — a JFR trace on a
 workload not previously considered, or a measurement that contradicts
 the prior finding. A fresh hypothesis is not new evidence.
 
+- **Cache-boundary flips after freezing the masters (PR #1798 session).** With cache masters frozen
+  (PR #1798), the plan was to return the shared frozen instance instead of `deepCopy()`ing on every
+  hit. **Rejected: the cache-return copy is load-bearing.** The dominant consumers mutate the returned
+  type — qualifier defaulting, flow refinement (`DefaultInferredTypesApplier`), the type annotators,
+  `constructorFromUse` (`getAnnotatedType(elt)` then `clearAnnotations`), and type-argument inference
+  (`typeinference8.Resolution.resolveWithLowerBounds` mutates the method type in place). So a flip only
+  **moves** the copy to each consumer; it does not remove it. Tried and reverted: the Element-boundary
+  flip and the `methodFromUse` on-hit copy-elision. Removing the copy needs copy-on-write or eliminating
+  redundant re-annotation, not a flip. Full detail in the value-semantics narrative.
+- **Caching `AnnotatedTypeMirror.hashCode()` on frozen types (PR #1798 session).** The standing idea
+  (the hash can't be cached *because* ATMs are mutable) is unblocked for frozen types — but
+  instrumentation showed **0.0% of `hashCode()` calls land on frozen types** (every hot hash target is a
+  mutable working copy, since the caches hand out copies). Worthless in the current architecture, and it
+  would only become useful after a boundary flip that itself does not pay.
+- **Shallow-location defaulting shortcut (PR #1798 session).** Skipping `QualifierDefaults`'s recursive
+  descent for top-level-only locations (FIELD/PARAMETER/RETURN/RECEIVER/RESOURCE_VARIABLE/
+  EXCEPTION_PARAMETER/CONSTRUCTOR_RESULT) is sound and cut scan calls **10.2%**, but those saved scans are
+  over cheap shallow types and **allocation was flat** — negligible. The cost is the deep `OTHERWISE`/
+  bound traversals over generic types; merging those into a single pass is a high-risk refactor with a
+  ~2% ceiling (defaulting is single-digit-% of CPU). Distinct from the deferred Defaulting Phase 2
+  (caching the result); this was the cache-free variant.
 - **`AnnotationMirror → QualifierKind` second-level cache in qualifier hierarchies (June 2026).**
   `NoElementQualifierHierarchy.getQualifierKind(AnnotationMirror)` and the matching method in
   `ElementQualifierHierarchy` already use an `elementToQualifierKind: IdentityHashMap<TypeElement,
@@ -1246,23 +1285,40 @@ Open venues, roughly by tractability:
 
 ### AnnotatedTypeMirror value-semantics program + cache campaign (narrative; June 2026)
 
-This subsection is the **detailed methodology log** for the cache campaign and the (still-open)
-immutability program. Canonical statuses live in the top-level sections; this is the "how we got
-there" record. **Status map:**
+This subsection is the **detailed methodology log** for the cache campaign and the immutability
+program. Canonical statuses live in the top-level sections; this is the "how we got there" record.
+**Status map:**
 - **Shipped** (see Applied optimizations): the `methodAsMemberOf`, `directSupertypes`, and
-  `elementType`/Phase-1 caches (PR #1777); the smaller-scope `declarationFromElement` scan (PR #1780).
+  `elementType`/Phase-1 caches (PR #1777); the smaller-scope `declarationFromElement` scan (PR #1780);
+  the **`freeze()` mechanism + the `AnnotatedTypeCopier` vararg-aliasing fix + freezing all eight
+  cache masters (PR #1798)** — the immutability program's *foundation*, behavior-neutral and
+  perf-neutral.
 - **Tried and rejected** (see that section): `constructorFromUse` cache, poly-deferral,
-  `declarationFromElement` via `trees.getTree`/single-pass-map, shrinking the heavy caches.
-- **Open** (see "Open items" at the end of Short list): the immutability program itself (delete
-  `deepCopy`), and Defaulting Phase 2 (tree-path memoization).
+  `declarationFromElement` via `trees.getTree`/single-pass-map, shrinking the heavy caches; and
+  (PR #1798 session) the **cache-boundary flips** (returning the shared frozen instance instead of a
+  copy — Element boundary, `methodFromUse` copy-elision), **`hashCode` caching on frozen ATMs**, and
+  the **shallow-location defaulting shortcut**.
+- **Open** (see "Open items" at the end of Short list): the immutability *allocation* win (delete
+  `deepCopy`/drop copy-on-return) is **blocked** — see the load-bearing-copy finding below — pending
+  copy-on-write or eliminating redundant re-annotation (Defaulting Phase 2).
 
 Goal of the immutability program: make ATMs effectively immutable / copy-on-write so
 `deepCopy`/`shallowCopy` can be deleted and the cache boundaries stop paying the deep-copy tax
 (`AnnotatedTypeCopier` ~2% self-time + the dominant share of `Object[]` allocation) — and the
-+50–70 MB the shipped caches retain goes away. Staged, each stage `alltests`-gated and JFR-measured;
-full design in the session plan. **This is the recommended next direction** — it is the one lever the
-evidence positively points to (the shipped caches proved valuable *and* proved the deep-copy cost),
-now that the per-leaf profile is flat.
++50–70 MB the shipped caches retain goes away.
+
+**Status after PR #1798: the foundation shipped; the allocation win is blocked, not merely "next".**
+PR #1798 makes a frozen type effectively immutable (a `frozen` bit; `checkMutable()` on the three
+primary-annotation sinks `addAnnotation`/`removeAnnotation`/`clearAnnotations`, with
+`primaryAnnotations.makeUnmodifiable()` as a backstop; a cycle-safe deep `freeze()` that freezes only
+already-initialized components, with the lazy getters freezing components they create later) and
+freezes every cache master, so a latent in-place mutation of a cached type now fails fast with
+`BugInCF` instead of silently corrupting a shared value. The caches still hand out a `deepCopy()` on
+every hit, so it is behavior-neutral and (measured, PR #1798) perf-neutral. **But four independent
+attempts this session showed the cache-return `deepCopy` is load-bearing** — the dominant consumers
+mutate the result, so removing the copy needs a deeper change than a boundary flip. The evidence and
+the dead ends are below; the immutability program is therefore **paused at its foundation**, not the
+"recommended next direction" it was before this session.
 
 **Validation spike (DONE, GO).** A throwaway `methodFromUse` cache (non-generic methods, key
 `(methodElt, structural receiverType, inferTypeArgs)`, copy-on-store/return) on
@@ -1690,18 +1746,111 @@ Investigated and **rejected** this session:
   a single annotation → the singular `add/addMissing/replaceAnnotation` method, never a
   one-element collection.
 
+**PR #1798 — the immutability foundation, and why the allocation win is blocked (June 2026).** This is
+the session that built the `freeze()` mechanism and tried to cash it in for the deep-copy-removal
+allocation win. The foundation shipped; the allocation win did not, and the dead ends are precise and
+worth not re-walking.
+
+*What shipped (PR #1798), behavior- and perf-neutral.* A `frozen` bit on `AnnotatedTypeMirror`;
+`checkMutable()` throwing `BugInCF` on the three primary-annotation sinks
+(`addAnnotation`/`removeAnnotation`/`clearAnnotations` — every other annotation mutator routes through
+them), with `primaryAnnotations.makeUnmodifiable()` as a backstop for the `getAnnotationsField()` and
+`AnnotatedDeclaredTypeNoHierarchy.addAnnotation` paths; a cycle-safe deep `freeze()` (the `frozen` bit
+is the visited marker) that freezes only already-initialized components, with the lazy getters
+freezing components they create after the owner is frozen; and freezing the master stored at all eight
+caches (`elementCache`, `elementTypeCache`, `classAndMethodTreeCache`, `from{Member,Expression,Type}TreeCache`,
+`methodAsMemberOfCache`, `directSupertypesCache`). The caches still `deepCopy()` on every hit, so this
+is behavior-neutral. **Structural setters are deliberately left unguarded** — the corruption vector is
+annotation mutation, and deep `freeze()` already freezes every reachable component's annotations;
+guarding the structural setters would need a raw-setter split of `BoundsInitializer` (the bound setters
+are called on the frozen owner during lazy init) for no safety gain. **A/B (deterministic
+`jdk.ThreadAllocationStatistics`, median of 3, + wall + on-CPU):** allocation **−0.09%** on a 300-method
+generic file and **+0.07%** on a 400-vararg-method file (both within the ~0.15% band); `freeze()` does
+not appear in 1,725 on-CPU samples on a 1500-method compile (<0.06%); wall within noise. The `frozen`
+boolean adds no per-object allocation (it fits existing object padding — total allocation did not move).
+
+*The flush traced to ONE copier bug, not pervasive aliasing.* Freezing the masters initially flushed
+`MethodValInferenceTest` + ~12 `NullnessTest` cases as `BugInCF` ("Attempted to mutate a frozen
+AnnotatedTypeMirror"), which *looked* like the construction pipeline embedding cached substructure
+everywhere. It was a single bug: `AnnotatedTypeCopier.visitExecutable` did
+`copy.setVarargType(original.getVarargType())` — **aliasing** the original's vararg `AnnotatedArrayType`
+into the "copy" instead of copying it, so `deepCopy()` of an executable type was not fully independent
+and shared its whole vararg subtree (`Object[]`/`Class<?>[]`/`LinkOption[]` and everything reachable —
+which is why every flushed underlying type was an array or an array-subtree node). Defaulting then
+mutated that shared subtree. Fixed with `copy.setVarargType((AnnotatedArrayType) visit(original.getVarargType(),
+originalToCopy))` — the `originalToCopy` map returns the already-made parameter copy when the vararg is
+the last parameter (the common case, so the fix is allocation-neutral), else a fresh copy. With that one
+fix, freezing all eight masters is green on the full suite. **Lesson: when freezing flushes a cluster of
+mutations, look for a shared copier/construction bug before assuming pervasive aliasing.**
+
+*The aliasing was benign to results — the only symptom is the freeze crash.* The vararg type is consumed
+read-only (`PropagationTreeAnnotator`, `BaseTypeVisitor`); its only post-copy mutator is qualifier
+defaulting, which is idempotent (`addMissingAnnotation`), so the shared subtree always got the same
+annotations and no wrong diagnostic ever resulted — which is why it was latent and master's suite was
+green. Confirmed three ways on one program (JDK vararg calls `Arrays.asList`/`String.format`/`Class.getMethod`):
+clean on master, `BugInCF` on freeze-without-fix, clean on freeze+fix. Consequence: the regression test
+(`checker/tests/nullness/VarargCacheAliasing.java`, PR #1798) only demonstrates the bug *with* the freeze
+enforcement present; a standalone fix would need a unit test asserting `deepCopy` independence. This is
+also why PR #1798 keeps the fix and the freeze work in one change.
+
+*The load-bearing-copy finding — four attempts, all confirming the cache-return `deepCopy` cannot just be
+dropped.* The whole point of freezing masters was to then return the shared frozen instance and delete the
+copy. It does not work, because the dominant consumers mutate what they get back:
+- **Element-boundary flip** (`getAnnotatedType(Element)` returns the frozen master): flushed
+  `DefaultInferredTypesApplier` (flow refinement, 60), `constructorFromUse` (`type = getAnnotatedType(elt);
+  type.clearAnnotations()`, 25), `CommitmentTypeAnnotator`, `DefaultQualifierPolymorphism`, `ValueTreeAnnotator`,
+  ... The results feed the always-mutating tree pipeline (`visitIdentifier`/`visitMemberSelect`/`asMemberOf`
+  → `addComputedTypeAnnotations`), so fixing each site means a `deepCopy()` *before* the mutation — which
+  **moves** the copy to the consumer, not removes it. The flip saves a copy only for read-only direct
+  consumers, the minority.
+- **`methodFromUse` copy-elision** (skip the on-hit `deepCopy` since `typeVarSubstitutor.substitute` copies
+  again for generic methods): **type-argument inference mutates the method type in place** —
+  `findTypeArguments` → `DefaultTypeArgumentInference.inferTypeArgs` →
+  `typeinference8.Resolution.resolveWithLowerBounds` calls `replaceAnnotations` on a component of `preType`.
+  So the pre-inference copy is load-bearing.
+- **`hashCode` caching on frozen ATMs** (the perf-notes' standing "can't cache because mutable" item):
+  instrumented **0.0% of `hashCode()` calls land on frozen types** (0 of 185k / 370k on the size sweep) —
+  every hot hash target is a mutable working copy, because the caches return copies. Worthless in the
+  current architecture, and doubly blocked (it would need the boundary flip, which itself does not pay).
+- **Shallow-location defaulting shortcut** (skip the recursive descent for the top-level-only locations
+  FIELD/PARAMETER/RETURN/RECEIVER/RESOURCE_VARIABLE/EXCEPTION_PARAMETER/CONSTRUCTOR_RESULT — but NOT
+  LOCAL_VARIABLE, which has a type-variable-use special case): cut scan calls only **10.2%** (586k→527k),
+  and those saved scans are over cheap shallow types (`Object` parameters); **allocation flat**. The
+  expensive defaulting is the deep `OTHERWISE` + bound-location traversals over generic types, which the
+  shortcut does not touch. (Separately measured: `addMissingAnnotation` is **74% no-op**, and
+  `applyDefaultsElement` does N full scans, one per `Default` — so a *full* single-pass merge could pay,
+  but it is a high-risk refactor of the recursive bound logic with a ~2% ceiling.)
+
+**Where this leaves the program.** The cache-return `deepCopy` is load-bearing because defaulting, flow
+refinement, type-argument inference, and `constructorFromUse` all mutate the returned type. A boundary flip
+just relocates the copy. The allocation win requires one of two larger, measurement-gated changes, neither a
+boundary flip: (1) **copy-on-write** (a frozen node's mutator returns a fresh node sharing unchanged
+children) — but note the dominant consumers (defaulting/flow) rewrite *every* node, so COW mainly helps point
+mutations (inference, single-hierarchy refinement), not the whole-tree re-annotate; or (2) **eliminating the
+redundant re-annotation** itself (Defaulting Phase 2). Prototype + JFR-A/B before flipping anything. Until
+then the immutability program is paused at its shipped foundation (PR #1798), and the higher-leverage perf
+target is CF→javac internals (see the open venues).
+
 #### Open venues (current — global trace after the smaller-scope `declarationFromElement` scan)
 
 A fresh full-`checknullness` trace (11,009 on-CPU samples; javac internals 35.8% / type factory 34.6%)
 has a **flat leaf profile (no leaf > ~3%)** — the per-leaf hot spots are mined out. Remaining
 CF-controllable clusters and their state, highest-leverage first:
 
-1. **Immutability program (recommended next).** The deep-copy tax (`AnnotatedTypeCopier` ~2% self-time
-   + dominant `Object[]` allocation share) is what the shipped caches pay and is the +50–70 MB retained
-   heap. The one lever the evidence positively supports; large/staged. See the narrative header above.
+1. **Immutability program — foundation shipped (PR #1798), allocation win BLOCKED.** The `freeze()`
+   mechanism + the `AnnotatedTypeCopier` vararg-aliasing fix + freezing all eight cache masters shipped
+   in PR #1798 (behavior- and perf-neutral; it enforces the no-mutate-cached-types invariant). But the
+   deep-copy tax it was meant to remove is **load-bearing**: four attempts (PR #1798 session) confirmed
+   the dominant cache consumers mutate the returned type, so dropping the copy needs copy-on-write or
+   eliminating redundant re-annotation, *not* a boundary flip. No longer the "recommended next"; see the
+   narrative ("PR #1798 — load-bearing-copy finding") and Tried and rejected. Re-open only with a
+   copy-on-write prototype, measured.
 2. **Defaulting Phase 2 (tree-path memoization).** Measured 88% `(scope, type)` repeat on the tree path,
    ~9.3 scans/call; per-CU clearing bounds the memory. *Gate on a within-CU-repeat measurement first*,
    and note it carries the same write-back tax that sank the `constructorFromUse` cache (real flat-risk).
+   PR #1798 also measured the cheaper cache-free variant (a "shallow-location" shortcut) and found it
+   negligible — see Tried and rejected; the deep `OTHERWISE`/bound traversals are where the cost is, and
+   merging those is the risky part.
 3. **`getPath` / TreePath construction (~3.2%) — largely addressed by PR #1786 + #1788.** 68% of
    `TreePath.<init>` was under `AnnotatedTypeFactory.getPath`'s slow path (uncached
    `TreePath.getPath(root, tree)` scans on cache miss + heuristic failure). PR #1786 caches the
