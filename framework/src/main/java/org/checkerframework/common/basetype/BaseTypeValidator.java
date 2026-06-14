@@ -765,7 +765,10 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
      * UPPER_BOUND.
      *
      * <p>The other two validate methods achieve the same goal but perform checks on different trees
-     * and different type-use locations. See {@link
+     * and different type-use locations. This separation exists because wildcards do not have an
+     * element and determine their locations based on their bounds. By contrast, variables can
+     * automatically infer their type-use location from their ElementKind, and other constructs have
+     * context-dependent locations that must be explicitly provided by the caller. See {@link
      * BaseTypeVisitor#validateVariablesTargetLocation(Tree, AnnotatedTypeMirror)} and {@link
      * BaseTypeVisitor#validateTargetLocation(Tree, AnnotatedTypeMirror, TypeUseLocation)}.
      *

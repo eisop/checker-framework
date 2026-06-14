@@ -1838,8 +1838,12 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      * EXCEPTION_PARAMETER, PARAMETER, RECEIVER and CONSTRUCTOR_RESULT.
      *
      * <p>The other two validate methods achieve the same goal but perform checks on different trees
-     * and different type-use locations. See {@link BaseTypeVisitor#validateTargetLocation(Tree,
-     * AnnotatedTypeMirror, TypeUseLocation)} and {@link
+     * and different type-use locations. This separation exists because variables can automatically
+     * infer their type-use location from their {@link javax.lang.model.element.ElementKind}. By
+     * contrast, other constructs (like method returns or type bounds) have context-dependent
+     * locations that must be explicitly provided by the caller, and wildcards do not have an
+     * element. See {@link BaseTypeVisitor#validateTargetLocation(Tree, AnnotatedTypeMirror,
+     * TypeUseLocation)} and {@link
      * BaseTypeValidator#validateWildCardTargetLocation(AnnotatedTypeMirror.AnnotatedWildcardType,
      * Tree)}.
      *
@@ -1920,7 +1924,10 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      * CONSTRUCTOR_RESULT and RETURN.
      *
      * <p>The other two validate methods achieve the same goal but perform checks on different trees
-     * and different type-use locations. See {@link
+     * and different type-use locations. This separation exists because constructs handled by this
+     * method have context-dependent locations that must be explicitly provided by the caller. By
+     * contrast, variables can automatically infer their type-use location from their ElementKind,
+     * and wildcards do not have an element. See {@link
      * BaseTypeVisitor#validateVariablesTargetLocation(Tree, AnnotatedTypeMirror)} and {@link
      * BaseTypeValidator#validateWildCardTargetLocation(AnnotatedTypeMirror.AnnotatedWildcardType,
      * Tree)}.
