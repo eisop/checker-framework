@@ -127,6 +127,14 @@ public class PropagationTypeAnnotator extends TypeAnnotator {
         }
         markVisited(wildcard, null);
 
+        // visitDeclared already copies annotations from the declaration to synthetic wildcard type
+        // arguments of raw types. If this visitor scans those wildcards' bounds, it may visit a
+        // nested wildcard that is not itself a type argument of the raw parent, so there is no
+        // corresponding type parameter from which to propagate annotations.
+        if (AnnotatedTypes.isTypeArgOfRawType(wildcard)) {
+            return null;
+        }
+
         Element typeParamElement = TypesUtils.wildcardToTypeParam(wildcard.getUnderlyingType());
         if (typeParamElement == null && !parents.isEmpty()) {
             typeParamElement = getTypeParameterElement(wildcard, parents.peekFirst());
