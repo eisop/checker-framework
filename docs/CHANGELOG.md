@@ -179,7 +179,8 @@ median of four warm-daemon reps per side).
 
 **Closed issues:**
 
-eisop#792.
+eisop#433, eisop#792.
+
 
 Version 3.49.5-eisop1 (April 26, 2026)
 --------------------------------------
