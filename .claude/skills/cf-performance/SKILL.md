@@ -195,6 +195,30 @@ could not resolve. (`-J` forwards the flag to the forked compiler JVM — `check
 is `CheckerMain`, which forks. Use a single source set so there is one compile thread.)
 It measures exactly the checker + javac allocation, independent of GC/JIT scheduling.
 
+`ab-measure.sh` automates this for one build side — it runs each given source file REPS
+times and prints the median allocation **and** median wall (in separate runs, since JFR
+perturbs timing):
+
+```
+git checkout <baseline>  && ./gradlew assembleForJavac && \
+    .claude/skills/cf-performance/ab-measure.sh -l master Big300.java Varargs.java
+git checkout <treatment> && ./gradlew assembleForJavac && \
+    .claude/skills/cf-performance/ab-measure.sh -l branch Big300.java Varargs.java
+```
+
+Two cautions about this deterministic-allocation measurement:
+
+- **A `settings=profile` trace does NOT carry TLAB / `ObjectAllocationSample` events**, so
+  `jfr-analyze.java top`/`alloc` on it report `TLAB events: 0` and attribute nothing. Use
+  these single-`javac` traces only for *magnitude* (`alloc-total.java` reads
+  `ThreadAllocationStatistics`) and self-time; for allocation-*by-class attribution* capture
+  with `record-jfr.sh`'s JFC instead.
+- **It is blind to pure-CPU / traversal wins.** A change that does fewer scans / less work but
+  allocates the same shows up flat here (the shallow-location defaulting shortcut cut scan
+  calls 10% with *flat* allocation). Classify your change first: for an allocation change use
+  this; for a CPU/traversal change measure wall and/or on-CPU `ExecutionSample` counts, or
+  instrument an operation counter (below).
+
 ## Detecting super-linear (quadratic) costs with a size sweep
 
 The all-systems corpus is 267 **tiny** files (1–3 method bodies each): a good
@@ -221,8 +245,10 @@ done
 A curve that is super-linear on master and flattens after the change is the quadratic's
 signature. **Report both ends:** small-N is the realistic per-file cost (typically
 low-single-digit), large-N is worst-case protection (machine-generated / giant
-single-class files). Tune the generator's method body for other mechanisms (deep
-expression nesting, many fields, large `switch`).
+single-class files). The generator's `--shape` flag selects which machinery the body
+stresses (`generic` default, `vararg`, `deep-nesting`, `many-fields`) — e.g. `--shape
+vararg` stresses `AnnotatedExecutableType` copying and is what exposed PR #1798's copier
+vararg-aliasing bug; add a shape there for other mechanisms (large `switch`, etc.).
 
 ## Measuring wall-clock effects (the A/B that decides if a change is worth it)
 
@@ -280,6 +306,80 @@ but cost ≈10% wall clock (far more than its hit-rate delta implied). Cut
   1500-method file — synergy, not additivity. A "not worth it" verdict is not permanent
   across an evolving hot path; the *Tried and rejected* section is a starting point, not a
   closed book.
+- **Re-trace the current baseline before committing to a multi-PR plan — a logged hotspot may
+  already be gone.** The same traffic-changes-value effect runs in reverse: an optimization
+  named as "the recommended next direction" in `performance-notes.md` can be overtaken by
+  intervening commits. The PR #1798 immutability program was sized off a logged
+  "`AnnotatedTypeCopier` ≈ 2% self-time / ~22% of `Object[]` allocation" figure; a fresh
+  full-`checknullness` trace *at the start of the work* would have shown it was already
+  ~0.76% / ~1.5% — earlier caches (PR #1777), the thread-local copier map, and lazy
+  `visitedNodes` had harvested it — so the boundary flips had little left to remove and came in
+  at ~1%, not the projected large win. Profile **today's** code before planning, not the
+  number in the log. Corollary: **never repeat a prior-session A/B number — re-measure against
+  the current baseline.** A/B deltas do not compose; the −5.3% from one session did not
+  reproduce once an earlier flip had already shipped (the baseline moved under it).
+- **Measure the *addressable fraction* before building anything that helps only a subset.**
+  If a change only helps when some condition holds (the type is frozen, the consumer is
+  read-only, the default is a top-level location), first count how often that condition is
+  actually true on a real workload — the cheapest possible experiment. Several PR #1798
+  dead-ends died in minutes this way: caching `hashCode` on frozen types (**0%** of
+  `hashCode` calls hit frozen types — all hot hash targets are mutable copies); the
+  shallow-location defaulting shortcut (only **10%** of scans, over cheap types). The recipe:
+  a `static AtomicLong` counter + a JVM shutdown hook that prints to stderr, and a
+  `-Dflag`-gated toggle so you can A/B both variants in *one* build (no rebuild). This is the
+  no-behavior-change cousin of "instrument and simulate" above.
+- **Count ≠ cost (companion to "hit-rate ≠ win").** Reducing the *number* of operations is
+  not a win if the skipped operations are cheap. The shallow defaulting shortcut cut scan
+  *calls* 10% but allocation was flat, because the skipped scans were over cheap `Object`
+  types; the expensive scans (deep `OTHERWISE`/bound traversals over generic types) were
+  untouched. Measure the cost of the work you remove, not its count.
+- **A flat A/B can mean the workload never reached your code — confirm the path is hit.**
+  Before trusting a null result, check the change is actually exercised on that workload. Two
+  PR #1798 A/Bs read flat for exactly this reason: a non-generic-call program showed nothing
+  for the `elementTypeCache` flip because non-generic calls hit `methodAsMemberOfCache`, which
+  short-circuits *before* `elementTypeCache` is consulted; a generic-varargs program was
+  dominated by type-argument inference (which copies regardless), drowning the flip. The cheap
+  guard is a counter on the code you changed — if it never fires, "no effect" is a workload
+  bug, not a verdict on the change. Pair this with picking a workload that *maximizes* traffic
+  through the target (the size-sweep / shape generators exist for this).
+
+## Removing a defensive copy (the opposite of adding a cache)
+
+Most of this skill is about *adding* a cache to save recomputation. *Removing* a defensive
+copy (e.g. making a cache return a shared immutable value instead of a fresh `deepCopy()`)
+is a distinct kind of work with its own failure mode, learned the hard way in PR #1798.
+
+- **A boundary flip pays only if the cache's *hot* consumer is read-only — and you cannot
+  tell that from the freeze flush.** A cache that hands out `deepCopy()` on every hit does so
+  because *some* consumer mutates the result. The question is not *whether* a consumer mutates
+  but whether the **dominant** one does. If the hot consumer rewrites the whole result — the
+  tree pipeline (defaulting + flow refinement + annotators), type-argument inference, or
+  `asSuper` — the flip just **moves** the copy to that consumer and is a wash (PR #1798:
+  `elementCache`-into-the-tree-pipeline, the `methodFromUse`/inference copy-elision, and the
+  `directSupertypesCache`/`AsSuperVisitor` flip all relocated the copy). But if the hot
+  consumers are mostly read-only, the flip removes a real copy: the `elementTypeCache` and
+  `classAndMethodTreeCache` flips shipped this way — though only **~1%**, because by then the
+  copier was already cheap (see "re-trace before planning"). **The trap:** the freeze flush
+  (below) enumerates only the *mutating* consumers — it is structurally blind to the read-only
+  majority, so reasoning "look at all these mutators, the flip won't pay" is survivorship bias.
+  Reasoning from the flush is how I first wrongly called these flips a wash. **Measure the
+  read-only fraction directly** (a counter at the cache-return: how often is the result mutated
+  before the next cache call?), don't infer it from who shows up in the flush.
+- **Freeze-as-bug-finder.** To enumerate which consumers mutate a value you want to share,
+  make the value reject mutation (a `frozen` flag that throws on the mutators) and run the
+  suite — each crash is a mutating call site, with a stack. Far faster than auditing call
+  sites by hand.
+- **When freezing / an assertion flushes a *cluster* of failures, suspect ONE shared
+  copier/construction bug before concluding the aliasing is pervasive.** PR #1798's ~13-case
+  flush looked like the construction pipeline aliased cached substructure everywhere; it was
+  a single `AnnotatedTypeCopier` bug (it aliased the vararg type instead of copying it, so
+  `deepCopy` was not actually deep). Fixing that one bug made all the freezing green.
+- **A benign latent aliasing bug may have no wrong-result symptom.** That copier bug never
+  produced a wrong diagnostic on master (its only post-copy mutator, defaulting, is
+  idempotent), so no checker-test program demonstrates it without the freeze enforcement; the
+  regression test (`checker/tests/nullness/VarargCacheAliasing.java`) only fails under
+  freezing. A pure correctness fix like this needs a unit test asserting `deepCopy`
+  independence, or it ships together with the enforcement that makes it observable.
 
 ## What to look for
 
