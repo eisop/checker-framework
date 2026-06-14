@@ -123,6 +123,7 @@ jobs:
   otherjdks:
     name: ${{ matrix.script }} on JDK ${{ matrix.java.version }}
     runs-on: ubuntu-24.04
+    timeout-minutes: 60
     needs: [sanity, remainder]
     env:
       JAVA_VERSION: ${{ matrix.java.version }}
