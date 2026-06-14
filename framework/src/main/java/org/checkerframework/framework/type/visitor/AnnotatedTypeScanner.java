@@ -169,18 +169,61 @@ public abstract class AnnotatedTypeScanner<R, P> implements AnnotatedTypeVisitor
     }
 
     /**
-     * The default IdentityHashMap max capacity is 32, which causes a resize at 21 elements. Traces
-     * showed that this was frequently reached, resulting in resizes of the map. This higher
-     * expected maximum size should avoid resizes of the visitedNodes map.
+     * The {@code IdentityHashMap} {@code expectedMaxSize} (expected entry count, not a table size)
+     * for the {@code visitedNodes} map and the per-visit maps in {@code AnnotatedTypeCopier} and
+     * {@code EquivalentAtmComboScanner}. A value of 8 makes the first {@link #markVisited} call
+     * allocate a 32-slot {@code Object[]} that holds 10 entries before its first resize. Most scans
+     * visit only 1 to 3 nodes, so the map rarely grows; these per-scan arrays are the framework's
+     * largest transient {@code Object[]} allocation source, so keeping them small reduces GC
+     * pressure.
      */
-    public static final int VISITED_NODES_EXPECTED_MAX_SIZE = 64;
+    public static final int VISITED_NODES_INITIAL_CAPACITY = 8;
 
     /**
-     * To prevent infinite loops. Should only be re-assigned in reset, see note there. No code
-     * should re-assign the field or hold an alias to this object.
+     * Records the types already visited, to prevent infinite loops on recursive types. Lazily
+     * allocated: {@code null} until the first {@link #markVisited}, so scans that touch no
+     * recursive type allocate nothing. Access only through {@link #hasVisited}, {@link
+     * #getVisited}, and {@link #markVisited}; the field is re-assigned only by those (lazy
+     * allocation) and by {@link #reset} (to {@code null}). No code should hold an alias to the map.
      */
-    protected IdentityHashMap<AnnotatedTypeMirror, R> visitedNodes =
-            new IdentityHashMap<>(VISITED_NODES_EXPECTED_MAX_SIZE);
+    private IdentityHashMap<AnnotatedTypeMirror, R> visitedNodes = null;
+
+    /**
+     * Returns true if {@code type} has already been visited (possibly with a {@code null} result).
+     *
+     * @param type the type to look up
+     * @return true if {@code type} has already been visited
+     */
+    protected final boolean hasVisited(AnnotatedTypeMirror type) {
+        return visitedNodes != null && visitedNodes.containsKey(type);
+    }
+
+    /**
+     * Returns the stored result for {@code type}, or {@code null}. A {@code null} return is
+     * ambiguous: it means either "not visited" or "visited with a {@code null} result". When that
+     * distinction matters (a scanner that stores {@code null} as an in-progress sentinel), guard
+     * with {@link #hasVisited} first.
+     *
+     * @param type the type to look up
+     * @return the result stored for {@code type}, or {@code null} if absent or stored as {@code
+     *     null}
+     */
+    protected final R getVisited(AnnotatedTypeMirror type) {
+        return visitedNodes == null ? null : visitedNodes.get(type);
+    }
+
+    /**
+     * Records {@code type} as visited with the given result, allocating the map on first use.
+     *
+     * @param type the type to record as visited
+     * @param result the result to store for {@code type}
+     */
+    protected final void markVisited(AnnotatedTypeMirror type, R result) {
+        if (visitedNodes == null) {
+            visitedNodes = new IdentityHashMap<>(VISITED_NODES_INITIAL_CAPACITY);
+        }
+        visitedNodes.put(type, result);
+    }
 
     /**
      * Reset the scanner to allow reuse of the same instance. Subclasses should override this method
@@ -188,11 +231,9 @@ public abstract class AnnotatedTypeScanner<R, P> implements AnnotatedTypeVisitor
      */
     public void reset() {
         // Instead of re-using the same visitedNodes instance and clear-ing it, profiling showed it
-        // to be more efficient to create a new instance.
+        // to be more efficient to create a new instance, lazily.
         // visitedNodes.clear();
-        if (!visitedNodes.isEmpty()) {
-            visitedNodes = new IdentityHashMap<>(VISITED_NODES_EXPECTED_MAX_SIZE);
-        }
+        visitedNodes = null;
     }
 
     /**
@@ -297,45 +338,45 @@ public abstract class AnnotatedTypeScanner<R, P> implements AnnotatedTypeVisitor
     public R visitDeclared(AnnotatedDeclaredType type, P p) {
         // Only declared types with type arguments might be recursive, so only store those.
         boolean shouldStoreType = !type.getTypeArguments().isEmpty();
-        if (shouldStoreType && visitedNodes.containsKey(type)) {
-            return visitedNodes.get(type);
+        if (shouldStoreType && hasVisited(type)) {
+            return getVisited(type);
         }
         if (shouldStoreType) {
-            visitedNodes.put(type, defaultResult);
+            markVisited(type, defaultResult);
         }
         R r = defaultResult;
         if (type.getEnclosingType() != null) {
             r = scan(type.getEnclosingType(), p);
             if (shouldStoreType) {
-                visitedNodes.put(type, r);
+                markVisited(type, r);
             }
         }
         r = scanAndReduce(type.getTypeArguments(), p, r);
         if (shouldStoreType) {
-            visitedNodes.put(type, r);
+            markVisited(type, r);
         }
         return r;
     }
 
     @Override
     public R visitIntersection(AnnotatedIntersectionType type, P p) {
-        if (visitedNodes.containsKey(type)) {
-            return visitedNodes.get(type);
+        if (hasVisited(type)) {
+            return getVisited(type);
         }
-        visitedNodes.put(type, defaultResult);
+        markVisited(type, defaultResult);
         R r = scan(type.getBounds(), p);
-        visitedNodes.put(type, r);
+        markVisited(type, r);
         return r;
     }
 
     @Override
     public R visitUnion(AnnotatedUnionType type, P p) {
-        if (visitedNodes.containsKey(type)) {
-            return visitedNodes.get(type);
+        if (hasVisited(type)) {
+            return getVisited(type);
         }
-        visitedNodes.put(type, defaultResult);
+        markVisited(type, defaultResult);
         R r = scan(type.getAlternatives(), p);
-        visitedNodes.put(type, r);
+        markVisited(type, r);
         return r;
     }
 
@@ -359,14 +400,14 @@ public abstract class AnnotatedTypeScanner<R, P> implements AnnotatedTypeVisitor
 
     @Override
     public R visitTypeVariable(AnnotatedTypeVariable type, P p) {
-        if (visitedNodes.containsKey(type)) {
-            return visitedNodes.get(type);
+        if (hasVisited(type)) {
+            return getVisited(type);
         }
-        visitedNodes.put(type, defaultResult);
+        markVisited(type, defaultResult);
         R r = scan(type.getLowerBound(), p);
-        visitedNodes.put(type, r);
+        markVisited(type, r);
         r = scanAndReduce(type.getUpperBound(), p, r);
-        visitedNodes.put(type, r);
+        markVisited(type, r);
         return r;
     }
 
@@ -387,14 +428,14 @@ public abstract class AnnotatedTypeScanner<R, P> implements AnnotatedTypeVisitor
 
     @Override
     public R visitWildcard(AnnotatedWildcardType type, P p) {
-        if (visitedNodes.containsKey(type)) {
-            return visitedNodes.get(type);
+        if (hasVisited(type)) {
+            return getVisited(type);
         }
-        visitedNodes.put(type, defaultResult);
+        markVisited(type, defaultResult);
         R r = scan(type.getExtendsBound(), p);
-        visitedNodes.put(type, r);
+        markVisited(type, r);
         r = scanAndReduce(type.getSuperBound(), p, r);
-        visitedNodes.put(type, r);
+        markVisited(type, r);
         return r;
     }
 }

@@ -99,6 +99,20 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
     // Caution: Assumes that a type can have at most one AnnotationMirror for any Annotation type.
     protected final AnnotationMirrorSet primaryAnnotations = new AnnotationMirrorSet();
 
+    /**
+     * True once this type has been frozen by {@link #freeze()}. A frozen type is effectively
+     * immutable: its primary annotations (and those of every type reachable from it) can no longer
+     * be changed. This lets the framework share a single frozen instance (for example, a type
+     * stored in a cache) without defensively copying it. Mutating a frozen type is a bug; the
+     * annotation mutators throw {@link BugInCF} when it is attempted.
+     *
+     * <p>Lazy initialization of structural components (type-variable and wildcard bounds, type
+     * arguments, array component types, executable-type parts) is still permitted on a frozen type;
+     * the freshly created components are frozen as they are produced, so the immutability of the
+     * whole reachable graph is preserved.
+     */
+    private boolean frozen = false;
+
     // /** The explicitly written annotations on this type. */
     // TODO: use this to cache the result once computed? For generic types?
     // protected final AnnotationMirrorSet explicitannotations =
@@ -649,6 +663,7 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
         if (annotation == null) {
             throw new BugInCF("AnnotatedTypeMirror.addAnnotation: null argument.");
         }
+        checkMutable();
         if (atypeFactory.isSupportedQualifier(annotation)) {
             this.primaryAnnotations.add(annotation);
         } else {
@@ -801,6 +816,7 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
      */
     // typetools removePrimaryAnnotation
     public boolean removeAnnotation(AnnotationMirror a) {
+        checkMutable();
         AnnotationMirror anno = AnnotationUtils.getSame(primaryAnnotations, a);
         if (anno != null) {
             return primaryAnnotations.remove(anno);
@@ -875,7 +891,94 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
     /** Removes all primary annotations on this type. */
     // typetools: clearPrimaryAnnotations
     public void clearAnnotations() {
+        checkMutable();
         primaryAnnotations.clear();
+    }
+
+    /**
+     * Throws {@link BugInCF} if this type is {@linkplain #freeze() frozen}. Called by the primary
+     * annotation mutators before they change anything, so that a frozen (shared) type cannot be
+     * corrupted in place. Callers that need to change a frozen type must {@link #deepCopy()} it
+     * first and mutate the copy.
+     */
+    protected final void checkMutable() {
+        if (frozen) {
+            throw new BugInCF(
+                    "Attempted to mutate a frozen AnnotatedTypeMirror with underlying type %s."
+                            + " Call deepCopy() before mutating a type obtained from a cache.",
+                    underlyingType);
+        }
+    }
+
+    /**
+     * Returns true if this type has been {@linkplain #freeze() frozen}.
+     *
+     * @return true if this type is frozen
+     */
+    public final boolean isFrozen() {
+        return frozen;
+    }
+
+    /**
+     * Freezes this type and every type reachable from it that has already been initialized, making
+     * them effectively immutable: subsequent attempts to change their primary annotations throw
+     * {@link BugInCF}. Idempotent.
+     *
+     * <p>This does <em>not</em> force lazy initialization of uninitialized components
+     * (type-variable and wildcard bounds, type arguments, etc.); doing so would be expensive and is
+     * unnecessary. Instead, the lazy getters freeze any component they create while this type is
+     * frozen, so the reachable graph stays fully frozen without eagerly materializing it.
+     *
+     * <p>Cycles (for example a recursive type variable whose bound refers back to itself) terminate
+     * because {@link #frozen} is set before {@link #freezeComponents()} recurses: a re-entry on a
+     * type already being frozen returns immediately.
+     */
+    public final void freeze() {
+        if (frozen) {
+            return;
+        }
+        frozen = true;
+        // Reject any further direct mutation of the annotation set, including via
+        // getAnnotationsField() and the AnnotatedDeclaredTypeNoHierarchy.addAnnotation bypass.
+        primaryAnnotations.makeUnmodifiable();
+        freezeComponents();
+    }
+
+    /**
+     * Freezes the already-initialized structural components of this type (bounds, type arguments,
+     * component types, etc.). Overridden by each composite subclass; the base implementation has no
+     * components to freeze. Only components that have already been initialized are frozen; lazy
+     * getters take care of components created later (see {@link #freeze()}).
+     */
+    void freezeComponents() {
+        // No components in the base class.
+    }
+
+    /**
+     * If this type is frozen, freezes {@code component} (when non-null). Used by lazy getters to
+     * keep the reachable graph frozen when a component is materialized after this type was frozen.
+     *
+     * @param component a structural component of this type, or null
+     */
+    final void freezeLazyComponent(@Nullable AnnotatedTypeMirror component) {
+        if (frozen && component != null) {
+            component.freeze();
+        }
+    }
+
+    /**
+     * If this type is frozen, freezes each element of {@code components} (when non-null). Used by
+     * lazy getters to keep the reachable graph frozen when components are materialized after this
+     * type was frozen.
+     *
+     * @param components structural components of this type, or null
+     */
+    final void freezeLazyComponents(@Nullable List<? extends AnnotatedTypeMirror> components) {
+        if (frozen && components != null) {
+            for (int i = 0, n = components.size(); i < n; ++i) {
+                components.get(i).freeze();
+            }
+        }
     }
 
     @SideEffectFree
@@ -1254,7 +1357,20 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
                     ++i;
                 }
             }
+            freezeLazyComponents(typeArgs);
             return typeArgs;
+        }
+
+        @Override
+        void freezeComponents() {
+            if (enclosingType != null) {
+                enclosingType.freeze();
+            }
+            if (typeArgs != null) {
+                for (int i = 0, n = typeArgs.size(); i < n; ++i) {
+                    typeArgs.get(i).freeze();
+                }
+            }
         }
 
         /**
@@ -1533,6 +1649,7 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
                     }
                     setParameterTypes(Collections.unmodifiableList(newParamTypes));
                 }
+                freezeLazyComponents(paramTypes);
             }
             // No need to copy or wrap; it is an unmodifiable list.
             return paramTypes;
@@ -1642,6 +1759,7 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
                     returnType = createType(aret, atypeFactory, false);
                 }
                 returnTypeComputed = true;
+                freezeLazyComponent(returnType);
             }
             return returnType;
         }
@@ -1691,6 +1809,7 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
                     receiverType = (AnnotatedDeclaredType) type;
                 }
                 receiverTypeComputed = true;
+                freezeLazyComponent(receiverType);
             }
             return receiverType;
         }
@@ -1736,6 +1855,7 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
                     }
                     setThrownTypes(Collections.unmodifiableList(newThrownTypes));
                 }
+                freezeLazyComponents(thrownTypes);
             }
             // No need to copy or wrap; it is an unmodifiable list.
             return thrownTypes;
@@ -1784,9 +1904,33 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
                     }
                     setTypeVariables(Collections.unmodifiableList(newTypeVarTypes));
                 }
+                freezeLazyComponents(typeVarTypes);
             }
             // No need to copy or wrap; it is an unmodifiable list.
             return typeVarTypes;
+        }
+
+        @Override
+        void freezeComponents() {
+            // Freeze only already-computed components; do not force lazy initialization.
+            if (paramTypesComputed) {
+                freezeLazyComponents(paramTypes);
+            }
+            if (varargType != null) {
+                varargType.freeze();
+            }
+            if (receiverTypeComputed && receiverType != null) {
+                receiverType.freeze();
+            }
+            if (returnTypeComputed && returnType != null) {
+                returnType.freeze();
+            }
+            if (thrownTypesComputed) {
+                freezeLazyComponents(thrownTypes);
+            }
+            if (typeVarTypesComputed) {
+                freezeLazyComponents(typeVarTypes);
+            }
         }
 
         @Override
@@ -1931,8 +2075,16 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
                                 ((ArrayType) underlyingType).getComponentType(),
                                 atypeFactory,
                                 false));
+                freezeLazyComponent(componentType);
             }
             return componentType;
+        }
+
+        @Override
+        void freezeComponents() {
+            if (componentType != null) {
+                componentType.freeze();
+            }
         }
 
         @Override
@@ -2117,6 +2269,8 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
             if (lowerBound == null) { // lazy init
                 BoundsInitializer.initializeBounds(this);
                 fixupBoundAnnotations();
+                freezeLazyComponent(lowerBound);
+                freezeLazyComponent(upperBound);
             }
             return lowerBound;
         }
@@ -2188,14 +2342,38 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
             if (upperBound == null) { // lazy init
                 BoundsInitializer.initializeBounds(this);
                 fixupBoundAnnotations();
+                freezeLazyComponent(upperBound);
+                freezeLazyComponent(lowerBound);
             }
             return upperBound;
         }
 
+        @Override
+        void freezeComponents() {
+            if (upperBound != null) {
+                upperBound.freeze();
+            }
+            if (lowerBound != null) {
+                lowerBound.freeze();
+            }
+        }
+
+        /**
+         * Returns the upper and lower bounds of this type variable, forcing their lazy
+         * initialization if necessary.
+         *
+         * @return the bounds of this type variable
+         */
         public AnnotatedTypeParameterBounds getBounds() {
             return new AnnotatedTypeParameterBounds(getUpperBound(), getLowerBound());
         }
 
+        /**
+         * Returns the upper and lower bound fields of this type variable directly, without forcing
+         * lazy initialization (the fields may be null).
+         *
+         * @return the bound fields of this type variable
+         */
         public AnnotatedTypeParameterBounds getBoundFields() {
             return new AnnotatedTypeParameterBounds(getUpperBoundField(), getLowerBoundField());
         }
@@ -2479,6 +2657,8 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
             if (superBound == null) {
                 BoundsInitializer.initializeBounds(this);
                 fixupBoundAnnotations();
+                freezeLazyComponent(superBound);
+                freezeLazyComponent(extendsBound);
             }
             return this.superBound;
         }
@@ -2511,10 +2691,27 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
             if (extendsBound == null) {
                 BoundsInitializer.initializeBounds(this);
                 fixupBoundAnnotations();
+                freezeLazyComponent(extendsBound);
+                freezeLazyComponent(superBound);
             }
             return this.extendsBound;
         }
 
+        @Override
+        void freezeComponents() {
+            if (extendsBound != null) {
+                extendsBound.freeze();
+            }
+            if (superBound != null) {
+                superBound.freeze();
+            }
+        }
+
+        /**
+         * Copies this wildcard's primary annotations onto its extends and super bounds, replacing
+         * any existing annotations in the same hierarchy. Has no effect if this wildcard has no
+         * primary annotations or the bounds are not yet initialized.
+         */
         private void fixupBoundAnnotations() {
             if (!this.getAnnotationsField().isEmpty()) {
                 if (superBound != null) {
@@ -2755,8 +2952,14 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
                                 (TypeMirror bnd) -> createType(bnd, atypeFactory, false), ubounds);
                 bounds = Collections.unmodifiableList(res);
                 fixupBoundAnnotations();
+                freezeLazyComponents(bounds);
             }
             return bounds;
+        }
+
+        @Override
+        void freezeComponents() {
+            freezeLazyComponents(bounds);
         }
 
         /**
@@ -2862,8 +3065,14 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
                                                 createType(alt, atypeFactory, false),
                                 ualts);
                 alternatives = Collections.unmodifiableList(res);
+                freezeLazyComponents(alternatives);
             }
             return alternatives;
+        }
+
+        @Override
+        void freezeComponents() {
+            freezeLazyComponents(alternatives);
         }
     }
 

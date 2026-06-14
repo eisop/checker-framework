@@ -22,7 +22,7 @@ env:
   USE_BAZEL_VERSION: "9.1.1"
   # JDK 27 early-access build; bump when a new EA build is published.
   JDK_EA_MAJOR: "27"
-  JDK_EA_BUILD: "25"
+  JDK_EA_BUILD: "26"
 
 jobs:
   # Basic sanity tests on the primary JDK.
@@ -50,7 +50,7 @@ jobs:
           # Caching handled by gradle/actions/setup-gradle below.
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v6.1.1
+        uses: gradle/actions/setup-gradle@v6.2.0
         with:
           # Allow cache writes on PR runs so subsequent reruns on the same PR
           # restore the previous run's Gradle home instead of rebuilding from
@@ -109,7 +109,7 @@ jobs:
           distribution: 'zulu'
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v6.1.1
+        uses: gradle/actions/setup-gradle@v6.2.0
         with:
           cache-read-only: false
 
@@ -123,6 +123,7 @@ jobs:
   otherjdks:
     name: ${{ matrix.script }} on JDK ${{ matrix.java.version }}
     runs-on: ubuntu-24.04
+    timeout-minutes: 60
     needs: [sanity, remainder]
     env:
       JAVA_VERSION: ${{ matrix.java.version }}
@@ -221,7 +222,7 @@ jobs:
           echo "org.gradle.java.home=$JAVA_HOME_${{ env.PRIMARY_JDK }}_X64" >> ~/.gradle/gradle.properties
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v6.1.1
+        uses: gradle/actions/setup-gradle@v6.2.0
         with:
           cache-read-only: false
 
@@ -271,7 +272,7 @@ jobs:
           distribution: 'zulu'
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v6.1.1
+        uses: gradle/actions/setup-gradle@v6.2.0
         with:
           cache-read-only: false
 

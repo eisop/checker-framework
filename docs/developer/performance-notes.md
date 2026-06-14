@@ -70,6 +70,80 @@ so small per-call wins paid back substantially.
   `AnnotatedNoType` fall through to the base, where the underlying `getKind()`
   is cheap.
 
+### `AnnotatedTypeMirror` immutability foundation
+
+- **PR #1798** — *`freeze()` mechanism + `AnnotatedTypeCopier` vararg-aliasing fix + frozen cache
+  masters.* The foundation of the value-semantics program (full narrative under "AnnotatedTypeMirror
+  value-semantics program" in Short list). Adds a `frozen` bit to `AnnotatedTypeMirror`, a
+  `checkMutable()` guard on the three primary-annotation sinks (with
+  `AnnotationMirrorSet.makeUnmodifiable()` as a backstop), and a cycle-safe deep `freeze()` that freezes
+  only already-initialized components (lazy getters freeze what they create later). Freezes the master
+  stored at all eight `AnnotatedTypeFactory` caches, so a latent in-place mutation of a cached type now
+  fails fast with `BugInCF` instead of silently corrupting a shared value. Freezing flushed — and the PR
+  fixes — a real `AnnotatedTypeCopier.visitExecutable` bug: it aliased the original's vararg type into
+  the copy instead of copying it, so `deepCopy()` of an executable type was not fully independent.
+  Caches still `deepCopy()` on every hit, so this is **behavior-neutral and measured perf-neutral**
+  (deterministic allocation ±0.1% incl. a vararg-heavy workload; `freeze()` below the on-CPU sampling
+  threshold). Shipped for the enforced invariant and the bug fix, not a perf number.
+- **PR #1798 (cont.) — `classAndMethodTreeCache` boundary flip (kept); `elementTypeCache` flip
+  (REVERTED).** The cross-cutting enabler was making `StructuralEqualityComparer.arePrimaryAnnosEqual`
+  non-mutating (the Value Checker's override used to normalize its operands in place, which both prevents
+  comparing a shared immutable type and is a side-effecting equality). Both post-pipeline caches were then
+  flipped to **return the shared frozen master instead of `deepCopy()`ing on every hit**, with the minority
+  of mutating callers copy-on-frozen at the mutation site. Measured win was modest: deterministic
+  `ThreadAllocationStatistics` (median of 3) **−0.75%** (Big300) / **−0.97%** (Big600) on generic-call code,
+  within noise elsewhere — ~1%, not the −5.3% an earlier estimate suggested (never reproduced against this
+  baseline; the copier was already cheap, see the post-mortem above).
+  **The `elementTypeCache` flip was then reverted: a full Guava nullness build (`test-guava.sh`, not covered
+  by `alltests`) crashed with `BugInCF` "Attempted to mutate a frozen AnnotatedTypeMirror with underlying
+  type java.lang.Object".** Root cause: a consumer lifts a *sub-component* of the shared frozen master — an
+  unbounded wildcard's implicit `Object` upper bound, derived from a JDK generic's cached type-parameter
+  bound (`Function<?, K>` with `K extends Comparable`) — into a *fresh, non-frozen* result type;
+  `addComputedTypeAnnotations` then mutates the frozen child. The nine copy-on-frozen guards all copy at the
+  **root** (`if (type.isFrozen()) deepCopy()`), so a non-frozen root holding a frozen child slips through —
+  a hazard the root-level guard cannot catch and that escaped both `alltests` and the nine fixes. This is
+  **structural to returning a shared frozen value**: any path that reparents a child of the shared master is
+  a latent crash, unenumerable short of running every downstream project. For a ~1% win that is not worth
+  it; reverted (commit message references the Guava crash). Regression test:
+  `checker/tests/nullness/ElementTypeCacheWildcardBound.java` (minimized from
+  `com.google.common.collect.SortedLists.binarySearch`). **The `classAndMethodTreeCache` flip is kept** — it
+  is much lower-traffic (class/method declaration trees) and survived the full Guava build and `alltests` —
+  but it carries the same residual embedded-frozen-component risk in principle; **re-run downstream builds
+  (Guava et al.), not just `alltests`, before extending the shared-frozen-return pattern to any further
+  cache.** The lesson: a frozen-master *tripwire* that still returns `deepCopy()` is safe (the master is
+  never handed out); *returning* the shared frozen value is what creates the reparenting hazard.
+  **Can the flip be salvaged? Three options, with a cost ladder (the answer is "not without copy-on-write"):**
+  (1) *Fix each reparenting site* (the nine copy-on-frozen guards, plus a tenth for this wildcard/type-var
+  bound). Cheap per site, but the obvious construction sites (`BoundsInitializer`, the wildcard visitor)
+  already build fresh, so the frozen child enters through a subtler path; the guarantee needed ("nothing
+  ever reparents a child of a shared frozen master") is a convention, not enforced — Guava found what
+  `alltests` + nine fixes missed, and the next codebase could find an eleventh. Not shippable for ~1%.
+  (2) *Deep guard at the choke point* — `deepCopy()` if **any** node is frozen, not just the root. Complete
+  for the choke-point mutator, but the scan cost scales with the type and frozen children appear whenever a
+  type embeds a cached generic bound (common), so it copies about as often as today and likely erases the
+  ~1% — net-neutral-to-negative; measurement-gated, unpromising. (3) *Copy-on-write ATMs* — a frozen node's
+  mutators return a fresh shallow node instead of throwing, so sharing is safe regardless of who reparents
+  what; the whole bug class disappears. **This is the only complete fix, and it would make all eight caches
+  flippable, not just `elementType` — so its payoff is the combined copy elimination, not ~1%.** It is a
+  separate, measured architectural project (see "the recommended next direction" in the Short list and the
+  copy-on-write notes below), not a patch to this PR. Verdict: keep the flip reverted; pursue the allocation
+  win, if at all, via copy-on-write as its own effort.
+- **Post-mortem: why the immutability allocation win came in at ~1%, not the projected large payoff.** The
+  program was motivated by an earlier profile attributing `AnnotatedTypeCopier.visit` ~2% on-CPU self-time
+  and **the dominant share of `Object[]` TLAB allocation (~22%)**. A fresh full-`checknullness` trace taken
+  *after* this PR (11.8k `ExecutionSample`s, 156 s span) shows that figure is **stale**: `AnnotatedTypeCopier`
+  is now **~0.76% self-time and ~1-1.5% of allocation**. The intervening work — the PR #1777
+  `methodAsMemberOf`/`directSupertypes`/`elementType` caches, the thread-local copier `originalToCopy` map,
+  and lazy `AnnotatedTypeScanner.visitedNodes` — had already harvested most of the copier allocation the
+  immutability program was meant to remove. So by the time the boundary flips landed there was little copier
+  cost left to delete, and the flip removes only the per-hit copy for the read-only-majority of consumers
+  (≈1%). **Lesson: re-trace the current baseline before committing to an architectural plan built on an
+  older profile — an allocation hotspot named in this log may already have been shrunk by later commits.**
+  The current `checknullness` CPU profile is **flat** (hottest leaf `IdentityHashMap.get` at 2.98%, spread
+  across ~10 callers); the largest remaining *addressable* allocation slices are `AnnotatedTypeScanner.markVisited`'s
+  per-scan `IdentityHashMap` (~5% of allocation) and `AnnotationMirrorSet` construction+iteration (~6-10%),
+  each a careful per-item job with low-single-digit wall-clock upside, not a large lever.
+
 ### `AnnotationMirrorSet` and annotation utilities
 
 - **PR #1649** — *Reimplement `AnnotationMirrorSet` using an
@@ -105,6 +179,23 @@ so small per-call wins paid back substantially.
   allocation path and CPU self-time were unchanged. `CFAbstractValue.validateSet`
   was deliberately left alone: it runs only under `assert`, so its iterator
   allocation never occurs in production (`-da`) runs.
+- **PR #1790 — index-based `AnnotationMirrorSet` iterator (June 2026).** PR #1776 converted the
+  heaviest *direct* callers to `get(int)` loops, but the remaining `for`-each / `forEach` callers
+  (`AnnotationUtils.areSame`/`getSame`, dependent-types and inference lambdas, ...) still went through
+  `iterator()`, which was the single largest surviving `ArrayList$Itr` source (57% of it on the
+  all-systems corpus). `iterator()` allocated the backing `ArrayList`'s own iterator *and*, for an
+  unmodifiable set, wrapped it in a `ReadOnlyIter` — two allocations per traversal. `ReadOnlyIter` now
+  walks the backing list by index (`get(i)`/`size()`) instead of wrapping an iterator, so the
+  unmodifiable case (the common one) no longer allocates the `ArrayList$Itr` at all — the wrapper was
+  already being allocated, so this is pure waste removed, and it fixes *every* caller (including
+  lambdas) in one place with no caller churn. A **mutable** set still returns the backing iterator, on
+  purpose: that preserves `remove()` and concurrent-modification detection, which a bare index walk
+  cannot. Measured: `ArrayList$Itr` **5.39% → 3.68%** of TLAB events (the eliminated 58 samples are
+  the unmodifiable iterations; the residual 38%-of-`iterator()` is mutable sets, kept for safety);
+  deterministic all-systems allocation **5951 → 5884 MB (−1.1%)**, no normal-code regression; passes
+  `alltests`. The other remaining iterator allocations are not cheaply/safely index-convertible:
+  javac's cons-`List` (`get(i)` is O(i)), map iterators (`LinkedHashMap`), and `CollectionsPlume.mapList`
+  over an unknown `List` impl.
 - **PR #1669** — *Improve equality and comparisons of annotation
   names.* Introduced `AnnotationUtils.annotationNameAsName`, which
   returns the underlying `Name` without ever allocating a `String`. Hot
@@ -140,14 +231,41 @@ so small per-call wins paid back substantially.
 - **PR #1671** — *Increase the `AnnotatedTypeScanner#visitedNodes`
   map size.* Pre-sizes the `IdentityHashMap` to 64 to eliminate the
   early-resize storms previously visible in allocation profiles.
-- **Re-measured June 2026** — `reset()` uses `new IdentityHashMap<>(VISITED_NODES_EXPECTED_MAX_SIZE)`
-  rather than `clear()`. Leaf-frame self-time on `allNullnessTests -PmaxParallelForks=1`:
+- **Re-measured June 2026** — `reset()` uses `new IdentityHashMap<>(VISITED_NODES_INITIAL_CAPACITY)`
+  rather than `clear()` (the constant was then named `VISITED_NODES_EXPECTED_MAX_SIZE` and equal to 64). Leaf-frame self-time on `allNullnessTests -PmaxParallelForks=1`:
   `IdentityHashMap.clear` = 3.42% (668/19479 samples); `IdentityHashMap.init` net after
   background subtraction ≈ 1.27% (456 total − 180 background = 276 samples, /20809).
   `clear()` wins on object allocation (1.09% vs 1.48% of TLAB events) but loses on CPU:
   `IdentityHashMap.clear()` walks all 128 table slots explicitly in Java; TLAB allocation
   uses JVM bulk zeroing. The pre-sizing in PR #1671 is what makes `clear()` more expensive —
   pre-sizing enlarged the array that must be explicitly zeroed.
+- **PR #1785 — reduced the pre-size from 64 to 8 (June 2026); renamed the constant to
+  `VISITED_NODES_INITIAL_CAPACITY`.** Resolves the open candidate that used to sit in the
+  short list below. The realistic worker (`checknullness`, all subprojects) showed `Object[]`
+  at ~61% of TLAB allocations, ~91% of them these `IdentityHashMap` backing arrays from
+  `AnnotatedTypeScanner.reset`/`<init>` and `AnnotatedTypeCopier.visit`; PR #1671's pre-size of
+  64 backs a 256-slot `Object[]` per scan while most scans visit only 1–3 nodes. The constructor
+  argument is `IdentityHashMap`'s `expectedMaxSize`, not a table size: it allocates a power-of-two
+  backing array large enough to hold that many entries without resizing — so 4/8/16/32 back
+  16/32/64/128-slot `Object[]`s that first resize at 6/11/22/42 entries, and 16 is byte-for-byte
+  the no-arg default. A 4/8/16/32 JFR sweep (one full-build capture each) measured (on-CPU samples
+  / wall span / GC collections / `Object[]` near CF / `reset`-site `Object[]`):
+    - 4: 13,246 / 174 s / 667 / 21,490 / 2,803 — *worst*: resize-storm rehash on deeper types.
+    - 8: 12,218 / 159 s / 458 / 36,767 / 8,379 — *best* GC and CPU; ~26% less map allocation than the default.
+    - 16: 12,448 / 162 s / 504 / 43,091 / 11,370 — the JDK default size.
+    - 32: 12,366 / 163 s / 554 / 86,226 / 31,019 — double the default allocation, no CPU gain.
+
+  8 is the chosen value: resizing at 11 instead of 6 clears the 6–10-node tail that made 4 resize,
+  so it matches the default on CPU/GC while still allocating less. Among 8/16/32 the CPU/wall
+  numbers sit inside the ~3% run-to-run noise (a separate warm-daemon wall-clock A/B of 16 vs the
+  shipped 64 — `shadowJar` rebuilt per side, first rep per block discarded, two interleaved passes
+  — was a wash, both median 136 s over a 130–138 s spread), so the win is GC/footprint, not wall
+  clock, exactly as the CPU-bound (~96% on-CPU, ~4% GC) profile predicts. An audit of the other
+  ~60 `IdentityHashMap`s found just one more transient small-map worth pre-sizing —
+  `ElementAnnotationUtil.annotateViaTypeAnnoPosition`'s `wildcardToAnnos` (≤2 entries, pre-sized to
+  4 with its own rationale, unrelated to the visitor maps); the long-lived caches and per-analysis
+  dataflow stores hold many entries and must keep the default, since pre-sizing them small would
+  reintroduce resize storms.
 - **PR #1763** — *Pre-sized `ArrayList` copies in `AnnotatedTypeCopier`.* Replaced
   `CollectionsPlume.mapList` lambda calls with direct pre-sized `new ArrayList<>(size)` loops.
   Removes lambda-dispatch overhead and allocates the destination list at the correct capacity
@@ -206,6 +324,30 @@ so small per-call wins paid back substantially.
   `static`/shared one needs an `AtomicReference.getAndSet` pool (like `TypeVarAnnotator`) to stay
   correct under daemon/LSP concurrency and re-entrancy — the `null`-while-borrowed state doubles as
   the re-entrancy guard.
+- **PR #1794 — lazy `visitedNodes` (June 2026); encapsulation, measured perf-neutral.** Made
+  `AnnotatedTypeScanner.visitedNodes` `private` and lazily allocated: the field starts `null` and
+  the `IdentityHashMap` is created on the first stored node (`markVisited`) instead of in a field
+  initializer, and `reset()` nulls the field instead of conditionally reallocating. The seven
+  subclasses that touched the field directly (`BaseTypeValidator`, `TypesIntoElements`,
+  `PropagationTypeAnnotator`, `QualifierDefaults`, `DependentTypesHelper`,
+  `DoubleAnnotatedTypeScanner`, and the base class) now go through three `protected final` accessors
+  `hasVisited`/`getVisited`/`markVisited`, centralizing the lazy-null invariant. **A/B (PR #1794
+  vs. its merge-base):** deterministic `ThreadAllocationStatistics` on a 300-method file, 6
+  interleaved rounds, was **−0.18%** total allocation (median 880.2 → 878.6 MB) — inside the
+  ~0.5% run-to-run band; wall clock flat. A full-build `--no-daemon checknullness` JFR capture per
+  side confirmed the *mechanism* — the eager `Object[]` allocation at `AnnotatedTypeScanner.reset`
+  (the #1 CF `Object[]` site, ~29% of CF `Object[]` events on the base side) and at `<init>`
+  disappears, reappearing only at `markVisited` (the lazy first-put) — but on-CPU samples, GC
+  collections, and post-GC retained heap were all within single-run noise. **Why it is a wash:**
+  PR #1646 already deferred the empty-case realloc, and the per-use scanner pooling above already
+  removed ~99% of per-construction map allocations, so the base path was already mostly lazy; the
+  lazy field only additionally skips allocation for the narrow "reset a non-empty map, then visit no
+  recursive type" case. Distinct from the rejected `clear()` idea (see *Tried and rejected*): there
+  is no explicit Java-loop zeroing — the win, where it exists, is *skipping* the allocation entirely,
+  not making the reuse cheaper. Shipped for the encapsulation (one enforced place for the null
+  invariant; `private` field; storage strategy decoupled from subclasses), not for a perf number.
+  One source-compat note: `visitedNodes` going `protected` → `private` is incompatible for any
+  third-party `AnnotatedTypeScanner` subclass that referenced the field directly.
 
 ### Element and name caching
 
@@ -226,6 +368,63 @@ so small per-call wins paid back substantially.
   javac `Symbol.PackageSymbol`, reads the enclosing package directly from the `owner` field
   instead of calling `Elements#getPackageElement(String)`. Falls back to the original
   string-based lookup for non-javac implementations.
+- **PR #1796** — *Interned-`Name` identity comparison for fixed name literals.* New
+  `InternalUtils` helpers (`isInitName`, `isThisName`, `isSuperName`, `isValueName`,
+  `isJavaLangObjectName`, `isJavaLangEnumName`) compare a javac `Name` against its own
+  table's pre-interned name (`n == n.table.names.init` etc. — uses the *name's own* table, so
+  no cross-context identity assumption) with a `contentEquals` fallback for non-javac
+  `Name`s. Converted the utf2chars-profiled sites — `TreeUtils.isConstructor`/
+  `isEnumSuperCall` (the latter also reordered to check `<init>` before the class name), the
+  `this`/`super` identifier checks in `TreeUtils`,
+  `TypeFromExpressionVisitor.visitIdentifier`/`visitMemberSelect`, `ParamApplier.isReceiver`,
+  `ElementUtils.isObject` — and then the remaining ~25 fixed-literal `contentEquals` sites
+  across dataflow (`CFGTranslationPhaseOne`, `JavaExpression`, `SuperNode`,
+  `ExplicitThisNode`), framework, and the checkers (initialization, interning, nullness,
+  lock, units). Full-build `checknullness` JFR: every converted site left the
+  `Convert.utf2chars`/`utf2string` attribution (was ~30 of 275 utf2* samples ≈ 0.23% of all
+  samples), so the end-to-end effect is real but sub-0.5% — not resolvable in wall clock.
+  Microbenchmark on a byte-backed name table: 12x faster and ~66 B/op allocation removed vs
+  `contentEquals`; neutral on `StringNameTable`. Only names with pre-interned `Names` fields
+  available on JDK 11+ are used (`init`, `_this`, `_super`, `value`, `java_lang_Object`,
+  `java_lang_Enum`); `names.yield` (JDK 13+) was deliberately not used.
+
+  **General `sameName(Name, CharSequence)` with a table-validated static cache (also
+  PR #1796).** For arbitrary (non-pre-interned) target strings, the naive per-call form
+  `n == n.table.fromString(literal)` is a dud — measured (8.2M mixed hit/miss ops): ~12%
+  faster but 28% *more* allocation than `contentEquals` on a byte-backed table (it
+  re-encodes the literal per call), and 1.8x *slower* on `StringNameTable`. A naive static
+  `Map<String, Name>` is unsound in multi-compilation JVMs (the test suite, a language
+  server): a cached `Name` from a previous compilation's table compares `==`-false against
+  content-equal names from the new table. The applied design closes both holes: a single
+  `volatile` holder pinning `(Name.Table, ConcurrentHashMap<String, Name>)` that
+  `sameName` discards whenever it sees a name from a different table — stale answers are
+  impossible, the worst case is a cache rebuild on table switch. Measured: **5.8 ns/op,
+  zero allocation vs `contentEquals`'s 36.8 ns/op + ~66 B/op on byte-backed tables (6.4x)**;
+  on `StringNameTable` 5.7 vs 4.7 ns/op (~neutral). Converted the dynamic-but-bounded-target
+  sites: `AnnotationUtils.getElementValue`'s element-name loops (the **#1 utf2* consumer for
+  the Resource Leak Checker** — 66 of 201 utf2* samples on `checkResourceLeak`, invisible on
+  `checknullness`; hot-site profiles are checker-specific), `AnnotationBuilder.findElement`,
+  `ElementUtils`/`TreeUtils` method/field-name lookups, `JavaExpressionParseUtil` identifier
+  resolution, the stub parser's `findElement` family, and `SetOfTypes.anyOfTheseNames` (via
+  `ElementUtils.getQualifiedName`'s interned cache). Cardinality caveat: each distinct probe
+  string is interned into the compiler's name table and cached for the compilation, so
+  `sameName` is only for bounded target sets (annotation element names, configured method
+  names, source identifiers) — not arbitrary unbounded input.
+
+  **Key environmental facts (verified June 2026):** (1) which `Name.Table` javac uses decides
+  whether `Name.toString()`/`contentEquals` decode UTF-8 per call: byte-backed
+  `SharedNameTable` is the default before JDK 23, `StringNameTable` (decode-free, cached
+  `toString`) since JDK 23. (2) **Gradle passes `-XDuseUnsharedTable` to every forked javac**
+  (verified in a `--debug` compile log), forcing the byte-backed table on *all* JDK versions —
+  so under Gradle (this project's own build, most users' builds) the decode cost is alive on
+  JDK 25/26 too, while plain-javac/Maven runs on JDK 23+ don't have it. Measure name-decode
+  changes with `-XDuseUnsharedTable`, or the A/B silently tests the wrong table. (3) Do NOT
+  compare a `Name` char-by-char (`charAt` loop): base `Name.length()`/`charAt()` call
+  `toString()` per invocation, so that is N+1 decodes instead of `contentEquals`'s one
+  (measured 2.8x slower interpreted, 545 MB extra allocation per 8M ops on JDK 21); the
+  raw-byte APIs (`getUtf8Length`/`getUtf8Bytes`/`map`) are version-specific and *re-encode*
+  on `StringNameTable` (measured 5x slower) — identity against an interned `Name` is the only
+  variant that wins on every table.
 
 ### Annotation-file (stub) parsing
 
@@ -253,6 +452,21 @@ so small per-call wins paid back substantially.
   garbage. Correctness re-verified with `allNullnessTests`, `IndexTest`,
   `SignatureTest`, `NullnessTest`, `InterningTest`, `ValueTest`, and the
   `:checker:test`, `:framework:test`, `:javacutil:test`, `:dataflow:test` suites.
+- **PR #1797 — `IdentityHashMap<Name, TypeElement>` for annotation name maps (June 2026).**
+  The annotation-name lookup maps in `AnnotationFileParser`, `InsertAjavaAnnotations`, and
+  `TypeAnnotationMover` previously used `HashMap<String, TypeElement>`, requiring `Name.toString()`
+  (a UTF-8 decode on byte-backed tables) at every map-build site. Changed to
+  `IdentityHashMap<Name, TypeElement>`: keys are the `Name` objects returned by
+  `getSimpleName()` / `getQualifiedName()` directly, and lookups use `elements.getName(s)` to
+  intern a JavaParser `String` into the same table, guaranteeing identity equality within one
+  compilation. Also removed a redundant `elements.getName(annoElt.getSimpleName())` call in
+  `AnnotationFileParser.getImportedAnnotations` — `getSimpleName()` already returns an interned
+  `Name` from the same table, so the round-trip was a decode-and-re-intern no-op. Safety: all maps
+  are built and consumed within a single compilation's `Elements` instance, so same-table identity
+  holds; the `getAnnotation` fallback (`elements.getTypeElement(fqn)` + `createNameToAnnotationMap`)
+  handles first-encounter FQN annotations and populates both simple-name and FQN entries for future
+  hits.
+
 - **PR #1776** — *Avoid the defensive deep copy in read-only
   `fromElement` consumers.* `AnnotatedTypeFactory.fromElement` returns
   `cached.deepCopy()` on every cache hit so callers may mutate the result; this is
@@ -304,6 +518,15 @@ so small per-call wins paid back substantially.
   gap; `FieldAccess` and similar pay +8 bytes. Peak overhead measured
   at ~128 bytes for a large method, well worth the savings on store-
   comparison hot paths.
+- **PR #1797 — `LocalVariableNode.hashCode`/`equals` avoid `getName()` and `Objects.hash()` (June 2026).**
+  Both methods previously called `getName()`, which calls `Name.toString()` (a UTF-8 decode on
+  byte-backed tables). Changed to read the `Name` directly from the tree
+  (`IdentifierTree.getName()` / `VariableTree.getName()`) for both operations: `equals` uses
+  `InternalUtils.sameName`; `hashCode` calls `name.hashCode()` directly — on `SharedNameTable`
+  this returns the byte-table `index`, which is content-stable via interning, no decode needed.
+  Also removes the `Objects.hash(name)` varargs call, which allocated an `Object[]` per invocation
+  (the varargs antipattern flagged in Applied optimizations → Generic map/lookup patterns).
+
 - **PR #1765** — *`BinaryOperation.hashCode` symmetry fix.* For commutative operations,
   `equals()` ignores operand order; the hash code must match. Replaced the
   order-dependent `Objects.hash(kind, left, right)` with
@@ -361,6 +584,55 @@ so small per-call wins paid back substantially.
   and `AnnotationConverter`: iterate `map.entrySet()` instead of `map.keySet()`
   followed by `map.get(key)`, eliminating a redundant second hash lookup per
   iteration.
+- **PR #1781** — *`IdentityHashMap` for caches keyed by `Element`/`Tree`.* javac `Symbol`s
+  and `JCTree`s use identity `equals`/`hashCode` (they do not override `Object`'s),
+  so a `HashMap` keyed by them was *already* an identity map — switching to
+  `IdentityHashMap` does not change behavior, it just drops the per-entry `Node`
+  allocation (open addressing) and replaces the virtual `hashCode()`/`equals()`
+  dispatch with `System.identityHashCode`/`==`. Converted six long-lived,
+  identity-keyed maps that had been left as `HashMap`:
+  - `AnnotatedTypeFactory.cacheDeclAnnos` (`Element` → `AnnotationMirrorSet`;
+    populated by the hot `getDeclAnnotations`),
+  - `GenericAnnotatedTypeFactory.subcheckerSharedCFG` (`Tree` → `ControlFlowGraph`;
+    pre-sized to `getCacheSize()`),
+  - `GenericAnnotatedTypeFactory.scannedClasses` (`ClassTree` → `ScanState`),
+  - `TreePathCacher.foundPaths` (`Tree` → `TreePath`),
+  - `CFGTranslationPhaseOne.parenMapping` (`Tree` → `ParenthesizedTree`; built
+    per-method during CFG construction),
+  - `AbstractAnalysis.finalLocalValues` (`VariableElement` → abstract value) —
+    this one was the lone `HashMap` among siblings (`nodeValues`, `inputs`,
+    `treeLookup`, `postfixLookup`) that were *already* `IdentityHashMap`.
+
+  **Safety rule for this conversion.** `IdentityHashMap.equals`/`hashCode` compare
+  *values* by reference too (they intentionally violate the `Map.equals` contract),
+  so only convert a map that is never `Map.equals`-compared. The dataflow *fixpoint*
+  compares `CFAbstractStore`s, not these maps, and none of the six is passed to
+  `Map.equals` — verify this before converting any further map. Audited but **left
+  as `HashMap`**: method-local short-lived maps (`InferenceResult`,
+  `DependentTypesHelper.checkTypesForErrorKey`, `BaseTypeVisitor` javaparser pairing)
+  where there is no entry-allocation pressure to remove, the stub-parser
+  `AnnotationFileParser.atypes` (cold for real workloads — stub parsing only
+  dominates in test-harness amplification), and the 4-entry
+  `LombokSupport.defaultedElements`.
+
+  **Measured impact (full-build A/B, June 2026).** This is an allocation/dispatch
+  reduction, not a measurable speedup. Wall clock on `./gradlew checknullness` (all
+  ~10 subprojects, warm daemon, processor `shadowJar` rebuilt each side, median of
+  ≥3 warm reps) was **~2m34 s with vs. ~2m32 s without — within run-to-run noise**;
+  the build-level gain is below the wall-clock floor. The mechanism is real but small
+  in the JFR profile (full-build `--no-daemon` traces): `HashMap$Node` dropped from
+  **3.21% → 2.76%** of TLAB allocation events (6,856 vs. 7,315 absolute — fewer even
+  though that branch trace sampled ~10% *more* total allocation), and with the
+  `[Ljava.util.HashMap$Node;` backing arrays the HashMap internals fell **4.66% →
+  4.02%**. Leaf self-time in `HashMap.getNode` fell **3.38% → 2.27%**, partly offset by
+  `IdentityHashMap.get` rising **1.28% → 1.50%** (cheaper per call: `identityHashCode`
+  + `==` + flat-array probe vs. virtual `hashCode`/`equals` + `Node` chase). Retained
+  memory was **unchanged**: post-GC live heap maxed at 512 MB on both sides with p90/median
+  within noise, and GC count/summed-pause were flat (647/7.86 s vs. 660/7.93 s) — the flat
+  `Object[]` of `IdentityHashMap` is roughly memory-neutral against `HashMap`'s
+  `Node[]`-plus-`Node`s for these small, long-lived maps. The takeaway: file such
+  identity-map conversions for their cumulative GC-pressure relief, not for a standalone
+  wall-clock win.
 - **Gotcha — avoid `Objects.hash(...)` / `Arrays.hashCode(...)` on hot paths.**
   `Objects.hash(a, b, ...)` is varargs, so each call allocates an `Object[]` *and*
   autoboxes every primitive argument to its wrapper — e.g. `Objects.hash(int, int)`
@@ -373,6 +645,126 @@ so small per-call wins paid back substantially.
   invocation. The two-arg `Objects.equals` is fine (no array/boxing); only the
   varargs `hash`/`Arrays.hashCode` family allocates. Precompute the result into a
   `final int hash` field when the key is immutable, as both new cache keys do.
+
+### CFG-builder body-path lookup
+
+- **PR #1786 — cache the per-body `TreePath` lookup in `CFCFGBuilder` (June 2026).**
+  `CFGTranslationPhaseOne.process(CompilationUnitTree, UnderlyingAST)` (line ~527)
+  computed the body's path with an *uncached* `trees.getPath(root, code)` — a JDK
+  `Trees.PathFinder` `TreeScanner` that allocates a `new TreePath` per node visited
+  while searching from the compilation-unit root down to the body, **once per method
+  / lambda / initializer body**. For the *k*-th body in a file it re-scans the
+  preceding *k*−1 bodies, so cost is **quadratic in bodies-per-compilation-unit**.
+  This was the single largest `TreePath` allocator: on a full `checknullness`
+  `--no-daemon` trace, `CFGTranslationPhaseOne.process` was the nearest-CF frame for
+  **70%** of `com.sun.source.util.TreePath` allocation samples (2146 of 3057), vs. the
+  per-tree path extension at `CFGTranslationPhaseOne.scan` (line ~562) at only
+  **0.56%** (17 samples) — see the rejected "lazy path stack" note below.
+
+  **Fix.** `CFCFGBuilder.build` already holds `checker` and `atypeFactory`, so it
+  owns the checker's shared `TreePathCacher` (the same instance the `AnnotatedTypeFactory`
+  populates during visiting). Replace the uncached search with
+  `checker.getTreePathCacher().getPath(root, underlyingAST.getCode())` and feed the
+  result into the existing `process(TreePath, UnderlyingAST)` overload. The cacher
+  serves the enclosing class/method prefix from cache (warmed by visiting) and caches
+  each node's path once, collapsing the per-body re-scan from O(bodies × file) toward
+  O(file). **No class move is needed** — the framework-side caller already has the
+  cache; the dataflow `CFGBuilder.build` standalone-tool path (used by `CFGProcessor`,
+  which has no checker) is left on `trees.getPath`. This is a ~6-line change at one
+  call site, no dataflow API change. It only does `getPath(root, realBodyTree)`
+  lookups against the real AST keyed by tree identity, so none of the artificial-tree
+  / bulk-population hazards of caching from the per-tree CFG traversal apply.
+
+  **Measured allocation (deterministic `ThreadMXBean.getThreadAllocatedBytes` via JFR
+  `ThreadAllocationStatistics`, single forked `javac`, one class of *N* trivial
+  generic-call methods).** The win scales with methods-per-file, exactly as the
+  quadratic predicts:
+
+  | methods / file | master | cached | reduction |
+  | --- | --- | --- | --- |
+  | 100  |    524 MB |    506 MB |  −3.5% |
+  | 300  |  1,453 MB |  1,251 MB | −13.9% |
+  | 600  |  3,525 MB |  2,737 MB | −22.4% |
+  | 1500 | 15,192 MB | 10,193 MB | −32.9% (wall −6.5%, 46.3 → 43.3 s) |
+
+  On the all-systems corpus (267 *tiny* files, 1–3 bodies each) the effect is **~0%
+  (noise)** — there is no per-file body reuse to exploit. On the realistic CF build the
+  site is ~1.4% of total allocation (70% of `TreePath`, which is ~2% of TLAB events),
+  so a normal mixed codebase sees a low-single-digit allocation reduction; the large
+  numbers are worst-case protection for machine-generated or very large single-class
+  files, where it removes a genuine quadratic. Wall clock tracks allocation (only
+  measurable where allocation is large). The shared cache now retains the body-prefix
+  paths it builds (bounded by the compilation unit — the same eager-scan caching the
+  cacher already does on `AnnotatedTypeFactory.getPath` fallbacks). Validated with
+  `framework`/`dataflow`/`NullnessTest` and `alltests`.
+
+- **PR #1788 — make `TreePathCacher` lazy and route `AnnotatedTypeFactory.getPath` through
+  it (June 2026).** Builds on PR #1786 (already in master). PR #1786 routes one
+  `TreePathCacher.getPath` lookup per method body; but the eager `getPath` caches a
+  `TreePath` for *every* node it DFS-traverses to reach the target, so on a large class each
+  body lookup also caches the preceding bodies' internal nodes — O(file-nodes) of needless
+  cached allocation, even though only body trees are ever queried. This change (a) makes the
+  cacher lazy: `scan` only pushes/pops a `currentStack` and allocates nothing, and
+  `buildPathForStack` materializes only the root-to-target path once the target is reached;
+  and (b) routes `AnnotatedTypeFactory.getPath`'s two non-heuristic call sites through the
+  cacher so they share that lazy cache. Measured (deterministic harness): **−4.0%**
+  allocation on all-systems and **−51.6%** on a 1500-method class; passes full `alltests`.
+  Three findings each cost a wasted attempt:
+
+  - **The two halves must ship together.** The lazy cacher *without* the `getPath` call-site
+    rerouting is *worse* than the eager cacher (1500-method class: 12.3 GB vs. 10.2 GB),
+    because the eager cacher's broad node-caching is exactly what warms the cache for the
+    per-body lookups; going lazy removes that warming unless the `getPath` sites repopulate
+    it. Hence both halves are in one change.
+  - **The `getPath(TreePath, Tree)` overload's locality is load-bearing on large classes.**
+    It scans `currentPath`'s subtree *first* and expands outward (it relies on
+    `TreeScanner.scan(Iterable, P)` visiting the path leaf-first), so a target near the
+    visitor path is found without rescanning the whole unit. A "simplified" variant that
+    just delegates to `getPath(root, target)` is byte-identical on normal code (all-systems
+    5979 vs. 5982 MB) but reintroduces a residual O(members) rescan at that site, and the
+    gap to the full version *widens* with class size:
+
+    | methods/class | full (locality scan) | simplified (delegate to root) | delegate overhead |
+    | --- | --- | --- | --- |
+    | 1500 |  4936 MB |  5407 MB |  +9.5% |
+    | 3000 | 11805 MB | 13686 MB | +15.9% |
+    | 6000 | 32076 MB | 39444 MB | +23.0% (+7.4 GB) |
+
+    So the extra overload earns its keep: invisible to users (contained in `TreePathCacher`)
+    and decisive only for very large or machine-generated single-class files.
+  - **Do not narrow that overload to a subtree-only scan.** Replacing `super.scan(rootPath,
+    target)` with `super.scan(rootPath.getLeaf(), target)` (and seeding/`put(null)` tweaks)
+    *looks* cleaner but is wrong: it returns null for out-of-subtree targets and caches that
+    null as "absent from the unit", crashing type-argument inference on
+    `all-systems/TypeVarVarArgs.java`. It passes `NullnessTest`, so it is not caught there;
+    `framework/util/TreePathCacherTest` guards it directly (the `secondOverloadFindsOut...`
+    case fails on the subtree-only variant). The original outward-expanding scan is correct
+    and is now documented in the code.
+
+- **PR #1789 — linear (instead of quadratic) `getPath` searches (June 2026).** Even after #1786 +
+  #1788, a single class with very many methods allocated *super-linearly* (6000-method class: 32 GB,
+  ~2.5–2.7×/doubling). A nearest-CF-frame allocation capture on a `gen-sized-program.py` size sweep
+  traced **57% of allocation at 6000 methods** to `com.sun.tools.javac.util.List$2` iterators that
+  `TreeScanner` allocates while `TreePathCacher.scan` *traverses* the tree — i.e. `getPath` searches
+  rescanning the whole class (**268M node visits** at 1500 methods). Instrumenting `getPath` showed
+  the targets were almost always local; they were just searched from too broad a start. Three causes,
+  all fixed by starting each search from the tightest known path:
+  - `AnnotatedTypeFactory.getPath`'s final fallback searched from `visitorTreePath` climbed up a
+    *fixed two levels*; for a method-body path that overshoots to the **class**, forcing a whole-class
+    rescan. It now searches from the original (tightest) `visitorTreePath` (the second overload still
+    expands outward for non-local targets). Alone this cut traversal 268M → 38.5M (−86%).
+  - `GenericAnnotatedTypeFactory.performFlowAnalysis` pinned `visitorTreePath` to the enclosing
+    *class*; flow-analysis-time inference lookups now run against the **body** being analyzed.
+    (A no-op by itself — the climb above negated it — but needed together with the first fix.)
+  - `CFCFGBuilder`'s per-body `getPath(root, code)` scanned from the compilation-unit root (O(members)
+    per body). `analyze` now primes that body's path in O(1) from the class path (`class → method →
+    body`, an unambiguous extension; methods only — lambdas/initializers fall through), so the lookup
+    is a cache hit.
+  Result: per-method allocation went from *rising* (3.3 → 5.4 MB/method, quadratic) to *flat*
+  (2.6 → 2.5 MB/method, linear); 6000-method class **32.1 GB → 14.8 GB (−54%)**, growing with size.
+  **No effect on normal code** (all-systems unchanged) and **no correctness risk**: all three are
+  search *hints* — `getPath` always returns the correct path (guarded by
+  `framework/util/TreePathCacherTest`'s JDK-equivalence check). Validated with `alltests`.
 
 ### Value Checker
 
@@ -442,6 +834,33 @@ mix of perf, clarification, and small correctness fixes:
   `ArrayList` per cached element. `QualifierDefaults.shouldBeAnnotated`: hoisted repeated
   `getKind()` calls into a local.
 
+- **PR #1797 — `FoundRequired` lazy type formatting (June 2026).** `BaseTypeVisitor.FoundRequired`
+  previously computed `ATM.toString()`/`toString(true)` eagerly in the constructor, paying full
+  ATM-formatting cost even when the reported error would be suppressed by `@SuppressWarnings` or
+  `-AsuppressWarnings`. Changed `found`/`required` fields from `String` to `Object` with anonymous
+  inner classes whose `toString()` evaluates the ATM format lazily; `shouldPrintVerbose` result is
+  memoized in a `verboseComputed`/`verbose` pair shared across both objects, so it is called at most
+  once regardless of which field is stringified first. Also lazified the concatenated
+  parameter-name prefix string in `checkMethodInvocabilityError`. CF's own sources suppress
+  thousands of warnings, so the deferred cost is often zero. Wall-clock impact is proportional to
+  suppression rate on the profiled workload; on the `checkNullness` build of CF itself the delta
+  is within the noise floor (see A/B note in the name-decoding narrative below).
+- **PR #1797 — `SourceChecker.shouldSkipUses` cache (June 2026).** Previously called
+  `typeElement.toString()` (a `Symbol.toString()` → `Name.toString()` UTF-8 decode) and matched
+  against a compiled regex on every invocation. Added an `IdentityHashMap<Name, Boolean>` cache
+  keyed on `typeElement.getQualifiedName()` (identity-stable within one compilation's name table):
+  first-visit still decodes and matches, but repeat visits for the same enclosing class are O(1).
+  Reduces the `utf2string` attribution to cache-miss-only (4 samples in the post-fix profile).
+- **PR #1797 — `Variable.computeHashCode` and `ProperType.computeHashCode` avoid `toString()` (June 2026).**
+  `Variable.computeHashCode` hashed `elt.getSimpleName().toString()`, decoding the byte-backed `Name`
+  on every hash computation. Changed to `elt.getSimpleName().hashCode()`, which returns the
+  byte-table `index` (content-stable via interning, no decode). `ProperType.computeHashCode` hashed
+  `properType.toString()` — an `ATM.toString()` call on every type-inference cache lookup. Replaced
+  with `TypeKind.hashCode() + 31 * elt.getSimpleName().hashCode()` (element extracted for
+  `DeclaredType` and `TypeVariable`; other kinds hash by kind alone). The new `ProperType` hash is
+  weaker (no package component), but hash collisions only affect map distribution, not correctness
+  (`equals` is unchanged).
+
 ### Correctness fixes adjacent to the perf work
 
 These belong with the campaign because they were uncovered while
@@ -487,6 +906,61 @@ under "Short list"; this is the canonical applied summary.
   `declarationFromElement` −33%, **total on-CPU −5.1%**. Key distinction from the rejected
   `trees.getTree(localVar)` variant: `trees.getTree` on the *enclosing method* is cheap (position-based),
   whereas on the *local itself* it internally scans.
+- **PR #1791** — *Per-CU `IdentityHashMap` tree caches, one-pass declaration scan, pooled copier map.*
+  Three changes that remove cache thrash and redundant recomputation on large compilation units:
+  (1) **LRU → `IdentityHashMap`.** `classAndMethodTreeCache`, `fromExpressionTreeCache`,
+  `fromMemberTreeCache`, `fromTypeTreeCache`, and `elementToTreeCache` were bounded
+  `CollectionsPlume.createLruCache(2048)` maps. On a large CU the live tree set overflows 2048, so the
+  LRU evicts still-needed entries and re-`getAnnotatedType`s them — each miss recomputes *and*
+  `deepCopy()`s the ATM (`classAndMethodTreeCache.put(tree, type.deepCopy())`). Plain `IdentityHashMap`s
+  (Tree/Element keys are identity-compared anyway) remove the eviction thrash; they stay bounded in
+  practice because `setRoot` already clears all five per compilation unit, so peak size is one CU's tree
+  count, not the whole build. This swap alone is the bulk of the win.
+  (2) **`DeclarationScanner` (extends PR #1780).** Rather than `TreeInfo.declarationFor(sym,
+  enclosingTree)` per local/parameter, the first lookup into a given enclosing method/class scans that
+  subtree once and records every variable/method/class declaration into `elementToTreeCache`; a
+  `scannedEnclosingTrees` identity set (also cleared in `setRoot`) makes the scan once-per-subtree so
+  sibling lookups hit the cache. Falls back to the full-CU `TreeInfo.declarationFor` if the scan misses.
+  (3) **`AnnotatedTypeCopier` map pool.** `visit` allocated a fresh `IdentityHashMap` per copy; it now
+  borrows a thread-local pooled map (cleared after use, fresh-map fallback if re-entrant).
+  **Deterministic allocation A/B** (single forked `javac`, `jdk.ThreadAllocationStatistics`; see
+  Reproducing measurements): total bytes allocated **−14.5% / −17.1% / −19.2%** on 300- / 600- /
+  1500-method single-class files and **−6.6%** on an 80-file (15-method) corpus — the win grows with
+  per-CU size, since that is when the 2048 LRU thrashes. The LRU→`IdentityHashMap` swap on its own is
+  −10% to −13.5%; the scanner and copier pool add the rest. **Wall clock is roughly neutral** (≈ −3% at
+  1500 methods, within noise) on heap-generous single-file compiles — these are not GC-bound, so the
+  reduced allocation does not shorten them; the payoff is GC pressure / memory headroom, most relevant
+  under default heap on a many-CU warm-daemon build. *Build/measure caveat:* flipping sides with `git
+  stash` does **not** reliably recompile — `:framework:compileJava` reports `UP-TO-DATE` and serves the
+  other side's classes — so force `--rerun-tasks` and gate each run by decompiling the shipped
+  `checker/dist/checker.jar` (e.g. count `createLruCache` call sites in `AnnotatedTypeFactory`: 9 on
+  master, 4 with this change). An un-gated early A/B read this change as ~0%, a false negative from two
+  stale shadowJars. Dropped from the original proposal as separately risky and *not* part of the
+  allocation win: a never-cleared `IdentityHashMap<AnnotationMirror, QualifierKind>` in the qualifier
+  hierarchies (unbounded over a whole build) and disabling the per-CU
+  `defaultQualifierForUseTypeAnnotator.clearCache()` (cross-CU staleness — the cache reads element
+  annotated types that stubs/ajava refine).
+- **`declarationFromElement` fallback: scan the enclosing subtree, not the whole CU; walk the
+  enclosing chain (PR #1793, June 2026).** Two refinements to the variable/
+  parameter path's *fallback* (the case PR #1791's `DeclarationScanner` left on the full-CU scan —
+  when the scan missed or `shouldCache` is off). (1) **Subtree fallback.** When `elementToTreeCache`
+  has no entry, try `TreeInfo.declarationFor(sym, enclosingTree)` (scan only the enclosing method/
+  class subtree) *before* the full-CU `TreeInfo.declarationFor(sym, root)`. (2) **Enclosing-chain
+  walk.** Master took `trees.getTree(elt.getEnclosingElement())` once and, if it was null, fell
+  straight to the whole-CU scan; the change walks `getEnclosingElement()` upward until a non-null
+  tree is found, so the subtree scan applies (and the `DeclarationScanner` gets primed) even when the
+  immediate enclosing element has no tree. Both `declarationFor(sym, enclosingTree)` and
+  `declarationFor(sym, root)` match by symbol identity, so the returned tree is unchanged — the only
+  difference is how many tree nodes the scan visits. **Deterministic A/B** (single forked `javac`;
+  size sweep of `gen-sized-program.py`, drift-controlled interleave — see Reproducing measurements):
+  **wall-clock −11% / −15% / −26%** on 300- / 600- / 1500-method single-class files, **neutral at
+  ≤100 methods** (3.2–4.5 s, JVM-startup-dominated) and on a 30-method file. **Allocation is flat**
+  (`jdk.ThreadAllocationStatistics` within the ~0.3% run-to-run band at every size) — this is a
+  scan-node / CPU change, not an allocation change. The win is super-linear in CU size and zero on
+  typical small files: it is **worst-case protection** for large or machine-generated single-class
+  compilation units (where master's full-CU fallback scan is super-linear in CU size), never a
+  regression. Same flattening signature as the PR #1786 body-path quadratic; like that one it is
+  invisible on the tiny-file all-systems corpus and only a size sweep exposes it.
 
 ---
 
@@ -496,9 +970,129 @@ Bring new evidence before revisiting any of these — a JFR trace on a
 workload not previously considered, or a measurement that contradicts
 the prior finding. A fresh hypothesis is not new evidence.
 
+- **Cache-boundary flips after freezing the masters — PARTIALLY SUPERSEDED (PR #1798).** The first cut
+  rejected boundary flips wholesale: "the cache-return copy is load-bearing; the dominant consumers
+  mutate the returned type, so a flip only moves the copy." **That was survivorship bias from the
+  `BugInCF` flush** — the flush only enumerates the *mutating* consumers, not the read-only majority, so
+  reasoning from it overcounts the cost. A direct measurement of the read-only fraction (65–88% for
+  `getAnnotatedType(Element)`) and a deterministic allocation A/B then showed the **`elementTypeCache`
+  and `classAndMethodTreeCache` flips DO pay (small): ~−1% on generic-call-heavy code, noise elsewhere**
+  (NOT the −5.3% an earlier estimate suggested — never reproduced against the post-flip baseline). Both
+  shipped in PR #1798 (see the foundation section). The lesson stands for three *other* flips that were
+  tried and genuinely do not pay, because their consumer is *always* mutating: (a) the raw **Element
+  boundary feeding the tree pipeline** — `TypeFromExpressionVisitor` → `addComputedTypeAnnotations`
+  (defaulting + flow refinement + annotators) rewrites the whole type every time; (b) the **`methodFromUse`
+  on-hit copy-elision** — type-argument inference (`typeinference8.Resolution.resolveWithLowerBounds`)
+  mutates the method type in place; and (c) the **`directSupertypesCache` flip** — its dominant consumer is
+  `AsSuperVisitor` (the cache exists *because* `asSuper`/`allSupertypes` recompute supertypes constantly),
+  which mutates each returned supertype in place (`copyPrimaryAnnos`, `setUpperBound`, `fixupBoundAnnotations`
+  via `visitDeclared_{Typevar,Wildcard,Intersection}`); flipping it (return the frozen masters, skip the
+  per-hit `deepCopySupertypes`) flushed 60 `BugInCF`s, all in `AsSuperVisitor`, and fixing them would
+  relocate the per-hit copy into `AsSuperVisitor` — fired once per asSuper walk-step, the same frequency —
+  a provable wash. Reverted. Rule of thumb confirmed: **a post-pipeline cache whose hits are mostly
+  read-only pays from a flip; a cache whose hot consumer rewrites the result in place does not — and you
+  can tell which from whether the hot consumer (tree pipeline / inference / asSuper) is in the flush.**
+- **Caching `AnnotatedTypeMirror.hashCode()` on frozen types (PR #1798 session).** The standing idea
+  (the hash can't be cached *because* ATMs are mutable) is unblocked for frozen types — but
+  instrumentation showed **0.0% of `hashCode()` calls land on frozen types** (every hot hash target is a
+  mutable working copy, since the caches hand out copies). Worthless in the current architecture, and it
+  would only become useful after a boundary flip that itself does not pay.
+- **Shallow-location defaulting shortcut (PR #1798 session).** Skipping `QualifierDefaults`'s recursive
+  descent for top-level-only locations (FIELD/PARAMETER/RETURN/RECEIVER/RESOURCE_VARIABLE/
+  EXCEPTION_PARAMETER/CONSTRUCTOR_RESULT) is sound and cut scan calls **10.2%**, but those saved scans are
+  over cheap shallow types and **allocation was flat** — negligible. The cost is the deep `OTHERWISE`/
+  bound traversals over generic types; merging those into a single pass is a high-risk refactor with a
+  ~2% ceiling (defaulting is single-digit-% of CPU). Distinct from the deferred Defaulting Phase 2
+  (caching the result); this was the cache-free variant.
+- **`AnnotationMirror → QualifierKind` second-level cache in qualifier hierarchies (June 2026).**
+  `NoElementQualifierHierarchy.getQualifierKind(AnnotationMirror)` and the matching method in
+  `ElementQualifierHierarchy` already use an `elementToQualifierKind: IdentityHashMap<TypeElement,
+  QualifierKind>` (PR #1670) that resolves the kind in O(1) via a single identity probe on a tiny map
+  (~3–5 entries for Nullness, ~15–20 for Value). Proposed: add a second-level
+  `annoToQualifierKindMap: IdentityHashMap<AnnotationMirror, QualifierKind>` so that repeat queries
+  for the same `AnnotationMirror` instance bypass the TypeElement extraction entirely.
+
+  **The miss path that is being "saved" is already free.** For a `Attribute.Compound` annotation
+  (the common case), `getAnnotationType().asElement()` reduces to two direct field reads
+  (`anno.type.tsym`) — the same cost as an `IdentityHashMap` probe after JIT devirtualization.
+  There is nothing to save: the second-level cache adds overhead on misses (an `instanceof` check
+  plus a `put`) and is neutral on hits (trades one two-field-read path for one identity lookup),
+  netting to zero or slightly negative.
+
+  **A/B (deterministic `jdk.ThreadAllocationStatistics`, single forked `javac`):**
+
+  | corpus | master | branch | delta |
+  | --- | --- | --- | --- |
+  | Nullness checker, 600-method class (`NoElementQualifierHierarchy`) | 1396.8 MB | 1397.9 MB | **+0.08%** (noise) |
+  | Value checker, 300-method `@IntRange` class (`ElementQualifierHierarchy`) | 194.7 MB | 195.0 MB | **+0.15%** (noise) |
+
+  Both within the ~0.5% run-to-run band. **Rejected on measurement: flat allocation, and for
+  `ElementQualifierHierarchy` the map grows unboundedly** — the Value checker processes many
+  distinct `@IntRange(from=X, to=Y)` instances whose `AnnotationMirror` identity is unique per
+  value combination, so `annoToQualifierKindMap` accumulates one entry per distinct annotation
+  instance seen over the whole build with no bound or clear. **General lesson: a second-level
+  cache in front of an already-O(1) tiny-map lookup provides no benefit — the cost being
+  "saved" is on the order of two field reads, below any measurable threshold.**
+
+- **Keeping the `DefaultQualifierForUseTypeAnnotator` cache warm across compilation units (June 2026).**
+  `GenericAnnotatedTypeFactory.setRoot` clears `defaultQualifierForUseTypeAnnotator`'s
+  `elementToDefaults` (Element → default-for-use qualifiers) per compilation unit, alongside the other
+  per-CU caches. Proposed: stop clearing it, so defaults computed for a library element (e.g.
+  `java.util.Map`) in one CU are reused in later CUs. **The cache-hit win is real but a vanity metric —
+  it does not move allocation or CPU.** Instrumented hit/miss counters (runtime-toggled with
+  `-Ddqfu.noclear`) over a 120-file corpus that references many distinct JDK types: warm cuts misses
+  from **18,396 to 2,331 (−87%)**, since the per-CU clear was flushing ~16.6k entries that each later CU
+  re-missed. (A simpler corpus that mostly uses `Object`/generics shows almost nothing — 1,252 → 936 —
+  so this needs a *diverse-library-type* corpus to exercise at all.) But the deterministic
+  allocation A/B (`jdk.ThreadAllocationStatistics`) was **−0.2%, within noise** on both corpora, and
+  on-CPU `ExecutionSample` count did not move (warm side nominally higher, inside ±5–10% sampling
+  noise). The reason the misses are nearly free to recompute: `getDefaultAnnosForUses` already
+  canonicalizes the overwhelmingly-common empty result to the shared `AnnotationMirrorSet.emptySet()`
+  sentinel, so a miss on a type with no `@DefaultQualifierForUse` (≈ every JDK type) allocates only a
+  tiny transient set that is immediately discarded — 16k misses ≈ 1 MB against a 2.2 GB total.
+  **Rejected:** no measurable allocation/CPU benefit, and it trades away a correctness invariant — the
+  cache reads element annotated types (`getExplicitAnnos` → `getElementAnnotations`) that stub/ajava
+  loading can refine across compilation units, so a warm entry can go stale (independent of WPI). A
+  checker that makes heavy use of `@DefaultQualifierForUse` (non-empty default sets) could show a
+  different allocation profile and would be worth re-measuring before revisiting; for `NullnessChecker`
+  the change is all cost, no measurable gain. **General lesson: a cache-hit-rate improvement is not a
+  performance result. When the miss path is already cheap (here, an empty-set sentinel), eliminating
+  misses changes neither allocation nor wall clock — always confirm a hit-rate gain on the deterministic
+  allocation / on-CPU A/B before crediting it, and exercise element-keyed caches with a realistic,
+  diverse corpus, since trivial synthetic inputs under-fill them.**
 - **`AnnotatedTypeMirror.getEffectiveAnnotations` caching.** JFR-
   attributed self-time was ~0.05% on the alltests trace and ~0.1% on
   the Oscar EMR (~4000 file) trace. Not a hotspot.
+- **Lazy path stack in `CFGTranslationPhaseOne.scan` (June 2026, during PR #1786).** `scan` eagerly does
+  `new TreePath(path, tree)` for *every* tree it visits to maintain `getCurrentPath()`,
+  and most of those paths are never queried (only `MethodInvocationNode`, 1 of 78 node
+  types, retains one; the other 22 of 23 `getCurrentPath()` call sites feed
+  `TreePathUtil` helpers that extract a fact and drop the path). The proposed fix: keep
+  a `Tree` stack and materialize the `TreePath` lazily on `getCurrentPath()`, allocating
+  nothing for unqueried trees. **Rejected as not worth it: the target is negligible.**
+  Pure-counting instrumentation (no behavior change; it also *simulates* the lazy stack's
+  allocation count) on the all-systems corpus measured **eagerAllocs = 11,665 (~373 KB)**
+  for the whole 267-file run, of which the lazy stack would save 47.9% — i.e. ~178 KB
+  against a ~6 GB total. The JFR agrees: `CFGTranslationPhaseOne.scan` (line ~562) is
+  only **0.56%** of `TreePath` allocation (17 samples), ≈0.01% of total. The "70% of
+  `TreePath` allocs in the CFG builder" headline is **not** this line — it is the body-path
+  *search* at `process` / line ~527 (see the applied "CFG-builder body-path lookup" note),
+  which caching fixes for ~6 lines instead of a risky rewrite of dataflow's central
+  traversal.
+- **Pre-sizing `AnnotationMirrorSet`'s backing array (June 2026, during PR #1785).**
+  `AnnotationMirrorSet.<init>` was the 2nd-largest `Object[]` source in the `checknullness`
+  worker (18.77%, 6,901 samples, behind only the visitor maps). But it is not oversized: the
+  set is array-backed by `shadowList = new ArrayList<>(2)`, already a 2-element `Object[2]`.
+  With compressed oops (the realistic-heap case) and 8-byte object alignment, `Object[1]`
+  (20 B → padded 24 B) and `Object[2]` (24 B) cost the *same* 24 bytes, so shrinking to 1 saves
+  nothing and would force a resize on every 2-element set (common: multi-hierarchy qualifier
+  sets, declaration-annotation sets). `Object[2]` is already at the alignment floor while holding
+  two without resizing; the 18.77% is allocation *volume* (one tiny array per set, and sets are
+  created constantly), which a capacity argument cannot reduce. Cutting it needs *fewer* set
+  instances — empty/singleton sentinels or a lazy/specialized backing store — which is an
+  architectural, correctness-sensitive change to a hot `Set`/`DeepCopyable` path, not a size
+  tweak. The empty-set case is already partly handled (the `emptySet()` sentinel and the
+  `getAnnotations()` `isEmpty()` short-circuit).
 - **`CFAbstractStore.copyMap` allocation avoidance.** `new HashMap<>(emptyMap)`
   and `new HashMap<>()` produce identical JIT output once the map is
   written to; the "savings" were illusory.
@@ -573,6 +1167,65 @@ the prior finding. A fresh hypothesis is not new evidence.
   worse than its 90.5%→81% hit-rate delta suggested. The new caches' +50–70 MB retained heap is the price
   of the perf; the right way to cut it is reducing per-entry weight (immutability), not entry count. Keep
   all caches at full `cacheSize`.
+- **`TypeKind` as a field on `AnnotatedTypeMirror`** — *superseded by PR #1763, do not
+  implement.* The goal (avoid the heap hop through `underlyingType.getKind()`) is already
+  met more cheaply: every subclass whose kind is constant (`AnnotatedDeclaredType`,
+  `AnnotatedArrayType`, `AnnotatedExecutableType`, `AnnotatedTypeVariable`,
+  `AnnotatedNullType`, `AnnotatedWildcardType`, `AnnotatedIntersectionType`,
+  `AnnotatedUnionType`) overrides `getKind()` to return the constant inline (PR #1763) —
+  zero memory and zero indirection, strictly better than the proposed ~8 MB field. Only
+  `AnnotatedPrimitiveType` and `AnnotatedNoType` fall through to the base method, and for
+  them `underlyingType.getKind()` is cheap and does not force symbol completion (see the
+  doc comment on the base `getKind()`).
+- **Dropping `MethodInvocationNode`'s `TreePath` field.** It is the only one of 78 `Node` types that
+  retains a `TreePath` (captured cheaply from `getCurrentPath()` at CFG-build time), for two
+  framework consumers — WPI's `isRecursiveCall` (`enclosingMethod`) and `AliasingTransfer` (the
+  invocation's parent). Investigated June 2026 (PR #1788 session) as a memory save and found **not
+  worth it**: CFGs are per-compilation-unit (`subcheckerSharedCFG` is cleared on `setRoot`,
+  `flowResult` nulled), so the paths are transient, not retained program-wide. Reconstructing on
+  demand (`atypeFactory.getPath(node.getTree())`) is feasible — both consumers hold the factory — but
+  must preserve behavior for *synthetic* invocation nodes (desugared
+  `iterator()`/`hasNext()`/`next()`/`close()`, which `AliasingTransfer` also visits). If ever touched,
+  do it for decoupling (WPI could read the enclosing method from `CFGMethod.getMethod()` instead of
+  walking the path), not for memory.
+- **Equal-store short-circuit in the analysis store merge (explored for PR #1793, June 2026).** In
+  `ForwardAnalysisImpl.mergeStores` (and the two merge sites in `BackwardAnalysisImpl`), check
+  `newStore.equals(previousStore)` before calling `leastUpperBound`/`widenedUpperBound`, and reuse the
+  existing store when equal — skipping the LUB, which allocates a fresh store and its five maps. The
+  intent: avoid the throwaway LUB allocation at fixpoint when a merge does not change the store.
+  **A/B (deterministic `jdk.ThreadAllocationStatistics` + wall clock; `gen-sized-program.py` and a
+  loop-heavy variant, drift-controlled interleave of prebuilt jars):** allocation **−1.1% to −1.5%**,
+  consistent across sizes and on the loop corpus — real but small. **Wall clock neutral-to-worse**:
+  flat at ≤300 methods, **+4–5% on the loop-heavy 600-method corpus** (master ~59 s → ~62 s,
+  interleaved). **Rejected: the allocation saving is below the wall-clock cost it adds.** The reason is
+  structural and worth recording, because "skip the LUB when nothing changed" looks free but is not:
+    - `CFAbstractStore.equals` already has an **O(1) size fast-path** (compare the five map sizes; the
+      size-only `hashCode` matches) — so merges where the live-variable *set* changed are already
+      rejected for free. The cost the short-circuit pays is the **same-size, different-value** case —
+      the *dominant* case during loop fixpoint convergence, where the variable set is stable while
+      abstract values refine. There `equals` must fall through to `supersetOf` and walk every entry.
+    - On that case the short-circuit does a **double walk**: the failed `equals` walk, then the LUB
+      walk it could not skip. Master does one walk. That extra per-merge walk is the wall-clock
+      regression.
+  **Alternatives explored, both dead ends:**
+    - **`==` instead of `.equals` (reference identity).** Cheaper (a pointer compare, never a walk),
+      but on the same Loop600 interleave allocation came back to **−0.2% (master, within noise)** — the
+      equal stores at merge points are *distinct objects* (content-equal, not reference-equal), so `==`
+      fires almost never and the allocation win vanishes. Wall clock stayed at master. Net: nothing.
+    - **Fold the equality detection into the single LUB walk** (`upperBoundOrPrevious`: track during
+      `upperBound`'s existing entry walk whether the result equals `previous`, and return `previous`
+      when so). This removes the double walk — but `upperBound` still allocates `newStore` at line 1171
+      before it can know the result, so it **loses the allocation saving** and only restores wall-clock
+      parity with master. No net win, added complexity. The two goals are in tension: saving the
+      allocation requires knowing equality *before* building `newStore` (a pre-walk = the short-circuit,
+      with its double-walk tax), while avoiding the double walk requires building `newStore` first.
+      Determining same-size equality *is* a full walk, of the same order as the LUB it would skip.
+  **Revisit only with new evidence on a memory-bound workload.** The whole prize is ~1.4% allocation
+  with no CPU win; on a heap-generous compile that is invisible. It could convert to a real win only
+  under default heap on a many-CU warm-daemon build where GC pressure dominates (the regime where
+  PR #1791's allocation cuts pay off) — measure there before reconsidering, not on single-file
+  allocation totals. See the Short list for the one way to make the same-size `equals` cheap enough
+  (a maintained content hash) and why it was not pursued.
 
 ---
 
@@ -580,30 +1233,6 @@ the prior finding. A fresh hypothesis is not new evidence.
 
 Candidates raised in profiling sessions but not yet implemented. Capture
 format: hot method, hypothesis, blockers/open questions.
-
-A May 2026 review closed out every item previously on this list:
-
-- **`TypeKind` as a field on `AnnotatedTypeMirror`** — *superseded, do not
-  implement.* The goal (avoid the heap hop through `underlyingType.getKind()`)
-  is already met by a cheaper mechanism: every subclass whose kind is constant
-  (`AnnotatedDeclaredType`, `AnnotatedArrayType`, `AnnotatedExecutableType`,
-  `AnnotatedTypeVariable`, `AnnotatedNullType`, `AnnotatedWildcardType`,
-  `AnnotatedIntersectionType`, `AnnotatedUnionType`) overrides `getKind()` to
-  return the constant inline. That costs zero memory and zero indirection,
-  strictly better than the proposed ~8 MB field. Only `AnnotatedPrimitiveType`
-  and `AnnotatedNoType` fall through to the base method, and for them
-  `underlyingType.getKind()` is cheap and does not force symbol completion (see
-  the doc comment on the base `getKind()`).
-- **Pre-sizing `AnnotatedTypeCopier`'s per-visit map** — *already done.*
-  `AnnotatedTypeCopier.visit` constructs its `IdentityHashMap` with
-  `AnnotatedTypeScanner.VISITED_NODES_EXPECTED_MAX_SIZE` (64), the same
-  pre-sizing as `AnnotatedTypeScanner.visitedNodes`.
-- **`==` fast-path in `isSupportedQualifier`** — *rejected;* see the Tried and
-  rejected section for the measurement.
-
-The items above were each closed during the May 2026 review. One new candidate
-is currently open; add others below as profiling surfaces them, with the
-capture format above.
 
 - **`ElementUtils.qualifiedNameCache` backing map.** Hot method
   (`getQualifiedName` underlies `annotationName`, `getBinaryName`, the `isX`
@@ -625,17 +1254,32 @@ capture format above.
   `isSupportedQualifier`, `AnnotationFileElementTypes`, and
   `normalizeAndCheck`. Still needs the thread-reachability audit and daemon/LSP
   memory analysis before any change.
+- **`MethodInvocationNode.hashCode()` uses `Objects.hash(target, arguments)`.** That is the
+  varargs `Object[]` + autoboxing antipattern called out in Applied optimizations ("avoid
+  `Objects.hash`/`Arrays.hashCode` on hot paths") — each call allocates an `Object[]`. `Node`
+  hash/equals back the dataflow worklists and stores, so it *may* be hot; but most dataflow maps are
+  `IdentityHashMap` (identity, not structural), so first confirm with a JFR/alloc capture that
+  `MethodInvocationNode.hashCode` is actually reached. If so, replace with `31 * target.hashCode() +
+  arguments.hashCode()` (the field is immutable, so it could be precomputed). Spotted while auditing
+  `MethodInvocationNode` during the PR #1788 session; not yet measured.
+- **Maintained content hash on `CFAbstractStore` to make same-size `equals` O(1).** The only way to
+  rescue the rejected equal-store merge short-circuit (see Tried and rejected): the residual cost is
+  the same-size/different-value `supersetOf` walk, which a running content hash — updated incrementally
+  on every `put`/`remove`/`clearValue`/`insertValue` and compared before the walk — could reject in
+  O(1). Blockers, none cheap: (1) it replaces the deliberately-cheap size-only `hashCode` with one that
+  must stay consistent across *all* store mutation sites (the exact mutable-cache-invariant hazard
+  CLAUDE.md flags for `AnnotatedTypeMirror`); (2) on the loop-fixpoint case the store changes every
+  iteration, so the hash is recomputed/invalidated each time and the saving may not materialize; (3)
+  the ceiling is the ~1.4% allocation the short-circuit was already worth — no CPU win. Only worth
+  prototyping if a memory-bound `checknullness` A/B (default heap, warm daemon) first shows that
+  allocation delta converting to wall clock. Spotted June 2026 (PR #1793 review) while auditing why
+  `==`/`.equals` could not make the store short-circuit pay off.
 
 A June 2026 inclusive-time / co-occurrence investigation (looking for
 *architectural* redundancy rather than leaf hot spots, since the leaf profile is
-now flat) surfaced two further candidates. Both are blocked by correctness
-invariants, which is why the campaign left them:
+now flat) surfaced a further candidate, blocked by a correctness invariant, which
+is why the campaign left it:
 
-- **`AnnotatedTypeMirror.directSupertypes()` recomputes on every call — RESOLVED (PR #1777).** It ran
-  `SupertypeFinder.directSupertypes(this)` with no cache (~11–13% inclusive on `checkNullness`). The
-  blocker noted here (supertype annotations depend on mutable primary annotations) was sidestepped by
-  caching at the `AnnotatedTypeFactory.getDirectSupertypes` boundary with a structural key and
-  deep-copy on store/return (not a per-`ATM`-instance cache). See Applied optimizations.
 - **The lazy JDK-stub cascade runs the full type-annotation pipeline during
   parsing, uncached.** Stacks captured on `allNullnessTests` show
   `maybeParseEnclosingJdkClass` → `annotateSupertypes` → `directSupertypes` →
@@ -710,23 +1354,40 @@ Open venues, roughly by tractability:
 
 ### AnnotatedTypeMirror value-semantics program + cache campaign (narrative; June 2026)
 
-This subsection is the **detailed methodology log** for the cache campaign and the (still-open)
-immutability program. Canonical statuses live in the top-level sections; this is the "how we got
-there" record. **Status map:**
+This subsection is the **detailed methodology log** for the cache campaign and the immutability
+program. Canonical statuses live in the top-level sections; this is the "how we got there" record.
+**Status map:**
 - **Shipped** (see Applied optimizations): the `methodAsMemberOf`, `directSupertypes`, and
-  `elementType`/Phase-1 caches (PR #1777); the smaller-scope `declarationFromElement` scan (PR #1780).
+  `elementType`/Phase-1 caches (PR #1777); the smaller-scope `declarationFromElement` scan (PR #1780);
+  the **`freeze()` mechanism + the `AnnotatedTypeCopier` vararg-aliasing fix + freezing all eight
+  cache masters (PR #1798)** — the immutability program's *foundation*, behavior-neutral and
+  perf-neutral.
 - **Tried and rejected** (see that section): `constructorFromUse` cache, poly-deferral,
-  `declarationFromElement` via `trees.getTree`/single-pass-map, shrinking the heavy caches.
-- **Open** (see "Open items" at the end of Short list): the immutability program itself (delete
-  `deepCopy`), and Defaulting Phase 2 (tree-path memoization).
+  `declarationFromElement` via `trees.getTree`/single-pass-map, shrinking the heavy caches; and
+  (PR #1798 session) the **cache-boundary flips** (returning the shared frozen instance instead of a
+  copy — Element boundary, `methodFromUse` copy-elision), **`hashCode` caching on frozen ATMs**, and
+  the **shallow-location defaulting shortcut**.
+- **Open** (see "Open items" at the end of Short list): the immutability *allocation* win (delete
+  `deepCopy`/drop copy-on-return) is **blocked** — see the load-bearing-copy finding below — pending
+  copy-on-write or eliminating redundant re-annotation (Defaulting Phase 2).
 
 Goal of the immutability program: make ATMs effectively immutable / copy-on-write so
 `deepCopy`/`shallowCopy` can be deleted and the cache boundaries stop paying the deep-copy tax
 (`AnnotatedTypeCopier` ~2% self-time + the dominant share of `Object[]` allocation) — and the
-+50–70 MB the shipped caches retain goes away. Staged, each stage `alltests`-gated and JFR-measured;
-full design in the session plan. **This is the recommended next direction** — it is the one lever the
-evidence positively points to (the shipped caches proved valuable *and* proved the deep-copy cost),
-now that the per-leaf profile is flat.
++50–70 MB the shipped caches retain goes away.
+
+**Status after PR #1798: the foundation shipped; the allocation win is blocked, not merely "next".**
+PR #1798 makes a frozen type effectively immutable (a `frozen` bit; `checkMutable()` on the three
+primary-annotation sinks `addAnnotation`/`removeAnnotation`/`clearAnnotations`, with
+`primaryAnnotations.makeUnmodifiable()` as a backstop; a cycle-safe deep `freeze()` that freezes only
+already-initialized components, with the lazy getters freezing components they create later) and
+freezes every cache master, so a latent in-place mutation of a cached type now fails fast with
+`BugInCF` instead of silently corrupting a shared value. The caches still hand out a `deepCopy()` on
+every hit, so it is behavior-neutral and (measured, PR #1798) perf-neutral. **But four independent
+attempts this session showed the cache-return `deepCopy` is load-bearing** — the dominant consumers
+mutate the result, so removing the copy needs a deeper change than a boundary flip. The evidence and
+the dead ends are below; the immutability program is therefore **paused at its foundation**, not the
+"recommended next direction" it was before this session.
 
 **Validation spike (DONE, GO).** A throwaway `methodFromUse` cache (non-generic methods, key
 `(methodElt, structural receiverType, inferTypeArgs)`, copy-on-store/return) on
@@ -940,8 +1601,20 @@ not single-leaf. Re-prioritized venues:
   - **Name decoding ~2.3%** (`Convert.utf2chars` 1.43% + `utf2string` 0.86%). The "annotation formatting
     in the hot path" question is *resolved, opposite to the prior guess*: 36% of `utf2chars` is under
     `DefaultAnnotationFormatter.isInvisibleQualified` (22%) + `AnnotationUtils.toStringSimple` (14%) — i.e.
-    `ATM.toString`/`CFAbstractValue.toString` invoked **during type-checking, not the stub parser**. Worth
-    a look for an unguarded `toString`, but small (~0.5%).
+    `ATM.toString`/`CFAbstractValue.toString` invoked **during type-checking, not the stub parser**.
+    *Update (PR #1796):* the name-*comparison* share of this slice is addressed (interned-`Name`
+    identity helpers + `sameName`); what remains is the *formatting/stringification* share — the
+    unguarded `toString` was found (see the eager-error-formatting bullet below), plus
+    `ProperType.computeHashCode` (hashes `toString()`) and `SourceChecker.shouldSkipUses`
+    (`Symbol.toString()` per call for a regex match).
+    *Update (PR #1797, June 2026):* the stringification share is now addressed — `FoundRequired`
+    formatting is lazy, `shouldSkipUses` is cached, `ProperType`/`Variable` hash without
+    `toString()`, `LocalVariableNode.hashCode`/`equals` read `Name` directly, and the annotation
+    name maps use `IdentityHashMap<Name>`. Measured full-build (`./gradlew checknullness`)
+    warm-daemon A/B: branch ~2m10s, master ~2m16–18s (~7s, consistently one-sided but near the
+    5–10s noise floor — as expected for a ~0.9% utf2* share). JFR: `utf2chars` 0.57% +
+    `utf2string` 0.32% = **0.89% combined** (down from the ~2.3% pre-#1796 level); remaining
+    callers are cold stub-parsing paths, diagnostic-only formatting, and first-visit cache misses.
 
   Stale pre-cache attribution kept below for history:
 
@@ -962,7 +1635,8 @@ not single-leaf. Re-prioritized venues:
   decoding; its nearest-CF callers split between legitimate stub work (`AnnotationFileParser.findElement`)
   and `TreeUtils.isConstructor`/`isEnumSuperCall`. Incremental, not architectural: audit each forcer for
   info it already has (e.g. a `TypeKind` it could read without completing the symbol, or an interned
-  `String` it could compare instead of decoding a `Name`).
+  `String` it could compare instead of decoding a `Name`). *Update: the name-comparison callers named
+  here (`isConstructor`, `isEnumSuperCall`, `findElement`) were addressed by PR #1796.*
 
 - **The defaulting walk is the largest *CF-controlled* leaf cluster — FEASIBILITY MEASURED (June
   2026), verdict: highly memoizable, worth building.** `QualifierDefaults.DefaultApplierElementImpl.scan`
@@ -1090,33 +1764,30 @@ not single-leaf. Re-prioritized venues:
   `getDeclAnnotations`/`isSupportedQualifier` calls per node), not the per-lookup cost. Low value as a
   direct target; better addressed indirectly if the defaulting/CF-into-javac venues reduce node visits.
 
-- **Annotation *formatting* in the hot path — confirm before chasing (likely a non-issue).**
-  `AnnotationUtils.toStringSimple` and `DefaultAnnotationFormatter.isInvisibleQualified` appear under
-  `Convert.utf2chars`, which would be alarming (formatting should only run for diagnostics). But
-  `isInvisibleQualified` is called *only* from `DefaultAnnotationFormatter.formatAnnotationString`
-  (ATM `toString`), and `toStringSimple` from `CFAbstractValue.toString`/`toStringSimple` and the stub
-  parser — and the co-located nearest-CF frame is `AnnotationFileParser.findElement`, i.e. the **stub
-  parser** legitimately decoding/matching annotation names, not type-checking. Before optimizing,
-  confirm with a stack sample whether any `ATM.toString`/`CFAbstractValue.toString` is invoked from a
-  non-diagnostic path (an unguarded message build); if it is only the stub parser, there is nothing to
-  fix here. Sub-0.5% either way — low priority.
+- **Annotation *formatting* in the hot path — APPLIED in PR #1797 (June 2026).** Stack samples on
+  the full `checknullness` build settled the "confirm before chasing" question: 148 samples (~1.1%)
+  contained `AnnotatedTypeMirror.toString`, and the callers were **not** diagnostics-only. The two
+  paths: (1) `BaseTypeVisitor.checkContainsSameToString` — a static `SimpleAnnotatedTypeScanner`
+  whose lambda calls `type.toString()` *and* `type.toString(true)` on **every component of every
+  type** — invoked via `containsSameToString` from `FoundRequired.of` and `shouldPrintVerbose`;
+  (2) `reportCommonAssignmentError`/`reportMethodInvocabilityError`, which built `FoundRequired`
+  (i.e. formatted both full types) **before** `checker.reportError`, so the formatting cost was
+  paid even when the warning was subsequently suppressed. Fix: `FoundRequired.found`/`required`
+  changed from `String` to lazy `Object` wrappers; `shouldPrintVerbose` result memoized. See the
+  Applied optimizations entry above for the measured A/B.
 
-- **`IdentityHashMap` pre-sizing (52% of `Object[]`, from `reset()`).** Pre-sized to
-  64 → a 256-slot `Object[]` per scan, most visiting 1–3 nodes. *Settled* for
-  realloc-vs-`clear()` and pre-size-64 (see the applied "Re-measured June 2026"
-  note), but those measurements were CPU self-time on `allNullnessTests`. The
-  realistic worker shows `Object[]` at 61% of allocations, so the **GC** side of the
-  tradeoff is heavier than when last measured. Only revisit with *wall-clock + GC
-  pause* data on a realistic compile (e.g. an adaptive/smaller initial size, or
-  size-aware reset) — allocation-count alone will not overturn the prior CPU finding.
 - **CF driving javac internals — the biggest realistic CPU lever (~25% of total).** The
   wall-clock breakdown above attributes ~25% of all time to CF reaching into javac:
   forced `Symbol.complete`/`apiComplete` (from `getKind`/`createType`/
   `CFAbstractValue.canBeMissingAnnotations`/`getErased`/`ElementUtils.isTypeElement`),
   `Name`/UTF-8 decoding (`Convert.utf2chars`/`utf2string`, `Utf8NameTable.equals` — every
   time CF compares or stringifies a `Name` that isn't yet decoded/interned), and repeated
-  `TreePath` construction/tree walks. PR #1763 (`getKind()` overrides) and PR #1673
-  (interned-name caching) each chipped at one facet. This is bigger than dataflow + stubs
+  `TreePath` construction/tree walks. PR #1763 (`getKind()` overrides), PR #1673
+  (interned-name caching), PR #1796 (interned-`Name` identity comparison — removed the
+  name-*comparison* share), and PR #1797 (lazy `FoundRequired` formatting, `shouldSkipUses`
+  cache, `ProperType`/`Variable`/`LocalVariableNode` hash fixes, `IdentityHashMap<Name>`
+  annotation maps — removed the stringification share; combined utf2* now **0.89%** on the full
+  `checknullness` build) each chipped at one facet. This is bigger than dataflow + stubs
   + visitor combined and is the highest-leverage remaining CPU target for realistic
   compiles; it is incremental, not architectural — audit the remaining forcers/decoders
   that already have (or could cache) the needed info. Confirmed real, not the
@@ -1144,27 +1815,147 @@ Investigated and **rejected** this session:
   a single annotation → the singular `add/addMissing/replaceAnnotation` method, never a
   one-element collection.
 
+**PR #1798 — the immutability foundation, and why the allocation win is blocked (June 2026).** This is
+the session that built the `freeze()` mechanism and tried to cash it in for the deep-copy-removal
+allocation win. The foundation shipped; the allocation win did not, and the dead ends are precise and
+worth not re-walking.
+
+*What shipped (PR #1798), behavior- and perf-neutral.* A `frozen` bit on `AnnotatedTypeMirror`;
+`checkMutable()` throwing `BugInCF` on the three primary-annotation sinks
+(`addAnnotation`/`removeAnnotation`/`clearAnnotations` — every other annotation mutator routes through
+them), with `primaryAnnotations.makeUnmodifiable()` as a backstop for the `getAnnotationsField()` and
+`AnnotatedDeclaredTypeNoHierarchy.addAnnotation` paths; a cycle-safe deep `freeze()` (the `frozen` bit
+is the visited marker) that freezes only already-initialized components, with the lazy getters
+freezing components they create after the owner is frozen; and freezing the master stored at all eight
+caches (`elementCache`, `elementTypeCache`, `classAndMethodTreeCache`, `from{Member,Expression,Type}TreeCache`,
+`methodAsMemberOfCache`, `directSupertypesCache`). The caches still `deepCopy()` on every hit, so this
+is behavior-neutral. **Structural setters are deliberately left unguarded** — the corruption vector is
+annotation mutation, and deep `freeze()` already freezes every reachable component's annotations;
+guarding the structural setters would need a raw-setter split of `BoundsInitializer` (the bound setters
+are called on the frozen owner during lazy init) for no safety gain. **A/B (deterministic
+`jdk.ThreadAllocationStatistics`, median of 3, + wall + on-CPU):** allocation **−0.09%** on a 300-method
+generic file and **+0.07%** on a 400-vararg-method file (both within the ~0.15% band); `freeze()` does
+not appear in 1,725 on-CPU samples on a 1500-method compile (<0.06%); wall within noise. The `frozen`
+boolean adds no per-object allocation (it fits existing object padding — total allocation did not move).
+
+*The flush traced to ONE copier bug, not pervasive aliasing.* Freezing the masters initially flushed
+`MethodValInferenceTest` + ~12 `NullnessTest` cases as `BugInCF` ("Attempted to mutate a frozen
+AnnotatedTypeMirror"), which *looked* like the construction pipeline embedding cached substructure
+everywhere. It was a single bug: `AnnotatedTypeCopier.visitExecutable` did
+`copy.setVarargType(original.getVarargType())` — **aliasing** the original's vararg `AnnotatedArrayType`
+into the "copy" instead of copying it, so `deepCopy()` of an executable type was not fully independent
+and shared its whole vararg subtree (`Object[]`/`Class<?>[]`/`LinkOption[]` and everything reachable —
+which is why every flushed underlying type was an array or an array-subtree node). Defaulting then
+mutated that shared subtree. Fixed with `copy.setVarargType((AnnotatedArrayType) visit(original.getVarargType(),
+originalToCopy))` — the `originalToCopy` map returns the already-made parameter copy when the vararg is
+the last parameter (the common case, so the fix is allocation-neutral), else a fresh copy. With that one
+fix, freezing all eight masters is green on the full suite. **Lesson: when freezing flushes a cluster of
+mutations, look for a shared copier/construction bug before assuming pervasive aliasing.**
+
+*The aliasing was benign to results — the only symptom is the freeze crash.* The vararg type is consumed
+read-only (`PropagationTreeAnnotator`, `BaseTypeVisitor`); its only post-copy mutator is qualifier
+defaulting, which is idempotent (`addMissingAnnotation`), so the shared subtree always got the same
+annotations and no wrong diagnostic ever resulted — which is why it was latent and master's suite was
+green. Confirmed three ways on one program (JDK vararg calls `Arrays.asList`/`String.format`/`Class.getMethod`):
+clean on master, `BugInCF` on freeze-without-fix, clean on freeze+fix. Consequence: the regression test
+(`checker/tests/nullness/VarargCacheAliasing.java`, PR #1798) only demonstrates the bug *with* the freeze
+enforcement present; a standalone fix would need a unit test asserting `deepCopy` independence. This is
+also why PR #1798 keeps the fix and the freeze work in one change.
+
+*The load-bearing-copy finding — four attempts, all confirming the cache-return `deepCopy` cannot just be
+dropped.* The whole point of freezing masters was to then return the shared frozen instance and delete the
+copy. It does not work, because the dominant consumers mutate what they get back:
+- **Element-boundary flip** (`getAnnotatedType(Element)` returns the frozen master): flushed
+  `DefaultInferredTypesApplier` (flow refinement, 60), `constructorFromUse` (`type = getAnnotatedType(elt);
+  type.clearAnnotations()`, 25), `CommitmentTypeAnnotator`, `DefaultQualifierPolymorphism`, `ValueTreeAnnotator`,
+  ... The results feed the always-mutating tree pipeline (`visitIdentifier`/`visitMemberSelect`/`asMemberOf`
+  → `addComputedTypeAnnotations`), so fixing each site means a `deepCopy()` *before* the mutation — which
+  **moves** the copy to the consumer, not removes it. The flip saves a copy only for read-only direct
+  consumers, the minority.
+- **`methodFromUse` copy-elision** (skip the on-hit `deepCopy` since `typeVarSubstitutor.substitute` copies
+  again for generic methods): **type-argument inference mutates the method type in place** —
+  `findTypeArguments` → `DefaultTypeArgumentInference.inferTypeArgs` →
+  `typeinference8.Resolution.resolveWithLowerBounds` calls `replaceAnnotations` on a component of `preType`.
+  So the pre-inference copy is load-bearing.
+- **`hashCode` caching on frozen ATMs** (the perf-notes' standing "can't cache because mutable" item):
+  instrumented **0.0% of `hashCode()` calls land on frozen types** (0 of 185k / 370k on the size sweep) —
+  every hot hash target is a mutable working copy, because the caches return copies. Worthless in the
+  current architecture, and doubly blocked (it would need the boundary flip, which itself does not pay).
+- **Shallow-location defaulting shortcut** (skip the recursive descent for the top-level-only locations
+  FIELD/PARAMETER/RETURN/RECEIVER/RESOURCE_VARIABLE/EXCEPTION_PARAMETER/CONSTRUCTOR_RESULT — but NOT
+  LOCAL_VARIABLE, which has a type-variable-use special case): cut scan calls only **10.2%** (586k→527k),
+  and those saved scans are over cheap shallow types (`Object` parameters); **allocation flat**. The
+  expensive defaulting is the deep `OTHERWISE` + bound-location traversals over generic types, which the
+  shortcut does not touch. (Separately measured: `addMissingAnnotation` is **74% no-op**, and
+  `applyDefaultsElement` does N full scans, one per `Default` — so a *full* single-pass merge could pay,
+  but it is a high-risk refactor of the recursive bound logic with a ~2% ceiling.)
+
+**Where this leaves the program.** A boundary flip *is* achievable — but it relocates the copy to each
+mutating consumer rather than removing it, so the realized win is only the read-only-consumer fraction.
+Two findings refine the earlier "blocked" verdict:
+
+- **The cross-cutting blocker was one latent bug, now fixed (PR #1798): side-effecting equality.**
+  `ValueAnnotatedTypeFactory`'s `arePrimaryAnnosEqual` override normalized its operands by mutating them
+  (`replaceAnnotation`) before comparing. That fired during *every* cache flip (it runs in subtyping/equality,
+  which all cache results flow through). Made non-mutating (compute the canonical annotations, compare without
+  mutating). It is the prerequisite for any flip and a correctness fix on its own.
+- **`classAndMethodTreeCache` flip shipped (PR #1798) — green, but modest.** With the equality fix plus
+  copy-on-frozen at the ~6 mutating consumers it flushed (`getMethodReturnType`, `getSelfType`, the
+  `getAnnotatedType(Tree)` pipeline choke-point, `constructorFromUse`'s enclosing type, and
+  `ValueVisitor.checkOverride`), the flip is green on the full suite. **But deterministic A/B is ~−1% on a
+  method-heavy file and ~0% on realistic code — `classAndMethodTreeCache` is low-volume.** Shipped for
+  GC-relief + to establish the copy-on-frozen consumer-fix pattern.
+- **The high-volume `elementTypeCache` is mutation-dominated, so likely also modest.** Its flip flushed
+  108 events; its dominant consumer is `asMemberOf` (every method call via `methodFromUse`), which mutates the
+  result (poly resolution, substitution, `postAsMemberOf`). Flipping it needs `asMemberOf` to copy-on-frozen
+  on its alias-return paths, which moves the copy back — limiting the win to read-only element-type queries.
+  Not pursued: large fix set, likely-modest win.
+
+So the per-cache lesson: the flip is *mechanically* unblockable (copy-on-frozen at the enumerated mutating
+consumers; the freeze tripwire makes it incrementally safe), but the high-volume caches' hot consumers mutate,
+so the realized win is small. The larger allocation win still needs **copy-on-write** (mutator returns a fresh
+node sharing unchanged children — though the whole-tree re-annotators like defaulting/flow get no benefit) or
+**eliminating redundant re-annotation** (Defaulting Phase 2). Prototype + JFR-A/B before more flips. The
+higher-leverage perf target remains CF→javac internals (see the open venues).
+
 #### Open venues (current — global trace after the smaller-scope `declarationFromElement` scan)
 
 A fresh full-`checknullness` trace (11,009 on-CPU samples; javac internals 35.8% / type factory 34.6%)
 has a **flat leaf profile (no leaf > ~3%)** — the per-leaf hot spots are mined out. Remaining
 CF-controllable clusters and their state, highest-leverage first:
 
-1. **Immutability program (recommended next).** The deep-copy tax (`AnnotatedTypeCopier` ~2% self-time
-   + dominant `Object[]` allocation share) is what the shipped caches pay and is the +50–70 MB retained
-   heap. The one lever the evidence positively supports; large/staged. See the narrative header above.
+1. **Immutability program — foundation + first flip shipped (PR #1798); remaining win small per cache.**
+   Shipped: the `freeze()` mechanism, the `AnnotatedTypeCopier` vararg-aliasing fix, freezing all eight
+   cache masters, the non-mutating-equality fix, and the first boundary flip (`classAndMethodTreeCache`
+   returns the shared frozen value, with copy-on-frozen at its mutating consumers). The flip is **green but
+   ~−1%/~0%** (low-volume cache). The flip technique is mechanically unblockable (copy-on-frozen at the
+   enumerated mutating consumers), but the high-volume caches' dominant consumers mutate (`elementTypeCache`
+   → `asMemberOf`), so their realized win is also likely modest. The larger win needs copy-on-write or
+   eliminating redundant re-annotation, *not* more boundary flips — see the narrative ("Where this leaves
+   the program") and Tried and rejected. Re-open with a copy-on-write prototype, measured.
 2. **Defaulting Phase 2 (tree-path memoization).** Measured 88% `(scope, type)` repeat on the tree path,
    ~9.3 scans/call; per-CU clearing bounds the memory. *Gate on a within-CU-repeat measurement first*,
    and note it carries the same write-back tax that sank the `constructorFromUse` cache (real flat-risk).
-3. **`getPath` / TreePath construction (~3.2%).** 68% of `TreePath.<init>` is under
-   `AnnotatedTypeFactory.getPath`'s slow path (`TreePath.getPath(root, tree)` scan on cache miss +
-   heuristic failure). The heuristics + `treePathCache` are already tuned; no obvious cheap win.
+   PR #1798 also measured the cheaper cache-free variant (a "shallow-location" shortcut) and found it
+   negligible — see Tried and rejected; the deep `OTHERWISE`/bound traversals are where the cost is, and
+   merging those is the risky part.
+3. **`getPath` / TreePath construction (~3.2%) — largely addressed by PR #1786 + #1788.** 68% of
+   `TreePath.<init>` was under `AnnotatedTypeFactory.getPath`'s slow path (uncached
+   `TreePath.getPath(root, tree)` scans on cache miss + heuristic failure). PR #1786 caches the
+   per-body lookup; PR #1788 makes `TreePathCacher` lazy and routes `getPath` through it, removing
+   most of that allocation. **Residual — RESOLVED by PR #1789.** A single class with very many
+   methods still allocated *super-linearly* after #1786/#1788 (1500 methods 4.9 GB → 3000 11.8 GB →
+   6000 32.1 GB, ~2.5–2.7× per doubling). An `alloc`-by-nearest-CF-frame capture (via a
+   `gen-sized-program.py` size sweep) traced it to `getPath` searches that rescanned the whole class
+   per lookup; PR #1789 starts those searches from the tightest known path, making it linear (6000
+   methods 32.1 GB → 14.8 GB). See "Linear `getPath` searches" in Applied optimizations.
 4. **`declarationFromElement` residual (~5–7%).** Still the largest single javac-interaction cost after
    the smaller-scope scan; residual is method-subtree scanning. The cheap levers are exhausted (scoping
    tighter than a method has no element; `trees.getTree` and the single-pass map were rejected).
 5. **Small / blocked:** `ElementUtils.qualifiedNameCache` (`synchronizedMap`+`WeakHashMap` lock/expunge,
-   ~0.58%, blocked on a thread-reachability + daemon-memory audit — see Short list above); annotation
-   formatting in the hot path (~0.5%, confirm it is type-checking not the stub parser before chasing).
+   ~0.58%, blocked on a thread-reachability + daemon-memory audit — see Short list above). Annotation
+   formatting in the hot path is now **resolved** (PR #1797 lazy `FoundRequired`); remaining utf2*
+   at 0.89% is cold-path / first-visit-miss only.
 
 ---
 
