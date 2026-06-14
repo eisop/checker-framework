@@ -413,7 +413,7 @@ public class ElementUtils {
      * @return true iff the element is java.lang.Object element
      */
     public static boolean isObject(TypeElement element) {
-        return element.getQualifiedName().contentEquals("java.lang.Object");
+        return InternalUtils.isJavaLangObjectName(element.getQualifiedName());
     }
 
     /**
@@ -423,7 +423,7 @@ public class ElementUtils {
      * @return true iff the element is java.lang.String element
      */
     public static boolean isString(TypeElement element) {
-        return element.getQualifiedName().contentEquals("java.lang.String");
+        return InternalUtils.sameName(element.getQualifiedName(), "java.lang.String");
     }
 
     /**
@@ -524,7 +524,7 @@ public class ElementUtils {
      */
     public static @Nullable VariableElement findFieldInType(TypeElement type, String name) {
         for (VariableElement field : ElementFilter.fieldsIn(type.getEnclosedElements())) {
-            if (field.getSimpleName().contentEquals(name)) {
+            if (InternalUtils.sameName(field.getSimpleName(), name)) {
                 return field;
             }
         }
@@ -646,7 +646,7 @@ public class ElementUtils {
             } else {
                 // In constructors, the element for "this" is a non-static field, but that field
                 // does not have a receiver.
-                return !element.getSimpleName().contentEquals("this");
+                return !InternalUtils.isThisName(element.getSimpleName());
             }
         }
         return element.getKind() == ElementKind.METHOD && !ElementUtils.isStatic(element);
@@ -914,7 +914,7 @@ public class ElementUtils {
             List<? extends Element> encloseds = enclosing.getEnclosedElements();
             for (Element enclosed : encloseds) {
                 if (isRecordComponentElement(enclosed)
-                        && enclosed.getSimpleName().toString().equals(methodName)) {
+                        && InternalUtils.sameName(enclosed.getSimpleName(), methodName)) {
                     return true;
                 }
             }
@@ -952,7 +952,7 @@ public class ElementUtils {
      */
     public static boolean matchesElement(
             ExecutableElement method, String methodName, Class<?>... parameters) {
-        if (!method.getSimpleName().contentEquals(methodName)) {
+        if (!InternalUtils.sameName(method.getSimpleName(), methodName)) {
             return false;
         }
 
