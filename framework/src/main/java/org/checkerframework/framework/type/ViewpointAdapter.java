@@ -71,4 +71,14 @@ public interface ViewpointAdapter {
     void viewpointAdaptTypeParameterBounds(
             AnnotatedTypeMirror receiverType,
             List<AnnotatedTypeParameterBounds> typeParameterBounds);
+
+    /**
+     * Viewpoint adapts a type written from the receiver's declaration viewpoint.
+     *
+     * @param receiverType receiver type through which {@code declaredType} is viewed
+     * @param declaredType type to viewpoint adapt
+     * @return the viewpoint-adapted type
+     */
+    AnnotatedTypeMirror viewpointAdaptType(
+            AnnotatedTypeMirror receiverType, AnnotatedTypeMirror declaredType);
 }
