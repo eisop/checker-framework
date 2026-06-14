@@ -5,7 +5,7 @@ Version 3.49.5-eisop2 (June ?, 2026)
 
 The Checker Framework now issues an `annotation.on.supertype` error when a type qualifier
 supported by the active checker is written on a supertype in an `extends` or `implements`
-clause. A checker that wants to allow annotations on supertypes can override
+clause. A checker that allows annotations on supertypes can override
 `BaseTypeVisitor#checkAnnotationOnSupertype(Tree)` to do nothing.
 
 Further performance improvements. `allNullnessTests` down to below 2 minutes
