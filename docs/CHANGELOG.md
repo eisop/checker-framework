@@ -9,6 +9,13 @@ respectively). Several optimizations also reduce GC pressure.
 
 **Implementation details:**
 
+Performance: the synthetic array tree created for a varargs call is now given a tree
+path under the call site, so defaulting its type no longer rescans the whole
+compilation unit via `getPath`. This was O(compilation unit) per varargs call --
+quadratic over a file of varargs calls; on a 3000-call file the nullness checker's
+on-CPU samples dropped about 4x. Only checkers that default heavily (e.g. nullness)
+were affected.
+
 Performance: `AnnotatedTypeFactory.declarationFromElement` no longer calls
 `Trees.getTree` to locate the enclosing declaration of a member or variable,
 which made javac scan the enclosing class on every call (O(class) per call,
