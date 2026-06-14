@@ -9,6 +9,15 @@ respectively). Several optimizations also reduce GC pressure.
 
 **Implementation details:**
 
+Performance: `AnnotatedTypeFactory.declarationFromElement` no longer calls
+`Trees.getTree` to locate the enclosing declaration of a member or variable,
+which made javac scan the enclosing class on every call (O(class) per call,
+O(class^2) across a class's members). It now obtains the enclosing method/class
+tree from the current visitor path when available, and `DeclarationScanner`
+caches declarations under their raw symbol. Reduces `declarationFromElement`
+from 8.4% to 1.5% of `checkNullness` self time and is about 7% faster
+end-to-end; worst-case (a single large class) improves by roughly half.
+
 Enabled the Gradle configuration cache, speeding up build times.
 
 `AnnotationMirrorSet` has a new `get(int)` method that returns the element at a

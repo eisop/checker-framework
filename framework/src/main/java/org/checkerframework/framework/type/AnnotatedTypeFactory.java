@@ -4319,6 +4319,38 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     }
 
     /**
+     * Returns the declaration tree of {@code target} if it is a class or method on the current
+     * visitor path, or null otherwise. This is a cheap (path-walking) alternative to {@link
+     * Trees#getTree(Element)}, which scans the enclosing class for a member. It is used to obtain
+     * the enclosing method/class tree of a queried element during flow analysis, when the visitor
+     * path is set to a tree inside that method.
+     *
+     * @param target a class or method element, compared by reference against the path's symbols
+     * @return the declaration tree of {@code target} if found on the current visitor path, else
+     *     null
+     */
+    private @Nullable Tree declarationTreeFromVisitorPath(@FindDistinct @Nullable Element target) {
+        if (target == null) {
+            return null;
+        }
+        for (TreePath path = getVisitorTreePath(); path != null; path = path.getParentPath()) {
+            Tree leaf = path.getLeaf();
+            com.sun.tools.javac.code.Symbol leafSym;
+            if (leaf instanceof com.sun.tools.javac.tree.JCTree.JCMethodDecl) {
+                leafSym = ((com.sun.tools.javac.tree.JCTree.JCMethodDecl) leaf).sym;
+            } else if (leaf instanceof com.sun.tools.javac.tree.JCTree.JCClassDecl) {
+                leafSym = ((com.sun.tools.javac.tree.JCTree.JCClassDecl) leaf).sym;
+            } else {
+                continue;
+            }
+            if (leafSym == target) {
+                return leaf;
+            }
+        }
+        return null;
+    }
+
+    /**
      * Gets the declaration tree for the element, if the source is available.
      *
      * <p>TODO: would be nice to move this to InternalUtils/TreeUtils.
@@ -4372,7 +4404,13 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
                 Element enclosing = elt.getEnclosingElement();
                 Tree enclosingTree = null;
                 while (enclosing != null) {
-                    enclosingTree = trees.getTree(enclosing);
+                    // Prefer the enclosing method/class tree from the current visitor path
+                    // (cheap, just walking the path), since trees.getTree on a member scans the
+                    // enclosing class for it.
+                    enclosingTree = declarationTreeFromVisitorPath(enclosing);
+                    if (enclosingTree == null) {
+                        enclosingTree = trees.getTree(enclosing);
+                    }
                     if (enclosingTree != null) {
                         break;
                     }
@@ -6660,8 +6698,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         @Override
         public Void visitVariable(VariableTree node, Void p) {
             com.sun.tools.javac.code.Symbol sym =
-                    com.sun.tools.javac.tree.TreeInfo.symbolFor(
-                            (com.sun.tools.javac.tree.JCTree) node);
+                    ((com.sun.tools.javac.tree.JCTree.JCVariableDecl) node).sym;
             if (sym != null) {
                 elementToTreeCache.put(sym, node);
             }
@@ -6671,8 +6708,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         @Override
         public Void visitMethod(MethodTree node, Void p) {
             com.sun.tools.javac.code.Symbol sym =
-                    com.sun.tools.javac.tree.TreeInfo.symbolFor(
-                            (com.sun.tools.javac.tree.JCTree) node);
+                    ((com.sun.tools.javac.tree.JCTree.JCMethodDecl) node).sym;
             if (sym != null) {
                 elementToTreeCache.put(sym, node);
             }
@@ -6682,8 +6718,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         @Override
         public Void visitClass(ClassTree node, Void p) {
             com.sun.tools.javac.code.Symbol sym =
-                    com.sun.tools.javac.tree.TreeInfo.symbolFor(
-                            (com.sun.tools.javac.tree.JCTree) node);
+                    ((com.sun.tools.javac.tree.JCTree.JCClassDecl) node).sym;
             if (sym != null) {
                 elementToTreeCache.put(sym, node);
             }
