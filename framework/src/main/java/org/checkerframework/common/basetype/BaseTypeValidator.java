@@ -774,6 +774,8 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
      *
      * @param type the type to check
      * @param tree the tree of this type
+     * @see BaseTypeVisitor#validateVariablesTargetLocation(Tree, AnnotatedTypeMirror)
+     * @see BaseTypeVisitor#validateTargetLocation(Tree, AnnotatedTypeMirror, TypeUseLocation)
      */
     protected void validateWildCardTargetLocation(AnnotatedWildcardType type, Tree tree) {
         if (visitor.ignoreTargetLocations || visitor.noQualHasTargetLocations) {
