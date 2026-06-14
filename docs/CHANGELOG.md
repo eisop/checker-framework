@@ -9,6 +9,13 @@ respectively). Several optimizations also reduce GC pressure.
 
 **Implementation details:**
 
+Performance: when reporting a warning or error on a tree, the path used for the
+`@SuppressWarnings` lookup is now found starting from the visitor's current path
+rather than rescanning the whole compilation unit from its root. This was
+O(compilation unit) per reported message, hence quadratic for code that produces
+many messages (e.g. the Interning Checker on a file with many `==` comparisons);
+on a generated 3000-comparison file its on-CPU samples dropped about 2x.
+
 Performance: the synthetic array tree created for a varargs call is now given a tree
 path under the call site, so defaulting its type no longer rescans the whole
 compilation unit via `getPath`. This was O(compilation unit) per varargs call --

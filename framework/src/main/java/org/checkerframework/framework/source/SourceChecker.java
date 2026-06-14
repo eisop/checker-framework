@@ -1607,7 +1607,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
             return tree;
         }
 
-        TreePath path = getTreePathCacher().getPath(currentRoot, tree);
+        TreePath path = pathToTree(tree);
         if (path == null) {
             return tree;
         }
@@ -2757,9 +2757,28 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
         }
 
         assert this.currentRoot != null : "this.currentRoot == null";
-        TreePath path = getTreePathCacher().getPath(currentRoot, tree);
+        TreePath path = pathToTree(tree);
 
         return shouldSuppressWarnings(path, errKey);
+    }
+
+    /**
+     * Returns the path to {@code tree} within the current compilation unit. Uses the visitor's
+     * current path as a search-start hint when available, so the lookup is local rather than
+     * rescanning the whole compilation unit from its root. {@code tree} is almost always at or
+     * under the tree the visitor is currently processing (e.g. when reporting a warning on it), so
+     * the hint avoids an O(compilation unit) scan; without it, reporting many warnings is quadratic
+     * in the file size.
+     *
+     * @param tree a tree in the current compilation unit
+     * @return the path to {@code tree}, or null if it is not in the current compilation unit
+     */
+    private @Nullable TreePath pathToTree(Tree tree) {
+        TreePath hint = visitor == null ? null : visitor.getCurrentPath();
+        if (hint != null && hint.getCompilationUnit() == currentRoot) {
+            return getTreePathCacher().getPath(hint, tree);
+        }
+        return getTreePathCacher().getPath(currentRoot, tree);
     }
 
     /**
