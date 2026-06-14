@@ -134,8 +134,9 @@ public abstract class AbstractQualifier {
 
         Set<AbstractQualifier> quals = new HashSet<>();
         for (AnnotationMirror anno : annos) {
-            if (qualifierVars.containsKey(anno)) {
-                quals.add(qualifierVars.get(anno));
+            AbstractQualifier existing = qualifierVars.get(anno);
+            if (existing != null) {
+                quals.add(existing);
             } else {
                 quals.add(new Qualifier(anno, context));
             }

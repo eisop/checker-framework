@@ -1258,6 +1258,9 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
      * argument {@link CFAbstractStore}. Note that we test the entry keys and values by Java
      * equality, not by any subtype relationship. This method is used primarily to simplify the
      * equals predicate.
+     *
+     * @param other the other store
+     * @return true iff this store contains a superset of the map entries in the other store
      */
     protected boolean supersetOf(CFAbstractStore<V, S> other) {
         for (Map.Entry<LocalVariable, V> e : other.localVariableValues.entrySet()) {
@@ -1303,19 +1306,40 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
 
     @Override
     public boolean equals(@Nullable Object o) {
-        if (o instanceof CFAbstractStore) {
-            @SuppressWarnings("unchecked")
-            CFAbstractStore<V, S> other = (CFAbstractStore<V, S>) o;
-            return this.supersetOf(other) && other.supersetOf(this);
-        } else {
+        if (this == o) {
+            return true;
+        }
+        if (!(o instanceof CFAbstractStore)) {
             return false;
         }
+        @SuppressWarnings("unchecked")
+        CFAbstractStore<V, S> other = (CFAbstractStore<V, S>) o;
+        // Fast path: if any underlying map has a different size, the stores cannot be equal.
+        // This avoids two full supersetOf walks (each of which traverses all 5 maps) for the
+        // common fixpoint case where stores grow or shrink between iterations.
+        if (localVariableValues.size() != other.localVariableValues.size()
+                || fieldValues.size() != other.fieldValues.size()
+                || arrayValues.size() != other.arrayValues.size()
+                || methodCallExpressions.size() != other.methodCallExpressions.size()
+                || classValues.size() != other.classValues.size()) {
+            return false;
+        }
+        // Once all map sizes match, supersetOf(other) is equivalent to equals: every key of
+        // `other` must have an equal value in `this`, and since |this| == |other| per map, no
+        // extra keys can exist in `this`.  supersetOf also checks `thisValue`.
+        return this.supersetOf(other);
     }
 
     @Override
     public int hashCode() {
-        // What is a good hash code to use?
-        return 22;
+        // Cheap and equal-compatible hash based on sizes only.
+        int h = localVariableValues.size();
+        h = 31 * h + fieldValues.size();
+        h = 31 * h + methodCallExpressions.size();
+        h = 31 * h + arrayValues.size();
+        h = 31 * h + classValues.size();
+        h = 31 * h + (thisValue == null ? 0 : 1);
+        return h;
     }
 
     @SideEffectFree

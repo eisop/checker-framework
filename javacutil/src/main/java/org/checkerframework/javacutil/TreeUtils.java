@@ -93,7 +93,7 @@ import java.util.EnumSet;
 import java.util.List;
 import java.util.Set;
 import java.util.StringJoiner;
-import java.util.stream.Collectors;
+import java.util.regex.Pattern;
 
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.SourceVersion;
@@ -146,14 +146,19 @@ public final class TreeUtils {
     private static final long Flags_RECORD = 2305843009213693952L;
 
     /** Tree kinds that represent a binary comparison. */
-    private static final Set<Tree.Kind> BINARY_COMPARISON_TREE_KINDS =
-            EnumSet.of(
-                    Tree.Kind.EQUAL_TO,
-                    Tree.Kind.NOT_EQUAL_TO,
-                    Tree.Kind.LESS_THAN,
-                    Tree.Kind.GREATER_THAN,
-                    Tree.Kind.LESS_THAN_EQUAL,
-                    Tree.Kind.GREATER_THAN_EQUAL);
+    private static final Set<Tree.Kind> BINARY_COMPARISON_TREE_KINDS;
+
+    static {
+        Set<Tree.Kind> bctk =
+                EnumSet.of(
+                        Tree.Kind.EQUAL_TO,
+                        Tree.Kind.NOT_EQUAL_TO,
+                        Tree.Kind.LESS_THAN,
+                        Tree.Kind.GREATER_THAN,
+                        Tree.Kind.LESS_THAN_EQUAL,
+                        Tree.Kind.GREATER_THAN_EQUAL);
+        BINARY_COMPARISON_TREE_KINDS = Collections.unmodifiableSet(bctk);
+    }
 
     static {
         try {
@@ -171,7 +176,7 @@ public final class TreeUtils {
      * @return true iff tree describes a constructor
      */
     public static boolean isConstructor(MethodTree tree) {
-        return tree.getName().contentEquals("<init>");
+        return InternalUtils.isInitName(tree.getName());
     }
 
     /**
@@ -202,7 +207,7 @@ public final class TreeUtils {
      * @return true iff tree is a call to the given method
      */
     private static boolean isNamedMethodCall(String name, MethodInvocationTree tree) {
-        return getMethodName(tree.getMethodSelect()).contentEquals(name);
+        return InternalUtils.sameName(methodName(tree), name);
     }
 
     /**
@@ -249,7 +254,7 @@ public final class TreeUtils {
             tr = ((MemberSelectTree) tr).getExpression();
             if (tr instanceof IdentifierTree) {
                 Name ident = ((IdentifierTree) tr).getName();
-                return ident.contentEquals("this") || ident.contentEquals("super");
+                return InternalUtils.isThisName(ident) || InternalUtils.isSuperName(ident);
             }
         }
 
@@ -366,10 +371,14 @@ public final class TreeUtils {
      * @return the list of fields that are declared within the given class declaration
      */
     public static List<VariableTree> fieldsFromClassTree(ClassTree tree) {
-        return tree.getMembers().stream()
-                .filter(t -> t instanceof VariableTree)
-                .map(t -> (VariableTree) t)
-                .collect(Collectors.toList());
+        List<? extends Tree> members = tree.getMembers();
+        List<VariableTree> result = new ArrayList<>(members.size());
+        for (Tree t : members) {
+            if (t instanceof VariableTree) {
+                result.add((VariableTree) t);
+            }
+        }
+        return result;
     }
 
     /**
@@ -896,7 +905,7 @@ public final class TreeUtils {
         MethodInvocationTree invocation =
                 (MethodInvocationTree) ((ExpressionStatementTree) st).getExpression();
 
-        return "this".contentEquals(TreeUtils.methodName(invocation));
+        return InternalUtils.isThisName(TreeUtils.methodName(invocation));
     }
 
     /**
@@ -1116,20 +1125,22 @@ public final class TreeUtils {
     private static final Set<Tree.Kind> classTreeKinds;
 
     static {
-        classTreeKinds = EnumSet.noneOf(Tree.Kind.class);
+        Set<Tree.Kind> ctk = EnumSet.noneOf(Tree.Kind.class);
         for (Tree.Kind kind : Tree.Kind.values()) {
             if (kind.asInterface() == ClassTree.class) {
-                classTreeKinds.add(kind);
+                ctk.add(kind);
             }
         }
+        classTreeKinds = Collections.unmodifiableSet(ctk);
     }
 
     /** Kinds that represent a class or method tree. */
     private static final Set<Tree.Kind> classAndMethodTreeKinds;
 
     static {
-        classAndMethodTreeKinds = EnumSet.copyOf(classTreeKinds());
-        classAndMethodTreeKinds.add(Tree.Kind.METHOD);
+        Set<Tree.Kind> camtk = EnumSet.copyOf(classTreeKinds());
+        camtk.add(Tree.Kind.METHOD);
+        classAndMethodTreeKinds = Collections.unmodifiableSet(camtk);
     }
 
     /**
@@ -1167,10 +1178,11 @@ public final class TreeUtils {
     private static final Set<Tree.Kind> declarationTreeKinds;
 
     static {
-        declarationTreeKinds = EnumSet.noneOf(Tree.Kind.class);
-        declarationTreeKinds.addAll(classTreeKinds);
-        declarationTreeKinds.add(Tree.Kind.METHOD);
-        declarationTreeKinds.add(Tree.Kind.VARIABLE);
+        Set<Tree.Kind> dtk = EnumSet.noneOf(Tree.Kind.class);
+        dtk.addAll(classTreeKinds);
+        dtk.add(Tree.Kind.METHOD);
+        dtk.add(Tree.Kind.VARIABLE);
+        declarationTreeKinds = Collections.unmodifiableSet(dtk);
     }
 
     /**
@@ -1193,16 +1205,21 @@ public final class TreeUtils {
     }
 
     /** The kinds that represent types. */
-    private static final Set<Tree.Kind> typeTreeKinds =
-            EnumSet.of(
-                    Tree.Kind.PRIMITIVE_TYPE,
-                    Tree.Kind.PARAMETERIZED_TYPE,
-                    Tree.Kind.TYPE_PARAMETER,
-                    Tree.Kind.ARRAY_TYPE,
-                    Tree.Kind.UNBOUNDED_WILDCARD,
-                    Tree.Kind.EXTENDS_WILDCARD,
-                    Tree.Kind.SUPER_WILDCARD,
-                    Tree.Kind.ANNOTATED_TYPE);
+    private static final Set<Tree.Kind> typeTreeKinds;
+
+    static {
+        Set<Tree.Kind> ttk =
+                EnumSet.of(
+                        Tree.Kind.PRIMITIVE_TYPE,
+                        Tree.Kind.PARAMETERIZED_TYPE,
+                        Tree.Kind.TYPE_PARAMETER,
+                        Tree.Kind.ARRAY_TYPE,
+                        Tree.Kind.UNBOUNDED_WILDCARD,
+                        Tree.Kind.EXTENDS_WILDCARD,
+                        Tree.Kind.SUPER_WILDCARD,
+                        Tree.Kind.ANNOTATED_TYPE);
+        typeTreeKinds = Collections.unmodifiableSet(ttk);
+    }
 
     /**
      * Return the set of kinds that represent types.
@@ -1366,7 +1383,7 @@ public final class TreeUtils {
             throw new UserError("Configuration problem! Could not load type: " + typeName);
         }
         for (ExecutableElement exec : ElementFilter.methodsIn(typeElt.getEnclosedElements())) {
-            if (exec.getSimpleName().contentEquals(methodName)
+            if (InternalUtils.sameName(exec.getSimpleName(), methodName)
                     && exec.getParameters().size() == params) {
                 methods.add(exec);
             }
@@ -1407,8 +1424,11 @@ public final class TreeUtils {
             ProcessingEnvironment env,
             String... paramTypes) {
         TypeElement typeElt = env.getElementUtils().getTypeElement(typeName);
+        if (typeElt == null) {
+            throw new UserError("Configuration problem! Could not load type: " + typeName);
+        }
         for (ExecutableElement exec : ElementFilter.methodsIn(typeElt.getEnclosedElements())) {
-            if (exec.getSimpleName().contentEquals(methodName)
+            if (InternalUtils.sameName(exec.getSimpleName(), methodName)
                     && exec.getParameters().size() == paramTypes.length) {
                 boolean typesMatch = true;
                 List<? extends VariableElement> params = exec.getParameters();
@@ -1429,7 +1449,7 @@ public final class TreeUtils {
         // Didn't find an answer.  Compose an error message.
         List<String> candidates = new ArrayList<>();
         for (ExecutableElement exec : ElementFilter.methodsIn(typeElt.getEnclosedElements())) {
-            if (exec.getSimpleName().contentEquals(methodName)) {
+            if (InternalUtils.sameName(exec.getSimpleName(), methodName)) {
                 candidates.add(executableElementToString(exec));
             }
         }
@@ -1467,7 +1487,7 @@ public final class TreeUtils {
      */
     public static boolean isExplicitThisDereference(ExpressionTree expr) {
         if (expr instanceof IdentifierTree
-                && ((IdentifierTree) expr).getName().contentEquals("this")) {
+                && InternalUtils.isThisName(((IdentifierTree) expr).getName())) {
             // Explicit this reference "this"
             return true;
         }
@@ -1477,7 +1497,7 @@ public final class TreeUtils {
         }
 
         MemberSelectTree memSelTree = (MemberSelectTree) expr;
-        if (memSelTree.getIdentifier().contentEquals("this")) {
+        if (InternalUtils.isThisName(memSelTree.getIdentifier())) {
             // Outer this reference "C.this"
             return true;
         }
@@ -1498,7 +1518,7 @@ public final class TreeUtils {
         if (!(tree instanceof MemberSelectTree)) {
             return false;
         }
-        return "class".equals(((MemberSelectTree) tree).getIdentifier().toString());
+        return InternalUtils.sameName(((MemberSelectTree) tree).getIdentifier(), "class");
     }
 
     /**
@@ -1548,8 +1568,8 @@ public final class TreeUtils {
             assert isUseOfElement(ident) : "@AssumeAssertion(nullness): tree kind";
             Element el = TreeUtils.elementFromUse(ident);
             if (el.getKind().isField()
-                    && !ident.getName().contentEquals("this")
-                    && !ident.getName().contentEquals("super")) {
+                    && !InternalUtils.isThisName(ident.getName())
+                    && !InternalUtils.isSuperName(ident.getName())) {
                 return (VariableElement) el;
             }
         }
@@ -1613,8 +1633,9 @@ public final class TreeUtils {
         } else if (tree instanceof IdentifierTree) {
             // implicit method access
             IdentifierTree ident = (IdentifierTree) tree;
-            // The field "super" and "this" are also legal methods
-            if (ident.getName().contentEquals("super") || ident.getName().contentEquals("this")) {
+            // The names "this" and "super" are also legal methods.
+            if (InternalUtils.isThisName(ident.getName())
+                    || InternalUtils.isSuperName(ident.getName())) {
                 return true;
             }
             assert isUseOfElement(ident) : "@AssumeAssertion(nullness): tree kind";
@@ -1684,7 +1705,7 @@ public final class TreeUtils {
             @FullyQualifiedName String typeName, String fieldName, ProcessingEnvironment env) {
         TypeElement mapElt = env.getElementUtils().getTypeElement(typeName);
         for (VariableElement var : ElementFilter.fieldsIn(mapElt.getEnclosedElements())) {
-            if (var.getSimpleName().contentEquals(fieldName)) {
+            if (InternalUtils.sameName(var.getSimpleName(), fieldName)) {
                 return var;
             }
         }
@@ -1710,11 +1731,14 @@ public final class TreeUtils {
     public static boolean isEnumSuperCall(MethodInvocationTree tree) {
         ExecutableElement ex = TreeUtils.elementFromUse(tree);
         assert ex != null : "@AssumeAssertion(nullness): tree kind";
+        // Check the method name first: it is an interned-name comparison and false for
+        // most invocations, so the class-name comparison is usually skipped.
+        if (!InternalUtils.isInitName(ex.getSimpleName())) {
+            return false;
+        }
         Name name = ElementUtils.getQualifiedClassName(ex);
         assert name != null : "@AssumeAssertion(nullness): assumption";
-        boolean correctClass = "java.lang.Enum".contentEquals(name);
-        boolean correctMethod = "<init>".contentEquals(ex.getSimpleName());
-        return correctClass && correctMethod;
+        return InternalUtils.isJavaLangEnumName(name);
     }
 
     /**
@@ -2131,6 +2155,9 @@ public final class TreeUtils {
         return false;
     }
 
+    /** Pattern matching one or more whitespace characters; used by {@link #toStringOneLine}. */
+    private static final Pattern WHITESPACE_PATTERN = Pattern.compile("\\s+");
+
     /**
      * Return toString(), but without line separators.
      *
@@ -2138,7 +2165,7 @@ public final class TreeUtils {
      * @return a one-line string representation of the tree
      */
     public static String toStringOneLine(Tree tree) {
-        return tree.toString().trim().replaceAll("\\s+", " ");
+        return WHITESPACE_PATTERN.matcher(tree.toString().trim()).replaceAll(" ");
     }
 
     /**

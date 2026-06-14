@@ -17,8 +17,6 @@ import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.TypesUtils;
 import org.plumelib.util.StringsPlume;
 
-import java.util.Objects;
-
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.type.TypeKind;
@@ -63,6 +61,15 @@ public abstract class CFAbstractValue<V extends CFAbstractValue<V>> implements A
 
     /** The annotations in this abstract value. */
     protected final AnnotationMirrorSet annotations;
+
+    /**
+     * Cached hash code. Lazily computed on first call to {@link #hashCode()} and gated by {@link
+     * #hashCodeComputed}.
+     */
+    private transient int hashCodeCache = 0;
+
+    /** True if {@link #hashCodeCache} contains the current hash code. */
+    private transient boolean hashCodeComputed = false;
 
     /**
      * Creates a new CFAbstractValue.
@@ -176,6 +183,9 @@ public abstract class CFAbstractValue<V extends CFAbstractValue<V>> implements A
     @SuppressWarnings("interning:not.interned") // efficiency pre-test
     @Override
     public boolean equals(@Nullable Object obj) {
+        if (this == obj) {
+            return true;
+        }
         if (!(obj instanceof CFAbstractValue)) {
             return false;
         }
@@ -192,7 +202,13 @@ public abstract class CFAbstractValue<V extends CFAbstractValue<V>> implements A
     @Pure
     @Override
     public int hashCode() {
-        return Objects.hash(getAnnotations(), underlyingType);
+        if (!hashCodeComputed) {
+            int h = annotations.hashCode();
+            h = 31 * h + (underlyingType == null ? 0 : underlyingType.hashCode());
+            hashCodeCache = h;
+            hashCodeComputed = true;
+        }
+        return hashCodeCache;
     }
 
     /**
@@ -250,28 +266,37 @@ public abstract class CFAbstractValue<V extends CFAbstractValue<V>> implements A
             V v = (V) this;
             return v;
         }
-        Types types = analysis.getTypes();
+        TypeMirror thisType = this.getUnderlyingType();
+        TypeMirror otherType = other.getUnderlyingType();
         TypeMirror mostSpecifTypeMirror;
-        if (types.isAssignable(this.getUnderlyingType(), other.getUnderlyingType())) {
-            mostSpecifTypeMirror = this.getUnderlyingType();
-        } else if (types.isAssignable(other.getUnderlyingType(), this.getUnderlyingType())) {
-            mostSpecifTypeMirror = other.getUnderlyingType();
-        } else if (TypesUtils.isErasedSubtype(
-                this.getUnderlyingType(), other.getUnderlyingType(), types)) {
-            mostSpecifTypeMirror = this.getUnderlyingType();
-        } else if (TypesUtils.isErasedSubtype(
-                other.getUnderlyingType(), this.getUnderlyingType(), types)) {
-            mostSpecifTypeMirror = other.getUnderlyingType();
+        // Reference-identity fast path: if both values share the same TypeMirror reference
+        // (the common case for assignments, refinement of a single variable, etc.), we can
+        // skip up to four javac calls into Types.isAssignable / TypesUtils.isErasedSubtype.
+        @SuppressWarnings("interning:not.interned") // identity fast path
+        boolean sameTM = (thisType == otherType);
+        if (sameTM) {
+            mostSpecifTypeMirror = thisType;
         } else {
-            mostSpecifTypeMirror = this.getUnderlyingType();
+            Types types = analysis.getTypes();
+            if (types.isAssignable(thisType, otherType)) {
+                mostSpecifTypeMirror = thisType;
+            } else if (types.isAssignable(otherType, thisType)) {
+                mostSpecifTypeMirror = otherType;
+            } else if (TypesUtils.isErasedSubtype(thisType, otherType, types)) {
+                mostSpecifTypeMirror = thisType;
+            } else if (TypesUtils.isErasedSubtype(otherType, thisType, types)) {
+                mostSpecifTypeMirror = otherType;
+            } else {
+                mostSpecifTypeMirror = thisType;
+            }
         }
 
         MostSpecificVisitor ms = new MostSpecificVisitor(backup);
         AnnotationMirrorSet mostSpecific =
                 ms.combineSets(
-                        this.getUnderlyingType(),
+                        thisType,
                         this.getAnnotations(),
-                        other.getUnderlyingType(),
+                        otherType,
                         other.getAnnotations(),
                         canBeMissingAnnotations(mostSpecifTypeMirror));
         if (ms.error) {
@@ -504,10 +529,21 @@ public abstract class CFAbstractValue<V extends CFAbstractValue<V>> implements A
             V v = (V) this;
             return v;
         }
-        ProcessingEnvironment processingEnv = analysis.getTypeFactory().getProcessingEnv();
-        TypeMirror lubTypeMirror =
-                TypesUtils.leastUpperBound(
-                        this.getUnderlyingType(), other.getUnderlyingType(), processingEnv);
+        TypeMirror thisType = this.getUnderlyingType();
+        TypeMirror otherType = other.getUnderlyingType();
+        TypeMirror lubTypeMirror;
+        // Reference-identity fast path: the LUB of a type with itself is itself.  This avoids
+        // TypesUtils.leastUpperBound, which dispatches into javac.  In dataflow merge, both
+        // operands frequently share the same underlying TypeMirror (e.g. when joining stores
+        // at a control-flow merge for a single variable).
+        @SuppressWarnings("interning:not.interned") // identity fast path
+        boolean sameTM = (thisType == otherType);
+        if (sameTM) {
+            lubTypeMirror = thisType;
+        } else {
+            ProcessingEnvironment processingEnv = analysis.getTypeFactory().getProcessingEnv();
+            lubTypeMirror = TypesUtils.leastUpperBound(thisType, otherType, processingEnv);
+        }
         return upperBound(other, lubTypeMirror, shouldWiden);
     }
 
@@ -656,17 +692,27 @@ public abstract class CFAbstractValue<V extends CFAbstractValue<V>> implements A
             V v = (V) this;
             return v;
         }
-        ProcessingEnvironment processingEnv = analysis.getTypeFactory().getProcessingEnv();
-        TypeMirror glbTypeMirror =
-                TypesUtils.greatestLowerBound(
-                        this.getUnderlyingType(), other.getUnderlyingType(), processingEnv);
+        TypeMirror thisType = this.getUnderlyingType();
+        TypeMirror otherType = other.getUnderlyingType();
+        TypeMirror glbTypeMirror;
+        // Reference-identity fast path: the GLB of a type with itself is itself.  This avoids
+        // TypesUtils.greatestLowerBound, which dispatches into javac.  Common at refinement
+        // sites where the same expression is intersected with a more specific qualifier.
+        @SuppressWarnings("interning:not.interned") // identity fast path
+        boolean sameTM = (thisType == otherType);
+        if (sameTM) {
+            glbTypeMirror = thisType;
+        } else {
+            ProcessingEnvironment processingEnv = analysis.getTypeFactory().getProcessingEnv();
+            glbTypeMirror = TypesUtils.greatestLowerBound(thisType, otherType, processingEnv);
+        }
 
         ValueGlb valueGlb = new ValueGlb();
         AnnotationMirrorSet glb =
                 valueGlb.combineSets(
-                        this.getUnderlyingType(),
+                        thisType,
                         this.getAnnotations(),
-                        other.getUnderlyingType(),
+                        otherType,
                         other.getAnnotations(),
                         canBeMissingAnnotations(glbTypeMirror));
         return analysis.createAbstractValue(glb, glbTypeMirror);
@@ -788,8 +834,14 @@ public abstract class CFAbstractValue<V extends CFAbstractValue<V>> implements A
                 throw new NullPointerException("combineSets: bTypeMirror==null");
             }
 
-            AnnotatedTypeVariable aAtv = getEffectiveTypeVar(aTypeMirror);
-            AnnotatedTypeVariable bAtv = getEffectiveTypeVar(bTypeMirror);
+            // aAtv and bAtv are only consulted on hierarchies where one or both sets are
+            // missing an annotation. Defer computation to the branches that actually need each
+            // value.
+            AnnotatedTypeVariable aAtv = null;
+            boolean aAtvComputed = false;
+            AnnotatedTypeVariable bAtv = null;
+            boolean bAtvComputed = false;
+
             QualifierHierarchy qualHierarchy = analysis.getTypeFactory().getQualifierHierarchy();
             AnnotationMirrorSet tops = qualHierarchy.getTopAnnotations();
             AnnotationMirrorSet combinedSets = new AnnotationMirrorSet();
@@ -800,14 +852,30 @@ public abstract class CFAbstractValue<V extends CFAbstractValue<V>> implements A
                 if (a != null && b != null) {
                     result = combineTwoAnnotations(a, aTypeMirror, b, bTypeMirror, top);
                 } else if (a != null) {
+                    if (!bAtvComputed) {
+                        bAtv = getEffectiveTypeVar(bTypeMirror);
+                        bAtvComputed = true;
+                    }
                     result =
                             combineAnnotationWithTypeVar(
                                     a, bAtv, top, canCombinedSetBeMissingAnnos);
                 } else if (b != null) {
+                    if (!aAtvComputed) {
+                        aAtv = getEffectiveTypeVar(aTypeMirror);
+                        aAtvComputed = true;
+                    }
                     result =
                             combineAnnotationWithTypeVar(
                                     b, aAtv, top, canCombinedSetBeMissingAnnos);
                 } else {
+                    if (!aAtvComputed) {
+                        aAtv = getEffectiveTypeVar(aTypeMirror);
+                        aAtvComputed = true;
+                    }
+                    if (!bAtvComputed) {
+                        bAtv = getEffectiveTypeVar(bTypeMirror);
+                        bAtvComputed = true;
+                    }
                     result = combineTwoTypeVars(aAtv, bAtv, top, canCombinedSetBeMissingAnnos);
                 }
                 if (result != null) {

@@ -13,7 +13,6 @@ import org.checkerframework.javacutil.AnnotationMirrorMap;
 import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TypesUtils;
 
-import java.util.Collection;
 import java.util.Collections;
 import java.util.Set;
 
@@ -32,6 +31,9 @@ public class ProperType extends AbstractType {
 
     /** A mapping from polymorphic annotation to {@link QualifierVar}. */
     private final AnnotationMirrorMap<QualifierVar> qualifierVars;
+
+    /** Compute the hash code only once. */
+    private final int hashCode;
 
     /**
      * Creates a proper type.
@@ -81,6 +83,7 @@ public class ProperType extends AbstractType {
         this.type = type;
         this.qualifierVars = qualifierVars;
         verifyTypeKinds(type, properType);
+        hashCode = computeHashCode();
     }
 
     /**
@@ -95,6 +98,7 @@ public class ProperType extends AbstractType {
         this.properType = type.getUnderlyingType();
         this.qualifierVars = AnnotationMirrorMap.emptyMap();
         verifyTypeKinds(type, properType);
+        hashCode = computeHashCode();
     }
 
     /**
@@ -109,6 +113,7 @@ public class ProperType extends AbstractType {
         this.properType = TreeUtils.typeOf(varTree);
         this.qualifierVars = AnnotationMirrorMap.emptyMap();
         verifyTypeKinds(type, properType);
+        hashCode = computeHashCode();
     }
 
     /**
@@ -271,11 +276,29 @@ public class ProperType extends AbstractType {
                         .isSameType(properType, otherProperType.properType); // slower
     }
 
+    /**
+     * Compute the hash code for this instance.
+     *
+     * @return the hash code
+     */
+    private int computeHashCode() {
+        int hc = properType.getKind().hashCode();
+        javax.lang.model.element.Element elt = null;
+        if (properType instanceof javax.lang.model.type.DeclaredType) {
+            elt = ((javax.lang.model.type.DeclaredType) properType).asElement();
+        } else if (properType instanceof javax.lang.model.type.TypeVariable) {
+            elt = ((javax.lang.model.type.TypeVariable) properType).asElement();
+        }
+        if (elt != null) {
+            hc = 31 * hc + elt.getSimpleName().hashCode();
+        }
+        hc = 31 * hc + Kind.PROPER.hashCode();
+        return hc;
+    }
+
     @Override
     public int hashCode() {
-        int result = properType.toString().hashCode();
-        result = 31 * result + Kind.PROPER.hashCode();
-        return result;
+        return hashCode;
     }
 
     @Override
@@ -293,9 +316,14 @@ public class ProperType extends AbstractType {
         return TypesUtils.isObject(properType);
     }
 
+    /**
+     * Returns an unmodifiable empty set because proper types contain no inference variables.
+     *
+     * @return an unmodifiable empty set
+     */
     @Override
-    public Collection<Variable> getInferenceVariables() {
-        return Collections.emptyList();
+    public Set<Variable> getInferenceVariables() {
+        return Collections.emptySet();
     }
 
     @Override
