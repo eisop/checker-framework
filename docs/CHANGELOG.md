@@ -108,6 +108,31 @@ thread-local map instead of allocating one per copy. Total allocation on large s
 dropped 14-19% (e.g. -19% on a 1500-method class) and about 7% on a many-file corpus; wall clock is
 roughly unchanged, the gain being reduced GC pressure. No user-visible behavior change.
 
+`AnnotatedTypeMirror` has new `freeze()` and `isFrozen()` methods. Freezing a type
+makes it (and every type reachable from it) reject primary-annotation changes,
+throwing `BugInCF` on an attempted mutation; lazy initialization of bounds and type
+arguments is still permitted. This lets the framework share an immutable cached type
+without defensively deep-copying it.
+
+Fixed a latent aliasing bug in `AnnotatedTypeCopier`: when copying an executable
+type, the copy shared the original's vararg type instead of copying it, so
+`deepCopy()` did not produce a fully independent type. The annotated-type caches in
+`AnnotatedTypeFactory` now freeze the value they store (the masters), so a future
+in-place mutation of a cached type fails fast with `BugInCF` instead of silently
+corrupting the shared value.
+
+`StructuralEqualityComparer.arePrimaryAnnosEqual` is now non-mutating. The Value
+Checker's override previously normalized the two operands' annotations to a canonical
+form by calling `replaceAnnotation` on them -- an equality check with a side effect on
+its operands, which also prevents comparing a shared immutable type. It now computes
+the canonical annotations and compares them without mutating the types.
+
+Performance: `getAnnotatedType(Tree)` for class and method declarations
+(`classAndMethodTreeCache`) now returns the shared frozen cached type instead of a deep
+copy on every hit; the few callers that mutate the result copy it first. This removes a
+deep copy per cache hit for the read-only majority of callers. No user-visible behavior
+change.
+
 Fixed a bug that caused an IndexOutOfBoundsException for lambdas in varargs,
 for type systems that had the Aliasing Checker as a subchecker, like the
 Optional Checker.

@@ -271,9 +271,14 @@ public abstract class InitializationParentAnnotatedTypeFactory
     public @Nullable AnnotatedDeclaredType getSelfType(Tree tree) {
         AnnotatedDeclaredType selfType = super.getSelfType(tree);
 
-        if (assumeInitialized) {
+        if (assumeInitialized || selfType == null) {
             return selfType;
         }
+
+        // The loop below mutates the self type and its enclosing types
+        // (setSelfTypeInInitializationCode), so copy first: super.getSelfType may return a shared,
+        // immutable type from a cache.
+        selfType = selfType.deepCopy();
 
         TreePath path = getPath(tree);
         AnnotatedDeclaredType enclosing = selfType;

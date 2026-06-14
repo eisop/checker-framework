@@ -236,7 +236,13 @@ public class AnnotatedTypeCopier
         }
 
         if (original.getVarargType() != null) {
-            copy.setVarargType(original.getVarargType());
+            // Copy (do not alias) the vararg type. If the vararg type is the last parameter type
+            // (the usual case, before adaptParameters expands it), originalToCopy already maps it
+            // to its copy, so visit() returns that copy and the structure is preserved; otherwise
+            // it is freshly copied. Aliasing the original's vararg type here would let two
+            // "independent" copies share a subtree.
+            copy.setVarargType(
+                    (AnnotatedArrayType) visit(original.getVarargType(), originalToCopy));
         } else {
             copy.computeVarargType();
         }
