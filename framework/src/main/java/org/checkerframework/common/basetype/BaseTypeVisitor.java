@@ -1850,6 +1850,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      * @param tree the tree whose qualifiers are to be validated
      * @param type the type of the tree
      */
+    // TODO: rename to validateVariableTargetLocation
     protected void validateVariablesTargetLocation(Tree tree, AnnotatedTypeMirror type) {
         if (ignoreTargetLocations || noQualHasTargetLocations) {
             return;
