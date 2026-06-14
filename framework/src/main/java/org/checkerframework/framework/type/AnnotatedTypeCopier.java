@@ -90,10 +90,31 @@ public class AnnotatedTypeCopier
         this(true);
     }
 
+    /**
+     * Thread-local pool for the IdentityHashMap used during copy operations to avoid allocation.
+     */
+    private static final ThreadLocal<IdentityHashMap<AnnotatedTypeMirror, AnnotatedTypeMirror>>
+            mapPool =
+                    ThreadLocal.withInitial(
+                            () ->
+                                    new IdentityHashMap<>(
+                                            AnnotatedTypeScanner.VISITED_NODES_INITIAL_CAPACITY));
+
     @Override
     public AnnotatedTypeMirror visit(AnnotatedTypeMirror type) {
-        return type.accept(
-                this, new IdentityHashMap<>(AnnotatedTypeScanner.VISITED_NODES_EXPECTED_MAX_SIZE));
+        IdentityHashMap<AnnotatedTypeMirror, AnnotatedTypeMirror> map = mapPool.get();
+        boolean mustClear = !map.isEmpty();
+        if (mustClear) {
+            // Safe fallback if re-entrant or map was not properly cleared.
+            map = new IdentityHashMap<>(AnnotatedTypeScanner.VISITED_NODES_INITIAL_CAPACITY);
+        }
+        try {
+            return type.accept(this, map);
+        } finally {
+            if (!mustClear) {
+                map.clear();
+            }
+        }
     }
 
     @Override
@@ -215,7 +236,13 @@ public class AnnotatedTypeCopier
         }
 
         if (original.getVarargType() != null) {
-            copy.setVarargType(original.getVarargType());
+            // Copy (do not alias) the vararg type. If the vararg type is the last parameter type
+            // (the usual case, before adaptParameters expands it), originalToCopy already maps it
+            // to its copy, so visit() returns that copy and the structure is preserved; otherwise
+            // it is freshly copied. Aliasing the original's vararg type here would let two
+            // "independent" copies share a subtree.
+            copy.setVarargType(
+                    (AnnotatedArrayType) visit(original.getVarargType(), originalToCopy));
         } else {
             copy.computeVarargType();
         }

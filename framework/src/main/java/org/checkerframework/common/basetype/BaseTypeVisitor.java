@@ -109,6 +109,7 @@ import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.ElementUtils;
+import org.checkerframework.javacutil.InternalUtils;
 import org.checkerframework.javacutil.SwitchExpressionScanner;
 import org.checkerframework.javacutil.SwitchExpressionScanner.FunctionalSwitchExpressionScanner;
 import org.checkerframework.javacutil.SystemUtil;
@@ -1862,7 +1863,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                             issueError = false;
                         break;
                     case PARAMETER:
-                        if (((VariableTree) tree).getName().contentEquals("this")) {
+                        if (InternalUtils.isThisName(((VariableTree) tree).getName())) {
                             if (locations.contains(TypeUseLocation.RECEIVER)) {
                                 issueError = false;
                             }
@@ -2680,8 +2681,8 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         TypeElement annoType = (TypeElement) TreeInfo.symbol((JCTree) tree.getAnnotationType());
 
         Name annoName = annoType.getQualifiedName();
-        if (annoName.contentEquals(DefaultQualifier.class.getName())
-                || annoName.contentEquals(SuppressWarnings.class.getName())) {
+        if (InternalUtils.sameName(annoName, DefaultQualifier.class.getName())
+                || InternalUtils.sameName(annoName, SuppressWarnings.class.getName())) {
             // Skip these two annotations, as we don't care about the arguments to them.
             return null;
         }
@@ -3637,8 +3638,8 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             @CompilerMessageKey String errorKey,
             Object... extraArgs) {
         FoundRequired pair = FoundRequired.of(valueType, varType);
-        String valueTypeString = pair.found;
-        String varTypeString = pair.required;
+        Object valueTypeString = pair.found;
+        Object varTypeString = pair.required;
         checker.reportError(
                 valueTree,
                 errorKey,
@@ -3754,36 +3755,116 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
     }
 
     /**
-     * Class that creates string representations of {@link AnnotatedTypeMirror}s which are only
-     * verbose if required to differentiate the two types.
+     * Class that lazily creates string representations of {@link AnnotatedTypeMirror}s which are
+     * only verbose if required to differentiate the two types.
+     *
+     * <p>The strings are evaluated lazily when {@code toString()} is called on the {@link #found}
+     * or {@link #required} fields. This prevents expensive formatting operations when an error is
+     * suppressed and never emitted.
      */
     protected static class FoundRequired {
 
-        /** The found type's string representation. */
-        public final String found;
+        /** Whether the {@link #verbose} flag has been computed. */
+        private boolean verboseComputed = false;
 
-        /** The required type's string representation. */
-        public final String required;
+        /** Whether the string representation should be verbose. */
+        private boolean verbose = false;
 
-        private FoundRequired(AnnotatedTypeMirror found, AnnotatedTypeMirror required) {
-            if (shouldPrintVerbose(found, required)) {
-                this.found = found.toString(true);
-                this.required = required.toString(true);
-            } else {
-                this.found = found.toString();
-                this.required = required.toString();
+        /**
+         * Lazily computes and memoizes whether the string representation should be verbose.
+         *
+         * @param foundType the found type
+         * @param requiredType the required type
+         * @return true if verbose toString should be used
+         */
+        private boolean isVerbose(AnnotatedTypeMirror foundType, AnnotatedTypeMirror requiredType) {
+            if (!verboseComputed) {
+                verbose = shouldPrintVerbose(foundType, requiredType);
+                verboseComputed = true;
             }
+            return verbose;
         }
 
-        /** Create a FoundRequired for a type and bounds. */
-        private FoundRequired(AnnotatedTypeMirror found, AnnotatedTypeParameterBounds required) {
-            if (shouldPrintVerbose(found, required)) {
-                this.found = found.toString(true);
-                this.required = required.toString(true);
-            } else {
-                this.found = found.toString();
-                this.required = required.toString();
+        /**
+         * Lazily computes and memoizes whether the string representation should be verbose.
+         *
+         * @param foundType the found type
+         * @param requiredBounds the required bounds
+         * @return true if verbose toString should be used
+         */
+        private boolean isVerbose(
+                AnnotatedTypeMirror foundType, AnnotatedTypeParameterBounds requiredBounds) {
+            if (!verboseComputed) {
+                verbose = shouldPrintVerbose(foundType, requiredBounds);
+                verboseComputed = true;
             }
+            return verbose;
+        }
+
+        /**
+         * An object whose {@code toString()} method returns the found type's string representation.
+         * Evaluated lazily to improve performance.
+         */
+        public final Object found;
+
+        /**
+         * An object whose {@code toString()} method returns the required type's string
+         * representation. Evaluated lazily to improve performance.
+         */
+        public final Object required;
+
+        /**
+         * Create a FoundRequired for two types.
+         *
+         * @param found the found type
+         * @param required the required type
+         */
+        private FoundRequired(AnnotatedTypeMirror found, AnnotatedTypeMirror required) {
+            this.found =
+                    new Object() {
+                        @Override
+                        public String toString() {
+                            return isVerbose(found, required)
+                                    ? found.toString(true)
+                                    : found.toString();
+                        }
+                    };
+            this.required =
+                    new Object() {
+                        @Override
+                        public String toString() {
+                            return isVerbose(found, required)
+                                    ? required.toString(true)
+                                    : required.toString();
+                        }
+                    };
+        }
+
+        /**
+         * Create a FoundRequired for a type and bounds.
+         *
+         * @param found the found type
+         * @param required the required bounds
+         */
+        private FoundRequired(AnnotatedTypeMirror found, AnnotatedTypeParameterBounds required) {
+            this.found =
+                    new Object() {
+                        @Override
+                        public String toString() {
+                            return isVerbose(found, required)
+                                    ? found.toString(true)
+                                    : found.toString();
+                        }
+                    };
+            this.required =
+                    new Object() {
+                        @Override
+                        public String toString() {
+                            return isVerbose(found, required)
+                                    ? required.toString(true)
+                                    : required.toString();
+                        }
+                    };
         }
 
         /**
@@ -3979,7 +4060,12 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                         paramName,
                         typeOrMethodName,
                         fr.found,
-                        paramName + " " + fr.required);
+                        new Object() {
+                            @Override
+                            public String toString() {
+                                return paramName + " " + fr.required;
+                            }
+                        });
             }
         }
     }

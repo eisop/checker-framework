@@ -191,7 +191,7 @@ import javax.lang.model.type.TypeVariable;
      */
     private int computeHashCode() {
         Element elt = typeVariableJava.asElement();
-        int hc = elt.getSimpleName().toString().hashCode();
+        int hc = elt.getSimpleName().hashCode();
         hc = 31 * hc + elt.getEnclosingElement().hashCode();
         hc = 31 * hc + invocation.hashCode();
         return hc;

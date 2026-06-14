@@ -122,10 +122,10 @@ public class PropagationTypeAnnotator extends TypeAnnotator {
      */
     @Override
     public Void visitWildcard(AnnotatedWildcardType wildcard, Void aVoid) {
-        if (visitedNodes.containsKey(wildcard) || pause) {
+        if (hasVisited(wildcard) || pause) {
             return null;
         }
-        visitedNodes.put(wildcard, null);
+        markVisited(wildcard, null);
 
         // visitDeclared already copies annotations from the declaration to synthetic wildcard type
         // arguments of raw types. If this visitor scans those wildcards' bounds, it may visit a

@@ -36,9 +36,146 @@ Performance: new caches in the `AnnotatedTypeFactory`: `methodAsMemberOfCache`
 to cache method types, `directSupertypesCache` to cache direct supertypes, and
 `elementTypeCache` to cache defaulted Element types.
 
+Performance: reduced the `AnnotatedTypeScanner`, `AnnotatedTypeCopier`, and
+`EquivalentAtmComboScanner` visitor-map pre-size from 64 to 8 (constant
+`VISITED_NODES_INITIAL_CAPACITY`). These per-scan `IdentityHashMap` backing
+arrays were the largest transient-allocation source in realistic compilations,
+and most scans visit only a few nodes; the smaller pre-size cuts that allocation
+substantially and lowers GC pressure with no wall-clock cost. Also pre-sized the
+small `wildcardToAnnos` map in `ElementAnnotationUtil` to 4.
+
+`AnnotatedTypeScanner.visitedNodes` is now `private` and lazily allocated: the
+`IdentityHashMap` is created on the first stored node rather than in a field
+initializer, so scans that touch no recursive type allocate nothing. Subclasses
+now go through three `protected final` accessors — `hasVisited`, `getVisited`,
+and `markVisited` — instead of touching the field directly, which centralizes the
+lazy-null invariant in one place. This is primarily an encapsulation change;
+allocation and wall clock are unchanged within measurement noise (the eager-vs-lazy
+map allocation count is essentially the same once the previous per-use scanner
+pooling is in place).
+
+Performance: `CFCFGBuilder` now obtains each method/lambda body's `TreePath` from the
+checker's shared `TreePathCacher` instead of an uncached `Trees.getPath` search per
+body. The old search was quadratic in bodies-per-file (each rescanned the preceding
+bodies) and was the largest `TreePath` allocator; caching it removes that quadratic.
+The effect scales with methods-per-file: negligible on small files, but large on very
+large or machine-generated single-class files (e.g. −33% allocation, −6.5% wall clock
+on a 1500-method class).
+
+Performance: `TreePathCacher` now builds each `TreePath` lazily — it allocates only the
+nodes on the path to the requested tree, instead of one for every tree it scans past — and
+`AnnotatedTypeFactory.getPath` routes its searches through the cacher. This further reduces
+allocation when many paths are requested from one compilation unit; on a 1500-method class
+it roughly halves total allocation again on top of the previous change, with no effect on
+normal code. No user-visible behavior change.
+
+Performance: `AnnotatedTypeFactory.getPath` and dataflow now search for tree paths from the
+tightest known starting point instead of rescanning the whole compilation unit. Previously a
+path lookup during checking or flow analysis could rescan an entire class, making allocation
+quadratic in the number of members; it is now linear. On a 6000-method class this roughly
+halves total allocation (~32 GB to ~15 GB); on normal code there is no change. No user-visible
+behavior change.
+
+Performance: iterating an unmodifiable `AnnotationMirrorSet` no longer allocates the backing
+list's iterator; the read-only iterator now walks the backing list by index. This removes the
+single largest remaining source of `Iterator` allocation in type checking. No user-visible
+behavior change.
+
+Performance: `InternalUtils` has new helpers (`isInitName`, `isThisName`, `isSuperName`,
+`isValueName`, `isJavaLangObjectName`, `isJavaLangEnumName`) that compare a javac `Name`
+against the table's pre-interned name by identity instead of `Name.contentEquals`, which
+decodes the name's UTF-8 bytes into a fresh `String` on every call on byte-backed name
+tables (javac's default before JDK 23, and what Gradle's `-XDuseUnsharedTable` forces on
+all JDK versions). All call sites that compared a `Name` against these fixed literals
+(`TreeUtils.isConstructor`, `TreeUtils.isEnumSuperCall`, identifier `this`/`super` checks
+in dataflow and the checkers, annotation-element `value` checks) now use them. For
+comparisons against dynamic-but-bounded strings (annotation element names, method names a
+checker matches against), the new `InternalUtils.sameName(Name, CharSequence)` interns the
+target into the name's own table through a table-validated cache and compares by identity
+(~6x faster, allocation-free, on byte-backed tables); `sameName(Name, Name)` compares
+same-table names by identity. `AnnotationUtils.getElementValue` and
+`AnnotationBuilder.findElement` — the hottest `Name` comparisons in the Called Methods,
+Must Call, and Resource Leak checkers — now use it. No user-visible behavior change.
+
+Performance: the `AnnotatedTypeFactory` tree-type caches (`classAndMethodTreeCache`,
+`fromExpressionTreeCache`, `fromMemberTreeCache`, `fromTypeTreeCache`, and `elementToTreeCache`) are
+now unbounded `IdentityHashMap`s cleared per compilation unit, rather than LRU caches capped at 2048
+entries. On a large compilation unit the live tree set overflowed the cap, so the LRU evicted
+still-needed entries and recomputed (and deep-copied) their annotated types; the per-compilation-unit
+`IdentityHashMap` removes that thrash. A single pass over each enclosing method/class now records all of
+its declaration trees instead of re-scanning per local variable, and `AnnotatedTypeCopier` reuses a
+thread-local map instead of allocating one per copy. Total allocation on large single-class files
+dropped 14-19% (e.g. -19% on a 1500-method class) and about 7% on a many-file corpus; wall clock is
+roughly unchanged, the gain being reduced GC pressure. No user-visible behavior change.
+
+`AnnotatedTypeMirror` has new `freeze()` and `isFrozen()` methods. Freezing a type
+makes it (and every type reachable from it) reject primary-annotation changes,
+throwing `BugInCF` on an attempted mutation; lazy initialization of bounds and type
+arguments is still permitted. This lets the framework share an immutable cached type
+without defensively deep-copying it.
+
+Fixed a latent aliasing bug in `AnnotatedTypeCopier`: when copying an executable
+type, the copy shared the original's vararg type instead of copying it, so
+`deepCopy()` did not produce a fully independent type. The annotated-type caches in
+`AnnotatedTypeFactory` now freeze the value they store (the masters), so a future
+in-place mutation of a cached type fails fast with `BugInCF` instead of silently
+corrupting the shared value.
+
+`StructuralEqualityComparer.arePrimaryAnnosEqual` is now non-mutating. The Value
+Checker's override previously normalized the two operands' annotations to a canonical
+form by calling `replaceAnnotation` on them -- an equality check with a side effect on
+its operands, which also prevents comparing a shared immutable type. It now computes
+the canonical annotations and compares them without mutating the types.
+
+Performance: `getAnnotatedType(Tree)` for class and method declarations
+(`classAndMethodTreeCache`) now returns the shared frozen cached type instead of a deep
+copy on every hit; the few callers that mutate the result copy it first. This removes a
+deep copy per cache hit for the read-only majority of callers. No user-visible behavior
+change.
+
 Fixed a bug that caused an IndexOutOfBoundsException for lambdas in varargs,
 for type systems that had the Aliasing Checker as a subchecker, like the
 Optional Checker.
+
+Performance: `BaseTypeVisitor.FoundRequired.found` and `.required` are now
+typed as `Object` instead of `String`; their `toString()` returns the
+lazily-formatted annotated-type string. This defers `AnnotatedTypeMirror.toString()`
+(which traverses the type structure and decodes UTF-8 names) until a diagnostic is
+actually emitted, so suppressed errors pay no formatting cost. **API change:**
+callers that read these fields into a `String` variable must call `.toString()`
+explicitly.
+
+Performance: `AnnotationFileParser.annosInPackage`, `annosInType`, and
+`createNameToAnnotationMap` now return
+`IdentityHashMap<javax.lang.model.element.Name, TypeElement>` instead of
+`Map<String, TypeElement>`, keyed by the live `Name` objects from the
+compilation's name table. The same change applies to
+`InsertAjavaAnnotations.FileState.allAnnotations` and the `TypeAnnotationMover`
+constructor parameter. Within one compilation's `Elements` instance, same-content
+names are interned to the same object, so identity comparison is correct and avoids
+UTF-8 decodes on every annotation lookup. **API changes:** callers of the three
+`AnnotationFileParser` methods and the `TypeAnnotationMover` constructor must
+update their declared types from `Map<String, TypeElement>` to
+`IdentityHashMap<Name, TypeElement>`.
+
+Performance: `SourceChecker.shouldSkipUses(Element)` now caches results per
+enclosing-class qualified `Name`, avoiding a repeated `Symbol.toString()` UTF-8
+decode and regex match for every element within the same class. No behavior change.
+
+Performance: `LocalVariableNode.hashCode()` and `equals()` now read the variable
+name as a `Name` directly from the tree instead of going through `getName()` (which
+decodes to `String`). `equals` uses `InternalUtils.sameName`; `hashCode` uses
+`Name.hashCode()` directly (which returns the name-table byte offset — no decode).
+No behavior change.
+
+Performance: `Variable.computeHashCode` and `ProperType.computeHashCode` in the
+type-inference-8 subsystem no longer call `toString()` to compute a hash; they use
+`Name.hashCode()` and `TypeKind` instead. No behavior change.
+
+Together the above changes (PR #1797) reduce `Convert.utf2chars` +
+`Convert.utf2string` self-time from ~2.3% to ~0.89% of a full `checknullness`
+build; wall-clock A/B shows ~5% improvement on `checknullness` (~135 s → ~128 s,
+median of four warm-daemon reps per side).
 
 **Closed issues:**
 
