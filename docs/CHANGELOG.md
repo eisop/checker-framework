@@ -7,6 +7,11 @@ Further performance improvements. `allNullnessTests` down to below 2 minutes
 and `checkNullness` to around 2.5 minutes (last release: 2.5 and 4 minutes,
 respectively). Several optimizations also reduce GC pressure.
 
+The EISOP Checker Framework checks subtyping for receiver's type arguments when
+invoking a method.  The annotations on type arguments of a method receiver
+(e.g., `void test(Box<@NonNull T> this)`) were previously ignored during
+type-checking.
+
 **Implementation details:**
 
 Performance: when reporting a warning or error on a tree, the path used for the
@@ -231,16 +236,13 @@ median of four warm-daemon reps per side).
 
 **Closed issues:**
 
-typetool#3203, eisop#104, eisop#433, eisop#792.
+typetools#3203, eisop#104, eisop#433, eisop#792.
 
 
 Version 3.49.5-eisop1 (April 26, 2026)
 --------------------------------------
 
 **User-visible changes:**
-
-The EISOP Checker Framework checks subtyping for receiver's type arguments when invoking a method.
-The annotations on type arguments of a method receiver (e.g., `void test(Box<@NonNull T> this)`) were previously ignored during type-checking.
 
 Considerable performance improvements. In a large project (over 4000 .java files) with
 complex qualifiers, compilation time was reduced from around 30 minutes to below 7 minutes.
