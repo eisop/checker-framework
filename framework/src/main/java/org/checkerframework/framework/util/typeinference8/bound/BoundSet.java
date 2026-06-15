@@ -11,6 +11,7 @@ import org.plumelib.util.StringsPlume;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -183,13 +184,15 @@ public class BoundSet implements ReductionResult {
      *     capture(G<...>)} for any variable in {@code as}
      */
     public boolean containsCapture(Collection<Variable> as) {
-        List<Variable> list = new ArrayList<>();
-        for (CaptureBound c : captures) {
-            list.addAll(c.getAllVariablesOnLHS());
+        if (as.isEmpty() || captures.isEmpty()) {
+            return false;
         }
-        for (Variable ai : as) {
-            if (list.contains(ai)) {
-                return true;
+        Set<Variable> asSet = (as instanceof Set) ? (Set<Variable>) as : new HashSet<>(as);
+        for (CaptureBound c : captures) {
+            for (Variable v : c.getAllVariablesOnLHS()) {
+                if (asSet.contains(v)) {
+                    return true;
+                }
             }
         }
         return false;
@@ -212,18 +215,34 @@ public class BoundSet implements ReductionResult {
     }
 
     /**
-     * Returns a list of all variables in this bound set that are instantiated.
+     * Returns a fresh, mutable set of all variables in this bound set that are instantiated.
      *
-     * @return a list of all variables in this bound set that are instantiated
+     * @return a fresh, mutable set of all variables in this bound set that are instantiated
      */
-    public List<Variable> getInstantiatedVariables() {
-        List<Variable> list = new ArrayList<>();
+    public Set<Variable> getInstantiatedVariables() {
+        Set<Variable> set = new LinkedHashSet<>();
         for (Variable var : variables) {
             if (var.getBounds().hasInstantiation()) {
-                list.add(var);
+                set.add(var);
             }
         }
-        return list;
+        return set;
+    }
+
+    /**
+     * Returns whether any variable in this bound set has an instantiation. Unlike {@link
+     * #getInstantiatedVariables}, this stops at the first instantiated variable and allocates
+     * nothing, so it is cheaper when only the existence of an instantiation matters.
+     *
+     * @return true if any variable in this bound set has an instantiation
+     */
+    public boolean hasInstantiatedVariable() {
+        for (Variable var : variables) {
+            if (var.getBounds().hasInstantiation()) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
@@ -273,8 +292,7 @@ public class BoundSet implements ReductionResult {
         Set<Variable> allVariables = new LinkedHashSet<>(variables);
         allVariables.addAll(additionalVars);
         for (Variable alpha : allVariables) {
-            LinkedHashSet<Variable> alphaDependencies =
-                    new LinkedHashSet<>(alpha.getBounds().getVariablesMentionedInBounds());
+            Set<Variable> alphaDependencies = alpha.getBounds().getVariablesMentionedInBounds();
 
             if (alpha.isCaptureVariable()) {
                 // If alpha appears on the left-hand side of another bound of the form
@@ -321,16 +339,15 @@ public class BoundSet implements ReductionResult {
         int count = 0;
         do {
             count++;
-            List<Variable> instantiations = getInstantiatedVariables();
             boolean boundsChangeInst = false;
-            if (!instantiations.isEmpty()) {
+            if (hasInstantiatedVariable()) {
                 for (Variable var : variables) {
-                    boundsChangeInst = var.getBounds().applyInstantiationsToBounds();
+                    boundsChangeInst |= var.getBounds().applyInstantiationsToBounds();
                 }
             }
             boundsChangeInst |= captures.addAll(newBounds.captures);
             for (Variable alpha : variables) {
-                boundsChangeInst = alpha.getBounds().applyInstantiationsToBounds();
+                boundsChangeInst |= alpha.getBounds().applyInstantiationsToBounds();
 
                 while (!alpha.getBounds().constraints.isEmpty()) {
                     boundsChangeInst = true;

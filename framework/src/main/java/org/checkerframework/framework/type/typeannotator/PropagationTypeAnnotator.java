@@ -122,10 +122,18 @@ public class PropagationTypeAnnotator extends TypeAnnotator {
      */
     @Override
     public Void visitWildcard(AnnotatedWildcardType wildcard, Void aVoid) {
-        if (visitedNodes.containsKey(wildcard) || pause) {
+        if (hasVisited(wildcard) || pause) {
             return null;
         }
-        visitedNodes.put(wildcard, null);
+        markVisited(wildcard, null);
+
+        // visitDeclared already copies annotations from the declaration to synthetic wildcard type
+        // arguments of raw types. If this visitor scans those wildcards' bounds, it may visit a
+        // nested wildcard that is not itself a type argument of the raw parent, so there is no
+        // corresponding type parameter from which to propagate annotations.
+        if (AnnotatedTypes.isTypeArgOfRawType(wildcard)) {
+            return null;
+        }
 
         Element typeParamElement = TypesUtils.wildcardToTypeParam(wildcard.getUnderlyingType());
         if (typeParamElement == null && !parents.isEmpty()) {
@@ -216,8 +224,9 @@ public class PropagationTypeAnnotator extends TypeAnnotator {
      */
     private Element getTypeParameterElement(
             @FindDistinct AnnotatedTypeMirror typeArg, AnnotatedDeclaredType declaredType) {
-        for (int i = 0; i < declaredType.getTypeArguments().size(); i++) {
-            if (declaredType.getTypeArguments().get(i) == typeArg) {
+        List<AnnotatedTypeMirror> typeArgs = declaredType.getTypeArguments();
+        for (int i = 0; i < typeArgs.size(); i++) {
+            if (typeArgs.get(i) == typeArg) {
                 TypeElement typeElement =
                         TypesUtils.getTypeElement(declaredType.getUnderlyingType());
                 return typeElement.getTypeParameters().get(i);

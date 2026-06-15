@@ -28,6 +28,7 @@ import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.ElementUtils;
+import org.checkerframework.javacutil.InternalUtils;
 import org.checkerframework.javacutil.SystemUtil;
 import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TypesUtils;
@@ -42,6 +43,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.Deque;
 import java.util.HashMap;
+import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -473,7 +475,7 @@ public class AnnotatedTypes {
 
         // The below is checking for a super() call where the super type is a raw type.
         // See framework/tests/all-systems/RawSuper.java for an example.
-        if ("<init>".contentEquals(method.getSimpleName())) {
+        if (InternalUtils.isInitName(method.getSimpleName())) {
             ExecutableElement constructor = (ExecutableElement) method;
             TypeMirror constructorClass = types.erasure(constructor.getEnclosingElement().asType());
             TypeMirror directSuper = types.directSupertypes(receiver.getUnderlyingType()).get(0);
@@ -760,7 +762,7 @@ public class AnnotatedTypes {
                 return new TypeArguments(
                         inferenceResult.getTypeArgumentsForExpression(expr),
                         inferenceResult.isUncheckedConversion(),
-                        inferenceResult.inferenceCrashed());
+                        inferenceResult.needsDefaultedReturnType());
             }
             targs = memRef.getTypeArguments();
             if (memRef.getTypeArguments() == null) {
@@ -806,7 +808,7 @@ public class AnnotatedTypes {
                 return new TypeArguments(
                         inferenceResult.getTypeArgumentsForExpression(expr),
                         inferenceResult.isUncheckedConversion(),
-                        inferenceResult.inferenceCrashed());
+                        inferenceResult.needsDefaultedReturnType());
             } else {
                 return emptyFalsePair;
             }
@@ -1122,12 +1124,15 @@ public class AnnotatedTypes {
             }
         }
 
-        parameters = new ArrayList<>(parameters.subList(0, parameters.size() - 1));
-        for (int i = args.size() - parameters.size(); i > 0; --i) {
-            parameters.add(varargs.getComponentType().deepCopy());
+        // Pre-size to the final element count (args.size()) to avoid ArrayList growth while
+        // appending the expanded varargs components.
+        List<AnnotatedTypeMirror> expanded = new ArrayList<>(args.size());
+        expanded.addAll(parameters.subList(0, parameters.size() - 1));
+        for (int i = args.size() - expanded.size(); i > 0; --i) {
+            expanded.add(varargs.getComponentType().deepCopy());
         }
 
-        return parameters;
+        return expanded;
     }
 
     /**
@@ -1160,12 +1165,15 @@ public class AnnotatedTypes {
             }
         }
 
-        parameters = new ArrayList<>(parameters.subList(0, parameters.size() - 1));
-        for (int i = args.size() - parameters.size(); i > 0; --i) {
-            parameters.add(varargs.getComponentType());
+        // Pre-size to the final element count (args.size()) to avoid ArrayList growth while
+        // appending the expanded varargs components.
+        List<AnnotatedTypeMirror> expanded = new ArrayList<>(args.size());
+        expanded.addAll(parameters.subList(0, parameters.size() - 1));
+        for (int i = args.size() - expanded.size(); i > 0; --i) {
+            expanded.add(varargs.getComponentType());
         }
 
-        return parameters;
+        return expanded;
     }
 
     /**
@@ -1230,48 +1238,56 @@ public class AnnotatedTypes {
      * @return whether the type contains the modifier
      */
     public static boolean containsModifier(AnnotatedTypeMirror type, AnnotationMirror modifier) {
-        return containsModifierImpl(type, modifier, new ArrayList<>());
+        return containsModifierImpl(
+                type, modifier, Collections.newSetFromMap(new IdentityHashMap<>()));
     }
 
-    /*
-     * For type variables we might hit the same type again. We keep a list of visited types.
+    /**
+     * For type variables we might hit the same type again. We keep a set of visited types.
+     * Identity-based: the recursion visits actual ATM nodes, so identity is the relation that
+     * matches the recursion structure.
+     *
+     * @param type the type to search
+     * @param modifier the modifier to search for
+     * @param visited the identity-based set of visited types
+     * @return whether the type contains the modifier
      */
     private static boolean containsModifierImpl(
-            AnnotatedTypeMirror type,
-            AnnotationMirror modifier,
-            List<AnnotatedTypeMirror> visited) {
-        boolean found = type.hasAnnotation(modifier);
-        boolean vis = visited.contains(type);
-        visited.add(type);
+            AnnotatedTypeMirror type, AnnotationMirror modifier, Set<AnnotatedTypeMirror> visited) {
+        if (type.hasAnnotation(modifier)) {
+            return true;
+        }
+        if (!visited.add(type)) {
+            return false;
+        }
 
-        if (!found && !vis) {
-            if (type.getKind() == TypeKind.DECLARED) {
-                AnnotatedDeclaredType declaredType = (AnnotatedDeclaredType) type;
-                for (AnnotatedTypeMirror typeMirror : declaredType.getTypeArguments()) {
-                    found |= containsModifierImpl(typeMirror, modifier, visited);
-                    if (found) {
-                        break;
-                    }
+        boolean found = false;
+        if (type.getKind() == TypeKind.DECLARED) {
+            AnnotatedDeclaredType declaredType = (AnnotatedDeclaredType) type;
+            for (AnnotatedTypeMirror typeMirror : declaredType.getTypeArguments()) {
+                found |= containsModifierImpl(typeMirror, modifier, visited);
+                if (found) {
+                    break;
                 }
-            } else if (type.getKind() == TypeKind.ARRAY) {
-                AnnotatedArrayType arrayType = (AnnotatedArrayType) type;
-                found = containsModifierImpl(arrayType.getComponentType(), modifier, visited);
-            } else if (type.getKind() == TypeKind.TYPEVAR) {
-                AnnotatedTypeVariable atv = (AnnotatedTypeVariable) type;
-                if (atv.getUpperBound() != null) {
-                    found = containsModifierImpl(atv.getUpperBound(), modifier, visited);
-                }
-                if (!found && atv.getLowerBound() != null) {
-                    found = containsModifierImpl(atv.getLowerBound(), modifier, visited);
-                }
-            } else if (type.getKind() == TypeKind.WILDCARD) {
-                AnnotatedWildcardType awc = (AnnotatedWildcardType) type;
-                if (awc.getExtendsBound() != null) {
-                    found = containsModifierImpl(awc.getExtendsBound(), modifier, visited);
-                }
-                if (!found && awc.getSuperBound() != null) {
-                    found = containsModifierImpl(awc.getSuperBound(), modifier, visited);
-                }
+            }
+        } else if (type.getKind() == TypeKind.ARRAY) {
+            AnnotatedArrayType arrayType = (AnnotatedArrayType) type;
+            found = containsModifierImpl(arrayType.getComponentType(), modifier, visited);
+        } else if (type.getKind() == TypeKind.TYPEVAR) {
+            AnnotatedTypeVariable atv = (AnnotatedTypeVariable) type;
+            if (atv.getUpperBound() != null) {
+                found = containsModifierImpl(atv.getUpperBound(), modifier, visited);
+            }
+            if (!found && atv.getLowerBound() != null) {
+                found = containsModifierImpl(atv.getLowerBound(), modifier, visited);
+            }
+        } else if (type.getKind() == TypeKind.WILDCARD) {
+            AnnotatedWildcardType awc = (AnnotatedWildcardType) type;
+            if (awc.getExtendsBound() != null) {
+                found = containsModifierImpl(awc.getExtendsBound(), modifier, visited);
+            }
+            if (!found && awc.getSuperBound() != null) {
+                found = containsModifierImpl(awc.getSuperBound(), modifier, visited);
             }
         }
 
@@ -1732,8 +1748,7 @@ public class AnnotatedTypes {
             if (returnType.hasAnnotationInHierarchy(cta)) {
                 continue;
             }
-            if (atypeFactory.isSupportedQualifier(cta)
-                    && !returnType.hasAnnotationInHierarchy(cta)) {
+            if (atypeFactory.isSupportedQualifier(cta)) {
                 for (AnnotationMirror fromDecl : decret) {
                     if (atypeFactory.isSupportedQualifier(fromDecl)
                             && AnnotationUtils.areSame(

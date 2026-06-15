@@ -132,7 +132,7 @@ public class BoundsInitializer {
          *
          * @param atypeFactory the type factory
          */
-        public BoundInitializerVisitor(AnnotatedTypeFactory atypeFactory) {
+        private BoundInitializerVisitor(AnnotatedTypeFactory atypeFactory) {
             this.atypeFactory = atypeFactory;
         }
 
@@ -243,17 +243,15 @@ public class BoundsInitializer {
                 }
             }
 
-            List<AnnotatedTypeMirror> typeArgReplacements = new ArrayList<>(typeArgs.size());
-            for (int i = 0; i < typeArgs.size(); i++) {
+            List<? extends TypeParameterElement> typeParameters = typeElement.getTypeParameters();
+            for (int i = 0, n = typeArgs.size(); i < n; ++i) {
                 AnnotatedTypeMirror typeArg = typeArgs.get(i);
                 if (typeArg.getKind() == TypeKind.WILDCARD) {
-                    ((AnnotatedWildcardType) typeArg)
-                            .setTypeVariable(typeElement.getTypeParameters().get(i));
+                    ((AnnotatedWildcardType) typeArg).setTypeVariable(typeParameters.get(i));
                 }
-                typeArgReplacements.add(typeArg);
             }
 
-            annotatedDeclaredType.setTypeArguments(typeArgReplacements);
+            annotatedDeclaredType.setTypeArguments(typeArgs);
             return annotatedDeclaredType;
         }
 

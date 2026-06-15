@@ -854,7 +854,7 @@ public class OptionalImplVisitor
          * @param visitor the visitor associated with this type validator
          * @param atypeFactory the type factory associated with this type validator
          */
-        public OptionalImplTypeValidator(
+        OptionalImplTypeValidator(
                 BaseTypeChecker checker,
                 BaseTypeVisitor<?> visitor,
                 AnnotatedTypeFactory atypeFactory) {

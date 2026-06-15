@@ -207,15 +207,16 @@ public class TestDiagnostic {
     }
 
     /**
-     * Equality is compared based the file name, not the full path, on the messageKey, not the full
-     * message, and without considering isFixable and messageKeyParens.
+     * Equality is compared based on the file name, not the full path, on the messageKey, not the
+     * full message, and without considering isFixable and messageKeyParens. The runtime class of
+     * the argument must match {@code this.getClass()} exactly.
      *
      * @return true if this and otherObj are equal according to file, lineNumber, kind, and
      *     messageKey
      */
     @Override
     public boolean equals(@Nullable Object otherObj) {
-        if (otherObj == null || otherObj.getClass() != TestDiagnostic.class) {
+        if (otherObj == null || otherObj.getClass() != this.getClass()) {
             return false;
         }
 

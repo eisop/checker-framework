@@ -447,7 +447,7 @@ public class RLCCalledMethodsVisitor extends CalledMethodsVisitor {
          * @param mustCallMethod the method that must be called
          * @param exitKind when the method must be called
          */
-        public DestructorObligation(
+        DestructorObligation(
                 String mustCallMethod, MustCallConsistencyAnalyzer.MethodExitKind exitKind) {
             this.mustCallMethod = mustCallMethod;
             this.exitKind = exitKind;

@@ -2,254 +2,294 @@ name: CI tests
 
 on:
   schedule:
-    - cron: '0 7 * * *' # Runs daily at 2:00 AM EST
+    - cron: '0 7 * * *'  # Runs daily at 07:00 UTC.
   pull_request:
   push:
     branches: [ "master" ]
 
-# Configure GitHub Actions cancel in progress workflow to avoid redundant runs in pull requests.
-# See: https://docs.github.com/en/enterprise-cloud@latest/actions/writing-workflows/choosing-what-your-workflow-does/control-the-concurrency-of-workflows-and-jobs
+# Cancel in-progress workflows on PR updates; never cancel master pushes.
+# https://docs.github.com/en/enterprise-cloud@latest/actions/writing-workflows/choosing-what-your-workflow-does/control-the-concurrency-of-workflows-and-jobs
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: ${{ !contains(github.ref, 'heads/master')}}
+  cancel-in-progress: ${{ !contains(github.ref, 'heads/master') }}
+
+# Default minimal permissions for all jobs; individual steps may opt-in to more.
+permissions:
+  contents: read
+
+env:
+  PRIMARY_JDK: "21"
+  USE_BAZEL_VERSION: "9.1.1"
+  # JDK 27 early-access build; bump when a new EA build is published.
+  JDK_EA_MAJOR: "27"
+  JDK_EA_BUILD: "26"
 
 jobs:
-  # Basic sanity tests on JDK 21.
+  # Basic sanity tests on the primary JDK.
   sanity:
     name: ${{ matrix.script }} on JDK ${{ matrix.java_version }}
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
     strategy:
+      fail-fast: false
       matrix:
         script: ['cftests-junit', 'cftests-nonjunit']
+        # env.PRIMARY_JDK is not available in strategy.matrix or in
+        # jobs.<id>.name / jobs.<id>.env, so the primary JDK is repeated here.
         java_version: [21]
     env:
       JAVA_VERSION: ${{ matrix.java_version }}
     steps:
-    - uses: actions/checkout@v5
-    - name: Set up JDK ${{ matrix.java_version }}
-      uses: actions/setup-java@v5
-      with:
-        java-version: ${{ matrix.java_version }}
-        distribution: 'temurin'
+      - uses: actions/checkout@v6
 
-    # Configure Gradle for optimal use in GitHub Actions, including caching of downloaded dependencies.
-    # See: https://github.com/gradle/actions/blob/main/setup-gradle/README.md
-    - name: Setup Gradle
-      uses: gradle/actions/setup-gradle@v5.0.0
+      - name: Set up JDK ${{ matrix.java_version }}
+        uses: actions/setup-java@v5
+        with:
+          java-version: ${{ matrix.java_version }}
+          distribution: 'zulu'
+          # Caching handled by gradle/actions/setup-gradle below.
 
-    - name: Setup Bazel
-      uses: bazel-contrib/setup-bazel@0.15.0
-      if: ${{ matrix.script == 'cftests-nonjunit' }}
-      with:
-        # Avoid downloading Bazel every time.
-        bazelisk-cache: true
-        # Store build cache per workflow.
-        disk-cache: ${{ github.workflow }}
-        # Share repository cache between workflows.
-        repository-cache: true
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v6.2.0
+        with:
+          # Allow cache writes on PR runs so subsequent reruns on the same PR
+          # restore the previous run's Gradle home instead of rebuilding from
+          # scratch.
+          cache-read-only: false
 
-    - name: Run test script checker/bin-devel/test-${{ matrix.script }}
-      run: ./checker/bin-devel/test-${{ matrix.script }}.sh
+      - name: Setup Bazel
+        if: ${{ matrix.script == 'cftests-nonjunit' }}
+        uses: bazel-contrib/setup-bazel@0.19.0
+        with:
+          bazelisk-cache: true
+          disk-cache: ${{ github.workflow }}
+          repository-cache: true
 
-  # The remaining tests for JDK 21. Separate from `sanity` to allow parallelism with `otheros`.
+      - name: Run test script checker/bin-devel/test-${{ matrix.script }}
+        run: ./checker/bin-devel/test-${{ matrix.script }}.sh
+
+  # Remaining tests on the primary JDK. Runs in parallel with `sanity` for throughput.
   remainder:
     name: ${{ matrix.script }} on JDK ${{ matrix.java_version }}
-    runs-on: ubuntu-latest
-    # Don't depend on sanity jobs, to have more parallelism.
-    # TODO: cancel these jobs if sanity fails.
-    # needs: sanity
-    permissions:
-      contents: read
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
     strategy:
-      fail-fast: true
+      fail-fast: false
       matrix:
         # No need to run 'cftests-junit-jdk21' on JDK 21.
-        script: ['typecheck-part1', 'typecheck-part2',
-          'guava', 'plume-lib',
-          'daikon-part1', 'daikon-part2',
-          'jspecify-conformance', 'jspecify-reference-checker',
-          'misc']
+        script:
+          - 'typecheck-part1'
+          - 'typecheck-part2'
+          - 'guava'
+          - 'plume-lib'
+          - 'daikon-part1'
+          - 'daikon-part2'
+          - 'jspecify-conformance'
+          - 'jspecify-reference-checker'
+          - 'misc'
+        # Keep in sync with env.PRIMARY_JDK.
         java_version: [21]
     env:
       JAVA_VERSION: ${{ matrix.java_version }}
     steps:
-    - uses: actions/checkout@v5
-      if: ${{ matrix.script != 'misc' }}
-      with:
-        fetch-depth: 1
-    - uses: actions/checkout@v5
-      if: ${{ matrix.script == 'misc' }}
-      with:
-        # CI diff needs more history - 0 fetches all history.
-        fetch-depth: 0
-    - name: Set up JDK ${{ matrix.java_version }}
-      uses: actions/setup-java@v5
-      with:
-        java-version: ${{ matrix.java_version }}
-        distribution: 'temurin'
+      # `misc` runs `ci-diff` which needs full history; everything else is shallow.
+      - uses: actions/checkout@v6
+        if: ${{ matrix.script == 'misc' }}
+        with:
+          fetch-depth: 0
+      - uses: actions/checkout@v6
+        if: ${{ matrix.script != 'misc' }}
+        with:
+          fetch-depth: 1
 
-    # Configure Gradle for optimal use in GitHub Actions, including caching of downloaded dependencies.
-    # See: https://github.com/gradle/actions/blob/main/setup-gradle/README.md
-    - name: Setup Gradle
-      uses: gradle/actions/setup-gradle@v5.0.0
-      # Setup for misc tests
-    - name: Install misc dependencies
-      if: ${{ matrix.script == 'misc' }}
-      run: |
-        sudo apt update
-        sudo apt install -y --fix-missing \
-          asciidoctor shellcheck shfmt devscripts python3-pip \
-          texlive-latex-base texlive-latex-extra latexmk librsvg2-bin \
-          autoconf dia hevea latexmk libasound2-dev rsync pdf2svg \
-          libcups2-dev libfontconfig1-dev libx11-dev libxext-dev \
-          libxrender-dev libxrandr-dev libxtst-dev libxt-dev \
-          texlive-font-utils texlive-fonts-recommended texlive-latex-recommended
-        pip install black flake8 html5validator
-    - name: Run test script checker/bin-devel/test-${{ matrix.script }}
-      run: ./checker/bin-devel/test-${{ matrix.script }}.sh
+      - name: Set up JDK ${{ matrix.java_version }}
+        uses: actions/setup-java@v5
+        with:
+          java-version: ${{ matrix.java_version }}
+          distribution: 'zulu'
 
-  otherjdks:
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v6.2.0
+        with:
+          cache-read-only: false
+
+      - name: Set up misc test dependencies
+        if: ${{ matrix.script == 'misc' }}
+        uses: ./.github/actions/setup-misc
+
+      - name: Run test script checker/bin-devel/test-${{ matrix.script }}
+        run: ./checker/bin-devel/test-${{ matrix.script }}.sh
+
+  core-jdks:
     name: ${{ matrix.script }} on JDK ${{ matrix.java.version }}
-    runs-on: ubuntu-latest
-    needs: sanity
-    permissions:
-      contents: read
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    needs: [sanity, remainder]
+    env:
+      JAVA_VERSION: ${{ matrix.java.version }}
+    strategy:
+      # `continue-on-error` below prevents experimental JDK failures from
+      # triggering fail-fast cancellation of the rest of the matrix.
+      fail-fast: true
+      matrix:
+        script:
+          - 'cftests-junit'
+          - 'cftests-nonjunit'
+          - 'cftests-junit-jdk21'
+        # Keep all LTS versions plus the newest non-LTS version.
+        # Experimental versions use the $version compiler but run Gradle on the primary JDK.
+        # Keep $version values in sync with env.JDK_EA_MAJOR above;
+        # env context is not available in strategy.matrix.
+        java:
+          - {version: '27', experimental: true}
+          - {version: '26', experimental: false}
+          - {version: '25', experimental: false}
+          - {version: '17', experimental: false}
+          - {version: '11', experimental: false}
+          - {version: '8',  experimental: false}
+        exclude:
+          # JDK 8 does not allow toolchains, so 'cftests-junit-jdk21' is unnecessary.
+          - {script: 'cftests-junit-jdk21', java: {version: '8'}}
+    continue-on-error: ${{ matrix.java.experimental }}
+    steps:
+      - name: Check out sources (shallow)
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+
+      - name: Set up JDK ${{ env.PRIMARY_JDK }} for Gradle to run on
+        uses: actions/setup-java@v5
+        with:
+          # Install the primary JDK first, to make it available to Gradle via gradle.properties below.
+          java-version: ${{ env.PRIMARY_JDK }}
+          distribution: 'zulu'
+
+      - name: Set up stable JDK ${{ matrix.java.version }}
+        if: ${{ matrix.java.version != env.JDK_EA_MAJOR }}
+        uses: actions/setup-java@v5
+        with:
+          # Install the requested JDK second, to make it the default on which tests run.
+          java-version: ${{ matrix.java.version }}
+          distribution: 'zulu'
+
+      - name: Set up early-access JDK ${{ env.JDK_EA_MAJOR }}
+        if: ${{ matrix.java.version == env.JDK_EA_MAJOR }}
+        uses: oracle-actions/setup-java@v1
+        with:
+          # Pin EA builds by direct archive URI.
+          # If the URI stops working, check for the updated pattern here:
+          # https://github.com/oracle-actions/setup-java/blob/main/jdk.java.net-uri.properties
+          uri: ${{ format('https://download.java.net/java/early_access/jdk{0}/{1}/GPL/openjdk-{0}-ea+{1}_linux-x64_bin.tar.gz', env.JDK_EA_MAJOR, env.JDK_EA_BUILD) }}
+          install-as-version: ${{ env.JDK_EA_MAJOR }}
+
+      - name: Pin Gradle to JDK ${{ env.PRIMARY_JDK }} via gradle.properties
+        run: |
+          mkdir -p ~/.gradle
+          echo "org.gradle.java.home=$JAVA_HOME_${{ env.PRIMARY_JDK }}_X64" >> ~/.gradle/gradle.properties
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v6.2.0
+        with:
+          cache-read-only: false
+
+      - name: Setup Bazel
+        if: ${{ matrix.script == 'cftests-nonjunit' }}
+        uses: bazel-contrib/setup-bazel@0.19.0
+        with:
+          bazelisk-cache: true
+          disk-cache: ${{ github.workflow }}
+          repository-cache: true
+
+      - name: Output version information to debug CI
+        run: which java && ./gradlew --version
+
+      - name: Run test script checker/bin-devel/test-${{ matrix.script }}
+        run: ./checker/bin-devel/test-${{ matrix.script }}.sh
+        env:
+          # Tells Gradle which JDK version to compile/run tests against,
+          # so we can e.g. run JDK 25 while Gradle itself does not support JDK 25 yet.
+          ORG_GRADLE_PROJECT_useJdkVersion: ${{ matrix.java.version }}
+
+  integration-jdks:
+    name: ${{ matrix.script }} on JDK ${{ matrix.java.version }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    needs: [sanity, remainder]
+    env:
+      JAVA_VERSION: ${{ matrix.java.version }}
     strategy:
       fail-fast: true
       matrix:
-        # `jspecify-conformance` and `jspecify-reference-checker` only tested on JDK 21.
-        script: ['cftests-junit', 'cftests-nonjunit', 'cftests-junit-jdk21',
-          'typecheck-part1', 'typecheck-part2',
-          'guava', 'plume-lib',
-          'daikon-part1', 'daikon-part2',
-          'misc']
-        # JDK 21 used by `sanity` and `remainder` before.
-        # `experimental` versions use the $version compiler, but run on JDK 21.
-        java: [{version: '8', experimental: false},
-          {version: '11', experimental: false},
-          {version: '17', experimental: false},
-          {version: '24', experimental: false},
-          {version: '25', experimental: false},
-          {version: '26.0.0-ea.16.0.ea', experimental: true}]
-        exclude:
-          # JDK 8 does not allow toolchains, so testing 'cftests-junit-jdk21' is unnecessary.
-          - script: 'cftests-junit-jdk21'
-            java: {version: '8'}
-          # Only run `typecheck*`, `guava`, and `misc` scripts on core versions,
-          # so exclude 11 and 17.
-          - script: 'typecheck-part1'
-            java: {version: '11'}
-          - script: 'typecheck-part1'
-            java: {version: '17'}
-          - script: 'typecheck-part2'
-            java: {version: '11'}
-          - script: 'typecheck-part2'
-            java: {version: '17'}
-          - script: 'guava'
-            java: {version: '11'}
-          - script: 'guava'
-            java: {version: '17'}
-          - script: 'misc'
-            java: {version: '8'}
-          - script: 'misc'
-            java: {version: '11'}
-          - script: 'misc'
-            java: {version: '17'}
-          # At least one plume-lib project no longer works on Java 8,
-          # so exclude 8, 11, and 17.
-          - script: 'plume-lib'
-            java: {version: '8'}
-          - script: 'plume-lib'
-            java: {version: '11'}
-          - script: 'plume-lib'
-            java: {version: '17'}
-          # Daikon produces 'this-escape' compiler warnings in JDK 22+.
-          # Exclude all versions here and just explicitly include with JDK 17.
-          - script: 'daikon-part1'
-          - script: 'daikon-part2'
         include:
-          - script: 'daikon-part1'
-            java: {version: '17', experimental: false}
-          - script: 'daikon-part2'
-            java: {version: '17', experimental: false}
-
-    env:
-      JAVA_VERSION: ${{ matrix.java.version }}
-    continue-on-error: ${{ matrix.java.experimental }}
+          # typecheck and guava on oldest core version (8) and newest stable (26)
+          - {script: 'typecheck-part1', java: {version: '8'}}
+          - {script: 'typecheck-part1', java: {version: '26'}}
+          - {script: 'typecheck-part2', java: {version: '8'}}
+          - {script: 'typecheck-part2', java: {version: '26'}}
+          - {script: 'guava',           java: {version: '8'}}
+          - {script: 'guava',           java: {version: '26'}}
+          # plume-lib, misc, and jspecify tests only on newest stable (26)
+          - {script: 'plume-lib',       java: {version: '26'}}
+          - {script: 'misc',            java: {version: '26'}}
+          - {script: 'jspecify-conformance', java: {version: '26'}}
+          - {script: 'jspecify-reference-checker', java: {version: '26'}}
+          # Daikon produces 'this-escape' warnings in JDK 22+. Only JDK 17.
+          - {script: 'daikon-part1',    java: {version: '17'}}
+          - {script: 'daikon-part2',    java: {version: '17'}}
     steps:
-    - name: Check out sources
-      uses: actions/checkout@v5
-      if: ${{ matrix.script != 'misc' }}
-      with:
-        fetch-depth: 1
-    - name: Check out sources with all history
-      uses: actions/checkout@v5
-      if: ${{ matrix.script == 'misc' }}
-      with:
-        # CI diff needs more history - 0 fetches all history.
-        fetch-depth: 0
-    - name: Set up JDK 21 for Gradle to run on
-      uses: actions/setup-java@v5
-      with:
-        # Install JDK 21 first, to make it available to Gradle using `gradle.properties` below.
-        java-version: 21
-        distribution: 'temurin'
-    - name: Set up JDK ${{ matrix.java.version }}
-      uses: actions/setup-java@v5
-      with:
-        # Install the requested JDK second, to make it the default on which everything else runs.
-        java-version: ${{ matrix.java.version }}
-        distribution: 'temurin'
-    - name: Inject JAVA_HOME_21_64 into `gradle.properties` to always use JDK 21 for Gradle
-      run: mkdir ~/.gradle && echo "org.gradle.java.home=$JAVA_HOME_21_X64" >> ~/.gradle/gradle.properties
+      - name: Check out sources (full history for misc)
+        uses: actions/checkout@v6
+        if: ${{ matrix.script == 'misc' }}
+        with:
+          fetch-depth: 0
+      - name: Check out sources (shallow)
+        uses: actions/checkout@v6
+        if: ${{ matrix.script != 'misc' }}
+        with:
+          fetch-depth: 1
 
-    # Configure Gradle for optimal use in GitHub Actions, including caching of downloaded dependencies.
-    # See: https://github.com/gradle/actions/blob/main/setup-gradle/README.md
-    - name: Setup Gradle
-      uses: gradle/actions/setup-gradle@v5.0.0
-    - name: Install misc dependencies
-      if: ${{ matrix.script == 'misc' }}
-      run: |
-        sudo apt update
-        sudo apt install -y --fix-missing \
-          asciidoctor shellcheck shfmt devscripts python3-pip \
-          texlive-latex-base texlive-latex-extra latexmk librsvg2-bin \
-          autoconf dia hevea latexmk libasound2-dev rsync pdf2svg \
-          libcups2-dev libfontconfig1-dev libx11-dev libxext-dev \
-          libxrender-dev libxrandr-dev libxtst-dev libxt-dev \
-          texlive-font-utils texlive-fonts-recommended texlive-latex-recommended
-        pip install black flake8 html5validator
-    - name: Setup Bazel
-      uses: bazel-contrib/setup-bazel@0.15.0
-      if: ${{ matrix.script == 'cftests-nonjunit' }}
-      with:
-        # Avoid downloading Bazel every time.
-        bazelisk-cache: true
-        # Store build cache per workflow.
-        disk-cache: ${{ github.workflow }}
-        # Share repository cache between workflows.
-        repository-cache: true
+      - name: Set up JDK ${{ env.PRIMARY_JDK }} for Gradle to run on
+        uses: actions/setup-java@v5
+        with:
+          java-version: ${{ env.PRIMARY_JDK }}
+          distribution: 'zulu'
 
-    - name: Output version information to debug CI
-      run: which java && ./gradlew --version
+      - name: Set up stable JDK ${{ matrix.java.version }}
+        uses: actions/setup-java@v5
+        with:
+          java-version: ${{ matrix.java.version }}
+          distribution: 'zulu'
 
-    - name: Run test script checker/bin-devel/test-${{ matrix.script }}
-      run: ./checker/bin-devel/test-${{ matrix.script }}.sh
-      # Set the JDK version to use, allowing us to e.g. run Java 25 while gradle does not work
-      # on Java 25 yet.
-      env:
-        ORG_GRADLE_PROJECT_useJdkVersion: ${{ matrix.java.version }}
+      - name: Pin Gradle to JDK ${{ env.PRIMARY_JDK }} via gradle.properties
+        run: |
+          mkdir -p ~/.gradle
+          echo "org.gradle.java.home=$JAVA_HOME_${{ env.PRIMARY_JDK }}_X64" >> ~/.gradle/gradle.properties
 
-  # Sanity tests on Windows and MacOS.
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v6.2.0
+        with:
+          cache-read-only: false
+
+      - name: Set up misc test dependencies
+        if: ${{ matrix.script == 'misc' }}
+        uses: ./.github/actions/setup-misc
+
+      - name: Output version information to debug CI
+        run: which java && ./gradlew --version
+
+      - name: Run test script checker/bin-devel/test-${{ matrix.script }}
+        run: ./checker/bin-devel/test-${{ matrix.script }}.sh
+        env:
+          ORG_GRADLE_PROJECT_useJdkVersion: ${{ matrix.java.version }}
+
+  # Sanity tests on Windows and macOS.
   otheros:
     name: ${{ matrix.script }} on JDK ${{ matrix.java_version }} on ${{ matrix.os }}
-    runs-on: "${{ matrix.os }}"
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
     needs: sanity
-    permissions:
-      contents: read
     strategy:
+      fail-fast: false
       matrix:
         os: ['windows-latest', 'macos-latest']
         script: ['cftests-junit']
@@ -257,27 +297,27 @@ jobs:
     env:
       JAVA_VERSION: ${{ matrix.java_version }}
     steps:
-    - uses: actions/checkout@v5
-    - name: Set up JDK ${{ matrix.java_version }}
-      uses: actions/setup-java@v5
-      with:
-        java-version: ${{ matrix.java_version }}
-        distribution: 'temurin'
+      - uses: actions/checkout@v6
 
-    # Configure Gradle for optimal use in GitHub Actions, including caching of downloaded dependencies.
-    # See: https://github.com/gradle/actions/blob/main/setup-gradle/README.md
-    - name: Setup Gradle
-      uses: gradle/actions/setup-gradle@v5.0.0
+      - name: Set up JDK ${{ matrix.java_version }}
+        uses: actions/setup-java@v5
+        with:
+          java-version: ${{ matrix.java_version }}
+          distribution: 'zulu'
 
-    - name: Install coreutils on MacOS
-      if: ${{ matrix.os == 'macos-latest' }}
-      run: brew install coreutils
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v6.2.0
+        with:
+          cache-read-only: false
 
-    - name: Install wget on Windows
-      if: ${{ matrix.os == 'windows-latest' }}
-      run: |
-        choco install wget --no-progress
+      - name: Install coreutils on macOS
+        if: ${{ matrix.os == 'macos-latest' }}
+        run: brew install coreutils
 
-    - name: Run test script checker/bin-devel/test-${{ matrix.script }}
-      shell: bash
-      run: ./checker/bin-devel/test-${{ matrix.script }}.sh
+      - name: Install wget on Windows
+        if: ${{ matrix.os == 'windows-latest' }}
+        run: choco install wget --no-progress
+
+      - name: Run test script checker/bin-devel/test-${{ matrix.script }}
+        shell: bash
+        run: ./checker/bin-devel/test-${{ matrix.script }}.sh

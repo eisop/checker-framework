@@ -46,7 +46,7 @@ public class I18nAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
         private final AnnotationMirror LOCALIZED =
                 AnnotationBuilder.fromClass(elements, Localized.class);
 
-        public I18nTreeAnnotator(AnnotatedTypeFactory atypeFactory) {
+        I18nTreeAnnotator(AnnotatedTypeFactory atypeFactory) {
             super(atypeFactory);
         }
 

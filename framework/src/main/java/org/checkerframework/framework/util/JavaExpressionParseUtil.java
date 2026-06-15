@@ -56,6 +56,7 @@ import org.checkerframework.framework.source.DiagMessage;
 import org.checkerframework.framework.util.dependenttypes.DependentTypesError;
 import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.ElementUtils;
+import org.checkerframework.javacutil.InternalUtils;
 import org.checkerframework.javacutil.Resolver;
 import org.checkerframework.javacutil.TypesUtils;
 import org.checkerframework.javacutil.trees.TreeBuilder;
@@ -117,8 +118,11 @@ public class JavaExpressionParseUtil {
     /** The length of {@link #PARAMETER_PREFIX}. */
     private static final int PARAMETER_PREFIX_LENGTH = PARAMETER_PREFIX.length();
 
-    /** A pattern that matches the start of a formal parameter in "#2" syntax. */
-    private static final Pattern FORMAL_PARAMETER = Pattern.compile("#(\\d)");
+    /**
+     * A pattern that matches the start of a formal parameter in "#2" syntax. The capture group
+     * matches the full integer (one or more digits).
+     */
+    private static final Pattern FORMAL_PARAMETER = Pattern.compile("#(\\d+)");
 
     /** The replacement for a formal parameter in "#2" syntax. */
     private static final String PARAMETER_REPLACEMENT = PARAMETER_PREFIX + "$1";
@@ -303,7 +307,7 @@ public class JavaExpressionParseUtil {
          * @throws JavaExpressionParseException if {@code expr} cannot be converted to a {@code
          *     JavaExpression}
          */
-        public static JavaExpression convert(
+        static JavaExpression convert(
                 Expression expr,
                 TypeMirror enclosingType,
                 @Nullable ThisReference thisReference,
@@ -487,7 +491,7 @@ public class JavaExpressionParseUtil {
             if (parameters != null) {
                 for (int i = 0; i < parameters.size(); i++) {
                     Element varElt = parameters.get(i).getElement();
-                    if (varElt.getSimpleName().contentEquals(s)) {
+                    if (InternalUtils.sameName(varElt.getSimpleName(), s)) {
                         throw new ParseRuntimeException(
                                 constructJavaExpressionParseError(
                                         s,
@@ -546,8 +550,7 @@ public class JavaExpressionParseUtil {
          * @return the {@code ClassName} for {@code identifier}, or null if it is not a simple class
          *     name
          */
-        protected @Nullable ClassName getIdentifierAsInnerClassName(
-                TypeMirror type, String identifier) {
+        @Nullable ClassName getIdentifierAsInnerClassName(TypeMirror type, String identifier) {
             if (type.getKind() != TypeKind.DECLARED) {
                 return null;
             }
@@ -557,7 +560,7 @@ public class JavaExpressionParseUtil {
                 if (!(memberElement.getKind().isClass() || memberElement.getKind().isInterface())) {
                     continue;
                 }
-                if (memberElement.getSimpleName().contentEquals(identifier)) {
+                if (InternalUtils.sameName(memberElement.getSimpleName(), identifier)) {
                     return new ClassName(ElementUtils.getType(memberElement));
                 }
             }
@@ -582,13 +585,14 @@ public class JavaExpressionParseUtil {
          * @param identifier possible class name
          * @return the {@code ClassName} for {@code identifier}, or null if it is not a class name
          */
-        protected @Nullable ClassName getIdentifierAsUnqualifiedClassName(String identifier) {
+        @Nullable ClassName getIdentifierAsUnqualifiedClassName(String identifier) {
             // Is identifier an inner class of enclosingType or of any enclosing class of
             // enclosingType?
             TypeMirror searchType = enclosingType;
             while (searchType.getKind() == TypeKind.DECLARED) {
                 DeclaredType searchDeclaredType = (DeclaredType) searchType;
-                if (searchDeclaredType.asElement().getSimpleName().contentEquals(identifier)) {
+                if (InternalUtils.sameName(
+                        searchDeclaredType.asElement().getSimpleName(), identifier)) {
                     return new ClassName(searchType);
                 }
                 ClassName className = getIdentifierAsInnerClassName(searchType, identifier);
@@ -651,7 +655,7 @@ public class JavaExpressionParseUtil {
          * @return a field access, or null if {@code identifier} is not a field that can be accessed
          *     via {@code receiverExpr}
          */
-        protected @Nullable FieldAccess getIdentifierAsFieldAccess(
+        @Nullable FieldAccess getIdentifierAsFieldAccess(
                 JavaExpression receiverExpr, String identifier) {
             setResolverField();
             // Find the field element.
