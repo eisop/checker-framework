@@ -8,7 +8,6 @@ import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedNullType
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedPrimitiveType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedTypeVariable;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedWildcardType;
-import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.ElementUtils;
 import org.plumelib.util.IPair;
@@ -274,6 +273,8 @@ public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
             if (!isTypeVarExtends) {
                 isTypeVarExtends = true;
                 AnnotatedTypeVariable atv = (AnnotatedTypeVariable) declared.shallowCopy();
+                AnnotationMirror primaryAnnotation =
+                        atv.getAnnotationInHierarchy(receiverAnnotation);
                 IdentityHashMap<AnnotatedTypeMirror, AnnotatedTypeMirror> mappings =
                         new IdentityHashMap<>();
 
@@ -290,9 +291,13 @@ public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
                 // However, we need to first remove the primary annotations of atv, otherwise
                 // in later replacement, the primary annotations would override our computed
                 // new mappings (see method fixupBoundAnnotations).
-                atv.clearAnnotations();
+                atv.removeAnnotationInHierarchy(receiverAnnotation);
                 AnnotatedTypeMirror result =
                         AnnotatedTypeCopierWithReplacement.replace(atv, mappings);
+                if (primaryAnnotation != null) {
+                    result.replaceAnnotation(
+                            combineAnnotationWithAnnotation(receiverAnnotation, primaryAnnotation));
+                }
 
                 isTypeVarExtends = false;
                 return result;
@@ -412,13 +417,9 @@ public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
             if (lhs.getKind() == TypeKind.DECLARED) {
                 // Replace type variable with its actual type argument
                 rhs = getTypeVariableSubstitution((AnnotatedDeclaredType) lhs, atv);
-                // If the type variable use is annotated, the upperbound and lowerbound annotation
-                // on the type variable are the same. Replace the primary annotation of the
-                // substituted result (rhs) with annotation on type variable use.
-                if (AnnotationUtils.areSame(
-                        atv.getLowerBound().getAnnotations(),
-                        atv.getUpperBound().getAnnotations())) {
-                    rhs.replaceAnnotations(atv.getLowerBound().getAnnotations());
+                // If the type variable use has a primary annotation, apply it to the substitute.
+                if (!atv.getAnnotationsField().isEmpty()) {
+                    rhs.replaceAnnotations(atv.getAnnotations());
                 }
             }
         } else if (rhs.getKind() == TypeKind.DECLARED) {
