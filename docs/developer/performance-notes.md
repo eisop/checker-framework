@@ -1118,6 +1118,30 @@ the prior finding. A fresh hypothesis is not new evidence.
   lesson as the `AnnotatedTypeScanner.markVisited` array sizing). Don't pursue without a workload
   where a genuinely large table is filled enough times that the byte-volume, not the call count,
   dominates.
+- **Per-CU tree-defaults memoization in `QualifierDefaults` (June 2026).** A full prototype of
+  short-list item #4 — a per-compilation-unit cache from `(scope element, pre-defaulting type
+  structure)` to the defaulted type, keyed by a sound `AppliedDefaultsKey` (identity scope +
+  structural type hash) with an `EqualityAtmComparer` subclass adding `isDeclaration()`, write-back
+  on hit via a pooled `AnnotatedTypeReplacer`, `deepCopy` snapshots of key and value on miss,
+  cleared per-CU in `GenericAnnotatedTypeFactory.setRoot`, with `-Dcf.defaults.noTreeCache` and
+  `-Dcf.defaults.cacheStats` runtime flags. The premise was that `applyDefaultsElement` runs ~9
+  full-tree scans per call (one per `Default` plus checked/unchecked), replaceable by 3 cheaper
+  walks on a hit. The hit rate hypothesis held — **79.6% on nullness, 85.5% on interning** over
+  all-systems, well above the predicted ~24% break-even and ~60% "worth it" thresholds — but the
+  cache was **net neutral-to-worse on every axis** in a same-jar kill-switch A/B (all-systems / 269
+  files, median of 3–5): allocation **+2.06%** (5407 vs 5298 MB, deterministic
+  `ThreadAllocationStatistics`), wall **+0.9%** (25.19 vs 24.96 s), user CPU **+1.3%** (85.4 vs 84.3
+  s). Why the high hit rate doesn't pay: the per-`Default` scans are *cheap in-place annotation
+  mutations* (`DefaultApplierElement` walks the type and sets annotations, allocating little and
+  short-circuiting), not expensive operations — so the "9 scans → 3 walks" trade is between things
+  of similar cost. Meanwhile the cache machinery is pure overhead: an `AppliedDefaultsKey` + a
+  structural hash walk on *every* lookup, a structural equality walk + a replacer walk on every hit,
+  and **two `deepCopy`s per miss** (key snapshot + stored value). The ~20% miss tail's deep copies
+  alone account for the +2% allocation. The earlier "value-key lookup ≈ one scan, so neutral"
+  intuition was right empirically; the patch's reframing to "9 scans" overcounted the cost being
+  saved. Don't revisit without first showing — by instrumentation, not reasoning — that the
+  `DefaultApplierElement` scan itself (not its call count) is an allocation/CPU hotspot; today it is
+  not.
 - **Caching `getAnnotatedType` for expression/variable trees.** `getAnnotatedType(Tree)` caches
   only class and method trees (`classAndMethodTreeCache`); expressions recompute `fromExpression` +
   `addComputedTypeAnnotations` every call, and `CFAbstractTransfer.getValueFromFactory` (~19%
@@ -1509,6 +1533,10 @@ format: hot method, hypothesis, blockers/open questions.
      instrument the split first.
   4. **Cache the *applied* defaults** (not just the `DefaultSet`, which is already cached) per
      (element, structural shape) to skip the per-call `DefaultApplierElementImpl.scan` (~12% incl).
+     **MEASURED AND REJECTED (June 2026)** — prototype built and A/B'd; see *Per-CU tree-defaults
+     memoization* under "Tried and rejected". High hit rate (80–86%) but net neutral-to-worse on
+     every axis, because the per-call defaulting scans are cheap in-place annotation mutations while
+     the cache key/snapshot machinery is not.
   5. **`methodFromUse`/`constructorFromUse` per-tree memo** (~15% incl), scoped like #1.
   6. **Parallelize checking across classes/methods** — the only constant-factor-by-core-count lever,
      but the factory + its caches + javac symbol state are shared mutable state; research-scale.
