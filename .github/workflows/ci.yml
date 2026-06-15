@@ -255,18 +255,10 @@ jobs:
           distribution: 'zulu'
 
       - name: Set up stable JDK ${{ matrix.java.version }}
-        if: ${{ matrix.java.version != env.JDK_EA_MAJOR }}
         uses: actions/setup-java@v5
         with:
           java-version: ${{ matrix.java.version }}
           distribution: 'zulu'
-
-      - name: Set up early-access JDK ${{ env.JDK_EA_MAJOR }}
-        if: ${{ matrix.java.version == env.JDK_EA_MAJOR }}
-        uses: oracle-actions/setup-java@v1
-        with:
-          uri: ${{ format('https://download.java.net/java/early_access/jdk{0}/{1}/GPL/openjdk-{0}-ea+{1}_linux-x64_bin.tar.gz', env.JDK_EA_MAJOR, env.JDK_EA_BUILD) }}
-          install-as-version: ${{ env.JDK_EA_MAJOR }}
 
       - name: Pin Gradle to JDK ${{ env.PRIMARY_JDK }} via gradle.properties
         run: |
