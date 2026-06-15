@@ -1,7 +1,9 @@
 package org.checkerframework.framework.testchecker.h1h2checker;
 
 import com.sun.source.tree.ExpressionTree;
+import com.sun.source.tree.IdentifierTree;
 import com.sun.source.tree.Tree;
+import com.sun.source.tree.VariableTree;
 
 import org.checkerframework.checker.compilermsgs.qual.CompilerMessageKey;
 import org.checkerframework.common.basetype.BaseTypeChecker;
@@ -16,6 +18,9 @@ import org.checkerframework.javacutil.AnnotationBuilder;
 import javax.lang.model.element.AnnotationMirror;
 
 public class H1H2Visitor extends BaseTypeVisitor<H1H2AnnotatedTypeFactory> {
+
+    /** Variable name used by {@code CommonAssignmentReturn} to exercise invalid LHS validation. */
+    private static final String COMMON_ASSIGNMENT_INVALID_LHS = "commonAssignmentInvalid";
 
     public H1H2Visitor(BaseTypeChecker checker) {
         super(checker);
@@ -47,7 +52,21 @@ public class H1H2Visitor extends BaseTypeVisitor<H1H2AnnotatedTypeFactory> {
         return superResult;
     }
 
-    /** Type validator that treats {@link H1Invalid} as an invalid type. */
+    /** Returns true if {@code tree} is the invalid LHS used by {@code CommonAssignmentReturn}. */
+    private boolean isCommonAssignmentInvalidLhs(Tree tree) {
+        switch (tree.getKind()) {
+            case VARIABLE:
+                return ((VariableTree) tree).getName().contentEquals(COMMON_ASSIGNMENT_INVALID_LHS);
+            case IDENTIFIER:
+                return ((IdentifierTree) tree)
+                        .getName()
+                        .contentEquals(COMMON_ASSIGNMENT_INVALID_LHS);
+            default:
+                return false;
+        }
+    }
+
+    /** Type validator that handles the invalid-type qualifiers in the H1 hierarchy. */
     private final class H1H2TypeValidator extends BaseTypeValidator {
 
         /**
@@ -68,7 +87,17 @@ public class H1H2Visitor extends BaseTypeVisitor<H1H2AnnotatedTypeFactory> {
         public Void visitDeclared(AnnotatedDeclaredType type, Tree p) {
             AnnotationMirror h1Invalid = AnnotationBuilder.fromClass(elements, H1Invalid.class);
             if (AnnotatedTypes.containsModifier(type, h1Invalid)) {
-                reportInvalidType(type, p);
+                if (isCommonAssignmentInvalidLhs(p)) {
+                    reportInvalidType(type, p);
+                    return super.visitDeclared(type, p);
+                }
+                checker.reportError(
+                        p,
+                        // An error specific to this type system, with no corresponding text
+                        // in a messages.properties file; this checker is just for testing.
+                        "h1h2checker.h1invalid.forbidden",
+                        type.getAnnotations(),
+                        type.toString());
             }
             return super.visitDeclared(type, p);
         }
