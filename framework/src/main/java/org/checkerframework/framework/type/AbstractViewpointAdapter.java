@@ -517,9 +517,9 @@ public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
         if (result.getKind() == TypeKind.WILDCARD) {
             AnnotatedWildcardType wildcard = (AnnotatedWildcardType) result;
             // When substituting an unbounded wildcard for a bounded type variable, the shallow
-            // copy may no longer know the formal type variable that supplies its effective
-            // extends bound. Preserve that bound so later subtype checks do not treat the
-            // wildcard as simply ? extends Object.
+            // copy might lose the reference to the formal type variable that provides its
+            // effective extends bound. Preserve this bound so that subsequent subtype checks
+            // do not treat the wildcard as implicitly bounded by Object.
             if (wildcard.getUnderlyingType().getExtendsBound() == null
                     && wildcard.getTypeVariable() == null
                     && wildcard.getSuperBound().getKind() == TypeKind.NULL) {
