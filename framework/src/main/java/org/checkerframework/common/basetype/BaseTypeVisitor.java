@@ -4271,7 +4271,6 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             boolean success = typeHierarchy.isSubtype(treeReceiver, receiverToCheck);
             commonAssignmentCheckEndDiagnostic(success, null, methodReceiver, treeReceiver, tree);
             if (!success) {
-                // Don't report the erased types because they show up with '</*RAW*/>' as type args.
                 reportMethodInvocabilityError(tree, treeReceiver, methodReceiver);
             }
         }
