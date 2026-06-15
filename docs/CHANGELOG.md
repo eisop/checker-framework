@@ -9,6 +9,29 @@ respectively). Several optimizations also reduce GC pressure.
 
 **Implementation details:**
 
+Performance: when reporting a warning or error on a tree, the path used for the
+`@SuppressWarnings` lookup is now found starting from the visitor's current path
+rather than rescanning the whole compilation unit from its root. This was
+O(compilation unit) per reported message, hence quadratic for code that produces
+many messages (e.g. the Interning Checker on a file with many `==` comparisons);
+on a generated 3000-comparison file its on-CPU samples dropped about 2x.
+
+Performance: the synthetic array tree created for a varargs call is now given a tree
+path under the call site, so defaulting its type no longer rescans the whole
+compilation unit via `getPath`. This was O(compilation unit) per varargs call --
+quadratic over a file of varargs calls; on a 3000-call file the nullness checker's
+on-CPU samples dropped about 4x. Only checkers that default heavily (e.g. nullness)
+were affected.
+
+Performance: `AnnotatedTypeFactory.declarationFromElement` no longer calls
+`Trees.getTree` to locate the enclosing declaration of a member or variable,
+which made javac scan the enclosing class on every call (O(class) per call,
+O(class^2) across a class's members). It now obtains the enclosing method/class
+tree from the current visitor path when available, and `DeclarationScanner`
+caches declarations under their raw symbol. Reduces `declarationFromElement`
+from 8.4% to 1.5% of `checkNullness` self time and is about 7% faster
+end-to-end; worst-case (a single large class) improves by roughly half.
+
 Enabled the Gradle configuration cache, speeding up build times.
 
 `AnnotationMirrorSet` has a new `get(int)` method that returns the element at a
@@ -179,7 +202,8 @@ median of four warm-daemon reps per side).
 
 **Closed issues:**
 
-eisop#792.
+eisop#433, eisop#792.
+
 
 Version 3.49.5-eisop1 (April 26, 2026)
 --------------------------------------
