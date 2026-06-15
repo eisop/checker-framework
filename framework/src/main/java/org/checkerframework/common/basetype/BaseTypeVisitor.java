@@ -963,10 +963,15 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
     /**
      * Helper for {@link #checkExtendsAndImplements} that checks one extends or implements clause.
      *
-     * <p>This performs two checks: (1) reports an {@code annotation.on.supertype} error if {@code
-     * boundClause} carries a type qualifier supported by this checker (see {@link
-     * #checkAnnotationOnSupertype}); (2) checks that the class declaration bounds are subtypes of
-     * the supertype bounds.
+     * <p>This performs two checks that both depend on the written extends or implements clause.
+     *
+     * <p>First, the default implementation of {@link #checkAnnotationOnSupertype} rejects explicit
+     * annotations of the supertype in this checker's hierarchy.
+     *
+     * <p>Second, this method checks that the class declaration bounds are subtypes of the supertype
+     * bounds. The supertype can have either an explicit annotation or an annotation inserted by
+     * defaulting; this check verifies that annotation against the declaration bounds of the class
+     * being declared.
      *
      * @param boundClause an extends or implements clause
      * @param classBounds the type declarations bounds to check for consistency with {@code

@@ -1488,6 +1488,14 @@ for Multiset.  For example, two clients could be written as
 \end{Verbatim}
 
 \noindent
+The annotations in these examples are on type arguments, which is permitted.
+By contrast, an annotation that appears directly before the class or interface
+name in an extends or implements clause describes the superclass or interface
+object itself.  For example, the Tainting Checker permits declarations such as
+\code{class UntaintedBuffer extends @Untainted Buffer}, where the annotation is
+on \code{Buffer}.  Other checkers may reject annotations in that location.
+
+\noindent
 or, more generally, as
 
 \begin{Verbatim}

@@ -12,6 +12,10 @@ Further performance improvements. `allNullnessTests` down to below 2 minutes
 and `checkNullness` to around 2.5 minutes (last release: 2.5 and 4 minutes,
 respectively). Several optimizations also reduce GC pressure.
 
+**Closed issues:**
+
+eisop#433, eisop#792, eisop#1059.
+
 **Implementation details:**
 
 Enabled the Gradle configuration cache, speeding up build times.
@@ -181,10 +185,6 @@ Together the above changes (PR #1797) reduce `Convert.utf2chars` +
 `Convert.utf2string` self-time from ~2.3% to ~0.89% of a full `checknullness`
 build; wall-clock A/B shows ~5% improvement on `checknullness` (~135 s → ~128 s,
 median of four warm-daemon reps per side).
-
-**Closed issues:**
-
-eisop#433, eisop#792, eisop#1059.
 
 
 Version 3.49.5-eisop1 (April 26, 2026)
