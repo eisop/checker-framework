@@ -85,6 +85,24 @@ public class Java8InferenceContext {
             Collections.newSetFromMap(new IdentityHashMap<>());
 
     /**
+     * Maximum amount of bound-incorporation work (sum of bound-list sizes visited by {@link
+     * org.checkerframework.framework.util.typeinference8.types.VariableBounds#applyInstantiationsToBounds})
+     * permitted for a single inference problem before inference is abandoned.
+     *
+     * <p>Incorporating bounds to a fixed point (JLS 18.3) is roughly cubic in the nesting depth of
+     * a generic invocation, so a single deeply nested (often machine-generated) invocation can take
+     * many seconds. This bound caps that work: when it is exceeded an {@link
+     * org.checkerframework.framework.util.typeinference8.util.InferenceBudgetExceededError} is
+     * thrown and inference falls back to a sound, conservative result. The value has roughly two
+     * orders of magnitude of headroom over the largest amount of work observed on hand-written
+     * code, so it does not affect realistic programs.
+     */
+    public static final int MAX_INCORPORATION_WORK = 100_000;
+
+    /** Bound-incorporation work performed so far for this inference problem. */
+    private int incorporationWork = 0;
+
+    /**
      * Creates a context
      *
      * @param factory type factory
@@ -111,6 +129,20 @@ public class Java8InferenceContext {
                         RuntimeException.class, env.getTypeUtils(), env.getElementUtils());
         this.inferenceTypeFactory = new InferenceFactory(this);
         this.object = inferenceTypeFactory.getObject();
+    }
+
+    /**
+     * Records {@code amount} units of bound-incorporation work for this inference problem and
+     * throws {@link InferenceBudgetExceededError} if the total exceeds {@link
+     * #MAX_INCORPORATION_WORK}.
+     *
+     * @param amount amount of work to add to this problem's running total
+     */
+    public void recordIncorporationWork(int amount) {
+        incorporationWork += amount;
+        if (incorporationWork > MAX_INCORPORATION_WORK) {
+            throw new InferenceBudgetExceededError(incorporationWork, MAX_INCORPORATION_WORK);
+        }
     }
 
     /**

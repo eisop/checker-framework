@@ -2299,6 +2299,16 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         if (args != null && !args.inferenceFailed()) {
             return true;
         }
+        if (args.inferenceBudgetExceeded()) {
+            // Not a crash: inference was deliberately abandoned because the invocation is too
+            // complex. Point the user at the fix -- supplying explicit type arguments.
+            checker.reportError(
+                    tree,
+                    "type.argument.inference.budget",
+                    ElementUtils.getSimpleDescription(methodType.getElement()),
+                    args.getErrorMsg());
+            return false;
+        }
         if (args.inferenceCrashed()) {
             checker.reportError(
                     tree,

@@ -475,6 +475,10 @@ public class VariableBounds {
     public boolean applyInstantiationsToBounds() {
         boolean changed = false;
         for (Set<AbstractType> boundList : bounds.values()) {
+            // Charge this work against the inference problem's budget; throws
+            // InferenceBudgetExceededError for a pathological (e.g. deeply nested generic)
+            // invocation whose fixed-point incorporation would otherwise take many seconds.
+            context.recordIncorporationWork(boundList.size());
             // Fast path: if every bound's applyInstantiations returns the same instance, no
             // rebuild is needed.  This is the common case at fixpoint convergence.
             boolean listChanged = false;

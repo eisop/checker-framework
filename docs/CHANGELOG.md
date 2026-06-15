@@ -32,6 +32,19 @@ caches declarations under their raw symbol. Reduces `declarationFromElement`
 from 8.4% to 1.5% of `checkNullness` self time and is about 7% faster
 end-to-end; worst-case (a single large class) improves by roughly half.
 
+Performance and robustness: Java 8 type argument inference now caps the amount of
+bound-incorporation work it performs for a single invocation
+(`Java8InferenceContext.MAX_INCORPORATION_WORK`). Incorporating bounds to a fixed
+point is roughly cubic in the nesting depth of a generic invocation, so a single
+deeply nested (typically machine-generated) invocation could take many seconds or
+effectively hang the compiler. When the budget is exceeded, inference is abandoned
+soundly: a new `type.argument.inference.budget` error is reported (pointing the user at
+the fix -- supplying explicit type arguments at the call site) and a conservative
+(defaulted) return type is used so that checking continues. The default budget has
+roughly two orders of magnitude of headroom over the largest amount of work observed
+on hand-written code, so realistic programs are unaffected; the worst case (e.g. a
+30-deep nested generic call) drops from tens of seconds to bounded time.
+
 Enabled the Gradle configuration cache, speeding up build times.
 
 `AnnotationMirrorSet` has a new `get(int)` method that returns the element at a
