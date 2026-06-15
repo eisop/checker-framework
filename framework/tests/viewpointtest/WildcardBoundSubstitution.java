@@ -8,9 +8,7 @@ public class WildcardBoundSubstitution<
 
     static class Store<V extends Value<V>, S extends Store<V, S>> {}
 
-    public abstract static class FactoryBase<
-            V extends Value<V>,
-            S extends Store<V, S>> {
+    public abstract static class FactoryBase<V extends Value<V>, S extends Store<V, S>> {
         abstract S getStore();
     }
 
