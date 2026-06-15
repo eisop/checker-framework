@@ -1830,14 +1830,31 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
     }
 
     /**
-     * Validate if the annotations on the VariableTree are at the right locations, which is
-     * specified by the meta-annotation @TargetLocations. The difference of this method between
-     * {@link BaseTypeVisitor#validateTargetLocation(Tree, AnnotatedTypeMirror, TypeUseLocation)} is
-     * that this one is only used in {@link BaseTypeVisitor#visitVariable(VariableTree, Void)}
+     * Validates whether the qualifiers on the tree are at the correct type-use locations, as
+     * specified by the meta-annotation {@link org.checkerframework.framework.qual.TargetLocations}.
      *
-     * @param tree annotations on this VariableTree will be validated
+     * <p>More specifically, this method only checks qualifiers on a VariableTree and thus checks
+     * for the following type-use locations: FIELD, LOCAL_VARIABLE, RESOURCE_VARIABLE,
+     * EXCEPTION_PARAMETER, PARAMETER, RECEIVER and CONSTRUCTOR_RESULT.
+     *
+     * <p>The other two validate methods achieve the same goal but perform checks on different trees
+     * and different type-use locations. This separation exists because variables can automatically
+     * infer their type-use location from their {@link javax.lang.model.element.ElementKind}. By
+     * contrast, other constructs (like method returns or type bounds) have context-dependent
+     * locations that must be explicitly provided by the caller, and wildcards do not have an
+     * element. See {@link BaseTypeVisitor#validateTargetLocation(Tree, AnnotatedTypeMirror,
+     * TypeUseLocation)} and {@link
+     * BaseTypeValidator#validateWildCardTargetLocation(AnnotatedTypeMirror.AnnotatedWildcardType,
+     * Tree)}.
+     *
+     * @param tree the tree whose qualifiers are to be validated
      * @param type the type of the tree
+     * @see BaseTypeVisitor#validateTargetLocation(Tree, AnnotatedTypeMirror, TypeUseLocation)
+     * @see
+     *     BaseTypeValidator#validateWildCardTargetLocation(AnnotatedTypeMirror.AnnotatedWildcardType,
+     *     Tree)
      */
+    // TODO: rename to validateVariableTargetLocation
     protected void validateVariablesTargetLocation(Tree tree, AnnotatedTypeMirror type) {
         if (ignoreTargetLocations || noQualHasTargetLocations) {
             return;
@@ -1904,13 +1921,31 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
     }
 
     /**
-     * Validate if the annotations on the tree are at the right locations, which are specified by
-     * the meta-annotation @TargetLocations.
+     * Validates whether the qualifiers on the tree are at the correct type-use locations, as
+     * specified by the meta-annotation {@link org.checkerframework.framework.qual.TargetLocations}.
      *
-     * @param tree annotations on this VariableTree will be validated
+     * <p>More specifically, this method only checks qualifiers on a TypeParameter or Method tree
+     * and thus checks for the following type-use locations: LOWER_BOUND, UPPER_BOUND,
+     * CONSTRUCTOR_RESULT and RETURN.
+     *
+     * <p>The other two validate methods achieve the same goal but perform checks on different trees
+     * and different type-use locations. This separation exists because constructs handled by this
+     * method have context-dependent locations that must be explicitly provided by the caller. By
+     * contrast, variables can automatically infer their type-use location from their ElementKind,
+     * and wildcards do not have an element. See {@link
+     * BaseTypeVisitor#validateVariablesTargetLocation(Tree, AnnotatedTypeMirror)} and {@link
+     * BaseTypeValidator#validateWildCardTargetLocation(AnnotatedTypeMirror.AnnotatedWildcardType,
+     * Tree)}.
+     *
+     * @param tree the tree whose qualifiers are to be validated
      * @param type the type of the tree
-     * @param required if all of the TypeUseLocations in {@code required} are not present in the
-     *     specification of the annotation (@TargetLocations), issue an error.
+     * @param required the required TypeUseLocation. If it is not present in the specification of
+     *     the meta-annotation ({@link org.checkerframework.framework.qual.TargetLocations}), issue
+     *     an error.
+     * @see BaseTypeVisitor#validateVariablesTargetLocation(Tree, AnnotatedTypeMirror)
+     * @see
+     *     BaseTypeValidator#validateWildCardTargetLocation(AnnotatedTypeMirror.AnnotatedWildcardType,
+     *     Tree)
      */
     protected void validateTargetLocation(
             Tree tree, AnnotatedTypeMirror type, TypeUseLocation required) {

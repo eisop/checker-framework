@@ -962,6 +962,73 @@ under "Short list"; this is the canonical applied summary.
   regression. Same flattening signature as the PR #1786 body-path quadratic; like that one it is
   invisible on the tiny-file all-systems corpus and only a size sweep exposes it.
 
+### Tree-search quadratics: `declarationFromElement`, varargs arrays, and warning paths (PR #1803, June 2026)
+
+Three independent O(n²)-in-compilation-unit-size scans, each a per-element or per-message
+`Trees.getTree` / `getPath` / `TreePathCacher` search that rescanned the whole enclosing class
+or compilation unit. All three are **worst-case protection** — super-linear only on large or
+machine-generated single-class files, or on message-dense code — found by a shape × size ×
+checker sweep (`gen-sized-program.py` `{generic,vararg,deep-nesting,many-fields}` ×
+N=300/1000/3000 × `{nullness,interning,value}`) and each confirmed by instrumenting the
+scanner's node-visit count: **nodes-per-`getPath` growing with N** is the signature (e.g. the
+varargs case scanned ~6,400 nodes/call at N=300 and ~31,600 at N=1500 — the whole unit each time).
+
+- **`declarationFromElement` member/variable lookup via the visitor path.** Even after
+  PR #1791/#1793's `DeclarationScanner` and subtree fallback, `declarationFromElement` still
+  called `trees.getTree(elt)` (member) and `trees.getTree(enclosing)` (a variable's enclosing
+  method), and javac implements `Trees.getTree(Element)` as a `TreeInfo.declarationFor` scan of
+  the enclosing class — O(class) per call, O(class²) across a class's members. (The in-code
+  comment claiming `getTree` on a method is "position-based cheap" is wrong; it scans.) Fix:
+  obtain the enclosing method/class tree from the factory's `visitorTreePath` (already set to
+  the method body during flow analysis — the path through which these lookups arrive) instead of
+  `trees.getTree`; the path is only a search-start hint, so the result is unchanged. Also fixed
+  `DeclarationScanner` to cache by the raw `JCTree.sym`, not `TreeInfo.symbolFor`'s
+  `baseSymbol()` — under `baseSymbol()` a generic method or a parameter is stored at a key no
+  lookup ever uses. Full-build `checknullness` JFR: `declarationFromElement` 8.4% → 1.5%
+  inclusive, `DeclScanner.scan` 200 → 21 samples; warm-daemon wall ~1m51s → ~1m43s (~7%, median
+  of ≥3 reps/side, `shadowJar` rebuilt per side); a 1500-method single class 21.95s → 11.56s
+  (−47%). `alltests` passes.
+
+- **Varargs synthetic-array path.** `checkVarargs` → `getAnnotatedTypeVarargsArray` computes the
+  type of the synthetic `NewArrayTree` the CFG builder wraps a varargs call's arguments in. That
+  tree is not in the compilation unit, so defaulting it (`QualifierDefaults.nearestEnclosingExceptLocal`
+  → `getPath`) made `TreePathCacher` scan the whole unit to fail to find it — O(unit) per varargs
+  call. (`CFGTranslationPhaseOne`'s `handleArtificialTree` registers the same tree's path, but that
+  registration does not reach this consumer.) Fix: register the array's path under the call site —
+  `setPathForArtificialTree(arrayTree, new TreePath(getPath(callTree), arrayTree))` — before typing
+  it; the call tree's own path is cheap because the call is being visited. Nullness vararg-shape
+  on-CPU samples 12,306 → 2,597 at N=3000 (growth ~20× → ~4× over a 10× size increase);
+  `TreeScanner.scan` under `getPath` 1,016 → 10 at N=1500. Only heavily-defaulting checkers
+  (nullness) were affected; interning and the Value Checker default little and were already flat.
+
+- **`@SuppressWarnings` / precise-position path lookup.** Reporting a message calls
+  `SourceChecker.shouldSuppressWarnings(tree)` (and `getSourceWithPrecisePosition`), which looked
+  up the tree's path with `getTreePathCacher().getPath(currentRoot, tree)` — a scan from the
+  compilation-unit root — for the suppression walk. O(unit) per reported message, so a
+  message-dense checker is quadratic in file size. The Interning Checker reports on every `==`, so
+  a 3000-comparison file spent ~46% of on-CPU samples scanning for paths and grew ~6.6× over a 10×
+  size increase (nullness, which does not report on those expressions, was unaffected). Fix: new
+  `SourceChecker.pathToTree`, which starts the search from `visitor.getCurrentPath()` (public on
+  `TreePathScanner`; an ancestor of the reported tree, which is being visited) and falls back to
+  the root scan otherwise — same path result, local search. Interning generic-shape on-CPU samples
+  1,567 → 715 at N=3000, growth ~6.6× → ~2.9× (linear). **This helps any checker that emits many
+  messages, not just interning.**
+
+A unifying lesson: a per-element or per-message `Trees.getTree` / `getPath` that re-derives a
+tree's position scans the enclosing class or whole unit, which is super-linear when the caller
+iterates members or messages. The fix is to **reuse position context the program already has** —
+the visitor path, or a registered path for a synthetic tree — so the lookup localizes, rather
+than to add another cache. Diagnostic caution: the JDK `TreePath.getPath(path, target)` "is it
+under this path?" check is unreliable here — it searches the whole compilation unit of `path` and
+returns non-null if `target` is found anywhere, not only under the leaf, so it does not confirm
+locality. Instrument the cacher's node-visit count instead.
+
+A post-fix verification sweep (the same shape × size × checker matrix) confirmed every
+shape is linear/sublinear across all three checkers, with the top leaves at N=3000 being
+irreducible framework work (`HashMap`/`IdentityHashMap` lookups, `AnnotatedTypeScanner`) rather
+than tree scans. The sole remaining super-linear shape is `deep-nesting` (typeinference8; see
+the Short list).
+
 ---
 
 ## Tried and rejected
@@ -1227,6 +1294,39 @@ the prior finding. A fresh hypothesis is not new evidence.
   allocation totals. See the Short list for the one way to make the same-size `equals` cheap enough
   (a maintained content hash) and why it was not pursued.
 
+- **`declarationFromElement` eager whole-class `DeclarationScanner` batch (PR #1803 session).**
+  Before the visitor-path fix shipped (Applied optimizations), the first attempt located the
+  outermost enclosing class and scanned it once with `DeclarationScanner` to cache every member's
+  tree. It helped a 1500-method single class (~11%) but **regressed realistic `checknullness`:
+  `declarationFromElement` 8.4% → 14.4% inclusive, warm wall 2m15s → 2m26s (~+8%)**. Cause: the
+  eager scan recurses into every method body (once per each nullness subchecker factory) — overhead
+  that does not pay off on realistic many-small-class CUs — and javac's symbol-identity instability
+  (queries arrive with view / `baseSymbol` symbols, not the declaration symbol) means parameters
+  and locals miss the batch cache and fall back to a class-level scan anyway. The visitor-path fix
+  replaced it: it adds **zero** scans, so it helps large classes and never regresses small ones.
+  Lesson reaffirmed: a giant-single-class A/B can read as a big win while the realistic full build
+  regresses; always A/B the full build.
+
+- **Pointing `visitorTreePath` at the inference expression during type-argument inference
+  (PR #1803 session).** A hypothesis for the varargs `getPath` quadratic: set the factory's
+  `visitorTreePath` to `pathToExpression` around `DefaultTypeArgumentInference.inferTypeArgs`.
+  **No effect** — only ~8% of the hot `getPath` scans were under inference; the real sources were
+  the synthetic varargs array and (for interning) the warning-report path, both fixed separately.
+
+- **typeinference8 incorporation: removing redundant `applyInstantiations` work (two attempts,
+  both measured-neutral, PR #1803 session).** Deeply nested generic invocations
+  (`id(id(...id(x)))`) make Java-8 type-argument inference super-linear in nesting *depth*
+  (`VariableBounds.applyInstantiationsToBounds` is ~14% self-time on the `deep-nesting` shape; a
+  depth-80 single method does not finish in 25 minutes). (1) Computing `bound.applyInstantiations()`
+  once instead of twice (the change-check, then the rebuild) was **neutral** — the fast-path
+  already breaks on the first changed bound, so the redundancy was ~1 bound, not 2×. (2) Deleting
+  the redundant per-iteration full apply-pass in `BoundSet.incorporateToFixedPoint` (the loop that
+  re-applies to every variable before the per-variable loop) was **neutral** — those calls are
+  individually cheap no-ops. The cost is **not** redundant work: 69% of self-time is in
+  `applyInstantiationsToBounds`'s own loops over cheap `UseOfVariable` bounds, i.e. the O(depth³)
+  *count* of (variable × bound × fixpoint-iteration) tuples the JLS-18 incorporation fixpoint
+  processes. The only direction that could change the complexity is in the Short list.
+
 ---
 
 ## Short list
@@ -1234,6 +1334,21 @@ the prior finding. A fresh hypothesis is not new evidence.
 Candidates raised in profiling sessions but not yet implemented. Capture
 format: hot method, hypothesis, blockers/open questions.
 
+- **typeinference8 incorporation is O(depth³) on deeply nested generic invocations.** Java-8
+  type-argument inference (`BoundSet.incorporateToFixedPoint` → `VariableBounds.applyInstantiationsToBounds`)
+  re-applies instantiations to *every* inference variable on *every* fixpoint iteration; for a
+  depth-D nested-`id` chain that is O(D) iterations × O(D) variables × O(D) bounds. Measured on the
+  `--shape deep-nesting` generator (`gen-sized-program.py`): a 1500-method file (depth-20 bodies)
+  times out (>8 min) under nullness; depth-80 in a single method does not finish in 25 min. The
+  per-method constant scales with the qualifier hierarchy (nullness ≫ interning ≈ value). Real but
+  **worst-case-only** — deeply nested generic chains are not in the realistic `checkNullness` top
+  leaves. Two safe micro-optimizations were tried and measured neutral (see Tried and rejected); the
+  cost is the fixpoint's tuple *count*, not redundant work. The only direction that could change the
+  complexity is **dependency-based incremental incorporation**: re-process only the variables whose
+  bounds reference a newly-instantiated variable, cutting the O(variables)-per-iteration factor. That
+  is a substantial, correctness-critical change to JLS-18 inference (a subtly wrong incorporation
+  order yields wrong inferred types that `alltests` need not catch); pursue only as a dedicated,
+  downstream-validated effort, not a patch.
 - **`ElementUtils.qualifiedNameCache` backing map.** Hot method
   (`getQualifiedName` underlies `annotationName`, `getBinaryName`, the `isX`
   type predicates, etc.). Today it is a
