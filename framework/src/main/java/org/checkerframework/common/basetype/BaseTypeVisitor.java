@@ -1864,14 +1864,31 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
     }
 
     /**
-     * Validate if the annotations on the VariableTree are at the right locations, which is
-     * specified by the meta-annotation @TargetLocations. The difference of this method between
-     * {@link BaseTypeVisitor#validateTargetLocation(Tree, AnnotatedTypeMirror, TypeUseLocation)} is
-     * that this one is only used in {@link BaseTypeVisitor#visitVariable(VariableTree, Void)}
+     * Validates whether the qualifiers on the tree are at the correct type-use locations, as
+     * specified by the meta-annotation {@link org.checkerframework.framework.qual.TargetLocations}.
      *
-     * @param tree annotations on this VariableTree will be validated
+     * <p>More specifically, this method only checks qualifiers on a VariableTree and thus checks
+     * for the following type-use locations: FIELD, LOCAL_VARIABLE, RESOURCE_VARIABLE,
+     * EXCEPTION_PARAMETER, PARAMETER, RECEIVER and CONSTRUCTOR_RESULT.
+     *
+     * <p>The other two validate methods achieve the same goal but perform checks on different trees
+     * and different type-use locations. This separation exists because variables can automatically
+     * infer their type-use location from their {@link javax.lang.model.element.ElementKind}. By
+     * contrast, other constructs (like method returns or type bounds) have context-dependent
+     * locations that must be explicitly provided by the caller, and wildcards do not have an
+     * element. See {@link BaseTypeVisitor#validateTargetLocation(Tree, AnnotatedTypeMirror,
+     * TypeUseLocation)} and {@link
+     * BaseTypeValidator#validateWildCardTargetLocation(AnnotatedTypeMirror.AnnotatedWildcardType,
+     * Tree)}.
+     *
+     * @param tree the tree whose qualifiers are to be validated
      * @param type the type of the tree
+     * @see BaseTypeVisitor#validateTargetLocation(Tree, AnnotatedTypeMirror, TypeUseLocation)
+     * @see
+     *     BaseTypeValidator#validateWildCardTargetLocation(AnnotatedTypeMirror.AnnotatedWildcardType,
+     *     Tree)
      */
+    // TODO: rename to validateVariableTargetLocation
     protected void validateVariablesTargetLocation(Tree tree, AnnotatedTypeMirror type) {
         if (ignoreTargetLocations || noQualHasTargetLocations) {
             return;
@@ -1938,13 +1955,31 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
     }
 
     /**
-     * Validate if the annotations on the tree are at the right locations, which are specified by
-     * the meta-annotation @TargetLocations.
+     * Validates whether the qualifiers on the tree are at the correct type-use locations, as
+     * specified by the meta-annotation {@link org.checkerframework.framework.qual.TargetLocations}.
      *
-     * @param tree annotations on this VariableTree will be validated
+     * <p>More specifically, this method only checks qualifiers on a TypeParameter or Method tree
+     * and thus checks for the following type-use locations: LOWER_BOUND, UPPER_BOUND,
+     * CONSTRUCTOR_RESULT and RETURN.
+     *
+     * <p>The other two validate methods achieve the same goal but perform checks on different trees
+     * and different type-use locations. This separation exists because constructs handled by this
+     * method have context-dependent locations that must be explicitly provided by the caller. By
+     * contrast, variables can automatically infer their type-use location from their ElementKind,
+     * and wildcards do not have an element. See {@link
+     * BaseTypeVisitor#validateVariablesTargetLocation(Tree, AnnotatedTypeMirror)} and {@link
+     * BaseTypeValidator#validateWildCardTargetLocation(AnnotatedTypeMirror.AnnotatedWildcardType,
+     * Tree)}.
+     *
+     * @param tree the tree whose qualifiers are to be validated
      * @param type the type of the tree
-     * @param required if all of the TypeUseLocations in {@code required} are not present in the
-     *     specification of the annotation (@TargetLocations), issue an error.
+     * @param required the required TypeUseLocation. If it is not present in the specification of
+     *     the meta-annotation ({@link org.checkerframework.framework.qual.TargetLocations}), issue
+     *     an error.
+     * @see BaseTypeVisitor#validateVariablesTargetLocation(Tree, AnnotatedTypeMirror)
+     * @see
+     *     BaseTypeValidator#validateWildCardTargetLocation(AnnotatedTypeMirror.AnnotatedWildcardType,
+     *     Tree)
      */
     protected void validateTargetLocation(
             Tree tree, AnnotatedTypeMirror type, TypeUseLocation required) {
@@ -2298,6 +2333,17 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         if (args != null && !args.inferenceFailed()) {
             return true;
         }
+        if (args.inferenceBudgetExceeded()) {
+            // Not a crash: inference was deliberately abandoned because the invocation is too
+            // complex. Point the user at the fix -- supplying explicit type arguments -- with a
+            // concrete example using the types javac inferred for this call.
+            checker.reportError(
+                    tree,
+                    "type.argument.inference.budget",
+                    ElementUtils.getSimpleDescription(methodType.getElement()),
+                    explicitTypeArgumentExample(tree, methodType));
+            return false;
+        }
         if (args.inferenceCrashed()) {
             checker.reportError(
                     tree,
@@ -2312,6 +2358,42 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                 ElementUtils.getSimpleDescription(methodType.getElement()),
                 args == null ? "" : args.getErrorMsg());
         return false;
+    }
+
+    /**
+     * Returns a concrete example of an explicit type-argument invocation for a call whose annotated
+     * type arguments could not be inferred. For each type variable it suggests the Java type that
+     * javac inferred for this specific call (via {@link TreeUtils#inferredTypeArguments}), falling
+     * back to the type variable's upper bound where the value cannot be recovered. For example, for
+     * {@code <T> T id(T)} declared in {@code Foo}, the call {@code id("s")} yields {@code
+     * Foo.<String>id(...)}; an instance method uses {@code receiver.}; a generic constructor of
+     * {@code Foo} yields {@code new <...>Foo(...)}. Used by {@code type.argument.inference.budget}.
+     *
+     * @param tree the method-invocation, constructor, or member-reference tree
+     * @param methodType the method or constructor (before type-argument substitution) whose type
+     *     arguments could not be inferred
+     * @return a concrete explicit-type-argument example for the invocation
+     */
+    private String explicitTypeArgumentExample(
+            ExpressionTree tree, AnnotatedExecutableType methodType) {
+        Map<Element, TypeMirror> javacInferred = TreeUtils.inferredTypeArguments(tree);
+        StringJoiner typeArgs = new StringJoiner(", ", "<", ">");
+        for (AnnotatedTypeVariable typeVar : methodType.getTypeVariables()) {
+            TypeMirror value = javacInferred.get(typeVar.getUnderlyingType().asElement());
+            if (value == null || value.getKind() == TypeKind.NULL) {
+                value = typeVar.getUpperBound().getUnderlyingType();
+            }
+            typeArgs.add(TypesUtils.simpleTypeName(value));
+        }
+        ExecutableElement elt = methodType.getElement();
+        if (elt.getKind() == ElementKind.CONSTRUCTOR) {
+            return "new " + typeArgs + elt.getEnclosingElement().getSimpleName() + "(...)";
+        }
+        String qualifier =
+                elt.getModifiers().contains(Modifier.STATIC)
+                        ? elt.getEnclosingElement().getSimpleName().toString()
+                        : "receiver";
+        return qualifier + "." + typeArgs + elt.getSimpleName() + "(...)";
     }
 
     /**

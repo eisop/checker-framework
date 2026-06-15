@@ -18,6 +18,53 @@ eisop#433, eisop#792, eisop#1059.
 
 **Implementation details:**
 
+Performance: when reporting a warning or error on a tree, the path used for the
+`@SuppressWarnings` lookup is now found starting from the visitor's current path
+rather than rescanning the whole compilation unit from its root. This was
+O(compilation unit) per reported message, hence quadratic for code that produces
+many messages (e.g. the Interning Checker on a file with many `==` comparisons);
+on a generated 3000-comparison file its on-CPU samples dropped about 2x.
+
+Performance: the synthetic array tree created for a varargs call is now given a tree
+path under the call site, so defaulting its type no longer rescans the whole
+compilation unit via `getPath`. This was O(compilation unit) per varargs call --
+quadratic over a file of varargs calls; on a 3000-call file the nullness checker's
+on-CPU samples dropped about 4x. Only checkers that default heavily (e.g. nullness)
+were affected.
+
+Performance: `AnnotatedTypeFactory.declarationFromElement` no longer calls
+`Trees.getTree` to locate the enclosing declaration of a member or variable,
+which made javac scan the enclosing class on every call (O(class) per call,
+O(class^2) across a class's members). It now obtains the enclosing method/class
+tree from the current visitor path when available, and `DeclarationScanner`
+caches declarations under their raw symbol. Reduces `declarationFromElement`
+from 8.4% to 1.5% of `checkNullness` self time and is about 7% faster
+end-to-end; worst-case (a single large class) improves by roughly half.
+
+Performance and robustness: Java 8 type argument inference now caps the amount of
+bound-incorporation work it performs for a single invocation
+(`Java8InferenceContext.MAX_INCORPORATION_WORK`). Incorporating bounds to a fixed
+point is roughly cubic in the nesting depth of a generic invocation, so a single
+deeply nested (typically machine-generated) invocation could take many seconds or
+effectively hang the compiler. When the budget is exceeded, inference is abandoned
+soundly: a new `type.argument.inference.budget` error is reported (pointing the user at
+the fix with a concrete example -- the explicit type arguments that javac inferred for the
+call) and a conservative (defaulted) return type is used so that checking continues. The default budget has
+roughly two orders of magnitude of headroom over the largest amount of work observed
+on hand-written code, so realistic programs are unaffected; the worst case (e.g. a
+30-deep nested generic call) drops from tens of seconds to bounded time.
+
+Performance: the Java 8 type-argument-inference bound-incorporation fixpoint no longer
+re-scans the bounds of inference variables that have fully resolved. Once every bound of a
+variable is a proper type its bounds can no longer change (applying instantiations to a
+proper type is the identity), so such variables are skipped on subsequent iterations
+instead of being re-scanned every iteration. This reduces the fixpoint's cost on deeply
+nested generic invocations (about 9% faster at nesting depth 20, with the gain growing with
+depth). Two smaller repeated computations on the same hot path were also removed: the
+fixpoint no longer builds a fresh set of instantiated variables every iteration just to
+test whether one exists (it short-circuits on the first), and a proper type caches its
+erasure instead of recomputing it on every subtyping check.
+
 Enabled the Gradle configuration cache, speeding up build times.
 
 `AnnotationMirrorSet` has a new `get(int)` method that returns the element at a
@@ -28,6 +75,11 @@ allocating an `Iterator`.
 returns an element's primary annotations without the defensive deep copy that
 `fromElement` makes on every cache hit; for read-only callers that only need the
 primary annotations.
+
+`TreeUtils` has a new `inferredTypeArguments(ExpressionTree)` method that returns the
+Java types javac inferred for a generic method or constructor invocation's type
+variables (recovered by matching the declared signature against javac's instantiated
+method type); best-effort, for diagnostics.
 
 Performance: the annotated-JDK stub AST is now parsed once per JVM and shared
 across compilations instead of being re-parsed for every compilation. This speeds

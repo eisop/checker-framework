@@ -1992,7 +1992,21 @@ public abstract class GenericAnnotatedTypeFactory<
 
         assert !args.isEmpty() : "Arguments are empty";
         Node varargsArray = args.get(args.size() - 1);
-        AnnotatedTypeMirror varargtype = getAnnotatedType(varargsArray.getTree());
+        Tree varargsArrayTree = varargsArray.getTree();
+        // The synthetic vararg array tree (created during CFG construction) is not part of the
+        // compilation unit, so getPath -- called when defaulting its type just below -- would
+        // rescan the whole unit to (fail to) find it. That is O(unit) per vararg call and therefore
+        // quadratic over a file of vararg calls. Register the array's path under the call site so
+        // the lookup is a cache hit instead. The call tree's own path is cheap here: the vararg
+        // call is being visited, so it is on or just above the current visitor path.
+        if (varargsArrayTree != null) {
+            TreePath callPath = getPath(tree);
+            if (callPath != null) {
+                setPathForArtificialTree(
+                        varargsArrayTree, new TreePath(callPath, varargsArrayTree));
+            }
+        }
+        AnnotatedTypeMirror varargtype = getAnnotatedType(varargsArrayTree);
         return varargtype;
     }
 
