@@ -1446,15 +1446,19 @@ format: hot method, hypothesis, blockers/open questions.
   most of resolution's time is *re-incorporation* (resolution adds an instantiation bound and
   re-incorporates), so the incorporation worklist above also speeds resolution up. The genuinely
   *separate* resolution costs, in priority order:
-  1. **Uncached dependency graph + transitive closure (~7.7%: `getDependencies` ~4.9% +
-     `Dependencies.calculateTransitiveDependencies` ~2.8%).** `BoundSet.getDependencies()` rebuilds
-     the whole variable-dependency graph and recomputes its transitive closure (≈O(V³)) from scratch
-     on *every* `Resolution.resolve` call (top-level plus the per-variable resolves in
-     `InvocationTypeInference`), caching nothing. The graph changes only when bounds change, so it is
-     cacheable with bound-change invalidation (or incrementally maintainable). Best risk/value among
-     the non-worklist options. Medium risk: the dependency set drives resolution *order*, and a stale
-     graph picks the wrong order → potentially wrong result; validate with the same verify harness
-     (cache vs. recompute, assert equal across `alltests`).
+  1. **Uncached dependency graph + transitive closure — MEASURED AND REJECTED (June 2026).**
+     `BoundSet.getDependencies()` rebuilds the whole variable-dependency graph and recomputes its
+     transitive closure (≈O(V³)) from scratch on *every* `Resolution.resolve` call, caching nothing;
+     it is ~7.7% of inference time *on the deep-nesting workload*, which suggested caching with
+     bound-change invalidation. Instrumented it to compare each recompute's graph (an
+     order-independent signature) to the previous one on the same BoundSet. Result: **the redundancy
+     and the cost are perfectly anti-correlated.** On deep-nesting (where it is 7.7%) **0%** of
+     recomputes are redundant — each resolution step changes the graph (a variable instantiates and
+     drops out), so a cache would invalidate every time. On real code (all-systems) **46.6%** of
+     recomputes are redundant — but there `getDependencies` is *negligible* (it does not appear in
+     the inclusive or self-time profile at all; the inference problems are tiny). So caching saves
+     essentially nothing on any workload: useless where it is expensive, free-but-cheap where it is
+     redundant. Do not pursue.
   2. **`saveBounds()` snapshots *all* variables every resolution round (~3.2%).**
      `Resolution.resolveSmallestSet` does `new BoundSet(...)` + `saveBounds()` (copying all six bound
      sets of every variable) as rollback insurance, then discards it whenever `resolveWithoutCapture`
