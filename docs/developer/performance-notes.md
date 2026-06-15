@@ -1026,8 +1026,77 @@ locality. Instrument the cacher's node-visit count instead.
 A post-fix verification sweep (the same shape × size × checker matrix) confirmed every
 shape is linear/sublinear across all three checkers, with the top leaves at N=3000 being
 irreducible framework work (`HashMap`/`IdentityHashMap` lookups, `AnnotatedTypeScanner`) rather
-than tree scans. The sole remaining super-linear shape is `deep-nesting` (typeinference8; see
-the Short list).
+than tree scans. The sole remaining super-linear shape was `deep-nesting` (typeinference8),
+addressed by PR #1805 below.
+
+### Java 8 type-argument inference: work budget and fixpoint skip (PR #1805, June 2026)
+
+The `deep-nesting` shape's super-linearity is Java-8 type-argument inference. Incorporating
+bounds to a fixed point (`BoundSet.incorporateToFixedPoint` →
+`VariableBounds.applyInstantiationsToBounds`) re-applies instantiations to every inference
+variable on every iteration: O(iterations × variables × bounds) ≈ O(depth³) for a depth-D
+nested-`id` chain. depth-80 in one method did not finish in 25 minutes. PR #1805 has three parts:
+
+- **Work budget.** A per-invocation counter (`Java8InferenceContext.MAX_INCORPORATION_WORK`,
+  100k bound-visits ≈ 18× the largest work observed on hand-written code) charged in
+  `applyInstantiationsToBounds`. When exceeded, `recordIncorporationWork` throws
+  `InferenceBudgetExceededError` (an `Error`, so it unwinds past the `catch (Exception)` /
+  `catch (FalseBoundException)` blocks in the incorporation/resolution machinery), caught in
+  `DefaultTypeArgumentInference.inferTypeArgs`. Inference is abandoned soundly: a new
+  `type.argument.inference.budget` error is reported pointing the user to supply explicit type
+  arguments, and the return type is defaulted (as for an inference crash, via
+  `InferenceResult.needsDefaultedReturnType()`) so checking continues. The error is distinct from
+  `type.argument.inference.crashed` because exceeding the budget is a deliberate give-up, not a
+  crash. Reaching the budget takes ~0.15 s warm per inference problem. Regression test:
+  `checker/tests/interning/InferenceWorkBudget.java` (depth-60). NB: do not
+  `@SuppressWarnings("interning")` in such a test — that is the *checker name* and suppresses all of
+  the interning checker's output, including the framework error under test.
+- **Skip fully-resolved variables (`allBoundsProper`).** Once every bound of a variable is a proper
+  type the bounds cannot change (`ProperType.applyInstantiations()` is the identity, and the
+  changed-gated instantiation detection cannot fire), so re-scanning them is wasted. A boolean
+  maintained at the only three sites that mutate the bound map (`addBound`, `restore`, the rebuild)
+  drops such variables from the per-iteration scan. Provably equivalent; validated with a temporary
+  flag that recomputed the invariant from scratch on every call and threw on mismatch — 0 violations
+  across all-systems and the full `alltests` suite. The gain grows with nesting depth (~9% wall /
+  8% CPU at depth-20), the signature of cutting the cubic fixpoint toward quadratic.
+- **Two micro-opts.** `BoundSet.hasInstantiatedVariable` replaces a `getInstantiatedVariables()`
+  call that built a `LinkedHashSet` every iteration only to test `!isEmpty()`; and
+  `ProperType.getErased()` caches a proper type's erasure (immutable) instead of recomputing it on
+  every subtyping check.
+
+### Explorations that did not ship (June 2026, around PR #1805)
+
+These were implemented and measured but kept out of #1805; recorded so they are not re-derived.
+
+- **Incorporation worklist (the dependency-based variant of the `allBoundsProper` skip).** Replaced
+  `allBoundsProper` with a per-`VariableBounds` `dirty` flag plus an *append-only, over-approximate*
+  reverse-dependency list (`dependents`): `addBound` records edges β→α for each variable β mentioned
+  in a new bound of α; when α is instantiated it marks its dependents dirty; `applyInstantiationsToBounds`
+  skips a clean variable. Over-approximation makes it **safe by construction** — a stale edge causes
+  only a harmless extra re-scan; only a *missing* edge is a bug, caught by the verify harness (after
+  the worklist reports convergence, a full scan must find no change). **Correct** (0 verify violations
+  across all-systems and the full `alltests` suite) and it eliminated the fixpoint's #1 self-time leaf
+  (`applyInstantiationsToBounds` 17.8% → out of the top under `incorporateToFixedPoint`). **But the
+  net wall-clock gain was only ~3% on inference-heavy synthetic code and <1% on realistic code**,
+  because once the redundant rescan is gone the fixpoint's remaining cost is essential JLS-18 work
+  (`ConstraintSet.applyInstantiations`/`reduceOneStep` ~9%) and javac `Symbol.apiComplete` (~8%) — the
+  per-variable scan was the dominant *leaf* but not a large enough share of total time. **A second,
+  separate benefit:** because the worklist does less work per depth, the budget triggers ~2× deeper
+  (depth-60 completes; depth-100 aborts). That is a real *correctness/usability* win, not a downside —
+  the budget abandons inference (a false positive on valid code), so raising the depth at which real
+  generic code completes before the budget fires removes false positives. The depth-60 budget
+  regression test then "fails", but that test only encodes the *old* limitation; the right response is
+  to deepen it to a depth that still exceeds the budget — routine maintenance recording the higher
+  capability, not a regression. Deferred for now (the user chose to ship the simpler `allBoundsProper`
+  skip in #1805 first), but the case is stronger than the ~3% wall-clock alone: weigh the
+  false-positive reduction too. Reconsider together with the constraint-reduction cost (below) —
+  gating those by the same dirty flag is what could push the wall-clock gain past ~3%.
+- **`InferenceType.applyInstantiations` list lazy-allocation.** It allocates three `ArrayList`s
+  unconditionally and discards them when nothing is instantiated (the common case). A no-allocation
+  pre-check was **measured neutral** (many allocations by *count*, negligible by *bytes* — the lists
+  are empty/tiny; same lesson as `AnnotatedTypeScanner.markVisited`).
+- **`getTargetType`, `asSuper`, `merge` caching.** `getTargetType` is called once per inference
+  problem (no repeat to cache); `asSuper`/`merge` are intrinsic set-union/supertype work.
 
 ---
 
@@ -1036,6 +1105,32 @@ the Short list).
 Bring new evidence before revisiting any of these — a JFR trace on a
 workload not previously considered, or a measurement that contradicts
 the prior finding. A fresh hypothesis is not new evidence.
+
+- **`AnnotatedTypeCopier.visit` pooled-map clear ratchet (June 2026).** `IdentityHashMap.clear`
+  is ~2.6% of `checknullness` self-time, ~74% of it from `AnnotatedTypeCopier.visit`'s
+  `finally { map.clear() }`. The pooled map never shrinks, so one large copy (observed max 879
+  entries; avg ~4 over 1.7M copies on all-systems) ratchets the table to ~2048 slots and every later
+  small copy then `Arrays.fill`s that whole table. The mechanism is real, but discarding the map
+  when it grows past its initial table (so later clears stay O(32)) was **measured neutral** on two
+  realistic workloads (all-systems and 60 framework/type files), by both wall *and* user CPU. The
+  reason: `IdentityHashMap.clear` is a cache-resident `Arrays.fill`, fast per call — it samples high
+  by *count* (called 1.7M+ times) but the actual time saved by a smaller table is negligible (same
+  lesson as the `AnnotatedTypeScanner.markVisited` array sizing). Don't pursue without a workload
+  where a genuinely large table is filled enough times that the byte-volume, not the call count,
+  dominates.
+- **Caching `getAnnotatedType` for expression/variable trees.** `getAnnotatedType(Tree)` caches
+  only class and method trees (`classAndMethodTreeCache`); expressions recompute `fromExpression` +
+  `addComputedTypeAnnotations` every call, and `CFAbstractTransfer.getValueFromFactory` (~19%
+  inclusive) hits that path per node during flow analysis. This non-caching is **intentional and
+  load-bearing**: an expression's annotated type depends on context (assignment context, capture,
+  the in-progress flow store), so a cache would return stale/unsound types. The flow-stable subset
+  (`fromExpression`'s structural result) is in principle cacheable but the cached value must be
+  frozen and `deepCopy`'d on use, which offsets the saving; not attempted, and risky against the
+  `AnnotatedTypeMirror` cache invariants CLAUDE.md flags.
+- **Large method bodies / dataflow size.** A size sweep of one method with N local-variable
+  declarations-and-uses (N=200/400/800) is **linear** in N (marginal cost per statement flat once
+  the fixed ~8 s JVM+javac+nullness init is subtracted). No quadratic in method-body size; the
+  CFG/dataflow fixpoint scales as expected.
 
 - **Cache-boundary flips after freezing the masters — PARTIALLY SUPERSEDED (PR #1798).** The first cut
   rejected boundary flips wholesale: "the cache-return copy is load-bearing; the dominant consumers
@@ -1334,33 +1429,17 @@ the prior finding. A fresh hypothesis is not new evidence.
 Candidates raised in profiling sessions but not yet implemented. Capture
 format: hot method, hypothesis, blockers/open questions.
 
-- **typeinference8 incorporation: dependency-based (worklist) incremental incorporation.** Java-8
-  type-argument inference (`BoundSet.incorporateToFixedPoint` → `VariableBounds.applyInstantiationsToBounds`)
-  re-applies instantiations to *every* inference variable on *every* fixpoint iteration; for a
-  depth-D nested-`id` chain that is O(D) iterations × O(D) variables × O(D) bounds (≈ O(depth³)).
-  Under `incorporateToFixedPoint` on a moderate-depth heavy workload, `applyInstantiationsToBounds`
-  is ~18% of self-time — it is the dominant cost and it is *call volume*, not per-call work.
-  **Already shipped (do not re-propose these):** (1) a per-invocation work budget
-  (`Java8InferenceContext.MAX_INCORPORATION_WORK`) that abandons a pathological invocation soundly
-  with a `type.argument.inference.budget` error; (2) an `allBoundsProper` skip that drops a
-  fully-resolved variable from the per-iteration scan (proper bounds can't change) — this fixes the
-  *deep* (chain) case, ~9% at depth-20 growing with depth, but at *shallow/wide* nesting most
-  variables still have unresolved bounds and are re-scanned even when nothing relevant to them
-  changed; (3) `hasInstantiatedVariable` / `ProperType.getErased` caching. Measured-neutral and
-  rejected: lazy-allocating the three lists in `InferenceType.applyInstantiations` (many allocations
-  by *count*, negligible by *bytes*); see Tried and rejected for two earlier neutral micro-opts.
-  **The remaining lever** is a true worklist: maintain a reverse-dependency map (variable β → the
-  variables whose bounds mention β); when β is instantiated, mark only its dependents dirty and
-  re-scan only dirty variables. This is provably equivalent in principle (applying instantiations is
-  idempotent given a fixed instantiation state, so a variable mentioning nothing newly-instantiated
-  re-scans to no change) and turns the wide case from O(D²) scans toward O(D + edges). It is a
-  substantial, correctness-critical change to JLS-18 inference: a missed dependency edge yields a
-  subtly wrong inferred type that `alltests` need not catch. Pursue only as a dedicated effort with
-  **differential validation**: under a temporary verify flag, after the worklist reports
-  convergence, run one full all-variables scan and assert it finds no change (a missed edge makes
-  that scan change something and throw); run the flag ON across all-systems and the full `alltests`
-  suite, and ideally a large downstream generic-heavy corpus, before shipping. (This is the same
-  verify-flag methodology that validated the `allBoundsProper` skip — 0 violations suite-wide.)
+- **typeinference8 incorporation worklist — implemented, deferred.** The dependency-based worklist
+  (re-scan only the variables a newly-instantiated variable affects) was built and validated but not
+  shipped in #1805: ~3% inference-heavy / <1% realistic wall-clock, because the fixpoint is near its
+  essential-work floor after the `allBoundsProper` skip. But it also makes the budget trigger ~2×
+  deeper, which removes false positives on legitimately-deep generic code (the budget is a false
+  positive on valid code), so the case is stronger than the wall-clock alone — weigh that too. See
+  "Explorations that did not ship (around PR #1805)" in Applied optimizations for the full record,
+  the verify-harness methodology, and the (good, not bad) budget-test interaction. Reconsider together
+  with the constraint-reduction cost (`ConstraintSet.applyInstantiations`/`reduceOneStep` ~9% of the
+  fixpoint, run even for clean variables) — gating those by the same dirty flag is what could push the
+  wall-clock gain past ~3%, and it needs its own verification.
 - **typeinference8 *resolution* phase: recompute and over-save (the non-incorporation costs).** On a
   moderate-depth heavy workload (`gen-sized-program.py --shape deep-nesting`, depth-8 × 800 methods),
   inclusive time splits roughly `incorporateToFixedPoint` ~47% and `Resolution.resolve` ~34% — but
@@ -1389,6 +1468,38 @@ format: hot method, hypothesis, blockers/open questions.
      does `dependencies.get(alpha).removeAll(resolvedSet)` for every unresolved variable — re-removing
      already-removed elements across rounds — and mutates the cached dependency map in place. Fragile;
      entangled with #1 (fix together).
+- **Architectural: redundant `getAnnotatedType` (the biggest realistic-build lever).** After the
+  leaf-level wins were exhausted (the realistic `checknullness` self-time profile is flat — no leaf
+  above ~3.4%, and the hot leaves are already-cached lookups called frequently: `getQualifierKind`,
+  `getDeclAnnotations`, `isSupportedQualifier`), the remaining cost is *architectural*.
+  `getAnnotatedType` is ~47% inclusive, and instrumentation (June 2026) showed it is called **~10×
+  per distinct tree** (all-systems redundancy 10.8×, one tree recomputed 987×; loop-heavy artificial
+  8.3×). Today only class/method trees are cached (`classAndMethodTreeCache`); expressions recompute
+  `fromExpression` + `addComputedTypeAnnotations` every call. That non-caching is *intentional* —
+  an expression's type can depend on context (assignment context, capture, the in-progress flow
+  store) — but "can depend" ≠ "always differs", and 10× says most recomputations return the same
+  thing. Directions, best risk/reward first:
+  1. **Per-analysis `getValueFromFactory` memo (narrow, planned next after PR #1805 merges).**
+     `CFAbstractTransfer.getValueFromFactory` (~19% inclusive) re-queries the same nodes every
+     CFG-fixpoint iteration; the *factory* (un-refined) type is stable for the duration of one
+     analysis. Memoize it per node, cleared when the analysis ends. Narrowest scope, well-defined
+     invalidation point. **First measure** how much of the 10× is the dataflow re-query path vs the
+     visitor, and confirm the factory value is actually stable across one analysis (it may consult
+     the store for subexpressions — the soundness crux). Validate with a cache-vs-recompute verify
+     harness (same methodology as the `allBoundsProper` skip) across `alltests`.
+  2. **Scope-bounded expression-type cache** (per visitor-subtree) — broader, same soundness crux.
+  3. **Split flow-independent structure from flow-dependent annotations.** `fromExpression` (~24%
+     inclusive) builds a deterministic-per-tree skeleton; cache the frozen skeleton and re-apply only
+     the annotation/default layer on a copy. Pays off only if the skeleton build ≫ the copy —
+     instrument the split first.
+  4. **Cache the *applied* defaults** (not just the `DefaultSet`, which is already cached) per
+     (element, structural shape) to skip the per-call `DefaultApplierElementImpl.scan` (~12% incl).
+  5. **`methodFromUse`/`constructorFromUse` per-tree memo** (~15% incl), scoped like #1.
+  6. **Parallelize checking across classes/methods** — the only constant-factor-by-core-count lever,
+     but the factory + its caches + javac symbol state are shared mutable state; research-scale.
+  Not pursued this session: the immutability program (delete `deepCopy`, ~10% inclusive) is the other
+  big architectural bet and is covered in its own narrative below; the notes say it is already largely
+  harvested.
 - **`ElementUtils.qualifiedNameCache` backing map.** Hot method
   (`getQualifiedName` underlies `annotationName`, `getBinaryName`, the `isX`
   type predicates, etc.). Today it is a
