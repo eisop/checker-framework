@@ -513,7 +513,20 @@ public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
 
         List<AnnotatedTypeMirror> tas = decltype.getTypeArguments();
         // return a copy, as we want to modify the type later.
-        return tas.get(foundindex).shallowCopy(true);
+        AnnotatedTypeMirror result = tas.get(foundindex).shallowCopy(true);
+        if (result.getKind() == TypeKind.WILDCARD) {
+            AnnotatedWildcardType wildcard = (AnnotatedWildcardType) result;
+            // When substituting an unbounded wildcard for a bounded type variable, the shallow
+            // copy may no longer know the formal type variable that supplies its effective
+            // extends bound. Preserve that bound so later subtype checks do not treat the
+            // wildcard as simply ? extends Object.
+            if (wildcard.getUnderlyingType().getExtendsBound() == null
+                    && wildcard.getTypeVariable() == null
+                    && wildcard.getSuperBound().getKind() == TypeKind.NULL) {
+                wildcard.setExtendsBound(var.getUpperBound().deepCopy(true));
+            }
+        }
+        return result;
     }
 
     /**
