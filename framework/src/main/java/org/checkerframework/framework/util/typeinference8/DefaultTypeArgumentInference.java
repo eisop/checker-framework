@@ -13,6 +13,7 @@ import org.checkerframework.framework.type.AnnotatedTypeFactory;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedExecutableType;
 import org.checkerframework.framework.util.typeinference8.types.ContainsInferenceVariable;
 import org.checkerframework.framework.util.typeinference8.types.Variable;
+import org.checkerframework.framework.util.typeinference8.util.InferenceBudgetExceededError;
 import org.checkerframework.framework.util.typeinference8.util.Theta;
 import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.TreeUtils;
@@ -119,6 +120,13 @@ public class DefaultTypeArgumentInference implements TypeArgumentInference {
                 }
                 return result.swapTypeVariables(methodType, expressionTree);
             }
+        } catch (InferenceBudgetExceededError budget) {
+            // Inference for this invocation was too expensive (see MAX_INCORPORATION_WORK). Give up
+            // soundly: this is a deliberate abandonment (not a crash), so flag it as a budget
+            // overflow. A distinct error is reported in BaseTypeVisitor, and the return type is
+            // defaulted (as for a crash) so that checking continues soundly.
+            return new InferenceResult(
+                    Collections.emptyList(), false, true, false, true, budget.getMessage());
         } catch (Exception ex) {
             if (typeFactory
                     .getChecker()

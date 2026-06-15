@@ -762,7 +762,7 @@ public class AnnotatedTypes {
                 return new TypeArguments(
                         inferenceResult.getTypeArgumentsForExpression(expr),
                         inferenceResult.isUncheckedConversion(),
-                        inferenceResult.inferenceCrashed());
+                        inferenceResult.needsDefaultedReturnType());
             }
             targs = memRef.getTypeArguments();
             if (memRef.getTypeArguments() == null) {
@@ -808,7 +808,7 @@ public class AnnotatedTypes {
                 return new TypeArguments(
                         inferenceResult.getTypeArgumentsForExpression(expr),
                         inferenceResult.isUncheckedConversion(),
-                        inferenceResult.inferenceCrashed());
+                        inferenceResult.needsDefaultedReturnType());
             } else {
                 return emptyFalsePair;
             }
