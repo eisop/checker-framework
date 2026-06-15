@@ -43,6 +43,16 @@ public class VariableBounds {
     private ProperType instantiation = null;
 
     /**
+     * Whether every bound in {@link #bounds} is a proper type. When true, {@link
+     * #applyInstantiationsToBounds} can skip re-scanning the bounds: {@link
+     * ProperType#applyInstantiations} is the identity, so a fully-proper bound set cannot change.
+     * Maintained at the only places {@link #bounds} is mutated ({@link #addBound}, {@link
+     * #restore}, and the rebuild in {@link #applyInstantiationsToBounds}); the constructor leaves
+     * it vacuously true for the empty bound set.
+     */
+    private boolean allBoundsProper = true;
+
+    /**
      * Bounds on this variable. Stored as a map from kind of bound (upper, lower, equal) to a set of
      * {@link AbstractType}s.
      */
@@ -113,6 +123,7 @@ public class VariableBounds {
         bounds.put(BoundKind.EQUAL, new LinkedHashSet<>(savedBounds.get(BoundKind.EQUAL)));
         bounds.put(BoundKind.UPPER, new LinkedHashSet<>(savedBounds.get(BoundKind.UPPER)));
         bounds.put(BoundKind.LOWER, new LinkedHashSet<>(savedBounds.get(BoundKind.LOWER)));
+        allBoundsProper = computeAllBoundsProper();
         for (AbstractType t : bounds.get(BoundKind.EQUAL)) {
             if (t.isProper()) {
                 instantiation = (ProperType) t;
@@ -161,6 +172,9 @@ public class VariableBounds {
             instantiation = ((ProperType) otherType).boxType();
         }
         if (bounds.get(kind).add(otherType)) {
+            if (!otherType.isProper()) {
+                allBoundsProper = false;
+            }
             addConstraintsFromComplementaryBounds(parent, kind, otherType);
             if (!otherType.ignoreAnnotations) {
                 Set<AbstractQualifier> aQuals = otherType.getQualifiers();
@@ -473,7 +487,17 @@ public class VariableBounds {
      */
     @SuppressWarnings("interning:not.interned") // Checking for exact object.
     public boolean applyInstantiationsToBounds() {
+        if (allBoundsProper) {
+            // Every bound is a proper type, so applying instantiations to them is a no-op
+            // (ProperType.applyInstantiations() is the identity) and the changed-gated
+            // instantiation detection below cannot fire. Skip re-scanning the bounds of this
+            // fully-resolved variable -- the dominant cost of the incorporation fixpoint on large
+            // problems. Constraints are still applied.
+            constraints.applyInstantiations();
+            return false;
+        }
         boolean changed = false;
+        boolean nowAllProper = true;
         for (Set<AbstractType> boundList : bounds.values()) {
             // Charge this work against the inference problem's budget; throws
             // InferenceBudgetExceededError for a pathological (e.g. deeply nested generic)
@@ -489,6 +513,12 @@ public class VariableBounds {
                 }
             }
             if (!listChanged) {
+                for (AbstractType bound : boundList) {
+                    if (!bound.isProper()) {
+                        nowAllProper = false;
+                        break;
+                    }
+                }
                 continue;
             }
 
@@ -499,11 +529,15 @@ public class VariableBounds {
                 if (newBound != bound && !boundList.contains(newBound)) {
                     changed = true;
                 }
+                if (!newBound.isProper()) {
+                    nowAllProper = false;
+                }
                 newBounds.add(newBound);
             }
             boundList.clear();
             boundList.addAll(newBounds);
         }
+        allBoundsProper = nowAllProper;
         constraints.applyInstantiations();
 
         if (changed && instantiation == null) {
@@ -514,6 +548,23 @@ public class VariableBounds {
             }
         }
         return changed;
+    }
+
+    /**
+     * Recomputes from scratch whether every bound in {@link #bounds} is a proper type; used to
+     * maintain {@link #allBoundsProper}.
+     *
+     * @return true if every bound is a proper type
+     */
+    private boolean computeAllBoundsProper() {
+        for (Set<AbstractType> boundList : bounds.values()) {
+            for (AbstractType bound : boundList) {
+                if (!bound.isProper()) {
+                    return false;
+                }
+            }
+        }
+        return true;
     }
 
     /**

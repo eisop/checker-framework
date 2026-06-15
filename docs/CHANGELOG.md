@@ -45,6 +45,17 @@ roughly two orders of magnitude of headroom over the largest amount of work obse
 on hand-written code, so realistic programs are unaffected; the worst case (e.g. a
 30-deep nested generic call) drops from tens of seconds to bounded time.
 
+Performance: the Java 8 type-argument-inference bound-incorporation fixpoint no longer
+re-scans the bounds of inference variables that have fully resolved. Once every bound of a
+variable is a proper type its bounds can no longer change (applying instantiations to a
+proper type is the identity), so such variables are skipped on subsequent iterations
+instead of being re-scanned every iteration. This reduces the fixpoint's cost on deeply
+nested generic invocations (about 9% faster at nesting depth 20, with the gain growing with
+depth). Two smaller repeated computations on the same hot path were also removed: the
+fixpoint no longer builds a fresh set of instantiated variables every iteration just to
+test whether one exists (it short-circuits on the first), and a proper type caches its
+erasure instead of recomputing it on every subtyping check.
+
 Enabled the Gradle configuration cache, speeding up build times.
 
 `AnnotationMirrorSet` has a new `get(int)` method that returns the element at a
