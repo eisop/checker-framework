@@ -217,6 +217,12 @@ public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
         }
     }
 
+    @Override
+    public AnnotatedTypeMirror viewpointAdaptType(
+            AnnotatedTypeMirror receiverType, AnnotatedTypeMirror declaredType) {
+        return combineTypeWithType(receiverType, declaredType);
+    }
+
     /**
      * Viewpoint adapt declared type to receiver type, and return the result atm
      *
