@@ -107,9 +107,12 @@ switch (JavaVersion.current()) {
     case JavaVersion.VERSION_11:
     case JavaVersion.VERSION_17:
     case JavaVersion.VERSION_21:
+    case JavaVersion.VERSION_25:
+    case JavaVersion.VERSION_26:
+    case JavaVersion.VERSION_27:
         break; // Supported versions
     default:
-        logger.info('The Checker Framework has only been tested with JDK 8, 11, 17, and 21.' +
+        logger.info('The Checker Framework is tested with JDK 8, 11, 17, 21, 25, 26, and 27-EA.' +
         ' You are using JDK ' + JavaVersion.current().majorVersion + '.');
         break;
 }
