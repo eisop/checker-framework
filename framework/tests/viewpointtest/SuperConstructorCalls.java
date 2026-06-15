@@ -9,7 +9,6 @@ public class SuperConstructorCalls {
     public SuperConstructorCalls(@ReceiverDependentQual Object obj) {}
 
     @SuppressWarnings({"inconsistent.constructor.type", "super.invocation.invalid"})
-    // :: error: (type.invalid.annotations.on.use)
     public @ReceiverDependentQual SuperConstructorCalls(
             @ReceiverDependentQual Object obj, int dummy) {}
 

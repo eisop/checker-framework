@@ -1701,19 +1701,21 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      */
     public AnnotationMirrorSet getAdaptedTypeDeclarationBounds(
             TypeMirror type, AnnotatedDeclaredType useType) {
-        if (viewpointAdapter != null) {
-            AnnotationMirrorSet result = new AnnotationMirrorSet();
-            for (AnnotationMirror anno : getTypeDeclarationBounds(type)) {
-                AnnotatedTypeMirror adaptedType =
-                        viewpointAdapter.viewpointAdaptType(anno, useType);
-                AnnotationMirror adaptedAnno =
-                        qualHierarchy.findAnnotationInSameHierarchy(
-                                adaptedType.getAnnotations(), anno);
-                result.add(adaptedAnno != null ? adaptedAnno : anno);
-            }
-            return result;
+        AnnotationMirrorSet typeDeclarationBounds = getTypeDeclarationBounds(type);
+        if (viewpointAdapter == null) {
+            return typeDeclarationBounds;
         }
-        return getTypeDeclarationBounds(type);
+        AnnotationMirrorSet result = new AnnotationMirrorSet();
+        for (AnnotationMirror anno : typeDeclarationBounds) {
+            AnnotatedDeclaredType boundType = useType.shallowCopy();
+            boundType.replaceAnnotation(anno);
+            AnnotatedTypeMirror adaptedType =
+                    viewpointAdapter.viewpointAdaptType(useType, boundType);
+            AnnotationMirror adaptedAnno =
+                    qualHierarchy.findAnnotationInSameHierarchy(adaptedType.getAnnotations(), anno);
+            result.add(adaptedAnno != null ? adaptedAnno : anno);
+        }
+        return result;
     }
 
     /**

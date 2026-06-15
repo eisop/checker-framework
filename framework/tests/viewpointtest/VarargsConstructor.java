@@ -7,7 +7,6 @@ public class VarargsConstructor {
     VarargsConstructor(String str, Object... args) {}
 
     @SuppressWarnings({"inconsistent.constructor.type", "super.invocation.invalid"})
-    // :: error: (type.invalid.annotations.on.use)
     @ReceiverDependentQual VarargsConstructor(@ReceiverDependentQual Object... args) {}
 
     void foo() {
@@ -27,15 +26,16 @@ public class VarargsConstructor {
     }
 
     class Inner {
-        // :: warning: (inconsistent.constructor.type)
-        // :: error: (type.invalid.annotations.on.use)
+        // :: warning: (inconsistent.constructor.type) :: error:(super.invocation.invalid)
         @ReceiverDependentQual Inner(@ReceiverDependentQual Object... args) {}
 
         void foo() {
             // :: error: (new.class.type.invalid)
             Inner a = new Inner();
+            // :: warning: (cast.unsafe.constructor.invocation)
             Inner b = new @A Inner(new @A Object());
             Inner c = VarargsConstructor.this.new @A Inner();
+            // :: warning: (cast.unsafe.constructor.invocation)
             Inner d = VarargsConstructor.this.new @A Inner(new @A Object());
         }
 

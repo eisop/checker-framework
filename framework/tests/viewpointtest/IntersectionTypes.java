@@ -29,7 +29,6 @@ public class IntersectionTypes {
 
     <T extends Foo & Accessor> void callAccessor(T p) {}
 
-    // :: error: (type.invalid.annotations.on.use)
     class ViewpointAdaptedIntersectionBound<T extends @ReceiverDependentQual Accessor & Foo> {
         void viewpointAdaptedIntersectionBound(@A T p, @A Object aObj, @B Object bObj) {
             @A Object adapted = p.get();
@@ -58,9 +57,7 @@ public class IntersectionTypes {
     }
 
     void intersectionCasts(Object obj) {
-        // :: error: (type.invalid.annotations.on.use)
         Foo fooAndBar = (Foo & Bar) obj;
-        // :: error: (type.invalid.annotations.on.use)
         Accessor fooAndAccessor = (Foo & Accessor) obj;
     }
 
@@ -73,15 +70,12 @@ public class IntersectionTypes {
 
     interface CType<X> {}
 
-    // :: error: (type.argument.type.incompatible)
     abstract class D<X extends BType<X> & CType<X>> {}
 
-    // :: error: (type.argument.type.incompatible)
     class BC implements BType<BC>, CType<BC> {}
 
     class E extends D<BC> {}
 
-    // :: error: (type.argument.type.incompatible)
     <T extends BType<T> & CType<T>> void callBC(T p) {}
 
     // Documents the current decision for https://github.com/eisop/checker-framework/issues/1735:

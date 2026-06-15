@@ -256,12 +256,6 @@ public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
      */
     protected abstract AnnotationMirror extractAnnotationMirror(AnnotatedTypeMirror atm);
 
-    @Override
-    public AnnotatedTypeMirror viewpointAdaptType(
-            AnnotationMirror receiverAnnotation, AnnotatedTypeMirror declaredType) {
-        return combineAnnotationWithType(receiverAnnotation, declaredType);
-    }
-
     /**
      * Combine receiver qualifiers with declared types. Qualifiers are extracted from declared types
      * to further perform viewpoint adaptation only between two qualifiers.

@@ -8,7 +8,6 @@ public class ThisConstructorCalls {
     public ThisConstructorCalls(@ReceiverDependentQual Object obj) {}
 
     @SuppressWarnings({"inconsistent.constructor.type", "super.invocation.invalid"})
-    // :: error: (type.invalid.annotations.on.use)
     public @ReceiverDependentQual ThisConstructorCalls(
             @ReceiverDependentQual Object obj, int dummy) {}
 

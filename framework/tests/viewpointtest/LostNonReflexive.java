@@ -4,7 +4,6 @@ public class LostNonReflexive {
     @ReceiverDependentQual Object f;
 
     @SuppressWarnings({"inconsistent.constructor.type", "super.invocation.invalid"})
-    // :: error: (type.invalid.annotations.on.use)
     @ReceiverDependentQual LostNonReflexive(@ReceiverDependentQual Object args) {}
 
     @ReceiverDependentQual Object get() {

@@ -1,7 +1,0 @@
-import viewpointtest.quals.ReceiverDependentQual;
-
-package java.lang;
-
-@ReceiverDependentQual class Object {
-    @ReceiverDependentQual Object() {}
-}
