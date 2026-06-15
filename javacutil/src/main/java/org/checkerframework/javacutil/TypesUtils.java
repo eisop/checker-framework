@@ -417,7 +417,7 @@ public final class TypesUtils {
             DeclaredType dt = (DeclaredType) type;
             TypeElement elem = (TypeElement) dt.asElement();
             Name name = elem.getQualifiedName();
-            if ("java.lang.Throwable".contentEquals(name)) {
+            if (InternalUtils.sameName(name, "java.lang.Throwable")) {
                 return true;
             }
             type = elem.getSuperclass();
@@ -1468,7 +1468,7 @@ public final class TypesUtils {
         Name otherName = typeVariable2.asElement().getSimpleName();
         Element otherEnclosingElement = typeVariable2.asElement().getEnclosingElement();
 
-        return typeVariable1.asElement().getSimpleName().contentEquals(otherName)
+        return InternalUtils.sameName(typeVariable1.asElement().getSimpleName(), otherName)
                 && otherEnclosingElement.equals(typeVariable1.asElement().getEnclosingElement());
     }
 }

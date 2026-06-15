@@ -10,6 +10,7 @@ import org.checkerframework.framework.type.GenericAnnotatedTypeFactory;
 import org.checkerframework.framework.type.treeannotator.TreeAnnotator;
 import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.BugInCF;
+import org.checkerframework.javacutil.InternalUtils;
 import org.checkerframework.javacutil.TreeUtils;
 
 import javax.lang.model.element.Element;
@@ -76,8 +77,8 @@ public class InitializationFieldAccessTreeAnnotator extends TreeAnnotator {
         // (e.g., constructor calls or uses of an outer this).
         if (tree instanceof IdentifierTree) {
             IdentifierTree identTree = (IdentifierTree) tree;
-            if (identTree.getName().contentEquals("this")
-                    || identTree.getName().contentEquals("super")) {
+            if (InternalUtils.isThisName(identTree.getName())
+                    || InternalUtils.isSuperName(identTree.getName())) {
                 return;
             }
         }
