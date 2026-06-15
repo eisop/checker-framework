@@ -639,7 +639,7 @@ public class AnnotationUtils {
         for (Map.Entry<? extends ExecutableElement, ? extends AnnotationValue> entry :
                 valmap.entrySet()) {
             ExecutableElement elem = entry.getKey();
-            if (elem.getSimpleName().contentEquals(elementName)) {
+            if (InternalUtils.sameName(elem.getSimpleName(), elementName)) {
                 AnnotationValue val = entry.getValue();
                 try {
                     return expectedType.cast(val.getValue());
@@ -726,7 +726,7 @@ public class AnnotationUtils {
         for (Map.Entry<? extends ExecutableElement, ? extends AnnotationValue> entry :
                 valmap.entrySet()) {
             ExecutableElement elem = entry.getKey();
-            if (elem.getSimpleName().contentEquals(elementName)) {
+            if (InternalUtils.sameName(elem.getSimpleName(), elementName)) {
                 AnnotationValue val = entry.getValue();
                 try {
                     return expectedType.cast(val.getValue());
@@ -1621,7 +1621,7 @@ public class AnnotationUtils {
             if (args.size() == 1) {
                 Map.Entry<ExecutableElement, AnnotationValue> first =
                         args.entrySet().iterator().next();
-                if (first.getKey().getSimpleName().contentEquals("value")) {
+                if (InternalUtils.isValueName(first.getKey().getSimpleName())) {
                     formatAnnotationMirrorArg(first.getValue(), sb);
                     oneValue = true;
                 }

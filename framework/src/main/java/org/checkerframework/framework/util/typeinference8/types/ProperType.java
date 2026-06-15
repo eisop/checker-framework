@@ -282,7 +282,16 @@ public class ProperType extends AbstractType {
      * @return the hash code
      */
     private int computeHashCode() {
-        int hc = properType.toString().hashCode();
+        int hc = properType.getKind().hashCode();
+        javax.lang.model.element.Element elt = null;
+        if (properType instanceof javax.lang.model.type.DeclaredType) {
+            elt = ((javax.lang.model.type.DeclaredType) properType).asElement();
+        } else if (properType instanceof javax.lang.model.type.TypeVariable) {
+            elt = ((javax.lang.model.type.TypeVariable) properType).asElement();
+        }
+        if (elt != null) {
+            hc = 31 * hc + elt.getSimpleName().hashCode();
+        }
         hc = 31 * hc + Kind.PROPER.hashCode();
         return hc;
     }

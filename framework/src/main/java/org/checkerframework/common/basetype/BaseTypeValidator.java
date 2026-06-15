@@ -178,11 +178,10 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
             // Created lazily (rather than in a field initializer) to keep `this` from escaping
             // during construction; the captured `isTopLevelValidType` is dispatched dynamically, so
             // subclass overrides still apply. A single scanner is reused across calls -- it was a
-            // per-call allocation source (its visitedNodes IdentityHashMap) in checkNullness traces
-            // -- which is safe because this validator is confined to the javac main thread and
-            // SimpleAnnotatedTypeScanner.visit resets its state on each call. isValidStructurally
-            // is not re-entrant: it is called once per top-level type and its scan only reads
-            // annotations.
+            // per-call allocation source in checkNullness traces -- which is safe because this
+            // validator is confined to the javac main thread and SimpleAnnotatedTypeScanner.visit
+            // resets its state on each call. isValidStructurally is not re-entrant: it is called
+            // once per top-level type and its scan only reads annotations.
             structuralScanner =
                     new SimpleAnnotatedTypeScanner<>(
                             (atm, p) -> isTopLevelValidType(atm),
@@ -311,8 +310,8 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
 
     @Override
     public Void visitDeclared(AnnotatedDeclaredType type, Tree tree) {
-        if (visitedNodes.containsKey(type)) {
-            return visitedNodes.get(type);
+        if (hasVisited(type)) {
+            return getVisited(type);
         }
 
         boolean skipChecks = checker.shouldSkipUses(type.getUnderlyingType().asElement());
@@ -337,7 +336,7 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
         checkTopLevelDeclaredOrPrimitiveType = true;
 
         if (TreeUtils.isClassTree(tree)) {
-            visitedNodes.put(type, null);
+            markVisited(type, null);
             visitClassTypeParameters(type, (ClassTree) tree);
             return null;
         }
@@ -358,7 +357,7 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
         // We put this here because we don't want to put it in visitedNodes before calling
         // super (in the else branch) because that would cause the super implementation
         // to detect that we've already visited type and to immediately return.
-        visitedNodes.put(type, null);
+        markVisited(type, null);
 
         // We have a ParameterizedTypeTree -> visit it.
 
@@ -682,8 +681,8 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
 
     @Override
     public Void visitTypeVariable(AnnotatedTypeVariable type, Tree tree) {
-        if (visitedNodes.containsKey(type)) {
-            return visitedNodes.get(type);
+        if (hasVisited(type)) {
+            return getVisited(type);
         }
 
         if (type.isDeclaration() && !areBoundsValid(type.getUpperBound(), type.getLowerBound())) {
@@ -692,9 +691,9 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
         AnnotatedTypeVariable useOfTypeVar = type.asUse();
         if (tree instanceof TypeParameterTree) {
             TypeParameterTree typeParameterTree = (TypeParameterTree) tree;
-            visitedNodes.put(useOfTypeVar, defaultResult);
+            markVisited(useOfTypeVar, defaultResult);
             visitTypeParameterBounds(useOfTypeVar, typeParameterTree);
-            visitedNodes.put(useOfTypeVar, defaultResult);
+            markVisited(useOfTypeVar, defaultResult);
             return null;
         }
         return super.visitTypeVariable(useOfTypeVar, tree);
@@ -702,8 +701,8 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
 
     @Override
     public Void visitWildcard(AnnotatedWildcardType type, Tree tree) {
-        if (visitedNodes.containsKey(type)) {
-            return visitedNodes.get(type);
+        if (hasVisited(type)) {
+            return getVisited(type);
         }
 
         if (!areBoundsValid(type.getExtendsBound(), type.getSuperBound())) {
@@ -758,12 +757,25 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
                     TypeUseLocation.EXPLICIT_UPPER_BOUND);
 
     /**
-     * Validate if qualifiers on wildcard are permitted by {@link
-     * org.checkerframework.framework.qual.TargetLocations}. Report an error if the actual use of
-     * this annotation is not listed in the declared TypeUseLocations in this meta-annotation.
+     * Validates whether the qualifiers on the tree are at the correct type-use locations, as
+     * specified by the meta-annotation {@link org.checkerframework.framework.qual.TargetLocations}.
+     *
+     * <p>More specifically, this method only checks qualifiers on a WildcardTree and thus checks
+     * for the following type-use locations: (EXPLICIT/IMPLICIT) LOWER_BOUND and (EXPLICIT/IMPLICIT)
+     * UPPER_BOUND.
+     *
+     * <p>The other two validate methods achieve the same goal but perform checks on different trees
+     * and different type-use locations. This separation exists because wildcards do not have an
+     * element and determine their locations based on their bounds. By contrast, variables can
+     * automatically infer their type-use location from their ElementKind, and other constructs have
+     * context-dependent locations that must be explicitly provided by the caller. See {@link
+     * BaseTypeVisitor#validateVariablesTargetLocation(Tree, AnnotatedTypeMirror)} and {@link
+     * BaseTypeVisitor#validateTargetLocation(Tree, AnnotatedTypeMirror, TypeUseLocation)}.
      *
      * @param type the type to check
      * @param tree the tree of this type
+     * @see BaseTypeVisitor#validateVariablesTargetLocation(Tree, AnnotatedTypeMirror)
+     * @see BaseTypeVisitor#validateTargetLocation(Tree, AnnotatedTypeMirror, TypeUseLocation)
      */
     protected void validateWildCardTargetLocation(AnnotatedWildcardType type, Tree tree) {
         if (visitor.ignoreTargetLocations || visitor.noQualHasTargetLocations) {
