@@ -36,6 +36,14 @@ public class ProperType extends AbstractType {
     private final int hashCode;
 
     /**
+     * Cached result of {@link #getErased()}. A proper type is immutable, so its erasure is stable;
+     * caching it avoids recomputing the erasure (a new annotated type plus a javac erasure call) on
+     * every {@link #isSubType} check, which runs repeatedly during bound incorporation. {@code
+     * null} until first computed.
+     */
+    private AbstractType erased = null;
+
+    /**
      * Creates a proper type.
      *
      * @param type the annotated type
@@ -329,6 +337,14 @@ public class ProperType extends AbstractType {
     @Override
     public AbstractType applyInstantiations() {
         return this;
+    }
+
+    @Override
+    public AbstractType getErased() {
+        if (erased == null) {
+            erased = super.getErased();
+        }
+        return erased;
     }
 
     @Override
