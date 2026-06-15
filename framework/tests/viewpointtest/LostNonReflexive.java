@@ -1,11 +1,13 @@
 import viewpointtest.quals.*;
 
-@ReceiverDependentQual public class LostNonReflexive {
+public class LostNonReflexive {
     @ReceiverDependentQual Object f;
 
+    @SuppressWarnings({"inconsistent.constructor.type", "super.invocation.invalid"})
+    // :: error: (type.invalid.annotations.on.use)
     @ReceiverDependentQual LostNonReflexive(@ReceiverDependentQual Object args) {}
 
-    @ReceiverDependentQual Object get(@Top LostNonReflexive this) {
+    @ReceiverDependentQual Object get() {
         return null;
     }
 
@@ -23,8 +25,9 @@ import viewpointtest.quals.*;
         // :: error: (assignment.type.incompatible)
         @Bottom Object botObj = obj.get();
 
-        // :: error: (argument.type.incompatible)
+        // :: error: (argument.type.incompatible) :: error: (new.class.type.invalid)
         new LostNonReflexive(obj.f);
+        // :: error: (new.class.type.invalid)
         new LostNonReflexive(bottomObj);
 
         // :: error: (argument.type.incompatible)

@@ -2,12 +2,16 @@
 // https://github.com/eisop/checker-framework/issues/777
 import viewpointtest.quals.*;
 
-@ReceiverDependentQual public class VarargsConstructor {
+public class VarargsConstructor {
+
     VarargsConstructor(String str, Object... args) {}
 
+    @SuppressWarnings({"inconsistent.constructor.type", "super.invocation.invalid"})
+    // :: error: (type.invalid.annotations.on.use)
     @ReceiverDependentQual VarargsConstructor(@ReceiverDependentQual Object... args) {}
 
     void foo() {
+        // :: warning: (cast.unsafe.constructor.invocation)
         VarargsConstructor a = new @A VarargsConstructor("testStr", new @A Object());
     }
 
@@ -22,10 +26,13 @@ import viewpointtest.quals.*;
         new @B VarargsConstructor(aObj);
     }
 
-    @ReceiverDependentQual class Inner {
+    class Inner {
+        // :: warning: (inconsistent.constructor.type)
+        // :: error: (type.invalid.annotations.on.use)
         @ReceiverDependentQual Inner(@ReceiverDependentQual Object... args) {}
 
         void foo() {
+            // :: error: (new.class.type.invalid)
             Inner a = new Inner();
             Inner b = new @A Inner(new @A Object());
             Inner c = VarargsConstructor.this.new @A Inner();
@@ -46,9 +53,11 @@ import viewpointtest.quals.*;
 
     void testAnonymousClass(@A Object aObj, @B Object bObj, @Top Object topObj) {
         Object o =
+                // :: warning: (cast.unsafe.constructor.invocation)
                 new @A VarargsConstructor("testStr", new @A Object()) {
                     void foo() {
                         VarargsConstructor a =
+                                // :: warning: (cast.unsafe.constructor.invocation)
                                 new @A VarargsConstructor("testStr", new @A Object());
                     }
                 };

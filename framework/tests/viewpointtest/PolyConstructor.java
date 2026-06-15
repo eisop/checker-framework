@@ -1,8 +1,11 @@
 import viewpointtest.quals.*;
 
 public class PolyConstructor {
+
     static class MyClass {
+        // :: warning: (inconsistent.constructor.type)
         @PolyVP MyClass(@PolyVP Object o) {
+            // :: error: (new.class.type.invalid)
             throw new RuntimeException(" * You are filled with DETERMINATION."); // stub
         }
 
@@ -17,16 +20,17 @@ public class PolyConstructor {
         }
 
         void throwAException() {
+            // :: warning: (cast.unsafe.constructor.invocation)
             throw new @A RuntimeException();
         }
 
         void throwBException() {
-            // :: error: (constructor.invocation.invalid)
+            // :: warning: (cast.unsafe.constructor.invocation)
             throw new @B RuntimeException();
         }
 
         void throwLostException() {
-            // :: error: (new.class.type.invalid) :: error: (constructor.invocation.invalid)
+            // :: error: (new.class.type.invalid) :: warning: (cast.unsafe.constructor.invocation)
             throw new @Lost RuntimeException();
         }
     }

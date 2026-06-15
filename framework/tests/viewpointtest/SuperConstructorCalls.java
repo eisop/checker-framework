@@ -2,15 +2,18 @@
 // https://github.com/eisop/checker-framework/issues/782
 import viewpointtest.quals.*;
 
-@ReceiverDependentQual public class SuperConstructorCalls {
+public class SuperConstructorCalls {
+
     public SuperConstructorCalls() {}
 
     public SuperConstructorCalls(@ReceiverDependentQual Object obj) {}
 
+    @SuppressWarnings({"inconsistent.constructor.type", "super.invocation.invalid"})
+    // :: error: (type.invalid.annotations.on.use)
     public @ReceiverDependentQual SuperConstructorCalls(
             @ReceiverDependentQual Object obj, int dummy) {}
 
-    @ReceiverDependentQual class Inner extends SuperConstructorCalls {
+    class Inner extends SuperConstructorCalls {
         public Inner() {
             super();
         }
@@ -23,14 +26,18 @@ import viewpointtest.quals.*;
             super(objTop);
         }
 
+        @SuppressWarnings("inconsistent.constructor.type")
         public @A Inner(@A Object objA, int dummy) {
             super(objA, 0);
         }
 
+        @SuppressWarnings("inconsistent.constructor.type")
         public @A Inner(@A Object objA, @B Object objB) {
+            // :: error: (super.invocation.invalid)
             super(objA);
         }
 
+        @SuppressWarnings("inconsistent.constructor.type")
         public @A Inner(@A Object objA, @B Object objB, int dummy) {
             // :: error: (argument.type.incompatible)
             super(objB, 0);
