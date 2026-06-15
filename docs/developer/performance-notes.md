@@ -1334,21 +1334,61 @@ the prior finding. A fresh hypothesis is not new evidence.
 Candidates raised in profiling sessions but not yet implemented. Capture
 format: hot method, hypothesis, blockers/open questions.
 
-- **typeinference8 incorporation is O(depth³) on deeply nested generic invocations.** Java-8
+- **typeinference8 incorporation: dependency-based (worklist) incremental incorporation.** Java-8
   type-argument inference (`BoundSet.incorporateToFixedPoint` → `VariableBounds.applyInstantiationsToBounds`)
   re-applies instantiations to *every* inference variable on *every* fixpoint iteration; for a
-  depth-D nested-`id` chain that is O(D) iterations × O(D) variables × O(D) bounds. Measured on the
-  `--shape deep-nesting` generator (`gen-sized-program.py`): a 1500-method file (depth-20 bodies)
-  times out (>8 min) under nullness; depth-80 in a single method does not finish in 25 min. The
-  per-method constant scales with the qualifier hierarchy (nullness ≫ interning ≈ value). Real but
-  **worst-case-only** — deeply nested generic chains are not in the realistic `checkNullness` top
-  leaves. Two safe micro-optimizations were tried and measured neutral (see Tried and rejected); the
-  cost is the fixpoint's tuple *count*, not redundant work. The only direction that could change the
-  complexity is **dependency-based incremental incorporation**: re-process only the variables whose
-  bounds reference a newly-instantiated variable, cutting the O(variables)-per-iteration factor. That
-  is a substantial, correctness-critical change to JLS-18 inference (a subtly wrong incorporation
-  order yields wrong inferred types that `alltests` need not catch); pursue only as a dedicated,
-  downstream-validated effort, not a patch.
+  depth-D nested-`id` chain that is O(D) iterations × O(D) variables × O(D) bounds (≈ O(depth³)).
+  Under `incorporateToFixedPoint` on a moderate-depth heavy workload, `applyInstantiationsToBounds`
+  is ~18% of self-time — it is the dominant cost and it is *call volume*, not per-call work.
+  **Already shipped (do not re-propose these):** (1) a per-invocation work budget
+  (`Java8InferenceContext.MAX_INCORPORATION_WORK`) that abandons a pathological invocation soundly
+  with a `type.argument.inference.budget` error; (2) an `allBoundsProper` skip that drops a
+  fully-resolved variable from the per-iteration scan (proper bounds can't change) — this fixes the
+  *deep* (chain) case, ~9% at depth-20 growing with depth, but at *shallow/wide* nesting most
+  variables still have unresolved bounds and are re-scanned even when nothing relevant to them
+  changed; (3) `hasInstantiatedVariable` / `ProperType.getErased` caching. Measured-neutral and
+  rejected: lazy-allocating the three lists in `InferenceType.applyInstantiations` (many allocations
+  by *count*, negligible by *bytes*); see Tried and rejected for two earlier neutral micro-opts.
+  **The remaining lever** is a true worklist: maintain a reverse-dependency map (variable β → the
+  variables whose bounds mention β); when β is instantiated, mark only its dependents dirty and
+  re-scan only dirty variables. This is provably equivalent in principle (applying instantiations is
+  idempotent given a fixed instantiation state, so a variable mentioning nothing newly-instantiated
+  re-scans to no change) and turns the wide case from O(D²) scans toward O(D + edges). It is a
+  substantial, correctness-critical change to JLS-18 inference: a missed dependency edge yields a
+  subtly wrong inferred type that `alltests` need not catch. Pursue only as a dedicated effort with
+  **differential validation**: under a temporary verify flag, after the worklist reports
+  convergence, run one full all-variables scan and assert it finds no change (a missed edge makes
+  that scan change something and throw); run the flag ON across all-systems and the full `alltests`
+  suite, and ideally a large downstream generic-heavy corpus, before shipping. (This is the same
+  verify-flag methodology that validated the `allBoundsProper` skip — 0 violations suite-wide.)
+- **typeinference8 *resolution* phase: recompute and over-save (the non-incorporation costs).** On a
+  moderate-depth heavy workload (`gen-sized-program.py --shape deep-nesting`, depth-8 × 800 methods),
+  inclusive time splits roughly `incorporateToFixedPoint` ~47% and `Resolution.resolve` ~34% — but
+  most of resolution's time is *re-incorporation* (resolution adds an instantiation bound and
+  re-incorporates), so the incorporation worklist above also speeds resolution up. The genuinely
+  *separate* resolution costs, in priority order:
+  1. **Uncached dependency graph + transitive closure (~7.7%: `getDependencies` ~4.9% +
+     `Dependencies.calculateTransitiveDependencies` ~2.8%).** `BoundSet.getDependencies()` rebuilds
+     the whole variable-dependency graph and recomputes its transitive closure (≈O(V³)) from scratch
+     on *every* `Resolution.resolve` call (top-level plus the per-variable resolves in
+     `InvocationTypeInference`), caching nothing. The graph changes only when bounds change, so it is
+     cacheable with bound-change invalidation (or incrementally maintainable). Best risk/value among
+     the non-worklist options. Medium risk: the dependency set drives resolution *order*, and a stale
+     graph picks the wrong order → potentially wrong result; validate with the same verify harness
+     (cache vs. recompute, assert equal across `alltests`).
+  2. **`saveBounds()` snapshots *all* variables every resolution round (~3.2%).**
+     `Resolution.resolveSmallestSet` does `new BoundSet(...)` + `saveBounds()` (copying all six bound
+     sets of every variable) as rollback insurance, then discards it whenever `resolveWithoutCapture`
+     succeeds — the common case. Only the variables actually mutated by the attempt need saving.
+     Medium risk (must save a superset of what is mutated), low-medium value.
+  3. **`getInstantiatedVariables()` recomputed every resolution round (O(V²)).** The `resolve` loop
+     rebuilds the resolved-variable set (full scan + fresh `LinkedHashSet`) each round. Incremental
+     maintenance is possible but complicated by backtracking (`restore()` un-instantiates variables,
+     so the set can shrink). Low value alone.
+  4. **`getSmallestDependencySet` is O(V²–V³) and mutates the shared dependency sets.** Each round it
+     does `dependencies.get(alpha).removeAll(resolvedSet)` for every unresolved variable — re-removing
+     already-removed elements across rounds — and mutates the cached dependency map in place. Fragile;
+     entangled with #1 (fix together).
 - **`ElementUtils.qualifiedNameCache` backing map.** Hot method
   (`getQualifiedName` underlies `annotationName`, `getBinaryName`, the `isX`
   type predicates, etc.). Today it is a
