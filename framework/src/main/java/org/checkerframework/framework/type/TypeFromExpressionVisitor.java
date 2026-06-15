@@ -36,6 +36,7 @@ import org.checkerframework.framework.util.AnnotatedTypes;
 import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.ElementUtils;
+import org.checkerframework.javacutil.InternalUtils;
 import org.checkerframework.javacutil.SwitchExpressionScanner;
 import org.checkerframework.javacutil.SwitchExpressionScanner.FunctionalSwitchExpressionScanner;
 import org.checkerframework.javacutil.SystemUtil;
@@ -226,7 +227,7 @@ class TypeFromExpressionVisitor extends TypeFromTreeVisitor {
 
     @Override
     public AnnotatedTypeMirror visitIdentifier(IdentifierTree tree, AnnotatedTypeFactory f) {
-        if (tree.getName().contentEquals("this") || tree.getName().contentEquals("super")) {
+        if (InternalUtils.isThisName(tree.getName()) || InternalUtils.isSuperName(tree.getName())) {
             AnnotatedDeclaredType res = f.getSelfType(tree);
             return res;
         }
@@ -264,11 +265,11 @@ class TypeFromExpressionVisitor extends TypeFromTreeVisitor {
                 // Fall-through.
         }
 
-        if (tree.getIdentifier().contentEquals("this")) {
+        if (InternalUtils.isThisName(tree.getIdentifier())) {
             // Tree is "MyClass.this", where "MyClass" may be the innermost enclosing type or any
             // outer type.
             return f.getEnclosingType(TypesUtils.getTypeElement(TreeUtils.typeOf(tree)), tree);
-        } else if (tree.getIdentifier().contentEquals("super")) {
+        } else if (InternalUtils.isSuperName(tree.getIdentifier())) {
             // Tree is "MyClass.super", where "MyClass" may be the innermost enclosing type or any
             // outer type.
             TypeMirror superTypeMirror = TreeUtils.typeOf(tree);

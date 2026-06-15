@@ -504,25 +504,25 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     private static final int DEFAULT_CACHE_SIZE = 2048;
 
     /** Mapping from a Tree to its annotated type; defaults have been applied. */
-    private final Map<Tree, AnnotatedTypeMirror> classAndMethodTreeCache;
+    private final IdentityHashMap<Tree, AnnotatedTypeMirror> classAndMethodTreeCache;
 
     /**
      * Mapping from an expression tree to its annotated type; before defaults are applied, just what
      * the programmer wrote.
      */
-    protected final Map<Tree, AnnotatedTypeMirror> fromExpressionTreeCache;
+    protected final IdentityHashMap<Tree, AnnotatedTypeMirror> fromExpressionTreeCache;
 
     /**
      * Mapping from a member tree to its annotated type; before defaults are applied, just what the
      * programmer wrote.
      */
-    protected final Map<Tree, AnnotatedTypeMirror> fromMemberTreeCache;
+    protected final IdentityHashMap<Tree, AnnotatedTypeMirror> fromMemberTreeCache;
 
     /**
      * Mapping from a type tree to its annotated type; before defaults are applied, just what the
      * programmer wrote.
      */
-    protected final Map<Tree, AnnotatedTypeMirror> fromTypeTreeCache;
+    protected final IdentityHashMap<Tree, AnnotatedTypeMirror> fromTypeTreeCache;
 
     /**
      * Mapping from an Element to its annotated type; before defaults are applied, just what the
@@ -543,7 +543,12 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     private final @Nullable Map<Element, AnnotatedTypeMirror> elementTypeCache;
 
     /** Mapping from an Element to the source Tree of the declaration. */
-    private final Map<Element, Tree> elementToTreeCache;
+    private final IdentityHashMap<Element, Tree> elementToTreeCache;
+
+    /**
+     * Set of enclosing trees (like MethodTree/ClassTree) already scanned for variable declarations.
+     */
+    private final @Nullable Set<Tree> scannedEnclosingTrees;
 
     /**
      * Cache for the substituted method type from {@link #computeMethodTypeAsMemberOf} — the
@@ -643,13 +648,14 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         this.shouldCache = !checker.hasOption("atfDoNotCache");
         if (shouldCache) {
             int cacheSize = getCacheSize();
-            this.classAndMethodTreeCache = CollectionsPlume.createLruCache(cacheSize);
-            this.fromExpressionTreeCache = CollectionsPlume.createLruCache(cacheSize);
-            this.fromMemberTreeCache = CollectionsPlume.createLruCache(cacheSize);
-            this.fromTypeTreeCache = CollectionsPlume.createLruCache(cacheSize);
+            this.classAndMethodTreeCache = new IdentityHashMap<>();
+            this.fromExpressionTreeCache = new IdentityHashMap<>();
+            this.fromMemberTreeCache = new IdentityHashMap<>();
+            this.fromTypeTreeCache = new IdentityHashMap<>();
             this.elementCache = CollectionsPlume.createLruCache(cacheSize);
             this.elementTypeCache = CollectionsPlume.createLruCache(cacheSize);
-            this.elementToTreeCache = CollectionsPlume.createLruCache(cacheSize);
+            this.elementToTreeCache = new IdentityHashMap<>();
+            this.scannedEnclosingTrees = Collections.newSetFromMap(new IdentityHashMap<>());
             this.methodAsMemberOfCache = CollectionsPlume.createLruCache(cacheSize);
             this.directSupertypesCache = CollectionsPlume.createLruCache(cacheSize);
             this.annotationClassNames = new IdentityHashMap<>();
@@ -661,6 +667,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             this.elementCache = null;
             this.elementTypeCache = null;
             this.elementToTreeCache = null;
+            this.scannedEnclosingTrees = null;
             this.methodAsMemberOfCache = null;
             this.directSupertypesCache = null;
             this.annotationClassNames = null;
@@ -1065,6 +1072,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             // Clear the caches with trees because once the compilation unit changes,
             // the trees may be modified and lose type arguments.
             elementToTreeCache.clear();
+            scannedEnclosingTrees.clear();
             fromExpressionTreeCache.clear();
             fromMemberTreeCache.clear();
             fromTypeTreeCache.clear();
@@ -1520,7 +1528,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         AnnotatedTypeMirror type = fromElement(elt);
         addComputedTypeAnnotations(elt, type);
         if (useCache) {
-            elementTypeCache.put(elt, type.deepCopy());
+            elementTypeCache.put(elt, frozenDeepCopy(type));
         }
         return type;
     }
@@ -1571,7 +1579,9 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         if (shouldCache) {
             AnnotatedTypeMirror cached = classAndMethodTreeCache.get(tree);
             if (cached != null) {
-                return cached.deepCopy();
+                // The cached (post-pipeline) type is frozen and shared without copying; callers
+                // that mutate the result must deepCopy() it first.
+                return cached;
             }
         }
 
@@ -1590,6 +1600,12 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
                             + tree.getKind());
         }
 
+        // The from* result can be a shared frozen cache value (e.g. an expression whose type is a
+        // class/method type served from classAndMethodTreeCache); addComputedTypeAnnotations
+        // mutates the type, so copy it first when frozen.
+        if (type.isFrozen()) {
+            type = type.deepCopy();
+        }
         addComputedTypeAnnotations(tree, type);
         if (tree instanceof TypeCastTree) {
             type = applyCaptureConversion(type);
@@ -1597,7 +1613,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
 
         if (shouldCache && (isClassTree || tree instanceof MethodTree)) {
             // Don't cache VARIABLE
-            classAndMethodTreeCache.put(tree, type.deepCopy());
+            classAndMethodTreeCache.put(tree, frozenDeepCopy(type));
         } else {
             // No caching otherwise
         }
@@ -1813,7 +1829,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
                 && !stubTypes.isParsing()
                 && !ajavaTypes.isParsing()
                 && (currentFileAjavaTypes == null || !currentFileAjavaTypes.isParsing())) {
-            elementCache.put(elt, type.deepCopy());
+            elementCache.put(elt, frozenDeepCopy(type));
         }
         return type;
     }
@@ -1899,7 +1915,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         }
 
         if (shouldCache) {
-            fromMemberTreeCache.put(tree, result.deepCopy());
+            fromMemberTreeCache.put(tree, frozenDeepCopy(result));
         }
 
         return result;
@@ -1986,7 +2002,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
                 && !(tree instanceof NewClassTree)
                 && !(tree instanceof NewArrayTree)
                 && !(tree instanceof ConditionalExpressionTree)) {
-            fromExpressionTreeCache.put(tree, result.deepCopy());
+            fromExpressionTreeCache.put(tree, frozenDeepCopy(result));
         }
         return result;
     }
@@ -2014,7 +2030,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         AnnotatedTypeMirror result = TypeFromTree.fromTypeTree(this, tree);
 
         if (shouldCache) {
-            fromTypeTreeCache.put(tree, result.deepCopy());
+            fromTypeTreeCache.put(tree, frozenDeepCopy(result));
         }
         return result;
     }
@@ -2773,7 +2789,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         } else {
             methodType = computeMethodTypeAsMemberOf(tree, methodElt, receiverType, inferTypeArgs);
             if (cacheKey != null) {
-                methodAsMemberOfCache.put(cacheKey, methodType.deepCopy());
+                methodAsMemberOfCache.put(cacheKey, frozenDeepCopy(methodType));
             }
         }
         List<AnnotatedTypeMirror> typeargs = new ArrayList<>(methodElt.getTypeParameters().size());
@@ -3018,7 +3034,11 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         }
         List<AnnotatedDeclaredType> result = SupertypeFinder.directSupertypes(type);
         if (key != null) {
-            directSupertypesCache.put(key, deepCopySupertypes(result));
+            List<AnnotatedDeclaredType> masters = deepCopySupertypes(result);
+            for (int i = 0, n = masters.size(); i < n; ++i) {
+                masters.get(i).freeze();
+            }
+            directSupertypesCache.put(key, masters);
         }
         return Collections.unmodifiableList(result);
     }
@@ -3035,6 +3055,24 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         for (AnnotatedDeclaredType supertype : supertypes) {
             copy.add(supertype.deepCopy());
         }
+        return copy;
+    }
+
+    /**
+     * Returns a frozen deep copy of {@code type}, for use as a cache master. The caches store a
+     * private {@code deepCopy()} of every value and hand out a fresh {@code deepCopy()} on each
+     * hit, so the stored copy is never aliased; freezing it makes it effectively immutable, turning
+     * any latent in-place mutation of a cached type into an immediate {@code BugInCF} rather than
+     * silent corruption of the shared value.
+     *
+     * @param <T> the type of {@code type}
+     * @param type the type to copy and freeze
+     * @return a frozen deep copy of {@code type}
+     */
+    private static <T extends AnnotatedTypeMirror> T frozenDeepCopy(T type) {
+        @SuppressWarnings("unchecked") // deepCopy() preserves the runtime type
+        T copy = (T) type.deepCopy();
+        copy.freeze();
         return copy;
     }
 
@@ -3379,6 +3417,11 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         // Get the enclosing type of the constructor, if one exists.
         // this.new InnerClass()
         AnnotatedDeclaredType enclosingType = (AnnotatedDeclaredType) getReceiverType(tree);
+        if (enclosingType != null && enclosingType.isFrozen()) {
+            // getReceiverType may return a shared frozen cache value; it is embedded in `type` and
+            // mutated by addComputedTypeAnnotations below, so copy it first.
+            enclosingType = enclosingType.deepCopy();
+        }
         type.setEnclosingType(enclosingType);
 
         // Add computed annotations to the type.
@@ -3582,6 +3625,11 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     public AnnotatedTypeMirror getMethodReturnType(MethodTree m) {
         AnnotatedExecutableType methodType = getAnnotatedType(m);
         AnnotatedTypeMirror ret = methodType.getReturnType();
+        // getAnnotatedType(m) may be a shared frozen cache value; callers of this method (and its
+        // overrides) mutate the returned type, so hand back a mutable copy in that case.
+        if (ret.isFrozen()) {
+            ret = ret.deepCopy();
+        }
         return ret;
     }
 
@@ -4271,6 +4319,38 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     }
 
     /**
+     * Returns the declaration tree of {@code target} if it is a class or method on the current
+     * visitor path, or null otherwise. This is a cheap (path-walking) alternative to {@link
+     * Trees#getTree(Element)}, which scans the enclosing class for a member. It is used to obtain
+     * the enclosing method/class tree of a queried element during flow analysis, when the visitor
+     * path is set to a tree inside that method.
+     *
+     * @param target a class or method element, compared by reference against the path's symbols
+     * @return the declaration tree of {@code target} if found on the current visitor path, else
+     *     null
+     */
+    private @Nullable Tree declarationTreeFromVisitorPath(@FindDistinct @Nullable Element target) {
+        if (target == null) {
+            return null;
+        }
+        for (TreePath path = getVisitorTreePath(); path != null; path = path.getParentPath()) {
+            Tree leaf = path.getLeaf();
+            com.sun.tools.javac.code.Symbol leafSym;
+            if (leaf instanceof com.sun.tools.javac.tree.JCTree.JCMethodDecl) {
+                leafSym = ((com.sun.tools.javac.tree.JCTree.JCMethodDecl) leaf).sym;
+            } else if (leaf instanceof com.sun.tools.javac.tree.JCTree.JCClassDecl) {
+                leafSym = ((com.sun.tools.javac.tree.JCTree.JCClassDecl) leaf).sym;
+            } else {
+                continue;
+            }
+            if (leafSym == target) {
+                return leaf;
+            }
+        }
+        return null;
+    }
+
+    /**
      * Gets the declaration tree for the element, if the source is available.
      *
      * <p>TODO: would be nice to move this to InternalUtils/TreeUtils.
@@ -4322,13 +4402,32 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
                 // Fall back to the whole compilation unit if the enclosing tree is unavailable or
                 // does not contain the declaration.
                 Element enclosing = elt.getEnclosingElement();
-                Tree enclosingTree = enclosing == null ? null : trees.getTree(enclosing);
-                fromElt =
-                        enclosingTree instanceof com.sun.tools.javac.tree.JCTree
-                                ? com.sun.tools.javac.tree.TreeInfo.declarationFor(
-                                        (com.sun.tools.javac.code.Symbol) elt,
-                                        (com.sun.tools.javac.tree.JCTree) enclosingTree)
-                                : null;
+                Tree enclosingTree = null;
+                while (enclosing != null) {
+                    // Prefer the enclosing method/class tree from the current visitor path
+                    // (cheap, just walking the path), since trees.getTree on a member scans the
+                    // enclosing class for it.
+                    enclosingTree = declarationTreeFromVisitorPath(enclosing);
+                    if (enclosingTree == null) {
+                        enclosingTree = trees.getTree(enclosing);
+                    }
+                    if (enclosingTree != null) {
+                        break;
+                    }
+                    enclosing = enclosing.getEnclosingElement();
+                }
+                if (shouldCache
+                        && enclosingTree != null
+                        && scannedEnclosingTrees.add(enclosingTree)) {
+                    new DeclarationScanner().scan(enclosingTree, null);
+                }
+                fromElt = shouldCache ? elementToTreeCache.get(elt) : null;
+                if (fromElt == null && enclosingTree != null) {
+                    fromElt =
+                            com.sun.tools.javac.tree.TreeInfo.declarationFor(
+                                    (com.sun.tools.javac.code.Symbol) elt,
+                                    (com.sun.tools.javac.tree.JCTree) enclosingTree);
+                }
                 if (fromElt == null) {
                     fromElt =
                             com.sun.tools.javac.tree.TreeInfo.declarationFor(
@@ -4417,9 +4516,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
 
         TreePath currentPath = visitorTreePath;
         if (currentPath == null) {
-            TreePath path = TreePath.getPath(root, tree);
-            treePathCache.addPath(tree, path);
-            return path;
+            return treePathCache.getPath(root, tree);
         }
 
         // This method uses multiple heuristics to avoid calling
@@ -4450,14 +4547,10 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             }
         }
 
-        TreePath pathWithinSubtree = TreePath.getPath(currentPath, tree);
-        if (pathWithinSubtree != null) {
-            treePathCache.addPath(tree, pathWithinSubtree);
-            return pathWithinSubtree;
-        }
-
-        // climb the current path till we see that
+        // Climb the current path till we see that tree.
         // Works when getPath called on the enclosing method, enclosing class.
+        // Doing this before starting an AST scan avoids traversing the compilation unit for
+        // ancestors.
         TreePath current = currentPath;
         while (current != null) {
             treePathCache.addPath(current.getLeaf(), current);
@@ -4467,8 +4560,12 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             current = current.getParentPath();
         }
 
-        // OK, we give up. Use the cache to look up.
-        return treePathCache.getPath(root, tree);
+        // The target is not on the visitor path. Search from the visitor path's leaf outward
+        // (getPath(TreePath, Tree) expands leaf-first, then to ancestors, then the whole unit), so
+        // a target nested under the visited tree -- the common case -- is found locally instead of
+        // rescanning the whole compilation unit. Using the original visitorTreePath (not a
+        // climbed-up ancestor) keeps that start point as tight as possible.
+        return treePathCache.getPath(visitorTreePath, tree);
     }
 
     /**
@@ -6584,5 +6681,48 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             }
         }
         return false;
+    }
+
+    /**
+     * A scanner that maps symbols to their declaration trees and populates {@link
+     * #elementToTreeCache}.
+     *
+     * <p>This scanner is used to look up trees for variables, methods, and classes within an
+     * enclosing scope (such as a method or a class) rather than scanning the entire compilation
+     * unit, which would be much more expensive.
+     */
+    private class DeclarationScanner extends com.sun.source.util.TreeScanner<Void, Void> {
+        /** Create a DeclarationScanner. */
+        DeclarationScanner() {}
+
+        @Override
+        public Void visitVariable(VariableTree node, Void p) {
+            com.sun.tools.javac.code.Symbol sym =
+                    ((com.sun.tools.javac.tree.JCTree.JCVariableDecl) node).sym;
+            if (sym != null) {
+                elementToTreeCache.put(sym, node);
+            }
+            return super.visitVariable(node, p);
+        }
+
+        @Override
+        public Void visitMethod(MethodTree node, Void p) {
+            com.sun.tools.javac.code.Symbol sym =
+                    ((com.sun.tools.javac.tree.JCTree.JCMethodDecl) node).sym;
+            if (sym != null) {
+                elementToTreeCache.put(sym, node);
+            }
+            return super.visitMethod(node, p);
+        }
+
+        @Override
+        public Void visitClass(ClassTree node, Void p) {
+            com.sun.tools.javac.code.Symbol sym =
+                    ((com.sun.tools.javac.tree.JCTree.JCClassDecl) node).sym;
+            if (sym != null) {
+                elementToTreeCache.put(sym, node);
+            }
+            return super.visitClass(node, p);
+        }
     }
 }

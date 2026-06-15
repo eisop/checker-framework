@@ -33,6 +33,7 @@ import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.ElementUtils;
+import org.checkerframework.javacutil.InternalUtils;
 import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TypesUtils;
 import org.plumelib.util.StringsPlume;
@@ -896,14 +897,15 @@ public class QualifierDefaults {
      * A reusable {@link DefaultApplierElementImpl} scanner, parked here between uses. Constructing
      * a scanner per {@link DefaultApplierElement#applyDefault} call was a major allocation source:
      * a realistic single-compilation ({@code checkNullness}) JFR trace attributed ~8% of all TLAB
-     * events to the {@code visitedNodes} {@code IdentityHashMap} that the constructor pre-sizes.
-     * Defaulting is not re-entrant into {@code applyDefault} (the scan only reads caches and adds
-     * annotations), so one scanner can be reused across applications; {@link
-     * AnnotatedTypeScanner#visit} resets all scan state on each call. The field is {@code null}
-     * exactly while the scanner is borrowed, which doubles as a re-entrancy guard: a (hypothetical)
-     * nested borrow sees {@code null} and falls back to allocating a fresh scanner, so correctness
-     * never depends on non-re-entrancy. Confined to the javac main thread, like the other caches on
-     * this object.
+     * events to the eagerly pre-sized {@code visitedNodes} {@code IdentityHashMap} each scanner
+     * then held. ({@code visitedNodes} is now lazily allocated by {@link AnnotatedTypeScanner}, so
+     * reuse mainly saves the per-call scanner object.) Defaulting is not re-entrant into {@code
+     * applyDefault} (the scan only reads caches and adds annotations), so one scanner can be reused
+     * across applications; {@link AnnotatedTypeScanner#visit} resets all scan state on each call.
+     * The field is {@code null} exactly while the scanner is borrowed, which doubles as a
+     * re-entrancy guard: a (hypothetical) nested borrow sees {@code null} and falls back to
+     * allocating a fresh scanner, so correctness never depends on non-re-entrancy. Confined to the
+     * javac main thread, like the other caches on this object.
      */
     private @Nullable DefaultApplierElementImpl pooledApplierImpl;
 
@@ -998,8 +1000,8 @@ public class QualifierDefaults {
          */
         public void applyDefault(Default def) {
             this.location = def.location;
-            // Borrow a reusable scanner rather than allocating a DefaultApplierElementImpl (and its
-            // visitedNodes IdentityHashMap) per call; see borrowApplierImpl.
+            // Borrow a reusable scanner rather than allocating a DefaultApplierElementImpl per
+            // call; see borrowApplierImpl.
             DefaultApplierElementImpl impl = borrowApplierImpl(this);
             try {
                 impl.visit(type, def.anno);
@@ -1136,7 +1138,7 @@ public class QualifierDefaults {
                     if (outer.scope != null
                             && outer.scope.getKind() == ElementKind.PARAMETER
                             && isTopLevelType
-                            && outer.scope.getSimpleName().contentEquals("this")) {
+                            && InternalUtils.isThisName(outer.scope.getSimpleName())) {
                         // TODO: comparison against "this" is ugly, won't work
                         // for all possible names for receiver parameter.
                         // Comparison to Names._this might be a bit faster.
@@ -1291,7 +1293,7 @@ public class QualifierDefaults {
         @Override
         public Void visitTypeVariable(
                 @FindDistinct AnnotatedTypeVariable type, AnnotationMirror qual) {
-            if (visitedNodes.containsKey(type)) {
+            if (hasVisited(type)) {
                 return null;
             }
             if (outer.qualHierarchy.isParametricQualifier(qual)) {
@@ -1332,7 +1334,7 @@ public class QualifierDefaults {
 
         @Override
         public Void visitWildcard(AnnotatedWildcardType type, AnnotationMirror qual) {
-            if (visitedNodes.containsKey(type)) {
+            if (hasVisited(type)) {
                 return null;
             }
             visitBounds(type, type.getExtendsBound(), type.getSuperBound(), qual);
@@ -1360,13 +1362,13 @@ public class QualifierDefaults {
                 isUpperBound = false;
                 scanAndReduce(lowerBound, qual, null);
 
-                visitedNodes.put(boundedType, null);
+                markVisited(boundedType, null);
 
                 isLowerBound = false;
                 isUpperBound = true;
                 scanAndReduce(upperBound, qual, null);
 
-                visitedNodes.put(boundedType, null);
+                markVisited(boundedType, null);
             } finally {
                 isUpperBound = prevIsUpperBound;
                 isLowerBound = prevIsLowerBound;

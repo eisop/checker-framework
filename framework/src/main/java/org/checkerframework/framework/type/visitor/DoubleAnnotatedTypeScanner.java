@@ -149,46 +149,46 @@ public abstract class DoubleAnnotatedTypeScanner<R>
 
     @Override
     public R visitTypeVariable(AnnotatedTypeVariable type, AnnotatedTypeMirror p) {
-        if (visitedNodes.containsKey(type)) {
-            return visitedNodes.get(type);
+        if (hasVisited(type)) {
+            return getVisited(type);
         }
-        visitedNodes.put(type, null);
+        markVisited(type, null);
 
         R r;
         if (p instanceof AnnotatedTypeVariable) {
             AnnotatedTypeVariable tv = (AnnotatedTypeVariable) p;
             r = scan(type.getLowerBound(), tv.getLowerBound());
-            visitedNodes.put(type, r);
+            markVisited(type, r);
             r = scanAndReduce(type.getUpperBound(), tv.getUpperBound(), r);
-            visitedNodes.put(type, r);
+            markVisited(type, r);
         } else {
             r = scan(type.getLowerBound(), p.getErased());
-            visitedNodes.put(type, r);
+            markVisited(type, r);
             r = scanAndReduce(type.getUpperBound(), p.getErased(), r);
-            visitedNodes.put(type, r);
+            markVisited(type, r);
         }
         return r;
     }
 
     @Override
     public R visitWildcard(AnnotatedWildcardType type, AnnotatedTypeMirror p) {
-        if (visitedNodes.containsKey(type)) {
-            return visitedNodes.get(type);
+        if (hasVisited(type)) {
+            return getVisited(type);
         }
-        visitedNodes.put(type, null);
+        markVisited(type, null);
 
         R r;
         if (p instanceof AnnotatedWildcardType) {
             AnnotatedWildcardType w = (AnnotatedWildcardType) p;
             r = scan(type.getExtendsBound(), w.getExtendsBound());
-            visitedNodes.put(type, r);
+            markVisited(type, r);
             r = scanAndReduce(type.getSuperBound(), w.getSuperBound(), r);
-            visitedNodes.put(type, r);
+            markVisited(type, r);
         } else {
             r = scan(type.getExtendsBound(), p.getErased());
-            visitedNodes.put(type, r);
+            markVisited(type, r);
             r = scanAndReduce(type.getSuperBound(), p.getErased(), r);
-            visitedNodes.put(type, r);
+            markVisited(type, r);
         }
         return r;
     }
@@ -197,10 +197,10 @@ public abstract class DoubleAnnotatedTypeScanner<R>
     public R visitIntersection(AnnotatedIntersectionType type, AnnotatedTypeMirror p) {
         assert p instanceof AnnotatedIntersectionType : p;
 
-        if (visitedNodes.containsKey(type)) {
-            return visitedNodes.get(type);
+        if (hasVisited(type)) {
+            return getVisited(type);
         }
-        visitedNodes.put(type, null);
+        markVisited(type, null);
         R r = scan(type.getBounds(), ((AnnotatedIntersectionType) p).getBounds());
         return r;
     }
@@ -208,10 +208,10 @@ public abstract class DoubleAnnotatedTypeScanner<R>
     @Override
     public R visitUnion(AnnotatedUnionType type, AnnotatedTypeMirror p) {
         assert p instanceof AnnotatedUnionType : p;
-        if (visitedNodes.containsKey(type)) {
-            return visitedNodes.get(type);
+        if (hasVisited(type)) {
+            return getVisited(type);
         }
-        visitedNodes.put(type, null);
+        markVisited(type, null);
         R r = scan(type.getAlternatives(), ((AnnotatedUnionType) p).getAlternatives());
         return r;
     }

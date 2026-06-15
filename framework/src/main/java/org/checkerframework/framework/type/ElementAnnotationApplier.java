@@ -87,8 +87,7 @@ public final class ElementAnnotationApplier {
             reportInvalidLocation(element, typeFactory);
         }
         // Also copy annotations from type parameters to their uses. Borrow a pooled scanner rather
-        // than allocating one (and its visitedNodes IdentityHashMap) per call; see
-        // pooledTypeVarAnnotator.
+        // than allocating one per call; see pooledTypeVarAnnotator.
         TypeVarAnnotator typeVarAnnotator = pooledTypeVarAnnotator.getAndSet(null);
         if (typeVarAnnotator == null) {
             typeVarAnnotator = new TypeVarAnnotator();
@@ -101,11 +100,10 @@ public final class ElementAnnotationApplier {
     }
 
     /**
-     * A reusable {@link TypeVarAnnotator}, parked between uses to avoid allocating one (and the
-     * pre-sized {@code visitedNodes} {@link java.util.IdentityHashMap} of {@link
-     * AnnotatedTypeScanner}) on every {@link #apply} call. {@code TypeVarAnnotator} is stateless
-     * apart from the scanner's {@code visitedNodes}, which {@link AnnotatedTypeScanner#visit}
-     * resets, so one instance is reusable.
+     * A reusable {@link TypeVarAnnotator}, parked between uses to avoid allocating one on every
+     * {@link #apply} call. {@code TypeVarAnnotator} is stateless apart from the scanner's {@code
+     * visitedNodes} (a lazily-allocated {@link java.util.IdentityHashMap}), which {@link
+     * AnnotatedTypeScanner#visit} resets, so one instance is reusable.
      *
      * <p>An {@link AtomicReference} rather than a plain field because {@link #apply} is {@code
      * static} and therefore shared across factories and threads (the Gradle daemon and language
