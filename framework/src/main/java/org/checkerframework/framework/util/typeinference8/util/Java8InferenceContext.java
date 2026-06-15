@@ -141,6 +141,10 @@ public class Java8InferenceContext {
     public void recordIncorporationWork(int amount) {
         incorporationWork += amount;
         if (incorporationWork > MAX_INCORPORATION_WORK) {
+            // The error's message (the work counts) is for debugging only; it is not surfaced to
+            // the user. DefaultTypeArgumentInference.inferTypeArgs catches this and reports the
+            // user-facing type.argument.inference.budget error, which explains the abandonment and
+            // suggests explicit type arguments without the (unactionable) work numbers.
             throw new InferenceBudgetExceededError(incorporationWork, MAX_INCORPORATION_WORK);
         }
     }

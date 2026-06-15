@@ -39,8 +39,8 @@ point is roughly cubic in the nesting depth of a generic invocation, so a single
 deeply nested (typically machine-generated) invocation could take many seconds or
 effectively hang the compiler. When the budget is exceeded, inference is abandoned
 soundly: a new `type.argument.inference.budget` error is reported (pointing the user at
-the fix -- supplying explicit type arguments at the call site) and a conservative
-(defaulted) return type is used so that checking continues. The default budget has
+the fix with a concrete example -- the explicit type arguments that javac inferred for the
+call) and a conservative (defaulted) return type is used so that checking continues. The default budget has
 roughly two orders of magnitude of headroom over the largest amount of work observed
 on hand-written code, so realistic programs are unaffected; the worst case (e.g. a
 30-deep nested generic call) drops from tens of seconds to bounded time.
@@ -66,6 +66,11 @@ allocating an `Iterator`.
 returns an element's primary annotations without the defensive deep copy that
 `fromElement` makes on every cache hit; for read-only callers that only need the
 primary annotations.
+
+`TreeUtils` has a new `inferredTypeArguments(ExpressionTree)` method that returns the
+Java types javac inferred for a generic method or constructor invocation's type
+variables (recovered by matching the declared signature against javac's instantiated
+method type); best-effort, for diagnostics.
 
 Performance: the annotated-JDK stub AST is now parsed once per JVM and shared
 across compilations instead of being re-parsed for every compilation. This speeds

@@ -17,7 +17,7 @@ public class InferenceWorkBudget {
         return x;
     }
 
-    Object tooDeeplyNested(Object x) {
+    String tooDeeplyNested(String x) {
         // :: error: (type.argument.inference.budget)
         return id(
                 id(

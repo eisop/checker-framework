@@ -2301,12 +2301,13 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         }
         if (args.inferenceBudgetExceeded()) {
             // Not a crash: inference was deliberately abandoned because the invocation is too
-            // complex. Point the user at the fix -- supplying explicit type arguments.
+            // complex. Point the user at the fix -- supplying explicit type arguments -- with a
+            // concrete example using the types javac inferred for this call.
             checker.reportError(
                     tree,
                     "type.argument.inference.budget",
                     ElementUtils.getSimpleDescription(methodType.getElement()),
-                    args.getErrorMsg());
+                    explicitTypeArgumentExample(tree, methodType));
             return false;
         }
         if (args.inferenceCrashed()) {
@@ -2323,6 +2324,42 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                 ElementUtils.getSimpleDescription(methodType.getElement()),
                 args == null ? "" : args.getErrorMsg());
         return false;
+    }
+
+    /**
+     * Returns a concrete example of an explicit type-argument invocation for a call whose annotated
+     * type arguments could not be inferred. For each type variable it suggests the Java type that
+     * javac inferred for this specific call (via {@link TreeUtils#inferredTypeArguments}), falling
+     * back to the type variable's upper bound where the value cannot be recovered. For example, for
+     * {@code <T> T id(T)} declared in {@code Foo}, the call {@code id("s")} yields {@code
+     * Foo.<String>id(...)}; an instance method uses {@code receiver.}; a generic constructor of
+     * {@code Foo} yields {@code new <...>Foo(...)}. Used by {@code type.argument.inference.budget}.
+     *
+     * @param tree the method-invocation, constructor, or member-reference tree
+     * @param methodType the method or constructor (before type-argument substitution) whose type
+     *     arguments could not be inferred
+     * @return a concrete explicit-type-argument example for the invocation
+     */
+    private String explicitTypeArgumentExample(
+            ExpressionTree tree, AnnotatedExecutableType methodType) {
+        Map<Element, TypeMirror> javacInferred = TreeUtils.inferredTypeArguments(tree);
+        StringJoiner typeArgs = new StringJoiner(", ", "<", ">");
+        for (AnnotatedTypeVariable typeVar : methodType.getTypeVariables()) {
+            TypeMirror value = javacInferred.get(typeVar.getUnderlyingType().asElement());
+            if (value == null || value.getKind() == TypeKind.NULL) {
+                value = typeVar.getUpperBound().getUnderlyingType();
+            }
+            typeArgs.add(TypesUtils.simpleTypeName(value));
+        }
+        ExecutableElement elt = methodType.getElement();
+        if (elt.getKind() == ElementKind.CONSTRUCTOR) {
+            return "new " + typeArgs + elt.getEnclosingElement().getSimpleName() + "(...)";
+        }
+        String qualifier =
+                elt.getModifiers().contains(Modifier.STATIC)
+                        ? elt.getEnclosingElement().getSimpleName().toString()
+                        : "receiver";
+        return qualifier + "." + typeArgs + elt.getSimpleName() + "(...)";
     }
 
     /**
