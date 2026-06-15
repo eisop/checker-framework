@@ -228,9 +228,11 @@ jobs:
           - {script: 'typecheck-part2', java: {version: '26'}}
           - {script: 'guava',           java: {version: '8'}}
           - {script: 'guava',           java: {version: '26'}}
-          # plume-lib and misc only on newest stable (26)
+          # plume-lib, misc, and jspecify tests only on newest stable (26)
           - {script: 'plume-lib',       java: {version: '26'}}
           - {script: 'misc',            java: {version: '26'}}
+          - {script: 'jspecify-conformance', java: {version: '26'}}
+          - {script: 'jspecify-reference-checker', java: {version: '26'}}
           # Daikon produces 'this-escape' warnings in JDK 22+. Only JDK 17.
           - {script: 'daikon-part1',    java: {version: '17'}}
           - {script: 'daikon-part2',    java: {version: '17'}}
