@@ -1042,9 +1042,9 @@ subprojects {
     // That file does not exist unless framework:shadowJar has run, causing UnusedTracker to
     // throw "neither file nor directory".  Mark it non-consumable so Gradle always uses the
     // standard runtimeElements variant (framework.jar) for inter-project resolution.
-    configurations.configureEach { Configuration c ->
-        if (c.name == 'shadowRuntimeElements') {
-            c.canBeConsumed = false
+    afterEvaluate {
+        configurations.named('shadowRuntimeElements').configure {
+            canBeConsumed = false
         }
     }
 
