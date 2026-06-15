@@ -33,11 +33,15 @@ import javax.lang.model.element.VariableElement;
  */
 public class AnalysisResult<V extends AbstractValue<V>, S extends Store<S>> implements UniqueId {
 
+    /** Whether {@link #nodeValues} has been replaced with a private mutable copy. */
+    private boolean nodeValuesCopied = false;
+
     /**
-     * For efficiency, certain maps stored in the result are only copied lazily, when they need to
-     * be mutated. This flag tracks if the copying has occurred.
+     * Whether {@link #treeLookup} and {@link #postfixLookup} have been replaced with private
+     * mutable copies. {@link #nodeValues} is tracked separately (see {@link #nodeValuesCopied}) so
+     * post-analysis spot queries don't pay for copying these two maps unnecessarily.
      */
-    private boolean mapsCopied = false;
+    private boolean otherMapsCopied = false;
 
     /** Abstract values of nodes. */
     protected IdentityHashMap<Node, V> nodeValues;
@@ -165,13 +169,21 @@ public class AnalysisResult<V extends AbstractValue<V>, S extends Store<S>> impl
         finalLocalValues.putAll(other.finalLocalValues);
     }
 
-    /** Make copies of certain internal IdentityHashMaps, if they have not been copied already. */
-    private void copyMapsIfNeeded() {
-        if (!mapsCopied) {
+    /** Replace {@link #nodeValues} with a private mutable copy if not already done. */
+    private void copyNodeValuesIfNeeded() {
+        if (!nodeValuesCopied) {
             nodeValues = new IdentityHashMap<>(nodeValues);
+            nodeValuesCopied = true;
+        }
+    }
+
+    /** Make private mutable copies of all three lookup maps, if not already done. */
+    private void copyMapsIfNeeded() {
+        copyNodeValuesIfNeeded();
+        if (!otherMapsCopied) {
             treeLookup = new IdentityHashMap<>(treeLookup);
             postfixLookup = new IdentityHashMap<>(postfixLookup);
-            mapsCopied = true;
+            otherMapsCopied = true;
         }
     }
 
@@ -279,10 +291,11 @@ public class AnalysisResult<V extends AbstractValue<V>, S extends Store<S>> impl
      *     or decrement tree
      */
     public BinaryTree getPostfixBinaryTree(UnaryTree postfixTree) {
-        if (!postfixLookup.containsKey(postfixTree)) {
+        BinaryTree result = postfixLookup.get(postfixTree);
+        if (result == null) {
             throw new BugInCF(postfixTree + " is not in postfixLookup");
         }
-        return postfixLookup.get(postfixTree);
+        return result;
     }
 
     /**
@@ -453,7 +466,7 @@ public class AnalysisResult<V extends AbstractValue<V>, S extends Store<S>> impl
         // map without copying it.  So here the AnalysisResult maps must be copied, to preserve
         // them.
         // TODO: Wouldn't it be safer to do at the beginning of the called method?
-        copyMapsIfNeeded();
+        copyNodeValuesIfNeeded();
         return runAnalysisFor(node, preOrPost, transferInput, nodeValues, analysisCaches);
     }
 

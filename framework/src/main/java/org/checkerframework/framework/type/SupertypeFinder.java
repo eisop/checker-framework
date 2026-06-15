@@ -249,7 +249,7 @@ final class SupertypeFinder {
             List<? extends TypeParameterElement> typeParams =
                     enclosingTypeElement.getTypeParameters();
             List<AnnotatedTypeMirror> typeArgs = type.getTypeArguments();
-            for (int i = 0; i < type.getTypeArguments().size(); ++i) {
+            for (int i = 0, n = typeArgs.size(); i < n; ++i) {
                 AnnotatedTypeMirror typArg = typeArgs.get(i);
                 TypeParameterElement ele = typeParams.get(i);
                 mapping.put((TypeVariable) ele.asType(), typArg);

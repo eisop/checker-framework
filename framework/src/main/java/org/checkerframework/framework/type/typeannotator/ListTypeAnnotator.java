@@ -54,8 +54,8 @@ public final class ListTypeAnnotator extends TypeAnnotator {
 
     @Override
     protected Void scan(AnnotatedTypeMirror type, Void aVoid) {
-        for (TypeAnnotator annotator : annotators) {
-            annotator.visit(type, aVoid);
+        for (int i = 0, n = annotators.size(); i < n; ++i) {
+            annotators.get(i).visit(type, aVoid);
         }
 
         return null;

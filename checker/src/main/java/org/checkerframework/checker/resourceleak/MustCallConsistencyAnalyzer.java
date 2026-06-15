@@ -827,7 +827,9 @@ public class MustCallConsistencyAnalyzer {
             return false;
         }
         if (enclosingTarget instanceof ThisReference && target instanceof ThisReference) {
-            return enclosingTarget.getType().toString().equals(target.getType().toString());
+            return checker.getProcessingEnvironment()
+                    .getTypeUtils()
+                    .isSameType(enclosingTarget.getType(), target.getType());
         } else {
             return enclosingTarget.equals(target);
         }
@@ -2478,7 +2480,7 @@ public class MustCallConsistencyAnalyzer {
      */
     private void incrementMustCallImpl(TypeMirror type) {
         // only count uses of JDK classes, since that's what the paper reported
-        if (!isJdkClass(TypesUtils.getTypeElement(type).getQualifiedName().toString())) {
+        if (!isJdkClass(ElementUtils.getQualifiedName(TypesUtils.getTypeElement(type)))) {
             return;
         }
         checker.numMustCall++;
