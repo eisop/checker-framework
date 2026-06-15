@@ -1446,6 +1446,21 @@ the prior finding. A fresh hypothesis is not new evidence.
   *count* of (variable × bound × fixpoint-iteration) tuples the JLS-18 incorporation fixpoint
   processes. The only direction that could change the complexity is in the Short list.
 
+- **`MethodInvocationNode.hashCode()`'s `Objects.hash` varargs allocation (June 2026).** `hashCode`
+  uses `Objects.hash(target, arguments)`, the varargs `Object[]` antipattern called out in Applied
+  optimizations. Raised as a possible hot-path allocation because `Node` hash/equals *could* back the
+  dataflow worklists and stores. **Rejected — the structural override is never reached in production.**
+  (1) Self-time: **0 of 14,812** `ExecutionSample`s across the realistic traces. (2) Static
+  reachability: every `Node`-keyed map in the dataflow analysis — `AbstractAnalysis.nodeValues` /
+  `syncedFrom`, the per-input analysis caches, `ForwardAnalysisImpl.storesAtReturnStatements`,
+  `AnalysisResult.nodeValues` — is an `IdentityHashMap`, and the `Set<Node>` values
+  (`treeLookup`/CFG-build) are `IdentityArraySet`; both use `System.identityHashCode`/`==` and **never
+  call the structural `hashCode`/`equals`**. The only structural `Map<Node, _>` is
+  `ConstantPropagationStore.contents` (`LinkedHashMap`) — the *example* constant-propagation analysis,
+  not used by any production checker. So the varargs `Object[]` never allocates during real checking;
+  there is nothing to optimize. Lesson: confirm a structural `hashCode` is actually invoked (the
+  collection must be a structural, not identity, map) before treating it as an allocation source.
+
 - **Meta-annotation read cache (June 2026, PR #1803 session).** A proposed cache memoizing
   `annotation.getAnnotationType().asElement().getAnnotationMirrors()` (e.g. an instance
   `IdentityHashMap<TypeElement, AnnotationMirrorSet>` in `AnnotatedTypeFactory`) to avoid
@@ -1515,11 +1530,23 @@ format: hot method, hypothesis, blockers/open questions.
      the inclusive or self-time profile at all; the inference problems are tiny). So caching saves
      essentially nothing on any workload: useless where it is expensive, free-but-cheap where it is
      redundant. Do not pursue.
-  2. **`saveBounds()` snapshots *all* variables every resolution round (~3.2%).**
-     `Resolution.resolveSmallestSet` does `new BoundSet(...)` + `saveBounds()` (copying all six bound
-     sets of every variable) as rollback insurance, then discards it whenever `resolveWithoutCapture`
-     succeeds — the common case. Only the variables actually mutated by the attempt need saving.
-     Medium risk (must save a superset of what is mutated), low-medium value.
+  2. **`saveBounds()` snapshots *all* variables every resolution round — MEASURED AND REJECTED
+     (June 2026, post-#1805).** `Resolution.resolveSmallestSet` does `new BoundSet(...)` +
+     `saveBounds()` (each `VariableBounds.save` allocates 2 `EnumMap`s + 6 `LinkedHashSet` copies, for
+     *every* variable in the bound set) as rollback insurance, then discards it whenever
+     `resolveWithoutCapture` succeeds — the common case. The standing hypothesis was that this ~3.2%
+     could be cut by saving only the mutated subset (medium risk: must save a superset of what is
+     mutated). **Re-traced against the current baseline and the ~3.2% no longer reproduces:**
+     `saveBounds`/`VariableBounds.save` is **0% self-time** on maximally inference-heavy
+     deep-nesting workloads at *both* depth-8 (0/3,368 samples — the original condition) and depth-20
+     (1/28,193). The ~3.2% figure predated PR #1805; its `allBoundsProper` skip + work budget moved
+     the cost entirely into incorporation (`incorporateToFixedPoint` 47–71%,
+     `applyInstantiationsToBounds` 23%), and `resolveSmallestSet`'s inclusive time is now fully
+     accounted for by `resolveWithoutCapture`'s *re-incorporation*, not the snapshot. A lazy/COW save
+     would chase a ~0% cost. (CPU measured via `settings=profile`; allocation not directly TLAB-traced,
+     but overall GC is ~1.7% on this workload, bounding the snapshot's allocation small.) Do not pursue
+     without new evidence on a workload where the snapshot itself is shown to be a hotspot. Lesson
+     (again): re-trace before acting on a logged percentage — #1805 overtook this one.
   3. **`getInstantiatedVariables()` recomputed every resolution round (O(V²)).** The `resolve` loop
      rebuilds the resolved-variable set (full scan + fresh `LinkedHashSet`) each round. Incremental
      maintenance is possible but complicated by backtracking (`restore()` un-instantiates variables,
@@ -1595,14 +1622,6 @@ format: hot method, hypothesis, blockers/open questions.
   `isSupportedQualifier`, `AnnotationFileElementTypes`, and
   `normalizeAndCheck`. Still needs the thread-reachability audit and daemon/LSP
   memory analysis before any change.
-- **`MethodInvocationNode.hashCode()` uses `Objects.hash(target, arguments)`.** That is the
-  varargs `Object[]` + autoboxing antipattern called out in Applied optimizations ("avoid
-  `Objects.hash`/`Arrays.hashCode` on hot paths") — each call allocates an `Object[]`. `Node`
-  hash/equals back the dataflow worklists and stores, so it *may* be hot; but most dataflow maps are
-  `IdentityHashMap` (identity, not structural), so first confirm with a JFR/alloc capture that
-  `MethodInvocationNode.hashCode` is actually reached. If so, replace with `31 * target.hashCode() +
-  arguments.hashCode()` (the field is immutable, so it could be precomputed). Spotted while auditing
-  `MethodInvocationNode` during the PR #1788 session; not yet measured.
 - **Maintained content hash on `CFAbstractStore` to make same-size `equals` O(1).** The only way to
   rescue the rejected equal-store merge short-circuit (see Tried and rejected): the residual cost is
   the same-size/different-value `supersetOf` walk, which a running content hash — updated incrementally
