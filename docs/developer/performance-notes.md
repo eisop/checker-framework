@@ -1479,14 +1479,25 @@ format: hot method, hypothesis, blockers/open questions.
   an expression's type can depend on context (assignment context, capture, the in-progress flow
   store) — but "can depend" ≠ "always differs", and 10× says most recomputations return the same
   thing. Directions, best risk/reward first:
-  1. **Per-analysis `getValueFromFactory` memo (narrow, planned next after PR #1805 merges).**
+  1. **Per-analysis `getValueFromFactory` memo — MEASURED AND REJECTED (June 2026).** Hypothesis:
      `CFAbstractTransfer.getValueFromFactory` (~19% inclusive) re-queries the same nodes every
-     CFG-fixpoint iteration; the *factory* (un-refined) type is stable for the duration of one
-     analysis. Memoize it per node, cleared when the analysis ends. Narrowest scope, well-defined
-     invalidation point. **First measure** how much of the 10× is the dataflow re-query path vs the
-     visitor, and confirm the factory value is actually stable across one analysis (it may consult
-     the store for subexpressions — the soundness crux). Validate with a cache-vs-recompute verify
-     harness (same methodology as the `allBoundsProper` skip) across `alltests`.
+     CFG-fixpoint iteration with a flow-stable factory value, so a per-analysis per-node memo would
+     remove the redundancy. Instrumented `getAnnotatedType` (a flag set around the body of
+     `getValueFromFactory`, plus a per-analysis tree→type map cleared at each
+     `CFAbstractAnalysis.performAnalysis`) and measured on real (all-systems 120 and 269 files) and
+     artificial (straight-line, nested-loop) workloads. Two findings killed it:
+     (a) **The cacheable redundancy is small.** Per-*analysis* dataflow redundancy is only ~2.0× on
+     real code and 1.2–1.4× on artificial — *not* the ~10× headline, which conflated cross-analysis
+     and visitor calls (a tree queried in 10 different methods is not per-analysis-cacheable). The
+     gvff path is ~43% of all `getAnnotatedType` calls and ~43% of those are per-analysis repeats, so
+     the memo's theoretical ceiling is ~18% of `getAnnotatedType` calls — before soundness.
+     (b) **The factory value is not stable within one analysis, so the memo would be unsound.** Of
+     the repeated gvff queries, ~8% return a *different* type on real code and ~18% in loop-heavy
+     code, because `getAnnotatedType` consults the evolving flow store for subexpressions (the type
+     of `a.b` depends on the refined type of `a`, which changes across fixpoint iterations) — exactly
+     the soundness crux flagged here. And the instability is *highest where the redundancy is
+     highest* (loops). A per-analysis memo would cache stale/wrong types; a per-*iteration* memo would
+     be sound but the within-iteration redundancy is ~0. Low value and unsound — do not pursue.
   2. **Scope-bounded expression-type cache** (per visitor-subtree) — broader, same soundness crux.
   3. **Split flow-independent structure from flow-dependent annotations.** `fromExpression` (~24%
      inclusive) builds a deterministic-per-tree skeleton; cache the frozen skeleton and re-apply only
