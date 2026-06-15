@@ -1446,6 +1446,38 @@ the prior finding. A fresh hypothesis is not new evidence.
   *count* of (variable × bound × fixpoint-iteration) tuples the JLS-18 incorporation fixpoint
   processes. The only direction that could change the complexity is in the Short list.
 
+- **Meta-annotation read cache (June 2026, PR #1803 session).** A proposed cache memoizing
+  `annotation.getAnnotationType().asElement().getAnnotationMirrors()` (e.g. an instance
+  `IdentityHashMap<TypeElement, AnnotationMirrorSet>` in `AnnotatedTypeFactory`) to avoid
+  re-reading an annotation type's meta-annotations. **Below the noise floor and rejected.** On
+  the 99 MB `checknullness` worker trace (11,691 on-CPU samples): all `getAnnotationMirrors`
+  meta-reads = 18 samples (**0.15%**); `getDeclAnnotationWithMetaAnnotation` (contracts/WPI) =
+  0.14%; `getAnnotationWithMetaAnnotation` (the `CFAbstractStore` monotonic path, already guarded
+  by `getSupportedMonotonicTypeQualifiers().isEmpty()`) = 0.03% — the same magnitude as the
+  rejected `getEffectiveAnnotations` false-hotspot (0.05%). The only warm neighbor is
+  `inheritOverriddenDeclAnnos` (2.59%), but its self-time is `overriddenMethods()` /
+  `getDeclAnnotations` (`apiComplete`, `ElementFilter`, `Scope` walks), **not** the meta-read — so
+  if this area is ever revisited, cache that path, not the meta-annotation lookup.
+
+- **Copy-on-write / lazy-share for `CFAbstractStore` maps (June 2026, PR #1803 session).** A
+  copy-on-write scheme for `CFAbstractStore` (in `framework.flow`, distinct from the ATM
+  copy-on-write discussed in the Short list) — share the five backing maps between a store and its
+  copy until a mutation forces `ensureUnshared()`. Conceptually valid but **not worth it for this
+  workload.** On the `NullnessTest` slice (aggregated worker traces): `createCopiedStore` (the
+  store-copy entry point) = **0.09%** CPU; the `CFAbstractStore` copy constructor is 2.45% of
+  `HashMap$Node` allocation and `HashMap$Node` is 1.34% of total allocation, so store-copy is
+  **<0.1% of total allocation**. (A "copy" frame shows 11.7%, but that catches every `.copy()` in
+  the framework, not store copies — misleading.) It can't pay off here because (1) stores track few
+  locals/fields, so `new HashMap<>(other)` is already cheap, and (2) most copies are immediately
+  mutated — the fixpoint copies precisely to refine the then/else/transfer stores — so
+  `ensureUnshared()` fires anyway and only adds a per-mutation branch. The surface is also large and
+  failure-silent: five maps with ~22 put/remove plus ~10 iterator-`remove()` sites to guard (plus a
+  leaky `getFieldValues()`); a single missed guard is silent wrong dataflow everywhere (the
+  `AnnotationMirrorSet#addAll` class of bug). Real dataflow allocation lives elsewhere (`[B` UTF-8
+  Name decode ~28%, `Object[]` ~13%, `AnnotationMirrorSet` ~2%), none of which COW touches. The
+  only sanctioned rescue in this basin is a maintained incremental content-hash on `CFAbstractStore`
+  (see the Short list and the rejected equal-store merge short-circuit above), memory-A/B-gated.
+
 ---
 
 ## Short list
