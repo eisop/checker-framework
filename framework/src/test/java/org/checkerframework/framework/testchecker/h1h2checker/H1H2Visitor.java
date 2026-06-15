@@ -17,11 +17,17 @@ import org.checkerframework.javacutil.AnnotationBuilder;
 
 import javax.lang.model.element.AnnotationMirror;
 
+/** Visitor for {@link H1H2Checker}. */
 public class H1H2Visitor extends BaseTypeVisitor<H1H2AnnotatedTypeFactory> {
 
     /** Variable name used by {@code CommonAssignmentReturn} to exercise invalid LHS validation. */
     private static final String COMMON_ASSIGNMENT_INVALID_LHS = "commonAssignmentInvalid";
 
+    /**
+     * Creates an {@link H1H2Visitor}.
+     *
+     * @param checker the associated checker
+     */
     public H1H2Visitor(BaseTypeChecker checker) {
         super(checker);
     }
