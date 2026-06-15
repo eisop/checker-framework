@@ -823,14 +823,9 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         // Set of polymorphic qualifiers for hierarchies that do not have a qualifier parameter and
         // therefore cannot appear on a field.
         AnnotationMirrorSet illegalOnFieldsPolyQual = new AnnotationMirrorSet();
-        // Set of polymorphic annotations for all hierarchies
-        AnnotationMirrorSet polys = new AnnotationMirrorSet();
         TypeElement classElement = TreeUtils.elementFromDeclaration(classTree);
         for (AnnotationMirror top : qualHierarchy.getTopAnnotations()) {
             AnnotationMirror poly = qualHierarchy.getPolymorphicAnnotation(top);
-            if (poly != null) {
-                polys.add(poly);
-            }
             // else {
             // If there is no polymorphic qualifier in the hierarchy, it could still have a
             // @HasQualifierParameter that must be checked.
@@ -879,7 +874,9 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                 if (ElementUtils.isStatic(TreeUtils.elementFromDeclaration((VariableTree) mem))) {
                     // A polymorphic qualifier is not allowed on a static field even if the class
                     // has a qualifier parameter.
-                    hasInvalidPoly = hasInvalidPolyScanner.visit(fieldType, polys);
+                    hasInvalidPoly =
+                            hasInvalidPolyScanner.visit(
+                                    fieldType, qualHierarchy.getPolymorphicAnnotations());
                 } else {
                     hasInvalidPoly =
                             hasInvalidPolyScanner.visit(fieldType, illegalOnFieldsPolyQual);
@@ -4218,47 +4215,60 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                 atypeFactory.methodFromUseWithoutTypeArgInference(tree);
         List<AnnotatedTypeMirror> declaredTypeArgs =
                 methodDefPreSubstitution.executableType.getReceiverType().getTypeArguments();
-        // Skip the check only if both:
-        // calling receiver type argument has different bounds, i.e. has wildcard or type
-        // variable as type argument AND declared receiver's type argument has poly annotation.
-        // See checker/tests/nullness-genericwildcard/PolyQualifierOnTypeArgument.java.
+
+        AnnotatedDeclaredType methodReceiver = method.getReceiverType();
         AnnotatedTypeMirror treeReceiver = atypeFactory.getReceiverType(tree);
-        if (treeReceiver instanceof AnnotatedDeclaredType) {
-            AnnotatedDeclaredType treeReceiverDeclared = (AnnotatedDeclaredType) treeReceiver;
+        AnnotatedDeclaredType receiverToCheck = methodReceiver;
+
+        AnnotatedTypeMirror asSuper =
+                AnnotatedTypes.asSuper(atypeFactory, treeReceiver, methodReceiver);
+        if (asSuper instanceof AnnotatedDeclaredType) {
+            AnnotatedDeclaredType treeReceiverDeclared = (AnnotatedDeclaredType) asSuper;
             List<AnnotatedTypeMirror> callingTypeArgs = treeReceiverDeclared.getTypeArguments();
 
-            boolean callingHasWildcard = false;
-            for (AnnotatedTypeMirror typeArg : callingTypeArgs) {
-                if (typeArg.getKind() == TypeKind.WILDCARD
-                        || typeArg.getKind() == TypeKind.TYPEVAR) {
-                    callingHasWildcard = true;
-                    break;
-                }
-            }
+            if (!declaredTypeArgs.isEmpty() && callingTypeArgs.size() == declaredTypeArgs.size()) {
+                boolean needsSubstitution = false;
+                List<AnnotatedTypeMirror> newMethodTypeArgs =
+                        new java.util.ArrayList<>(methodReceiver.getTypeArguments());
 
-            if (callingHasWildcard && !declaredTypeArgs.isEmpty()) {
-                // Check if declared type args have poly annotation
-                for (AnnotationMirror top : qualHierarchy.getTopAnnotations()) {
-                    AnnotationMirror poly = qualHierarchy.getPolymorphicAnnotation(top);
-                    if (poly == null) {
-                        continue;
-                    }
-                    for (AnnotatedTypeMirror typeArg : declaredTypeArgs) {
-                        if (typeArg.hasAnnotation(poly)) {
-                            return; // Skip check only if both conditions met
+                for (int i = 0; i < callingTypeArgs.size(); ++i) {
+                    AnnotatedTypeMirror callingArg = callingTypeArgs.get(i);
+                    AnnotatedTypeMirror declaredArg = declaredTypeArgs.get(i);
+
+                    if (callingArg.getKind() == TypeKind.WILDCARD
+                            || callingArg.getKind() == TypeKind.TYPEVAR) {
+
+                        boolean hasPoly = false;
+                        for (AnnotationMirror methodPoly :
+                                qualHierarchy.getPolymorphicAnnotations()) {
+                            if (declaredArg.hasAnnotation(methodPoly)) {
+                                hasPoly = true;
+                                break;
+                            }
+                        }
+
+                        if (hasPoly) {
+                            // Relax the receiver check for this type argument by replacing it
+                            // with the calling type argument. This avoids unsoundly skipping
+                            // the entire receiver check.
+                            newMethodTypeArgs.set(i, callingArg);
+                            needsSubstitution = true;
                         }
                     }
+                }
+
+                if (needsSubstitution) {
+                    receiverToCheck = methodReceiver.deepCopy(true);
+                    receiverToCheck.setTypeArguments(newMethodTypeArgs);
                 }
             }
         }
 
-        AnnotatedDeclaredType methodReceiver = method.getReceiverType();
-
-        if (!skipReceiverSubtypeCheck(tree, methodReceiver, treeReceiver)) {
+        if (!skipReceiverSubtypeCheck(tree, receiverToCheck, treeReceiver)) {
             // The diagnostic can be a bit misleading because the check is of the receiver but
             // `tree` is the entire method invocation (where the receiver might be implicit).
             commonAssignmentCheckStartDiagnostic(methodReceiver, treeReceiver, tree);
-            boolean success = typeHierarchy.isSubtype(treeReceiver, methodReceiver);
+            boolean success = typeHierarchy.isSubtype(treeReceiver, receiverToCheck);
             commonAssignmentCheckEndDiagnostic(success, null, methodReceiver, treeReceiver, tree);
             if (!success) {
                 // Don't report the erased types because they show up with '</*RAW*/>' as type args.
