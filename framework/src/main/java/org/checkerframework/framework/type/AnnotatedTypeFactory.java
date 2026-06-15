@@ -2128,6 +2128,15 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
                 // TODO: is this correct for type variables and wildcards?
                 supertype.addAnnotations(annotations);
             }
+            if (viewpointAdapter != null) {
+                AnnotatedTypeMirror adapted = viewpointAdapter.viewpointAdaptType(type, supertype);
+                supertype.replaceAnnotations(adapted.getAnnotationsField());
+                if (supertype.getKind() == TypeKind.DECLARED) {
+                    AnnotatedDeclaredType superDeclared = (AnnotatedDeclaredType) supertype;
+                    superDeclared.setTypeArguments(
+                            ((AnnotatedDeclaredType) adapted).getTypeArguments());
+                }
+            }
         }
     }
 

@@ -90,7 +90,10 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.EnumSet;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.StringJoiner;
 import java.util.regex.Pattern;
@@ -106,6 +109,7 @@ import javax.lang.model.element.NestingKind;
 import javax.lang.model.element.PackageElement;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
+import javax.lang.model.type.ArrayType;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.ExecutableType;
 import javax.lang.model.type.TypeKind;
@@ -1996,6 +2000,95 @@ public final class TreeUtils {
                     type);
         }
         return (ExecutableType) type;
+    }
+
+    /**
+     * Returns the type arguments that javac inferred for the generic method or constructor invoked
+     * by {@code tree}, as a map from each method type-parameter element to its inferred type. Only
+     * type variables that appear structurally in a parameter or return type are recovered, by
+     * matching the declared signature against javac's instantiated method type ({@link
+     * #typeFromUse}); any others are absent. Returns an empty map for a member reference, a
+     * non-generic method, or if the instantiated type is unavailable.
+     *
+     * <p>This is best-effort, for diagnostics; it is not a substitute for full type-argument
+     * inference. The keys are type-parameter elements (rather than {@link TypeVariable}s) because
+     * {@code TypeVariable} uses identity equality.
+     *
+     * @param tree a method-invocation or new-class tree
+     * @return a map from each recovered type-parameter element to its javac-inferred type
+     */
+    public static Map<Element, TypeMirror> inferredTypeArguments(ExpressionTree tree) {
+        ExecutableType instantiated;
+        try {
+            if (tree instanceof MethodInvocationTree) {
+                instantiated = typeFromUse((MethodInvocationTree) tree);
+            } else if (tree instanceof NewClassTree) {
+                instantiated = typeFromUse((NewClassTree) tree);
+            } else {
+                return Collections.emptyMap(); // e.g. a member reference: nothing to read
+            }
+        } catch (RuntimeException e) {
+            return Collections.emptyMap(); // best-effort
+        }
+        Element element = elementFromUse(tree);
+        if (!(element instanceof ExecutableElement)) {
+            return Collections.emptyMap();
+        }
+        ExecutableType generic = (ExecutableType) element.asType();
+        List<? extends TypeVariable> typeVars = generic.getTypeVariables();
+        if (typeVars.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        Set<Element> typeVarElements = new HashSet<>();
+        for (TypeVariable typeVar : typeVars) {
+            typeVarElements.add(typeVar.asElement());
+        }
+        Map<Element, TypeMirror> result = new HashMap<>();
+        matchTypeVariables(
+                generic.getReturnType(), instantiated.getReturnType(), typeVarElements, result);
+        List<? extends TypeMirror> genericParams = generic.getParameterTypes();
+        List<? extends TypeMirror> instParams = instantiated.getParameterTypes();
+        for (int i = 0; i < Math.min(genericParams.size(), instParams.size()); ++i) {
+            matchTypeVariables(genericParams.get(i), instParams.get(i), typeVarElements, result);
+        }
+        return result;
+    }
+
+    /**
+     * Structurally matches a generic type against its instantiation, recording, for each type
+     * variable in {@code typeVarElements} that {@code generic} mentions, the corresponding subterm
+     * of {@code instantiated}. Helper for {@link #inferredTypeArguments}.
+     *
+     * @param generic a (possibly generic) type from a declared method signature
+     * @param instantiated the corresponding type from javac's instantiated method type
+     * @param typeVarElements the elements of the type variables to recover
+     * @param result accumulates type-variable element to inferred type
+     */
+    private static void matchTypeVariables(
+            TypeMirror generic,
+            TypeMirror instantiated,
+            Set<Element> typeVarElements,
+            Map<Element, TypeMirror> result) {
+        if (generic.getKind() == TypeKind.TYPEVAR) {
+            Element elt = ((TypeVariable) generic).asElement();
+            if (typeVarElements.contains(elt)) {
+                result.putIfAbsent(elt, instantiated);
+            }
+        } else if (generic.getKind() == TypeKind.DECLARED
+                && instantiated.getKind() == TypeKind.DECLARED) {
+            List<? extends TypeMirror> genericArgs = ((DeclaredType) generic).getTypeArguments();
+            List<? extends TypeMirror> instArgs = ((DeclaredType) instantiated).getTypeArguments();
+            for (int i = 0; i < Math.min(genericArgs.size(), instArgs.size()); ++i) {
+                matchTypeVariables(genericArgs.get(i), instArgs.get(i), typeVarElements, result);
+            }
+        } else if (generic.getKind() == TypeKind.ARRAY
+                && instantiated.getKind() == TypeKind.ARRAY) {
+            matchTypeVariables(
+                    ((ArrayType) generic).getComponentType(),
+                    ((ArrayType) instantiated).getComponentType(),
+                    typeVarElements,
+                    result);
+        }
     }
 
     /**

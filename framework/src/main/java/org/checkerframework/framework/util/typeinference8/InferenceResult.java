@@ -52,6 +52,14 @@ public class InferenceResult {
     /** Whether inference crashed. */
     private final boolean inferenceCrashed;
 
+    /**
+     * Whether inference was abandoned because it exceeded its work budget (see {@link
+     * org.checkerframework.framework.util.typeinference8.util.Java8InferenceContext#MAX_INCORPORATION_WORK}).
+     * This is a deliberate give-up, not a crash; the return type is defaulted just as for a crash
+     * so that checking can continue soundly.
+     */
+    private final boolean inferenceBudgetExceeded;
+
     /** If {@code annoInferenceFailed}, then this is the error message to report to the user. */
     private final String errorMsg;
 
@@ -69,7 +77,7 @@ public class InferenceResult {
             boolean uncheckedConversion,
             boolean annoInferenceFailed,
             String errorMsg) {
-        this(variables, uncheckedConversion, annoInferenceFailed, false, errorMsg);
+        this(variables, uncheckedConversion, annoInferenceFailed, false, false, errorMsg);
     }
 
     /**
@@ -88,11 +96,39 @@ public class InferenceResult {
             boolean annoInferenceFailed,
             boolean inferenceCrashed,
             String errorMsg) {
+        this(
+                variables,
+                uncheckedConversion,
+                annoInferenceFailed,
+                inferenceCrashed,
+                false,
+                errorMsg);
+    }
+
+    /**
+     * Creates an inference result.
+     *
+     * @param variables instantiated variables
+     * @param uncheckedConversion where unchecked conversion was required to infer the type
+     *     arguments
+     * @param annoInferenceFailed whether inference failed because of annotations
+     * @param inferenceCrashed the type argument inference code crashed
+     * @param inferenceBudgetExceeded inference was abandoned because it exceeded its work budget
+     * @param errorMsg message to report to users if inference failed
+     */
+    public InferenceResult(
+            Collection<Variable> variables,
+            boolean uncheckedConversion,
+            boolean annoInferenceFailed,
+            boolean inferenceCrashed,
+            boolean inferenceBudgetExceeded,
+            String errorMsg) {
         this.results = convert(variables);
         this.uncheckedConversion = uncheckedConversion;
         this.annoInferenceFailed = annoInferenceFailed;
         this.errorMsg = errorMsg;
         this.inferenceCrashed = inferenceCrashed;
+        this.inferenceBudgetExceeded = inferenceBudgetExceeded;
     }
 
     /**
@@ -132,6 +168,27 @@ public class InferenceResult {
      */
     public boolean inferenceCrashed() {
         return inferenceCrashed;
+    }
+
+    /**
+     * Whether inference was abandoned because it exceeded its work budget. This is a deliberate
+     * give-up (the invocation is too complex to infer), not a crash.
+     *
+     * @return whether inference exceeded its work budget
+     */
+    public boolean inferenceBudgetExceeded() {
+        return inferenceBudgetExceeded;
+    }
+
+    /**
+     * Whether the return type must be defaulted because inference did not produce usable type
+     * arguments (it crashed or was abandoned for exceeding its budget). In that case the inferred
+     * return type would not have the correct Java type, which can crash later framework code.
+     *
+     * @return whether the return type must be defaulted
+     */
+    public boolean needsDefaultedReturnType() {
+        return inferenceCrashed || inferenceBudgetExceeded;
     }
 
     /**
