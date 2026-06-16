@@ -205,7 +205,7 @@ public abstract class CFAbstractValue<V extends CFAbstractValue<V>> implements A
         if (!hashCodeComputed) {
             int h = annotations.hashCode();
             h = 31 * h + (underlyingType == null ? 0 : underlyingType.hashCode());
-            hashCodeCache = h;
+            hashCodeCache = h == 0 ? 1 : h;
             hashCodeComputed = true;
         }
         return hashCodeCache;
