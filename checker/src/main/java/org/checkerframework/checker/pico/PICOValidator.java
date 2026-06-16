@@ -18,9 +18,8 @@ import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.TreePathUtil;
 import org.checkerframework.javacutil.TreeUtils;
 
-import java.util.Objects;
-
 import javax.lang.model.element.ElementKind;
+import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.TypeKind;
 
@@ -59,33 +58,51 @@ public class PICOValidator extends BaseTypeValidator {
     @Override
     protected boolean shouldCheckTopLevelDeclaredOrPrimitiveType(
             AnnotatedTypeMirror type, Tree tree) {
-        // allow RDM on mutable fields with enclosing class bounded with mutable
-        if (tree instanceof VariableTree) {
-            VariableElement element = TreeUtils.elementFromDeclaration((VariableTree) tree);
-            if (element.getKind() == ElementKind.FIELD
-                    && ElementUtils.enclosingTypeElement(element) != null) {
-                @Immutable AnnotationMirrorSet enclosingBound =
-                        atypeFactory.getTypeDeclarationBounds(
-                                Objects.requireNonNull(ElementUtils.enclosingTypeElement(element))
-                                        .asType());
-
-                @Immutable AnnotationMirrorSet declaredBound =
-                        atypeFactory.getTypeDeclarationBounds(type.getUnderlyingType());
-
-                if (AnnotationUtils.containsSameByName(declaredBound, picoTypeFactory.MUTABLE)
-                        && type.hasAnnotation(picoTypeFactory.RECEIVER_DEPENDENT_MUTABLE)
-                        && AnnotationUtils.containsSameByName(
-                                enclosingBound, picoTypeFactory.MUTABLE)) {
-                    return false;
-                }
-            }
+        if (isReceiverDependentUseOfMutableFieldInMutableClass(type, tree)) {
+            return false;
         }
-        // COPY from SUPER
         if (type.getKind() != TypeKind.DECLARED && !type.getKind().isPrimitive()) {
             return true;
         }
-        // Do not call super because BaseTypeValidator will don't check local variable declaration
+        // Unlike BaseTypeValidator, PICO still checks local variable declarations.
         return !TreeUtils.isExpressionTree(tree) || TreeUtils.isTypeTree(tree);
+    }
+
+    /**
+     * Allows {@code @ReceiverDependentMutable} on fields whose declared type is mutable when the
+     * enclosing class is also mutable. In that case, the field type is receiver-dependent but every
+     * possible receiver-bound result is within the declared mutable bound.
+     *
+     * @param type field type
+     * @param tree tree whose type is being validated
+     * @return true if this type use should skip the top-level declaration-bound check
+     */
+    private boolean isReceiverDependentUseOfMutableFieldInMutableClass(
+            AnnotatedTypeMirror type, Tree tree) {
+        if (!(tree instanceof VariableTree)
+                || !type.hasAnnotation(picoTypeFactory.RECEIVER_DEPENDENT_MUTABLE)) {
+            return false;
+        }
+
+        VariableElement field = TreeUtils.elementFromDeclaration((VariableTree) tree);
+        if (field.getKind() != ElementKind.FIELD) {
+            return false;
+        }
+
+        TypeElement enclosingClass = ElementUtils.enclosingTypeElement(field);
+        if (enclosingClass == null) {
+            return false;
+        }
+
+        @Immutable AnnotationMirrorSet enclosingBound =
+                atypeFactory.getTypeDeclarationBounds(enclosingClass.asType());
+        if (!AnnotationUtils.containsSameByName(enclosingBound, picoTypeFactory.MUTABLE)) {
+            return false;
+        }
+
+        @Immutable AnnotationMirrorSet declaredBound =
+                atypeFactory.getTypeDeclarationBounds(type.getUnderlyingType());
+        return AnnotationUtils.containsSameByName(declaredBound, picoTypeFactory.MUTABLE);
     }
 
     @Override

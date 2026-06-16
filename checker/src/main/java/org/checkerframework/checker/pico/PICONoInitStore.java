@@ -7,7 +7,7 @@ import org.checkerframework.framework.flow.CFAbstractStore;
 
 import java.util.Map;
 
-/** The store for the immutability type system. */
+/** The store for the PICO immutability type system. */
 public class PICONoInitStore extends CFAbstractStore<PICONoInitValue, PICONoInitStore> {
     /** The initialized fields. */
     protected Map<@Immutable FieldAccess, PICONoInitValue> initializedFields;

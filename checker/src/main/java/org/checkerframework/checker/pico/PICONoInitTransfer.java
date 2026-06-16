@@ -12,7 +12,7 @@ import org.checkerframework.javacutil.TreeUtils;
 
 import javax.lang.model.element.VariableElement;
 
-/** The transfer function for the immutability type system. */
+/** The transfer function for the PICO immutability type system. */
 public class PICONoInitTransfer
         extends CFAbstractTransfer<PICONoInitValue, PICONoInitStore, PICONoInitTransfer> {
     /**
@@ -31,11 +31,9 @@ public class PICONoInitTransfer
                 && n.getTarget().getTree() instanceof VariableTree) {
             VariableElement varElement =
                     TreeUtils.elementFromDeclaration((VariableTree) n.getTarget().getTree());
-            // Below is for removing false positive warning of bottom illegal write cacused by
-            // refining field to @Bottom if field initializer is null.
-            // Forbid refinement from null literal in initializer to fields variable tree(identifier
-            // tree not affected, e.g.
-            // assigning a field as null in instance methods or constructors)
+            // Do not refine a field to @Bottom from a null initializer. That refinement causes
+            // false positive illegal-write errors for fields initialized to null, but assignments
+            // to fields in methods or constructors are still refined normally.
             if (varElement != null && varElement.getKind().isField()) {
                 PICONoInitStore store = in.getRegularStore();
                 PICONoInitValue storeValue = in.getValueOfSubNode(n);

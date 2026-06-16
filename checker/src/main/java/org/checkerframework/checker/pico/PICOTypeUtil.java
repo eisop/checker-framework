@@ -344,7 +344,7 @@ public class PICOTypeUtil {
         // there.
         // Otherwise, it is the java inner type.
         return ele instanceof Symbol.ClassSymbol
-                && ElementUtils.getQualifiedName(ele).equals("Array")
+                && ElementUtils.getQualifiedName(ele) == "Array"
                 && ((Symbol.ClassSymbol) ele).classfile == null
                 && ((Symbol.ClassSymbol) ele).sourcefile == null;
     }

@@ -47,7 +47,7 @@ import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
 
-/** The visitor for the immutability type system. */
+/** The visitor for the PICO immutability type system. */
 public class PICONoInitVisitor extends BaseTypeVisitor<PICONoInitAnnotatedTypeFactory> {
     /**
      * Create a new PICONoInitVisitor.
@@ -67,9 +67,9 @@ public class PICONoInitVisitor extends BaseTypeVisitor<PICONoInitAnnotatedTypeFa
     protected void checkConstructorResult(
             AnnotatedExecutableType constructorType, ExecutableElement constructorElement) {}
 
-    // Validate that a mutability qualifier use conforms to the type declaration bound. The
-    // declarationType is produced by AnnotatedTypeFactory#getAnnotatedType(Element), whose result
-    // must remain consistent with PICOTypeUtil's class-bound helpers.
+    // Validate that a mutability qualifier use conforms to the type declaration bound.
+    // declarationType comes from AnnotatedTypeFactory#getAnnotatedType(Element), whose result must
+    // remain consistent with PICOTypeUtil's class-bound helpers.
     @Override
     public boolean isValidUse(
             AnnotatedDeclaredType declarationType, AnnotatedDeclaredType useType, Tree tree) {
@@ -87,18 +87,19 @@ public class PICONoInitVisitor extends BaseTypeVisitor<PICONoInitAnnotatedTypeFa
 
     @Override
     public boolean isValidUse(AnnotatedArrayType type, Tree tree) {
-        // You don't need adapted subtype if the decl bound is guaranteed to be RDM.
-        // That simply means that any use is valid except bottom.
+        // Array declaration bounds are receiver-dependent, so every explicit array qualifier is
+        // valid except bottom.
         AnnotationMirror used = type.getAnnotationInHierarchy(atypeFactory.READONLY);
         return !AnnotationUtils.areSame(used, atypeFactory.BOTTOM);
     }
 
     /**
-     * Check if the lhs is adapted subtype of rhs.
+     * Tests whether the left-hand qualifier is valid against the right-hand declaration bound after
+     * viewpoint adaptation.
      *
-     * @param lhs the lhs annotation
-     * @param rhs the rhs annotation
-     * @return true if lhs is adapted subtype of rhs, false otherwise
+     * @param lhs the qualifier on the type use
+     * @param rhs the qualifier on the declaration bound
+     * @return true if the adapted declaration bound is a subtype of the use qualifier
      */
     private boolean isAdaptedSubtype(AnnotationMirror lhs, AnnotationMirror rhs) {
         PICOViewpointAdapter vpa = atypeFactory.getViewpointAdapter();
@@ -124,19 +125,11 @@ public class PICONoInitVisitor extends BaseTypeVisitor<PICONoInitAnnotatedTypeFa
             if (element.getKind() == ElementKind.FIELD && !ElementUtils.isStatic(element)) {
                 AnnotatedTypeMirror bound =
                         PICOTypeUtil.getBoundTypeOfEnclosingTypeDeclaration(varTree, atypeFactory);
-                // var is singleton, so shouldn't modify var directly. Otherwise, the variable
-                // tree's type will be
-                // altered permanently, and other clients who access this type will see the change,
-                // too.
+                // var is shared by the element, so do not mutate it directly.
                 AnnotatedTypeMirror varAdapted = var.shallowCopy(true);
-                // Viewpoint adapt varAdapted to the bound.
-                // PICOInferenceAnnotatedTypeFactory#viewpointAdaptMember()
-                // mutates varAdapted, so after the below method is called, varAdapted is the result
-                // adapted to bound
+                // Viewpoint adaptation mutates varAdapted to the enclosing declaration bound.
                 atypeFactory.getViewpointAdapter().viewpointAdaptMember(bound, element, varAdapted);
-                // Pass varAdapted here as lhs type.
-                // Do not pass var directly: it is shared by element, so mutating it would affect
-                // later lookups of the same field type.
+                // Pass the adapted copy as the lhs type.
                 return commonAssignmentCheck(varAdapted, valueExp, errorKey, extraArgs);
             }
         }
@@ -182,16 +175,14 @@ public class PICONoInitVisitor extends BaseTypeVisitor<PICONoInitAnnotatedTypeFa
     }
 
     /**
-     * Check if the method is flexible overriding. Flexible overriding is allowed if the overriding
-     * method's return type is a subtype of the overridden method's return type.
+     * Checks flexible overriding. PICO permits an override when the overriding return type is a
+     * subtype of the viewpoint-adapted overridden return type.
      *
      * @param node the method node
      */
     private void flexibleOverrideChecker(MethodTree node) {
-        // Method overriding checks
-        // TODO Copied from super, hence has lots of duplicate code with super. We need to
-        // change the signature of checkOverride() method to also pass ExecutableElement for
-        // viewpoint adaptation.
+        // TODO: This duplicates BaseTypeVisitor's override loop because PICO needs the overridden
+        // ExecutableElement for viewpoint adaptation.
         ExecutableElement methodElement = TreeUtils.elementFromDeclaration(node);
         AnnotatedDeclaredType enclosingType =
                 (AnnotatedDeclaredType)
@@ -204,8 +195,7 @@ public class PICONoInitVisitor extends BaseTypeVisitor<PICONoInitAnnotatedTypeFa
             AnnotatedDeclaredType overriddenType = pair.getKey();
             AnnotatedExecutableType overriddenMethod =
                     AnnotatedTypes.asMemberOf(types, atypeFactory, enclosingType, pair.getValue());
-            // Viewpoint adapt super method executable type to current class bound(is this always
-            // class bound?) to allow flexible overriding
+            // Viewpoint adapt the overridden method to the current enclosing type.
             atypeFactory
                     .getViewpointAdapter()
                     .viewpointAdaptMethod(enclosingType, pair.getValue(), overriddenMethod);
@@ -258,8 +248,8 @@ public class PICONoInitVisitor extends BaseTypeVisitor<PICONoInitAnnotatedTypeFa
     }
 
     /**
-     * Check if the assignment is valid. Assignment is not checked if it's in initializer block or
-     * if it happens in the constructor.
+     * Checks whether a field or array assignment is allowed. Assignments in constructors and
+     * initializer blocks are permitted.
      *
      * @param tree the assignment node
      * @param variable the variable in the assignment
@@ -272,29 +262,28 @@ public class PICONoInitVisitor extends BaseTypeVisitor<PICONoInitAnnotatedTypeFa
                     getAllReceiverAnnotation(enclosingMethod);
             for (AnnotationMirror anno : receiverAnnotations) {
                 if (AnnotationUtils.areSame(anno, atypeFactory.UNDER_INITALIZATION)) {
-                    // If the enclosing method receiver is under initialization, allow assignment
+                    // Receiver under initialization permits assignment.
                     return;
                 }
             }
             if (TreeUtils.isConstructor(enclosingMethod)) {
-                // If the enclosing method is constructor, allow assignment
+                // Constructors may initialize fields.
                 return;
             }
         }
         if (TreePathUtil.isTopLevelAssignmentInInitializerBlock(getCurrentPath())) {
-            // If the assignment is in initializer block, allow assignment
+            // Initializer blocks may initialize fields.
             return;
         }
-        // Cannot use receiverTree = TreeUtils.getReceiverTree(variable) to determine if it's
-        // field assignment or not. Because for field assignment with implicit "this", receiverTree
-        // is null but receiverType is non-null. We still need to check this case.
+        // Implicit-this field assignments have no receiver tree, but they still have a receiver
+        // type, so use receiverType to decide whether to enforce write permissions.
         if (receiverType != null && !allowWrite(receiverType, variable)) {
             reportFieldOrArrayWriteError(tree, variable, receiverType);
         }
     }
 
     /**
-     * Get all receiver annotations of the method from all annotated type factory.
+     * Returns the raw receiver annotations on a method.
      *
      * @param tree the method tree
      * @return the list of receiver annotations
@@ -306,8 +295,7 @@ public class PICONoInitVisitor extends BaseTypeVisitor<PICONoInitAnnotatedTypeFa
     }
 
     /**
-     * Helper method to check if the receiver type allows writing. The receiver type must be mutable
-     * or the field is assignable. If not, return false.
+     * Returns whether the receiver type permits writing to the selected field or array.
      *
      * @param receiverType the receiver type
      * @param variable the variable in the assignment
@@ -320,7 +308,7 @@ public class PICONoInitVisitor extends BaseTypeVisitor<PICONoInitAnnotatedTypeFa
     }
 
     /**
-     * Helper method to report field or array write error.
+     * Reports a field or array write error.
      *
      * @param tree the node to report the error
      * @param variable the variable in the assignment
@@ -362,8 +350,7 @@ public class PICONoInitVisitor extends BaseTypeVisitor<PICONoInitAnnotatedTypeFa
     }
 
     /**
-     * Helper method to check the immutability type on new array creation. Only @Immutable, @Mutable
-     * and @ReceiverDependentMutable are allowed.
+     * Checks that a new array has an allowed PICO immutability qualifier.
      *
      * @param tree the tree to check
      */
@@ -383,9 +370,8 @@ public class PICONoInitVisitor extends BaseTypeVisitor<PICONoInitAnnotatedTypeFa
         ParameterizedExecutableType mfuPair = atypeFactory.methodFromUse(node);
         AnnotatedExecutableType invokedMethod = mfuPair.executableType;
         ExecutableElement invokedMethodElement = invokedMethod.getElement();
-        // Only check invocability if it's super call, as non-super call is already checked
-        // by super implementation(of course in both cases, invocability is not checked when
-        // invoking static methods)
+        // Non-super invocations are already checked by BaseTypeVisitor. Super constructor calls
+        // need this explicit invocability check.
         if (!ElementUtils.isStatic(invokedMethodElement)
                 && TreeUtils.isSuperConstructorCall(node)) {
             checkMethodInvocability(invokedMethod, node);
@@ -418,28 +404,24 @@ public class PICONoInitVisitor extends BaseTypeVisitor<PICONoInitAnnotatedTypeFa
         // TODO(Aosen): since this is also checking validity, consider whether we can move this to
         // PICOValidator
         AnnotatedTypeMirror bound = atypeFactory.getAnnotatedType(typeElement);
-        // Class annotation has to be either @Mutable, @ReceiverDependentMutable or @Immutable
+        // Class annotations must be @Mutable, @ReceiverDependentMutable, or @Immutable.
         if ((!bound.hasAnnotation(atypeFactory.MUTABLE)
                 && !bound.hasAnnotation(atypeFactory.RECEIVER_DEPENDENT_MUTABLE)
                 && !bound.hasAnnotation(atypeFactory.IMMUTABLE))) {
             checker.reportError(tree, "class.bound.invalid", bound);
-            return; // Doesn't process the class tree anymore
+            return;
         }
 
-        // Issue warnings on implicit shallow immutable:
-        // Condition:
-        // * Class decl == Immutable or RDM
-        // * Member is field
-        // * Member's declared bound == Mutable
-        // * Member's use anno == null
+        // In immutable or receiver-dependent-mutable classes, fields whose declared type bound is
+        // mutable must have an explicit PICO qualifier to avoid implicit shallow immutability.
         if (bound.hasAnnotation(atypeFactory.IMMUTABLE)
                 || bound.hasAnnotation(atypeFactory.RECEIVER_DEPENDENT_MUTABLE)) {
             for (Tree member : tree.getMembers()) {
                 if (member instanceof VariableTree) {
                     Element ele = TreeUtils.elementFromTree(member);
                     assert ele != null;
-                    // fromElement will not apply defaults, if no explicit anno exists in code,
-                    // mirror have no anno
+                    // fromElement does not apply defaults, so it exposes whether the source had an
+                    // explicit PICO qualifier.
                     AnnotatedTypeMirror noDefaultMirror = atypeFactory.fromElement(ele);
                     TypeMirror ty = ele.asType();
                     if (ty.getKind() == TypeKind.TYPEVAR) {
@@ -457,9 +439,9 @@ public class PICONoInitVisitor extends BaseTypeVisitor<PICONoInitAnnotatedTypeFa
     }
 
     /**
-     * The invoked constructor’s return type adapted to the invoking constructor’s return type must
-     * be a supertype of the invoking constructor’s return type. Since InitializationChecker does
-     * not apply any type rules at here, only READONLY hierarchy is checked.
+     * Checks that a this/super constructor call is valid in the PICO hierarchy. The invoked
+     * constructor return type, adapted to the invoking constructor return type, must be a supertype
+     * of the invoking constructor return type.
      *
      * @param superCall the super invocation, e.g., "super()"
      * @param errorKey the error key, e.g., "super.invocation.invalid"
@@ -491,9 +473,7 @@ public class PICONoInitVisitor extends BaseTypeVisitor<PICONoInitAnnotatedTypeFa
         if (castTypeKind == TypeKind.DECLARED) {
             // Don't issue an error if the mutability annotations are equivalent to the qualifier
             // upper bound of the type.
-            // BaseTypeVisitor#isTypeCastSafe is not used, to be consistent with inference which
-            // only have mutability qualifiers if inference is supporting FBC in the future, this
-            // overridden method can be removed.
+            // PICO only needs the mutability hierarchy for this cast-safety check.
             AnnotatedDeclaredType castDeclared = (AnnotatedDeclaredType) castType;
             AnnotationMirror bound =
                     qualifierHierarchy.findAnnotationInHierarchy(

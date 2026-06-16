@@ -6,7 +6,7 @@ import org.checkerframework.javacutil.AnnotationMirrorSet;
 
 import javax.lang.model.type.TypeMirror;
 
-/** The abstract value for the immutability type system. */
+/** The abstract value for the PICO immutability type system. */
 public class PICONoInitValue extends CFAbstractValue<PICONoInitValue> {
     /**
      * Create a new PICONoInitValue.

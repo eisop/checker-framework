@@ -8,10 +8,17 @@ import org.checkerframework.javacutil.BugInCF;
 
 import javax.lang.model.element.AnnotationMirror;
 
-/** A {@link AbstractViewpointAdapter} for the PICO checker. */
+/**
+ * Viewpoint adapter for PICO mutability qualifiers.
+ *
+ * <p>Most PICO qualifiers are stable under viewpoint adaptation. Only
+ * {@code @ReceiverDependentMutable} depends on the receiver: mutable and immutable receivers
+ * preserve their own qualifier, while a readonly receiver loses the precise mutability information
+ * and adapts to {@code @PICOLost}.
+ */
 public class PICOViewpointAdapter extends AbstractViewpointAdapter {
     /** The PICO type factory. */
-    private PICONoInitAnnotatedTypeFactory picoTypeFactory;
+    private final PICONoInitAnnotatedTypeFactory picoTypeFactory;
 
     /**
      * Create a new {@link PICOViewpointAdapter}.
@@ -34,28 +41,35 @@ public class PICOViewpointAdapter extends AbstractViewpointAdapter {
         if (declaredAnnotation == null) {
             declaredAnnotation = picoTypeFactory.READONLY;
         }
-        if (AnnotationUtils.areSame(declaredAnnotation, picoTypeFactory.READONLY)) {
-            return picoTypeFactory.READONLY;
-        } else if (AnnotationUtils.areSame(declaredAnnotation, picoTypeFactory.MUTABLE)) {
-            return picoTypeFactory.MUTABLE;
-        } else if (AnnotationUtils.areSame(declaredAnnotation, picoTypeFactory.IMMUTABLE)) {
-            return picoTypeFactory.IMMUTABLE;
-        } else if (AnnotationUtils.areSame(declaredAnnotation, picoTypeFactory.BOTTOM)) {
-            return picoTypeFactory.BOTTOM;
-        } else if (AnnotationUtils.areSame(declaredAnnotation, picoTypeFactory.POLY_MUTABLE)) {
-            return picoTypeFactory.POLY_MUTABLE;
-        } else if (AnnotationUtils.areSame(declaredAnnotation, picoTypeFactory.LOST)) {
-            return picoTypeFactory.LOST;
-        } else if (AnnotationUtils.areSame(
+
+        if (AnnotationUtils.areSame(
                 declaredAnnotation, picoTypeFactory.RECEIVER_DEPENDENT_MUTABLE)) {
-            // @Readonly |> @ReceiverDependentMutable = @Lost
             if (AnnotationUtils.areSame(receiverAnnotation, picoTypeFactory.READONLY)) {
                 return picoTypeFactory.LOST;
-            } else {
-                return receiverAnnotation;
             }
-        } else {
-            throw new BugInCF("Unknown declared modifier: " + declaredAnnotation);
+            return receiverAnnotation;
         }
+
+        if (isFixedQualifier(declaredAnnotation)) {
+            return declaredAnnotation;
+        }
+
+        throw new BugInCF("Unknown declared modifier: " + declaredAnnotation);
+    }
+
+    /**
+     * Returns true if {@code annotation} is a PICO qualifier that is unchanged by viewpoint
+     * adaptation.
+     *
+     * @param annotation the annotation to test
+     * @return true if viewpoint adaptation returns {@code annotation} unchanged
+     */
+    private boolean isFixedQualifier(AnnotationMirror annotation) {
+        return AnnotationUtils.areSame(annotation, picoTypeFactory.READONLY)
+                || AnnotationUtils.areSame(annotation, picoTypeFactory.MUTABLE)
+                || AnnotationUtils.areSame(annotation, picoTypeFactory.IMMUTABLE)
+                || AnnotationUtils.areSame(annotation, picoTypeFactory.BOTTOM)
+                || AnnotationUtils.areSame(annotation, picoTypeFactory.POLY_MUTABLE)
+                || AnnotationUtils.areSame(annotation, picoTypeFactory.LOST);
     }
 }
