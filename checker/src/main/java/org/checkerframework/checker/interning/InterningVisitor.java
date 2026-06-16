@@ -37,6 +37,7 @@ import org.checkerframework.framework.util.Heuristics;
 import org.checkerframework.javacutil.AnnotationBuilder;
 import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.ElementUtils;
+import org.checkerframework.javacutil.InternalUtils;
 import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TypesUtils;
 
@@ -335,8 +336,8 @@ public final class InterningVisitor extends BaseTypeVisitor<InterningAnnotatedTy
                         Name leftName = ((IdentifierTree) lhsTree).getName();
                         Name rightName = ((IdentifierTree) rhsTree).getName();
                         Name paramName = equalsMethod.getParameters().get(0).getName();
-                        if ((leftName.contentEquals("this") && rightName == paramName)
-                                || (leftName == paramName && rightName.contentEquals("this"))) {
+                        if ((InternalUtils.isThisName(leftName) && rightName == paramName)
+                                || (leftName == paramName && InternalUtils.isThisName(rightName))) {
                             return true;
                         }
                     }
@@ -928,7 +929,7 @@ public final class InterningVisitor extends BaseTypeVisitor<InterningAnnotatedTy
      */
     private @Nullable Element getThis(Scope scope) {
         for (Element e : scope.getLocalElements()) {
-            if (e.getSimpleName().contentEquals("this")) {
+            if (InternalUtils.isThisName(e.getSimpleName())) {
                 return e;
             }
         }
@@ -952,7 +953,8 @@ public final class InterningVisitor extends BaseTypeVisitor<InterningAnnotatedTy
 
         // Check all of the methods in the class for name matches and overriding.
         for (ExecutableElement elt : ElementFilter.methodsIn(clazzElt.getEnclosedElements())) {
-            if (elt.getSimpleName().contentEquals(method) && elements.overrides(e, elt, clazzElt)) {
+            if (InternalUtils.sameName(elt.getSimpleName(), method)
+                    && elements.overrides(e, elt, clazzElt)) {
                 return true;
             }
         }

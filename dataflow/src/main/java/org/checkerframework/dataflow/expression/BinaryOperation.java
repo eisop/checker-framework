@@ -136,7 +136,14 @@ public class BinaryOperation extends JavaExpression {
     @Override
     public int hashCode() {
         if (hashCodeCache == 0) {
-            hashCodeCache = Objects.hash(operationKind, left, right);
+            if (isCommutative()) {
+                // equals() ignores operand order for commutative operations, so the hash code
+                // must not depend on operand order either.  Use a symmetric combination of the
+                // operand hash codes (addition) so that "a OP b" and "b OP a" hash identically.
+                hashCodeCache = Objects.hash(operationKind, left.hashCode() + right.hashCode());
+            } else {
+                hashCodeCache = Objects.hash(operationKind, left, right);
+            }
         }
         return hashCodeCache;
     }

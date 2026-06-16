@@ -230,6 +230,22 @@ public class BoundSet implements ReductionResult {
     }
 
     /**
+     * Returns whether any variable in this bound set has an instantiation. Unlike {@link
+     * #getInstantiatedVariables}, this stops at the first instantiated variable and allocates
+     * nothing, so it is cheaper when only the existence of an instantiation matters.
+     *
+     * @return true if any variable in this bound set has an instantiation
+     */
+    public boolean hasInstantiatedVariable() {
+        for (Variable var : variables) {
+            if (var.getBounds().hasInstantiation()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
      * Resolve all inference variables mentioned in any bound.
      *
      * @return a list of resolved variables in this bounds set
@@ -323,9 +339,8 @@ public class BoundSet implements ReductionResult {
         int count = 0;
         do {
             count++;
-            Set<Variable> instantiations = getInstantiatedVariables();
             boolean boundsChangeInst = false;
-            if (!instantiations.isEmpty()) {
+            if (hasInstantiatedVariable()) {
                 for (Variable var : variables) {
                     boundsChangeInst |= var.getBounds().applyInstantiationsToBounds();
                 }

@@ -12,7 +12,6 @@ import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedUnionTyp
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedWildcardType;
 import org.checkerframework.framework.type.visitor.AnnotatedTypeScanner;
 import org.checkerframework.framework.type.visitor.AnnotatedTypeVisitor;
-import org.plumelib.util.CollectionsPlume;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -91,10 +90,31 @@ public class AnnotatedTypeCopier
         this(true);
     }
 
+    /**
+     * Thread-local pool for the IdentityHashMap used during copy operations to avoid allocation.
+     */
+    private static final ThreadLocal<IdentityHashMap<AnnotatedTypeMirror, AnnotatedTypeMirror>>
+            mapPool =
+                    ThreadLocal.withInitial(
+                            () ->
+                                    new IdentityHashMap<>(
+                                            AnnotatedTypeScanner.VISITED_NODES_INITIAL_CAPACITY));
+
     @Override
     public AnnotatedTypeMirror visit(AnnotatedTypeMirror type) {
-        return type.accept(
-                this, new IdentityHashMap<>(AnnotatedTypeScanner.VISITED_NODES_EXPECTED_MAX_SIZE));
+        IdentityHashMap<AnnotatedTypeMirror, AnnotatedTypeMirror> map = mapPool.get();
+        boolean mustClear = !map.isEmpty();
+        if (mustClear) {
+            // Safe fallback if re-entrant or map was not properly cleared.
+            map = new IdentityHashMap<>(AnnotatedTypeScanner.VISITED_NODES_INITIAL_CAPACITY);
+        }
+        try {
+            return type.accept(this, map);
+        } finally {
+            if (!mustClear) {
+                map.clear();
+            }
+        }
     }
 
     @Override
@@ -125,10 +145,14 @@ public class AnnotatedTypeCopier
         }
 
         if (original.typeArgs != null) {
-            List<AnnotatedTypeMirror> copyTypeArgs =
-                    CollectionsPlume.mapList(
-                            (AnnotatedTypeMirror typeArg) -> visit(typeArg, originalToCopy),
-                            original.getTypeArguments());
+            // Use the raw field (same package) and index-based access to avoid allocating an
+            // iterator over the unmodifiable wrapper that getTypeArguments() returns.
+            List<AnnotatedTypeMirror> origTypeArgs = original.typeArgs;
+            int n = origTypeArgs.size();
+            List<AnnotatedTypeMirror> copyTypeArgs = new ArrayList<>(n);
+            for (int i = 0; i < n; i++) {
+                copyTypeArgs.add(visit(origTypeArgs.get(i), originalToCopy));
+            }
             copy.setTypeArguments(copyTypeArgs);
         }
 
@@ -147,10 +171,11 @@ public class AnnotatedTypeCopier
         AnnotatedIntersectionType copy = makeOrReturnCopy(original, originalToCopy);
 
         if (original.bounds != null) {
-            List<AnnotatedTypeMirror> copySupertypes =
-                    CollectionsPlume.mapList(
-                            (AnnotatedTypeMirror bound) -> visit(bound, originalToCopy),
-                            original.bounds);
+            List<AnnotatedTypeMirror> origBounds = original.bounds;
+            List<AnnotatedTypeMirror> copySupertypes = new ArrayList<>(origBounds.size());
+            for (AnnotatedTypeMirror bound : origBounds) {
+                copySupertypes.add(visit(bound, originalToCopy));
+            }
             copy.bounds = Collections.unmodifiableList(copySupertypes);
         }
 
@@ -169,11 +194,11 @@ public class AnnotatedTypeCopier
         AnnotatedUnionType copy = makeOrReturnCopy(original, originalToCopy);
 
         if (original.alternatives != null) {
-            List<AnnotatedDeclaredType> copyAlternatives =
-                    CollectionsPlume.mapList(
-                            (AnnotatedDeclaredType supertype) ->
-                                    (AnnotatedDeclaredType) visit(supertype, originalToCopy),
-                            original.alternatives);
+            List<AnnotatedDeclaredType> origAlternatives = original.alternatives;
+            List<AnnotatedDeclaredType> copyAlternatives = new ArrayList<>(origAlternatives.size());
+            for (AnnotatedDeclaredType supertype : origAlternatives) {
+                copyAlternatives.add((AnnotatedDeclaredType) visit(supertype, originalToCopy));
+            }
             copy.alternatives = Collections.unmodifiableList(copyAlternatives);
         }
 
@@ -211,7 +236,13 @@ public class AnnotatedTypeCopier
         }
 
         if (original.getVarargType() != null) {
-            copy.setVarargType(original.getVarargType());
+            // Copy (do not alias) the vararg type. If the vararg type is the last parameter type
+            // (the usual case, before adaptParameters expands it), originalToCopy already maps it
+            // to its copy, so visit() returns that copy and the structure is preserved; otherwise
+            // it is freshly copied. Aliasing the original's vararg type here would let two
+            // "independent" copies share a subtree.
+            copy.setVarargType(
+                    (AnnotatedArrayType) visit(original.getVarargType(), originalToCopy));
         } else {
             copy.computeVarargType();
         }

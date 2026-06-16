@@ -1,5 +1,6 @@
 package org.checkerframework.javacutil;
 
+import org.checkerframework.checker.index.qual.IndexFor;
 import org.checkerframework.checker.initialization.qual.UnknownInitialization;
 import org.checkerframework.checker.nullness.qual.KeyFor;
 import org.checkerframework.checker.nullness.qual.KeyForBottom;
@@ -12,6 +13,8 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
+import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.Set;
 
 import javax.lang.model.element.AnnotationMirror;
@@ -184,8 +187,28 @@ public class AnnotationMirrorSet
 
     @Override
     public Iterator<@KeyFor("this") AnnotationMirror> iterator() {
-        Iterator<@KeyFor("this") AnnotationMirror> it = shadowList.iterator();
-        return unmodifiable ? new ReadOnlyIter<@KeyFor("this") AnnotationMirror>(it) : it;
+        // For the common unmodifiable case, return a read-only iterator that walks the backing list
+        // by index. This avoids allocating the backing ArrayList's own iterator (an
+        // {@code ArrayList$Itr}) on every traversal.
+        // A mutable set returns the backing iterator, which supports remove() and
+        // concurrent-modification checks.
+        return unmodifiable
+                ? new ReadOnlyIter<@KeyFor("this") AnnotationMirror>(shadowList)
+                : shadowList.iterator();
+    }
+
+    /**
+     * Returns the element at the given index in this set's insertion order. The backing store is an
+     * {@link ArrayList}, so this set has a stable iteration order; this accessor lets hot callers
+     * iterate by index (in conjunction with {@link #size()}) without allocating an {@link Iterator}
+     * on every traversal. Iterating an {@code AnnotationMirrorSet} via {@code iterator()} was the
+     * single largest source of {@code ArrayList$Itr} allocations in nullness-checking JFR traces.
+     *
+     * @param index the index, in {@code [0, size())}
+     * @return the element at {@code index}
+     */
+    public AnnotationMirror get(@IndexFor("this") int index) {
+        return shadowList.get(index);
     }
 
     @Override
@@ -261,9 +284,21 @@ public class AnnotationMirrorSet
             Collection<? extends AnnotationMirror> c) {
         // Returns true if any element was newly added, per Set.addAll's specified contract.
         boolean changed = false;
-        for (AnnotationMirror a : c) {
-            if (add(a)) {
-                changed = true;
+        if (c instanceof AnnotationMirrorSet) {
+            // Iterate the backing list by index to avoid allocating an Iterator; addAll from
+            // another AnnotationMirrorSet (e.g. the copy constructor and DeepCopyable.deepCopy) is
+            // a hot path.
+            ArrayList<? extends AnnotationMirror> other = ((AnnotationMirrorSet) c).shadowList;
+            for (int i = 0, n = other.size(); i < n; ++i) {
+                if (add(other.get(i))) {
+                    changed = true;
+                }
+            }
+        } else {
+            for (AnnotationMirror a : c) {
+                if (add(a)) {
+                    changed = true;
+                }
             }
         }
         return changed;
@@ -353,26 +388,33 @@ public class AnnotationMirrorSet
      * @param <T> the element type
      */
     private static final class ReadOnlyIter<@KeyForBottom T> implements Iterator<T> {
-        /** The real iterator. */
-        private final Iterator<T> it;
+        /** The list to iterate over. */
+        private final List<T> list;
+
+        /** Index of the next element to return. */
+        private int index = 0;
 
         /**
-         * Construct a readonly iterator wrapper.
+         * Construct a read-only iterator that walks {@code list} by index, allocating no backing
+         * iterator.
          *
-         * @param it the iterator to wrap
+         * @param list the list to iterate over
          */
-        ReadOnlyIter(Iterator<T> it) {
-            this.it = it;
+        ReadOnlyIter(List<T> list) {
+            this.list = list;
         }
 
         @Override
         public boolean hasNext() {
-            return it.hasNext();
+            return index < list.size();
         }
 
         @Override
         public T next() {
-            return it.next();
+            if (index >= list.size()) {
+                throw new NoSuchElementException();
+            }
+            return list.get(index++);
         }
 
         @Override

@@ -24,7 +24,6 @@ import org.checkerframework.javacutil.ElementUtils;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.HashMap;
 import java.util.IdentityHashMap;
 import java.util.Objects;
 import java.util.PriorityQueue;
@@ -75,7 +74,7 @@ public abstract class AbstractAnalysis<
     private @Nullable IdentityHashMap<Node, V> syncedFrom;
 
     /** Map from (effectively final) local variable elements to their abstract value. */
-    protected final HashMap<VariableElement, V> finalLocalValues = new HashMap<>();
+    protected final IdentityHashMap<VariableElement, V> finalLocalValues = new IdentityHashMap<>();
 
     /**
      * The node that is currently handled in the analysis (if it is running). The following

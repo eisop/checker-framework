@@ -38,6 +38,7 @@ import org.checkerframework.dataflow.qual.Pure;
 import org.checkerframework.javacutil.AnnotationProvider;
 import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.ElementUtils;
+import org.checkerframework.javacutil.InternalUtils;
 import org.checkerframework.javacutil.TreePathUtil;
 import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TypesUtils;
@@ -550,10 +551,10 @@ public abstract class JavaExpression {
                 IdentifierTree identifierTree = (IdentifierTree) tree;
                 TypeMirror typeOfId = TreeUtils.typeOf(identifierTree);
                 Name identifierName = identifierTree.getName();
-                if (identifierName.contentEquals("this")) {
+                if (InternalUtils.isThisName(identifierName)) {
                     result = new ThisReference(typeOfId);
                     break;
-                } else if (identifierName.contentEquals("super")) {
+                } else if (InternalUtils.isSuperName(identifierName)) {
                     result = new SuperReference(typeOfId);
                     break;
                 }

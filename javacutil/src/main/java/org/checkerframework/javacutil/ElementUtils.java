@@ -182,8 +182,8 @@ public class ElementUtils {
 
     /**
      * Returns the "parent" package element for the given package element. For package "A.B" it
-     * gives "A". For package "A" it gives the default package. For the default package it returns
-     * null.
+     * gives "A". For package "A" it gives null, not the the default package. For the default
+     * package it returns null.
      *
      * <p>Note that packages are not enclosed within each other, we have to manually climb the
      * namespaces. Calling "enclosingPackage" on a package element returns the package element
@@ -194,9 +194,26 @@ public class ElementUtils {
      * @return the parent package element or {@code null}
      */
     public static @Nullable PackageElement parentPackage(PackageElement elem, Elements elements) {
-        // The following might do the same thing:
-        //   ((Symbol) elt).owner;
-        // TODO: verify and see whether the change is worth it.
+        // Fast path: javac's PackageSymbol exposes its enclosing package directly via 'owner',
+        // avoiding the Elements#getPackageElement(String) call below.
+        //
+        // The parent of a top-level package is null.  In javac, the owner of a top-level package
+        // is the root/unnamed package -- a RootPackageSymbol, which is itself a PackageSymbol but
+        // has an empty qualified name -- or, in module mode, the enclosing ModuleSymbol.  Neither
+        // is a real parent package, so return null in those cases to preserve the contract that
+        // the parent of a top-level package is null.  (Without the empty-name check, every
+        // top-level package would incorrectly report the unnamed package as its parent.)
+        if (elem instanceof Symbol.PackageSymbol) {
+            Symbol owner = ((Symbol.PackageSymbol) elem).owner;
+            if (owner instanceof Symbol.PackageSymbol) {
+                PackageElement ownerPackage = (PackageElement) owner;
+                if (ownerPackage.getQualifiedName().length() != 0) {
+                    return ownerPackage;
+                }
+            }
+            return null;
+        }
+        // Fallback for non-javac PackageElement implementations.
         String fqnstart = getQualifiedName(elem);
         String fqn = fqnstart;
         if (fqn != null && !fqn.isEmpty()) {
@@ -396,7 +413,7 @@ public class ElementUtils {
      * @return true iff the element is java.lang.Object element
      */
     public static boolean isObject(TypeElement element) {
-        return element.getQualifiedName().contentEquals("java.lang.Object");
+        return InternalUtils.isJavaLangObjectName(element.getQualifiedName());
     }
 
     /**
@@ -406,7 +423,7 @@ public class ElementUtils {
      * @return true iff the element is java.lang.String element
      */
     public static boolean isString(TypeElement element) {
-        return element.getQualifiedName().contentEquals("java.lang.String");
+        return InternalUtils.sameName(element.getQualifiedName(), "java.lang.String");
     }
 
     /**
@@ -507,7 +524,7 @@ public class ElementUtils {
      */
     public static @Nullable VariableElement findFieldInType(TypeElement type, String name) {
         for (VariableElement field : ElementFilter.fieldsIn(type.getEnclosedElements())) {
-            if (field.getSimpleName().contentEquals(name)) {
+            if (InternalUtils.sameName(field.getSimpleName(), name)) {
                 return field;
             }
         }
@@ -629,7 +646,7 @@ public class ElementUtils {
             } else {
                 // In constructors, the element for "this" is a non-static field, but that field
                 // does not have a receiver.
-                return !element.getSimpleName().contentEquals("this");
+                return !InternalUtils.isThisName(element.getSimpleName());
             }
         }
         return element.getKind() == ElementKind.METHOD && !ElementUtils.isStatic(element);
@@ -897,7 +914,7 @@ public class ElementUtils {
             List<? extends Element> encloseds = enclosing.getEnclosedElements();
             for (Element enclosed : encloseds) {
                 if (isRecordComponentElement(enclosed)
-                        && enclosed.getSimpleName().toString().equals(methodName)) {
+                        && InternalUtils.sameName(enclosed.getSimpleName(), methodName)) {
                     return true;
                 }
             }
@@ -935,7 +952,7 @@ public class ElementUtils {
      */
     public static boolean matchesElement(
             ExecutableElement method, String methodName, Class<?>... parameters) {
-        if (!method.getSimpleName().contentEquals(methodName)) {
+        if (!InternalUtils.sameName(method.getSimpleName(), methodName)) {
             return false;
         }
 
@@ -944,7 +961,16 @@ public class ElementUtils {
             return false;
         }
         for (int i = 0, n = params.size(); i < n; ++i) {
-            if (!params.get(i).asType().toString().equals(parameters[i].getName())) {
+            // Class.getName() returns the JVM binary form ("[Ljava.lang.String;" for arrays,
+            // "java.util.Map$Entry" for nested classes), which does not match the source-form
+            // string produced by TypeMirror.toString().  getCanonicalName() uses the source form.
+            String goalName = parameters[i].getCanonicalName();
+            if (goalName == null) {
+                // Local/anonymous classes have no canonical name; TypeMirror.toString() uses the
+                // simple name.
+                goalName = parameters[i].getSimpleName();
+            }
+            if (!params.get(i).asType().toString().equals(goalName)) {
                 return false;
             }
         }

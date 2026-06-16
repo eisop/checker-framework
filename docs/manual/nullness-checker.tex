@@ -321,7 +321,7 @@ apply to the method itself rather than to some particular type.
 
 \item[\refqualclass{checker/nullness/qual}{EnsuresNonNull}]
   indicates a method postcondition.
-  With \<EnsuresNonNull>, the successful return (i.e., a non-exceptional
+  With \<@EnsuresNonNull>, the successful return (i.e., a non-exceptional
   return) of the annotated method results in the given expressions being
   non-null. See the Javadoc for examples of its use.
 \item[\refqualclass{checker/nullness/qual}{EnsuresNonNullIf}]
@@ -1104,7 +1104,7 @@ $\Rightarrow$
 \vspace{-1.5\baselineskip}
 %END LATEX
 \caption{Correspondence between other nullness annotations and the
-  Checker Framework's \<NonNull> annotation.}
+  Checker Framework's \<@NonNull> annotation.}
 \label{fig-nullness-refactoring-nonnull}
 \end{figure}
 
@@ -1181,7 +1181,7 @@ $\Rightarrow$
 \vspace{-1.5\baselineskip}
 %END LATEX
 \caption{Correspondence between other nullness annotations and the
-  Checker Framework's \<Nullable> annotation.}
+  Checker Framework's \<@Nullable> annotation.}
 \label{fig-nullness-refactoring-nullable}
 \end{figure}
 
@@ -1202,7 +1202,7 @@ $\Rightarrow$
 \vspace{-1.5\baselineskip}
 %END LATEX
 \caption{Correspondence between other nullness annotations and the
-  Checker Framework's \<PolyNull> annotation.}
+  Checker Framework's \<@PolyNull> annotation.}
 \label{fig-nullness-refactoring-polynull}
 \end{figure}
 

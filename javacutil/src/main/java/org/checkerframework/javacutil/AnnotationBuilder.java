@@ -598,7 +598,7 @@ public class AnnotationBuilder {
         TypeElement enumClassElt = elements.getTypeElement(enumClass);
         assert enumClassElt != null;
         for (Element enumElt : enumClassElt.getEnclosedElements()) {
-            if (enumElt.getSimpleName().contentEquals(value.name())) {
+            if (InternalUtils.sameName(enumElt.getSimpleName(), value.name())) {
                 return (VariableElement) enumElt;
             }
         }
@@ -628,7 +628,7 @@ public class AnnotationBuilder {
             annotationMethodsCache = methods;
         }
         for (ExecutableElement elt : methods) {
-            if (elt.getSimpleName().contentEquals(key)) {
+            if (InternalUtils.sameName(elt.getSimpleName(), key)) {
                 return elt;
             }
         }
