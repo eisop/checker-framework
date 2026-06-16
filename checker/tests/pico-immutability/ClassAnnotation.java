@@ -125,6 +125,9 @@ public class ClassAnnotation {
     @Readonly class ReadonlyClass {}
 
     // :: error: class.bound.invalid
+    @Readonly class anonymousNamedReadonlyClass {}
+
+    // :: error: class.bound.invalid
     @PolyMutable class PolyMutableClass {}
 
     void testObjectCreation() {

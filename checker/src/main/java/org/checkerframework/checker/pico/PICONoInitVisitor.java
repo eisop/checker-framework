@@ -397,7 +397,7 @@ public class PICONoInitVisitor extends BaseTypeVisitor<PICONoInitAnnotatedTypeFa
     public void processClassTree(ClassTree tree) {
         TypeElement typeElement = TreeUtils.elementFromDeclaration(tree);
         // Anonymous classes are validated through their creation expressions.
-        if (typeElement.toString().contains("anonymous")) {
+        if (TypesUtils.isAnonymous(TreeUtils.typeOf(tree))) {
             super.processClassTree(tree);
             return;
         }
