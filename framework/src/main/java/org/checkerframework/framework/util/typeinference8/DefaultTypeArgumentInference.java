@@ -1,11 +1,11 @@
 package org.checkerframework.framework.util.typeinference8;
 
 import com.sun.source.tree.ExpressionTree;
+import com.sun.source.tree.LambdaExpressionTree;
 import com.sun.source.tree.MemberReferenceTree;
 import com.sun.source.tree.MethodInvocationTree;
 import com.sun.source.tree.NewClassTree;
 import com.sun.source.tree.Tree;
-import com.sun.source.tree.Tree.Kind;
 import com.sun.source.util.TreePath;
 
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -13,6 +13,7 @@ import org.checkerframework.framework.type.AnnotatedTypeFactory;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedExecutableType;
 import org.checkerframework.framework.util.typeinference8.types.ContainsInferenceVariable;
 import org.checkerframework.framework.util.typeinference8.types.Variable;
+import org.checkerframework.framework.util.typeinference8.util.InferenceBudgetExceededError;
 import org.checkerframework.framework.util.typeinference8.util.Theta;
 import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.TreeUtils;
@@ -80,19 +81,19 @@ public class DefaultTypeArgumentInference implements TypeArgumentInference {
         }
         AnnotatedExecutableType outerMethodType;
         if (outerTree != expressionTree) {
-            if (outerTree.getKind() == Tree.Kind.METHOD_INVOCATION) {
+            if (outerTree instanceof MethodInvocationTree) {
                 pathToExpression = typeFactory.getPath(outerTree);
                 outerMethodType =
                         typeFactory.methodFromUseWithoutTypeArgInference(
                                         (MethodInvocationTree) outerTree)
                                 .executableType;
-            } else if (outerTree.getKind() == Tree.Kind.NEW_CLASS) {
+            } else if (outerTree instanceof NewClassTree) {
                 pathToExpression = typeFactory.getPath(outerTree);
                 outerMethodType =
                         typeFactory.constructorFromUseWithoutTypeArgInference(
                                         (NewClassTree) outerTree)
                                 .executableType;
-            } else if (outerTree.getKind() == Kind.MEMBER_REFERENCE) {
+            } else if (outerTree instanceof MemberReferenceTree) {
                 pathToExpression = typeFactory.getPath(outerTree);
                 outerMethodType = null;
             } else {
@@ -108,17 +109,24 @@ public class DefaultTypeArgumentInference implements TypeArgumentInference {
         }
         try {
             java8Inference = new InvocationTypeInference(typeFactory, pathToExpression);
-            if (outerTree.getKind() == Kind.MEMBER_REFERENCE) {
+            if (outerTree instanceof MemberReferenceTree) {
                 return java8Inference.infer((MemberReferenceTree) outerTree);
             } else {
                 InferenceResult result = java8Inference.infer(outerTree, outerMethodType);
                 if (!result.getResults().containsKey(expressionTree)
-                        && expressionTree.getKind() == Kind.MEMBER_REFERENCE) {
+                        && expressionTree instanceof MemberReferenceTree) {
                     java8Inference.context.pathToExpression = typeFactory.getPath(expressionTree);
                     return java8Inference.infer((MemberReferenceTree) expressionTree);
                 }
                 return result.swapTypeVariables(methodType, expressionTree);
             }
+        } catch (InferenceBudgetExceededError budget) {
+            // Inference for this invocation was too expensive (see MAX_INCORPORATION_WORK). Give up
+            // soundly: this is a deliberate abandonment (not a crash), so flag it as a budget
+            // overflow. A distinct error is reported in BaseTypeVisitor, and the return type is
+            // defaulted (as for a crash) so that checking continues soundly.
+            return new InferenceResult(
+                    Collections.emptyList(), false, true, false, true, budget.getMessage());
         } catch (Exception ex) {
             if (typeFactory
                     .getChecker()
@@ -197,7 +205,7 @@ public class DefaultTypeArgumentInference implements TypeArgumentInference {
                 return tree;
             case RETURN:
                 TreePath parentParentPath = parentPath.getParentPath();
-                if (parentParentPath.getLeaf().getKind() == Tree.Kind.LAMBDA_EXPRESSION) {
+                if (parentParentPath.getLeaf() instanceof LambdaExpressionTree) {
                     return outerInference(
                             (ExpressionTree) parentParentPath.getLeaf(),
                             parentParentPath.getParentPath());

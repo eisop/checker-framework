@@ -114,6 +114,7 @@ public abstract class CFAbstractAnalysis<
      * @param factory an annotated type factory to introduce type and dataflow rules
      * @param maxCountBeforeWidening number of times a block can be analyzed before widening
      */
+    @SuppressWarnings("this-escape")
     protected CFAbstractAnalysis(
             BaseTypeChecker checker,
             GenericAnnotatedTypeFactory<V, S, T, ? extends CFAbstractAnalysis<V, S, T>> factory,
@@ -243,8 +244,8 @@ public abstract class CFAbstractAnalysis<
         TransferResult<V, S> result;
         try {
             result = super.callTransferFunction(node, input);
-        } catch (Throwable t) {
-            throw new BugInCF(node.getTree(), t);
+        } catch (Exception e) {
+            throw new BugInCF(node.getTree(), e);
         }
         return result;
     }

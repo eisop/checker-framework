@@ -107,6 +107,7 @@ public class UnitsAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
 
     private static final Map<String, AnnotationMirror> aliasMap = new HashMap<>();
 
+    @SuppressWarnings("this-escape")
     public UnitsAnnotatedTypeFactory(BaseTypeChecker checker) {
         // use true to enable flow inference, false to disable it
         super(checker, false);
@@ -422,7 +423,7 @@ public class UnitsAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
 
     private static class UnitsPropagationTreeAnnotator extends PropagationTreeAnnotator {
 
-        public UnitsPropagationTreeAnnotator(AnnotatedTypeFactory atypeFactory) {
+        UnitsPropagationTreeAnnotator(AnnotatedTypeFactory atypeFactory) {
             super(atypeFactory);
         }
 

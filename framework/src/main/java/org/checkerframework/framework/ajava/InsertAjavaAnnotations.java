@@ -43,15 +43,15 @@ import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.HashSet;
+import java.util.IdentityHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.StringJoiner;
 
 import javax.lang.model.element.ElementKind;
+import javax.lang.model.element.Name;
 import javax.lang.model.element.PackageElement;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.util.Elements;
@@ -118,13 +118,13 @@ public class InsertAjavaAnnotations {
     /** Represents some text to be inserted at a file and its location. */
     private static class Insertion {
         /** Offset of the insertion in the file, measured in characters from the beginning. */
-        public final int position;
+        final int position;
 
         /** The contents of the insertion. */
-        public final String contents;
+        final String contents;
 
         /** Whether the insertion should be on its own separate line. */
-        public final boolean ownLine;
+        final boolean ownLine;
 
         /**
          * Constructs an insertion with the given position and contents.
@@ -132,7 +132,7 @@ public class InsertAjavaAnnotations {
          * @param position offset of the insertion in the file
          * @param contents contents of the insertion
          */
-        public Insertion(int position, String contents) {
+        Insertion(int position, String contents) {
             this(position, contents, false);
         }
 
@@ -144,7 +144,7 @@ public class InsertAjavaAnnotations {
          * @param ownLine true if this insertion should appear on its own separate line (doesn't
          *     affect the contents of the insertion)
          */
-        public Insertion(int position, String contents, boolean ownLine) {
+        Insertion(int position, String contents, boolean ownLine) {
             this.position = position;
             this.contents = contents;
             this.ownLine = ownLine;
@@ -173,10 +173,10 @@ public class InsertAjavaAnnotations {
          * <p>The map is populated from import statements and also when parsing a file that uses the
          * fully qualified name of an annotation it doesn't import.
          */
-        private @MonotonicNonNull Map<String, TypeElement> allAnnotations = null;
+        private @MonotonicNonNull IdentityHashMap<Name, TypeElement> allAnnotations = null;
 
         /** The annotation insertions seen so far. */
-        public final List<Insertion> insertions = new ArrayList<>();
+        final List<Insertion> insertions = new ArrayList<>();
 
         /** A printer for annotations. */
         private final DefaultPrettyPrinter printer = new DefaultPrettyPrinter();
@@ -203,7 +203,7 @@ public class InsertAjavaAnnotations {
          * @param destFileContents the String the second vistide AST was parsed from
          * @param lineSeparator the line separator that {@code destFileContents} uses
          */
-        public BuildInsertionsVisitor(String destFileContents, String lineSeparator) {
+        BuildInsertionsVisitor(String destFileContents, String lineSeparator) {
             allAnnotations = null;
             String[] lines = destFileContents.split(lineSeparator);
             this.lines = Arrays.asList(lines);
@@ -437,12 +437,12 @@ public class InsertAjavaAnnotations {
      *     Two entries for each annotation: one for the simple name and another for the
      *     fully-qualified name, with the same value.
      */
-    private Map<String, TypeElement> getImportedAnnotations(CompilationUnit cu) {
+    private IdentityHashMap<Name, TypeElement> getImportedAnnotations(CompilationUnit cu) {
         if (cu.getImports() == null) {
-            return Collections.emptyMap();
+            return new IdentityHashMap<>();
         }
 
-        Map<String, TypeElement> result = new HashMap<>();
+        IdentityHashMap<Name, TypeElement> result = new IdentityHashMap<>();
         for (ImportDeclaration importDecl : cu.getImports()) {
             if (importDecl.isAsterisk()) {
                 @SuppressWarnings("signature" // https://tinyurl.com/cfissue/3094:
@@ -474,7 +474,7 @@ public class InsertAjavaAnnotations {
                 if (importType != null && importType.getKind() == ElementKind.ANNOTATION_TYPE) {
                     TypeElement annoElt = elements.getTypeElement(imported);
                     if (annoElt != null) {
-                        result.put(annoElt.getSimpleName().toString(), annoElt);
+                        result.put(annoElt.getSimpleName(), annoElt);
                     }
                 }
             }

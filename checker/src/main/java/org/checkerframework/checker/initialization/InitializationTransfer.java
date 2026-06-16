@@ -1,6 +1,9 @@
 package org.checkerframework.checker.initialization;
 
 import com.sun.source.tree.ClassTree;
+import com.sun.source.tree.ExpressionTree;
+import com.sun.source.tree.IdentifierTree;
+import com.sun.source.tree.MemberSelectTree;
 import com.sun.source.tree.MethodInvocationTree;
 import com.sun.tools.javac.code.Symbol;
 
@@ -15,6 +18,7 @@ import org.checkerframework.dataflow.expression.FieldAccess;
 import org.checkerframework.dataflow.expression.JavaExpression;
 import org.checkerframework.framework.flow.CFAbstractTransfer;
 import org.checkerframework.framework.flow.CFValue;
+import org.checkerframework.javacutil.InternalUtils;
 import org.checkerframework.javacutil.TreePathUtil;
 import org.checkerframework.javacutil.TreeUtils;
 
@@ -22,6 +26,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import javax.lang.model.element.ExecutableElement;
+import javax.lang.model.element.Name;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.TypeKind;
@@ -41,6 +46,8 @@ import javax.lang.model.util.ElementFilter;
  *   <li>After the call to a super constructor ("super()" call), all fields of the super class can
  *       safely be considered initialized.
  * </ol>
+ *
+ * @see InitializationStore
  */
 public class InitializationTransfer
         extends CFAbstractTransfer<CFValue, InitializationStore, InitializationTransfer> {
@@ -69,29 +76,35 @@ public class InitializationTransfer
         List<VariableElement> result = new ArrayList<>();
         MethodInvocationTree tree = node.getTree();
         ExecutableElement method = TreeUtils.elementFromUse(tree);
-        boolean isConstructor = method.getSimpleName().contentEquals("<init>");
+        boolean isConstructor = InternalUtils.isInitName(method.getSimpleName());
         Node receiver = node.getTarget().getReceiver();
-        String methodString = tree.getMethodSelect().toString();
 
-        // Case 1: After a call to the constructor of the same class, all
-        // fields are guaranteed to be initialized.
-        if (isConstructor && receiver instanceof ThisNode && methodString.equals("this")) {
-            ClassTree clazz = TreePathUtil.enclosingClass(analysis.getTypeFactory().getPath(tree));
-            TypeElement clazzElem = TreeUtils.elementFromDeclaration(clazz);
-            markFieldsAsInitialized(result, clazzElem);
-        }
-
-        // Case 4: After a call to the constructor of the super class, all
-        // fields of any super class are guaranteed to be initialized.
-        if (isConstructor && receiver instanceof ThisNode && methodString.equals("super")) {
-            ClassTree clazz = TreePathUtil.enclosingClass(analysis.getTypeFactory().getPath(tree));
-            TypeElement clazzElem = TreeUtils.elementFromDeclaration(clazz);
-            TypeMirror superClass = clazzElem.getSuperclass();
-
-            while (superClass != null && superClass.getKind() != TypeKind.NONE) {
-                clazzElem = (TypeElement) analysis.getTypes().asElement(superClass);
-                superClass = clazzElem.getSuperclass();
+        if (isConstructor && receiver instanceof ThisNode) {
+            ExpressionTree methodSelect = tree.getMethodSelect();
+            Name methodName =
+                    (methodSelect instanceof IdentifierTree)
+                            ? ((IdentifierTree) methodSelect).getName()
+                            : ((MemberSelectTree) methodSelect).getIdentifier();
+            if (InternalUtils.isThisName(methodName)) {
+                // Case 1: After a call to the constructor of the same class, all
+                // fields are guaranteed to be initialized.
+                ClassTree clazz =
+                        TreePathUtil.enclosingClass(analysis.getTypeFactory().getPath(tree));
+                TypeElement clazzElem = TreeUtils.elementFromDeclaration(clazz);
                 markFieldsAsInitialized(result, clazzElem);
+            } else if (InternalUtils.isSuperName(methodName)) {
+                // Case 4: After a call to the constructor of the super class, all
+                // fields of any super class are guaranteed to be initialized.
+                ClassTree clazz =
+                        TreePathUtil.enclosingClass(analysis.getTypeFactory().getPath(tree));
+                TypeElement clazzElem = TreeUtils.elementFromDeclaration(clazz);
+                TypeMirror superClass = clazzElem.getSuperclass();
+
+                while (superClass != null && superClass.getKind() != TypeKind.NONE) {
+                    clazzElem = (TypeElement) analysis.getTypes().asElement(superClass);
+                    superClass = clazzElem.getSuperclass();
+                    markFieldsAsInitialized(result, clazzElem);
+                }
             }
         }
 

@@ -144,6 +144,7 @@ import org.checkerframework.javacutil.AnnotationProvider;
 import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.ElementUtils;
+import org.checkerframework.javacutil.InternalUtils;
 import org.checkerframework.javacutil.SystemUtil;
 import org.checkerframework.javacutil.TreePathUtil;
 import org.checkerframework.javacutil.TreeUtils;
@@ -397,6 +398,7 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
      * @param assumeAssertionsEnabled can assertions be assumed to be enabled?
      * @param env annotation processing environment containing type utilities
      */
+    @SuppressWarnings("this-escape")
     public CFGTranslationPhaseOne(
             TreeBuilder treeBuilder,
             AnnotationProvider annotationProvider,
@@ -522,7 +524,12 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
      * @return a PhaseOneResult
      */
     public PhaseOneResult process(CompilationUnitTree root, UnderlyingAST underlyingAST) {
-        // TODO: Isn't this costly? Is there no cache we can reuse?
+        // This Trees.getPath is an uncached full-tree search (a PathFinder scan from the
+        // compilation-unit root down to the body), so calling it once per body is quadratic in
+        // bodies-per-file. The checker pipeline avoids it: CFCFGBuilder.build serves the body
+        // path from the checker's shared TreePathCacher and calls process(TreePath, ...)
+        // directly. This overload is the uncached fallback for callers that have no cacher (the
+        // standalone CFGProcessor tool); there it runs once per body and is not on a hot path.
         TreePath bodyPath = trees.getPath(root, underlyingAST.getCode());
         assert bodyPath != null;
         return process(bodyPath, underlyingAST);
@@ -558,6 +565,11 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
         @SuppressWarnings("interning:not.interned") // Looking for exact match.
         boolean treeIsLeaf = path.getLeaf() != tree;
         if (treeIsLeaf) {
+            // One TreePath is allocated per visited tree to maintain getCurrentPath(). Despite the
+            // volume, this is not a hotspot: a JFR allocation trace attributes only ~0.56% of
+            // TreePath allocation (~0.01% of total) to this line. Materializing the path lazily (a
+            // Tree stack built on demand in getCurrentPath()) was measured to save <0.01% of total
+            // allocation and rejected; see docs/developer/performance-notes.md ("Lazy path stack").
             path = new TreePath(path, tree);
         }
         try {
@@ -1600,7 +1612,7 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
     protected @Nullable Name getLabel(TreePath path) {
         if (path.getParentPath() != null) {
             Tree parent = path.getParentPath().getLeaf();
-            if (parent.getKind() == Tree.Kind.LABELED_STATEMENT) {
+            if (parent instanceof LabeledStatementTree) {
                 return ((LabeledStatementTree) parent).getLabel();
             }
         }
@@ -1908,7 +1920,7 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
      */
     private Node getReceiver(ExpressionTree tree) {
         assert TreeUtils.isFieldAccess(tree) || TreeUtils.isMethodAccess(tree);
-        if (tree.getKind() == Tree.Kind.MEMBER_SELECT) {
+        if (tree instanceof MemberSelectTree) {
             // `tree` has an explicit receiver.
             MemberSelectTree mtree = (MemberSelectTree) tree;
             return scan(mtree.getExpression(), null);
@@ -2568,7 +2580,7 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
          * @return if the switch is a switch expression, then a {@link SwitchExpressionNode};
          *     otherwise, null
          */
-        public @Nullable SwitchExpressionNode build() {
+        @Nullable SwitchExpressionNode build() {
             LabelCell oldBreakTargetLC = breakTargetLC;
             breakTargetLC = new LabelCell(new Label());
             int numCases = caseTrees.size();
@@ -3195,8 +3207,8 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
             extendWithNode(arrayVariableNode);
             Node expressionNode = scan(expression, p);
 
-            translateAssignment(
-                    arrayVariable, new LocalVariableNode(arrayVariable), expressionNode);
+            translateAssignment(arrayVariable, new LocalVariableNode(arrayVariable), expressionNode)
+                    .setDesugaredFromEnhancedArrayForLoop();
 
             // Declare and initialize the loop index variable
             TypeMirror intType = types.getPrimitiveType(TypeKind.INT);
@@ -3427,7 +3439,7 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
             switch (element.getKind()) {
                 case FIELD:
                     // Note that "this"/"super" is a field, but not a field access.
-                    if (element.getSimpleName().contentEquals("this")) {
+                    if (InternalUtils.isThisName(element.getSimpleName())) {
                         node = new ExplicitThisNode(tree);
                     } else {
                         node = new SuperNode(tree);
@@ -3673,7 +3685,7 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
      * map is necessary because dataflow does not create a {@code Node} for a {@code
      * ParenthesizedTree}.
      */
-    private final Map<Tree, ParenthesizedTree> parenMapping = new HashMap<>();
+    private final IdentityHashMap<Tree, ParenthesizedTree> parenMapping = new IdentityHashMap<>();
 
     @Override
     public Node visitParenthesized(ParenthesizedTree tree, Void p) {

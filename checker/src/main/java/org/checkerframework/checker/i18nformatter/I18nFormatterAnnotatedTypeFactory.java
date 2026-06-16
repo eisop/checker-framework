@@ -79,6 +79,7 @@ public class I18nFormatterAnnotatedTypeFactory extends BaseAnnotatedTypeFactory 
     protected final I18nFormatterTreeUtil treeUtil = new I18nFormatterTreeUtil(checker);
 
     /** Create a new I18nFormatterAnnotatedTypeFactory. */
+    @SuppressWarnings("this-escape")
     public I18nFormatterAnnotatedTypeFactory(BaseTypeChecker checker) {
         super(checker);
 
@@ -177,7 +178,7 @@ public class I18nFormatterAnnotatedTypeFactory extends BaseAnnotatedTypeFactory 
     }
 
     private class I18nFormatterTreeAnnotator extends TreeAnnotator {
-        public I18nFormatterTreeAnnotator(AnnotatedTypeFactory atypeFactory) {
+        I18nFormatterTreeAnnotator(AnnotatedTypeFactory atypeFactory) {
             super(atypeFactory);
         }
 

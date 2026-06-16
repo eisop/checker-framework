@@ -4,7 +4,7 @@ C1.java:2: error: [initialization.field.uninitialized] the default constructor d
 C2.java:2: error: [assignment.type.incompatible] incompatible types in assignment.
     Object o = null;
                ^
-  found   : null (NullType)
+  found   : @Nullable NullType
   required: @NonNull Object
 C3.java:4: error: cannot find symbol
             void bad(XXX p) {

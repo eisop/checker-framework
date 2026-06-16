@@ -66,6 +66,7 @@ public class FormatterAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
     protected final FormatterTreeUtil treeUtil = new FormatterTreeUtil(checker);
 
     /** Creates a FormatterAnnotatedTypeFactory. */
+    @SuppressWarnings("this-escape")
     public FormatterAnnotatedTypeFactory(BaseTypeChecker checker) {
         super(checker);
 
@@ -201,7 +202,7 @@ public class FormatterAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
          *
          * @param atypeFactory the Format String Checker type factory
          */
-        public FormatterTreeAnnotator(AnnotatedTypeFactory atypeFactory) {
+        FormatterTreeAnnotator(AnnotatedTypeFactory atypeFactory) {
             super(atypeFactory);
         }
 

@@ -35,7 +35,6 @@ import org.checkerframework.framework.flow.CFAbstractAnalysis;
 import org.checkerframework.framework.qual.DefaultQualifier;
 import org.checkerframework.framework.qual.TypeUseLocation;
 import org.checkerframework.framework.type.AnnotatedTypeFactory;
-import org.checkerframework.framework.type.AnnotatedTypeFormatter;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedArrayType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedDeclaredType;
@@ -372,6 +371,7 @@ public class NullnessNoInitAnnotatedTypeFactory
      *
      * @param checker the associated {@link NullnessNoInitSubchecker}
      */
+    @SuppressWarnings("this-escape")
     public NullnessNoInitAnnotatedTypeFactory(BaseTypeChecker checker) {
         super(checker);
 
@@ -493,20 +493,6 @@ public class NullnessNoInitAnnotatedTypeFactory
             CFAbstractAnalysis<NullnessNoInitValue, NullnessNoInitStore, NullnessNoInitTransfer>
                     analysis) {
         return new NullnessNoInitTransfer((NullnessNoInitAnalysis) analysis);
-    }
-
-    /**
-     * Returns an AnnotatedTypeFormatter that does not print the qualifiers on null literals.
-     *
-     * @return an AnnotatedTypeFormatter that does not print the qualifiers on null literals
-     */
-    @Override
-    protected AnnotatedTypeFormatter createAnnotatedTypeFormatter() {
-        boolean printVerboseGenerics = checker.hasOption("printVerboseGenerics");
-        return new NullnessNoInitAnnotatedTypeFormatter(
-                printVerboseGenerics,
-                // -AprintVerboseGenerics implies -AprintAllQualifiers
-                printVerboseGenerics || checker.hasOption("printAllQualifiers"));
     }
 
     @Override
@@ -887,10 +873,14 @@ public class NullnessNoInitAnnotatedTypeFactory
      * @return true if the given annotation is a nullness annotation
      */
     protected boolean isNullnessAnnotation(AnnotationMirror am) {
-        return isNonNullOrAlias(am)
-                || isNullableOrAlias(am)
-                || AnnotationUtils.areSameByName(am, MONOTONIC_NONNULL)
-                || isPolyNullOrAlias(am);
+        // Resolve the alias once, then test the four canonical names, instead of calling
+        // isXOrAlias, which each resolves aliasing.
+        AnnotationMirror canonical = canonicalAnnotation(am);
+        AnnotationMirror toCheck = canonical != null ? canonical : am;
+        return AnnotationUtils.areSameByName(toCheck, NONNULL)
+                || AnnotationUtils.areSameByName(toCheck, NULLABLE)
+                || AnnotationUtils.areSameByName(toCheck, MONOTONIC_NONNULL)
+                || AnnotationUtils.areSameByName(toCheck, POLYNULL);
     }
 
     /**
