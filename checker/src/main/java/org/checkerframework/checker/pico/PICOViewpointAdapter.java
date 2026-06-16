@@ -31,6 +31,9 @@ public class PICOViewpointAdapter extends AbstractViewpointAdapter {
     @Override
     protected AnnotationMirror combineAnnotationWithAnnotation(
             AnnotationMirror receiverAnnotation, AnnotationMirror declaredAnnotation) {
+        if (declaredAnnotation == null) {
+            declaredAnnotation = picoTypeFactory.READONLY;
+        }
         if (AnnotationUtils.areSame(declaredAnnotation, picoTypeFactory.READONLY)) {
             return picoTypeFactory.READONLY;
         } else if (AnnotationUtils.areSame(declaredAnnotation, picoTypeFactory.MUTABLE)) {

@@ -1,7 +1,6 @@
 package org.checkerframework.checker.pico;
 
 import com.sun.source.tree.Tree;
-import com.sun.source.tree.Tree.Kind;
 import com.sun.source.tree.VariableTree;
 
 import org.checkerframework.checker.pico.qual.Immutable;
@@ -148,7 +147,7 @@ public class PICOValidator extends BaseTypeValidator {
      * @param tree the tree to check
      */
     private void checkOnlyOneAssignabilityModifierOnField(Tree tree) {
-        if (tree.getKind() == Kind.VARIABLE) {
+        if (tree instanceof VariableTree) {
             VariableTree variableTree = (VariableTree) tree;
             VariableElement variableElement = TreeUtils.elementFromDeclaration(variableTree);
             if (!PICOTypeUtil.hasOneAndOnlyOneAssignabilityQualifier(

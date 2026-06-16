@@ -23,6 +23,7 @@ public class RawTypeTest {
             // "? extends @Mutable Object" is a valid actual receiver(subtype of @Mutable Object) so
             // the
             // method invocation typechecks
+            // :: error: (method.invocation.invalid)
             ((A) i.next()).foo();
         }
     }

@@ -39,6 +39,7 @@ public class PICOInitializationAnnotatedTypeFactory extends InitializationAnnota
      *
      * @param checker the BaseTypeChecker this visitor works with
      */
+    @SuppressWarnings("this-escape")
     public PICOInitializationAnnotatedTypeFactory(BaseTypeChecker checker) {
         super(checker);
         Elements elements = checker.getElementUtils();

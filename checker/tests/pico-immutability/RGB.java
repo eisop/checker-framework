@@ -4,13 +4,9 @@ import org.checkerframework.checker.pico.qual.Mutable;
 import org.checkerframework.checker.pico.qual.Readonly;
 import org.checkerframework.checker.pico.qual.ReceiverDependentMutable;
 
-// Inspire by: https://docs.oracle.com/javase/tutorial/essential/concurrency/imstrat.html
-// Allow both mutable and immutable instance creation
-// Allow having getters and setters, don't need to remove them
-// fields don't need to be declared with "final"
-// Don't need defensive copy(even though not applicable in this example)
-// Aosen: I don't think this test adding much interest aspect of PICO rules, we can remove this if
-// desired.
+// Inspired by the Java tutorial's immutable RGB color example:
+// https://docs.oracle.com/javase/tutorial/essential/concurrency/imstrat.html
+// PICO permits the same class declaration to create either mutable or immutable instances.
 @ReceiverDependentMutable public class RGB {
 
     // Values must be between 0 and 255.

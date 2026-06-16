@@ -12,7 +12,6 @@ import com.sun.tools.javac.code.Symbol;
 
 import org.checkerframework.checker.pico.qual.Assignable;
 import org.checkerframework.checker.pico.qual.Immutable;
-import org.checkerframework.checker.pico.qual.ObjectIdentityMethod;
 import org.checkerframework.framework.qual.DefaultFor;
 import org.checkerframework.framework.qual.TypeKind;
 import org.checkerframework.framework.type.AnnotatedTypeFactory;
@@ -370,34 +369,5 @@ public class PICOTypeUtil {
                 && ElementUtils.getQualifiedName(ele).equals("Array")
                 && ((Symbol.ClassSymbol) ele).classfile == null
                 && ((Symbol.ClassSymbol) ele).sourcefile == null;
-    }
-
-    /**
-     * Check if a method is an object identity method.
-     *
-     * @param node MethodTree of the method
-     * @param annotatedTypeFactory AnnotatedTypeFactory
-     * @return true if the method is an object identity method
-     */
-    public static boolean isObjectIdentityMethod(
-            MethodTree node, AnnotatedTypeFactory annotatedTypeFactory) {
-        ExecutableElement element = TreeUtils.elementFromDeclaration(node);
-        return isObjectIdentityMethod(element, annotatedTypeFactory);
-    }
-
-    /**
-     * Check if a method is an object identity method.
-     *
-     * @param executableElement ExecutableElement of the method
-     * @param annotatedTypeFactory AnnotatedTypeFactory
-     * @return whether this method is an object identity method
-     */
-    public static boolean isObjectIdentityMethod(
-            ExecutableElement executableElement, AnnotatedTypeFactory annotatedTypeFactory) {
-        return annotatedTypeFactory.getDeclAnnotation(executableElement, ObjectIdentityMethod.class)
-                        != null
-                || isMethodOrOverridingMethod(executableElement, "hashCode()", annotatedTypeFactory)
-                || isMethodOrOverridingMethod(
-                        executableElement, "equals(java.lang.Object)", annotatedTypeFactory);
     }
 }

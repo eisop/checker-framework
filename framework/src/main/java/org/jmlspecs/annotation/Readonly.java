@@ -4,7 +4,7 @@ import java.lang.annotation.Documented;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 
-/** Defines the 'readonly' JML annotation */
-@Retention(RetentionPolicy.RUNTIME)
+/** The JML {@code readonly} annotation. */
 @Documented
+@Retention(RetentionPolicy.RUNTIME)
 public @interface Readonly {}

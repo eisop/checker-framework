@@ -99,6 +99,7 @@ public class PICONoInitAnnotatedTypeFactory
      *
      * @param checker the BaseTypeChecker
      */
+    @SuppressWarnings("this-escape")
     public PICONoInitAnnotatedTypeFactory(BaseTypeChecker checker) {
         super(checker);
         addAliasedTypeAnnotation(org.jmlspecs.annotation.Readonly.class, READONLY);
@@ -149,6 +150,24 @@ public class PICONoInitAnnotatedTypeFactory
     @Override
     public QualifierHierarchy createQualifierHierarchy() {
         return new PICOQualifierHierarchy(getSupportedTypeQualifiers(), elements, this);
+    }
+
+    @Override
+    protected void postDirectSuperTypes(
+            AnnotatedTypeMirror type, List<? extends AnnotatedTypeMirror> supertypes) {
+        AnnotationMirrorSet annotations = type.getEffectiveAnnotations();
+        for (AnnotatedTypeMirror supertype : supertypes) {
+            if (!annotations.equals(supertype.getEffectiveAnnotations())) {
+                supertype.clearAnnotations();
+                supertype.addAnnotations(annotations);
+            }
+        }
+        if (type.getKind() == TypeKind.DECLARED) {
+            for (AnnotatedTypeMirror supertype : supertypes) {
+                Element elt = ((DeclaredType) supertype.getUnderlyingType()).asElement();
+                addComputedTypeAnnotations(elt, supertype);
+            }
+        }
     }
 
     @Override
@@ -555,10 +574,10 @@ public class PICONoInitAnnotatedTypeFactory
 
             if (!type.getTypeArguments().isEmpty()) {
                 // Only declared types with type arguments might be recursive.
-                if (visitedNodes.containsKey(type)) {
-                    return visitedNodes.get(type);
+                if (hasVisited(type)) {
+                    return getVisited(type);
                 }
-                visitedNodes.put(type, null);
+                markVisited(type, null);
             }
             Void r = null;
             if (type.getEnclosingType() != null) {

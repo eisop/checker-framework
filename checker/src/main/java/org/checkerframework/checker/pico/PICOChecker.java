@@ -7,7 +7,7 @@ import org.checkerframework.common.basetype.BaseTypeChecker;
 import javax.annotation.processing.SupportedOptions;
 
 /** The PICO checker. */
-@SupportedOptions({"assumeInitialized", "abstractStateOnly"})
+@SupportedOptions({"assumeInitialized"})
 public class PICOChecker extends InitializationChecker {
 
     /** Default constructor for PICOChecker. */

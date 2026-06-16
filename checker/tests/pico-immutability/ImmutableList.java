@@ -25,11 +25,13 @@ import java.util.List;
 
     @Immutable ImmutableList(Object o1) {
         // One way to construct and immutable list is to pass the contents to the constructor
+        // :: error: (varargs.type.incompatible)
         list = new @Immutable ArrayList<String>(Arrays.asList("hi"));
     }
 
     @Immutable ImmutableList(Object o1, Object o2) {
         // Another way is to use Arrays.asList()
+        // :: error: (varargs.type.incompatible)
         list = Arrays.asList("hi");
     }
 

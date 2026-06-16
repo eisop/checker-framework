@@ -5,12 +5,13 @@ import com.sun.source.tree.AssignmentTree;
 import com.sun.source.tree.ClassTree;
 import com.sun.source.tree.CompoundAssignmentTree;
 import com.sun.source.tree.ExpressionTree;
+import com.sun.source.tree.IdentifierTree;
+import com.sun.source.tree.MemberSelectTree;
 import com.sun.source.tree.MethodInvocationTree;
 import com.sun.source.tree.MethodTree;
 import com.sun.source.tree.NewArrayTree;
 import com.sun.source.tree.NewClassTree;
 import com.sun.source.tree.Tree;
-import com.sun.source.tree.Tree.Kind;
 import com.sun.source.tree.UnaryTree;
 import com.sun.source.tree.VariableTree;
 
@@ -48,9 +49,6 @@ import javax.lang.model.type.TypeMirror;
 
 /** The visitor for the immutability type system. */
 public class PICONoInitVisitor extends BaseTypeVisitor<PICONoInitAnnotatedTypeFactory> {
-    /** whether to only check observational purity */
-    protected final boolean abstractStateOnly;
-
     /**
      * Create a new PICONoInitVisitor.
      *
@@ -58,7 +56,6 @@ public class PICONoInitVisitor extends BaseTypeVisitor<PICONoInitAnnotatedTypeFa
      */
     public PICONoInitVisitor(BaseTypeChecker checker) {
         super(checker);
-        abstractStateOnly = checker.hasOption("abstractStateOnly");
     }
 
     @Override
@@ -70,17 +67,9 @@ public class PICONoInitVisitor extends BaseTypeVisitor<PICONoInitAnnotatedTypeFa
     protected void checkConstructorResult(
             AnnotatedExecutableType constructorType, ExecutableElement constructorElement) {}
 
-    // This method is for validating usage of mutability qualifier is conformable to element
-    // declaration,
-    // Ugly thing here is that declarationType is not the result of calling the other method -
-    // PICOTypeUtil#getBoundTypeOfTypeDeclaration. Instead it's the result of calling
-    // ATF#getAnnotatedType(Element).
-    // Why it works is that PICOTypeUtil#getBoundTypeOfTypeDeclaration and
-    // ATF#getAnnotatedType(Element) has
-    // the same effect most of the time except on java.lang.Object. We need to be careful when
-    // modifying
-    // PICOTypeUtil#getBoundTypeOfTypeDeclaration so that it has the same behaviour as
-    // ATF#getAnnotatedType(Element)
+    // Validate that a mutability qualifier use conforms to the type declaration bound. The
+    // declarationType is produced by AnnotatedTypeFactory#getAnnotatedType(Element), whose result
+    // must remain consistent with PICOTypeUtil's class-bound helpers.
     @Override
     public boolean isValidUse(
             AnnotatedDeclaredType declarationType, AnnotatedDeclaredType useType, Tree tree) {
@@ -146,9 +135,8 @@ public class PICONoInitVisitor extends BaseTypeVisitor<PICONoInitAnnotatedTypeFa
                 // adapted to bound
                 atypeFactory.getViewpointAdapter().viewpointAdaptMember(bound, element, varAdapted);
                 // Pass varAdapted here as lhs type.
-                // Caution: cannot pass var directly. Modifying type in PICOInferenceTreeAnnotator#
-                // visitVariable() will cause wrong type to be gotton here, as on inference side,
-                // atm is uniquely determined by each element.
+                // Do not pass var directly: it is shared by element, so mutating it would affect
+                // later lookups of the same field type.
                 return commonAssignmentCheck(varAdapted, valueExp, errorKey, extraArgs);
             }
         }
@@ -177,8 +165,8 @@ public class PICONoInitVisitor extends BaseTypeVisitor<PICONoInitAnnotatedTypeFa
     @Override
     public void processMethodTree(String className, MethodTree tree) {
         AnnotatedExecutableType executableType = atypeFactory.getAnnotatedType(tree);
-        // Report error if the constructor's return type is @ReadOnly or @PolyMutable. Validity are
-        // checked in BasetypeValidator.
+        // Report an error if the constructor return type is @Readonly or @PolyMutable. Validity is
+        // also checked in BaseTypeValidator.
         if (TreeUtils.isConstructor(tree)) {
             AnnotatedDeclaredType constructorReturnType =
                     (AnnotatedDeclaredType) executableType.getReturnType();
@@ -190,13 +178,6 @@ public class PICONoInitVisitor extends BaseTypeVisitor<PICONoInitAnnotatedTypeFa
 
         flexibleOverrideChecker(tree);
 
-        // ObjectIdentityMethod check
-        if (abstractStateOnly) {
-            if (PICOTypeUtil.isObjectIdentityMethod(tree, atypeFactory)) {
-                ObjectIdentityMethodEnforcer.check(
-                        atypeFactory.getPath(tree.getBody()), atypeFactory, checker);
-            }
-        }
         super.processMethodTree(className, tree);
     }
 
@@ -254,11 +235,8 @@ public class PICONoInitVisitor extends BaseTypeVisitor<PICONoInitAnnotatedTypeFa
     @Override
     public Void visitAssignment(AssignmentTree node, Void p) {
         ExpressionTree variable = node.getVariable();
-        // TODO Question Here, receiver type uses flow refinement. But in commonAssignmentCheck to
-        // compute lhs type it doesn't. This causes inconsistencies when enforcing immutability and
-        // doing subtype check. I overrode getAnnotatedTypeLhs() to also use flow sensitive
-        // refinement, but came across with "private access" problem on field
-        // "computingAnnotatedTypeMirrorOfLHS"
+        // Field-write checks use the receiver type, including flow refinement. The later assignment
+        // subtype check still uses the standard left-hand-side type.
         checkAssignment(node, variable);
         return super.visitAssignment(node, p);
     }
@@ -290,9 +268,9 @@ public class PICONoInitVisitor extends BaseTypeVisitor<PICONoInitAnnotatedTypeFa
         AnnotatedTypeMirror receiverType = atypeFactory.getReceiverType(variable);
         MethodTree enclosingMethod = TreePathUtil.enclosingMethod(getCurrentPath());
         if (enclosingMethod != null) {
-            List<? extends AnnotationMirror> recieverAnnotations =
-                    getAllRecieverAnnotation(enclosingMethod);
-            for (AnnotationMirror anno : recieverAnnotations) {
+            List<? extends AnnotationMirror> receiverAnnotations =
+                    getAllReceiverAnnotation(enclosingMethod);
+            for (AnnotationMirror anno : receiverAnnotations) {
                 if (AnnotationUtils.areSame(anno, atypeFactory.UNDER_INITALIZATION)) {
                     // If the enclosing method receiver is under initialization, allow assignment
                     return;
@@ -321,7 +299,7 @@ public class PICONoInitVisitor extends BaseTypeVisitor<PICONoInitAnnotatedTypeFa
      * @param tree the method tree
      * @return the list of receiver annotations
      */
-    private List<? extends AnnotationMirror> getAllRecieverAnnotation(MethodTree tree) {
+    private List<? extends AnnotationMirror> getAllReceiverAnnotation(MethodTree tree) {
         com.sun.tools.javac.code.Symbol meth =
                 (com.sun.tools.javac.code.Symbol) TreeUtils.elementFromDeclaration(tree);
         return meth.getRawTypeAttributes();
@@ -350,12 +328,12 @@ public class PICONoInitVisitor extends BaseTypeVisitor<PICONoInitAnnotatedTypeFa
      */
     private void reportFieldOrArrayWriteError(
             Tree tree, ExpressionTree variable, AnnotatedTypeMirror receiverType) {
-        if (variable.getKind() == Kind.MEMBER_SELECT) {
+        if (variable instanceof MemberSelectTree) {
             checker.reportError(
                     TreeUtils.getReceiverTree(variable), "illegal.field.write", receiverType);
-        } else if (variable.getKind() == Kind.IDENTIFIER) {
+        } else if (variable instanceof IdentifierTree) {
             checker.reportError(tree, "illegal.field.write", receiverType);
-        } else if (variable.getKind() == Kind.ARRAY_ACCESS) {
+        } else if (variable instanceof ArrayAccessTree) {
             checker.reportError(
                     ((ArrayAccessTree) variable).getExpression(),
                     "illegal.array.write",
@@ -432,8 +410,7 @@ public class PICONoInitVisitor extends BaseTypeVisitor<PICONoInitAnnotatedTypeFa
     @Override
     public void processClassTree(ClassTree tree) {
         TypeElement typeElement = TreeUtils.elementFromDeclaration(tree);
-        // TODO Don't process anonymous class. I'm not even sure if whether
-        // processClassTree(ClassTree) is called on anonymous class tree
+        // Anonymous classes are validated through their creation expressions.
         if (typeElement.toString().contains("anonymous")) {
             super.processClassTree(tree);
             return;
@@ -458,7 +435,7 @@ public class PICONoInitVisitor extends BaseTypeVisitor<PICONoInitAnnotatedTypeFa
         if (bound.hasAnnotation(atypeFactory.IMMUTABLE)
                 || bound.hasAnnotation(atypeFactory.RECEIVER_DEPENDENT_MUTABLE)) {
             for (Tree member : tree.getMembers()) {
-                if (member.getKind() == Kind.VARIABLE) {
+                if (member instanceof VariableTree) {
                     Element ele = TreeUtils.elementFromTree(member);
                     assert ele != null;
                     // fromElement will not apply defaults, if no explicit anno exists in code,
