@@ -348,6 +348,26 @@ so small per-call wins paid back substantially.
   invariant; `private` field; storage strategy decoupled from subclasses), not for a perf number.
   One source-compat note: `visitedNodes` going `protected` → `private` is incompatible for any
   third-party `AnnotatedTypeScanner` subclass that referenced the field directly.
+- **PR #1815 — re-instantiate `IdentityHashMap`s instead of `clear()` (June 2026).**
+  Applies the same principle as PR #1794 (fresh TLAB allocation is cheaper than an explicit
+  `Arrays.fill` over the existing backing array) to four additional sites:
+  (1) **`AnnotatedTypeCopier.visit`**: removes the PR #1791 thread-local map pool entirely.
+  The pool's `finally { map.clear() }` was profiled at ~2.6% of `checknullness` self-time
+  (see *Tried and rejected*: `AnnotatedTypeCopier.visit` pooled-map clear ratchet). The pool
+  also required a re-entrancy fallback that allocated a new map anyway. Now `visit` always
+  allocates a fresh `new IdentityHashMap<>(VISITED_NODES_INITIAL_CAPACITY)` and discards it
+  on return — no pool, no clear, no re-entrancy guard.
+  (2) **`AbstractQualifierPolymorphism.AnnotationMirrorMap.reset()`**: `visitedTypes.clear()` →
+  re-instantiate `Collections.newSetFromMap(new IdentityHashMap<>())`.
+  (3) **`EquivalentAtmComboScanner.Visited.clear()`**: `visits.clear()` → re-instantiate
+  `new IdentityHashMap<>()`.
+  (4) **`AtmLubVisitor.visit()`**: `visited.clear()` → re-instantiate.
+  **Quick A/B** (cold-JVM wall clock, 3 reps/side, `gen-sized-program.py --shape generic`):
+  master 300-method median ~5.9 s vs. branch ~6.2 s; 600-method ~8.3 s vs. ~8.2 s —
+  **within cold-JVM noise (±0.7 s), no measurable wall-clock difference**. The win, if any,
+  is GC pressure / allocation throughput rather than wall clock on heap-generous single-file
+  runs; the `checknullness` JFR self-time attribution for `IdentityHashMap.clear` (2.6%)
+  suggests the benefit would be clearest on a multi-CU warm-daemon workload.
 
 ### Element and name caching
 
@@ -1190,7 +1210,9 @@ the prior finding. A fresh hypothesis is not new evidence.
   by *count* (called 1.7M+ times) but the actual time saved by a smaller table is negligible (same
   lesson as the `AnnotatedTypeScanner.markVisited` array sizing). Don't pursue without a workload
   where a genuinely large table is filled enough times that the byte-volume, not the call count,
-  dominates.
+  dominates. **Follow-up (PR #1815):** the pool was subsequently removed entirely (always fresh
+  allocation) — also measured neutral on cold-JVM wall clock, but removes the re-entrancy fallback
+  complexity. See Applied optimizations → `AnnotatedTypeScanner` and visitor state.
 - **Per-CU tree-defaults memoization in `QualifierDefaults` (June 2026).** A full prototype of
   short-list item #4 — a per-compilation-unit cache from `(scope element, pre-defaulting type
   structure)` to the defaulted type, keyed by a sound `AppliedDefaultsKey` (identity scope +
