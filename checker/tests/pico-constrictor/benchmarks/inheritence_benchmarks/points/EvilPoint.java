@@ -1,7 +1,5 @@
 import org.checkerframework.checker.pico.qual.Immutable;
 
-// Done
-
 @Immutable public class EvilPoint extends Point {
     public EvilPoint(int x, int y) {
         super(x, y);

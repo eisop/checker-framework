@@ -3,8 +3,6 @@ import org.checkerframework.checker.pico.qual.Readonly;
 
 import java.util.List;
 
-// Done
-
 public class CachedList {
     private List<Integer> list;
     private @Assignable int cachedIdx;

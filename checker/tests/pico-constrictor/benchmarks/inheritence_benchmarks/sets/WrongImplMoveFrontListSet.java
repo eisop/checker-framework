@@ -3,7 +3,6 @@ import org.checkerframework.checker.pico.qual.Readonly;
 import java.util.ArrayList;
 import java.util.List;
 
-// Done
 public class WrongImplMoveFrontListSet extends GenericSet {
     private List<Integer> list;
     private int size;

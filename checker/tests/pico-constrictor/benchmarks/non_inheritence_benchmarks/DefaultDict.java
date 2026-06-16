@@ -2,8 +2,6 @@ import org.checkerframework.checker.pico.qual.Readonly;
 
 import java.util.Map;
 
-// Done
-
 public class DefaultDict {
     private int defaultVal;
     private Map<Integer, Integer> dict;

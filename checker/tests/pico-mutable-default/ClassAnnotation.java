@@ -166,19 +166,15 @@ import org.checkerframework.checker.pico.qual.ReceiverDependentMutable;
         new @Immutable RDMClass('c');
         new @Mutable RDMClass('c');
         new @ReceiverDependentMutable RDMClass('c');
-        // :: error: constructor.invocation.invalid
         new @PolyMutable ImmutableClassImplict();
         // :: error: constructor.invocation.invalid
         new @Readonly ImmutableClassImplict();
-        // :: error: constructor.invocation.invalid
         new @PolyMutable ImmutableClassExplicit();
         // :: error: constructor.invocation.invalid
         new @Readonly ImmutableClassExplicit();
-        // :: error: constructor.invocation.invalid
         new @PolyMutable MutableClass();
         // :: error: constructor.invocation.invalid
         new @Readonly MutableClass();
-        // TODO :: error: constructor.invocation.invalid
         new @PolyMutable RDMClass();
         // :: error: constructor.invocation.invalid
         new @Readonly RDMClass();

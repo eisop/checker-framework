@@ -1,7 +1,5 @@
 import org.checkerframework.checker.pico.qual.Readonly;
 
-// Done
-
 public class UnreachablyMutating {
     private int i;
 

@@ -1,7 +1,5 @@
 import org.checkerframework.checker.pico.qual.Immutable;
 
-// Done
-
 @Immutable // inherits from SizedShape
 public class EvilSquare extends SizedShape {
     private int length;

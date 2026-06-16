@@ -5,7 +5,6 @@ import org.checkerframework.checker.pico.qual.ReceiverDependentMutable;
 
 import java.util.Date;
 
-// TODO Understand polymutable creation
 @ReceiverDependentMutable public class SupportedBuilderPattern {
     private final int id;
     private String address;

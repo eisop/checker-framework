@@ -1,8 +1,6 @@
 import org.checkerframework.checker.pico.qual.Immutable;
 import org.checkerframework.checker.pico.qual.Readonly;
 
-// Done
-
 @Immutable // inherits from MemoizedRectangle
 public class LeakyMemoizedRectangle extends MemoizedRectangle {
     public LeakyMemoizedRectangle(int h, int w) {

@@ -1,7 +1,5 @@
 import org.checkerframework.checker.pico.qual.Immutable;
 
-// Done
-
 @Immutable public class MaliciousPoint extends Point {
     private int z;
 

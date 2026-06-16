@@ -4,7 +4,6 @@ import com.sun.source.tree.ClassTree;
 import com.sun.source.tree.Tree;
 import com.sun.source.tree.VariableTree;
 
-import org.checkerframework.checker.pico.qual.Immutable;
 import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.common.basetype.BaseTypeValidator;
 import org.checkerframework.common.basetype.BaseTypeVisitor;
@@ -25,16 +24,13 @@ import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.TypeKind;
 
-/**
- * Enforces well-formed PICO immutability, receiver-dependent mutability, and assignability
- * annotations.
- */
+/** Checks PICO-specific validity rules that are not represented by ordinary subtyping. */
 public class PICOValidator extends BaseTypeValidator {
-    /** The type factory for the PICO checker. */
+    /** The type factory for the PICO no-initialization checker. */
     private final PICONoInitAnnotatedTypeFactory picoTypeFactory;
 
     /**
-     * Create a new PICOValidator.
+     * Create a PICOValidator.
      *
      * @param checker the checker
      * @param visitor the visitor
@@ -67,14 +63,16 @@ public class PICOValidator extends BaseTypeValidator {
         if (type.getKind() != TypeKind.DECLARED && !type.getKind().isPrimitive()) {
             return true;
         }
-        // Unlike BaseTypeValidator, PICO still checks local variable declarations.
+        // PICO also validates local variable declarations.
         return !TreeUtils.isExpressionTree(tree) || TreeUtils.isTypeTree(tree);
     }
 
     /**
-     * Allows {@code @ReceiverDependentMutable} on fields whose declared type is mutable when the
-     * enclosing class is also mutable. In that case, the field type is receiver-dependent but every
-     * possible receiver-bound result is within the declared mutable bound.
+     * Returns true if the top-level declaration-bound check should be skipped for this type.
+     *
+     * <p>PICO permits {@code @ReceiverDependentMutable} on a field with a mutable declared bound
+     * inside a mutable class. Every receiver-dependent result is still within the declared mutable
+     * bound, so the regular declaration-bound check would be too strict.
      *
      * @param type field type
      * @param tree tree whose type is being validated
@@ -96,13 +94,13 @@ public class PICOValidator extends BaseTypeValidator {
             return false;
         }
 
-        @Immutable AnnotationMirrorSet enclosingBound =
+        AnnotationMirrorSet enclosingBound =
                 atypeFactory.getTypeDeclarationBounds(enclosingClass.asType());
         if (!AnnotationUtils.containsSameByName(enclosingBound, picoTypeFactory.MUTABLE)) {
             return false;
         }
 
-        @Immutable AnnotationMirrorSet declaredBound =
+        AnnotationMirrorSet declaredBound =
                 atypeFactory.getTypeDeclarationBounds(type.getUnderlyingType());
         return AnnotationUtils.containsSameByName(declaredBound, picoTypeFactory.MUTABLE);
     }
@@ -110,7 +108,8 @@ public class PICOValidator extends BaseTypeValidator {
     @Override
     public Void visitArray(AnnotatedArrayType type, Tree tree) {
         checkStaticReceiverDependentMutableError(type, tree);
-        // Array can not be implicitly immutable
+        // Array declaration bounds are receiver-dependent in PICO, so implicit-immutable validation
+        // does not apply.
         return super.visitArray(type, tree);
     }
 
@@ -122,9 +121,10 @@ public class PICOValidator extends BaseTypeValidator {
     }
 
     /**
-     * Reject receiver-dependent mutable type uses in static contexts. A receiver-dependent class
-     * declaration may itself be static, but members and other type uses in static contexts have no
-     * receiver to depend on.
+     * Reports an error for receiver-dependent mutable type uses in static contexts.
+     *
+     * <p>A receiver-dependent class declaration may itself be static, but members and other type
+     * uses in static contexts have no receiver to depend on.
      *
      * @param type the type to check
      * @param tree the tree to check
@@ -138,15 +138,16 @@ public class PICOValidator extends BaseTypeValidator {
     }
 
     /**
-     * Check that implicitly immutable type has immutable or bottom type. Dataflow might refine
-     * immutable type to {@code @Bottom} (see RefineFromNull.java), so we accept @Bottom as a valid
-     * qualifier for implicitly immutable types.
+     * Reports an error if an implicitly immutable type is used with a non-immutable qualifier.
+     *
+     * <p>Dataflow may refine an immutable type to {@code @Bottom}, as in {@code RefineFromNull};
+     * therefore, {@code @Bottom} is also accepted.
      *
      * @param type the type to check
      * @param tree the tree to check
      */
     private void checkImplicitlyImmutableTypeError(AnnotatedTypeMirror type, Tree tree) {
-        if (PICOTypeUtil.isImplicitlyImmutableType(type)
+        if (picoTypeFactory.isImplicitlyImmutableType(type)
                 && !type.hasAnnotation(picoTypeFactory.IMMUTABLE)
                 && !type.hasAnnotation(picoTypeFactory.BOTTOM)) {
             reportInvalidAnnotationsOnUse(type, tree);
@@ -154,7 +155,9 @@ public class PICOValidator extends BaseTypeValidator {
     }
 
     /**
-     * Checks that class declarations use one of the valid PICO class bounds.
+     * Reports an error if a class declaration uses an invalid PICO class bound.
+     *
+     * <p>Anonymous classes are validated through their creation expressions.
      *
      * @param type the class declaration type
      * @param tree the class declaration tree
@@ -166,15 +169,16 @@ public class PICOValidator extends BaseTypeValidator {
             return;
         }
 
-        if (!PICOTypeUtil.isValidClassBound(type, picoTypeFactory)) {
+        if (!picoTypeFactory.isValidClassBound(type)) {
             checker.reportError(tree, "class.bound.invalid", type);
             isValid = false;
         }
     }
 
     /**
-     * Ensures the well-formedness in terms of assignability on a field. This covers both instance
-     * fields and static fields.
+     * Reports an error if a field declaration does not have exactly one assignability status.
+     *
+     * <p>This covers both instance fields and static fields.
      *
      * @param tree the tree to check
      */
@@ -183,7 +187,7 @@ public class PICOValidator extends BaseTypeValidator {
         if (field == null) {
             return;
         }
-        if (!PICOTypeUtil.hasOneAndOnlyOneAssignabilityQualifier(field, atypeFactory)) {
+        if (!picoTypeFactory.hasOneAndOnlyOneAssignabilityQualifier(field)) {
             checker.reportError(field, "assignability.declaration.invalid", field);
             isValid = false;
         }

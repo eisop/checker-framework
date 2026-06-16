@@ -1,8 +1,6 @@
 import org.checkerframework.checker.pico.qual.Assignable;
 import org.checkerframework.checker.pico.qual.Immutable;
 
-// Done
-
 @Immutable public class AlrightPoint extends Point {
     private @Assignable int distance;
 

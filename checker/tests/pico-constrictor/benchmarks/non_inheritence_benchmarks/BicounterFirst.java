@@ -1,8 +1,6 @@
 import org.checkerframework.checker.pico.qual.Assignable;
 import org.checkerframework.checker.pico.qual.Readonly;
 
-// Done
-
 public class BicounterFirst {
     private int count1;
     private @Assignable int count2;

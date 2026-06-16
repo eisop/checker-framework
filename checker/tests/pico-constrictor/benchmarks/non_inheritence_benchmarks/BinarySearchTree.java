@@ -4,8 +4,6 @@ import org.checkerframework.checker.pico.qual.Readonly;
 import java.util.ArrayList;
 import java.util.List;
 
-// Done
-
 public class BinarySearchTree {
     private int root;
     private List<Integer> lefts;

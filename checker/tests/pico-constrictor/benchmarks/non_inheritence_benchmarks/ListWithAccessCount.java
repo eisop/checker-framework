@@ -3,8 +3,6 @@ import org.checkerframework.checker.pico.qual.Readonly;
 
 import java.util.List;
 
-// Done
-
 public class ListWithAccessCount {
     private @Assignable int accessCount;
     private List<Integer> lst;

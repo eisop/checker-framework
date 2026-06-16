@@ -5,8 +5,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-// Done
-
 public class EvilHashSet extends GenericSet {
     private Map<Integer, List<Integer>> table;
     private Map<Integer, Integer> tableSizes;

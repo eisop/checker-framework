@@ -1,7 +1,5 @@
 import org.checkerframework.checker.pico.qual.Readonly;
 
-// Done
-
 public class MutablePoint {
     private int x;
     private int y;

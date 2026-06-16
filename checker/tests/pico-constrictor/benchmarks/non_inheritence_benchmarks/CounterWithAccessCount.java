@@ -1,8 +1,6 @@
 import org.checkerframework.checker.pico.qual.Assignable;
 import org.checkerframework.checker.pico.qual.Readonly;
 
-// Done
-
 public class CounterWithAccessCount {
     private int count;
     private @Assignable int accessCount;

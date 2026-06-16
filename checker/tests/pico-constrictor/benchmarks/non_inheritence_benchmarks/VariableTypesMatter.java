@@ -1,7 +1,5 @@
 import org.checkerframework.checker.pico.qual.Readonly;
 
-// Done
-
 public class VariableTypesMatter {
     private int someInt;
     private String someStr;

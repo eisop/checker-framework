@@ -16,7 +16,6 @@ import com.sun.source.tree.UnaryTree;
 import com.sun.source.tree.VariableTree;
 
 import org.checkerframework.checker.compilermsgs.qual.CompilerMessageKey;
-import org.checkerframework.checker.pico.qual.Immutable;
 import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.common.basetype.BaseTypeVisitor;
 import org.checkerframework.common.basetype.TypeValidator;
@@ -37,6 +36,7 @@ import org.checkerframework.javacutil.TypesUtils;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
@@ -49,6 +49,14 @@ import javax.lang.model.type.TypeMirror;
 
 /** The visitor for the PICO immutability type system. */
 public class PICONoInitVisitor extends BaseTypeVisitor<PICONoInitAnnotatedTypeFactory> {
+    /** Unary operators that mutate their operand. */
+    private static final Set<Tree.Kind> SIDE_EFFECTING_UNARY_OPERATORS =
+            Set.of(
+                    Tree.Kind.POSTFIX_INCREMENT,
+                    Tree.Kind.PREFIX_INCREMENT,
+                    Tree.Kind.POSTFIX_DECREMENT,
+                    Tree.Kind.PREFIX_DECREMENT);
+
     /**
      * Create a new PICONoInitVisitor.
      *
@@ -69,7 +77,7 @@ public class PICONoInitVisitor extends BaseTypeVisitor<PICONoInitAnnotatedTypeFa
 
     // Validate that a mutability qualifier use conforms to the type declaration bound.
     // declarationType comes from AnnotatedTypeFactory#getAnnotatedType(Element), whose result must
-    // remain consistent with PICOTypeUtil's class-bound helpers.
+    // remain consistent with PICONoInitAnnotatedTypeFactory's class-bound helpers.
     @Override
     public boolean isValidUse(
             AnnotatedDeclaredType declarationType, AnnotatedDeclaredType useType, Tree tree) {
@@ -125,7 +133,7 @@ public class PICONoInitVisitor extends BaseTypeVisitor<PICONoInitAnnotatedTypeFa
             VariableElement element = TreeUtils.elementFromDeclaration((VariableTree) varTree);
             if (element.getKind() == ElementKind.FIELD && !ElementUtils.isStatic(element)) {
                 AnnotatedTypeMirror bound =
-                        PICOTypeUtil.getBoundTypeOfEnclosingTypeDeclaration(varTree, atypeFactory);
+                        atypeFactory.getBoundTypeOfEnclosingTypeDeclaration(varTree);
                 // var is shared by the element, so do not mutate it directly.
                 AnnotatedTypeMirror varAdapted = var.shallowCopy(true);
                 // Viewpoint adaptation mutates varAdapted to the enclosing declaration bound.
@@ -151,6 +159,9 @@ public class PICONoInitVisitor extends BaseTypeVisitor<PICONoInitAnnotatedTypeFa
                     constructor.toString(),
                     invocation.getEffectiveAnnotationInHierarchy(atypeFactory.READONLY),
                     constructor.getReturnType().getAnnotationInHierarchy(atypeFactory.READONLY));
+            return;
+        }
+        if (invocation.hasAnnotation(atypeFactory.POLY_MUTABLE)) {
             return;
         }
         super.checkConstructorInvocation(invocation, constructor, newClassTree);
@@ -189,9 +200,9 @@ public class PICONoInitVisitor extends BaseTypeVisitor<PICONoInitAnnotatedTypeFa
                 (AnnotatedDeclaredType)
                         atypeFactory.getAnnotatedType(methodElement.getEnclosingElement());
 
-        Map<@Immutable AnnotatedDeclaredType, ExecutableElement> overriddenMethods =
+        Map<AnnotatedDeclaredType, ExecutableElement> overriddenMethods =
                 AnnotatedTypes.overriddenMethods(elements, atypeFactory, methodElement);
-        for (Map.Entry<@Immutable AnnotatedDeclaredType, ExecutableElement> pair :
+        for (Map.Entry<AnnotatedDeclaredType, ExecutableElement> pair :
                 overriddenMethods.entrySet()) {
             AnnotatedDeclaredType overriddenType = pair.getKey();
             AnnotatedExecutableType overriddenMethod =
@@ -242,7 +253,7 @@ public class PICONoInitVisitor extends BaseTypeVisitor<PICONoInitAnnotatedTypeFa
 
     @Override
     public Void visitUnary(UnaryTree node, Void p) {
-        if (PICOTypeUtil.isSideEffectingUnaryTree(node)) {
+        if (SIDE_EFFECTING_UNARY_OPERATORS.contains(node.getKind())) {
             ExpressionTree variable = node.getExpression();
             checkAssignment(node, variable);
         }
@@ -306,7 +317,7 @@ public class PICONoInitVisitor extends BaseTypeVisitor<PICONoInitAnnotatedTypeFa
     private boolean allowWrite(AnnotatedTypeMirror receiverType, ExpressionTree variable) {
         if (receiverType.hasAnnotation(atypeFactory.MUTABLE)) {
             return true;
-        } else return PICOTypeUtil.isAssigningAssignableField(variable, atypeFactory);
+        } else return atypeFactory.isAssigningAssignableField(variable);
     }
 
     /**
@@ -404,7 +415,7 @@ public class PICONoInitVisitor extends BaseTypeVisitor<PICONoInitAnnotatedTypeFa
             return;
         }
         AnnotatedTypeMirror bound = atypeFactory.getAnnotatedType(typeElement);
-        if (!PICOTypeUtil.isValidClassBound(bound, atypeFactory)) {
+        if (!atypeFactory.isValidClassBound(bound)) {
             validateType(tree, bound);
             return;
         }
@@ -485,22 +496,5 @@ public class PICONoInitVisitor extends BaseTypeVisitor<PICONoInitAnnotatedTypeFa
         }
 
         return super.isTypeCastSafe(castType, exprType);
-    }
-
-    @Override
-    protected boolean commonAssignmentCheck(
-            AnnotatedTypeMirror varType,
-            AnnotatedTypeMirror valueType,
-            Tree valueTree,
-            @CompilerMessageKey String errorKey,
-            Object... extraArgs) {
-        // TODO: WORKAROUND: anonymous class handling
-        if (TypesUtils.isAnonymous(valueType.getUnderlyingType())) {
-            AnnotatedTypeMirror newValueType = varType.deepCopy();
-            newValueType.replaceAnnotation(
-                    valueType.getAnnotationInHierarchy(atypeFactory.READONLY));
-            valueType = newValueType;
-        }
-        return super.commonAssignmentCheck(varType, valueType, valueTree, errorKey, extraArgs);
     }
 }

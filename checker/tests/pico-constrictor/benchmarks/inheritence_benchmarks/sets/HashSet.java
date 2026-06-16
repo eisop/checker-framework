@@ -5,8 +5,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-// Done
-
 public class HashSet extends GenericSet {
     private Map<Integer, List<Integer>> table;
     private List<Integer> keys;

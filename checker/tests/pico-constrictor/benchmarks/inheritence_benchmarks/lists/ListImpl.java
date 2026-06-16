@@ -3,8 +3,6 @@ import org.checkerframework.checker.pico.qual.Immutable;
 
 import java.util.List;
 
-// Done
-
 @Immutable public class ListImpl {
     protected List<Integer> arr;
     protected @Assignable int size;

@@ -1,6 +1,5 @@
 import org.checkerframework.checker.pico.qual.Readonly;
 
-// Done
 public class ColoredShape {
     protected int color;
 

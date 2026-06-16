@@ -1,7 +1,5 @@
 import org.checkerframework.checker.pico.qual.Readonly;
 
-// Done
-
 public class SimpleWrongImplRectangle {
     private int height;
     private int width;

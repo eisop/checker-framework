@@ -1,8 +1,6 @@
 import org.checkerframework.checker.pico.qual.Immutable;
 import org.checkerframework.checker.pico.qual.Readonly;
 
-// Done
-
 @Immutable public class Point {
     protected int x;
     protected int y;

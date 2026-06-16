@@ -9,8 +9,6 @@ import org.checkerframework.checker.pico.qual.ReceiverDependentMutable;
 // Allow having getters and setters, don't need to remove them
 // fields don't need to be declared with "final"
 // Don't need defensive copy(even though not applicable in this example)
-// Aosen: I don't think this test adding much interest aspect of PICO rules, we can remove this if
-// desired.
 @ReceiverDependentMutable public class RGB {
 
     // Values must be between 0 and 255.

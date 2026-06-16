@@ -1,6 +1,5 @@
 import org.checkerframework.checker.pico.qual.Readonly;
 
-// Done
 public class EvilUnionFind {
     private int size;
     private int[] pointsTo;

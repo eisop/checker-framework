@@ -1,7 +1,5 @@
 import org.checkerframework.checker.pico.qual.Readonly;
 
-// Done
-
 public class WrongfullyImplementedCollatz {
     private boolean flag;
     private int someNum;

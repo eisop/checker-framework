@@ -1,7 +1,5 @@
 import org.checkerframework.checker.pico.qual.Immutable;
 
-// Done
-
 @Immutable public class InauspiciousPoint extends Point {
     private int z;
 

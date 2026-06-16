@@ -2,8 +2,6 @@ import org.checkerframework.checker.pico.qual.Immutable;
 
 import java.util.ArrayList;
 
-// Done
-
 @Immutable public class MutableList extends ListImpl {
     public MutableList() {
         super(new @Immutable ArrayList<>());

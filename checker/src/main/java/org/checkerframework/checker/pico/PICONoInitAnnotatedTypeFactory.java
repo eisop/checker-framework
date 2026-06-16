@@ -2,15 +2,18 @@ package org.checkerframework.checker.pico;
 
 import com.sun.source.tree.BinaryTree;
 import com.sun.source.tree.ClassTree;
+import com.sun.source.tree.ExpressionTree;
 import com.sun.source.tree.MethodTree;
 import com.sun.source.tree.NewArrayTree;
 import com.sun.source.tree.NewClassTree;
 import com.sun.source.tree.Tree;
 import com.sun.source.tree.TypeCastTree;
 import com.sun.source.tree.VariableTree;
+import com.sun.tools.javac.code.Symbol;
 
 import org.checkerframework.checker.initialization.InitializationFieldAccessTreeAnnotator;
 import org.checkerframework.checker.initialization.qual.UnderInitialization;
+import org.checkerframework.checker.pico.qual.Assignable;
 import org.checkerframework.checker.pico.qual.Immutable;
 import org.checkerframework.checker.pico.qual.Mutable;
 import org.checkerframework.checker.pico.qual.PICOBottom;
@@ -19,6 +22,7 @@ import org.checkerframework.checker.pico.qual.PolyMutable;
 import org.checkerframework.checker.pico.qual.Readonly;
 import org.checkerframework.checker.pico.qual.ReceiverDependentMutable;
 import org.checkerframework.common.basetype.BaseTypeChecker;
+import org.checkerframework.framework.qual.DefaultFor;
 import org.checkerframework.framework.type.AnnotatedTypeFactory;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedExecutableType;
@@ -39,6 +43,7 @@ import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.TreePathUtil;
 import org.checkerframework.javacutil.TreeUtils;
+import org.checkerframework.javacutil.TypesUtils;
 
 import java.lang.annotation.Annotation;
 import java.util.ArrayList;
@@ -177,10 +182,9 @@ public class PICONoInitAnnotatedTypeFactory
         ParameterizedExecutableType cType = super.constructorFromUse(tree);
         AnnotatedExecutableType constructor = cType.executableType;
         // For object creation, if the constructor return type is @RDM and there is no explicit
-        // annotation on new expression, replace it with @Immutable
+        // annotation on the new expression, use the default concrete creation qualifier.
         if (getExplicitNewClassAnnos(tree).isEmpty()
                 && constructor.getReturnType().hasAnnotation(RECEIVER_DEPENDENT_MUTABLE)) {
-            // TODO(AOSEN): use mutable for case study
             constructor.getReturnType().replaceAnnotation(MUTABLE);
         }
         return cType;
@@ -196,14 +200,14 @@ public class PICONoInitAnnotatedTypeFactory
     }
 
     /**
-     * {@inheritDoc} This covers the case when static fields are used and constructor is accessed as
-     * an element(regarding applying @Immutable on type declaration to constructor return type).
+     * {@inheritDoc} This also defaults field types, constructor return types, and method receiver
+     * types when they are obtained from elements rather than trees.
      */
     @Override
     public void addComputedTypeAnnotations(Element elt, AnnotatedTypeMirror type) {
-        addDefaultForField(this, type, elt);
-        defaultConstructorReturnToClassBound(this, elt, type);
-        defaultMethodReceiverToClassBound(this, elt, type);
+        addDefaultForField(type, elt);
+        defaultConstructorReturnToClassBound(elt, type);
+        defaultMethodReceiverToClassBound(elt, type);
         super.addComputedTypeAnnotations(elt, type);
     }
 
@@ -217,17 +221,80 @@ public class PICONoInitAnnotatedTypeFactory
     }
 
     /**
-     * {@inheritDoc} Changes the framework default to @Immutable TODO: This should be controlled by
-     * additional meta annotation to opt in two different defaults
+     * {@inheritDoc} PICO defaults type declaration bounds to {@link Mutable}; special cases such as
+     * implicitly immutable types, arrays, and enums are handled by {@link
+     * #getTypeDeclarationBounds}.
      *
-     * @return Immutable default AnnotationMirrorSet
+     * @return mutable default type declaration bounds
      */
     @Override
     protected AnnotationMirrorSet getDefaultTypeDeclarationBounds() {
         AnnotationMirrorSet classBoundDefault =
                 new AnnotationMirrorSet(super.getDefaultTypeDeclarationBounds());
-        // TODO(AOSEN)： use mutable for case study
         return replaceAnnotationInHierarchy(classBoundDefault, MUTABLE);
+    }
+
+    /**
+     * Determines whether {@code atm}'s underlying type is implicitly immutable according to {@link
+     * Immutable}'s {@link DefaultFor} metadata.
+     *
+     * @param atm the type to check
+     * @return true if the underlying type is implicitly immutable
+     */
+    public boolean isImplicitlyImmutableType(AnnotatedTypeMirror atm) {
+        return isInTypeKindsOfDefaultForOfImmutable(atm) || isInTypesOfDefaultForOfImmutable(atm);
+    }
+
+    /**
+     * Determines whether {@code atm}'s kind is listed in {@link Immutable}'s {@link DefaultFor}
+     * metadata.
+     *
+     * @param atm the type to check
+     * @return true if the type kind is implicitly immutable
+     */
+    private boolean isInTypeKindsOfDefaultForOfImmutable(AnnotatedTypeMirror atm) {
+        DefaultFor defaultFor = Immutable.class.getAnnotation(DefaultFor.class);
+        assert defaultFor != null;
+        for (org.checkerframework.framework.qual.TypeKind typeKind : defaultFor.typeKinds()) {
+            if (typeKind.name().equals(atm.getKind().name())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Determines whether {@code atm}'s type is listed in {@link Immutable}'s {@link DefaultFor}
+     * metadata.
+     *
+     * @param atm the type to check
+     * @return true if the type is implicitly immutable
+     */
+    private boolean isInTypesOfDefaultForOfImmutable(AnnotatedTypeMirror atm) {
+        if (atm.getKind() != TypeKind.DECLARED) {
+            return false;
+        }
+        DefaultFor defaultFor = Immutable.class.getAnnotation(DefaultFor.class);
+        assert defaultFor != null;
+        String fqn = TypesUtils.getQualifiedName((DeclaredType) atm.getUnderlyingType());
+        for (Class<?> type : defaultFor.types()) {
+            if (type.getCanonicalName().contentEquals(fqn)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Returns true if {@code type} has a valid PICO class declaration bound.
+     *
+     * @param type a class declaration type
+     * @return true if the class bound is valid
+     */
+    public boolean isValidClassBound(AnnotatedTypeMirror type) {
+        return type.hasAnnotation(MUTABLE)
+                || type.hasAnnotation(RECEIVER_DEPENDENT_MUTABLE)
+                || type.hasAnnotation(IMMUTABLE);
     }
 
     @Override
@@ -259,26 +326,26 @@ public class PICONoInitAnnotatedTypeFactory
     }
 
     /**
-     * Get the upperbound give a TypeMirror 1. If the type is implicitly immutable,
-     * return @Immutable 2. If the type is an enum, return @Immutable if it has no explicit
-     * annotation 3. If the type is an array, return @ReceiverDependentMutable 4. Otherwise, return
-     * null
+     * Returns the PICO type declaration bound implied by {@code type}.
      *
-     * @param type the type to get the upperbound for
-     * @return the upperbound for the given type
+     * <p>Implicitly immutable types and enum declarations without explicit {@link Mutable} or
+     * {@link ReceiverDependentMutable} bounds are bounded by {@link Immutable}. Array types are
+     * bounded by {@link ReceiverDependentMutable}. Other types have no special bound here and use
+     * the default declaration bound.
+     *
+     * @param type the type whose declaration bound is being computed
+     * @return the implied declaration bound, or null if {@code type} has no special PICO bound
      */
     private AnnotationMirror getTypeDeclarationBoundForMutability(TypeMirror type) {
-        if (PICOTypeUtil.isImplicitlyImmutableType(toAnnotatedType(type, false))) {
+        if (isImplicitlyImmutableType(toAnnotatedType(type, false))) {
             return IMMUTABLE;
         }
         if (type.getKind() == TypeKind.ARRAY) {
             return RECEIVER_DEPENDENT_MUTABLE;
         }
-        // IMMUTABLE for enum w/o decl anno
         if (type instanceof DeclaredType) {
             Element ele = ((DeclaredType) type).asElement();
             if (ele.getKind() == ElementKind.ENUM) {
-                // TODO refine the logic here for enum
                 if (!AnnotationUtils.containsSameByName(getDeclAnnotations(ele), MUTABLE)
                         && !AnnotationUtils.containsSameByName(
                                 getDeclAnnotations(ele),
@@ -290,11 +357,161 @@ public class PICONoInitAnnotatedTypeFactory
         return null;
     }
 
+    /**
+     * Returns the class bound of the type declaration enclosing {@code node}.
+     *
+     * @param node tree whose enclosing type declaration bound is needed
+     * @return the enclosing type declaration bound, or null if no enclosing type was found
+     */
+    public AnnotatedTypeMirror getBoundTypeOfEnclosingTypeDeclaration(Tree node) {
+        TypeElement typeElement = null;
+        if (node instanceof MethodTree) {
+            ExecutableElement element = TreeUtils.elementFromDeclaration((MethodTree) node);
+            typeElement = ElementUtils.enclosingTypeElement(element);
+        } else if (node instanceof VariableTree) {
+            VariableElement variableElement = TreeUtils.elementFromDeclaration((VariableTree) node);
+            assert variableElement != null && variableElement.getKind().isField();
+            typeElement = ElementUtils.enclosingTypeElement(variableElement);
+        }
+
+        if (typeElement != null) {
+            return getAnnotatedType(typeElement);
+        }
+        return null;
+    }
+
+    /**
+     * Returns the class bound of {@code element}'s enclosing type declaration.
+     *
+     * @param element element whose enclosing type declaration bound is needed
+     * @return the enclosing type declaration bound, or null if no enclosing type was found
+     */
+    public AnnotatedTypeMirror getBoundTypeOfEnclosingClass(Element element) {
+        TypeElement typeElement = ElementUtils.enclosingTypeElement(element);
+        if (typeElement != null) {
+            return getAnnotatedType(typeElement);
+        }
+        return null;
+    }
+
+    /**
+     * Determines whether {@code annotatedTypeMirror} represents an enum declaration or enum
+     * constant.
+     *
+     * @param annotatedTypeMirror the type to check
+     * @return true if the type is enum-related
+     */
+    private boolean isEnumOrEnumConstant(AnnotatedTypeMirror annotatedTypeMirror) {
+        Element element =
+                ((AnnotatedTypeMirror.AnnotatedDeclaredType) annotatedTypeMirror)
+                        .getUnderlyingType()
+                        .asElement();
+        return element != null
+                && (element.getKind() == ElementKind.ENUM_CONSTANT
+                        || element.getKind() == ElementKind.ENUM);
+    }
+
+    /**
+     * Determines whether {@code variableElement} is final.
+     *
+     * @param variableElement the field element
+     * @return true if the field is final
+     */
+    public boolean isFinalField(Element variableElement) {
+        assert variableElement instanceof VariableElement;
+        return ElementUtils.isFinal(variableElement);
+    }
+
+    /**
+     * Determines whether {@code variableElement} is assignable. Static non-final fields and fields
+     * explicitly annotated with {@link Assignable} are assignable.
+     *
+     * @param variableElement the field element
+     * @return true if the field is assignable
+     */
+    public boolean isAssignableField(Element variableElement) {
+        if (!(variableElement instanceof VariableElement)) {
+            return false;
+        }
+        boolean hasExplicitAssignableAnnotation =
+                getDeclAnnotation(variableElement, Assignable.class) != null;
+        if (!ElementUtils.isStatic(variableElement)) {
+            return hasExplicitAssignableAnnotation;
+        }
+        return hasExplicitAssignableAnnotation || !isFinalField(variableElement);
+    }
+
+    /**
+     * Determines whether {@code variableElement} is receiver-dependent assignable.
+     *
+     * @param variableElement the field element
+     * @return true if the field is receiver-dependent assignable
+     */
+    public boolean isReceiverDependentAssignable(Element variableElement) {
+        assert variableElement instanceof VariableElement;
+        if (ElementUtils.isStatic(variableElement)) {
+            return false;
+        }
+        return !isAssignableField(variableElement) && !isFinalField(variableElement);
+    }
+
+    /**
+     * Checks that {@code field} has exactly one assignability status: explicitly assignable, final,
+     * or receiver-dependent assignable.
+     *
+     * @param field the field element
+     * @return true if the field has exactly one assignability status
+     */
+    public boolean hasOneAndOnlyOneAssignabilityQualifier(VariableElement field) {
+        if (isAssignableField(field)
+                && !isFinalField(field)
+                && !isReceiverDependentAssignable(field)) {
+            return true;
+        } else if (!isAssignableField(field)
+                && isFinalField(field)
+                && !isReceiverDependentAssignable(field)) {
+            return true;
+        } else if (!isAssignableField(field)
+                && !isFinalField(field)
+                && isReceiverDependentAssignable(field)) {
+            assert !ElementUtils.isStatic(field);
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Determines whether {@code tree} selects an assignable field.
+     *
+     * @param tree the field selection tree
+     * @return true if the selected field is assignable
+     */
+    public boolean isAssigningAssignableField(ExpressionTree tree) {
+        Element fieldElement = TreeUtils.elementFromUse(tree);
+        return fieldElement != null && isAssignableField(fieldElement);
+    }
+
+    /**
+     * Determines whether {@code type} is javac's synthetic array class.
+     *
+     * @param type the declared type to check
+     * @return true if {@code type} is the synthetic array class
+     */
+    private boolean isArrayType(AnnotatedTypeMirror.AnnotatedDeclaredType type) {
+        Element ele = getProcessingEnv().getTypeUtils().asElement(type.getUnderlyingType());
+
+        // If it is a user-declared "Array" class without package, a class / source file should be
+        // there. Otherwise, it is the java inner type.
+        return ele instanceof Symbol.ClassSymbol
+                && ElementUtils.getQualifiedName(ele) == "Array"
+                && ((Symbol.ClassSymbol) ele).classfile == null
+                && ((Symbol.ClassSymbol) ele).sourcefile == null;
+    }
+
     @Override
     public AnnotatedTypeMirror getTypeOfExtendsImplements(Tree clause) {
-        // TODO This is a work around to allow @Immutable/@Mutable class extends/implements @RDM
-        // class/interface.
-        // Fixes after EISOP#1032
+        // Allow concrete class bounds to satisfy @RDM extends/implements clauses by adapting the
+        // clause to the enclosing class's bound.
         AnnotatedTypeMirror fromTypeTree = super.getTypeOfExtendsImplements(clause);
         if (fromTypeTree.hasAnnotation(RECEIVER_DEPENDENT_MUTABLE)) {
             ClassTree enclosingClass = TreePathUtil.enclosingClass(getPath(clause));
@@ -312,30 +529,24 @@ public class PICONoInitAnnotatedTypeFactory
     /**
      * Add default annotation to the given AnnotatedTypeMirror for the given Element.
      *
-     * @param annotatedTypeFactory the annotated type factory
      * @param annotatedTypeMirror the annotated type mirror to add default annotation
      * @param element the element to add default annotation
      */
-    private void addDefaultForField(
-            AnnotatedTypeFactory annotatedTypeFactory,
-            AnnotatedTypeMirror annotatedTypeMirror,
-            Element element) {
+    private void addDefaultForField(AnnotatedTypeMirror annotatedTypeMirror, Element element) {
         if (element != null && element.getKind() == ElementKind.FIELD) {
-            // If the field is static, apply @Immutable if there is no explicit annotation and the
-            // field type upperbound is @RDM
+            // If the field is static, apply the default concrete qualifier if there is no explicit
+            // annotation and the field type declaration bound is @RDM.
             if (ElementUtils.isStatic(element)) {
-                AnnotatedTypeMirror explicitATM = annotatedTypeFactory.fromElement(element);
-                AnnotationMirrorSet declBound =
-                        annotatedTypeFactory.getTypeDeclarationBounds(element.asType());
+                AnnotatedTypeMirror explicitATM = fromElement(element);
+                AnnotationMirrorSet declBound = getTypeDeclarationBounds(element.asType());
                 if (!explicitATM.hasAnnotationInHierarchy(READONLY)
                         && AnnotationUtils.containsSameByName(
                                 declBound, RECEIVER_DEPENDENT_MUTABLE)) {
-                    // TODO(AOSEN): use mutable for case study
                     annotatedTypeMirror.replaceAnnotation(MUTABLE);
                 }
             } else {
                 // Apply default annotation to instance fields if there is no explicit annotation
-                AnnotatedTypeMirror explicitATM = annotatedTypeFactory.fromElement(element);
+                AnnotatedTypeMirror explicitATM = fromElement(element);
                 if (!explicitATM.hasAnnotationInHierarchy(READONLY)) {
                     if (explicitATM instanceof AnnotatedTypeMirror.AnnotatedDeclaredType) {
                         AnnotatedTypeMirror.AnnotatedDeclaredType adt =
@@ -365,16 +576,13 @@ public class PICONoInitAnnotatedTypeFactory
      * class bound, add @RDM annotation to constructor return type. For @Mutable class bound,
      * add @Mutable annotation to constructor return type.
      *
-     * @param annotatedTypeFactory the annotated type factory
      * @param element the element to add default annotation
      * @param type the type to add default annotation
      */
-    private void defaultConstructorReturnToClassBound(
-            AnnotatedTypeFactory annotatedTypeFactory, Element element, AnnotatedTypeMirror type) {
+    private void defaultConstructorReturnToClassBound(Element element, AnnotatedTypeMirror type) {
         if (element.getKind() == ElementKind.CONSTRUCTOR
                 && type instanceof AnnotatedExecutableType) {
-            AnnotatedTypeMirror bound =
-                    PICOTypeUtil.getBoundTypeOfEnclosingClass(element, annotatedTypeFactory);
+            AnnotatedTypeMirror bound = getBoundTypeOfEnclosingClass(element);
             assert bound != null;
             ((AnnotatedExecutableType) type)
                     .getReturnType()
@@ -390,17 +598,14 @@ public class PICONoInitAnnotatedTypeFactory
      * class bound, add @RDM annotation to method receiver type. For @Mutable class bound,
      * add @Mutable annotation to method receiver type.
      *
-     * @param annotatedTypeFactory the annotated type factory
      * @param element the element to add default annotation
      * @param type the type to add default annotation
      */
-    private void defaultMethodReceiverToClassBound(
-            AnnotatedTypeFactory annotatedTypeFactory, Element element, AnnotatedTypeMirror type) {
+    private void defaultMethodReceiverToClassBound(Element element, AnnotatedTypeMirror type) {
         if (element.getKind() == ElementKind.METHOD
                 && type instanceof AnnotatedExecutableType
                 && !ElementUtils.isStatic(element)) {
-            AnnotatedTypeMirror bound =
-                    PICOTypeUtil.getBoundTypeOfEnclosingClass(element, annotatedTypeFactory);
+            AnnotatedTypeMirror bound = getBoundTypeOfEnclosingClass(element);
             AnnotatedExecutableType methodType = (AnnotatedExecutableType) type;
             assert bound != null;
             methodType
@@ -431,7 +636,6 @@ public class PICONoInitAnnotatedTypeFactory
             super.visitTypeCast(node, type);
             if (!hasExplicitAnnos
                     && type.hasAnnotation(picoTypeFactory.RECEIVER_DEPENDENT_MUTABLE)) {
-                // TODO(AOSEN): use mutable for case study
                 type.replaceAnnotation(picoTypeFactory.MUTABLE);
             }
             return null;
@@ -463,25 +667,24 @@ public class PICONoInitAnnotatedTypeFactory
             AnnotatedTypeMirror componentType =
                     ((AnnotatedTypeMirror.AnnotatedArrayType) type).getComponentType();
             super.visitNewArray(tree, type);
-            // If the array component type get from treeAnnotator is @RDM, replace it with
-            // @Immutable. This will not change the mutability type when the component type is
-            // explicit annotated.
+            // If the array component type from treeAnnotator is @RDM, replace it with the default
+            // concrete creation qualifier. This does not change explicitly annotated component
+            // types.
             if (componentType.hasAnnotation(picoTypeFactory.RECEIVER_DEPENDENT_MUTABLE)) {
-                // TODO(AOSEN): use mutable for case study
                 componentType.replaceAnnotation(picoTypeFactory.MUTABLE);
             }
             return null;
         }
 
         /**
-         * {@inheritDoc} This adds @Immutable annotation to constructor return type if type
-         * declaration has @Immutable when the constructor is accessed as a tree.
+         * {@inheritDoc} This defaults constructor return and method receiver types to the enclosing
+         * class bound when the executable is accessed as a tree.
          */
         @Override
         public Void visitMethod(MethodTree tree, AnnotatedTypeMirror p) {
             Element element = TreeUtils.elementFromDeclaration(tree);
-            picoTypeFactory.defaultConstructorReturnToClassBound(atypeFactory, element, p);
-            picoTypeFactory.defaultMethodReceiverToClassBound(atypeFactory, element, p);
+            picoTypeFactory.defaultConstructorReturnToClassBound(element, p);
+            picoTypeFactory.defaultMethodReceiverToClassBound(element, p);
             return super.visitMethod(tree, p);
         }
 
@@ -489,7 +692,7 @@ public class PICONoInitAnnotatedTypeFactory
         @Override
         public Void visitVariable(VariableTree tree, AnnotatedTypeMirror annotatedTypeMirror) {
             VariableElement element = TreeUtils.elementFromDeclaration(tree);
-            picoTypeFactory.addDefaultForField(atypeFactory, annotatedTypeMirror, element);
+            picoTypeFactory.addDefaultForField(annotatedTypeMirror, element);
             return super.visitVariable(tree, annotatedTypeMirror);
         }
 
@@ -524,7 +727,7 @@ public class PICONoInitAnnotatedTypeFactory
             // Array methods are implemented as JVM native method, so we cannot add that to stubs.
             // for now: default array in receiver, parameter and return type to RDM
             if (t.getReceiverType() != null) {
-                if (PICOTypeUtil.isArrayType(t.getReceiverType(), atypeFactory)) {
+                if (picoTypeFactory.isArrayType(t.getReceiverType())) {
                     if (t.toString().equals("Object clone(Array this)")) {
                         // Receiver type will not be viewpoint adapted:
                         // SyntheticArrays.replaceReturnType() will rollback the viewpoint adapt
@@ -639,7 +842,7 @@ public class PICONoInitAnnotatedTypeFactory
 
         @Override
         public Void visitDeclared(AnnotatedTypeMirror.AnnotatedDeclaredType type, Void aVoid) {
-            if (PICOTypeUtil.isEnumOrEnumConstant(type)) {
+            if (picoTypeFactory.isEnumOrEnumConstant(type)) {
                 type.addMissingAnnotations(Collections.singleton(picoTypeFactory.IMMUTABLE));
             }
             return super.visitDeclared(type, aVoid);

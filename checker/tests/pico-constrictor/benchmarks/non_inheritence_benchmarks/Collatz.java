@@ -1,8 +1,6 @@
 import org.checkerframework.checker.pico.qual.Assignable;
 import org.checkerframework.checker.pico.qual.Readonly;
 
-// Done
-
 public class Collatz {
     private @Assignable boolean flag;
     private int someNum;
