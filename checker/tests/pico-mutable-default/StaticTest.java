@@ -6,6 +6,8 @@ import org.checkerframework.checker.pico.qual.ReceiverDependentMutable;
 @ReceiverDependentMutable public class StaticTest {
     // :: error: (static.receiverdependentmutable.forbidden)
     static @ReceiverDependentMutable Object rmdField = new @ReceiverDependentMutable Object();
+    // :: error: (static.receiverdependentmutable.forbidden)
+    static Object @ReceiverDependentMutable [] rdmArray;
 
     static {
         // :: error: (static.receiverdependentmutable.forbidden)

@@ -16,6 +16,7 @@ public @Mutable class ObjectMethods {
     }
 
     @Override
+    // :: error: (override.return.invalid)
     protected @Mutable Object clone() throws CloneNotSupportedException {
         return super.clone();
     }
@@ -68,6 +69,7 @@ public @Mutable class ObjectMethods {
     }
 
     @Override
+    // :: error: (override.return.invalid)
     protected @ReceiverDependentMutable Object clone(@ReceiverDependentMutable ObjectMethods3 this)
             throws CloneNotSupportedException {
         return super.clone();

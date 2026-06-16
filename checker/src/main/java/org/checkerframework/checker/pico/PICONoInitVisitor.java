@@ -403,14 +403,9 @@ public class PICONoInitVisitor extends BaseTypeVisitor<PICONoInitAnnotatedTypeFa
             super.processClassTree(tree);
             return;
         }
-        // TODO(Aosen): since this is also checking validity, consider whether we can move this to
-        // PICOValidator
         AnnotatedTypeMirror bound = atypeFactory.getAnnotatedType(typeElement);
-        // Class annotations must be @Mutable, @ReceiverDependentMutable, or @Immutable.
-        if ((!bound.hasAnnotation(atypeFactory.MUTABLE)
-                && !bound.hasAnnotation(atypeFactory.RECEIVER_DEPENDENT_MUTABLE)
-                && !bound.hasAnnotation(atypeFactory.IMMUTABLE))) {
-            checker.reportError(tree, "class.bound.invalid", bound);
+        if (!PICOTypeUtil.isValidClassBound(bound, atypeFactory)) {
+            validateType(tree, bound);
             return;
         }
 

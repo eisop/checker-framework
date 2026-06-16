@@ -12,6 +12,7 @@ public class CastTest {
     }
 
     @Override
+    // :: error: (override.return.invalid)
     public Object clone() throws CloneNotSupportedException {
         CastTest oe = (CastTest) super.clone();
         return oe;

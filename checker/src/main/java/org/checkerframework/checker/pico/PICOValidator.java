@@ -1,5 +1,6 @@
 package org.checkerframework.checker.pico;
 
+import com.sun.source.tree.ClassTree;
 import com.sun.source.tree.Tree;
 import com.sun.source.tree.VariableTree;
 
@@ -17,6 +18,7 @@ import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.TreePathUtil;
 import org.checkerframework.javacutil.TreeUtils;
+import org.checkerframework.javacutil.TypesUtils;
 
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.TypeElement;
@@ -24,13 +26,12 @@ import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.TypeKind;
 
 /**
- * Enforce correct usage of immutability and assignability qualifiers. TODO @PolyMutable is only
- * used on constructor/method parameters or method return
+ * Enforces well-formed PICO immutability, receiver-dependent mutability, and assignability
+ * annotations.
  */
 public class PICOValidator extends BaseTypeValidator {
-    /** The type factory for the PICO checker */
-    private final PICONoInitAnnotatedTypeFactory picoTypeFactory =
-            (PICONoInitAnnotatedTypeFactory) atypeFactory;
+    /** The type factory for the PICO checker. */
+    private final PICONoInitAnnotatedTypeFactory picoTypeFactory;
 
     /**
      * Create a new PICOValidator.
@@ -44,13 +45,15 @@ public class PICOValidator extends BaseTypeValidator {
             BaseTypeVisitor<?> visitor,
             AnnotatedTypeFactory atypeFactory) {
         super(checker, visitor, atypeFactory);
+        this.picoTypeFactory = (PICONoInitAnnotatedTypeFactory) atypeFactory;
     }
 
     @Override
     public Void visitDeclared(AnnotatedDeclaredType type, Tree tree) {
+        checkClassBound(type, tree);
         checkStaticReceiverDependentMutableError(type, tree);
         checkImplicitlyImmutableTypeError(type, tree);
-        checkOnlyOneAssignabilityModifierOnField(tree);
+        checkFieldAssignabilityDeclaration(tree);
 
         return super.visitDeclared(type, tree);
     }
@@ -79,13 +82,12 @@ public class PICOValidator extends BaseTypeValidator {
      */
     private boolean isReceiverDependentUseOfMutableFieldInMutableClass(
             AnnotatedTypeMirror type, Tree tree) {
-        if (!(tree instanceof VariableTree)
-                || !type.hasAnnotation(picoTypeFactory.RECEIVER_DEPENDENT_MUTABLE)) {
+        if (!type.hasAnnotation(picoTypeFactory.RECEIVER_DEPENDENT_MUTABLE)) {
             return false;
         }
 
-        VariableElement field = TreeUtils.elementFromDeclaration((VariableTree) tree);
-        if (field.getKind() != ElementKind.FIELD) {
+        VariableElement field = getFieldElement(tree);
+        if (field == null) {
             return false;
         }
 
@@ -107,9 +109,7 @@ public class PICOValidator extends BaseTypeValidator {
 
     @Override
     public Void visitArray(AnnotatedArrayType type, Tree tree) {
-        // TODO(AOSEN): disable this check for now util I figure out how this will work with wilcard
-        // instantiations
-        // checkStaticReceiverDependentMutableError(type, tree);
+        checkStaticReceiverDependentMutableError(type, tree);
         // Array can not be implicitly immutable
         return super.visitArray(type, tree);
     }
@@ -117,7 +117,7 @@ public class PICOValidator extends BaseTypeValidator {
     @Override
     public Void visitPrimitive(AnnotatedPrimitiveType type, Tree tree) {
         checkImplicitlyImmutableTypeError(type, tree);
-        checkOnlyOneAssignabilityModifierOnField(tree);
+        checkFieldAssignabilityDeclaration(tree);
         return super.visitPrimitive(type, tree);
     }
 
@@ -154,21 +154,52 @@ public class PICOValidator extends BaseTypeValidator {
     }
 
     /**
-     * Ensures the well-formdness in terms of assignability on a field. This covers both instance
+     * Checks that class declarations use one of the valid PICO class bounds.
+     *
+     * @param type the class declaration type
+     * @param tree the class declaration tree
+     */
+    private void checkClassBound(AnnotatedDeclaredType type, Tree tree) {
+        if (!type.isDeclaration()
+                || !(tree instanceof ClassTree)
+                || TypesUtils.isAnonymous(TreeUtils.typeOf((ClassTree) tree))) {
+            return;
+        }
+
+        if (!PICOTypeUtil.isValidClassBound(type, picoTypeFactory)) {
+            checker.reportError(tree, "class.bound.invalid", type);
+            isValid = false;
+        }
+    }
+
+    /**
+     * Ensures the well-formedness in terms of assignability on a field. This covers both instance
      * fields and static fields.
      *
      * @param tree the tree to check
      */
-    private void checkOnlyOneAssignabilityModifierOnField(Tree tree) {
-        if (tree instanceof VariableTree) {
-            VariableTree variableTree = (VariableTree) tree;
-            VariableElement variableElement = TreeUtils.elementFromDeclaration(variableTree);
-            if (!PICOTypeUtil.hasOneAndOnlyOneAssignabilityQualifier(
-                    variableElement, atypeFactory)) {
-                checker.reportError(
-                        variableElement, "assignability.declaration.invalid", variableElement);
-                isValid = false;
-            }
+    private void checkFieldAssignabilityDeclaration(Tree tree) {
+        VariableElement field = getFieldElement(tree);
+        if (field == null) {
+            return;
         }
+        if (!PICOTypeUtil.hasOneAndOnlyOneAssignabilityQualifier(field, atypeFactory)) {
+            checker.reportError(field, "assignability.declaration.invalid", field);
+            isValid = false;
+        }
+    }
+
+    /**
+     * Returns the field declared by {@code tree}, or null if {@code tree} does not declare a field.
+     *
+     * @param tree the tree to inspect
+     * @return the declared field element, or null
+     */
+    private VariableElement getFieldElement(Tree tree) {
+        if (!(tree instanceof VariableTree)) {
+            return null;
+        }
+        VariableElement variableElement = TreeUtils.elementFromDeclaration((VariableTree) tree);
+        return variableElement.getKind() == ElementKind.FIELD ? variableElement : null;
     }
 }

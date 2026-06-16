@@ -99,6 +99,20 @@ public class PICOTypeUtil {
     }
 
     /**
+     * Returns true if {@code type} has a valid PICO class declaration bound.
+     *
+     * @param type a class declaration type
+     * @param typeFactory the PICO type factory
+     * @return true if the class bound is valid
+     */
+    public static boolean isValidClassBound(
+            AnnotatedTypeMirror type, PICONoInitAnnotatedTypeFactory typeFactory) {
+        return type.hasAnnotation(typeFactory.MUTABLE)
+                || type.hasAnnotation(typeFactory.RECEIVER_DEPENDENT_MUTABLE)
+                || type.hasAnnotation(typeFactory.IMMUTABLE);
+    }
+
+    /**
      * Returns the bound of type declaration enclosing the node. If no annotation exists on type
      * declaration, bound is defaulted to @Mutable instead of having empty annotations. This method
      * simply gets/defaults annotation on bounds of classes, but doesn't validate the correctness of
