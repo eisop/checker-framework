@@ -42,6 +42,14 @@ else
 fi
 
 # Clone the annotated JDK into ../jdk .
+DEBUG_FLAG=--debug
+echo "=== TEMP RELATED JDK CLONE DIAGNOSTIC: GitHub extraheader ==="
+git config --local --get-all http.https://github.com/.extraheader || true
+echo "=== TEMP RELATED JDK CLONE DIAGNOSTIC: plain ls-remote aosen-xiong/jdk pico-move ==="
+git ls-remote --heads https://github.com/aosen-xiong/jdk.git pico-move || true
+echo "=== TEMP RELATED JDK CLONE DIAGNOSTIC: ls-remote with cleared GitHub extraheader ==="
+git -c http.https://github.com/.extraheader= ls-remote --heads https://github.com/aosen-xiong/jdk.git pico-move || true
+echo "=== TEMP RELATED JDK CLONE DIAGNOSTIC: git-clone-related debug output follows ==="
 "$GIT_SCRIPTS/git-clone-related" ${DEBUG_FLAG} eisop jdk
 
 # AFU="${AFU:-../annotation-tools/annotation-file-utilities}"
