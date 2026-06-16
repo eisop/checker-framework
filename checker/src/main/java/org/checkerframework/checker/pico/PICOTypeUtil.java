@@ -20,7 +20,6 @@ import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedDeclared
 import org.checkerframework.framework.util.AnnotatedTypes;
 import org.checkerframework.javacutil.AnnotationProvider;
 import org.checkerframework.javacutil.ElementUtils;
-import org.checkerframework.javacutil.TreePathUtil;
 import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TypesUtils;
 
@@ -32,7 +31,6 @@ import java.util.Set;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
-import javax.lang.model.element.Modifier;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.DeclaredType;
@@ -299,26 +297,6 @@ public class PICOTypeUtil {
         Element fieldElement = TreeUtils.elementFromUse(tree);
         if (fieldElement == null) return false;
         return isAssignableField(fieldElement, provider);
-    }
-
-    /**
-     * check if a tree is in static scope.
-     *
-     * @param treePath TreePath
-     * @return true if the tree is in static scope, false otherwise
-     */
-    public static boolean inStaticScope(TreePath treePath) {
-        boolean in = false;
-        if (TreePathUtil.isTreeInStaticScope(treePath)) {
-            in = true;
-            // Exclude case in which enclosing class is static
-            ClassTree classTree = TreePathUtil.enclosingClass(treePath);
-            if (classTree != null
-                    && classTree.getModifiers().getFlags().contains(Modifier.STATIC)) {
-                in = false;
-            }
-        }
-        return in;
     }
 
     /**

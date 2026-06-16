@@ -103,22 +103,16 @@ public class PICOValidator extends BaseTypeValidator {
     }
 
     /**
-     * Check that static fields do not have receiver-dependent mutable type.
+     * Reject receiver-dependent mutable type uses in static contexts. A receiver-dependent class
+     * declaration may itself be static, but members and other type uses in static contexts have no
+     * receiver to depend on.
      *
      * @param type the type to check
      * @param tree the tree to check
      */
     private void checkStaticReceiverDependentMutableError(AnnotatedTypeMirror type, Tree tree) {
-        if (!type.isDeclaration() // variables in static contexts and static fields use class
-                // decl as enclosing type
-                && PICOTypeUtil.inStaticScope(visitor.getCurrentPath())
-                && !""
-                        .contentEquals(
-                                Objects.requireNonNull(
-                                                TreePathUtil.enclosingClass(
-                                                        visitor.getCurrentPath()))
-                                        .getSimpleName())
-                // Exclude @RDM usages in anonymous classes
+        if (!type.isDeclaration()
+                && TreePathUtil.isTreeInStaticScope(visitor.getCurrentPath())
                 && type.hasAnnotation(picoTypeFactory.RECEIVER_DEPENDENT_MUTABLE)) {
             reportValidityResult("static.receiverdependentmutable.forbidden", type, tree);
         }

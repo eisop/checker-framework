@@ -27,7 +27,10 @@ import org.checkerframework.checker.pico.qual.ReceiverDependentMutable;
         p = null;
     }
 
-    @ReceiverDependentMutable static class RDMStaticClass {}
+    @ReceiverDependentMutable static class RDMStaticClass {
+        // :: error: (static.receiverdependentmutable.forbidden)
+        static @ReceiverDependentMutable Object staticRdmField;
+    }
 
     void test() {
         new StaticTest.@Mutable RDMStaticClass();
