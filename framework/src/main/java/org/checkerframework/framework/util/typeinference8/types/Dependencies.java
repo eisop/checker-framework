@@ -1,10 +1,12 @@
 package org.checkerframework.framework.util.typeinference8.types;
 
+import java.util.ArrayDeque;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.Map;
+import java.util.Queue;
 import java.util.Set;
 
 /**
@@ -50,20 +52,20 @@ public class Dependencies {
      * gamma and gamma depends on the resolution of beta."
      */
     public void calculateTransitiveDependencies() {
-        boolean changed = true;
-        while (changed) {
-            changed = false;
-            for (Map.Entry<Variable, LinkedHashSet<Variable>> entry : map.entrySet()) {
-                Variable alpha = entry.getKey();
-                LinkedHashSet<Variable> gammas = entry.getValue();
-                LinkedHashSet<Variable> betas = new LinkedHashSet<>();
-                for (Variable gamma : gammas) {
-                    if (gamma == alpha) {
-                        continue;
+        for (Map.Entry<Variable, LinkedHashSet<Variable>> entry : map.entrySet()) {
+            LinkedHashSet<Variable> reachable = entry.getValue();
+            Queue<Variable> queue = new ArrayDeque<>(reachable);
+
+            while (!queue.isEmpty()) {
+                Variable curr = queue.poll();
+                LinkedHashSet<Variable> nexts = map.get(curr);
+                if (nexts != null) {
+                    for (Variable next : nexts) {
+                        if (reachable.add(next)) {
+                            queue.add(next);
+                        }
                     }
-                    betas.addAll(map.get(gamma));
                 }
-                changed |= gammas.addAll(betas);
             }
         }
     }
