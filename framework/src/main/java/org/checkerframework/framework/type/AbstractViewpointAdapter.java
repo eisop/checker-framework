@@ -307,6 +307,7 @@ public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
             AnnotationMirror resultAnnotation =
                     combineAnnotationWithAnnotation(
                             receiverAnnotation, extractAnnotationMirror(adt));
+
             // Recursively combine type arguments and store to map
             for (AnnotatedTypeMirror typeArgument : adt.getTypeArguments()) {
                 // Recursively adapt the type arguments of this adt
@@ -418,6 +419,7 @@ public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
             AnnotatedDeclaredType adt = (AnnotatedDeclaredType) rhs.shallowCopy();
             IdentityHashMap<AnnotatedTypeMirror, AnnotatedTypeMirror> mappings =
                     new IdentityHashMap<>();
+
             for (AnnotatedTypeMirror formalTypeParameter : adt.getTypeArguments()) {
                 AnnotatedTypeMirror actualTypeArgument = substituteTVars(lhs, formalTypeParameter);
                 mappings.put(formalTypeParameter, actualTypeArgument);
