@@ -74,9 +74,19 @@ public class QualifierVar extends AbstractQualifier {
                 && Objects.equals(polyQualifier, that.polyQualifier);
     }
 
+    /** Cached hash code to prevent repeated recomputation of complex deep-hashes. */
+    private int cachedHashCode = 0;
+
     @Override
     public int hashCode() {
-        return Objects.hash(id, invocation, polyQualifier);
+        if (cachedHashCode == 0) {
+            int result = 1;
+            result = 31 * result + id;
+            result = 31 * result + (invocation != null ? invocation.hashCode() : 0);
+            result = 31 * result + (polyQualifier != null ? polyQualifier.hashCode() : 0);
+            cachedHashCode = result == 0 ? 1 : result;
+        }
+        return cachedHashCode;
     }
 
     @Override
