@@ -20,7 +20,7 @@ public class PICOChecker extends InitializationChecker {
 
     @Override
     public boolean checkPrimitives() {
-        return true;
+        return false;
     }
 
     @Override

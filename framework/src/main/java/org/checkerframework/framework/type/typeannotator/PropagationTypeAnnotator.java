@@ -232,6 +232,10 @@ public class PropagationTypeAnnotator extends TypeAnnotator {
                 return typeElement.getTypeParameters().get(i);
             }
         }
+        // For raw types, return null instead of crashing
+        if (declaredType.isUnderlyingTypeRaw()) {
+            return null;
+        }
         throw new BugInCF("Wildcard %s is not a type argument of %s", typeArg, declaredType);
     }
 }

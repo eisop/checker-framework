@@ -1,7 +1,10 @@
 package org.checkerframework.checker.pico.qual;
 
 import org.checkerframework.checker.initialization.qual.HoldsForDefaultValue;
+import org.checkerframework.framework.qual.DefaultFor;
+import org.checkerframework.framework.qual.DefaultQualifierInHierarchy;
 import org.checkerframework.framework.qual.SubtypeOf;
+import org.checkerframework.framework.qual.TypeUseLocation;
 
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
@@ -19,7 +22,9 @@ import java.lang.annotation.Target;
  */
 @SubtypeOf({Readonly.class})
 @Documented
+@DefaultQualifierInHierarchy
 @Retention(RetentionPolicy.RUNTIME)
 @Target({ElementType.TYPE_USE, ElementType.TYPE_PARAMETER})
+@DefaultFor(TypeUseLocation.EXCEPTION_PARAMETER)
 @HoldsForDefaultValue
 public @interface Mutable {}

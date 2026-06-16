@@ -29,6 +29,7 @@ public class PICONoInitSubchecker extends BaseTypeChecker {
     public NavigableSet<String> getSuppressWarningsPrefixes() {
         NavigableSet<String> result = super.getSuppressWarningsPrefixes();
         result.add("pico");
+        result.add("immutability");
         return result;
     }
 

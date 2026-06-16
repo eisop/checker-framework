@@ -107,7 +107,9 @@ public class PICOValidator extends BaseTypeValidator {
 
     @Override
     public Void visitArray(AnnotatedArrayType type, Tree tree) {
-        checkStaticReceiverDependentMutableError(type, tree);
+        // TODO(AOSEN): disable this check for now util I figure out how this will work with wilcard
+        // instantiations
+        // checkStaticReceiverDependentMutableError(type, tree);
         // Array can not be implicitly immutable
         return super.visitArray(type, tree);
     }

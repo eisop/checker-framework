@@ -55,7 +55,7 @@ public abstract class MostlyNoElementQualifierHierarchy extends ElementQualifier
     }
 
     @Override
-    public final boolean isSubtypeQualifiers(AnnotationMirror subAnno, AnnotationMirror superAnno) {
+    public boolean isSubtypeQualifiers(AnnotationMirror subAnno, AnnotationMirror superAnno) {
         QualifierKind subKind = getQualifierKind(subAnno);
         QualifierKind superKind = getQualifierKind(superAnno);
         if (subKind.isSubtypeOf(superKind)) {

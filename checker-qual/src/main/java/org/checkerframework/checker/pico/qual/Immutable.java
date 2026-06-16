@@ -2,12 +2,10 @@ package org.checkerframework.checker.pico.qual;
 
 import org.checkerframework.checker.initialization.qual.HoldsForDefaultValue;
 import org.checkerframework.framework.qual.DefaultFor;
-import org.checkerframework.framework.qual.DefaultQualifierInHierarchy;
 import org.checkerframework.framework.qual.LiteralKind;
 import org.checkerframework.framework.qual.QualifierForLiterals;
 import org.checkerframework.framework.qual.SubtypeOf;
 import org.checkerframework.framework.qual.TypeKind;
-import org.checkerframework.framework.qual.TypeUseLocation;
 import org.checkerframework.framework.qual.UpperBoundFor;
 
 import java.lang.annotation.Documented;
@@ -28,11 +26,9 @@ import java.math.BigInteger;
  */
 @SubtypeOf({Readonly.class})
 @Documented
-@DefaultQualifierInHierarchy
 @Retention(RetentionPolicy.RUNTIME)
 @Target({ElementType.TYPE_USE, ElementType.TYPE_PARAMETER})
 @DefaultFor(
-        value = {TypeUseLocation.EXCEPTION_PARAMETER},
         types = {
             Enum.class,
             String.class,

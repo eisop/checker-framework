@@ -73,6 +73,11 @@ public class PICOInitializationAnnotatedTypeFactory extends InitializationAnnota
                             + ((InitializationChecker) checker).getTargetCheckerClass());
         }
 
+        // Remove primitives
+        if (!((InitializationChecker) checker).checkPrimitives()) {
+            uninitializedFields.removeIf(var -> getAnnotatedType(var).getKind().isPrimitive());
+        }
+
         // Filter out fields annotated with @Assignable or static fields or fields in @Mutable class
         uninitializedFields.removeIf(
                 var -> {

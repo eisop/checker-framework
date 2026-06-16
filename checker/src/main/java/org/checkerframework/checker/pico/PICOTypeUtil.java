@@ -211,6 +211,8 @@ public class PICOTypeUtil {
         return ElementUtils.isFinal(variableElement);
     }
 
+    /** Check if the field lazy final and */
+
     /**
      * Check if a field is assignable. A field is assignable if it is static and not final, or has
      * explicit @Assignable
@@ -230,8 +232,7 @@ public class PICOTypeUtil {
             return hasExplicitAssignableAnnotation;
         } else {
             // If there is explicit @Assignable annotation on static fields, then it's assignable;
-            // If there isn't,
-            // and the static field is not final, we treat it as if it's assignable field.
+            // If the static field is not explicit final, we treat it as if it's assignable field.
             return hasExplicitAssignableAnnotation || !isFinalField(variableElement);
         }
     }
@@ -347,5 +348,32 @@ public class PICOTypeUtil {
                 && ElementUtils.getQualifiedName(ele) == "Array"
                 && ((Symbol.ClassSymbol) ele).classfile == null
                 && ((Symbol.ClassSymbol) ele).sourcefile == null;
+    }
+
+    /**
+     * Check if a method is an object identity method.
+     *
+     * @param node MethodTree of the method
+     * @param annotatedTypeFactory AnnotatedTypeFactory
+     * @return true if the method is an object identity method
+     */
+    public static boolean isObjectIdentityMethod(
+            MethodTree node, AnnotatedTypeFactory annotatedTypeFactory) {
+        ExecutableElement element = TreeUtils.elementFromDeclaration(node);
+        return isObjectIdentityMethod(element, annotatedTypeFactory);
+    }
+
+    /**
+     * Check if a method is an object identity method.
+     *
+     * @param executableElement ExecutableElement of the method
+     * @param annotatedTypeFactory AnnotatedTypeFactory
+     * @return whether this method is an object identity method
+     */
+    public static boolean isObjectIdentityMethod(
+            ExecutableElement executableElement, AnnotatedTypeFactory annotatedTypeFactory) {
+        return isMethodOrOverridingMethod(executableElement, "hashCode()", annotatedTypeFactory)
+                || isMethodOrOverridingMethod(
+                        executableElement, "equals(java.lang.Object)", annotatedTypeFactory);
     }
 }
