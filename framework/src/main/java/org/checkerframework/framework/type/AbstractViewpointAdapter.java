@@ -307,16 +307,14 @@ public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
             AnnotationMirror resultAnnotation =
                     combineAnnotationWithAnnotation(
                             receiverAnnotation, extractAnnotationMirror(adt));
-            // Don't recursively combine type arguments if the type is raw
-            if (!adt.isUnderlyingTypeRaw()) {
-                // Recursively combine type arguments and store to map
-                for (AnnotatedTypeMirror typeArgument : adt.getTypeArguments()) {
-                    // Recursively adapt the type arguments of this adt
-                    AnnotatedTypeMirror combinedTypeArgument =
-                            combineAnnotationWithType(receiverAnnotation, typeArgument);
-                    mappings.put(typeArgument, combinedTypeArgument);
-                }
+            // Recursively combine type arguments and store to map
+            for (AnnotatedTypeMirror typeArgument : adt.getTypeArguments()) {
+                // Recursively adapt the type arguments of this adt
+                AnnotatedTypeMirror combinedTypeArgument =
+                        combineAnnotationWithType(receiverAnnotation, typeArgument);
+                mappings.put(typeArgument, combinedTypeArgument);
             }
+
             // Construct result type
             AnnotatedTypeMirror result = AnnotatedTypeCopierWithReplacement.replace(adt, mappings);
             result.replaceAnnotation(resultAnnotation);
@@ -420,14 +418,10 @@ public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
             AnnotatedDeclaredType adt = (AnnotatedDeclaredType) rhs.shallowCopy();
             IdentityHashMap<AnnotatedTypeMirror, AnnotatedTypeMirror> mappings =
                     new IdentityHashMap<>();
-            // Don't recursively substitute type arguments if the type is raw
-            if (!adt.isUnderlyingTypeRaw()) {
-                for (AnnotatedTypeMirror formalTypeParameter : adt.getTypeArguments()) {
-                    AnnotatedTypeMirror actualTypeArgument =
-                            substituteTVars(lhs, formalTypeParameter);
-                    mappings.put(formalTypeParameter, actualTypeArgument);
-                    // The following code does the wrong thing!
-                }
+            for (AnnotatedTypeMirror formalTypeParameter : adt.getTypeArguments()) {
+                AnnotatedTypeMirror actualTypeArgument = substituteTVars(lhs, formalTypeParameter);
+                mappings.put(formalTypeParameter, actualTypeArgument);
+                // The following code does the wrong thing!
             }
             // We must use AnnotatedTypeReplacer to replace the formal type parameters with actual
             // type arguments, but not replace with its main qualifier

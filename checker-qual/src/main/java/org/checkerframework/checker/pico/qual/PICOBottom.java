@@ -13,13 +13,11 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * {@code @PICOBottom} can only be annotated before a type parameter (For example, {@code class
- * C<@Bottom T extends MutableBox>{}}). This means {@code @PICOBottom} is the lower bound for this
- * type parameter.
+ * The bottom qualifier in the PICO mutability hierarchy.
  *
- * <p>User can explicitly write {@code @PICOBottom} but it's not necessary because it's
- * automatically inferred, and we have -AwarnRedundantAnnotations flag to warn about redundant
- * annotations.
+ * <p>{@code @PICOBottom} is used as the lower bound for type parameters and as the qualifier for
+ * the null literal. It is inferred by the checker and normally does not need to be written in
+ * source code.
  */
 @SubtypeOf({Mutable.class, Immutable.class, ReceiverDependentMutable.class, PICOLost.class})
 @DefaultFor(typeKinds = {TypeKind.NULL})

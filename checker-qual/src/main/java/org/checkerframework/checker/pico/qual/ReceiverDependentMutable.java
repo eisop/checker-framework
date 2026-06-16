@@ -10,12 +10,15 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * {@code @ReceiverDependentMutable} is a type qualifier that indicates that mutability type depends
- * on the receiver type.
+ * Indicates that the effective mutability is determined by viewpoint adaptation from the receiver.
  *
- * <p>For usage in PICO, there are three ways to use this annotation: Object creation: the object
- * created depends on the lhs type; Annotation on a reference: the object that reference depends on
- * the receiver type; Annotation on a class: the instances can be mutable or immutable.
+ * <p>On a member type, {@code @ReceiverDependentMutable} is a placeholder that is replaced by the
+ * mutability of the receiver at a use site. On an object creation expression, the created object's
+ * mutability is determined by the target type. On a class declaration, the class may be used at
+ * different mutability instantiations, such as {@code @Mutable} or {@code @Immutable}.
+ *
+ * <p>This qualifier is only meaningful where there is a receiver or target context from which PICO
+ * can determine a concrete mutability.
  */
 @SubtypeOf(Readonly.class)
 @Documented

@@ -9,8 +9,10 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * This annotation is used to exclude the field from the abstract state and means the field can be
- * reassigned after initialization. It should only annotate on field, not class or method.
+ * Indicates that a field may be reassigned after initialization.
+ *
+ * <p>An {@code @Assignable} field is excluded from the object's abstract state for PICO's
+ * immutability checks. This annotation is only meaningful on field declarations.
  */
 @Documented
 @Retention(RetentionPolicy.RUNTIME)

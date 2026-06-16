@@ -8,7 +8,12 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
-/** Lost means the mutability type of this reference is unknown. This is a subtype of Readonly. */
+/**
+ * Internal qualifier used when viewpoint adaptation loses precise mutability information.
+ *
+ * <p>{@code @PICOLost} is a subtype of {@link Readonly}. Programmers should generally write a
+ * concrete PICO qualifier instead.
+ */
 @SubtypeOf({Readonly.class})
 @Documented
 @Retention(RetentionPolicy.RUNTIME)

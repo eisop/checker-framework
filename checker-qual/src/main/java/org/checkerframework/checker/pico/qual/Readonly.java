@@ -11,9 +11,14 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * The top qualifier in the mutability type hierarchy that indicates that the fields of annotated
- * reference cannot be mutated through this reference but can be mutated through other Aliasing.
- * This is the default qualifier for local variables and subject to flow-sensitive type refinement.
+ * The top qualifier in the PICO mutability hierarchy.
+ *
+ * <p>A reference of type {@code @Readonly T} does not permit mutation of the referenced object's
+ * fields through that reference. The object might still be mutated through another alias with a
+ * more specific mutability type.
+ *
+ * <p>This is the default qualifier for local variables and implicit upper bounds. Local variables
+ * are subject to flow-sensitive refinement.
  */
 @SubtypeOf({})
 @Documented

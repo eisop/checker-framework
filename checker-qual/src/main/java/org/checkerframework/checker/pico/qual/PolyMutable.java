@@ -11,11 +11,11 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * The polymorphic qualifier {@code @PolyMutable} indicates that the mutability type of this
- * reference can be substituted to {@code @Mutable} or {@code @Immutable} or {@code @RDM}. This is a
- * polymorphic qualifier that can be used in the type hierarchy.
+ * A polymorphic qualifier for the PICO mutability hierarchy.
  *
- * <p>{@code @PolyMutable} applies to method parameters, method return type and receiver.
+ * <p>{@code @PolyMutable} links the mutability of a method's receiver, parameters, local variables,
+ * and return type. At each call site, all occurrences of {@code @PolyMutable} in one polymorphic
+ * use are substituted with the same concrete mutability qualifier.
  */
 @Documented
 @Retention(RetentionPolicy.RUNTIME)

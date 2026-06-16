@@ -17,12 +17,13 @@ import java.math.BigDecimal;
 import java.math.BigInteger;
 
 /**
- * {@code @Immutable} is a type qualifier that indicates that the fields of annotated reference
- * cannot be mutated.
+ * Indicates that the referenced object is immutable.
  *
- * <p>For usage in PICO, there are three ways to use this annotation: Object creation: the object
- * created will always be immutable; Annotation on a reference: the object that reference points to
- * is immutable; Annotation on a class: all instances of that class are immutable.
+ * <p>When written on an object creation expression, the newly-created object is immutable. When
+ * written on a reference type, the referenced object cannot be mutated. When written on a class
+ * declaration, instances of that class have an immutable declaration bound.
+ *
+ * <p>PICO treats primitive values, string literals, and common wrapper/value classes as immutable.
  */
 @SubtypeOf({Readonly.class})
 @Documented

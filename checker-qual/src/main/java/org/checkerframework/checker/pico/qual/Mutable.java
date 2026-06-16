@@ -13,12 +13,13 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * {@code @Mutable} is a type qualifier that indicates that the fields of annotated reference can be
- * mutated through this reference. This is default behavior for all references in Java.
+ * Indicates that a reference permits mutation of the referenced object's fields.
  *
- * <p>For usage in PICO, there are three ways to use this annotation: Object creation: the object
- * created will always be mutable; Annotation on a reference: the object that reference points to is
- * mutable; Annotation on a class: all instances of that class are mutable.
+ * <p>When written on an object creation expression, the newly-created object is mutable. When
+ * written on a reference type, the object may be mutated through that reference. When written on a
+ * class declaration, instances of that class have a mutable declaration bound.
+ *
+ * <p>{@code @Mutable} is the default qualifier in the PICO hierarchy.
  */
 @SubtypeOf({Readonly.class})
 @Documented
