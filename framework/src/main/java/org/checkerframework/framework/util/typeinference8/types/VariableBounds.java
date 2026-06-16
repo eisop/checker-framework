@@ -192,9 +192,21 @@ public class VariableBounds {
      * @param qualifiers the qualifiers
      */
     public void addQualifierBound(BoundKind kind, Set<? extends AbstractQualifier> qualifiers) {
-        addConstraintsFromComplementaryQualifierBounds(kind, qualifiers);
-        addConstraintsFromComplementaryBounds(kind, qualifiers);
-        qualifierBounds.get(kind).addAll(qualifiers);
+        // Pre-filter qualifiers to avoid triggering expensive complementary constraints
+        // when the qualifier bounds are already present. This avoids redundant recursive work.
+        Set<AbstractQualifier> newQualifiers = new LinkedHashSet<>();
+        Set<AbstractQualifier> existing = qualifierBounds.get(kind);
+        for (AbstractQualifier q : qualifiers) {
+            if (!existing.contains(q)) {
+                newQualifiers.add(q);
+            }
+        }
+        if (newQualifiers.isEmpty()) {
+            return;
+        }
+        addConstraintsFromComplementaryQualifierBounds(kind, newQualifiers);
+        addConstraintsFromComplementaryBounds(kind, newQualifiers);
+        existing.addAll(newQualifiers);
     }
 
     /**
