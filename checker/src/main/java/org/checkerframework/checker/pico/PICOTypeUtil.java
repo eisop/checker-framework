@@ -17,15 +17,12 @@ import org.checkerframework.framework.qual.TypeKind;
 import org.checkerframework.framework.type.AnnotatedTypeFactory;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedDeclaredType;
-import org.checkerframework.framework.util.AnnotatedTypes;
 import org.checkerframework.javacutil.AnnotationProvider;
 import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TypesUtils;
 
 import java.util.HashSet;
-import java.util.Iterator;
-import java.util.Map;
 import java.util.Set;
 
 import javax.lang.model.element.Element;
@@ -150,40 +147,6 @@ public class PICOTypeUtil {
             return atypeFactory.getAnnotatedType(typeElement);
         }
         return null;
-    }
-
-    /**
-     * Helper method to determine if a method is the target method or overriding the target method.
-     *
-     * @param executableElement ExecutableElement of the method
-     * @param methodName Name of the method
-     * @param annotatedTypeFactory AnnotatedTypeFactory
-     * @return whether the method is the method or override a method
-     */
-    public static boolean isMethodOrOverridingMethod(
-            ExecutableElement executableElement,
-            String methodName,
-            AnnotatedTypeFactory annotatedTypeFactory) {
-        // Check if it is the target method
-        if (executableElement.toString().contentEquals(methodName)) return true;
-        // Check if it is overriding the target method
-        // Because AnnotatedTypes.overriddenMethods returns all the methods overriden in the class
-        // hierarchy, we need to
-        // iterate over the set to check if it's overriding corresponding methods specifically in
-        // java.lang.Object class
-        Iterator<Map.Entry<@Immutable AnnotatedDeclaredType, ExecutableElement>> overriddenMethods =
-                AnnotatedTypes.overriddenMethods(
-                                annotatedTypeFactory.getElementUtils(),
-                                annotatedTypeFactory,
-                                executableElement)
-                        .entrySet()
-                        .iterator();
-        while (overriddenMethods.hasNext()) {
-            if (overriddenMethods.next().getValue().toString().contentEquals(methodName)) {
-                return true;
-            }
-        }
-        return false;
     }
 
     /**
@@ -348,32 +311,5 @@ public class PICOTypeUtil {
                 && ElementUtils.getQualifiedName(ele) == "Array"
                 && ((Symbol.ClassSymbol) ele).classfile == null
                 && ((Symbol.ClassSymbol) ele).sourcefile == null;
-    }
-
-    /**
-     * Check if a method is an object identity method.
-     *
-     * @param node MethodTree of the method
-     * @param annotatedTypeFactory AnnotatedTypeFactory
-     * @return true if the method is an object identity method
-     */
-    public static boolean isObjectIdentityMethod(
-            MethodTree node, AnnotatedTypeFactory annotatedTypeFactory) {
-        ExecutableElement element = TreeUtils.elementFromDeclaration(node);
-        return isObjectIdentityMethod(element, annotatedTypeFactory);
-    }
-
-    /**
-     * Check if a method is an object identity method.
-     *
-     * @param executableElement ExecutableElement of the method
-     * @param annotatedTypeFactory AnnotatedTypeFactory
-     * @return whether this method is an object identity method
-     */
-    public static boolean isObjectIdentityMethod(
-            ExecutableElement executableElement, AnnotatedTypeFactory annotatedTypeFactory) {
-        return isMethodOrOverridingMethod(executableElement, "hashCode()", annotatedTypeFactory)
-                || isMethodOrOverridingMethod(
-                        executableElement, "equals(java.lang.Object)", annotatedTypeFactory);
     }
 }
