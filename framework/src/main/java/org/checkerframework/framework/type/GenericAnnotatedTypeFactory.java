@@ -930,13 +930,13 @@ public abstract class GenericAnnotatedTypeFactory<
     @Override
     protected void postDirectSuperTypes(
             AnnotatedTypeMirror type, List<? extends AnnotatedTypeMirror> supertypes) {
-        super.postDirectSuperTypes(type, supertypes);
         if (type.getKind() == TypeKind.DECLARED) {
             for (AnnotatedTypeMirror supertype : supertypes) {
                 Element elt = ((DeclaredType) supertype.getUnderlyingType()).asElement();
                 addComputedTypeAnnotations(elt, supertype);
             }
         }
+        super.postDirectSuperTypes(type, supertypes);
     }
 
     /**
