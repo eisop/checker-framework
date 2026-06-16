@@ -32,6 +32,9 @@ dependencies {
 tasks.named('compileTagletJdk8Java') {
     enabled = isJava8
 }
+tasks.named('compileTagletJava') {
+    enabled = !isJava8
+}
 
 jar.archiveBaseName = 'framework-test'
 
