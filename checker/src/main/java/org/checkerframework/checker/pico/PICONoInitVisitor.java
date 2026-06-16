@@ -94,16 +94,6 @@ public class PICONoInitVisitor extends BaseTypeVisitor<PICONoInitAnnotatedTypeFa
         return !AnnotationUtils.areSame(used, atypeFactory.BOTTOM);
     }
 
-    @Override
-    protected boolean checkOverride(
-            MethodTree overriderTree,
-            AnnotatedExecutableType overriderMethodType,
-            AnnotatedDeclaredType overriderType,
-            AnnotatedExecutableType overriddenMethodType,
-            AnnotatedDeclaredType overriddenType) {
-        return true;
-    }
-
     /**
      * Tests whether the left-hand qualifier is valid against the right-hand declaration bound after
      * viewpoint adaptation.
@@ -211,7 +201,8 @@ public class PICONoInitVisitor extends BaseTypeVisitor<PICONoInitAnnotatedTypeFa
                     .getViewpointAdapter()
                     .viewpointAdaptMethod(enclosingType, pair.getValue(), overriddenMethod);
             AnnotatedExecutableType overrider = atypeFactory.getAnnotatedType(node);
-            if (!checkOverride(node, overrider, enclosingType, overriddenMethod, overriddenType)) {
+            if (!super.checkOverride(
+                    node, overrider, enclosingType, overriddenMethod, overriddenType)) {
                 // Stop at the first mismatch; this makes a difference only if
                 // -Awarns is passed, in which case multiple warnings might be raised on
                 // the same method, not adding any value. See Issue 373.

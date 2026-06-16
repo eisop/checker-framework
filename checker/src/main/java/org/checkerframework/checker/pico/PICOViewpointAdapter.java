@@ -54,7 +54,7 @@ public class PICOViewpointAdapter extends AbstractViewpointAdapter {
             return declaredAnnotation;
         }
 
-        throw new BugInCF("Unknown declared modifier: " + declaredAnnotation);
+        throw new BugInCF("Unknown declared qualifier: " + declaredAnnotation);
     }
 
     /**
