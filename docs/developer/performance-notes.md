@@ -533,6 +533,23 @@ so small per-call wins paid back substantially.
   `Objects.hash(kind, left.hashCode() + right.hashCode())` so that `a OP b`
   and `b OP a` hash identically. This is a correctness fix for the `equals`/`hashCode`
   contract that also improves cache hit rates for commutative expressions.
+- **PR #1812 — eliminate `Objects.hash` boxing and fix zero-hash caching.** Two
+  related fixes applied across the remaining `JavaExpression`
+  subclasses (`ArrayAccess`, `BinaryOperation`, `FormalParameter`, `LocalVariable`,
+  `MethodCall`, `UnaryOperation`, `ClassName`) and several framework/javacutil classes
+  (`CFAbstractValue`, `DiagMessage`, `AnnotationMirrorSet`):
+  (1) **`Objects.hash` removal.** Each `hashCode()` that used `Objects.hash(...)` was
+  rewritten to the equivalent `h = 31 * h + field.hashCode()` polynomial, eliminating
+  the varargs `Object[]` allocation and autoboxing per call (see the "Gotcha" entry
+  in Generic map/lookup patterns for the general rule).
+  (2) **Zero-hash sentinel fix.** The lazy `hashCodeCache == 0` guard used by
+  PR #1643 treats 0 as "not yet computed". A hash that genuinely computes to 0 would
+  be recomputed on every call, defeating the cache. Fixed throughout with
+  `hashCodeCache = h == 0 ? 1 : h`, remapping the all-zero case to 1.
+  (3) **`QualifierVar` gains a cached hash code.** `QualifierVar.hashCode()` was
+  previously uncached despite calling `Objects.hash(id, invocation, polyQualifier)`
+  (where `invocation.hashCode()` can itself be expensive). Added a `cachedHashCode`
+  field with the same lazy + zero-sentinel pattern.
 
 ### Dataflow stores, analysis, and transfer
 
@@ -645,6 +662,10 @@ so small per-call wins paid back substantially.
   invocation. The two-arg `Objects.equals` is fine (no array/boxing); only the
   varargs `hash`/`Arrays.hashCode` family allocates. Precompute the result into a
   `final int hash` field when the key is immutable, as both new cache keys do.
+  A follow-up sweep (PR #1812) applied the same rewrite to the remaining
+  `JavaExpression` subclasses and framework classes still using `Objects.hash` in
+  their cached `hashCode()` implementations, and also fixed the zero-hash sentinel
+  bug (see Dataflow expressions above).
 
 ### CFG-builder body-path lookup
 

@@ -80,11 +80,11 @@ public class QualifierVar extends AbstractQualifier {
     @Override
     public int hashCode() {
         if (cachedHashCode == 0) {
-            int result = 1;
-            result = 31 * result + id;
-            result = 31 * result + (invocation != null ? invocation.hashCode() : 0);
-            result = 31 * result + (polyQualifier != null ? polyQualifier.hashCode() : 0);
-            cachedHashCode = result == 0 ? 1 : result;
+            int h = 1;
+            h = 31 * h + id;
+            h = 31 * h + (invocation != null ? invocation.hashCode() : 0);
+            h = 31 * h + (polyQualifier != null ? polyQualifier.hashCode() : 0);
+            cachedHashCode = h == 0 ? 1 : h;
         }
         return cachedHashCode;
     }
