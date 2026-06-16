@@ -1039,12 +1039,12 @@ subprojects {
     // Shadow 9.x registers a "shadowRuntimeElements" consumable variant for each project.
     // When checker:runtimeClasspath resolves project dependencies (e.g. framework), Gradle may
     // select shadowRuntimeElements, which points to the shadow JAR (framework-X-all.jar).
-    // That file does not exist unless framework:shadowJar has run, causing UnusedTracker to
-    // throw "neither file nor directory".  Mark it non-consumable so Gradle always uses the
-    // standard runtimeElements variant (framework.jar) for inter-project resolution.
-    afterEvaluate {
-        configurations.named('shadowRuntimeElements').configure {
-            canBeConsumed = false
+    // Change its Usage attribute so it doesn't conflict with standard runtimeElements.
+    configurations.all {
+        if (name == 'shadowRuntimeElements') {
+            attributes {
+                attribute(Usage.USAGE_ATTRIBUTE, objects.named(Usage, "shadow-runtime-elements"))
+            }
         }
     }
 
