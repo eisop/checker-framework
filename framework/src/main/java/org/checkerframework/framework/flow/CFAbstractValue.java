@@ -180,7 +180,8 @@ public abstract class CFAbstractValue<V extends CFAbstractValue<V>> implements A
         return underlyingType;
     }
 
-    @SuppressWarnings("interning:not.interned") // efficiency pre-test
+    // efficiency pre-test
+    @SuppressWarnings({"interning:not.interned", "TypeEquals"})
     @Override
     public boolean equals(@Nullable Object obj) {
         if (this == obj) {
@@ -272,7 +273,8 @@ public abstract class CFAbstractValue<V extends CFAbstractValue<V>> implements A
         // Reference-identity fast path: if both values share the same TypeMirror reference
         // (the common case for assignments, refinement of a single variable, etc.), we can
         // skip up to four javac calls into Types.isAssignable / TypesUtils.isErasedSubtype.
-        @SuppressWarnings("interning:not.interned") // identity fast path
+        // identity fast path
+        @SuppressWarnings({"interning:not.interned", "TypeEquals"})
         boolean sameTM = (thisType == otherType);
         if (sameTM) {
             mostSpecifTypeMirror = thisType;
@@ -536,7 +538,8 @@ public abstract class CFAbstractValue<V extends CFAbstractValue<V>> implements A
         // TypesUtils.leastUpperBound, which dispatches into javac.  In dataflow merge, both
         // operands frequently share the same underlying TypeMirror (e.g. when joining stores
         // at a control-flow merge for a single variable).
-        @SuppressWarnings("interning:not.interned") // identity fast path
+        // identity fast path
+        @SuppressWarnings({"interning:not.interned", "TypeEquals"})
         boolean sameTM = (thisType == otherType);
         if (sameTM) {
             lubTypeMirror = thisType;
@@ -698,7 +701,8 @@ public abstract class CFAbstractValue<V extends CFAbstractValue<V>> implements A
         // Reference-identity fast path: the GLB of a type with itself is itself.  This avoids
         // TypesUtils.greatestLowerBound, which dispatches into javac.  Common at refinement
         // sites where the same expression is intersected with a more specific qualifier.
-        @SuppressWarnings("interning:not.interned") // identity fast path
+        // identity fast path
+        @SuppressWarnings({"interning:not.interned", "TypeEquals"})
         boolean sameTM = (thisType == otherType);
         if (sameTM) {
             glbTypeMirror = thisType;

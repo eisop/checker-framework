@@ -6040,7 +6040,8 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      *
      * <p>The second argument to visit must be a captured type variable.
      */
-    @SuppressWarnings("interning:not.interned") // Captured type vars can be compared with ==.
+    // Captured type vars can be compared with ==.
+    @SuppressWarnings({"interning:not.interned", "TypeEquals"})
     private final SimpleAnnotatedTypeScanner<Boolean, TypeVariable> captureScanner =
             new SimpleAnnotatedTypeScanner<>(
                     (type, other) -> type.getUnderlyingType() == other, Boolean::logicalOr, false);
