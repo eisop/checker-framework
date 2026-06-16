@@ -15,10 +15,9 @@ import org.checkerframework.javacutil.TreePathUtil;
 import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TypesUtils;
 
-import java.util.HashMap;
-import java.util.HashSet;
+import java.util.Collections;
+import java.util.IdentityHashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
 import javax.annotation.processing.ProcessingEnvironment;
@@ -61,7 +60,7 @@ public class Java8InferenceContext {
      * Store previously created type variable to inference variable maps as a map from invocation
      * expression to Theta.
      */
-    public final Map<ExpressionTree, Theta> maps;
+    public final IdentityHashMap<ExpressionTree, Theta> maps;
 
     /** Number of non-capture variables in this inference problem. */
     private int variableCount = 1;
@@ -82,7 +81,26 @@ public class Java8InferenceContext {
     public final AnnotatedTypeFactory typeFactory;
 
     /** There's no way to tell if an element is a parameter of a lambda, so keep track of them. */
-    public final Set<VariableElement> lambdaParms = new HashSet<>();
+    public final Set<VariableElement> lambdaParms =
+            Collections.newSetFromMap(new IdentityHashMap<>());
+
+    /**
+     * Maximum amount of bound-incorporation work (sum of bound-list sizes visited by {@link
+     * org.checkerframework.framework.util.typeinference8.types.VariableBounds#applyInstantiationsToBounds})
+     * permitted for a single inference problem before inference is abandoned.
+     *
+     * <p>Incorporating bounds to a fixed point (JLS 18.3) is roughly cubic in the nesting depth of
+     * a generic invocation, so a single deeply nested (often machine-generated) invocation can take
+     * many seconds. This bound caps that work: when it is exceeded an {@link
+     * org.checkerframework.framework.util.typeinference8.util.InferenceBudgetExceededError} is
+     * thrown and inference falls back to a sound, conservative result. The value has roughly two
+     * orders of magnitude of headroom over the largest amount of work observed on hand-written
+     * code, so it does not affect realistic programs.
+     */
+    public static final int MAX_INCORPORATION_WORK = 100_000;
+
+    /** Bound-incorporation work performed so far for this inference problem. */
+    private int incorporationWork = 0;
 
     /**
      * Creates a context
@@ -105,12 +123,30 @@ public class Java8InferenceContext {
         this.modelTypes = factory.getProcessingEnv().getTypeUtils();
         ClassTree clazz = TreePathUtil.enclosingClass(pathToExpression);
         this.enclosingType = (DeclaredType) TreeUtils.typeOf(clazz);
-        this.maps = new HashMap<>();
+        this.maps = new IdentityHashMap<>();
         this.runtimeEx =
                 TypesUtils.typeFromClass(
                         RuntimeException.class, env.getTypeUtils(), env.getElementUtils());
         this.inferenceTypeFactory = new InferenceFactory(this);
         this.object = inferenceTypeFactory.getObject();
+    }
+
+    /**
+     * Records {@code amount} units of bound-incorporation work for this inference problem and
+     * throws {@link InferenceBudgetExceededError} if the total exceeds {@link
+     * #MAX_INCORPORATION_WORK}.
+     *
+     * @param amount amount of work to add to this problem's running total
+     */
+    public void recordIncorporationWork(int amount) {
+        incorporationWork += amount;
+        if (incorporationWork > MAX_INCORPORATION_WORK) {
+            // The error's message (the work counts) is for debugging only; it is not surfaced to
+            // the user. DefaultTypeArgumentInference.inferTypeArgs catches this and reports the
+            // user-facing type.argument.inference.budget error, which explains the abandonment and
+            // suggests explicit type arguments without the (unactionable) work numbers.
+            throw new InferenceBudgetExceededError(incorporationWork, MAX_INCORPORATION_WORK);
+        }
     }
 
     /**

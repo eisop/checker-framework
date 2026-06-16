@@ -11,7 +11,7 @@ import org.checkerframework.javacutil.TypesUtils;
 import org.plumelib.util.IPair;
 
 import java.util.ArrayList;
-import java.util.Collection;
+import java.util.Collections;
 import java.util.EnumMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -41,6 +41,16 @@ public class VariableBounds {
 
     /** The type to which this variable is instantiated. */
     private ProperType instantiation = null;
+
+    /**
+     * Whether every bound in {@link #bounds} is a proper type. When true, {@link
+     * #applyInstantiationsToBounds} can skip re-scanning the bounds: {@link
+     * ProperType#applyInstantiations} is the identity, so a fully-proper bound set cannot change.
+     * Maintained at the only places {@link #bounds} is mutated ({@link #addBound}, {@link
+     * #restore}, and the rebuild in {@link #applyInstantiationsToBounds}); the constructor leaves
+     * it vacuously true for the empty bound set.
+     */
+    private boolean allBoundsProper = true;
 
     /**
      * Bounds on this variable. Stored as a map from kind of bound (upper, lower, equal) to a set of
@@ -113,6 +123,7 @@ public class VariableBounds {
         bounds.put(BoundKind.EQUAL, new LinkedHashSet<>(savedBounds.get(BoundKind.EQUAL)));
         bounds.put(BoundKind.UPPER, new LinkedHashSet<>(savedBounds.get(BoundKind.UPPER)));
         bounds.put(BoundKind.LOWER, new LinkedHashSet<>(savedBounds.get(BoundKind.LOWER)));
+        allBoundsProper = computeAllBoundsProper();
         for (AbstractType t : bounds.get(BoundKind.EQUAL)) {
             if (t.isProper()) {
                 instantiation = (ProperType) t;
@@ -161,6 +172,9 @@ public class VariableBounds {
             instantiation = ((ProperType) otherType).boxType();
         }
         if (bounds.get(kind).add(otherType)) {
+            if (!otherType.isProper()) {
+                allBoundsProper = false;
+            }
             addConstraintsFromComplementaryBounds(parent, kind, otherType);
             if (!otherType.ignoreAnnotations) {
                 Set<AbstractQualifier> aQuals = otherType.getQualifiers();
@@ -387,7 +401,7 @@ public class VariableBounds {
                 context.inferenceTypeFactory.getParameterizedSupers(s, t);
 
         if (pair == null) {
-            return new ArrayList<>();
+            return Collections.emptyList();
         }
 
         List<AbstractType> ss = pair.first.getTypeArguments();
@@ -473,19 +487,57 @@ public class VariableBounds {
      */
     @SuppressWarnings("interning:not.interned") // Checking for exact object.
     public boolean applyInstantiationsToBounds() {
+        if (allBoundsProper) {
+            // Every bound is a proper type, so applying instantiations to them is a no-op
+            // (ProperType.applyInstantiations() is the identity) and the changed-gated
+            // instantiation detection below cannot fire. Skip re-scanning the bounds of this
+            // fully-resolved variable -- the dominant cost of the incorporation fixpoint on large
+            // problems. Constraints are still applied.
+            constraints.applyInstantiations();
+            return false;
+        }
         boolean changed = false;
+        boolean nowAllProper = true;
         for (Set<AbstractType> boundList : bounds.values()) {
+            // Charge this work against the inference problem's budget; throws
+            // InferenceBudgetExceededError for a pathological (e.g. deeply nested generic)
+            // invocation whose fixed-point incorporation would otherwise take many seconds.
+            context.recordIncorporationWork(boundList.size());
+            // Fast path: if every bound's applyInstantiations returns the same instance, no
+            // rebuild is needed.  This is the common case at fixpoint convergence.
+            boolean listChanged = false;
+            for (AbstractType bound : boundList) {
+                if (bound.applyInstantiations() != bound) {
+                    listChanged = true;
+                    break;
+                }
+            }
+            if (!listChanged) {
+                for (AbstractType bound : boundList) {
+                    if (!bound.isProper()) {
+                        nowAllProper = false;
+                        break;
+                    }
+                }
+                continue;
+            }
+
+            // Slow path: at least one bound changed instance; rebuild this bound list.
             LinkedHashSet<AbstractType> newBounds = new LinkedHashSet<>(boundList.size());
             for (AbstractType bound : boundList) {
                 AbstractType newBound = bound.applyInstantiations();
                 if (newBound != bound && !boundList.contains(newBound)) {
                     changed = true;
                 }
+                if (!newBound.isProper()) {
+                    nowAllProper = false;
+                }
                 newBounds.add(newBound);
             }
             boundList.clear();
             boundList.addAll(newBounds);
         }
+        allBoundsProper = nowAllProper;
         constraints.applyInstantiations();
 
         if (changed && instantiation == null) {
@@ -499,12 +551,29 @@ public class VariableBounds {
     }
 
     /**
+     * Recomputes from scratch whether every bound in {@link #bounds} is a proper type; used to
+     * maintain {@link #allBoundsProper}.
+     *
+     * @return true if every bound is a proper type
+     */
+    private boolean computeAllBoundsProper() {
+        for (Set<AbstractType> boundList : bounds.values()) {
+            for (AbstractType bound : boundList) {
+                if (!bound.isProper()) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    /**
      * Return all variables mentioned in a bound against this variable.
      *
      * @return all variables mentioned in a bound against this variable
      */
-    public Collection<? extends Variable> getVariablesMentionedInBounds() {
-        List<Variable> mentioned = new ArrayList<>();
+    public Set<Variable> getVariablesMentionedInBounds() {
+        Set<Variable> mentioned = new LinkedHashSet<>();
         for (Set<AbstractType> boundList : bounds.values()) {
             for (AbstractType bound : boundList) {
                 mentioned.addAll(bound.getInferenceVariables());
@@ -647,6 +716,15 @@ public class VariableBounds {
      * @return constraints generated when incorporating a capture bound
      */
     public ConstraintSet getWildcardConstraints(AbstractType Ai, AbstractType Bi) {
+        // EQUAL-bound check first: if any EQUAL bound is proper or an inference type,
+        // the bound is false and we return null without doing any work.
+        for (AbstractType bound : bounds.get(VariableBounds.BoundKind.EQUAL)) {
+            if (bound.isProper() || bound.isInferenceType()) {
+                // var = R implies the bound false
+                return null;
+            }
+        }
+
         ConstraintSet constraintSet = new ConstraintSet();
         String source = "Constraint from wildcard bound.";
 
@@ -661,13 +739,6 @@ public class VariableBounds {
         for (AbstractType bound : bounds.get(VariableBounds.BoundKind.LOWER)) {
             if (bound.isProper() || bound.isInferenceType()) {
                 lowerBoundsNonVar.add(bound);
-            }
-        }
-
-        for (AbstractType bound : bounds.get(VariableBounds.BoundKind.EQUAL)) {
-            if (bound.isProper() || bound.isInferenceType()) {
-                // var = R implies the bound false
-                return null;
             }
         }
 
