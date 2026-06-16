@@ -412,6 +412,33 @@ allprojects { currentProj ->
         maxHeapSize = "4g" // maximum heap size
     }
 
+    boolean useToolchains = (currentRuntimeJavaVersion != useJdkVersionInt)
+    if (useToolchains) {
+        // This uses the requested Java toolchain.
+        // On CI, gradle always runs with JDK 21 and different versions are selected as toolchains.
+        // CI test test-cftests-junit-jdk21 runs the JUnit tests on the different JDK versions,
+        // to ensure there is no version mismatch between compiled-against javac APIs and runtime APIs.
+        //   https://docs.gradle.org/current/userguide/toolchains.html
+        java {
+            toolchain {
+                languageVersion = JavaLanguageVersion.of(useJdkVersionInt)
+            }
+        }
+
+        // JavaExec does not automatically inherit the toolchain JDK (!).
+        tasks.withType(JavaExec).configureEach {
+            javaLauncher = javaToolchains.launcherFor {
+                languageVersion = JavaLanguageVersion.of(useJdkVersionInt)
+            }
+        }
+        // JavaCompile also seems to need an extra push...
+        tasks.withType(JavaCompile).configureEach {
+            javaCompiler = javaToolchains.compilerFor {
+                languageVersion = JavaLanguageVersion.of(useJdkVersionInt)
+            }
+        }
+    }
+
     // After all the tasks have been created, modify some of them.
     afterEvaluate {
         configurations {
@@ -423,33 +450,6 @@ allprojects { currentProj ->
 
         dependencies {
             checkerFatJar(project(path: ':checker', configuration: 'fatJar'))
-        }
-
-        boolean useToolchains = (currentRuntimeJavaVersion != useJdkVersionInt)
-        if (useToolchains) {
-            // This uses the requested Java toolchain.
-            // On CI, gradle always runs with JDK 21 and different versions are selected as toolchains.
-            // CI test test-cftests-junit-jdk21 runs the JUnit tests on the different JDK versions,
-            // to ensure there is no version mismatch between compiled-against javac APIs and runtime APIs.
-            //   https://docs.gradle.org/current/userguide/toolchains.html
-            java {
-                toolchain {
-                    languageVersion = JavaLanguageVersion.of(useJdkVersionInt)
-                }
-            }
-
-            // JavaExec does not automatically inherit the toolchain JDK (!).
-            tasks.withType(JavaExec).configureEach {
-                javaLauncher = javaToolchains.launcherFor {
-                    languageVersion = JavaLanguageVersion.of(useJdkVersionInt)
-                }
-            }
-            // JavaCompile also seems to need an extra push...
-            tasks.withType(JavaCompile).configureEach {
-                javaCompiler = javaToolchains.compilerFor {
-                    languageVersion = JavaLanguageVersion.of(useJdkVersionInt)
-                }
-            }
         }
 
         // Add the fat checker.jar to the classpath of every Javadoc task. This allows Javadoc in
