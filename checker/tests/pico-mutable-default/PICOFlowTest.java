@@ -1,5 +1,4 @@
-// @skip-test
-// TODO: implement flow refinement for PICO
+import org.checkerframework.checker.pico.qual.Assignable;
 import org.checkerframework.checker.pico.qual.Immutable;
 import org.checkerframework.checker.pico.qual.PolyMutable;
 import org.checkerframework.checker.pico.qual.Readonly;
@@ -12,7 +11,6 @@ public class PICOFlowTest {
         return o;
     }
 
-    // TODO: Implement flow refinement for PICO
     public @Immutable BaseClass testFlow(@Readonly BaseClass s) {
         if (s.getClass() == ImmutableClass.class) {
             return s;
@@ -20,8 +18,15 @@ public class PICOFlowTest {
         return new ImmutableClass();
     }
 
+    public @Immutable BaseClass testFlowNotEqual(@Readonly BaseClass s) {
+        if (s.getClass() != ImmutableClass.class) {
+            return new ImmutableClass();
+        }
+        return s;
+    }
+
     @ReceiverDependentMutable class BaseClass {
-        @ReceiverDependentMutable BaseClass b;
+        @Assignable @ReceiverDependentMutable BaseClass b;
 
         @PolyMutable BaseClass testFlowInner(@PolyMutable BaseClass this) {
             BaseClass local = b;

@@ -78,25 +78,22 @@ public class PICOInitializationAnnotatedTypeFactory extends InitializationAnnota
             uninitializedFields.removeIf(var -> getAnnotatedType(var).getKind().isPrimitive());
         }
 
-        // Filter out fields annotated with @Assignable or static fields or fields in @Mutable class
+        // Remove fields that PICO does not require constructors to initialize.
         uninitializedFields.removeIf(
                 var -> {
                     ClassTree enclosingClass = TreePathUtil.enclosingClass(getPath(var));
                     TypeElement typeElement = TreeUtils.elementFromDeclaration(enclosingClass);
                     AnnotatedTypeMirror bound = factory.getAnnotatedType(typeElement);
-                    // If the class is not annotated with @Immutable or @ReceiverDependentMutable,
-                    // return false
                     if (bound.hasAnnotation(MUTABLE)) {
+                        // Mutable classes do not require definite assignment of all fields.
                         return true;
                     } else {
                         Element varElement = TreeUtils.elementFromDeclaration(var);
-                        // If the field is annotated with @Assignable, return false
-                        if (((PICONoInitAnnotatedTypeFactory) factory).isAssignableField(varElement)
-                                || ElementUtils.isStatic(varElement)) {
-                            return true;
-                        } else {
-                            return false;
-                        }
+                        // Assignable and static fields are not part of the required initialized
+                        // state.
+                        return ((PICONoInitAnnotatedTypeFactory) factory)
+                                        .isAssignableField(varElement)
+                                || ElementUtils.isStatic(varElement);
                     }
                 });
         return uninitializedFields;

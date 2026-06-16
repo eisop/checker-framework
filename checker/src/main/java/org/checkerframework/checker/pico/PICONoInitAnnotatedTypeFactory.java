@@ -205,9 +205,11 @@ public class PICONoInitAnnotatedTypeFactory
      */
     @Override
     public void addComputedTypeAnnotations(Element elt, AnnotatedTypeMirror type) {
-        addDefaultForField(type, elt);
-        defaultConstructorReturnToClassBound(elt, type);
-        defaultMethodReceiverToClassBound(elt, type);
+        if (elt != null) {
+            addDefaultForField(type, elt);
+            defaultConstructorReturnToClassBound(elt, type);
+            defaultMethodReceiverToClassBound(elt, type);
+        }
         super.addComputedTypeAnnotations(elt, type);
     }
 
@@ -503,7 +505,7 @@ public class PICONoInitAnnotatedTypeFactory
         // If it is a user-declared "Array" class without package, a class / source file should be
         // there. Otherwise, it is the java inner type.
         return ele instanceof Symbol.ClassSymbol
-                && ElementUtils.getQualifiedName(ele) == "Array"
+                && ElementUtils.getQualifiedName(ele).contentEquals("Array")
                 && ((Symbol.ClassSymbol) ele).classfile == null
                 && ((Symbol.ClassSymbol) ele).sourcefile == null;
     }
@@ -615,10 +617,10 @@ public class PICONoInitAnnotatedTypeFactory
         }
     }
 
-    /** Tree Annotators */
+    /** Tree annotators for PICO-specific defaults and expression annotations. */
     public static class PICOPropagationTreeAnnotator extends PropagationTreeAnnotator {
         /** The PICO type factory. */
-        private PICONoInitAnnotatedTypeFactory picoTypeFactory;
+        private final PICONoInitAnnotatedTypeFactory picoTypeFactory;
 
         /**
          * Create a new PICOPropagationTreeAnnotator.
@@ -647,10 +649,10 @@ public class PICONoInitAnnotatedTypeFactory
         }
     }
 
-    /** Apply defaults for static fields with non-implicitly immutable types. */
+    /** Applies PICO-specific tree defaults. */
     public static class PICOTreeAnnotator extends TreeAnnotator {
         /** The PICO type factory. */
-        private PICONoInitAnnotatedTypeFactory picoTypeFactory;
+        private final PICONoInitAnnotatedTypeFactory picoTypeFactory;
 
         /**
          * Create a new PICOTreeAnnotator.
@@ -703,10 +705,10 @@ public class PICONoInitAnnotatedTypeFactory
         }
     }
 
-    /** Type Annotators */
+    /** Type annotators for PICO-specific defaults. */
     public static class PICOTypeAnnotator extends TypeAnnotator {
         /** The PICO type factory. */
-        private PICONoInitAnnotatedTypeFactory picoTypeFactory;
+        private final PICONoInitAnnotatedTypeFactory picoTypeFactory;
 
         /**
          * Create a new PICOTypeAnnotator.
@@ -718,7 +720,7 @@ public class PICONoInitAnnotatedTypeFactory
             picoTypeFactory = (PICONoInitAnnotatedTypeFactory) typeFactory;
         }
 
-        /** {@inheritDoc} Applies pre-knowledged defaults. */
+        /** {@inheritDoc} Applies PICO-specific defaults. */
         @Override
         public Void visitExecutable(AnnotatedExecutableType t, Void p) {
             super.visitExecutable(t, p);
@@ -759,7 +761,7 @@ public class PICONoInitAnnotatedTypeFactory
     public static class PICOQualifierForUseTypeAnnotator
             extends DefaultQualifierForUseTypeAnnotator {
         /** The PICO type factory. */
-        private PICONoInitAnnotatedTypeFactory picoTypeFactory;
+        private final PICONoInitAnnotatedTypeFactory picoTypeFactory;
 
         /**
          * Create a new PICOQualifierForUseTypeAnnotator.
@@ -798,7 +800,7 @@ public class PICONoInitAnnotatedTypeFactory
         }
     }
 
-    /** DefaultForTypeAnnotator */
+    /** Applies PICO defaults derived from {@link DefaultFor}. */
     public static class PICODefaultForTypeAnnotator extends DefaultForTypeAnnotator {
 
         /**
@@ -810,7 +812,7 @@ public class PICONoInitAnnotatedTypeFactory
             super(typeFactory);
         }
 
-        /** Also applies implicits to method receiver */
+        /** Also applies implicit defaults to method receivers. */
         @Override
         public Void visitExecutable(AnnotatedExecutableType t, Void p) {
             super.visitExecutable(t, p);
@@ -823,12 +825,11 @@ public class PICONoInitAnnotatedTypeFactory
     }
 
     /**
-     * Defaulting only applies the same annotation to all class declarations, and we need this to
-     * "only default enums" to immutable
+     * Defaults enum declarations to immutable without changing other class declaration defaults.
      */
     public static class PICOEnumDefaultAnnotator extends TypeAnnotator {
         /** The PICO type factory. */
-        private PICONoInitAnnotatedTypeFactory picoTypeFactory;
+        private final PICONoInitAnnotatedTypeFactory picoTypeFactory;
 
         /**
          * Create a new PICOEnumDefaultAnnotator.
