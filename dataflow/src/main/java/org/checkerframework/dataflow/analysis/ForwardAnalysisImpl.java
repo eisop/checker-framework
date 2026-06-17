@@ -278,6 +278,7 @@ public class ForwardAnalysisImpl<
                         // Apply transfer function to contents until we found the node we are
                         // looking for.
                         TransferInput<V, S> store = blockTransferInput;
+                        boolean copied = false;
                         TransferResult<V, S> transferResult;
                         for (Node n : rb.getNodes()) {
                             setCurrentNode(n);
@@ -288,9 +289,13 @@ public class ForwardAnalysisImpl<
                             if (cached != null) {
                                 transferResult = cached;
                             } else {
-                                // Copy the store to avoid changing other blocks' transfer inputs in
-                                // {@link #inputs}.
-                                transferResult = callTransferFunction(n, store.copy());
+                                if (!copied) {
+                                    // Copy the store once per block to avoid changing other blocks'
+                                    // transfer inputs.
+                                    store = store.copy();
+                                    copied = true;
+                                }
+                                transferResult = callTransferFunction(n, store);
                                 if (cache != null) {
                                     cache.put(n, transferResult);
                                 }
