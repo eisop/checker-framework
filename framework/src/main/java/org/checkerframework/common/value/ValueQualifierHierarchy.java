@@ -250,7 +250,7 @@ final class ValueQualifierHierarchy extends ElementQualifierHierarchy {
         String qual1 = AnnotationUtils.annotationName(a1);
         String qual2 = AnnotationUtils.annotationName(a2);
 
-        if (qual1.equals(qual2)) {
+        if (qual1 == qual2) {
             // If both are the same type, determine the type and merge
             switch (qual1) {
                 case ValueAnnotatedTypeFactory.INTRANGE_NAME:
@@ -466,29 +466,29 @@ final class ValueQualifierHierarchy extends ElementQualifierHierarchy {
         subAnno = atypeFactory.convertSpecialIntRangeToStandardIntRange(subAnno);
         superAnno = atypeFactory.convertSpecialIntRangeToStandardIntRange(superAnno);
         String subQualName = AnnotationUtils.annotationName(subAnno);
-        if (subQualName.equals(ValueAnnotatedTypeFactory.UNKNOWN_NAME)) {
+        if (subQualName == ValueAnnotatedTypeFactory.UNKNOWN_NAME) {
             superAnno = atypeFactory.convertToUnknown(superAnno);
         }
         String superQualName = AnnotationUtils.annotationName(superAnno);
-        if (superQualName.equals(ValueAnnotatedTypeFactory.UNKNOWN_NAME)
-                || subQualName.equals(ValueAnnotatedTypeFactory.BOTTOMVAL_NAME)) {
+        if (superQualName == ValueAnnotatedTypeFactory.UNKNOWN_NAME
+                || subQualName == ValueAnnotatedTypeFactory.BOTTOMVAL_NAME) {
             return true;
-        } else if (superQualName.equals(ValueAnnotatedTypeFactory.BOTTOMVAL_NAME)
-                || subQualName.equals(ValueAnnotatedTypeFactory.UNKNOWN_NAME)) {
+        } else if (superQualName == ValueAnnotatedTypeFactory.BOTTOMVAL_NAME
+                || subQualName == ValueAnnotatedTypeFactory.UNKNOWN_NAME) {
             return false;
-        } else if (superQualName.equals(ValueAnnotatedTypeFactory.POLY_NAME)) {
-            return subQualName.equals(ValueAnnotatedTypeFactory.POLY_NAME);
-        } else if (subQualName.equals(ValueAnnotatedTypeFactory.POLY_NAME)) {
+        } else if (superQualName == ValueAnnotatedTypeFactory.POLY_NAME) {
+            return subQualName == ValueAnnotatedTypeFactory.POLY_NAME;
+        } else if (subQualName == ValueAnnotatedTypeFactory.POLY_NAME) {
             return false;
-        } else if (superQualName.equals(subQualName)) {
+        } else if (superQualName == subQualName) {
             // Same annotation name, so might be subtype
-            if (subQualName.equals(ValueAnnotatedTypeFactory.INTRANGE_NAME)
-                    || subQualName.equals(ValueAnnotatedTypeFactory.ARRAYLENRANGE_NAME)) {
+            if (subQualName == ValueAnnotatedTypeFactory.INTRANGE_NAME
+                    || subQualName == ValueAnnotatedTypeFactory.ARRAYLENRANGE_NAME) {
                 // Special case for range-based annotations
                 Range superRange = atypeFactory.getRange(superAnno);
                 Range subRange = atypeFactory.getRange(subAnno);
                 return superRange.contains(subRange);
-            } else if (subQualName.equals(ValueAnnotatedTypeFactory.DOES_NOT_MATCH_REGEX_NAME)) {
+            } else if (subQualName == ValueAnnotatedTypeFactory.DOES_NOT_MATCH_REGEX_NAME) {
                 List<String> superValues =
                         AnnotationUtils.getElementValueArray(
                                 superAnno,
@@ -511,91 +511,97 @@ final class ValueQualifierHierarchy extends ElementQualifierHierarchy {
                 return superValues.containsAll(subValues);
             }
         }
-        switch (subQualName + superQualName) {
-            case ValueAnnotatedTypeFactory.INTVAL_NAME + ValueAnnotatedTypeFactory.DOUBLEVAL_NAME:
-                List<Double> superValues = atypeFactory.getDoubleValues(superAnno);
-                List<Double> subValues =
-                        atypeFactory.convertLongListToDoubleList(
-                                atypeFactory.getIntValues(subAnno));
-                return superValues.containsAll(subValues);
-            case ValueAnnotatedTypeFactory.INTVAL_NAME + ValueAnnotatedTypeFactory.INTRANGE_NAME:
-            case ValueAnnotatedTypeFactory.ARRAYLEN_NAME
-                    + ValueAnnotatedTypeFactory.ARRAYLENRANGE_NAME:
-                Range superRange = atypeFactory.getRange(superAnno);
-                List<Long> subLongValues = atypeFactory.getArrayLenOrIntValue(subAnno);
-                Range subLongRange = Range.create(subLongValues);
-                return superRange.contains(subLongRange);
-            case ValueAnnotatedTypeFactory.INTRANGE_NAME + ValueAnnotatedTypeFactory.DOUBLEVAL_NAME:
-                Range subRange = atypeFactory.getRange(subAnno);
-                if (subRange.isWiderThan(ValueAnnotatedTypeFactory.MAX_VALUES)) {
-                    return false;
-                }
-                List<Double> superDoubleValues = atypeFactory.getDoubleValues(superAnno);
-                List<Double> subDoubleValues =
-                        ValueCheckerUtils.getValuesFromRange(subRange, Double.class);
-                return superDoubleValues.containsAll(subDoubleValues);
-            case ValueAnnotatedTypeFactory.INTRANGE_NAME + ValueAnnotatedTypeFactory.INTVAL_NAME:
-            case ValueAnnotatedTypeFactory.ARRAYLENRANGE_NAME
-                    + ValueAnnotatedTypeFactory.ARRAYLEN_NAME:
-                Range subRange2 = atypeFactory.getRange(subAnno);
-                if (subRange2.isWiderThan(ValueAnnotatedTypeFactory.MAX_VALUES)) {
-                    return false;
-                }
-                List<Long> superValues2 = atypeFactory.getArrayLenOrIntValue(superAnno);
-                List<Long> subValues2 = ValueCheckerUtils.getValuesFromRange(subRange2, Long.class);
-                return superValues2.containsAll(subValues2);
-            case ValueAnnotatedTypeFactory.ARRAYLENRANGE_NAME
-                    + ValueAnnotatedTypeFactory.STRINGVAL_NAME:
-            case ValueAnnotatedTypeFactory.ARRAYLEN_NAME + ValueAnnotatedTypeFactory.STRINGVAL_NAME:
-
-                // Allow @ArrayLen(0) to be converted to @StringVal("")
-                List<String> superStringValues = atypeFactory.getStringValues(superAnno);
-                return superStringValues.contains("") && atypeFactory.getMaxLenValue(subAnno) == 0;
-            case ValueAnnotatedTypeFactory.STRINGVAL_NAME
-                    + ValueAnnotatedTypeFactory.MATCHES_REGEX_NAME:
-                {
-                    List<String> strings = atypeFactory.getStringValues(subAnno);
-                    List<String> regexes =
-                            AnnotationUtils.getElementValueArray(
-                                    superAnno, atypeFactory.matchesRegexValueElement, String.class);
-                    return RegexUtil.everyStringMatchesSomeRegex(strings, regexes);
-                }
-            case ValueAnnotatedTypeFactory.STRINGVAL_NAME
-                    + ValueAnnotatedTypeFactory.DOES_NOT_MATCH_REGEX_NAME:
-                {
-                    List<String> strings = atypeFactory.getStringValues(subAnno);
-                    List<String> regexes =
-                            AnnotationUtils.getElementValueArray(
-                                    superAnno,
-                                    atypeFactory.doesNotMatchRegexValueElement,
-                                    String.class);
-                    return RegexUtil.noStringMatchesAnyRegex(strings, regexes);
-                }
-            case ValueAnnotatedTypeFactory.STRINGVAL_NAME + ValueAnnotatedTypeFactory.ARRAYLEN_NAME:
-                // StringVal is a subtype of ArrayLen, if all the strings have one of the correct
-                // lengths.
-                List<Integer> superIntValues = atypeFactory.getArrayLength(superAnno);
-                List<String> subStringValues = atypeFactory.getStringValues(subAnno);
-                for (String value : subStringValues) {
-                    if (!superIntValues.contains(value.length())) {
-                        return false;
-                    }
-                }
-                return true;
-            case ValueAnnotatedTypeFactory.STRINGVAL_NAME
-                    + ValueAnnotatedTypeFactory.ARRAYLENRANGE_NAME:
-                // StringVal is a subtype of ArrayLenRange, if all the strings have a length in the
-                // range.
-                Range superRange2 = atypeFactory.getRange(superAnno);
-                List<String> subValues3 = atypeFactory.getStringValues(subAnno);
-                for (String value : subValues3) {
-                    if (!superRange2.contains(value.length())) {
-                        return false;
-                    }
-                }
-                return true;
-            default:
-                return false;
+        // Cross-qualifier subtyping cases.  Dispatch on (subQualName, superQualName) by
+        // identity comparison on the interned name constants.
+        if (subQualName == ValueAnnotatedTypeFactory.INTVAL_NAME
+                && superQualName == ValueAnnotatedTypeFactory.DOUBLEVAL_NAME) {
+            List<Double> superValues = atypeFactory.getDoubleValues(superAnno);
+            List<Double> subValues =
+                    atypeFactory.convertLongListToDoubleList(atypeFactory.getIntValues(subAnno));
+            return superValues.containsAll(subValues);
         }
+        if ((subQualName == ValueAnnotatedTypeFactory.INTVAL_NAME
+                        && superQualName == ValueAnnotatedTypeFactory.INTRANGE_NAME)
+                || (subQualName == ValueAnnotatedTypeFactory.ARRAYLEN_NAME
+                        && superQualName == ValueAnnotatedTypeFactory.ARRAYLENRANGE_NAME)) {
+            Range superRange = atypeFactory.getRange(superAnno);
+            List<Long> subLongValues = atypeFactory.getArrayLenOrIntValue(subAnno);
+            Range subLongRange = Range.create(subLongValues);
+            return superRange.contains(subLongRange);
+        }
+        if (subQualName == ValueAnnotatedTypeFactory.INTRANGE_NAME
+                && superQualName == ValueAnnotatedTypeFactory.DOUBLEVAL_NAME) {
+            Range subRange = atypeFactory.getRange(subAnno);
+            if (subRange.isWiderThan(ValueAnnotatedTypeFactory.MAX_VALUES)) {
+                return false;
+            }
+            List<Double> superDoubleValues = atypeFactory.getDoubleValues(superAnno);
+            List<Double> subDoubleValues =
+                    ValueCheckerUtils.getValuesFromRange(subRange, Double.class);
+            return superDoubleValues.containsAll(subDoubleValues);
+        }
+        if ((subQualName == ValueAnnotatedTypeFactory.INTRANGE_NAME
+                        && superQualName == ValueAnnotatedTypeFactory.INTVAL_NAME)
+                || (subQualName == ValueAnnotatedTypeFactory.ARRAYLENRANGE_NAME
+                        && superQualName == ValueAnnotatedTypeFactory.ARRAYLEN_NAME)) {
+            Range subRange2 = atypeFactory.getRange(subAnno);
+            if (subRange2.isWiderThan(ValueAnnotatedTypeFactory.MAX_VALUES)) {
+                return false;
+            }
+            List<Long> superValues2 = atypeFactory.getArrayLenOrIntValue(superAnno);
+            List<Long> subValues2 = ValueCheckerUtils.getValuesFromRange(subRange2, Long.class);
+            return superValues2.containsAll(subValues2);
+        }
+        if ((subQualName == ValueAnnotatedTypeFactory.ARRAYLENRANGE_NAME
+                        && superQualName == ValueAnnotatedTypeFactory.STRINGVAL_NAME)
+                || (subQualName == ValueAnnotatedTypeFactory.ARRAYLEN_NAME
+                        && superQualName == ValueAnnotatedTypeFactory.STRINGVAL_NAME)) {
+            // Allow @ArrayLen(0) to be converted to @StringVal("")
+            List<String> superStringValues = atypeFactory.getStringValues(superAnno);
+            return superStringValues.contains("") && atypeFactory.getMaxLenValue(subAnno) == 0;
+        }
+        if (subQualName == ValueAnnotatedTypeFactory.STRINGVAL_NAME
+                && superQualName == ValueAnnotatedTypeFactory.MATCHES_REGEX_NAME) {
+            List<String> strings = atypeFactory.getStringValues(subAnno);
+            List<String> regexes =
+                    AnnotationUtils.getElementValueArray(
+                            superAnno, atypeFactory.matchesRegexValueElement, String.class);
+            return RegexUtil.everyStringMatchesSomeRegex(strings, regexes);
+        }
+        if (subQualName == ValueAnnotatedTypeFactory.STRINGVAL_NAME
+                && superQualName == ValueAnnotatedTypeFactory.DOES_NOT_MATCH_REGEX_NAME) {
+            List<String> strings = atypeFactory.getStringValues(subAnno);
+            List<String> regexes =
+                    AnnotationUtils.getElementValueArray(
+                            superAnno, atypeFactory.doesNotMatchRegexValueElement, String.class);
+            return RegexUtil.noStringMatchesAnyRegex(strings, regexes);
+        }
+        if (subQualName == ValueAnnotatedTypeFactory.STRINGVAL_NAME
+                && superQualName == ValueAnnotatedTypeFactory.ARRAYLEN_NAME) {
+            // StringVal is a subtype of ArrayLen, if all the strings have one of the correct
+            // lengths.
+            List<Integer> superIntValues = atypeFactory.getArrayLength(superAnno);
+            List<String> subStringValues = atypeFactory.getStringValues(subAnno);
+            for (String value : subStringValues) {
+                if (!superIntValues.contains(value.length())) {
+                    return false;
+                }
+            }
+            return true;
+        }
+        if (subQualName == ValueAnnotatedTypeFactory.STRINGVAL_NAME
+                && superQualName == ValueAnnotatedTypeFactory.ARRAYLENRANGE_NAME) {
+            // StringVal is a subtype of ArrayLenRange, if all the strings have a length in the
+            // range.
+            Range superRange2 = atypeFactory.getRange(superAnno);
+            List<String> subValues3 = atypeFactory.getStringValues(subAnno);
+            for (String value : subValues3) {
+                if (!superRange2.contains(value.length())) {
+                    return false;
+                }
+            }
+            return true;
+        }
+        return false;
     }
 }

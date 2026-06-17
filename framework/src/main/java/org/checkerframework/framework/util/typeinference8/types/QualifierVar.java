@@ -74,9 +74,19 @@ public class QualifierVar extends AbstractQualifier {
                 && Objects.equals(polyQualifier, that.polyQualifier);
     }
 
+    /** Cached hash code to prevent repeated recomputation of complex deep-hashes. */
+    private int cachedHashCode = 0;
+
     @Override
     public int hashCode() {
-        return Objects.hash(id, invocation, polyQualifier);
+        if (cachedHashCode == 0) {
+            int h = 1;
+            h = 31 * h + id;
+            h = 31 * h + (invocation != null ? invocation.hashCode() : 0);
+            h = 31 * h + (polyQualifier != null ? polyQualifier.hashCode() : 0);
+            cachedHashCode = h == 0 ? 1 : h;
+        }
+        return cachedHashCode;
     }
 
     @Override
@@ -89,7 +99,7 @@ public class QualifierVar extends AbstractQualifier {
      *
      * @param kind a bound kind
      * @param otherQual the bound to add
-     * @return a set of constraints generated from adding this bound.
+     * @return a set of constraints generated from adding this bound
      */
     @SuppressWarnings("interning:not.interned") // Checking for exact object.
     public ConstraintSet addBound(BoundKind kind, AbstractQualifier otherQual) {

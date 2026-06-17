@@ -2,6 +2,7 @@ package org.checkerframework.common.util.count;
 
 import com.sun.source.tree.AnnotationTree;
 import com.sun.source.tree.ArrayTypeTree;
+import com.sun.source.tree.BlockTree;
 import com.sun.source.tree.ClassTree;
 import com.sun.source.tree.InstanceOfTree;
 import com.sun.source.tree.MethodInvocationTree;
@@ -119,14 +120,14 @@ public class AnnotationStatistics extends SourceChecker {
         super.typeProcessingOver();
     }
 
-    /** Increment the number of times annotation with name {@code annoName} has appeared. */
+    /**
+     * Increment the number of times annotation with name {@code annoName} has appeared.
+     *
+     * @param annoName the name of the annotation to count
+     */
     protected void incrementCount(Name annoName) {
         String annoString = annoName.toString();
-        if (!annotationCount.containsKey(annoString)) {
-            annotationCount.put(annoString, 1);
-        } else {
-            annotationCount.put(annoString, annotationCount.get(annoString) + 1);
-        }
+        annotationCount.merge(annoString, 1, Integer::sum);
     }
 
     @Override
@@ -174,9 +175,7 @@ public class AnnotationStatistics extends SourceChecker {
                 TreePath path = getCurrentPath();
                 Tree prev = null;
                 for (Tree t : path) {
-                    if (prev != null
-                            && prev.getKind() == Tree.Kind.BLOCK
-                            && t.getKind() == Tree.Kind.METHOD) {
+                    if (prev instanceof BlockTree && t instanceof MethodTree) {
                         isBodyAnnotation = true;
                         break;
                     }

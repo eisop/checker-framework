@@ -51,6 +51,7 @@ import org.checkerframework.framework.flow.CFCFGBuilder;
 import org.checkerframework.framework.flow.CFStore;
 import org.checkerframework.framework.flow.CFTransfer;
 import org.checkerframework.framework.flow.CFValue;
+import org.checkerframework.framework.qual.AnnotatedFor;
 import org.checkerframework.framework.qual.DefaultFor;
 import org.checkerframework.framework.qual.DefaultQualifier;
 import org.checkerframework.framework.qual.DefaultQualifierInHierarchy;
@@ -137,7 +138,14 @@ import javax.lang.model.util.Types;
  * DependentTypesHelper}, etc. Those features, and {@link #addComputedTypeAnnotations} (other than
  * the part related to flow-sensitivity), could and should be in the superclass {@link
  * AnnotatedTypeFactory}; it is not clear why they are defined in this class.
+ *
+ * @param <Value> the value type
+ * @param <Store> the store type
+ * @param <TransferFunction> the transfer function type
+ * @param <FlowAnalysis> the flow analysis type
  */
+@AnnotatedFor("nullness")
+@SuppressWarnings("nullness") // TODO: fix all remaining errors
 public abstract class GenericAnnotatedTypeFactory<
                 Value extends CFAbstractValue<Value>,
                 Store extends CFAbstractStore<Value, Store>,
@@ -316,7 +324,7 @@ public abstract class GenericAnnotatedTypeFactory<
      *
      * <p>The initial capacity of the map is set by {@link #getCacheSize()}.
      */
-    protected @MonotonicNonNull Map<Tree, ControlFlowGraph> subcheckerSharedCFG;
+    protected @MonotonicNonNull IdentityHashMap<Tree, ControlFlowGraph> subcheckerSharedCFG;
 
     /**
      * If true, {@link #setRoot(CompilationUnitTree)} should clear the {@link #subcheckerSharedCFG}
@@ -339,6 +347,7 @@ public abstract class GenericAnnotatedTypeFactory<
      * @param checker the checker to which this type factory belongs
      * @param useFlow whether flow analysis should be performed
      */
+    @SuppressWarnings("this-escape")
     protected GenericAnnotatedTypeFactory(BaseTypeChecker checker, boolean useFlow) {
         super(checker);
 
@@ -1114,7 +1123,7 @@ public abstract class GenericAnnotatedTypeFactory<
     }
 
     /** Map from ClassTree to their dataflow analysis state. */
-    protected final Map<ClassTree, ScanState> scannedClasses = new HashMap<>();
+    protected final IdentityHashMap<ClassTree, ScanState> scannedClasses = new IdentityHashMap<>();
 
     /*
      * A set of trees whose corresponding nodes are reachable. This is not an exhaustive set of
@@ -1162,7 +1171,7 @@ public abstract class GenericAnnotatedTypeFactory<
      */
     public @Nullable Store getRegularExitStore(Tree tree) {
         if (regularExitStores == null) {
-            if (tree.getKind() == Tree.Kind.METHOD) {
+            if (tree instanceof MethodTree) {
                 if (((MethodTree) tree).getBody() == null) {
                     // No body: the method is abstract or in an interface
                     return null;
@@ -1564,8 +1573,8 @@ public abstract class GenericAnnotatedTypeFactory<
     /** Sorts a list of trees with the variables first. */
     private final Comparator<Tree> sortVariablesFirst =
             (t1, t2) -> {
-                boolean variable1 = t1.getKind() == Tree.Kind.VARIABLE;
-                boolean variable2 = t2.getKind() == Tree.Kind.VARIABLE;
+                boolean variable1 = t1 instanceof VariableTree;
+                boolean variable2 = t2 instanceof VariableTree;
                 if (variable1 && !variable2) {
                     return -1;
                 } else if (!variable1 && variable2) {
@@ -1574,6 +1583,18 @@ public abstract class GenericAnnotatedTypeFactory<
                     return 0;
                 }
             };
+
+    /**
+     * Returns true if {@code path}'s leaf is (by reference) the given {@code tree}.
+     *
+     * @param path a tree path
+     * @param tree a tree
+     * @return true if {@code path}'s leaf is {@code tree}
+     */
+    @SuppressWarnings("interning:not.interned") // reference equality on AST nodes is intended
+    private static boolean treePathLeafIs(TreePath path, Tree tree) {
+        return path.getLeaf() == tree;
+    }
 
     /**
      * Analyze the AST {@code ast} and store the result. Additional operations that should be
@@ -1601,6 +1622,26 @@ public abstract class GenericAnnotatedTypeFactory<
             boolean updateInitializationStore,
             boolean isStatic,
             @Nullable Store capturedStore) {
+        // Prime the cache with this method body's path, built in O(1) from the enclosing class
+        // path, so the getPath(root, code) lookups below (in CFCFGBuilder.build, and when the
+        // visitor path is set before performAnalysis) are cache hits rather than an O(members) scan
+        // from the compilation-unit root -- which, once per body, is quadratic over a class with
+        // many methods. Only done for methods, whose body path is an unambiguous two-step extension
+        // of the class path (class -> method -> body); lambdas and initializers (rarer / nested)
+        // fall through to the normal lookup.
+        if (ast.getKind() == UnderlyingAST.Kind.METHOD) {
+            UnderlyingAST.CFGMethod cfgMethod = (UnderlyingAST.CFGMethod) ast;
+            TreePath classPath = getVisitorTreePath();
+            Tree body = cfgMethod.getCode();
+            if (classPath != null
+                    && body != null
+                    && treePathLeafIs(classPath, cfgMethod.getClassTree())) {
+                checker.getTreePathCacher()
+                        .addPath(
+                                body,
+                                new TreePath(new TreePath(classPath, cfgMethod.getMethod()), body));
+            }
+        }
         ControlFlowGraph cfg =
                 CFCFGBuilder.build(this.getRoot(), ast, checker, this, processingEnv);
         /*
@@ -1625,7 +1666,21 @@ public abstract class GenericAnnotatedTypeFactory<
         } else {
             transfer.setFixedInitialStore(capturedStore);
         }
-        analysis.performAnalysis(cfg, fieldValues);
+        // Point the visitor path at the body being analyzed. getPath() -- used by, e.g.,
+        // type-argument inference triggered during the analysis below -- uses visitorTreePath as a
+        // search-start hint. performFlowAnalysis sets it to the enclosing *class*, so a lookup for
+        // a tree inside this body rescans the whole class subtree, which is quadratic in the number
+        // of members. The body's path was just cached by CFCFGBuilder.build above, so this is a
+        // cache hit; query the cacher directly (not getPath) so this does not itself depend on
+        // visitorTreePath. Restored in the finally so the class path is back in place for the rest
+        // of performFlowAnalysis.
+        TreePath prevVisitorTreePath = getVisitorTreePath();
+        setVisitorTreePath(checker.getTreePathCacher().getPath(this.getRoot(), ast.getCode()));
+        try {
+            analysis.performAnalysis(cfg, fieldValues);
+        } finally {
+            setVisitorTreePath(prevVisitorTreePath);
+        }
         AnalysisResult<Value, Store> result = analysis.getResult();
 
         // store result
@@ -1852,8 +1907,7 @@ public abstract class GenericAnnotatedTypeFactory<
                 Element elt = TreeUtils.elementFromTree(lhsTree);
                 if (elt != null) {
                     Tree decl = declarationFromElement(elt);
-                    if (decl != null
-                            && decl.getKind() == Tree.Kind.VARIABLE
+                    if (decl instanceof VariableTree
                             && TreeUtils.isVariableTreeDeclaredUsingVar((VariableTree) decl)) {
                         // If this identifier accesses a variable that was declared using `var`,
                         // re-enable caching to avoid re-computing the initializer expression type.
@@ -1938,7 +1992,21 @@ public abstract class GenericAnnotatedTypeFactory<
 
         assert !args.isEmpty() : "Arguments are empty";
         Node varargsArray = args.get(args.size() - 1);
-        AnnotatedTypeMirror varargtype = getAnnotatedType(varargsArray.getTree());
+        Tree varargsArrayTree = varargsArray.getTree();
+        // The synthetic vararg array tree (created during CFG construction) is not part of the
+        // compilation unit, so getPath -- called when defaulting its type just below -- would
+        // rescan the whole unit to (fail to) find it. That is O(unit) per vararg call and therefore
+        // quadratic over a file of vararg calls. Register the array's path under the call site so
+        // the lookup is a cache hit instead. The call tree's own path is cheap here: the vararg
+        // call is being visited, so it is on or just above the current visitor path.
+        if (varargsArrayTree != null) {
+            TreePath callPath = getPath(tree);
+            if (callPath != null) {
+                setPathForArtificialTree(
+                        varargsArrayTree, new TreePath(callPath, varargsArrayTree));
+            }
+        }
+        AnnotatedTypeMirror varargtype = getAnnotatedType(varargsArrayTree);
         return varargtype;
     }
 
@@ -1998,7 +2066,7 @@ public abstract class GenericAnnotatedTypeFactory<
      */
     public AnnotatedTypeMirror getDefaultAnnotations(Tree tree, AnnotatedTypeMirror type) {
         AnnotatedTypeMirror copy = type.deepCopy();
-        copy.removeAnnotations(type.getAnnotations());
+        copy.removeAnnotations(type.getAnnotationsField());
         addComputedTypeAnnotationsWithoutFlow(tree, copy);
         return copy;
     }
@@ -2066,46 +2134,63 @@ public abstract class GenericAnnotatedTypeFactory<
                                 0, thisClass.length() - "AnnotatedTypeFactory".length());
             }
             treeString = TreeUtils.toStringTruncated(tree, 60);
+            log(
+                    "%s GATF.addComputedTypeAnnotations#1(%s, %s, %s)%n",
+                    thisClass, treeString, type, this.useFlow);
         }
-        log(
-                "%s GATF.addComputedTypeAnnotations#1(%s, %s, %s)%n",
-                thisClass, treeString, type, this.useFlow);
-        if (!TreeUtils.isExpressionTree(tree)) {
+        boolean isExpressionTree = TreeUtils.isExpressionTree(tree);
+        if (!isExpressionTree) {
             // Don't apply defaults to expressions. Their types may be computed from subexpressions
             // in treeAnnotator.
             addAnnotationsFromDefaultForType(TreeUtils.elementFromTree(tree), type);
-            log("%s GATF.addComputedTypeAnnotations#2(%s, %s)%n", thisClass, treeString, type);
+            if (debug) {
+                log("%s GATF.addComputedTypeAnnotations#2(%s, %s)%n", thisClass, treeString, type);
+            }
         }
         applyQualifierParameterDefaults(tree, type);
-        log("%s GATF.addComputedTypeAnnotations#3(%s, %s)%n", thisClass, treeString, type);
+        if (debug) {
+            log("%s GATF.addComputedTypeAnnotations#3(%s, %s)%n", thisClass, treeString, type);
+        }
         treeAnnotator.visit(tree, type);
-        log(
-                "%s GATF.addComputedTypeAnnotations#4(%s, %s)%n  treeAnnotator=%s%n",
-                thisClass, treeString, type, treeAnnotator);
-        if (TreeUtils.isExpressionTree(tree)) {
+        if (debug) {
+            log(
+                    "%s GATF.addComputedTypeAnnotations#4(%s, %s)%n  treeAnnotator=%s%n",
+                    thisClass, treeString, type, treeAnnotator);
+        }
+        if (isExpressionTree) {
             // If a tree annotator did not add a type, add the DefaultForUse default.
             addAnnotationsFromDefaultForType(TreeUtils.elementFromTree(tree), type);
-            log("%s GATF.addComputedTypeAnnotations#5(%s, %s)%n", thisClass, treeString, type);
+            if (debug) {
+                log("%s GATF.addComputedTypeAnnotations#5(%s, %s)%n", thisClass, treeString, type);
+            }
         }
         typeAnnotator.visit(type, null);
-        log(
-                "%s GATF.addComputedTypeAnnotations#6(%s, %s)%n  typeAnnotator=%s%n",
-                thisClass, treeString, type, typeAnnotator);
+        if (debug) {
+            log(
+                    "%s GATF.addComputedTypeAnnotations#6(%s, %s)%n  typeAnnotator=%s%n",
+                    thisClass, treeString, type, typeAnnotator);
+        }
         defaults.annotate(tree, type);
-        log("%s GATF.addComputedTypeAnnotations#7(%s, %s)%n", thisClass, treeString, type);
+        if (debug) {
+            log("%s GATF.addComputedTypeAnnotations#7(%s, %s)%n", thisClass, treeString, type);
+        }
 
         if (this.useFlow) {
             Value inferred = getInferredValueFor(tree);
             if (inferred != null) {
                 applyInferredAnnotations(type, inferred);
-                log(
-                        "%s GATF.addComputedTypeAnnotations#8(%s, %s), inferred=%s%n",
-                        thisClass, treeString, type, inferred);
+                if (debug) {
+                    log(
+                            "%s GATF.addComputedTypeAnnotations#8(%s, %s), inferred=%s%n",
+                            thisClass, treeString, type, inferred);
+                }
             }
         }
-        log(
-                "%s GATF.addComputedTypeAnnotations#9(%s, %s, %s) done%n",
-                thisClass, treeString, type, this.useFlow);
+        if (debug) {
+            log(
+                    "%s GATF.addComputedTypeAnnotations#9(%s, %s, %s) done%n",
+                    thisClass, treeString, type, this.useFlow);
+        }
     }
 
     /**
@@ -2266,7 +2351,7 @@ public abstract class GenericAnnotatedTypeFactory<
         }
 
         Tree declTree = declarationFromElement(elt);
-        if (declTree == null || declTree.getKind() != Tree.Kind.VARIABLE) {
+        if (!(declTree instanceof VariableTree)) {
             return;
         }
 
@@ -2277,10 +2362,11 @@ public abstract class GenericAnnotatedTypeFactory<
 
         VariableElement variableElt = (VariableElement) elt;
         variablesUnderInitialization.add(variableElt);
-        AnnotatedTypeMirror initializerType;
-        if (shouldCache && initializerCache.containsKey(initializer)) {
+        AnnotatedTypeMirror initializerType = null;
+        if (shouldCache) {
             initializerType = initializerCache.get(initializer);
-        } else {
+        }
+        if (initializerType == null) {
             // When this method is called by getAnnotatedTypeLhs, flow is turned off.
             // Turn it back on so the type of the initializer is the refined type.
             boolean oldUseFlow = useFlow;
@@ -2293,7 +2379,7 @@ public abstract class GenericAnnotatedTypeFactory<
         }
 
         AnnotationMirrorSet qualParamTypes = new AnnotationMirrorSet();
-        for (AnnotationMirror initializerAnnotation : initializerType.getAnnotations()) {
+        for (AnnotationMirror initializerAnnotation : initializerType.getAnnotationsField()) {
             if (hasQualifierParameterInHierarchy(
                     type, qualHierarchy.getTopAnnotation(initializerAnnotation))) {
                 qualParamTypes.add(initializerAnnotation);
@@ -2406,7 +2492,7 @@ public abstract class GenericAnnotatedTypeFactory<
             @Nullable T getTypeFactoryOfSubcheckerOrNull(
                     Class<? extends SourceChecker> subCheckerClass) {
         SourceChecker subSourceChecker = checker.getSubchecker(subCheckerClass);
-        if (subSourceChecker == null || !(subSourceChecker instanceof BaseTypeChecker)) {
+        if (!(subSourceChecker instanceof BaseTypeChecker)) {
             return null;
         }
 
@@ -3042,7 +3128,7 @@ public abstract class GenericAnnotatedTypeFactory<
       }
 
       List<AnnotationMirror> result = new ArrayList<>();
-      for (AnnotationMirror inferredAm : inferredType.getAnnotations()) {
+      for (AnnotationMirror inferredAm : inferredType.getAnnotationsField()) {
         AnnotationMirror declaredAm = declaredType.getAnnotationInHierarchy(inferredAm);
         if (declaredAm == null || AnnotationUtils.areSame(inferredAm, declaredAm)) {
           continue;
@@ -3054,7 +3140,7 @@ public abstract class GenericAnnotatedTypeFactory<
         }
 
         List<AnnotationMirror> result = new ArrayList<>();
-        for (AnnotationMirror inferredAm : inferredType.getAnnotations()) {
+        for (AnnotationMirror inferredAm : inferredType.getAnnotationsField()) {
             AnnotationMirror declaredAm = declaredType.getAnnotationInHierarchy(inferredAm);
             if (declaredAm == null || AnnotationUtils.areSame(inferredAm, declaredAm)) {
                 continue;
@@ -3155,7 +3241,7 @@ public abstract class GenericAnnotatedTypeFactory<
         if (parentIsThisChecker) {
             // This is the ultimate parent.
             if (this.subcheckerSharedCFG == null) {
-                this.subcheckerSharedCFG = new HashMap<>(getCacheSize());
+                this.subcheckerSharedCFG = new IdentityHashMap<>(getCacheSize());
             }
             if (!this.subcheckerSharedCFG.containsKey(tree)) {
                 this.subcheckerSharedCFG.put(tree, cfg);

@@ -13,7 +13,6 @@ import org.checkerframework.javacutil.AnnotationMirrorMap;
 import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TypesUtils;
 
-import java.util.Collection;
 import java.util.Collections;
 import java.util.Set;
 
@@ -33,6 +32,17 @@ public class ProperType extends AbstractType {
     /** A mapping from polymorphic annotation to {@link QualifierVar}. */
     private final AnnotationMirrorMap<QualifierVar> qualifierVars;
 
+    /** Compute the hash code only once. */
+    private final int hashCode;
+
+    /**
+     * Cached result of {@link #getErased()}. A proper type is immutable, so its erasure is stable;
+     * caching it avoids recomputing the erasure (a new annotated type plus a javac erasure call) on
+     * every {@link #isSubType} check, which runs repeatedly during bound incorporation. {@code
+     * null} until first computed.
+     */
+    private AbstractType erased = null;
+
     /**
      * Creates a proper type.
      *
@@ -42,7 +52,23 @@ public class ProperType extends AbstractType {
      */
     public ProperType(
             AnnotatedTypeMirror type, TypeMirror properType, Java8InferenceContext context) {
-        this(type, properType, AnnotationMirrorMap.emptyMap(), context);
+        this(type, properType, AnnotationMirrorMap.emptyMap(), context, false);
+    }
+
+    /**
+     * Creates a proper type.
+     *
+     * @param type the annotated type
+     * @param properType the java type
+     * @param context the context
+     * @param ignoreAnnotations whether the annotations on this type should be ignored
+     */
+    public ProperType(
+            AnnotatedTypeMirror type,
+            TypeMirror properType,
+            Java8InferenceContext context,
+            boolean ignoreAnnotations) {
+        this(type, properType, AnnotationMirrorMap.emptyMap(), context, ignoreAnnotations);
     }
 
     /**
@@ -52,17 +78,20 @@ public class ProperType extends AbstractType {
      * @param properType the java type
      * @param qualifierVars a mapping from polymorphic annotation to {@link QualifierVar}
      * @param context the context
+     * @param ignoreAnnotations whether the annotations on this type should be ignored
      */
     public ProperType(
             AnnotatedTypeMirror type,
             TypeMirror properType,
             AnnotationMirrorMap<QualifierVar> qualifierVars,
-            Java8InferenceContext context) {
-        super(context);
+            Java8InferenceContext context,
+            boolean ignoreAnnotations) {
+        super(context, ignoreAnnotations);
         this.properType = properType;
         this.type = type;
         this.qualifierVars = qualifierVars;
         verifyTypeKinds(type, properType);
+        hashCode = computeHashCode();
     }
 
     /**
@@ -72,11 +101,12 @@ public class ProperType extends AbstractType {
      * @param context the context
      */
     public ProperType(ExpressionTree tree, Java8InferenceContext context) {
-        super(context);
+        super(context, false);
         this.type = context.typeFactory.getAnnotatedType(tree);
         this.properType = type.getUnderlyingType();
         this.qualifierVars = AnnotationMirrorMap.emptyMap();
         verifyTypeKinds(type, properType);
+        hashCode = computeHashCode();
     }
 
     /**
@@ -86,11 +116,12 @@ public class ProperType extends AbstractType {
      * @param context the context
      */
     public ProperType(VariableTree varTree, Java8InferenceContext context) {
-        super(context);
+        super(context, false);
         this.type = context.typeFactory.getAnnotatedType(varTree);
         this.properType = TreeUtils.typeOf(varTree);
         this.qualifierVars = AnnotationMirrorMap.emptyMap();
         verifyTypeKinds(type, properType);
+        hashCode = computeHashCode();
     }
 
     /**
@@ -114,8 +145,9 @@ public class ProperType extends AbstractType {
     }
 
     @Override
-    public AbstractType create(AnnotatedTypeMirror atm, TypeMirror type) {
-        return new ProperType(atm, type, qualifierVars, context);
+    public AbstractType create(
+            AnnotatedTypeMirror atm, TypeMirror type, boolean ignoreAnnotations) {
+        return new ProperType(atm, type, qualifierVars, context, ignoreAnnotations);
     }
 
     /**
@@ -130,7 +162,8 @@ public class ProperType extends AbstractType {
             return new ProperType(
                     typeFactory.getBoxedType((AnnotatedPrimitiveType) getAnnotatedType()),
                     context.types.boxedClass((Type) properType).asType(),
-                    context);
+                    context,
+                    ignoreAnnotations);
         }
         return this;
     }
@@ -154,6 +187,9 @@ public class ProperType extends AbstractType {
 
         if (context.typeFactory.types.isAssignable(subJavaType, superJavaType)
                 || context.typeFactory.types.isAssignable(subErasedJavaType, superErasedJavaType)) {
+            if (ignoreAnnotations || superType.ignoreAnnotations) {
+                return ConstraintSet.TRUE;
+            }
             AnnotatedTypeMirror superATM = superType.getAnnotatedType();
             AnnotatedTypeMirror subATM = this.getAnnotatedType();
             if (typeFactory.getTypeHierarchy().isSubtype(subATM, superATM)) {
@@ -178,6 +214,9 @@ public class ProperType extends AbstractType {
         TypeMirror superJavaType = superType.getJavaType();
 
         if (context.types.isSubtypeUnchecked((Type) subType, (Type) superJavaType)) {
+            if (ignoreAnnotations || superType.ignoreAnnotations) {
+                return ConstraintSet.TRUE;
+            }
             AnnotatedTypeMirror superATM = superType.getAnnotatedType();
             AnnotatedTypeMirror subATM = this.getAnnotatedType();
             if (typeFactory.getTypeHierarchy().isSubtype(subATM, superATM)) {
@@ -202,6 +241,9 @@ public class ProperType extends AbstractType {
         TypeMirror superJavaType = superType.getJavaType();
 
         if (context.types.isAssignable((Type) subType, (Type) superJavaType)) {
+            if (ignoreAnnotations || superType.ignoreAnnotations) {
+                return ConstraintSet.TRUE;
+            }
             AnnotatedTypeMirror superATM = superType.getAnnotatedType();
             AnnotatedTypeMirror subATM = this.getAnnotatedType();
             if (typeFactory.getTypeHierarchy().isSubtype(subATM, superATM)) {
@@ -214,7 +256,8 @@ public class ProperType extends AbstractType {
         }
     }
 
-    @SuppressWarnings("interning:not.interned") // Checking for exact object.
+    // Checking for exact object.
+    @SuppressWarnings({"interning:not.interned", "TypeEquals"})
     @Override
     public boolean equals(Object o) {
         if (this == o) {
@@ -242,11 +285,29 @@ public class ProperType extends AbstractType {
                         .isSameType(properType, otherProperType.properType); // slower
     }
 
+    /**
+     * Compute the hash code for this instance.
+     *
+     * @return the hash code
+     */
+    private int computeHashCode() {
+        int hc = properType.getKind().hashCode();
+        javax.lang.model.element.Element elt = null;
+        if (properType instanceof javax.lang.model.type.DeclaredType) {
+            elt = ((javax.lang.model.type.DeclaredType) properType).asElement();
+        } else if (properType instanceof javax.lang.model.type.TypeVariable) {
+            elt = ((javax.lang.model.type.TypeVariable) properType).asElement();
+        }
+        if (elt != null) {
+            hc = 31 * hc + elt.getSimpleName().hashCode();
+        }
+        hc = 31 * hc + Kind.PROPER.hashCode();
+        return hc;
+    }
+
     @Override
     public int hashCode() {
-        int result = properType.toString().hashCode();
-        result = 31 * result + Kind.PROPER.hashCode();
-        return result;
+        return hashCode;
     }
 
     @Override
@@ -264,14 +325,27 @@ public class ProperType extends AbstractType {
         return TypesUtils.isObject(properType);
     }
 
+    /**
+     * Returns an unmodifiable empty set because proper types contain no inference variables.
+     *
+     * @return an unmodifiable empty set
+     */
     @Override
-    public Collection<Variable> getInferenceVariables() {
-        return Collections.emptyList();
+    public Set<Variable> getInferenceVariables() {
+        return Collections.emptySet();
     }
 
     @Override
     public AbstractType applyInstantiations() {
         return this;
+    }
+
+    @Override
+    public AbstractType getErased() {
+        if (erased == null) {
+            erased = super.getErased();
+        }
+        return erased;
     }
 
     @Override

@@ -6,12 +6,13 @@ import com.sun.source.tree.VariableTree;
 
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.dataflow.qual.SideEffectFree;
+import org.checkerframework.javacutil.InternalUtils;
 import org.checkerframework.javacutil.TreeUtils;
 
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Objects;
 
+import javax.lang.model.element.Name;
 import javax.lang.model.element.VariableElement;
 
 /**
@@ -105,16 +106,31 @@ public class LocalVariableNode extends Node {
 
     @Override
     public boolean equals(@Nullable Object obj) {
+        if (this == obj) {
+            return true;
+        }
         if (!(obj instanceof LocalVariableNode)) {
             return false;
         }
         LocalVariableNode other = (LocalVariableNode) obj;
-        return getName().equals(other.getName());
+        Name thisName =
+                (tree instanceof IdentifierTree)
+                        ? ((IdentifierTree) tree).getName()
+                        : ((VariableTree) tree).getName();
+        Name otherName =
+                (other.tree instanceof IdentifierTree)
+                        ? ((IdentifierTree) other.tree).getName()
+                        : ((VariableTree) other.tree).getName();
+        return InternalUtils.sameName(thisName, otherName);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(getName());
+        Name name =
+                (tree instanceof IdentifierTree)
+                        ? ((IdentifierTree) tree).getName()
+                        : ((VariableTree) tree).getName();
+        return name.hashCode();
     }
 
     @Override

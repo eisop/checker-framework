@@ -86,11 +86,20 @@ public class MethodValAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
      *
      * @param checker the type-checker associated with this factory
      */
+    @SuppressWarnings("this-escape")
     public MethodValAnnotatedTypeFactory(BaseTypeChecker checker) {
         super(checker);
         if (this.getClass() == MethodValAnnotatedTypeFactory.class) {
             this.postInit();
         }
+    }
+
+    @Override
+    protected boolean shouldCacheMethodAsMemberOf() {
+        // Reflection resolution makes a method's result type depend on the call's arguments (e.g.
+        // the String name passed to Class.getMethod), so it must not be cached on (method,
+        // receiver).
+        return false;
     }
 
     @Override
