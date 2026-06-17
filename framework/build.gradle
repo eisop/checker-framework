@@ -142,7 +142,7 @@ tasks.register('copyAndMinimizeAnnotatedJdkFiles', JavaExec) {
         Set<String> annotatedDirs = new HashSet<>()
         tree.visit { FileVisitDetails fvd ->
             if (!fvd.file.isDirectory() && fvd.file.name.matches('.*\\.java')
-                    && !fvd.file.path.contains('org/checkerframework')) {
+            && !fvd.file.path.contains('org/checkerframework')) {
                 fvd.getFile().readLines().any { line ->
                     if (line.contains('@AnnotatedFor') || line.contains('org.checkerframework') || line.contains('org.jspecify')) {
                         annotatedForFiles.add(fvd.file.absolutePath)
@@ -168,8 +168,8 @@ tasks.register('copyAndMinimizeAnnotatedJdkFiles', JavaExec) {
             // and lets Gradle prune subtrees that contain no annotated files.
             include { FileTreeElement fte ->
                 fte.directory
-                        ? annotatedDirs.contains(fte.file.absolutePath)
-                        : annotatedForFiles.contains(fte.file.absolutePath)
+                ? annotatedDirs.contains(fte.file.absolutePath)
+                : annotatedForFiles.contains(fte.file.absolutePath)
             }
         }
     }
