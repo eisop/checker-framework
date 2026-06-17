@@ -200,7 +200,13 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
     /* Handling of fields */
     /* --------------------------------------------------------- */
 
-    /** Removes all elements from the map whose keys are modifiable by other code. */
+    /**
+     * Removes all elements from the map whose keys are modifiable by other code.
+     *
+     * @param <K> the type of keys in the map
+     * @param <V> the type of values in the map
+     * @param map the map to remove elements from
+     */
     private static <K extends JavaExpression, V> void removeModifiableByOtherCode(Map<K, V> map) {
         // Collect keys to remove instead of using Iterator.remove() because CopyOnWriteMap
         // returns an unmodifiable keySet/entrySet view to avoid accidentally triggering a copy
@@ -980,6 +986,7 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
      *       fieldAccess} might alias any expression in the receiver <em>a</em> or index <em>i</em>.
      * </ol>
      *
+     * @param fieldAccess the field access that was modified
      * @param val the abstract value of the value assigned to {@code n} (or {@code null} if the
      *     abstract value is not known).
      */
@@ -1041,6 +1048,7 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
      *   <li value="3">Remove any information about method calls.
      * </ol>
      *
+     * @param arrayAccess the array access that was modified
      * @param val the abstract value of the value assigned to {@code n} (or {@code null} if the
      *     abstract value is not known).
      */
@@ -1088,6 +1096,8 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
      *   <li value="3">Remove any information about method calls where the receiver or any of the
      *       parameters contains {@code localVar}.
      * </ol>
+     *
+     * @param var the local variable that was modified
      */
     protected void removeConflicting(LocalVariable var) {
         List<FieldAccess> fieldsToRemove = new ArrayList<>();
