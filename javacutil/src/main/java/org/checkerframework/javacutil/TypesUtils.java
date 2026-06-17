@@ -1289,7 +1289,8 @@ public final class TypesUtils {
      * @return the first TypeVariable in {@code collection} that does not contain any other type in
      *     the collection, but maybe itsself
      */
-    @SuppressWarnings("interning:not.interned") // must be the same object from collection
+    // must be the same object from collection
+    @SuppressWarnings({"interning:not.interned", "TypeEquals"})
     private static TypeVariable doesNotContainOthers(
             Collection<? extends TypeVariable> collection, Types types) {
         for (TypeVariable candidate : collection) {
@@ -1461,6 +1462,7 @@ public final class TypesUtils {
      * @return if the two type variables are the same type variable
      */
     @EqualsMethod
+    @SuppressWarnings("TypeEquals")
     public static boolean areSame(TypeVariable typeVariable1, TypeVariable typeVariable2) {
         if (typeVariable1 == typeVariable2) {
             return true;
