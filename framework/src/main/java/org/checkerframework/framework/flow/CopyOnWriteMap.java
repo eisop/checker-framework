@@ -173,4 +173,9 @@ public class CopyOnWriteMap<K, V> implements Map<K, V> {
         }
         return hashCodeCache;
     }
+
+    @Override
+    public String toString() {
+        return delegate.toString();
+    }
 }
