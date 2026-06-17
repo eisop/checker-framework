@@ -65,20 +65,16 @@ public class ViewpointAdaptationBounds {
     }
 
     void callMethod(@Top Methods m, @A Object a, @Bottom Object b) {
-        // Here, the upper bound of T adapts to @Lost, but because we pass no arguments,
-        // no argument compatibility check fails. If method type parameter bounds were checked,
-        // this would report `viewpointtest.lost.in.bounds`. Currently, it reports 0 errors,
-        // clearly illustrating the missing bounds check for method invocations!
+        // The upper bound of T adapts to @Lost even though no argument compatibility check runs.
+        // :: error: (viewpointtest.lost.in.bounds)
         m.methodWithNoArgs();
 
-        // When arguments are provided, it fails subtyping because no qualifier
-        // is a subtype of @Lost.
-        // :: error: (argument.type.incompatible) :: error: (viewpointtest.lost.parameter)
-        m.method(a);
+        // Use an explicit type argument to avoid testing type argument inference here.
+        // :: error: (type.argument.type.incompatible) :: error: (viewpointtest.lost.in.bounds)
+        m.<@A Object>method(a);
 
-        // Even when using @Bottom, the argument is incompatible because @Lost is intentionally
-        // excluded from the standard qualifier hierarchy (i.e., @Bottom <: @Lost is false).
-        // :: error: (argument.type.incompatible) :: error: (viewpointtest.lost.parameter)
+        // Even when using @Bottom, the adapted method type parameter bound is @Lost.
+        // :: error: (viewpointtest.lost.in.bounds)
         m.method(b);
     }
 }

@@ -1,15 +1,19 @@
 package viewpointtest;
 
 import com.sun.source.tree.ExpressionTree;
+import com.sun.source.tree.MethodInvocationTree;
 import com.sun.source.tree.NewClassTree;
 import com.sun.source.tree.Tree;
+import com.sun.source.tree.VariableTree;
 
 import org.checkerframework.checker.compilermsgs.qual.CompilerMessageKey;
 import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.common.basetype.BaseTypeValidator;
 import org.checkerframework.common.basetype.BaseTypeVisitor;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
+import org.checkerframework.framework.type.AnnotatedTypeParameterBounds;
 import org.checkerframework.framework.util.AnnotatedTypes;
+import org.checkerframework.javacutil.TreeUtils;
 
 /** The visitor for the Viewpoint Test Checker. */
 public class ViewpointTestVisitor extends BaseTypeVisitor<ViewpointTestAnnotatedTypeFactory> {
@@ -19,6 +23,9 @@ public class ViewpointTestVisitor extends BaseTypeVisitor<ViewpointTestAnnotated
 
     /** Error key for {@code @Lost} in adapted parameter types. */
     private static final @CompilerMessageKey String LOST_PARAMETER = "viewpointtest.lost.parameter";
+
+    /** Error key for {@code @Lost} in adapted type parameter bounds. */
+    private static final @CompilerMessageKey String LOST_IN_BOUNDS = "viewpointtest.lost.in.bounds";
 
     /**
      * Create a new ViewpointTestVisitor.
@@ -44,6 +51,13 @@ public class ViewpointTestVisitor extends BaseTypeVisitor<ViewpointTestAnnotated
     }
 
     @Override
+    public Void visitMethodInvocation(MethodInvocationTree tree, Void p) {
+        Void result = super.visitMethodInvocation(tree, p);
+        checkLostMethodTypeParameterBounds(tree);
+        return result;
+    }
+
+    @Override
     protected boolean commonAssignmentCheck(
             Tree varTree,
             ExpressionTree valueExpTree,
@@ -51,7 +65,7 @@ public class ViewpointTestVisitor extends BaseTypeVisitor<ViewpointTestAnnotated
             Object... extraArgs) {
         boolean result = super.commonAssignmentCheck(varTree, valueExpTree, errorKey, extraArgs);
         AnnotatedTypeMirror varType = atypeFactory.getAnnotatedTypeLhs(varTree);
-        if (AnnotatedTypes.containsModifier(varType, atypeFactory.LOST)) {
+        if (hasInvalidLostLhs(varTree, varType)) {
             checker.reportError(valueExpTree, LOST_LHS);
             result = false;
         }
@@ -78,5 +92,41 @@ public class ViewpointTestVisitor extends BaseTypeVisitor<ViewpointTestAnnotated
             result = false;
         }
         return result;
+    }
+
+    /**
+     * Returns true if an assignment target has an invalid {@code @Lost}. Variable declarations may
+     * use {@code @Lost} in class type arguments, but updates to an existing target are rejected if
+     * the target type contains {@code @Lost}.
+     *
+     * @param varTree the assignment target
+     * @param varType the target type
+     * @return true if the assignment target has an invalid {@code @Lost}
+     */
+    private boolean hasInvalidLostLhs(Tree varTree, AnnotatedTypeMirror varType) {
+        if (varTree instanceof VariableTree) {
+            return varType.hasAnnotation(atypeFactory.LOST);
+        }
+        return AnnotatedTypes.containsModifier(varType, atypeFactory.LOST);
+    }
+
+    /**
+     * Report an error if a method invocation viewpoint-adapts a method type parameter bound to
+     * {@code @Lost}.
+     *
+     * @param tree the method invocation to check
+     */
+    private void checkLostMethodTypeParameterBounds(MethodInvocationTree tree) {
+        if (TreeUtils.elementFromUse(tree) == null || shouldSkipUses(tree)) {
+            return;
+        }
+
+        for (AnnotatedTypeParameterBounds bounds : atypeFactory.methodTypeVariablesFromUse(tree)) {
+            if (AnnotatedTypes.containsModifier(bounds.getUpperBound(), atypeFactory.LOST)
+                    || AnnotatedTypes.containsModifier(bounds.getLowerBound(), atypeFactory.LOST)) {
+                checker.reportError(tree, LOST_IN_BOUNDS);
+                return;
+            }
+        }
     }
 }
