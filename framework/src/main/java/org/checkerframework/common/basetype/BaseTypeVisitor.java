@@ -963,7 +963,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
     /**
      * Helper for {@link #checkExtendsAndImplements} that checks one extends or implements clause.
      *
-     * <p>This performs two checks that both depend on the written extends or implements clause.
+     * <p>This performs two checks for the written extends or implements clause.
      *
      * <p>First, the default implementation of {@link #checkAnnotationOnSupertype} rejects explicit
      * annotations of the supertype in this checker's hierarchy.
@@ -971,7 +971,10 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      * <p>Second, this method checks that the class declaration bounds are subtypes of the supertype
      * bounds. The supertype can have either an explicit annotation or an annotation inserted by
      * defaulting; this check verifies that annotation against the declaration bounds of the class
-     * being declared.
+     * being declared. Even when explicit annotations on supertypes are rejected, this check is
+     * still needed for defaulted annotations. It is performed for each class declaration because
+     * the defaulted supertype annotation depends on the particular supertype tree and checker
+     * defaults at that use site.
      *
      * @param boundClause an extends or implements clause
      * @param classBounds the type declarations bounds to check for consistency with {@code
@@ -1003,9 +1006,10 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
 
     /**
      * Reports an {@code annotation.on.supertype} error if {@code boundClause} carries a type
-     * qualifier supported by the active checker. A checker that allows annotations on supertypes
-     * (e.g., {@link org.checkerframework.checker.tainting.TaintingVisitor}) should override this
-     * method to do nothing.
+     * qualifier in this checker's hierarchy directly on the supertype. A checker that allows
+     * annotations directly on supertypes (e.g., {@link
+     * org.checkerframework.checker.tainting.TaintingVisitor}) should override this method to do
+     * nothing.
      *
      * @param boundClause an extends or implements clause
      */
