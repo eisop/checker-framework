@@ -17,10 +17,9 @@ public class ViewpointAdaptationSuperclassInstantiation {
     }
 
     void topReceiver(@Top Sub top) {
-        // Class type arguments may contain @Lost, so this declaration initialization is valid.
         // @Top viewpoint-adapts @ReceiverDependentQual to @Lost in the type argument.
+        // :: error: (viewpointtest.lost.lhs)
         @Top Super<@Lost Object> lostSuper = top;
-        // Updates are still rejected if the LHS type contains @Lost.
         // :: error: (viewpointtest.lost.lhs)
         lostSuper = top;
         // :: error: (assignment.type.incompatible)

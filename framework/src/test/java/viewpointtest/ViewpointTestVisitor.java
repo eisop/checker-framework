@@ -4,7 +4,6 @@ import com.sun.source.tree.ExpressionTree;
 import com.sun.source.tree.MethodInvocationTree;
 import com.sun.source.tree.NewClassTree;
 import com.sun.source.tree.Tree;
-import com.sun.source.tree.VariableTree;
 
 import org.checkerframework.checker.compilermsgs.qual.CompilerMessageKey;
 import org.checkerframework.common.basetype.BaseTypeChecker;
@@ -65,7 +64,7 @@ public class ViewpointTestVisitor extends BaseTypeVisitor<ViewpointTestAnnotated
             Object... extraArgs) {
         boolean result = super.commonAssignmentCheck(varTree, valueExpTree, errorKey, extraArgs);
         AnnotatedTypeMirror varType = atypeFactory.getAnnotatedTypeLhs(varTree);
-        if (hasInvalidLostLhs(varTree, varType)) {
+        if (AnnotatedTypes.containsModifier(varType, atypeFactory.LOST)) {
             checker.reportError(valueExpTree, LOST_LHS);
             result = false;
         }
@@ -92,22 +91,6 @@ public class ViewpointTestVisitor extends BaseTypeVisitor<ViewpointTestAnnotated
             result = false;
         }
         return result;
-    }
-
-    /**
-     * Returns true if an assignment target has an invalid {@code @Lost}. Variable declarations may
-     * use {@code @Lost} in class type arguments, but updates to an existing target are rejected if
-     * the target type contains {@code @Lost}.
-     *
-     * @param varTree the assignment target
-     * @param varType the target type
-     * @return true if the assignment target has an invalid {@code @Lost}
-     */
-    private boolean hasInvalidLostLhs(Tree varTree, AnnotatedTypeMirror varType) {
-        if (varTree instanceof VariableTree) {
-            return varType.hasAnnotation(atypeFactory.LOST);
-        }
-        return AnnotatedTypes.containsModifier(varType, atypeFactory.LOST);
     }
 
     /**
