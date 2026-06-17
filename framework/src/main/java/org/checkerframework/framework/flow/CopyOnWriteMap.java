@@ -5,9 +5,17 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 
-/** A Map that defers copying its internal Map until it is mutated. */
+/**
+ * A Map that defers copying its internal Map until it is mutated.
+ *
+ * @param <K> the type of keys maintained by this map
+ * @param <V> the type of mapped values
+ */
 public class CopyOnWriteMap<K, V> implements Map<K, V> {
+    /** The underlying map that stores the entries. */
     private Map<K, V> delegate;
+
+    /** True if the delegate map is currently shared with another CopyOnWriteMap instance. */
     private boolean shared;
 
     /**

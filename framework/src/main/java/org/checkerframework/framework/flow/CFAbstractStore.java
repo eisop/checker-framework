@@ -1367,6 +1367,14 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
         return newStore;
     }
 
+    /**
+     * Computes the upper bound of two values.
+     *
+     * @param otherVal the other value
+     * @param thisVal this value
+     * @param shouldWiden true to compute widened upper bound, false for least upper bound
+     * @return the upper bound of the two values
+     */
     private V upperBoundOfValues(V otherVal, V thisVal, boolean shouldWiden) {
         if (thisVal.equals(otherVal)) {
             return thisVal;
