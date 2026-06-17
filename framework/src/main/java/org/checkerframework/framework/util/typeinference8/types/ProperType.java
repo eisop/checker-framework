@@ -256,7 +256,8 @@ public class ProperType extends AbstractType {
         }
     }
 
-    @SuppressWarnings("interning:not.interned") // Checking for exact object.
+    // Checking for exact object.
+    @SuppressWarnings({"interning:not.interned", "TypeEquals"})
     @Override
     public boolean equals(Object o) {
         if (this == o) {

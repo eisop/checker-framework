@@ -27,6 +27,15 @@ dependencies {
     testImplementation project(':framework')
 }
 
+// Shadow 9.4.2 eagerly triggers compile tasks for all source sets.
+// Only enable Java 8 specific compilation when actually on Java 8.
+tasks.named('compileTagletJdk8Java') {
+    enabled = isJava8
+}
+tasks.named('compileTagletJava') {
+    enabled = !isJava8
+}
+
 jar.archiveBaseName = 'framework-test'
 
 apply from: rootProject.file('gradle-mvn-push.gradle')
