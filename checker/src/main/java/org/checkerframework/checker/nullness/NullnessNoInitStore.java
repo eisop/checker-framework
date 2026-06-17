@@ -115,6 +115,9 @@ public class NullnessNoInitStore extends CFAbstractStore<NullnessNoInitValue, Nu
 
     @Override
     public NullnessNoInitStore leastUpperBound(NullnessNoInitStore other) {
+        if (this.equals(other)) {
+            return this.copy();
+        }
         NullnessNoInitStore lub = super.leastUpperBound(other);
         lub.isPolyNullNonNull = isPolyNullNonNull && other.isPolyNullNonNull;
         lub.isPolyNullNull = isPolyNullNull && other.isPolyNullNull;

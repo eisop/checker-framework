@@ -103,4 +103,45 @@ public class NullnessNoInitValue extends CFAbstractValue<NullnessNoInitValue> {
                 + (isPolyNullNull ? 't' : 'f')
                 + '}';
     }
+
+    /**
+     * Checks if this value is equal to another object.
+     *
+     * @param obj the object to compare to
+     * @return true if the objects are equal, false otherwise
+     */
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj) {
+            return true;
+        }
+        if (obj == null || getClass() != obj.getClass()) {
+            return false;
+        }
+        if (!super.equals(obj)) {
+            return false;
+        }
+        NullnessNoInitValue other = (NullnessNoInitValue) obj;
+        return this.isPolyNullNonNull == other.isPolyNullNonNull
+                && this.isPolyNullNull == other.isPolyNullNull;
+    }
+
+    /** The cached hash code. */
+    private int hashCodeCache = 0;
+
+    /**
+     * Computes the hash code for this value.
+     *
+     * @return the hash code
+     */
+    @Override
+    public int hashCode() {
+        if (hashCodeCache == 0) {
+            int h = super.hashCode();
+            h = 31 * h + (isPolyNullNonNull ? 1 : 0);
+            h = 31 * h + (isPolyNullNull ? 1 : 0);
+            hashCodeCache = h == 0 ? 1 : h;
+        }
+        return hashCodeCache;
+    }
 }

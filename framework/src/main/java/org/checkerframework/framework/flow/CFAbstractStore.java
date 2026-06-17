@@ -35,7 +35,6 @@ import org.plumelib.util.UniqueId;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -72,7 +71,7 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
     protected final CFAbstractAnalysis<V, S, ?> analysis;
 
     /** Information collected about local variables (including method parameters). */
-    protected final Map<LocalVariable, V> localVariableValues;
+    protected final CopyOnWriteMap<LocalVariable, V> localVariableValues;
 
     /** Information collected about the current object. */
     protected V thisValue;
@@ -80,7 +79,25 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
     /**
      * Information collected about fields, using the internal representation {@link FieldAccess}.
      */
-    protected Map<FieldAccess, V> fieldValues;
+    protected CopyOnWriteMap<FieldAccess, V> fieldValues;
+
+    /**
+     * Information collected about the expressions to which method calls evaluate, using the
+     * internal representation {@link MethodCall}.
+     */
+    protected final CopyOnWriteMap<MethodCall, V> methodCallExpressions;
+
+    /**
+     * Information collected about array elements, using the internal representation {@link
+     * ArrayAccess}.
+     */
+    protected final CopyOnWriteMap<ArrayAccess, V> arrayValues;
+
+    /**
+     * Information collected about <i>classname</i>.class values, using the internal representation
+     * {@link ClassName}.
+     */
+    protected final CopyOnWriteMap<ClassName, V> classValues;
 
     /**
      * Returns information about fields. Clients should not side-effect the returned value, which is
@@ -91,24 +108,6 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
     public Map<FieldAccess, V> getFieldValues() {
         return fieldValues;
     }
-
-    /**
-     * Information collected about array elements, using the internal representation {@link
-     * ArrayAccess}.
-     */
-    protected final Map<ArrayAccess, V> arrayValues;
-
-    /**
-     * Information collected about the expressions to which method calls evaluate, using the
-     * internal representation {@link MethodCall}.
-     */
-    protected final Map<MethodCall, V> methodCallExpressions;
-
-    /**
-     * Information collected about <i>classname</i>.class values, using the internal representation
-     * {@link ClassName}.
-     */
-    protected final Map<ClassName, V> classValues;
 
     /**
      * Should the analysis use sequential Java semantics (i.e., assume that only one thread is
@@ -145,12 +144,12 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
      */
     protected CFAbstractStore(CFAbstractAnalysis<V, S, ?> analysis, boolean sequentialSemantics) {
         this.analysis = analysis;
-        this.localVariableValues = new HashMap<>();
+        this.localVariableValues = new CopyOnWriteMap<>(new HashMap<>(), false);
         this.thisValue = null;
-        this.fieldValues = new HashMap<>();
-        this.methodCallExpressions = new HashMap<>();
-        this.arrayValues = new HashMap<>();
-        this.classValues = new HashMap<>();
+        this.fieldValues = new CopyOnWriteMap<>(new HashMap<>(), false);
+        this.methodCallExpressions = new CopyOnWriteMap<>(new HashMap<>(), false);
+        this.arrayValues = new CopyOnWriteMap<>(new HashMap<>(), false);
+        this.classValues = new CopyOnWriteMap<>(new HashMap<>(), false);
         this.sequentialSemantics = sequentialSemantics;
         this.assumeSideEffectFree =
                 analysis.checker.hasOption("assumeSideEffectFree")
@@ -163,15 +162,15 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
      *
      * @param other a CFAbstractStore to copy into this
      */
-    protected CFAbstractStore(CFAbstractStore<V, S> other) {
+    public CFAbstractStore(CFAbstractStore<V, S> other) {
         this.analysis = other.analysis;
-        this.localVariableValues = new HashMap<>(other.localVariableValues);
-        this.thisValue = other.thisValue;
-        this.fieldValues = new HashMap<>(other.fieldValues);
-        this.methodCallExpressions = new HashMap<>(other.methodCallExpressions);
-        this.arrayValues = new HashMap<>(other.arrayValues);
-        this.classValues = new HashMap<>(other.classValues);
         this.sequentialSemantics = other.sequentialSemantics;
+        this.localVariableValues = other.localVariableValues.copy();
+        this.fieldValues = other.fieldValues.copy();
+        this.methodCallExpressions = other.methodCallExpressions.copy();
+        this.arrayValues = other.arrayValues.copy();
+        this.classValues = other.classValues.copy();
+        this.thisValue = other.thisValue;
         this.assumeSideEffectFree = other.assumeSideEffectFree;
         this.assumePureGetters = other.assumePureGetters;
     }
@@ -200,6 +199,25 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
     /* --------------------------------------------------------- */
     /* Handling of fields */
     /* --------------------------------------------------------- */
+
+    /** Removes all elements from the map whose keys are modifiable by other code. */
+    private static <K extends JavaExpression, V> void removeModifiableByOtherCode(Map<K, V> map) {
+        // Collect keys to remove instead of using Iterator.remove() because CopyOnWriteMap
+        // returns an unmodifiable keySet/entrySet view to avoid accidentally triggering a copy
+        // when read-only iteration is intended.
+        List<K> toRemove = null;
+        for (K key : map.keySet()) {
+            if (key.isModifiableByOtherCode()) {
+                if (toRemove == null) {
+                    toRemove = new ArrayList<>();
+                }
+                toRemove.add(key);
+            }
+        }
+        if (toRemove != null) {
+            toRemove.forEach(map::remove);
+        }
+    }
 
     /**
      * Remove any information that might not be valid any more after a method call, and add
@@ -243,7 +261,7 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
             // TODO: Also remove if any element/argument to the annotation is
             // isModifiableByOtherCode.  Example: @KeyFor("valueThatCanBeMutated").
             if (sideEffectsUnrefineAliases) {
-                localVariableValues.entrySet().removeIf(e -> e.getKey().isModifiableByOtherCode());
+                removeModifiableByOtherCode(localVariableValues);
             }
 
             // update this value
@@ -253,7 +271,7 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
 
             // update field values
             if (sideEffectsUnrefineAliases) {
-                fieldValues.entrySet().removeIf(e -> e.getKey().isModifiableByOtherCode());
+                removeModifiableByOtherCode(fieldValues);
             } else {
                 // Case 2 (unassignable fields) and case 3 (monotonic fields)
                 updateFieldValuesForMethodCall(atypeFactory);
@@ -263,7 +281,7 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
             arrayValues.clear();
 
             // update method values
-            methodCallExpressions.keySet().removeIf(MethodCall::isModifiableByOtherCode);
+            removeModifiableByOtherCode(methodCallExpressions);
         }
 
         // store information about method call if possible
@@ -373,7 +391,7 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
                 newFieldValues.put(fieldAccess, newValue);
             }
         }
-        fieldValues = newFieldValues;
+        fieldValues = new CopyOnWriteMap<>(newFieldValues, false);
     }
 
     /**
@@ -966,14 +984,14 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
      *     abstract value is not known).
      */
     protected void removeConflicting(FieldAccess fieldAccess, @Nullable V val) {
-        Iterator<Map.Entry<FieldAccess, V>> fieldValuesIterator = fieldValues.entrySet().iterator();
-        while (fieldValuesIterator.hasNext()) {
-            Map.Entry<FieldAccess, V> entry = fieldValuesIterator.next();
+        List<FieldAccess> fieldsToRemove = new ArrayList<>();
+        Map<FieldAccess, V> fieldsToUpdate = new HashMap<>();
+        for (Map.Entry<FieldAccess, V> entry : fieldValues.entrySet()) {
             FieldAccess otherFieldAccess = entry.getKey();
             V otherVal = entry.getValue();
             // case 2:
             if (otherFieldAccess.getReceiver().containsModifiableAliasOf(this, fieldAccess)) {
-                fieldValuesIterator.remove(); // remove information completely
+                fieldsToRemove.add(otherFieldAccess); // remove information completely
             }
             // case 1:
             else if (fieldAccess.getField().equals(otherFieldAccess.getField())) {
@@ -981,25 +999,27 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
                     if (!otherFieldAccess.isFinal()) {
                         if (val != null) {
                             V newVal = val.leastUpperBound(otherVal);
-                            entry.setValue(newVal);
+                            fieldsToUpdate.put(otherFieldAccess, newVal);
                         } else {
                             // remove information completely
-                            fieldValuesIterator.remove();
+                            fieldsToRemove.add(otherFieldAccess);
                         }
                     }
                 }
             }
         }
+        fieldsToRemove.forEach(fieldValues::remove);
+        fieldsToUpdate.forEach(fieldValues::put);
 
-        Iterator<Map.Entry<ArrayAccess, V>> arrayValuesIterator = arrayValues.entrySet().iterator();
-        while (arrayValuesIterator.hasNext()) {
-            Map.Entry<ArrayAccess, V> entry = arrayValuesIterator.next();
+        List<ArrayAccess> arraysToRemove = new ArrayList<>();
+        for (Map.Entry<ArrayAccess, V> entry : arrayValues.entrySet()) {
             ArrayAccess otherArrayAccess = entry.getKey();
             if (otherArrayAccess.containsModifiableAliasOf(this, fieldAccess)) {
                 // remove information completely
-                arrayValuesIterator.remove();
+                arraysToRemove.add(otherArrayAccess);
             }
         }
+        arraysToRemove.forEach(arrayValues::remove);
 
         // case 3:
         methodCallExpressions.clear();
@@ -1025,32 +1045,32 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
      *     abstract value is not known).
      */
     protected void removeConflicting(ArrayAccess arrayAccess, @Nullable V val) {
-        Iterator<Map.Entry<ArrayAccess, V>> arrayValuesIterator = arrayValues.entrySet().iterator();
-        while (arrayValuesIterator.hasNext()) {
-            Map.Entry<ArrayAccess, V> entry = arrayValuesIterator.next();
+        List<ArrayAccess> arraysToRemove = new ArrayList<>();
+        for (Map.Entry<ArrayAccess, V> entry : arrayValues.entrySet()) {
             ArrayAccess otherArrayAccess = entry.getKey();
             // case 1:
             if (otherArrayAccess.containsModifiableAliasOf(this, arrayAccess)) {
-                arrayValuesIterator.remove(); // remove information completely
+                arraysToRemove.add(otherArrayAccess); // remove information completely
             } else if (canAlias(arrayAccess.getArray(), otherArrayAccess.getArray())) {
                 // TODO: one could be less strict here, and only raise the abstract
                 // value for all array expressions with potentially aliasing receivers.
-                arrayValuesIterator.remove(); // remove information completely
+                arraysToRemove.add(otherArrayAccess); // remove information completely
             }
         }
+        arraysToRemove.forEach(arrayValues::remove);
 
         // case 2:
-        Iterator<Map.Entry<FieldAccess, V>> fieldValuesIterator = fieldValues.entrySet().iterator();
-        while (fieldValuesIterator.hasNext()) {
-            Map.Entry<FieldAccess, V> entry = fieldValuesIterator.next();
+        List<FieldAccess> fieldsToRemove = new ArrayList<>();
+        for (Map.Entry<FieldAccess, V> entry : fieldValues.entrySet()) {
             FieldAccess otherFieldAccess = entry.getKey();
             JavaExpression otherReceiver = otherFieldAccess.getReceiver();
             if (otherReceiver.containsModifiableAliasOf(this, arrayAccess)
                     && otherReceiver.containsOfClass(ArrayAccess.class)) {
                 // remove information completely
-                fieldValuesIterator.remove();
+                fieldsToRemove.add(otherFieldAccess);
             }
         }
+        fieldsToRemove.forEach(fieldValues::remove);
 
         // case 3:
         methodCallExpressions.clear();
@@ -1070,36 +1090,35 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
      * </ol>
      */
     protected void removeConflicting(LocalVariable var) {
-        Iterator<Map.Entry<FieldAccess, V>> fieldValuesIterator = fieldValues.entrySet().iterator();
-        while (fieldValuesIterator.hasNext()) {
-            Map.Entry<FieldAccess, V> entry = fieldValuesIterator.next();
+        List<FieldAccess> fieldsToRemove = new ArrayList<>();
+        for (Map.Entry<FieldAccess, V> entry : fieldValues.entrySet()) {
             FieldAccess otherFieldAccess = entry.getKey();
             // case 1:
             if (otherFieldAccess.containsSyntacticEqualJavaExpression(var)) {
-                fieldValuesIterator.remove();
+                fieldsToRemove.add(otherFieldAccess);
             }
         }
+        fieldsToRemove.forEach(fieldValues::remove);
 
-        Iterator<Map.Entry<ArrayAccess, V>> arrayValuesIterator = arrayValues.entrySet().iterator();
-        while (arrayValuesIterator.hasNext()) {
-            Map.Entry<ArrayAccess, V> entry = arrayValuesIterator.next();
+        List<ArrayAccess> arraysToRemove = new ArrayList<>();
+        for (Map.Entry<ArrayAccess, V> entry : arrayValues.entrySet()) {
             ArrayAccess otherArrayAccess = entry.getKey();
             // case 2:
             if (otherArrayAccess.containsSyntacticEqualJavaExpression(var)) {
-                arrayValuesIterator.remove();
+                arraysToRemove.add(otherArrayAccess);
             }
         }
+        arraysToRemove.forEach(arrayValues::remove);
 
-        Iterator<Map.Entry<MethodCall, V>> methodCallValuesIterator =
-                methodCallExpressions.entrySet().iterator();
-        while (methodCallValuesIterator.hasNext()) {
-            Map.Entry<MethodCall, V> entry = methodCallValuesIterator.next();
+        List<MethodCall> methodsToRemove = new ArrayList<>();
+        for (Map.Entry<MethodCall, V> entry : methodCallExpressions.entrySet()) {
             MethodCall otherMethodAccess = entry.getKey();
             // case 3:
             if (otherMethodAccess.containsSyntacticEqualJavaExpression(var)) {
-                methodCallValuesIterator.remove();
+                methodsToRemove.add(otherMethodAccess);
             }
         }
+        methodsToRemove.forEach(methodCallExpressions::remove);
     }
 
     /**
@@ -1157,30 +1176,70 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
         return analysis.createCopiedStore((S) this);
     }
 
+    /**
+     * Computes the least upper bound (LUB) of this store and another store. The LUB represents a
+     * program state that is true if either this store or the other store is true.
+     *
+     * @param other the store to merge with this one
+     * @return a new store that represents the LUB of this store and the other
+     */
     @Override
     public S leastUpperBound(S other) {
+        if (this.equals(other)) {
+            return this.copy();
+        }
         return upperBound(other, false);
     }
 
     @Override
     public S widenedUpperBound(S previous) {
+        if (this.equals(previous)) {
+            return this.copy();
+        }
         return upperBound(previous, true);
     }
 
+    /**
+     * Computes either the least upper bound or widened upper bound between this store and another
+     * store.
+     *
+     * @param other the other store to merge with
+     * @param shouldWiden true to compute widened upper bound, false for least upper bound
+     * @return a new store representing the merged state
+     */
+    @SuppressWarnings("interning:not.interned")
     private S upperBound(S other, boolean shouldWiden) {
         S newStore = analysis.createEmptyStore(sequentialSemantics);
 
-        for (Map.Entry<LocalVariable, V> e : other.localVariableValues.entrySet()) {
-            // local variables that are only part of one store, but not the other are discarded, as
-            // one of store implicitly contains 'top' for that variable.
-            LocalVariable localVar = e.getKey();
-            V thisVal = localVariableValues.get(localVar);
-            if (thisVal != null) {
-                V otherVal = e.getValue();
-                V mergedVal = upperBoundOfValues(otherVal, thisVal, shouldWiden);
+        // Optimization: Fast-path when map states match exactly.
+        if (this.localVariableValues.equals(other.localVariableValues)) {
+            newStore.localVariableValues.copyFrom(this.localVariableValues);
+        } else {
+            // Optimization: Iterate over the smaller map to minimize lookups.
+            Map<LocalVariable, V> smallerLocals =
+                    this.localVariableValues.size() <= other.localVariableValues.size()
+                            ? this.localVariableValues
+                            : other.localVariableValues;
+            Map<LocalVariable, V> largerLocals =
+                    this.localVariableValues == smallerLocals
+                            ? other.localVariableValues
+                            : this.localVariableValues;
+            for (Map.Entry<LocalVariable, V> e : smallerLocals.entrySet()) {
+                // local variables that are only part of one store, but not the other are discarded,
+                // as
+                // one of store implicitly contains 'top' for that variable.
+                LocalVariable localVar = e.getKey();
+                V largerVal = largerLocals.get(localVar);
+                if (largerVal != null) {
+                    V thisVal =
+                            this.localVariableValues == smallerLocals ? e.getValue() : largerVal;
+                    V otherVal =
+                            this.localVariableValues == smallerLocals ? largerVal : e.getValue();
+                    V mergedVal = upperBoundOfValues(otherVal, thisVal, shouldWiden);
 
-                if (mergedVal != null) {
-                    newStore.localVariableValues.put(localVar, mergedVal);
+                    if (mergedVal != null) {
+                        newStore.localVariableValues.put(localVar, mergedVal);
+                    }
                 }
             }
         }
@@ -1196,53 +1255,112 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
             }
         }
 
-        for (Map.Entry<FieldAccess, V> e : other.fieldValues.entrySet()) {
-            // information about fields that are only part of one store, but not the other are
-            // discarded, as one store implicitly contains 'top' for that field.
-            FieldAccess el = e.getKey();
-            V thisVal = fieldValues.get(el);
-            if (thisVal != null) {
-                V otherVal = e.getValue();
-                V mergedVal = upperBoundOfValues(otherVal, thisVal, shouldWiden);
-                if (mergedVal != null) {
-                    newStore.fieldValues.put(el, mergedVal);
+        // Optimization: Fast-path when map states match exactly.
+        if (this.fieldValues.equals(other.fieldValues)) {
+            newStore.fieldValues.copyFrom(this.fieldValues);
+        } else {
+            // Optimization: Iterate over the smaller map to minimize lookups.
+            Map<FieldAccess, V> smallerFields =
+                    this.fieldValues.size() <= other.fieldValues.size()
+                            ? this.fieldValues
+                            : other.fieldValues;
+            Map<FieldAccess, V> largerFields =
+                    this.fieldValues == smallerFields ? other.fieldValues : this.fieldValues;
+            for (Map.Entry<FieldAccess, V> e : smallerFields.entrySet()) {
+                // information about fields that are only part of one store, but not the other are
+                // discarded, as one store implicitly contains 'top' for that field.
+                FieldAccess el = e.getKey();
+                V largerVal = largerFields.get(el);
+                if (largerVal != null) {
+                    V thisVal = this.fieldValues == smallerFields ? e.getValue() : largerVal;
+                    V otherVal = this.fieldValues == smallerFields ? largerVal : e.getValue();
+                    V mergedVal = upperBoundOfValues(otherVal, thisVal, shouldWiden);
+                    if (mergedVal != null) {
+                        newStore.fieldValues.put(el, mergedVal);
+                    }
                 }
             }
         }
-        for (Map.Entry<ArrayAccess, V> e : other.arrayValues.entrySet()) {
-            // information about arrays that are only part of one store, but not the other are
-            // discarded, as one store implicitly contains 'top' for that array access.
-            ArrayAccess el = e.getKey();
-            V thisVal = arrayValues.get(el);
-            if (thisVal != null) {
-                V otherVal = e.getValue();
-                V mergedVal = upperBoundOfValues(otherVal, thisVal, shouldWiden);
-                if (mergedVal != null) {
-                    newStore.arrayValues.put(el, mergedVal);
+        // Optimization: Fast-path when map states match exactly.
+        if (this.arrayValues.equals(other.arrayValues)) {
+            newStore.arrayValues.copyFrom(this.arrayValues);
+        } else {
+            // Optimization: Iterate over the smaller map to minimize lookups.
+            Map<ArrayAccess, V> smallerArrays =
+                    this.arrayValues.size() <= other.arrayValues.size()
+                            ? this.arrayValues
+                            : other.arrayValues;
+            Map<ArrayAccess, V> largerArrays =
+                    this.arrayValues == smallerArrays ? other.arrayValues : this.arrayValues;
+            for (Map.Entry<ArrayAccess, V> e : smallerArrays.entrySet()) {
+                // information about arrays that are only part of one store, but not the other are
+                // discarded, as one store implicitly contains 'top' for that array access.
+                ArrayAccess el = e.getKey();
+                V largerVal = largerArrays.get(el);
+                if (largerVal != null) {
+                    V thisVal = this.arrayValues == smallerArrays ? e.getValue() : largerVal;
+                    V otherVal = this.arrayValues == smallerArrays ? largerVal : e.getValue();
+                    V mergedVal = upperBoundOfValues(otherVal, thisVal, shouldWiden);
+                    if (mergedVal != null) {
+                        newStore.arrayValues.put(el, mergedVal);
+                    }
                 }
             }
         }
-        for (Map.Entry<MethodCall, V> e : other.methodCallExpressions.entrySet()) {
-            // information about methods that are only part of one store, but not the other are
-            // discarded, as one store implicitly contains 'top' for that field.
-            MethodCall el = e.getKey();
-            V thisVal = methodCallExpressions.get(el);
-            if (thisVal != null) {
-                V otherVal = e.getValue();
-                V mergedVal = upperBoundOfValues(otherVal, thisVal, shouldWiden);
-                if (mergedVal != null) {
-                    newStore.methodCallExpressions.put(el, mergedVal);
+        // Optimization: Fast-path when map states match exactly.
+        if (this.methodCallExpressions.equals(other.methodCallExpressions)) {
+            newStore.methodCallExpressions.copyFrom(this.methodCallExpressions);
+        } else {
+            // Optimization: Iterate over the smaller map to minimize lookups.
+            Map<MethodCall, V> smallerMethods =
+                    this.methodCallExpressions.size() <= other.methodCallExpressions.size()
+                            ? this.methodCallExpressions
+                            : other.methodCallExpressions;
+            Map<MethodCall, V> largerMethods =
+                    this.methodCallExpressions == smallerMethods
+                            ? other.methodCallExpressions
+                            : this.methodCallExpressions;
+            for (Map.Entry<MethodCall, V> e : smallerMethods.entrySet()) {
+                // information about methods that are only part of one store, but not the other are
+                // discarded, as one store implicitly contains 'top' for that field.
+                MethodCall el = e.getKey();
+                V largerVal = largerMethods.get(el);
+                if (largerVal != null) {
+                    V thisVal =
+                            this.methodCallExpressions == smallerMethods ? e.getValue() : largerVal;
+                    V otherVal =
+                            this.methodCallExpressions == smallerMethods ? largerVal : e.getValue();
+                    V mergedVal = upperBoundOfValues(otherVal, thisVal, shouldWiden);
+                    if (mergedVal != null) {
+                        newStore.methodCallExpressions.put(el, mergedVal);
+                    }
                 }
             }
         }
-        for (Map.Entry<ClassName, V> e : other.classValues.entrySet()) {
-            ClassName el = e.getKey();
-            V thisVal = classValues.get(el);
-            if (thisVal != null) {
-                V otherVal = e.getValue();
-                V mergedVal = upperBoundOfValues(otherVal, thisVal, shouldWiden);
-                if (mergedVal != null) {
-                    newStore.classValues.put(el, mergedVal);
+        // Optimization: Fast-path when map states match exactly.
+        if (this.classValues.equals(other.classValues)) {
+            newStore.classValues.copyFrom(this.classValues);
+        } else {
+            // Optimization: Iterate over the smaller map to minimize lookups.
+            Map<ClassName, V> smallerClasses =
+                    this.classValues.size() <= other.classValues.size()
+                            ? this.classValues
+                            : other.classValues;
+            Map<ClassName, V> largerClasses =
+                    this.classValues == smallerClasses ? other.classValues : this.classValues;
+            for (Map.Entry<ClassName, V> e : smallerClasses.entrySet()) {
+                // information about classname.class values that are only part of one store, but not
+                // the other are
+                // discarded, as one store implicitly contains 'top' for that class value.
+                ClassName el = e.getKey();
+                V largerVal = largerClasses.get(el);
+                if (largerVal != null) {
+                    V thisVal = this.classValues == smallerClasses ? e.getValue() : largerVal;
+                    V otherVal = this.classValues == smallerClasses ? largerVal : e.getValue();
+                    V mergedVal = upperBoundOfValues(otherVal, thisVal, shouldWiden);
+                    if (mergedVal != null) {
+                        newStore.classValues.put(el, mergedVal);
+                    }
                 }
             }
         }
@@ -1250,6 +1368,9 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
     }
 
     private V upperBoundOfValues(V otherVal, V thisVal, boolean shouldWiden) {
+        if (thisVal.equals(otherVal)) {
+            return thisVal;
+        }
         return shouldWiden ? thisVal.widenUpperBound(otherVal) : thisVal.leastUpperBound(otherVal);
     }
 
@@ -1314,20 +1435,19 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
         }
         @SuppressWarnings("unchecked")
         CFAbstractStore<V, S> other = (CFAbstractStore<V, S>) o;
-        // Fast path: if any underlying map has a different size, the stores cannot be equal.
-        // This avoids two full supersetOf walks (each of which traverses all 5 maps) for the
-        // common fixpoint case where stores grow or shrink between iterations.
-        if (localVariableValues.size() != other.localVariableValues.size()
-                || fieldValues.size() != other.fieldValues.size()
-                || arrayValues.size() != other.arrayValues.size()
-                || methodCallExpressions.size() != other.methodCallExpressions.size()
-                || classValues.size() != other.classValues.size()) {
+
+        if (!Objects.equals(thisValue, other.thisValue)) {
             return false;
         }
-        // Once all map sizes match, supersetOf(other) is equivalent to equals: every key of
-        // `other` must have an equal value in `this`, and since |this| == |other| per map, no
-        // extra keys can exist in `this`.  supersetOf also checks `thisValue`.
-        return this.supersetOf(other);
+
+        // Fast path: if any underlying map has a different size, the stores cannot be equal.
+        // CopyOnWriteMap.equals checks delegate equality first, which is extremely fast for
+        // unmodified stores.
+        return localVariableValues.equals(other.localVariableValues)
+                && fieldValues.equals(other.fieldValues)
+                && arrayValues.equals(other.arrayValues)
+                && methodCallExpressions.equals(other.methodCallExpressions)
+                && classValues.equals(other.classValues);
     }
 
     @Override
