@@ -1376,9 +1376,6 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
      * @return the upper bound of the two values
      */
     private V upperBoundOfValues(V otherVal, V thisVal, boolean shouldWiden) {
-        if (thisVal.equals(otherVal)) {
-            return thisVal;
-        }
         return shouldWiden ? thisVal.widenUpperBound(otherVal) : thisVal.leastUpperBound(otherVal);
     }
 
