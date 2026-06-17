@@ -1146,7 +1146,7 @@ final checkerPom(publication) {
 publishing {
     publications {
         checker(MavenPublication) {
-            project.shadow.component it
+            from(components.shadow)
             checkerPom it
             artifact tasks.named('checkerJar')
             artifact tasks.named('allSourcesJar')
