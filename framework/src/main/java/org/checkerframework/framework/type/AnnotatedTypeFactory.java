@@ -1825,10 +1825,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         }
         // Caching is disabled if annotation files are being parsed, because calls to this
         // method before the annotation files are fully read can return incorrect results.
-        if (shouldCache
-                && !stubTypes.isParsing()
-                && !ajavaTypes.isParsing()
-                && (currentFileAjavaTypes == null || !currentFileAjavaTypes.isParsing())) {
+        if (shouldCache && !isParsingAnnotationFile()) {
             elementCache.put(elt, frozenDeepCopy(type));
         }
         return type;
@@ -4641,6 +4638,21 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     }
 
     /**
+     * Returns true if any annotation file (stub or ajava) is currently being parsed.
+     *
+     * <p>While an annotation file is being parsed, calls into the type factory can return
+     * incomplete results, so caches that store such results must not be populated. This method
+     * centralizes the check that guards those caches.
+     *
+     * @return true if a stub or ajava file is currently being parsed
+     */
+    public boolean isParsingAnnotationFile() {
+        return stubTypes.isParsing()
+                || ajavaTypes.isParsing()
+                || (currentFileAjavaTypes != null && currentFileAjavaTypes.isParsing());
+    }
+
+    /**
      * Returns all of the declaration annotations whose name equals the passed annotation class (or
      * is an alias for it) including annotations:
      *
@@ -4857,9 +4869,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         }
 
         // Add the element and its annotations to the cache.
-        if (!stubTypes.isParsing()
-                && !ajavaTypes.isParsing()
-                && (currentFileAjavaTypes == null || !currentFileAjavaTypes.isParsing())) {
+        if (!isParsingAnnotationFile()) {
             cacheDeclAnnos.put(elt, results);
         }
         return results;
@@ -6030,7 +6040,8 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      *
      * <p>The second argument to visit must be a captured type variable.
      */
-    @SuppressWarnings("interning:not.interned") // Captured type vars can be compared with ==.
+    // Captured type vars can be compared with ==.
+    @SuppressWarnings({"interning:not.interned", "TypeEquals"})
     private final SimpleAnnotatedTypeScanner<Boolean, TypeVariable> captureScanner =
             new SimpleAnnotatedTypeScanner<>(
                     (type, other) -> type.getUnderlyingType() == other, Boolean::logicalOr, false);
