@@ -643,7 +643,7 @@ public class RLCCalledMethodsVisitor extends CalledMethodsVisitor {
      * @param mustCallVal the list of must-call strings
      * @return a formatted string
      */
-    /*package-private*/ static String formatMissingMustCallMethodPostconditions(
+    private static String formatMissingMustCallMethodPostconditions(
             Element field, Set<DestructorObligation> mustCallVal) {
         int size = mustCallVal.size();
         if (size == 0) {
