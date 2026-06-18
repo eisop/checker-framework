@@ -1,9 +1,12 @@
 package org.checkerframework.framework.flow;
 
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.BiFunction;
+import java.util.function.Function;
 
 /**
  * A Map that defers copying its internal Map until it is mutated.
@@ -133,18 +136,94 @@ public class CopyOnWriteMap<K, V> implements Map<K, V> {
     }
 
     @Override
+    public V putIfAbsent(K key, V value) {
+        // The default Map.putIfAbsent only writes when the key is absent, but it can write
+        // through the (potentially shared) delegate, so ensure we own the delegate first.
+        ensureUnshared();
+        invalidateHash();
+        return delegate.putIfAbsent(key, value);
+    }
+
+    @Override
+    public boolean remove(Object key, Object value) {
+        ensureUnshared();
+        invalidateHash();
+        return delegate.remove(key, value);
+    }
+
+    @Override
+    public boolean replace(K key, V oldValue, V newValue) {
+        ensureUnshared();
+        invalidateHash();
+        return delegate.replace(key, oldValue, newValue);
+    }
+
+    @Override
+    public V replace(K key, V value) {
+        ensureUnshared();
+        invalidateHash();
+        return delegate.replace(key, value);
+    }
+
+    @Override
+    public void replaceAll(BiFunction<? super K, ? super V, ? extends V> function) {
+        // The default Map.replaceAll mutates entries in place via Entry.setValue on the
+        // delegate's entrySet. If the delegate is shared, that would corrupt every other
+        // CopyOnWriteMap sharing it, so copy first.
+        ensureUnshared();
+        invalidateHash();
+        delegate.replaceAll(function);
+    }
+
+    @Override
+    public V computeIfAbsent(K key, Function<? super K, ? extends V> mappingFunction) {
+        ensureUnshared();
+        invalidateHash();
+        return delegate.computeIfAbsent(key, mappingFunction);
+    }
+
+    @Override
+    public V computeIfPresent(
+            K key, BiFunction<? super K, ? super V, ? extends V> remappingFunction) {
+        ensureUnshared();
+        invalidateHash();
+        return delegate.computeIfPresent(key, remappingFunction);
+    }
+
+    @Override
+    public V compute(K key, BiFunction<? super K, ? super V, ? extends V> remappingFunction) {
+        ensureUnshared();
+        invalidateHash();
+        return delegate.compute(key, remappingFunction);
+    }
+
+    @Override
+    public V merge(
+            K key, V value, BiFunction<? super V, ? super V, ? extends V> remappingFunction) {
+        ensureUnshared();
+        invalidateHash();
+        return delegate.merge(key, value, remappingFunction);
+    }
+
+    @Override
     public Set<K> keySet() {
-        return delegate.keySet();
+        // Return an unmodifiable view: mutating through the view would bypass copy-on-write
+        // and could corrupt a shared delegate.
+        return Collections.unmodifiableSet(delegate.keySet());
     }
 
     @Override
     public Collection<V> values() {
-        return delegate.values();
+        return Collections.unmodifiableCollection(delegate.values());
     }
 
     @Override
     public Set<Entry<K, V>> entrySet() {
-        return delegate.entrySet();
+        // Use unmodifiableMap(...).entrySet() rather than unmodifiableSet(entrySet()): the
+        // former also wraps each Entry so that Entry.setValue is rejected. A plain
+        // unmodifiableSet would still allow setValue, which writes through to (and could
+        // corrupt) a shared delegate.
+        return Collections.unmodifiableMap(delegate).entrySet();
     }
 
     @Override
