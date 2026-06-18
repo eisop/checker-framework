@@ -1235,9 +1235,8 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
                             ? other.localVariableValues
                             : this.localVariableValues;
             for (Map.Entry<LocalVariable, V> e : smallerLocals.entrySet()) {
-                // local variables that are only part of one store, but not the other are discarded,
-                // as
-                // one of store implicitly contains 'top' for that variable.
+                // Local variables that are only part of one store, but not the other are discarded,
+                // as the other store implicitly contains 'top' for that variable.
                 LocalVariable localVar = e.getKey();
                 V largerVal = largerLocals.get(localVar);
                 if (largerVal != null) {
@@ -1277,8 +1276,8 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
             Map<FieldAccess, V> largerFields =
                     this.fieldValues == smallerFields ? other.fieldValues : this.fieldValues;
             for (Map.Entry<FieldAccess, V> e : smallerFields.entrySet()) {
-                // information about fields that are only part of one store, but not the other are
-                // discarded, as one store implicitly contains 'top' for that field.
+                // Information about fields that are only part of one store, but not the other are
+                // discarded, as the other store implicitly contains 'top' for that field.
                 FieldAccess el = e.getKey();
                 V largerVal = largerFields.get(el);
                 if (largerVal != null) {
@@ -1303,8 +1302,8 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
             Map<ArrayAccess, V> largerArrays =
                     this.arrayValues == smallerArrays ? other.arrayValues : this.arrayValues;
             for (Map.Entry<ArrayAccess, V> e : smallerArrays.entrySet()) {
-                // information about arrays that are only part of one store, but not the other are
-                // discarded, as one store implicitly contains 'top' for that array access.
+                // Information about arrays that are only part of one store, but not the other are
+                // discarded, as the other store implicitly contains 'top' for that array access.
                 ArrayAccess el = e.getKey();
                 V largerVal = largerArrays.get(el);
                 if (largerVal != null) {
@@ -1331,8 +1330,8 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
                             ? other.methodCallExpressions
                             : this.methodCallExpressions;
             for (Map.Entry<MethodCall, V> e : smallerMethods.entrySet()) {
-                // information about methods that are only part of one store, but not the other are
-                // discarded, as one store implicitly contains 'top' for that field.
+                // Information about methods that are only part of one store, but not the other are
+                // discarded, as the other store implicitly contains 'top' for that method.
                 MethodCall el = e.getKey();
                 V largerVal = largerMethods.get(el);
                 if (largerVal != null) {
@@ -1359,9 +1358,9 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
             Map<ClassName, V> largerClasses =
                     this.classValues == smallerClasses ? other.classValues : this.classValues;
             for (Map.Entry<ClassName, V> e : smallerClasses.entrySet()) {
-                // information about classname.class values that are only part of one store, but not
-                // the other are
-                // discarded, as one store implicitly contains 'top' for that class value.
+                // Information about classname.class values that are only part of one store, but not
+                // the other are discarded, as the other store implicitly contains 'top' for that
+                // class value.
                 ClassName el = e.getKey();
                 V largerVal = largerClasses.get(el);
                 if (largerVal != null) {
