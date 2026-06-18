@@ -347,7 +347,7 @@ public abstract class AbstractQualifierPolymorphism implements QualifierPolymorp
             AnnotationMirror top = kv.getValue();
             AnnotationMirror poly = kv.getKey();
             if (polyType.hasAnnotation(poly)) {
-                AnnotationMirror typeQual = type.getEffectiveAnnotationInHierarchy(top);
+                AnnotationMirror typeQual = getInstantiationQualifier(type, top);
                 if (typeQual != null) {
                     if (atypeFactory.hasQualifierParameterInHierarchy(type, top)) {
                         polyInstantiationForQualifierParameter.put(poly, typeQual);
@@ -357,6 +357,51 @@ public abstract class AbstractQualifierPolymorphism implements QualifierPolymorp
             }
         }
         return result;
+    }
+
+    /**
+     * Returns the qualifier to use when {@code type} instantiates a polymorphic qualifier.
+     *
+     * <p>For wildcard and type variable type arguments, the readable value is determined by the
+     * extends/upper bound, so use that bound explicitly instead of the current node's primary
+     * annotation.
+     *
+     * @param type the type used to instantiate a polymorphic qualifier
+     * @param top the top qualifier of the hierarchy
+     * @return the qualifier that should instantiate the polymorphic qualifier, or null
+     */
+    private AnnotationMirror getInstantiationQualifier(
+            AnnotatedTypeMirror type, AnnotationMirror top) {
+        return getInstantiationQualifier(
+                type, top, Collections.newSetFromMap(new IdentityHashMap<>()));
+    }
+
+    /**
+     * Returns the qualifier to use when {@code type} instantiates a polymorphic qualifier.
+     *
+     * @param type the type used to instantiate a polymorphic qualifier
+     * @param top the top qualifier of the hierarchy
+     * @param visited the wildcards and type variables already visited
+     * @return the qualifier that should instantiate the polymorphic qualifier, or null
+     */
+    private AnnotationMirror getInstantiationQualifier(
+            AnnotatedTypeMirror type, AnnotationMirror top, Set<AnnotatedTypeMirror> visited) {
+        switch (type.getKind()) {
+            case WILDCARD:
+                if (!visited.add(type)) {
+                    return type.getEffectiveAnnotationInHierarchy(top);
+                }
+                return getInstantiationQualifier(
+                        ((AnnotatedWildcardType) type).getExtendsBound(), top, visited);
+            case TYPEVAR:
+                if (!visited.add(type)) {
+                    return type.getEffectiveAnnotationInHierarchy(top);
+                }
+                return getInstantiationQualifier(
+                        ((AnnotatedTypeVariable) type).getUpperBound(), top, visited);
+            default:
+                return type.getEffectiveAnnotationInHierarchy(top);
+        }
     }
 
     /**
