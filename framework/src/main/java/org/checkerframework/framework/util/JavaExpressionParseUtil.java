@@ -716,7 +716,8 @@ public class JavaExpressionParseUtil {
             //  * true: it's an instance field declared in the type (or supertype) of receiverExpr.
             //  * false: it's an instance field declared in an enclosing type of receiverExpr.
 
-            @SuppressWarnings("interning:not.interned") // Checking for exact object
+            // Checking for exact object.
+            @SuppressWarnings({"interning:not.interned", "TypeEquals"})
             boolean fieldDeclaredInReceiverType = enclosingTypeOfField == receiverExpr.getType();
             if (fieldDeclaredInReceiverType) {
                 TypeMirror fieldType = ElementUtils.getType(fieldElem);

@@ -355,9 +355,13 @@ public abstract class CFAbstractTransfer<
                 TreePath lambdaBody = atypeFactory.getPath(lambda.getLambdaTree().getBody());
                 if (doesLambdaLeak(lambda, atypeFactory)
                         || !isExpressionOrStatementPure(lambdaBody, atypeFactory)) {
-                    store.methodCallExpressions
-                            .keySet()
-                            .removeIf(MethodCall::isModifiableByOtherCode);
+                    List<MethodCall> toRemove = new ArrayList<>();
+                    for (MethodCall key : store.methodCallExpressions.keySet()) {
+                        if (key.isModifiableByOtherCode()) {
+                            toRemove.add(key);
+                        }
+                    }
+                    toRemove.forEach(store.methodCallExpressions::remove);
                 }
             } else {
                 store = analysis.createEmptyStore(sequentialSemantics);

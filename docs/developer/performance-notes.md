@@ -348,6 +348,26 @@ so small per-call wins paid back substantially.
   invariant; `private` field; storage strategy decoupled from subclasses), not for a perf number.
   One source-compat note: `visitedNodes` going `protected` → `private` is incompatible for any
   third-party `AnnotatedTypeScanner` subclass that referenced the field directly.
+- **PR #1815 — re-instantiate `IdentityHashMap`s instead of `clear()` (June 2026).**
+  Applies the same principle as PR #1794 (fresh TLAB allocation is cheaper than an explicit
+  `Arrays.fill` over the existing backing array) to four additional sites:
+  (1) **`AnnotatedTypeCopier.visit`**: removes the PR #1791 thread-local map pool entirely.
+  The pool's `finally { map.clear() }` was profiled at ~2.6% of `checknullness` self-time
+  (see *Tried and rejected*: `AnnotatedTypeCopier.visit` pooled-map clear ratchet). The pool
+  also required a re-entrancy fallback that allocated a new map anyway. Now `visit` always
+  allocates a fresh `new IdentityHashMap<>(VISITED_NODES_INITIAL_CAPACITY)` and discards it
+  on return — no pool, no clear, no re-entrancy guard.
+  (2) **`AbstractQualifierPolymorphism.AnnotationMirrorMap.reset()`**: `visitedTypes.clear()` →
+  re-instantiate `Collections.newSetFromMap(new IdentityHashMap<>())`.
+  (3) **`EquivalentAtmComboScanner.Visited.clear()`**: `visits.clear()` → re-instantiate
+  `new IdentityHashMap<>()`.
+  (4) **`AtmLubVisitor.visit()`**: `visited.clear()` → re-instantiate.
+  **Quick A/B** (cold-JVM wall clock, 3 reps/side, `gen-sized-program.py --shape generic`):
+  master 300-method median ~5.9 s vs. branch ~6.2 s; 600-method ~8.3 s vs. ~8.2 s —
+  **within cold-JVM noise (±0.7 s), no measurable wall-clock difference**. The win, if any,
+  is GC pressure / allocation throughput rather than wall clock on heap-generous single-file
+  runs; the `checknullness` JFR self-time attribution for `IdentityHashMap.clear` (2.6%)
+  suggests the benefit would be clearest on a multi-CU warm-daemon workload.
 
 ### Element and name caching
 
@@ -533,6 +553,23 @@ so small per-call wins paid back substantially.
   `Objects.hash(kind, left.hashCode() + right.hashCode())` so that `a OP b`
   and `b OP a` hash identically. This is a correctness fix for the `equals`/`hashCode`
   contract that also improves cache hit rates for commutative expressions.
+- **PR #1812 — eliminate `Objects.hash` boxing and fix zero-hash caching.** Two
+  related fixes applied across the remaining `JavaExpression`
+  subclasses (`ArrayAccess`, `BinaryOperation`, `FormalParameter`, `LocalVariable`,
+  `MethodCall`, `UnaryOperation`, `ClassName`) and several framework/javacutil classes
+  (`CFAbstractValue`, `DiagMessage`, `AnnotationMirrorSet`):
+  (1) **`Objects.hash` removal.** Each `hashCode()` that used `Objects.hash(...)` was
+  rewritten to the equivalent `h = 31 * h + field.hashCode()` polynomial, eliminating
+  the varargs `Object[]` allocation and autoboxing per call (see the "Gotcha" entry
+  in Generic map/lookup patterns for the general rule).
+  (2) **Zero-hash sentinel fix.** The lazy `hashCodeCache == 0` guard used by
+  PR #1643 treats 0 as "not yet computed". A hash that genuinely computes to 0 would
+  be recomputed on every call, defeating the cache. Fixed throughout with
+  `hashCodeCache = h == 0 ? 1 : h`, remapping the all-zero case to 1.
+  (3) **`QualifierVar` gains a cached hash code.** `QualifierVar.hashCode()` was
+  previously uncached despite calling `Objects.hash(id, invocation, polyQualifier)`
+  (where `invocation.hashCode()` can itself be expensive). Added a `cachedHashCode`
+  field with the same lazy + zero-sentinel pattern.
 
 ### Dataflow stores, analysis, and transfer
 
@@ -560,6 +597,62 @@ so small per-call wins paid back substantially.
   `ControlFlowGraph`, `ConstantPropagationStore`, `JavaExpression`,
   `MethodCall`, `PurityUtils`, and the live-variable + reaching-def
   stores. Both a perf and clean-up pass.
+- **PR #1817 — `CopyOnWriteMap` for `CFAbstractStore` maps + store-merge optimizations (June 2026).**
+  Four independent changes to reduce store-copy overhead during forward analysis:
+
+  (1) **`CopyOnWriteMap<K,V>` (new class).** A `Map<K,V>` wrapper that defers copying its delegate
+  `HashMap` until the first mutation after a `copy()` call. Store copy operations — which occur at
+  every block join — previously created five `new HashMap<>(other.map)` allocations; with `CopyOnWriteMap`
+  they share the delegate reference and copy only on the first `put`/`remove`/`clear`. The `equals`
+  method adds a delegate-identity fast path (`this.delegate == other.delegate`), so unmodified copies
+  compare equal in O(1). `hashCode` is cached with the zero-sentinel pattern and invalidated on mutation.
+  **Caution:** `keySet()`, `entrySet()`, and `values()` return the raw delegate's views; mutations through
+  those views bypass `ensureUnshared()`. All in-package callers use `put`/`remove`/`clear`, but any future
+  iterator-based removal must go through the map's own `remove`, not the view's `Iterator.remove()`.
+
+  (2) **`leastUpperBound`/`widenedUpperBound` early-exit when equal.** `CFAbstractStore`,
+  `InitializationStore`, `NullnessNoInitStore`, and `LockStore` each gain a `this.equals(other)` guard
+  at the top of their LUB methods, returning `this.copy()` immediately when the stores are identical.
+  With `CopyOnWriteMap`, this check hits the delegate-identity path (O(1)) for stores that have not
+  diverged since their last shared copy — the common case in a fixpoint that has nearly converged.
+
+  (3) **Smaller-map iteration in `upperBound`.** When the two stores differ, the merge iterates the
+  smaller map and looks up in the larger, reducing the number of `get` calls by half when one store
+  has a subset of the other's keys (common when one branch adds more refinements). A per-value
+  `thisVal.equals(otherVal)` short-circuit in `upperBoundOfValues` avoids calling `leastUpperBound`
+  or `widenUpperBound` on already-equal values.
+
+  (4) **`ForwardAnalysisImpl` copy-once per block.** Previously each uncached node in a regular block
+  called `callTransferFunction(n, store.copy())`, allocating a new `TransferInput` per node. The copy's
+  sole purpose was to protect `blockTransferInput` (the block's cached entry state, stored in `inputs`)
+  from in-place mutation by the transfer function. Since `store` is replaced by
+  `new TransferInput<>(n, this, transferResult)` after the first node regardless, only the initial
+  copy (before the first uncached node) is necessary — subsequent nodes receive a fresh `TransferInput`
+  wrapping the previous node's result, not `blockTransferInput`. One copy per block replaces one copy
+  per node.
+
+  Also fixes `Objects.hash` / varargs boxing in `TransferInput`, `Constant`, `ArrayCreation`,
+  `FieldAccess`, `ValueLiteral`, `AnnotatedTypeParameterBounds`, `Contract`, `Default`,
+  `DependentTypesError`, and `Pair` (consistent with PR #1812's sweep); adds `equals`/`hashCode`
+  to `NullnessNoInitValue`; and reduces jtreg timeout budgets for `Issue1438{,b,c}.java` (90/120/50 s
+  → 20 s each), which are the regression tests for the quadratic-store fixpoint issue these changes
+  fix.
+
+  **Quick A/B (3-rep cold-JVM, `gen-sized-program.py --shape generic`, `assembleForJavac` rebuilt per
+  side):**
+
+  | methods/file | master alloc | branch alloc | Δ alloc | master wall | branch wall | Δ wall |
+  | --- | --- | --- | --- | --- | --- | --- |
+  | 300 | 850.70 MB | 835.60 MB | −1.8% | 6.13 s | 6.31 s | +0.18 s |
+  | 600 | 1432.60 MB | 1399.70 MB | −2.3% | 8.32 s | 7.93 s | −0.39 s |
+
+  Allocation is a consistent −2% across both sizes; wall clock differences are within the ±0.7 s
+  cold-JVM noise floor. JFR self-time: `CFAbstractTransfer.addFinalLocalValues` (1.40% of samples on
+  master) drops to absent on branch; total `ExecutionSamples` 571 → 493 on a single Big600 run (within
+  single-run noise). `CopyOnWriteMap` does not appear as a CPU leaf — all hot paths go directly to the
+  delegate `HashMap`. For the actual fixpoint-convergence speedup, measure on a real project with
+  `./gradlew --no-daemon checknullness` (warm-daemon reps); the generic-shape tiny-file corpus
+  stresses per-file overhead, not the fixpoint loop.
 
 ### Generic map/lookup patterns
 
@@ -645,6 +738,10 @@ so small per-call wins paid back substantially.
   invocation. The two-arg `Objects.equals` is fine (no array/boxing); only the
   varargs `hash`/`Arrays.hashCode` family allocates. Precompute the result into a
   `final int hash` field when the key is immutable, as both new cache keys do.
+  A follow-up sweep (PR #1812) applied the same rewrite to the remaining
+  `JavaExpression` subclasses and framework classes still using `Objects.hash` in
+  their cached `hashCode()` implementations, and also fixed the zero-hash sentinel
+  bug (see Dataflow expressions above).
 
 ### CFG-builder body-path lookup
 
@@ -1064,6 +1161,58 @@ nested-`id` chain. depth-80 in one method did not finish in 25 minutes. PR #1805
   `ProperType.getErased()` caches a proper type's erasure (immutable) instead of recomputing it on
   every subtyping check.
 
+### Java 8 type-argument inference: constraint set, dependency traversal, and hashCode caching (PR #1813, June 2026)
+
+Four independent optimizations to the `typeinference8` inference engine, all confined to the
+`typeinference8` package. Measured on single-run cold-JVM wall clock (`gen-sized-program.py
+--shape deep-nesting`, N methods each with 20 nested `id()` calls):
+
+| N (methods) | master | PR #1813 | reduction |
+| --- | --- | --- | --- |
+| 30 | 25.0 s | 20.0 s | −20% |
+| 80 | 55.8 s | 47.9 s | −14% |
+| 100 | 72.0 s | 62.0 s | −14% |
+
+(Single runs; these are cold-JVM wall-clock, not deterministic allocation A/Bs. The win is real
+but the exact percentages carry ~±5% single-run noise.)
+
+- **`ConstraintSet`: `ArrayDeque` + `HashSet` for O(1) deduplication.** The backing `ArrayList`
+  made `add`, `push`, and `contains` O(n) (linear scan). Replaced with an `ArrayDeque` (preserves
+  LIFO/FIFO order and `addFirst`/`addLast`/`descendingIterator`) plus a parallel `HashSet` for
+  O(1) membership tests. All mutation sites — `add`, `push`, `pushAll`, `pop`, `remove` — now
+  keep both structures in sync. `addAll` was also fixed: the old `list.addAll(constraintSet)` skipped
+  the duplicate check (inconsistent with `add` and `push`); the new version deduplicates. The
+  `remove(self)` case reallocates fresh structures instead of `clear()` to match the invariant that
+  `fastLookup` and `list` are never independently partial.
+
+- **`Dependencies.calculateTransitiveDependencies`: BFS replaces fixpoint.** The old implementation
+  was an outer `while (changed)` loop that, on each pass, iterated all entries and `addAll`'d the
+  transitive neighbours — effectively O(V²) or worse for dense dependency graphs. Replaced with a
+  per-source BFS (`ArrayDeque` queue, `LinkedHashSet` as visited/reachable set): each variable is
+  enqueued at most once, so the total work is O(V + E). On deep-nesting code where many inference
+  variables have mutual dependencies this was a meaningful hotspot.
+
+- **`hashCode` caching in constraint and type objects.** `TypeConstraint`, `Typing`, `Expression`,
+  `InferenceType`, `UseOfVariable`, and `QualifierVar` each gain a `cachedHashCode` field (lazy,
+  zero-sentinel pattern from PR #1812). These objects are effectively immutable post-construction
+  and are placed in `HashSet`s / used as map keys during inference, so their `hashCode` was being
+  recomputed on every lookup. `TypeConstraint.hashCode` delegates to `T.hashCode()` (an ATM hash),
+  and `UseOfVariable.hashCode` chains five field hashes — both are non-trivial calls.
+
+- **`VariableBounds.addQualifierBound` pre-filter.** Before calling
+  `addConstraintsFromComplementaryQualifierBounds` and `addConstraintsFromComplementaryBounds`,
+  the new code filters out qualifiers already present in `qualifierBounds.get(kind)`. If none are
+  new, it returns immediately without entering the (potentially recursive) constraint-generation
+  paths. This avoids redundant constraint proliferation when the same qualifier bound is added more
+  than once (which happens during fixpoint iteration).
+
+- **Javadoc guards on `Qualifier`, `QualifierTyping`, and `AbstractQualifier`.** Documents why
+  these classes must not override `equals`/`hashCode`: the constraint solver relies on identity
+  equality for `Qualifier` wrappers (value-based dedup would merge distinct constraints that happen
+  to wrap the same annotation) and for `QualifierTyping` instances (multiple identically-shaped
+  qualifier constraints must coexist). These are correctness comments, not perf changes; recorded
+  here because they interact directly with the `ConstraintSet` `HashSet` deduplication above.
+
 ### Explorations that did not ship (June 2026, around PR #1805)
 
 These were implemented and measured but kept out of #1805; recorded so they are not re-derived.
@@ -1117,7 +1266,9 @@ the prior finding. A fresh hypothesis is not new evidence.
   by *count* (called 1.7M+ times) but the actual time saved by a smaller table is negligible (same
   lesson as the `AnnotatedTypeScanner.markVisited` array sizing). Don't pursue without a workload
   where a genuinely large table is filled enough times that the byte-volume, not the call count,
-  dominates.
+  dominates. **Follow-up (PR #1815):** the pool was subsequently removed entirely (always fresh
+  allocation) — also measured neutral on cold-JVM wall clock, but removes the re-entrancy fallback
+  complexity. See Applied optimizations → `AnnotatedTypeScanner` and visitor state.
 - **Per-CU tree-defaults memoization in `QualifierDefaults` (June 2026).** A full prototype of
   short-list item #4 — a per-compilation-unit cache from `(scope element, pre-defaulting type
   structure)` to the defaulted type, keyed by a sound `AppliedDefaultsKey` (identity scope +
