@@ -62,7 +62,7 @@ public class IntersectionTypes {
     }
 
     void annotatedIntersectionCast(@B Object obj) {
-        // :: warning: (cast.unsafe)
+        // :: error: (cast.incomparable)
         Accessor fooAndAccessor = (@A Foo & Accessor) obj;
     }
 

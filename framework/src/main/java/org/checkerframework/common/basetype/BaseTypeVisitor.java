@@ -3141,10 +3141,10 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                         AnnotatedTypes.findEffectiveLowerBoundAnnotations(qualHierarchy, exprType);
                 boolean result =
                         qualHierarchy.isSubtypeShallow(
-                                        lowerBoundAnnotationsExpr,
-                                        newExprTM,
                                         lowerBoundAnnotationsCast,
-                                        newCastTM)
+                                        newCastTM,
+                                        lowerBoundAnnotationsExpr,
+                                        newExprTM)
                                 && typeHierarchy.isSubtypeShallowEffective(exprType, castType);
                 return result ? UpcastKind.SAFE : UpcastKind.WARNING;
             }
@@ -3178,8 +3178,10 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                 AnnotationMirrorSet exprUpper =
                         AnnotatedTypes.findEffectiveAnnotations(qualifierHierarchy, exprType);
 
-                // return SAFE only it satisfies the below condition
-                if (qualifierHierarchy.isSubtypeShallow(exprLower, exprTV, castLower, castTV)
+                if (!AnnotationUtils.areSame(castUpper, exprUpper)) {
+                    return UpcastKind.WARNING;
+                }
+                if (qualifierHierarchy.isSubtypeShallow(castLower, castTV, exprLower, exprTV)
                         && qualifierHierarchy.isSubtypeShallow(
                                 exprUpper, exprTV, castUpper, castTV)) {
                     return UpcastKind.SAFE;
