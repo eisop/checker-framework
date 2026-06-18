@@ -143,8 +143,7 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
         if (type.getKind() != TypeKind.DECLARED && !type.getKind().isPrimitive()) {
             return true;
         }
-        return !TreeUtils.isLocalVariable(tree)
-                && (!TreeUtils.isExpressionTree(tree) || TreeUtils.isTypeTree(tree));
+        return !TreeUtils.isExpressionTree(tree) || TreeUtils.isTypeTree(tree);
     }
 
     /**
