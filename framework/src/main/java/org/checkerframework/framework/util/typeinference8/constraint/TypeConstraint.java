@@ -279,8 +279,15 @@ public abstract class TypeConstraint implements Constraint {
         return T.equals(that.T);
     }
 
+    /** Cached hash code to prevent repeated recomputation of complex deep-hashes. */
+    private int cachedHashCode = 0;
+
     @Override
     public int hashCode() {
-        return T.hashCode();
+        if (cachedHashCode == 0) {
+            int result = T.hashCode();
+            cachedHashCode = result == 0 ? 1 : result;
+        }
+        return cachedHashCode;
     }
 }

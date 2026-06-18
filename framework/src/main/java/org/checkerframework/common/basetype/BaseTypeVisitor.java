@@ -109,6 +109,7 @@ import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.ElementUtils;
+import org.checkerframework.javacutil.InternalUtils;
 import org.checkerframework.javacutil.SwitchExpressionScanner;
 import org.checkerframework.javacutil.SwitchExpressionScanner.FunctionalSwitchExpressionScanner;
 import org.checkerframework.javacutil.SystemUtil;
@@ -1830,14 +1831,31 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
     }
 
     /**
-     * Validate if the annotations on the VariableTree are at the right locations, which is
-     * specified by the meta-annotation @TargetLocations. The difference of this method between
-     * {@link BaseTypeVisitor#validateTargetLocation(Tree, AnnotatedTypeMirror, TypeUseLocation)} is
-     * that this one is only used in {@link BaseTypeVisitor#visitVariable(VariableTree, Void)}
+     * Validates whether the qualifiers on the tree are at the correct type-use locations, as
+     * specified by the meta-annotation {@link org.checkerframework.framework.qual.TargetLocations}.
      *
-     * @param tree annotations on this VariableTree will be validated
+     * <p>More specifically, this method only checks qualifiers on a VariableTree and thus checks
+     * for the following type-use locations: FIELD, LOCAL_VARIABLE, RESOURCE_VARIABLE,
+     * EXCEPTION_PARAMETER, PARAMETER, RECEIVER and CONSTRUCTOR_RESULT.
+     *
+     * <p>The other two validate methods achieve the same goal but perform checks on different trees
+     * and different type-use locations. This separation exists because variables can automatically
+     * infer their type-use location from their {@link javax.lang.model.element.ElementKind}. By
+     * contrast, other constructs (like method returns or type bounds) have context-dependent
+     * locations that must be explicitly provided by the caller, and wildcards do not have an
+     * element. See {@link BaseTypeVisitor#validateTargetLocation(Tree, AnnotatedTypeMirror,
+     * TypeUseLocation)} and {@link
+     * BaseTypeValidator#validateWildCardTargetLocation(AnnotatedTypeMirror.AnnotatedWildcardType,
+     * Tree)}.
+     *
+     * @param tree the tree whose qualifiers are to be validated
      * @param type the type of the tree
+     * @see BaseTypeVisitor#validateTargetLocation(Tree, AnnotatedTypeMirror, TypeUseLocation)
+     * @see
+     *     BaseTypeValidator#validateWildCardTargetLocation(AnnotatedTypeMirror.AnnotatedWildcardType,
+     *     Tree)
      */
+    // TODO: rename to validateVariableTargetLocation
     protected void validateVariablesTargetLocation(Tree tree, AnnotatedTypeMirror type) {
         if (ignoreTargetLocations || noQualHasTargetLocations) {
             return;
@@ -1863,7 +1881,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                             issueError = false;
                         break;
                     case PARAMETER:
-                        if (((VariableTree) tree).getName().contentEquals("this")) {
+                        if (InternalUtils.isThisName(((VariableTree) tree).getName())) {
                             if (locations.contains(TypeUseLocation.RECEIVER)) {
                                 issueError = false;
                             }
@@ -1904,13 +1922,31 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
     }
 
     /**
-     * Validate if the annotations on the tree are at the right locations, which are specified by
-     * the meta-annotation @TargetLocations.
+     * Validates whether the qualifiers on the tree are at the correct type-use locations, as
+     * specified by the meta-annotation {@link org.checkerframework.framework.qual.TargetLocations}.
      *
-     * @param tree annotations on this VariableTree will be validated
+     * <p>More specifically, this method only checks qualifiers on a TypeParameter or Method tree
+     * and thus checks for the following type-use locations: LOWER_BOUND, UPPER_BOUND,
+     * CONSTRUCTOR_RESULT and RETURN.
+     *
+     * <p>The other two validate methods achieve the same goal but perform checks on different trees
+     * and different type-use locations. This separation exists because constructs handled by this
+     * method have context-dependent locations that must be explicitly provided by the caller. By
+     * contrast, variables can automatically infer their type-use location from their ElementKind,
+     * and wildcards do not have an element. See {@link
+     * BaseTypeVisitor#validateVariablesTargetLocation(Tree, AnnotatedTypeMirror)} and {@link
+     * BaseTypeValidator#validateWildCardTargetLocation(AnnotatedTypeMirror.AnnotatedWildcardType,
+     * Tree)}.
+     *
+     * @param tree the tree whose qualifiers are to be validated
      * @param type the type of the tree
-     * @param required if all of the TypeUseLocations in {@code required} are not present in the
-     *     specification of the annotation (@TargetLocations), issue an error.
+     * @param required the required TypeUseLocation. If it is not present in the specification of
+     *     the meta-annotation ({@link org.checkerframework.framework.qual.TargetLocations}), issue
+     *     an error.
+     * @see BaseTypeVisitor#validateVariablesTargetLocation(Tree, AnnotatedTypeMirror)
+     * @see
+     *     BaseTypeValidator#validateWildCardTargetLocation(AnnotatedTypeMirror.AnnotatedWildcardType,
+     *     Tree)
      */
     protected void validateTargetLocation(
             Tree tree, AnnotatedTypeMirror type, TypeUseLocation required) {
@@ -2264,6 +2300,17 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         if (args != null && !args.inferenceFailed()) {
             return true;
         }
+        if (args.inferenceBudgetExceeded()) {
+            // Not a crash: inference was deliberately abandoned because the invocation is too
+            // complex. Point the user at the fix -- supplying explicit type arguments -- with a
+            // concrete example using the types javac inferred for this call.
+            checker.reportError(
+                    tree,
+                    "type.argument.inference.budget",
+                    ElementUtils.getSimpleDescription(methodType.getElement()),
+                    explicitTypeArgumentExample(tree, methodType));
+            return false;
+        }
         if (args.inferenceCrashed()) {
             checker.reportError(
                     tree,
@@ -2278,6 +2325,42 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                 ElementUtils.getSimpleDescription(methodType.getElement()),
                 args == null ? "" : args.getErrorMsg());
         return false;
+    }
+
+    /**
+     * Returns a concrete example of an explicit type-argument invocation for a call whose annotated
+     * type arguments could not be inferred. For each type variable it suggests the Java type that
+     * javac inferred for this specific call (via {@link TreeUtils#inferredTypeArguments}), falling
+     * back to the type variable's upper bound where the value cannot be recovered. For example, for
+     * {@code <T> T id(T)} declared in {@code Foo}, the call {@code id("s")} yields {@code
+     * Foo.<String>id(...)}; an instance method uses {@code receiver.}; a generic constructor of
+     * {@code Foo} yields {@code new <...>Foo(...)}. Used by {@code type.argument.inference.budget}.
+     *
+     * @param tree the method-invocation, constructor, or member-reference tree
+     * @param methodType the method or constructor (before type-argument substitution) whose type
+     *     arguments could not be inferred
+     * @return a concrete explicit-type-argument example for the invocation
+     */
+    private String explicitTypeArgumentExample(
+            ExpressionTree tree, AnnotatedExecutableType methodType) {
+        Map<Element, TypeMirror> javacInferred = TreeUtils.inferredTypeArguments(tree);
+        StringJoiner typeArgs = new StringJoiner(", ", "<", ">");
+        for (AnnotatedTypeVariable typeVar : methodType.getTypeVariables()) {
+            TypeMirror value = javacInferred.get(typeVar.getUnderlyingType().asElement());
+            if (value == null || value.getKind() == TypeKind.NULL) {
+                value = typeVar.getUpperBound().getUnderlyingType();
+            }
+            typeArgs.add(TypesUtils.simpleTypeName(value));
+        }
+        ExecutableElement elt = methodType.getElement();
+        if (elt.getKind() == ElementKind.CONSTRUCTOR) {
+            return "new " + typeArgs + elt.getEnclosingElement().getSimpleName() + "(...)";
+        }
+        String qualifier =
+                elt.getModifiers().contains(Modifier.STATIC)
+                        ? elt.getEnclosingElement().getSimpleName().toString()
+                        : "receiver";
+        return qualifier + "." + typeArgs + elt.getSimpleName() + "(...)";
     }
 
     /**
@@ -2681,8 +2764,8 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         TypeElement annoType = (TypeElement) TreeInfo.symbol((JCTree) tree.getAnnotationType());
 
         Name annoName = annoType.getQualifiedName();
-        if (annoName.contentEquals(DefaultQualifier.class.getName())
-                || annoName.contentEquals(SuppressWarnings.class.getName())) {
+        if (InternalUtils.sameName(annoName, DefaultQualifier.class.getName())
+                || InternalUtils.sameName(annoName, SuppressWarnings.class.getName())) {
             // Skip these two annotations, as we don't care about the arguments to them.
             return null;
         }
@@ -3769,8 +3852,8 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             @CompilerMessageKey String errorKey,
             Object... extraArgs) {
         FoundRequired pair = FoundRequired.of(valueType, varType);
-        String valueTypeString = pair.found;
-        String varTypeString = pair.required;
+        Object valueTypeString = pair.found;
+        Object varTypeString = pair.required;
         checker.reportError(
                 valueTree,
                 errorKey,
@@ -3886,36 +3969,116 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
     }
 
     /**
-     * Class that creates string representations of {@link AnnotatedTypeMirror}s which are only
-     * verbose if required to differentiate the two types.
+     * Class that lazily creates string representations of {@link AnnotatedTypeMirror}s which are
+     * only verbose if required to differentiate the two types.
+     *
+     * <p>The strings are evaluated lazily when {@code toString()} is called on the {@link #found}
+     * or {@link #required} fields. This prevents expensive formatting operations when an error is
+     * suppressed and never emitted.
      */
     protected static class FoundRequired {
 
-        /** The found type's string representation. */
-        public final String found;
+        /** Whether the {@link #verbose} flag has been computed. */
+        private boolean verboseComputed = false;
 
-        /** The required type's string representation. */
-        public final String required;
+        /** Whether the string representation should be verbose. */
+        private boolean verbose = false;
 
-        private FoundRequired(AnnotatedTypeMirror found, AnnotatedTypeMirror required) {
-            if (shouldPrintVerbose(found, required)) {
-                this.found = found.toString(true);
-                this.required = required.toString(true);
-            } else {
-                this.found = found.toString();
-                this.required = required.toString();
+        /**
+         * Lazily computes and memoizes whether the string representation should be verbose.
+         *
+         * @param foundType the found type
+         * @param requiredType the required type
+         * @return true if verbose toString should be used
+         */
+        private boolean isVerbose(AnnotatedTypeMirror foundType, AnnotatedTypeMirror requiredType) {
+            if (!verboseComputed) {
+                verbose = shouldPrintVerbose(foundType, requiredType);
+                verboseComputed = true;
             }
+            return verbose;
         }
 
-        /** Create a FoundRequired for a type and bounds. */
-        private FoundRequired(AnnotatedTypeMirror found, AnnotatedTypeParameterBounds required) {
-            if (shouldPrintVerbose(found, required)) {
-                this.found = found.toString(true);
-                this.required = required.toString(true);
-            } else {
-                this.found = found.toString();
-                this.required = required.toString();
+        /**
+         * Lazily computes and memoizes whether the string representation should be verbose.
+         *
+         * @param foundType the found type
+         * @param requiredBounds the required bounds
+         * @return true if verbose toString should be used
+         */
+        private boolean isVerbose(
+                AnnotatedTypeMirror foundType, AnnotatedTypeParameterBounds requiredBounds) {
+            if (!verboseComputed) {
+                verbose = shouldPrintVerbose(foundType, requiredBounds);
+                verboseComputed = true;
             }
+            return verbose;
+        }
+
+        /**
+         * An object whose {@code toString()} method returns the found type's string representation.
+         * Evaluated lazily to improve performance.
+         */
+        public final Object found;
+
+        /**
+         * An object whose {@code toString()} method returns the required type's string
+         * representation. Evaluated lazily to improve performance.
+         */
+        public final Object required;
+
+        /**
+         * Create a FoundRequired for two types.
+         *
+         * @param found the found type
+         * @param required the required type
+         */
+        private FoundRequired(AnnotatedTypeMirror found, AnnotatedTypeMirror required) {
+            this.found =
+                    new Object() {
+                        @Override
+                        public String toString() {
+                            return isVerbose(found, required)
+                                    ? found.toString(true)
+                                    : found.toString();
+                        }
+                    };
+            this.required =
+                    new Object() {
+                        @Override
+                        public String toString() {
+                            return isVerbose(found, required)
+                                    ? required.toString(true)
+                                    : required.toString();
+                        }
+                    };
+        }
+
+        /**
+         * Create a FoundRequired for a type and bounds.
+         *
+         * @param found the found type
+         * @param required the required bounds
+         */
+        private FoundRequired(AnnotatedTypeMirror found, AnnotatedTypeParameterBounds required) {
+            this.found =
+                    new Object() {
+                        @Override
+                        public String toString() {
+                            return isVerbose(found, required)
+                                    ? found.toString(true)
+                                    : found.toString();
+                        }
+                    };
+            this.required =
+                    new Object() {
+                        @Override
+                        public String toString() {
+                            return isVerbose(found, required)
+                                    ? required.toString(true)
+                                    : required.toString();
+                        }
+                    };
         }
 
         /**
@@ -4111,7 +4274,12 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                         paramName,
                         typeOrMethodName,
                         fr.found,
-                        paramName + " " + fr.required);
+                        new Object() {
+                            @Override
+                            public String toString() {
+                                return paramName + " " + fr.required;
+                            }
+                        });
             }
         }
     }

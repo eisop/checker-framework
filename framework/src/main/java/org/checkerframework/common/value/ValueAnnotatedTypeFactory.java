@@ -401,16 +401,19 @@ public class ValueAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
                     @Override
                     protected boolean arePrimaryAnnosEqual(
                             AnnotatedTypeMirror type1, AnnotatedTypeMirror type2) {
-                        type1.replaceAnnotation(
+                        // Normalize equivalent qualifiers (e.g. @IntRange(1,1) and @IntVal(1)) to a
+                        // canonical form before comparing, but do NOT mutate type1/type2: compute
+                        // the canonical annotations and compare them directly. The types may be
+                        // shared frozen cache values, so a mutating comparison would corrupt them.
+                        AnnotationMirror anno1 =
                                 convertToUnknown(
                                         convertSpecialIntRangeToStandardIntRange(
-                                                type1.getAnnotationInHierarchy(UNKNOWNVAL))));
-                        type2.replaceAnnotation(
+                                                type1.getAnnotationInHierarchy(UNKNOWNVAL)));
+                        AnnotationMirror anno2 =
                                 convertToUnknown(
                                         convertSpecialIntRangeToStandardIntRange(
-                                                type2.getAnnotationInHierarchy(UNKNOWNVAL))));
-
-                        return super.arePrimaryAnnosEqual(type1, type2);
+                                                type2.getAnnotationInHierarchy(UNKNOWNVAL)));
+                        return arePrimaryAnnosEqual(anno1, anno2, type1, type2);
                     }
                 };
             }
@@ -1820,5 +1823,13 @@ public class ValueAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
             return true;
         }
         return super.isImmutable(type);
+    }
+
+    @Override
+    protected boolean shouldCacheMethodAsMemberOf() {
+        // The Value Checker computes a method's result type from the actual argument values (e.g.
+        // Math.min, String.length on a constant), so the method-as-member-of type is call-dependent
+        // and must not be cached on (method, receiver).
+        return false;
     }
 }

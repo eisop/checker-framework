@@ -56,6 +56,7 @@ import org.checkerframework.framework.source.DiagMessage;
 import org.checkerframework.framework.util.dependenttypes.DependentTypesError;
 import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.ElementUtils;
+import org.checkerframework.javacutil.InternalUtils;
 import org.checkerframework.javacutil.Resolver;
 import org.checkerframework.javacutil.TypesUtils;
 import org.checkerframework.javacutil.trees.TreeBuilder;
@@ -490,7 +491,7 @@ public class JavaExpressionParseUtil {
             if (parameters != null) {
                 for (int i = 0; i < parameters.size(); i++) {
                     Element varElt = parameters.get(i).getElement();
-                    if (varElt.getSimpleName().contentEquals(s)) {
+                    if (InternalUtils.sameName(varElt.getSimpleName(), s)) {
                         throw new ParseRuntimeException(
                                 constructJavaExpressionParseError(
                                         s,
@@ -559,7 +560,7 @@ public class JavaExpressionParseUtil {
                 if (!(memberElement.getKind().isClass() || memberElement.getKind().isInterface())) {
                     continue;
                 }
-                if (memberElement.getSimpleName().contentEquals(identifier)) {
+                if (InternalUtils.sameName(memberElement.getSimpleName(), identifier)) {
                     return new ClassName(ElementUtils.getType(memberElement));
                 }
             }
@@ -590,7 +591,8 @@ public class JavaExpressionParseUtil {
             TypeMirror searchType = enclosingType;
             while (searchType.getKind() == TypeKind.DECLARED) {
                 DeclaredType searchDeclaredType = (DeclaredType) searchType;
-                if (searchDeclaredType.asElement().getSimpleName().contentEquals(identifier)) {
+                if (InternalUtils.sameName(
+                        searchDeclaredType.asElement().getSimpleName(), identifier)) {
                     return new ClassName(searchType);
                 }
                 ClassName className = getIdentifierAsInnerClassName(searchType, identifier);
@@ -714,7 +716,8 @@ public class JavaExpressionParseUtil {
             //  * true: it's an instance field declared in the type (or supertype) of receiverExpr.
             //  * false: it's an instance field declared in an enclosing type of receiverExpr.
 
-            @SuppressWarnings("interning:not.interned") // Checking for exact object
+            // Checking for exact object.
+            @SuppressWarnings({"interning:not.interned", "TypeEquals"})
             boolean fieldDeclaredInReceiverType = enclosingTypeOfField == receiverExpr.getType();
             if (fieldDeclaredInReceiverType) {
                 TypeMirror fieldType = ElementUtils.getType(fieldElem);

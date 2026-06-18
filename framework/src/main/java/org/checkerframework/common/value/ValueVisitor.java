@@ -113,6 +113,14 @@ public class ValueVisitor extends BaseTypeVisitor<ValueAnnotatedTypeFactory> {
             AnnotatedTypeMirror.AnnotatedExecutableType overridden,
             AnnotatedTypeMirror.AnnotatedDeclaredType overriddenType) {
 
+        // replaceSpecialIntRangeAnnotations mutates the executable types in place; they may be
+        // shared frozen cache values (from getAnnotatedType on the method trees), so copy first.
+        if (overrider.isFrozen()) {
+            overrider = overrider.deepCopy();
+        }
+        if (overridden.isFrozen()) {
+            overridden = overridden.deepCopy();
+        }
         replaceSpecialIntRangeAnnotations(overrider);
         replaceSpecialIntRangeAnnotations(overridden);
 
