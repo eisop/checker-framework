@@ -597,6 +597,62 @@ so small per-call wins paid back substantially.
   `ControlFlowGraph`, `ConstantPropagationStore`, `JavaExpression`,
   `MethodCall`, `PurityUtils`, and the live-variable + reaching-def
   stores. Both a perf and clean-up pass.
+- **PR #1817 — `CopyOnWriteMap` for `CFAbstractStore` maps + store-merge optimizations (June 2026).**
+  Four independent changes to reduce store-copy overhead during forward analysis:
+
+  (1) **`CopyOnWriteMap<K,V>` (new class).** A `Map<K,V>` wrapper that defers copying its delegate
+  `HashMap` until the first mutation after a `copy()` call. Store copy operations — which occur at
+  every block join — previously created five `new HashMap<>(other.map)` allocations; with `CopyOnWriteMap`
+  they share the delegate reference and copy only on the first `put`/`remove`/`clear`. The `equals`
+  method adds a delegate-identity fast path (`this.delegate == other.delegate`), so unmodified copies
+  compare equal in O(1). `hashCode` is cached with the zero-sentinel pattern and invalidated on mutation.
+  **Caution:** `keySet()`, `entrySet()`, and `values()` return the raw delegate's views; mutations through
+  those views bypass `ensureUnshared()`. All in-package callers use `put`/`remove`/`clear`, but any future
+  iterator-based removal must go through the map's own `remove`, not the view's `Iterator.remove()`.
+
+  (2) **`leastUpperBound`/`widenedUpperBound` early-exit when equal.** `CFAbstractStore`,
+  `InitializationStore`, `NullnessNoInitStore`, and `LockStore` each gain a `this.equals(other)` guard
+  at the top of their LUB methods, returning `this.copy()` immediately when the stores are identical.
+  With `CopyOnWriteMap`, this check hits the delegate-identity path (O(1)) for stores that have not
+  diverged since their last shared copy — the common case in a fixpoint that has nearly converged.
+
+  (3) **Smaller-map iteration in `upperBound`.** When the two stores differ, the merge iterates the
+  smaller map and looks up in the larger, reducing the number of `get` calls by half when one store
+  has a subset of the other's keys (common when one branch adds more refinements). A per-value
+  `thisVal.equals(otherVal)` short-circuit in `upperBoundOfValues` avoids calling `leastUpperBound`
+  or `widenUpperBound` on already-equal values.
+
+  (4) **`ForwardAnalysisImpl` copy-once per block.** Previously each uncached node in a regular block
+  called `callTransferFunction(n, store.copy())`, allocating a new `TransferInput` per node. The copy's
+  sole purpose was to protect `blockTransferInput` (the block's cached entry state, stored in `inputs`)
+  from in-place mutation by the transfer function. Since `store` is replaced by
+  `new TransferInput<>(n, this, transferResult)` after the first node regardless, only the initial
+  copy (before the first uncached node) is necessary — subsequent nodes receive a fresh `TransferInput`
+  wrapping the previous node's result, not `blockTransferInput`. One copy per block replaces one copy
+  per node.
+
+  Also fixes `Objects.hash` / varargs boxing in `TransferInput`, `Constant`, `ArrayCreation`,
+  `FieldAccess`, `ValueLiteral`, `AnnotatedTypeParameterBounds`, `Contract`, `Default`,
+  `DependentTypesError`, and `Pair` (consistent with PR #1812's sweep); adds `equals`/`hashCode`
+  to `NullnessNoInitValue`; and reduces jtreg timeout budgets for `Issue1438{,b,c}.java` (90/120/50 s
+  → 20 s each), which are the regression tests for the quadratic-store fixpoint issue these changes
+  fix.
+
+  **Quick A/B (3-rep cold-JVM, `gen-sized-program.py --shape generic`, `assembleForJavac` rebuilt per
+  side):**
+
+  | methods/file | master alloc | branch alloc | Δ alloc | master wall | branch wall | Δ wall |
+  | --- | --- | --- | --- | --- | --- | --- |
+  | 300 | 850.70 MB | 835.60 MB | −1.8% | 6.13 s | 6.31 s | +0.18 s |
+  | 600 | 1432.60 MB | 1399.70 MB | −2.3% | 8.32 s | 7.93 s | −0.39 s |
+
+  Allocation is a consistent −2% across both sizes; wall clock differences are within the ±0.7 s
+  cold-JVM noise floor. JFR self-time: `CFAbstractTransfer.addFinalLocalValues` (1.40% of samples on
+  master) drops to absent on branch; total `ExecutionSamples` 571 → 493 on a single Big600 run (within
+  single-run noise). `CopyOnWriteMap` does not appear as a CPU leaf — all hot paths go directly to the
+  delegate `HashMap`. For the actual fixpoint-convergence speedup, measure on a real project with
+  `./gradlew --no-daemon checknullness` (warm-daemon reps); the generic-shape tiny-file corpus
+  stresses per-file overhead, not the fixpoint loop.
 
 ### Generic map/lookup patterns
 
