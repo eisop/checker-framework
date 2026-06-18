@@ -303,17 +303,14 @@ public final class TypesUtils {
     }
 
     /**
-     * Returns true iff the arguments are type variables with the same name. This method doesn't
-     * distinguish the difference of type variables having the same name but declared in different
-     * contexts, so we should be careful using it. Javac is able to identify the difference and
-     * issue an unchecked warning for the above scenario.
+     * Returns true iff the arguments are type variables declared by the same type parameter.
      *
      * @param v1 a type variable
      * @param v2 a type variable
-     * @return whether the arguments are the same type variables
+     * @return whether the arguments are the same type variable
      */
     public static boolean areSameTypeVariables(TypeVariable v1, TypeVariable v2) {
-        return v1.asElement().getSimpleName() == v2.asElement().getSimpleName();
+        return v1.asElement().equals(v2.asElement());
     }
 
     // Predicates

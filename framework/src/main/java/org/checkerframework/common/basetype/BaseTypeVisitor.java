@@ -2998,7 +2998,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         // Don't call TypeHierarchy#isSubtype(exprType, castType) because the underlying Java types
         // will not be in the correct subtyping relationship if this is a downcast.
         if (!reported) {
-            TypecastKind castResult = isTypeCastSafe(castType, exprType);
+            TypecastKind castResult = classifyTypeCast(castType, exprType);
 
             if (castResult == TypecastKind.WARNING) {
                 checker.reportWarning(
@@ -3017,38 +3017,62 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
     }
 
     /**
-     * This method returns TypecastKind.SAFE when the typecast is an upcast or a statically
-     * verifiable downcast. Returns TypecastKind.WARNING and ERROR for those downcasts which cannot
-     * be statically verified or some incomparable casts.
+     * Classifies a typecast as safe, warning-worthy, or erroneous.
+     *
+     * <p>This method returns {@link TypecastKind#SAFE} when the typecast is an upcast or a
+     * statically verifiable downcast. It returns {@link TypecastKind#WARNING} for downcasts that
+     * cannot be statically verified, and {@link TypecastKind#ERROR} for incomparable casts.
      *
      * @param castType annotated type of the cast
      * @param exprType annotated type of the casted expression
-     * @return TypecastKind.SAFE if the typecast is safe, error or warning otherwise
+     * @return the final diagnostic classification for the typecast
      */
-    protected TypecastKind isTypeCastSafe(
+    protected TypecastKind classifyTypeCast(
             AnnotatedTypeMirror castType, AnnotatedTypeMirror exprType) {
-        TypecastKind castResult = isUpcast(castType, exprType);
+        UpcastKind upcastKind = classifyUpcast(castType, exprType);
 
-        // not upcast, do downcast and incomparable cast check
-        if (castResult == TypecastKind.NOT_UPCAST) {
-            castResult = isSafeDowncast(castType, exprType);
-            if (castResult == TypecastKind.NOT_DOWNCAST) { // fall into incomparable cast
-                return isSafeIncomparableCast(castType, exprType);
-            }
+        if (upcastKind == UpcastKind.SAFE) {
+            return TypecastKind.SAFE;
+        } else if (upcastKind == UpcastKind.WARNING) {
+            return TypecastKind.WARNING;
         }
-        return castResult;
+
+        DowncastKind downcastKind = classifyDowncast(castType, exprType);
+        if (downcastKind == DowncastKind.SAFE) {
+            return TypecastKind.SAFE;
+        } else if (downcastKind == DowncastKind.WARNING) {
+            return TypecastKind.WARNING;
+        }
+
+        return classifyIncomparableCast(castType, exprType);
     }
 
-    /** Represents all possible kinds of typecasts. */
+    /** Represents the final diagnostic classification of a typecast. */
     protected enum TypecastKind {
         /** The cast is safe. */
         SAFE,
         /** The cast is illegal. */
         ERROR,
         /** Cannot statically verify the cast, report a warning. */
+        WARNING
+    }
+
+    /** Represents whether a typecast is an upcast. */
+    private enum UpcastKind {
+        /** The cast is a safe upcast. */
+        SAFE,
+        /** The cast might be an upcast, but cannot be statically verified. */
         WARNING,
         /** It is not an upcast. */
-        NOT_UPCAST,
+        NOT_UPCAST
+    }
+
+    /** Represents whether a typecast is a downcast. */
+    private enum DowncastKind {
+        /** The cast is a safe downcast. */
+        SAFE,
+        /** The cast is a downcast that cannot be statically verified. */
+        WARNING,
         /** It is not a downcast. */
         NOT_DOWNCAST
     }
@@ -3061,9 +3085,9 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      *
      * @param castType annotated type of the cast
      * @param exprType annotated type of the casted expression
-     * @return return NOT_UPCAST, WARNING or SAFE TypecastKind.
+     * @return NOT_UPCAST, WARNING or SAFE
      */
-    protected TypecastKind isUpcast(AnnotatedTypeMirror castType, AnnotatedTypeMirror exprType) {
+    private UpcastKind classifyUpcast(AnnotatedTypeMirror castType, AnnotatedTypeMirror exprType) {
         QualifierHierarchy qualifierHierarchy = atypeFactory.getQualifierHierarchy();
         AnnotationMirrorSet castAnnos;
         TypeKind castTypeKind = castType.getKind();
@@ -3090,13 +3114,13 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             TypeMirror newExprTM = newExprType.getUnderlyingType();
 
             if (!typeHierarchy.isSubtype(newExprType, newCastType)) {
-                return TypecastKind.WARNING;
+                return UpcastKind.WARNING;
             }
             if (newCastType.getKind() == TypeKind.ARRAY
                     && newExprType.getKind() != TypeKind.ARRAY) {
                 // Always warn if the cast contains an array, but the expression
                 // doesn't, as in "(Object[]) o" where o is of type Object
-                return TypecastKind.WARNING;
+                return UpcastKind.WARNING;
             } else if (newCastType.getKind() == TypeKind.DECLARED
                     && newExprType.getKind() == TypeKind.DECLARED) {
                 int castSize = ((AnnotatedDeclaredType) newCastType).getTypeArguments().size();
@@ -3106,7 +3130,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                     // Always warn if the cast and expression contain a different number of type
                     // arguments, e.g. to catch a cast from "Object" to "List<@NonNull Object>".
                     // TODO: the same number of arguments actually doesn't guarantee anything.
-                    return TypecastKind.WARNING;
+                    return UpcastKind.WARNING;
                 }
             } else if (castTypeKind == TypeKind.TYPEVAR && exprType.getKind() == TypeKind.TYPEVAR) {
                 // If both the cast type and the casted expression are type variables, then check
@@ -3122,7 +3146,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                                         lowerBoundAnnotationsCast,
                                         newCastTM)
                                 && typeHierarchy.isSubtypeShallowEffective(exprType, castType);
-                return result ? TypecastKind.SAFE : TypecastKind.WARNING;
+                return result ? UpcastKind.SAFE : UpcastKind.WARNING;
             }
             if (castTypeKind == TypeKind.TYPEVAR) {
                 // If the cast type is a type var, but the expression is not, then check that the
@@ -3158,9 +3182,9 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                 if (qualifierHierarchy.isSubtypeShallow(exprLower, exprTV, castLower, castTV)
                         && qualifierHierarchy.isSubtypeShallow(
                                 exprUpper, exprTV, castUpper, castTV)) {
-                    return TypecastKind.SAFE;
+                    return UpcastKind.SAFE;
                 }
-                return TypecastKind.WARNING;
+                return UpcastKind.WARNING;
             }
         }
 
@@ -3172,12 +3196,12 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                         castAnnos,
                         newCastTM);
         if (result) {
-            return TypecastKind.SAFE;
+            return UpcastKind.SAFE;
         } else if (checkCastElementType) {
             // when the flag is enabled, and it is not an upcast, return a warning
-            return TypecastKind.WARNING;
+            return UpcastKind.WARNING;
         } else {
-            return TypecastKind.NOT_UPCAST;
+            return UpcastKind.NOT_UPCAST;
         }
     }
 
@@ -3187,9 +3211,9 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      *
      * @param castType annotated type of the cast
      * @param exprType annotated type of the casted expression
-     * @return Can return SAFE, NOT_DOWNCAST or WARNING.
+     * @return NOT_DOWNCAST, WARNING or SAFE
      */
-    protected TypecastKind isSafeDowncast(
+    private DowncastKind classifyDowncast(
             AnnotatedTypeMirror castType, AnnotatedTypeMirror exprType) {
         AnnotationMirrorSet castAnnos = castType.getEffectiveAnnotations();
         AnnotationMirrorSet exprAnnos = exprType.getEffectiveAnnotations();
@@ -3200,7 +3224,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                 castType.getUnderlyingType(),
                 exprAnnos,
                 exprType.getUnderlyingType())) { // exists an incomparable cast
-            return TypecastKind.NOT_DOWNCAST;
+            return DowncastKind.NOT_DOWNCAST;
         }
 
         // check if the downcast can be statically verified
@@ -3214,10 +3238,10 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                     atypeFactory.getTypeDeclarationBounds(castDeclared.getUnderlyingType());
 
             if (AnnotationUtils.areSame(castDeclared.getAnnotations(), bounds)) {
-                return TypecastKind.SAFE;
+                return DowncastKind.SAFE;
             }
         }
-        return TypecastKind.WARNING;
+        return DowncastKind.WARNING;
     }
 
     /**
@@ -3228,7 +3252,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      * @param exprType annotated type of the casted expression
      * @return TypecastKind.ERROR.
      */
-    protected TypecastKind isSafeIncomparableCast(
+    protected TypecastKind classifyIncomparableCast(
             AnnotatedTypeMirror castType, AnnotatedTypeMirror exprType) {
         return TypecastKind.ERROR;
     }
@@ -3249,12 +3273,12 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      */
     private boolean isTypeCastSafeInvariant(
             AnnotatedTypeMirror castType, AnnotatedTypeMirror exprType, AnnotationMirror top) {
-        if (isTypeCastSafe(castType, exprType) != TypecastKind.SAFE) {
+        if (classifyTypeCast(castType, exprType) != TypecastKind.SAFE) {
             return false;
         }
 
         if (atypeFactory.hasQualifierParameterInHierarchy(exprType, top)) {
-            // The isTypeCastSafe call above checked that the exprType is a subtype of castType,
+            // The classifyTypeCast call above checked that the exprType is a subtype of castType,
             // so just check the reverse to check that the qualifiers are equivalent.
             return typeHierarchy.isSubtypeShallowEffective(castType, exprType, top);
         }
@@ -3305,7 +3329,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                     AnnotatedTypeMirror variableType = atypeFactory.getAnnotatedType(variableTree);
                     AnnotatedTypeMirror expType =
                             atypeFactory.getAnnotatedType(tree.getExpression());
-                    if (isTypeCastSafe(variableType, expType) != TypecastKind.SAFE) {
+                    if (classifyTypeCast(variableType, expType) != TypecastKind.SAFE) {
                         checker.reportWarning(
                                 tree, "instanceof.pattern.unsafe", expType, variableTree);
                     }

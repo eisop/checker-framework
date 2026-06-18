@@ -13,7 +13,6 @@ import org.checkerframework.common.basetype.BaseTypeVisitor;
 import org.checkerframework.common.value.qual.IntRangeFromGTENegativeOne;
 import org.checkerframework.common.value.qual.IntRangeFromNonNegative;
 import org.checkerframework.common.value.qual.IntRangeFromPositive;
-import org.checkerframework.common.value.qual.IntVal;
 import org.checkerframework.common.value.qual.StaticallyExecutable;
 import org.checkerframework.common.value.util.NumberUtils;
 import org.checkerframework.common.value.util.Range;
@@ -21,6 +20,7 @@ import org.checkerframework.dataflow.qual.Pure;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedDeclaredType;
 import org.checkerframework.framework.type.visitor.AnnotatedTypeScanner;
+import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.TreeUtils;
@@ -349,7 +349,7 @@ public class ValueVisitor extends BaseTypeVisitor<ValueAnnotatedTypeFactory> {
     // cast.  This method returns true for (@IntVal(-1), @IntVal(255)) if the underlying type
     // is `byte`, but not for any other underlying type.
     @Override
-    protected TypecastKind isTypeCastSafe(
+    protected TypecastKind classifyTypeCast(
             AnnotatedTypeMirror castType, AnnotatedTypeMirror exprType) {
         TypeKind castTypeKind =
                 TypeKindUtils.primitiveOrBoxedToTypeKind(castType.getUnderlyingType());
@@ -364,9 +364,16 @@ public class ValueVisitor extends BaseTypeVisitor<ValueAnnotatedTypeFactory> {
             if (castAnnos.equals(exprAnnos)) {
                 return TypecastKind.SAFE;
             }
-            boolean castAnnoIsIntVal = atypeFactory.areSameByClass(castAnno, IntVal.class);
-            boolean exprAnnoIsIntVal = atypeFactory.areSameByClass(exprAnno, IntVal.class);
-            if (castAnnoIsIntVal && exprAnnoIsIntVal) {
+            if (castTypeKind == exprTypeKind) {
+                return super.classifyTypeCast(castType, exprType);
+            }
+            AnnotationMirror castAnno =
+                    AnnotationUtils.getAnnotationByName(
+                            castAnnos, ValueAnnotatedTypeFactory.INTVAL_NAME);
+            AnnotationMirror exprAnno =
+                    AnnotationUtils.getAnnotationByName(
+                            exprAnnos, ValueAnnotatedTypeFactory.INTVAL_NAME);
+            if (castAnno != null && exprAnno != null) {
                 List<Long> castValues = atypeFactory.getIntValues(castAnno);
                 List<Long> exprValues = atypeFactory.getIntValues(exprAnno);
                 if (castValues.size() == 1 && exprValues.size() == 1) {
@@ -450,7 +457,7 @@ public class ValueVisitor extends BaseTypeVisitor<ValueAnnotatedTypeFactory> {
             }
         }
 
-        return super.isTypeCastSafe(castType, exprType);
+        return super.classifyTypeCast(castType, exprType);
     }
 
     /**

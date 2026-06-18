@@ -117,7 +117,7 @@ public class LessThanVisitor extends BaseTypeVisitor<LessThanAnnotatedTypeFactor
     }
 
     @Override
-    protected TypecastKind isTypeCastSafe(
+    protected TypecastKind classifyTypeCast(
             AnnotatedTypeMirror castType, AnnotatedTypeMirror exprType) {
 
         AnnotationMirror exprLTAnno =
@@ -140,6 +140,6 @@ public class LessThanVisitor extends BaseTypeVisitor<LessThanAnnotatedTypeFactor
             }
         }
 
-        return super.isTypeCastSafe(castType, exprType);
+        return super.classifyTypeCast(castType, exprType);
     }
 }

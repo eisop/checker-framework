@@ -2,14 +2,14 @@ import org.checkerframework.checker.signedness.qual.Signed;
 import org.checkerframework.checker.signedness.qual.SignednessGlb;
 import org.checkerframework.checker.signedness.qual.UnknownSignedness;
 
-class CastFromTtoT<T extends @UnknownSignedness Object> {
+class CastFromTtoT<OuterT extends @UnknownSignedness Object> {
     @SuppressWarnings("unchecked")
-    T bar(@UnknownSignedness Object p) {
+    OuterT bar(@UnknownSignedness Object p) {
         // Seems to have no cast in terms of the qualifier (from @UnknownSignedness to
         // @UnknownSignedness), but in instantiation, it could be a downcast.
         // See method foo below. It's okay not to report downcast warnings as Javac will warn about
         // casting object to 'T' (unchecked warning)
-        T x = (T) p;
+        OuterT x = (OuterT) p;
         return x;
     }
 
@@ -20,14 +20,14 @@ class CastFromTtoT<T extends @UnknownSignedness Object> {
         @Signed Integer x = s.bar(local);
     }
 
-    class Inner<T extends @UnknownSignedness Object> {
-        T bar2(@Signed T p) {
+    class Inner<InnerT extends @UnknownSignedness Object> {
+        InnerT bar2(@Signed InnerT p) {
             // The casting expression below looks like an upcast (in terms of the qualifier),
             // but it could be a downcast in invocation (See method foo2 below for an example).
             // We should report downcast warning if there is one because
             // Javac doesn't warn when casting a variable from type T to T.
             // :: warning: (cast.unsafe)
-            T x = (T) p;
+            InnerT x = (InnerT) p;
             return x;
         }
 

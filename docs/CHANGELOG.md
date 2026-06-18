@@ -3,14 +3,14 @@ Version 3.49.5-eisop2 (June ?, 2026)
 
 **User-visible changes:**
 
-A new error message `cast.incomparable` will be raised if the target type qualifier is neither the subtype
-nor the supertype of the expression type qualifier. No longer issue errors for statically verifiable downcast.
+A new error message `cast.incomparable` is raised when the target type qualifier is neither
+a subtype nor a supertype of the expression type qualifier. Statically verifiable downcasts no
+longer issue errors.
 
 **Implementation details:**
 
-Refactored the implementation of `isTypeCastSafe` to categorize the kinds of a typecast, whether
-it is an upcast, downcast or incomparable cast. Based on that, further determine if the typecast
-is statically verifiable or not.
+Refactored typecast classification to first determine whether a cast is an upcast, downcast, or
+incomparable cast, then determine whether the cast is statically verifiable.
 
 Further performance improvements. `allNullnessTests` down to below 2 minutes
 and `checkNullness` to around 2.5 minutes (last release: 2.5 and 4 minutes,

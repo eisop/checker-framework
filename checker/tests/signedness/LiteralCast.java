@@ -66,6 +66,7 @@ public class LiteralCast {
         @Unsigned int[] arr = {1, 2, 3, 4, 5, 56};
 
         Arrays.fill(arr, x);
+        // :: error: (cast.incomparable)
         Arrays.fill(arr, (@Unsigned int) Integer.valueOf(-2));
         Arrays.fill(arr, Integer.valueOf(-2));
         Arrays.fill(arr, (@Unsigned int) Integer.valueOf(2));
