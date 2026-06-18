@@ -21,10 +21,10 @@ import java.util.Map;
 public class NullnessNoInitStore extends CFAbstractStore<NullnessNoInitValue, NullnessNoInitStore> {
 
     /** True if, at this point, {@link PolyNull} is known to be {@link NonNull}. */
-    protected boolean isPolyNullNonNull;
+    private boolean isPolyNullNonNull;
 
     /** True if, at this point, {@link PolyNull} is known to be {@link Nullable}. */
-    protected boolean isPolyNullNull;
+    private boolean isPolyNullNull;
 
     /**
      * Initialized fields and their values.
@@ -99,7 +99,6 @@ public class NullnessNoInitStore extends CFAbstractStore<NullnessNoInitValue, Nu
                         .getAnnotationWithMetaAnnotation(
                                 fieldAccess.getField(), MonotonicQualifier.class)
                         .isEmpty()) {
-
             NullnessNoInitValue newValue =
                     analysis.createAbstractValue(
                             atypeFactory.getAnnotatedType(fieldAccess.getField()).getAnnotations(),
@@ -164,6 +163,7 @@ public class NullnessNoInitStore extends CFAbstractStore<NullnessNoInitValue, Nu
      */
     public void setPolyNullNonNull(boolean isPolyNullNonNull) {
         this.isPolyNullNonNull = isPolyNullNonNull;
+        hashCodeCache = 0;
     }
 
     /**
@@ -183,5 +183,37 @@ public class NullnessNoInitStore extends CFAbstractStore<NullnessNoInitValue, Nu
      */
     public void setPolyNullNull(boolean isPolyNullNull) {
         this.isPolyNullNull = isPolyNullNull;
+        hashCodeCache = 0;
+    }
+
+    @Override
+    public boolean equals(@Nullable Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (!(o instanceof NullnessNoInitStore)) {
+            return false;
+        }
+        if (!super.equals(o)) {
+            return false;
+        }
+        NullnessNoInitStore other = (NullnessNoInitStore) o;
+        // TODO: what about initializedFields?
+        return isPolyNullNonNull == other.isPolyNullNonNull
+                && isPolyNullNull == other.isPolyNullNull;
+    }
+
+    /** The cached hash code. */
+    private int hashCodeCache = 0;
+
+    @Override
+    public int hashCode() {
+        if (hashCodeCache == 0) {
+            int h = super.hashCode();
+            h = 31 * h + (isPolyNullNonNull ? 1 : 0);
+            h = 31 * h + (isPolyNullNull ? 1 : 0);
+            hashCodeCache = h == 0 ? 1 : h;
+        }
+        return hashCodeCache;
     }
 }
