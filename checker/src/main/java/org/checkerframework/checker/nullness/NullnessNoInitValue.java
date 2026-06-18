@@ -144,12 +144,6 @@ public class NullnessNoInitValue extends CFAbstractValue<NullnessNoInitValue> {
                 + '}';
     }
 
-    /**
-     * Checks if this value is equal to another object.
-     *
-     * @param obj the object to compare to
-     * @return true if the objects are equal, false otherwise
-     */
     @Override
     public boolean equals(Object obj) {
         if (this == obj) {
@@ -169,11 +163,6 @@ public class NullnessNoInitValue extends CFAbstractValue<NullnessNoInitValue> {
     /** The cached hash code. */
     private int hashCodeCache = 0;
 
-    /**
-     * Computes the hash code for this value.
-     *
-     * @return the hash code
-     */
     @Override
     public int hashCode() {
         if (hashCodeCache == 0) {
