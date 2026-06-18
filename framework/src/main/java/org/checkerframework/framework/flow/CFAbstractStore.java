@@ -162,7 +162,7 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
      *
      * @param other a CFAbstractStore to copy into this
      */
-    public CFAbstractStore(CFAbstractStore<V, S> other) {
+    protected CFAbstractStore(CFAbstractStore<V, S> other) {
         this.analysis = other.analysis;
         this.sequentialSemantics = other.sequentialSemantics;
         this.localVariableValues = other.localVariableValues.copy();
@@ -1217,41 +1217,8 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
      * @param shouldWiden true to compute widened upper bound, false for least upper bound
      * @return a new store representing the merged state
      */
-    @SuppressWarnings("interning:not.interned")
     private S upperBound(S other, boolean shouldWiden) {
         S newStore = analysis.createEmptyStore(sequentialSemantics);
-
-        // Optimization: Fast-path when map states match exactly.
-        if (this.localVariableValues.equals(other.localVariableValues)) {
-            newStore.localVariableValues.copyFrom(this.localVariableValues);
-        } else {
-            // Optimization: Iterate over the smaller map to minimize lookups.
-            Map<LocalVariable, V> smallerLocals =
-                    this.localVariableValues.size() <= other.localVariableValues.size()
-                            ? this.localVariableValues
-                            : other.localVariableValues;
-            Map<LocalVariable, V> largerLocals =
-                    this.localVariableValues == smallerLocals
-                            ? other.localVariableValues
-                            : this.localVariableValues;
-            for (Map.Entry<LocalVariable, V> e : smallerLocals.entrySet()) {
-                // Local variables that are only part of one store, but not the other are discarded,
-                // as the other store implicitly contains 'top' for that variable.
-                LocalVariable localVar = e.getKey();
-                V largerVal = largerLocals.get(localVar);
-                if (largerVal != null) {
-                    V thisVal =
-                            this.localVariableValues == smallerLocals ? e.getValue() : largerVal;
-                    V otherVal =
-                            this.localVariableValues == smallerLocals ? largerVal : e.getValue();
-                    V mergedVal = upperBoundOfValues(otherVal, thisVal, shouldWiden);
-
-                    if (mergedVal != null) {
-                        newStore.localVariableValues.put(localVar, mergedVal);
-                    }
-                }
-            }
-        }
 
         // information about the current object
         {
@@ -1264,116 +1231,59 @@ public abstract class CFAbstractStore<V extends CFAbstractValue<V>, S extends CF
             }
         }
 
-        // Optimization: Fast-path when map states match exactly.
-        if (this.fieldValues.equals(other.fieldValues)) {
-            newStore.fieldValues.copyFrom(this.fieldValues);
-        } else {
-            // Optimization: Iterate over the smaller map to minimize lookups.
-            Map<FieldAccess, V> smallerFields =
-                    this.fieldValues.size() <= other.fieldValues.size()
-                            ? this.fieldValues
-                            : other.fieldValues;
-            Map<FieldAccess, V> largerFields =
-                    this.fieldValues == smallerFields ? other.fieldValues : this.fieldValues;
-            for (Map.Entry<FieldAccess, V> e : smallerFields.entrySet()) {
-                // Information about fields that are only part of one store, but not the other are
-                // discarded, as the other store implicitly contains 'top' for that field.
-                FieldAccess el = e.getKey();
-                V largerVal = largerFields.get(el);
-                if (largerVal != null) {
-                    V thisVal = this.fieldValues == smallerFields ? e.getValue() : largerVal;
-                    V otherVal = this.fieldValues == smallerFields ? largerVal : e.getValue();
-                    V mergedVal = upperBoundOfValues(otherVal, thisVal, shouldWiden);
-                    if (mergedVal != null) {
-                        newStore.fieldValues.put(el, mergedVal);
-                    }
-                }
-            }
-        }
-        // Optimization: Fast-path when map states match exactly.
-        if (this.arrayValues.equals(other.arrayValues)) {
-            newStore.arrayValues.copyFrom(this.arrayValues);
-        } else {
-            // Optimization: Iterate over the smaller map to minimize lookups.
-            Map<ArrayAccess, V> smallerArrays =
-                    this.arrayValues.size() <= other.arrayValues.size()
-                            ? this.arrayValues
-                            : other.arrayValues;
-            Map<ArrayAccess, V> largerArrays =
-                    this.arrayValues == smallerArrays ? other.arrayValues : this.arrayValues;
-            for (Map.Entry<ArrayAccess, V> e : smallerArrays.entrySet()) {
-                // Information about arrays that are only part of one store, but not the other are
-                // discarded, as the other store implicitly contains 'top' for that array access.
-                ArrayAccess el = e.getKey();
-                V largerVal = largerArrays.get(el);
-                if (largerVal != null) {
-                    V thisVal = this.arrayValues == smallerArrays ? e.getValue() : largerVal;
-                    V otherVal = this.arrayValues == smallerArrays ? largerVal : e.getValue();
-                    V mergedVal = upperBoundOfValues(otherVal, thisVal, shouldWiden);
-                    if (mergedVal != null) {
-                        newStore.arrayValues.put(el, mergedVal);
-                    }
-                }
-            }
-        }
-        // Optimization: Fast-path when map states match exactly.
-        if (this.methodCallExpressions.equals(other.methodCallExpressions)) {
-            newStore.methodCallExpressions.copyFrom(this.methodCallExpressions);
-        } else {
-            // Optimization: Iterate over the smaller map to minimize lookups.
-            Map<MethodCall, V> smallerMethods =
-                    this.methodCallExpressions.size() <= other.methodCallExpressions.size()
-                            ? this.methodCallExpressions
-                            : other.methodCallExpressions;
-            Map<MethodCall, V> largerMethods =
-                    this.methodCallExpressions == smallerMethods
-                            ? other.methodCallExpressions
-                            : this.methodCallExpressions;
-            for (Map.Entry<MethodCall, V> e : smallerMethods.entrySet()) {
-                // Information about methods that are only part of one store, but not the other are
-                // discarded, as the other store implicitly contains 'top' for that method.
-                MethodCall el = e.getKey();
-                V largerVal = largerMethods.get(el);
-                if (largerVal != null) {
-                    V thisVal =
-                            this.methodCallExpressions == smallerMethods ? e.getValue() : largerVal;
-                    V otherVal =
-                            this.methodCallExpressions == smallerMethods ? largerVal : e.getValue();
-                    V mergedVal = upperBoundOfValues(otherVal, thisVal, shouldWiden);
-                    if (mergedVal != null) {
-                        newStore.methodCallExpressions.put(el, mergedVal);
-                    }
-                }
-            }
-        }
-        // Optimization: Fast-path when map states match exactly.
-        if (this.classValues.equals(other.classValues)) {
-            newStore.classValues.copyFrom(this.classValues);
-        } else {
-            // Optimization: Iterate over the smaller map to minimize lookups.
-            Map<ClassName, V> smallerClasses =
-                    this.classValues.size() <= other.classValues.size()
-                            ? this.classValues
-                            : other.classValues;
-            Map<ClassName, V> largerClasses =
-                    this.classValues == smallerClasses ? other.classValues : this.classValues;
-            for (Map.Entry<ClassName, V> e : smallerClasses.entrySet()) {
-                // Information about classname.class values that are only part of one store, but not
-                // the other are discarded, as the other store implicitly contains 'top' for that
-                // class value.
-                ClassName el = e.getKey();
-                V largerVal = largerClasses.get(el);
-                if (largerVal != null) {
-                    V thisVal = this.classValues == smallerClasses ? e.getValue() : largerVal;
-                    V otherVal = this.classValues == smallerClasses ? largerVal : e.getValue();
-                    V mergedVal = upperBoundOfValues(otherVal, thisVal, shouldWiden);
-                    if (mergedVal != null) {
-                        newStore.classValues.put(el, mergedVal);
-                    }
-                }
-            }
-        }
+        mergeMap(
+                localVariableValues,
+                other.localVariableValues,
+                newStore.localVariableValues,
+                shouldWiden);
+        mergeMap(fieldValues, other.fieldValues, newStore.fieldValues, shouldWiden);
+        mergeMap(arrayValues, other.arrayValues, newStore.arrayValues, shouldWiden);
+        mergeMap(
+                methodCallExpressions,
+                other.methodCallExpressions,
+                newStore.methodCallExpressions,
+                shouldWiden);
+        mergeMap(classValues, other.classValues, newStore.classValues, shouldWiden);
+
         return newStore;
+    }
+
+    /**
+     * Merges two maps into a destination map using the upper-bound or widening operator on shared
+     * keys. Keys present in only one map are discarded (the absent side is implicitly 'top').
+     * Copies the shared delegate reference when the two maps are equal, and iterates the smaller
+     * map otherwise to minimize lookups.
+     *
+     * @param thisMap the map from this store
+     * @param otherMap the map from the other store
+     * @param dest the destination map (initially empty)
+     * @param shouldWiden true to use widening, false for least upper bound
+     * @param <K> the key type
+     */
+    private <K extends JavaExpression> void mergeMap(
+            CopyOnWriteMap<K, V> thisMap,
+            CopyOnWriteMap<K, V> otherMap,
+            CopyOnWriteMap<K, V> dest,
+            boolean shouldWiden) {
+        if (thisMap.equals(otherMap)) {
+            dest.copyFrom(thisMap);
+            return;
+        }
+        boolean thisIsSmaller = thisMap.size() <= otherMap.size();
+        Map<K, V> smaller = thisIsSmaller ? thisMap : otherMap;
+        Map<K, V> larger = thisIsSmaller ? otherMap : thisMap;
+        for (Map.Entry<K, V> e : smaller.entrySet()) {
+            K key = e.getKey();
+            V largerVal = larger.get(key);
+            if (largerVal != null) {
+                V thisVal = thisIsSmaller ? e.getValue() : largerVal;
+                V otherVal = thisIsSmaller ? largerVal : e.getValue();
+                V mergedVal = upperBoundOfValues(otherVal, thisVal, shouldWiden);
+                if (mergedVal != null) {
+                    dest.put(key, mergedVal);
+                }
+            }
+        }
     }
 
     /**
