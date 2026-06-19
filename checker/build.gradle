@@ -1141,6 +1141,61 @@ final checkerPom(publication) {
     }
 }
 
+// `components.shadow` (used for the `checker` publication below) only
+// declares a single `shadowRuntimeElements` variant for the shadow jar,
+// with java-runtime usage; see ShadowJavaPlugin#configureComponents() in
+// the Shadow plugin. There is no matching compile-time (java-api) variant,
+// so once the project correctly declares its target JVM version (see
+// `sourceCompatibility`/`targetCompatibility` above), a consuming Gradle
+// build resolving `compileClasspath` against the published module
+// metadata finds a version-compatible variant, but not one usable for
+// compile-time, and fails with "no matching variant" -- this is a known
+// Shadow plugin limitation, see https://github.com/GradleUp/shadow/issues/847.
+//
+// Register a `shadowApiElements` configuration that exposes the same
+// shadow jar for compile-time usage, and add it to `components.shadow` as
+// the missing compile-time variant, so the published Gradle Module
+// Metadata has both a runtime and a compile variant pointing at the
+// shadow jar.
+import org.gradle.api.attributes.Bundling
+import org.gradle.api.attributes.Category
+import org.gradle.api.attributes.LibraryElements
+import org.gradle.api.attributes.Usage
+import org.gradle.api.attributes.java.TargetJvmVersion
+import org.gradle.api.component.AdhocComponentWithVariants
+
+configurations {
+    shadowApiElements {
+        canBeConsumed = true
+        canBeResolved = false
+        attributes {
+            attribute(Usage.USAGE_ATTRIBUTE, objects.named(Usage, Usage.JAVA_API))
+            attribute(Category.CATEGORY_ATTRIBUTE, objects.named(Category, Category.LIBRARY))
+            attribute(LibraryElements.LIBRARY_ELEMENTS_ATTRIBUTE, objects.named(LibraryElements, LibraryElements.JAR))
+            attribute(Bundling.BUNDLING_ATTRIBUTE, objects.named(Bundling, Bundling.SHADOWED))
+        }
+        outgoing.artifact(tasks.named('shadowJar'))
+    }
+}
+
+// Must run after the Shadow plugin's own `afterEvaluate` block, which sets
+// the TargetJvmVersion attribute on `shadowRuntimeElements` and adds that
+// configuration to `components.shadow`. Copy the resulting attribute onto
+// `shadowApiElements` so both variants agree on the target JVM version,
+// then add it as the missing compile-time variant.
+afterEvaluate {
+    def runtimeJvmVersion = configurations.shadowRuntimeElements.attributes
+    .getAttribute(TargetJvmVersion.TARGET_JVM_VERSION_ATTRIBUTE)
+    if (runtimeJvmVersion != null) {
+        configurations.shadowApiElements.attributes {
+            attribute(TargetJvmVersion.TARGET_JVM_VERSION_ATTRIBUTE, runtimeJvmVersion)
+        }
+    }
+    (components.shadow as AdhocComponentWithVariants).addVariantsFromConfiguration(configurations.shadowApiElements) {
+        it.mapToMavenScope('compile')
+    }
+}
+
 publishing {
     publications {
         checker(MavenPublication) {
