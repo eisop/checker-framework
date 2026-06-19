@@ -22,7 +22,7 @@ env:
   USE_BAZEL_VERSION: "9.1.1"
   # JDK 27 early-access build; bump when a new EA build is published.
   JDK_EA_MAJOR: "27"
-  JDK_EA_BUILD: "26"
+  JDK_EA_BUILD: "27"
 
 jobs:
   # Basic sanity tests on the primary JDK.
@@ -40,7 +40,7 @@ jobs:
     env:
       JAVA_VERSION: ${{ matrix.java_version }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Set up JDK ${{ matrix.java_version }}
         uses: actions/setup-java@v5
@@ -93,11 +93,11 @@ jobs:
       JAVA_VERSION: ${{ matrix.java_version }}
     steps:
       # `misc` runs `ci-diff` which needs full history; everything else is shallow.
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         if: ${{ matrix.script == 'misc' }}
         with:
           fetch-depth: 0
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         if: ${{ matrix.script != 'misc' }}
         with:
           fetch-depth: 1
@@ -153,7 +153,7 @@ jobs:
     continue-on-error: ${{ matrix.java.experimental }}
     steps:
       - name: Check out sources (shallow)
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 1
 
@@ -238,12 +238,12 @@ jobs:
           - {script: 'daikon-part2',    java: {version: '17'}}
     steps:
       - name: Check out sources (full history for misc)
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         if: ${{ matrix.script == 'misc' }}
         with:
           fetch-depth: 0
       - name: Check out sources (shallow)
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         if: ${{ matrix.script != 'misc' }}
         with:
           fetch-depth: 1
@@ -297,7 +297,7 @@ jobs:
     env:
       JAVA_VERSION: ${{ matrix.java_version }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Set up JDK ${{ matrix.java_version }}
         uses: actions/setup-java@v5
