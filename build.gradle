@@ -5,7 +5,7 @@ import org.gradle.api.tasks.testing.TestResult
 
 plugins {
     // https://plugins.gradle.org/plugin/com.gradleup.shadow
-    id 'com.gradleup.shadow' version '8.3.11'
+    id 'com.gradleup.shadow' version '9.4.2'
     // https://plugins.gradle.org/plugin/de.undercouch.download
     id 'de.undercouch.download' version '5.7.0'
     id 'java'
@@ -20,7 +20,7 @@ plugins {
     // Code formatting; defines targets "spotlessApply" and "spotlessCheck".
     // https://github.com/diffplug/spotless/tags ; see tags starting "gradle/"
     // Only works on JDK 11+ (even including the plugin crashes Gradle on JDK 8).
-    id 'com.diffplug.spotless' version '8.6.0'
+    id 'com.diffplug.spotless' version '8.7.0'
 }
 
 // There is another `repositories { ... }` block below; if you change this one, change that one as well.
@@ -88,7 +88,7 @@ ext {
         //  * Temporarily comment out "-Werror" elsewhere in this file
         //  * Repeatedly run `./gradlew clean compileJava` and fix all errors
         //  * Uncomment "-Werror"
-        errorprone      : '2.48.0',
+        errorprone      : '2.50.0',
         // NOTE: Google Java Format requires JDK 17 or higher as of version 1.25.0.
         googleJavaFormat : '1.35.0',
         hashmapUtil     : '0.0.1',
@@ -107,9 +107,12 @@ switch (JavaVersion.current()) {
     case JavaVersion.VERSION_11:
     case JavaVersion.VERSION_17:
     case JavaVersion.VERSION_21:
+    case JavaVersion.VERSION_25:
+    case JavaVersion.VERSION_26:
+    case JavaVersion.VERSION_27:
         break; // Supported versions
     default:
-        logger.info('The Checker Framework has only been tested with JDK 8, 11, 17, and 21.' +
+        logger.info('The Checker Framework is tested with JDK 8, 11, 17, 21, 25, 26, and 27-EA.' +
         ' You are using JDK ' + JavaVersion.current().majorVersion + '.');
         break;
 }
@@ -409,6 +412,33 @@ allprojects { currentProj ->
         maxHeapSize = "4g" // maximum heap size
     }
 
+    boolean useToolchains = (currentRuntimeJavaVersion != useJdkVersionInt)
+    if (useToolchains) {
+        // This uses the requested Java toolchain.
+        // On CI, gradle always runs with JDK 21 and different versions are selected as toolchains.
+        // CI test test-cftests-junit-jdk21 runs the JUnit tests on the different JDK versions,
+        // to ensure there is no version mismatch between compiled-against javac APIs and runtime APIs.
+        //   https://docs.gradle.org/current/userguide/toolchains.html
+        java {
+            toolchain {
+                languageVersion = JavaLanguageVersion.of(useJdkVersionInt)
+            }
+        }
+
+        // JavaExec does not automatically inherit the toolchain JDK (!).
+        tasks.withType(JavaExec).configureEach {
+            javaLauncher = javaToolchains.launcherFor {
+                languageVersion = JavaLanguageVersion.of(useJdkVersionInt)
+            }
+        }
+        // JavaCompile also seems to need an extra push...
+        tasks.withType(JavaCompile).configureEach {
+            javaCompiler = javaToolchains.compilerFor {
+                languageVersion = JavaLanguageVersion.of(useJdkVersionInt)
+            }
+        }
+    }
+
     // After all the tasks have been created, modify some of them.
     afterEvaluate {
         configurations {
@@ -420,33 +450,6 @@ allprojects { currentProj ->
 
         dependencies {
             checkerFatJar(project(path: ':checker', configuration: 'fatJar'))
-        }
-
-        boolean useToolchains = (currentRuntimeJavaVersion != useJdkVersionInt)
-        if (useToolchains) {
-            // This uses the requested Java toolchain.
-            // On CI, gradle always runs with JDK 21 and different versions are selected as toolchains.
-            // CI test test-cftests-junit-jdk21 runs the JUnit tests on the different JDK versions,
-            // to ensure there is no version mismatch between compiled-against javac APIs and runtime APIs.
-            //   https://docs.gradle.org/current/userguide/toolchains.html
-            java {
-                toolchain {
-                    languageVersion = JavaLanguageVersion.of(useJdkVersionInt)
-                }
-            }
-
-            // JavaExec does not automatically inherit the toolchain JDK (!).
-            tasks.withType(JavaExec).configureEach {
-                javaLauncher = javaToolchains.launcherFor {
-                    languageVersion = JavaLanguageVersion.of(useJdkVersionInt)
-                }
-            }
-            // JavaCompile also seems to need an extra push...
-            tasks.withType(JavaCompile).configureEach {
-                javaCompiler = javaToolchains.compilerFor {
-                    languageVersion = JavaLanguageVersion.of(useJdkVersionInt)
-                }
-            }
         }
 
         // Add the fat checker.jar to the classpath of every Javadoc task. This allows Javadoc in
@@ -695,6 +698,7 @@ def createCheckTypeTask(projectName, taskName, checker, args = []) {
         options.compilerArgs += args
 
         // TODO: the options below should be inherited from JavaCompile. Why does this need to be repeated?
+        options.fork = true
         if (isJava8) {
             options.compilerArgs += [
                 '-source',
@@ -703,9 +707,17 @@ def createCheckTypeTask(projectName, taskName, checker, args = []) {
                 '8'
             ]
         } else {
-            options.fork = true
             options.forkOptions.jvmArgs += compilerArgsForRunningCF
         }
+
+        // This option might only be needed here, but check.
+        // Gradle runs forked compilation in a worker process whose maximum heap
+        // defaults to 512 MiB when memoryMaximumSize is unset
+        // (DefaultWorkerProcessBuilder in Gradle 9.5.1).  That is too small for
+        // running the Checker Framework on itself: on the JDK 8 CI job,
+        // :framework:checkNullness spent 44% of CPU in garbage collection, and
+        // the resulting SourceChecker warning failed the build under -Werror.
+        options.forkOptions.memoryMaximumSize = '2g'
     }
 }
 
@@ -1022,6 +1034,18 @@ subprojects {
         exclude '**/module-info.class'
 
         minimize()
+    }
+
+    // Shadow 9.x registers a "shadowRuntimeElements" consumable variant for each project.
+    // When checker:runtimeClasspath resolves project dependencies (e.g. framework), Gradle may
+    // select shadowRuntimeElements, which points to the shadow JAR (framework-X-all.jar).
+    // Change its Usage attribute so it doesn't conflict with standard runtimeElements.
+    configurations.all {
+        if (name == 'shadowRuntimeElements') {
+            attributes {
+                attribute(Usage.USAGE_ATTRIBUTE, objects.named(Usage, "shadow-runtime-elements"))
+            }
+        }
     }
 
     if (!project.name.startsWith('checker-qual-android')) {

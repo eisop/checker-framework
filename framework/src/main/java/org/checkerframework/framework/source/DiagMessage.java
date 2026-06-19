@@ -121,7 +121,7 @@ public class DiagMessage {
             int h = (kind == null ? 0 : kind.hashCode());
             h = 31 * h + (messageKey == null ? 0 : messageKey.hashCode());
             h = 31 * h + Arrays.hashCode(args);
-            hashCodeCache = h;
+            hashCodeCache = h == 0 ? 1 : h;
             hashCodeComputed = true;
         }
         return hashCodeCache;

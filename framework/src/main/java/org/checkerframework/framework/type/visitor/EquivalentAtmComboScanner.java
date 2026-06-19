@@ -232,8 +232,13 @@ public abstract class EquivalentAtmComboScanner<RETURN_TYPE, PARAM>
         /** Default constructor. */
         Visited() {}
 
-        /** The backing history of type pairs. */
-        private final IdentityHashMap<
+        /**
+         * The backing history of type pairs.
+         *
+         * <p>This map is re-instantiated in {@link #clear()} instead of cleared to avoid the O(N)
+         * cost of IdentityHashMap.clear().
+         */
+        private IdentityHashMap<
                         AnnotatedTypeMirror, IdentityHashMap<AnnotatedTypeMirror, RETURN_TYPE>>
                 visits = new IdentityHashMap<>();
 
@@ -248,7 +253,7 @@ public abstract class EquivalentAtmComboScanner<RETURN_TYPE, PARAM>
 
         /** Clears the history. */
         public void clear() {
-            visits.clear();
+            visits = new IdentityHashMap<>();
         }
 
         public boolean contains(AnnotatedTypeMirror type1, AnnotatedTypeMirror type2) {
@@ -275,7 +280,11 @@ public abstract class EquivalentAtmComboScanner<RETURN_TYPE, PARAM>
          */
         public void add(AnnotatedTypeMirror type1, AnnotatedTypeMirror type2, RETURN_TYPE ret) {
             IdentityHashMap<AnnotatedTypeMirror, RETURN_TYPE> recordFor1 =
-                    visits.computeIfAbsent(type1, __ -> new IdentityHashMap<>());
+                    visits.computeIfAbsent(
+                            type1,
+                            __ ->
+                                    new IdentityHashMap<>(
+                                            AnnotatedTypeScanner.VISITED_NODES_INITIAL_CAPACITY));
             recordFor1.put(type2, ret);
         }
     }

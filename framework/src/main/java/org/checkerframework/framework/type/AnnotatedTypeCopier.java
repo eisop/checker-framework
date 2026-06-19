@@ -92,8 +92,11 @@ public class AnnotatedTypeCopier
 
     @Override
     public AnnotatedTypeMirror visit(AnnotatedTypeMirror type) {
-        return type.accept(
-                this, new IdentityHashMap<>(AnnotatedTypeScanner.VISITED_NODES_EXPECTED_MAX_SIZE));
+        // PERF: Deliberately do not pool this map. IdentityHashMap.clear() is expensive
+        // (iterates all slots) whereas a new allocation benefits from JVM TLAB bulk-zeroing.
+        IdentityHashMap<AnnotatedTypeMirror, AnnotatedTypeMirror> map =
+                new IdentityHashMap<>(AnnotatedTypeScanner.VISITED_NODES_INITIAL_CAPACITY);
+        return type.accept(this, map);
     }
 
     @Override
@@ -215,7 +218,13 @@ public class AnnotatedTypeCopier
         }
 
         if (original.getVarargType() != null) {
-            copy.setVarargType(original.getVarargType());
+            // Copy (do not alias) the vararg type. If the vararg type is the last parameter type
+            // (the usual case, before adaptParameters expands it), originalToCopy already maps it
+            // to its copy, so visit() returns that copy and the structure is preserved; otherwise
+            // it is freshly copied. Aliasing the original's vararg type here would let two
+            // "independent" copies share a subtree.
+            copy.setVarargType(
+                    (AnnotatedArrayType) visit(original.getVarargType(), originalToCopy));
         } else {
             copy.computeVarargType();
         }

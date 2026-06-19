@@ -13,6 +13,8 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
+import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.Set;
 
 import javax.lang.model.element.AnnotationMirror;
@@ -185,8 +187,14 @@ public class AnnotationMirrorSet
 
     @Override
     public Iterator<@KeyFor("this") AnnotationMirror> iterator() {
-        Iterator<@KeyFor("this") AnnotationMirror> it = shadowList.iterator();
-        return unmodifiable ? new ReadOnlyIter<@KeyFor("this") AnnotationMirror>(it) : it;
+        // For the common unmodifiable case, return a read-only iterator that walks the backing list
+        // by index. This avoids allocating the backing ArrayList's own iterator (an
+        // {@code ArrayList$Itr}) on every traversal.
+        // A mutable set returns the backing iterator, which supports remove() and
+        // concurrent-modification checks.
+        return unmodifiable
+                ? new ReadOnlyIter<@KeyFor("this") AnnotationMirror>(shadowList)
+                : shadowList.iterator();
     }
 
     /**
@@ -368,7 +376,7 @@ public class AnnotationMirrorSet
                 // This is a set, so ordering is not considered.
                 result += AnnotationUtils.hashCode(shadowList.get(i));
             }
-            hashCodeCache = result;
+            hashCodeCache = result == 0 ? 1 : result;
             hashCodeComputed = true;
         }
         return hashCodeCache;
@@ -380,26 +388,33 @@ public class AnnotationMirrorSet
      * @param <T> the element type
      */
     private static final class ReadOnlyIter<@KeyForBottom T> implements Iterator<T> {
-        /** The real iterator. */
-        private final Iterator<T> it;
+        /** The list to iterate over. */
+        private final List<T> list;
+
+        /** Index of the next element to return. */
+        private int index = 0;
 
         /**
-         * Construct a readonly iterator wrapper.
+         * Construct a read-only iterator that walks {@code list} by index, allocating no backing
+         * iterator.
          *
-         * @param it the iterator to wrap
+         * @param list the list to iterate over
          */
-        ReadOnlyIter(Iterator<T> it) {
-            this.it = it;
+        ReadOnlyIter(List<T> list) {
+            this.list = list;
         }
 
         @Override
         public boolean hasNext() {
-            return it.hasNext();
+            return index < list.size();
         }
 
         @Override
         public T next() {
-            return it.next();
+            if (index >= list.size()) {
+                throw new NoSuchElementException();
+            }
+            return list.get(index++);
         }
 
         @Override
