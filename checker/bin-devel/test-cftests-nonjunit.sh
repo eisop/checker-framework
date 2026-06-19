@@ -12,6 +12,9 @@ source "$SCRIPT_DIR"/clone-related.sh
 # Adding --max-workers=1 to avoid random failures in Github Actions. An alternative solution is to use --no-build-cache.
 # https://github.com/eisop/checker-framework/issues/849
 ./gradlew nonJunitTests -x javadoc -x allJavadoc --console=plain --warning-mode=all --max-workers=1
+
+# Also note the test in docs/examples/publish-smoketest/ which is run
+# by exampleTests below. This runs in CI, so okay to pollute local Maven.
 ./gradlew publishToMavenLocal -x javadoc -x allJavadoc --console=plain --warning-mode=all
 
 # Moved example-tests out of all tests because it fails in

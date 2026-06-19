@@ -107,6 +107,7 @@ docs/examples/jspecify/Out.txt
 docs/examples/lombok/.gradle/
 docs/examples/lombok/Out.txt
 docs/examples/lombok/lombok.config
+docs/examples/publish-smoketest/.gradle/
 docs/manual/*.png
 docs/manual/*.svg
 docs/manual/contributors.txt
