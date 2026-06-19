@@ -877,7 +877,6 @@ def createJavadocTask(taskName, taskDescription, memberLevel) {
     tasks.register(taskName, Javadoc) {
         description = taskDescription
         destinationDir = file("${rootDir}/docs/tmpapi")
-        destinationDir.mkdirs()
         subprojects.forEach {
             if (!it.name.startsWith('checker-qual-android')) {
                 source += it.sourceSets.main.allJava
@@ -888,7 +887,6 @@ def createJavadocTask(taskName, taskDescription, memberLevel) {
         // disable interpreting module-info.java files until all sub-modules support them
         modularity.inferModulePath = false
 
-        destinationDir.deleteDir()
         options.memberLevel = memberLevel
         options.addBooleanOption('Xdoclint:all', true)
         options.addStringOption('Xmaxwarns', '99999')
