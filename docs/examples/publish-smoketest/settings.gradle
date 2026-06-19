@@ -1,0 +1,5 @@
+// Standalone project: simulates an external consumer of the published
+// `checker` artifact. Deliberately not part of the parent multi-project
+// build (no `includeBuild`/`include`), so it resolves dependencies exactly
+// the way a real downstream Gradle project would.
+rootProject.name = 'publish-smoketest'
