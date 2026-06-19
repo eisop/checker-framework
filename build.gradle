@@ -817,6 +817,14 @@ tasks.register('allJavadoc', Javadoc) {
 
     if (isJava8) {
         classpath += configurations.javacJar
+        // ManualTaglet (tagletJdk8) imports com.sun.javadoc / com.sun.tools.doclets from
+        // tools.jar.  Javadoc needs tools.jar on the compile classpath to process its source.
+        def compilerProvider = javaToolchains.compilerFor {
+            languageVersion = JavaLanguageVersion.of(8)
+        }
+        classpath += files(compilerProvider.map { compiler ->
+            new File(compiler.metadata.installationPath.asFile, "lib/tools.jar")
+        })
     }
 
     // disable interpreting module-info.java files until all sub-modules support them

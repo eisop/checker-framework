@@ -50,9 +50,11 @@ echo "Publishing and consuming version ${CHECKER_VERSION}"
 # checker itself, plus checker-qual and checker-util, which are declared as
 # regular (non-bundled) dependencies of the published `checker` artifact.
 HOME="${SMOKETEST_HOME}" ./gradlew --console=plain \
+  -x javadoc -x allJavadoc \
   :checker-qual:publishToMavenLocal \
   :checker-util:publishToMavenLocal \
-  :checker:publishToMavenLocal
+  :checker:publishToMavenLocal \
+  publishToMavenLocal
 
 # Run the standalone consumer build against the freshly published artifacts.
 # It has its own settings.gradle/build.gradle and is not part of this

@@ -20,3 +20,7 @@ source "$SCRIPT_DIR"/clone-related.sh
 # Moved example-tests out of all tests because it fails in
 # the release script because the newest maven artifacts are not published yet.
 ./gradlew :checker:exampleTests -x javadoc -x allJavadoc --console=plain --warning-mode=all
+
+# Note that test-misc also contains javadoc tests, but here we want to ensure
+# allJavadoc works on all JDKs (misc is not run on every JDK).
+./gradlew allJavadoc --console=plain --warning-mode=all
