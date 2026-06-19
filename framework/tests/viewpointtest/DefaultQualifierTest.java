@@ -7,7 +7,6 @@ import viewpointtest.quals.*;
         value = A.class,
         locations = {TypeUseLocation.TYPE})
 public class DefaultQualifierTest {
-    // :: error: (type.invalid.annotations.on.use)
     // :: error: (super.invocation.invalid)
     // :: warning: (inconsistent.constructor.type)
     @B DefaultQualifierTest() {}
@@ -45,7 +44,6 @@ class DefaultQualifierExplicitBOnClass {
 // :: warning: (inconsistent.constructor.type)
 @A class DefaultQualifierNestedClasses {
     class DefaultedNested {
-        // :: error: (type.invalid.annotations.on.use)
         // :: error: (super.invocation.invalid)
         // :: warning: (inconsistent.constructor.type)
         @B DefaultedNested() {}

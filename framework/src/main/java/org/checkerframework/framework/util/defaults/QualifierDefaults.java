@@ -1082,20 +1082,7 @@ public class QualifierDefaults {
             switch (outer.location) {
                 case TYPE:
                     if (outer.scope != null && outer.scope.getKind().isClass() && isTopLevelType) {
-                        AnnotationMirror annotation =
-                                outer.qualHierarchy.findAnnotationInHierarchy(
-                                        atypeFactory
-                                                .getElementCache()
-                                                .get(outer.scope)
-                                                .getAnnotations(),
-                                        qual);
-                        if (annotation == null
-                                || outer.qualHierarchy.isSubtypeQualifiersOnly(qual, annotation)) {
-                            outer.addAnnotation(t, qual);
-                            atypeFactory.getElementCache().put(outer.scope, t);
-                        } else {
-                            // should report error;
-                        }
+                        outer.addAnnotation(t, qual);
                     }
                     break;
                 case FIELD:
