@@ -17,8 +17,9 @@ import javax.lang.model.type.TypeMirror;
  *
  * <p>This class should be kept synchronized with HashcodeAtmVisitor.
  *
+ * <p>Unlike HashcodeAtmVisitor this class is intended to be subclassed.
+ *
  * @see org.checkerframework.framework.type.HashcodeAtmVisitor
- *     <p>Unlike HashcodeAtmVisitor this class is intended to be overridden.
  */
 public class EqualityAtmComparer extends EquivalentAtmComboScanner<Boolean, Void> {
 

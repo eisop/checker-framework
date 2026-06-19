@@ -745,7 +745,11 @@ tasks.register('htmlValidate', Exec) {
         '/build/',
         '/docs/manual/manual.html',
         '/docs/manual/plume-bib/docs/index.html',
-        '/checker/jdk/nullness/src/java/lang/ref/package.html'
+        '/checker/jdk/nullness/src/java/lang/ref/package.html',
+        // javadoc generates overview-summary.html as a redirect with
+        // content="0;index.html" instead of the HTML5-valid "0; URL=index.html".
+        // This is a javadoc tool bug; suppress it here.
+        'overview-summary.html'
     ]
 }
 
