@@ -978,7 +978,11 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         TypeMirror boundTM = boundType.getUnderlyingType();
         for (AnnotationMirror classAnno : classBounds) {
             AnnotationMirror boundAnno = boundType.getAnnotationInHierarchy(classAnno);
-            if (!qualHierarchy.isSubtypeShallow(classAnno, classType, boundAnno, boundTM)) {
+            checkExtendsOrImplementsStartDiagnostic(
+                    boundClause, classAnno, classType, boundAnno, boundTM, isExtends);
+            boolean success =
+                    qualHierarchy.isSubtypeShallow(classAnno, classType, boundAnno, boundTM);
+            if (!success) {
                 checker.reportError(
                         boundClause,
                         (isExtends
@@ -987,6 +991,85 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                         classAnno,
                         boundAnno);
             }
+            checkExtendsOrImplementsEndDiagnostic(
+                    success, boundClause, classAnno, classType, boundAnno, boundTM, isExtends);
+        }
+    }
+
+    /**
+     * Prints a diagnostic about entering {@link #checkExtendsOrImplements}, if the showchecks
+     * option was set.
+     *
+     * @param boundClause an extends or implements clause
+     * @param classAnno the annotation on the class declaration
+     * @param classType the type being declared
+     * @param boundAnno the annotation on the extends or implements clause
+     * @param boundTM the type of the extends or implements clause
+     * @param isExtends true for an extends clause, false for an implements clause
+     */
+    protected final void checkExtendsOrImplementsStartDiagnostic(
+            Tree boundClause,
+            AnnotationMirror classAnno,
+            TypeMirror classType,
+            AnnotationMirror boundAnno,
+            TypeMirror boundTM,
+            boolean isExtends) {
+        if (showchecks) {
+            String clause = isExtends ? "extends" : "implements";
+            System.out.printf(
+                    "%s %s (at %s): %s tree = %s %s%n     actual: %s %s%n   expected: %s %s%n",
+                    this.getClass().getSimpleName(),
+                    "about to test whether the class declaration annotation is a subtype of the "
+                            + clause
+                            + " clause annotation",
+                    fileAndLineNumber(boundClause),
+                    clause,
+                    boundClause.getKind(),
+                    boundClause,
+                    classAnno,
+                    classType,
+                    boundAnno,
+                    boundTM);
+        }
+    }
+
+    /**
+     * Prints a diagnostic about exiting {@link #checkExtendsOrImplements}, if the showchecks option
+     * was set.
+     *
+     * @param success whether the check succeeded or failed
+     * @param boundClause an extends or implements clause
+     * @param classAnno the annotation on the class declaration
+     * @param classType the type being declared
+     * @param boundAnno the annotation on the extends or implements clause
+     * @param boundTM the type of the extends or implements clause
+     * @param isExtends true for an extends clause, false for an implements clause
+     */
+    protected final void checkExtendsOrImplementsEndDiagnostic(
+            boolean success,
+            Tree boundClause,
+            AnnotationMirror classAnno,
+            TypeMirror classType,
+            AnnotationMirror boundAnno,
+            TypeMirror boundTM,
+            boolean isExtends) {
+        if (showchecks) {
+            String clause = isExtends ? "extends" : "implements";
+            System.out.printf(
+                    " %s  (at %s): %s tree = %s %s%n     actual: %s %s%n   expected: %s %s%n",
+                    (success
+                                    ? "success: class declaration annotation is subtype of "
+                                    : "FAILURE: class declaration annotation is not subtype of ")
+                            + clause
+                            + " clause annotation",
+                    fileAndLineNumber(boundClause),
+                    clause,
+                    boundClause.getKind(),
+                    boundClause,
+                    classAnno,
+                    classType,
+                    boundAnno,
+                    boundTM);
         }
     }
 
