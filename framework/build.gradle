@@ -229,7 +229,7 @@ tasks.named('shadowJar') {
     minimize()
 }
 
-createCheckTypeTask(project.name, 'CompilerMessages',
+rootProject.createCheckTypeTask(project.name, 'CompilerMessages',
         'org.checkerframework.checker.compilermsgs.CompilerMessagesChecker')
 tasks.named('checkCompilerMessages') {
     options.compilerArgs += [

@@ -49,7 +49,7 @@ ext {
     // The int corresponding to the major version of the current JVM.
     currentRuntimeJavaVersion = majorVersionToInt(JavaVersion.current().getMajorVersion())
 
-    String useJdkVersionProp = project.getProperties().get('useJdkVersion')
+    String useJdkVersionProp = findProperty('useJdkVersion')
     if (useJdkVersionProp == null) {
         // If the property is not given, use the same version as the runtime.
         useJdkVersionInt = currentRuntimeJavaVersion
@@ -176,6 +176,18 @@ spotlessPredeclare {
 }
 
 allprojects { currentProj ->
+    // Explicitly propagate root-level ext properties so subproject build scripts
+    // can access them directly without triggering the deprecated implicit-parent-lookup.
+    ext {
+        currentRuntimeJavaVersion = rootProject.ext.currentRuntimeJavaVersion
+        useJdkVersionInt = rootProject.ext.useJdkVersionInt
+        isJava8 = rootProject.ext.isJava8
+        skipDelombok = rootProject.ext.skipDelombok
+        versions = rootProject.ext.versions
+        javadocMemberLevel = rootProject.ext.javadocMemberLevel
+        eisopFormatting = rootProject.ext.eisopFormatting
+    }
+
     // Increment the minor version (second number) rather than just the patch
     // level (third number) if:
     //   * any new checkers have been added, or
@@ -221,7 +233,7 @@ allprojects { currentProj ->
         // Always define javacJar, not just when `isJava8` is true, because we redistribute it in checker/build.gradle.
         javacJar("com.google.errorprone:javac:9+181-r4173-1")
 
-        allProjects subprojects
+        subprojects.each { sp -> allProjects project(sp.path) }
     }
 
     eclipse.classpath {
@@ -654,8 +666,9 @@ allprojects { currentProj ->
 tasks.register('version') {
     group = 'Documentation'
     description = 'Print Checker Framework version'
+    def v = version
     doLast {
-        println version
+        println v
     }
 }
 
@@ -1091,25 +1104,25 @@ subprojects {
         // Tasks such as `checkResourceLeak` to run various checkers on all the main source sets.
         // These pass and are run by the `typecheck` task.
         // When you add one here, also update a dependsOn item for the 'typecheck' task.
-        createCheckTypeTask(project.name, 'Formatter',
+        rootProject.createCheckTypeTask(project.name,'Formatter',
                 'org.checkerframework.checker.formatter.FormatterChecker')
-        createCheckTypeTask(project.name, 'Interning',
+        rootProject.createCheckTypeTask(project.name,'Interning',
                 'org.checkerframework.checker.interning.InterningChecker',
                 [
                     '-Astubs=javax-lang-model-element-name.astub'
                 ])
-        createCheckTypeTask(project.name, 'Optional',
+        rootProject.createCheckTypeTask(project.name,'Optional',
                 'org.checkerframework.checker.optional.OptionalChecker',
                 [
                     // to avoid having to annotate JavaParser
                     '-AassumePureGetters',
                     '-AassumeAssertionsAreEnabled',
                 ])
-        createCheckTypeTask(project.name, 'Purity',
+        rootProject.createCheckTypeTask(project.name,'Purity',
                 'org.checkerframework.framework.util.PurityChecker')
-        createCheckTypeTask(project.name, 'ResourceLeak',
+        rootProject.createCheckTypeTask(project.name,'ResourceLeak',
                 'org.checkerframework.checker.resourceleak.ResourceLeakChecker')
-        createCheckTypeTask(project.name, 'Signature',
+        rootProject.createCheckTypeTask(project.name,'Signature',
                 'org.checkerframework.checker.signature.SignatureChecker')
 
         def isDataflow = project.name.is('dataflow')
@@ -1120,7 +1133,7 @@ subprojects {
         //  * All files outside the 'framework' and 'checker' subprojects.
         //  * In the 'framework' and 'checker' subprojects, files with `@AnnotatedFor("nullness")`.
         if (isFramework || isChecker) {
-            createCheckTypeTask(project.name, 'Nullness',
+            rootProject.createCheckTypeTask(project.name,'Nullness',
                     'org.checkerframework.checker.nullness.NullnessChecker',
                     [
                         '-AskipUses=com\\.sun\\.*',
@@ -1129,7 +1142,7 @@ subprojects {
                         '-AconservativeArgumentNullnessAfterInvocation=true',
                     ])
         } else {
-            createCheckTypeTask(project.name, 'Nullness',
+            rootProject.createCheckTypeTask(project.name,'Nullness',
                     'org.checkerframework.checker.nullness.NullnessChecker',
                     [
                         '-AskipUses=com\\.sun\\.*',
