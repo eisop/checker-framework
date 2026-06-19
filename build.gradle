@@ -49,7 +49,7 @@ ext {
     // The int corresponding to the major version of the current JVM.
     currentRuntimeJavaVersion = majorVersionToInt(JavaVersion.current().getMajorVersion())
 
-    String useJdkVersionProp = project.getProperties().get('useJdkVersion')
+    String useJdkVersionProp = findProperty('useJdkVersion')
     if (useJdkVersionProp == null) {
         // If the property is not given, use the same version as the runtime.
         useJdkVersionInt = currentRuntimeJavaVersion
@@ -176,6 +176,18 @@ spotlessPredeclare {
 }
 
 allprojects { currentProj ->
+    // Explicitly propagate root-level ext properties so subproject build scripts
+    // can access them directly without triggering the deprecated implicit-parent-lookup.
+    ext {
+        currentRuntimeJavaVersion = rootProject.ext.currentRuntimeJavaVersion
+        useJdkVersionInt = rootProject.ext.useJdkVersionInt
+        isJava8 = rootProject.ext.isJava8
+        skipDelombok = rootProject.ext.skipDelombok
+        versions = rootProject.ext.versions
+        javadocMemberLevel = rootProject.ext.javadocMemberLevel
+        eisopFormatting = rootProject.ext.eisopFormatting
+    }
+
     // Increment the minor version (second number) rather than just the patch
     // level (third number) if:
     //   * any new checkers have been added, or
@@ -228,7 +240,7 @@ allprojects { currentProj ->
         // Always define javacJar, not just when `isJava8` is true, because we redistribute it in checker/build.gradle.
         javacJar("com.google.errorprone:javac:9+181-r4173-1")
 
-        allProjects subprojects
+        subprojects.each { sp -> allProjects project(sp.path) }
     }
 
     eclipse.classpath {
@@ -658,8 +670,9 @@ allprojects { currentProj ->
 tasks.register('version') {
     group = 'Documentation'
     description = 'Print Checker Framework version'
+    def v = version
     doLast {
-        println version
+        println v
     }
 }
 
@@ -736,7 +749,11 @@ tasks.register('htmlValidate', Exec) {
         '/build/',
         '/docs/manual/manual.html',
         '/docs/manual/plume-bib/docs/index.html',
-        '/checker/jdk/nullness/src/java/lang/ref/package.html'
+        '/checker/jdk/nullness/src/java/lang/ref/package.html',
+        // javadoc generates overview-summary.html as a redirect with
+        // content="0;index.html" instead of the HTML5-valid "0; URL=index.html".
+        // This is a javadoc tool bug; suppress it here.
+        'overview-summary.html'
     ]
 }
 
@@ -840,8 +857,8 @@ tasks.register('cleanManual', Exec) {
     description = 'Clean the manual'
     commandLine 'make', '-C', 'docs/manual', 'clean'
 }
-clean.dependsOn('cleanManual')
-clean {
+tasks.named('clean') {
+    dependsOn 'cleanManual'
     delete(file("${rootDir}/docs/api"))
 }
 
@@ -889,7 +906,6 @@ def createJavadocTask(taskName, taskDescription, memberLevel) {
     tasks.register(taskName, Javadoc) {
         description = taskDescription
         destinationDir = file("${rootDir}/docs/tmpapi")
-        destinationDir.mkdirs()
         subprojects.forEach {
             if (!it.name.startsWith('checker-qual-android')) {
                 source += it.sourceSets.main.allJava
@@ -900,7 +916,6 @@ def createJavadocTask(taskName, taskDescription, memberLevel) {
         // disable interpreting module-info.java files until all sub-modules support them
         modularity.inferModulePath = false
 
-        destinationDir.deleteDir()
         options.memberLevel = memberLevel
         options.addBooleanOption('Xdoclint:all', true)
         options.addStringOption('Xmaxwarns', '99999')
@@ -1017,7 +1032,7 @@ subprojects {
         }
     }
 
-    shadowJar {
+    tasks.named('shadowJar') {
         // If you add an external dependency, then do the following:
         //  * On the master branch and on the modified branch, run:
         //    ./gradlew assembleForJavac && jar tf checker/dist/checker.jar | grep -v '^annotated-jdk/' | sort > checker-jar-contents.txt
@@ -1105,25 +1120,25 @@ subprojects {
         // Tasks such as `checkResourceLeak` to run various checkers on all the main source sets.
         // These pass and are run by the `typecheck` task.
         // When you add one here, also update a dependsOn item for the 'typecheck' task.
-        createCheckTypeTask(project.name, 'Formatter',
+        rootProject.createCheckTypeTask(project.name,'Formatter',
                 'org.checkerframework.checker.formatter.FormatterChecker')
-        createCheckTypeTask(project.name, 'Interning',
+        rootProject.createCheckTypeTask(project.name,'Interning',
                 'org.checkerframework.checker.interning.InterningChecker',
                 [
                     '-Astubs=javax-lang-model-element-name.astub'
                 ])
-        createCheckTypeTask(project.name, 'Optional',
+        rootProject.createCheckTypeTask(project.name,'Optional',
                 'org.checkerframework.checker.optional.OptionalChecker',
                 [
                     // to avoid having to annotate JavaParser
                     '-AassumePureGetters',
                     '-AassumeAssertionsAreEnabled',
                 ])
-        createCheckTypeTask(project.name, 'Purity',
+        rootProject.createCheckTypeTask(project.name,'Purity',
                 'org.checkerframework.framework.util.PurityChecker')
-        createCheckTypeTask(project.name, 'ResourceLeak',
+        rootProject.createCheckTypeTask(project.name,'ResourceLeak',
                 'org.checkerframework.checker.resourceleak.ResourceLeakChecker')
-        createCheckTypeTask(project.name, 'Signature',
+        rootProject.createCheckTypeTask(project.name,'Signature',
                 'org.checkerframework.checker.signature.SignatureChecker')
 
         def isDataflow = project.name.is('dataflow')
@@ -1134,7 +1149,7 @@ subprojects {
         //  * All files outside the 'framework' and 'checker' subprojects.
         //  * In the 'framework' and 'checker' subprojects, files with `@AnnotatedFor("nullness")`.
         if (isFramework || isChecker) {
-            createCheckTypeTask(project.name, 'Nullness',
+            rootProject.createCheckTypeTask(project.name,'Nullness',
                     'org.checkerframework.checker.nullness.NullnessChecker',
                     [
                         '-AskipUses=com\\.sun\\.*',
@@ -1143,7 +1158,7 @@ subprojects {
                         '-AconservativeArgumentNullnessAfterInvocation=true',
                     ])
         } else {
-            createCheckTypeTask(project.name, 'Nullness',
+            rootProject.createCheckTypeTask(project.name,'Nullness',
                     'org.checkerframework.checker.nullness.NullnessChecker',
                     [
                         '-AskipUses=com\\.sun\\.*',
@@ -1417,9 +1432,10 @@ subprojects {
 // The assemble task also produces Javadoc jars, because its purpose is to build
 // all artifacts produced by the Gradle project:
 // https://docs.gradle.org/current/userguide/base_plugin.html#sec:base_tasks
-assemble.dependsOn(':checker:assembleForJavac')
-
-assemble.mustRunAfter(clean)
+tasks.named('assemble') {
+    dependsOn(':checker:assembleForJavac')
+    mustRunAfter('clean')
+}
 
 tasks.register('buildAll') {
     group = 'Build'
@@ -1451,7 +1467,9 @@ tasks.register('releaseAndTest') {
 }
 
 // Don't create an empty checker-framework-VERSION.jar
-jar.onlyIf {false}
+tasks.named('jar') {
+    onlyIf { false }
+}
 
 /**
  * Adds the shared pom information to the given publication.

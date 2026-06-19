@@ -1,5 +1,3 @@
-import org.gradle.internal.jvm.Jvm
-
 sourceSets {
     taglet
     tagletJdk8
@@ -37,13 +35,15 @@ tasks.named('compileTagletJava') {
     enabled = !isJava8
 }
 
-jar.archiveBaseName = 'framework-test'
+tasks.named('jar') {
+    archiveBaseName = 'framework-test'
+}
 
 apply from: rootProject.file('gradle-mvn-push.gradle')
 
 /** Adds information to the publication for uploading to Maven repositories. */
 final frameworkTest(publication) {
-    sharedPublicationConfiguration(publication)
+    rootProject.sharedPublicationConfiguration(publication)
     publication.from components.java
     publication.pom {
         name = 'Checker Framework Testing Library'
