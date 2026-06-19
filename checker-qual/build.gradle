@@ -31,17 +31,17 @@ tasks.named('compileModule_infoJava') {
     enabled = false
 }
 
-compileJava {
+tasks.named('compileJava') {
     if (!isJava8) {
         dependsOn 'compileJava9'
     }
 }
 
-javadoc {
+tasks.named('javadoc') {
     modularity.inferModulePath = false
 }
 
-jar {
+tasks.named('jar') {
     manifest {
         attributes('Export-Package': '*')
     }

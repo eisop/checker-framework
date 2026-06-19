@@ -36,7 +36,9 @@ tasks.named('compileTagletJava') {
     enabled = !isJava8
 }
 
-jar.archiveBaseName = 'framework-test'
+tasks.named('jar') {
+    archiveBaseName = 'framework-test'
+}
 
 apply from: rootProject.file('gradle-mvn-push.gradle')
 

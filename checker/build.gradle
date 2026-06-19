@@ -27,8 +27,8 @@ sourceSets {
     }
 }
 
-sourcesJar {
-    dependsOn(generateGitProperties)
+tasks.named('sourcesJar') {
+    dependsOn('generateGitProperties')
 
     // The resources duplicate content from the src directory.
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
@@ -118,12 +118,14 @@ dependencies {
 //   produced, depending on what order the tasks are executed. Please refer to
 //   https://docs.gradle.org/7.1/userguide/validation_problems.html#implicit_dependency for more
 //   details about this problem.
-generateGitProperties.dependsOn(':installGitHooks')
+tasks.named('generateGitProperties') {
+    dependsOn(':installGitHooks')
+}
 gitProperties {
     dotGitDirectory = project.rootProject.layout.projectDirectory.dir(".git")
 }
 
-jar {
+tasks.named('jar') {
     manifest {
         attributes('Main-Class': 'org.checkerframework.framework.util.CheckerMain')
     }
@@ -204,7 +206,9 @@ tasks.register('assembleForJavac') {
     }
 }
 
-assemble.dependsOn 'assembleForJavac'
+tasks.named('assemble') {
+    dependsOn 'assembleForJavac'
+}
 
 tasks.register('allSourcesJar', Jar) {
     group = 'Build'
@@ -256,14 +260,14 @@ tasks.register('checkerJar', ShadowJar) {
     relocators = shadowJar.getRelocators()
 }
 
-jar {
+tasks.named('jar') {
     dependsOn('checkerJar')
     // Never build the skinny jar.
     onlyIf {false}
     archiveClassifier = 'skinny'
 }
 
-shadowJar {
+tasks.named('shadowJar') {
     // assembleForJavac is the task that copies this archive to dist/checker.jar
     // (with a declared, cacheable output).
     description = 'Creates checker-VERSION-all.jar.'
@@ -294,7 +298,7 @@ artifacts {
     fatJar(tasks.named('shadowJar'))
 }
 
-clean {
+tasks.named('clean') {
     def injected = project.objects.newInstance(InjectedExecOps)
     def commandLineDir = file('tests/command-line')
     def nullnessExtraDir = file('tests/nullness-extra')
@@ -324,21 +328,23 @@ clean {
 
 // Capture the build directory provider at configuration time.
 def cleanBuildDir = layout.buildDirectory
-clean.doLast {
-    def buildDirFile = cleanBuildDir.get().asFile
-    int maxAttempts = 6
-    int attempt = 0
-    while (buildDirFile.exists() && attempt < maxAttempts) {
-        attempt++
-        if (attempt > 1) {
-            sleep(10000)                // wait 10 seconds
+tasks.named('clean') {
+    doLast {
+        def buildDirFile = cleanBuildDir.get().asFile
+        int maxAttempts = 6
+        int attempt = 0
+        while (buildDirFile.exists() && attempt < maxAttempts) {
+            attempt++
+            if (attempt > 1) {
+                sleep(10000)                // wait 10 seconds
+            }
+            buildDirFile.deleteDir()
         }
-        buildDirFile.deleteDir()
-    }
-    if (buildDirFile.exists()) {
-        logger.error("Could not delete ${buildDirFile} after ${maxAttempts} attempt(s). Remaining contents:")
-        buildDirFile.listFiles()?.each { logger.error("  ${it}") }
-        throw new GradleException("Failed to delete build directory: ${buildDirFile}")
+        if (buildDirFile.exists()) {
+            logger.error("Could not delete ${buildDirFile} after ${maxAttempts} attempt(s). Remaining contents:")
+            buildDirFile.listFiles()?.each { logger.error("  ${it}") }
+            throw new GradleException("Failed to delete build directory: ${buildDirFile}")
+        }
     }
 }
 
@@ -499,7 +505,7 @@ tasks.register('jtregJdk11Tests', Exec) {
     ]
 }
 
-test {
+tasks.named('test') {
     if (skipDelombok) {
         exclude '**/org/checkerframework/checker/test/junit/CalledMethodsNoDelombokTest.class'
         exclude '**/org/checkerframework/checker/test/junit/CalledMethodsDisableReturnsReceiverTest.class'
@@ -534,7 +540,7 @@ if (!skipDelombok) {
 // Tests of the -Ainfer command-line argument.  These are not whole-program inference tests.
 //
 
-test {
+tasks.named('test') {
     useJUnit {
         // These are run in task ainferTest.
         excludeCategories 'org.checkerframework.checker.test.junit.ainferrunners.AinferTestCheckerJaifsGenerationTest'
