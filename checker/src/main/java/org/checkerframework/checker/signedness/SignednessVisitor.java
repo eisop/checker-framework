@@ -379,12 +379,13 @@ public class SignednessVisitor extends BaseTypeVisitor<SignednessAnnotatedTypeFa
     }
 
     @Override
-    protected boolean isTypeCastSafe(AnnotatedTypeMirror castType, AnnotatedTypeMirror exprType) {
+    protected TypecastKind classifyTypeCast(
+            AnnotatedTypeMirror castType, AnnotatedTypeMirror exprType) {
         if (!atypeFactory.maybeIntegral(castType)) {
             // If the cast is not a number or a char, then it is legal.
-            return true;
+            return TypecastKind.SAFE;
         }
-        return super.isTypeCastSafe(castType, exprType);
+        return super.classifyTypeCast(castType, exprType);
     }
 
     @Override

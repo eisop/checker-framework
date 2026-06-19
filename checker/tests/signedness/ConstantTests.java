@@ -5,6 +5,7 @@ import org.checkerframework.checker.signedness.qual.Unsigned;
 
 public class ConstantTests {
 
+    // :: error: (cast.incomparable)
     @Unsigned int uint_negative_one = (@Unsigned int) -1;
 
     @Unsigned int u1lit = 0xFFFFFFFE; // unsigned: 2^32 - 2, signed: -2

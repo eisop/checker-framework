@@ -13,7 +13,6 @@ import org.checkerframework.common.basetype.BaseTypeVisitor;
 import org.checkerframework.common.value.qual.IntRangeFromGTENegativeOne;
 import org.checkerframework.common.value.qual.IntRangeFromNonNegative;
 import org.checkerframework.common.value.qual.IntRangeFromPositive;
-import org.checkerframework.common.value.qual.IntVal;
 import org.checkerframework.common.value.qual.StaticallyExecutable;
 import org.checkerframework.common.value.util.NumberUtils;
 import org.checkerframework.common.value.util.Range;
@@ -21,6 +20,7 @@ import org.checkerframework.dataflow.qual.Pure;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedDeclaredType;
 import org.checkerframework.framework.type.visitor.AnnotatedTypeScanner;
+import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.TreeUtils;
@@ -349,7 +349,8 @@ public class ValueVisitor extends BaseTypeVisitor<ValueAnnotatedTypeFactory> {
     // cast.  This method returns true for (@IntVal(-1), @IntVal(255)) if the underlying type
     // is `byte`, but not for any other underlying type.
     @Override
-    protected boolean isTypeCastSafe(AnnotatedTypeMirror castType, AnnotatedTypeMirror exprType) {
+    protected TypecastKind classifyTypeCast(
+            AnnotatedTypeMirror castType, AnnotatedTypeMirror exprType) {
         TypeKind castTypeKind =
                 TypeKindUtils.primitiveOrBoxedToTypeKind(castType.getUnderlyingType());
         TypeKind exprTypeKind =
@@ -358,27 +359,42 @@ public class ValueVisitor extends BaseTypeVisitor<ValueAnnotatedTypeFactory> {
                 && exprTypeKind != null
                 && TypeKindUtils.isIntegral(castTypeKind)
                 && TypeKindUtils.isIntegral(exprTypeKind)) {
-            AnnotationMirror castAnno = castType.getAnnotationInHierarchy(atypeFactory.UNKNOWNVAL);
-            AnnotationMirror exprAnno = exprType.getAnnotationInHierarchy(atypeFactory.UNKNOWNVAL);
-            if (AnnotationUtils.areSame(castAnno, exprAnno)) {
-                return true;
+            AnnotationMirrorSet castAnnos = castType.getAnnotations();
+            AnnotationMirrorSet exprAnnos = exprType.getAnnotations();
+            if (castAnnos.equals(exprAnnos)) {
+                return TypecastKind.SAFE;
             }
-            boolean castAnnoIsIntVal = atypeFactory.areSameByClass(castAnno, IntVal.class);
-            boolean exprAnnoIsIntVal = atypeFactory.areSameByClass(exprAnno, IntVal.class);
-            if (castAnnoIsIntVal && exprAnnoIsIntVal) {
+            if (castTypeKind == exprTypeKind) {
+                return super.classifyTypeCast(castType, exprType);
+            }
+            AnnotationMirror castAnno =
+                    AnnotationUtils.getAnnotationByName(
+                            castAnnos, ValueAnnotatedTypeFactory.INTVAL_NAME);
+            AnnotationMirror exprAnno =
+                    AnnotationUtils.getAnnotationByName(
+                            exprAnnos, ValueAnnotatedTypeFactory.INTVAL_NAME);
+            if (castAnno != null && exprAnno != null) {
                 List<Long> castValues = atypeFactory.getIntValues(castAnno);
                 List<Long> exprValues = atypeFactory.getIntValues(exprAnno);
                 if (castValues.size() == 1 && exprValues.size() == 1) {
                     // Special-case singleton sets for speed.
                     switch (castTypeKind) {
                         case BYTE:
-                            return castValues.get(0).byteValue() == exprValues.get(0).byteValue();
+                            return castValues.get(0).byteValue() == exprValues.get(0).byteValue()
+                                    ? TypecastKind.SAFE
+                                    : TypecastKind.ERROR;
                         case INT:
-                            return castValues.get(0).intValue() == exprValues.get(0).intValue();
+                            return castValues.get(0).intValue() == exprValues.get(0).intValue()
+                                    ? TypecastKind.SAFE
+                                    : TypecastKind.ERROR;
                         case SHORT:
-                            return castValues.get(0).shortValue() == exprValues.get(0).shortValue();
+                            return castValues.get(0).shortValue() == exprValues.get(0).shortValue()
+                                    ? TypecastKind.SAFE
+                                    : TypecastKind.ERROR;
                         default:
-                            return castValues.get(0).longValue() == exprValues.get(0).longValue();
+                            return castValues.get(0).longValue() == exprValues.get(0).longValue()
+                                    ? TypecastKind.SAFE
+                                    : TypecastKind.ERROR;
                     }
                 } else {
                     switch (castTypeKind) {
@@ -393,7 +409,9 @@ public class ValueVisitor extends BaseTypeVisitor<ValueAnnotatedTypeFactory> {
                                                 CollectionsPlume.mapList(
                                                         Number::byteValue, exprValues));
                                 return CollectionsPlume.sortedSetContainsAll(
-                                        castValuesTree, exprValuesTree);
+                                                castValuesTree, exprValuesTree)
+                                        ? TypecastKind.SAFE
+                                        : TypecastKind.ERROR;
                             }
                         case INT:
                             {
@@ -406,7 +424,9 @@ public class ValueVisitor extends BaseTypeVisitor<ValueAnnotatedTypeFactory> {
                                                 CollectionsPlume.mapList(
                                                         Number::intValue, exprValues));
                                 return CollectionsPlume.sortedSetContainsAll(
-                                        castValuesTree, exprValuesTree);
+                                                castValuesTree, exprValuesTree)
+                                        ? TypecastKind.SAFE
+                                        : TypecastKind.ERROR;
                             }
                         case SHORT:
                             {
@@ -419,21 +439,25 @@ public class ValueVisitor extends BaseTypeVisitor<ValueAnnotatedTypeFactory> {
                                                 CollectionsPlume.mapList(
                                                         Number::shortValue, exprValues));
                                 return CollectionsPlume.sortedSetContainsAll(
-                                        castValuesTree, exprValuesTree);
+                                                castValuesTree, exprValuesTree)
+                                        ? TypecastKind.SAFE
+                                        : TypecastKind.ERROR;
                             }
                         default:
                             {
                                 TreeSet<Long> castValuesTree = new TreeSet<>(castValues);
                                 TreeSet<Long> exprValuesTree = new TreeSet<>(exprValues);
                                 return CollectionsPlume.sortedSetContainsAll(
-                                        castValuesTree, exprValuesTree);
+                                                castValuesTree, exprValuesTree)
+                                        ? TypecastKind.SAFE
+                                        : TypecastKind.ERROR;
                             }
                     }
                 }
             }
         }
 
-        return super.isTypeCastSafe(castType, exprType);
+        return super.classifyTypeCast(castType, exprType);
     }
 
     /**

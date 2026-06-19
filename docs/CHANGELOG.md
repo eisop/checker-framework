@@ -3,6 +3,15 @@ Version 3.49.5-eisop2 (June ?, 2026)
 
 **User-visible changes:**
 
+A new error message `cast.incomparable` is raised when the target type qualifier is neither
+a subtype nor a supertype of the expression type qualifier. Statically verifiable downcasts no
+longer issue errors.
+
+**Implementation details:**
+
+Refactored typecast classification to first determine whether a cast is an upcast, downcast, or
+incomparable cast, then determine whether the cast is statically verifiable.
+
 Further performance improvements. `allNullnessTests` down to below 2 minutes
 and `checkNullness` to around 2.5 minutes (last release: 2.5 and 4 minutes,
 respectively). Several optimizations also reduce GC pressure.
@@ -810,7 +819,6 @@ is an enhanced switch statement.
 **Closed issues:**
 
 eisop#609, eisop#610, eisop#612.
-
 
 Version 3.40.0 (November 1, 2023)
 ---------------------------------

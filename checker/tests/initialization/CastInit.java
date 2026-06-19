@@ -5,7 +5,9 @@ public class CastInit {
 
     public CastInit() {
         @UnknownInitialization CastInit t1 = (@UnknownInitialization CastInit) this;
-        // :: warning: (cast.unsafe)
+        // In a constructor, `this` is @UnderInitialization; @UnderInitialization and @Initialized
+        // are incomparable in the initialization hierarchy.
+        // :: error: (cast.incomparable)
         @Initialized CastInit t2 = (@Initialized CastInit) this;
     }
 }

@@ -12,7 +12,8 @@ public class Issue2367 {
 
     // Without the `(byte)` cast, all of these produce the following javac error:
     //   error: incompatible types: possible lossy conversion from int to byte
-    // The Value Checker's `cast.unsafe` error is analogous and is desirable.
+    // The Value Checker should likewise reject casts whose literal value is outside the target
+    // primitive range.
 
     byte b4 = (byte) 139; // b4 == -117
     byte b5 = (byte) -240;

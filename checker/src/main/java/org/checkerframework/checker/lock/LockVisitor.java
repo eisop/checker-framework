@@ -118,6 +118,18 @@ public class LockVisitor extends BaseTypeVisitor<LockAnnotatedTypeFactory> {
         return super.visitVariable(tree, p);
     }
 
+    @Override
+    protected TypecastKind classifyIncomparableCast(
+            AnnotatedTypeMirror castType, AnnotatedTypeMirror exprType) {
+        TypeMirror castTM = castType.getUnderlyingType();
+        if (TypesUtils.isBoxedPrimitive(castTM)
+                || TypesUtils.isPrimitive(castTM)
+                || TypesUtils.isString(castTM)) {
+            return TypecastKind.SAFE;
+        }
+        return super.classifyIncomparableCast(castType, exprType);
+    }
+
     /**
      * Issues an error if two or more of the following annotations are present on a variable
      * declaration.

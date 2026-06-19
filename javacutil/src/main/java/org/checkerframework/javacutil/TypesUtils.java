@@ -302,6 +302,17 @@ public final class TypesUtils {
         return (left.getKind() == right.getKind());
     }
 
+    /**
+     * Returns true iff the arguments are type variables declared by the same type parameter.
+     *
+     * @param v1 a type variable
+     * @param v2 a type variable
+     * @return whether the arguments are the same type variable
+     */
+    public static boolean areSameTypeVariables(TypeVariable v1, TypeVariable v2) {
+        return v1.asElement().equals(v2.asElement());
+    }
+
     // Predicates
 
     /**

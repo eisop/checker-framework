@@ -11,7 +11,7 @@ public class Overflows {
 
     static void chars() {
         char max = Character.MAX_VALUE;
-        // :: warning: (cast.unsafe)
+        // :: error: (cast.incomparable)
         @IntVal(0) char maxPlus1 = (char) (max + 1);
     }
 
