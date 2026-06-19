@@ -13,18 +13,28 @@ dependencies {
     implementation "org.plumelib:plume-util:${versions.plumeUtil}"
 
     if (isJava8) {
-        def launcherProvider = javaToolchains.launcherFor {
+        // Use compilerFor (not launcherFor): javac lives only in the JDK root, so
+        // installationPath is guaranteed to be the JDK home where lib/tools.jar exists.
+        def compilerProvider = javaToolchains.compilerFor {
             languageVersion = JavaLanguageVersion.of(8)
         }
-        def toolsJar = launcherProvider.map { launcher ->
-            def jdkHome = launcher.metadata.installationPath.asFile
-            new File(jdkHome, "lib/tools.jar")
+        def toolsJar = compilerProvider.map { compiler ->
+            new File(compiler.metadata.installationPath.asFile, "lib/tools.jar")
         }
 
         tagletJdk8Implementation files(toolsJar)
     }
 
     testImplementation project(':framework')
+}
+
+// Shadow 9.4.2 eagerly triggers compile tasks for all source sets.
+// Only enable Java 8 specific compilation when actually on Java 8.
+tasks.named('compileTagletJdk8Java') {
+    enabled = isJava8
+}
+tasks.named('compileTagletJava') {
+    enabled = !isJava8
 }
 
 jar.archiveBaseName = 'framework-test'

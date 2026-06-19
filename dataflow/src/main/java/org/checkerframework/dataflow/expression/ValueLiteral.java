@@ -172,7 +172,11 @@ public class ValueLiteral extends JavaExpression {
     @Override
     public int hashCode() {
         if (hashCodeCache == 0) {
-            hashCodeCache = Objects.hash(value, type.toString());
+            int h = 1;
+            h = 31 * h + (value != null ? value.hashCode() : 0);
+            String typeStr = type.toString();
+            h = 31 * h + (typeStr != null ? typeStr.hashCode() : 0);
+            hashCodeCache = h == 0 ? 1 : h;
         }
         return hashCodeCache;
     }

@@ -673,10 +673,10 @@ void copyNonannotatedToAnnotatedDirectory(InjectedFileOps injectedFiles, File pr
         into "tests/${testdir}/annotated"
         filter { String line ->
             (line.contains('// :: error:')
-                    // Don't remove unchecked cast warnings, because they're genuinely expected in some all-systems
-                    // tests, such as GenericsCasts.java.
-                    || (line.contains('// :: warning:') && !line.contains('// :: warning: [unchecked]')))
-                    ? null : line
+            // Don't remove unchecked cast warnings, because they're genuinely expected in some all-systems
+            // tests, such as GenericsCasts.java.
+            || (line.contains('// :: warning:') && !line.contains('// :: warning: [unchecked]')))
+            ? null : line
         }
     }
     // The only file for which expected errors are maintained is ExpectedErrors.java, so we copy it over.
@@ -1073,22 +1073,22 @@ tasks.register('wpiManyTest', Exec) {
                 if (
                 // Ignore the line that WPI echoes with the javac command being run.
                 line.startsWith('Running ')
-                        // Warnings about bad path elements aren't related to WPI and are ignored.
-                        || line.startsWith('warning: [path]')
-                        // Ignore bootstrap classpath warning:
-                        || line.startsWith('warning: [options] bootstrap')
-                        // Ignore the warnings about --add-opens arguments to the JVM
-                        || line.contains('warning: [options] --add-opens has no effect at compile time')
-                        // Ignore warning about using -source; should use --release instead.
-                        || line.equals("warning: [options] system modules path not set in conjunction with -source 11")
-                        // Ignore the summary line that reports the total number of warnings (which can be single or plural).
-                        || line.endsWith(' warning')
-                        || line.endsWith(' warnings')
-                        || line.startsWith('warning: No processor claimed any of these annotations: ')
-                        // Ignore debugging output with the prefix "DEBUG: ".
-                        || line.startsWith('DEBUG: ')
-                        || line.startsWith('warning: DEBUG: ')
-                        || line.contains('warning: [DEBUG: ')) {
+                // Warnings about bad path elements aren't related to WPI and are ignored.
+                || line.startsWith('warning: [path]')
+                // Ignore bootstrap classpath warning:
+                || line.startsWith('warning: [options] bootstrap')
+                // Ignore the warnings about --add-opens arguments to the JVM
+                || line.contains('warning: [options] --add-opens has no effect at compile time')
+                // Ignore warning about using -source; should use --release instead.
+                || line.equals("warning: [options] system modules path not set in conjunction with -source 11")
+                // Ignore the summary line that reports the total number of warnings (which can be single or plural).
+                || line.endsWith(' warning')
+                || line.endsWith(' warnings')
+                || line.startsWith('warning: No processor claimed any of these annotations: ')
+                // Ignore debugging output with the prefix "DEBUG: ".
+                || line.startsWith('DEBUG: ')
+                || line.startsWith('warning: DEBUG: ')
+                || line.contains('warning: [DEBUG: ')) {
                     return;
                 }
                 if (!line.trim().equals('')) {
@@ -1143,10 +1143,65 @@ final checkerPom(publication) {
     }
 }
 
+// `components.shadow` (used for the `checker` publication below) only
+// declares a single `shadowRuntimeElements` variant for the shadow jar,
+// with java-runtime usage; see ShadowJavaPlugin#configureComponents() in
+// the Shadow plugin. There is no matching compile-time (java-api) variant,
+// so once the project correctly declares its target JVM version (see
+// `sourceCompatibility`/`targetCompatibility` above), a consuming Gradle
+// build resolving `compileClasspath` against the published module
+// metadata finds a version-compatible variant, but not one usable for
+// compile-time, and fails with "no matching variant" -- this is a known
+// Shadow plugin limitation, see https://github.com/GradleUp/shadow/issues/847.
+//
+// Register a `shadowApiElements` configuration that exposes the same
+// shadow jar for compile-time usage, and add it to `components.shadow` as
+// the missing compile-time variant, so the published Gradle Module
+// Metadata has both a runtime and a compile variant pointing at the
+// shadow jar.
+import org.gradle.api.attributes.Bundling
+import org.gradle.api.attributes.Category
+import org.gradle.api.attributes.LibraryElements
+import org.gradle.api.attributes.Usage
+import org.gradle.api.attributes.java.TargetJvmVersion
+import org.gradle.api.component.AdhocComponentWithVariants
+
+configurations {
+    shadowApiElements {
+        canBeConsumed = true
+        canBeResolved = false
+        attributes {
+            attribute(Usage.USAGE_ATTRIBUTE, objects.named(Usage, Usage.JAVA_API))
+            attribute(Category.CATEGORY_ATTRIBUTE, objects.named(Category, Category.LIBRARY))
+            attribute(LibraryElements.LIBRARY_ELEMENTS_ATTRIBUTE, objects.named(LibraryElements, LibraryElements.JAR))
+            attribute(Bundling.BUNDLING_ATTRIBUTE, objects.named(Bundling, Bundling.SHADOWED))
+        }
+        outgoing.artifact(tasks.named('shadowJar'))
+    }
+}
+
+// Must run after the Shadow plugin's own `afterEvaluate` block, which sets
+// the TargetJvmVersion attribute on `shadowRuntimeElements` and adds that
+// configuration to `components.shadow`. Copy the resulting attribute onto
+// `shadowApiElements` so both variants agree on the target JVM version,
+// then add it as the missing compile-time variant.
+afterEvaluate {
+    def runtimeJvmVersion = configurations.shadowRuntimeElements.attributes
+    .getAttribute(TargetJvmVersion.TARGET_JVM_VERSION_ATTRIBUTE)
+    if (runtimeJvmVersion != null) {
+        configurations.shadowApiElements.attributes {
+            attribute(TargetJvmVersion.TARGET_JVM_VERSION_ATTRIBUTE, runtimeJvmVersion)
+        }
+    }
+    (components.shadow as AdhocComponentWithVariants).addVariantsFromConfiguration(configurations.shadowApiElements) {
+        it.mapToMavenScope('compile')
+    }
+}
+
 publishing {
     publications {
         checker(MavenPublication) {
-            project.shadow.component it
+            from(components.shadow)
             checkerPom it
             artifact tasks.named('checkerJar')
             artifact tasks.named('allSourcesJar')
