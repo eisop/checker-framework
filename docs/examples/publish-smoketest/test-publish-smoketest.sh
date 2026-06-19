@@ -50,16 +50,16 @@ echo "Publishing and consuming version ${CHECKER_VERSION}"
 # checker itself, plus checker-qual and checker-util, which are declared as
 # regular (non-bundled) dependencies of the published `checker` artifact.
 HOME="${SMOKETEST_HOME}" ./gradlew --console=plain \
-    :checker-qual:publishToMavenLocal \
-    :checker-util:publishToMavenLocal \
-    :checker:publishToMavenLocal
+  :checker-qual:publishToMavenLocal \
+  :checker-util:publishToMavenLocal \
+  :checker:publishToMavenLocal
 
 # Run the standalone consumer build against the freshly published artifacts.
 # It has its own settings.gradle/build.gradle and is not part of this
 # project's Gradle build, matching how an external consumer would see it.
 cd "${CONSUMER_DIR}"
 HOME="${SMOKETEST_HOME}" "${REPO_ROOT}/gradlew" --console=plain \
-    -PcheckerVersion="${CHECKER_VERSION}" \
-    clean compileJava
+  -PcheckerVersion="${CHECKER_VERSION}" \
+  clean compileJava
 
 echo "Publish smoke test passed: a Java 8 consumer build resolved and compiled against io.github.eisop:checker:${CHECKER_VERSION}."
