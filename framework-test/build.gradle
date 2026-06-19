@@ -13,12 +13,13 @@ dependencies {
     implementation "org.plumelib:plume-util:${versions.plumeUtil}"
 
     if (isJava8) {
-        def launcherProvider = javaToolchains.launcherFor {
+        // Use compilerFor (not launcherFor): javac lives only in the JDK root, so
+        // installationPath is guaranteed to be the JDK home where lib/tools.jar exists.
+        def compilerProvider = javaToolchains.compilerFor {
             languageVersion = JavaLanguageVersion.of(8)
         }
-        def toolsJar = launcherProvider.map { launcher ->
-            def jdkHome = launcher.metadata.installationPath.asFile
-            new File(jdkHome, "lib/tools.jar")
+        def toolsJar = compilerProvider.map { compiler ->
+            new File(compiler.metadata.installationPath.asFile, "lib/tools.jar")
         }
 
         tagletJdk8Implementation files(toolsJar)

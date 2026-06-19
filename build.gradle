@@ -191,6 +191,13 @@ allprojects { currentProj ->
 
     group = 'io.github.eisop'
 
+    java {
+        // Using `options.release.set(8)` here leads to compilation
+        // errors such as "package com.sun.source.tree does not exist".
+        sourceCompatibility = JavaVersion.VERSION_1_8
+        targetCompatibility = JavaVersion.VERSION_1_8
+    }
+
     // Keep in sync with "repositories { ... }" block above.
     repositories {
         maven { url = 'https://central.sonatype.com/repository/maven-snapshots/'}
@@ -514,10 +521,7 @@ allprojects { currentProj ->
             // This test is for whether the Checker Framework supports (runs under) Java 8.
             // Currently, the Checker Framework does support Java 8.
             if (true) {
-                // Using `options.release.set(8)` here leads to compilation
-                // errors such as "package com.sun.source.tree does not exist".
-                sourceCompatibility = 8
-                targetCompatibility = 8
+                // This needs to be done earlier now. Look for `sourceCompatibility = JavaVersion.VERSION_1_8`.
                 // Because the target is 8, all of the public compiler classes are accessible, so
                 // --add-exports are not required (nor are they allowed with target 8). See
                 // https://openjdk.org/jeps/247 for details on compiling for older versions.
@@ -813,6 +817,14 @@ tasks.register('allJavadoc', Javadoc) {
 
     if (isJava8) {
         classpath += configurations.javacJar
+        // ManualTaglet (tagletJdk8) imports com.sun.javadoc / com.sun.tools.doclets from
+        // tools.jar.  Javadoc needs tools.jar on the compile classpath to process its source.
+        def compilerProvider = javaToolchains.compilerFor {
+            languageVersion = JavaLanguageVersion.of(8)
+        }
+        classpath += files(compilerProvider.map { compiler ->
+            new File(compiler.metadata.installationPath.asFile, "lib/tools.jar")
+        })
     }
 
     // disable interpreting module-info.java files until all sub-modules support them
