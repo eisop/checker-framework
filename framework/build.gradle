@@ -6,6 +6,14 @@ plugins {
     id 'java-test-fixtures'
 }
 
+// allSourcesJar (below) reads project(':javacutil').sourceSets.main.allJava directly.
+// javacutil is declared after framework in settings.gradle's include order, so without
+// this, that access would run before javacutil's own build.gradle has had a chance to
+// configure its sourceSets -- harmless today only because javacutil never customizes
+// them, but not something Gradle guarantees. dataflow doesn't need the same guard: it's
+// declared before framework already.
+evaluationDependsOn(':javacutil')
+
 ext {
     annotatedJdkHome = '../../jdk'
 }
