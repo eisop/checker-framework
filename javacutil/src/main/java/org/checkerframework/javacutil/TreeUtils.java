@@ -90,7 +90,10 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.EnumSet;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.StringJoiner;
 import java.util.regex.Pattern;
@@ -106,6 +109,7 @@ import javax.lang.model.element.NestingKind;
 import javax.lang.model.element.PackageElement;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
+import javax.lang.model.type.ArrayType;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.ExecutableType;
 import javax.lang.model.type.TypeKind;
@@ -176,7 +180,7 @@ public final class TreeUtils {
      * @return true iff tree describes a constructor
      */
     public static boolean isConstructor(MethodTree tree) {
-        return tree.getName().contentEquals("<init>");
+        return InternalUtils.isInitName(tree.getName());
     }
 
     /**
@@ -207,7 +211,7 @@ public final class TreeUtils {
      * @return true iff tree is a call to the given method
      */
     private static boolean isNamedMethodCall(String name, MethodInvocationTree tree) {
-        return getMethodName(tree.getMethodSelect()).contentEquals(name);
+        return InternalUtils.sameName(methodName(tree), name);
     }
 
     /**
@@ -254,7 +258,7 @@ public final class TreeUtils {
             tr = ((MemberSelectTree) tr).getExpression();
             if (tr instanceof IdentifierTree) {
                 Name ident = ((IdentifierTree) tr).getName();
-                return ident.contentEquals("this") || ident.contentEquals("super");
+                return InternalUtils.isThisName(ident) || InternalUtils.isSuperName(ident);
             }
         }
 
@@ -905,7 +909,7 @@ public final class TreeUtils {
         MethodInvocationTree invocation =
                 (MethodInvocationTree) ((ExpressionStatementTree) st).getExpression();
 
-        return "this".contentEquals(TreeUtils.methodName(invocation));
+        return InternalUtils.isThisName(TreeUtils.methodName(invocation));
     }
 
     /**
@@ -1383,7 +1387,7 @@ public final class TreeUtils {
             throw new UserError("Configuration problem! Could not load type: " + typeName);
         }
         for (ExecutableElement exec : ElementFilter.methodsIn(typeElt.getEnclosedElements())) {
-            if (exec.getSimpleName().contentEquals(methodName)
+            if (InternalUtils.sameName(exec.getSimpleName(), methodName)
                     && exec.getParameters().size() == params) {
                 methods.add(exec);
             }
@@ -1428,7 +1432,7 @@ public final class TreeUtils {
             throw new UserError("Configuration problem! Could not load type: " + typeName);
         }
         for (ExecutableElement exec : ElementFilter.methodsIn(typeElt.getEnclosedElements())) {
-            if (exec.getSimpleName().contentEquals(methodName)
+            if (InternalUtils.sameName(exec.getSimpleName(), methodName)
                     && exec.getParameters().size() == paramTypes.length) {
                 boolean typesMatch = true;
                 List<? extends VariableElement> params = exec.getParameters();
@@ -1449,7 +1453,7 @@ public final class TreeUtils {
         // Didn't find an answer.  Compose an error message.
         List<String> candidates = new ArrayList<>();
         for (ExecutableElement exec : ElementFilter.methodsIn(typeElt.getEnclosedElements())) {
-            if (exec.getSimpleName().contentEquals(methodName)) {
+            if (InternalUtils.sameName(exec.getSimpleName(), methodName)) {
                 candidates.add(executableElementToString(exec));
             }
         }
@@ -1487,7 +1491,7 @@ public final class TreeUtils {
      */
     public static boolean isExplicitThisDereference(ExpressionTree expr) {
         if (expr instanceof IdentifierTree
-                && ((IdentifierTree) expr).getName().contentEquals("this")) {
+                && InternalUtils.isThisName(((IdentifierTree) expr).getName())) {
             // Explicit this reference "this"
             return true;
         }
@@ -1497,7 +1501,7 @@ public final class TreeUtils {
         }
 
         MemberSelectTree memSelTree = (MemberSelectTree) expr;
-        if (memSelTree.getIdentifier().contentEquals("this")) {
+        if (InternalUtils.isThisName(memSelTree.getIdentifier())) {
             // Outer this reference "C.this"
             return true;
         }
@@ -1518,7 +1522,7 @@ public final class TreeUtils {
         if (!(tree instanceof MemberSelectTree)) {
             return false;
         }
-        return "class".equals(((MemberSelectTree) tree).getIdentifier().toString());
+        return InternalUtils.sameName(((MemberSelectTree) tree).getIdentifier(), "class");
     }
 
     /**
@@ -1568,8 +1572,8 @@ public final class TreeUtils {
             assert isUseOfElement(ident) : "@AssumeAssertion(nullness): tree kind";
             Element el = TreeUtils.elementFromUse(ident);
             if (el.getKind().isField()
-                    && !ident.getName().contentEquals("this")
-                    && !ident.getName().contentEquals("super")) {
+                    && !InternalUtils.isThisName(ident.getName())
+                    && !InternalUtils.isSuperName(ident.getName())) {
                 return (VariableElement) el;
             }
         }
@@ -1633,8 +1637,9 @@ public final class TreeUtils {
         } else if (tree instanceof IdentifierTree) {
             // implicit method access
             IdentifierTree ident = (IdentifierTree) tree;
-            // The field "super" and "this" are also legal methods
-            if (ident.getName().contentEquals("super") || ident.getName().contentEquals("this")) {
+            // The names "this" and "super" are also legal methods.
+            if (InternalUtils.isThisName(ident.getName())
+                    || InternalUtils.isSuperName(ident.getName())) {
                 return true;
             }
             assert isUseOfElement(ident) : "@AssumeAssertion(nullness): tree kind";
@@ -1704,7 +1709,7 @@ public final class TreeUtils {
             @FullyQualifiedName String typeName, String fieldName, ProcessingEnvironment env) {
         TypeElement mapElt = env.getElementUtils().getTypeElement(typeName);
         for (VariableElement var : ElementFilter.fieldsIn(mapElt.getEnclosedElements())) {
-            if (var.getSimpleName().contentEquals(fieldName)) {
+            if (InternalUtils.sameName(var.getSimpleName(), fieldName)) {
                 return var;
             }
         }
@@ -1730,11 +1735,14 @@ public final class TreeUtils {
     public static boolean isEnumSuperCall(MethodInvocationTree tree) {
         ExecutableElement ex = TreeUtils.elementFromUse(tree);
         assert ex != null : "@AssumeAssertion(nullness): tree kind";
+        // Check the method name first: it is an interned-name comparison and false for
+        // most invocations, so the class-name comparison is usually skipped.
+        if (!InternalUtils.isInitName(ex.getSimpleName())) {
+            return false;
+        }
         Name name = ElementUtils.getQualifiedClassName(ex);
         assert name != null : "@AssumeAssertion(nullness): assumption";
-        boolean correctClass = name.contentEquals("java.lang.Enum");
-        boolean correctMethod = ex.getSimpleName().contentEquals("<init>");
-        return correctClass && correctMethod;
+        return InternalUtils.isJavaLangEnumName(name);
     }
 
     /**
@@ -1992,6 +2000,95 @@ public final class TreeUtils {
                     type);
         }
         return (ExecutableType) type;
+    }
+
+    /**
+     * Returns the type arguments that javac inferred for the generic method or constructor invoked
+     * by {@code tree}, as a map from each method type-parameter element to its inferred type. Only
+     * type variables that appear structurally in a parameter or return type are recovered, by
+     * matching the declared signature against javac's instantiated method type ({@link
+     * #typeFromUse}); any others are absent. Returns an empty map for a member reference, a
+     * non-generic method, or if the instantiated type is unavailable.
+     *
+     * <p>This is best-effort, for diagnostics; it is not a substitute for full type-argument
+     * inference. The keys are type-parameter elements (rather than {@link TypeVariable}s) because
+     * {@code TypeVariable} uses identity equality.
+     *
+     * @param tree a method-invocation or new-class tree
+     * @return a map from each recovered type-parameter element to its javac-inferred type
+     */
+    public static Map<Element, TypeMirror> inferredTypeArguments(ExpressionTree tree) {
+        ExecutableType instantiated;
+        try {
+            if (tree instanceof MethodInvocationTree) {
+                instantiated = typeFromUse((MethodInvocationTree) tree);
+            } else if (tree instanceof NewClassTree) {
+                instantiated = typeFromUse((NewClassTree) tree);
+            } else {
+                return Collections.emptyMap(); // e.g. a member reference: nothing to read
+            }
+        } catch (RuntimeException e) {
+            return Collections.emptyMap(); // best-effort
+        }
+        Element element = elementFromUse(tree);
+        if (!(element instanceof ExecutableElement)) {
+            return Collections.emptyMap();
+        }
+        ExecutableType generic = (ExecutableType) element.asType();
+        List<? extends TypeVariable> typeVars = generic.getTypeVariables();
+        if (typeVars.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        Set<Element> typeVarElements = new HashSet<>();
+        for (TypeVariable typeVar : typeVars) {
+            typeVarElements.add(typeVar.asElement());
+        }
+        Map<Element, TypeMirror> result = new HashMap<>();
+        matchTypeVariables(
+                generic.getReturnType(), instantiated.getReturnType(), typeVarElements, result);
+        List<? extends TypeMirror> genericParams = generic.getParameterTypes();
+        List<? extends TypeMirror> instParams = instantiated.getParameterTypes();
+        for (int i = 0; i < Math.min(genericParams.size(), instParams.size()); ++i) {
+            matchTypeVariables(genericParams.get(i), instParams.get(i), typeVarElements, result);
+        }
+        return result;
+    }
+
+    /**
+     * Structurally matches a generic type against its instantiation, recording, for each type
+     * variable in {@code typeVarElements} that {@code generic} mentions, the corresponding subterm
+     * of {@code instantiated}. Helper for {@link #inferredTypeArguments}.
+     *
+     * @param generic a (possibly generic) type from a declared method signature
+     * @param instantiated the corresponding type from javac's instantiated method type
+     * @param typeVarElements the elements of the type variables to recover
+     * @param result accumulates type-variable element to inferred type
+     */
+    private static void matchTypeVariables(
+            TypeMirror generic,
+            TypeMirror instantiated,
+            Set<Element> typeVarElements,
+            Map<Element, TypeMirror> result) {
+        if (generic.getKind() == TypeKind.TYPEVAR) {
+            Element elt = ((TypeVariable) generic).asElement();
+            if (typeVarElements.contains(elt)) {
+                result.putIfAbsent(elt, instantiated);
+            }
+        } else if (generic.getKind() == TypeKind.DECLARED
+                && instantiated.getKind() == TypeKind.DECLARED) {
+            List<? extends TypeMirror> genericArgs = ((DeclaredType) generic).getTypeArguments();
+            List<? extends TypeMirror> instArgs = ((DeclaredType) instantiated).getTypeArguments();
+            for (int i = 0; i < Math.min(genericArgs.size(), instArgs.size()); ++i) {
+                matchTypeVariables(genericArgs.get(i), instArgs.get(i), typeVarElements, result);
+            }
+        } else if (generic.getKind() == TypeKind.ARRAY
+                && instantiated.getKind() == TypeKind.ARRAY) {
+            matchTypeVariables(
+                    ((ArrayType) generic).getComponentType(),
+                    ((ArrayType) instantiated).getComponentType(),
+                    typeVarElements,
+                    result);
+        }
     }
 
     /**

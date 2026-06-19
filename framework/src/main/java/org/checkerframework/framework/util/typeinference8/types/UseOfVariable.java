@@ -246,14 +246,20 @@ public class UseOfVariable extends AbstractType {
         return type.equals(that.type);
     }
 
+    /** Cached hash code to prevent repeated recomputation of complex deep-hashes. */
+    private int cachedHashCode = 0;
+
     @Override
     public int hashCode() {
-        int result = super.hashCode();
-        result = 31 * result + variable.hashCode();
-        result = 31 * result + (hasPrimaryAnno ? 1 : 0);
-        result = 31 * result + bots.hashCode();
-        result = 31 * result + tops.hashCode();
-        result = 31 * result + type.hashCode();
-        return result;
+        if (cachedHashCode == 0) {
+            int result = super.hashCode();
+            result = 31 * result + variable.hashCode();
+            result = 31 * result + (hasPrimaryAnno ? 1 : 0);
+            result = 31 * result + bots.hashCode();
+            result = 31 * result + tops.hashCode();
+            result = 31 * result + type.hashCode();
+            cachedHashCode = result == 0 ? 1 : result;
+        }
+        return cachedHashCode;
     }
 }

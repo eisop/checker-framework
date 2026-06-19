@@ -173,7 +173,7 @@ public class AnnotationFileUtil {
             }
             FieldDeclaration decl = (FieldDeclaration) member;
             for (VariableDeclarator var : decl.getVariables()) {
-                if (toString(var).equals(field.getSimpleName().toString())) {
+                if (field.getSimpleName().contentEquals(toString(var))) {
                     return decl;
                 }
             }

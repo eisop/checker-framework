@@ -81,6 +81,7 @@ import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.ElementUtils;
+import org.checkerframework.javacutil.InternalUtils;
 import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TypesUtils;
 import org.checkerframework.javacutil.UserError;
@@ -102,6 +103,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.stream.Collectors;
 
 import javax.annotation.processing.ProcessingEnvironment;
@@ -109,6 +112,7 @@ import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
+import javax.lang.model.element.Name;
 import javax.lang.model.element.PackageElement;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
@@ -207,6 +211,22 @@ public class AnnotationFileParser {
     // Not final in order to accommodate a default value.
     private @Nullable StubUnit stubUnit;
 
+    /**
+     * Cache of parsed annotated-JDK stub ASTs, keyed by jar-entry name (for example {@code
+     * "java/lang/Object.java"}). The JDK stub text is fixed for a given JVM and its JavaParser AST
+     * is independent of the javac compilation context, so the (relatively expensive) parse is
+     * shared across all compilations in the JVM; see {@link #parseStubUnit}. Only the parse is
+     * shared -- each compilation re-runs the {@code process*} methods to resolve the AST against
+     * its own model.
+     *
+     * <p>Safe because JDK-stub processing only reads the AST. The cache is bounded by the number of
+     * distinct JDK stub classes (a few hundred), so retaining it for the JVM lifetime is a fixed,
+     * shared cost rather than per-compilation garbage. {@link ConcurrentHashMap} guards concurrent
+     * access from the language server and Gradle daemon.
+     */
+    private static final ConcurrentMap<String, StubUnit> jdkStubUnitCache =
+            new ConcurrentHashMap<>();
+
     /** The processing environment */
     private final ProcessingEnvironment processingEnv;
 
@@ -229,7 +249,7 @@ public class AnnotationFileParser {
      *
      * @see #getImportedAnnotations
      */
-    private Map<String, TypeElement> allAnnotations;
+    private IdentityHashMap<Name, TypeElement> allAnnotations;
 
     /**
      * A list of the fully-qualified names of enum constants and static fields with constant values
@@ -484,7 +504,7 @@ public class AnnotationFileParser {
      * @param packageElement a package
      * @return a map from annotation name to TypeElement
      */
-    public static Map<String, TypeElement> annosInPackage(PackageElement packageElement) {
+    public static IdentityHashMap<Name, TypeElement> annosInPackage(PackageElement packageElement) {
         return createNameToAnnotationMap(
                 ElementFilter.typesIn(packageElement.getEnclosedElements()));
     }
@@ -496,7 +516,7 @@ public class AnnotationFileParser {
      * @param typeElement a type
      * @return a map from annotation name to TypeElement
      */
-    public static Map<String, TypeElement> annosInType(TypeElement typeElement) {
+    public static IdentityHashMap<Name, TypeElement> annosInType(TypeElement typeElement) {
         return createNameToAnnotationMap(ElementFilter.typesIn(typeElement.getEnclosedElements()));
     }
 
@@ -506,13 +526,13 @@ public class AnnotationFileParser {
      * @param typeElements the elements whose annotations to retrieve
      * @return a map from annotation names (both fully-qualified and simple names) to TypeElement
      */
-    public static Map<String, TypeElement> createNameToAnnotationMap(
+    public static IdentityHashMap<Name, TypeElement> createNameToAnnotationMap(
             List<TypeElement> typeElements) {
-        Map<String, TypeElement> result = new HashMap<>();
+        IdentityHashMap<Name, TypeElement> result = new IdentityHashMap<>();
         for (TypeElement typeElm : typeElements) {
             if (typeElm.getKind() == ElementKind.ANNOTATION_TYPE) {
-                putIfAbsent(result, typeElm.getSimpleName().toString(), typeElm);
-                putIfAbsent(result, ElementUtils.getQualifiedName(typeElm), typeElm);
+                putIfAbsent(result, typeElm.getSimpleName(), typeElm);
+                putIfAbsent(result, typeElm.getQualifiedName(), typeElm);
             }
         }
         return result;
@@ -556,8 +576,8 @@ public class AnnotationFileParser {
      *     fully-qualified name, with the same value.
      * @see #allAnnotations
      */
-    private Map<String, TypeElement> getImportedAnnotations() {
-        Map<String, TypeElement> result = new HashMap<>();
+    private IdentityHashMap<Name, TypeElement> getImportedAnnotations() {
+        IdentityHashMap<Name, TypeElement> result = new IdentityHashMap<>();
 
         // TODO: The size can be greater than 1, but this ignores all but the first element.
         assert !stubUnit.getCompilationUnits().isEmpty();
@@ -625,7 +645,7 @@ public class AnnotationFileParser {
                             for (VariableElement field :
                                     ElementUtils.getAllFieldsIn(enclType, elements)) {
                                 // field.getSimpleName() is a CharSequence, not a String
-                                if (fieldName.equals(field.getSimpleName().toString())) {
+                                if (InternalUtils.sameName(field.getSimpleName(), fieldName)) {
                                     importedConstants.add(imported);
                                 }
                             }
@@ -634,7 +654,7 @@ public class AnnotationFileParser {
                         // Single annotation or nested annotation.
                         TypeElement annoElt = elements.getTypeElement(imported);
                         if (annoElt != null) {
-                            putIfAbsent(result, annoElt.getSimpleName().toString(), annoElt);
+                            putIfAbsent(result, annoElt.getSimpleName(), annoElt);
                             importedTypes.put(annoElt.getSimpleName().toString(), annoElt);
                         } else {
                             stubWarnNotFound(importDecl, "could not load import: " + imported);
@@ -796,7 +816,25 @@ public class AnnotationFileParser {
         stubDebug(
                 "started parsing annotation file %s for %s",
                 filename, atypeFactory.getClass().getSimpleName());
-        stubUnit = JavaParserUtil.parseStubUnit(inputStream);
+        // Annotated-JDK stubs are maintained inside the Checker Framework: a parse error there
+        // is the CF team's problem, not an end user's, so skip JavaToken retention for the speed
+        // win.  User-supplied stubs go through the diagnostic-quality parser.
+        if (fileType == AnnotationFileType.JDK_STUB) {
+            // The annotated-JDK stub text is identical across every compilation in a JVM (it is
+            // bundled in the checker on the classpath and does not depend on the javac context),
+            // and JDK-stub processing is read-only on the AST -- unlike ajava, it never calls
+            // concatenateAddedStringLiterals or otherwise mutates nodes. So the JavaParser parse,
+            // which the profiles show is a large share of stub-parsing cost, can be shared across
+            // compilations: each compilation still re-runs process*() to resolve the cached AST
+            // against its own javac model. The test harness, the Gradle daemon, and the language
+            // server all run many compilations per JVM and benefit; a single compilation parses
+            // each JDK class once either way. See jdkStubUnitCache.
+            stubUnit =
+                    jdkStubUnitCache.computeIfAbsent(
+                            filename, k -> JavaParserUtil.parseStubUnitForJdk(inputStream));
+        } else {
+            stubUnit = JavaParserUtil.parseStubUnit(inputStream);
+        }
 
         // getImportedAnnotations() also modifies importedConstants and importedTypes. This should
         // be refactored to be nicer.
@@ -1749,7 +1787,7 @@ public class AnnotationFileParser {
         VariableDeclarator fieldVarDecl = null;
         String eltName = elt.getSimpleName().toString();
         for (VariableDeclarator var : decl.getVariables()) {
-            if (var.getName().toString().equals(eltName)) {
+            if (var.getName().getIdentifier().equals(eltName)) {
                 fieldVarDecl = var;
                 break;
             }
@@ -2157,7 +2195,8 @@ public class AnnotationFileParser {
                 continue;
             }
             ExecutableElement candidate = (ExecutableElement) elt;
-            if (!candidate.getSimpleName().contentEquals(methodDecl.getName().getIdentifier())) {
+            if (!InternalUtils.sameName(
+                    candidate.getSimpleName(), methodDecl.getName().getIdentifier())) {
                 continue;
             }
             List<? extends VariableElement> candidateParams = candidate.getParameters();
@@ -2254,7 +2293,7 @@ public class AnnotationFileParser {
                 Element javacElement = javacTypeInternal.asElement();
                 // Check both fully-qualified name and simple name.
                 return javacElement.toString().equals(javaParserString)
-                        || javacElement.getSimpleName().contentEquals(javaParserString);
+                        || InternalUtils.sameName(javacElement.getSimpleName(), javaParserString);
 
             case ARRAY:
                 return javaParserType.isArrayType()
@@ -2315,11 +2354,8 @@ public class AnnotationFileParser {
             NodeWithRange<?> astNode) {
         String typeString = type.getNameAsString();
         for (AnnotatedDeclaredType supertype : types) {
-            if (supertype
-                    .getUnderlyingType()
-                    .asElement()
-                    .getSimpleName()
-                    .contentEquals(typeString)) {
+            if (InternalUtils.sameName(
+                    supertype.getUnderlyingType().asElement().getSimpleName(), typeString)) {
                 return supertype;
             }
         }
@@ -2347,7 +2383,7 @@ public class AnnotationFileParser {
     private @Nullable Element findElement(TypeElement typeElt, ClassOrInterfaceDeclaration ciDecl) {
         String wantedClassOrInterfaceName = ciDecl.getNameAsString();
         for (TypeElement typeElement : ElementUtils.getAllTypeElementsIn(typeElt)) {
-            if (wantedClassOrInterfaceName.equals(typeElement.getSimpleName().toString())) {
+            if (InternalUtils.sameName(typeElement.getSimpleName(), wantedClassOrInterfaceName)) {
                 return typeElement;
             }
         }
@@ -2377,7 +2413,7 @@ public class AnnotationFileParser {
     private @Nullable Element findElement(TypeElement typeElt, EnumDeclaration enumDecl) {
         String wantedEnumName = enumDecl.getNameAsString();
         for (TypeElement typeElement : ElementUtils.getAllTypeElementsIn(typeElt)) {
-            if (wantedEnumName.equals(typeElement.getSimpleName().toString())) {
+            if (InternalUtils.sameName(typeElement.getSimpleName(), wantedEnumName)) {
                 return typeElement;
             }
         }
@@ -2450,7 +2486,7 @@ public class AnnotationFileParser {
         String wantedMethodString = AnnotationFileUtil.toString(methodDecl);
         for (ExecutableElement method : methodsInTypeElement(typeElt)) {
             if (wantedMethodParams == method.getParameters().size()
-                    && wantedMethodName.contentEquals(method.getSimpleName().toString())
+                    && InternalUtils.sameName(method.getSimpleName(), wantedMethodName)
                     && ElementUtils.getSimpleSignature(method).equals(wantedMethodString)) {
                 return method;
             }
@@ -2550,7 +2586,7 @@ public class AnnotationFileParser {
             TypeElement typeElt, String fieldName, NodeWithRange<?> astNode) {
         for (VariableElement field : ElementUtils.getAllFieldsIn(typeElt, elements)) {
             // field.getSimpleName() is a CharSequence, not a String
-            if (fieldName.equals(field.getSimpleName().toString())) {
+            if (InternalUtils.sameName(field.getSimpleName(), fieldName)) {
                 return field;
             }
         }
@@ -2651,10 +2687,11 @@ public class AnnotationFileParser {
      * @return the AnnotationMirror for the annotation, or null if it cannot be built
      */
     private @Nullable AnnotationMirror getAnnotation(
-            AnnotationExpr annotation, Map<String, TypeElement> allAnnotations) {
+            AnnotationExpr annotation, Map<Name, TypeElement> allAnnotations) {
         @SuppressWarnings("signature") // https://tinyurl.com/cfissue/3094
         @FullyQualifiedName String annoNameFq = annotation.getNameAsString();
-        TypeElement annoTypeElt = allAnnotations.get(annoNameFq);
+        Name annoNameObj = elements.getName(annoNameFq);
+        TypeElement annoTypeElt = allAnnotations.get(annoNameObj);
         if (annoTypeElt == null) {
             // If the annotation was not imported, then #getImportedAnnotations did not add it to
             // the allAnnotations field. This code adds the annotation when it is encountered (i.e.
