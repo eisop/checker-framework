@@ -699,7 +699,8 @@ You can suppress all errors and warnings for code outside of a corresponding
 Note that the \code{@AnnotatedFor} annotation must include the checker's name to
 enable warnings from that checker.
 An explicit \code{@SuppressWarnings} annotation can suppress warnings in
-\code{@AnnotatedFor} code.
+\code{@AnnotatedFor} code and code outside the scope of a corresponding
+\code{@AnnotatedFor} annotation.
 For example, use \code{@AnnotatedFor("nullness")} for the Nullness Checker.
 This flag only suppresses warnings, compared to \code{-AuseConservativeDefaultsForUncheckedCode=source},
 which also applies conservative defaults for code outside the scope of an \code{@AnnotatedFor} annotation.
