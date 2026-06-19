@@ -23,6 +23,9 @@ import javax.lang.model.type.TypeMirror;
  */
 public class EqualityAtmComparer extends EquivalentAtmComboScanner<Boolean, Void> {
 
+    /** Create an instance. */
+    public EqualityAtmComparer() {}
+
     /**
      * Return true if {@code type1} and {@code type2} have equivalent sets of annotations.
      *
