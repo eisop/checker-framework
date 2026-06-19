@@ -2740,21 +2740,6 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      *     otherwise
      */
     public boolean shouldSuppressWarnings(Tree tree, String errKey) {
-        Collection<String> prefixes = getSuppressWarningsPrefixes();
-        if (prefixes.isEmpty()
-                || (prefixes.contains(SUPPRESS_ALL_PREFIX) && prefixes.size() == 1)) {
-            throw new BugInCF(
-                    "Checker must provide a SuppressWarnings prefix."
-                            + " SourceChecker#getSuppressWarningsPrefixes was not overridden"
-                            + " correctly.");
-        }
-
-        if (shouldSuppress(getSuppressWarningsStringsFromOption(), errKey)) {
-            // If the error key matches a warning string in the -AsuppressWarnings, then suppress
-            // the warning.
-            return true;
-        }
-
         assert this.currentRoot != null : "this.currentRoot == null";
         TreePath path = getTreePathCacher().getPath(currentRoot, tree);
 
@@ -2766,6 +2751,11 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      * Returns true if the path is within the scope of a @SuppressWarnings annotation, one of whose
      * values suppresses the checker's warning.
      *
+     * <p>This overload also accounts for source-position-based suppression from unchecked code: if
+     * no matching {@code @SuppressWarnings} is found, then warnings outside a relevant {@link
+     * AnnotatedFor} scope are suppressed when {@code
+     * -AuseConservativeDefaultsForUncheckedCode=source} or {@code -AonlyAnnotatedFor} is in effect.
+     *
      * @param path the TreePath that might be a source of, or related to, a warning
      * @param errKey the error key the checker is emitting
      * @return true if no warning should be emitted for the given path because it is contained by a
@@ -2773,6 +2763,15 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      *     otherwise
      */
     public boolean shouldSuppressWarnings(TreePath path, String errKey) {
+        Collection<String> prefixes = getSuppressWarningsPrefixes();
+        if (prefixes.isEmpty()
+                || (prefixes.contains(SUPPRESS_ALL_PREFIX) && prefixes.size() == 1)) {
+            throw new BugInCF(
+                    "Checker must provide a SuppressWarnings prefix."
+                            + " SourceChecker#getSuppressWarningsPrefixes was not overridden"
+                            + " correctly.");
+        }
+
         if (shouldSuppress(getSuppressWarningsStringsFromOption(), errKey)) {
             return true;
         }
@@ -2787,12 +2786,12 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
 
             if (decl instanceof VariableTree) {
                 Element elt = TreeUtils.elementFromDeclaration((VariableTree) decl);
-                if (shouldSuppressWarningsOnElement(elt, errKey)) {
+                if (hasSuppressWarningsAnnotationForErrorKey(elt, errKey)) {
                     return true;
                 }
             } else if (decl instanceof MethodTree) {
                 Element elt = TreeUtils.elementFromDeclaration((MethodTree) decl);
-                if (shouldSuppressWarningsOnElement(elt, errKey)) {
+                if (hasSuppressWarningsAnnotationForErrorKey(elt, errKey)) {
                     return true;
                 }
 
@@ -2802,7 +2801,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
             } else if (TreeUtils.classTreeKinds().contains(decl.getKind())) {
                 // A class tree
                 Element elt = TreeUtils.elementFromDeclaration((ClassTree) decl);
-                if (shouldSuppressWarningsOnElement(elt, errKey)) {
+                if (hasSuppressWarningsAnnotationForErrorKey(elt, errKey)) {
                     return true;
                 }
 
@@ -2811,7 +2810,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
                 }
                 Element packageElement = elt.getEnclosingElement();
                 if (packageElement != null && packageElement.getKind() == ElementKind.PACKAGE) {
-                    if (shouldSuppressWarningsOnElement(packageElement, errKey)) {
+                    if (hasSuppressWarningsAnnotationForErrorKey(packageElement, errKey)) {
                         return true;
                     }
                     if (!foundAnnotatedFor
@@ -2885,7 +2884,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
         }
 
         for (Element currElt = elt; currElt != null; currElt = currElt.getEnclosingElement()) {
-            if (shouldSuppressWarningsOnElement(currElt, errKey)) {
+            if (hasSuppressWarningsAnnotationForErrorKey(currElt, errKey)) {
                 return true;
             }
         }
@@ -2898,9 +2897,9 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      *
      * @param elt the element whose annotations to check
      * @param errKey the error key the checker is emitting
-     * @return true if {@code elt} has an corresponding {@code @SuppressWarnings} annotation
+     * @return true if {@code elt} has a corresponding {@code @SuppressWarnings} annotation
      */
-    private boolean shouldSuppressWarningsOnElement(Element elt, String errKey) {
+    private boolean hasSuppressWarningsAnnotationForErrorKey(Element elt, String errKey) {
         SuppressWarnings suppressWarningsAnno = elt.getAnnotation(SuppressWarnings.class);
         if (suppressWarningsAnno != null) {
             String[] suppressWarningsStrings = suppressWarningsAnno.value();
