@@ -302,6 +302,10 @@ artifacts {
     fatJar(tasks.named('shadowJar'))
 }
 
+tasks.withType(GenerateModuleMetadata).configureEach {
+    enabled = false
+}
+
 clean {
     def injected = project.objects.newInstance(InjectedExecOps)
     def commandLineDir = file('tests/command-line')
