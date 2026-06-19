@@ -877,6 +877,45 @@ public class QualifierDefaults {
     }
 
     /**
+     * Returns the default annotations that apply to {@code annotationScope} at {@code location}.
+     *
+     * @param annotationScope the element representing the nearest enclosing default annotation
+     *     scope
+     * @param location the location whose defaults to return
+     * @return the default annotations that apply at {@code location}
+     */
+    public AnnotationMirrorSet getDefaultAnnotations(
+            Element annotationScope, TypeUseLocation location) {
+        AnnotationMirrorSet result = new AnnotationMirrorSet();
+        addDefaultAnnotationsAt(result, defaultsAt(annotationScope), location);
+
+        if (applyConservativeDefaults(annotationScope)) {
+            addDefaultAnnotationsAt(result, uncheckedCodeDefaults, location);
+        }
+
+        addDefaultAnnotationsAt(result, checkedCodeDefaults, location);
+        return result;
+    }
+
+    /**
+     * Adds defaults from {@code defaults} that apply at {@code location} to {@code result}.
+     *
+     * @param result the annotations accumulated so far
+     * @param defaults the defaults to inspect
+     * @param location the location whose defaults should be added
+     */
+    private void addDefaultAnnotationsAt(
+            AnnotationMirrorSet result, DefaultSet defaults, TypeUseLocation location) {
+        QualifierHierarchy qualHierarchy = atypeFactory.getQualifierHierarchy();
+        for (Default def : defaults) {
+            if (def.location == location
+                    && qualHierarchy.findAnnotationInSameHierarchy(result, def.anno) == null) {
+                result.add(def.anno);
+            }
+        }
+    }
+
+    /**
      * Create the default applier element.
      *
      * @param atypeFactory the annotated type factory
