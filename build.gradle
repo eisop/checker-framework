@@ -1016,7 +1016,7 @@ subprojects {
         }
     }
 
-    shadowJar {
+    tasks.named('shadowJar') {
         // If you add an external dependency, then do the following:
         //  * On the master branch and on the modified branch, run:
         //    ./gradlew assembleForJavac && jar tf checker/dist/checker.jar | grep -v '^annotated-jdk/' | sort > checker-jar-contents.txt
