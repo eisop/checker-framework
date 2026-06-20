@@ -146,31 +146,10 @@ public interface NodeVisitor<R, P> {
     // Type, package and class names
     R visitArrayType(ArrayTypeNode n, P p);
 
-    /**
-     * Visits a primitive type node.
-     *
-     * @param n the node to visit
-     * @param p the visitor parameter
-     * @return the visitor result
-     */
     R visitPrimitiveType(PrimitiveTypeNode n, P p);
 
-    /**
-     * Visits a class literal node.
-     *
-     * @param n the node to visit
-     * @param p the visitor parameter
-     * @return the visitor result
-     */
     R visitClassLiteral(ClassLiteralNode n, P p);
 
-    /**
-     * Visits a class name node.
-     *
-     * @param n the node to visit
-     * @param p the visitor parameter
-     * @return the visitor result
-     */
     R visitClassName(ClassNameNode n, P p);
 
     R visitPackageName(PackageNameNode n, P p);
