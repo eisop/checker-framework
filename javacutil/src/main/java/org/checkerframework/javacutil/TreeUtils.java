@@ -1556,13 +1556,13 @@ public final class TreeUtils {
      * @return the element if tree is a field access expression (implicit or explicit); null
      *     otherwise
      */
-    // TODO: fix value for qualified this, which is not field accesses.
+    // TODO: fix value for qualified this, which is not a field access.
     public static @Nullable VariableElement asFieldAccess(Tree tree) {
         if (isClassLiteral(tree)) {
             return null;
         }
         if (tree instanceof MemberSelectTree) {
-            // explicit member access (or a class literal or a qualified this)
+            // explicit member access (or a qualified this)
             MemberSelectTree memberSelect = (MemberSelectTree) tree;
             assert isUseOfElement(memberSelect) : "@AssumeAssertion(nullness): tree kind";
             Element el = TreeUtils.elementFromUse(memberSelect);
