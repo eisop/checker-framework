@@ -40,8 +40,10 @@ public class TreePathCacher extends TreeScanner<TreePath, Tree> {
      * {@link Tree}s do not override {@code Object}'s identity {@code equals}/{@code hashCode};
      * keying by identity is therefore equivalent in behavior while avoiding the per-entry node
      * allocation and virtual {@code equals}/{@code hashCode} dispatch.
+     *
+     * <p>This field is intentionally not final; it should only be re-assigned by {@link #clear}.
      */
-    private final IdentityHashMap<Tree, @Nullable TreePath> foundPaths = new IdentityHashMap<>(32);
+    private IdentityHashMap<Tree, @Nullable TreePath> foundPaths = new IdentityHashMap<>(32);
 
     /** The compilation unit tree currently being scanned. */
     private @Nullable CompilationUnitTree currentRoot;
@@ -232,7 +234,7 @@ public class TreePathCacher extends TreeScanner<TreePath, Tree> {
     }
 
     public void clear() {
-        foundPaths.clear();
+        foundPaths = new IdentityHashMap<>(32);
     }
 
     /**
