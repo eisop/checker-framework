@@ -474,9 +474,9 @@ public class NullnessNoInitAnnotatedTypeFactory
         if (lhsType.hasAnnotation(PolyNull.class)) {
             NullnessNoInitValue inferred = getInferredValueFor(context);
             if (inferred != null) {
-                if (inferred.isPolyNullNonNull) {
+                if (inferred.isPolyNullNonNull()) {
                     lhsType.replaceAnnotation(NONNULL);
-                } else if (inferred.isPolyNullNull) {
+                } else if (inferred.isPolyNullNull()) {
                     lhsType.replaceAnnotation(NULLABLE);
                 }
             }
@@ -874,10 +874,14 @@ public class NullnessNoInitAnnotatedTypeFactory
      * @return true if the given annotation is a nullness annotation
      */
     protected boolean isNullnessAnnotation(AnnotationMirror am) {
-        return isNonNullOrAlias(am)
-                || isNullableOrAlias(am)
-                || AnnotationUtils.areSameByName(am, MONOTONIC_NONNULL)
-                || isPolyNullOrAlias(am);
+        // Resolve the alias once, then test the four canonical names, instead of calling
+        // isXOrAlias, which each resolves aliasing.
+        AnnotationMirror canonical = canonicalAnnotation(am);
+        AnnotationMirror toCheck = canonical != null ? canonical : am;
+        return AnnotationUtils.areSameByName(toCheck, NONNULL)
+                || AnnotationUtils.areSameByName(toCheck, NULLABLE)
+                || AnnotationUtils.areSameByName(toCheck, MONOTONIC_NONNULL)
+                || AnnotationUtils.areSameByName(toCheck, POLYNULL);
     }
 
     /**

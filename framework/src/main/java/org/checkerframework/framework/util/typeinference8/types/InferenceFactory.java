@@ -538,8 +538,9 @@ public class InferenceFactory {
      */
     public Theta createThetaForInvocation(
             ExpressionTree invocation, InvocationType methodType, Java8InferenceContext context) {
-        if (context.maps.containsKey(invocation)) {
-            return context.maps.get(invocation);
+        Theta cached = context.maps.get(invocation);
+        if (cached != null) {
+            return cached;
         }
         Theta map = new Theta();
 
@@ -609,8 +610,9 @@ public class InferenceFactory {
             MemberReferenceTree memRef,
             InvocationType compileTimeDecl,
             Java8InferenceContext context) {
-        if (context.maps.containsKey(memRef)) {
-            return context.maps.get(memRef);
+        Theta cached = context.maps.get(memRef);
+        if (cached != null) {
+            return cached;
         }
 
         Theta map = new Theta();
@@ -674,8 +676,9 @@ public class InferenceFactory {
      */
     public Theta createThetaForLambda(
             LambdaExpressionTree lambda, AbstractType functionalInterface) {
-        if (context.maps.containsKey(lambda)) {
-            return context.maps.get(lambda);
+        Theta cached = context.maps.get(lambda);
+        if (cached != null) {
+            return cached;
         }
         TypeElement typeEle =
                 (TypeElement) ((DeclaredType) functionalInterface.getJavaType()).asElement();

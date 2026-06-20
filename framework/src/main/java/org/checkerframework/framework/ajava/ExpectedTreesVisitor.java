@@ -26,11 +26,13 @@ import com.sun.source.tree.Tree;
 import com.sun.source.tree.VariableTree;
 import com.sun.source.tree.WhileLoopTree;
 
+import org.checkerframework.javacutil.InternalUtils;
 import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TreeUtilsAfterJava11.BindingPatternUtils;
 import org.checkerframework.javacutil.TreeUtilsAfterJava11.SwitchExpressionUtils;
 
-import java.util.HashSet;
+import java.util.Collections;
+import java.util.IdentityHashMap;
 import java.util.Set;
 
 /**
@@ -44,7 +46,10 @@ import java.util.Set;
  */
 public class ExpectedTreesVisitor extends TreeScannerWithDefaults {
     /** The set of trees that should be matched to a JavaParser node when visiting both. */
-    private Set<Tree> trees = new HashSet<>();
+    private Set<Tree> trees = Collections.newSetFromMap(new IdentityHashMap<>());
+
+    /** Construct an object. */
+    public ExpectedTreesVisitor() {}
 
     /**
      * Returns the visited trees that should match to some JavaParser node.
@@ -179,8 +184,8 @@ public class ExpectedTreesVisitor extends TreeScannerWithDefaults {
             MethodInvocationTree invocation = (MethodInvocationTree) tree.getExpression();
             if (invocation.getMethodSelect() instanceof IdentifierTree) {
                 IdentifierTree identifier = (IdentifierTree) invocation.getMethodSelect();
-                if (identifier.getName().contentEquals("this")
-                        || identifier.getName().contentEquals("super")) {
+                if (InternalUtils.isThisName(identifier.getName())
+                        || InternalUtils.isSuperName(identifier.getName())) {
                     trees.remove(tree);
                     trees.remove(identifier);
                 }
@@ -340,7 +345,7 @@ public class ExpectedTreesVisitor extends TreeScannerWithDefaults {
             // Constructors cannot be declared in an anonymous class, so don't add them.
             if (member instanceof MethodTree) {
                 MethodTree methodTree = (MethodTree) member;
-                if (methodTree.getName().contentEquals("<init>")) {
+                if (InternalUtils.isInitName(methodTree.getName())) {
                     continue;
                 }
             }

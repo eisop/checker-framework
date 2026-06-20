@@ -39,6 +39,7 @@ import org.checkerframework.dataflow.qual.Pure;
 import org.checkerframework.javacutil.AnnotationProvider;
 import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.ElementUtils;
+import org.checkerframework.javacutil.InternalUtils;
 import org.checkerframework.javacutil.TreePathUtil;
 import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TypesUtils;
@@ -165,7 +166,13 @@ public abstract class JavaExpression {
     @Pure
     public static boolean listIsDeterministic(
             List<? extends @Nullable JavaExpression> list, AnnotationProvider provider) {
-        return list.stream().allMatch(je -> je == null || je.isDeterministic(provider));
+        for (int i = 0, n = list.size(); i < n; ++i) {
+            JavaExpression je = list.get(i);
+            if (je != null && !je.isDeterministic(provider)) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /**
@@ -304,8 +311,13 @@ public abstract class JavaExpression {
     @Pure
     public static boolean listContainsSyntacticEqualJavaExpression(
             List<? extends @Nullable JavaExpression> list, JavaExpression other) {
-        return list.stream()
-                .anyMatch(je -> je != null && je.containsSyntacticEqualJavaExpression(other));
+        for (int i = 0, n = list.size(); i < n; i++) {
+            JavaExpression je = list.get(i);
+            if (je != null && je.containsSyntacticEqualJavaExpression(other)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
@@ -543,10 +555,10 @@ public abstract class JavaExpression {
                 IdentifierTree identifierTree = (IdentifierTree) tree;
                 TypeMirror typeOfId = TreeUtils.typeOf(identifierTree);
                 Name identifierName = identifierTree.getName();
-                if (identifierName.contentEquals("this")) {
+                if (InternalUtils.isThisName(identifierName)) {
                     result = new ThisReference(typeOfId);
                     break;
-                } else if (identifierName.contentEquals("super")) {
+                } else if (InternalUtils.isSuperName(identifierName)) {
                     result = new SuperReference(typeOfId);
                     break;
                 }
@@ -884,18 +896,19 @@ public abstract class JavaExpression {
      */
     private static List<JavaExpression> argumentTreesToJavaExpressions(
             ExecutableElement method, List<? extends ExpressionTree> argTrees) {
-        if (isVarargsInvocation(method, argTrees)) {
-            List<JavaExpression> result = new ArrayList<>(method.getParameters().size());
-            for (int i = 0; i < method.getParameters().size() - 1; i++) {
+        List<? extends VariableElement> params = method.getParameters();
+        int paramsSize = params.size();
+        if (isVarargsInvocation(method, params, argTrees)) {
+            List<JavaExpression> result = new ArrayList<>(paramsSize);
+            for (int i = 0; i < paramsSize - 1; i++) {
                 result.add(JavaExpression.fromTree(argTrees.get(i)));
             }
 
-            List<JavaExpression> varargArgs =
-                    new ArrayList<>(argTrees.size() - method.getParameters().size() + 1);
-            for (int i = method.getParameters().size() - 1; i < argTrees.size(); i++) {
+            List<JavaExpression> varargArgs = new ArrayList<>(argTrees.size() - paramsSize + 1);
+            for (int i = paramsSize - 1; i < argTrees.size(); i++) {
                 varargArgs.add(JavaExpression.fromTree(argTrees.get(i)));
             }
-            Element varargsElement = method.getParameters().get(method.getParameters().size() - 1);
+            Element varargsElement = params.get(paramsSize - 1);
             TypeMirror tm = ElementUtils.getType(varargsElement);
             result.add(new ArrayCreation(tm, Collections.emptyList(), varargArgs));
 
@@ -910,23 +923,25 @@ public abstract class JavaExpression {
      * passed in an array.
      *
      * @param method the method or constructor
+     * @param paramElts the parameter elements
      * @param args the arguments at the call site
      * @return true if method is a varargs method and its varargs arguments are not passed in an
      *     array
      */
     private static boolean isVarargsInvocation(
-            ExecutableElement method, List<? extends ExpressionTree> args) {
+            ExecutableElement method,
+            List<? extends VariableElement> paramElts,
+            List<? extends ExpressionTree> args) {
         if (!method.isVarArgs()) {
             return false;
         }
-        if (method.getParameters().size() != args.size()) {
+        if (paramElts.size() != args.size()) {
             return true;
         }
         TypeMirror lastArgType = TreeUtils.typeOf(args.get(args.size() - 1));
         if (lastArgType.getKind() != TypeKind.ARRAY) {
             return true;
         }
-        List<? extends VariableElement> paramElts = method.getParameters();
         VariableElement lastParamElt = paramElts.get(paramElts.size() - 1);
         return TypesUtils.getArrayDepth(ElementUtils.getType(lastParamElt))
                 != TypesUtils.getArrayDepth(lastArgType);

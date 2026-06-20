@@ -8,8 +8,6 @@ import org.checkerframework.javacutil.AnnotationProvider;
 import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.TypesUtils;
 
-import java.util.Objects;
-
 import javax.lang.model.element.VariableElement;
 
 /**
@@ -44,6 +42,9 @@ public class LocalVariable extends JavaExpression {
 
     @Override
     public boolean equals(@Nullable Object obj) {
+        if (this == obj) {
+            return true;
+        }
         if (!(obj instanceof LocalVariable)) {
             return false;
         }
@@ -79,10 +80,20 @@ public class LocalVariable extends JavaExpression {
         return element;
     }
 
+    /** Cache the hashCode. Recomputed if zero. */
+    private int hashCodeCache = 0;
+
     @Override
     public int hashCode() {
-        VarSymbol vs = (VarSymbol) element;
-        return Objects.hash(vs.pos, vs.name, vs.owner);
+        if (hashCodeCache == 0) {
+            VarSymbol vs = (VarSymbol) element;
+            int h = 1;
+            h = 31 * h + Integer.hashCode(vs.pos);
+            h = 31 * h + (vs.name != null ? vs.name.hashCode() : 0);
+            h = 31 * h + (vs.owner != null ? vs.owner.hashCode() : 0);
+            hashCodeCache = h == 0 ? 1 : h;
+        }
+        return hashCodeCache;
     }
 
     @Override

@@ -6,7 +6,6 @@ import org.checkerframework.javacutil.TypesUtils;
 import org.plumelib.util.StringsPlume;
 
 import java.util.List;
-import java.util.Objects;
 
 import javax.lang.model.type.ArrayType;
 import javax.lang.model.type.TypeKind;
@@ -88,13 +87,27 @@ public class ArrayCreation extends JavaExpression {
         return true;
     }
 
+    /** Cache the hashCode. Recomputed if zero. */
+    private int hashCodeCache = 0;
+
     @Override
     public int hashCode() {
-        return Objects.hash(dimensions, initializers, getType().toString());
+        if (hashCodeCache == 0) {
+            int h = 1;
+            h = 31 * h + (dimensions != null ? dimensions.hashCode() : 0);
+            h = 31 * h + (initializers != null ? initializers.hashCode() : 0);
+            String typeStr = getType().toString();
+            h = 31 * h + (typeStr != null ? typeStr.hashCode() : 0);
+            hashCodeCache = h == 0 ? 1 : h;
+        }
+        return hashCodeCache;
     }
 
     @Override
     public boolean equals(@Nullable Object obj) {
+        if (this == obj) {
+            return true;
+        }
         if (!(obj instanceof ArrayCreation)) {
             return false;
         }

@@ -41,8 +41,8 @@ class TypeFromTree {
         final AnnotatedTypeMirror type;
         try {
             type = expressionVisitor.visit(tree, typeFactory);
-        } catch (Throwable t) {
-            throw BugInCF.addLocation(tree, t);
+        } catch (Exception e) {
+            throw BugInCF.addLocation(tree, e);
         }
         ifExecutableCheckElement(typeFactory, tree, type);
 
@@ -61,8 +61,8 @@ class TypeFromTree {
         AnnotatedTypeMirror type;
         try {
             type = memberVisitor.visit(tree, typeFactory);
-        } catch (Throwable t) {
-            throw BugInCF.addLocation(tree, t);
+        } catch (Exception e) {
+            throw BugInCF.addLocation(tree, e);
         }
         ifExecutableCheckElement(typeFactory, tree, type);
         return type;
@@ -80,8 +80,8 @@ class TypeFromTree {
         AnnotatedTypeMirror type;
         try {
             type = typeTreeVisitor.visit(tree, typeFactory);
-        } catch (Throwable t) {
-            throw BugInCF.addLocation(tree, t);
+        } catch (Exception e) {
+            throw BugInCF.addLocation(tree, e);
         }
         abortIfTypeIsExecutable(typeFactory, tree, type);
         return type;
@@ -100,8 +100,8 @@ class TypeFromTree {
         AnnotatedDeclaredType type;
         try {
             type = (AnnotatedDeclaredType) classVisitor.visit(tree, typeFactory);
-        } catch (Throwable t) {
-            throw BugInCF.addLocation(tree, t);
+        } catch (Exception e) {
+            throw BugInCF.addLocation(tree, e);
         }
         abortIfTypeIsExecutable(typeFactory, tree, type);
         return type;

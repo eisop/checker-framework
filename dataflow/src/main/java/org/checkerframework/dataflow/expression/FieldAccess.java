@@ -11,8 +11,6 @@ import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.TypesUtils;
 
-import java.util.Objects;
-
 import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.TypeMirror;
 
@@ -99,6 +97,9 @@ public class FieldAccess extends JavaExpression {
 
     @Override
     public boolean equals(@Nullable Object obj) {
+        if (this == obj) {
+            return true;
+        }
         if (!(obj instanceof FieldAccess)) {
             return false;
         }
@@ -117,9 +118,20 @@ public class FieldAccess extends JavaExpression {
                         || this.getReceiver() instanceof ThisReference);
     }
 
+    /** Cache the hashCode. Recomputed if zero. */
+    private int hashCodeCache = 0;
+
     @Override
     public int hashCode() {
-        return Objects.hash(getField(), getReceiver());
+        if (hashCodeCache == 0) {
+            int h = 1;
+            VariableElement field = getField();
+            h = 31 * h + (field != null ? field.hashCode() : 0);
+            JavaExpression receiver = getReceiver();
+            h = 31 * h + (receiver != null ? receiver.hashCode() : 0);
+            hashCodeCache = h == 0 ? 1 : h;
+        }
+        return hashCodeCache;
     }
 
     @Override

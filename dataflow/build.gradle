@@ -21,12 +21,6 @@ dependencies {
     // ../build.gradle in the createDataflowShaded task).
 }
 
-// Enable exec/javaexec
-interface InjectedExecOps {
-    @Inject
-    ExecOperations getExecOps()
-}
-
 // Shadowing Test Sources and Dependencies
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 
@@ -37,7 +31,9 @@ import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
  * @return
  */
 def createDataflowShaded(shadedPkgName) {
-    tasks.create(name: "dataflow${shadedPkgName}Jar", type: ShadowJar, dependsOn: compileJava, group: 'Build') {
+    tasks.register("dataflow${shadedPkgName}Jar", ShadowJar) {
+        dependsOn 'compileJava'
+        group = 'Build'
         description = "Builds dataflow-${shadedPkgName}.jar."
         includeEmptyDirs = false
         base {
@@ -52,7 +48,7 @@ def createDataflowShaded(shadedPkgName) {
         from shadowJar.source
         configurations = shadowJar.configurations
 
-        destinationDirectory = file("${buildDir}/shadow/dataflow${shadedPkgName}")
+        destinationDirectory = layout.buildDirectory.dir("shadow/dataflow${shadedPkgName}")
 
 
         relocate('org.checkerframework', "org.checkerframework.${shadedPkgName}") {
@@ -72,7 +68,8 @@ createDataflowShaded('shaded')
 createDataflowShaded('nullaway')
 createDataflowShaded('errorprone')
 
-task manual(type: Exec, group: 'Documentation') {
+tasks.register('manual', Exec) {
+    group = 'Documentation'
     description = 'Build the manual'
     commandLine 'make', '-C', 'manual'
 }
@@ -84,7 +81,8 @@ tasks.withType(Test) {
     dependsOn('allDataflowTests')
 }
 
-tasks.create(name: 'allDataflowTests', group: 'Verification') {
+tasks.register('allDataflowTests') {
+    group = 'Verification'
     description = 'Run all dataflow analysis tests'
     // 'allDataflowTests' is automatically populated by testDataflowAnalysis().
 }
@@ -105,7 +103,7 @@ tasks.create(name: 'allDataflowTests', group: 'Verification') {
  */
 def testDataflowAnalysis(taskName, dirName, className, diff) {
     if (diff) {
-        tasks.create(name: "${taskName}Diff", type: Exec) {
+        tasks.register("${taskName}Diff", Exec) {
             dependsOn taskName
             workingDir = "tests/${dirName}"
             executable 'diff'
@@ -116,7 +114,9 @@ def testDataflowAnalysis(taskName, dirName, className, diff) {
             ]
         }
     }
-    tasks.create(name: taskName, type: JavaExec, dependsOn: [assemble, compileTestJava], group: 'Verification') {
+    tasks.register(taskName, JavaExec) {
+        dependsOn('assemble', 'compileTestJava')
+        group = 'Verification'
         description = "Run the ${dirName} dataflow framework test."
         if (diff) {
             inputs.file("tests/${dirName}/Expected.txt")
@@ -126,8 +126,16 @@ def testDataflowAnalysis(taskName, dirName, className, diff) {
         outputs.file("tests/${dirName}/Out.txt")
         outputs.file("tests/${dirName}/Test.class")
 
-        delete("tests/${dirName}/Out.txt")
-        delete("tests/${dirName}/Test.class")
+        def injectedFiles = project.objects.newInstance(InjectedFileOps)
+        def outTxt = file("tests/${dirName}/Out.txt")
+        def testClass = file("tests/${dirName}/Test.class")
+        doFirst {
+            // These deletions must run only when this task executes, not at
+            // configuration time.
+            injectedFiles.fs.delete {
+                delete(outTxt, testClass)
+            }
+        }
 
         workingDir = "tests/${dirName}"
         if (isJava8) {
@@ -158,7 +166,7 @@ def testDataflowAnalysis(taskName, dirName, className, diff) {
             finalizedBy "${taskName}Diff"
         }
     }
-    allDataflowTests.dependsOn << taskName
+    tasks.named('allDataflowTests').configure { dependsOn taskName }
 }
 
 // When adding a new test case, don't forget to add the temporary files to `../.gitignore`.
@@ -181,7 +189,7 @@ apply from: rootProject.file('gradle-mvn-push.gradle')
 
 /** Adds information to the publication for uploading the dataflow artifacts to Maven repositories. */
 final dataflowPom(publication) {
-    sharedPublicationConfiguration(publication)
+    rootProject.sharedPublicationConfiguration(publication)
     publication.from components.java
     // Information that is in all pom files is configured in checker-framework/gradle-mvn-push.gradle.
     publication.pom {
@@ -202,7 +210,9 @@ final dataflowPom(publication) {
  * @param shadedPkgName the name of the shaded package to use; also used as part of the artifact name: "dataflow-${shadePkgName}"
  */
 final dataflowShadedPom(MavenPublication publication, String shadedPkgName) {
-    sharedPublicationConfiguration(publication)
+    rootProject.sharedPublicationConfiguration(publication)
+
+    def ver = version
 
     publication.artifactId = "dataflow-${shadedPkgName}"
     publication.pom {
@@ -225,10 +235,10 @@ final dataflowShadedPom(MavenPublication publication, String shadedPkgName) {
             // This should just happen automatically, but I can't figure out how to make it happen with
             // a custom Shadow task.
             asNode().appendNode('dependencies').appendNode('dependency')
-                    .appendNode('groupId', 'io.github.eisop').parent()
-                    .appendNode('artifactId', 'checker-qual').parent()
-                    .appendNode('version', version).parent()
-                    .appendNode('scope','runtime')
+            .appendNode('groupId', 'io.github.eisop').parent()
+            .appendNode('artifactId', 'checker-qual').parent()
+            .appendNode('version', ver).parent()
+            .appendNode('scope','runtime')
         }
     }
 }
@@ -242,7 +252,7 @@ publishing {
 
         dataflowShaded(MavenPublication) {
             dataflowShadedPom(it, 'shaded')
-            artifact project.tasks.getByName('dataflowshadedJar').archiveFile
+            artifact tasks.named('dataflowshadedJar', Jar)
             artifact sourcesJar
             artifact javadocJar
         }
@@ -250,7 +260,7 @@ publishing {
         dataflowShadednullaway(MavenPublication) {
             dataflowShadedPom(it, 'nullaway')
 
-            artifact project.tasks.getByName('dataflownullawayJar').archiveFile
+            artifact tasks.named('dataflownullawayJar', Jar)
             artifact sourcesJar
             artifact javadocJar
         }
@@ -258,7 +268,7 @@ publishing {
         dataflowShadederrorprone(MavenPublication) {
             dataflowShadedPom(it, 'errorprone')
 
-            artifact project.tasks.getByName('dataflowerrorproneJar').archiveFile
+            artifact tasks.named('dataflowerrorproneJar', Jar)
             artifact sourcesJar
             artifact javadocJar
         }
