@@ -145,7 +145,7 @@ public class UpperBoundTransfer extends IndexAbstractTransfer {
         // null if right-hand-side is not an array creation expression
         ArrayCreationNode acNode =
                 (expNodeSansCast instanceof ArrayCreationNode)
-                        ? acNode = (ArrayCreationNode) expNodeSansCast
+                        ? (ArrayCreationNode) expNodeSansCast
                         : null;
 
         if (acNode != null) {
@@ -175,10 +175,16 @@ public class UpperBoundTransfer extends IndexAbstractTransfer {
      * {@code node} is known to be {@code typeOfNode}. If the node is a plus or a minus then the
      * types of the left and right operands can be refined to include offsets. If the node is a
      * multiplication, its operands can also be refined. See {@link
-     * #propagateToAdditionOperand(LessThanLengthOf, Node, Node, TransferInput, CFStore)}, {@link
-     * #propagateToSubtractionOperands(LessThanLengthOf, NumericalSubtractionNode, TransferInput,
-     * CFStore)}, and {@link #propagateToMultiplicationOperand(LessThanLengthOf, Node, Node,
-     * TransferInput, CFStore)} for details.
+     * #propagateToAdditionOperand(UBQualifier.LessThanLengthOf, Node, Node, TransferInput,
+     * CFStore)}, {@link #propagateToSubtractionOperands(UBQualifier.LessThanLengthOf,
+     * NumericalSubtractionNode, TransferInput, CFStore)}, and {@link
+     * #propagateToMultiplicationOperand(UBQualifier.LessThanLengthOf, Node, Node, TransferInput,
+     * CFStore)} for details.
+     *
+     * @param typeOfNode type of node
+     * @param node the node
+     * @param in the TransferInput before propagate to this operand
+     * @param store location to store the refined type
      */
     private void propagateToOperands(
             LessThanLengthOf typeOfNode,
@@ -234,10 +240,10 @@ public class UpperBoundTransfer extends IndexAbstractTransfer {
      *
      * <p>This means that the left node is less than or equal to the length of the array when the
      * right node is subtracted from the left node. Note that unlike {@link
-     * #propagateToAdditionOperand(LessThanLengthOf, Node, Node, TransferInput, CFStore)} and {@link
-     * #propagateToMultiplicationOperand(LessThanLengthOf, Node, Node, TransferInput, CFStore)},
-     * this method takes the NumericalSubtractionNode instead of the two operand nodes. This
-     * implements case 4.
+     * #propagateToAdditionOperand(UBQualifier.LessThanLengthOf, Node, Node, TransferInput,
+     * CFStore)} and {@link #propagateToMultiplicationOperand(UBQualifier.LessThanLengthOf, Node,
+     * Node, TransferInput, CFStore)}, this method takes the NumericalSubtractionNode instead of the
+     * two operand nodes. This implements case 4.
      *
      * @param typeOfSubtraction type of node
      * @param node subtraction node that has typeOfSubtraction
@@ -849,8 +855,7 @@ public class UpperBoundTransfer extends IndexAbstractTransfer {
     private TransferResult<CFValue, CFStore> createTransferResult(
             Node n, TransferInput<CFValue, CFStore> in, UBQualifier qualifier) {
         AnnotationMirror newAnno = atypeFactory.convertUBQualifierToAnnotation(qualifier);
-        CFValue value = analysis.createSingleAnnotationValue(newAnno, n.getType());
-        return createTransferResult(value, in);
+        return createTransferResult(newAnno, n.getType(), in);
     }
 
     @Override

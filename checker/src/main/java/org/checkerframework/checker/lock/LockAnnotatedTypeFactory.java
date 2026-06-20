@@ -45,6 +45,7 @@ import org.checkerframework.framework.util.dependenttypes.DependentTypesHelper;
 import org.checkerframework.javacutil.AnnotationBuilder;
 import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.ElementUtils;
+import org.checkerframework.javacutil.InternalUtils;
 import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TypeSystemError;
 import org.plumelib.util.CollectionsPlume;
@@ -102,6 +103,7 @@ public class LockAnnotatedTypeFactory
             AnnotationBuilder.fromClass(elements, GuardedByUnknown.class);
 
     /** The @{@link GuardedBy} annotation. */
+    @SuppressWarnings("this-escape")
     protected final AnnotationMirror GUARDEDBY =
             createGuardedByAnnotationMirror(new ArrayList<String>());
 
@@ -140,6 +142,7 @@ public class LockAnnotatedTypeFactory
     protected final @Nullable Class<? extends Annotation> javaxGuardedBy;
 
     /** Create a new LockAnnotatedTypeFactory. */
+    @SuppressWarnings("this-escape")
     public LockAnnotatedTypeFactory(BaseTypeChecker checker) {
         super(checker, true);
 
@@ -586,10 +589,14 @@ public class LockAnnotatedTypeFactory
 
     @Override
     public ParameterizedExecutableType methodFromUse(
-            ExpressionTree tree, ExecutableElement methodElt, AnnotatedTypeMirror receiverType) {
-        ParameterizedExecutableType mType = super.methodFromUse(tree, methodElt, receiverType);
+            ExpressionTree tree,
+            ExecutableElement methodElt,
+            AnnotatedTypeMirror receiverType,
+            boolean inferTypeArgs) {
+        ParameterizedExecutableType mType =
+                super.methodFromUse(tree, methodElt, receiverType, inferTypeArgs);
 
-        if (tree.getKind() != Tree.Kind.METHOD_INVOCATION) {
+        if (!(tree instanceof MethodInvocationTree)) {
             return mType;
         }
 
@@ -700,7 +707,7 @@ public class LockAnnotatedTypeFactory
 
     @Override
     protected void addComputedTypeAnnotations(Tree tree, AnnotatedTypeMirror type) {
-        if (tree.getKind() == Tree.Kind.VARIABLE) {
+        if (tree instanceof VariableTree) {
             translateJcipAndJavaxAnnotations(
                     TreeUtils.elementFromDeclaration((VariableTree) tree), type);
         }
@@ -745,9 +752,10 @@ public class LockAnnotatedTypeFactory
         Map<? extends ExecutableElement, ? extends AnnotationValue> valmap =
                 anno.getElementValues();
         Object value = null;
-        for (ExecutableElement elem : valmap.keySet()) {
-            if (elem.getSimpleName().contentEquals("value")) {
-                value = valmap.get(elem).getValue();
+        for (Map.Entry<? extends ExecutableElement, ? extends AnnotationValue> entry :
+                valmap.entrySet()) {
+            if (InternalUtils.isValueName(entry.getKey().getSimpleName())) {
+                value = entry.getValue().getValue();
                 break;
             }
         }

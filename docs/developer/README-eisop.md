@@ -46,6 +46,8 @@ Without using the release scripts, you can make a Maven Central release using:
 ./gradlew publish -Prelease=true --no-parallel -Psigning.gnupg.keyName=wdietl@gmail.com
 ````
 
+If there are problems with the configuration cache, pass `--no-configuration-cache`.
+
 You may need to run `gpg-agent` first and enter the GPG password when prompted.
 
 Use `--warning-mode all` to see gradle deprecation warnings.

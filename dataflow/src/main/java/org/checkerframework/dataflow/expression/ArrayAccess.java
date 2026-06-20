@@ -4,8 +4,6 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.dataflow.analysis.Store;
 import org.checkerframework.javacutil.AnnotationProvider;
 
-import java.util.Objects;
-
 import javax.lang.model.type.TypeMirror;
 
 /** An array access. */
@@ -30,15 +28,17 @@ public class ArrayAccess extends JavaExpression {
         this.index = index;
     }
 
+    @SuppressWarnings("unchecked") // generic cast
     @Override
-    public boolean containsOfClass(Class<? extends JavaExpression> clazz) {
+    public <T extends JavaExpression> @Nullable T containedOfClass(Class<T> clazz) {
         if (getClass() == clazz) {
-            return true;
+            return (T) this;
         }
-        if (array.containsOfClass(clazz)) {
-            return true;
+        T result = array.containedOfClass(clazz);
+        if (result != null) {
+            return result;
         }
-        return index.containsOfClass(clazz);
+        return index.containedOfClass(clazz);
     }
 
     @Override
@@ -60,13 +60,13 @@ public class ArrayAccess extends JavaExpression {
     }
 
     @Override
-    public boolean isUnassignableByOtherCode() {
-        return false;
+    public boolean isAssignableByOtherCode() {
+        return true;
     }
 
     @Override
-    public boolean isUnmodifiableByOtherCode() {
-        return false;
+    public boolean isModifiableByOtherCode() {
+        return true;
     }
 
     @Override
@@ -95,6 +95,9 @@ public class ArrayAccess extends JavaExpression {
 
     @Override
     public boolean equals(@Nullable Object obj) {
+        if (this == obj) {
+            return true;
+        }
         if (!(obj instanceof ArrayAccess)) {
             return false;
         }
@@ -102,9 +105,18 @@ public class ArrayAccess extends JavaExpression {
         return array.equals(other.array) && index.equals(other.index);
     }
 
+    /** Cache the hashCode. Recomputed if zero. */
+    private int hashCodeCache = 0;
+
     @Override
     public int hashCode() {
-        return Objects.hash(array, index);
+        if (hashCodeCache == 0) {
+            int h = 1;
+            h = 31 * h + (array != null ? array.hashCode() : 0);
+            h = 31 * h + (index != null ? index.hashCode() : 0);
+            hashCodeCache = h == 0 ? 1 : h;
+        }
+        return hashCodeCache;
     }
 
     @Override

@@ -1,10 +1,648 @@
-Version 3.42.0-eisop5 (July ?, 2024)
-------------------------------------
+Version 3.49.5-eisop2 (June ?, 2026)
+-----------------------------------
+
+**User-visible changes:**
+
+Further performance improvements. `allNullnessTests` down to below 2 minutes
+and `checkNullness` to around 2.5 minutes (last release: 2.5 and 4 minutes,
+respectively). Several optimizations also reduce GC pressure.
+
+**Implementation details:**
+
+Performance: when reporting a warning or error on a tree, the path used for the
+`@SuppressWarnings` lookup is now found starting from the visitor's current path
+rather than rescanning the whole compilation unit from its root. This was
+O(compilation unit) per reported message, hence quadratic for code that produces
+many messages (e.g. the Interning Checker on a file with many `==` comparisons);
+on a generated 3000-comparison file its on-CPU samples dropped about 2x.
+
+Performance: the synthetic array tree created for a varargs call is now given a tree
+path under the call site, so defaulting its type no longer rescans the whole
+compilation unit via `getPath`. This was O(compilation unit) per varargs call --
+quadratic over a file of varargs calls; on a 3000-call file the nullness checker's
+on-CPU samples dropped about 4x. Only checkers that default heavily (e.g. nullness)
+were affected.
+
+Performance: `AnnotatedTypeFactory.declarationFromElement` no longer calls
+`Trees.getTree` to locate the enclosing declaration of a member or variable,
+which made javac scan the enclosing class on every call (O(class) per call,
+O(class^2) across a class's members). It now obtains the enclosing method/class
+tree from the current visitor path when available, and `DeclarationScanner`
+caches declarations under their raw symbol. Reduces `declarationFromElement`
+from 8.4% to 1.5% of `checkNullness` self time and is about 7% faster
+end-to-end; worst-case (a single large class) improves by roughly half.
+
+Performance and robustness: Java 8 type argument inference now caps the amount of
+bound-incorporation work it performs for a single invocation
+(`Java8InferenceContext.MAX_INCORPORATION_WORK`). Incorporating bounds to a fixed
+point is roughly cubic in the nesting depth of a generic invocation, so a single
+deeply nested (typically machine-generated) invocation could take many seconds or
+effectively hang the compiler. When the budget is exceeded, inference is abandoned
+soundly: a new `type.argument.inference.budget` error is reported (pointing the user at
+the fix with a concrete example -- the explicit type arguments that javac inferred for the
+call) and a conservative (defaulted) return type is used so that checking continues. The default budget has
+roughly two orders of magnitude of headroom over the largest amount of work observed
+on hand-written code, so realistic programs are unaffected; the worst case (e.g. a
+30-deep nested generic call) drops from tens of seconds to bounded time.
+
+Performance: the Java 8 type-argument-inference bound-incorporation fixpoint no longer
+re-scans the bounds of inference variables that have fully resolved. Once every bound of a
+variable is a proper type its bounds can no longer change (applying instantiations to a
+proper type is the identity), so such variables are skipped on subsequent iterations
+instead of being re-scanned every iteration. This reduces the fixpoint's cost on deeply
+nested generic invocations (about 9% faster at nesting depth 20, with the gain growing with
+depth). Two smaller repeated computations on the same hot path were also removed: the
+fixpoint no longer builds a fresh set of instantiated variables every iteration just to
+test whether one exists (it short-circuits on the first), and a proper type caches its
+erasure instead of recomputing it on every subtyping check.
+
+Enabled the Gradle configuration cache, speeding up build times.
+
+`AnnotationMirrorSet` has a new `get(int)` method that returns the element at a
+given index in iteration order, letting hot callers iterate by index without
+allocating an `Iterator`.
+
+`AnnotatedTypeFactory` has a new `getElementAnnotations(Element)` method that
+returns an element's primary annotations without the defensive deep copy that
+`fromElement` makes on every cache hit; for read-only callers that only need the
+primary annotations.
+
+`TreeUtils` has a new `inferredTypeArguments(ExpressionTree)` method that returns the
+Java types javac inferred for a generic method or constructor invocation's type
+variables (recovered by matching the declared signature against javac's instantiated
+method type); best-effort, for diagnostics.
+
+Performance: the annotated-JDK stub AST is now parsed once per JVM and shared
+across compilations instead of being re-parsed for every compilation. This speeds
+up multi-compilation JVMs such as the test suite, the Gradle daemon, and the
+language server (the JavaParser parse share of `allNullnessTests` roughly halved);
+a single compilation is unaffected.
+
+Performance: several `AnnotatedTypeScanner`s that were constructed per use are now
+reused — the `QualifierDefaults` defaulting scanner, `ElementAnnotationApplier`'s
+`TypeVarAnnotator`, and `BaseTypeValidator`'s structural-validity scanner — instead of
+allocating a scanner (and its `IdentityHashMap`) for every type. This removes ~99% of
+per-use scanner-construction allocations in realistic compilations.
+
+Performance: new caches in the `AnnotatedTypeFactory`: `methodAsMemberOfCache`
+to cache method types, `directSupertypesCache` to cache direct supertypes, and
+`elementTypeCache` to cache defaulted Element types.
+
+Performance: reduced the `AnnotatedTypeScanner`, `AnnotatedTypeCopier`, and
+`EquivalentAtmComboScanner` visitor-map pre-size from 64 to 8 (constant
+`VISITED_NODES_INITIAL_CAPACITY`). These per-scan `IdentityHashMap` backing
+arrays were the largest transient-allocation source in realistic compilations,
+and most scans visit only a few nodes; the smaller pre-size cuts that allocation
+substantially and lowers GC pressure with no wall-clock cost. Also pre-sized the
+small `wildcardToAnnos` map in `ElementAnnotationUtil` to 4.
+
+`AnnotatedTypeScanner.visitedNodes` is now `private` and lazily allocated: the
+`IdentityHashMap` is created on the first stored node rather than in a field
+initializer, so scans that touch no recursive type allocate nothing. Subclasses
+now go through three `protected final` accessors — `hasVisited`, `getVisited`,
+and `markVisited` — instead of touching the field directly, which centralizes the
+lazy-null invariant in one place. This is primarily an encapsulation change;
+allocation and wall clock are unchanged within measurement noise (the eager-vs-lazy
+map allocation count is essentially the same once the previous per-use scanner
+pooling is in place).
+
+Performance: `CFCFGBuilder` now obtains each method/lambda body's `TreePath` from the
+checker's shared `TreePathCacher` instead of an uncached `Trees.getPath` search per
+body. The old search was quadratic in bodies-per-file (each rescanned the preceding
+bodies) and was the largest `TreePath` allocator; caching it removes that quadratic.
+The effect scales with methods-per-file: negligible on small files, but large on very
+large or machine-generated single-class files (e.g. −33% allocation, −6.5% wall clock
+on a 1500-method class).
+
+Performance: `TreePathCacher` now builds each `TreePath` lazily — it allocates only the
+nodes on the path to the requested tree, instead of one for every tree it scans past — and
+`AnnotatedTypeFactory.getPath` routes its searches through the cacher. This further reduces
+allocation when many paths are requested from one compilation unit; on a 1500-method class
+it roughly halves total allocation again on top of the previous change, with no effect on
+normal code. No user-visible behavior change.
+
+Performance: `AnnotatedTypeFactory.getPath` and dataflow now search for tree paths from the
+tightest known starting point instead of rescanning the whole compilation unit. Previously a
+path lookup during checking or flow analysis could rescan an entire class, making allocation
+quadratic in the number of members; it is now linear. On a 6000-method class this roughly
+halves total allocation (~32 GB to ~15 GB); on normal code there is no change. No user-visible
+behavior change.
+
+Performance: iterating an unmodifiable `AnnotationMirrorSet` no longer allocates the backing
+list's iterator; the read-only iterator now walks the backing list by index. This removes the
+single largest remaining source of `Iterator` allocation in type checking. No user-visible
+behavior change.
+
+Performance: `InternalUtils` has new helpers (`isInitName`, `isThisName`, `isSuperName`,
+`isValueName`, `isJavaLangObjectName`, `isJavaLangEnumName`) that compare a javac `Name`
+against the table's pre-interned name by identity instead of `Name.contentEquals`, which
+decodes the name's UTF-8 bytes into a fresh `String` on every call on byte-backed name
+tables (javac's default before JDK 23, and what Gradle's `-XDuseUnsharedTable` forces on
+all JDK versions). All call sites that compared a `Name` against these fixed literals
+(`TreeUtils.isConstructor`, `TreeUtils.isEnumSuperCall`, identifier `this`/`super` checks
+in dataflow and the checkers, annotation-element `value` checks) now use them. For
+comparisons against dynamic-but-bounded strings (annotation element names, method names a
+checker matches against), the new `InternalUtils.sameName(Name, CharSequence)` interns the
+target into the name's own table through a table-validated cache and compares by identity
+(~6x faster, allocation-free, on byte-backed tables); `sameName(Name, Name)` compares
+same-table names by identity. `AnnotationUtils.getElementValue` and
+`AnnotationBuilder.findElement` — the hottest `Name` comparisons in the Called Methods,
+Must Call, and Resource Leak checkers — now use it. No user-visible behavior change.
+
+Performance: the `AnnotatedTypeFactory` tree-type caches (`classAndMethodTreeCache`,
+`fromExpressionTreeCache`, `fromMemberTreeCache`, `fromTypeTreeCache`, and `elementToTreeCache`) are
+now unbounded `IdentityHashMap`s cleared per compilation unit, rather than LRU caches capped at 2048
+entries. On a large compilation unit the live tree set overflowed the cap, so the LRU evicted
+still-needed entries and recomputed (and deep-copied) their annotated types; the per-compilation-unit
+`IdentityHashMap` removes that thrash. A single pass over each enclosing method/class now records all of
+its declaration trees instead of re-scanning per local variable, and `AnnotatedTypeCopier` reuses a
+thread-local map instead of allocating one per copy. Total allocation on large single-class files
+dropped 14-19% (e.g. -19% on a 1500-method class) and about 7% on a many-file corpus; wall clock is
+roughly unchanged, the gain being reduced GC pressure. No user-visible behavior change.
+
+`AnnotatedTypeMirror` has new `freeze()` and `isFrozen()` methods. Freezing a type
+makes it (and every type reachable from it) reject primary-annotation changes,
+throwing `BugInCF` on an attempted mutation; lazy initialization of bounds and type
+arguments is still permitted. This lets the framework share an immutable cached type
+without defensively deep-copying it.
+
+Fixed a latent aliasing bug in `AnnotatedTypeCopier`: when copying an executable
+type, the copy shared the original's vararg type instead of copying it, so
+`deepCopy()` did not produce a fully independent type. The annotated-type caches in
+`AnnotatedTypeFactory` now freeze the value they store (the masters), so a future
+in-place mutation of a cached type fails fast with `BugInCF` instead of silently
+corrupting the shared value.
+
+`StructuralEqualityComparer.arePrimaryAnnosEqual` is now non-mutating. The Value
+Checker's override previously normalized the two operands' annotations to a canonical
+form by calling `replaceAnnotation` on them -- an equality check with a side effect on
+its operands, which also prevents comparing a shared immutable type. It now computes
+the canonical annotations and compares them without mutating the types.
+
+Performance: `getAnnotatedType(Tree)` for class and method declarations
+(`classAndMethodTreeCache`) now returns the shared frozen cached type instead of a deep
+copy on every hit; the few callers that mutate the result copy it first. This removes a
+deep copy per cache hit for the read-only majority of callers. No user-visible behavior
+change.
+
+Fixed a bug that caused an IndexOutOfBoundsException for lambdas in varargs,
+for type systems that had the Aliasing Checker as a subchecker, like the
+Optional Checker.
+
+Performance: `BaseTypeVisitor.FoundRequired.found` and `.required` are now
+typed as `Object` instead of `String`; their `toString()` returns the
+lazily-formatted annotated-type string. This defers `AnnotatedTypeMirror.toString()`
+(which traverses the type structure and decodes UTF-8 names) until a diagnostic is
+actually emitted, so suppressed errors pay no formatting cost. **API change:**
+callers that read these fields into a `String` variable must call `.toString()`
+explicitly.
+
+Performance: `AnnotationFileParser.annosInPackage`, `annosInType`, and
+`createNameToAnnotationMap` now return
+`IdentityHashMap<javax.lang.model.element.Name, TypeElement>` instead of
+`Map<String, TypeElement>`, keyed by the live `Name` objects from the
+compilation's name table. The same change applies to
+`InsertAjavaAnnotations.FileState.allAnnotations` and the `TypeAnnotationMover`
+constructor parameter. Within one compilation's `Elements` instance, same-content
+names are interned to the same object, so identity comparison is correct and avoids
+UTF-8 decodes on every annotation lookup. **API changes:** callers of the three
+`AnnotationFileParser` methods and the `TypeAnnotationMover` constructor must
+update their declared types from `Map<String, TypeElement>` to
+`IdentityHashMap<Name, TypeElement>`.
+
+Performance: `SourceChecker.shouldSkipUses(Element)` now caches results per
+enclosing-class qualified `Name`, avoiding a repeated `Symbol.toString()` UTF-8
+decode and regex match for every element within the same class. No behavior change.
+
+Performance: `LocalVariableNode.hashCode()` and `equals()` now read the variable
+name as a `Name` directly from the tree instead of going through `getName()` (which
+decodes to `String`). `equals` uses `InternalUtils.sameName`; `hashCode` uses
+`Name.hashCode()` directly (which returns the name-table byte offset — no decode).
+No behavior change.
+
+Performance: `Variable.computeHashCode` and `ProperType.computeHashCode` in the
+type-inference-8 subsystem no longer call `toString()` to compute a hash; they use
+`Name.hashCode()` and `TypeKind` instead. No behavior change.
+
+Together the above changes (PR #1797) reduce `Convert.utf2chars` +
+`Convert.utf2string` self-time from ~2.3% to ~0.89% of a full `checknullness`
+build; wall-clock A/B shows ~5% improvement on `checknullness` (~135 s → ~128 s,
+median of four warm-daemon reps per side).
+
+**Closed issues:**
+
+eisop#433, eisop#792, eisop#863, eisop#1801.
+
+
+Version 3.49.5-eisop1 (April 26, 2026)
+--------------------------------------
+
+**User-visible changes:**
+
+Considerable performance improvements. In a large project (over 4000 .java files) with
+complex qualifiers, compilation time was reduced from around 30 minutes to below 7 minutes.
+Running `allNullnessTests` went from around 3 minutes to 2.5 minutes and
+`checkNullness` went from around 5.25 to below 4 minutes.
+
+The EISOP Checker Framework runs under JDK 26 and under JDK 27 b18 early access
+builds -- that is, it runs on version 26 and 27 JVMs.
+
+The new command-line option `-AonlyAnnotatedFor` suppresses all type-checking errors and
+warnings outside the scope of a corresponding `@AnnotatedFor` annotation.
+Note that the `@AnnotatedFor` annotation must include the checker's name to enable
+warnings from that checker.
+For example, use `@AnnotatedFor("nullness")` for the Nullness Checker.
+This option unsoundly uses source defaults and suppresses the warnings outside the scope
+of a corresponding `@AnnotatedFor` annotation.
+Use `-AuseConservativeDefaultsForUncheckedCode=source` if you want conservative defaults
+for source code outside the scope of a corresponding `@AnnotatedFor` annotation.
+
+The Nullness Checker now has more fine-grained prefix options to suppress warnings:
+- `@SuppressWarnings("nullness")` is used to suppress warnings from the Nullness,
+  Initialization, and KeyFor Checkers.
+- `@SuppressWarnings("nullnesskeyfor")` is used to suppress warnings from the Nullness and
+  KeyFor Checkers, warnings from the Initialization Checker are not suppressed.
+  `@SuppressWarnings("nullnessnoinit")` has the same effect as `@SuppressWarnings("nullnesskeyfor")`.
+- `@SuppressWarnings("nullnessinitialization")` is used to suppress warnings from the
+  Nullness and Initialization Checkers, warnings from the KeyFor Checker are not
+  suppressed.
+- `@SuppressWarnings("nullnessonly")` is used to suppress warnings from the Nullness
+  Checker only, warnings from the Initialization and KeyFor Checkers are not suppressed.
+- `@SuppressWarnings("initialization")` is used to suppress warnings from the
+  Initialization Checker only, warnings from the Nullness and KeyFor Checkers are not
+  suppressed.
+- `@SuppressWarnings("keyfor")` is used to suppress warnings from the KeyFor Checker only,
+  warnings from the Nullness and Initialization Checkers are not suppressed.
+
+The EISOP Checker Framework now uses `NullType` instead of `Void` to denote the bottom
+type in the Java type hierarchy.
+It is visible in error messages with type variable's or wildcard's lower bounds.
+The type of the `null` literal in the Nullness Checker is now displayed as
+`@Nullable NullType` instead of the earlier `null (NullType)`.
+This change makes the EISOP Checker Framework more consistent with the Java
+language specification.
+
+The format of error messages for type variables and wildcards has been improved to be
+consistent when printing both bounds.
+
+The `instanceof.unsafe` and `instanceof.pattern.unsafe` warnings in the EISOP
+Checker Framework are now controlled by lint options.
+They are enabled by default and can be disabled using `-Alint=-instanceof.unsafe` or
+`-Alint=-instanceof`.
+
+The Nullness Checker now recognizes references to private, final fields with zero-length
+arrays as initializers in calls to `Collection.toArray(T[])`, allowing the returned
+component type to be refined to `@NonNull`.
+
+The `ClassBound` annotation can now be used with anonymous types.
+
+**Implementation details:**
+
+`CFAbstractTransfer` now returns a `RegularTransferResult` when the visited method has
+non-boolean return type, instead of always returning a `ConditionalTransferResult`.
+If your checker needs a `ConditionalTransferResult` for non-boolean methods, you need to
+change your transfer function. See `NonEmptyTransfer` for an example.
+
+The `AbstractNodeVisitor` now has more summary methods, following the class hierarchy of
+`Node` and conceptual categories.
+
+`AnnotationMirrorSet` now only implements `Set`, not `NavigableSet`.
+
+Fixed nullness annotations and documentation of the following methods in `SourceChecker`:
+- `reportError`
+- `reportWarning`
+- `report`
+- `getSourceWithPrecisePosition`
+- `shouldSuppressWarnings`
+
+Removed method
+`InitializationParentAnnotatedTypeFactory.createUnderInitializationAnnotation(Class<?>)`
+from the Initialization Checker; use `createUnderInitializationAnnotation(TypeMirror)`
+instead.
+
+Removed `AnnotationUtils#annotationNameInterned`. `annotationName` itself now
+returns an interned name.
+
+Method `AnnotatedTypeMirror#getUnderlyingTypeHashCode()` is no longer public.
+
+Changed behavior and usage of `HashcodeAtmVisitor`.
+
+**Closed issues:**
+
+typetools#7096, typetools#7539, eisop#1099, eisop#1219, eisop#1225, eisop#1231,
+eisop#1242, eisop#1247, eisop#1257, eisop#1263, eisop#1265, eisop#1272,
+eisop#1310, eisop#1326, eisop#1444, eisop#1448, eisop#1500, eisop#1506,
+eisop#1536, eisop#1543, eisop#1565.
+
+
+Version 3.49.5 (June 30, 2025)
+-----------------------------
+
+**User-visible changes:**
+
+The Checker Framework runs under JDK 25 -- that is, it runs on a version 25 JVM.
+(EISOP note: this already worked in Version 3.49.3-eisop1.)
+
+**Closed issues:**
+
+#7093.
+
+
+Version 3.49.4 (June 2, 2025)
+-----------------------------
+
+**Closed issues:**
+
+#6740, #7013, #7038, #7070, #7082.
+
+
+Version 3.49.3-eisop1 (May 6, 2025)
+-----------------------------------
+
+**User-visible changes:**
+
+The Checker Framework runs under JDK 25 -- that is, it runs on a version 25 JVM.
+
+**Implementation details:**
+
+Gradle should now be run with at least JDK 17.
+The `ORG_GRADLE_PROJECT_useJdkVersion` environment variable can be used to
+select a different JDK for the actual compilation and testing.
+
+**Closed issues:**
+
+eisop#1051, eisop#1115, eisop#1180.
+
+
+Version 3.49.3 (May 2, 2025)
+----------------------------
+
+**User-visible changes:**
+
+The Checker Framework runs under JDK 24 -- that is, it runs on a version 24 JVM.
+(EISOP note: this has been working for a while already.)
+
+**Closed issues:**
+
+#6520, #6671, #6750, #6762, #6887, #7001, #7019, #7024, #7029, #7053.
+
+
+Version 3.49.2 (April 1, 2025)
+------------------------------
+
+**Closed issues:**
+
+#6747, #6755, #6789, #6891, #6963, #6996, #7001, #7008, #7014.
+
+
+Version 3.49.1-eisop1 (March 17, 2025)
+--------------------------------------
+
+**User-visible changes:**
+
+The Nullness Checker now reports an error if any instanceof pattern variables
+are annotated with `@Nullable` and a redundant warning if they are annotated
+with `@NonNull`.
+
+**Implementation details:**
+
+Fixed intersection of wildcards with extends bounds, to ensure the correct
+bounds are used.
+
+**Closed issues:**
+
+eisop#1003, eisop#1022, eisop#1033, eisop#1058.
+
+
+Version 3.49.1 (March 3, 2025)
+------------------------------
+
+**Closed issues:**
+
+#6970, #6974.
+
+
+Version 3.49.0 (February 3, 2025)
+---------------------------------
+
+**User-visible changes:**
+
+The Optional Checker is more precise for `Optional` values resulting from
+operations on container types (e.g., `List`, `Map`, `Iterable`).  It supports
+two new annotations:
+ * `@NonEmpty`
+ * `@UnknownNonEmpty`
+
+The Signature Checker no longer supports `@BinaryNameWithoutPackage` because
+it is equivalent to `@Identifier`; use `@Identifier` instead.
+
+The JavaStubifier implementation now appears in package
+`org.checkerframework.framework.stubifier.JavaStubifier`.
+
+**Closed issues:**
+
+#6935, #6936, #6939.
+
+
+Version 3.48.4 (January 2, 2025)
+--------------------------------
+
+**Closed issues:**
+
+#6919, #6630.
+
+
+Version 3.48.3 (December 2, 2024)
+---------------------------------
+
+**Closed issues:**
+
+#6886.
+
+
+Version 3.48.2 (November 1, 2024)
+---------------------------------
+
+**Closed issues:**
+
+#6371, #6867.
+
+
+Version 3.48.1 (October 11, 2024)
+---------------------------------
+
+**User-visible changes:**
+
+The Returns Receiver sub-checker is now disabled by default when running
+the Resource Leak Checker, as usually it is not needed and it adds overhead.
+To enable it, use the new `-AenableReturnsReceiverForRlc` command-line argument.
+
+**Closed issues:**
+
+#6434, #6810, #6839, #6842, #6856.
+
+
+Version 3.48.0 (October 2, 2024)
+--------------------------------
+
+**User-visible changes:**
+
+The new SQL Quotes Checker prevents errors in quoting in SQL queries.  It
+prevents injection attacks that exploit quoting errors.
+
+Aggregate Checkers now interleave error messages so that all errors about a line
+of code appear together.
+(EISOP note: some signatures changed from `BaseTypeChecker` to `SourceChecker`,
+which might require adaptation in checkers.)
+
+**Closed issues:**
+
+#3568, #6725, #6753, #6769, #6770, #6780, #6785, #6795, #6804, #6811, #6825.
+
+
+Version 3.47.0 (September 3, 2024)
+----------------------------------
+
+**User-visible changes:**
+
+The Checker Framework runs under JDK 22 -- that is, it runs on a version 22 JVM.
+The Checker Framework runs under JDK 23 -- that is, it runs on a version 23 JVM.
+(EISOP note: this has been working for a while already, this just cleaned up
+compiler warnings.)
+
+The Optional Checker no longer supports the `@OptionalBottom` annotation.
+
+**Implementation details:**
+
+Removed annotations:
+ * `@OptionalBottom`
+
+**Closed issues:**
+
+#6510, #6704, #6743, #6749, #6760, #6761.
+
+
+Version 3.46.0 (August 1, 2024)
+-------------------------------
+
+**User-visible changes:**
+
+Renamed `@EnsuresCalledMethodsVarArgs`to `@EnsuresCalledMethodsVarargs`.
+
+**Implementation details:**
+
+Many symbols that contained `VarArgs` were similarly renamed to use `Varargs`,
+e.g. `AnnotatedTypeMirror.isVarargs()`.
+
+**Closed issues:**
+
+#4923, #6420, #6469, #6652, #6664.
+
+
+Version 3.45.0 (July 1, 2024)
+-----------------------------
+
+**Implementation details:**
+
+Added a `Tree` argument to `AnnotatedTypes.adaptParameters()`
+
+Deprecated methods:
+ * `TreeUtils.isVarArgs()` => `isVarargsCall()`
+ * `TreeUtils.isVarArgMethodCall()` => `isVarargsCall()`
+
+**Closed issues:**
+
+#152, #5575, #6630, #6641, #6648, #6676.
+
+
+Version 3.44.0 (June 3, 2024)
+-----------------------------
+
+**Implementation details:**
+
+Removed methods:
+ * `AbstractAnalysis.readFromStore()`:  use `Map.get()`
+
+Renamed methods:
+ * `CFAbstractStore.methodValues()` => `methodCallExpressions()`
+ * `AbstractCFGVisualizer.format()` => `escapeString()`
+
+Renamed fields:
+ * `AnalysisResult.stores` => `inputs`
+
+Deprecated methods:
+ * `AbstractAnalysis.getContainingMethod()` => `getEnclosingMethod()`
+ * `AbstractAnalysis.getContainingClass()` => `getEnclosingMethod()`
+ * `ControlFlowGraph.getContainingMethod()` => `getEnclosingMethod()`
+ * `ControlFlowGraph.getContainingClass()` => `getEnclosingClass()`
+ * `JavaExpression.isUnassignableByOtherCode()` => `isAssignableByOtherCode()`
+ * `JavaExpression.isUnmodifiableByOtherCode()` => `isModifiableByOtherCode()`
+
+`BaseTypeVisitor#visitMethod(MethodTree, Void)` is now `final`.
+Subclasses should override `BaseTypeVisitor#processMethodTree(MethodTree)`.
+
+**Closed issues:**
+
+#802, #2676, #2780, #2926, #3378, #3612, #3764, #4007, #4964, #5070, #5176,
+#5237, #5541, #6046, #6382, #6388, #6566, #6568, #6570, #6576, #6577, #6631,
+#6635, #6636, #6644.
+
+
+Version 3.43.0 (May 1, 2024)
+----------------------------
+
+**User-visible changes:**
+
+Method, constructor, lambda, and method reference type inference has been
+greatly improved.  The `-AconservativeUninferredTypeArguments` option is
+no longer necessary and has been removed.
+
+Renamed command-line arguments:
+ * `-AskipDirs` has been renamed to `-AskipFiles`.
+   `-AskipDirs` will continue to work for the time being.
+
+New command-line arguments:
+ * `-AonlyFiles` complements `-AskipFiles`
+
+A specialized inference algorithm for the Resource Leak Checker runs
+automatically as part of whole-program inference.
+
+**Implementation details:**
+
+Deprecated `ObjectCreationNode#getConstructor` in favor of new
+`ObjectCreationNode#getTypeToInstantiate()`.
+(EISOP note: this already happened in Version 3.39.0-eisop1 on
+October 22, 2023.)
+
+Renamed `AbstractCFGVisualizer.visualizeBlockHelper()` to
+`visualizeBlockWithSeparator()`.
+
+Moved methods from `TreeUtils` to subclasses of `TreeUtilsAfterJava11`:
+ * isConstantCaseLabelTree
+ * isDefaultCaseLabelTree
+ * isPatternCaseLabelTree
+
+Renamed `BaseTypeVisitor.checkForPolymorphicQualifiers()` to
+`warnInvalidPolymorphicQualifier()`.
+
+**Closed issues:**
+
+#979, #4559, #4593, #5058, #5734, #5781, #6071, #6093, #6239, #6297, #6317,
+#6322, #6346, #6373, #6376, #6378, #6379, #6380, #6389, #6393, #6396, #6402,
+#6406, #6407, #6417, #6421, #6430, #6433, #6438, #6442, #6473, #6480, #6507,
+#6531, #6535.
+
+
+Version 3.42.0-eisop5 (December 20, 2024)
+-----------------------------------------
 
 **User-visible changes:**
 
 Removed support for the `-Anocheckjdk` option, which was deprecated in version 3.1.1.
 Use `-ApermitMissingJdk` instead.
+
+The Nullness Checker now reports an error if an array or object creation is annotated
+with `@Nullable`, as array and object creations are intrinsically non-null.
 
 **Implementation details:**
 
@@ -15,6 +653,9 @@ Use `DefaultContractsFromMethod` to get the default behavior or use the new
 Make `SourceChecker#suppressWarningsString` protected to allow adaptation in subclasses.
 
 **Closed issues:**
+
+eisop#413, eisop#782, eisop#815, eisop#826, eisop#860, eisop#873, eisop#875, eisop#927,
+eisop#982, eisop#1012.
 
 
 Version 3.42.0-eisop4 (July 12, 2024)
@@ -34,9 +675,9 @@ to `AnnotationMirrorSet`.
 Field `AnnotatedTypeFactory#root` is now private and can only be accessed through `getRoot`/`setRoot`.
 
 framework-test:
-- Improvements to more consistently handle tests that do not use `-Anomsgtext`.
-- Added new class `DetailedTestDiagnostic` to directly represent test diagnostics when
-  `-Adetailedmsgtext` is used.
+ * Improvements to more consistently handle tests that do not use `-Anomsgtext`.
+ * Added new class `DetailedTestDiagnostic` to directly represent test diagnostics when
+   `-Adetailedmsgtext` is used.
 
 **Closed issues:**
 
@@ -101,7 +742,7 @@ possibly throws an assertion.  Using it can make flow-sensitive type refinement
 more effective.
 
 In `org.checkerframework.common.util.debug`, renamed `EmptyProcessor` to `DoNothingProcessor`.
-Removed `org.checkerframework.common.util.report.DoNothingChecker`.
+Removed `org.checkerframework.common.util.report.DoNothingChecker`; use `DoNothingProcessor`.
 Moved `ReportChecker` from `org.checkerframework.common.util.report` to `org.checkerframework.common.util.count.report`.
 (EISOP note: we did not follow this renaming - if anything, `counting` could be a special case of `reporting`, not
 the other way around.)
@@ -126,7 +767,7 @@ Version 3.41.0 (December 4, 2023)
 **User-visible changes:**
 
 New command-line options:
-* `-AassumePureGetters`: Unsoundly assume that every getter method is pure.
+ * `-AassumePureGetters`: Unsoundly assume that every getter method is pure.
 
 **Implementation details:**
 
@@ -224,10 +865,10 @@ Removed class `StringConcatenateAssignmentNode` and its last usages.
 The class was deprecated in release 3.21.3-eisop1 (March 23, 2022) and no longer used in CFGs.
 
 Changed the return types of
-- `BaseTypeChecker#getImmediateSubcheckerClasses()` and overrides to
-  `Set<Class<? extends BaseTypeChecker>>`,
-- `AnalysisResult#getFinalLocalValues()` to `Map<VariableElement, V>`, and
-- `GenericAnnotatedTypeFactory#getFinalLocalValues()` to `Map<VariableElement, Value>`.
+ * `BaseTypeChecker#getImmediateSubcheckerClasses()` and overrides to
+   `Set<Class<? extends BaseTypeChecker>>`,
+ * `AnalysisResult#getFinalLocalValues()` to `Map<VariableElement, V>`, and
+ * `GenericAnnotatedTypeFactory#getFinalLocalValues()` to `Map<VariableElement, Value>`.
 
 **Closed issues:**
 
@@ -646,10 +1287,10 @@ With this flag, a warning is issued if an explicitly written annotation on a typ
 as the default annotation for this type and location.
 
 Support additional Nullness Checker annotation aliases from:
-- `io.micronaut.core.annotation`
-- `io.vertx.codegen.annotations`
-- `jakarta.annotation`
-- `net.bytebuddy[.agent].utility.nullability`
+ * `io.micronaut.core.annotation`
+ * `io.vertx.codegen.annotations`
+ * `jakarta.annotation`
+ * `net.bytebuddy[.agent].utility.nullability`
 
 **Implementation details:**
 

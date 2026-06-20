@@ -2,8 +2,6 @@ package org.checkerframework.framework.type;
 
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-import java.util.Objects;
-
 /** Represents upper and lower bounds, each an AnnotatedTypeMirror. */
 public class AnnotatedTypeParameterBounds {
     private final AnnotatedTypeMirror upper;
@@ -24,7 +22,7 @@ public class AnnotatedTypeParameterBounds {
 
     @Override
     public String toString() {
-        return "[extends " + upper + " super " + lower + "]";
+        return "[ extends " + upper + " super " + lower + " ]";
     }
 
     /**
@@ -34,16 +32,22 @@ public class AnnotatedTypeParameterBounds {
      * @return a possibly-verbose string representation of this
      */
     public String toString(boolean verbose) {
-        return "[extends " + upper.toString(verbose) + " super " + lower.toString(verbose) + "]";
+        return "[ extends " + upper.toString(verbose) + " super " + lower.toString(verbose) + " ]";
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(upper, lower);
+        int h = 1;
+        h = 31 * h + (upper != null ? upper.hashCode() : 0);
+        h = 31 * h + (lower != null ? lower.hashCode() : 0);
+        return h;
     }
 
     @Override
     public boolean equals(@Nullable Object obj) {
+        if (this == obj) {
+            return true;
+        }
         if (!(obj instanceof AnnotatedTypeParameterBounds)) {
             return false;
         }

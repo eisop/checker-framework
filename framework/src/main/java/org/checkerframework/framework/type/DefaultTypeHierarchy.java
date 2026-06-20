@@ -21,6 +21,7 @@ import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TypesUtils;
 
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 
 import javax.lang.model.element.AnnotationMirror;
@@ -82,7 +83,7 @@ public class DefaultTypeHierarchy extends AbstractAtmComboVisitor<Boolean, Void>
     protected final StructuralEqualityVisitHistory areEqualVisitHistory;
 
     /** The Covariant.value field/element. */
-    final ExecutableElement covariantValueElement;
+    protected final ExecutableElement covariantValueElement;
 
     /**
      * Creates a DefaultTypeHierarchy.
@@ -93,6 +94,7 @@ public class DefaultTypeHierarchy extends AbstractAtmComboVisitor<Boolean, Void>
      * @param invariantArrayComponents whether to make array subtyping invariant with respect to
      *     array component types
      */
+    @SuppressWarnings("this-escape")
     public DefaultTypeHierarchy(
             BaseTypeChecker checker,
             QualifierHierarchy qualHierarchy,
@@ -122,6 +124,15 @@ public class DefaultTypeHierarchy extends AbstractAtmComboVisitor<Boolean, Void>
     }
 
     /**
+     * Tracks re-entrant calls to {@link #isSubtype(AnnotatedTypeMirror, AnnotatedTypeMirror)}. The
+     * visit histories are cleared only when this counter transitions from 1 to 0, i.e. at the end
+     * of a true outermost entry. {@link #isContainedWithinBounds} internally invokes the public
+     * 2-arg method, so a clear-on-every-exit would wipe the history mid-check and destroy cycle
+     * detection for recursive wildcard bounds.
+     */
+    private int isSubtypeDepth = 0;
+
+    /**
      * Returns true if subtype {@literal <:} supertype.
      *
      * <p>This implementation iterates over all top annotations and invokes {@link
@@ -135,13 +146,23 @@ public class DefaultTypeHierarchy extends AbstractAtmComboVisitor<Boolean, Void>
      */
     @Override
     public boolean isSubtype(AnnotatedTypeMirror subtype, AnnotatedTypeMirror supertype) {
-        for (AnnotationMirror top : qualHierarchy.getTopAnnotations()) {
-            if (!isSubtype(subtype, supertype, top)) {
-                return false;
+        isSubtypeDepth++;
+        try {
+            for (AnnotationMirror top : qualHierarchy.getTopAnnotations()) {
+                if (!isSubtype(subtype, supertype, top)) {
+                    return false;
+                }
+            }
+            return true;
+        } finally {
+            isSubtypeDepth--;
+
+            // Bound the lifetime of the visit histories to a single top-level check.
+            if (isSubtypeDepth == 0) {
+                isSubtypeVisitHistory.clear();
+                areEqualVisitHistory.clear();
             }
         }
-
-        return true;
     }
 
     /** A set of annotations and a {@link TypeMirror}. */
@@ -173,14 +194,14 @@ public class DefaultTypeHierarchy extends AbstractAtmComboVisitor<Boolean, Void>
          * @return a shallow type created from {@code type}
          */
         @SuppressWarnings("nullness") // AnnotatedTypeMirror isn't annotated for nullness.
-        public static ShallowType create(AnnotatedTypeMirror type) {
+        static ShallowType create(AnnotatedTypeMirror type) {
             AnnotatedTypeMirror erasedType = type.getErased();
             TypeMirror typeMirror =
                     erasedType.getKind() == type.getKind()
                             ? type.getUnderlyingType()
                             : erasedType.getUnderlyingType();
             // The effective annotations are the primary annotations on the erased type.
-            return new ShallowType(erasedType.getAnnotations(), typeMirror);
+            return new ShallowType(erasedType.getAnnotationsField(), typeMirror);
         }
     }
 
@@ -372,7 +393,7 @@ public class DefaultTypeHierarchy extends AbstractAtmComboVisitor<Boolean, Void>
             return previousResult;
         }
 
-        if (shouldIgnoreUninferredTypeArgs(inside) || shouldIgnoreUninferredTypeArgs(outside)) {
+        if (shouldIgnoreRawTypeArgs(inside) || shouldIgnoreRawTypeArgs(outside)) {
             areEqualVisitHistory.put(inside, outside, currentTop, true);
             return true;
         }
@@ -391,12 +412,10 @@ public class DefaultTypeHierarchy extends AbstractAtmComboVisitor<Boolean, Void>
                             canBeCovariant);
             areEqualVisitHistory.put(inside, outside, currentTop, result);
             return result;
-        }
-        if ((TypesUtils.isCapturedTypeVariable(outside.getUnderlyingType())
-                && !TypesUtils.isCapturedTypeVariable(inside.getUnderlyingType()))) {
-            // TODO: This branch should be removed after #979 is fixed.
-            // This workaround is only needed when outside is a captured type variable,
-            // but inside is not.
+        } else if (TypesUtils.isCapturedTypeVariable(outside.getUnderlyingType())) {
+            // Sometimes the wildcard has been captured too early, so treat the captured type
+            // variable as wildcard.
+            // This is all cases except bullet 6, "T <= T".
             AnnotatedTypeVariable outsideTypeVar = (AnnotatedTypeVariable) outside;
 
             // Add a placeholder in case of recursion, to prevent infinite regress.
@@ -407,15 +426,31 @@ public class DefaultTypeHierarchy extends AbstractAtmComboVisitor<Boolean, Void>
                             outsideTypeVar.getLowerBound(),
                             outsideTypeVar.getUpperBound(),
                             canBeCovariant);
-
             areEqualVisitHistory.put(inside, outside, currentTop, result);
-            return result;
+            if (result) {
+                return true;
+            }
+            areEqualVisitHistory.remove(inside, outsideTypeVar, currentTop);
         }
+
         // The remainder of the method is bullet 6, "T <= T".
         if (canBeCovariant) {
             return isSubtype(inside, outside, currentTop);
         }
-        return areEqualInHierarchy(inside, outside);
+
+        try {
+            return areEqualInHierarchy(inside, outside);
+        } catch (Exception e) {
+            // Ignore exception and try capturing.
+            // See https://github.com/typetools/checker-framework/issues/6867.
+            // https://bugs.openjdk.org/browse/JDK-8054309
+        }
+        AnnotatedTypeMirror capturedOutside = outside.atypeFactory.applyCaptureConversion(outside);
+        previousResult = areEqualVisitHistory.get(inside, capturedOutside, currentTop);
+        if (previousResult != null) {
+            return previousResult;
+        }
+        return areEqualInHierarchy(inside, capturedOutside);
     }
 
     /**
@@ -452,7 +487,7 @@ public class DefaultTypeHierarchy extends AbstractAtmComboVisitor<Boolean, Void>
             // from the algorithm in the JLS.  Only one of the Java type bounds can be specified,
             // but there can be annotations on both the upper and lower bound of a wildcard.
             return isSubtype(outsideLower, inside) && isSubtype(inside, outsideUpper);
-        } catch (Throwable ex) {
+        } catch (Exception ex) {
             // Work around:
             // https://bugs.java.com/bugdatabase/view_bug.do?bug_id=JDK-8265255
             if (ex.getMessage().contains("AsSuperVisitor")) {
@@ -463,17 +498,15 @@ public class DefaultTypeHierarchy extends AbstractAtmComboVisitor<Boolean, Void>
     }
 
     /**
-     * Returns true if {@code type} is an uninferred type argument and if the checker should not
-     * issue warnings about uninferred type arguments.
+     * Returns true if {@code type} is a type argument from a raw type and if the checker should not
+     * issue warnings about such type arguments.
      *
      * @param type type to check
-     * @return true if {@code type} is an uninferred type argument and if the checker should not
-     *     issue warnings about uninferred type arguments
+     * @return true if {@code type} is a type argument from a raw type and if the checker should not
+     *     issue warnings about such type arguments.
      */
-    private boolean shouldIgnoreUninferredTypeArgs(AnnotatedTypeMirror type) {
-        return type.atypeFactory.ignoreUninferredTypeArguments
-                && type.getKind() == TypeKind.WILDCARD
-                && ((AnnotatedWildcardType) type).isUninferredTypeArgument();
+    private boolean shouldIgnoreRawTypeArgs(AnnotatedTypeMirror type) {
+        return this.ignoreRawTypes && AnnotatedTypes.isTypeArgOfRawType(type);
     }
 
     // ------------------------------------------------------------------------
@@ -543,14 +576,6 @@ public class DefaultTypeHierarchy extends AbstractAtmComboVisitor<Boolean, Void>
         if (!isPrimarySubtype(subtype, supertype)) {
             return false;
         }
-        AnnotatedTypeFactory factory = subtype.atypeFactory;
-        if (factory.ignoreUninferredTypeArguments
-                && (factory.containsUninferredTypeArguments(subtype)
-                        || factory.containsUninferredTypeArguments(supertype))) {
-            // Calling castedAsSuper may cause the uninferredTypeArguments to be lost. So, just
-            // return true here.
-            return true;
-        }
 
         if (isSubtypeVisitHistory.contains(subtype, supertype, currentTop)) {
             return true;
@@ -606,30 +631,19 @@ public class DefaultTypeHierarchy extends AbstractAtmComboVisitor<Boolean, Void>
             return true;
         }
 
-        TypeElement supertypeElem = (TypeElement) supertype.getUnderlyingType().asElement();
-        AnnotationMirror covariantAnno =
-                typeFactory.getDeclAnnotation(supertypeElem, Covariant.class);
-
-        List<Integer> covariantArgIndexes =
-                (covariantAnno == null)
-                        ? null
-                        : AnnotationUtils.getElementValueArray(
-                                covariantAnno, covariantValueElement, Integer.class);
+        List<Integer> covariantArgIndexes = getCovariantArgIndexes(supertype);
 
         // JLS 11: 4.10.2. Subtyping among Class and Interface Types
         // 4th paragraph, bullet 2
         try {
-            if (isContainedMany(
-                    subtypeAsSuper.getTypeArguments(), supertypeTypeArgs, covariantArgIndexes)) {
+            if (isContainedMany(subtypeTypeArgs, supertypeTypeArgs, covariantArgIndexes)) {
                 return true;
             }
         } catch (Exception e) {
             // Some types need to be captured first, so ignore crashes.
             for (int i = 0; i < supertypeTypeArgs.size(); i++) {
                 areEqualVisitHistory.remove(
-                        subtypeAsSuper.getTypeArguments().get(i),
-                        supertypeTypeArgs.get(i),
-                        currentTop);
+                        subtypeTypeArgs.get(i), supertypeTypeArgs.get(i), currentTop);
             }
         }
         // 5th paragraph:
@@ -640,6 +654,19 @@ public class DefaultTypeHierarchy extends AbstractAtmComboVisitor<Boolean, Void>
                 AnnotatedTypes.castedAsSuper(typeFactory, capturedSubtype, supertype);
         return isContainedMany(
                 capturedSubtypeAsSuper.getTypeArguments(), supertypeTypeArgs, covariantArgIndexes);
+    }
+
+    @Override
+    public List<Integer> getCovariantArgIndexes(AnnotatedDeclaredType type) {
+        TypeElement supertypeElem = (TypeElement) type.getUnderlyingType().asElement();
+        AnnotationMirror covariantAnno =
+                type.atypeFactory.getDeclAnnotation(supertypeElem, Covariant.class);
+        if (covariantAnno == null) {
+            return Collections.emptyList();
+        }
+
+        return AnnotationUtils.getElementValueArray(
+                covariantAnno, covariantValueElement, Integer.class);
     }
 
     /**
@@ -657,10 +684,13 @@ public class DefaultTypeHierarchy extends AbstractAtmComboVisitor<Boolean, Void>
             List<? extends AnnotatedTypeMirror> subtypeTypeArgs,
             List<? extends AnnotatedTypeMirror> supertypeTypeArgs,
             List<Integer> covariantArgIndexes) {
+        boolean anyCovariant = !covariantArgIndexes.isEmpty();
         for (int i = 0; i < supertypeTypeArgs.size(); i++) {
             AnnotatedTypeMirror superTypeArg = supertypeTypeArgs.get(i);
             AnnotatedTypeMirror subTypeArg = subtypeTypeArgs.get(i);
-            boolean covariant = covariantArgIndexes != null && covariantArgIndexes.contains(i);
+            // Avoid per-iteration autoboxing of i when no type argument is covariant, which is the
+            // overwhelmingly common case.
+            boolean covariant = anyCovariant && covariantArgIndexes.contains(i);
             if (!isContainedBy(subTypeArg, superTypeArg, covariant)) {
                 return false;
             }
@@ -745,9 +775,9 @@ public class DefaultTypeHierarchy extends AbstractAtmComboVisitor<Boolean, Void>
             AnnotatedIntersectionType subtype, AnnotatedIntersectionType supertype, Void p) {
         Types types = checker.getTypeUtils();
         for (AnnotatedTypeMirror subBound : subtype.getBounds()) {
+            TypeMirror subBoundTM = subBound.getUnderlyingType();
             for (AnnotatedTypeMirror superBound : supertype.getBounds()) {
-                if (TypesUtils.isErasedSubtype(
-                                subBound.getUnderlyingType(), superBound.getUnderlyingType(), types)
+                if (TypesUtils.isErasedSubtype(subBoundTM, superBound.getUnderlyingType(), types)
                         && !isSubtype(subBound, superBound, currentTop)) {
                     return false;
                 }
@@ -875,11 +905,10 @@ public class DefaultTypeHierarchy extends AbstractAtmComboVisitor<Boolean, Void>
     @Override
     public Boolean visitPrimitive_Wildcard(
             AnnotatedPrimitiveType subtype, AnnotatedWildcardType supertype, Void p) {
-        if (supertype.atypeFactory.ignoreUninferredTypeArguments
-                && supertype.isUninferredTypeArgument()) {
+        if (shouldIgnoreRawTypeArgs(supertype)) {
             return true;
         }
-        // this can occur when passing a primitive to a method on a raw type (see test
+        // This can occur when passing a primitive to a method on a raw type (see test
         // checker/tests/nullness/RawAndPrimitive.java).  This can also occur because we don't box
         // primitives when we should and don't capture convert.
         return isPrimarySubtype(subtype, supertype.getSuperBound());
@@ -953,7 +982,7 @@ public class DefaultTypeHierarchy extends AbstractAtmComboVisitor<Boolean, Void>
     @Override
     public Boolean visitTypevar_Intersection(
             AnnotatedTypeVariable subtype, AnnotatedIntersectionType supertype, Void p) {
-        // this can happen when checking type param bounds
+        // This can happen when checking type param bounds.
         return visitType_Intersection(subtype, supertype);
     }
 
@@ -977,33 +1006,58 @@ public class DefaultTypeHierarchy extends AbstractAtmComboVisitor<Boolean, Void>
         TypeMirror superTM = supertype.getUnderlyingType();
         if (AnnotatedTypes.haveSameDeclaration(checker.getTypeUtils(), subtype, supertype)) {
             // The underlying types of subtype and supertype are uses of the same type parameter,
-            // but they
-            // may have different primary annotations.
-            boolean subtypeHasAnno = subtype.getAnnotationInHierarchy(currentTop) != null;
-            boolean supertypeHasAnno = supertype.getAnnotationInHierarchy(currentTop) != null;
+            // but they may have different primary annotations.
+            AnnotationMirror subtypeAnno = subtype.getAnnotationInHierarchy(currentTop);
+            boolean subtypeHasAnno = subtypeAnno != null;
+            AnnotationMirror supertypeAnno = supertype.getAnnotationInHierarchy(currentTop);
+            boolean supertypeHasAnno = supertypeAnno != null;
 
             if (subtypeHasAnno && supertypeHasAnno) {
                 // If both have primary annotations then just check the primary annotations
                 // as the bounds are the same.
                 return isPrimarySubtype(subtype, supertype);
             } else if (!subtypeHasAnno && !supertypeHasAnno) {
-                // two unannotated uses of the same type parameter are of the same type
-                return areEqualInHierarchy(subtype, supertype);
-            } else if (subtypeHasAnno && !supertypeHasAnno) {
-                // This is the case "@A T <: T" where T is a type variable.
+                // Two unannotated uses of the same type parameter need to compare
+                // both upper and lower bounds.
+
+                // Upper bound of the subtype needs to be below the upper bound of the supertype.
+                if (!qualHierarchy.isSubtypeShallow(
+                        subtype.getEffectiveAnnotationInHierarchy(currentTop),
+                        subTM,
+                        supertype.getEffectiveAnnotationInHierarchy(currentTop),
+                        superTM)) {
+                    return false;
+                }
+
+                // Lower bound of the subtype needs to be below the lower bound of the supertype.
+                // TODO: Think through this and add better test coverage.
+                AnnotationMirrorSet subLBs =
+                        AnnotatedTypes.findEffectiveLowerBoundAnnotations(qualHierarchy, subtype);
+                AnnotationMirror subLB =
+                        qualHierarchy.findAnnotationInHierarchy(subLBs, currentTop);
                 AnnotationMirrorSet superLBs =
                         AnnotatedTypes.findEffectiveLowerBoundAnnotations(qualHierarchy, supertype);
                 AnnotationMirror superLB =
                         qualHierarchy.findAnnotationInHierarchy(superLBs, currentTop);
-                return qualHierarchy.isSubtypeShallow(
-                        subtype.getAnnotationInHierarchy(currentTop), subTM, superLB, superTM);
+                return qualHierarchy.isSubtypeShallow(subLB, subTM, superLB, superTM);
+            } else if (subtypeHasAnno && !supertypeHasAnno) {
+                // This is the case "@A T <: T" where T is a type variable.
+                // TODO: should this also test the upper bounds?
+                AnnotationMirrorSet superLBs =
+                        AnnotatedTypes.findEffectiveLowerBoundAnnotations(qualHierarchy, supertype);
+                AnnotationMirror superLB =
+                        qualHierarchy.findAnnotationInHierarchy(superLBs, currentTop);
+                return qualHierarchy.isSubtypeShallow(subtypeAnno, subTM, superLB, superTM);
             } else if (!subtypeHasAnno && supertypeHasAnno) {
                 // This is the case "T <: @A T" where T is a type variable.
+                // TODO: should this also test the lower bounds?
                 return qualHierarchy.isSubtypeShallow(
                         subtype.getEffectiveAnnotationInHierarchy(currentTop),
                         subTM,
-                        supertype.getAnnotationInHierarchy(currentTop),
+                        supertypeAnno,
                         superTM);
+            } else {
+                throw new BugInCF("Unreachable");
             }
         }
 
@@ -1016,7 +1070,6 @@ public class DefaultTypeHierarchy extends AbstractAtmComboVisitor<Boolean, Void>
 
         if (TypesUtils.isCapturedTypeVariable(subTM)
                 && TypesUtils.isCapturedTypeVariable(superTM)) {
-            // This should be removed when 979 is fixed.
             // This case happens when the captured type variables should be the same type, but
             // aren't because type argument inference isn't implemented correctly.
             if (isContainedWithinBounds(
@@ -1056,11 +1109,11 @@ public class DefaultTypeHierarchy extends AbstractAtmComboVisitor<Boolean, Void>
     @Override
     public Boolean visitWildcard_Declared(
             AnnotatedWildcardType subtype, AnnotatedDeclaredType supertype, Void p) {
-        if (subtype.isUninferredTypeArgument()) {
-            if (subtype.atypeFactory.ignoreUninferredTypeArguments) {
+        if (subtype.isTypeArgOfRawType()) {
+            if (ignoreRawTypes) {
                 return true;
             } else if (supertype.getTypeArguments().isEmpty()) {
-                // visitWildcard_Type doesn't check uninferred type arguments, because the
+                // visitWildcard_Type doesn't check type arguments from raw types, because the
                 // underlying Java types may not be in the correct relationship.  But, if the
                 // declared type does not have type arguments, then checking primary annotations is
                 // sufficient.
@@ -1083,7 +1136,7 @@ public class DefaultTypeHierarchy extends AbstractAtmComboVisitor<Boolean, Void>
     @Override
     public Boolean visitWildcard_Primitive(
             AnnotatedWildcardType subtype, AnnotatedPrimitiveType supertype, Void p) {
-        if (subtype.isUninferredTypeArgument()) {
+        if (subtype.isTypeArgOfRawType()) {
             return isSubtypeShallowEffective(subtype, supertype, currentTop);
         }
         return visitWildcard_Type(subtype, supertype);
@@ -1117,14 +1170,13 @@ public class DefaultTypeHierarchy extends AbstractAtmComboVisitor<Boolean, Void>
         if (isSubtypeVisitHistory.contains(subtype, supertype, currentTop)) {
             return true;
         }
+        TypeMirror subTM = subtype.getUnderlyingType();
+        Types types = subtype.atypeFactory.types;
         boolean result = true;
         for (AnnotatedTypeMirror bound : supertype.getBounds()) {
             // Only call isSubtype if the Java type is actually a subtype; otherwise,
             // only check primary qualifiers.
-            if (TypesUtils.isErasedSubtype(
-                            subtype.getUnderlyingType(),
-                            bound.getUnderlyingType(),
-                            subtype.atypeFactory.types)
+            if (TypesUtils.isErasedSubtype(subTM, bound.getUnderlyingType(), types)
                     && !isSubtype(subtype, bound, currentTop)) {
                 result = false;
                 break;
@@ -1144,11 +1196,11 @@ public class DefaultTypeHierarchy extends AbstractAtmComboVisitor<Boolean, Void>
     protected boolean visitIntersection_Type(
             AnnotatedIntersectionType subtype, AnnotatedTypeMirror supertype) {
         Types types = checker.getTypeUtils();
+        TypeMirror superTM = supertype.getUnderlyingType();
         // The primary annotations of the bounds should already be the same as the annotations on
         // the intersection type.
         for (AnnotatedTypeMirror subtypeBound : subtype.getBounds()) {
-            if (TypesUtils.isErasedSubtype(
-                            subtypeBound.getUnderlyingType(), supertype.getUnderlyingType(), types)
+            if (TypesUtils.isErasedSubtype(subtypeBound.getUnderlyingType(), superTM, types)
                     && isSubtype(subtypeBound, supertype, currentTop)) {
                 return true;
             }
@@ -1191,12 +1243,12 @@ public class DefaultTypeHierarchy extends AbstractAtmComboVisitor<Boolean, Void>
             if (subtypeUpperBound.getKind() == TypeKind.INTERSECTION) {
                 // Only compare the primary annotations.
                 Types types = checker.getTypeUtils();
+                TypeMirror superTM = supertype.getUnderlyingType();
                 for (AnnotatedTypeMirror bound :
                         ((AnnotatedIntersectionType) subtypeUpperBound).getBounds()) {
                     // Make sure the upper bound is no wildcard or type variable.
                     bound = getNonWildcardOrTypeVarUpperBound(bound);
-                    if (TypesUtils.isErasedSubtype(
-                                    bound.getUnderlyingType(), supertype.getUnderlyingType(), types)
+                    if (TypesUtils.isErasedSubtype(bound.getUnderlyingType(), superTM, types)
                             && isPrimarySubtype(bound, supertype)) {
                         return true;
                     }
@@ -1263,9 +1315,8 @@ public class DefaultTypeHierarchy extends AbstractAtmComboVisitor<Boolean, Void>
      */
     protected boolean visitType_Wildcard(
             AnnotatedTypeMirror subtype, AnnotatedWildcardType supertype) {
-        if (supertype.isUninferredTypeArgument()) { // TODO: REMOVE WHEN WE FIX TYPE ARG INFERENCE
-            // Can't call isSubtype because underlying Java types won't be subtypes.
-            return supertype.atypeFactory.ignoreUninferredTypeArguments;
+        if (supertype.isTypeArgOfRawType()) {
+            return ignoreRawTypes;
         }
         return isSubtype(subtype, supertype.getSuperBound(), currentTop);
     }
@@ -1279,8 +1330,8 @@ public class DefaultTypeHierarchy extends AbstractAtmComboVisitor<Boolean, Void>
      */
     protected boolean visitWildcard_Type(
             AnnotatedWildcardType subtype, AnnotatedTypeMirror supertype) {
-        if (subtype.isUninferredTypeArgument()) {
-            return subtype.atypeFactory.ignoreUninferredTypeArguments;
+        if (subtype.isTypeArgOfRawType()) {
+            return ignoreRawTypes;
         }
 
         if (supertype.getKind() == TypeKind.WILDCARD) {
@@ -1300,7 +1351,6 @@ public class DefaultTypeHierarchy extends AbstractAtmComboVisitor<Boolean, Void>
                 // If both have primary annotations then just check the primary annotations
                 // as the bounds are the same.
                 return isPrimarySubtype(subtype, supertype);
-
             } else if (!subtypeHasAnno
                     && !supertypeHasAnno
                     && areEqualInHierarchy(subtype, supertype)) {

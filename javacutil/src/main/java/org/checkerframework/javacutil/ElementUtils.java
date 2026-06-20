@@ -9,6 +9,7 @@ import com.sun.tools.javac.model.JavacTypes;
 import com.sun.tools.javac.processing.JavacProcessingEnvironment;
 import com.sun.tools.javac.util.Context;
 
+import org.checkerframework.checker.interning.qual.Interned;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.checker.signature.qual.BinaryName;
@@ -26,8 +27,10 @@ import java.util.Deque;
 import java.util.EnumSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.StringJoiner;
+import java.util.WeakHashMap;
 
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.AnnotationMirror;
@@ -37,6 +40,7 @@ import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Modifier;
 import javax.lang.model.element.Name;
 import javax.lang.model.element.PackageElement;
+import javax.lang.model.element.QualifiedNameable;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.DeclaredType;
@@ -57,6 +61,15 @@ public class ElementUtils {
     private ElementUtils() {
         throw new AssertionError("Class ElementUtils cannot be instantiated.");
     }
+
+    /**
+     * Cache mapping an {@link Element} (typically a {@link TypeElement} or {@link PackageElement})
+     * to the interned, canonical name String form of its qualified name.
+     */
+    // TODO: evaluate using an IdentityHashMap instead. Would it be a problem to keep all Elements
+    // around?
+    private static final Map<Element, @CanonicalName @Interned String> qualifiedNameCache =
+            Collections.synchronizedMap(new WeakHashMap<>());
 
     /** The value of Flags.COMPACT_RECORD_CONSTRUCTOR which does not exist in Java 9 or 11. */
     private static final long Flags_COMPACT_RECORD_CONSTRUCTOR = 1L << 51;
@@ -169,8 +182,8 @@ public class ElementUtils {
 
     /**
      * Returns the "parent" package element for the given package element. For package "A.B" it
-     * gives "A". For package "A" it gives the default package. For the default package it returns
-     * null.
+     * gives "A". For package "A" it gives null, not the the default package. For the default
+     * package it returns null.
      *
      * <p>Note that packages are not enclosed within each other, we have to manually climb the
      * namespaces. Calling "enclosingPackage" on a package element returns the package element
@@ -181,10 +194,27 @@ public class ElementUtils {
      * @return the parent package element or {@code null}
      */
     public static @Nullable PackageElement parentPackage(PackageElement elem, Elements elements) {
-        // The following might do the same thing:
-        //   ((Symbol) elt).owner;
-        // TODO: verify and see whether the change is worth it.
-        String fqnstart = elem.getQualifiedName().toString();
+        // Fast path: javac's PackageSymbol exposes its enclosing package directly via 'owner',
+        // avoiding the Elements#getPackageElement(String) call below.
+        //
+        // The parent of a top-level package is null.  In javac, the owner of a top-level package
+        // is the root/unnamed package -- a RootPackageSymbol, which is itself a PackageSymbol but
+        // has an empty qualified name -- or, in module mode, the enclosing ModuleSymbol.  Neither
+        // is a real parent package, so return null in those cases to preserve the contract that
+        // the parent of a top-level package is null.  (Without the empty-name check, every
+        // top-level package would incorrectly report the unnamed package as its parent.)
+        if (elem instanceof Symbol.PackageSymbol) {
+            Symbol owner = ((Symbol.PackageSymbol) elem).owner;
+            if (owner instanceof Symbol.PackageSymbol) {
+                PackageElement ownerPackage = (PackageElement) owner;
+                if (ownerPackage.getQualifiedName().length() != 0) {
+                    return ownerPackage;
+                }
+            }
+            return null;
+        }
+        // Fallback for non-javac PackageElement implementations.
+        String fqnstart = getQualifiedName(elem);
         String fqn = fqnstart;
         if (fqn != null && !fqn.isEmpty()) {
             int dotPos = fqn.lastIndexOf('.');
@@ -215,14 +245,14 @@ public class ElementUtils {
     }
 
     /**
-     * Returns true if the element is a effectively final element.
+     * Returns true if the element is an effectively final element.
      *
      * @return true if the element is effectively final
      */
     public static boolean isEffectivelyFinal(Element element) {
         Symbol sym = (Symbol) element;
         if (sym.getEnclosingElement().getKind() == ElementKind.METHOD
-                && (sym.getEnclosingElement().flags() & Flags.ABSTRACT) != 0) {
+                && (sym.getEnclosingElement().flags() & (Flags.ABSTRACT | Flags.NATIVE)) != 0) {
             return true;
         }
         return (sym.flags() & (Flags.FINAL | Flags.EFFECTIVELY_FINAL)) != 0;
@@ -273,16 +303,18 @@ public class ElementUtils {
      * @param elt the element whose name to obtain
      * @return the qualified name of the given element
      */
-    public static String getQualifiedName(Element elt) {
-        if (elt.getKind() == ElementKind.PACKAGE || isTypeElement(elt)) {
-            Name n = getQualifiedClassName(elt);
-            if (n == null) {
-                return "Unexpected element: " + elt;
+    @SuppressWarnings("signature:assignment.type.incompatible") // TODO ensure assignments
+    public static @CanonicalName @Interned String getQualifiedName(Element elt) {
+        @CanonicalName @Interned String s = qualifiedNameCache.get(elt);
+        if (s == null) {
+            if (elt instanceof QualifiedNameable) {
+                s = ((QualifiedNameable) elt).getQualifiedName().toString().intern();
+            } else {
+                s = (getQualifiedName(elt.getEnclosingElement()) + "." + elt).intern();
             }
-            return n.toString();
-        } else {
-            return getQualifiedName(elt.getEnclosingElement()) + "." + elt;
+            qualifiedNameCache.put(elt, s);
         }
+        return s;
     }
 
     /**
@@ -381,7 +413,7 @@ public class ElementUtils {
      * @return true iff the element is java.lang.Object element
      */
     public static boolean isObject(TypeElement element) {
-        return element.getQualifiedName().contentEquals("java.lang.Object");
+        return InternalUtils.isJavaLangObjectName(element.getQualifiedName());
     }
 
     /**
@@ -391,7 +423,7 @@ public class ElementUtils {
      * @return true iff the element is java.lang.String element
      */
     public static boolean isString(TypeElement element) {
-        return element.getQualifiedName().contentEquals("java.lang.String");
+        return InternalUtils.sameName(element.getQualifiedName(), "java.lang.String");
     }
 
     /**
@@ -492,7 +524,7 @@ public class ElementUtils {
      */
     public static @Nullable VariableElement findFieldInType(TypeElement type, String name) {
         for (VariableElement field : ElementFilter.fieldsIn(type.getEnclosedElements())) {
-            if (field.getSimpleName().contentEquals(name)) {
+            if (InternalUtils.sameName(field.getSimpleName(), name)) {
                 return field;
             }
         }
@@ -586,6 +618,8 @@ public class ElementUtils {
      * @return true if {@code element} is "com.sun.tools.javac.comp.Resolve$SymbolNotFoundError"
      */
     public static boolean isError(Element element) {
+        // TODO: Class.getName() is not documented to be interned. Either use equals() or find a
+        // better way to check this.
         return element.getClass().getName()
                 == "com.sun.tools.javac.comp.Resolve$SymbolNotFoundError"; // interned
     }
@@ -612,7 +646,7 @@ public class ElementUtils {
             } else {
                 // In constructors, the element for "this" is a non-static field, but that field
                 // does not have a receiver.
-                return !element.getSimpleName().contentEquals("this");
+                return !InternalUtils.isThisName(element.getSimpleName());
             }
         }
         return element.getKind() == ElementKind.METHOD && !ElementUtils.isStatic(element);
@@ -654,7 +688,6 @@ public class ElementUtils {
      * @return supertypes of {@code type}
      */
     public static List<TypeElement> getSuperTypes(TypeElement type, Elements elements) {
-
         if (type == null) {
             return Collections.emptyList();
         }
@@ -881,7 +914,7 @@ public class ElementUtils {
             List<? extends Element> encloseds = enclosing.getEnclosedElements();
             for (Element enclosed : encloseds) {
                 if (isRecordComponentElement(enclosed)
-                        && enclosed.getSimpleName().toString().equals(methodName)) {
+                        && InternalUtils.sameName(enclosed.getSimpleName(), methodName)) {
                     return true;
                 }
             }
@@ -919,26 +952,28 @@ public class ElementUtils {
      */
     public static boolean matchesElement(
             ExecutableElement method, String methodName, Class<?>... parameters) {
-
-        if (!method.getSimpleName().contentEquals(methodName)) {
+        if (!InternalUtils.sameName(method.getSimpleName(), methodName)) {
             return false;
         }
 
-        if (method.getParameters().size() != parameters.length) {
+        List<? extends VariableElement> params = method.getParameters();
+        if (params.size() != parameters.length) {
             return false;
-        } else {
-            for (int i = 0; i < method.getParameters().size(); i++) {
-                if (!method.getParameters()
-                        .get(i)
-                        .asType()
-                        .toString()
-                        .equals(parameters[i].getName())) {
-
-                    return false;
-                }
+        }
+        for (int i = 0, n = params.size(); i < n; ++i) {
+            // Class.getName() returns the JVM binary form ("[Ljava.lang.String;" for arrays,
+            // "java.util.Map$Entry" for nested classes), which does not match the source-form
+            // string produced by TypeMirror.toString().  getCanonicalName() uses the source form.
+            String goalName = parameters[i].getCanonicalName();
+            if (goalName == null) {
+                // Local/anonymous classes have no canonical name; TypeMirror.toString() uses the
+                // simple name.
+                goalName = parameters[i].getSimpleName();
+            }
+            if (!params.get(i).asType().toString().equals(goalName)) {
+                return false;
             }
         }
-
         return true;
     }
 

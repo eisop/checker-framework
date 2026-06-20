@@ -6,6 +6,7 @@ import com.sun.source.tree.IdentifierTree;
 import com.sun.source.tree.MemberSelectTree;
 import com.sun.source.tree.MethodInvocationTree;
 import com.sun.source.tree.MethodTree;
+import com.sun.source.tree.ModifiersTree;
 import com.sun.source.tree.Tree;
 import com.sun.source.tree.TypeParameterTree;
 import com.sun.source.tree.VariableTree;
@@ -20,7 +21,6 @@ import org.checkerframework.framework.type.AnnotatedTypeFactory;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedDeclaredType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedExecutableType;
-import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedNoType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedTypeVariable;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedUnionType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedWildcardType;
@@ -33,16 +33,15 @@ import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.ElementUtils;
+import org.checkerframework.javacutil.InternalUtils;
 import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TypesUtils;
-import org.plumelib.util.CollectionsPlume;
 import org.plumelib.util.StringsPlume;
 
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.IdentityHashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
 import javax.annotation.processing.ProcessingEnvironment;
@@ -106,12 +105,9 @@ public class QualifierDefaults {
     /** Defaults for unchecked code. */
     private final DefaultSet uncheckedCodeDefaults = new DefaultSet();
 
-    /** Size for caches. */
-    private static final int CACHE_SIZE = 300;
-
     /** Mapping from an Element to the bound type. */
-    protected final Map<Element, BoundType> elementToBoundType =
-            CollectionsPlume.createLruCache(CACHE_SIZE);
+    protected final IdentityHashMap<Element, BoundType> elementToBoundType =
+            new IdentityHashMap<>();
 
     /**
      * Defaults that apply for a certain Element. On the one hand this is used for caching (an
@@ -525,7 +521,7 @@ public class QualifierDefaults {
                             break;
                         }
                     }
-                    if (prev != null && prev.getKind() == Tree.Kind.MODIFIERS) {
+                    if (prev instanceof ModifiersTree) {
                         // Annotations are modifiers. We do not want to apply the local variable
                         // default to annotations. Without this, test fenum/TestSwitch failed,
                         // because the default for an argument became incompatible with the declared
@@ -582,9 +578,9 @@ public class QualifierDefaults {
                 elt = TreeUtils.elementFromUse((MethodInvocationTree) tree);
                 break;
 
-                // TODO cases for array access, etc. -- every expression tree
-                // (The above probably means that we should use defaults in the
-                // scope of the declaration of the array.  Is that right?  -MDE)
+            // TODO cases for array access, etc. -- every expression tree
+            // (The above probably means that we should use defaults in the
+            // scope of the declaration of the array.  Is that right?  -MDE)
 
             default:
                 // If no associated symbol was found, use the tree's (lexical) scope.
@@ -649,8 +645,9 @@ public class QualifierDefaults {
                     "Call of QualifierDefaults.isElementAnnotatedForThisChecker with null");
         }
 
-        if (elementAnnotatedFors.containsKey(elt)) {
-            return elementAnnotatedFors.get(elt);
+        Boolean cached = elementAnnotatedFors.get(elt);
+        if (cached != null) {
+            return cached;
         }
 
         AnnotationMirror annotatedFor = atypeFactory.getDeclAnnotation(elt, AnnotatedFor.class);
@@ -693,8 +690,9 @@ public class QualifierDefaults {
             return DefaultSet.EMPTY;
         }
 
-        if (elementDefaults.containsKey(elt)) {
-            return elementDefaults.get(elt);
+        DefaultSet cached = elementDefaults.get(elt);
+        if (cached != null) {
+            return cached;
         }
 
         DefaultSet qualifiers = defaultsAtDirect(elt);
@@ -702,10 +700,16 @@ public class QualifierDefaults {
         if (elt.getKind() == ElementKind.PACKAGE) {
             Element parent = ElementUtils.parentPackage((PackageElement) elt, elements);
             DefaultSet origParentDefaults = defaultsAt(parent);
-            parentDefaults = new DefaultSet();
-            for (Default d : origParentDefaults) {
-                if (d.applyToSubpackages) {
-                    parentDefaults.add(d);
+            if (origParentDefaults.isEmpty()) {
+                // Nothing to filter; reuse the empty set rather than allocating one to copy
+                // zero elements into. Common case: no @DefaultQualifier anywhere in the chain.
+                parentDefaults = origParentDefaults;
+            } else {
+                parentDefaults = new DefaultSet();
+                for (Default d : origParentDefaults) {
+                    if (d.applyToSubpackages) {
+                        parentDefaults.add(d);
+                    }
                 }
             }
         } else {
@@ -720,20 +724,16 @@ public class QualifierDefaults {
             qualifiers.addAll(parentDefaults);
         }
 
-        /* TODO: it would seem more efficient to also cache null/empty as the result.
-         * However, doing so causes KeyFor tests to fail.
-               if (qualifiers == null) {
-                   qualifiers = DefaultSet.EMPTY;
-               }
-
-               elementDefaults.put(elt, qualifiers);
-               return qualifiers;
-        */
-        if (qualifiers != null && !qualifiers.isEmpty()) {
+        if (!qualifiers.isEmpty()) {
             elementDefaults.put(elt, qualifiers);
             return qualifiers;
         } else {
-            return DefaultSet.EMPTY;
+            // Cache a per-element fresh empty DefaultSet (not the shared DefaultSet.EMPTY) so
+            // subsequent calls for this element short-circuit on the cache lookup instead of
+            // re-walking the entire enclosing-element chain.
+            DefaultSet emptyForElt = new DefaultSet();
+            elementDefaults.put(elt, emptyForElt);
+            return emptyForElt;
         }
     }
 
@@ -751,12 +751,9 @@ public class QualifierDefaults {
         AnnotationMirror dqAnno = atypeFactory.getDeclAnnotation(elt, DefaultQualifier.class);
 
         if (dqAnno != null) {
-            Set<Default> p = fromDefaultQualifier(dqAnno);
-
-            if (p != null) {
-                qualifiers = new DefaultSet();
-                qualifiers.addAll(p);
-            }
+            // fromDefaultQualifier allocates a fresh DefaultSet (or returns null), so take
+            // ownership directly rather than allocating a second DefaultSet and copying.
+            qualifiers = fromDefaultQualifier(dqAnno);
         }
 
         // Handle DefaultQualifier.List
@@ -789,6 +786,12 @@ public class QualifierDefaults {
      */
     public boolean applyConservativeDefaults(Element annotationScope) {
         if (annotationScope == null) {
+            return false;
+        }
+
+        // Fast path: every branch below that can return true requires at least one of these flags
+        // to be set. When both are false, this method is provably a constant `false`.
+        if (!useConservativeDefaultsBytecode && !useConservativeDefaultsSource) {
             return false;
         }
 
@@ -890,6 +893,52 @@ public class QualifierDefaults {
         return new DefaultApplierElement(atypeFactory, annotationScope, type, fromTree);
     }
 
+    /**
+     * A reusable {@link DefaultApplierElementImpl} scanner, parked here between uses. Constructing
+     * a scanner per {@link DefaultApplierElement#applyDefault} call was a major allocation source:
+     * a realistic single-compilation ({@code checkNullness}) JFR trace attributed ~8% of all TLAB
+     * events to the eagerly pre-sized {@code visitedNodes} {@code IdentityHashMap} each scanner
+     * then held. ({@code visitedNodes} is now lazily allocated by {@link AnnotatedTypeScanner}, so
+     * reuse mainly saves the per-call scanner object.) Defaulting is not re-entrant into {@code
+     * applyDefault} (the scan only reads caches and adds annotations), so one scanner can be reused
+     * across applications; {@link AnnotatedTypeScanner#visit} resets all scan state on each call.
+     * The field is {@code null} exactly while the scanner is borrowed, which doubles as a
+     * re-entrancy guard: a (hypothetical) nested borrow sees {@code null} and falls back to
+     * allocating a fresh scanner, so correctness never depends on non-re-entrancy. Confined to the
+     * javac main thread, like the other caches on this object.
+     */
+    private @Nullable DefaultApplierElementImpl pooledApplierImpl;
+
+    /**
+     * Returns a {@link DefaultApplierElementImpl} bound to {@code outer}, reusing the pooled
+     * instance if one is available (the common case) or allocating a fresh one if the pool is empty
+     * (first call, or a re-entrant borrow). Pair every call with {@link #returnApplierImpl}.
+     *
+     * @param outer the element supplying the per-application state for this defaulting pass
+     * @return a scanner whose {@code outer} is {@code outer}
+     */
+    private DefaultApplierElementImpl borrowApplierImpl(DefaultApplierElement outer) {
+        DefaultApplierElementImpl impl = pooledApplierImpl;
+        if (impl == null) {
+            return new DefaultApplierElementImpl(outer);
+        }
+        // Mark the pool empty so a re-entrant borrow allocates its own scanner instead of
+        // corrupting this one's state.
+        pooledApplierImpl = null;
+        impl.outer = outer;
+        return impl;
+    }
+
+    /**
+     * Returns a scanner borrowed from {@link #borrowApplierImpl} to the pool so the next defaulting
+     * pass can reuse it.
+     *
+     * @param impl the scanner to park
+     */
+    private void returnApplierImpl(DefaultApplierElementImpl impl) {
+        pooledApplierImpl = impl;
+    }
+
     /** A default applier element. */
     protected class DefaultApplierElement {
 
@@ -920,9 +969,6 @@ public class QualifierDefaults {
          */
         protected TypeUseLocation location;
 
-        /** The default element applier implementation. */
-        protected final DefaultApplierElementImpl impl;
-
         /**
          * Create an instance.
          *
@@ -945,7 +991,6 @@ public class QualifierDefaults {
                     (atypeFactory instanceof GenericAnnotatedTypeFactory<?, ?, ?, ?>)
                             && ((GenericAnnotatedTypeFactory<?, ?, ?, ?>) atypeFactory)
                                     .getShouldDefaultTypeVarLocals();
-            this.impl = new DefaultApplierElementImpl(this);
         }
 
         /**
@@ -955,25 +1000,38 @@ public class QualifierDefaults {
          */
         public void applyDefault(Default def) {
             this.location = def.location;
-            impl.visit(type, def.anno);
+            // Borrow a reusable scanner rather than allocating a DefaultApplierElementImpl per
+            // call; see borrowApplierImpl.
+            DefaultApplierElementImpl impl = borrowApplierImpl(this);
+            try {
+                impl.visit(type, def.anno);
+            } finally {
+                returnApplierImpl(impl);
+            }
         }
 
         /**
          * Returns true if the given qualifier should be applied to the given type. Currently we do
-         * not apply defaults to void types, packages, wildcards, and type variables.
+         * not apply defaults to void types, none types, wildcards, type variables, packages, and
+         * modules.
          *
          * @param type type to which qual would be applied
          * @return true if this application should proceed
          */
         protected boolean shouldBeAnnotated(AnnotatedTypeMirror type) {
-            return type != null
-                    // TODO: executables themselves should not be annotated
-                    // For some reason h1h2checker-tests fails with this.
-                    // || type.getKind() == TypeKind.EXECUTABLE
-                    && type.getKind() != TypeKind.NONE
-                    && type.getKind() != TypeKind.WILDCARD
-                    && type.getKind() != TypeKind.TYPEVAR
-                    && !(type instanceof AnnotatedNoType);
+            if (type == null) {
+                return false;
+            }
+            // TODO: executables themselves should not be annotated
+            // For some reason h1h2checker-tests fails with this:
+            // || k == TypeKind.EXECUTABLE
+            TypeKind k = type.getKind();
+            return k != TypeKind.NONE
+                    && k != TypeKind.WILDCARD
+                    && k != TypeKind.TYPEVAR
+                    && k != TypeKind.VOID
+                    && k != TypeKind.PACKAGE
+                    && k != TypeKind.MODULE;
         }
 
         /**
@@ -991,10 +1049,22 @@ public class QualifierDefaults {
         }
     }
 
+    /** The implementation of default application as an annotated type scanner. */
     // Only reason this cannot be `static` is call to `getBoundType`.
     protected class DefaultApplierElementImpl extends AnnotatedTypeScanner<Void, AnnotationMirror> {
-        private final DefaultApplierElement outer;
+        /**
+         * The element holding the per-application state (type, scope, location). Not final: a
+         * single instance is reused across {@link DefaultApplierElement#applyDefault} calls (see
+         * {@link QualifierDefaults#borrowApplierImpl}), with {@code outer} re-pointed at each
+         * borrow.
+         */
+        private DefaultApplierElement outer;
 
+        /**
+         * Construct a new instance.
+         *
+         * @param outer the outer instance to use
+         */
         protected DefaultApplierElementImpl(DefaultApplierElement outer) {
             this.outer = outer;
         }
@@ -1068,7 +1138,7 @@ public class QualifierDefaults {
                     if (outer.scope != null
                             && outer.scope.getKind() == ElementKind.PARAMETER
                             && isTopLevelType
-                            && outer.scope.getSimpleName().contentEquals("this")) {
+                            && InternalUtils.isThisName(outer.scope.getSimpleName())) {
                         // TODO: comparison against "this" is ugly, won't work
                         // for all possible names for receiver parameter.
                         // Comparison to Names._this might be a bit faster.
@@ -1223,7 +1293,7 @@ public class QualifierDefaults {
         @Override
         public Void visitTypeVariable(
                 @FindDistinct AnnotatedTypeVariable type, AnnotationMirror qual) {
-            if (visitedNodes.containsKey(type)) {
+            if (hasVisited(type)) {
                 return null;
             }
             if (outer.qualHierarchy.isParametricQualifier(qual)) {
@@ -1264,7 +1334,7 @@ public class QualifierDefaults {
 
         @Override
         public Void visitWildcard(AnnotatedWildcardType type, AnnotationMirror qual) {
-            if (visitedNodes.containsKey(type)) {
+            if (hasVisited(type)) {
                 return null;
             }
             visitBounds(type, type.getExtendsBound(), type.getSuperBound(), qual);
@@ -1292,13 +1362,13 @@ public class QualifierDefaults {
                 isUpperBound = false;
                 scanAndReduce(lowerBound, qual, null);
 
-                visitedNodes.put(boundedType, null);
+                markVisited(boundedType, null);
 
                 isLowerBound = false;
                 isUpperBound = true;
                 scanAndReduce(upperBound, qual, null);
 
-                visitedNodes.put(boundedType, null);
+                markVisited(boundedType, null);
             } finally {
                 isUpperBound = prevIsUpperBound;
                 isLowerBound = prevIsLowerBound;
@@ -1395,7 +1465,7 @@ public class QualifierDefaults {
                 boundType = BoundType.TYPEVAR_UPPER;
             }
         } else {
-            if (typeParamDecl.getKind() == Tree.Kind.TYPE_PARAMETER) {
+            if (typeParamDecl instanceof TypeParameterTree) {
                 TypeParameterTree tptree = (TypeParameterTree) typeParamDecl;
 
                 List<? extends Tree> bnds = tptree.getBounds();

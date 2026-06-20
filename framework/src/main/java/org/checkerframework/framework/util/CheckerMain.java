@@ -10,16 +10,19 @@ import org.checkerframework.javacutil.UserError;
 import org.plumelib.util.CollectionsPlume;
 
 import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileReader;
 import java.io.IOException;
+import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.io.UnsupportedEncodingException;
 import java.net.URL;
 import java.net.URLDecoder;
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -132,6 +135,7 @@ public class CheckerMain {
      * Construct all the relevant file locations and Java version given the path to this jar and a
      * set of directories in which to search for jars.
      */
+    @SuppressWarnings("this-escape")
     public CheckerMain(File checkerJar, List<String> args) {
 
         this.checkerJar = checkerJar;
@@ -578,7 +582,7 @@ public class CheckerMain {
         }
 
         // Actually invoke the compiler
-        return ExecUtil.execute(args.toArray(new String[args.size()]), System.out, System.err);
+        return ExecUtil.execute(args.toArray(new String[0]), System.out, System.err);
     }
 
     private static void outputArgumentsToFile(String outputFilename, List<String> args) {
@@ -586,11 +590,17 @@ public class CheckerMain {
             String errorMessage = null;
 
             try {
-                @SuppressWarnings("builder:required.method.not.called") // called when needed
+                @SuppressWarnings({
+                    "builder:required.method.not.called", // called when needed
+                    "JdkObsolete"
+                })
                 PrintWriter writer =
                         (outputFilename.equals("-")
-                                ? new PrintWriter(System.out)
-                                : new PrintWriter(outputFilename, "UTF-8"));
+                                ? new PrintWriter(
+                                        new BufferedWriter(
+                                                new OutputStreamWriter(
+                                                        System.out, StandardCharsets.UTF_8)))
+                                : new PrintWriter(outputFilename, StandardCharsets.UTF_8.name()));
                 for (int i = 0; i < args.size(); i++) {
                     String arg = args.get(i);
 
@@ -605,7 +615,8 @@ public class CheckerMain {
                         String inputFilename = arg.substring(1);
 
                         try (BufferedReader br =
-                                new BufferedReader(new FileReader(inputFilename))) {
+                                Files.newBufferedReader(
+                                        Paths.get(inputFilename), StandardCharsets.UTF_8)) {
                             String line;
                             while ((line = br.readLine()) != null) {
                                 writer.print(line);
@@ -697,7 +708,7 @@ public class CheckerMain {
         }
         String name = cls.getName();
         String classFileName;
-        /* name is something like pakkage.name.ContainingClass$ClassName. We need to turn this into ContainingClass$ClassName.class. */
+        /* name is something like pakkage.name.EnclosingClass$ClassName. We need to turn this into EnclosingClass$ClassName.class. */
         {
             int idx = name.lastIndexOf('.');
             classFileName = (idx == -1 ? name : name.substring(idx + 1)) + ".class";
@@ -736,6 +747,7 @@ public class CheckerMain {
         }
 
         try {
+            @SuppressWarnings("JdkObsolete")
             String fileName =
                     URLDecoder.decode(
                             uri.substring("jar:file:".length(), idx),
@@ -794,9 +806,9 @@ public class CheckerMain {
         return str;
     }
 
-    ///////////////////////////////////////////////////////////////////////////
-    /// Shorthand checker names
-    ///
+    // ///////////////////////////////////////////////////////////////////////////
+    // Shorthand checker names
+    //
 
     /** Processor shorthand is enabled for processors in this directory in checker.jar. */
     protected static final String CHECKER_BASE_DIR_NAME = "org/checkerframework/checker/";

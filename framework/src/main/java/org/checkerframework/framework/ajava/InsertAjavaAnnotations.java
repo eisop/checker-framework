@@ -1,6 +1,9 @@
 package org.checkerframework.framework.ajava;
 
+import com.github.javaparser.JavaToken;
+import com.github.javaparser.JavaToken.Kind;
 import com.github.javaparser.Position;
+import com.github.javaparser.TokenRange;
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.ImportDeclaration;
 import com.github.javaparser.ast.Node;
@@ -11,6 +14,7 @@ import com.github.javaparser.ast.body.TypeDeclaration;
 import com.github.javaparser.ast.expr.AnnotationExpr;
 import com.github.javaparser.ast.nodeTypes.NodeWithAnnotations;
 import com.github.javaparser.ast.type.ArrayType;
+import com.github.javaparser.ast.type.ArrayType.ArrayBracketPair;
 import com.github.javaparser.ast.type.ClassOrInterfaceType;
 import com.github.javaparser.ast.type.Type;
 import com.github.javaparser.printer.DefaultPrettyPrinter;
@@ -39,15 +43,15 @@ import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.HashSet;
+import java.util.IdentityHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.StringJoiner;
 
 import javax.lang.model.element.ElementKind;
+import javax.lang.model.element.Name;
 import javax.lang.model.element.PackageElement;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.util.Elements;
@@ -114,13 +118,13 @@ public class InsertAjavaAnnotations {
     /** Represents some text to be inserted at a file and its location. */
     private static class Insertion {
         /** Offset of the insertion in the file, measured in characters from the beginning. */
-        public final int position;
+        final int position;
 
         /** The contents of the insertion. */
-        public final String contents;
+        final String contents;
 
         /** Whether the insertion should be on its own separate line. */
-        public final boolean ownLine;
+        final boolean ownLine;
 
         /**
          * Constructs an insertion with the given position and contents.
@@ -128,7 +132,7 @@ public class InsertAjavaAnnotations {
          * @param position offset of the insertion in the file
          * @param contents contents of the insertion
          */
-        public Insertion(int position, String contents) {
+        Insertion(int position, String contents) {
             this(position, contents, false);
         }
 
@@ -140,7 +144,7 @@ public class InsertAjavaAnnotations {
          * @param ownLine true if this insertion should appear on its own separate line (doesn't
          *     affect the contents of the insertion)
          */
-        public Insertion(int position, String contents, boolean ownLine) {
+        Insertion(int position, String contents, boolean ownLine) {
             this.position = position;
             this.contents = contents;
             this.ownLine = ownLine;
@@ -169,10 +173,10 @@ public class InsertAjavaAnnotations {
          * <p>The map is populated from import statements and also when parsing a file that uses the
          * fully qualified name of an annotation it doesn't import.
          */
-        private @MonotonicNonNull Map<String, TypeElement> allAnnotations = null;
+        private @MonotonicNonNull IdentityHashMap<Name, TypeElement> allAnnotations = null;
 
         /** The annotation insertions seen so far. */
-        public final List<Insertion> insertions = new ArrayList<>();
+        final List<Insertion> insertions = new ArrayList<>();
 
         /** A printer for annotations. */
         private final DefaultPrettyPrinter printer = new DefaultPrettyPrinter();
@@ -199,7 +203,7 @@ public class InsertAjavaAnnotations {
          * @param destFileContents the String the second vistide AST was parsed from
          * @param lineSeparator the line separator that {@code destFileContents} uses
          */
-        public BuildInsertionsVisitor(String destFileContents, String lineSeparator) {
+        BuildInsertionsVisitor(String destFileContents, String lineSeparator) {
             allAnnotations = null;
             String[] lines = destFileContents.split(lineSeparator);
             this.lines = Arrays.asList(lines);
@@ -244,25 +248,29 @@ public class InsertAjavaAnnotations {
         @Override
         public void visit(ArrayType src, Node other) {
             ArrayType dest = (ArrayType) other;
-            // The second component of this pair contains a list of ArrayBracketPairs from left to
-            // right. For example, if src contains String[][], then the list will contain the
-            // types String[] and String[][]. To insert array annotations in the correct location,
-            // we insert them directly to the right of the end of the previous element.
-            Pair<Type, List<ArrayType.ArrayBracketPair>> srcArrayTypes =
-                    ArrayType.unwrapArrayTypes(src);
-            Pair<Type, List<ArrayType.ArrayBracketPair>> destArrayTypes =
-                    ArrayType.unwrapArrayTypes(dest);
-            // The first annotations go directly after the element type.
-            Position firstPosition = destArrayTypes.a.getEnd().get();
-            addAnnotations(firstPosition, srcArrayTypes.b.get(0).getAnnotations(), 1, false);
-            for (int i = 1; i < srcArrayTypes.b.size(); i++) {
-                Position position =
-                        destArrayTypes.b.get(i - 1).getTokenRange().get().toRange().get().end;
-                addAnnotations(position, srcArrayTypes.b.get(i).getAnnotations(), 1, true);
+            Pair<Type, List<ArrayBracketPair>> destArrayTypes = ArrayType.unwrapArrayTypes(dest);
+            TokenRange innerMostCom = destArrayTypes.a.getTokenRange().get();
+
+            List<Position> positions = new ArrayList<>();
+            for (JavaToken token : dest.getTokenRange().get().withBegin(innerMostCom.getEnd())) {
+                if (token.getKind() == Kind.LBRACKET.getKind()) {
+                    positions.add(token.getRange().get().begin);
+                }
             }
 
-            // Visit the component type.
-            srcArrayTypes.a.accept(this, destArrayTypes.a);
+            // At the end of the loop, these two variables will contain the innermost array type.
+            ArrayType srcArray = src;
+            ArrayType destArray = dest;
+            for (Position position : positions) {
+                addAnnotations(position, srcArray.getAnnotations(), 0, true);
+                if (srcArray.getComponentType().isArrayType()) {
+                    srcArray = (ArrayType) srcArray.getComponentType();
+                    destArray = (ArrayType) destArray.getComponentType();
+                }
+            }
+
+            // Visit the innermost component type.
+            srcArray.getComponentType().accept(this, destArray.getComponentType());
         }
 
         @Override
@@ -429,12 +437,12 @@ public class InsertAjavaAnnotations {
      *     Two entries for each annotation: one for the simple name and another for the
      *     fully-qualified name, with the same value.
      */
-    private Map<String, TypeElement> getImportedAnnotations(CompilationUnit cu) {
+    private IdentityHashMap<Name, TypeElement> getImportedAnnotations(CompilationUnit cu) {
         if (cu.getImports() == null) {
-            return Collections.emptyMap();
+            return new IdentityHashMap<>();
         }
 
-        Map<String, TypeElement> result = new HashMap<>();
+        IdentityHashMap<Name, TypeElement> result = new IdentityHashMap<>();
         for (ImportDeclaration importDecl : cu.getImports()) {
             if (importDecl.isAsterisk()) {
                 @SuppressWarnings("signature" // https://tinyurl.com/cfissue/3094:
@@ -466,7 +474,7 @@ public class InsertAjavaAnnotations {
                 if (importType != null && importType.getKind() == ElementKind.ANNOTATION_TYPE) {
                     TypeElement annoElt = elements.getTypeElement(imported);
                     if (annoElt != null) {
-                        result.put(annoElt.getSimpleName().toString(), annoElt);
+                        result.put(annoElt.getSimpleName(), annoElt);
                     }
                 }
             }
@@ -533,28 +541,27 @@ public class InsertAjavaAnnotations {
     }
 
     /**
-     * Inserts all annotations from the ajava file at {@code annotationFilePath} into {@code
-     * javaFilePath}.
+     * Inserts all annotations from an ajava file into a Java file.
      *
-     * @param annotationFilePath path to an ajava file
-     * @param javaFilePath path to a Java file to insert annotation into
+     * @param annotationFileName an ajava file
+     * @param javaFileName a Java file to insert annotation into
      */
-    public void insertAnnotations(String annotationFilePath, String javaFilePath) {
+    public void insertAnnotations(String annotationFileName, String javaFileName) {
         try {
-            File javaFile = new File(javaFilePath);
-            String fileContents = FilesPlume.readFile(javaFile);
-            String lineSeparator = FilesPlume.inferLineSeparator(annotationFilePath);
-            try (FileInputStream annotationInputStream = new FileInputStream(annotationFilePath)) {
+            File javaFile = new File(javaFileName);
+            String fileContents = FilesPlume.readString(Paths.get(javaFileName));
+            String lineSeparator = FilesPlume.inferLineSeparator(annotationFileName);
+            try (FileInputStream annotationInputStream = new FileInputStream(annotationFileName)) {
                 String result =
                         insertAnnotations(annotationInputStream, fileContents, lineSeparator);
-                FilesPlume.writeFile(javaFile, result);
+                FilesPlume.writeString(javaFile, result);
             }
         } catch (IOException e) {
             System.err.println(
                     "Failed to insert annotations from file "
-                            + annotationFilePath
+                            + annotationFileName
                             + " into file "
-                            + javaFilePath);
+                            + javaFileName);
             System.exit(1);
         }
     }

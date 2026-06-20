@@ -36,8 +36,7 @@ public class Pair<V1, V2> {
 
     // The typical way to make a copy is to first call super.clone() and then modify it.
     // That implementation strategy does not work for Pair because its fields are final, so the
-    // clone
-    // and deepCopy() methods use of() instead.
+    // clone and deepCopy() methods use of() instead.
 
     /**
      * Returns a copy of this in which each element is a clone of the corresponding element of this.
@@ -129,7 +128,10 @@ public class Pair<V1, V2> {
     @Override
     public int hashCode() {
         if (hashCode == -1) {
-            hashCode = Objects.hash(first, second);
+            int h = 1;
+            h = 31 * h + (first != null ? first.hashCode() : 0);
+            h = 31 * h + (second != null ? second.hashCode() : 0);
+            hashCode = h;
         }
         return hashCode;
     }

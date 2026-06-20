@@ -23,6 +23,7 @@ import org.checkerframework.javacutil.ElementUtils;
 import org.plumelib.util.IPair;
 
 import java.util.List;
+import java.util.concurrent.atomic.AtomicReference;
 
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
@@ -85,11 +86,43 @@ public final class ElementAnnotationApplier {
         } catch (UnexpectedAnnotationLocationException e) {
             reportInvalidLocation(element, typeFactory);
         }
-        // Also copy annotations from type parameters to their uses.
-        new TypeVarAnnotator().visit(type, typeFactory);
+        // Also copy annotations from type parameters to their uses. Borrow a pooled scanner rather
+        // than allocating one per call; see pooledTypeVarAnnotator.
+        TypeVarAnnotator typeVarAnnotator = pooledTypeVarAnnotator.getAndSet(null);
+        if (typeVarAnnotator == null) {
+            typeVarAnnotator = new TypeVarAnnotator();
+        }
+        try {
+            typeVarAnnotator.visit(type, typeFactory);
+        } finally {
+            pooledTypeVarAnnotator.set(typeVarAnnotator);
+        }
     }
 
-    /** Issues an "invalid.annotation.location.bytecode warning. */
+    /**
+     * A reusable {@link TypeVarAnnotator}, parked between uses to avoid allocating one on every
+     * {@link #apply} call. {@code TypeVarAnnotator} is stateless apart from the scanner's {@code
+     * visitedNodes} (a lazily-allocated {@link java.util.IdentityHashMap}), which {@link
+     * AnnotatedTypeScanner#visit} resets, so one instance is reusable.
+     *
+     * <p>An {@link AtomicReference} rather than a plain field because {@link #apply} is {@code
+     * static} and therefore shared across factories and threads (the Gradle daemon and language
+     * server run analyses concurrently in long-lived JVMs). {@code getAndSet(null)} hands the
+     * single parked instance to exactly one borrower; a concurrent borrower -- or a re-entrant one,
+     * since {@code TypeVarAnnotator.visitTypeVariable} calls back into {@link #applyInternal} --
+     * sees {@code null} and allocates its own scanner. Correctness therefore never depends on
+     * single-threaded or non-re-entrant use; the pool only removes the allocation in the common
+     * case.
+     */
+    private static final AtomicReference<TypeVarAnnotator> pooledTypeVarAnnotator =
+            new AtomicReference<>();
+
+    /**
+     * Issues an "invalid.annotation.location.bytecode" warning.
+     *
+     * @param element the element
+     * @param typeFactory the type factory
+     */
     private static void reportInvalidLocation(Element element, AnnotatedTypeFactory typeFactory) {
         Element report = element;
         if (element.getEnclosingElement().getKind() == ElementKind.METHOD) {
@@ -183,7 +216,7 @@ public final class ElementAnnotationApplier {
 
         if (paramDecl != null) {
             Tree parentTree = typeFactory.getPath(paramDecl).getParentPath().getLeaf();
-            if (parentTree != null && parentTree.getKind() == Tree.Kind.LAMBDA_EXPRESSION) {
+            if (parentTree instanceof LambdaExpressionTree) {
                 return IPair.of(paramDecl, (LambdaExpressionTree) parentTree);
             }
         }
@@ -212,8 +245,8 @@ public final class ElementAnnotationApplier {
             TypeParameterElement tpelt =
                     (TypeParameterElement) type.getUnderlyingType().asElement();
 
-            if (type.getAnnotations().isEmpty()
-                    && type.getUpperBound().getAnnotations().isEmpty()
+            if (type.getAnnotationsField().isEmpty()
+                    && type.getUpperBound().getAnnotationsField().isEmpty()
                     && tpelt.getEnclosingElement().getKind() != ElementKind.TYPE_PARAMETER) {
                 try {
                     ElementAnnotationApplier.applyInternal(type, tpelt, factory);

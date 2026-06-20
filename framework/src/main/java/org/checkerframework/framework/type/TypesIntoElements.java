@@ -88,9 +88,9 @@ public final class TypesIntoElements {
         */
 
         for (Tree mem : tree.getMembers()) {
-            if (mem.getKind() == Tree.Kind.METHOD) {
+            if (mem instanceof MethodTree) {
                 storeMethod(processingEnv, types, atypeFactory, (MethodTree) mem);
-            } else if (mem.getKind() == Tree.Kind.VARIABLE) {
+            } else if (mem instanceof VariableTree) {
                 storeVariable(processingEnv, types, atypeFactory, (VariableTree) mem);
             } else {
                 // System.out.println("Unhandled member tree: " + mem);
@@ -235,7 +235,7 @@ public final class TypesIntoElements {
             { // This block is essentially direct annotations, perhaps we should refactor that
                 // method out
                 List<Attribute.TypeCompound> res = List.nil();
-                for (AnnotationMirror am : typeVar.getLowerBound().getAnnotations()) {
+                for (AnnotationMirror am : typeVar.getLowerBound().getAnnotationsField()) {
                     Attribute.TypeCompound tc =
                             TypeAnnotationUtils.createTypeCompoundFromAnnotationMirror(
                                     am, tapos, processingEnv);
@@ -344,7 +344,7 @@ public final class TypesIntoElements {
                 AnnotatedTypeMirror type, TypeAnnotationPosition tapos) {
             List<Attribute.TypeCompound> res = List.nil();
 
-            for (AnnotationMirror am : type.getAnnotations()) {
+            for (AnnotationMirror am : type.getAnnotationsField()) {
                 // TODO: I BELIEVE THIS ISN'T TRUE BECAUSE PARAMETERS MAY HAVE ANNOTATIONS THAT CAME
                 // FROM THE ELEMENT OF THE CLASS WHICH PREVIOUSLY WAS WRITTEN OUT BY
                 // TYPESINTOELEMENT.
@@ -368,11 +368,12 @@ public final class TypesIntoElements {
         @Override
         public List<TypeCompound> visitDeclared(
                 AnnotatedDeclaredType type, TypeAnnotationPosition tapos) {
-            if (visitedNodes.containsKey(type)) {
-                return visitedNodes.get(type);
+            List<TypeCompound> cached = getVisited(type);
+            if (cached != null) {
+                return cached;
             }
             // Hack for termination
-            visitedNodes.put(type, List.nil());
+            markVisited(type, List.nil());
             List<Attribute.TypeCompound> res;
 
             TypeAnnotationPosition oldpos = TypeAnnotationUtils.copyTAPosition(tapos);
@@ -402,12 +403,17 @@ public final class TypesIntoElements {
                 // use original tapos
                 res = scanAndReduce(encl, oldpos, res);
             }
-            visitedNodes.put(type, res);
+            markVisited(type, res);
             return res;
         }
 
-        /* Modeled after
-         * {@link com.sun.tools.javac.code.TypeAnnotations.TypeAnnotationPositions#locateNestedTypes(Type, TypeAnnotationPosition)}
+        /**
+         * Modeled after private method {@code
+         * com.sun.tools.javac.code.TypeAnnotations.TypeAnnotationPositions#locateNestedTypes(Type,
+         * TypeAnnotationPosition)} in JDK 8. The signature changed in some later versions.
+         *
+         * @param type a type
+         * @param p the type's position
          */
         private void locateNestedTypes(AnnotatedDeclaredType type, TypeAnnotationPosition p) {
             // The number of "steps" to get from the full type to the
@@ -430,10 +436,11 @@ public final class TypesIntoElements {
         @Override
         public List<TypeCompound> visitIntersection(
                 AnnotatedIntersectionType type, TypeAnnotationPosition tapos) {
-            if (visitedNodes.containsKey(type)) {
-                return visitedNodes.get(type);
+            List<TypeCompound> cached = getVisited(type);
+            if (cached != null) {
+                return cached;
             }
-            visitedNodes.put(type, List.nil());
+            markVisited(type, List.nil());
             List<Attribute.TypeCompound> res;
             res = directAnnotations(type, tapos);
 
@@ -446,7 +453,7 @@ public final class TypesIntoElements {
                 res = scanAndReduce(bound, newpos, res);
                 ++arg;
             }
-            visitedNodes.put(type, res);
+            markVisited(type, res);
             return res;
         }
 
@@ -467,7 +474,7 @@ public final class TypesIntoElements {
             TypeAnnotationPosition newpos = TypeAnnotationUtils.copyTAPosition(tapos);
             newpos.location = tapos.location.append(TypePathEntry.ARRAY);
 
-            return reduce(super.visitArray(type, newpos), res);
+            return reduce(res, super.visitArray(type, newpos));
         }
 
         @Override
@@ -490,12 +497,12 @@ public final class TypesIntoElements {
         @Override
         public List<TypeCompound> visitWildcard(
                 AnnotatedWildcardType type, TypeAnnotationPosition tapos) {
-            if (this.visitedNodes.containsKey(type)) {
+            if (this.hasVisited(type)) {
                 return List.nil();
             }
             // Hack for termination, otherwise we'll visit one type too far (the same recursive
             // wildcard twice and generate extra type annos)
-            visitedNodes.put(type, List.nil());
+            markVisited(type, List.nil());
             List<Attribute.TypeCompound> res;
 
             // Note: By default, an Unbound wildcard will return true for both isExtendsBound and
@@ -519,7 +526,7 @@ public final class TypesIntoElements {
                     res = scanAndReduce(sup, newpos, res);
                 }
             }
-            visitedNodes.put(type, res);
+            markVisited(type, res);
             return res;
         }
     }

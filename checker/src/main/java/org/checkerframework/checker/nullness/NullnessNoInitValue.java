@@ -22,10 +22,10 @@ import javax.lang.model.type.TypeMirror;
 public class NullnessNoInitValue extends CFAbstractValue<NullnessNoInitValue> {
 
     /** True if, at this point, {@link PolyNull} is known to be {@link NonNull}. */
-    protected boolean isPolyNullNonNull;
+    private boolean isPolyNullNonNull;
 
     /** True if, at this point, {@link PolyNull} is known to be {@link Nullable}. */
-    protected boolean isPolyNullNull;
+    private boolean isPolyNullNull;
 
     /**
      * Creates a new NullnessValue.
@@ -39,6 +39,46 @@ public class NullnessNoInitValue extends CFAbstractValue<NullnessNoInitValue> {
             AnnotationMirrorSet annotations,
             TypeMirror underlyingType) {
         super(analysis, annotations, underlyingType);
+    }
+
+    /**
+     * Returns true if, at this point, {@link PolyNull} is known to be {@link NonNull}.
+     *
+     * @return true if, at this point, {@link PolyNull} is known to be {@link NonNull}
+     */
+    public boolean isPolyNullNonNull() {
+        return isPolyNullNonNull;
+    }
+
+    /**
+     * Set the value of whether, at this point, {@link PolyNull} is known to be {@link NonNull}.
+     *
+     * @param isPolyNullNonNull whether, at this point, {@link PolyNull} is known to be {@link
+     *     NonNull}
+     */
+    public void setPolyNullNonNull(boolean isPolyNullNonNull) {
+        this.isPolyNullNonNull = isPolyNullNonNull;
+        hashCodeCache = 0;
+    }
+
+    /**
+     * Returns true if, at this point, {@link PolyNull} is known to be {@link Nullable}.
+     *
+     * @return true if, at this point, {@link PolyNull} is known to be {@link Nullable}
+     */
+    public boolean isPolyNullNull() {
+        return isPolyNullNull;
+    }
+
+    /**
+     * Set the value of whether, at this point, {@link PolyNull} is known to be {@link Nullable}.
+     *
+     * @param isPolyNullNull whether, at this point, {@link PolyNull} is known to be {@link
+     *     Nullable}
+     */
+    public void setPolyNullNull(boolean isPolyNullNull) {
+        this.isPolyNullNull = isPolyNullNull;
+        hashCodeCache = 0;
     }
 
     @Override
@@ -102,5 +142,35 @@ public class NullnessNoInitValue extends CFAbstractValue<NullnessNoInitValue> {
                 + '/'
                 + (isPolyNullNull ? 't' : 'f')
                 + '}';
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj) {
+            return true;
+        }
+        if (obj == null || getClass() != obj.getClass()) {
+            return false;
+        }
+        if (!super.equals(obj)) {
+            return false;
+        }
+        NullnessNoInitValue other = (NullnessNoInitValue) obj;
+        return this.isPolyNullNonNull == other.isPolyNullNonNull
+                && this.isPolyNullNull == other.isPolyNullNull;
+    }
+
+    /** The cached hash code. */
+    private int hashCodeCache = 0;
+
+    @Override
+    public int hashCode() {
+        if (hashCodeCache == 0) {
+            int h = super.hashCode();
+            h = 31 * h + (isPolyNullNonNull ? 1 : 0);
+            h = 31 * h + (isPolyNullNull ? 1 : 0);
+            hashCodeCache = h == 0 ? 1 : h;
+        }
+        return hashCodeCache;
     }
 }

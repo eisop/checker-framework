@@ -40,14 +40,11 @@ public class JavaParserUtil {
      * The Language Level to use when parsing if a specific level isn't applied. This should be the
      * highest version of Java that the Checker Framework can process.
      */
-    // JavaParser's ParserConfiguration.LanguageLevel has no constant for JDK 18, as of version
-    // 3.25.1 (2023-02-28).  See
-    // https://www.javadoc.io/doc/com.github.javaparser/javaparser-core/latest/com/github/javaparser/ParserConfiguration.LanguageLevel.html .
-    public static final LanguageLevel DEFAULT_LANGUAGE_LEVEL = LanguageLevel.JAVA_17;
+    public static final LanguageLevel DEFAULT_LANGUAGE_LEVEL = LanguageLevel.JAVA_21;
 
-    ///
-    /// Replacements for StaticJavaParser
-    ///
+    //
+    // Replacements for StaticJavaParser
+    //
 
     /**
      * Parses the Java code contained in the {@code InputStream} and returns a {@code
@@ -64,6 +61,7 @@ public class JavaParserUtil {
     public static CompilationUnit parseCompilationUnit(InputStream inputStream) {
         ParserConfiguration parserConfiguration = new ParserConfiguration();
         parserConfiguration.setLanguageLevel(DEFAULT_LANGUAGE_LEVEL);
+        parserConfiguration.setPreprocessUnicodeEscapes(true);
         JavaParser javaParser = new JavaParser(parserConfiguration);
         ParseResult<CompilationUnit> parseResult = javaParser.parse(inputStream);
         if (parseResult.isSuccessful() && parseResult.getResult().isPresent()) {
@@ -89,6 +87,7 @@ public class JavaParserUtil {
     public static CompilationUnit parseCompilationUnit(File file) throws FileNotFoundException {
         ParserConfiguration configuration = new ParserConfiguration();
         configuration.setLanguageLevel(DEFAULT_LANGUAGE_LEVEL);
+        configuration.setPreprocessUnicodeEscapes(true);
         JavaParser javaParser = new JavaParser(configuration);
         ParseResult<CompilationUnit> parseResult = javaParser.parse(file);
         if (parseResult.isSuccessful() && parseResult.getResult().isPresent()) {
@@ -130,21 +129,64 @@ public class JavaParserUtil {
      * it creates a new instance of JavaParser each time it is invoked. Re-using {@code
      * StaticJavaParser} causes memory problems because it retains too much memory.
      *
+     * <p>This variant preserves JavaToken objects on the parsed AST so that {@link
+     * ParseProblemException}s emitted on malformed user-supplied stubs include precise token-level
+     * diagnostics. Callers that parse the annotated JDK and do not need that diagnostic detail
+     * should use {@link #parseStubUnitForJdk(InputStream)} instead, which is measurably faster and
+     * allocates less.
+     *
      * @param inputStream the stub file
      * @return StubUnit representing the stub file
      * @throws ParseProblemException if the source code has parser errors
      */
     public static StubUnit parseStubUnit(InputStream inputStream) {
+        return parseStubUnit(inputStream, true);
+    }
+
+    /**
+     * Parses an annotated-JDK stub file and returns a {@code StubUnit} representing it.
+     *
+     * <p>Identical to {@link #parseStubUnit(InputStream)} except that token retention is disabled.
+     * AST nodes still carry their {@link com.github.javaparser.Range Range} (line/column), so
+     * {@link ParseProblemException}s remain identifiable, but the per-token detail used by some
+     * JavaParser diagnostics is dropped. This trade-off is appropriate for the annotated JDK, whose
+     * stubs are maintained inside the Checker Framework and whose parse errors should never reach
+     * an end user; it is not appropriate for user-supplied stub files.
+     *
+     * <p>JFR profiling of {@code allNullnessTests} attributes ~6.7% of main-thread time to
+     * JavaParser, dominated by the lazy on-demand parsing of JDK class astubs via {@code
+     * AnnotationFileElementTypes#maybeParseEnclosingJdkClass}.
+     *
+     * @param inputStream the JDK stub file
+     * @return StubUnit representing the JDK stub file
+     * @throws ParseProblemException if the source code has parser errors
+     */
+    public static StubUnit parseStubUnitForJdk(InputStream inputStream) {
+        return parseStubUnit(inputStream, false);
+    }
+
+    /**
+     * Implementation of {@link #parseStubUnit(InputStream)} and {@link
+     * #parseStubUnitForJdk(InputStream)}.
+     *
+     * @param inputStream the stub file
+     * @param storeTokens whether JavaParser should retain {@link com.github.javaparser.JavaToken
+     *     JavaToken} objects on the parsed AST; pass {@code true} for user-supplied stubs and
+     *     {@code false} for the annotated JDK
+     * @return StubUnit representing the stub file
+     * @throws ParseProblemException if the source code has parser errors
+     */
+    private static StubUnit parseStubUnit(InputStream inputStream, boolean storeTokens) {
         // The ParserConfiguration accumulates data each time parse is called, so create a new one
         // each time.  There's no method to set the ParserConfiguration used by a JavaParser, so a
         // JavaParser has to be created each time.
         ParserConfiguration configuration = new ParserConfiguration();
         configuration.setLanguageLevel(DEFAULT_LANGUAGE_LEVEL);
-        // Store the tokens so that errors have line and column numbers.
-        // configuration.setStoreTokens(false);
+        configuration.setStoreTokens(storeTokens);
         configuration.setLexicalPreservationEnabled(false);
         configuration.setAttributeComments(false);
         configuration.setDetectOriginalLineSeparator(false);
+        configuration.setPreprocessUnicodeEscapes(true);
         JavaParser javaParser = new JavaParser(configuration);
         ParseResult<StubUnit> parseResult = javaParser.parseStubUnit(inputStream);
         if (parseResult.isSuccessful() && parseResult.getResult().isPresent()) {
@@ -191,6 +233,7 @@ public class JavaParserUtil {
         configuration.setLexicalPreservationEnabled(false);
         configuration.setAttributeComments(false);
         configuration.setDetectOriginalLineSeparator(false);
+        configuration.setPreprocessUnicodeEscapes(true);
         JavaParser javaParser = new JavaParser(configuration);
         ParseResult<Expression> parseResult = javaParser.parseExpression(expression);
         if (parseResult.isSuccessful() && parseResult.getResult().isPresent()) {
@@ -200,9 +243,9 @@ public class JavaParserUtil {
         }
     }
 
-    ///
-    /// Other methods
-    ///
+    //
+    // Other methods
+    //
 
     /**
      * Given the compilation unit node for a source file, returns the top level type definition with
@@ -411,12 +454,12 @@ public class JavaParserUtil {
                 case "RELEASE_17":
                     currentSourceVersion = ParserConfiguration.LanguageLevel.JAVA_17;
                     break;
-                    // JavaParser's ParserConfiguration.LanguageLevel has no constant for JDK 18, as
-                    // of version 3.25.1 (2023-02-28).  See
-                    // https://www.javadoc.io/doc/com.github.javaparser/javaparser-core/latest/com/github/javaparser/ParserConfiguration.LanguageLevel.html .
-                    // case "RELEASE_18":
-                    //   currentSourceVersion = ParserConfiguration.LanguageLevel.JAVA_18;
-                    //   break;
+                // JavaParser's ParserConfiguration.LanguageLevel has no constant for JDK 18, as
+                // of version 3.25.1 (2023-02-28).  See
+                // https://www.javadoc.io/doc/com.github.javaparser/javaparser-core/latest/com/github/javaparser/ParserConfiguration.LanguageLevel.html .
+                // case "RELEASE_18":
+                //   currentSourceVersion = ParserConfiguration.LanguageLevel.JAVA_18;
+                //   break;
                 default:
                     currentSourceVersion = DEFAULT_LANGUAGE_LEVEL;
             }

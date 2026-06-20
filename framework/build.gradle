@@ -1,6 +1,18 @@
 plugins {
     id 'java-library'
+    // Exposes src/testFixtures as a consumable feature so that the testchecker support library
+    // (org.checkerframework.framework.testchecker.lib) is available to this project's own tests
+    // and to :checker's tests via testFixtures(project(':framework')).
+    id 'java-test-fixtures'
 }
+
+// allSourcesJar (below) reads project(':javacutil').sourceSets.main.allJava directly.
+// javacutil is declared after framework in settings.gradle's include order, so without
+// this, that access would run before javacutil's own build.gradle has had a chance to
+// configure its sourceSets -- harmless today only because javacutil never customizes
+// them, but not something Gradle guarantees. dataflow doesn't need the same guard: it's
+// declared before framework already.
+evaluationDependsOn(':javacutil')
 
 ext {
     annotatedJdkHome = '../../jdk'
@@ -19,7 +31,7 @@ sourceSets {
             // Stub files, message.properties, etc.
             srcDirs += [
                 'src/main/java',
-                "${buildDir}/generated/resources"
+                layout.buildDirectory.dir('generated/resources')
             ]
 
             // NO-AFU
@@ -33,19 +45,21 @@ sourceSets {
             srcDirs = ['src/testannotations/java']
         }
     }
+    stubifier
 }
 
-sourcesJar {
+tasks.named('sourcesJar') {
     // The resources duplicate content from the src directory.
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 }
 
-jar {
+tasks.named('jar') {
     // The resources duplicate content from the src directory.
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 }
 
 configurations {
+    implementation.extendsFrom(stubifierImplementation)
     implementation.extendsFrom(annotatedGuava)
 }
 
@@ -53,10 +67,11 @@ dependencies {
     api project(':javacutil')
     api project(':dataflow')
     // At the moement, there are no differences between eisop and typetools stubparsers.
-    api 'org.checkerframework:stubparser:3.25.10'
+    api 'org.checkerframework:stubparser:3.27.1'
+    stubifierImplementation 'org.checkerframework:stubparser:3.27.1'
+    implementation sourceSets.stubifier.output
 
-    // NO-AFU
-    /*
+    /* NO-AFU
      // AFU is an "includedBuild" imported in checker-framework/settings.gradle, so the version number doesn't matter.
      // https://docs.gradle.org/current/userguide/composite_builds.html#settings_defined_composite
      api('org.checkerframework:annotation-file-utilities:*') {
@@ -73,7 +88,7 @@ dependencies {
     implementation "org.plumelib:plume-util:${versions.plumeUtil}"
     implementation "org.plumelib:reflection-util:${versions.reflectionUtil}"
     // Add this dependency if needed to debug classpath issues.
-    // implementation 'io.github.classgraph:classgraph:4.8.165'
+    // implementation 'io.github.classgraph:classgraph:4.8.180'
 
     testImplementation "junit:junit:${versions.junit}"
     testImplementation project(':framework-test')
@@ -87,84 +102,93 @@ dependencies {
     testImplementation "org.projectlombok:lombok:${versions.lombok}"
 }
 
-task cloneAnnotatedJdk() {
-    description 'Obtain or update the annotated JDK.'
-    doLast {
-        if (file(annotatedJdkHome).exists()) {
-            exec {
-                workingDir annotatedJdkHome
-                executable 'git'
-                args = ['pull', '-q']
-                ignoreExitValue = true
-            }
-        } else {
-            println 'Cloning annotated JDK repository.'
-            exec {
-                workingDir "${annotatedJdkHome}/../"
-                executable 'git'
-                args = [
-                    'clone',
-                    '-q',
-                    '--filter=blob:none',
-                    'https://github.com/eisop/jdk.git',
-                    'jdk'
-                ]
-            }
-        }
-    }
+tasks.register('cloneAnnotatedJdk', CloneTask) {
+    description = 'Obtain or update the annotated JDK.'
+    url.set('https://github.com/eisop/jdk.git')
+    directory.set(file(annotatedJdkHome))
+    outputs.upToDateWhen { false }
 }
 
-
-task copyAndMinimizeAnnotatedJdkFiles(dependsOn: cloneAnnotatedJdk, group: 'Build') {
-    dependsOn ':framework:compileJava', project(':javacutil').tasks.jar
+tasks.register('copyAndMinimizeAnnotatedJdkFiles', JavaExec) {
+    dependsOn 'cloneAnnotatedJdk'
+    group = 'Build'
+    dependsOn ':framework:compileStubifierJava'
+    // we need the next two dependencies because we run JavaStubifier using this project's runtimeClasspath,
+    // which refers to the jars for these other projects
+    dependsOn ':javacutil:jar'
+    dependsOn ':dataflow:jar'
     def inputDir = "${annotatedJdkHome}/src"
-    def outputDir = "${buildDir}/generated/resources/annotated-jdk/"
+    def outputDir = layout.buildDirectory.dir('generated/resources/annotated-jdk').get().asFile
 
-    description "Copy annotated JDK files to ${outputDir}. Removes private and package-private methods, method bodies, comments, etc. from the annotated JDK"
+    description = "Copy annotated JDK files to ${outputDir}. Removes private and package-private methods, method bodies, comments, etc. from the annotated JDK"
 
     inputs.dir file(inputDir)
     outputs.dir file(outputDir)
 
-    doLast {
-        FileTree tree = fileTree(dir: inputDir)
-        NavigableSet<String> annotatedForFiles = new TreeSet<>();
+    classpath = sourceSets.stubifier.runtimeClasspath
+    standardOutput = System.out
+    errorOutput = System.err
+
+    mainClass = 'org.checkerframework.framework.stubifier.JavaStubifier'
+    args outputDir
+
+    def injectedFiles = project.objects.newInstance(InjectedFileOps)
+    def inputDirFile = file(inputDir)
+    def jdkHomeFile = file(annotatedJdkHome)
+    def absolutejdkHome = jdkHomeFile.absolutePath
+
+    doFirst {
+        FileTree tree = injectedFiles.objects.fileTree().setDir(inputDirFile)
+        Set<String> annotatedForFiles = new HashSet<>()
+        // For each annotated file, also record every ancestor directory along the
+        // path back up to annotatedJdkHome.  The copy's include Spec (below) uses
+        // this to descend only into subtrees that actually contain an annotated
+        // file, and to avoid materialising empty intermediate directories in the
+        // destination.  (Copy defaults includeEmptyDirs=true, so a Spec that said
+        // "yes" to every directory would create every traversed directory in the
+        // output.)
+        Set<String> annotatedDirs = new HashSet<>()
         tree.visit { FileVisitDetails fvd ->
             if (!fvd.file.isDirectory() && fvd.file.name.matches('.*\\.java')
-                    && !fvd.file.path.contains('org/checkerframework')) {
+            && !fvd.file.path.contains('org/checkerframework')) {
                 fvd.getFile().readLines().any { line ->
                     if (line.contains('@AnnotatedFor') || line.contains('org.checkerframework') || line.contains('org.jspecify')) {
                         annotatedForFiles.add(fvd.file.absolutePath)
-                        return true;
+                        File p = fvd.file.parentFile
+                        while (p != null
+                                && p.absolutePath.length() >= absolutejdkHome.length()
+                                && p.absolutePath.startsWith(absolutejdkHome)) {
+                            if (!annotatedDirs.add(p.absolutePath)) {
+                                // Already inserted -- so are all its parents up to root.
+                                break
+                            }
+                            p = p.parentFile
+                        }
+                        return true
                     }
                 }
             }
         }
-        String absolutejdkHome = file(annotatedJdkHome).absolutePath
-        int jdkDirStringSize = absolutejdkHome.size()
-        copy {
-            from(annotatedJdkHome)
+        injectedFiles.fs.copy {
+            from(jdkHomeFile)
             into(outputDir)
-            for (String filename : annotatedForFiles) {
-                include filename.substring(jdkDirStringSize)
+            // A single Spec consults the precomputed sets in O(1) per element
+            // and lets Gradle prune subtrees that contain no annotated files.
+            include { FileTreeElement fte ->
+                fte.directory
+                ? annotatedDirs.contains(fte.file.absolutePath)
+                : annotatedForFiles.contains(fte.file.absolutePath)
             }
-        }
-        javaexec {
-            classpath = sourceSets.main.runtimeClasspath
-            standardOutput = System.out
-            errorOutput = System.err
-
-            mainClass = 'org.checkerframework.framework.stub.JavaStubifier'
-            args outputDir
         }
     }
 }
 
-sourcesJar.dependsOn(copyAndMinimizeAnnotatedJdkFiles)
+tasks.named('sourcesJar').configure { dependsOn 'copyAndMinimizeAnnotatedJdkFiles' }
+tasks.named('processResources').configure { dependsOn 'copyAndMinimizeAnnotatedJdkFiles' }
 
-processResources.dependsOn(copyAndMinimizeAnnotatedJdkFiles)
-
-task allSourcesJar(type: Jar, group: 'Build') {
-    description 'Creates a sources jar that includes sources for all Checker Framework classes in framework.jar'
+tasks.register('allSourcesJar', Jar) {
+    group = 'Build'
+    description = 'Creates a sources jar that includes sources for all Checker Framework classes in framework.jar'
     destinationDirectory = file("${projectDir}/dist")
     archiveFileName = 'framework-source.jar'
     from (project(':framework').sourceSets.main.java,
@@ -172,22 +196,30 @@ task allSourcesJar(type: Jar, group: 'Build') {
             project(':javacutil').sourceSets.main.allJava)
 }
 
-task allJavadocJar(type: Jar, group: 'Build') {
-    description 'Creates javadoc jar include Javadoc for all of the framework'
-    dependsOn (project(':framework').tasks.javadoc,
-            project(':dataflow').tasks.javadoc,
-            project(':javacutil').tasks.javadoc)
+tasks.register('allJavadocJar', Jar) {
+    group = 'Build'
+    description = 'Creates javadoc jar include Javadoc for all of the framework'
+    def javadocs = [
+        ':framework',
+        ':dataflow',
+        ':javacutil'
+    ].collect {
+        project(it).tasks.named('javadoc', Javadoc)
+    }
+    dependsOn javadocs
 
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
     destinationDirectory = file("${projectDir}/dist")
     archiveFileName = 'framework-javadoc.jar'
-    from (project(':framework').tasks.javadoc.destinationDir,
-            project(':dataflow').tasks.javadoc.destinationDir,
-            project(':javacutil').tasks.javadoc.destinationDir)
+    from javadocs.collect {
+        it.map { jd ->
+            jd.destinationDir
+        }
+    }
 }
 
-shadowJar {
-    description 'Creates the "fat" framework.jar in dist'
+tasks.named('shadowJar') {
+    description = 'Creates the "fat" framework.jar in dist'
     destinationDirectory = file("${projectDir}/dist")
     archiveFileName = 'framework.jar'
     manifest {
@@ -197,74 +229,65 @@ shadowJar {
     minimize()
 }
 
-createCheckTypeTask(project.name, 'CompilerMessages',
+rootProject.createCheckTypeTask(project.name, 'CompilerMessages',
         'org.checkerframework.checker.compilermsgs.CompilerMessagesChecker')
-checkCompilerMessages {
+tasks.named('checkCompilerMessages') {
     options.compilerArgs += [
         '-Apropfiles=' + sourceSets.main.resources.filter { file -> file.name.equals('messages.properties') }.asPath
     ]
 }
 
-task loaderTests(dependsOn: 'shadowJar', group: 'Verification') {
-    description 'Run tests for the annotation class loader'
-    dependsOn(compileTestJava)
+tasks.register('loaderTests', Exec) {
+    dependsOn 'shadowJar'
+    group = 'Verification'
+    description = 'Run tests for the annotation class loader'
+    dependsOn('compileTestJava')
+
     // TODO: this dependency on checker is a bit ugly.
-    dependsOn project(':checker-qual').tasks.jar
-    dependsOn project(':checker').tasks.assemble
-    doLast {
-        exec {
-            executable 'make'
-            args = [
-                '-C',
-                'tests/annotationclassloader/',
-                'all'
-            ]
-        }
-    }
+    dependsOn ':checker-qual:jar'
+    dependsOn ':checker:assemble'
+    commandLine 'make', '-C', 'tests/annotationclassloader/', 'all'
 }
 
-clean {
+tasks.register('cleanLoaderTests', Exec) {
+    description = 'Clean up after the annotation class loader tests'
+    commandLine 'make', '-C', 'tests/annotationclassloader/', 'clean'
+}
+
+tasks.named('clean') {
+    dependsOn 'cleanLoaderTests'
+
     delete('tests/returnsreceiverdelomboked')
     delete('dist')
     delete('tests/build')
-    doLast {
-        exec {
-            workingDir = file('tests/annotationclassloader')
-            commandLine 'make', 'clean'
-        }
-    }
 }
 
-
-task delombok {
-    description 'Delomboks the source code tree in tests/returnsreceiverlombok'
-
-    def srcDelomboked = 'tests/returnsreceiverdelomboked'
-    def srcJava = 'tests/returnsreceiverlombok'
-
-    inputs.files file(srcJava)
-    outputs.dir file(srcDelomboked)
-
-    // This dependency is required to ensure the checker-qual jar exists,
-    // to prevent lombok from emitting "cannot find symbol" errors for @This
-    // annotations in the test input code.
-    dependsOn project(':checker-qual').tasks.jar
-
-    doLast {
-        if(!skipDelombok) {
-            def collection = files(configurations.testCompileClasspath)
-            ant.taskdef(name: 'delombok', classname: 'lombok.delombok.ant.Tasks$Delombok',
-            classpath: collection.asPath)
-            ant.delombok(from: srcJava, to: srcDelomboked, classpath: collection.asPath)
-        }
-    }
-}
 
 if (skipDelombok) {
-    delombok.enabled = false
-    test {
+    tasks.named('test') {
         exclude '**/ReturnsReceiverLombokTest.java'
     }
 } else {
-    tasks.test.dependsOn('delombok')
+    tasks.register('delombok', JavaExec) {
+        description = 'Delomboks the source code tree in tests/returnsreceiverlombok'
+
+        def srcDelomboked = 'tests/returnsreceiverdelomboked'
+        def srcJava = 'tests/returnsreceiverlombok'
+
+        inputs.files file(srcJava)
+        outputs.dir file(srcDelomboked)
+
+        // This dependency is required to ensure the checker-qual jar exists,
+        // to prevent lombok from emitting "cannot find symbol" errors for @This
+        // annotations in the test input code.
+        dependsOn ':checker-qual:jar'
+
+        // Run Lombok's delombok tool directly via its launcher instead of through Ant: AntBuilder
+        // is not supported with the configuration cache.
+        def delombokClasspath = configurations.testCompileClasspath
+        classpath = delombokClasspath
+        mainClass = 'lombok.launch.Main'
+        args 'delombok', srcJava, '-d', srcDelomboked, '-c', delombokClasspath.asPath
+    }
+    tasks.named('test').configure { dependsOn 'delombok' }
 }

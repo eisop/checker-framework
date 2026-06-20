@@ -126,7 +126,8 @@ public class SystemUtil {
         if (javaHome == null) {
             String javaHomeProperty = System.getProperty("java.home");
             if (javaHomeProperty.endsWith(File.separator + "jre")) {
-                javaHome = javaHomeProperty.substring(javaHomeProperty.length() - 4);
+                // Strip the trailing '/jre' (4 chars including the separator).
+                javaHome = javaHomeProperty.substring(0, javaHomeProperty.length() - 4);
             } else {
                 // Could also determine the location of javac on the path...
                 throw new Error("Can't infer Java home; java.home=" + javaHomeProperty);
