@@ -233,6 +233,7 @@ public class TreePathCacher extends TreeScanner<TreePath, Tree> {
         }
     }
 
+    /** Clear the {@code foundPaths} and re-initialize with a new {@code IdentityHashMap}. */
     public void clear() {
         foundPaths = new IdentityHashMap<>(32);
     }
