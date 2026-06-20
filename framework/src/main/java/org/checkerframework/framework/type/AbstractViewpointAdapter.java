@@ -135,6 +135,7 @@ public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
         constructorType.setParameterTypes(unsubstitutedConstructorType.getParameterTypes());
         constructorType.setTypeVariables(unsubstitutedConstructorType.getTypeVariables());
         constructorType.setReturnType(unsubstitutedConstructorType.getReturnType());
+        constructorType.computeVarargType();
     }
 
     @Override
@@ -189,6 +190,7 @@ public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
         methodType.setReceiverType(unsubstitutedMethodType.getReceiverType());
         methodType.setParameterTypes(unsubstitutedMethodType.getParameterTypes());
         methodType.setTypeVariables(unsubstitutedMethodType.getTypeVariables());
+        methodType.computeVarargType();
     }
 
     /**
