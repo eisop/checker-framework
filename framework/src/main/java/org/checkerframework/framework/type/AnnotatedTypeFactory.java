@@ -503,26 +503,40 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     /** Size of LRU cache if one isn't specified using the atfCacheSize option. */
     private static final int DEFAULT_CACHE_SIZE = 2048;
 
-    /** Mapping from a Tree to its annotated type; defaults have been applied. */
-    private final IdentityHashMap<Tree, AnnotatedTypeMirror> classAndMethodTreeCache;
+    /**
+     * Mapping from a Tree to its annotated type; defaults have been applied.
+     *
+     * <p>This field is intentionally not final; it should only be re-assigned by {@link
+     * #setRoot(CompilationUnitTree)}.
+     */
+    private IdentityHashMap<Tree, AnnotatedTypeMirror> classAndMethodTreeCache;
 
     /**
      * Mapping from an expression tree to its annotated type; before defaults are applied, just what
      * the programmer wrote.
+     *
+     * <p>This field is intentionally not final; it should only be re-assigned by {@link
+     * #setRoot(CompilationUnitTree)}.
      */
-    protected final IdentityHashMap<Tree, AnnotatedTypeMirror> fromExpressionTreeCache;
+    protected IdentityHashMap<Tree, AnnotatedTypeMirror> fromExpressionTreeCache;
 
     /**
      * Mapping from a member tree to its annotated type; before defaults are applied, just what the
      * programmer wrote.
+     *
+     * <p>This field is intentionally not final; it should only be re-assigned by {@link
+     * #setRoot(CompilationUnitTree)}.
      */
-    protected final IdentityHashMap<Tree, AnnotatedTypeMirror> fromMemberTreeCache;
+    protected IdentityHashMap<Tree, AnnotatedTypeMirror> fromMemberTreeCache;
 
     /**
      * Mapping from a type tree to its annotated type; before defaults are applied, just what the
      * programmer wrote.
+     *
+     * <p>This field is intentionally not final; it should only be re-assigned by {@link
+     * #setRoot(CompilationUnitTree)}.
      */
-    protected final IdentityHashMap<Tree, AnnotatedTypeMirror> fromTypeTreeCache;
+    protected IdentityHashMap<Tree, AnnotatedTypeMirror> fromTypeTreeCache;
 
     /**
      * Mapping from an Element to its annotated type; before defaults are applied, just what the
@@ -542,13 +556,21 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      */
     private final @Nullable Map<Element, AnnotatedTypeMirror> elementTypeCache;
 
-    /** Mapping from an Element to the source Tree of the declaration. */
-    private final IdentityHashMap<Element, Tree> elementToTreeCache;
+    /**
+     * Mapping from an Element to the source Tree of the declaration.
+     *
+     * <p>This field is intentionally not final; it should only be re-assigned by {@link
+     * #setRoot(CompilationUnitTree)}.
+     */
+    private IdentityHashMap<Element, Tree> elementToTreeCache;
 
     /**
      * Set of enclosing trees (like MethodTree/ClassTree) already scanned for variable declarations.
+     *
+     * <p>This field is intentionally not final; it should only be re-assigned by {@link
+     * #setRoot(CompilationUnitTree)}.
      */
-    private final @Nullable Set<Tree> scannedEnclosingTrees;
+    private @Nullable Set<Tree> scannedEnclosingTrees;
 
     /**
      * Cache for the substituted method type from {@link #computeMethodTypeAsMemberOf} — the
@@ -1071,12 +1093,12 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         if (shouldCache) {
             // Clear the caches with trees because once the compilation unit changes,
             // the trees may be modified and lose type arguments.
-            elementToTreeCache.clear();
-            scannedEnclosingTrees.clear();
-            fromExpressionTreeCache.clear();
-            fromMemberTreeCache.clear();
-            fromTypeTreeCache.clear();
-            classAndMethodTreeCache.clear();
+            elementToTreeCache = new IdentityHashMap<>();
+            scannedEnclosingTrees = Collections.newSetFromMap(new IdentityHashMap<>());
+            fromExpressionTreeCache = new IdentityHashMap<>();
+            fromMemberTreeCache = new IdentityHashMap<>();
+            fromTypeTreeCache = new IdentityHashMap<>();
+            classAndMethodTreeCache = new IdentityHashMap<>();
 
             // There is no need to clear the following cache, it is limited by cache size and it
             // contents won't change between compilation units.

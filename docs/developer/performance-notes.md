@@ -368,6 +368,95 @@ so small per-call wins paid back substantially.
   is GC pressure / allocation throughput rather than wall clock on heap-generous single-file
   runs; the `checknullness` JFR self-time attribution for `IdentityHashMap.clear` (2.6%)
   suggests the benefit would be clearest on a multi-CU warm-daemon workload.
+- **PR #1827 — re-instantiate the per-CU / per-CFG `IdentityHashMap`s instead of
+  `clear()` (June 2026).** Extends the PR #1815 principle to the long-lived, per-compilation-unit
+  and per-CFG caches that PR #1791 had left on `clear()`:
+  (1) **`AnnotatedTypeFactory.setRoot`** — the five tree caches (`classAndMethodTreeCache`,
+  `fromExpressionTreeCache`, `fromMemberTreeCache`, `fromTypeTreeCache`, `elementToTreeCache`) plus
+  the `scannedEnclosingTrees` identity set, now reassigned to fresh maps rather than cleared.
+  (2) **`GenericAnnotatedTypeFactory`** — `scannedClasses`, `regularExitStores`,
+  `exceptionalExitStores`, `returnStatementStores` (in `setRoot` and `performFlowAnalysis`).
+  (3) **Dataflow `initFields`** — `AbstractAnalysis` (`inputs`, `nodeValues`, `finalLocalValues`),
+  `ForwardAnalysisImpl` (`thenStores`, `elseStores`, `blockCount`,
+  `storesAtReturnStatements`), `BackwardAnalysisImpl` (`outStores`, `exceptionStores`),
+  `Worklist.depthFirstOrder` (re-assigned in `process`).
+  (4) **`DefaultQualifierForUseTypeAnnotator.clearCache`** and **`TreePathCacher.clear`**.
+  All affected fields were de-`final`ed with a doc note naming the sole reassigning method.
+  **Why re-instantiate and not `clear()` for these:** the deciding factor is not per-CFG vs per-CU
+  but whether the map's high-water mark can be inflated by a single large input. All of the above are
+  *uncapped* — one giant method body (for the per-CFG maps) or one large compilation unit (for the
+  per-CU caches) can blow them up. `clear()` retains that peak backing array for the rest of the
+  build and re-zeroes it (`Arrays.fill`-style, O(capacity)) on every later, possibly tiny, reset —
+  a potential super-linear cost (peak-capacity x number-of-later-resets) and a permanent memory
+  high-water mark. Re-instantiation lets the big array be collected and starts each reset small; the
+  per-reset allocation is negligible (and below the noise floor on the full-build A/B). The map
+  content is new each reset anyway (keys are fresh per-CFG/per-CU identity objects), so `clear()`
+  would preserve only capacity, never useful entries. `clear()` would only be the better choice for a
+  genuinely *size-capped* reused map — none of these qualify.
+  **Special case: `GenericAnnotatedTypeFactory.subcheckerSharedCFG`** stays on the null-guarded
+  `clear()` (`clearSharedCFG`). It is *not* exempt for size reasons (it, too, grows with the CU);
+  rather, unconditional re-instantiation broke two invariants: it must stay `null` for any factory
+  that never shares CFGs (an ultimate parent with no subcheckers would otherwise allocate a
+  forever-empty map every CU), and the lazy init in `addSharedCFGForTree` pre-sizes it to
+  `getCacheSize()` (the field doc promises that initial capacity), which a default-capacity
+  re-instantiation would defeat. A null-guarded `new IdentityHashMap<>(getCacheSize())` would also
+  satisfy both and additionally shed the peak array, but since this map is reset only per-CU the
+  retain-vs-shed difference is minor; the null-guarded `clear()` is kept for simplicity.
+  **Correctness fix bundled in (the real motivation):** `AbstractAnalysis.setNodeValues` went from
+  `nodeValues.clear(); nodeValues.putAll(in)` to `nodeValues = new IdentityHashMap<>(in)`. The old
+  in-place `clear()` had an aliasing bug: `AnalysisResult` wraps the analysis's `nodeValues` in an
+  `UnmodifiableIdentityHashMap` (read-through, no copy), and `AnalysisResult.getStoreBefore`/
+  `getStoreAfter` pass that wrapper straight back into `runAnalysisFor` → `setNodeValues(in)`. The
+  `nodeValues == in` guard does not fire (the argument is the *wrapper*, not the raw map), so
+  `nodeValues.clear()` emptied the very map the wrapper reads, and `putAll(in)` then copied back
+  nothing — wiping all node values. Copy-before-mutate (`new IdentityHashMap<>(in)`) reads the
+  still-intact wrapper into a fresh map and leaves the original untouched. Observable in
+  `dataflow/tests/constant-propagation/Expected.txt`: node abstract values (`a … > 0`,
+  `b = a … > 0`, `4 … > 4`, `b … > T`) that the old code suppressed during visualization now
+  appear; confirmed by running the test on both sides.
+  **A/B** (full `./gradlew --no-daemon checknullness`, JFR, one run/side): on-CPU ExecutionSamples
+  10530 (master) vs. 10655 (branch) — CPU-neutral, within run noise. `IdentityHashMap.clear` left
+  the leaderboard entirely (0.50% / 53 samples → 0). The trade is more allocation churn: total TLAB
+  events 81566 → 92713 (+13.7%, but `IdentityHashMap` per-class count flat at 2773 → 2798, so mostly
+  sampling noise), GC 210 → 248 collections / 3258 → 4013 ms. Post-GC live heap measured *higher* on
+  the branch (max 475 → 755 MB, median 243 → 315 MB), but on follow-up analysis this is almost
+  certainly GC-timing noise across two separately-launched JVMs, not a real footprint regression:
+  the genuinely retained per-CU dataflow memory is `GenericAnnotatedTypeFactory.flowResult` (the
+  accumulator that `combine()` copies every CFG's `nodeValues` *entries* into — `flowResult` is
+  reset per-CU in `setRoot` and is untouched by this patch). The theoretical divergence — after
+  `getResult()` the `AnalysisResult` wrapper retains the per-CFG `nodeValues` (`MAP_A`) while a
+  later `setNodeValues` reassigns the field to a copy (`MAP_B`) — is bounded to **one CFG** (the
+  analysis's `getResultCache` and `nodeValues` are both reset in `initFields` before the next body)
+  and to **one map**, i.e. kilobytes, not the hundreds of MB measured. A controlled warm-daemon
+  `heap`-mode A/B/A/B would confirm, but no code change is warranted by it. Net: like PR #1815,
+  wall/CPU-neutral and allocation-neutral (per-class `IdentityHashMap` flat); ship for the
+  `setNodeValues` correctness fix and consistency with the established re-instantiate pattern, not
+  for a throughput number. Follow-ons applied in the same PR:
+  (a) the stale `setNodeValues` comment (which justified the `nodeValues == in` guard by the
+  now-removed `clear()`-empties-`in` bug) was rewritten — correctness now rests on copy-before-mutate,
+  and the `==`/`syncedFrom` guards are pure optimizations.
+  (b) **Workaround removed:** `AnalysisResult.runAnalysisFor(node, preOrPost)` dropped its
+  `copyNodeValuesIfNeeded()` defensive copy (and the comment/TODO explaining it). That copy existed
+  only because the old in-place `setNodeValues` could mutate the map an `AnalysisResult` wraps; with
+  copy-before-mutate the wrapped map is read but never mutated, so the copy is dead. On the hot
+  store-query path it was already a no-op (`flowResult`'s `nodeValues` is private after the first
+  `combine`). With that gone, the lazy copy-on-write also simplifies: the only remaining mutator is
+  `combine()`, which copies all three wrapped maps together, so the separate `nodeValuesCopied` /
+  `otherMapsCopied` flags and the `copyNodeValuesIfNeeded()` helper (which existed only to copy
+  `nodeValues` independently for the spot-query path) collapse into a single `mapsCopied` flag and a
+  single `copyMapsIfNeeded()`. The copy mechanism itself stays — the maps are read-only
+  `UnmodifiableIdentityHashMap` views that `combine` must replace before mutating. Verified by
+  `:framework:test`, `:checker:NullnessTest`/`ResourceLeakTest`/`MustCallTest`, and all dataflow
+  tests.
+  (c) **Regression test:** the constant-propagation dataflow test happened to cover this bug, but no
+  Nullness test did — the bug only surfaces with verbose CFG visualization
+  (`-Acfgviz=...StringCFGVisualizer,verbose`, which is the only caller of the unprotected
+  `getStoreAfter(Block)`/`getStoreBefore(Block)`) and only on blocks rendered *after* the first
+  node-bearing one (the wipe happens once, after the first block's contents are already emitted).
+  `checker/tests/nullness-extra/cfgviz-nodevalues/` is a `nullness-extra` make test (a method with an
+  if/else, so >1 node-bearing block) whose `Expected.out` carries the abstract values on the
+  later-block nodes; it fails on the old `clear()`-based `setNodeValues` (values wiped) and passes on
+  the fix.
 
 ### Element and name caching
 

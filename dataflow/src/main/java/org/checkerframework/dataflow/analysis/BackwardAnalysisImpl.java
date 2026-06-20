@@ -40,14 +40,22 @@ public class BackwardAnalysisImpl<
 
     // TODO: Add widening support like what the forward analysis does.
 
-    /** Out stores after every basic block (assumed to be 'no information' if not present). */
-    protected final IdentityHashMap<Block, S> outStores = new IdentityHashMap<>();
+    /**
+     * Out stores after every basic block (assumed to be 'no information' if not present).
+     *
+     * <p>This field is intentionally not final; it should only be re-assigned by {@link
+     * #initFields}.
+     */
+    protected IdentityHashMap<Block, S> outStores = new IdentityHashMap<>();
 
     /**
      * Exception store of an exception block, propagated by exceptional successors of its exception
      * block, and merged with the normal {@link TransferResult}.
+     *
+     * <p>This field is intentionally not final; it should only be re-assigned by {@link
+     * #initFields}.
      */
-    protected final IdentityHashMap<ExceptionBlock, S> exceptionStores = new IdentityHashMap<>();
+    protected IdentityHashMap<ExceptionBlock, S> exceptionStores = new IdentityHashMap<>();
 
     /** The store right before the entry block. */
     protected @Nullable S storeAtEntry = null;
@@ -198,8 +206,8 @@ public class BackwardAnalysisImpl<
     @Override
     protected void initFields(ControlFlowGraph cfg) {
         super.initFields(cfg);
-        outStores.clear();
-        exceptionStores.clear();
+        outStores = new IdentityHashMap<>();
+        exceptionStores = new IdentityHashMap<>();
         // storeAtEntry is null before analysis begin
         storeAtEntry = null;
     }
