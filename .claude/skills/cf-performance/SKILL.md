@@ -381,6 +381,64 @@ is a distinct kind of work with its own failure mode, learned the hard way in PR
   freezing. A pure correctness fix like this needs a unit test asserting `deepCopy`
   independence, or it ships together with the enforcement that makes it observable.
 
+## Shipping a risky correctness-sensitive hot-path change (the self-correcting safety net)
+
+When the optimization is an algorithmic shortcut on a path where a *wrong* result is a
+mis-diagnosis (not just slower) — e.g. the typeinference8 incorporation worklist (PR #1829),
+which re-scans only the inference variables a newly instantiated one can affect, via
+over-approximate reverse-dependency edges — the failure mode is "the shortcut skipped work it
+shouldn't have." A self-correcting safety net makes that failure mode impossible to ship while
+keeping the fast path:
+
+- **Make the cheap path *confirm* itself against the full computation, and self-heal on
+  mismatch.** The worklist declares a fixed point, then a full un-gated rescan verifies it; if
+  the rescan finds more work, it applies it (marks everything dirty, re-propagates) so the
+  result is **identical to the full scan by construction**. In production a worklist bug
+  becomes a silent (still-correct, slightly slower) recovery, never a wrong diagnostic.
+- **Turn the same check into a loud failure under a test-only flag.** A
+  `-Dcf.typeinference.worklist.strict` system property makes the mismatch *throw* instead of
+  self-healing; `build.gradle` sets it for the test tasks (the in-process `TypecheckExecutor`
+  runs the checker in the test JVM, so a system property reaches it). CI then catches any
+  edge-coverage regression as a hard failure, while users get the safety net. Net: correctness
+  does not depend on the edges being complete — only performance does.
+- **A regression-/stress test for this kind of change targets the *assumption*, not the
+  feature.** `checker/tests/nullness/Java8InferenceWorklistStress.java` concentrates the
+  inference shapes where a reverse-dependency edge is most likely missed (F-bounds, capture,
+  intersection, nested generics, lub, lambdas, varargs, **and their combinations** — a missed
+  edge most often hides where two mechanisms interact). It is `@SuppressWarnings`-ed because it
+  exercises *inference*, not the type system; the strict-mode check is independent of
+  diagnostics (it throws from inside inference).
+
+### A/B for an always-on safety net: toggle it in ONE build, don't compare against master
+
+If the change ships an always-on verification/self-heal step, the question reviewers ask is
+"what does the *safety net* cost," not "what does the whole feature cost." Comparing
+worklist-branch vs. master conflates two opposite-signed effects — the worklist *saves* scan
+work, the always-on rescan *adds* it — and on realistic code they roughly cancel, so the diff
+reads as noise and tells you nothing about either piece. Instead isolate the net within the
+**same build**: a `-Pnoselfheal`-style gradle property that flips a `-D` flag on the forked
+checker JVM, so self-heal-on vs self-heal-off run identical bytecode. (Confirm the toggle
+actually reached the fork — print a one-line marker like `CF-SELFHEAL-DISABLED` at startup —
+before trusting a flat result; a flag that never reaches the worker reads as "no effect" for
+the wrong reason. See "a flat A/B can mean the workload never reached your code.") This is the
+same one-variable-per-A/B and same-build-toggle discipline as the addressable-fraction habit,
+applied to a safety net rather than a cache.
+
+### Sizing a work budget / cutoff from real workloads
+
+To set a cutoff that abandons pathological work (here `Java8InferenceContext`'s
+`MAX_INCORPORATION_WORK`, lowered 100000 → 10000 in PR #1829, overridable via
+`-AinferenceWorkBudget`), don't guess — **instrument the operation counter and take the max
+over the whole suite plus a large real project.** Max real-code incorporation work was
+framework 363, the stress test 296, Guava 994; a 10000 budget clears the worst real case ~10×
+while still catching a cubic-in-nesting-depth blowup. Two gotchas: the budget is **checker-
+independent** (Java-type incorporation dominates, so Nullness and Interning hit the same per-
+problem cost — inference difficulty tracks the *types*, not the qualifier lattice); and the
+context is created **per generic invocation**, not per compilation, so cache any per-factory
+config (`getInferenceWorkBudget()`) rather than recomputing it. Validate a lowered budget by
+re-running a large project (Guava) under several checkers and confirming **zero** new
+budget-exceeded errors — a false positive there is a user-visible regression.
+
 ## What to look for
 
 In order of historical hit rate on this codebase:

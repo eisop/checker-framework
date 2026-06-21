@@ -113,6 +113,40 @@ git checkout - && git branch -D verify
 If `alltests` is impractical (e.g., no local JDK matrix), say so
 explicitly in the PR description rather than implying it passed.
 
+## CI checks that `assemble` and `alltests` do NOT run
+
+The `misc` CI job (`checker/bin-devel/test-misc.sh`) runs lint that a
+normal build skips. Two of its checks catch things that compile and test
+green but still fail CI:
+
+- **`./gradlew javadocDoclintAll`** runs `-Xdoclint:all` at the **PRIVATE**
+  member level — stricter than `:framework:javadoc` (PUBLIC), so it
+  validates javadoc on private methods/fields. The recurring footgun: a
+  `{@link Foo#bar}` to a class in a **sibling package that the code does not
+  import** (the code reaches it only through a return type, so no `import`
+  is needed) resolves fine for the compiler but doclint reports
+  `reference not found`. Fix: use the **fully-qualified** name in the
+  `{@link}`. Run `./gradlew javadocDoclintAll` locally before pushing any
+  javadoc-touching change to a private member.
+- **`ci-lint-diff`** only flags warnings on lines the PR **changed**.
+  Pre-existing warnings on untouched lines in the same file are fine — do
+  not chase them, and do not let them make you think your change is at
+  fault.
+- A javadoc/comment-only edit can still shift line wrapping enough to fail
+  `spotlessJavaCheck` (a pre-commit hook then blocks the commit). Re-run
+  `./gradlew spotlessApply` after **any** edit, including comment-only ones,
+  not just code edits.
+
+## Verify what you committed, not what's in the working tree
+
+After a commit — especially a file **move** plus an in-place edit, or any
+`git add -A <pathspec>` where a path was already renamed — confirm the
+committed content with `git show HEAD:<path>`, not by reading the working
+tree. A stale pathspec can make `git add` silently drop a file from the
+commit while the working tree still shows your edit, so "it's already
+fixed" reads true from the tree but false from `HEAD`. One `git show HEAD:`
+check before claiming a change landed avoids a wrong status report.
+
 ## What good output to a human reviewer looks like
 
 - A branch with N small commits, each compiling.
