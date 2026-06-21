@@ -387,10 +387,11 @@ public class BoundSet implements ReductionResult {
      * measured at no perceptible cost.
      *
      * <p>If the rescan <i>does</i> change something, the worklist wrongly skipped a variable (a
-     * missing reverse-dependency edge). {@link VariableBounds#doApplyInstantiationsToBounds} has
-     * already applied that change, so correctness is preserved regardless; this method marks every
-     * variable dirty and returns false so incorporation runs another round and re-propagates. The
-     * result is therefore always identical to scanning every variable every round, making the
+     * missing reverse-dependency edge). {@link
+     * org.checkerframework.framework.util.typeinference8.types.VariableBounds#doApplyInstantiationsToBounds}
+     * has already applied that change, so correctness is preserved regardless; this method marks
+     * every variable dirty and returns false so incorporation runs another round and re-propagates.
+     * The result is therefore always identical to scanning every variable every round, making the
      * worklist a pure optimization. In strict mode ({@link #STRICT_WORKLIST_CHECK}, on in this
      * project's tests) the same situation throws instead, so a worklist bug is a loud CI failure
      * rather than a silent recovery.
