@@ -1751,6 +1751,37 @@ format: hot method, hypothesis, blockers/open questions.
   with the constraint-reduction cost (`ConstraintSet.applyInstantiations`/`reduceOneStep` ~9% of the
   fixpoint, run even for clean variables) — gating those by the same dirty flag is what could push the
   wall-clock gain past ~3%, and it needs its own verification.
+  **UPDATE (June 2026): prototyped WITH the constraint gating — the combination pays off well past 3%
+  on inference-heavy code.** Re-implemented the worklist (`VariableBounds.dirty` + an over-approximate
+  append-only reverse-dependency `dependents` set built in `addBound`; `applyInstantiationsToBounds`
+  skips a clean variable, which *automatically* gates that variable's `constraints.applyInstantiations()`
+  since it sits in the skipped body — so the constraint gating the bullet asks for falls out of the same
+  skip, no separate flag). **Always on, no flag** (the worklist is a pure optimization, see the
+  self-correcting safety net below). **Wall-clock A/B** (single build, interleaved, n=8,
+  `gen-sized-program`-style nested-`id()` deep-nesting): depth-8×800 **−8.6%**, depth-12×400 **−11.4%**,
+  depth-20×100 **−19.0%** (the win grows with depth — deeper fixpoints have more redundant rescans to
+  skip), and **−0.3% (noise)** on shallow realistic generics (`S_generic_600`) — gain where inference
+  dominates, no regression elsewhere. **Mechanism (JFR, deep-8×800):** `doApplyInstantiationsToBounds`
+  self-time 7.47%→1.94% (3.8×), `ConstraintSet.applyInstantiations` off the leaderboard, total on-CPU
+  −6.5%; `reduceOneStep` (~54%, essential JLS-18 reduction) correctly untouched.
+  **Correctness — self-correcting safety net, not a flag.** `incorporateToFixedPoint` confirms each
+  worklist-reported fixed point with one full un-gated rescan of every variable
+  (`hasReachedFixedPoint`). At a true fixed point this changes nothing (a no-op); if the worklist ever
+  wrongly skipped a variable (a missing reverse-dependency edge), the rescan's
+  `doApplyInstantiationsToBounds` has *already applied* the change, and the method marks all variables
+  dirty and runs another round — so the result is **always identical to scanning every variable every
+  round, by construction**, making the worklist a pure optimization with no soundness flag to get wrong.
+  The rescan's cost is one extra pass per fixed point, measured **within noise (≤2%)** on every workload
+  including deep-8×800/20×100 (it is dwarfed by the many passes the fixpoint already ran). This project's
+  own tests run in **strict mode** (`-Dcf.typeinference.worklist.strict`, set for all test tasks in
+  `build.gradle`; `TypecheckExecutor` runs the checker in-process so the property reaches it): there the
+  same self-heal situation instead *throws*, turning a worklist regression into a loud CI failure rather
+  than a silent (still-correct, slightly slower) recovery. Validated: `:checker:NullnessTest` +
+  `:checker:InterningTest` + `:framework:test`/`:dataflow:test` green in strict mode (no self-heal ever
+  triggered), byte-identical diagnostics vs. the pre-worklist baseline across 425 `checker/tests/nullness`
+  + 279 `checker/tests/index` files. The `InferenceWorkBudget` regression test was deepened from ~62 to
+  130 nested calls: the worklist raised the depth at which inference completes before the budget fires
+  (threshold moved from ~depth 30 to ~depth 65), so the chain had to grow to still exceed it.
 - **typeinference8 *resolution* phase: recompute and over-save (the non-incorporation costs).** On a
   moderate-depth heavy workload (`gen-sized-program.py --shape deep-nesting`, depth-8 × 800 methods),
   inclusive time splits roughly `incorporateToFixedPoint` ~47% and `Resolution.resolve` ~34% — but
@@ -1837,6 +1868,11 @@ format: hot method, hypothesis, blockers/open questions.
      every axis, because the per-call defaulting scans are cheap in-place annotation mutations while
      the cache key/snapshot machinery is not.
   5. **`methodFromUse`/`constructorFromUse` per-tree memo** (~15% incl), scoped like #1.
+     **DONE / NOT OPEN.** The flow-independent `(methodElt, receiverType)` form already shipped as the
+     `methodAsMemberOfCache` (PR #1777 — see "`methodFromUse`/`asMemberOf` cache — APPLIED" below);
+     the additional *per-tree* form hits direction #1's measured-and-rejected soundness wall (the
+     result depends on the evolving flow store), so this sub-direction is closed. Do not re-open as
+     "unshipped."
   6. **Parallelize checking across classes/methods** — the only constant-factor-by-core-count lever,
      but the factory + its caches + javac symbol state are shared mutable state; research-scale.
   Not pursued this session: the immutability program (delete `deepCopy`, ~10% inclusive) is the other
@@ -1989,11 +2025,13 @@ mutate the result, so removing the copy needs a deeper change than a boundary fl
 the dead ends are below; the immutability program is therefore **paused at its foundation**, not the
 "recommended next direction" it was before this session.
 
-**Validation spike (DONE, GO).** A throwaway `methodFromUse` cache (non-generic methods, key
-`(methodElt, structural receiverType, inferTypeArgs)`, copy-on-store/return) on
-`:checker:checkNullness`: **66.7% hit rate**, `AnnotatedTypes.asMemberOf` (12.4% inclusive)
-eliminated on hits, net allocation down even with the copy-tax, ~5% fewer on-CPU samples; the
-structural-key hashing and copy-tax stayed below the inclusive threshold (cheap). Payoff confirmed.
+**Validation spike (DONE, GO) — and this spike SHIPPED: see "`methodFromUse`/`asMemberOf` cache —
+APPLIED in PR #1777" below. This paragraph is the precursor, NOT an open candidate.** A throwaway
+`methodFromUse` cache (non-generic methods, key `(methodElt, structural receiverType, inferTypeArgs)`,
+copy-on-store/return) on `:checker:checkNullness`: **66.7% hit rate**, `AnnotatedTypes.asMemberOf`
+(12.4% inclusive) eliminated on hits, net allocation down even with the copy-tax, ~5% fewer on-CPU
+samples; the structural-key hashing and copy-tax stayed below the inclusive threshold (cheap). Payoff
+confirmed → productionized as the `methodAsMemberOfCache`.
 
 **Standalone caching needs poly-handling + opt-outs — but NOT the full immutability program.**
 Two experiments settled this; a methodological trap nearly sent us down the wrong road, so the

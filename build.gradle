@@ -1292,6 +1292,14 @@ subprojects {
                 systemProperties += ['emit.test.debug': 'true']
             }
 
+            // The typeinference8 incorporation worklist confirms each fixed point with a full rescan
+            // that, in production, silently self-heals if the worklist ever skipped needed work. Run
+            // this project's own tests in strict mode instead, so such a skip throws and a worklist
+            // regression is a loud CI failure rather than a silent (still-correct) recovery. The
+            // checker runs in-process in the test JVM (TypecheckExecutor uses ToolProvider), so this
+            // system property reaches it.
+            systemProperties += ['cf.typeinference.worklist.strict': 'true']
+
             // Always re-run tests.  This must live at the test task level.
             outputs.upToDateWhen { false }
 
