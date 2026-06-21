@@ -75,6 +75,7 @@ import org.checkerframework.framework.util.FieldInvariants;
 import org.checkerframework.framework.util.TreePathCacher;
 import org.checkerframework.framework.util.typeinference8.DefaultTypeArgumentInference;
 import org.checkerframework.framework.util.typeinference8.TypeArgumentInference;
+import org.checkerframework.framework.util.typeinference8.util.Java8InferenceContext;
 import org.checkerframework.framework.util.visualize.LspTypeInformationPresenter;
 import org.checkerframework.framework.util.visualize.TypeInformationPresenter;
 import org.checkerframework.javacutil.AnnotationBuilder;
@@ -1283,6 +1284,42 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
 
     public TypeArgumentInference getTypeArgumentInference() {
         return typeArgumentInference;
+    }
+
+    /** The cached value of {@link #getInferenceWorkBudget}; -1 until first computed. */
+    private int inferenceWorkBudget = -1;
+
+    /**
+     * Returns the Java 8 type-argument-inference bound-incorporation work budget for this checker:
+     * the value of {@code -AinferenceWorkBudget=N} if set, otherwise {@link
+     * Java8InferenceContext#MAX_INCORPORATION_WORK}. Computed once and cached: the option is
+     * constant for a compilation, but inference creates a {@link Java8InferenceContext} once per
+     * generic invocation, so reading and parsing the option there would repeat this work on a hot
+     * path.
+     *
+     * @return the bound-incorporation work budget for type-argument inference
+     */
+    public int getInferenceWorkBudget() {
+        if (inferenceWorkBudget == -1) {
+            String option = getChecker().getOption("inferenceWorkBudget");
+            if (option == null) {
+                inferenceWorkBudget = Java8InferenceContext.MAX_INCORPORATION_WORK;
+            } else {
+                int budget;
+                try {
+                    budget = Integer.parseInt(option);
+                } catch (NumberFormatException e) {
+                    budget = -1;
+                }
+                if (budget <= 0) {
+                    throw new UserError(
+                            "Value of -AinferenceWorkBudget must be a positive integer, not "
+                                    + option);
+                }
+                inferenceWorkBudget = budget;
+            }
+        }
+        return inferenceWorkBudget;
     }
 
     /**
