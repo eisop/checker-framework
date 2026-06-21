@@ -169,6 +169,7 @@ checker/tests/ainfer-testchecker/annotated/
 checker/tests/ainfer-testchecker/inference-output/
 checker/tests/ainfer-resourceleak/annotated/
 checker/tests/ainfer-resourceleak/inference-output/
+framework/tests/annotationclassloader/Out.txt
 framework/tests/returnsreceiverdelomboked/
 
 dataflow/tests/busyexpr/Out.txt
