@@ -9,6 +9,23 @@ The maintainer's strong preference is for small, focused, commit-ready
 patches with informative commit messages and minimal prose around them.
 Follow this skill when producing any change for review.
 
+## NEVER push without an explicit, separate OK to push
+
+`git push` is outward-facing and irreversible-ish (it updates a shared
+branch / open PR and re-triggers CI). **Always check in with the maintainer
+immediately before pushing, every single time** — no exceptions, no
+standing authorization, no "they'll obviously want this pushed."
+
+- **"Commit" never implies "push."** Approval to commit, to "add it to
+  branch X", or to land a fix is approval to *commit only*. Stop and ask
+  before `git push`.
+- A request to "fix the CI failure" is **not** a license to push the fix.
+  Commit it, then ask before pushing.
+- Approval to push one commit does not carry over to the next commit or
+  the next turn. Re-ask each time.
+- When a change is committed and you believe it should go up, *say so and
+  ask* ("Committed as <sha> — push to update PR #N?") rather than pushing.
+
 ## One logical change per commit
 
 Series of three or four narrow commits are preferred over a single
