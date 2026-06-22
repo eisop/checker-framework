@@ -410,7 +410,7 @@ tasks.register('demosTests') {
 
     def injected = project.objects.newInstance(InjectedExecOps)
     def checkerLibPath = layout.projectDirectory.dir('dist').file('checker.jar').asFile.absolutePath
-    def demosDirFile = new File(demosDir.toString())
+    def demosDirFile = new File(rootProject.demosDir.toString())
 
     doLast {
         injected.execOps.exec {
@@ -425,7 +425,7 @@ tasks.register('templateforaCheckerTests') {
     group = 'Verification'
     description = 'Test that the templatefora-checker is working as expected.'
     def injected = project.objects.newInstance(InjectedExecOps)
-    def templateforaDir = file(templateforaCheckerDir)
+    def templateforaDir = file(rootProject.templateforaCheckerDir)
 
     doLast {
         injected.execOps.exec {
@@ -479,7 +479,7 @@ tasks.register('jtregJdk11Tests', Exec) {
     String jtregOutput = layout.buildDirectory.dir('jtregJdk11').get().asFile.absolutePath
     String name = 'all'
 
-    executable "${jtregHome}/bin/jtreg"
+    executable "${rootProject.jtregHome}/bin/jtreg"
     args = [
         "-dir:${projectDir}/jtregJdk11",
         "-workDir:${jtregOutput}/${name}/work",
@@ -753,7 +753,7 @@ tasks.register('ainferTestCheckerGenerateJaifsInsertAnnotations', InsertAnnotati
     dependsOn 'ainferTestCheckerGenerateJaifs'
     dependsOn ':checker-qual:jar'
 
-    afuDir = afu
+    afuDir = rootProject.afu
     testDir = 'tests/ainfer-testchecker'
     def checkerQualJar = project(':checker-qual').tasks.named('jar', Jar).flatMap { it.archiveFile }
     classpath = checkerQualJar.map { "${sourceSets.test.output.asPath}:${it.asFile}:" }
@@ -920,7 +920,7 @@ tasks.register('ainferNullnessGenerateJaifsInsertAnnotations', InsertAnnotations
     dependsOn 'ainferNullnessGenerateJaifs'
     dependsOn ':checker-qual:jar'
 
-    afuDir = afu
+    afuDir = rootProject.afu
     testDir = 'tests/ainfer-nullness/'
     def checkerQualJar = project(':checker-qual').tasks.named('jar', Jar).flatMap { it.archiveFile }
     classpath = "${sourceSets.test.output.asPath}:${checkerQualJar.get().asFile}:"

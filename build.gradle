@@ -1182,7 +1182,7 @@ subprojects {
                 String name = 'all'
                 String tests = '.'
 
-                executable "${jtregHome}/bin/jtreg"
+                executable "${rootProject.jtregHome}/bin/jtreg"
                 args = [
                     "-dir:${projectDir}/jtreg",
                     "-workDir:${jtregOutput}/${name}/work",
