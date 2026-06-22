@@ -23,7 +23,7 @@ for d in "$@"; do
   src=/tmp/s_${shape}_${d}.java
   python3 "$here/gen-shapes.py" "$d" --shape "$shape" --reps "$reps" > "$src"
   best=""
-  for rep in 1 2; do
+  for _ in 1 2; do
     ./checker/bin/javac -J-XX:StartFlightRecording=settings=profile,filename=/tmp/s.jfr,dumponexit=true \
       -processor nullness -d "/tmp/so_$shape" "$src" > /tmp/serr.txt 2>&1
     if grep -qiE "stackoverflow" /tmp/serr.txt; then
