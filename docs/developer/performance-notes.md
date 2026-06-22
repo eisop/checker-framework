@@ -2091,6 +2091,20 @@ Capture format: hot method, hypothesis, blockers.
      the cheap-to-recompute ones (the "count ≠ cost" / #4 dead end). No safe getAnnotatedType-level
      expression cache exists; the sound caches (skeleton `fromExpressionTreeCache`,
      `methodAsMemberOfCache`, `classAndMethodTreeCache`) are already in place. Do not pursue.
+     (c) **Even the subexpression-free *leaf* subset (identifiers/literals), checking-phase only —
+     unsound, and immaterial.** The natural rescue ("the instability comes from tree annotators
+     querying flow-refined subexpressions, so restrict the cache to leaves that have none") was
+     measured: in the checking phase the pre-flow leaf type is still **unstable 22% (identifiers) /
+     40% (literals)** on all-systems, 58% / 43% on loops. The cause is *not* subexpression flow — it
+     is that the computed type is context-dependent in *which hierarchy's annotations are applied*:
+     the same `1` literal returns `int` in one query and `@Initialized int` in another (nullness runs
+     with the Initialization checker), so a tree-keyed cache would hand back an under-annotated type
+     and break subtyping. Independently, the cost ceiling is immaterial: the safely-cacheable
+     checking-phase leaf 2a self-time is only ~0.22 s (~1.5% of a 13.9 s 120-file compile); the large
+     leaf-2a figure (18× the deepCopy cost) is dominated by *dataflow-phase* leaf work, which is not
+     safe to cache. **Lesson: `getAnnotatedType`'s result is keyed by call *context*, not by tree
+     identity — even for a literal — so no tree-identity cache at this level is sound, at any
+     granularity.**
   3. **Split flow-independent structure from flow-dependent annotations — MEASURED, ALREADY
      IMPLEMENTED (June 2026).** The hypothesis was: `fromExpression` (~24% inclusive) builds a
      deterministic-per-tree skeleton, so cache the frozen skeleton and re-apply only the
