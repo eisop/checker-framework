@@ -302,6 +302,8 @@ tasks.named('clean') {
     def injected = project.objects.newInstance(InjectedExecOps)
     def commandLineDir = file('tests/command-line')
     def nullnessExtraDir = file('tests/nullness-extra')
+    // Capture the build directory provider at configuration time.
+    def cleanBuildDir = layout.buildDirectory
 
     delete("${projectDir}/dist")
     delete('tests/calledmethods-delomboked')
@@ -324,11 +326,7 @@ tasks.named('clean') {
             commandLine 'make', 'clean'
         }
     }
-}
 
-// Capture the build directory provider at configuration time.
-def cleanBuildDir = layout.buildDirectory
-tasks.named('clean') {
     doLast {
         def buildDirFile = cleanBuildDir.get().asFile
         int maxAttempts = 6
@@ -511,6 +509,17 @@ tasks.named('test') {
         exclude '**/org/checkerframework/checker/test/junit/CalledMethodsDisableReturnsReceiverTest.class'
         exclude '**/org/checkerframework/checker/test/junit/NullnessNoDelombokTest.class'
     }
+
+    useJUnit {
+        // These categories are run in task ainferTest.
+        excludeCategories 'org.checkerframework.checker.test.junit.ainferrunners.AinferTestCheckerJaifsGenerationTest'
+        excludeCategories 'org.checkerframework.checker.test.junit.ainferrunners.AinferTestCheckerStubsGenerationTest'
+        excludeCategories 'org.checkerframework.checker.test.junit.ainferrunners.AinferTestCheckerAjavaGenerationTest'
+        excludeCategories 'org.checkerframework.checker.test.junit.ainferrunners.AinferNullnessJaifsGenerationTest'
+        excludeCategories 'org.checkerframework.checker.test.junit.ainferrunners.AinferNullnessAjavaGenerationTest'
+        excludeCategories 'org.checkerframework.checker.test.junit.ainferrunners.AinferIndexAjavaGenerationTest'
+        excludeCategories 'org.checkerframework.checker.test.junit.ainferrunners.AinferResourceLeakAjavaGenerationTest'
+    }
 }
 
 if (!skipDelombok) {
@@ -538,20 +547,9 @@ if (!skipDelombok) {
 
 //
 // Tests of the -Ainfer command-line argument.  These are not whole-program inference tests.
+// (The main `test` task's excludeCategories for the ainfer runners is configured above,
+// alongside the other test-task settings.)
 //
-
-tasks.named('test') {
-    useJUnit {
-        // These are run in task ainferTest.
-        excludeCategories 'org.checkerframework.checker.test.junit.ainferrunners.AinferTestCheckerJaifsGenerationTest'
-        excludeCategories 'org.checkerframework.checker.test.junit.ainferrunners.AinferTestCheckerStubsGenerationTest'
-        excludeCategories 'org.checkerframework.checker.test.junit.ainferrunners.AinferTestCheckerAjavaGenerationTest'
-        excludeCategories 'org.checkerframework.checker.test.junit.ainferrunners.AinferNullnessJaifsGenerationTest'
-        excludeCategories 'org.checkerframework.checker.test.junit.ainferrunners.AinferNullnessAjavaGenerationTest'
-        excludeCategories 'org.checkerframework.checker.test.junit.ainferrunners.AinferIndexAjavaGenerationTest'
-        excludeCategories 'org.checkerframework.checker.test.junit.ainferrunners.AinferResourceLeakAjavaGenerationTest'
-    }
-}
 
 // Shared, configuration-cache-safe file services/values for the whole-program-inference
 // (ainfer) task actions below: Project.copy/delete/fileTree referenced from a doFirst/doLast
