@@ -250,6 +250,40 @@ stresses (`generic` default, `vararg`, `deep-nesting`, `many-fields`) — e.g. `
 vararg` stresses `AnnotatedExecutableType` copying and is what exposed PR #1798's copier
 vararg-aliasing bug; add a shape there for other mechanisms (large `switch`, etc.).
 
+### Sweeping a single STRUCTURAL dimension (gen-shapes.py + sweep.sh)
+
+`gen-sized-program.py` sweeps the *method count* and fixes the per-construct shape, so it cannot
+isolate a cost that is super-linear in some *structural* dimension (nesting depth, chain length,
+case count). For that, use **`gen-shapes.py`** (fixes the count at R reps, sweeps a dimension D) and
+**`sweep.sh`** (generates each D, measures deterministic allocation, prints the **marginal**
+Δalloc/ΔD). The marginal — not the absolute — is the signature: **roughly constant marginal =
+linear; marginal that doubles each time D doubles = quadratic; quadruples = cubic.** Differencing
+consecutive D cancels the fixed JDK-stub allocation floor. **Always sweep the `control` shape too —
+it calibrates that the harness reports linear as linear** (a flat marginal); without that baseline
+you cannot trust a "rising" marginal.
+
+```
+# after ./gradlew assembleForJavac:
+.claude/skills/cf-performance/sweep.sh control 60 20 40 80 160   # calibration: marginal must be flat
+.claude/skills/cf-performance/sweep.sh cond    60 20 40 80 160   # marginal climbs => super-linear
+```
+
+Shapes: `control` (linear), `cond` (nested ternary), `chain` (`.self()` chain), `inherit` (deep
+class chain), `switchc` (big switch), `repeat` (same-method calls), `tryfin` (nested try/finally),
+`loops` (nested for). June-2026 audit found `cond` severe super-linear (28 GB at depth 160 — Issue
+#602 conditional non-caching) and `inherit` quadratic (asSuper depth); the rest linear or mild. Then
+localize with `jfr-analyze.java inclusive` / `under` at the largest D, and confirm the root cause
+before proposing a fix (see the metric-mismatch trap below).
+
+**Metric-mismatch trap (cost you, June 2026): a CPU-inclusive hotspot is not necessarily the
+allocation driver — optimize the metric you're actually measuring.** On the `cond` shape,
+`TernaryExpressionNode.equals` was 32% *inclusive* (a CPU cost via `AbstractAnalysis.getValue`'s
+structural `contains`), so an identity rewrite of that check looked like the fix. But the size sweep
+measures *allocation*, which is driven by the #602 type-rebuild, not by `equals` (which barely
+allocates); the identity rewrite left allocation *worse*. When a sweep flags a super-linear in
+allocation, attribute the **allocation** (capture with `record-jfr.sh`'s JFC + `alloc`/`top`), not
+the inclusive-CPU leaderboard, before concluding what to change.
+
 ## Measuring wall-clock effects (the A/B that decides if a change is worth it)
 
 JFR self-time / `phase` percentages are for **mechanism** ("which leaf
