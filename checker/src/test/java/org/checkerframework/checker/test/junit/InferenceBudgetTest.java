@@ -24,6 +24,11 @@ public class InferenceBudgetTest extends CheckerFrameworkPerDirectoryTest {
         super(testFiles, InterningChecker.class, "interning", "-AinferenceWorkBudget=2000");
     }
 
+    /**
+     * Returns the directories containing test code.
+     *
+     * @return the directories containing test code
+     */
     @Parameters
     public static String[] getTestDirs() {
         return new String[] {"inference-budget"};
