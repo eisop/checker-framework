@@ -133,8 +133,10 @@ git checkout - && git branch -D verify
 - `./gradlew alltests` — strongly preferred for any framework or
   javacutil change. Subtle visitor and dataflow semantics often fail
   only in obscure checkers.
-- Run `./gradlew spotlessApply` before committing to ensure all formatting is
-  correct.
+- Run `./gradlew spotlessApply` before committing to fix **Java** formatting.
+  Spotless does **not** touch shell or Python: if your change adds or edits a
+  `*.sh` or `*.py` file, also run the shell/Python formatters (see the `misc`
+  CI bullet below) or CI's `shell-style-check`/`python-style-check` will fail.
 
 If `alltests` is impractical (e.g., no local JDK matrix), say so
 explicitly in the PR description rather than implying it passed.
@@ -162,6 +164,17 @@ green but still fail CI:
   `spotlessJavaCheck` (a pre-commit hook then blocks the commit). Re-run
   `./gradlew spotlessApply` after **any** edit, including comment-only ones,
   not just code edits.
+- **`shell-style-check` / `python-style-check` cover shell and Python, which
+  Spotless does NOT.** They run `shfmt -i 2 -ci -bn -sr` on every bash/`*.sh`
+  script and `ruff format --check` + `ruff check` on every `*.py`. A patch that
+  adds or edits such a file passes `assemble`/`alltests` but fails this CI job
+  if unformatted (real example: new `.sh`/`.py` skill scripts). Fix with
+  `make shell-style-fix python-style-fix` (or per file:
+  `shfmt -w -i 2 -ci -bn -sr <f.sh>`; `ruff format <f.py> && ruff check --fix <f.py>`),
+  and verify with `shfmt -d -i 2 -ci -bn -sr <f.sh>` / `ruff format --check <f.py>`.
+  Caveat: the local `make shell-style-check` finds scripts by shebang, so it also
+  flags stray untracked `*.orig` backups that a clean CI checkout never sees —
+  trust the per-file `shfmt -d` on your own file, not just the `make` exit code.
 
 ## Javadoc on every method you touch (and its neighbors)
 
