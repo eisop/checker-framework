@@ -26,6 +26,25 @@ standing authorization, no "they'll obviously want this pushed."
 - When a change is committed and you believe it should go up, *say so and
   ask* ("Committed as <sha> — push to update PR #N?") rather than pushing.
 
+## Check what is already pushed before amending or rebasing — and avoid force-pushes
+
+Before `git commit --amend`, `git rebase`, or any history rewrite, **check
+whether the target commits are already on the remote** — a branch can be pushed
+(and CI running) even with no local upstream set. Confirm with
+`git ls-remote --heads origin <branch>` (or compare against `origin/<branch>`),
+not by assuming from local state.
+
+- **Never rewrite a commit that has already been pushed.** Amending or rebasing a
+  pushed commit makes local diverge from the remote, so the *only* way to update
+  origin is `git push --force` — which rewrites shared history and re-triggers CI.
+- **Prefer a new follow-up commit on top of the pushed history** (e.g. a separate
+  "Format …" or "Fix …" commit). It pushes as a plain fast-forward, needs no
+  force, and a squash-merge tidies the series at merge time. Verify it is a
+  fast-forward with `git merge-base --is-ancestor <pushed-sha> HEAD`.
+- Amend/rebase freely only while the commit is **local-only** (never pushed).
+- A force-push needs its **own** explicit OK, separate from a normal-push OK, and
+  even then default to avoiding it unless the maintainer asks for it.
+
 ## One logical change per commit
 
 Series of three or four narrow commits are preferred over a single
