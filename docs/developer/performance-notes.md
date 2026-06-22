@@ -2066,7 +2066,31 @@ Capture format: hot method, hypothesis, blockers.
      the soundness crux flagged here. And the instability is *highest where the redundancy is
      highest* (loops). A per-analysis memo would cache stale/wrong types; a per-*iteration* memo would
      be sound but the within-iteration redundancy is ~0. Low value and unsound — do not pursue.
-  2. **Scope-bounded expression-type cache** (per visitor-subtree) — broader, same soundness crux.
+  2. **Scope-bounded / pre-flow expression-type cache — MEASURED AND REJECTED (June 2026).** Two
+     forms tested by instrumenting `GenericAnnotatedTypeFactory.addComputedTypeAnnotations(Tree,
+     ATM)`, splitting it at the `if (this.useFlow)` boundary into the flow-independent prefix (2a:
+     `applyQualifierParameterDefaults` → tree/type annotators → `defaults.annotate`) and the
+     flow-dependent suffix (2b: `getInferredValueFor` + `applyInferredAnnotations`), with per-tree
+     `IdentityHashMap<Tree,String>` signature maps recording redundancy and the *unsound fraction*
+     (= repeats whose computed type differs from the prior result for the same tree). Single forked
+     `javac -processor nullness`, on all-systems (120 files) and a loop-heavy artificial workload.
+     (a) **Split-cache (cache the *pre-flow* 2a type, always recompute 2b) — unsound.** Redundancy is
+     high (repeats 91% all-systems / 86% loops of expression calls) but the pre-flow type is
+     **unstable 25% (all-systems) / 38% (loops)** of repeats, because the "flow-independent" tree
+     annotators transitively call `getAnnotatedType` on subexpressions whose types are flow-refined.
+     (b) **Phase-scoped full cache (cache the full type, but only when `analysis.isRunning()` is
+     false — i.e. the post-flow checking traversal with a frozen `flowResult`) — also unsound.**
+     Even restricted to the checking phase the full type is **unstable 26% (all-systems) / 59%
+     (loops)** of repeats (CHK repeats 91% / 68%). The same expression tree genuinely yields
+     different types across repeated queries even after flow analysis completes, so a
+     tree-identity-keyed cache would serve a stale/wrong type a quarter to a half of the time — worse
+     than the per-analysis `getValueFromFactory` memo (#1, 8–18%) already rejected. Cost context
+     confirms it is not even worth chasing the sound subset: the flow step 2b is cheap (~0.3 s
+     inclusive vs. a multi-second 2a), so the expense is entirely in the 2a computation **whose
+     result is the unstable thing** — and the stable trees (literals, simple identifiers) are exactly
+     the cheap-to-recompute ones (the "count ≠ cost" / #4 dead end). No safe getAnnotatedType-level
+     expression cache exists; the sound caches (skeleton `fromExpressionTreeCache`,
+     `methodAsMemberOfCache`, `classAndMethodTreeCache`) are already in place. Do not pursue.
   3. **Split flow-independent structure from flow-dependent annotations — MEASURED, ALREADY
      IMPLEMENTED (June 2026).** The hypothesis was: `fromExpression` (~24% inclusive) builds a
      deterministic-per-tree skeleton, so cache the frozen skeleton and re-apply only the
