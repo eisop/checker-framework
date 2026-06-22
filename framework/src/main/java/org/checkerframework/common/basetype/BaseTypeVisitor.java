@@ -963,6 +963,19 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
     /**
      * Helper for {@link #checkExtendsAndImplements} that checks one extends or implements clause.
      *
+     * <p>This performs two checks for the written extends or implements clause.
+     *
+     * <p>First, the default implementation of {@link #checkAnnotationOnSupertype} rejects explicit
+     * annotations of the supertype in this checker's hierarchy.
+     *
+     * <p>Second, this method checks that the class declaration bounds are subtypes of the supertype
+     * bounds. The supertype can have either an explicit annotation or an annotation inserted by
+     * defaulting; this check verifies that annotation against the declaration bounds of the class
+     * being declared. Even when explicit annotations on supertypes are rejected, this check is
+     * still needed for defaulted annotations. It is performed for each class declaration because
+     * the defaulted supertype annotation depends on the particular supertype tree and checker
+     * defaults at that use site.
+     *
      * @param boundClause an extends or implements clause
      * @param classBounds the type declarations bounds to check for consistency with {@code
      *     boundClause}
@@ -974,6 +987,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             AnnotationMirrorSet classBounds,
             TypeMirror classType,
             boolean isExtends) {
+        checkAnnotationOnSupertype(boundClause);
         AnnotatedTypeMirror boundType = atypeFactory.getTypeOfExtendsImplements(boundClause);
         TypeMirror boundTM = boundType.getUnderlyingType();
         for (AnnotationMirror classAnno : classBounds) {
@@ -986,6 +1000,30 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                                 : "declaration.inconsistent.with.implements.clause"),
                         classAnno,
                         boundAnno);
+            }
+        }
+    }
+
+    /**
+     * Reports an {@code annotation.on.supertype} error if {@code boundClause} carries a type
+     * qualifier in this checker's hierarchy directly on the supertype. A checker that allows
+     * annotations directly on supertypes (e.g., {@link
+     * org.checkerframework.checker.tainting.TaintingVisitor}) should override this method to do
+     * nothing.
+     *
+     * @param boundClause an extends or implements clause
+     */
+    protected void checkAnnotationOnSupertype(Tree boundClause) {
+        if (!(boundClause instanceof AnnotatedTypeTree)) {
+            return;
+        }
+        List<? extends AnnotationTree> annoTrees =
+                ((AnnotatedTypeTree) boundClause).getAnnotations();
+        for (AnnotationTree annoTree : annoTrees) {
+            AnnotationMirror am = TreeUtils.annotationFromAnnotationTree(annoTree);
+            if (atypeFactory.isSupportedQualifier(am)) {
+                checker.reportError(boundClause, "annotation.on.supertype");
+                break;
             }
         }
     }
