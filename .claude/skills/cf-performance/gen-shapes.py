@@ -76,7 +76,7 @@ def chain(d, r):
 def inherit(d, r):
     out = ["class K0 {}"]
     for i in range(1, d + 1):
-        out.append(f"class K{i} extends K{i-1} {{}}")
+        out.append(f"class K{i} extends K{i - 1} {{}}")
     out.append("class Big {")
     for k in range(r):
         out.append(f"    void inh_{k}(K{d} x) {{")
@@ -165,6 +165,8 @@ if __name__ == "__main__":
     )
     p.add_argument("d", type=int, help="per-construct dimension D (depth/length/count)")
     p.add_argument("--shape", choices=sorted(SHAPES), required=True)
-    p.add_argument("--reps", type=int, default=60, help="independent constructs per file")
+    p.add_argument(
+        "--reps", type=int, default=60, help="independent constructs per file"
+    )
     a = p.parse_args()
     sys.stdout.write(SHAPES[a.shape](a.d, a.reps))
