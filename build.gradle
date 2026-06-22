@@ -943,7 +943,7 @@ tasks.register('downloadJtreg', Download) {
     // dest new File(buildDir, 'jtreg-4.2.0-tip.tar.gz')
     // src 'https://builds.shipilev.net/jtreg/jtreg4.2-b16.zip'
     src 'https://builds.shipilev.net/jtreg/jtreg-7.5+1.zip'
-    dest new File(buildDir, 'jtreg.zip')
+    dest layout.buildDirectory.file('jtreg.zip').get().asFile
     overwrite true
     retries 3
 
