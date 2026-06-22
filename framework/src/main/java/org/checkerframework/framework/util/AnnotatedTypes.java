@@ -28,6 +28,7 @@ import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.ElementUtils;
+import org.checkerframework.javacutil.InternalUtils;
 import org.checkerframework.javacutil.SystemUtil;
 import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TypesUtils;
@@ -474,7 +475,7 @@ public class AnnotatedTypes {
 
         // The below is checking for a super() call where the super type is a raw type.
         // See framework/tests/all-systems/RawSuper.java for an example.
-        if (method.getSimpleName().contentEquals("<init>")) {
+        if (InternalUtils.isInitName(method.getSimpleName())) {
             ExecutableElement constructor = (ExecutableElement) method;
             TypeMirror constructorClass = types.erasure(constructor.getEnclosingElement().asType());
             TypeMirror directSuper = types.directSupertypes(receiver.getUnderlyingType()).get(0);
@@ -761,7 +762,7 @@ public class AnnotatedTypes {
                 return new TypeArguments(
                         inferenceResult.getTypeArgumentsForExpression(expr),
                         inferenceResult.isUncheckedConversion(),
-                        inferenceResult.inferenceCrashed());
+                        inferenceResult.needsDefaultedReturnType());
             }
             targs = memRef.getTypeArguments();
             if (memRef.getTypeArguments() == null) {
@@ -807,7 +808,7 @@ public class AnnotatedTypes {
                 return new TypeArguments(
                         inferenceResult.getTypeArgumentsForExpression(expr),
                         inferenceResult.isUncheckedConversion(),
-                        inferenceResult.inferenceCrashed());
+                        inferenceResult.needsDefaultedReturnType());
             } else {
                 return emptyFalsePair;
             }
@@ -1123,12 +1124,15 @@ public class AnnotatedTypes {
             }
         }
 
-        parameters = new ArrayList<>(parameters.subList(0, parameters.size() - 1));
-        for (int i = args.size() - parameters.size(); i > 0; --i) {
-            parameters.add(varargs.getComponentType().deepCopy());
+        // Pre-size to the final element count (args.size()) to avoid ArrayList growth while
+        // appending the expanded varargs components.
+        List<AnnotatedTypeMirror> expanded = new ArrayList<>(args.size());
+        expanded.addAll(parameters.subList(0, parameters.size() - 1));
+        for (int i = args.size() - expanded.size(); i > 0; --i) {
+            expanded.add(varargs.getComponentType().deepCopy());
         }
 
-        return parameters;
+        return expanded;
     }
 
     /**
@@ -1161,12 +1165,15 @@ public class AnnotatedTypes {
             }
         }
 
-        parameters = new ArrayList<>(parameters.subList(0, parameters.size() - 1));
-        for (int i = args.size() - parameters.size(); i > 0; --i) {
-            parameters.add(varargs.getComponentType());
+        // Pre-size to the final element count (args.size()) to avoid ArrayList growth while
+        // appending the expanded varargs components.
+        List<AnnotatedTypeMirror> expanded = new ArrayList<>(args.size());
+        expanded.addAll(parameters.subList(0, parameters.size() - 1));
+        for (int i = args.size() - expanded.size(); i > 0; --i) {
+            expanded.add(varargs.getComponentType());
         }
 
-        return parameters;
+        return expanded;
     }
 
     /**
@@ -1354,10 +1361,9 @@ public class AnnotatedTypes {
      * @param typeVar2 a type variable
      * @return true if the typeVar1 and typeVar2 are two uses of the same type variable
      */
-    @SuppressWarnings(
-            "interning:not.interned" // This is an equals method but @EqualsMethod can't be used
+    // This is an equals method but @EqualsMethod can't be used
     // because this method has 3 arguments.
-    )
+    @SuppressWarnings({"interning:not.interned", "TypeEquals"})
     public static boolean haveSameDeclaration(
             Types types, AnnotatedTypeVariable typeVar1, AnnotatedTypeVariable typeVar2) {
 

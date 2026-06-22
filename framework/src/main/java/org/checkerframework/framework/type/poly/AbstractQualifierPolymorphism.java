@@ -401,8 +401,11 @@ public abstract class AbstractQualifierPolymorphism implements QualifierPolymorp
          * <p>Uses reference equality rather than equals because the visitor may visit two types
          * that are structurally equal, but not actually the same. For example, the wildcards in
          * {@code IPair<?,?>} may be equal, but they both should be visited.
+         *
+         * <p>This set is re-instantiated in {@link #reset()} instead of cleared to avoid the O(N)
+         * cost of IdentityHashMap.clear().
          */
-        private final Set<AnnotatedTypeMirror> visitedTypes =
+        private Set<AnnotatedTypeMirror> visitedTypes =
                 Collections.newSetFromMap(new IdentityHashMap<AnnotatedTypeMirror, Boolean>());
 
         /**
@@ -607,7 +610,8 @@ public abstract class AbstractQualifierPolymorphism implements QualifierPolymorp
 
         /** Resets the state. */
         void reset() {
-            this.visitedTypes.clear();
+            this.visitedTypes =
+                    Collections.newSetFromMap(new IdentityHashMap<AnnotatedTypeMirror, Boolean>());
             this.visited.clear();
         }
     }

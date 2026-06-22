@@ -323,8 +323,11 @@ public abstract class GenericAnnotatedTypeFactory<
      * therefore null) for a checker with no subcheckers with which it can share CFGs.
      *
      * <p>The initial capacity of the map is set by {@link #getCacheSize()}.
+     *
+     * <p>This field is intentionally not final; it should only be re-assigned by {@link
+     * #setRoot(CompilationUnitTree)}.
      */
-    protected @MonotonicNonNull Map<Tree, ControlFlowGraph> subcheckerSharedCFG;
+    protected @MonotonicNonNull IdentityHashMap<Tree, ControlFlowGraph> subcheckerSharedCFG;
 
     /**
      * If true, {@link #setRoot(CompilationUnitTree)} should clear the {@link #subcheckerSharedCFG}
@@ -482,12 +485,12 @@ public abstract class GenericAnnotatedTypeFactory<
         }
 
         super.setRoot(root);
-        this.scannedClasses.clear();
+        this.scannedClasses = new IdentityHashMap<>();
         // this.reachableNodes.clear();
         this.flowResult = null;
-        this.regularExitStores.clear();
-        this.exceptionalExitStores.clear();
-        this.returnStatementStores.clear();
+        this.regularExitStores = new IdentityHashMap<>();
+        this.exceptionalExitStores = new IdentityHashMap<>();
+        this.returnStatementStores = new IdentityHashMap<>();
         this.initializationStore = null;
         this.initializationStaticStore = null;
 
@@ -524,6 +527,10 @@ public abstract class GenericAnnotatedTypeFactory<
             // This is the first subchecker running in a group that share CFGs, so it must clear its
             // ultimate parent's shared CFG before adding a new shared CFG.
             factory.shouldClearSubcheckerSharedCFGs = false;
+            // Unlike the per-CU caches above, do not re-instantiate here: the map must stay null
+            // for a factory that never shares CFGs (see the field's invariant), and when it is
+            // used it is lazily created pre-sized to getCacheSize() by addSharedCFGForTree.
+            // Reallocating with a default-capacity map would break both properties.
             if (factory.subcheckerSharedCFG != null) {
                 factory.subcheckerSharedCFG.clear();
             }
@@ -1122,8 +1129,13 @@ public abstract class GenericAnnotatedTypeFactory<
         FINISHED
     }
 
-    /** Map from ClassTree to their dataflow analysis state. */
-    protected final Map<ClassTree, ScanState> scannedClasses = new HashMap<>();
+    /**
+     * Map from ClassTree to their dataflow analysis state.
+     *
+     * <p>This field is intentionally not final; it should only be re-assigned by {@link
+     * #performFlowAnalysis}.
+     */
+    protected IdentityHashMap<ClassTree, ScanState> scannedClasses = new IdentityHashMap<>();
 
     /*
      * A set of trees whose corresponding nodes are reachable. This is not an exhaustive set of
@@ -1150,15 +1162,27 @@ public abstract class GenericAnnotatedTypeFactory<
     /**
      * A mapping from methods (or other code blocks) to their regular exit store (used to check
      * postconditions).
+     *
+     * <p>This field is intentionally not final; it should only be re-assigned by {@link
+     * #performFlowAnalysis}.
      */
-    protected final IdentityHashMap<Tree, Store> regularExitStores;
+    protected IdentityHashMap<Tree, Store> regularExitStores;
 
-    /** A mapping from methods (or other code blocks) to their exceptional exit store. */
-    protected final IdentityHashMap<Tree, Store> exceptionalExitStores;
+    /**
+     * A mapping from methods (or other code blocks) to their exceptional exit store.
+     *
+     * <p>This field is intentionally not final; it should only be re-assigned by {@link
+     * #performFlowAnalysis}.
+     */
+    protected IdentityHashMap<Tree, Store> exceptionalExitStores;
 
-    /** A mapping from methods to a list with all return statements and the corresponding store. */
-    protected final IdentityHashMap<
-                    MethodTree, List<IPair<ReturnNode, TransferResult<Value, Store>>>>
+    /**
+     * A mapping from methods to a list with all return statements and the corresponding store.
+     *
+     * <p>This field is intentionally not final; it should only be re-assigned by {@link
+     * #performFlowAnalysis}.
+     */
+    protected IdentityHashMap<MethodTree, List<IPair<ReturnNode, TransferResult<Value, Store>>>>
             returnStatementStores;
 
     /**
@@ -1388,9 +1412,9 @@ public abstract class GenericAnnotatedTypeFactory<
      */
     protected void performFlowAnalysis(ClassTree classTree) {
         if (flowResult == null) {
-            this.regularExitStores.clear();
-            this.exceptionalExitStores.clear();
-            this.returnStatementStores.clear();
+            this.regularExitStores = new IdentityHashMap<>();
+            this.exceptionalExitStores = new IdentityHashMap<>();
+            this.returnStatementStores = new IdentityHashMap<>();
             this.flowResult = new AnalysisResult<>(flowResultAnalysisCaches);
         }
 
@@ -1585,6 +1609,18 @@ public abstract class GenericAnnotatedTypeFactory<
             };
 
     /**
+     * Returns true if {@code path}'s leaf is (by reference) the given {@code tree}.
+     *
+     * @param path a tree path
+     * @param tree a tree
+     * @return true if {@code path}'s leaf is {@code tree}
+     */
+    @SuppressWarnings("interning:not.interned") // reference equality on AST nodes is intended
+    private static boolean treePathLeafIs(TreePath path, Tree tree) {
+        return path.getLeaf() == tree;
+    }
+
+    /**
      * Analyze the AST {@code ast} and store the result. Additional operations that should be
      * performed after analysis should be implemented in {@link #postAnalyze(ControlFlowGraph)}.
      *
@@ -1610,6 +1646,26 @@ public abstract class GenericAnnotatedTypeFactory<
             boolean updateInitializationStore,
             boolean isStatic,
             @Nullable Store capturedStore) {
+        // Prime the cache with this method body's path, built in O(1) from the enclosing class
+        // path, so the getPath(root, code) lookups below (in CFCFGBuilder.build, and when the
+        // visitor path is set before performAnalysis) are cache hits rather than an O(members) scan
+        // from the compilation-unit root -- which, once per body, is quadratic over a class with
+        // many methods. Only done for methods, whose body path is an unambiguous two-step extension
+        // of the class path (class -> method -> body); lambdas and initializers (rarer / nested)
+        // fall through to the normal lookup.
+        if (ast.getKind() == UnderlyingAST.Kind.METHOD) {
+            UnderlyingAST.CFGMethod cfgMethod = (UnderlyingAST.CFGMethod) ast;
+            TreePath classPath = getVisitorTreePath();
+            Tree body = cfgMethod.getCode();
+            if (classPath != null
+                    && body != null
+                    && treePathLeafIs(classPath, cfgMethod.getClassTree())) {
+                checker.getTreePathCacher()
+                        .addPath(
+                                body,
+                                new TreePath(new TreePath(classPath, cfgMethod.getMethod()), body));
+            }
+        }
         ControlFlowGraph cfg =
                 CFCFGBuilder.build(this.getRoot(), ast, checker, this, processingEnv);
         /*
@@ -1634,7 +1690,21 @@ public abstract class GenericAnnotatedTypeFactory<
         } else {
             transfer.setFixedInitialStore(capturedStore);
         }
-        analysis.performAnalysis(cfg, fieldValues);
+        // Point the visitor path at the body being analyzed. getPath() -- used by, e.g.,
+        // type-argument inference triggered during the analysis below -- uses visitorTreePath as a
+        // search-start hint. performFlowAnalysis sets it to the enclosing *class*, so a lookup for
+        // a tree inside this body rescans the whole class subtree, which is quadratic in the number
+        // of members. The body's path was just cached by CFCFGBuilder.build above, so this is a
+        // cache hit; query the cacher directly (not getPath) so this does not itself depend on
+        // visitorTreePath. Restored in the finally so the class path is back in place for the rest
+        // of performFlowAnalysis.
+        TreePath prevVisitorTreePath = getVisitorTreePath();
+        setVisitorTreePath(checker.getTreePathCacher().getPath(this.getRoot(), ast.getCode()));
+        try {
+            analysis.performAnalysis(cfg, fieldValues);
+        } finally {
+            setVisitorTreePath(prevVisitorTreePath);
+        }
         AnalysisResult<Value, Store> result = analysis.getResult();
 
         // store result
@@ -1946,7 +2016,21 @@ public abstract class GenericAnnotatedTypeFactory<
 
         assert !args.isEmpty() : "Arguments are empty";
         Node varargsArray = args.get(args.size() - 1);
-        AnnotatedTypeMirror varargtype = getAnnotatedType(varargsArray.getTree());
+        Tree varargsArrayTree = varargsArray.getTree();
+        // The synthetic vararg array tree (created during CFG construction) is not part of the
+        // compilation unit, so getPath -- called when defaulting its type just below -- would
+        // rescan the whole unit to (fail to) find it. That is O(unit) per vararg call and therefore
+        // quadratic over a file of vararg calls. Register the array's path under the call site so
+        // the lookup is a cache hit instead. The call tree's own path is cheap here: the vararg
+        // call is being visited, so it is on or just above the current visitor path.
+        if (varargsArrayTree != null) {
+            TreePath callPath = getPath(tree);
+            if (callPath != null) {
+                setPathForArtificialTree(
+                        varargsArrayTree, new TreePath(callPath, varargsArrayTree));
+            }
+        }
+        AnnotatedTypeMirror varargtype = getAnnotatedType(varargsArrayTree);
         return varargtype;
     }
 
@@ -3181,7 +3265,7 @@ public abstract class GenericAnnotatedTypeFactory<
         if (parentIsThisChecker) {
             // This is the ultimate parent.
             if (this.subcheckerSharedCFG == null) {
-                this.subcheckerSharedCFG = new HashMap<>(getCacheSize());
+                this.subcheckerSharedCFG = new IdentityHashMap<>(getCacheSize());
             }
             if (!this.subcheckerSharedCFG.containsKey(tree)) {
                 this.subcheckerSharedCFG.put(tree, cfg);

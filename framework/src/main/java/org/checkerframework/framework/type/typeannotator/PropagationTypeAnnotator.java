@@ -28,10 +28,11 @@ import javax.lang.model.type.TypeKind;
  * <p>At the moment, the only function PropagationTypeAnnotator provides, is the propagation of
  * generic type parameter annotations to unannotated wildcards with missing bounds annotations.
  *
+ * <p>PropagationTypeAnnotator traverses trees deeply by default.
+ *
  * @see
  *     #visitWildcard(org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedWildcardType,
  *     Object)
- *     <p>PropagationTypeAnnotator traverses trees deeply by default.
  */
 public class PropagationTypeAnnotator extends TypeAnnotator {
 
@@ -122,10 +123,18 @@ public class PropagationTypeAnnotator extends TypeAnnotator {
      */
     @Override
     public Void visitWildcard(AnnotatedWildcardType wildcard, Void aVoid) {
-        if (visitedNodes.containsKey(wildcard) || pause) {
+        if (hasVisited(wildcard) || pause) {
             return null;
         }
-        visitedNodes.put(wildcard, null);
+        markVisited(wildcard, null);
+
+        // visitDeclared already copies annotations from the declaration to synthetic wildcard type
+        // arguments of raw types. If this visitor scans those wildcards' bounds, it may visit a
+        // nested wildcard that is not itself a type argument of the raw parent, so there is no
+        // corresponding type parameter from which to propagate annotations.
+        if (AnnotatedTypes.isTypeArgOfRawType(wildcard)) {
+            return null;
+        }
 
         Element typeParamElement = TypesUtils.wildcardToTypeParam(wildcard.getUnderlyingType());
         if (typeParamElement == null && !parents.isEmpty()) {

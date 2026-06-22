@@ -1,6 +1,6 @@
 plugins {
     id 'java-library'
-    id 'biz.aQute.bnd.builder' version '7.2.3'
+    id 'biz.aQute.bnd.builder' version '7.3.0'
 }
 
 apply plugin: 'biz.aQute.bnd.builder'
@@ -18,24 +18,30 @@ sourceSets {
     }
 }
 
-task compileJava9(type: JavaCompile) {
+tasks.register('compileJava9', JavaCompile) {
     source = sourceSets.module_info.java
     destinationDirectory = sourceSets.main.output.classesDirs[0]
     classpath = configurations.allProjects
     options.release = 9
 }
 
-compileJava {
+// Shadow 9.4.2 eagerly triggers compile tasks for all source sets.
+// Disable auto-generated Java 8 task; module_info is compiled by compileJava9.
+tasks.named('compileModule_infoJava') {
+    enabled = false
+}
+
+tasks.named('compileJava') {
     if (!isJava8) {
-        dependsOn compileJava9
+        dependsOn 'compileJava9'
     }
 }
 
-javadoc {
+tasks.named('javadoc') {
     modularity.inferModulePath = false
 }
 
-jar {
+tasks.named('jar') {
     manifest {
         attributes('Export-Package': '*')
     }
@@ -45,12 +51,12 @@ apply from: rootProject.file('gradle-mvn-push.gradle')
 
 /** Adds information to the publication for uploading to Maven repositories. */
 final checkerQualPom(publication) {
-    sharedPublicationConfiguration(publication)
+    rootProject.sharedPublicationConfiguration(publication)
     publication.from components.java
     publication.pom {
         name = 'Checker Qual'
         description = String.join(System.lineSeparator(),
-                'checker-qual contains annotations (type qualifiers) that a programmer' +
+                'checker-qual contains annotations (type qualifiers) that a programmer',
                 'writes to specify Java code for type-checking by the Checker Framework.')
         licenses {
             license {

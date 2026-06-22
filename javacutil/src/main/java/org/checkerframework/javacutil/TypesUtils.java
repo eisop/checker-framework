@@ -417,7 +417,7 @@ public final class TypesUtils {
             DeclaredType dt = (DeclaredType) type;
             TypeElement elem = (TypeElement) dt.asElement();
             Name name = elem.getQualifiedName();
-            if ("java.lang.Throwable".contentEquals(name)) {
+            if (InternalUtils.sameName(name, "java.lang.Throwable")) {
                 return true;
             }
             type = elem.getSuperclass();
@@ -1289,7 +1289,8 @@ public final class TypesUtils {
      * @return the first TypeVariable in {@code collection} that does not contain any other type in
      *     the collection, but maybe itsself
      */
-    @SuppressWarnings("interning:not.interned") // must be the same object from collection
+    // must be the same object from collection
+    @SuppressWarnings({"interning:not.interned", "TypeEquals"})
     private static TypeVariable doesNotContainOthers(
             Collection<? extends TypeVariable> collection, Types types) {
         for (TypeVariable candidate : collection) {
@@ -1461,6 +1462,7 @@ public final class TypesUtils {
      * @return if the two type variables are the same type variable
      */
     @EqualsMethod
+    @SuppressWarnings("TypeEquals")
     public static boolean areSame(TypeVariable typeVariable1, TypeVariable typeVariable2) {
         if (typeVariable1 == typeVariable2) {
             return true;
@@ -1468,7 +1470,7 @@ public final class TypesUtils {
         Name otherName = typeVariable2.asElement().getSimpleName();
         Element otherEnclosingElement = typeVariable2.asElement().getEnclosingElement();
 
-        return typeVariable1.asElement().getSimpleName().contentEquals(otherName)
+        return InternalUtils.sameName(typeVariable1.asElement().getSimpleName(), otherName)
                 && otherEnclosingElement.equals(typeVariable1.asElement().getEnclosingElement());
     }
 }

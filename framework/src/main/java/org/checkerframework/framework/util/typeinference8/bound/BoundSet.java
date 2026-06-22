@@ -28,6 +28,17 @@ public class BoundSet implements ReductionResult {
     // TODO: revert to com.sun.tools.javac.comp.Infer#MAX_INCORPORATION_STEPS
     public static final int MAX_INCORPORATION_STEPS = 1000;
 
+    /**
+     * Strict mode for the incorporation worklist's self-correcting rescan (see {@link
+     * #incorporateToFixedPoint}). In production the rescan silently self-heals -- if the worklist
+     * ever skips needed work, the rescan applies it and the result is still correct. In strict mode
+     * the same situation instead throws, turning a worklist bug into a loud test failure rather
+     * than a silent (still-correct but slower) recovery. Off by default; this project's own test
+     * tasks set {@code -Dcf.typeinference.worklist.strict} so CI catches any worklist regression.
+     */
+    private static final boolean STRICT_WORKLIST_CHECK =
+            System.getProperty("cf.typeinference.worklist.strict") != null;
+
     /** All inference variables in this bound set. */
     private final LinkedHashSet<Variable> variables;
 
@@ -230,6 +241,22 @@ public class BoundSet implements ReductionResult {
     }
 
     /**
+     * Returns whether any variable in this bound set has an instantiation. Unlike {@link
+     * #getInstantiatedVariables}, this stops at the first instantiated variable and allocates
+     * nothing, so it is cheaper when only the existence of an instantiation matters.
+     *
+     * @return true if any variable in this bound set has an instantiation
+     */
+    public boolean hasInstantiatedVariable() {
+        for (Variable var : variables) {
+            if (var.getBounds().hasInstantiation()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
      * Resolve all inference variables mentioned in any bound.
      *
      * @return a list of resolved variables in this bounds set
@@ -323,9 +350,8 @@ public class BoundSet implements ReductionResult {
         int count = 0;
         do {
             count++;
-            Set<Variable> instantiations = getInstantiatedVariables();
             boolean boundsChangeInst = false;
-            if (!instantiations.isEmpty()) {
+            if (hasInstantiatedVariable()) {
                 for (Variable var : variables) {
                     boundsChangeInst |= var.getBounds().applyInstantiationsToBounds();
                 }
@@ -344,13 +370,51 @@ public class BoundSet implements ReductionResult {
                 this.setUncheckedConversion(true);
             }
 
-            if (!boundsChangeInst) {
+            if (!boundsChangeInst && hasReachedFixedPoint()) {
                 return;
             }
 
             containsFalse |= newBounds.containsFalse;
             assert count < MAX_INCORPORATION_STEPS : "Max incorporation steps reached.";
         } while (!containsFalse && count < MAX_INCORPORATION_STEPS);
+    }
+
+    /**
+     * Self-correcting safety net for the incorporation worklist. Called when the worklist (which
+     * re-scans only the variables it tracked as possibly-changed) reports it reached a fixed point,
+     * to confirm that with a full un-gated rescan of <i>every</i> variable. At a true fixed point
+     * no rescan can change anything, so this is normally a no-op -- one extra pass per fixed point,
+     * measured at no perceptible cost.
+     *
+     * <p>If the rescan <i>does</i> change something, the worklist wrongly skipped a variable (a
+     * missing reverse-dependency edge). {@link
+     * org.checkerframework.framework.util.typeinference8.types.VariableBounds#doApplyInstantiationsToBounds}
+     * has already applied that change, so correctness is preserved regardless; this method marks
+     * every variable dirty and returns false so incorporation runs another round and re-propagates.
+     * The result is therefore always identical to scanning every variable every round, making the
+     * worklist a pure optimization. In strict mode ({@link #STRICT_WORKLIST_CHECK}, on in this
+     * project's tests) the same situation throws instead, so a worklist bug is a loud CI failure
+     * rather than a silent recovery.
+     *
+     * @return whether the bound set is truly at a fixed point (the full rescan found no change)
+     */
+    private boolean hasReachedFixedPoint() {
+        boolean changed = false;
+        for (Variable var : variables) {
+            changed |= var.getBounds().doApplyInstantiationsToBounds();
+        }
+        if (!changed) {
+            return true;
+        }
+        if (STRICT_WORKLIST_CHECK) {
+            throw new AssertionError(
+                    "Incorporation worklist skipped needed work; a reverse-dependency edge was"
+                            + " missed.");
+        }
+        for (Variable var : variables) {
+            var.getBounds().markDirty();
+        }
+        return false;
     }
 
     /**
