@@ -9,6 +9,23 @@ The maintainer's strong preference is for small, focused, commit-ready
 patches with informative commit messages and minimal prose around them.
 Follow this skill when producing any change for review.
 
+## NEVER push without an explicit, separate OK to push
+
+`git push` is outward-facing and irreversible-ish (it updates a shared
+branch / open PR and re-triggers CI). **Always check in with the maintainer
+immediately before pushing, every single time** — no exceptions, no
+standing authorization, no "they'll obviously want this pushed."
+
+- **"Commit" never implies "push."** Approval to commit, to "add it to
+  branch X", or to land a fix is approval to *commit only*. Stop and ask
+  before `git push`.
+- A request to "fix the CI failure" is **not** a license to push the fix.
+  Commit it, then ask before pushing.
+- Approval to push one commit does not carry over to the next commit or
+  the next turn. Re-ask each time.
+- When a change is committed and you believe it should go up, *say so and
+  ask* ("Committed as <sha> — push to update PR #N?") rather than pushing.
+
 ## One logical change per commit
 
 Series of three or four narrow commits are preferred over a single
@@ -112,6 +129,63 @@ git checkout - && git branch -D verify
 
 If `alltests` is impractical (e.g., no local JDK matrix), say so
 explicitly in the PR description rather than implying it passed.
+
+## CI checks that `assemble` and `alltests` do NOT run
+
+The `misc` CI job (`checker/bin-devel/test-misc.sh`) runs lint that a
+normal build skips. Two of its checks catch things that compile and test
+green but still fail CI:
+
+- **`./gradlew javadocDoclintAll`** runs `-Xdoclint:all` at the **PRIVATE**
+  member level — stricter than `:framework:javadoc` (PUBLIC), so it
+  validates javadoc on private methods/fields. The recurring footgun: a
+  `{@link Foo#bar}` to a class in a **sibling package that the code does not
+  import** (the code reaches it only through a return type, so no `import`
+  is needed) resolves fine for the compiler but doclint reports
+  `reference not found`. Fix: use the **fully-qualified** name in the
+  `{@link}`. Run `./gradlew javadocDoclintAll` locally before pushing any
+  javadoc-touching change to a private member.
+- **`ci-lint-diff`** only flags warnings on lines the PR **changed**.
+  Pre-existing warnings on untouched lines in the same file are fine — do
+  not chase them, and do not let them make you think your change is at
+  fault.
+- A javadoc/comment-only edit can still shift line wrapping enough to fail
+  `spotlessJavaCheck` (a pre-commit hook then blocks the commit). Re-run
+  `./gradlew spotlessApply` after **any** edit, including comment-only ones,
+  not just code edits.
+
+## Javadoc on every method you touch (and its neighbors)
+
+`require-javadoc` + `ci-lint-diff` flag any **changed** line lacking
+documentation, so adding or moving a line next to an undocumented
+declaration makes a previously-silent warning fail the build. Pre-empt it
+rather than waiting for CI:
+
+- **Any method, constructor, field, or class whose lines your diff
+  touches must carry a complete Javadoc comment** — a summary sentence
+  plus a `@param` for every parameter and a `@return` for every non-void
+  method (and `@throws` for documented checked exceptions). This holds
+  for test classes too (e.g. JUnit `getTestDirs`/`@Parameters` methods),
+  which `require-javadoc` checks just like production code.
+- **Also document anything directly adjacent** to your change — the
+  declaration immediately above or below an inserted line can land in the
+  diff hunk and get flagged even though you did not mean to touch it.
+- A brand-new file has *every* line counted as changed, so document all
+  of its members, not just the one you care about.
+- Match the surrounding wording convention (e.g. existing `getTestDirs`
+  Javadoc reads "the directories containing test code"); do not invent a
+  new phrasing. Run `./gradlew requireJavadoc` locally to confirm before
+  committing.
+
+## Verify what you committed, not what's in the working tree
+
+After a commit — especially a file **move** plus an in-place edit, or any
+`git add -A <pathspec>` where a path was already renamed — confirm the
+committed content with `git show HEAD:<path>`, not by reading the working
+tree. A stale pathspec can make `git add` silently drop a file from the
+commit while the working tree still shows your edit, so "it's already
+fixed" reads true from the tree but false from `HEAD`. One `git show HEAD:`
+check before claiming a change landed avoids a wrong status report.
 
 ## What good output to a human reviewer looks like
 

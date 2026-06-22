@@ -486,7 +486,14 @@ import javax.tools.Diagnostic;
     // Converts type argument inference crashes into errors. By default, this option is true.
     // Use "-AconvertTypeArgInferenceCrashToWarning=false" to turn this option off and allow type
     // argument inference crashes to crash the type checker.
-    "convertTypeArgInferenceCrashToWarning"
+    "convertTypeArgInferenceCrashToWarning",
+
+    // The Java 8 type-argument-inference bound-incorporation work budget: a deeply nested generic
+    // invocation whose incorporation exceeds this many units is abandoned with a
+    // type.argument.inference.budget error. Defaults to
+    // Java8InferenceContext.MAX_INCORPORATION_WORK. Raise it for legitimate machine-generated code
+    // that hits the budget; lower it (e.g. in tests) to trigger the budget on a shallow invocation.
+    "inferenceWorkBudget"
 })
 public abstract class SourceChecker extends AbstractTypeProcessor implements OptionConfiguration {
 

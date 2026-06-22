@@ -1223,8 +1223,10 @@ bounds to a fixed point (`BoundSet.incorporateToFixedPoint` →
 variable on every iteration: O(iterations × variables × bounds) ≈ O(depth³) for a depth-D
 nested-`id` chain. depth-80 in one method did not finish in 25 minutes. PR #1805 has three parts:
 
-- **Work budget.** A per-invocation counter (`Java8InferenceContext.MAX_INCORPORATION_WORK`,
-  100k bound-visits ≈ 18× the largest work observed on hand-written code) charged in
+- **Work budget.** (PR #1829 later lowered this default to 10000 from a measurement of real code,
+  made it configurable with `-AinferenceWorkBudget`, and reshaped/moved the regression test — see the
+  PR #1829 section.) A per-invocation counter (`Java8InferenceContext.MAX_INCORPORATION_WORK`,
+  originally 100k bound-visits) charged in
   `applyInstantiationsToBounds`. When exceeded, `recordIncorporationWork` throws
   `InferenceBudgetExceededError` (an `Error`, so it unwinds past the `catch (Exception)` /
   `catch (FalseBoundException)` blocks in the incorporation/resolution machinery), caught in
@@ -1306,7 +1308,10 @@ but the exact percentages carry ~±5% single-run noise.)
 
 These were implemented and measured but kept out of #1805; recorded so they are not re-derived.
 
-- **Incorporation worklist (the dependency-based variant of the `allBoundsProper` skip).** Replaced
+- **Incorporation worklist (the dependency-based variant of the `allBoundsProper` skip) — SHIPPED in
+  PR #1829;** see the PR #1829 section below, which beat the ~3% recorded here by combining it with the
+  constraint gating and measuring on deeper nesting, and replaced the verify harness with an
+  always-on self-correcting rescan. The original deferral rationale follows. Replaced
   `allBoundsProper` with a per-`VariableBounds` `dirty` flag plus an *append-only, over-approximate*
   reverse-dependency list (`dependents`): `addBound` records edges β→α for each variable β mentioned
   in a new bound of α; when α is instantiated it marks its dependents dirty; `applyInstantiationsToBounds`
@@ -1335,6 +1340,100 @@ These were implemented and measured but kept out of #1805; recorded so they are 
   are empty/tiny; same lesson as `AnnotatedTypeScanner.markVisited`).
 - **`getTargetType`, `asSuper`, `merge` caching.** `getTargetType` is called once per inference
   problem (no repeat to cache); `asSuper`/`merge` are intrinsic set-union/supertype work.
+
+### Java 8 type-argument inference: incorporation worklist and tuned work budget (PR #1829, June 2026)
+
+Ships the incorporation worklist that #1805 deferred (see "Explorations that did not ship" above),
+this time with the constraint gating that makes it pay off, plus a self-correcting safety net and a
+work budget re-tuned from a measurement of real code. Two parts.
+
+**1. Self-correcting incorporation worklist.** The JLS-18 incorporation fixed point
+(`BoundSet.incorporateToFixedPoint`) re-scanned *every* inference variable, and re-applied every
+variable's constraints, on every round. The worklist re-scans only variables that can have changed:
+each `VariableBounds` carries a `dirty` flag and an over-approximate, append-only reverse-dependency
+set `dependents` (built in `addBound` from `AbstractType.getInferenceVariables()`); instantiating a
+variable marks its dependents dirty, and `applyInstantiationsToBounds` skips a clean variable, which
+also skips that variable's `constraints.applyInstantiations()` — so the constraint gating #1805's
+note asked for falls out of the same skip, no separate flag.
+
+The correctness guarantee is *not* a flag. When the worklist reports a fixed point,
+`hasReachedFixedPoint` confirms it with one full un-gated rescan of every variable. At a true fixed
+point that is a no-op; if the worklist ever skipped a variable (a missing reverse-dependency edge),
+the rescan's `doApplyInstantiationsToBounds` has already applied the change, and the method marks all
+variables dirty and runs another round. So the result is **identical to scanning every variable every
+round, by construction** — the worklist is a pure optimization with no soundness knob to get wrong.
+In production this self-heals silently; this project's tests run in **strict mode**
+(`-Dcf.typeinference.worklist.strict`, set on all test tasks in `build.gradle`; `TypecheckExecutor`
+runs the checker in-process so the property reaches it), where the same situation *throws*, turning a
+worklist regression into a loud CI failure. **0 strict/self-heal events** across `alltests`,
+`NullnessTest`, `InterningTest`, and a manual sweep of 425 `checker/tests/nullness` + 279
+`checker/tests/index` files (all byte-identical to the pre-worklist baseline).
+
+**Why it now beats #1805's ~3%.** #1805 measured the worklist alone, on shallow inference, at ~3%.
+The gain is real on *deeply* nested generics, where the redundant rescan is cubic: wall clock
+(`gen-sized-program --shape deep-nesting`, single-build `-D` toggle, interleaved, n=8) **−8.6% /
+−11.4% / −19.0%** at nesting depth 8 / 12 / 20 — the win grows with depth. JFR (depth-8 × 800):
+`doApplyInstantiationsToBounds` self-time 7.5% → 1.9% (3.8×), `ConstraintSet.applyInstantiations` off
+the leaderboard, total on-CPU −6.5%; `reduceOneStep` (~54%, the essential JLS-18 constraint
+reduction) is correctly untouched.
+
+**The self-correcting rescan is free — but measure it in isolation.** On shallow generics and on a
+realistic full `checknullness` the change is neutral. The first A/B (worklist branch vs. master, warm
+daemon) read +0.5% — *within noise but the wrong comparison*: it conflates the worklist's savings
+with the rescan's cost, which cancel on ordinary code, so a real rescan cost could hide behind a
+worklist win. The right isolation is same-build, self-heal **on vs. off** (a temporary
+`-Dcf.typeinference.worklist.noselfheal` plumbed to the `checknullness` fork; toggle verified with a
+one-shot marker before trusting the result): 105.0 s vs. 107.0 s warm median — i.e. within noise (a
+rescan cannot be negative-cost). It is free because each trivial inference problem's rescan is one
+pass over a 1–2-variable bound set, and inference is a small slice of a build.
+
+**2. Configurable, lowered work budget.** `Java8InferenceContext.MAX_INCORPORATION_WORK` was a
+hardcoded 100000. Add `-AinferenceWorkBudget=N` to override it. The option is read once and cached on
+the `AnnotatedTypeFactory` (`getInferenceWorkBudget`): a `Java8InferenceContext` is created per
+generic invocation (`DefaultTypeArgumentInference.inferTypeArgs`), so reading `getOption` there would
+repeat the lookup on a hot path for a value that is constant per compilation.
+
+The default is lowered **100000 → 10000**, from a measurement (instrument `recordIncorporationWork`
+to track the peak per problem; run with an effectively-unlimited budget so nothing aborts): the
+heaviest hand-written generics reach only **994** work units (Guava with the Nullness Checker; the
+framework's own source 363; a deliberately tricky stress test 296). So 100000 was ~100× more headroom
+than the ~1000 the #1805 comment cited (994 is post-worklist, so the worklist did *not* meaningfully
+shrink Guava's peak), and let a single pathological invocation grind ~4–5 s before bailing; 10000
+keeps ~10× headroom and bails in ~3 s. There is an irreducible ~2.4 s floor (parsing/attributing the
+deep expression, which the budget cannot cap). **False-positive-clean at 10000:** zero budget errors
+on Guava under the Nullness, Interning, and Index Checkers, on the framework's own `checknullness`,
+and on the all-systems corpus.
+
+**The budget is checker-independent per problem.** The threshold is dominated by Java-type bound
+incorporation (~cubic in nesting depth, checker-agnostic); the qualifier bounds each checker adds are
+a smaller, comparable factor. The Nullness Checker fires the budget *three times* (its three
+subcheckers each run their own inference), but at the same per-problem nesting depth as the
+single-system Interning Checker (the three identical diagnostics dedupe to one in the test harness,
+which compares actuals as a set). A single invocation **never** blows up regardless of
+type-parameter count — a method with 400 chained-bound type parameters called once does not fire —
+because the cubic cost lives in the *chained dependency that nesting creates*, so the budget cannot be
+triggered without deep nesting.
+
+**Notes for future sessions.**
+- *Re-measure deferred/rejected items against the current baseline and a maximal workload.* The
+  worklist was "~3%, deferred" in #1805; combining it with the constraint gating and measuring on
+  deep nesting (not shallow synthetic) turned it into −19%.
+- *A throwaway inference test that does not compile silently measures nothing.* An early "Interning
+  inference is harder than Nullness" reading was an artifact: the throwaway file's `public` class name
+  did not match its filename, so javac errored before inference ran. Use a non-public class (or a
+  matching filename) for throwaway inference probes, and confirm the budget actually fires.
+- *jtreg `nullness/Issue1438` timeouts under `alltests` are environmental*, not a regression: the file
+  compiles in ~7.5 s standalone (well under the 20 s jtreg limit) and is marginally *faster* with the
+  worklist; the timeouts are parallel-agent contention during the full run.
+- *Shaping a budget regression test:* google-java-format escalates one nested call per line, so a
+  test's line count tracks the *number of nested calls*. "More type parameters" backfires (each filler
+  argument gets its own line — a 5-type-parameter chain formatted to 84 lines). The compact form keeps
+  the expression under 100 columns so the formatter leaves it on one line: a method heavy enough to
+  fire at shallow depth (return type mentions its type variable three times, parameters are wildcards)
+  with short names. `checker/tests/nullness/InferenceWorkBudget.java` (default budget) and
+  `checker/tests/inference-budget/InferenceWorkBudget.java` (small `-AinferenceWorkBudget`) are the
+  two regression tests; `checker/tests/nullness/Java8InferenceWorklistStress.java` exercises the
+  worklist's dependency tracking across interacting inference features under strict mode.
 
 ---
 
@@ -1740,17 +1839,13 @@ the prior finding. A fresh hypothesis is not new evidence.
 Candidates raised in profiling sessions but not yet implemented. Capture
 format: hot method, hypothesis, blockers/open questions.
 
-- **typeinference8 incorporation worklist — implemented, deferred.** The dependency-based worklist
-  (re-scan only the variables a newly-instantiated variable affects) was built and validated but not
-  shipped in #1805: ~3% inference-heavy / <1% realistic wall-clock, because the fixpoint is near its
-  essential-work floor after the `allBoundsProper` skip. But it also makes the budget trigger ~2×
-  deeper, which removes false positives on legitimately-deep generic code (the budget is a false
-  positive on valid code), so the case is stronger than the wall-clock alone — weigh that too. See
-  "Explorations that did not ship (around PR #1805)" in Applied optimizations for the full record,
-  the verify-harness methodology, and the (good, not bad) budget-test interaction. Reconsider together
-  with the constraint-reduction cost (`ConstraintSet.applyInstantiations`/`reduceOneStep` ~9% of the
-  fixpoint, run even for clean variables) — gating those by the same dirty flag is what could push the
-  wall-clock gain past ~3%, and it needs its own verification.
+- **typeinference8 incorporation worklist + constraint gating — SHIPPED in PR #1829** (was
+  deferred from #1805 at ~3%). Combining the worklist with the constraint gating and measuring on
+  deep nesting gave −8.6% / −11.4% / −19.0% at nesting depth 8 / 12 / 20, neutral on realistic
+  builds; correctness is by construction via an always-on self-correcting rescan (no verify flag).
+  PR #1829 also re-tuned the work budget (100000 → 10000, from a 994-unit Guava measurement) and
+  made it configurable (`-AinferenceWorkBudget`). See the PR #1829 section in Applied optimizations
+  for the full record.
 - **typeinference8 *resolution* phase: recompute and over-save (the non-incorporation costs).** On a
   moderate-depth heavy workload (`gen-sized-program.py --shape deep-nesting`, depth-8 × 800 methods),
   inclusive time splits roughly `incorporateToFixedPoint` ~47% and `Resolution.resolve` ~34% — but
@@ -1837,6 +1932,11 @@ format: hot method, hypothesis, blockers/open questions.
      every axis, because the per-call defaulting scans are cheap in-place annotation mutations while
      the cache key/snapshot machinery is not.
   5. **`methodFromUse`/`constructorFromUse` per-tree memo** (~15% incl), scoped like #1.
+     **DONE / NOT OPEN.** The flow-independent `(methodElt, receiverType)` form already shipped as the
+     `methodAsMemberOfCache` (PR #1777 — see "`methodFromUse`/`asMemberOf` cache — APPLIED" below);
+     the additional *per-tree* form hits direction #1's measured-and-rejected soundness wall (the
+     result depends on the evolving flow store), so this sub-direction is closed. Do not re-open as
+     "unshipped."
   6. **Parallelize checking across classes/methods** — the only constant-factor-by-core-count lever,
      but the factory + its caches + javac symbol state are shared mutable state; research-scale.
   Not pursued this session: the immutability program (delete `deepCopy`, ~10% inclusive) is the other
@@ -1989,11 +2089,13 @@ mutate the result, so removing the copy needs a deeper change than a boundary fl
 the dead ends are below; the immutability program is therefore **paused at its foundation**, not the
 "recommended next direction" it was before this session.
 
-**Validation spike (DONE, GO).** A throwaway `methodFromUse` cache (non-generic methods, key
-`(methodElt, structural receiverType, inferTypeArgs)`, copy-on-store/return) on
-`:checker:checkNullness`: **66.7% hit rate**, `AnnotatedTypes.asMemberOf` (12.4% inclusive)
-eliminated on hits, net allocation down even with the copy-tax, ~5% fewer on-CPU samples; the
-structural-key hashing and copy-tax stayed below the inclusive threshold (cheap). Payoff confirmed.
+**Validation spike (DONE, GO) — and this spike SHIPPED: see "`methodFromUse`/`asMemberOf` cache —
+APPLIED in PR #1777" below. This paragraph is the precursor, NOT an open candidate.** A throwaway
+`methodFromUse` cache (non-generic methods, key `(methodElt, structural receiverType, inferTypeArgs)`,
+copy-on-store/return) on `:checker:checkNullness`: **66.7% hit rate**, `AnnotatedTypes.asMemberOf`
+(12.4% inclusive) eliminated on hits, net allocation down even with the copy-tax, ~5% fewer on-CPU
+samples; the structural-key hashing and copy-tax stayed below the inclusive threshold (cheap). Payoff
+confirmed → productionized as the `methodAsMemberOfCache`.
 
 **Standalone caching needs poly-handling + opt-outs — but NOT the full immutability program.**
 Two experiments settled this; a methodological trap nearly sent us down the wrong road, so the
