@@ -188,5 +188,9 @@ dataflow/tests/java22/unnamed-pattern/*.class
 
 checker/jtreg/multipleexecutions/Main.class
 
+# Downloaded by the Makefile's shell-style-check target when checkbashisms
+# is not already on the PATH.
+/.checkbashisms
+
 # Source is copied from elsewhere.
 checker-qual-android/src
