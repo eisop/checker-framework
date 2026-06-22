@@ -154,6 +154,29 @@ green but still fail CI:
   `./gradlew spotlessApply` after **any** edit, including comment-only ones,
   not just code edits.
 
+## Javadoc on every method you touch (and its neighbors)
+
+`require-javadoc` + `ci-lint-diff` flag any **changed** line lacking
+documentation, so adding or moving a line next to an undocumented
+declaration makes a previously-silent warning fail the build. Pre-empt it
+rather than waiting for CI:
+
+- **Any method, constructor, field, or class whose lines your diff
+  touches must carry a complete Javadoc comment** — a summary sentence
+  plus a `@param` for every parameter and a `@return` for every non-void
+  method (and `@throws` for documented checked exceptions). This holds
+  for test classes too (e.g. JUnit `getTestDirs`/`@Parameters` methods),
+  which `require-javadoc` checks just like production code.
+- **Also document anything directly adjacent** to your change — the
+  declaration immediately above or below an inserted line can land in the
+  diff hunk and get flagged even though you did not mean to touch it.
+- A brand-new file has *every* line counted as changed, so document all
+  of its members, not just the one you care about.
+- Match the surrounding wording convention (e.g. existing `getTestDirs`
+  Javadoc reads "the directories containing test code"); do not invent a
+  new phrasing. Run `./gradlew requireJavadoc` locally to confirm before
+  committing.
+
 ## Verify what you committed, not what's in the working tree
 
 After a commit — especially a file **move** plus an in-place edit, or any
