@@ -2066,45 +2066,49 @@ Capture format: hot method, hypothesis, blockers.
      the soundness crux flagged here. And the instability is *highest where the redundancy is
      highest* (loops). A per-analysis memo would cache stale/wrong types; a per-*iteration* memo would
      be sound but the within-iteration redundancy is ~0. Low value and unsound — do not pursue.
-  2. **Scope-bounded / pre-flow expression-type cache — MEASURED AND REJECTED (June 2026).** Two
-     forms tested by instrumenting `GenericAnnotatedTypeFactory.addComputedTypeAnnotations(Tree,
-     ATM)`, splitting it at the `if (this.useFlow)` boundary into the flow-independent prefix (2a:
-     `applyQualifierParameterDefaults` → tree/type annotators → `defaults.annotate`) and the
-     flow-dependent suffix (2b: `getInferredValueFor` + `applyInferredAnnotations`), with per-tree
-     `IdentityHashMap<Tree,String>` signature maps recording redundancy and the *unsound fraction*
-     (= repeats whose computed type differs from the prior result for the same tree). Single forked
-     `javac -processor nullness`, on all-systems (120 files) and a loop-heavy artificial workload.
-     (a) **Split-cache (cache the *pre-flow* 2a type, always recompute 2b) — unsound.** Redundancy is
-     high (repeats 91% all-systems / 86% loops of expression calls) but the pre-flow type is
-     **unstable 25% (all-systems) / 38% (loops)** of repeats, because the "flow-independent" tree
-     annotators transitively call `getAnnotatedType` on subexpressions whose types are flow-refined.
-     (b) **Phase-scoped full cache (cache the full type, but only when `analysis.isRunning()` is
-     false — i.e. the post-flow checking traversal with a frozen `flowResult`) — also unsound.**
-     Even restricted to the checking phase the full type is **unstable 26% (all-systems) / 59%
-     (loops)** of repeats (CHK repeats 91% / 68%). The same expression tree genuinely yields
-     different types across repeated queries even after flow analysis completes, so a
-     tree-identity-keyed cache would serve a stale/wrong type a quarter to a half of the time — worse
-     than the per-analysis `getValueFromFactory` memo (#1, 8–18%) already rejected. Cost context
-     confirms it is not even worth chasing the sound subset: the flow step 2b is cheap (~0.3 s
-     inclusive vs. a multi-second 2a), so the expense is entirely in the 2a computation **whose
-     result is the unstable thing** — and the stable trees (literals, simple identifiers) are exactly
-     the cheap-to-recompute ones (the "count ≠ cost" / #4 dead end). No safe getAnnotatedType-level
-     expression cache exists; the sound caches (skeleton `fromExpressionTreeCache`,
-     `methodAsMemberOfCache`, `classAndMethodTreeCache`) are already in place. Do not pursue.
-     (c) **Even the subexpression-free *leaf* subset (identifiers/literals), checking-phase only —
-     unsound, and immaterial.** The natural rescue ("the instability comes from tree annotators
-     querying flow-refined subexpressions, so restrict the cache to leaves that have none") was
-     measured: in the checking phase the pre-flow leaf type is still **unstable 22% (identifiers) /
-     40% (literals)** on all-systems, 58% / 43% on loops. The cause is *not* subexpression flow — it
-     is that the computed type is context-dependent in *which hierarchy's annotations are applied*:
-     the same `1` literal returns `int` in one query and `@Initialized int` in another (nullness runs
-     with the Initialization checker), so a tree-keyed cache would hand back an under-annotated type
-     and break subtyping. Independently, the cost ceiling is immaterial: the safely-cacheable
-     checking-phase leaf 2a self-time is only ~0.22 s (~1.5% of a 13.9 s 120-file compile); the large
-     leaf-2a figure (18× the deepCopy cost) is dominated by *dataflow-phase* leaf work, which is not
-     safe to cache. **Lesson: `getAnnotatedType`'s result is keyed by call *context*, not by tree
-     identity — even for a literal — so no tree-identity cache at this level is sound, at any
-     granularity.**
+  2. **Pre-flow expression-type ("split") cache — RE-MEASURED; a genuine candidate, value pending an
+     A/B (June 2026).** Split `addComputedTypeAnnotations(Tree, ATM)` at the `if (this.useFlow)`
+     boundary into the prefix 2a (`applyQualifierParameterDefaults` → tree/type annotators →
+     `defaults.annotate`) and the flow suffix 2b (`getInferredValueFor` + `applyInferredAnnotations`).
+     Hypothesis: cache the *pre-flow* (post-2a) type per tree and recompute only 2b, since 2b is where
+     flow lives.
+
+     **Correction to an earlier rejection.** A first pass keyed the per-tree signature on
+     `AnnotatedTypeMirror.toString()` and concluded the pre-flow type was "unstable 25–40% (leaves) /
+     26–59% (compound, even checking-phase)," i.e. that no tree-keyed cache could be sound. **That was
+     a measurement artifact, not a property of the code.** `toString()` conflates two non-issues with
+     real instability: (i) *cross-hierarchy completeness* — a primitive literal printing as `int` vs
+     `@Initialized int` is the Initialization hierarchy's annotation absent vs present, not a
+     within-hierarchy disagreement; and (ii) the comparison read `getTopAnnotations()` (a `Set` with
+     unstable iteration order) *positionally*, so slot *i* compared different hierarchies across calls.
+     Re-measured *per hierarchy* (keyed by top-annotation name; counting "present-disagree" = same
+     hierarchy, two different non-∅ annotations, and "completeness" = ∅-vs-present, separately):
+
+     | category | all-systems (120f) | loops |
+     | --- | --- | --- |
+     | value leaf (literal / var / field / param id) | disagree 0, compl 0 / 69,557 repeats | 0 / 0 / 207,940 |
+     | compound expression | disagree 211 (0.46%), compl 0 / 46,166 | 0 / 0 / 57,928 |
+     | type-name identifier (class/enum) | 86 (0.7%) | 0 |
+
+     So per hierarchy the pre-flow type is **stable**: value leaves never disagree, compound
+     expressions disagree ~0.46% (the genuinely context-dependent residual — `NewClass`/`NewArray`/
+     conditionals, the #602 set in #3 below), type-name identifiers ~0.7% (excludable by element
+     kind). The flow-dependence is entirely in 2b, exactly as the split assumed. **This reopens the
+     split cache as a *sound* candidate** — provided it returns a deep copy (callers mutate) and skips
+     the ~0.5–0.7% context-dependent kinds.
+
+     **Value is NOT yet confirmed; do an implemented-cache A/B before adoption.** Instrumented 2a
+     self-time for value leaves alone is ~0.55 s (~4% of a 12.6 s all-systems compile) and ~1.16 s
+     (~15%) on loop-heavy code, vs ~0.05–0.17 s deepCopy — a favorable projected ratio, and compound
+     2a (not separately timed) is larger. But projected savings have repeatedly evaporated in A/B this
+     session (the String→`Name` flat result; #4 applied-defaults). The next step is to *build* the
+     post-2a cache (store the type just before the `useFlow` block; on hit `deepCopy` + run only 2b;
+     key by `Tree`; clear per CU like the other tree caches; skip type-name identifiers and the #602
+     compound kinds) and measure deterministic allocation + wall on all-systems and loops. Until that
+     A/B exists this is a *candidate*, not a win. (The companion "phase-scoped full cache" idea was
+     rejected on the same flawed `toString()` measure and should likewise be re-measured per hierarchy
+     if revisited.) **Method lesson: never measure annotated-type stability via `toString()` — compare
+     per hierarchy, and never index a qualifier `Set` positionally across calls.**
   3. **Split flow-independent structure from flow-dependent annotations — MEASURED, ALREADY
      IMPLEMENTED (June 2026).** The hypothesis was: `fromExpression` (~24% inclusive) builds a
      deterministic-per-tree skeleton, so cache the frozen skeleton and re-apply only the
