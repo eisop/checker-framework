@@ -1,65 +1,6 @@
 package java.lang;
 
-import org.checkerframework.common.value.qual.ArrayLen;
-import org.checkerframework.common.value.qual.ArrayLenRange;
-import org.checkerframework.common.value.qual.StringVal;
 import org.checkerframework.common.value.qual.UnknownVal;
-
-class Math {
-    static int min(@UnknownVal int a, @UnknownVal int b);
-
-    static long min(@UnknownVal long a, @UnknownVal long b);
-
-    static float min(@UnknownVal float a, @UnknownVal float b);
-
-    static double min(@UnknownVal double a, @UnknownVal double b);
-
-    static int max(@UnknownVal int a, @UnknownVal int b);
-
-    static long max(@UnknownVal long a, @UnknownVal long b);
-
-    static float max(@UnknownVal float a, @UnknownVal float b);
-
-    static double max(@UnknownVal double a, @UnknownVal double b);
-}
-
-class String {
-    static String format(@UnknownVal String format, @UnknownVal Object... args);
-
-    String(@UnknownVal byte[] bytes);
-
-    String(@UnknownVal char[] value);
-
-    String(@UnknownVal char[] value, @UnknownVal int offset, @UnknownVal int count);
-
-    boolean equalsIgnoreCase(@UnknownVal String anotherString);
-
-    int indexOf(@UnknownVal int ch);
-
-    int indexOf(@UnknownVal int ch, @UnknownVal int fromIndex);
-
-    int indexOf(@UnknownVal String str, @UnknownVal int fromIndex);
-
-    String replace(@UnknownVal char oldChar, @UnknownVal char newChar);
-
-    String substring(@UnknownVal int beginIndex);
-
-    String substring(@UnknownVal int beginIndex, @UnknownVal int endIndex);
-
-    String @ArrayLenRange(from = 0) [] split(@UnknownVal String regex);
-
-    boolean startsWith(@UnknownVal String prefix);
-
-    boolean endsWith(@UnknownVal String suffix);
-
-    static @StringVal({"true", "false"}) String valueOf(@UnknownVal boolean b);
-
-    static @ArrayLen(1) String valueOf(@UnknownVal char c);
-
-    static @ArrayLenRange(from = 1, to = 11) String valueOf(@UnknownVal int i);
-
-    static @ArrayLenRange(from = 1, to = 20) String valueOf(@UnknownVal long l);
-}
 
 class StringBuilder {
     StringBuilder append(@UnknownVal char c);
@@ -143,24 +84,8 @@ package java.util;
 
 import org.checkerframework.common.value.qual.UnknownVal;
 
-class Arrays {
-    static <T> List<T> asList(@UnknownVal T... a);
-}
-
 class ArrayList<E> {
     ArrayList(@UnknownVal Collection<? extends E> c);
-}
-
-class Collections {
-    static <T extends Object & Comparable<? super T>> T min(@UnknownVal Collection<? extends T> coll);
-
-    static <T> T min(
-            @UnknownVal Collection<? extends T> coll, @UnknownVal Comparator<? super T> comp);
-
-    static <T> Collection<T> checkedCollection(
-            @UnknownVal Collection<T> c, @UnknownVal Class<T> type);
-
-    static <T extends Comparable<? super T>> void sort(@UnknownVal List<T> list);
 }
 
 class HashSet<E> {
@@ -183,7 +108,9 @@ class Paths {
 
 class Files {
     static java.io.BufferedWriter newBufferedWriter(
-            @UnknownVal Path path, @UnknownVal java.nio.charset.Charset cs, @UnknownVal OpenOption... options);
+            @UnknownVal Path path,
+            @UnknownVal java.nio.charset.Charset cs,
+            @UnknownVal OpenOption... options);
 
     static boolean isRegularFile(@UnknownVal Path path, @UnknownVal LinkOption... options);
 }
