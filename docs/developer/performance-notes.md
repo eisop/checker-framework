@@ -1874,6 +1874,61 @@ the prior finding. A fresh hypothesis is not new evidence.
   only sanctioned rescue in this basin is a maintained incremental content-hash on `CFAbstractStore`
   (see the Short list and the rejected equal-store merge short-circuit above), memory-A/B-gated.
 
+- **`String`→`Name` annotation-name migration: replace `AnnotationUtils.annotationName` (String)
+  with `annotationNameAsName` (javac `Name`) + `==` identity comparison, framework-wide (June
+  2026).** Branch converting the name-dispatch sites in `ValueAnnotatedTypeFactory`,
+  `ValueQualifierHierarchy`, `ValueTransfer`, the Index `UpperBound*` checkers, `Units`,
+  `BaseTypeVisitor`/`BaseTypeValidator` (`qualAllowedLocations`), `DependentTypesHelper`
+  (`annoToElements`), and `AnnotatedTypeFactory` (`aliases`, `declAliases`, `isSupportedQualifier`)
+  from value-based `String` comparison to `Name`-identity comparison, backing maps switched to
+  `IdentityHashMap<Name,…>`. Premise: "avoid the `Name.toString()` decode + `String.intern()` that
+  `annotationName` performs."
+
+  **Measured flat — alloc and wall — even after completing the half-finished form.** As proposed the
+  branch slightly *regresses*, because `annotationNameAsName` had no
+  `CheckerFrameworkAnnotationMirror` (CFAM) fast path (it pointer-chases
+  `getAnnotationType().asElement().getQualifiedName()` where `annotationName` reads a cached field)
+  and `isSupportedQualifier(Name)` still called `name.toString()` on every cache miss. To measure the
+  *approach* and not the artifacts, the branch was completed: cache a `Name` field on CFAM next to its
+  existing interned-`String` `annotationName`; give `annotationNameAsName` a CFAM fast path; replace
+  `isSupportedQualifier`'s `getSupportedTypeQualifierNames().contains(name.toString())` with a
+  one-time identity-backed companion `Set<Name>` membership test. A/B of that fully-realized version
+  vs. master (deterministic `jdk.ThreadAllocationStatistics`, single forked `javac`):
+
+  | corpus | metric | master | realized | delta |
+  | --- | --- | --- | --- | --- |
+  | nullness, `inherit` shape (~7.4k LoC) | alloc (median of 5) | 4488.0 MB | 4492.3 MB | +0.10% (noise) |
+  | nullness, `repeat` shape (~7.3k LoC) | alloc | 785.7 MB | 787.5 MB | +0.23% (noise) |
+  | Value, 8 test inputs batched | alloc | 312.6 MB | 312.9 MB | +0.10% (noise) |
+  | nullness, `inherit` | wall (2nd-best of 4) | 7.98 s | 8.18 s | noise |
+  | nullness, `repeat` | wall | 5.10 s | 5.05 s | noise |
+
+  **Root cause — the targeted allocation does not happen on hot paths.** CFAM, the representation the
+  framework manipulates for the overwhelming majority of annotations, already caches its name as an
+  `@Interned String` computed once in its constructor, so `annotationName(am)` was *already a field
+  read with zero allocation* for CFAM. The `toString().intern()` cost applies only to raw
+  `Attribute.Compound` source mirrors, and even there `getAnnotationType().asElement()` is two field
+  reads (`anno.type.tsym`). You cannot remove garbage that is not being produced.
+
+  **Ceiling proof.** A deliberately annotation-saturated, checker-bound workload (400 methods × 40
+  explicitly-`@Nullable`/`@NonNull`/`@MonotonicNonNull` locals each), profiled at 2596
+  `ExecutionSample`s, shows the name-handling frames — `annotationName`, `annotationNameAsName`,
+  `areSameByName`, `isSupportedQualifier`, `Name.toString`, `String.intern` — **entirely below the
+  sample floor (0 samples).** The hot leaf there is `IdentityHashMap.get` (7.8%), attributed
+  (`jfr-analyze self`) ~40% to `ElementQualifierHierarchy.getQualifierKind` — annotation→`QualifierKind`
+  resolution, *not* name handling — and caching *that* is itself already measured-and-rejected (see
+  "`AnnotationMirror → QualifierKind` second-level cache" above). **General lesson: annotation-name
+  comparison/dispatch is not a hotspot; CFAM already caches the decoded interned name, so any
+  String→`Name` rerepresentation is flat. This is the dispatch-level analogue of the `isStringEqual`
+  false premise (see "Element and name caching"). The annotation-name allocation that *does* show up
+  (`[B` UTF-8 decode, ~28% of dataflow allocation) is `Name.toString()` deep in dataflow/store
+  machinery, not in qualifier-name dispatch — optimize there, not here.** The branch also seeded three
+  anti-patterns worth recording: a `static IdentityHashMap<Name,…>` (Names are interned *per
+  compilation context*, so a static identity-map both leaks across compilation tasks and never hits
+  cross-context — keep such caches instance-scoped), unused cached-`Name` fields hidden behind a
+  class-wide `@SuppressWarnings("UnusedVariable")`, and `Name`-identity assumptions spread across the
+  public `javacutil` surface for no measured gain.
+
 ---
 
 ## Short list

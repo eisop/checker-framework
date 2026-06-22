@@ -376,6 +376,20 @@ but cost ≈10% wall clock (far more than its hit-rate delta implied). Cut
   guard is a counter on the code you changed — if it never fires, "no effect" is a workload
   bug, not a verdict on the change. Pair this with picking a workload that *maximizes* traffic
   through the target (the size-sweep / shape generators exist for this).
+- **Measure the *ceiling* before micro-optimizing a dispatch — profile the adversarial
+  workload, not the typical one.** When tempted to change *how* something is represented or
+  compared (string vs. `Name`, a "kind" tag, a second-level cache), first bound the maximum
+  possible win: build a workload that *maximizes* traffic through the target and check whether the
+  target's frames even appear above the sample floor. If they don't, no variant can help and you
+  stop in one profile instead of an A/B per variant. The String→`Name` annotation-name migration
+  (see *Tried and rejected*) died this way: an annotation-saturated, checker-bound workload (400
+  methods × 40 explicitly-annotated locals) at 2596 samples showed `annotationName` /
+  `annotationNameAsName` / `areSameByName` / `isSupportedQualifier` / `Name.toString` / `intern`
+  at **0 samples** — and the hot leaf that *did* surface (`IdentityHashMap.get` → `getQualifierKind`)
+  was itself an already-rejected target. The reason the ceiling was ~0: the hot representation
+  (`CheckerFrameworkAnnotationMirror`) already caches the decoded interned name, so the decode the
+  change "removed" was never happening. **Before optimizing a lookup, ask what the common carrier
+  already caches.**
 
 ## Removing a defensive copy (the opposite of adding a cache)
 
@@ -499,6 +513,12 @@ In order of historical hit rate on this codebase:
 - Switching map implementations purely on micro-benchmark intuition —
   measure on a real workload.
 - Lock-removal changes without auditing all reachable threads.
+- Rerepresenting annotation *names* for dispatch (`String`→`Name` + `==`,
+  per-qualifier "kind" tags) or caching `getQualifierKind` — both measured
+  flat (see *Tried and rejected*). `CheckerFrameworkAnnotationMirror`
+  already caches the decoded interned name, so the decode you would remove
+  is not on the hot path; identity-comparing `Name`s is no cheaper than the
+  existing interned-`String` comparison.
 
 ## Producing the patch
 
