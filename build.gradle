@@ -522,7 +522,7 @@ allprojects { currentProj ->
         }
 
         // Add standard javac options
-        tasks.withType(JavaCompile) { compilationTask ->
+        tasks.withType(JavaCompile).configureEach { compilationTask ->
             dependsOn(':installGitHooks')
 
             // Sorting is commented out because it disables incremental compilation.
@@ -943,7 +943,7 @@ tasks.register('downloadJtreg', Download) {
     // dest new File(buildDir, 'jtreg-4.2.0-tip.tar.gz')
     // src 'https://builds.shipilev.net/jtreg/jtreg4.2-b16.zip'
     src 'https://builds.shipilev.net/jtreg/jtreg-7.5+1.zip'
-    dest new File(buildDir, 'jtreg.zip')
+    dest layout.buildDirectory.file('jtreg.zip').get().asFile
     overwrite true
     retries 3
 
@@ -1092,7 +1092,7 @@ subprojects {
     // until the project is evaluated.
     afterEvaluate {
         // Adds manifest to all Jar files
-        tasks.withType(Jar) {
+        tasks.withType(Jar).configureEach {
             includeEmptyDirs = false
             if (archiveFileName.get().startsWith('checker-qual') || archiveFileName.get().startsWith('checker-util')) {
                 metaInf {
@@ -1182,7 +1182,7 @@ subprojects {
                 String name = 'all'
                 String tests = '.'
 
-                executable "${jtregHome}/bin/jtreg"
+                executable "${rootProject.jtregHome}/bin/jtreg"
                 args = [
                     "-dir:${projectDir}/jtreg",
                     "-workDir:${jtregOutput}/${name}/work",
@@ -1246,7 +1246,7 @@ subprojects {
         }
 
         // Configure JUnit tests
-        tasks.withType(Test) {
+        tasks.withType(Test).configureEach {
             if (isJava8) {
                 jvmArgs "-Xbootclasspath/p:${configurations.javacJar.asPath}".toString()
             } else {

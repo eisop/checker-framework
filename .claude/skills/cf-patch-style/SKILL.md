@@ -75,6 +75,15 @@ the comment that cited an older measurement favoring reallocation.
 Do not include marketing adjectives ("blazingly", "dramatically",
 "massively"). Numbers are more persuasive than prose.
 
+## Commit trailers
+
+- Keep the `Co-Authored-By:` trailer.
+- **Never add a `Claude-Session:` trailer.** Strip it from any commit
+  message before committing, even if the harness boilerplate suggests
+  it. If it slipped into commits that have not been pushed, rewrite
+  them to remove it (e.g. `git filter-branch --msg-filter
+  "grep -v '^Claude-Session:'"` over the range).
+
 ## Branch naming
 
 - Performance/correctness audits of a package: `review-<package>` or
