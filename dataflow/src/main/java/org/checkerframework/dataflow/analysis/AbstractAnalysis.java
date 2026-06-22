@@ -222,6 +222,19 @@ public abstract class AbstractAnalysis<
             // first for efficiency, then walk transitive operands with early exit
             // (vs. materializing the whole subtree as Node#getTransitiveOperands does).
             assert !n.isLValue() : "Did not expect an lvalue, but got " + n;
+            // TODO: these membership tests use Collection#contains (structural Node#equals), but
+            // nodeValues (read below) is identity-keyed and equal Nodes can be distinct CFG nodes
+            // (see Node). The structural match only changes the GATE decision -- nodeValues.get(n)
+            // is by identity, so it always returns n's own value, never another node's. So the only
+            // risk is returning n's (possibly stale) value when n is not truly a subnode; this is
+            // empirically benign (every real divergence on the all-systems corpus is a
+            // constant-valued ClassNameNode, no diagnostic change). The whole check also allocates
+            // getOperands() per visited node: ~1.2% of allocation on realistic code but ~35% on
+            // deeply nested expressions. An identity test is more correct but regresses allocation
+            // (forces recomputation the structural match elided). The immediate-operands fast-path
+            // below is a measured no-op vs. a unified BFS (the one avoided ArrayDeque is in the
+            // noise) -- keep for clarity, not speed. See docs/developer/performance-notes.md
+            // (Tried and rejected).
             Collection<Node> immediate = currentNode.getOperands();
             if (!immediate.contains(n)) {
                 java.util.ArrayDeque<Node> queue = new java.util.ArrayDeque<>(immediate);
