@@ -522,7 +522,7 @@ allprojects { currentProj ->
         }
 
         // Add standard javac options
-        tasks.withType(JavaCompile) { compilationTask ->
+        tasks.withType(JavaCompile).configureEach { compilationTask ->
             dependsOn(':installGitHooks')
 
             // Sorting is commented out because it disables incremental compilation.
@@ -1092,7 +1092,7 @@ subprojects {
     // until the project is evaluated.
     afterEvaluate {
         // Adds manifest to all Jar files
-        tasks.withType(Jar) {
+        tasks.withType(Jar).configureEach {
             includeEmptyDirs = false
             if (archiveFileName.get().startsWith('checker-qual') || archiveFileName.get().startsWith('checker-util')) {
                 metaInf {
@@ -1246,7 +1246,7 @@ subprojects {
         }
 
         // Configure JUnit tests
-        tasks.withType(Test) {
+        tasks.withType(Test).configureEach {
             if (isJava8) {
                 jvmArgs "-Xbootclasspath/p:${configurations.javacJar.asPath}".toString()
             } else {
