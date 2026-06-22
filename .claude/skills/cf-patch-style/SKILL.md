@@ -152,10 +152,14 @@ git checkout - && git branch -D verify
 - `./gradlew alltests` — strongly preferred for any framework or
   javacutil change. Subtle visitor and dataflow semantics often fail
   only in obscure checkers.
-- Run `./gradlew spotlessApply` before committing to fix **Java** formatting.
+- Run `./gradlew spotlessApply` before committing to fix **Java and Gradle**
+  formatting — Spotless covers `*.java` *and* `*.gradle` files, so a build-script
+  edit needs it too.
   Spotless does **not** touch shell or Python: if your change adds or edits a
-  `*.sh` or `*.py` file, also run the shell/Python formatters (see the `misc`
-  CI bullet below) or CI's `shell-style-check`/`python-style-check` will fail.
+  `*.sh` or `*.py` file, also run the shell/Python formatters **and linters**
+  — shfmt + `shellcheck` for shell, ruff format + ruff check for Python (see
+  the `misc` CI bullet below) — or CI's
+  `shell-style-check`/`python-style-check` will fail.
 
 If `alltests` is impractical (e.g., no local JDK matrix), say so
 explicitly in the PR description rather than implying it passed.
@@ -184,16 +188,31 @@ green but still fail CI:
   `./gradlew spotlessApply` after **any** edit, including comment-only ones,
   not just code edits.
 - **`shell-style-check` / `python-style-check` cover shell and Python, which
-  Spotless does NOT.** They run `shfmt -i 2 -ci -bn -sr` on every bash/`*.sh`
-  script and `ruff format --check` + `ruff check` on every `*.py`. A patch that
-  adds or edits such a file passes `assemble`/`alltests` but fails this CI job
-  if unformatted (real example: new `.sh`/`.py` skill scripts). Fix with
-  `make shell-style-fix python-style-fix` (or per file:
-  `shfmt -w -i 2 -ci -bn -sr <f.sh>`; `ruff format <f.py> && ruff check --fix <f.py>`),
-  and verify with `shfmt -d -i 2 -ci -bn -sr <f.sh>` / `ruff format --check <f.py>`.
-  Caveat: the local `make shell-style-check` finds scripts by shebang, so it also
-  flags stray untracked `*.orig` backups that a clean CI checkout never sees —
-  trust the per-file `shfmt -d` on your own file, not just the `make` exit code.
+  Spotless does NOT.** `shell-style-check` runs **three** tools on every
+  bash/`*.sh` script — `shfmt -i 2 -ci -bn -sr` (format), `shellcheck -x`
+  (lint), and `checkbashisms` (POSIX-`sh` scripts only) — and
+  `python-style-check` runs `ruff format --check` + `ruff check` on every
+  `*.py`. A patch that adds or edits such a file passes `assemble`/`alltests`
+  but fails this CI job if any of those flag it (real example: new `.sh`/`.py`
+  skill scripts).
+- **shfmt is NOT enough — run shellcheck too.** `shfmt`/`make shell-style-fix`
+  only *reformat*; they do not catch `shellcheck` lint such as **SC2034**
+  (unused variable — e.g. a `for rep in 1 2` counter the body never reads; fix
+  by renaming the variable to `_`, which shellcheck ignores). These findings
+  need a manual code change, not a formatter pass. If `shellcheck` is not on
+  the PATH, install it before claiming a shell script is clean — do not skip
+  the lint step and report only the formatter result.
+- Fix shell with `make shell-style-fix` (or per file
+  `shfmt -w -i 2 -ci -bn -sr <f.sh>`), then **verify both steps** per file:
+  `shfmt -d -i 2 -ci -bn -sr <f.sh>` *and* `shellcheck -x <f.sh>`. Fix Python
+  with `ruff format <f.py> && ruff check --fix <f.py>`, verify with
+  `ruff format --check <f.py>` + `ruff check <f.py>`.
+- Caveats on the local `make shell-style-check`: it finds scripts by shebang,
+  so it also flags stray untracked `*.orig` backups that a clean CI checkout
+  never sees (trust the per-file checks on your own file, not just the `make`
+  exit code), and when `checkbashisms` is not on the PATH the Makefile
+  downloads it to `./.checkbashisms` — a build artifact that is gitignored, not
+  committed.
 
 ## Javadoc on every method you touch (and its neighbors)
 
