@@ -2943,6 +2943,18 @@ off the hot path for the majority of (non-cache) types.
   beat the *global per-accessor `cowActive()` tax* COW imposes on every type, not just cache results;
   and (b) the cache consumers (defaulting/annotators) **fully walk** the result, so the read-only-skip
   benefit never materializes and piecemeal per-child `cowCopy` is slower than one batched `deepCopy`.
+- **Downstream / GC-bound win? — TESTED, no.** Hypothesis: the −4.8% allocation has no wall value on a
+  roomy single compile (GC ≈4%) but should pay off on a memory-pressured build. Heap sweep (all-systems
+  269, all-six COW): the wall penalty *shrinks* as the heap tightens (−Xmx 512m **+8.1%**, 320m +0.5%,
+  256m **+0.1%**) — which looks like the GC story — **but a clean GC measurement at −Xmx256m shows COW
+  does not reduce GC**: 0.77 s vs 0.76 s pauses, **225 collections both**. So the gap-closing is
+  tight-heap measurement variance (the *baseline* slows), not a COW GC saving — the −4.8% allocation
+  does not convert to fewer collections. Root cause: **CF compilation is CPU-bound** (~96% on-CPU, GC
+  ≤4% even on the large `checknullness` build), so the GC ceiling is ~4% and COW captures ~none of it
+  (−4.8% alloc → ≈−0.2% wall), nowhere near the +5% CPU tax. (COW reduces transient *churn*, not
+  *retained* heap — the cache masters are unchanged — so it does not relieve the OOM/footprint pressure
+  either; that needs per-entry-weight reduction, the original immutability goal.) No downstream timing
+  win.
 - **Verdict.** COW is the **correct, complete solution to the soundness blocker** (Guava-validated) and
   delivers the **allocation win** (−4.8%), so it is the right tool if the goal is GC pressure / peak
   memory at scale or a clean immutable end-state. It is **not** a wall-clock win — for wall, the
