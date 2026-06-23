@@ -392,7 +392,13 @@ but cost ≈10% wall clock (far more than its hit-rate delta implied). Cut
   already caches.**
 - **Two traps when measuring whether a per-tree type is stable enough to cache** (both produced a
   *wrong, committed* conclusion this session — the pre-flow `getAnnotatedType` split-cache was
-  rejected as "25–59% unstable," then re-measuring correctly showed value leaves are **0%** unstable):
+  rejected as "25–59% unstable," then re-measuring correctly showed value leaves are **0%** unstable).
+  Postscript: even with 0% instability the built cache was *still* rejected — it was unsound for
+  checkers that override `addComputedTypeAnnotations` (Index/Lock/Optional/Signedness add annotations
+  after `super`, which a `getAnnotatedType` cache hit bypasses → `IndexTest` failed) and flat-to-mixed
+  on nullness where it was correct. **Stability ≠ cacheable: a `getAnnotatedType` cache must compose
+  with subclass overrides, and the per-hit `deepCopy` can cancel the saved work. Validate correctness
+  on the override-checkers, not just nullness.** The measurement traps:
   1. **Compare PER HIERARCHY, never via `AnnotatedTypeMirror.toString()`.** `toString()` over-reports
      instability by counting *cross-hierarchy completeness* — an `int` literal printing as `int` vs
      `@Initialized int` is just the Initialization hierarchy's annotation absent vs present, harmless

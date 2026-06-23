@@ -2066,8 +2066,8 @@ Capture format: hot method, hypothesis, blockers.
      the soundness crux flagged here. And the instability is *highest where the redundancy is
      highest* (loops). A per-analysis memo would cache stale/wrong types; a per-*iteration* memo would
      be sound but the within-iteration redundancy is ~0. Low value and unsound — do not pursue.
-  2. **Pre-flow expression-type ("split") cache — RE-MEASURED; a genuine candidate, value pending an
-     A/B (June 2026).** Split `addComputedTypeAnnotations(Tree, ATM)` at the `if (this.useFlow)`
+  2. **Pre-flow expression-type ("split") cache — RE-MEASURED, then BUILT AND REJECTED (June 2026).**
+     Split `addComputedTypeAnnotations(Tree, ATM)` at the `if (this.useFlow)`
      boundary into the prefix 2a (`applyQualifierParameterDefaults` → tree/type annotators →
      `defaults.annotate`) and the flow suffix 2b (`getInferredValueFor` + `applyInferredAnnotations`).
      Hypothesis: cache the *pre-flow* (post-2a) type per tree and recompute only 2b, since 2b is where
@@ -2103,21 +2103,38 @@ Capture format: hot method, hypothesis, blockers.
      under-annotate, compound expressions disagree ~0.69% (the genuinely context-dependent residual —
      `NewClass`/`NewArray`/conditionals, the #602 set in #3 below), type-name identifiers ~0.7%
      (excludable by element kind). The flow-dependence is entirely in 2b, exactly as the split
-     assumed. **This reopens the split cache as a *sound* candidate** — provided it is per-factory
-     (each ATF has its own cache, as all the existing tree caches already are), returns a deep copy
-     (callers mutate), and skips the ~0.5–0.7% context-dependent kinds.
+     assumed. The per-hierarchy stability made it look like a sound candidate.
 
-     **Value is NOT yet confirmed; do an implemented-cache A/B before adoption.** Instrumented 2a
-     self-time for value leaves alone is ~0.55 s (~4% of a 12.6 s all-systems compile) and ~1.16 s
-     (~15%) on loop-heavy code, vs ~0.05–0.17 s deepCopy — a favorable projected ratio, and compound
-     2a (not separately timed) is larger. But projected savings have repeatedly evaporated in A/B this
-     session (the String→`Name` flat result; #4 applied-defaults). The next step is to *build* the
-     post-2a cache (store the type just before the `useFlow` block; on hit `deepCopy` + run only 2b;
-     key by `Tree`; clear per CU like the other tree caches; skip type-name identifiers and the #602
-     compound kinds) and measure deterministic allocation + wall on all-systems and loops. Until that
-     A/B exists this is a *candidate*, not a win. (The companion "phase-scoped full cache" idea was
-     rejected on the same flawed `toString()` measure and should likewise be re-measured per hierarchy
-     if revisited.) **Method lessons: (1) never measure annotated-type stability via `toString()` —
+     **BUILT AND REJECTED (June 2026) — unsound across checkers, and flat where it is sound.** A
+     working cache was implemented: a per-factory `IdentityHashMap<Tree, AnnotatedTypeMirror>` of
+     frozen pre-flow types, populated just before the `useFlow` block in
+     `GenericAnnotatedTypeFactory.addComputedTypeAnnotations`; `getAnnotatedType` was overridden to,
+     on a hit for a value-leaf, return `cached.deepCopy()` + re-applied flow (2b); cleared per CU;
+     toggled by `-Dcf.preflowcache`. Two findings killed it:
+     - **Unsound for any checker that overrides `addComputedTypeAnnotations`.** `IndexTest` fails
+       (`PredecrementTest.java:8`, an extra `array.access.unsafe.low`). `UpperBoundAnnotatedTypeFactory`
+       (and Lower Bound, Optional, Lock, Signedness) override `addComputedTypeAnnotations` to add
+       flow-dependent annotations **after** `super` — e.g. Index pulls the Value Checker's type and
+       calls `addUpperBoundTypeFromValueType` (its own comment cites `"int i = 1; --i;"`, exactly the
+       failing test). Intercepting at `getAnnotatedType` and re-applying only the GATF-level flow step
+       bypasses that subclass logic, so cache hits drop the index refinement. Caching *inside*
+       `addComputedTypeAnnotations` so the subclass tail still runs would need a deep "replace
+       annotations onto the passed-in type" and only saves 2a (not `fromExpression`) — more complexity
+       for a smaller win. (A diff of cache-on vs -off diagnostics on nullness corpora *was* clean —
+       the bug is specific to the subclass-override checkers, which is why nullness-only validation
+       missed it.)
+     - **Flat-to-mixed even where it is sound (nullness).** Deterministic A/B (median of 5 alloc;
+       2nd-best of 4 wall), cache off vs on: all-systems alloc 2658.7 → 2616.1 MB (−1.6%), wall
+       12.12 → 12.10 s (~0); loops alloc 1078.2 → **1100.1 MB (+2.0%, worse)**, wall 7.18 → 6.84 s
+       (−4.7%). The projected ~4–15% (raw 2a self-time) did not materialize: the per-hit `deepCopy` +
+       `freeze` + map overhead roughly cancels the saved 2a, and on the realistic corpus the result
+       is noise. Do not pursue. **Lesson: per-hierarchy stability proved the cache *could* be sound in
+       isolation, but a framework-wide `getAnnotatedType` cache must compose with subclass
+       `addComputedTypeAnnotations` overrides — and even ignoring that, the deepCopy cost makes it a
+       wash. Validate correctness across the *override* checkers (Index/Lock/Optional/Signedness), not
+       just nullness.** (The companion "phase-scoped full cache" idea was rejected on the same flawed
+       `toString()` measure and would hit the same compose-with-overrides wall.) **Method lessons:
+     (1) never measure annotated-type stability via `toString()` —
      compare per hierarchy (top-name → annotation), since `toString()` conflates cross-hierarchy
      completeness; (2) a checker runs *several* `AnnotatedTypeFactory` instances — never key
      instrumentation (or a cache) on `Tree` in `static` state, or you compare/mix different type
