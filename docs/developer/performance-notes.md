@@ -1951,7 +1951,8 @@ Index (entries are interleaved below; each is tagged with its status inline):
   conditional cache and `inherit` asSuper depth (size-sweep); `getAnnotatedType` #6 (parallelism).
 - **Open but correctness/cost-blocked:** `CFAbstractStore` content hash; lazy JDK-stub cascade; the
   immutability allocation win — **copy-on-write PROTOTYPED and characterized** (branch
-  `cow-prototype`): solves the soundness blocker (Guava-validated), allocation −4.8%, but **no
+  `cow-prototype`, an un-merged experiment — a PR was opened but will not be merged): solves the
+  soundness blocker (Guava-validated), allocation −4.8%, but **no
   configuration is wall-positive** (all-caches +5.3%, elementTypeCache-only +1.8%/noise) — a memory/GC
   win only, not a wall win. See the narrative's "Copy-on-write ATMs — PROTOTYPED" entry.
 - **Closed, do not re-propose:** PR #1829 incorporation worklist (shipped); `getAnnotatedType` #1
@@ -2578,6 +2579,81 @@ not single-leaf. Re-prioritized venues:
   and the name-comparison forcers — `isConstructor`/`isEnumSuperCall`/`findElement` — were addressed
   by PR #1796.)*
 
+- **Defaulting: fuse all defaults into one type-tree traversal — APPLIED in PR #1836 (June 2026).**
+  `QualifierDefaults.applyDefaultsElement` scanned the whole type tree *once per
+  default* (~9.3 scans/call, ~14% inclusive on Guava) — the maintainers' TODO ("only one iteration
+  through the defaults should be necessary"). Now it does **one** traversal that applies every default
+  at each node: `DefaultApplierElementImpl.scan` loops over a precedence-ordered default list (built by
+  `fusedDefaultsFor`) calling the extracted per-node `applyOneAtNode`, and the type-variable/wildcard
+  visitors descend *once* for all defaults. `addMissingAnnotation` only adds when the hierarchy is
+  unannotated, so applying the defaults in order preserves precedence — behavior-preserving by
+  construction. The two subtle cases are faithful: use-only defaults (`TYPE_VARIABLE_USE`,
+  top-level-local `LOCAL_VARIABLE`) are applied at the use node and are no-ops at bound nodes, so
+  always descending is safe; and a **parametric qualifier** is excluded from a type variable and its
+  bounds via a sticky `inTypeVarBound` flag (replicating `visitTypeVariable`'s early return). Subsumes
+  the earlier top-level-only-skip. **Behavior-preserving:** byte-identical diagnostics on all-systems
+  (269 files); the full `:framework:test` + `:checker:test` (56 suites, incl. `SubtypingEncryptedTest`
+  which exercises parametric qualifiers, plus Value/Nullness/Index/Units/Interning/Regex/Lock/…) all
+  pass. **Perf — generics-heavy (Guava nullness, apples-to-apples JFR):** `applyDefaultsElement`
+  13.80% → **~9.7% inclusive (−30%)**, `QualifierDefaults.annotate` 15.57% → **~11.7% (−25%)**; ~noise
+  on all-systems where defaulting is not hot (the cost scales with field/param/return types being deep
+  generics — exactly Guava). **Floor reached:** the residual `applyDefaultsElement` is now dominated by
+  the per-node `applyOneAtNode` (each default is still *checked* at each node — the fusion only
+  collapsed the *traversal*, ~9.3× → 1×, not the per-node application); cutting further needs per-node
+  default filtering (skip defaults whose location can't match a node kind), diminishing returns. The
+  fused list itself is also memoized — see the next entry (an early per-`DefaultSet` *content* cache
+  looked useless/unsafe, but the correct structure was later built and measured).
+- **Defaulting: memoize the fused default list — APPLIED (June 2026, branch `cpu-experiments`).**
+  `fusedDefaultsFor` rebuilt the precedence-ordered list on every `applyDefaultsElement` call (one of
+  the hottest paths: ~once per defaulted type). Instrumentation settled the shape: in a generics-heavy
+  compile **99.8% of calls pass an *empty* scope `DefaultSet`** (63,376 / 63,485), and there are only
+  **2 distinct `DefaultSet` *contents*** by value — the 6,086 "distinct" sets are per-element *empty*
+  objects (`defaultsAt` allocates a fresh empty set per element to short-circuit its cache; they are
+  content-equal). So the result is highly memoizable. Two-part cache: (1) an `isEmpty()` fast-path
+  returns one of two shared constant lists (the code defaults, ±unchecked) — covers the empty case
+  with no map and no hashing; (2) non-empty scopes go through an **identity-keyed**
+  `IdentityHashMap<DefaultSet, List<Default>>` (×2 for conservative). **Identity, not content,
+  keying:** a `DefaultSet` is mutated in place by `addElementDefault`, so a content/hashCode key would
+  corrupt the map; `defaultsAt` returns a stable per-scope object shared across a scope's members, so
+  identity hits well. All caches are cleared by `invalidateFusedDefaults()` from the three (and only)
+  default-set mutators (`addCheckedCodeDefault`, `addUncheckedCodeDefault`, `addElementDefault`); a
+  `fusedDefaultsCached` flag (set in `fusedDefaultsFor`) makes that a no-op while defaults are still
+  being registered, before any cache is populated. The returned lists are shared read-only (the
+  scanner only reads them). **Why the earlier reject was
+  wrong:** the first attempt keyed on `DefaultSet` *identity* for *all* calls — useless, because the
+  6,086 empty objects gave 6,086 keys; and a *content* key was dismissed as needing a per-call hash.
+  The fix is the split (constants for empty, identity map for non-empty), which neither earlier framing
+  found. **Measured (no-memo baseline vs memo, n=3, deterministic alloc):** unmarked Generic300
+  −0.84%, many-fields −0.51%; **wall neutral** (within noise). It is an allocation-only win (~1%) —
+  the list-build was never the CPU cost (the per-node scan is), so it does not move wall time. Kept
+  because it is the morally-correct code (don't rebuild a constant 63k×), it is safe, and — crucially —
+  **it scales with JSpecify** (next paragraph). Correctness: `:framework:test` (incl.
+  `ValueUncheckedDefaultsTest`), `NullnessTest`, `NullnessNullMarkedTest` all green.
+- **Why the memo matters under JSpecify — MEASURED (June 2026).** `@NullMarked`/`@NullUnmarked` are
+  *aliased to* `@DefaultQualifier` (`NullnessNoInitAnnotatedTypeFactory`, `jspecifyNullMarkedAlias`),
+  so they populate the **scope** `DefaultSet` via `defaultsAt`'s enclosing-element inheritance — every
+  element under a `@NullMarked` scope gets a non-empty scope default. So as JSpecify spreads the
+  empty-fast-path's coverage **shrinks** while the identity cache's grows. Measured with one
+  class-level `@DefaultQualifier` (= the `@NullMarked` alias target): empty fraction **99.8% → 73.3%**,
+  distinct *content* **2 → 3** (still a handful — every marked scope yields identical content). A
+  fully-marked codebase trends empty → the library/JDK floor (unmarked external elements stay empty),
+  so the non-empty identity cache carries the savings. The marked workload shows the **larger**
+  allocation win (**−1.03% vs −0.84%**), still wall-neutral. Net: today the non-empty case is 0.2% of
+  calls (not worth caching alone); under JSpecify it becomes the majority, and the distinct-content
+  count stays tiny — exactly the regime where a result memo pays off. The split design is future-proof
+  to marking density without betting on either case dominating.
+- **Defaulting: drop the vestigial scanner type parameter — APPLIED (June 2026, branch
+  `cpu-experiments`).** Cleanup the fusion exposed: `DefaultApplierElementImpl extends
+  AnnotatedTypeScanner<Void, AnnotationMirror>`, but post-fusion the scanner reads the fused list from
+  `outer.fusedDefaults`, never threading the per-default annotation as the scanner's `P`. Every
+  `scan`/`visit*` override only carried an `unusedQual` and passed `null` down. The only non-null-`P`
+  caller, the legacy `applyDefault(Default)` single-default method, had **zero callers and was in fact
+  broken** (it set `location` and called `visit`, but `scan` reads `fusedDefaults`, which only
+  `applyDefaults(List)` sets → NPE). Removed it and changed the scanner to `AnnotatedTypeScanner<Void,
+  Void>` (three override signatures `AnnotationMirror unusedQual` → `Void unusedQual`). No subclasses
+  of `QualifierDefaults` and no external references to `DefaultApplierElement`/`applyDefault` exist, so
+  the change is local. Behavior-preserving by construction (the threaded values were always `null`);
+  `applyOneAtNode`'s real `AnnotationMirror qual` (from the fused list) is untouched.
 - **The defaulting walk is the largest *CF-controlled* leaf cluster — FEASIBILITY MEASURED (June
   2026), verdict: highly memoizable, worth building.** `QualifierDefaults.DefaultApplierElementImpl.scan`
   plus `AnnotatedTypeScanner.visitDeclared`/`scan`/`reduce` are the biggest type-factory leaf group.
@@ -2897,8 +2973,10 @@ CF-controllable clusters and their state, highest-leverage first:
    formatting in the hot path is now **resolved** (PR #1797 lazy `FoundRequired`); remaining utf2*
    at 0.89% is cold-path / first-visit-miss only.
 
-**Copy-on-write ATMs — PROTOTYPED (June 2026): solves the soundness blocker, allocation win real,
-but wall-clock-negative.** The blocker (above) was that returning a shared frozen cache master crashes
+**Copy-on-write ATMs — PROTOTYPED (June 2026, un-merged experiment): solves the soundness blocker,
+allocation win real, but wall-clock-negative.** Recorded in PR #1835; the COW code lives on branch
+`cow-prototype` (a PR was opened but will not be merged — kept as a reference implementation). The
+blocker (above) was that returning a shared frozen cache master crashes
 when a consumer reparents a frozen *child* into a fresh non-frozen result and mutates it (root-level
 `deepCopy()` guards can't catch a non-frozen root holding a frozen child; Guava found what `alltests`
 + 9 fixes missed). A working COW prototype was built (branch `cow-prototype`, gated by `-Dcf.cow`):
