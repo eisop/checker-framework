@@ -135,10 +135,6 @@ public class VariableApplier extends TargetedElementAnnotationApplier {
         // Add declaration annotations to the local variable type
         ElementAnnotationUtil.addDeclarationAnnotationsFromElement(
                 type, varSymbol.getAnnotationMirrors());
-        if (type instanceof AnnotatedTypeVariable && !varSymbol.getAnnotationMirrors().isEmpty()) {
-            ((AnnotatedTypeVariable) type)
-                    .markAsConcreteTypeVariableUse(varSymbol.getAnnotationMirrors());
-        }
         super.extractAndApply();
     }
 }

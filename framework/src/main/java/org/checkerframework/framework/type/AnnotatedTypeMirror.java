@@ -2233,8 +2233,18 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
          */
         public void markAsConcreteTypeVariableUse(
                 Collection<? extends AnnotationMirror> annotations) {
-            useKind = TypeVariableUseKind.CONCRETE;
-            concreteTypeVariableUseAnnotations = new AnnotationMirrorSet(annotations);
+            AnnotationMirrorSet supportedAnnotations = new AnnotationMirrorSet();
+            for (AnnotationMirror annotation : annotations) {
+                AnnotationMirror supportedAnnotation =
+                        canonicalSupportedTypeVariableUseAnnotation(annotation);
+                if (supportedAnnotation != null) {
+                    supportedAnnotations.add(supportedAnnotation);
+                }
+            }
+            if (!supportedAnnotations.isEmpty()) {
+                useKind = TypeVariableUseKind.CONCRETE;
+                concreteTypeVariableUseAnnotations = supportedAnnotations;
+            }
         }
 
         /**
@@ -2243,8 +2253,37 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
          * @param annotation the explicitly written annotation that is {@code q}
          */
         public void markAsConcreteTypeVariableUse(AnnotationMirror annotation) {
+            AnnotationMirror supportedAnnotation =
+                    canonicalSupportedTypeVariableUseAnnotation(annotation);
+            if (supportedAnnotation == null) {
+                return;
+            }
             useKind = TypeVariableUseKind.CONCRETE;
-            concreteTypeVariableUseAnnotations = new AnnotationMirrorSet(annotation);
+            AnnotationMirror previous =
+                    atypeFactory
+                            .getQualifierHierarchy()
+                            .findAnnotationInSameHierarchy(
+                                    concreteTypeVariableUseAnnotations, supportedAnnotation);
+            if (previous != null) {
+                concreteTypeVariableUseAnnotations.remove(previous);
+            }
+            concreteTypeVariableUseAnnotations.add(supportedAnnotation);
+        }
+
+        /**
+         * Returns the supported canonical form of {@code annotation}, or null if it is not a
+         * qualifier for this type factory.
+         *
+         * @param annotation an annotation
+         * @return the supported canonical form of {@code annotation}, or null
+         */
+        private @Nullable AnnotationMirror canonicalSupportedTypeVariableUseAnnotation(
+                AnnotationMirror annotation) {
+            if (atypeFactory.isSupportedQualifier(annotation)) {
+                return annotation;
+            }
+            AnnotationMirror canonical = atypeFactory.canonicalAnnotation(annotation);
+            return atypeFactory.isSupportedQualifier(canonical) ? canonical : null;
         }
 
         /**
