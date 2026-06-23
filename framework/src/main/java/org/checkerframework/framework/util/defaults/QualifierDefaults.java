@@ -134,6 +134,13 @@ public class QualifierDefaults {
     private final IdentityHashMap<DefaultSet, List<Default>> fusedConservativeCache =
             new IdentityHashMap<>();
 
+    /**
+     * Whether any of the four fused-default caches above currently holds an entry. Set when {@link
+     * #fusedDefaultsFor} populates a cache (phase 2), cleared by {@link #invalidateFusedDefaults}.
+     * Lets default registration (phase 1) skip invalidation entirely.
+     */
+    private boolean fusedDefaultsCached = false;
+
     /** Mapping from an Element to the bound type. */
     protected final IdentityHashMap<Element, BoundType> elementToBoundType =
             new IdentityHashMap<>();
@@ -860,15 +867,23 @@ public class QualifierDefaults {
         return false;
     }
 
-    /** Discards all cached fused default lists. Called whenever a default changes. */
+    /** Discards any cached fused default lists. Called whenever a default changes. */
     private void invalidateFusedDefaults() {
+        // Defaults are normally all registered (phase 1) before any are applied (phase 2, which is
+        // what populates these caches via fusedDefaultsFor). While defaults are being configured
+        // nothing is cached, so skip the work -- the add* methods call this many times during setup
+        // and IdentityHashMap.clear() nulls its entire backing table even when empty. Only a
+        // default
+        // added after application has begun reaches the clears (clear(), not reallocation, because
+        // the maps are final and hold few entries).
+        if (!fusedDefaultsCached) {
+            return;
+        }
         fusedEmptyChecked = null;
         fusedEmptyConservative = null;
-        // clear() rather than reallocating: these maps are final, hold at most a handful of entries
-        // (one per default-declaring scope), and invalidation happens only while defaults are being
-        // configured, so the retained table capacity is negligible and we avoid the reallocation.
         fusedCheckedCache.clear();
         fusedConservativeCache.clear();
+        fusedDefaultsCached = false;
     }
 
     /**
@@ -893,6 +908,8 @@ public class QualifierDefaults {
      * @return the fused, ordered default list (shared and read-only; callers must not mutate it)
      */
     private List<Default> fusedDefaultsFor(DefaultSet defaults, boolean conservative) {
+        // Every path below caches what it returns, so the caches are now non-empty (phase 2).
+        fusedDefaultsCached = true;
         if (defaults.isEmpty()) {
             // The fused list for an empty scope is just the (unchecked-, if conservative, then)
             // checked-code defaults: identical across every such call and constant until the code

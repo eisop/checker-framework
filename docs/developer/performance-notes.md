@@ -2616,8 +2616,10 @@ not single-leaf. Re-prioritized venues:
   keying:** a `DefaultSet` is mutated in place by `addElementDefault`, so a content/hashCode key would
   corrupt the map; `defaultsAt` returns a stable per-scope object shared across a scope's members, so
   identity hits well. All caches are cleared by `invalidateFusedDefaults()` from the three (and only)
-  default-set mutators (`addCheckedCodeDefault`, `addUncheckedCodeDefault`, `addElementDefault`); the
-  returned lists are shared read-only (the scanner only reads them). **Why the earlier reject was
+  default-set mutators (`addCheckedCodeDefault`, `addUncheckedCodeDefault`, `addElementDefault`); a
+  `fusedDefaultsCached` flag (set in `fusedDefaultsFor`) makes that a no-op while defaults are still
+  being registered, before any cache is populated. The returned lists are shared read-only (the
+  scanner only reads them). **Why the earlier reject was
   wrong:** the first attempt keyed on `DefaultSet` *identity* for *all* calls — useless, because the
   6,086 empty objects gave 6,086 keys; and a *content* key was dismissed as needing a per-call hash.
   The fix is the split (constants for empty, identity map for non-empty), which neither earlier framing
