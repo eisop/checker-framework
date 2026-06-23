@@ -27,8 +27,8 @@ sourceSets {
     }
 }
 
-sourcesJar {
-    dependsOn(generateGitProperties)
+tasks.named('sourcesJar') {
+    dependsOn('generateGitProperties')
 
     // The resources duplicate content from the src directory.
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
@@ -118,12 +118,14 @@ dependencies {
 //   produced, depending on what order the tasks are executed. Please refer to
 //   https://docs.gradle.org/7.1/userguide/validation_problems.html#implicit_dependency for more
 //   details about this problem.
-generateGitProperties.dependsOn(':installGitHooks')
+tasks.named('generateGitProperties') {
+    dependsOn(':installGitHooks')
+}
 gitProperties {
     dotGitDirectory = project.rootProject.layout.projectDirectory.dir(".git")
 }
 
-jar {
+tasks.named('jar') {
     manifest {
         attributes('Main-Class': 'org.checkerframework.framework.util.CheckerMain')
     }
@@ -204,7 +206,9 @@ tasks.register('assembleForJavac') {
     }
 }
 
-assemble.dependsOn 'assembleForJavac'
+tasks.named('assemble') {
+    dependsOn 'assembleForJavac'
+}
 
 tasks.register('allSourcesJar', Jar) {
     group = 'Build'
@@ -256,28 +260,20 @@ tasks.register('checkerJar', ShadowJar) {
     relocators = shadowJar.getRelocators()
 }
 
-jar {
+tasks.named('jar') {
     dependsOn('checkerJar')
     // Never build the skinny jar.
     onlyIf {false}
     archiveClassifier = 'skinny'
 }
 
-shadowJar {
-    description = 'Creates checker-VERSION-all.jar and copies it to dist/checker.jar.'
+tasks.named('shadowJar') {
+    // assembleForJavac is the task that copies this archive to dist/checker.jar
+    // (with a declared, cacheable output).
+    description = 'Creates checker-VERSION-all.jar.'
     // To see what files are incorporated into the shadow jar file:
     // doFirst { println sourceSets.main.runtimeClasspath.asPath }
     archiveClassifier = 'all'
-    def injectedFiles = project.objects.newInstance(InjectedFileOps)
-    def shadowArchive = archiveFile
-    def distDir = file("${projectDir}/dist")
-    doLast {
-        injectedFiles.fs.copy {
-            from shadowArchive
-            into distDir
-            rename 'checker.*', 'checker.jar'
-        }
-    }
 
     minimize {
         // Keep all classes from checker-qual and checker-util rather than
@@ -302,10 +298,12 @@ artifacts {
     fatJar(tasks.named('shadowJar'))
 }
 
-clean {
+tasks.named('clean') {
     def injected = project.objects.newInstance(InjectedExecOps)
     def commandLineDir = file('tests/command-line')
     def nullnessExtraDir = file('tests/nullness-extra')
+    // Capture the build directory provider at configuration time.
+    def cleanBuildDir = layout.buildDirectory
 
     delete("${projectDir}/dist")
     delete('tests/calledmethods-delomboked')
@@ -328,31 +326,29 @@ clean {
             commandLine 'make', 'clean'
         }
     }
-}
 
-// Capture the build directory provider at configuration time.
-def cleanBuildDir = layout.buildDirectory
-clean.doLast {
-    def buildDirFile = cleanBuildDir.get().asFile
-    int maxAttempts = 6
-    int attempt = 0
-    while (buildDirFile.exists() && attempt < maxAttempts) {
-        attempt++
-        if (attempt > 1) {
-            sleep(10000)                // wait 10 seconds
+    doLast {
+        def buildDirFile = cleanBuildDir.get().asFile
+        int maxAttempts = 6
+        int attempt = 0
+        while (buildDirFile.exists() && attempt < maxAttempts) {
+            attempt++
+            if (attempt > 1) {
+                sleep(10000)                // wait 10 seconds
+            }
+            buildDirFile.deleteDir()
         }
-        buildDirFile.deleteDir()
-    }
-    if (buildDirFile.exists()) {
-        logger.error("Could not delete ${buildDirFile} after ${maxAttempts} attempt(s). Remaining contents:")
-        buildDirFile.listFiles()?.each { logger.error("  ${it}") }
-        throw new GradleException("Failed to delete build directory: ${buildDirFile}")
+        if (buildDirFile.exists()) {
+            logger.error("Could not delete ${buildDirFile} after ${maxAttempts} attempt(s). Remaining contents:")
+            buildDirFile.listFiles()?.each { logger.error("  ${it}") }
+            throw new GradleException("Failed to delete build directory: ${buildDirFile}")
+        }
     }
 }
 
 
 // Add non-junit tests
-createCheckTypeTask(project.name, 'CompilerMessages',
+rootProject.createCheckTypeTask(project.name, 'CompilerMessages',
         'org.checkerframework.checker.compilermsgs.CompilerMessagesChecker')
 tasks.named('checkCompilerMessages') {
     def checkerMsgResources = sourceSets.main.resources.filter { f -> f.name == 'messages.properties' }
@@ -412,7 +408,7 @@ tasks.register('demosTests') {
 
     def injected = project.objects.newInstance(InjectedExecOps)
     def checkerLibPath = layout.projectDirectory.dir('dist').file('checker.jar').asFile.absolutePath
-    def demosDirFile = new File(demosDir.toString())
+    def demosDirFile = new File(rootProject.demosDir.toString())
 
     doLast {
         injected.execOps.exec {
@@ -427,7 +423,7 @@ tasks.register('templateforaCheckerTests') {
     group = 'Verification'
     description = 'Test that the templatefora-checker is working as expected.'
     def injected = project.objects.newInstance(InjectedExecOps)
-    def templateforaDir = file(templateforaCheckerDir)
+    def templateforaDir = file(rootProject.templateforaCheckerDir)
 
     doLast {
         injected.execOps.exec {
@@ -481,7 +477,7 @@ tasks.register('jtregJdk11Tests', Exec) {
     String jtregOutput = layout.buildDirectory.dir('jtregJdk11').get().asFile.absolutePath
     String name = 'all'
 
-    executable "${jtregHome}/bin/jtreg"
+    executable "${rootProject.jtregHome}/bin/jtreg"
     args = [
         "-dir:${projectDir}/jtregJdk11",
         "-workDir:${jtregOutput}/${name}/work",
@@ -507,11 +503,22 @@ tasks.register('jtregJdk11Tests', Exec) {
     ]
 }
 
-test {
+tasks.named('test') {
     if (skipDelombok) {
         exclude '**/org/checkerframework/checker/test/junit/CalledMethodsNoDelombokTest.class'
         exclude '**/org/checkerframework/checker/test/junit/CalledMethodsDisableReturnsReceiverTest.class'
         exclude '**/org/checkerframework/checker/test/junit/NullnessNoDelombokTest.class'
+    }
+
+    useJUnit {
+        // These categories are run in task ainferTest.
+        excludeCategories 'org.checkerframework.checker.test.junit.ainferrunners.AinferTestCheckerJaifsGenerationTest'
+        excludeCategories 'org.checkerframework.checker.test.junit.ainferrunners.AinferTestCheckerStubsGenerationTest'
+        excludeCategories 'org.checkerframework.checker.test.junit.ainferrunners.AinferTestCheckerAjavaGenerationTest'
+        excludeCategories 'org.checkerframework.checker.test.junit.ainferrunners.AinferNullnessJaifsGenerationTest'
+        excludeCategories 'org.checkerframework.checker.test.junit.ainferrunners.AinferNullnessAjavaGenerationTest'
+        excludeCategories 'org.checkerframework.checker.test.junit.ainferrunners.AinferIndexAjavaGenerationTest'
+        excludeCategories 'org.checkerframework.checker.test.junit.ainferrunners.AinferResourceLeakAjavaGenerationTest'
     }
 }
 
@@ -540,20 +547,9 @@ if (!skipDelombok) {
 
 //
 // Tests of the -Ainfer command-line argument.  These are not whole-program inference tests.
+// (The main `test` task's excludeCategories for the ainfer runners is configured above,
+// alongside the other test-task settings.)
 //
-
-test {
-    useJUnit {
-        // These are run in task ainferTest.
-        excludeCategories 'org.checkerframework.checker.test.junit.ainferrunners.AinferTestCheckerJaifsGenerationTest'
-        excludeCategories 'org.checkerframework.checker.test.junit.ainferrunners.AinferTestCheckerStubsGenerationTest'
-        excludeCategories 'org.checkerframework.checker.test.junit.ainferrunners.AinferTestCheckerAjavaGenerationTest'
-        excludeCategories 'org.checkerframework.checker.test.junit.ainferrunners.AinferNullnessJaifsGenerationTest'
-        excludeCategories 'org.checkerframework.checker.test.junit.ainferrunners.AinferNullnessAjavaGenerationTest'
-        excludeCategories 'org.checkerframework.checker.test.junit.ainferrunners.AinferIndexAjavaGenerationTest'
-        excludeCategories 'org.checkerframework.checker.test.junit.ainferrunners.AinferResourceLeakAjavaGenerationTest'
-    }
-}
 
 // Shared, configuration-cache-safe file services/values for the whole-program-inference
 // (ainfer) task actions below: Project.copy/delete/fileTree referenced from a doFirst/doLast
@@ -673,10 +669,10 @@ void copyNonannotatedToAnnotatedDirectory(InjectedFileOps injectedFiles, File pr
         into "tests/${testdir}/annotated"
         filter { String line ->
             (line.contains('// :: error:')
-                    // Don't remove unchecked cast warnings, because they're genuinely expected in some all-systems
-                    // tests, such as GenericsCasts.java.
-                    || (line.contains('// :: warning:') && !line.contains('// :: warning: [unchecked]')))
-                    ? null : line
+            // Don't remove unchecked cast warnings, because they're genuinely expected in some all-systems
+            // tests, such as GenericsCasts.java.
+            || (line.contains('// :: warning:') && !line.contains('// :: warning: [unchecked]')))
+            ? null : line
         }
     }
     // The only file for which expected errors are maintained is ExpectedErrors.java, so we copy it over.
@@ -755,7 +751,7 @@ tasks.register('ainferTestCheckerGenerateJaifsInsertAnnotations', InsertAnnotati
     dependsOn 'ainferTestCheckerGenerateJaifs'
     dependsOn ':checker-qual:jar'
 
-    afuDir = afu
+    afuDir = rootProject.afu
     testDir = 'tests/ainfer-testchecker'
     def checkerQualJar = project(':checker-qual').tasks.named('jar', Jar).flatMap { it.archiveFile }
     classpath = checkerQualJar.map { "${sourceSets.test.output.asPath}:${it.asFile}:" }
@@ -922,7 +918,7 @@ tasks.register('ainferNullnessGenerateJaifsInsertAnnotations', InsertAnnotations
     dependsOn 'ainferNullnessGenerateJaifs'
     dependsOn ':checker-qual:jar'
 
-    afuDir = afu
+    afuDir = rootProject.afu
     testDir = 'tests/ainfer-nullness/'
     def checkerQualJar = project(':checker-qual').tasks.named('jar', Jar).flatMap { it.archiveFile }
     classpath = "${sourceSets.test.output.asPath}:${checkerQualJar.get().asFile}:"
@@ -1073,22 +1069,22 @@ tasks.register('wpiManyTest', Exec) {
                 if (
                 // Ignore the line that WPI echoes with the javac command being run.
                 line.startsWith('Running ')
-                        // Warnings about bad path elements aren't related to WPI and are ignored.
-                        || line.startsWith('warning: [path]')
-                        // Ignore bootstrap classpath warning:
-                        || line.startsWith('warning: [options] bootstrap')
-                        // Ignore the warnings about --add-opens arguments to the JVM
-                        || line.contains('warning: [options] --add-opens has no effect at compile time')
-                        // Ignore warning about using -source; should use --release instead.
-                        || line.equals("warning: [options] system modules path not set in conjunction with -source 11")
-                        // Ignore the summary line that reports the total number of warnings (which can be single or plural).
-                        || line.endsWith(' warning')
-                        || line.endsWith(' warnings')
-                        || line.startsWith('warning: No processor claimed any of these annotations: ')
-                        // Ignore debugging output with the prefix "DEBUG: ".
-                        || line.startsWith('DEBUG: ')
-                        || line.startsWith('warning: DEBUG: ')
-                        || line.contains('warning: [DEBUG: ')) {
+                // Warnings about bad path elements aren't related to WPI and are ignored.
+                || line.startsWith('warning: [path]')
+                // Ignore bootstrap classpath warning:
+                || line.startsWith('warning: [options] bootstrap')
+                // Ignore the warnings about --add-opens arguments to the JVM
+                || line.contains('warning: [options] --add-opens has no effect at compile time')
+                // Ignore warning about using -source; should use --release instead.
+                || line.equals("warning: [options] system modules path not set in conjunction with -source 11")
+                // Ignore the summary line that reports the total number of warnings (which can be single or plural).
+                || line.endsWith(' warning')
+                || line.endsWith(' warnings')
+                || line.startsWith('warning: No processor claimed any of these annotations: ')
+                // Ignore debugging output with the prefix "DEBUG: ".
+                || line.startsWith('DEBUG: ')
+                || line.startsWith('warning: DEBUG: ')
+                || line.contains('warning: [DEBUG: ')) {
                     return;
                 }
                 if (!line.trim().equals('')) {
@@ -1121,7 +1117,7 @@ apply from: rootProject.file('gradle-mvn-push.gradle')
 
 /** Adds information to the publication for uploading to Maven repositories. */
 final checkerPom(publication) {
-    sharedPublicationConfiguration(publication)
+    rootProject.sharedPublicationConfiguration(publication)
     // Don't use publication.from components.java which would publish the skinny jar as checker.jar.
     publication.pom {
         name = 'Checker Framework'
@@ -1143,10 +1139,65 @@ final checkerPom(publication) {
     }
 }
 
+// `components.shadow` (used for the `checker` publication below) only
+// declares a single `shadowRuntimeElements` variant for the shadow jar,
+// with java-runtime usage; see ShadowJavaPlugin#configureComponents() in
+// the Shadow plugin. There is no matching compile-time (java-api) variant,
+// so once the project correctly declares its target JVM version (see
+// `sourceCompatibility`/`targetCompatibility` above), a consuming Gradle
+// build resolving `compileClasspath` against the published module
+// metadata finds a version-compatible variant, but not one usable for
+// compile-time, and fails with "no matching variant" -- this is a known
+// Shadow plugin limitation, see https://github.com/GradleUp/shadow/issues/847.
+//
+// Register a `shadowApiElements` configuration that exposes the same
+// shadow jar for compile-time usage, and add it to `components.shadow` as
+// the missing compile-time variant, so the published Gradle Module
+// Metadata has both a runtime and a compile variant pointing at the
+// shadow jar.
+import org.gradle.api.attributes.Bundling
+import org.gradle.api.attributes.Category
+import org.gradle.api.attributes.LibraryElements
+import org.gradle.api.attributes.Usage
+import org.gradle.api.attributes.java.TargetJvmVersion
+import org.gradle.api.component.AdhocComponentWithVariants
+
+configurations {
+    shadowApiElements {
+        canBeConsumed = true
+        canBeResolved = false
+        attributes {
+            attribute(Usage.USAGE_ATTRIBUTE, objects.named(Usage, Usage.JAVA_API))
+            attribute(Category.CATEGORY_ATTRIBUTE, objects.named(Category, Category.LIBRARY))
+            attribute(LibraryElements.LIBRARY_ELEMENTS_ATTRIBUTE, objects.named(LibraryElements, LibraryElements.JAR))
+            attribute(Bundling.BUNDLING_ATTRIBUTE, objects.named(Bundling, Bundling.SHADOWED))
+        }
+        outgoing.artifact(tasks.named('shadowJar'))
+    }
+}
+
+// Must run after the Shadow plugin's own `afterEvaluate` block, which sets
+// the TargetJvmVersion attribute on `shadowRuntimeElements` and adds that
+// configuration to `components.shadow`. Copy the resulting attribute onto
+// `shadowApiElements` so both variants agree on the target JVM version,
+// then add it as the missing compile-time variant.
+afterEvaluate {
+    def runtimeJvmVersion = configurations.shadowRuntimeElements.attributes
+    .getAttribute(TargetJvmVersion.TARGET_JVM_VERSION_ATTRIBUTE)
+    if (runtimeJvmVersion != null) {
+        configurations.shadowApiElements.attributes {
+            attribute(TargetJvmVersion.TARGET_JVM_VERSION_ATTRIBUTE, runtimeJvmVersion)
+        }
+    }
+    (components.shadow as AdhocComponentWithVariants).addVariantsFromConfiguration(configurations.shadowApiElements) {
+        it.mapToMavenScope('compile')
+    }
+}
+
 publishing {
     publications {
         checker(MavenPublication) {
-            project.shadow.component it
+            from(components.shadow)
             checkerPom it
             artifact tasks.named('checkerJar')
             artifact tasks.named('allSourcesJar')

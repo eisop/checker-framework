@@ -9,6 +9,26 @@ respectively). Several optimizations also reduce GC pressure.
 
 **Implementation details:**
 
+Added the `-AinferenceWorkBudget=N` command-line option, which sets the Java 8
+type-argument-inference bound-incorporation work budget (the threshold past which a
+deeply nested generic invocation is abandoned with a `type.argument.inference.budget`
+error). Defaults to 10000; raise it for legitimate machine-generated code that hits the
+budget.
+
+Lowered the default Java 8 type-argument-inference work budget from 100000 to 10000. The
+most complex hand-written generic code measured (Guava) reaches 994 work units, so 10000
+keeps an order of magnitude of headroom while abandoning a pathological invocation in
+roughly 3 seconds instead of 5. Use `-AinferenceWorkBudget=N` to override.
+
+Performance: Java 8 type-argument inference incorporates bounds to a fixed point with
+an incorporation worklist that re-scans only the variables affected by a newly
+instantiated variable, instead of re-scanning every variable (and re-applying every
+variable's constraints) each round. On deeply nested generic invocations this cut
+wall-clock time by 9-19% (more for deeper nesting) with no change on shallow generics;
+deeply nested calls also now complete inference more often before the work budget
+abandons them. The worklist is a pure optimization: each fixed point is confirmed with
+a full rescan that produces the same result as scanning every variable every round.
+
 Performance: when reporting a warning or error on a tree, the path used for the
 `@SuppressWarnings` lookup is now found starting from the visitor's current path
 rather than rescanning the whole compilation unit from its root. This was
@@ -231,7 +251,7 @@ median of four warm-daemon reps per side).
 
 **Closed issues:**
 
-eisop#433, eisop#792.
+eisop#433, eisop#792, eisop#863, eisop#1801.
 
 
 Version 3.49.5-eisop1 (April 26, 2026)

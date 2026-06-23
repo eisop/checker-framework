@@ -376,7 +376,7 @@ public class AnnotationMirrorSet
                 // This is a set, so ordering is not considered.
                 result += AnnotationUtils.hashCode(shadowList.get(i));
             }
-            hashCodeCache = result;
+            hashCodeCache = result == 0 ? 1 : result;
             hashCodeComputed = true;
         }
         return hashCodeCache;

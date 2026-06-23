@@ -25,17 +25,23 @@ tasks.register('compileJava9', JavaCompile) {
     options.release = 9
 }
 
-compileJava {
+// Shadow 9.4.2 eagerly triggers compile tasks for all source sets.
+// Disable auto-generated Java 8 task; module_info is compiled by compileJava9.
+tasks.named('compileModule_infoJava') {
+    enabled = false
+}
+
+tasks.named('compileJava') {
     if (!isJava8) {
         dependsOn 'compileJava9'
     }
 }
 
-javadoc {
+tasks.named('javadoc') {
     modularity.inferModulePath = false
 }
 
-jar {
+tasks.named('jar') {
     manifest {
         attributes('Export-Package': '*')
     }
@@ -45,7 +51,7 @@ apply from: rootProject.file('gradle-mvn-push.gradle')
 
 /** Adds information to the publication for uploading to Maven repositories. */
 final checkerQualPom(publication) {
-    sharedPublicationConfiguration(publication)
+    rootProject.sharedPublicationConfiguration(publication)
     publication.from components.java
     publication.pom {
         name = 'Checker Qual'

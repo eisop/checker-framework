@@ -323,6 +323,9 @@ public abstract class GenericAnnotatedTypeFactory<
      * therefore null) for a checker with no subcheckers with which it can share CFGs.
      *
      * <p>The initial capacity of the map is set by {@link #getCacheSize()}.
+     *
+     * <p>This field is intentionally not final; it should only be re-assigned by {@link
+     * #setRoot(CompilationUnitTree)}.
      */
     protected @MonotonicNonNull IdentityHashMap<Tree, ControlFlowGraph> subcheckerSharedCFG;
 
@@ -482,12 +485,12 @@ public abstract class GenericAnnotatedTypeFactory<
         }
 
         super.setRoot(root);
-        this.scannedClasses.clear();
+        this.scannedClasses = new IdentityHashMap<>();
         // this.reachableNodes.clear();
         this.flowResult = null;
-        this.regularExitStores.clear();
-        this.exceptionalExitStores.clear();
-        this.returnStatementStores.clear();
+        this.regularExitStores = new IdentityHashMap<>();
+        this.exceptionalExitStores = new IdentityHashMap<>();
+        this.returnStatementStores = new IdentityHashMap<>();
         this.initializationStore = null;
         this.initializationStaticStore = null;
 
@@ -524,6 +527,10 @@ public abstract class GenericAnnotatedTypeFactory<
             // This is the first subchecker running in a group that share CFGs, so it must clear its
             // ultimate parent's shared CFG before adding a new shared CFG.
             factory.shouldClearSubcheckerSharedCFGs = false;
+            // Unlike the per-CU caches above, do not re-instantiate here: the map must stay null
+            // for a factory that never shares CFGs (see the field's invariant), and when it is
+            // used it is lazily created pre-sized to getCacheSize() by addSharedCFGForTree.
+            // Reallocating with a default-capacity map would break both properties.
             if (factory.subcheckerSharedCFG != null) {
                 factory.subcheckerSharedCFG.clear();
             }
@@ -1122,8 +1129,13 @@ public abstract class GenericAnnotatedTypeFactory<
         FINISHED
     }
 
-    /** Map from ClassTree to their dataflow analysis state. */
-    protected final IdentityHashMap<ClassTree, ScanState> scannedClasses = new IdentityHashMap<>();
+    /**
+     * Map from ClassTree to their dataflow analysis state.
+     *
+     * <p>This field is intentionally not final; it should only be re-assigned by {@link
+     * #performFlowAnalysis}.
+     */
+    protected IdentityHashMap<ClassTree, ScanState> scannedClasses = new IdentityHashMap<>();
 
     /*
      * A set of trees whose corresponding nodes are reachable. This is not an exhaustive set of
@@ -1150,15 +1162,27 @@ public abstract class GenericAnnotatedTypeFactory<
     /**
      * A mapping from methods (or other code blocks) to their regular exit store (used to check
      * postconditions).
+     *
+     * <p>This field is intentionally not final; it should only be re-assigned by {@link
+     * #performFlowAnalysis}.
      */
-    protected final IdentityHashMap<Tree, Store> regularExitStores;
+    protected IdentityHashMap<Tree, Store> regularExitStores;
 
-    /** A mapping from methods (or other code blocks) to their exceptional exit store. */
-    protected final IdentityHashMap<Tree, Store> exceptionalExitStores;
+    /**
+     * A mapping from methods (or other code blocks) to their exceptional exit store.
+     *
+     * <p>This field is intentionally not final; it should only be re-assigned by {@link
+     * #performFlowAnalysis}.
+     */
+    protected IdentityHashMap<Tree, Store> exceptionalExitStores;
 
-    /** A mapping from methods to a list with all return statements and the corresponding store. */
-    protected final IdentityHashMap<
-                    MethodTree, List<IPair<ReturnNode, TransferResult<Value, Store>>>>
+    /**
+     * A mapping from methods to a list with all return statements and the corresponding store.
+     *
+     * <p>This field is intentionally not final; it should only be re-assigned by {@link
+     * #performFlowAnalysis}.
+     */
+    protected IdentityHashMap<MethodTree, List<IPair<ReturnNode, TransferResult<Value, Store>>>>
             returnStatementStores;
 
     /**
@@ -1388,9 +1412,9 @@ public abstract class GenericAnnotatedTypeFactory<
      */
     protected void performFlowAnalysis(ClassTree classTree) {
         if (flowResult == null) {
-            this.regularExitStores.clear();
-            this.exceptionalExitStores.clear();
-            this.returnStatementStores.clear();
+            this.regularExitStores = new IdentityHashMap<>();
+            this.exceptionalExitStores = new IdentityHashMap<>();
+            this.returnStatementStores = new IdentityHashMap<>();
             this.flowResult = new AnalysisResult<>(flowResultAnalysisCaches);
         }
 

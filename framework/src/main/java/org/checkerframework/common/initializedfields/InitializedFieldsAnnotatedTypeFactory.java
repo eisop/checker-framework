@@ -15,6 +15,7 @@ import org.checkerframework.framework.source.SourceChecker;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.GenericAnnotatedTypeFactory;
 import org.checkerframework.framework.util.Contract;
+import org.checkerframework.framework.util.ContractsFromMethod;
 import org.checkerframework.framework.util.DefaultContractsFromMethod;
 import org.checkerframework.javacutil.AnnotationBuilder;
 import org.checkerframework.javacutil.ElementUtils;
@@ -114,7 +115,7 @@ public class InitializedFieldsAnnotatedTypeFactory extends AccumulationAnnotated
     }
 
     @Override
-    public InitializedFieldsContractsFromMethod getContractsFromMethod() {
+    public ContractsFromMethod getContractsFromMethod() {
         return new InitializedFieldsContractsFromMethod(this);
     }
 

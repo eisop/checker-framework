@@ -507,11 +507,17 @@ public class Typing extends TypeConstraint {
         return S.equals(typing.S) && kind == typing.kind;
     }
 
+    /** Cached hash code to prevent repeated recomputation of complex deep-hashes. */
+    private int cachedHashCode = 0;
+
     @Override
     public int hashCode() {
-        int result = super.hashCode();
-        result = 31 * result + S.hashCode();
-        result = 31 * result + kind.hashCode();
-        return result;
+        if (cachedHashCode == 0) {
+            int result = super.hashCode();
+            result = 31 * result + S.hashCode();
+            result = 31 * result + kind.hashCode();
+            cachedHashCode = result == 0 ? 1 : result;
+        }
+        return cachedHashCode;
     }
 }
