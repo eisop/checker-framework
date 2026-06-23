@@ -838,6 +838,10 @@ public class QualifierDefaults {
      * @return the fused, ordered default list
      */
     private List<Default> fusedDefaultsFor(DefaultSet defaults, boolean conservative) {
+        // If there is a default for type variable uses, do not also apply checked/unchecked code
+        // defaults to type variables. Otherwise, the default in scope could decide not to annotate
+        // the type variable use, whereas the checked/unchecked code default could add an
+        // annotation.
         boolean typeVarUseDef = false;
         for (Default def : defaults) {
             typeVarUseDef |= (def.location == TypeUseLocation.TYPE_VARIABLE_USE);
