@@ -6,6 +6,7 @@ import com.sun.tools.javac.code.Symbol;
 import com.sun.tools.javac.code.TargetType;
 
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
+import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedTypeVariable;
 import org.checkerframework.framework.util.element.ElementAnnotationUtil.UnexpectedAnnotationLocationException;
 import org.checkerframework.javacutil.BugInCF;
 
@@ -124,6 +125,9 @@ public class VariableApplier extends TargetedElementAnnotationApplier {
     protected void handleTargeted(List<TypeCompound> targeted)
             throws UnexpectedAnnotationLocationException {
         ElementAnnotationUtil.annotateViaTypeAnnoPosition(type, targeted);
+        if (type instanceof AnnotatedTypeVariable && !targeted.isEmpty()) {
+            ((AnnotatedTypeVariable) type).markAsConcreteTypeVariableUse(targeted);
+        }
     }
 
     @Override
@@ -131,6 +135,10 @@ public class VariableApplier extends TargetedElementAnnotationApplier {
         // Add declaration annotations to the local variable type
         ElementAnnotationUtil.addDeclarationAnnotationsFromElement(
                 type, varSymbol.getAnnotationMirrors());
+        if (type instanceof AnnotatedTypeVariable && !varSymbol.getAnnotationMirrors().isEmpty()) {
+            ((AnnotatedTypeVariable) type)
+                    .markAsConcreteTypeVariableUse(varSymbol.getAnnotationMirrors());
+        }
         super.extractAndApply();
     }
 }

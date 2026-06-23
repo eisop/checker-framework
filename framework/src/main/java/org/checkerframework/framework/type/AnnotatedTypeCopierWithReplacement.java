@@ -66,6 +66,9 @@ public class AnnotatedTypeCopierWithReplacement {
                                         original.atypeFactory,
                                         original.isDeclaration());
                 maybeCopyPrimaryAnnotations(original, copy);
+                copy.setTypeVariableUseKind(original.getTypeVariableUseKind());
+                copy.setConcreteTypeVariableUseAnnotations(
+                        original.getConcreteTypeVariableUseAnnotations());
                 originalToCopy.put(original, copy);
 
                 if (original.getUpperBoundField() != null) {

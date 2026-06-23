@@ -21,6 +21,7 @@ import org.plumelib.util.DeepCopyable;
 
 import java.lang.annotation.Annotation;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -2151,6 +2152,22 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
      */
     public static class AnnotatedTypeVariable extends AnnotatedTypeMirror {
 
+        /** How this type-variable use should be substituted. */
+        public enum TypeVariableUseKind {
+            /**
+             * Substitute the full actual type argument. This is the internal representation of
+             * {@code @Sub E}.
+             */
+            SUB,
+
+            /**
+             * Substitute the actual type argument, but replace its top-level annotations with the
+             * annotations on this type-variable use. This is the internal representation of
+             * {@code @Concrete q E}.
+             */
+            CONCRETE
+        }
+
         private AnnotatedTypeVariable(
                 TypeVariable type, AnnotatedTypeFactory atypeFactory, boolean declaration) {
             super(type, atypeFactory);
@@ -2170,14 +2187,91 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
 
         private boolean declaration;
 
+        /** How this type-variable use should be substituted. */
+        private TypeVariableUseKind useKind = TypeVariableUseKind.SUB;
+
+        /** The explicitly written annotations for a {@link TypeVariableUseKind#CONCRETE} use. */
+        private AnnotationMirrorSet concreteTypeVariableUseAnnotations = new AnnotationMirrorSet();
+
         @Override
         public boolean isDeclaration() {
             return declaration;
         }
 
+        /**
+         * Sets whether this type-variable use should be substituted as {@code @Sub E} or
+         * {@code @Concrete q E}.
+         *
+         * @param useKind how this type-variable use should be substituted
+         */
+        public void setTypeVariableUseKind(TypeVariableUseKind useKind) {
+            this.useKind = useKind;
+            if (useKind == TypeVariableUseKind.SUB) {
+                concreteTypeVariableUseAnnotations.clear();
+            }
+        }
+
+        /**
+         * Returns whether this type-variable use should be substituted as {@code @Sub E} or
+         * {@code @Concrete q E}.
+         *
+         * @return how this type-variable use should be substituted
+         */
+        public TypeVariableUseKind getTypeVariableUseKind() {
+            return useKind;
+        }
+
+        /** Marks this type-variable use as {@code @Sub E}. */
+        public void markAsSubTypeVariableUse() {
+            setTypeVariableUseKind(TypeVariableUseKind.SUB);
+        }
+
+        /**
+         * Marks this type-variable use as {@code @Concrete q E}.
+         *
+         * @param annotations the explicitly written annotations that are {@code q}
+         */
+        public void markAsConcreteTypeVariableUse(
+                Collection<? extends AnnotationMirror> annotations) {
+            useKind = TypeVariableUseKind.CONCRETE;
+            concreteTypeVariableUseAnnotations = new AnnotationMirrorSet(annotations);
+        }
+
+        /**
+         * Marks this type-variable use as {@code @Concrete q E}.
+         *
+         * @param annotation the explicitly written annotation that is {@code q}
+         */
+        public void markAsConcreteTypeVariableUse(AnnotationMirror annotation) {
+            useKind = TypeVariableUseKind.CONCRETE;
+            concreteTypeVariableUseAnnotations = new AnnotationMirrorSet(annotation);
+        }
+
+        /**
+         * Sets the explicitly written annotations for a {@link TypeVariableUseKind#CONCRETE} use.
+         *
+         * @param annotations the explicitly written annotations
+         */
+        public void setConcreteTypeVariableUseAnnotations(AnnotationMirrorSet annotations) {
+            concreteTypeVariableUseAnnotations = new AnnotationMirrorSet(annotations);
+        }
+
+        /**
+         * Returns the explicitly written annotations for a {@link TypeVariableUseKind#CONCRETE}
+         * use.
+         *
+         * @return the explicitly written annotations for a {@link TypeVariableUseKind#CONCRETE} use
+         */
+        public AnnotationMirrorSet getConcreteTypeVariableUseAnnotations() {
+            return concreteTypeVariableUseAnnotations;
+        }
+
         @Override
         public void addAnnotation(AnnotationMirror annotation) {
             super.addAnnotation(annotation);
+            if (!isDeclaration()) {
+                markAsConcreteTypeVariableUse(annotation);
+            }
             fixupBoundAnnotations();
         }
 

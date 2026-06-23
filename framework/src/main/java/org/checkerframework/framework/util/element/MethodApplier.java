@@ -200,6 +200,11 @@ public class MethodApplier extends TargetedElementAnnotationApplier {
                 methodType.getReceiverType(), targetTypeToAnno.get(TargetType.METHOD_RECEIVER));
         ElementAnnotationUtil.annotateViaTypeAnnoPosition(
                 methodType.getReturnType(), targetTypeToAnno.get(TargetType.METHOD_RETURN));
+        if (methodType.getReturnType() instanceof AnnotatedTypeVariable
+                && !targetTypeToAnno.get(TargetType.METHOD_RETURN).isEmpty()) {
+            ((AnnotatedTypeVariable) methodType.getReturnType())
+                    .markAsConcreteTypeVariableUse(targetTypeToAnno.get(TargetType.METHOD_RETURN));
+        }
         applyThrowsAnnotations(targetTypeToAnno.get(TargetType.THROWS));
 
         if (!unmatched.isEmpty()) {
