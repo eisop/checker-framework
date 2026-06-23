@@ -2168,6 +2168,13 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
             CONCRETE
         }
 
+        /**
+         * Creates a new {@link AnnotatedTypeVariable}.
+         *
+         * @param type the underlying type
+         * @param atypeFactory the type factory
+         * @param declaration whether this represents a type-variable declaration
+         */
         private AnnotatedTypeVariable(
                 TypeVariable type, AnnotatedTypeFactory atypeFactory, boolean declaration) {
             super(type, atypeFactory);
@@ -2185,6 +2192,7 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
         /** The upper bound of the type variable. */
         private AnnotatedTypeMirror upperBound;
 
+        /** Whether this represents a type-variable declaration. */
         private boolean declaration;
 
         /** How this type-variable use should be substituted. */
