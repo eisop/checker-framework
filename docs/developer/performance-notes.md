@@ -1950,9 +1950,10 @@ Index (entries are interleaved below; each is tagged with its status inline):
   (`getInstantiatedVariables`) and #4 (`getSmallestDependencySet`); the `cond` post-dataflow
   conditional cache and `inherit` asSuper depth (size-sweep); `getAnnotatedType` #6 (parallelism).
 - **Open but correctness/cost-blocked:** `CFAbstractStore` content hash; lazy JDK-stub cascade; the
-  immutability allocation win — **copy-on-write now PROTOTYPED** (branch `cow-prototype`): solves the
-  soundness blocker (Guava-validated), allocation −4.8%, but wall +5.3% (per-access overhead); an
-  allocation/GC win, not a wall win — see the narrative's "Copy-on-write ATMs — PROTOTYPED" entry.
+  immutability allocation win — **copy-on-write PROTOTYPED and characterized** (branch
+  `cow-prototype`): solves the soundness blocker (Guava-validated), allocation −4.8%, but **no
+  configuration is wall-positive** (all-caches +5.3%, elementTypeCache-only +1.8%/noise) — a memory/GC
+  win only, not a wall win. See the narrative's "Copy-on-write ATMs — PROTOTYPED" entry.
 - **Closed, do not re-propose:** PR #1829 incorporation worklist (shipped); `getAnnotatedType` #1
   (per-analysis gvff memo), #2 (pre-flow split cache — built & rejected: unsound across
   override-checkers + flat), #3 (already implemented), #4 (applied-defaults), #5
@@ -2930,12 +2931,25 @@ off the hot path for the majority of (non-cache) types.
   access). This confirms the post-mortem: by now the copier is cheap, so eliminating it does not pay in
   wall clock — COW is an **allocation / GC-pressure** win (valuable at scale, on tight heaps), not a
   single-compile wall win.
-- **Verdict.** COW is the correct, complete solution to the soundness blocker and delivers the
-  allocation win, but as prototyped it is wall-negative. Before adopting: (1) confirm the wall sign on
-  the full warm-daemon `./gradlew checknullness` (single forked compile dilutes; the regression may
-  shrink or grow); (2) attack the diffuse per-access cost (e.g. cache `shallowCopy` results for
-  type-variables, or avoid `cowDirty` field reads on the very hottest accessors) — the prototype's
-  `cowChildren` fix shows the overhead is movable. Keep `cow-prototype` for whoever picks this up.
+- **Wall optimization attempted — COW cannot be made wall-positive (it is a memory win, not a wall
+  win).** Two levers tried (branch `cow-prototype`, second commit): (1) gate every child accessor with
+  `cowActive()` (`= COW && cowDirty`) so non-cache types skip the `cowChild` call and the field write —
+  removed the per-access *write* but did not move wall, so the write was not the cost; (2) flip **only
+  `elementTypeCache`** (the one cache with read-only-majority consumers, 65–88%) and revert the
+  full-walk caches (`element`/`fromMember`/`fromExpression`/`fromType`/`methodAsMemberOf`) to
+  `deepCopy`. Results (all-systems 269): all-six COW = alloc −4.8% / wall +5.3%; elementTypeCache-only
+  = alloc −0.2% / **wall +1.8% (noise)**. **No configuration is wall-positive**, for two structural
+  reasons: (a) the copier is already cheap (~1–2% — the post-mortem above), so eliminating it cannot
+  beat the *global per-accessor `cowActive()` tax* COW imposes on every type, not just cache results;
+  and (b) the cache consumers (defaulting/annotators) **fully walk** the result, so the read-only-skip
+  benefit never materializes and piecemeal per-child `cowCopy` is slower than one batched `deepCopy`.
+- **Verdict.** COW is the **correct, complete solution to the soundness blocker** (Guava-validated) and
+  delivers the **allocation win** (−4.8%), so it is the right tool if the goal is GC pressure / peak
+  memory at scale or a clean immutable end-state. It is **not** a wall-clock win — for wall, the
+  existing `deepCopy` is already optimal. Branch `cow-prototype` is kept as the reference
+  implementation. A wall win in this region, if one exists, is not here (copier already harvested) —
+  it is in *not producing* the types (the `getAnnotatedType`-redundancy family, already closed), not in
+  copying them more cheaply.
 
 ---
 
