@@ -2578,6 +2578,26 @@ not single-leaf. Re-prioritized venues:
   and the name-comparison forcers — `isConstructor`/`isEnumSuperCall`/`findElement` — were addressed
   by PR #1796.)*
 
+- **Defaulting: skip the subtree scan for top-level-only locations — APPLIED (June 2026, branch
+  `cpu-experiments`).** `QualifierDefaults.applyDefaultsElement` scans the whole type tree *once per
+  default* (~9.3 scans/call), and eight `TypeUseLocation`s — `FIELD`, `LOCAL_VARIABLE`,
+  `RESOURCE_VARIABLE`, `EXCEPTION_PARAMETER`, `PARAMETER`, `RECEIVER`, `RETURN`, `CONSTRUCTOR_RESULT` —
+  only ever annotate the *root* (their `DefaultApplierElementImpl.scan` cases gate on `isTopLevelType`;
+  the components they touch — union alternatives, receiver, return — are applied at the root node), so
+  the unconditional `return super.scan(t, qual)` recursing into the subtree visits every node and
+  applies nothing. Replaced it with a `switch` that returns without recursing for those eight
+  locations. **Behavior-preserving:** byte-identical diagnostics on all-systems (269 files), and
+  `:framework:test`/`:checker:test` (Value/Nullness/Index/Units/Interning/Regex) all pass. **Perf —
+  workload-dependent (generics-heavy):** on a Guava nullness build (apples-to-apples JFR),
+  `applyDefaultsElement` 13.80% → **10.89% inclusive (−21%)**, `QualifierDefaults.annotate`
+  15.57% → 13.28%; on all-systems nullness it is ~noise because defaulting is not hot there (the cost
+  scales with field/param/return types being deep generics — exactly Guava). **Next (the bigger win,
+  not yet built):** the remaining `applyDefaultsElement` cost is the `OTHERWISE`/`ALL` + ~12
+  bound-location defaults, each still scanning the whole tree; *fuse* all defaults into one traversal
+  (the maintainers' TODO: "only one iteration through the defaults should be necessary") — at each node
+  apply the matching defaults in order (`addMissing` preserves precedence). That turns ~9.3 scans into
+  1; bound defaults then cost nothing on the non-generic majority. Larger refactor of
+  `DefaultApplierElementImpl` (the per-node `switch` + bound visitors must loop over a default list).
 - **The defaulting walk is the largest *CF-controlled* leaf cluster — FEASIBILITY MEASURED (June
   2026), verdict: highly memoizable, worth building.** `QualifierDefaults.DefaultApplierElementImpl.scan`
   plus `AnnotatedTypeScanner.visitDeclared`/`scan`/`reduce` are the biggest type-factory leaf group.
