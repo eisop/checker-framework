@@ -1831,7 +1831,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         if (shouldCache) {
             AnnotatedTypeMirror cached = elementCache.get(elt);
             if (cached != null) {
-                return AnnotatedTypeMirror.COW ? cached.cowCopy() : cached.deepCopy();
+                return cached.deepCopy();
             }
         }
         if (elt.getKind() == ElementKind.PACKAGE) {
@@ -1950,7 +1950,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         if (shouldCache) {
             AnnotatedTypeMirror cached = fromMemberTreeCache.get(tree);
             if (cached != null) {
-                return AnnotatedTypeMirror.COW ? cached.cowCopy() : cached.deepCopy();
+                return cached.deepCopy();
             }
         }
         AnnotatedTypeMirror result = TypeFromTree.fromMember(this, tree);
@@ -2046,7 +2046,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         if (shouldCache) {
             AnnotatedTypeMirror cached = fromExpressionTreeCache.get(tree);
             if (cached != null) {
-                return AnnotatedTypeMirror.COW ? cached.cowCopy() : cached.deepCopy();
+                return cached.deepCopy();
             }
         }
 
@@ -2079,7 +2079,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         if (shouldCache) {
             AnnotatedTypeMirror cached = fromTypeTreeCache.get(tree);
             if (cached != null) {
-                return AnnotatedTypeMirror.COW ? cached.cowCopy() : cached.deepCopy();
+                return cached.deepCopy();
             }
         }
 
@@ -2850,10 +2850,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         AnnotatedExecutableType cachedMethodType =
                 cacheKey == null ? null : methodAsMemberOfCache.get(cacheKey);
         if (cachedMethodType != null) {
-            methodType =
-                    AnnotatedTypeMirror.COW
-                            ? (AnnotatedExecutableType) cachedMethodType.cowCopy()
-                            : cachedMethodType.deepCopy();
+            methodType = cachedMethodType.deepCopy();
         } else {
             methodType = computeMethodTypeAsMemberOf(tree, methodElt, receiverType, inferTypeArgs);
             if (cacheKey != null) {
