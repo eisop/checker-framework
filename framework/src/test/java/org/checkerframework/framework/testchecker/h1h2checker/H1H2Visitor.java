@@ -45,21 +45,26 @@ public class H1H2Visitor extends BaseTypeVisitor<H1H2AnnotatedTypeFactory> {
             Object... extraArgs) {
         AnnotationMirror h1Invalid = AnnotationBuilder.fromClass(elements, H1Invalid.class);
         boolean invalidLhs =
-                AnnotatedTypes.containsModifier(
-                        atypeFactory.getAnnotatedTypeLhs(varTree), h1Invalid);
+                isCommonAssignmentInvalidTree(varTree)
+                        && AnnotatedTypes.containsModifier(
+                                atypeFactory.getAnnotatedTypeLhs(varTree), h1Invalid);
+        boolean invalidRhs =
+                isCommonAssignmentInvalidTree(valueExpTree)
+                        && AnnotatedTypes.containsModifier(
+                                atypeFactory.getAnnotatedType(valueExpTree), h1Invalid);
         boolean superResult =
                 super.commonAssignmentCheck(varTree, valueExpTree, errorKey, extraArgs);
         // This is a regression-test sentinel for BaseTypeVisitor.commonAssignmentCheck(Tree, ...).
-        // If the parent returns true after validateType rejects an invalid LHS, this warning is
+        // If the parent returns true after validateType rejects an invalid type, this warning is
         // unexpected and the test fails.
-        if (superResult && invalidLhs) {
+        if (superResult && (invalidLhs || invalidRhs)) {
             checker.reportWarning(varTree, "h1h2checker.commonassignment.parent.succeeded");
         }
         return superResult;
     }
 
-    /** Returns true if {@code tree} is the invalid LHS used by {@code CommonAssignmentReturn}. */
-    private boolean isCommonAssignmentInvalidLhs(Tree tree) {
+    /** Returns true if {@code tree} is the invalid type used by {@code CommonAssignmentReturn}. */
+    private boolean isCommonAssignmentInvalidTree(Tree tree) {
         switch (tree.getKind()) {
             case VARIABLE:
                 return ((VariableTree) tree).getName().contentEquals(COMMON_ASSIGNMENT_INVALID_LHS);
@@ -93,7 +98,7 @@ public class H1H2Visitor extends BaseTypeVisitor<H1H2AnnotatedTypeFactory> {
         public Void visitDeclared(AnnotatedDeclaredType type, Tree p) {
             AnnotationMirror h1Invalid = AnnotationBuilder.fromClass(elements, H1Invalid.class);
             if (AnnotatedTypes.containsModifier(type, h1Invalid)) {
-                if (isCommonAssignmentInvalidLhs(p)) {
+                if (isCommonAssignmentInvalidTree(p)) {
                     reportInvalidType(type, p);
                     return super.visitDeclared(type, p);
                 }
