@@ -1948,12 +1948,12 @@ super-linears — pathological depth, shallow in real code), or research-scale
 Index (entries are interleaved below; each is tagged with its status inline):
 - **Open, low-value:** `qualifiedNameCache` backing map; typeinference8 resolution #3
   (`getInstantiatedVariables`) and #4 (`getSmallestDependencySet`); the `cond` post-dataflow
-  conditional cache and `inherit` asSuper depth (size-sweep); `getAnnotatedType` #2 (scope-bounded
-  cache, same soundness crux) and #6 (parallelism).
+  conditional cache and `inherit` asSuper depth (size-sweep); `getAnnotatedType` #6 (parallelism).
 - **Open but correctness/cost-blocked:** `CFAbstractStore` content hash; lazy JDK-stub cascade; the
   immutability allocation win (load-bearing copy — see narrative).
 - **Closed, do not re-propose:** PR #1829 incorporation worklist (shipped); `getAnnotatedType` #1
-  (per-analysis gvff memo), #3 (already implemented), #4 (applied-defaults), #5
+  (per-analysis gvff memo), #2 (pre-flow split cache — built & rejected: unsound across
+  override-checkers + flat), #3 (already implemented), #4 (applied-defaults), #5
   (`methodFromUse`/`constructorFromUse`); typeinference8 resolution #1 (dependency graph) and #2
   (`saveBounds`); `AbstractAnalysis.getValue` subnode test (see Tried and rejected).
 
