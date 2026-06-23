@@ -1874,6 +1874,61 @@ the prior finding. A fresh hypothesis is not new evidence.
   only sanctioned rescue in this basin is a maintained incremental content-hash on `CFAbstractStore`
   (see the Short list and the rejected equal-store merge short-circuit above), memory-A/B-gated.
 
+- **`String`→`Name` annotation-name migration: replace `AnnotationUtils.annotationName` (String)
+  with `annotationNameAsName` (javac `Name`) + `==` identity comparison, framework-wide (June
+  2026).** Branch converting the name-dispatch sites in `ValueAnnotatedTypeFactory`,
+  `ValueQualifierHierarchy`, `ValueTransfer`, the Index `UpperBound*` checkers, `Units`,
+  `BaseTypeVisitor`/`BaseTypeValidator` (`qualAllowedLocations`), `DependentTypesHelper`
+  (`annoToElements`), and `AnnotatedTypeFactory` (`aliases`, `declAliases`, `isSupportedQualifier`)
+  from value-based `String` comparison to `Name`-identity comparison, backing maps switched to
+  `IdentityHashMap<Name,…>`. Premise: "avoid the `Name.toString()` decode + `String.intern()` that
+  `annotationName` performs."
+
+  **Measured flat — alloc and wall — even after completing the half-finished form.** As proposed the
+  branch slightly *regresses*, because `annotationNameAsName` had no
+  `CheckerFrameworkAnnotationMirror` (CFAM) fast path (it pointer-chases
+  `getAnnotationType().asElement().getQualifiedName()` where `annotationName` reads a cached field)
+  and `isSupportedQualifier(Name)` still called `name.toString()` on every cache miss. To measure the
+  *approach* and not the artifacts, the branch was completed: cache a `Name` field on CFAM next to its
+  existing interned-`String` `annotationName`; give `annotationNameAsName` a CFAM fast path; replace
+  `isSupportedQualifier`'s `getSupportedTypeQualifierNames().contains(name.toString())` with a
+  one-time identity-backed companion `Set<Name>` membership test. A/B of that fully-realized version
+  vs. master (deterministic `jdk.ThreadAllocationStatistics`, single forked `javac`):
+
+  | corpus | metric | master | realized | delta |
+  | --- | --- | --- | --- | --- |
+  | nullness, `inherit` shape (~7.4k LoC) | alloc (median of 5) | 4488.0 MB | 4492.3 MB | +0.10% (noise) |
+  | nullness, `repeat` shape (~7.3k LoC) | alloc | 785.7 MB | 787.5 MB | +0.23% (noise) |
+  | Value, 8 test inputs batched | alloc | 312.6 MB | 312.9 MB | +0.10% (noise) |
+  | nullness, `inherit` | wall (2nd-best of 4) | 7.98 s | 8.18 s | noise |
+  | nullness, `repeat` | wall | 5.10 s | 5.05 s | noise |
+
+  **Root cause — the targeted allocation does not happen on hot paths.** CFAM, the representation the
+  framework manipulates for the overwhelming majority of annotations, already caches its name as an
+  `@Interned String` computed once in its constructor, so `annotationName(am)` was *already a field
+  read with zero allocation* for CFAM. The `toString().intern()` cost applies only to raw
+  `Attribute.Compound` source mirrors, and even there `getAnnotationType().asElement()` is two field
+  reads (`anno.type.tsym`). You cannot remove garbage that is not being produced.
+
+  **Ceiling proof.** A deliberately annotation-saturated, checker-bound workload (400 methods × 40
+  explicitly-`@Nullable`/`@NonNull`/`@MonotonicNonNull` locals each), profiled at 2596
+  `ExecutionSample`s, shows the name-handling frames — `annotationName`, `annotationNameAsName`,
+  `areSameByName`, `isSupportedQualifier`, `Name.toString`, `String.intern` — **entirely below the
+  sample floor (0 samples).** The hot leaf there is `IdentityHashMap.get` (7.8%), attributed
+  (`jfr-analyze self`) ~40% to `ElementQualifierHierarchy.getQualifierKind` — annotation→`QualifierKind`
+  resolution, *not* name handling — and caching *that* is itself already measured-and-rejected (see
+  "`AnnotationMirror → QualifierKind` second-level cache" above). **General lesson: annotation-name
+  comparison/dispatch is not a hotspot; CFAM already caches the decoded interned name, so any
+  String→`Name` rerepresentation is flat. This is the dispatch-level analogue of the `isStringEqual`
+  false premise (see "Element and name caching"). The annotation-name allocation that *does* show up
+  (`[B` UTF-8 decode, ~28% of dataflow allocation) is `Name.toString()` deep in dataflow/store
+  machinery, not in qualifier-name dispatch — optimize there, not here.** The branch also seeded three
+  anti-patterns worth recording: a `static IdentityHashMap<Name,…>` (Names are interned *per
+  compilation context*, so a static identity-map both leaks across compilation tasks and never hits
+  cross-context — keep such caches instance-scoped), unused cached-`Name` fields hidden behind a
+  class-wide `@SuppressWarnings("UnusedVariable")`, and `Name`-identity assumptions spread across the
+  public `javacutil` surface for no measured gain.
+
 ---
 
 ## Short list
@@ -1893,12 +1948,15 @@ super-linears — pathological depth, shallow in real code), or research-scale
 Index (entries are interleaved below; each is tagged with its status inline):
 - **Open, low-value:** `qualifiedNameCache` backing map; typeinference8 resolution #3
   (`getInstantiatedVariables`) and #4 (`getSmallestDependencySet`); the `cond` post-dataflow
-  conditional cache and `inherit` asSuper depth (size-sweep); `getAnnotatedType` #2 (scope-bounded
-  cache, same soundness crux) and #6 (parallelism).
+  conditional cache and `inherit` asSuper depth (size-sweep); `getAnnotatedType` #6 (parallelism).
 - **Open but correctness/cost-blocked:** `CFAbstractStore` content hash; lazy JDK-stub cascade; the
-  immutability allocation win (load-bearing copy — see narrative).
+  immutability allocation win — **copy-on-write PROTOTYPED and characterized** (branch
+  `cow-prototype`): solves the soundness blocker (Guava-validated), allocation −4.8%, but **no
+  configuration is wall-positive** (all-caches +5.3%, elementTypeCache-only +1.8%/noise) — a memory/GC
+  win only, not a wall win. See the narrative's "Copy-on-write ATMs — PROTOTYPED" entry.
 - **Closed, do not re-propose:** PR #1829 incorporation worklist (shipped); `getAnnotatedType` #1
-  (per-analysis gvff memo), #3 (already implemented), #4 (applied-defaults), #5
+  (per-analysis gvff memo), #2 (pre-flow split cache — built & rejected: unsound across
+  override-checkers + flat), #3 (already implemented), #4 (applied-defaults), #5
   (`methodFromUse`/`constructorFromUse`); typeinference8 resolution #1 (dependency graph) and #2
   (`saveBounds`); `AbstractAnalysis.getValue` subnode test (see Tried and rejected).
 
@@ -2011,7 +2069,60 @@ Capture format: hot method, hypothesis, blockers.
      the soundness crux flagged here. And the instability is *highest where the redundancy is
      highest* (loops). A per-analysis memo would cache stale/wrong types; a per-*iteration* memo would
      be sound but the within-iteration redundancy is ~0. Low value and unsound — do not pursue.
-  2. **Scope-bounded expression-type cache** (per visitor-subtree) — broader, same soundness crux.
+  2. **Pre-flow expression-type ("split") cache — BUILT AND REJECTED (June 2026).** Hypothesis:
+     `addComputedTypeAnnotations(Tree, ATM)` splits at the `if (this.useFlow)` boundary into a prefix
+     2a (`applyQualifierParameterDefaults` → tree/type annotators → `defaults.annotate`) and a flow
+     suffix 2b (`getInferredValueFor` + `applyInferredAnnotations`); since flow lives only in 2b, cache
+     the *pre-flow* (post-2a) type per tree and recompute only 2b. Per-factory, per-hierarchy
+     measurement shows the pre-flow type *is* stable, so the cache looked sound:
+
+     | category | all-systems (120f) | loops |
+     | --- | --- | --- |
+     | value leaf (literal / var / field / param id) | disagree 0, compl 0 / 58,447 repeats | 0 / 0 / 130,894 |
+     | compound expression | disagree 213 (0.69%), compl 0 / 30,949 | 0 / 0 / 33,604 |
+     | type-name identifier (class/enum) | excluded (≈0.7% context-dependent) | — |
+
+     (Value leaves never disagree or under-annotate; the compound ~0.69% residual is the genuinely
+     context-dependent `NewClass`/`NewArray`/conditional set — the #602 trees of #3 below; type-name
+     identifiers ~0.7%, excludable by element kind.) A working cache was then implemented — a
+     per-factory `IdentityHashMap<Tree, AnnotatedTypeMirror>` of frozen pre-flow types populated just
+     before the `useFlow` block, with `getAnnotatedType` overridden to return `cached.deepCopy()` +
+     re-applied 2b on a value-leaf hit, cleared per CU, toggled by `-Dcf.preflowcache`. **Two
+     independent findings killed it:**
+     - **Unsound for any checker that overrides `addComputedTypeAnnotations`.** `IndexTest` fails
+       (`PredecrementTest.java:8`, a spurious `array.access.unsafe.low`). `UpperBoundAnnotatedTypeFactory`
+       (and Lower Bound, Optional, Lock, Signedness) override `addComputedTypeAnnotations` to add
+       flow-dependent annotations **after** `super` — Index pulls the Value Checker's type and calls
+       `addUpperBoundTypeFromValueType` (its comment cites `"int i = 1; --i;"`, exactly the failing
+       test). Intercepting at `getAnnotatedType` and re-applying only the GATF-level flow step bypasses
+       that subclass tail, so hits drop the index refinement. Caching *inside*
+       `addComputedTypeAnnotations` so the subclass tail still runs would need a deep "replace
+       annotations onto the passed-in type" and saves only 2a (not `fromExpression`) — more complexity,
+       smaller win. A nullness-only diagnostic diff (cache on vs off) was clean, which is exactly why
+       nullness-only validation missed it.
+     - **Flat-to-mixed even where it is sound (nullness).** Deterministic A/B (median-of-5 alloc;
+       2nd-best-of-4 wall), off vs on: all-systems alloc 2658.7 → 2616.1 MB (−1.6%), wall 12.12 →
+       12.10 s (~0); loops alloc 1078.2 → **1100.1 MB (+2.0%, worse)**, wall 7.18 → 6.84 s (−4.7%). The
+       projected ~4–15% (raw 2a self-time) did not materialize — the per-hit `deepCopy` + `freeze` +
+       map overhead roughly cancels the saved 2a, and the realistic corpus is noise.
+
+     **Do not pursue.** The companion "phase-scoped full cache" idea would hit the same
+     compose-with-overrides wall. **Lessons:**
+     - *Stability ≠ cacheable.* Per-hierarchy stability proved the cache could be sound in isolation,
+       but a framework-level `getAnnotatedType` cache must **compose with subclass
+       `addComputedTypeAnnotations` overrides**, and even then the `deepCopy` cost makes it a wash.
+       Validate such a change on the override-checkers (Index/Lock/Optional/Signedness), not just
+       nullness.
+     - *Measuring per-tree type stability has two traps* (both nearly produced a false "unstable
+       25–59%, unsound" verdict): **(1)** never compare via `AnnotatedTypeMirror.toString()` — it
+       conflates *cross-hierarchy completeness* (a literal printing as `int` vs `@Initialized int` is
+       the Initialization annotation absent-vs-present, not a within-hierarchy change) with real
+       disagreement; compare per hierarchy as {top-name → annotation}. **(2)** a checker runs *several*
+       `AnnotatedTypeFactory` instances (a `nullness` compile drives `NullnessNoInit`, `Initialization`,
+       `InitializationFieldAccess`, `KeyFor`) — never key instrumentation or a cache on `Tree` in
+       `static` state, or you compare one type system's snapshot against another's. (Note:
+       `getTopAnnotations()` is *not* an ordering hazard — it returns a build-once `ArrayList`-backed
+       `AnnotationMirrorSet` over a `TreeMap<QualifierKind,…>`, a stable deterministic order.)
   3. **Split flow-independent structure from flow-dependent annotations — MEASURED, ALREADY
      IMPLEMENTED (June 2026).** The hypothesis was: `fromExpression` (~24% inclusive) builds a
      deterministic-per-tree skeleton, so cache the frozen skeleton and re-apply only the
@@ -2159,6 +2270,32 @@ a single compile (which is why the scanner-reuse and `AnnotationMirrorSet` alloc
 wins did not move single-compile time — their value is GC pressure at scale); CPU is.
 (2) The largest non-obvious CPU slice is CF driving javac (symbol completion + name
 decoding + tree/path walks), bigger than dataflow + stubs + visitor combined.
+
+**Guava cross-check (first hotspot JFR of a large heavy-generics codebase, June 2026).**
+`test-guava-nullness.sh` (Nullness Checker on the `guava` module, 625 files; JFR injected
+via the forked-compiler `-J` args in the `checkerframework-local` profile; 7,814
+ExecutionSamples). Two findings:
+- **The leaf self-time profile generalizes — nothing new at the leaf.** Same flat shape as
+  `checkNullness`: no CF leaf above **3.85%**; the top is `IdentityHashMap.get`/`put` (≈6.8%
+  combined), the ATM traversal (`AnnotatedTypeScanner.scan`/`visitDeclared`/`reduce` ≈7%),
+  `Symbol.apiComplete`, `DefaultApplierElementImpl.scan`, `AnnotatedTypeCopier.visitDeclared`,
+  `AnnotatedTypeMirror.createType`. Allocation: `[Ljava.lang.Object;` 32%, `ArrayList` 8.7%,
+  `IdentityHashMap` 5.5%, `AnnotationMirrorSet` 4.5% — the same ATM-pipeline allocation.
+- **New *fact* (not a new lever): type-argument inference is a top-2 inclusive cost on heavy
+  generics, where it is negligible on `all-systems`/`checkNullness`.** `getAnnotatedType` 50%
+  inclusive (as usual), but then `methodFromUse` **24.6%** → `inferTypeArgs` **23.0%** →
+  `InvocationTypeInference.infer` 22.4% → `ConstraintSet.reduceOneStep` 14.1%. Decomposing the
+  23% inference slice (`cooccur`): **50% of it is under `getAnnotatedType`** (building
+  argument/receiver/bound types) and **28% under `incorporateToFixedPoint`** (the machinery
+  PR #1829 already optimized); the inference-*specific* self-time (`TypeConstraint.hashCode`,
+  `ConstraintSet`, constraint-collection churn — `LinkedHashMap`/`ListBuffer`/`List$2` ≈6% of
+  allocation) is small and diffuse. So Guava **reinforces** rather than overturns the Short
+  list: the biggest lever is still `getAnnotatedType` (now shown to dominate inference too, not
+  just checking), inference's big win already shipped (#1829), and the resolution items (#3/#4)
+  stay low-value — their self-time is tiny even here. Takeaway for future sessions: `all-systems`
+  and `checkNullness` **under-represent inference**; profile **Guava (or jspecify-conformance)**
+  for any inference work, but expect the cost to be the type pipeline it drives, not a clean
+  inference-specific frame.
 
 Open venues, roughly by tractability:
 
@@ -2759,6 +2896,72 @@ CF-controllable clusters and their state, highest-leverage first:
    ~0.58%, blocked on a thread-reachability + daemon-memory audit — see Short list above). Annotation
    formatting in the hot path is now **resolved** (PR #1797 lazy `FoundRequired`); remaining utf2*
    at 0.89% is cold-path / first-visit-miss only.
+
+**Copy-on-write ATMs — PROTOTYPED (June 2026): solves the soundness blocker, allocation win real,
+but wall-clock-negative.** The blocker (above) was that returning a shared frozen cache master crashes
+when a consumer reparents a frozen *child* into a fresh non-frozen result and mutates it (root-level
+`deepCopy()` guards can't catch a non-frozen root holding a frozen child; Guava found what `alltests`
++ 9 fixes missed). A working COW prototype was built (branch `cow-prototype`, gated by `-Dcf.cow`):
+the six post-pipeline caches (`elementType`, `element`, `fromMember`, `fromExpression`, `fromType`,
+`methodAsMemberOf`) return `cowCopy()` — a non-frozen `shallowCopy()` that shares the master's frozen
+children — instead of `deepCopy()`; the ~13 child accessors (`getUpperBound`/`getTypeArguments`/…)
+**plus the three `fixupBoundAnnotations`** (which mutate bound *fields* directly, bypassing the
+accessors — the second class of reparenting path) lazily unshare a frozen child of a non-frozen parent
+(`cowChild`/`cowChildren`), so a mutation copies only the spine it touches and a read-only hit copies
+one node. A per-node `cowDirty` flag (set by `cowCopy`, checked in the accessors) keeps the COW scan
+off the hot path for the majority of (non-cache) types.
+- **Soundness: complete and validated.** Passes the regression test
+  `ElementTypeCacheWildcardBound`, all-systems (269 files, byte-identical diagnostics to COW-off),
+  and — the decisive test — a **full Guava nullness build (BUILD SUCCESS, 0 crashes)**, the venue that
+  caught the original flip crash. COW-on-access is the complete fix the narrative predicted: it makes
+  all six caches flippable and the whole reparenting bug class disappears. Two non-obvious lessons:
+  (a) the executable type's `getTypeVariables` and the union/intersection `getAlternatives`/`getBounds`
+  are easy accessors to miss; (b) the `fixupBoundAnnotations` field-level mutation is a *second*
+  reparenting surface that COW-on-access alone (intercepting only the public getters) does not cover —
+  it must be routed through `cowChild`/`cowChildren` too.
+- **Allocation: −4.8% (real).** Deterministic `ThreadAllocationStatistics`, all-systems 269, median of
+  5: 5709.6 → 5434.3 MB; loops −3.6%. Larger than the ~1% the old `elementType`+`classAndMethod`
+  boundary flips got, because COW flips all six caches and `shallowCopy` is far cheaper than `deepCopy`
+  on read-only hits.
+- **Wall clock: +5.3% (regression).** all-systems 269, min of 3: 19.81 → 20.86 s. The per-access COW
+  machinery costs more CPU than the allocation reduction returns. The `cowDirty` flag fixed the one hot
+  frame (`cowChildren` 3.74% → 0.50% self-time), but the residual is **diffuse** — the distributed
+  per-access checks plus per-child `cowCopy` allocations across the walk (note `shallowCopy` for
+  type-variables/wildcards is itself a `deepCopy`, so a generics-heavy type deep-copies each bound on
+  access). This confirms the post-mortem: by now the copier is cheap, so eliminating it does not pay in
+  wall clock — COW is an **allocation / GC-pressure** win (valuable at scale, on tight heaps), not a
+  single-compile wall win.
+- **Wall optimization attempted — COW cannot be made wall-positive (it is a memory win, not a wall
+  win).** Two levers tried (branch `cow-prototype`, second commit): (1) gate every child accessor with
+  `cowActive()` (`= COW && cowDirty`) so non-cache types skip the `cowChild` call and the field write —
+  removed the per-access *write* but did not move wall, so the write was not the cost; (2) flip **only
+  `elementTypeCache`** (the one cache with read-only-majority consumers, 65–88%) and revert the
+  full-walk caches (`element`/`fromMember`/`fromExpression`/`fromType`/`methodAsMemberOf`) to
+  `deepCopy`. Results (all-systems 269): all-six COW = alloc −4.8% / wall +5.3%; elementTypeCache-only
+  = alloc −0.2% / **wall +1.8% (noise)**. **No configuration is wall-positive**, for two structural
+  reasons: (a) the copier is already cheap (~1–2% — the post-mortem above), so eliminating it cannot
+  beat the *global per-accessor `cowActive()` tax* COW imposes on every type, not just cache results;
+  and (b) the cache consumers (defaulting/annotators) **fully walk** the result, so the read-only-skip
+  benefit never materializes and piecemeal per-child `cowCopy` is slower than one batched `deepCopy`.
+- **Downstream / GC-bound win? — TESTED, no.** Hypothesis: the −4.8% allocation has no wall value on a
+  roomy single compile (GC ≈4%) but should pay off on a memory-pressured build. Heap sweep (all-systems
+  269, all-six COW): the wall penalty *shrinks* as the heap tightens (−Xmx 512m **+8.1%**, 320m +0.5%,
+  256m **+0.1%**) — which looks like the GC story — **but a clean GC measurement at −Xmx256m shows COW
+  does not reduce GC**: 0.77 s vs 0.76 s pauses, **225 collections both**. So the gap-closing is
+  tight-heap measurement variance (the *baseline* slows), not a COW GC saving — the −4.8% allocation
+  does not convert to fewer collections. Root cause: **CF compilation is CPU-bound** (~96% on-CPU, GC
+  ≤4% even on the large `checknullness` build), so the GC ceiling is ~4% and COW captures ~none of it
+  (−4.8% alloc → ≈−0.2% wall), nowhere near the +5% CPU tax. (COW reduces transient *churn*, not
+  *retained* heap — the cache masters are unchanged — so it does not relieve the OOM/footprint pressure
+  either; that needs per-entry-weight reduction, the original immutability goal.) No downstream timing
+  win.
+- **Verdict.** COW is the **correct, complete solution to the soundness blocker** (Guava-validated) and
+  delivers the **allocation win** (−4.8%), so it is the right tool if the goal is GC pressure / peak
+  memory at scale or a clean immutable end-state. It is **not** a wall-clock win — for wall, the
+  existing `deepCopy` is already optimal. Branch `cow-prototype` is kept as the reference
+  implementation. A wall win in this region, if one exists, is not here (copier already harvested) —
+  it is in *not producing* the types (the `getAnnotatedType`-redundancy family, already closed), not in
+  copying them more cheaply.
 
 ---
 
