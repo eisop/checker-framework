@@ -1000,14 +1000,14 @@ public class QualifierDefaults {
 
     /**
      * A reusable {@link DefaultApplierElementImpl} scanner, parked here between uses. Constructing
-     * a scanner per {@link DefaultApplierElement#applyDefault} call was a major allocation source:
+     * a scanner per {@link DefaultApplierElement#applyDefaults} call was a major allocation source:
      * a realistic single-compilation ({@code checkNullness}) JFR trace attributed ~8% of all TLAB
      * events to the eagerly pre-sized {@code visitedNodes} {@code IdentityHashMap} each scanner
      * then held. ({@code visitedNodes} is now lazily allocated by {@link AnnotatedTypeScanner}, so
      * reuse mainly saves the per-call scanner object.) Defaulting is not re-entrant into {@code
-     * applyDefault} (the scan only reads caches and adds annotations), so one scanner can be reused
-     * across applications; {@link AnnotatedTypeScanner#visit} resets all scan state on each call.
-     * The field is {@code null} exactly while the scanner is borrowed, which doubles as a
+     * applyDefaults} (the scan only reads caches and adds annotations), so one scanner can be
+     * reused across applications; {@link AnnotatedTypeScanner#visit} resets all scan state on each
+     * call. The field is {@code null} exactly while the scanner is borrowed, which doubles as a
      * re-entrancy guard: a (hypothetical) nested borrow sees {@code null} and falls back to
      * allocating a fresh scanner, so correctness never depends on non-re-entrancy. Confined to the
      * javac main thread, like the other caches on this object.
@@ -1098,23 +1098,6 @@ public class QualifierDefaults {
                                     .getShouldDefaultTypeVarLocals();
         }
 
-        /**
-         * Apply default to the type.
-         *
-         * @param def default to apply
-         */
-        public void applyDefault(Default def) {
-            this.location = def.location;
-            // Borrow a reusable scanner rather than allocating a DefaultApplierElementImpl per
-            // call; see borrowApplierImpl.
-            DefaultApplierElementImpl impl = borrowApplierImpl(this);
-            try {
-                impl.visit(type, def.anno);
-            } finally {
-                returnApplierImpl(impl);
-            }
-        }
-
         /** The defaults to apply, in precedence order; set by {@link #applyDefaults}. */
         private List<Default> fusedDefaults;
 
@@ -1177,10 +1160,10 @@ public class QualifierDefaults {
 
     /** The implementation of default application as an annotated type scanner. */
     // Only reason this cannot be `static` is call to `getBoundType`.
-    protected class DefaultApplierElementImpl extends AnnotatedTypeScanner<Void, AnnotationMirror> {
+    protected class DefaultApplierElementImpl extends AnnotatedTypeScanner<Void, Void> {
         /**
          * The element holding the per-application state (type, scope, location). Not final: a
-         * single instance is reused across {@link DefaultApplierElement#applyDefault} calls (see
+         * single instance is reused across {@link DefaultApplierElement#applyDefaults} calls (see
          * {@link QualifierDefaults#borrowApplierImpl}), with {@code outer} re-pointed at each
          * borrow.
          */
@@ -1196,7 +1179,7 @@ public class QualifierDefaults {
         }
 
         @Override
-        public Void scan(@FindDistinct AnnotatedTypeMirror t, AnnotationMirror unusedQual) {
+        public Void scan(@FindDistinct AnnotatedTypeMirror t, Void unusedQual) {
             if (!outer.shouldBeAnnotated(t)) {
                 // Type variables and wildcards are separately handled in the corresponding visitors
                 // below.
@@ -1450,8 +1433,7 @@ public class QualifierDefaults {
         private BoundType boundType = BoundType.TYPEVAR_UNBOUNDED;
 
         @Override
-        public Void visitTypeVariable(
-                @FindDistinct AnnotatedTypeVariable type, AnnotationMirror unusedQual) {
+        public Void visitTypeVariable(@FindDistinct AnnotatedTypeVariable type, Void unusedQual) {
             if (hasVisited(type)) {
                 return null;
             }
@@ -1493,7 +1475,7 @@ public class QualifierDefaults {
         }
 
         @Override
-        public Void visitWildcard(AnnotatedWildcardType type, AnnotationMirror unusedQual) {
+        public Void visitWildcard(AnnotatedWildcardType type, Void unusedQual) {
             if (hasVisited(type)) {
                 return null;
             }

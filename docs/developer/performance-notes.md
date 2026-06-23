@@ -2640,6 +2640,18 @@ not single-leaf. Re-prioritized venues:
   calls (not worth caching alone); under JSpecify it becomes the majority, and the distinct-content
   count stays tiny — exactly the regime where a result memo pays off. The split design is future-proof
   to marking density without betting on either case dominating.
+- **Defaulting: drop the vestigial scanner type parameter — APPLIED (June 2026, branch
+  `cpu-experiments`).** Cleanup the fusion exposed: `DefaultApplierElementImpl extends
+  AnnotatedTypeScanner<Void, AnnotationMirror>`, but post-fusion the scanner reads the fused list from
+  `outer.fusedDefaults`, never threading the per-default annotation as the scanner's `P`. Every
+  `scan`/`visit*` override only carried an `unusedQual` and passed `null` down. The only non-null-`P`
+  caller, the legacy `applyDefault(Default)` single-default method, had **zero callers and was in fact
+  broken** (it set `location` and called `visit`, but `scan` reads `fusedDefaults`, which only
+  `applyDefaults(List)` sets → NPE). Removed it and changed the scanner to `AnnotatedTypeScanner<Void,
+  Void>` (three override signatures `AnnotationMirror unusedQual` → `Void unusedQual`). No subclasses
+  of `QualifierDefaults` and no external references to `DefaultApplierElement`/`applyDefault` exist, so
+  the change is local. Behavior-preserving by construction (the threaded values were always `null`);
+  `applyOneAtNode`'s real `AnnotationMirror qual` (from the fused list) is untouched.
 - **The defaulting walk is the largest *CF-controlled* leaf cluster — FEASIBILITY MEASURED (June
   2026), verdict: highly memoizable, worth building.** `QualifierDefaults.DefaultApplierElementImpl.scan`
   plus `AnnotatedTypeScanner.visitDeclared`/`scan`/`reduce` are the biggest type-factory leaf group.
