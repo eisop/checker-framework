@@ -6,6 +6,14 @@ plugins {
     id 'java-test-fixtures'
 }
 
+// allSourcesJar (below) reads project(':javacutil').sourceSets.main.allJava directly.
+// javacutil is declared after framework in settings.gradle's include order, so without
+// this, that access would run before javacutil's own build.gradle has had a chance to
+// configure its sourceSets -- harmless today only because javacutil never customizes
+// them, but not something Gradle guarantees. dataflow doesn't need the same guard: it's
+// declared before framework already.
+evaluationDependsOn(':javacutil')
+
 ext {
     annotatedJdkHome = '../../jdk'
 }
@@ -40,12 +48,12 @@ sourceSets {
     stubifier
 }
 
-sourcesJar {
+tasks.named('sourcesJar') {
     // The resources duplicate content from the src directory.
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 }
 
-jar {
+tasks.named('jar') {
     // The resources duplicate content from the src directory.
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 }
@@ -142,7 +150,7 @@ tasks.register('copyAndMinimizeAnnotatedJdkFiles', JavaExec) {
         Set<String> annotatedDirs = new HashSet<>()
         tree.visit { FileVisitDetails fvd ->
             if (!fvd.file.isDirectory() && fvd.file.name.matches('.*\\.java')
-                    && !fvd.file.path.contains('org/checkerframework')) {
+            && !fvd.file.path.contains('org/checkerframework')) {
                 fvd.getFile().readLines().any { line ->
                     if (line.contains('@AnnotatedFor') || line.contains('org.checkerframework') || line.contains('org.jspecify')) {
                         annotatedForFiles.add(fvd.file.absolutePath)
@@ -168,8 +176,8 @@ tasks.register('copyAndMinimizeAnnotatedJdkFiles', JavaExec) {
             // and lets Gradle prune subtrees that contain no annotated files.
             include { FileTreeElement fte ->
                 fte.directory
-                        ? annotatedDirs.contains(fte.file.absolutePath)
-                        : annotatedForFiles.contains(fte.file.absolutePath)
+                ? annotatedDirs.contains(fte.file.absolutePath)
+                : annotatedForFiles.contains(fte.file.absolutePath)
             }
         }
     }
@@ -210,7 +218,7 @@ tasks.register('allJavadocJar', Jar) {
     }
 }
 
-shadowJar {
+tasks.named('shadowJar') {
     description = 'Creates the "fat" framework.jar in dist'
     destinationDirectory = file("${projectDir}/dist")
     archiveFileName = 'framework.jar'
@@ -221,7 +229,7 @@ shadowJar {
     minimize()
 }
 
-createCheckTypeTask(project.name, 'CompilerMessages',
+rootProject.createCheckTypeTask(project.name, 'CompilerMessages',
         'org.checkerframework.checker.compilermsgs.CompilerMessagesChecker')
 tasks.named('checkCompilerMessages') {
     options.compilerArgs += [
@@ -233,7 +241,7 @@ tasks.register('loaderTests', Exec) {
     dependsOn 'shadowJar'
     group = 'Verification'
     description = 'Run tests for the annotation class loader'
-    dependsOn(compileTestJava)
+    dependsOn('compileTestJava')
 
     // TODO: this dependency on checker is a bit ugly.
     dependsOn ':checker-qual:jar'
@@ -246,7 +254,7 @@ tasks.register('cleanLoaderTests', Exec) {
     commandLine 'make', '-C', 'tests/annotationclassloader/', 'clean'
 }
 
-clean {
+tasks.named('clean') {
     dependsOn 'cleanLoaderTests'
 
     delete('tests/returnsreceiverdelomboked')
@@ -256,7 +264,7 @@ clean {
 
 
 if (skipDelombok) {
-    test {
+    tasks.named('test') {
         exclude '**/ReturnsReceiverLombokTest.java'
     }
 } else {

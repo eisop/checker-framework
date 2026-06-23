@@ -67,13 +67,16 @@ public class DefaultQualifierForUseTypeAnnotator extends TypeAnnotator {
     /**
      * Cache of elements to the set of annotations that should be applied to unannotated uses of the
      * element.
+     *
+     * <p>This field is intentionally not final; it should only be re-assigned by {@link
+     * #clearCache}.
      */
-    protected final IdentityHashMap<Element, AnnotationMirrorSet> elementToDefaults =
+    protected IdentityHashMap<Element, AnnotationMirrorSet> elementToDefaults =
             new IdentityHashMap<>();
 
     /** Clears all caches. */
     public void clearCache() {
-        elementToDefaults.clear();
+        elementToDefaults = new IdentityHashMap<>();
     }
 
     /**
@@ -118,10 +121,8 @@ public class DefaultQualifierForUseTypeAnnotator extends TypeAnnotator {
         if (annosToApply.isEmpty()) {
             annosToApply = AnnotationMirrorSet.emptySet();
         }
-        // If parsing stub files, then the annosToApply is incomplete, so don't cache them.
-        if (atypeFactory.shouldCache
-                && !atypeFactory.stubTypes.isParsing()
-                && !atypeFactory.ajavaTypes.isParsing()) {
+        // If parsing an annotation file, then the annosToApply is incomplete, so don't cache them.
+        if (atypeFactory.shouldCache && !atypeFactory.isParsingAnnotationFile()) {
             elementToDefaults.put(element, annosToApply);
         }
         return annosToApply;

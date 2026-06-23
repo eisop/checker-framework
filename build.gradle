@@ -5,7 +5,7 @@ import org.gradle.api.tasks.testing.TestResult
 
 plugins {
     // https://plugins.gradle.org/plugin/com.gradleup.shadow
-    id 'com.gradleup.shadow' version '8.3.11'
+    id 'com.gradleup.shadow' version '9.4.2'
     // https://plugins.gradle.org/plugin/de.undercouch.download
     id 'de.undercouch.download' version '5.7.0'
     id 'java'
@@ -20,7 +20,7 @@ plugins {
     // Code formatting; defines targets "spotlessApply" and "spotlessCheck".
     // https://github.com/diffplug/spotless/tags ; see tags starting "gradle/"
     // Only works on JDK 11+ (even including the plugin crashes Gradle on JDK 8).
-    id 'com.diffplug.spotless' version '8.6.0'
+    id 'com.diffplug.spotless' version '8.7.0'
 }
 
 // There is another `repositories { ... }` block below; if you change this one, change that one as well.
@@ -49,7 +49,7 @@ ext {
     // The int corresponding to the major version of the current JVM.
     currentRuntimeJavaVersion = majorVersionToInt(JavaVersion.current().getMajorVersion())
 
-    String useJdkVersionProp = project.getProperties().get('useJdkVersion')
+    String useJdkVersionProp = findProperty('useJdkVersion')
     if (useJdkVersionProp == null) {
         // If the property is not given, use the same version as the runtime.
         useJdkVersionInt = currentRuntimeJavaVersion
@@ -88,7 +88,7 @@ ext {
         //  * Temporarily comment out "-Werror" elsewhere in this file
         //  * Repeatedly run `./gradlew clean compileJava` and fix all errors
         //  * Uncomment "-Werror"
-        errorprone      : '2.48.0',
+        errorprone      : '2.50.0',
         // NOTE: Google Java Format requires JDK 17 or higher as of version 1.25.0.
         googleJavaFormat : '1.35.0',
         hashmapUtil     : '0.0.1',
@@ -176,6 +176,18 @@ spotlessPredeclare {
 }
 
 allprojects { currentProj ->
+    // Explicitly propagate root-level ext properties so subproject build scripts
+    // can access them directly without triggering the deprecated implicit-parent-lookup.
+    ext {
+        currentRuntimeJavaVersion = rootProject.ext.currentRuntimeJavaVersion
+        useJdkVersionInt = rootProject.ext.useJdkVersionInt
+        isJava8 = rootProject.ext.isJava8
+        skipDelombok = rootProject.ext.skipDelombok
+        versions = rootProject.ext.versions
+        javadocMemberLevel = rootProject.ext.javadocMemberLevel
+        eisopFormatting = rootProject.ext.eisopFormatting
+    }
+
     // Increment the minor version (second number) rather than just the patch
     // level (third number) if:
     //   * any new checkers have been added, or
@@ -190,6 +202,13 @@ allprojects { currentProj ->
     apply plugin: 'net.ltgt.errorprone'
 
     group = 'io.github.eisop'
+
+    java {
+        // Using `options.release.set(8)` here leads to compilation
+        // errors such as "package com.sun.source.tree does not exist".
+        sourceCompatibility = JavaVersion.VERSION_1_8
+        targetCompatibility = JavaVersion.VERSION_1_8
+    }
 
     // Keep in sync with "repositories { ... }" block above.
     repositories {
@@ -221,7 +240,7 @@ allprojects { currentProj ->
         // Always define javacJar, not just when `isJava8` is true, because we redistribute it in checker/build.gradle.
         javacJar("com.google.errorprone:javac:9+181-r4173-1")
 
-        allProjects subprojects
+        subprojects.each { sp -> allProjects project(sp.path) }
     }
 
     eclipse.classpath {
@@ -412,6 +431,33 @@ allprojects { currentProj ->
         maxHeapSize = "4g" // maximum heap size
     }
 
+    boolean useToolchains = (currentRuntimeJavaVersion != useJdkVersionInt)
+    if (useToolchains) {
+        // This uses the requested Java toolchain.
+        // On CI, gradle always runs with JDK 21 and different versions are selected as toolchains.
+        // CI test test-cftests-junit-jdk21 runs the JUnit tests on the different JDK versions,
+        // to ensure there is no version mismatch between compiled-against javac APIs and runtime APIs.
+        //   https://docs.gradle.org/current/userguide/toolchains.html
+        java {
+            toolchain {
+                languageVersion = JavaLanguageVersion.of(useJdkVersionInt)
+            }
+        }
+
+        // JavaExec does not automatically inherit the toolchain JDK (!).
+        tasks.withType(JavaExec).configureEach {
+            javaLauncher = javaToolchains.launcherFor {
+                languageVersion = JavaLanguageVersion.of(useJdkVersionInt)
+            }
+        }
+        // JavaCompile also seems to need an extra push...
+        tasks.withType(JavaCompile).configureEach {
+            javaCompiler = javaToolchains.compilerFor {
+                languageVersion = JavaLanguageVersion.of(useJdkVersionInt)
+            }
+        }
+    }
+
     // After all the tasks have been created, modify some of them.
     afterEvaluate {
         configurations {
@@ -423,33 +469,6 @@ allprojects { currentProj ->
 
         dependencies {
             checkerFatJar(project(path: ':checker', configuration: 'fatJar'))
-        }
-
-        boolean useToolchains = (currentRuntimeJavaVersion != useJdkVersionInt)
-        if (useToolchains) {
-            // This uses the requested Java toolchain.
-            // On CI, gradle always runs with JDK 21 and different versions are selected as toolchains.
-            // CI test test-cftests-junit-jdk21 runs the JUnit tests on the different JDK versions,
-            // to ensure there is no version mismatch between compiled-against javac APIs and runtime APIs.
-            //   https://docs.gradle.org/current/userguide/toolchains.html
-            java {
-                toolchain {
-                    languageVersion = JavaLanguageVersion.of(useJdkVersionInt)
-                }
-            }
-
-            // JavaExec does not automatically inherit the toolchain JDK (!).
-            tasks.withType(JavaExec).configureEach {
-                javaLauncher = javaToolchains.launcherFor {
-                    languageVersion = JavaLanguageVersion.of(useJdkVersionInt)
-                }
-            }
-            // JavaCompile also seems to need an extra push...
-            tasks.withType(JavaCompile).configureEach {
-                javaCompiler = javaToolchains.compilerFor {
-                    languageVersion = JavaLanguageVersion.of(useJdkVersionInt)
-                }
-            }
         }
 
         // Add the fat checker.jar to the classpath of every Javadoc task. This allows Javadoc in
@@ -503,7 +522,7 @@ allprojects { currentProj ->
         }
 
         // Add standard javac options
-        tasks.withType(JavaCompile) { compilationTask ->
+        tasks.withType(JavaCompile).configureEach { compilationTask ->
             dependsOn(':installGitHooks')
 
             // Sorting is commented out because it disables incremental compilation.
@@ -514,10 +533,7 @@ allprojects { currentProj ->
             // This test is for whether the Checker Framework supports (runs under) Java 8.
             // Currently, the Checker Framework does support Java 8.
             if (true) {
-                // Using `options.release.set(8)` here leads to compilation
-                // errors such as "package com.sun.source.tree does not exist".
-                sourceCompatibility = 8
-                targetCompatibility = 8
+                // This needs to be done earlier now. Look for `sourceCompatibility = JavaVersion.VERSION_1_8`.
                 // Because the target is 8, all of the public compiler classes are accessible, so
                 // --add-exports are not required (nor are they allowed with target 8). See
                 // https://openjdk.org/jeps/247 for details on compiling for older versions.
@@ -654,8 +670,9 @@ allprojects { currentProj ->
 tasks.register('version') {
     group = 'Documentation'
     description = 'Print Checker Framework version'
+    def v = version
     doLast {
-        println version
+        println v
     }
 }
 
@@ -732,7 +749,11 @@ tasks.register('htmlValidate', Exec) {
         '/build/',
         '/docs/manual/manual.html',
         '/docs/manual/plume-bib/docs/index.html',
-        '/checker/jdk/nullness/src/java/lang/ref/package.html'
+        '/checker/jdk/nullness/src/java/lang/ref/package.html',
+        // javadoc generates overview-summary.html as a redirect with
+        // content="0;index.html" instead of the HTML5-valid "0; URL=index.html".
+        // This is a javadoc tool bug; suppress it here.
+        'overview-summary.html'
     ]
 }
 
@@ -813,6 +834,14 @@ tasks.register('allJavadoc', Javadoc) {
 
     if (isJava8) {
         classpath += configurations.javacJar
+        // ManualTaglet (tagletJdk8) imports com.sun.javadoc / com.sun.tools.doclets from
+        // tools.jar.  Javadoc needs tools.jar on the compile classpath to process its source.
+        def compilerProvider = javaToolchains.compilerFor {
+            languageVersion = JavaLanguageVersion.of(8)
+        }
+        classpath += files(compilerProvider.map { compiler ->
+            new File(compiler.metadata.installationPath.asFile, "lib/tools.jar")
+        })
     }
 
     // disable interpreting module-info.java files until all sub-modules support them
@@ -828,8 +857,8 @@ tasks.register('cleanManual', Exec) {
     description = 'Clean the manual'
     commandLine 'make', '-C', 'docs/manual', 'clean'
 }
-clean.dependsOn('cleanManual')
-clean {
+tasks.named('clean') {
+    dependsOn 'cleanManual'
     delete(file("${rootDir}/docs/api"))
 }
 
@@ -877,7 +906,6 @@ def createJavadocTask(taskName, taskDescription, memberLevel) {
     tasks.register(taskName, Javadoc) {
         description = taskDescription
         destinationDir = file("${rootDir}/docs/tmpapi")
-        destinationDir.mkdirs()
         subprojects.forEach {
             if (!it.name.startsWith('checker-qual-android')) {
                 source += it.sourceSets.main.allJava
@@ -888,7 +916,6 @@ def createJavadocTask(taskName, taskDescription, memberLevel) {
         // disable interpreting module-info.java files until all sub-modules support them
         modularity.inferModulePath = false
 
-        destinationDir.deleteDir()
         options.memberLevel = memberLevel
         options.addBooleanOption('Xdoclint:all', true)
         options.addStringOption('Xmaxwarns', '99999')
@@ -916,7 +943,7 @@ tasks.register('downloadJtreg', Download) {
     // dest new File(buildDir, 'jtreg-4.2.0-tip.tar.gz')
     // src 'https://builds.shipilev.net/jtreg/jtreg4.2-b16.zip'
     src 'https://builds.shipilev.net/jtreg/jtreg-7.5+1.zip'
-    dest new File(buildDir, 'jtreg.zip')
+    dest layout.buildDirectory.file('jtreg.zip').get().asFile
     overwrite true
     retries 3
 
@@ -1005,7 +1032,7 @@ subprojects {
         }
     }
 
-    shadowJar {
+    tasks.named('shadowJar') {
         // If you add an external dependency, then do the following:
         //  * On the master branch and on the modified branch, run:
         //    ./gradlew assembleForJavac && jar tf checker/dist/checker.jar | grep -v '^annotated-jdk/' | sort > checker-jar-contents.txt
@@ -1036,6 +1063,18 @@ subprojects {
         minimize()
     }
 
+    // Shadow 9.x registers a "shadowRuntimeElements" consumable variant for each project.
+    // When checker:runtimeClasspath resolves project dependencies (e.g. framework), Gradle may
+    // select shadowRuntimeElements, which points to the shadow JAR (framework-X-all.jar).
+    // Change its Usage attribute so it doesn't conflict with standard runtimeElements.
+    configurations.all {
+        if (name == 'shadowRuntimeElements') {
+            attributes {
+                attribute(Usage.USAGE_ATTRIBUTE, objects.named(Usage, "shadow-runtime-elements"))
+            }
+        }
+    }
+
     if (!project.name.startsWith('checker-qual-android')) {
         tasks.register('tags', Exec) {
             description = 'Create Emacs TAGS table'
@@ -1053,7 +1092,7 @@ subprojects {
     // until the project is evaluated.
     afterEvaluate {
         // Adds manifest to all Jar files
-        tasks.withType(Jar) {
+        tasks.withType(Jar).configureEach {
             includeEmptyDirs = false
             if (archiveFileName.get().startsWith('checker-qual') || archiveFileName.get().startsWith('checker-util')) {
                 metaInf {
@@ -1081,25 +1120,25 @@ subprojects {
         // Tasks such as `checkResourceLeak` to run various checkers on all the main source sets.
         // These pass and are run by the `typecheck` task.
         // When you add one here, also update a dependsOn item for the 'typecheck' task.
-        createCheckTypeTask(project.name, 'Formatter',
+        rootProject.createCheckTypeTask(project.name,'Formatter',
                 'org.checkerframework.checker.formatter.FormatterChecker')
-        createCheckTypeTask(project.name, 'Interning',
+        rootProject.createCheckTypeTask(project.name,'Interning',
                 'org.checkerframework.checker.interning.InterningChecker',
                 [
                     '-Astubs=javax-lang-model-element-name.astub'
                 ])
-        createCheckTypeTask(project.name, 'Optional',
+        rootProject.createCheckTypeTask(project.name,'Optional',
                 'org.checkerframework.checker.optional.OptionalChecker',
                 [
                     // to avoid having to annotate JavaParser
                     '-AassumePureGetters',
                     '-AassumeAssertionsAreEnabled',
                 ])
-        createCheckTypeTask(project.name, 'Purity',
+        rootProject.createCheckTypeTask(project.name,'Purity',
                 'org.checkerframework.framework.util.PurityChecker')
-        createCheckTypeTask(project.name, 'ResourceLeak',
+        rootProject.createCheckTypeTask(project.name,'ResourceLeak',
                 'org.checkerframework.checker.resourceleak.ResourceLeakChecker')
-        createCheckTypeTask(project.name, 'Signature',
+        rootProject.createCheckTypeTask(project.name,'Signature',
                 'org.checkerframework.checker.signature.SignatureChecker')
 
         def isDataflow = project.name.is('dataflow')
@@ -1110,7 +1149,7 @@ subprojects {
         //  * All files outside the 'framework' and 'checker' subprojects.
         //  * In the 'framework' and 'checker' subprojects, files with `@AnnotatedFor("nullness")`.
         if (isFramework || isChecker) {
-            createCheckTypeTask(project.name, 'Nullness',
+            rootProject.createCheckTypeTask(project.name,'Nullness',
                     'org.checkerframework.checker.nullness.NullnessChecker',
                     [
                         '-AskipUses=com\\.sun\\.*',
@@ -1119,7 +1158,7 @@ subprojects {
                         '-AconservativeArgumentNullnessAfterInvocation=true',
                     ])
         } else {
-            createCheckTypeTask(project.name, 'Nullness',
+            rootProject.createCheckTypeTask(project.name,'Nullness',
                     'org.checkerframework.checker.nullness.NullnessChecker',
                     [
                         '-AskipUses=com\\.sun\\.*',
@@ -1143,7 +1182,7 @@ subprojects {
                 String name = 'all'
                 String tests = '.'
 
-                executable "${jtregHome}/bin/jtreg"
+                executable "${rootProject.jtregHome}/bin/jtreg"
                 args = [
                     "-dir:${projectDir}/jtreg",
                     "-workDir:${jtregOutput}/${name}/work",
@@ -1207,7 +1246,7 @@ subprojects {
         }
 
         // Configure JUnit tests
-        tasks.withType(Test) {
+        tasks.withType(Test).configureEach {
             if (isJava8) {
                 jvmArgs "-Xbootclasspath/p:${configurations.javacJar.asPath}".toString()
             } else {
@@ -1252,6 +1291,14 @@ subprojects {
             if (project.hasProperty('emit.test.debug')) {
                 systemProperties += ['emit.test.debug': 'true']
             }
+
+            // The typeinference8 incorporation worklist confirms each fixed point with a full rescan
+            // that, in production, silently self-heals if the worklist ever skipped needed work. Run
+            // this project's own tests in strict mode instead, so such a skip throws and a worklist
+            // regression is a loud CI failure rather than a silent (still-correct) recovery. The
+            // checker runs in-process in the test JVM (TypecheckExecutor uses ToolProvider), so this
+            // system property reaches it.
+            systemProperties += ['cf.typeinference.worklist.strict': 'true']
 
             // Always re-run tests.  This must live at the test task level.
             outputs.upToDateWhen { false }
@@ -1393,9 +1440,10 @@ subprojects {
 // The assemble task also produces Javadoc jars, because its purpose is to build
 // all artifacts produced by the Gradle project:
 // https://docs.gradle.org/current/userguide/base_plugin.html#sec:base_tasks
-assemble.dependsOn(':checker:assembleForJavac')
-
-assemble.mustRunAfter(clean)
+tasks.named('assemble') {
+    dependsOn(':checker:assembleForJavac')
+    mustRunAfter('clean')
+}
 
 tasks.register('buildAll') {
     group = 'Build'
@@ -1427,7 +1475,9 @@ tasks.register('releaseAndTest') {
 }
 
 // Don't create an empty checker-framework-VERSION.jar
-jar.onlyIf {false}
+tasks.named('jar') {
+    onlyIf { false }
+}
 
 /**
  * Adds the shared pom information to the given publication.

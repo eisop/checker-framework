@@ -55,6 +55,8 @@ tasks.named('jmh').configure {
     }
 }
 
-jar.archiveBaseName = 'framework-perf'
+tasks.named('jar') {
+    archiveBaseName = 'framework-perf'
+}
 
 // This subproject does not publish artifacts.

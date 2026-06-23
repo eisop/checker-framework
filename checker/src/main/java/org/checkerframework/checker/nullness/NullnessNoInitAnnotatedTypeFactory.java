@@ -474,9 +474,9 @@ public class NullnessNoInitAnnotatedTypeFactory
         if (lhsType.hasAnnotation(PolyNull.class)) {
             NullnessNoInitValue inferred = getInferredValueFor(context);
             if (inferred != null) {
-                if (inferred.isPolyNullNonNull) {
+                if (inferred.isPolyNullNonNull()) {
                     lhsType.replaceAnnotation(NONNULL);
-                } else if (inferred.isPolyNullNull) {
+                } else if (inferred.isPolyNullNull()) {
                     lhsType.replaceAnnotation(NULLABLE);
                 }
             }

@@ -194,7 +194,11 @@ public abstract class Contract {
 
     @Override
     public int hashCode() {
-        return Objects.hash(kind, expressionString, annotation);
+        int h = 1;
+        h = 31 * h + (kind != null ? kind.hashCode() : 0);
+        h = 31 * h + (expressionString != null ? expressionString.hashCode() : 0);
+        h = 31 * h + (annotation != null ? annotation.hashCode() : 0);
+        return h;
     }
 
     @Override
@@ -315,7 +319,10 @@ public abstract class Contract {
 
         @Override
         public int hashCode() {
-            return Objects.hash(super.hashCode(), resultValue);
+            int h = 1;
+            h = 31 * h + super.hashCode();
+            h = 31 * h + Boolean.hashCode(resultValue);
+            return h;
         }
 
         @Override
