@@ -1950,7 +1950,9 @@ Index (entries are interleaved below; each is tagged with its status inline):
   (`getInstantiatedVariables`) and #4 (`getSmallestDependencySet`); the `cond` post-dataflow
   conditional cache and `inherit` asSuper depth (size-sweep); `getAnnotatedType` #6 (parallelism).
 - **Open but correctness/cost-blocked:** `CFAbstractStore` content hash; lazy JDK-stub cascade; the
-  immutability allocation win (load-bearing copy — see narrative).
+  immutability allocation win — **copy-on-write now PROTOTYPED** (branch `cow-prototype`): solves the
+  soundness blocker (Guava-validated), allocation −4.8%, but wall +5.3% (per-access overhead); an
+  allocation/GC win, not a wall win — see the narrative's "Copy-on-write ATMs — PROTOTYPED" entry.
 - **Closed, do not re-propose:** PR #1829 incorporation worklist (shipped); `getAnnotatedType` #1
   (per-analysis gvff memo), #2 (pre-flow split cache — built & rejected: unsound across
   override-checkers + flat), #3 (already implemented), #4 (applied-defaults), #5
@@ -2893,6 +2895,47 @@ CF-controllable clusters and their state, highest-leverage first:
    ~0.58%, blocked on a thread-reachability + daemon-memory audit — see Short list above). Annotation
    formatting in the hot path is now **resolved** (PR #1797 lazy `FoundRequired`); remaining utf2*
    at 0.89% is cold-path / first-visit-miss only.
+
+**Copy-on-write ATMs — PROTOTYPED (June 2026): solves the soundness blocker, allocation win real,
+but wall-clock-negative.** The blocker (above) was that returning a shared frozen cache master crashes
+when a consumer reparents a frozen *child* into a fresh non-frozen result and mutates it (root-level
+`deepCopy()` guards can't catch a non-frozen root holding a frozen child; Guava found what `alltests`
++ 9 fixes missed). A working COW prototype was built (branch `cow-prototype`, gated by `-Dcf.cow`):
+the six post-pipeline caches (`elementType`, `element`, `fromMember`, `fromExpression`, `fromType`,
+`methodAsMemberOf`) return `cowCopy()` — a non-frozen `shallowCopy()` that shares the master's frozen
+children — instead of `deepCopy()`; the ~13 child accessors (`getUpperBound`/`getTypeArguments`/…)
+**plus the three `fixupBoundAnnotations`** (which mutate bound *fields* directly, bypassing the
+accessors — the second class of reparenting path) lazily unshare a frozen child of a non-frozen parent
+(`cowChild`/`cowChildren`), so a mutation copies only the spine it touches and a read-only hit copies
+one node. A per-node `cowDirty` flag (set by `cowCopy`, checked in the accessors) keeps the COW scan
+off the hot path for the majority of (non-cache) types.
+- **Soundness: complete and validated.** Passes the regression test
+  `ElementTypeCacheWildcardBound`, all-systems (269 files, byte-identical diagnostics to COW-off),
+  and — the decisive test — a **full Guava nullness build (BUILD SUCCESS, 0 crashes)**, the venue that
+  caught the original flip crash. COW-on-access is the complete fix the narrative predicted: it makes
+  all six caches flippable and the whole reparenting bug class disappears. Two non-obvious lessons:
+  (a) the executable type's `getTypeVariables` and the union/intersection `getAlternatives`/`getBounds`
+  are easy accessors to miss; (b) the `fixupBoundAnnotations` field-level mutation is a *second*
+  reparenting surface that COW-on-access alone (intercepting only the public getters) does not cover —
+  it must be routed through `cowChild`/`cowChildren` too.
+- **Allocation: −4.8% (real).** Deterministic `ThreadAllocationStatistics`, all-systems 269, median of
+  5: 5709.6 → 5434.3 MB; loops −3.6%. Larger than the ~1% the old `elementType`+`classAndMethod`
+  boundary flips got, because COW flips all six caches and `shallowCopy` is far cheaper than `deepCopy`
+  on read-only hits.
+- **Wall clock: +5.3% (regression).** all-systems 269, min of 3: 19.81 → 20.86 s. The per-access COW
+  machinery costs more CPU than the allocation reduction returns. The `cowDirty` flag fixed the one hot
+  frame (`cowChildren` 3.74% → 0.50% self-time), but the residual is **diffuse** — the distributed
+  per-access checks plus per-child `cowCopy` allocations across the walk (note `shallowCopy` for
+  type-variables/wildcards is itself a `deepCopy`, so a generics-heavy type deep-copies each bound on
+  access). This confirms the post-mortem: by now the copier is cheap, so eliminating it does not pay in
+  wall clock — COW is an **allocation / GC-pressure** win (valuable at scale, on tight heaps), not a
+  single-compile wall win.
+- **Verdict.** COW is the correct, complete solution to the soundness blocker and delivers the
+  allocation win, but as prototyped it is wall-negative. Before adopting: (1) confirm the wall sign on
+  the full warm-daemon `./gradlew checknullness` (single forked compile dilutes; the regression may
+  shrink or grow); (2) attack the diffuse per-access cost (e.g. cache `shallowCopy` results for
+  type-variables, or avoid `cowDirty` field reads on the very hottest accessors) — the prototype's
+  `cowChildren` fix shows the overhead is movable. Keep `cow-prototype` for whoever picks this up.
 
 ---
 
