@@ -390,18 +390,21 @@ but cost ≈10% wall clock (far more than its hit-rate delta implied). Cut
   (`CheckerFrameworkAnnotationMirror`) already caches the decoded interned name, so the decode the
   change "removed" was never happening. **Before optimizing a lookup, ask what the common carrier
   already caches.**
-- **To decide if a per-tree type can be cached, compare its annotations PER HIERARCHY — never via
-  `AnnotatedTypeMirror.toString()`.** `toString()` over-reports "instability" by conflating (i)
-  cross-hierarchy *completeness* (an `int` literal printing as `int` vs `@Initialized int` is the
-  Initialization hierarchy's annotation absent vs present — not a within-hierarchy change; harmless
-  to a per-hierarchy cache) with real within-hierarchy disagreement. And **never index a qualifier
-  `Set` (`getTopAnnotations()`) positionally across calls** — its iteration order is unstable, so
-  slot *i* silently compares different hierarchies. This trap produced a *wrong, committed*
-  conclusion this session: the pre-flow `getAnnotatedType` split-cache was rejected as "25–59%
-  unstable" on a `toString()` signature; re-measuring per hierarchy (keyed by top-annotation name,
-  splitting present-disagree from completeness) showed value-leaf pre-flow types are **0%** unstable
-  and compound ~0.46% — reopening it as a candidate (see *Tried and rejected* → getAnnotatedType #2).
-  The right signature is a map {hierarchy → annotation-in-that-hierarchy}, compared key-by-key.
+- **Two traps when measuring whether a per-tree type is stable enough to cache** (both produced a
+  *wrong, committed* conclusion this session — the pre-flow `getAnnotatedType` split-cache was
+  rejected as "25–59% unstable," then re-measuring correctly showed value leaves are **0%** unstable):
+  1. **Compare PER HIERARCHY, never via `AnnotatedTypeMirror.toString()`.** `toString()` over-reports
+     instability by counting *cross-hierarchy completeness* — an `int` literal printing as `int` vs
+     `@Initialized int` is just the Initialization hierarchy's annotation absent vs present, harmless
+     to a per-hierarchy cache — as if it were a within-hierarchy disagreement. The right signature is
+     a map {hierarchy-top-name → annotation-in-that-hierarchy}, compared key-by-key. (`getTopAnnotations()`
+     order is *not* a hazard — it is a build-once `ArrayList`-backed `AnnotationMirrorSet` over a
+     `TreeMap`, already stable.)
+  2. **A checker runs SEVERAL `AnnotatedTypeFactory` instances — never key shared/`static` state on
+     `Tree`.** A `nullness` compile drives four GATFs (`NullnessNoInit`, `Initialization`,
+     `InitializationFieldAccess`, `KeyFor`), each with its own qualifier hierarchy. A `static`
+     per-`Tree` map (or cache) mixes one type system's result for a tree with another's. Keep such
+     state on the factory instance; confirm by logging `this.getClass().getSimpleName()`.
 
 ## Removing a defensive copy (the opposite of adding a cache)
 

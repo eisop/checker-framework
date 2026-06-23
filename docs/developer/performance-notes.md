@@ -2073,29 +2073,39 @@ Capture format: hot method, hypothesis, blockers.
      Hypothesis: cache the *pre-flow* (post-2a) type per tree and recompute only 2b, since 2b is where
      flow lives.
 
-     **Correction to an earlier rejection.** A first pass keyed the per-tree signature on
-     `AnnotatedTypeMirror.toString()` and concluded the pre-flow type was "unstable 25–40% (leaves) /
-     26–59% (compound, even checking-phase)," i.e. that no tree-keyed cache could be sound. **That was
-     a measurement artifact, not a property of the code.** `toString()` conflates two non-issues with
-     real instability: (i) *cross-hierarchy completeness* — a primitive literal printing as `int` vs
-     `@Initialized int` is the Initialization hierarchy's annotation absent vs present, not a
-     within-hierarchy disagreement; and (ii) the comparison read `getTopAnnotations()` (a `Set` with
-     unstable iteration order) *positionally*, so slot *i* compared different hierarchies across calls.
-     Re-measured *per hierarchy* (keyed by top-annotation name; counting "present-disagree" = same
-     hierarchy, two different non-∅ annotations, and "completeness" = ∅-vs-present, separately):
+     **Correction to an earlier rejection (and to a wrong root-cause in a prior revision of this very
+     entry).** A first pass keyed the per-tree signature on `AnnotatedTypeMirror.toString()` and a
+     *static* `IdentityHashMap<Tree, …>`, and concluded the pre-flow type was "unstable 25–59%," i.e.
+     that no tree-keyed cache could be sound. **That was a measurement artifact.** Two confounds, both
+     in the instrumentation, not the code: (i) `toString()` conflates *cross-hierarchy completeness* —
+     a primitive literal printing as `int` vs `@Initialized int` is the Initialization hierarchy's
+     annotation absent vs present, not a within-hierarchy disagreement; and (ii) — the big one — the
+     per-tree map was **`static`, shared across the *multiple sub-factories* a checker runs.** A
+     `nullness` compile runs four `GenericAnnotatedTypeFactory` instances
+     (`NullnessNoInitAnnotatedTypeFactory`, `InitializationAnnotatedTypeFactory`,
+     `InitializationFieldAccessAnnotatedTypeFactory`, `KeyForAnnotatedTypeFactory`), each with its own
+     qualifier hierarchy; the static map compared *one type system's* snapshot of a tree against
+     *another's* (e.g. `@UnknownKeyFor` from the KeyFor factory vs `@Initialized` from the
+     Initialization factory). (`getTopAnnotations()` itself is **not** the problem — it returns a
+     build-once `final AnnotationMirrorSet` backed by an `ArrayList` over a `TreeMap<QualifierKind,…>`,
+     i.e. already a stable, deterministic order; an earlier draft of this entry wrongly blamed it.)
+     Re-measured correctly — *per factory* (instance map) and *per hierarchy* (keyed by top-annotation
+     name; "present-disagree" = same hierarchy, two different non-∅ annotations; "completeness" =
+     ∅-vs-present):
 
      | category | all-systems (120f) | loops |
      | --- | --- | --- |
-     | value leaf (literal / var / field / param id) | disagree 0, compl 0 / 69,557 repeats | 0 / 0 / 207,940 |
-     | compound expression | disagree 211 (0.46%), compl 0 / 46,166 | 0 / 0 / 57,928 |
-     | type-name identifier (class/enum) | 86 (0.7%) | 0 |
+     | value leaf (literal / var / field / param id) | disagree 0, compl 0 / 58,447 repeats | 0 / 0 / 130,894 |
+     | compound expression | disagree 213 (0.69%), compl 0 / 30,949 | 0 / 0 / 33,604 |
+     | type-name identifier (class/enum) | excluded (≈0.7% context-dependent) | — |
 
-     So per hierarchy the pre-flow type is **stable**: value leaves never disagree, compound
-     expressions disagree ~0.46% (the genuinely context-dependent residual — `NewClass`/`NewArray`/
-     conditionals, the #602 set in #3 below), type-name identifiers ~0.7% (excludable by element
-     kind). The flow-dependence is entirely in 2b, exactly as the split assumed. **This reopens the
-     split cache as a *sound* candidate** — provided it returns a deep copy (callers mutate) and skips
-     the ~0.5–0.7% context-dependent kinds.
+     So per factory, per hierarchy, the pre-flow type is **stable**: value leaves never disagree or
+     under-annotate, compound expressions disagree ~0.69% (the genuinely context-dependent residual —
+     `NewClass`/`NewArray`/conditionals, the #602 set in #3 below), type-name identifiers ~0.7%
+     (excludable by element kind). The flow-dependence is entirely in 2b, exactly as the split
+     assumed. **This reopens the split cache as a *sound* candidate** — provided it is per-factory
+     (each ATF has its own cache, as all the existing tree caches already are), returns a deep copy
+     (callers mutate), and skips the ~0.5–0.7% context-dependent kinds.
 
      **Value is NOT yet confirmed; do an implemented-cache A/B before adoption.** Instrumented 2a
      self-time for value leaves alone is ~0.55 s (~4% of a 12.6 s all-systems compile) and ~1.16 s
@@ -2107,8 +2117,11 @@ Capture format: hot method, hypothesis, blockers.
      compound kinds) and measure deterministic allocation + wall on all-systems and loops. Until that
      A/B exists this is a *candidate*, not a win. (The companion "phase-scoped full cache" idea was
      rejected on the same flawed `toString()` measure and should likewise be re-measured per hierarchy
-     if revisited.) **Method lesson: never measure annotated-type stability via `toString()` — compare
-     per hierarchy, and never index a qualifier `Set` positionally across calls.**
+     if revisited.) **Method lessons: (1) never measure annotated-type stability via `toString()` —
+     compare per hierarchy (top-name → annotation), since `toString()` conflates cross-hierarchy
+     completeness; (2) a checker runs *several* `AnnotatedTypeFactory` instances — never key
+     instrumentation (or a cache) on `Tree` in `static` state, or you compare/mix different type
+     systems' results for the same tree.**
   3. **Split flow-independent structure from flow-dependent annotations — MEASURED, ALREADY
      IMPLEMENTED (June 2026).** The hypothesis was: `fromExpression` (~24% inclusive) builds a
      deterministic-per-tree skeleton, so cache the frozen skeleton and re-apply only the
