@@ -390,15 +390,15 @@ but cost ≈10% wall clock (far more than its hit-rate delta implied). Cut
   (`CheckerFrameworkAnnotationMirror`) already caches the decoded interned name, so the decode the
   change "removed" was never happening. **Before optimizing a lookup, ask what the common carrier
   already caches.**
-- **Two traps when measuring whether a per-tree type is stable enough to cache** (both produced a
-  *wrong, committed* conclusion this session — the pre-flow `getAnnotatedType` split-cache was
-  rejected as "25–59% unstable," then re-measuring correctly showed value leaves are **0%** unstable).
-  Postscript: even with 0% instability the built cache was *still* rejected — it was unsound for
-  checkers that override `addComputedTypeAnnotations` (Index/Lock/Optional/Signedness add annotations
-  after `super`, which a `getAnnotatedType` cache hit bypasses → `IndexTest` failed) and flat-to-mixed
-  on nullness where it was correct. **Stability ≠ cacheable: a `getAnnotatedType` cache must compose
-  with subclass overrides, and the per-hit `deepCopy` can cancel the saved work. Validate correctness
-  on the override-checkers, not just nullness.** The measurement traps:
+- **Caching a per-tree annotated type: stability ≠ cacheable, and two measurement traps.** The
+  pre-flow `getAnnotatedType` split-cache (June 2026, *Tried and rejected* → getAnnotatedType #2) is
+  the cautionary tale. **Stability ≠ cacheable:** even after correctly measuring value-leaf pre-flow
+  types as **0%** unstable, the built cache was rejected — it was unsound for checkers that override
+  `addComputedTypeAnnotations` (Index/Lock/Optional/Signedness add annotations after `super`, which a
+  `getAnnotatedType` cache hit bypasses → `IndexTest` failed), and flat-to-mixed on nullness where it
+  was correct. A framework-level type cache must **compose with subclass overrides**, and the per-hit
+  `deepCopy` can cancel the saved work — so validate correctness on the override-checkers, not just
+  nullness. Two traps nearly produced the *opposite* wrong verdict ("25–59% unstable, unsound") first:
   1. **Compare PER HIERARCHY, never via `AnnotatedTypeMirror.toString()`.** `toString()` over-reports
      instability by counting *cross-hierarchy completeness* — an `int` literal printing as `int` vs
      `@Initialized int` is just the Initialization hierarchy's annotation absent vs present, harmless

@@ -2066,32 +2066,12 @@ Capture format: hot method, hypothesis, blockers.
      the soundness crux flagged here. And the instability is *highest where the redundancy is
      highest* (loops). A per-analysis memo would cache stale/wrong types; a per-*iteration* memo would
      be sound but the within-iteration redundancy is ~0. Low value and unsound — do not pursue.
-  2. **Pre-flow expression-type ("split") cache — RE-MEASURED, then BUILT AND REJECTED (June 2026).**
-     Split `addComputedTypeAnnotations(Tree, ATM)` at the `if (this.useFlow)`
-     boundary into the prefix 2a (`applyQualifierParameterDefaults` → tree/type annotators →
-     `defaults.annotate`) and the flow suffix 2b (`getInferredValueFor` + `applyInferredAnnotations`).
-     Hypothesis: cache the *pre-flow* (post-2a) type per tree and recompute only 2b, since 2b is where
-     flow lives.
-
-     **Correction to an earlier rejection (and to a wrong root-cause in a prior revision of this very
-     entry).** A first pass keyed the per-tree signature on `AnnotatedTypeMirror.toString()` and a
-     *static* `IdentityHashMap<Tree, …>`, and concluded the pre-flow type was "unstable 25–59%," i.e.
-     that no tree-keyed cache could be sound. **That was a measurement artifact.** Two confounds, both
-     in the instrumentation, not the code: (i) `toString()` conflates *cross-hierarchy completeness* —
-     a primitive literal printing as `int` vs `@Initialized int` is the Initialization hierarchy's
-     annotation absent vs present, not a within-hierarchy disagreement; and (ii) — the big one — the
-     per-tree map was **`static`, shared across the *multiple sub-factories* a checker runs.** A
-     `nullness` compile runs four `GenericAnnotatedTypeFactory` instances
-     (`NullnessNoInitAnnotatedTypeFactory`, `InitializationAnnotatedTypeFactory`,
-     `InitializationFieldAccessAnnotatedTypeFactory`, `KeyForAnnotatedTypeFactory`), each with its own
-     qualifier hierarchy; the static map compared *one type system's* snapshot of a tree against
-     *another's* (e.g. `@UnknownKeyFor` from the KeyFor factory vs `@Initialized` from the
-     Initialization factory). (`getTopAnnotations()` itself is **not** the problem — it returns a
-     build-once `final AnnotationMirrorSet` backed by an `ArrayList` over a `TreeMap<QualifierKind,…>`,
-     i.e. already a stable, deterministic order; an earlier draft of this entry wrongly blamed it.)
-     Re-measured correctly — *per factory* (instance map) and *per hierarchy* (keyed by top-annotation
-     name; "present-disagree" = same hierarchy, two different non-∅ annotations; "completeness" =
-     ∅-vs-present):
+  2. **Pre-flow expression-type ("split") cache — BUILT AND REJECTED (June 2026).** Hypothesis:
+     `addComputedTypeAnnotations(Tree, ATM)` splits at the `if (this.useFlow)` boundary into a prefix
+     2a (`applyQualifierParameterDefaults` → tree/type annotators → `defaults.annotate`) and a flow
+     suffix 2b (`getInferredValueFor` + `applyInferredAnnotations`); since flow lives only in 2b, cache
+     the *pre-flow* (post-2a) type per tree and recompute only 2b. Per-factory, per-hierarchy
+     measurement shows the pre-flow type *is* stable, so the cache looked sound:
 
      | category | all-systems (120f) | loops |
      | --- | --- | --- |
@@ -2099,46 +2079,47 @@ Capture format: hot method, hypothesis, blockers.
      | compound expression | disagree 213 (0.69%), compl 0 / 30,949 | 0 / 0 / 33,604 |
      | type-name identifier (class/enum) | excluded (≈0.7% context-dependent) | — |
 
-     So per factory, per hierarchy, the pre-flow type is **stable**: value leaves never disagree or
-     under-annotate, compound expressions disagree ~0.69% (the genuinely context-dependent residual —
-     `NewClass`/`NewArray`/conditionals, the #602 set in #3 below), type-name identifiers ~0.7%
-     (excludable by element kind). The flow-dependence is entirely in 2b, exactly as the split
-     assumed. The per-hierarchy stability made it look like a sound candidate.
-
-     **BUILT AND REJECTED (June 2026) — unsound across checkers, and flat where it is sound.** A
-     working cache was implemented: a per-factory `IdentityHashMap<Tree, AnnotatedTypeMirror>` of
-     frozen pre-flow types, populated just before the `useFlow` block in
-     `GenericAnnotatedTypeFactory.addComputedTypeAnnotations`; `getAnnotatedType` was overridden to,
-     on a hit for a value-leaf, return `cached.deepCopy()` + re-applied flow (2b); cleared per CU;
-     toggled by `-Dcf.preflowcache`. Two findings killed it:
+     (Value leaves never disagree or under-annotate; the compound ~0.69% residual is the genuinely
+     context-dependent `NewClass`/`NewArray`/conditional set — the #602 trees of #3 below; type-name
+     identifiers ~0.7%, excludable by element kind.) A working cache was then implemented — a
+     per-factory `IdentityHashMap<Tree, AnnotatedTypeMirror>` of frozen pre-flow types populated just
+     before the `useFlow` block, with `getAnnotatedType` overridden to return `cached.deepCopy()` +
+     re-applied 2b on a value-leaf hit, cleared per CU, toggled by `-Dcf.preflowcache`. **Two
+     independent findings killed it:**
      - **Unsound for any checker that overrides `addComputedTypeAnnotations`.** `IndexTest` fails
-       (`PredecrementTest.java:8`, an extra `array.access.unsafe.low`). `UpperBoundAnnotatedTypeFactory`
+       (`PredecrementTest.java:8`, a spurious `array.access.unsafe.low`). `UpperBoundAnnotatedTypeFactory`
        (and Lower Bound, Optional, Lock, Signedness) override `addComputedTypeAnnotations` to add
-       flow-dependent annotations **after** `super` — e.g. Index pulls the Value Checker's type and
-       calls `addUpperBoundTypeFromValueType` (its own comment cites `"int i = 1; --i;"`, exactly the
-       failing test). Intercepting at `getAnnotatedType` and re-applying only the GATF-level flow step
-       bypasses that subclass logic, so cache hits drop the index refinement. Caching *inside*
+       flow-dependent annotations **after** `super` — Index pulls the Value Checker's type and calls
+       `addUpperBoundTypeFromValueType` (its comment cites `"int i = 1; --i;"`, exactly the failing
+       test). Intercepting at `getAnnotatedType` and re-applying only the GATF-level flow step bypasses
+       that subclass tail, so hits drop the index refinement. Caching *inside*
        `addComputedTypeAnnotations` so the subclass tail still runs would need a deep "replace
-       annotations onto the passed-in type" and only saves 2a (not `fromExpression`) — more complexity
-       for a smaller win. (A diff of cache-on vs -off diagnostics on nullness corpora *was* clean —
-       the bug is specific to the subclass-override checkers, which is why nullness-only validation
-       missed it.)
-     - **Flat-to-mixed even where it is sound (nullness).** Deterministic A/B (median of 5 alloc;
-       2nd-best of 4 wall), cache off vs on: all-systems alloc 2658.7 → 2616.1 MB (−1.6%), wall
-       12.12 → 12.10 s (~0); loops alloc 1078.2 → **1100.1 MB (+2.0%, worse)**, wall 7.18 → 6.84 s
-       (−4.7%). The projected ~4–15% (raw 2a self-time) did not materialize: the per-hit `deepCopy` +
-       `freeze` + map overhead roughly cancels the saved 2a, and on the realistic corpus the result
-       is noise. Do not pursue. **Lesson: per-hierarchy stability proved the cache *could* be sound in
-       isolation, but a framework-wide `getAnnotatedType` cache must compose with subclass
-       `addComputedTypeAnnotations` overrides — and even ignoring that, the deepCopy cost makes it a
-       wash. Validate correctness across the *override* checkers (Index/Lock/Optional/Signedness), not
-       just nullness.** (The companion "phase-scoped full cache" idea was rejected on the same flawed
-       `toString()` measure and would hit the same compose-with-overrides wall.) **Method lessons:
-     (1) never measure annotated-type stability via `toString()` —
-     compare per hierarchy (top-name → annotation), since `toString()` conflates cross-hierarchy
-     completeness; (2) a checker runs *several* `AnnotatedTypeFactory` instances — never key
-     instrumentation (or a cache) on `Tree` in `static` state, or you compare/mix different type
-     systems' results for the same tree.**
+       annotations onto the passed-in type" and saves only 2a (not `fromExpression`) — more complexity,
+       smaller win. A nullness-only diagnostic diff (cache on vs off) was clean, which is exactly why
+       nullness-only validation missed it.
+     - **Flat-to-mixed even where it is sound (nullness).** Deterministic A/B (median-of-5 alloc;
+       2nd-best-of-4 wall), off vs on: all-systems alloc 2658.7 → 2616.1 MB (−1.6%), wall 12.12 →
+       12.10 s (~0); loops alloc 1078.2 → **1100.1 MB (+2.0%, worse)**, wall 7.18 → 6.84 s (−4.7%). The
+       projected ~4–15% (raw 2a self-time) did not materialize — the per-hit `deepCopy` + `freeze` +
+       map overhead roughly cancels the saved 2a, and the realistic corpus is noise.
+
+     **Do not pursue.** The companion "phase-scoped full cache" idea would hit the same
+     compose-with-overrides wall. **Lessons:**
+     - *Stability ≠ cacheable.* Per-hierarchy stability proved the cache could be sound in isolation,
+       but a framework-level `getAnnotatedType` cache must **compose with subclass
+       `addComputedTypeAnnotations` overrides**, and even then the `deepCopy` cost makes it a wash.
+       Validate such a change on the override-checkers (Index/Lock/Optional/Signedness), not just
+       nullness.
+     - *Measuring per-tree type stability has two traps* (both nearly produced a false "unstable
+       25–59%, unsound" verdict): **(1)** never compare via `AnnotatedTypeMirror.toString()` — it
+       conflates *cross-hierarchy completeness* (a literal printing as `int` vs `@Initialized int` is
+       the Initialization annotation absent-vs-present, not a within-hierarchy change) with real
+       disagreement; compare per hierarchy as {top-name → annotation}. **(2)** a checker runs *several*
+       `AnnotatedTypeFactory` instances (a `nullness` compile drives `NullnessNoInit`, `Initialization`,
+       `InitializationFieldAccess`, `KeyFor`) — never key instrumentation or a cache on `Tree` in
+       `static` state, or you compare one type system's snapshot against another's. (Note:
+       `getTopAnnotations()` is *not* an ordering hazard — it returns a build-once `ArrayList`-backed
+       `AnnotationMirrorSet` over a `TreeMap<QualifierKind,…>`, a stable deterministic order.)
   3. **Split flow-independent structure from flow-dependent annotations — MEASURED, ALREADY
      IMPLEMENTED (June 2026).** The hypothesis was: `fromExpression` (~24% inclusive) builds a
      deterministic-per-tree skeleton, so cache the frozen skeleton and re-apply only the
