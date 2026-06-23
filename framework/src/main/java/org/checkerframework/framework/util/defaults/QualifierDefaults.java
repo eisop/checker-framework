@@ -1270,7 +1270,26 @@ public class QualifierDefaults {
                                     + outer.location);
             }
 
-            return super.scan(t, qual);
+            // Top-level-only locations (FIELD, LOCAL_VARIABLE, RESOURCE_VARIABLE,
+            // EXCEPTION_PARAMETER, PARAMETER, RECEIVER, RETURN, CONSTRUCTOR_RESULT) annotate only
+            // the
+            // root type; the components they touch (union alternatives, receiver, return) are
+            // handled
+            // in the switch above. Recursing into the subtree would visit every node and apply
+            // nothing, so skip it.
+            switch (outer.location) {
+                case FIELD:
+                case LOCAL_VARIABLE:
+                case RESOURCE_VARIABLE:
+                case EXCEPTION_PARAMETER:
+                case PARAMETER:
+                case RECEIVER:
+                case RETURN:
+                case CONSTRUCTOR_RESULT:
+                    return null;
+                default:
+                    return super.scan(t, qual);
+            }
         }
 
         @Override
