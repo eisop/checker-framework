@@ -1951,7 +1951,8 @@ Index (entries are interleaved below; each is tagged with its status inline):
   conditional cache and `inherit` asSuper depth (size-sweep); `getAnnotatedType` #6 (parallelism).
 - **Open but correctness/cost-blocked:** `CFAbstractStore` content hash; lazy JDK-stub cascade; the
   immutability allocation win — **copy-on-write PROTOTYPED and characterized** (branch
-  `cow-prototype`): solves the soundness blocker (Guava-validated), allocation −4.8%, but **no
+  `cow-prototype`, an un-merged experiment — a PR was opened but will not be merged): solves the
+  soundness blocker (Guava-validated), allocation −4.8%, but **no
   configuration is wall-positive** (all-caches +5.3%, elementTypeCache-only +1.8%/noise) — a memory/GC
   win only, not a wall win. See the narrative's "Copy-on-write ATMs — PROTOTYPED" entry.
 - **Closed, do not re-propose:** PR #1829 incorporation worklist (shipped); `getAnnotatedType` #1
@@ -2578,8 +2579,8 @@ not single-leaf. Re-prioritized venues:
   and the name-comparison forcers — `isConstructor`/`isEnumSuperCall`/`findElement` — were addressed
   by PR #1796.)*
 
-- **Defaulting: fuse all defaults into one type-tree traversal — APPLIED (June 2026, branch
-  `cpu-experiments`).** `QualifierDefaults.applyDefaultsElement` scanned the whole type tree *once per
+- **Defaulting: fuse all defaults into one type-tree traversal — APPLIED in PR #1836 (June 2026).**
+  `QualifierDefaults.applyDefaultsElement` scanned the whole type tree *once per
   default* (~9.3 scans/call, ~14% inclusive on Guava) — the maintainers' TODO ("only one iteration
   through the defaults should be necessary"). Now it does **one** traversal that applies every default
   at each node: `DefaultApplierElementImpl.scan` loops over a precedence-ordered default list (built by
@@ -2921,8 +2922,10 @@ CF-controllable clusters and their state, highest-leverage first:
    formatting in the hot path is now **resolved** (PR #1797 lazy `FoundRequired`); remaining utf2*
    at 0.89% is cold-path / first-visit-miss only.
 
-**Copy-on-write ATMs — PROTOTYPED (June 2026): solves the soundness blocker, allocation win real,
-but wall-clock-negative.** The blocker (above) was that returning a shared frozen cache master crashes
+**Copy-on-write ATMs — PROTOTYPED (June 2026, un-merged experiment): solves the soundness blocker,
+allocation win real, but wall-clock-negative.** Recorded in PR #1835; the COW code lives on branch
+`cow-prototype` (a PR was opened but will not be merged — kept as a reference implementation). The
+blocker (above) was that returning a shared frozen cache master crashes
 when a consumer reparents a frozen *child* into a fresh non-frozen result and mutates it (root-level
 `deepCopy()` guards can't catch a non-frozen root holding a frozen child; Guava found what `alltests`
 + 9 fixes missed). A working COW prototype was built (branch `cow-prototype`, gated by `-Dcf.cow`):
