@@ -873,9 +873,8 @@ public class QualifierDefaults {
         // what populates these caches via fusedDefaultsFor). While defaults are being configured
         // nothing is cached, so skip the work -- the add* methods call this many times during setup
         // and IdentityHashMap.clear() nulls its entire backing table even when empty. Only a
-        // default
-        // added after application has begun reaches the clears (clear(), not reallocation, because
-        // the maps are final and hold few entries).
+        // default added after application has begun reaches the clears (clear(), not reallocation,
+        // because the maps are final and hold few entries).
         if (!fusedDefaultsCached) {
             return;
         }
