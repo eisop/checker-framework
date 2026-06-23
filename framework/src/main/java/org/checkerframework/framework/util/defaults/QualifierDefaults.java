@@ -106,6 +106,34 @@ public class QualifierDefaults {
     /** Defaults for unchecked code. */
     private final DefaultSet uncheckedCodeDefaults = new DefaultSet();
 
+    /**
+     * Cached fused default list for the common case of an empty scope {@link DefaultSet}, checked
+     * code (non-conservative). Lazily built by {@link #fusedDefaultsFor}; reset to {@code null}
+     * whenever a default changes.
+     */
+    private @Nullable List<Default> fusedEmptyChecked = null;
+
+    /**
+     * Cached fused default list for the common case of an empty scope {@link DefaultSet},
+     * conservative (unchecked + checked code defaults). Lazily built; reset whenever a default
+     * changes.
+     */
+    private @Nullable List<Default> fusedEmptyConservative = null;
+
+    /**
+     * Memoized fused default lists for non-empty scope {@link DefaultSet}s, checked code
+     * (non-conservative), keyed by {@code DefaultSet} identity. See {@link #fusedDefaultsFor}.
+     */
+    private final IdentityHashMap<DefaultSet, List<Default>> fusedCheckedCache =
+            new IdentityHashMap<>();
+
+    /**
+     * Memoized fused default lists for non-empty scope {@link DefaultSet}s, conservative, keyed by
+     * {@code DefaultSet} identity. See {@link #fusedDefaultsFor}.
+     */
+    private final IdentityHashMap<DefaultSet, List<Default>> fusedConservativeCache =
+            new IdentityHashMap<>();
+
     /** Mapping from an Element to the bound type. */
     protected final IdentityHashMap<Element, BoundType> elementToBoundType =
             new IdentityHashMap<>();
@@ -291,6 +319,7 @@ public class QualifierDefaults {
             boolean applyToSubpackages) {
         checkDuplicates(checkedCodeDefaults, absoluteDefaultAnno, location);
         checkedCodeDefaults.add(new Default(absoluteDefaultAnno, location, applyToSubpackages));
+        invalidateFusedDefaults();
     }
 
     /**
@@ -320,6 +349,7 @@ public class QualifierDefaults {
         checkIsValidUncheckedCodeLocation(uncheckedDefaultAnno, location);
 
         uncheckedCodeDefaults.add(new Default(uncheckedDefaultAnno, location, applyToSubpackages));
+        invalidateFusedDefaults();
     }
 
     /**
@@ -377,6 +407,9 @@ public class QualifierDefaults {
         // TODO: expose applyToSubpackages
         prevset.add(new Default(elementDefaultAnno, location, true));
         elementDefaults.put(elem, prevset);
+        // prevset may already be a key in the fused caches; its content just changed, so any
+        // memoized fused list for it is now stale.
+        invalidateFusedDefaults();
     }
 
     private void checkIsValidUncheckedCodeLocation(
@@ -827,17 +860,74 @@ public class QualifierDefaults {
         return false;
     }
 
+    /** Discards all cached fused default lists. Called whenever a default changes. */
+    private void invalidateFusedDefaults() {
+        fusedEmptyChecked = null;
+        fusedEmptyConservative = null;
+        // clear() rather than reallocating: these maps are final, hold at most a handful of entries
+        // (one per default-declaring scope), and invalidation happens only while defaults are being
+        // configured, so the retained table capacity is negligible and we avoid the reallocation.
+        fusedCheckedCache.clear();
+        fusedConservativeCache.clear();
+    }
+
     /**
      * Returns the defaults to apply, in precedence order, for the given scope {@code DefaultSet}:
      * the in-scope defaults, then (if conservative) the unchecked-code defaults, then the
      * checked-code defaults, with checked/unchecked {@code TYPE_VARIABLE_USE} defaults dropped when
      * the scope already has one.
      *
+     * <p>The result is memoized. The empty-scope case (no
+     * {@code @DefaultQualifier}/{@code @NullMarked} in scope) is by far the most common in
+     * unannotated code and is served from two shared constants. Non-empty scopes are memoized in an
+     * identity-keyed cache: {@link #defaultsAt} hands back a stable per-scope {@code DefaultSet}
+     * object that is shared across every member of the scope, so identity keying hits well. As
+     * JSpecify {@code @NullMarked}/{@code @NullUnmarked} annotations spread (each aliases to a
+     * {@code @DefaultQualifier}), the non-empty case becomes the common one, and this cache — not
+     * the empty fast-path — carries the savings. Identity (not content) keying is required because
+     * a {@code DefaultSet} can be mutated in place after caching (see {@link #addElementDefault});
+     * both caches are cleared whenever any default changes.
+     *
+     * @param defaults the scope's defaults
+     * @param conservative whether to include the unchecked-code defaults
+     * @return the fused, ordered default list (shared and read-only; callers must not mutate it)
+     */
+    private List<Default> fusedDefaultsFor(DefaultSet defaults, boolean conservative) {
+        if (defaults.isEmpty()) {
+            // The fused list for an empty scope is just the (unchecked-, if conservative, then)
+            // checked-code defaults: identical across every such call and constant until the code
+            // defaults change. typeVarUseDef is false for an empty set, so no filtering applies.
+            if (conservative) {
+                if (fusedEmptyConservative == null) {
+                    fusedEmptyConservative = buildFusedDefaults(defaults, true);
+                }
+                return fusedEmptyConservative;
+            } else {
+                if (fusedEmptyChecked == null) {
+                    fusedEmptyChecked = buildFusedDefaults(defaults, false);
+                }
+                return fusedEmptyChecked;
+            }
+        }
+        IdentityHashMap<DefaultSet, List<Default>> cache =
+                conservative ? fusedConservativeCache : fusedCheckedCache;
+        List<Default> cached = cache.get(defaults);
+        if (cached == null) {
+            cached = buildFusedDefaults(defaults, conservative);
+            cache.put(defaults, cached);
+        }
+        return cached;
+    }
+
+    /**
+     * Builds the precedence-ordered fused default list from scratch. {@link #fusedDefaultsFor}
+     * memoizes the result; call that, not this.
+     *
      * @param defaults the scope's defaults
      * @param conservative whether to include the unchecked-code defaults
      * @return the fused, ordered default list
      */
-    private List<Default> fusedDefaultsFor(DefaultSet defaults, boolean conservative) {
+    private List<Default> buildFusedDefaults(DefaultSet defaults, boolean conservative) {
         // If there is a default for type variable uses, do not also apply checked/unchecked code
         // defaults to type variables. Otherwise, the default in scope could decide not to annotate
         // the type variable use, whereas the checked/unchecked code default could add an

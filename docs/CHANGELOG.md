@@ -52,6 +52,16 @@ caches declarations under their raw symbol. Reduces `declarationFromElement`
 from 8.4% to 1.5% of `checkNullness` self time and is about 7% faster
 end-to-end; worst-case (a single large class) improves by roughly half.
 
+Performance: applying default qualifiers now traverses each type once for all
+applicable defaults instead of once per default (previously about nine traversals
+per type), and the resulting precedence-ordered default list is memoized -- served
+from a shared constant when the scope declares no `@DefaultQualifier`/`@NullMarked`
+default (the common case) and from an identity-keyed cache otherwise. On
+generics-heavy code the single-pass change cuts defaulting time roughly 30%, and the
+memoization removes repeated list rebuilding on a hot path (about 1% of total
+allocation, growing as JSpecify `@NullMarked` annotations spread). Diagnostics are
+unchanged.
+
 Performance and robustness: Java 8 type argument inference now caps the amount of
 bound-incorporation work it performs for a single invocation
 (`Java8InferenceContext.MAX_INCORPORATION_WORK`). Incorporating bounds to a fixed

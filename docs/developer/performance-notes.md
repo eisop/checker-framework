@@ -2600,9 +2600,46 @@ not single-leaf. Re-prioritized venues:
   generics — exactly Guava). **Floor reached:** the residual `applyDefaultsElement` is now dominated by
   the per-node `applyOneAtNode` (each default is still *checked* at each node — the fusion only
   collapsed the *traversal*, ~9.3× → 1×, not the per-node application); cutting further needs per-node
-  default filtering (skip defaults whose location can't match a node kind), diminishing returns. A
-  per-`DefaultSet` cache of the fused list was tried and **dropped** — zero measured benefit (the
-  list-build is cheap) and it added a staleness risk on a correctness-critical path.
+  default filtering (skip defaults whose location can't match a node kind), diminishing returns. The
+  fused list itself is also memoized — see the next entry (an early per-`DefaultSet` *content* cache
+  looked useless/unsafe, but the correct structure was later built and measured).
+- **Defaulting: memoize the fused default list — APPLIED (June 2026, branch `cpu-experiments`).**
+  `fusedDefaultsFor` rebuilt the precedence-ordered list on every `applyDefaultsElement` call (one of
+  the hottest paths: ~once per defaulted type). Instrumentation settled the shape: in a generics-heavy
+  compile **99.8% of calls pass an *empty* scope `DefaultSet`** (63,376 / 63,485), and there are only
+  **2 distinct `DefaultSet` *contents*** by value — the 6,086 "distinct" sets are per-element *empty*
+  objects (`defaultsAt` allocates a fresh empty set per element to short-circuit its cache; they are
+  content-equal). So the result is highly memoizable. Two-part cache: (1) an `isEmpty()` fast-path
+  returns one of two shared constant lists (the code defaults, ±unchecked) — covers the empty case
+  with no map and no hashing; (2) non-empty scopes go through an **identity-keyed**
+  `IdentityHashMap<DefaultSet, List<Default>>` (×2 for conservative). **Identity, not content,
+  keying:** a `DefaultSet` is mutated in place by `addElementDefault`, so a content/hashCode key would
+  corrupt the map; `defaultsAt` returns a stable per-scope object shared across a scope's members, so
+  identity hits well. All caches are cleared by `invalidateFusedDefaults()` from the three (and only)
+  default-set mutators (`addCheckedCodeDefault`, `addUncheckedCodeDefault`, `addElementDefault`); the
+  returned lists are shared read-only (the scanner only reads them). **Why the earlier reject was
+  wrong:** the first attempt keyed on `DefaultSet` *identity* for *all* calls — useless, because the
+  6,086 empty objects gave 6,086 keys; and a *content* key was dismissed as needing a per-call hash.
+  The fix is the split (constants for empty, identity map for non-empty), which neither earlier framing
+  found. **Measured (no-memo baseline vs memo, n=3, deterministic alloc):** unmarked Generic300
+  −0.84%, many-fields −0.51%; **wall neutral** (within noise). It is an allocation-only win (~1%) —
+  the list-build was never the CPU cost (the per-node scan is), so it does not move wall time. Kept
+  because it is the morally-correct code (don't rebuild a constant 63k×), it is safe, and — crucially —
+  **it scales with JSpecify** (next paragraph). Correctness: `:framework:test` (incl.
+  `ValueUncheckedDefaultsTest`), `NullnessTest`, `NullnessNullMarkedTest` all green.
+- **Why the memo matters under JSpecify — MEASURED (June 2026).** `@NullMarked`/`@NullUnmarked` are
+  *aliased to* `@DefaultQualifier` (`NullnessNoInitAnnotatedTypeFactory`, `jspecifyNullMarkedAlias`),
+  so they populate the **scope** `DefaultSet` via `defaultsAt`'s enclosing-element inheritance — every
+  element under a `@NullMarked` scope gets a non-empty scope default. So as JSpecify spreads the
+  empty-fast-path's coverage **shrinks** while the identity cache's grows. Measured with one
+  class-level `@DefaultQualifier` (= the `@NullMarked` alias target): empty fraction **99.8% → 73.3%**,
+  distinct *content* **2 → 3** (still a handful — every marked scope yields identical content). A
+  fully-marked codebase trends empty → the library/JDK floor (unmarked external elements stay empty),
+  so the non-empty identity cache carries the savings. The marked workload shows the **larger**
+  allocation win (**−1.03% vs −0.84%**), still wall-neutral. Net: today the non-empty case is 0.2% of
+  calls (not worth caching alone); under JSpecify it becomes the majority, and the distinct-content
+  count stays tiny — exactly the regime where a result memo pays off. The split design is future-proof
+  to marking density without betting on either case dominating.
 - **The defaulting walk is the largest *CF-controlled* leaf cluster — FEASIBILITY MEASURED (June
   2026), verdict: highly memoizable, worth building.** `QualifierDefaults.DefaultApplierElementImpl.scan`
   plus `AnnotatedTypeScanner.visitDeclared`/`scan`/`reduce` are the biggest type-factory leaf group.
