@@ -12,11 +12,13 @@ public class RequalifyingTypeVar {
         abstract @ReceiverDependentQual E receiverDependent();
     }
 
-    void substitution(@Top Box<@B Object> box) {
+    void bareTypeVariableUse(@Top Box<@B Object> box) {
         @B Object bare = box.bare();
         // :: error: (assignment.type.incompatible)
         @A Object badBare = box.bare();
+    }
 
+    void concreteTypeVariableUse(@Top Box<@B Object> box) {
         @A Object concreteA = box.concreteA();
         // :: error: (assignment.type.incompatible)
         @B Object badConcreteA = box.concreteA();
