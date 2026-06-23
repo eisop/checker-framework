@@ -2287,6 +2287,32 @@ wins did not move single-compile time — their value is GC pressure at scale); 
 (2) The largest non-obvious CPU slice is CF driving javac (symbol completion + name
 decoding + tree/path walks), bigger than dataflow + stubs + visitor combined.
 
+**Guava cross-check (first hotspot JFR of a large heavy-generics codebase, June 2026).**
+`test-guava-nullness.sh` (Nullness Checker on the `guava` module, 625 files; JFR injected
+via the forked-compiler `-J` args in the `checkerframework-local` profile; 7,814
+ExecutionSamples). Two findings:
+- **The leaf self-time profile generalizes — nothing new at the leaf.** Same flat shape as
+  `checkNullness`: no CF leaf above **3.85%**; the top is `IdentityHashMap.get`/`put` (≈6.8%
+  combined), the ATM traversal (`AnnotatedTypeScanner.scan`/`visitDeclared`/`reduce` ≈7%),
+  `Symbol.apiComplete`, `DefaultApplierElementImpl.scan`, `AnnotatedTypeCopier.visitDeclared`,
+  `AnnotatedTypeMirror.createType`. Allocation: `[Ljava.lang.Object;` 32%, `ArrayList` 8.7%,
+  `IdentityHashMap` 5.5%, `AnnotationMirrorSet` 4.5% — the same ATM-pipeline allocation.
+- **New *fact* (not a new lever): type-argument inference is a top-2 inclusive cost on heavy
+  generics, where it is negligible on `all-systems`/`checkNullness`.** `getAnnotatedType` 50%
+  inclusive (as usual), but then `methodFromUse` **24.6%** → `inferTypeArgs` **23.0%** →
+  `InvocationTypeInference.infer` 22.4% → `ConstraintSet.reduceOneStep` 14.1%. Decomposing the
+  23% inference slice (`cooccur`): **50% of it is under `getAnnotatedType`** (building
+  argument/receiver/bound types) and **28% under `incorporateToFixedPoint`** (the machinery
+  PR #1829 already optimized); the inference-*specific* self-time (`TypeConstraint.hashCode`,
+  `ConstraintSet`, constraint-collection churn — `LinkedHashMap`/`ListBuffer`/`List$2` ≈6% of
+  allocation) is small and diffuse. So Guava **reinforces** rather than overturns the Short
+  list: the biggest lever is still `getAnnotatedType` (now shown to dominate inference too, not
+  just checking), inference's big win already shipped (#1829), and the resolution items (#3/#4)
+  stay low-value — their self-time is tiny even here. Takeaway for future sessions: `all-systems`
+  and `checkNullness` **under-represent inference**; profile **Guava (or jspecify-conformance)**
+  for any inference work, but expect the cost to be the type pipeline it drives, not a clean
+  inference-specific frame.
+
 Open venues, roughly by tractability:
 
 - **Reduce ATM deep copying (`AnnotatedTypeCopier.visit` = 22% of `Object[]`).**
