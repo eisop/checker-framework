@@ -9,11 +9,13 @@ import com.sun.source.tree.VariableTree;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedDeclaredType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedExecutableType;
+import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedTypeVariable;
 import org.checkerframework.framework.util.AnnotatedTypes;
 import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TypesUtils;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
@@ -111,6 +113,10 @@ class TypeFromMemberVisitor extends TypeFromTreeVisitor {
         } else {
             // Add the primary annotation from the variableTree.getModifiers();
             AnnotatedTypeMirror innerType = AnnotatedTypes.innerMostType(result);
+            List<AnnotationMirror> explicitTypeVariableUseAnnotations =
+                    innerType.getKind() == TypeKind.TYPEVAR
+                            ? new ArrayList<>()
+                            : Collections.emptyList();
             for (AnnotationMirror anno : modifierAnnos) {
                 // The code here is similar to
                 // org.checkerframework.framework.util.element.ElementAnnotationUtil.addDeclarationAnnotationsFromElement.
@@ -120,10 +126,17 @@ class TypeFromMemberVisitor extends TypeFromTreeVisitor {
                                 .startsWith("org.checkerframework")) {
                     // Type annotations apply to the innermost type.
                     innerType.addAnnotation(anno);
+                    if (innerType.getKind() == TypeKind.TYPEVAR) {
+                        explicitTypeVariableUseAnnotations.add(anno);
+                    }
                 } else {
                     // Declaration annotations apply to the outer type.
                     result.addAnnotation(anno);
                 }
+            }
+            if (!explicitTypeVariableUseAnnotations.isEmpty()) {
+                ((AnnotatedTypeVariable) innerType)
+                        .markAsConcreteTypeVariableUse(explicitTypeVariableUseAnnotations);
             }
         }
 
@@ -154,6 +167,17 @@ class TypeFromMemberVisitor extends TypeFromTreeVisitor {
         // This would be similar to
         // org.checkerframework.framework.util.element.ElementAnnotationUtil.addDeclarationAnnotationsFromElement.
         ElementAnnotationApplier.apply(result, elt, f);
+        if (result.getReturnType().getKind() == TypeKind.TYPEVAR && tree.getReturnType() != null) {
+            List<? extends AnnotationTree> explicitAnnotationTrees =
+                    TreeUtils.getExplicitAnnotationTrees(
+                            tree.getModifiers().getAnnotations(), tree.getReturnType());
+            if (!explicitAnnotationTrees.isEmpty()) {
+                ((AnnotatedTypeVariable) result.getReturnType())
+                        .markAsConcreteTypeVariableUse(
+                                TreeUtils.annotationsFromTypeAnnotationTrees(
+                                        explicitAnnotationTrees));
+            }
+        }
         return result;
     }
 

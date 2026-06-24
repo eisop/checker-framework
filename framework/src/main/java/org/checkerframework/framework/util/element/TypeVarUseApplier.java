@@ -163,6 +163,9 @@ public class TypeVarUseApplier {
         for (Attribute.TypeCompound annotation : typeVarAnnotations) {
             typeVariable.replaceAnnotation(annotation);
         }
+        if (!typeVarAnnotations.isEmpty()) {
+            typeVariable.markAsConcreteTypeVariableUse(typeVarAnnotations);
+        }
     }
 
     /**
