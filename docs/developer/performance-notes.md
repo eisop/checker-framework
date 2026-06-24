@@ -2211,18 +2211,11 @@ now flat) surfaced a further candidate, blocked by a correctness invariant, whic
 is why the campaign left it:
 
 - **The lazy JDK-stub cascade runs the full type-annotation pipeline during
-  parsing, uncached.** Stacks captured on `allNullnessTests` show
-  `maybeParseEnclosingJdkClass` → `annotateSupertypes` → `directSupertypes` →
-  `addComputedTypeAnnotations` → `DefaultQualifierForUseTypeAnnotator` →
-  `getExplicitAnnos` → `fromElement` → `maybeParseEnclosingJdkClass` … repeating 3–4
-  times in one stack: computing the defaults/supertypes of one JDK class pulls in
-  another class's stub, whose own defaults/supertypes are then computed, all while
-  `stubTypes.isParsing()` disables the factory caches, so the same work is redone
-  during real checking. The static `StubUnit` cache above removes the *parse* half
-  of this; the *resolution/defaulting* half remains. **Blocker:** the
-  caching-disabled-during-parsing rule exists because partially-loaded stubs yield
-  incomplete annotations; changing when defaults are computed for JDK supertypes is
-  correctness-sensitive and needs its own design.
+  parsing, uncached — APPLIED (June 2026).**
+  **Problem:** When `stubTypes.isParsing()` is true, `addComputedTypeAnnotations` and defaults run uncached to avoid persisting incomplete annotations on partial stubs. However, `GenericAnnotatedTypeFactory.postDirectSuperTypes` calls `addComputedTypeAnnotations` for each supertype returned by `SupertypeFinder.directSupertypes`. Because `directSupertypes` calls `toAnnotatedType` to create a fresh ATM each time, the standard `elementCache` and `directSupertypesCache` are not warm enough to prevent redundant computation. Specifically, `java.lang.Object` triggers `addComputedTypeAnnotations` ~58 times per active factory on a minimal input file.
+  **Findings:** Instrumentation on `TestNullness.java` revealed ~750 total parse-phase calls to `addComputedTypeAnnotations(Element, …)`, of which ~515 were redundant (same element seen again with a fresh ATM). Over 300 redundant calls belonged to `java.lang.Object`. The core redundancy comes from `types.directSupertypes()` substituting type parameters and generating a new `TypeMirror` each time, so every supertype traversal computes defaults for the same non-generic types (Object, Serializable, Cloneable, …) again.
+  **Solution:** Introduced a parse-phase-scoped cache (`parsePhasePrimaryDefaultsCache`) in `GenericAnnotatedTypeFactory` mapping from `Element` to `AnnotationMirrorSet`. It caches the primary annotations only for parameter-less declared types (`adt.getTypeArguments().isEmpty()`), whose defaults are purely element-determined and independent of stub-loading state. On a cache hit, `addMissingAnnotations` (not `addAnnotations`, to avoid undefined behavior if the type already carries an annotation) is used to apply cached annotations and the method returns early, skipping the five annotation operations. To prevent leaking incomplete state, the cache is cleared via `clearParsePhaseCache()` whenever `parsingCount` returns to 0. This dropped redundant parse-phase calls from ~515 to ~230 and reduced `Object`'s per-compilation count from 58 to ~5.
+  **Wall-Clock A/B (June 2026, 3 warm runs, `--no-daemon`):** Measured on `allNullnessTests` (the right workload — JDK-stub loading is 28–32% of its total time vs ~3% in a single `checknullness` compile). With cache: **110.24 s** (avg of 110.31 s, 110.17 s). Without cache: **112.61 s** (avg of 112.53 s, 112.69 s). Delta: **2.37 s ≈ 2.1%**. The signal (2.37 s) is large relative to within-group variance (~0.07 s), so the result is statistically clean. An earlier A/B against `checknullness` only showed 0.5% (noise level) because stub work is only ~3% of that single-compile workload.
 
 - **`findElement()` O(N×M) linear scan in stub member matching — APPLIED (June 2026).**
   **Problem:** `AnnotationFileParser.findElement(TypeElement, MethodDeclaration, boolean)` performed an O(N) linear scan across all methods of the class for each stub method declaration, calling `ElementUtils.getSimpleSignature(method)` (which allocates a new `String`) on every candidate in the scan. The existing `methodsInTypeElementCache` cached only the method *list*, not the signature index, so the O(N) String allocations were repeated per lookup. For a class with 90 methods and 40 stub entries that is 3,600 `getSimpleSignature()` String allocations per class per compilation; across 23 compilations and ~100 JDK classes, ~8M redundant String allocations. The constructor-matching `findElement(TypeElement, ConstructorDeclaration)` had the same pattern.

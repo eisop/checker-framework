@@ -285,6 +285,7 @@ public class AnnotationFileElementTypes {
 
         --parsingCount;
         assert parsingCount == 0;
+        atypeFactory.clearParsePhaseCache();
 
         if (stubDebug) {
             System.out.printf(
@@ -341,6 +342,7 @@ public class AnnotationFileElementTypes {
         parseAnnotationFiles(ajavaFiles, AnnotationFileType.AJAVA);
         --parsingCount;
         assert parsingCount == 0;
+        atypeFactory.clearParsePhaseCache();
     }
 
     /**
@@ -375,6 +377,7 @@ public class AnnotationFileElementTypes {
 
         --parsingCount;
         assert parsingCount == 0;
+        atypeFactory.clearParsePhaseCache();
     }
 
     /**
@@ -876,7 +879,9 @@ public class AnnotationFileElementTypes {
             throw new BugInCF("cannot open the jdk stub file " + path, e);
         } finally {
             --parsingCount;
-            if (parsingCount == 0) {}
+            if (parsingCount == 0) {
+                atypeFactory.clearParsePhaseCache();
+            }
         }
     }
 
@@ -910,7 +915,9 @@ public class AnnotationFileElementTypes {
             throw new BugInCF("Exception while parsing " + jarEntryName + ": " + e.getMessage(), e);
         } finally {
             --parsingCount;
-            if (parsingCount == 0) {}
+            if (parsingCount == 0) {
+                atypeFactory.clearParsePhaseCache();
+            }
         }
 
         if (stubDebug) {
