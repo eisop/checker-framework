@@ -418,10 +418,17 @@ public abstract class CFAbstractTransfer<
                 addFinalLocalValues(store, enclosingElement);
             }
 
-            // We want the initialization stuff, but need to throw out any refinements.
+            // We want the initialization stuff, but need to throw out refinements that might not
+            // still hold when the lambda is invoked later.
             // Update values in place; keys are unchanged.
             store.fieldValues.replaceAll(
                     (fieldAccess, currentValue) -> {
+                        V laterValue =
+                                store.newFieldValueAfterMethodCall(
+                                        fieldAccess, analysis.atypeFactory, currentValue);
+                        if (laterValue != null) {
+                            return laterValue;
+                        }
                         AnnotatedTypeMirror declaredType =
                                 atypeFactory.getAnnotatedType(fieldAccess.getField());
                         return analysis.createAbstractValue(declaredType)

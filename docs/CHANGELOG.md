@@ -62,7 +62,7 @@ Other improvements and bug fixes:
 
 **Closed issues:**
 
-eisop#433, eisop#792, eisop#863, eisop#1801.
+eisop#433, eisop#771, eisop#792, eisop#863, eisop#1801.
 
 
 Version 3.49.5-eisop1 (April 26, 2026)
