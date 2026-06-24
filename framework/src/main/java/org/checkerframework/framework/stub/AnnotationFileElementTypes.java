@@ -39,6 +39,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.IdentityHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -55,6 +56,7 @@ import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.type.TypeMirror;
+import javax.lang.model.util.ElementFilter;
 import javax.lang.model.util.Types;
 import javax.tools.Diagnostic;
 
@@ -114,6 +116,65 @@ public class AnnotationFileElementTypes {
      * currently being processed, which prevents conflicts of definition and infinite loops.
      */
     private final Set<String> processingClasses = new LinkedHashSet<>();
+
+    /**
+     * Cache from TypeElement to (method simple-signature → ExecutableElement) for methods declared
+     * directly in that TypeElement. Shared across all {@link AnnotationFileParser} instances within
+     * this factory so that the O(N) index-build cost is paid at most once per class per
+     * compilation.
+     */
+    private final IdentityHashMap<TypeElement, Map<String, ExecutableElement>> methodSigIndexCache =
+            new IdentityHashMap<>();
+
+    /**
+     * Cache from TypeElement to (constructor simple-signature → ExecutableElement) for constructors
+     * declared directly in that TypeElement.
+     */
+    private final IdentityHashMap<TypeElement, Map<String, ExecutableElement>>
+            constructorSigIndexCache = new IdentityHashMap<>();
+
+    /**
+     * Returns a map from simple signature to ExecutableElement for all methods declared directly in
+     * {@code typeElt}. The map is built once per TypeElement and reused across stub files.
+     *
+     * @param typeElt the type element
+     * @return map from method simple signature to ExecutableElement
+     */
+    Map<String, ExecutableElement> methodSigIndex(TypeElement typeElt) {
+        return methodSigIndexCache.computeIfAbsent(
+                typeElt,
+                t -> {
+                    List<ExecutableElement> methods =
+                            ElementFilter.methodsIn(t.getEnclosedElements());
+                    Map<String, ExecutableElement> index = new HashMap<>(methods.size() * 2);
+                    for (ExecutableElement m : methods) {
+                        index.put(ElementUtils.getSimpleSignature(m), m);
+                    }
+                    return index;
+                });
+    }
+
+    /**
+     * Returns a map from simple signature to ExecutableElement for all constructors declared
+     * directly in {@code typeElt}. The map is built once per TypeElement and reused across stub
+     * files.
+     *
+     * @param typeElt the type element
+     * @return map from constructor simple signature to ExecutableElement
+     */
+    Map<String, ExecutableElement> constructorSigIndex(TypeElement typeElt) {
+        return constructorSigIndexCache.computeIfAbsent(
+                typeElt,
+                t -> {
+                    List<ExecutableElement> ctors =
+                            ElementFilter.constructorsIn(t.getEnclosedElements());
+                    Map<String, ExecutableElement> index = new HashMap<>(ctors.size() * 2);
+                    for (ExecutableElement c : ctors) {
+                        index.put(ElementUtils.getSimpleSignature(c), c);
+                    }
+                    return index;
+                });
+    }
 
     /**
      * Creates an empty annotation source.
@@ -224,6 +285,7 @@ public class AnnotationFileElementTypes {
 
         --parsingCount;
         assert parsingCount == 0;
+        atypeFactory.clearParsePhaseCache();
 
         if (stubDebug) {
             System.out.printf(
@@ -280,6 +342,7 @@ public class AnnotationFileElementTypes {
         parseAnnotationFiles(ajavaFiles, AnnotationFileType.AJAVA);
         --parsingCount;
         assert parsingCount == 0;
+        atypeFactory.clearParsePhaseCache();
     }
 
     /**
@@ -314,6 +377,7 @@ public class AnnotationFileElementTypes {
 
         --parsingCount;
         assert parsingCount == 0;
+        atypeFactory.clearParsePhaseCache();
     }
 
     /**
@@ -815,6 +879,9 @@ public class AnnotationFileElementTypes {
             throw new BugInCF("cannot open the jdk stub file " + path, e);
         } finally {
             --parsingCount;
+            if (parsingCount == 0) {
+                atypeFactory.clearParsePhaseCache();
+            }
         }
     }
 
@@ -848,6 +915,9 @@ public class AnnotationFileElementTypes {
             throw new BugInCF("Exception while parsing " + jarEntryName + ": " + e.getMessage(), e);
         } finally {
             --parsingCount;
+            if (parsingCount == 0) {
+                atypeFactory.clearParsePhaseCache();
+            }
         }
 
         if (stubDebug) {
