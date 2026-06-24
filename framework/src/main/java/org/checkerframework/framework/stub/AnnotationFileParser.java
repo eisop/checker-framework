@@ -2444,25 +2444,6 @@ public class AnnotationFileParser {
         return findFieldElement(typeElt, enumConstName, astNode);
     }
 
-    /** Cache all the methods that are in a TypeElement. */
-    private final IdentityHashMap<TypeElement, List<ExecutableElement>> methodsInTypeElementCache =
-            new IdentityHashMap<>();
-
-    /**
-     * Determine all the methods that are in a TypeElement, caching the result.
-     *
-     * @param typeElt the type element
-     * @return the methods in that type element
-     */
-    private List<ExecutableElement> methodsInTypeElement(TypeElement typeElt) {
-        List<ExecutableElement> res = methodsInTypeElementCache.get(typeElt);
-        if (res == null) {
-            res = ElementFilter.methodsIn(typeElt.getEnclosedElements());
-            methodsInTypeElementCache.put(typeElt, res);
-        }
-        return res;
-    }
-
     /**
      * Looks for a method element in {@code typeElt} that has the same name and formal parameter
      * types as {@code methodDecl}. Returns null, and possibly issues a warning, if no such method
@@ -2480,16 +2461,10 @@ public class AnnotationFileParser {
         if (skipNode(methodDecl)) {
             return null;
         }
-        String wantedMethodName = methodDecl.getNameAsString();
-        int wantedMethodParams =
-                (methodDecl.getParameters() == null) ? 0 : methodDecl.getParameters().size();
         String wantedMethodString = AnnotationFileUtil.toString(methodDecl);
-        for (ExecutableElement method : methodsInTypeElement(typeElt)) {
-            if (wantedMethodParams == method.getParameters().size()
-                    && InternalUtils.sameName(method.getSimpleName(), wantedMethodName)
-                    && ElementUtils.getSimpleSignature(method).equals(wantedMethodString)) {
-                return method;
-            }
+        ExecutableElement found = fileElementTypes.methodSigIndex(typeElt).get(wantedMethodString);
+        if (found != null) {
+            return found;
         }
         if (!noWarn) {
             if (methodDecl.getAccessSpecifier() == AccessSpecifier.NONE) {
@@ -2511,7 +2486,8 @@ public class AnnotationFileParser {
                         "method " + wantedMethodString + " not found in type " + typeElt);
                 if (debugAnnotationFileParser) {
                     stubDebug("  methods of %s:", typeElt);
-                    for (ExecutableElement method : methodsInTypeElement(typeElt)) {
+                    for (ExecutableElement method :
+                            fileElementTypes.methodSigIndex(typeElt).values()) {
                         stubDebug("    %s", method);
                     }
                 }
@@ -2536,25 +2512,18 @@ public class AnnotationFileParser {
         if (skipNode(constructorDecl)) {
             return null;
         }
-        int wantedMethodParams =
-                (constructorDecl.getParameters() == null)
-                        ? 0
-                        : constructorDecl.getParameters().size();
         String wantedMethodString = AnnotationFileUtil.toString(constructorDecl);
-        for (ExecutableElement method :
-                ElementFilter.constructorsIn(typeElt.getEnclosedElements())) {
-            if (wantedMethodParams == method.getParameters().size()
-                    && ElementUtils.getSimpleSignature(method).equals(wantedMethodString)) {
-                return method;
-            }
+        ExecutableElement found =
+                fileElementTypes.constructorSigIndex(typeElt).get(wantedMethodString);
+        if (found != null) {
+            return found;
         }
-
         stubWarnNotFound(
                 constructorDecl,
                 "constructor " + wantedMethodString + " not found in type " + typeElt);
         if (debugAnnotationFileParser) {
             for (ExecutableElement method :
-                    ElementFilter.constructorsIn(typeElt.getEnclosedElements())) {
+                    fileElementTypes.constructorSigIndex(typeElt).values()) {
                 stubDebug("  %s", method);
             }
         }

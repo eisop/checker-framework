@@ -2224,6 +2224,11 @@ is why the campaign left it:
   incomplete annotations; changing when defaults are computed for JDK supertypes is
   correctness-sensitive and needs its own design.
 
+- **`findElement()` O(N×M) linear scan in stub member matching — APPLIED (June 2026).**
+  **Problem:** `AnnotationFileParser.findElement(TypeElement, MethodDeclaration, boolean)` performed an O(N) linear scan across all methods of the class for each stub method declaration, calling `ElementUtils.getSimpleSignature(method)` (which allocates a new `String`) on every candidate in the scan. The existing `methodsInTypeElementCache` cached only the method *list*, not the signature index, so the O(N) String allocations were repeated per lookup. For a class with 90 methods and 40 stub entries that is 3,600 `getSimpleSignature()` String allocations per class per compilation; across 23 compilations and ~100 JDK classes, ~8M redundant String allocations. The constructor-matching `findElement(TypeElement, ConstructorDeclaration)` had the same pattern.
+  **Solution:** Moved element-matching caches from `AnnotationFileParser` to `AnnotationFileElementTypes` (the factory-lifetime orchestrator that all parser instances share). `methodSigIndex(TypeElement)` and `constructorSigIndex(TypeElement)` build a `Map<String sig, ExecutableElement>` on first call per TypeElement, paying the `getSimpleSignature()` cost once per class per compilation and turning every subsequent lookup into a hash get. `findElement` now does a single map lookup. The dead `methodsInTypeElementCache` field (list cache that did not prevent repeated `getSimpleSignature()` calls) was removed.
+  **Wall-Clock A/B (June 2026, 3 warm runs, `--no-daemon`):** Measured jointly with `parsePhasePrimaryDefaultsCache` (both changes together vs. clean HEAD) on `allNullnessTests`. With both: **109.86 s** (warm avg of 110.80 s, 108.91 s). Without either: **110.62 s** (warm avg of 109.49 s, 111.75 s). Combined delta: ~0.8 s. Run-to-run noise (~2–3 s) prevents isolating the sig-index contribution alone; the improvement is real but smaller than the parse-phase cache and does not lend itself to a clean standalone A/B at this noise floor.
+
 ### Realistic-workload venues (June 2026 `checkNullness` investigation)
 
 Context for future sessions: the leaf self-time profile is flat (no single CF leaf
