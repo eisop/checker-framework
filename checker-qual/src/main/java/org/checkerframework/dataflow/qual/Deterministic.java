@@ -7,26 +7,49 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * A method is called <em>deterministic</em> if it returns the same value (according to {@code ==})
- * every time it is called with the same arguments and in the same environment. The arguments
- * include the receiver, and the environment includes all of the Java heap (that is, all fields of
- * all objects and all static variables).
+ * A method is called <em>deterministic</em> if, starting from the same arguments and the same
+ * initial environment, every invocation produces the same return value (according to {@code ==})
+ * and the same final environment. The arguments include the receiver, and the environment
+ * includes all of the Java heap (that is, all fields of all objects and all static variables).
  *
- * <p>Determinism refers to the return value during a non-exceptional execution. If a method throws
- * an exception, the Throwable does not have to be exactly the same object on each invocation (and
- * generally should not be, to capture the correct stack trace).
+ * <p>Determinism does <em>not</em> mean that the method leaves the heap unchanged; it means that
+ * any changes the method makes to the heap are the same on every invocation from the same
+ * starting heap. For example, a method whose body always executes {@code this.f = 99; return 5;}
+ * is deterministic, even though it is not {@link SideEffectFree}. (The Checker Framework's
+ * conservative analysis described below is currently stricter than this — see the note in the
+ * Analysis section.)
  *
- * <p>This annotation is important to pluggable type-checking because, after a call to a
- * {@code @Deterministic} method, flow-sensitive type refinement can assume that anything learned
- * about the first invocation is true about subsequent invocations (so long as no
- * non-{@code @}{@link SideEffectFree} method call intervenes). For example, the following code
- * never suffers a null pointer exception, so the Nullness Checker need not issue a warning:
+ * <p>Determinism refers to the return value (and the final environment) during a non-exceptional
+ * execution. If a method throws an exception, the Throwable does not have to be exactly the same
+ * object on each invocation (and generally should not be, to capture the correct stack trace).
+ *
+ * <p><b>Use in flow-sensitive type refinement:</b> By itself, {@code @Deterministic} provides only
+ * a limited guarantee. Two consecutive calls to the same {@code @Deterministic} method are not
+ * guaranteed to return the same value, because the first call may have changed the heap, so the
+ * second call no longer starts from the same environment. For example, the following method is
+ * deterministic:
+ *
+ * <pre>{@code
+ * @Deterministic
+ * Object myDeterministicMethod() {
+ *   Object o = this.f;
+ *   this.f = null;
+ *   return o;
+ * }
+ * }</pre>
+ *
+ * but a type refinement on the result of a first call does not survive a second call:
  *
  * <pre>{@code
  * if (x.myDeterministicMethod() != null) {
- *   x.myDeterministicMethod().hashCode();
+ *   x.myDeterministicMethod().hashCode(); // throws NullPointerException
  * }
  * }</pre>
+ *
+ * because the first call sets {@code this.f} to {@code null}, so the second call returns
+ * {@code null}. To get the guarantee that any property inferred from one call also holds at a
+ * subsequent call to the same method, the method must be both {@code @Deterministic} and
+ * {@link SideEffectFree} — that is, {@link Pure}.
  *
  * <p>Note that {@code @Deterministic} guarantees that the result is identical according to {@code
  * ==}, <b>not</b> just equal according to {@code equals()}. This means that writing
