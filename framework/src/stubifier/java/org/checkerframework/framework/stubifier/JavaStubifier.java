@@ -60,6 +60,9 @@ public class JavaStubifier {
         }
     }
 
+    /** The writer used to generate the compressed binary stub file. */
+    private static final BinaryStubWriter binaryStubWriter = new BinaryStubWriter();
+
     /**
      * Process each file in the given directory; see class documentation for details.
      *
@@ -84,6 +87,13 @@ public class JavaStubifier {
                                 System.err.println("IOException: " + e);
                             }
                         });
+
+        try {
+            File outputFile = new File(dir, "annotated-jdk.bin.gz");
+            binaryStubWriter.writeTo(outputFile);
+        } catch (IOException e) {
+            System.err.println("Failed to write binary stub: " + e);
+        }
     }
 
     /**
@@ -141,6 +151,8 @@ public class JavaStubifier {
                     // All content is removed, delete this file.
                     new File(absolutePath.toUri()).delete();
                     res = Result.DONT_SAVE;
+                } else {
+                    binaryStubWriter.process(cu);
                 }
             }
             return res;

@@ -37,6 +37,7 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.IdentityHashMap;
@@ -51,6 +52,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import javax.annotation.processing.ProcessingEnvironment;
+import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
@@ -68,7 +70,7 @@ import javax.tools.Diagnostic;
  */
 public class AnnotationFileElementTypes {
     /** Annotations from annotation files (but not from annotated JDK files). */
-    private final AnnotationFileAnnotations annotationFileAnnos;
+    final AnnotationFileAnnotations annotationFileAnnos;
 
     /** The number of ongoing parsing tasks. */
     private int parsingCount;
@@ -85,12 +87,118 @@ public class AnnotationFileElementTypes {
     private final Map<String, Path> remainingJdkStubFiles = new HashMap<>();
 
     /**
-     * Mapping from fully-qualified class name to corresponding JDK stub files from checker.jar that
-     * have not yet been read. When a file is read, its mapping is removed from this map.
+     * Maps the fully-qualified class name to the file name in checker.jar.
      *
      * <p>By contrast, {@link #remainingJdkStubFiles} contains JDK stub files from the file system.
      */
     private final Map<String, String> remainingJdkStubFilesJar = new HashMap<>();
+
+    /**
+     * Cache of parsed annotation mirrors for the binary stub reader. Shared across all classes to
+     * avoid repeatedly invoking JavaParser for the same annotation strings.
+     */
+    final Map<String, AnnotationMirror> binaryAnnoCache = new HashMap<>();
+
+    /**
+     * Cache for binary stub data and its associated metadata (e.g., inner classes mapping). This
+     * cache is stored in the compilation context to be shared across all checker instances in the
+     * same compilation run.
+     */
+    private static class BinaryStubDataCache {
+        /** The loaded binary stub data. */
+        final BinaryStubData data;
+
+        /**
+         * A map from the fully-qualified name of an outermost class to the records of its inner
+         * classes. Computed lazily.
+         */
+        Map<String, List<BinaryStubData.ClassRecord>> innerClassesMap = null;
+
+        /**
+         * Constructs a new cache holding the given binary stub data.
+         *
+         * @param data the binary stub data to cache
+         */
+        BinaryStubDataCache(BinaryStubData data) {
+            this.data = data;
+        }
+    }
+
+    /**
+     * The key used to store and retrieve the {@link BinaryStubDataCache} from the compilation
+     * context.
+     */
+    private static final com.sun.tools.javac.util.Context.Key<BinaryStubDataCache>
+            BINARY_STUB_DATA_KEY = new com.sun.tools.javac.util.Context.Key<>();
+
+    /**
+     * Retrieves the {@link BinaryStubDataCache} from the compilation context.
+     *
+     * @return the cached binary stub data, or {@code null} if it has not been loaded yet
+     */
+    private @Nullable BinaryStubDataCache getBinaryStubDataCache() {
+        com.sun.tools.javac.util.Context context =
+                ((com.sun.tools.javac.processing.JavacProcessingEnvironment)
+                                atypeFactory.getChecker().getProcessingEnvironment())
+                        .getContext();
+        return context.get(BINARY_STUB_DATA_KEY);
+    }
+
+    /**
+     * Stores the {@link BinaryStubDataCache} in the compilation context.
+     *
+     * @param cache the cache to store
+     */
+    private void setBinaryStubDataCache(BinaryStubDataCache cache) {
+        com.sun.tools.javac.util.Context context =
+                ((com.sun.tools.javac.processing.JavacProcessingEnvironment)
+                                atypeFactory.getChecker().getProcessingEnvironment())
+                        .getContext();
+        context.put(BINARY_STUB_DATA_KEY, cache);
+    }
+
+    /**
+     * Set of fully-qualified class names whose annotations have already been applied from the
+     * binary JDK stub. Used to ensure each class is only processed once via the binary path,
+     * without interfering with {@link #processingClasses} which is managed by {@link
+     * AnnotationFileParser}.
+     */
+    private final Set<String> processedBinaryClasses = new LinkedHashSet<>();
+
+    /**
+     * Retrieves all inner class records for a given outermost class name from the binary data.
+     *
+     * @param outermostClass the fully-qualified name of the outermost class
+     * @return the list of inner class records, or an empty list if none are found
+     */
+    private List<BinaryStubData.ClassRecord> getInnerClassesFromBinary(String outermostClass) {
+        BinaryStubDataCache cache = getBinaryStubDataCache();
+        if (cache == null || cache.data == null) {
+            return Collections.emptyList();
+        }
+        if (cache.innerClassesMap == null) {
+            cache.innerClassesMap = new HashMap<>();
+            for (Map.Entry<String, BinaryStubData.ClassRecord> entry :
+                    cache.data.classes.entrySet()) {
+                String innerName = entry.getKey();
+                String outermost = null;
+                int dotIndex = -1;
+                while ((dotIndex = innerName.indexOf('.', dotIndex + 1)) != -1) {
+                    String prefix = innerName.substring(0, dotIndex);
+                    if (cache.data.classes.containsKey(prefix)) {
+                        outermost = prefix;
+                        break;
+                    }
+                }
+                if (outermost != null && !outermost.equals(innerName)) {
+                    cache.innerClassesMap
+                            .computeIfAbsent(outermost, x -> new ArrayList<>())
+                            .add(entry.getValue());
+                }
+            }
+        }
+        return cache.innerClassesMap.getOrDefault(outermostClass, Collections.emptyList());
+    }
 
     /** Which version number of the annotated JDK should be used? */
     private final String annotatedJdkVersion;
@@ -148,7 +256,11 @@ public class AnnotationFileElementTypes {
                             ElementFilter.methodsIn(t.getEnclosedElements());
                     Map<String, ExecutableElement> index = new HashMap<>(methods.size() * 2);
                     for (ExecutableElement m : methods) {
-                        index.put(ElementUtils.getSimpleSignature(m), m);
+                        try {
+                            index.put(ElementUtils.getSimpleSignature(m), m);
+                        } catch (Throwable th) {
+                            // Ignore methods with unresolvable/error types.
+                        }
                     }
                     return index;
                 });
@@ -166,11 +278,15 @@ public class AnnotationFileElementTypes {
         return constructorSigIndexCache.computeIfAbsent(
                 typeElt,
                 t -> {
-                    List<ExecutableElement> ctors =
+                    List<ExecutableElement> constructors =
                             ElementFilter.constructorsIn(t.getEnclosedElements());
-                    Map<String, ExecutableElement> index = new HashMap<>(ctors.size() * 2);
-                    for (ExecutableElement c : ctors) {
-                        index.put(ElementUtils.getSimpleSignature(c), c);
+                    Map<String, ExecutableElement> index = new HashMap<>(constructors.size() * 2);
+                    for (ExecutableElement m : constructors) {
+                        try {
+                            index.put(ElementUtils.getSimpleSignature(m), m);
+                        } catch (Throwable th) {
+                            // Ignore constructors with unresolvable/error types.
+                        }
                     }
                     return index;
                 });
@@ -816,7 +932,43 @@ public class AnnotationFileElementTypes {
             return;
         }
 
+        BinaryStubDataCache cache = getBinaryStubDataCache();
+        if (cache != null && cache.data != null) {
+            BinaryStubData.ClassRecord cr = cache.data.classes.get(className);
+            if (cr != null) {
+                // Use a separate set to track binary-processed classes, so we do not interfere
+                // with processingClasses which is managed by AnnotationFileParser and throws
+                // BugInCF if a class is added twice.
+                if (!processedBinaryClasses.add(className)) {
+                    // Already processed via binary path; nothing more to do.
+                    return;
+                }
+                remainingJdkStubFiles.remove(className);
+                remainingJdkStubFilesJar.remove(className);
+                BinaryStubReader.applyClassRecord(cr, className, atypeFactory, this, cache.data);
+
+                // Also apply binary records for all inner classes in the same file.
+                // This mirrors the text parser's behavior of parsing the entire .java file at
+                // once (which includes all inner classes). Without this, inner-class annotations
+                // (e.g. @InternedDistinct on Symbol.Completer.NULL_COMPLETER) are missed.
+                List<BinaryStubData.ClassRecord> inners = getInnerClassesFromBinary(className);
+                if (inners != null) {
+                    for (BinaryStubData.ClassRecord innerCr : inners) {
+                        String innerName = cache.data.stringPool[innerCr.nameIndex];
+                        if (processedBinaryClasses.add(innerName)) {
+                            remainingJdkStubFiles.remove(innerName);
+                            remainingJdkStubFilesJar.remove(innerName);
+                            BinaryStubReader.applyClassRecord(
+                                    innerCr, innerName, atypeFactory, this, cache.data);
+                        }
+                    }
+                }
+                return;
+            }
+        }
+
         Path stubPath = remainingJdkStubFiles.remove(className);
+
         if (stubPath != null) {
             parseJdkStubFile(stubPath);
         } else {
@@ -957,6 +1109,34 @@ public class AnnotationFileElementTypes {
             return;
         }
         URL resourceURL = atypeFactory.getClass().getResource("/annotated-jdk");
+        URL binURL = atypeFactory.getClass().getResource("/annotated-jdk/annotated-jdk.bin.gz");
+        boolean binaryLoaded = false;
+        if (binURL != null) {
+            try {
+                BinaryStubDataCache cache = getBinaryStubDataCache();
+                if (cache == null) {
+                    try (InputStream in = binURL.openStream()) {
+                        if (in != null) {
+                            cache = new BinaryStubDataCache(new BinaryStubData(in));
+                            setBinaryStubDataCache(cache);
+                        }
+                    }
+                }
+                if (cache != null && cache.data != null) {
+                    binaryLoaded = true;
+                    // Apply package and module annotations eagerly as they are global
+                    BinaryStubReader.applyPackageAndModuleRecords(cache.data, atypeFactory, this);
+                }
+            } catch (java.io.IOException e) {
+                System.err.println(
+                        "Warning: Could not read annotated-jdk.bin.gz, falling back to JavaParser. Error: "
+                                + e.getMessage());
+            }
+        } else {
+            System.err.println(
+                    "Warning: annotated-jdk.bin.gz not found, falling back to JavaParser.");
+        }
+
         if (stubDebug) {
             System.out.printf(
                     "Loading JDK from class %s and url: %s%n",
@@ -969,9 +1149,9 @@ public class AnnotationFileElementTypes {
             throw new BugInCF(
                     "JDK not found for type factory " + atypeFactory.getClass().getSimpleName());
         } else if (resourceURL.getProtocol().contentEquals("jar")) {
-            prepJdkFromJar(resourceURL);
+            prepJdkFromJar(resourceURL, binaryLoaded);
         } else if (resourceURL.getProtocol().contentEquals("file")) {
-            prepJdkFromFile(resourceURL);
+            prepJdkFromFile(resourceURL, binaryLoaded);
         } else {
             if (permitMissingJdk) {
                 return;
@@ -989,8 +1169,10 @@ public class AnnotationFileElementTypes {
      * file name to the class contained with in it. Also, parses all package-info.java files.
      *
      * @param jdkDirectory the URL pointing to the JDK directory
+     * @param binaryLoaded {@code true} if package and module annotations were successfully loaded
+     *     from the binary stub file
      */
-    private void prepJdkFromFile(URL jdkDirectory) {
+    private void prepJdkFromFile(URL jdkDirectory, boolean binaryLoaded) {
         Path root;
         try {
             root = Paths.get(jdkDirectory.toURI());
@@ -1005,7 +1187,9 @@ public class AnnotationFileElementTypes {
             paths.sort(Path::compareTo);
             for (Path path : paths) {
                 if (path.getFileName().toString().equals("package-info.java")) {
-                    parseJdkStubFile(path);
+                    if (!binaryLoaded) {
+                        parseJdkStubFile(path);
+                    }
                     continue;
                 }
                 if (path.getFileName().toString().equals("module-info.java")) {
@@ -1045,8 +1229,11 @@ public class AnnotationFileElementTypes {
      * file name to the class contained with in it. Also, parses all package-info.java files.
      *
      * @param jdkJarfile the URL pointing to the JDK jarfile
+     * @param binaryLoaded {@code true} if package and module annotations were successfully loaded
+     *     from the binary stub file
      */
-    private void prepJdkFromJar(@SuppressWarnings("UnusedVariable") URL jdkJarfile) {
+    private void prepJdkFromJar(
+            @SuppressWarnings("UnusedVariable") URL jdkJarfile, boolean binaryLoaded) {
         JarURLConnection connection = getJarURLConnectionToJdk();
 
         try (JarFile jarFile = connection.getJarFile()) {
@@ -1063,7 +1250,8 @@ public class AnnotationFileElementTypes {
                         || jarEntryName.endsWith("module-info.java")) {
                     continue;
                 }
-                if (parseAllJdkFiles || jarEntryName.endsWith("package-info.java")) {
+                if (parseAllJdkFiles
+                        || (jarEntryName.endsWith("package-info.java") && !binaryLoaded)) {
                     parseJdkJarEntry(jarEntryName);
                     continue;
                 }
