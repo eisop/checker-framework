@@ -1,5 +1,6 @@
 package org.checkerframework.framework.stub;
 
+import org.checkerframework.framework.qual.FromStubFile;
 import org.checkerframework.framework.stub.AnnotationFileParser.AnnotationFileAnnotations;
 import org.checkerframework.framework.type.AnnotatedTypeFactory;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
@@ -7,6 +8,7 @@ import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedArrayTyp
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedDeclaredType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedExecutableType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedWildcardType;
+import org.checkerframework.javacutil.AnnotationBuilder;
 import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.ElementUtils;
 
@@ -121,16 +123,13 @@ public class BinaryStubReader {
                     annotationFileAnnos.declAnnos.putIfAbsent(
                             ElementUtils.getQualifiedName(ve), fieldDeclAnnos);
                 }
-                if (fr.typeAnnos.length > 0 || !fieldDeclAnnos.isEmpty()) {
+                if (fr.typeAnnos.length > 0) {
                     // Only apply if not already present from a user-supplied stub file.
                     if (!annotationFileAnnos.atypes.containsKey(ve)) {
                         AnnotatedTypeMirror atm =
                                 AnnotatedTypeMirror.createType(ve.asType(), atypeFactory, false);
-                        AnnotatedTypeMirror inner = getInnermostComponentType(atm);
-                        for (AnnotationMirror am : fieldDeclAnnos) {
-                            inner.addAnnotation(am);
-                        }
-                        applyTypeAnnos(atm, fr.typeAnnos, className, data, atypeFactory, elementTypes);
+                        applyTypeAnnos(
+                                atm, fr.typeAnnos, className, data, atypeFactory, elementTypes);
                         annotationFileAnnos.atypes.put(ve, atm);
                     }
                 }
@@ -155,9 +154,7 @@ public class BinaryStubReader {
                 }
 
                 boolean hasAnyTypeAnnos =
-                        mr.returnTypeAnnos.length > 0
-                                || mr.receiverAnnos.length > 0
-                                || !methodDeclAnnos.isEmpty();
+                        mr.returnTypeAnnos.length > 0 || mr.receiverAnnos.length > 0;
                 for (int i = 0; i < mr.paramAnnos.length; i++) {
                     if (mr.paramAnnos[i].length > 0 || mr.paramDeclAnnos[i].length > 0) {
                         hasAnyTypeAnnos = true;
@@ -169,14 +166,10 @@ public class BinaryStubReader {
                 if (hasAnyTypeAnnos && !annotationFileAnnos.atypes.containsKey(ee)) {
                     AnnotatedExecutableType aet =
                             (AnnotatedExecutableType)
-                                     AnnotatedTypeMirror.createType(
-                                             ee.asType(), atypeFactory, false);
+                                    AnnotatedTypeMirror.createType(
+                                            ee.asType(), atypeFactory, false);
                     aet.setElement(ee);
 
-                    AnnotatedTypeMirror retInner = getInnermostComponentType(aet.getReturnType());
-                    for (AnnotationMirror am : methodDeclAnnos) {
-                        retInner.addAnnotation(am);
-                    }
                     applyTypeAnnos(
                             aet.getReturnType(),
                             mr.returnTypeAnnos,
@@ -220,7 +213,12 @@ public class BinaryStubReader {
                         }
 
                         applyTypeAnnos(
-                                pType, mr.paramAnnos[i], className, data, atypeFactory, elementTypes);
+                                pType,
+                                mr.paramAnnos[i],
+                                className,
+                                data,
+                                atypeFactory,
+                                elementTypes);
                         annotationFileAnnos.atypes.putIfAbsent(pElt, pType);
                     }
                     annotationFileAnnos.atypes.put(ee, aet);
@@ -310,11 +308,10 @@ public class BinaryStubReader {
                 if (am != null) {
                     AnnotatedTypeMirror target = resolvePath(atm, ta.path);
                     if (target != null) {
-                        target.addAnnotation(am);
+                        target.replaceAnnotation(am);
                         AnnotationMirror fsfa =
-                                org.checkerframework.javacutil.AnnotationBuilder.fromClass(
-                                        atypeFactory.getElementUtils(),
-                                        org.checkerframework.framework.qual.FromStubFile.class);
+                                AnnotationBuilder.fromClass(
+                                        atypeFactory.getElementUtils(), FromStubFile.class);
                         target.addAnnotation(fsfa);
                     }
                 }
@@ -372,8 +369,9 @@ public class BinaryStubReader {
 
     /**
      * Resolves a structural {@link BinaryStubData.AnnotationRecord} into an {@link
-     * AnnotationMirror}. Results are memoised in the per-factory cache held by {@code elementTypes}.
-     * Annotations whose type is not on the annotation-processor classpath are silently skipped.
+     * AnnotationMirror}. Results are memoised in the per-factory cache held by {@code
+     * elementTypes}. Annotations whose type is not on the annotation-processor classpath are
+     * silently skipped.
      *
      * @param ar the structural annotation record to deserialize
      * @param enclosingClassName the fully-qualified name of the enclosing class
@@ -389,19 +387,21 @@ public class BinaryStubReader {
             BinaryStubData data,
             AnnotationFileElementTypes elementTypes) {
         if (hasNameLiteralValue(ar)) {
-            return createAnnotationMirrorNoCache(ar, enclosingClassName, atypeFactory, data, elementTypes);
+            return createAnnotationMirrorNoCache(
+                    ar, enclosingClassName, atypeFactory, data, elementTypes);
         }
         return elementTypes.binaryAnnoCache.computeIfAbsent(
                 ar,
-                r -> createAnnotationMirrorNoCache(r, enclosingClassName, atypeFactory, data, elementTypes));
+                r ->
+                        createAnnotationMirrorNoCache(
+                                r, enclosingClassName, atypeFactory, data, elementTypes));
     }
 
     /**
      * Dispatches a scalar annotation-member value to the appropriate {@link
-     * org.checkerframework.javacutil.AnnotationBuilder#setValue} overload.
+     * AnnotationBuilder#setValue} overload.
      */
-    private static void dispatchSetValue(
-            org.checkerframework.javacutil.AnnotationBuilder builder, String name, Object val) {
+    private static void dispatchSetValue(AnnotationBuilder builder, String name, Object val) {
         if (val instanceof Boolean) builder.setValue(name, (Boolean) val);
         else if (val instanceof Character) builder.setValue(name, (Character) val);
         else if (val instanceof Double) builder.setValue(name, (Double) val);
@@ -494,7 +494,8 @@ public class BinaryStubReader {
             return d;
         } else if (val instanceof BinaryStubData.ClassLiteralValue) {
             String fqName = ((BinaryStubData.ClassLiteralValue) val).className;
-            javax.lang.model.type.TypeMirror cachedType = elementTypes.resolvedClassTypesCache.get(fqName);
+            javax.lang.model.type.TypeMirror cachedType =
+                    elementTypes.resolvedClassTypesCache.get(fqName);
             if (cachedType != null) {
                 return cachedType;
             }
@@ -562,7 +563,7 @@ public class BinaryStubReader {
      */
     @SuppressWarnings("unchecked")
     private static void addValueToBuilder(
-            org.checkerframework.javacutil.AnnotationBuilder builder,
+            AnnotationBuilder builder,
             String name,
             Object val,
             String enclosingClassName,
@@ -620,14 +621,17 @@ public class BinaryStubReader {
         } else {
             Object resolved =
                     resolveSingleValue(
-                            val, expectedKind, enclosingClassName, atypeFactory, data, elementTypes);
+                            val,
+                            expectedKind,
+                            enclosingClassName,
+                            atypeFactory,
+                            data,
+                            elementTypes);
             if (resolved != null) {
                 dispatchSetValue(builder, name, resolved);
             }
         }
     }
-
-
 
     /**
      * Coerces a raw constant value (Character or Number) to the expected type kind.
@@ -673,9 +677,7 @@ public class BinaryStubReader {
             AnnotationFileElementTypes elementTypes) {
         try {
             String fqn = data.stringPool[ar.nameIndex];
-            org.checkerframework.javacutil.AnnotationBuilder builder =
-                    new org.checkerframework.javacutil.AnnotationBuilder(
-                            atypeFactory.getProcessingEnv(), fqn);
+            AnnotationBuilder builder = new AnnotationBuilder(atypeFactory.getProcessingEnv(), fqn);
 
             for (Map.Entry<Integer, Object> entry : ar.elementValues.entrySet()) {
                 String memberName = data.stringPool[entry.getKey()];
@@ -695,7 +697,8 @@ public class BinaryStubReader {
     }
 
     /**
-     * Recursively checks if an annotation record or value contains any name literal constant references.
+     * Recursively checks if an annotation record or value contains any name literal constant
+     * references.
      *
      * @param val the value to inspect
      * @return {@code true} if a NameLiteralValue is found, {@code false} otherwise

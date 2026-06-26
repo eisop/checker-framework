@@ -45,7 +45,8 @@ public class BinaryStubData {
          * Constructs an AnnotationRecord.
          *
          * @param nameIndex index into the string pool of the fully-qualified annotation class name
-         * @param elementValues mapping from element member name (string pool index) to its structured value
+         * @param elementValues mapping from element member name (string pool index) to its
+         *     structured value
          */
         public AnnotationRecord(int nameIndex, Map<Integer, Object> elementValues) {
             this.nameIndex = nameIndex;

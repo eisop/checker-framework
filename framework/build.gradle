@@ -69,6 +69,7 @@ dependencies {
     // At the moement, there are no differences between eisop and typetools stubparsers.
     api 'org.checkerframework:stubparser:3.27.1'
     stubifierImplementation 'org.checkerframework:stubparser:3.27.1'
+    stubifierImplementation project(':checker-qual')
     implementation sourceSets.stubifier.output
 
     /* NO-AFU

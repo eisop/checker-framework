@@ -23,7 +23,10 @@ import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Target;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
@@ -153,10 +156,21 @@ public class BinaryStubWriter {
         List<TypePathStep> path;
 
         /**
+         * Constructs a TypeAnno with an empty type path (applies to the base type).
+         *
+         * @param annoIndex index of the annotation record in the annotation pool
+         */
+        TypeAnno(int annoIndex) {
+            this.annoIndex = annoIndex;
+            this.path = Collections.emptyList();
+        }
+
+        /**
          * Constructs a TypeAnno.
          *
          * @param annoIndex index of the annotation record in the annotation pool
-         * @param path the type path
+         * @param path the type path; copied defensively since the caller mutates it during
+         *     traversal
          */
         TypeAnno(int annoIndex, List<TypePathStep> path) {
             this.annoIndex = annoIndex;
@@ -644,7 +658,15 @@ public class BinaryStubWriter {
             MethodRecord mr = new MethodRecord();
             mr.sigIndex = pool.addString(MethodSignaturePrinter.toString(md));
             for (AnnotationExpr anno : md.getAnnotations()) {
-                mr.declAnnos.add(annosPool.addAnnotation(anno, cu, this));
+                int idx = annosPool.addAnnotation(anno, cu, this);
+                if (hasTypeUse(anno, cu)) {
+                    // Annotation has TYPE_USE in its target: applies to the return type.
+                    mr.returnTypeAnnos.add(new TypeAnno(idx));
+                }
+                if (!isTypeUseOnly(anno, cu)) {
+                    // Annotation has a declaration-position target: also a declaration annotation.
+                    mr.declAnnos.add(idx);
+                }
             }
             extractTypeAnnotations(md.getType(), new ArrayList<>(), mr.returnTypeAnnos, cu);
 
@@ -652,9 +674,7 @@ public class BinaryStubWriter {
                 com.github.javaparser.ast.body.ReceiverParameter rp =
                         md.getReceiverParameter().get();
                 for (AnnotationExpr anno : rp.getAnnotations()) {
-                    mr.receiverAnnos.add(
-                            new TypeAnno(
-                                    annosPool.addAnnotation(anno, cu, this), new ArrayList<>()));
+                    mr.receiverAnnos.add(new TypeAnno(annosPool.addAnnotation(anno, cu, this)));
                 }
                 extractTypeAnnotations(rp.getType(), new ArrayList<>(), mr.receiverAnnos, cu);
             }
@@ -688,16 +708,22 @@ public class BinaryStubWriter {
             MethodRecord mr = new MethodRecord();
             mr.sigIndex = pool.addString(MethodSignaturePrinter.toString(cd));
             for (AnnotationExpr anno : cd.getAnnotations()) {
-                mr.declAnnos.add(annosPool.addAnnotation(anno, cu, this));
+                int idx = annosPool.addAnnotation(anno, cu, this);
+                if (hasTypeUse(anno, cu)) {
+                    // Annotation has TYPE_USE in its target: describes the constructed object.
+                    mr.returnTypeAnnos.add(new TypeAnno(idx));
+                }
+                if (!isTypeUseOnly(anno, cu)) {
+                    // Annotation has a declaration-position target: also a declaration annotation.
+                    mr.declAnnos.add(idx);
+                }
             }
 
             if (cd.getReceiverParameter().isPresent()) {
                 com.github.javaparser.ast.body.ReceiverParameter rp =
                         cd.getReceiverParameter().get();
                 for (AnnotationExpr anno : rp.getAnnotations()) {
-                    mr.receiverAnnos.add(
-                            new TypeAnno(
-                                    annosPool.addAnnotation(anno, cu, this), new ArrayList<>()));
+                    mr.receiverAnnos.add(new TypeAnno(annosPool.addAnnotation(anno, cu, this)));
                 }
                 extractTypeAnnotations(rp.getType(), new ArrayList<>(), mr.receiverAnnos, cu);
             }
@@ -732,7 +758,16 @@ public class BinaryStubWriter {
                 FieldRecord fr = new FieldRecord();
                 fr.nameIndex = pool.addString(vd.getNameAsString());
                 for (AnnotationExpr anno : fd.getAnnotations()) {
-                    fr.declAnnos.add(annosPool.addAnnotation(anno, cu, this));
+                    int idx = annosPool.addAnnotation(anno, cu, this);
+                    if (hasTypeUse(anno, cu)) {
+                        // Annotation has TYPE_USE in its target: applies to the field type.
+                        fr.typeAnnos.add(new TypeAnno(idx));
+                    }
+                    if (!isTypeUseOnly(anno, cu)) {
+                        // Annotation has a declaration-position target: also a declaration
+                        // annotation.
+                        fr.declAnnos.add(idx);
+                    }
                 }
                 extractTypeAnnotations(vd.getType(), new ArrayList<>(), fr.typeAnnos, cu);
                 cr.fields.add(fr);
@@ -1017,5 +1052,85 @@ public class BinaryStubWriter {
             }
         }
         return false;
+    }
+
+    /**
+     * Returns true if the annotation's {@code @Target} contains {@code TYPE_USE} — regardless of
+     * whether it also contains declaration-position element types. Use this to decide whether an
+     * annotation in declaration position should also be applied to the adjacent type.
+     *
+     * <p>If the annotation class cannot be loaded, returns false conservatively.
+     *
+     * @param anno the annotation expression
+     * @param cu the compilation unit, used to resolve the annotation's simple name to its FQN
+     * @return true if the annotation's {@code @Target} contains {@code TYPE_USE}
+     * @see #isTypeUseOnly
+     */
+    private boolean hasTypeUse(AnnotationExpr anno, CompilationUnit cu) {
+        String fqn = fullyQualify(anno.getNameAsString(), cu);
+        try {
+            Class<?> cls = Class.forName(fqn);
+            Target target = cls.getAnnotation(Target.class);
+            if (target == null) {
+                return false;
+            }
+            for (ElementType et : target.value()) {
+                if (et == ElementType.TYPE_USE) {
+                    return true;
+                }
+            }
+            return false;
+        } catch (ClassNotFoundException e) {
+            return false;
+        }
+    }
+
+    /**
+     * Returns true if the annotation is a pure type annotation — i.e., its {@code @Target} contains
+     * only {@code TYPE_USE} and/or {@code TYPE_PARAMETER}. Such annotations appearing in
+     * declaration position (field, method return) must be stored as type annotations only, not as
+     * declaration annotations.
+     *
+     * <p>Contrast with {@link #hasTypeUse}, which returns true whenever {@code @Target} contains
+     * {@code TYPE_USE} — even if it also contains declaration-position element types like {@code
+     * METHOD} or {@code FIELD}. Dual-purpose annotations (where {@link #hasTypeUse} is true but
+     * {@link #isTypeUseOnly} is false) must be stored in <em>both</em> places, matching the
+     * behavior of the text-based {@link org.checkerframework.framework.stub.AnnotationFileParser}.
+     *
+     * <p>This also differs from {@link
+     * org.checkerframework.javacutil.AnnotationUtils#isTypeUseAnnotation
+     * AnnotationUtils.isTypeUseAnnotation}, which returns true whenever {@code @Target} contains
+     * {@code TYPE_USE} — even if it also contains {@code METHOD}, {@code FIELD}, or other
+     * declaration-position element types. That method is appropriate for deciding whether an
+     * annotation <em>can</em> appear on a type use; this method is appropriate for deciding whether
+     * an annotation appearing in declaration position must be treated exclusively as a type
+     * annotation (and not also stored in {@code declAnnos}).
+     *
+     * <p>If the annotation class cannot be loaded (e.g., not on the stubifier classpath), returns
+     * false conservatively.
+     *
+     * @param anno the annotation expression
+     * @param cu the compilation unit, used to resolve the annotation's simple name to its FQN
+     * @return true if the annotation's {@code @Target} contains only {@code TYPE_USE} and/or {@code
+     *     TYPE_PARAMETER}
+     * @see #hasTypeUse
+     */
+    private boolean isTypeUseOnly(AnnotationExpr anno, CompilationUnit cu) {
+        String fqn = fullyQualify(anno.getNameAsString(), cu);
+        try {
+            Class<?> cls = Class.forName(fqn);
+            Target target = cls.getAnnotation(Target.class);
+            if (target == null) {
+                return false;
+            }
+            for (ElementType et : target.value()) {
+                if (et != ElementType.TYPE_USE && et != ElementType.TYPE_PARAMETER) {
+                    return false;
+                }
+            }
+            return true;
+        } catch (ClassNotFoundException e) {
+            return false;
+        }
     }
 }
