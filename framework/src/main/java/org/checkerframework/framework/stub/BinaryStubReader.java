@@ -12,15 +12,20 @@ import org.checkerframework.javacutil.AnnotationBuilder;
 import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.ElementUtils;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.AnnotationMirror;
+import javax.lang.model.element.Element;
+import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
+import javax.lang.model.type.ArrayType;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.ElementFilter;
@@ -207,7 +212,7 @@ public class BinaryStubReader {
                             if (!annotationFileAnnos.atypes.containsKey(pElt)) {
                                 AnnotatedTypeMirror pInner = getInnermostComponentType(pType);
                                 for (AnnotationMirror am : paramDeclAnnos) {
-                                    pInner.addAnnotation(am);
+                                    pInner.replaceAnnotation(am);
                                 }
                             }
                         }
@@ -411,12 +416,12 @@ public class BinaryStubReader {
         else if (val instanceof Short) builder.setValue(name, (Short) val);
         else if (val instanceof Byte) builder.setValue(name, (Short) ((Byte) val).shortValue());
         else if (val instanceof String) builder.setValue(name, (String) val);
-        else if (val instanceof javax.lang.model.type.TypeMirror)
-            builder.setValue(name, (javax.lang.model.type.TypeMirror) val);
-        else if (val instanceof javax.lang.model.element.VariableElement)
-            builder.setValue(name, (javax.lang.model.element.VariableElement) val);
-        else if (val instanceof javax.lang.model.element.AnnotationMirror)
-            builder.setValue(name, (javax.lang.model.element.AnnotationMirror) val);
+        else if (val instanceof TypeMirror)
+            builder.setValue(name, (TypeMirror) val);
+        else if (val instanceof VariableElement)
+            builder.setValue(name, (VariableElement) val);
+        else if (val instanceof AnnotationMirror)
+            builder.setValue(name, (AnnotationMirror) val);
     }
 
     /**
@@ -430,8 +435,8 @@ public class BinaryStubReader {
     private static VariableElement findFieldInType(
             TypeElement te, String name, ProcessingEnvironment env) {
         if (te == null) return null;
-        for (javax.lang.model.element.Element elt : te.getEnclosedElements()) {
-            if (elt.getKind() == javax.lang.model.element.ElementKind.FIELD) {
+        for (Element elt : te.getEnclosedElements()) {
+            if (elt.getKind() == ElementKind.FIELD) {
                 VariableElement ve = (VariableElement) elt;
                 if (ve.getSimpleName().contentEquals(name)) {
                     return ve;
@@ -439,8 +444,7 @@ public class BinaryStubReader {
             }
         }
         if (te.getSuperclass().getKind() == TypeKind.DECLARED) {
-            javax.lang.model.element.Element superElt =
-                    env.getTypeUtils().asElement(te.getSuperclass());
+            Element superElt = env.getTypeUtils().asElement(te.getSuperclass());
             if (superElt instanceof TypeElement) {
                 VariableElement ve = findFieldInType((TypeElement) superElt, name, env);
                 if (ve != null) return ve;
@@ -448,7 +452,7 @@ public class BinaryStubReader {
         }
         for (TypeMirror itf : te.getInterfaces()) {
             if (itf.getKind() == TypeKind.DECLARED) {
-                javax.lang.model.element.Element itfElt = env.getTypeUtils().asElement(itf);
+                Element itfElt = env.getTypeUtils().asElement(itf);
                 if (itfElt instanceof TypeElement) {
                     VariableElement ve = findFieldInType((TypeElement) itfElt, name, env);
                     if (ve != null) return ve;
@@ -473,7 +477,7 @@ public class BinaryStubReader {
      */
     private static Object resolveSingleValue(
             Object val,
-            javax.lang.model.type.TypeKind expectedKind,
+            TypeKind expectedKind,
             String enclosingClassName,
             AnnotatedTypeFactory atypeFactory,
             BinaryStubData data,
@@ -483,25 +487,24 @@ public class BinaryStubReader {
             return val;
         } else if (val instanceof Long) {
             Long l = (Long) val;
-            if (expectedKind == javax.lang.model.type.TypeKind.LONG) return l;
-            if (expectedKind == javax.lang.model.type.TypeKind.SHORT) return l.shortValue();
-            if (expectedKind == javax.lang.model.type.TypeKind.BYTE) return l.byteValue();
-            if (expectedKind == javax.lang.model.type.TypeKind.CHAR) return (char) l.longValue();
+            if (expectedKind == TypeKind.LONG) return l;
+            if (expectedKind == TypeKind.SHORT) return l.shortValue();
+            if (expectedKind == TypeKind.BYTE) return l.byteValue();
+            if (expectedKind == TypeKind.CHAR) return (char) l.longValue();
             return l.intValue();
         } else if (val instanceof Double) {
             Double d = (Double) val;
-            if (expectedKind == javax.lang.model.type.TypeKind.FLOAT) return d.floatValue();
+            if (expectedKind == TypeKind.FLOAT) return d.floatValue();
             return d;
         } else if (val instanceof BinaryStubData.ClassLiteralValue) {
             String fqName = ((BinaryStubData.ClassLiteralValue) val).className;
-            javax.lang.model.type.TypeMirror cachedType =
-                    elementTypes.resolvedClassTypesCache.get(fqName);
+            TypeMirror cachedType = elementTypes.resolvedClassTypesCache.get(fqName);
             if (cachedType != null) {
                 return cachedType;
             }
             TypeElement te = env.getElementUtils().getTypeElement(fqName);
             if (te != null) {
-                javax.lang.model.type.TypeMirror type = te.asType();
+                TypeMirror type = te.asType();
                 elementTypes.resolvedClassTypesCache.put(fqName, type);
                 return type;
             }
@@ -509,8 +512,8 @@ public class BinaryStubReader {
             BinaryStubData.EnumConstantValue ev = (BinaryStubData.EnumConstantValue) val;
             TypeElement enumClass = env.getElementUtils().getTypeElement(ev.enumClassName);
             if (enumClass != null) {
-                for (javax.lang.model.element.Element elt : enumClass.getEnclosedElements()) {
-                    if (elt.getKind() == javax.lang.model.element.ElementKind.ENUM_CONSTANT
+                for (Element elt : enumClass.getEnclosedElements()) {
+                    if (elt.getKind() == ElementKind.ENUM_CONSTANT
                             && elt.getSimpleName().contentEquals(ev.constantName)) {
                         return elt;
                     }
@@ -571,15 +574,14 @@ public class BinaryStubReader {
             BinaryStubData data,
             AnnotationFileElementTypes elementTypes) {
         boolean isArray = false;
-        javax.lang.model.type.TypeKind expectedKind = javax.lang.model.type.TypeKind.NONE;
-        javax.lang.model.type.TypeMirror returnType = null;
+        TypeKind expectedKind = TypeKind.NONE;
+        TypeMirror returnType = null;
         try {
-            javax.lang.model.element.ExecutableElement elem = builder.findElement(name);
+            ExecutableElement elem = builder.findElement(name);
             returnType = elem.getReturnType();
-            isArray = returnType.getKind() == javax.lang.model.type.TypeKind.ARRAY;
+            isArray = returnType.getKind() == TypeKind.ARRAY;
             if (isArray) {
-                expectedKind =
-                        ((javax.lang.model.type.ArrayType) returnType).getComponentType().getKind();
+                expectedKind = ((ArrayType) returnType).getComponentType().getKind();
             } else {
                 expectedKind = returnType.getKind();
             }
@@ -590,7 +592,7 @@ public class BinaryStubReader {
         if (isArray) {
             if (val instanceof List) {
                 List<Object> rawList = (List<Object>) val;
-                List<Object> resolvedList = new java.util.ArrayList<>();
+                List<Object> resolvedList = new ArrayList<>(rawList.size());
                 for (Object item : rawList) {
                     Object resolved =
                             resolveSingleValue(
@@ -615,7 +617,7 @@ public class BinaryStubReader {
                                 data,
                                 elementTypes);
                 if (resolved != null) {
-                    builder.setValue(name, java.util.Collections.singletonList(resolved));
+                    builder.setValue(name, Collections.singletonList(resolved));
                 }
             }
         } else {
@@ -640,20 +642,20 @@ public class BinaryStubReader {
      * @param expectedKind the expected type kind
      * @return the coerced value, or the original value if no coercion is needed
      */
-    private static Object coerceConstant(Object cVal, javax.lang.model.type.TypeKind expectedKind) {
+    private static Object coerceConstant(Object cVal, TypeKind expectedKind) {
         if (cVal instanceof Character) {
             int charCode = (int) ((Character) cVal).charValue();
-            if (expectedKind == javax.lang.model.type.TypeKind.LONG) return (long) charCode;
-            if (expectedKind == javax.lang.model.type.TypeKind.SHORT) return (short) charCode;
-            if (expectedKind == javax.lang.model.type.TypeKind.BYTE) return (byte) charCode;
-            if (expectedKind == javax.lang.model.type.TypeKind.CHAR) return (char) charCode;
+            if (expectedKind == TypeKind.LONG) return (long) charCode;
+            if (expectedKind == TypeKind.SHORT) return (short) charCode;
+            if (expectedKind == TypeKind.BYTE) return (byte) charCode;
+            if (expectedKind == TypeKind.CHAR) return (char) charCode;
             return charCode;
         } else if (cVal instanceof Number) {
             Number n = (Number) cVal;
-            if (expectedKind == javax.lang.model.type.TypeKind.LONG) return n.longValue();
-            if (expectedKind == javax.lang.model.type.TypeKind.SHORT) return n.shortValue();
-            if (expectedKind == javax.lang.model.type.TypeKind.BYTE) return n.byteValue();
-            if (expectedKind == javax.lang.model.type.TypeKind.CHAR) return (char) n.longValue();
+            if (expectedKind == TypeKind.LONG) return n.longValue();
+            if (expectedKind == TypeKind.SHORT) return n.shortValue();
+            if (expectedKind == TypeKind.BYTE) return n.byteValue();
+            if (expectedKind == TypeKind.CHAR) return (char) n.longValue();
             return n.intValue();
         }
         return cVal;
