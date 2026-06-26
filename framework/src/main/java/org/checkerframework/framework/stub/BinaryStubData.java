@@ -3,8 +3,11 @@ package org.checkerframework.framework.stub;
 import java.io.DataInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.zip.GZIPInputStream;
 
 /**
@@ -17,7 +20,8 @@ import java.util.zip.GZIPInputStream;
  * <ol>
  *   <li>A 4-byte magic number ({@code 0xCF575542}).
  *   <li>A 2-byte version number.
- *   <li>A constant pool of UTF-8 strings (annotation text, class names, field names, signatures).
+ *   <li>A constant pool of UTF-8 strings (class names, field names, signatures, string literals).
+ *   <li>An annotation pool of structural annotation records.
  *   <li>A sequence of {@link ClassRecord} entries, one per annotated class or interface.
  * </ol>
  *
@@ -25,6 +29,132 @@ import java.util.zip.GZIPInputStream;
  * @see org.checkerframework.framework.stubifier.BinaryStubWriter
  */
 public class BinaryStubData {
+
+    /** Annotation data containing its class name and structural element value pairs. */
+    public static class AnnotationRecord {
+        /**
+         * Index into {@link BinaryStubData#stringPool} of the fully-qualified annotation class
+         * name.
+         */
+        public final int nameIndex;
+
+        /** Mapping from element member name (string pool index) to its structured value. */
+        public final Map<Integer, Object> elementValues;
+
+        /**
+         * Constructs an AnnotationRecord.
+         *
+         * @param nameIndex index into the string pool of the fully-qualified annotation class name
+         * @param elementValues mapping from element member name (string pool index) to its structured value
+         */
+        public AnnotationRecord(int nameIndex, Map<Integer, Object> elementValues) {
+            this.nameIndex = nameIndex;
+            this.elementValues = elementValues;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (!(o instanceof AnnotationRecord)) return false;
+            AnnotationRecord that = (AnnotationRecord) o;
+            return nameIndex == that.nameIndex && Objects.equals(elementValues, that.elementValues);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(nameIndex, elementValues);
+        }
+    }
+
+    /** Represents a Class literal value. */
+    public static class ClassLiteralValue {
+        /** The fully-qualified class name. */
+        public final String className;
+
+        /**
+         * Constructs a ClassLiteralValue.
+         *
+         * @param className the fully-qualified class name
+         */
+        public ClassLiteralValue(String className) {
+            this.className = className;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (!(o instanceof ClassLiteralValue)) return false;
+            ClassLiteralValue that = (ClassLiteralValue) o;
+            return Objects.equals(className, that.className);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hashCode(className);
+        }
+    }
+
+    /** Represents an Enum constant value. */
+    public static class EnumConstantValue {
+        /** The fully-qualified name of the enum class. */
+        public final String enumClassName;
+
+        /** The name of the enum constant. */
+        public final String constantName;
+
+        /**
+         * Constructs an EnumConstantValue.
+         *
+         * @param enumClassName the fully-qualified name of the enum class
+         * @param constantName the name of the enum constant
+         */
+        public EnumConstantValue(String enumClassName, String constantName) {
+            this.enumClassName = enumClassName;
+            this.constantName = constantName;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (!(o instanceof EnumConstantValue)) return false;
+            EnumConstantValue that = (EnumConstantValue) o;
+            return Objects.equals(enumClassName, that.enumClassName)
+                    && Objects.equals(constantName, that.constantName);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(enumClassName, constantName);
+        }
+    }
+
+    /** Represents a simple name reference constant value. */
+    public static class NameLiteralValue {
+        /** The simple name of the referenced constant. */
+        public final String name;
+
+        /**
+         * Constructs a NameLiteralValue.
+         *
+         * @param name the simple name of the referenced constant
+         */
+        public NameLiteralValue(String name) {
+            this.name = name;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (!(o instanceof NameLiteralValue)) return false;
+            NameLiteralValue that = (NameLiteralValue) o;
+            return Objects.equals(name, that.name);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hashCode(name);
+        }
+    }
 
     /**
      * A single step in a type-annotation path, describing how to navigate from a base type to the
@@ -58,9 +188,9 @@ public class BinaryStubData {
         }
     }
 
-    /** Represents an annotation with its type path. */
+    /** Represents a type annotation with its type path. */
     public static class TypeAnno {
-        /** Index into {@link BinaryStubData#stringPool} of the annotation text. */
+        /** Index into {@link BinaryStubData#annotationPool} of the annotation record. */
         public final int annoIndex;
 
         /** Type-path steps locating the annotated component. */
@@ -69,7 +199,7 @@ public class BinaryStubData {
         /**
          * Constructs a TypeAnno.
          *
-         * @param annoIndex index into the string pool of the annotation text
+         * @param annoIndex index into the annotation pool of the annotation record
          * @param path type-path steps locating the annotated component
          */
         public TypeAnno(int annoIndex, TypePathStep[] path) {
@@ -83,7 +213,7 @@ public class BinaryStubData {
         /** Index into {@link BinaryStubData#stringPool} of the method's simple signature. */
         public int sigIndex;
 
-        /** String-pool indices of the declaration annotations on this method. */
+        /** Annotation-pool indices of the declaration annotations on this method. */
         public int[] declAnnos;
 
         /** Type annotations on the return type. */
@@ -99,8 +229,8 @@ public class BinaryStubData {
         public TypeAnno[][] paramAnnos;
 
         /**
-         * Per-parameter declaration annotations. Element {@code i} holds the string-pool indices of
-         * the declaration annotations for parameter {@code i}.
+         * Per-parameter declaration annotations. Element {@code i} holds the annotation-pool
+         * indices of the declaration annotations for parameter {@code i}.
          */
         public int[][] paramDeclAnnos;
     }
@@ -110,7 +240,7 @@ public class BinaryStubData {
         /** Index into {@link BinaryStubData#stringPool} of the field's simple name. */
         public int nameIndex;
 
-        /** String-pool indices of the declaration annotations on this field. */
+        /** Annotation-pool indices of the declaration annotations on this field. */
         public int[] declAnnos;
 
         /** Type annotations on the field's type. */
@@ -125,7 +255,7 @@ public class BinaryStubData {
          */
         public int nameIndex;
 
-        /** String-pool indices of the declaration annotations on this class. */
+        /** Annotation-pool indices of the declaration annotations on this class. */
         public int[] declAnnos;
 
         /** Field records for the annotated fields of this class. */
@@ -135,12 +265,11 @@ public class BinaryStubData {
         public MethodRecord[] methods;
     }
 
-    /**
-     * All strings referenced by the binary data: annotation texts (as JavaParser would print them,
-     * with fully-qualified names), class names, field names, and method signatures. Indexed by the
-     * integer pool indices stored in the records.
-     */
+    /** All strings referenced by the binary data. */
     public final String[] stringPool;
+
+    /** Pre-parsed structural annotations referenced by indices in the records. */
+    public final AnnotationRecord[] annotationPool;
 
     /**
      * Map from fully-qualified class name to its annotation record. The key uses {@code '.'} as
@@ -150,11 +279,12 @@ public class BinaryStubData {
     public final Map<String, ClassRecord> classes = new HashMap<>();
 
     /**
-     * Map from fully-qualified package name to string-pool indices of its declaration annotations.
+     * Map from fully-qualified package name to annotation-pool indices of its declaration
+     * annotations.
      */
     public final Map<String, int[]> packages = new HashMap<>();
 
-    /** Map from module name to string-pool indices of its declaration annotations. */
+    /** Map from module name to annotation-pool indices of its declaration annotations. */
     public final Map<String, int[]> modules = new HashMap<>();
 
     /**
@@ -169,14 +299,28 @@ public class BinaryStubData {
             if (dataIn.readInt() != 0xCF575542) {
                 throw new IOException("Invalid magic number");
             }
-            if (dataIn.readShort() != 2) {
-                throw new IOException("Unsupported version");
+            short version = dataIn.readShort();
+            if (version != 3) {
+                throw new IOException("Unsupported version: " + version);
             }
 
             int poolSize = dataIn.readInt();
             stringPool = new String[poolSize];
             for (int i = 0; i < poolSize; i++) {
                 stringPool[i] = dataIn.readUTF().intern();
+            }
+
+            int annoPoolSize = dataIn.readInt();
+            annotationPool = new AnnotationRecord[annoPoolSize];
+            for (int i = 0; i < annoPoolSize; i++) {
+                int nameIdx = dataIn.readInt();
+                short elementCount = dataIn.readShort();
+                Map<Integer, Object> elements = new HashMap<>();
+                for (int j = 0; j < elementCount; j++) {
+                    int memberIdx = dataIn.readInt();
+                    elements.put(memberIdx, readAnnotationValue(dataIn));
+                }
+                annotationPool[i] = new AnnotationRecord(nameIdx, elements);
             }
 
             int classCount = dataIn.readInt();
@@ -275,6 +419,58 @@ public class BinaryStubData {
                 }
                 modules.put(modName, annos);
             }
+        }
+    }
+
+    /**
+     * Reads a single structured annotation value from the stream.
+     *
+     * @param dataIn the stream to read from
+     * @return the deserialized value object
+     * @throws IOException if reading fails
+     */
+    private Object readAnnotationValue(DataInputStream dataIn) throws IOException {
+        byte tag = dataIn.readByte();
+        switch (tag) {
+            case 'Z':
+                return dataIn.readBoolean();
+            case 'C':
+                return dataIn.readChar();
+            case 'J':
+                return dataIn.readLong();
+            case 'D':
+                return dataIn.readDouble();
+            case 's':
+                return stringPool[dataIn.readInt()];
+            case 'c':
+                return new ClassLiteralValue(stringPool[dataIn.readInt()]);
+            case 'e':
+                return new EnumConstantValue(
+                        stringPool[dataIn.readInt()], stringPool[dataIn.readInt()]);
+            case 'n':
+                return new NameLiteralValue(stringPool[dataIn.readInt()]);
+            case '@':
+                {
+                    int nameIdx = dataIn.readInt();
+                    short elementCount = dataIn.readShort();
+                    Map<Integer, Object> elements = new HashMap<>();
+                    for (int j = 0; j < elementCount; j++) {
+                        int memberIdx = dataIn.readInt();
+                        elements.put(memberIdx, readAnnotationValue(dataIn));
+                    }
+                    return new AnnotationRecord(nameIdx, elements);
+                }
+            case '[':
+                {
+                    int len = dataIn.readShort();
+                    List<Object> list = new ArrayList<>(len);
+                    for (int i = 0; i < len; i++) {
+                        list.add(readAnnotationValue(dataIn));
+                    }
+                    return list;
+                }
+            default:
+                throw new IOException("Invalid annotation value tag: " + (char) tag);
         }
     }
 

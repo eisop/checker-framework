@@ -10,7 +10,6 @@ import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedWildcard
 import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.ElementUtils;
 
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -21,13 +20,14 @@ import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.TypeKind;
+import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.ElementFilter;
 
 /**
  * Applies annotation data from a {@link BinaryStubData.ClassRecord} to a checker's {@link
- * AnnotationFileAnnotations}. This is the read-side counterpart of {@code BinaryStubWriter}: it
- * translates the compact binary representation back into {@link AnnotationMirror} and {@link
- * AnnotatedTypeMirror} objects that the framework uses during type-checking.
+ * AnnotationFileAnnotations}. This translates the compact structural binary representation back
+ * into {@link AnnotationMirror} and {@link AnnotatedTypeMirror} objects that the framework uses
+ * during type-checking.
  *
  * <p>Annotations that cannot be resolved (e.g. JDK-internal annotations like {@code @DefinedBy}
  * that are absent from the annotation-processor classpath) are silently skipped, matching the
@@ -45,7 +45,7 @@ public class BinaryStubReader {
     /**
      * Applies the package and module annotations from the binary stub data eagerly.
      *
-     * @param data the complete binary stub data, providing the string pool
+     * @param data the complete binary stub data, providing the string pool and annotation pool
      * @param atypeFactory the factory used to create types and parse annotations
      * @param elementTypes the container for the parsed annotations
      */
@@ -54,18 +54,17 @@ public class BinaryStubReader {
             AnnotatedTypeFactory atypeFactory,
             AnnotationFileElementTypes elementTypes) {
         AnnotationFileAnnotations annotationFileAnnos = elementTypes.annotationFileAnnos;
-        Map<String, AnnotationMirror> annoCache = elementTypes.binaryAnnoCache;
 
         for (Map.Entry<String, int[]> entry : data.packages.entrySet()) {
             AnnotationMirrorSet pkgDeclAnnos =
-                    parseDeclAnnos(entry.getValue(), data, atypeFactory, annoCache);
+                    parseDeclAnnos(entry.getValue(), null, data, atypeFactory, elementTypes);
             if (!pkgDeclAnnos.isEmpty()) {
                 annotationFileAnnos.declAnnos.put(entry.getKey(), pkgDeclAnnos);
             }
         }
         for (Map.Entry<String, int[]> entry : data.modules.entrySet()) {
             AnnotationMirrorSet modDeclAnnos =
-                    parseDeclAnnos(entry.getValue(), data, atypeFactory, annoCache);
+                    parseDeclAnnos(entry.getValue(), null, data, atypeFactory, elementTypes);
             if (!modDeclAnnos.isEmpty()) {
                 annotationFileAnnos.declAnnos.put(entry.getKey(), modDeclAnnos);
             }
@@ -81,7 +80,7 @@ public class BinaryStubReader {
      * @param className the fully-qualified name of the class
      * @param atypeFactory the factory used to create types and parse annotations
      * @param elementTypes the container for the parsed annotations
-     * @param data the complete binary stub data, providing the string pool
+     * @param data the complete binary stub data, providing the string pool and annotation pool
      */
     public static void applyClassRecord(
             BinaryStubData.ClassRecord cr,
@@ -91,7 +90,6 @@ public class BinaryStubReader {
             BinaryStubData data) {
 
         AnnotationFileAnnotations annotationFileAnnos = elementTypes.annotationFileAnnos;
-        Map<String, AnnotationMirror> annoCache = elementTypes.binaryAnnoCache;
 
         TypeElement typeElt =
                 atypeFactory.getProcessingEnv().getElementUtils().getTypeElement(className);
@@ -101,7 +99,7 @@ public class BinaryStubReader {
 
         // Apply class declaration annotations.
         AnnotationMirrorSet classDeclAnnos =
-                parseDeclAnnos(cr.declAnnos, data, atypeFactory, annoCache);
+                parseDeclAnnos(cr.declAnnos, className, data, atypeFactory, elementTypes);
         if (!classDeclAnnos.isEmpty()) {
             annotationFileAnnos.declAnnos.put(
                     ElementUtils.getQualifiedName(typeElt), classDeclAnnos);
@@ -118,7 +116,7 @@ public class BinaryStubReader {
             VariableElement ve = fieldsByName.get(fieldName);
             if (ve != null) {
                 AnnotationMirrorSet fieldDeclAnnos =
-                        parseDeclAnnos(fr.declAnnos, data, atypeFactory, annoCache);
+                        parseDeclAnnos(fr.declAnnos, className, data, atypeFactory, elementTypes);
                 if (!fieldDeclAnnos.isEmpty()) {
                     annotationFileAnnos.declAnnos.putIfAbsent(
                             ElementUtils.getQualifiedName(ve), fieldDeclAnnos);
@@ -132,7 +130,7 @@ public class BinaryStubReader {
                         for (AnnotationMirror am : fieldDeclAnnos) {
                             inner.addAnnotation(am);
                         }
-                        applyTypeAnnos(atm, fr.typeAnnos, data, atypeFactory, annoCache);
+                        applyTypeAnnos(atm, fr.typeAnnos, className, data, atypeFactory, elementTypes);
                         annotationFileAnnos.atypes.put(ve, atm);
                     }
                 }
@@ -150,7 +148,7 @@ public class BinaryStubReader {
             }
             if (ee != null) {
                 AnnotationMirrorSet methodDeclAnnos =
-                        parseDeclAnnos(mr.declAnnos, data, atypeFactory, annoCache);
+                        parseDeclAnnos(mr.declAnnos, className, data, atypeFactory, elementTypes);
                 if (!methodDeclAnnos.isEmpty()) {
                     annotationFileAnnos.declAnnos.putIfAbsent(
                             ElementUtils.getQualifiedName(ee), methodDeclAnnos);
@@ -171,8 +169,8 @@ public class BinaryStubReader {
                 if (hasAnyTypeAnnos && !annotationFileAnnos.atypes.containsKey(ee)) {
                     AnnotatedExecutableType aet =
                             (AnnotatedExecutableType)
-                                    AnnotatedTypeMirror.createType(
-                                            ee.asType(), atypeFactory, false);
+                                     AnnotatedTypeMirror.createType(
+                                             ee.asType(), atypeFactory, false);
                     aet.setElement(ee);
 
                     AnnotatedTypeMirror retInner = getInnermostComponentType(aet.getReturnType());
@@ -180,15 +178,21 @@ public class BinaryStubReader {
                         retInner.addAnnotation(am);
                     }
                     applyTypeAnnos(
-                            aet.getReturnType(), mr.returnTypeAnnos, data, atypeFactory, annoCache);
+                            aet.getReturnType(),
+                            mr.returnTypeAnnos,
+                            className,
+                            data,
+                            atypeFactory,
+                            elementTypes);
 
                     if (aet.getReceiverType() != null && mr.receiverAnnos.length > 0) {
                         applyTypeAnnos(
                                 aet.getReceiverType(),
                                 mr.receiverAnnos,
+                                className,
                                 data,
                                 atypeFactory,
-                                annoCache);
+                                elementTypes);
                     }
 
                     for (int i = 0;
@@ -198,7 +202,12 @@ public class BinaryStubReader {
                         VariableElement pElt = ee.getParameters().get(i);
 
                         AnnotationMirrorSet paramDeclAnnos =
-                                parseDeclAnnos(mr.paramDeclAnnos[i], data, atypeFactory, annoCache);
+                                parseDeclAnnos(
+                                        mr.paramDeclAnnos[i],
+                                        className,
+                                        data,
+                                        atypeFactory,
+                                        elementTypes);
                         if (!paramDeclAnnos.isEmpty()) {
                             annotationFileAnnos.declAnnos.putIfAbsent(
                                     ElementUtils.getQualifiedName(pElt), paramDeclAnnos);
@@ -210,7 +219,8 @@ public class BinaryStubReader {
                             }
                         }
 
-                        applyTypeAnnos(pType, mr.paramAnnos[i], data, atypeFactory, annoCache);
+                        applyTypeAnnos(
+                                pType, mr.paramAnnos[i], className, data, atypeFactory, elementTypes);
                         annotationFileAnnos.atypes.putIfAbsent(pElt, pType);
                     }
                     annotationFileAnnos.atypes.put(ee, aet);
@@ -220,25 +230,35 @@ public class BinaryStubReader {
     }
 
     /**
-     * Parses a list of string-pool indices into a set of {@link AnnotationMirror}s. Indices that
-     * cannot be resolved are silently skipped.
+     * Resolves a list of annotation-pool indices into a set of {@link AnnotationMirror}s. Indices
+     * that cannot be resolved are silently skipped.
      *
-     * @param annoIndices string-pool indices of the serialised annotation texts
-     * @param data the binary stub data providing the string pool
+     * @param annoPoolIndices indices into {@link BinaryStubData#annotationPool}
+     * @param enclosingClassName fully-qualified name of the enclosing class, if any
+     * @param data the binary stub data
      * @param atypeFactory the type factory of the currently-running checker
-     * @param annoCache a per-class cache from annotation text to mirror, to avoid re-parsing
+     * @param elementTypes per-factory state including the annotation mirror cache
      * @return the set of successfully resolved annotation mirrors
      */
     private static AnnotationMirrorSet parseDeclAnnos(
-            int[] annoIndices,
+            int[] annoPoolIndices,
+            String enclosingClassName,
             BinaryStubData data,
             AnnotatedTypeFactory atypeFactory,
-            Map<String, AnnotationMirror> annoCache) {
+            AnnotationFileElementTypes elementTypes) {
         AnnotationMirrorSet set = new AnnotationMirrorSet();
-        for (int idx : annoIndices) {
-            AnnotationMirror am = parseAnnotation(data.stringPool[idx], atypeFactory, annoCache);
-            if (am != null) {
-                set.add(am);
+        for (int idx : annoPoolIndices) {
+            if (idx >= 0 && idx < data.annotationPool.length) {
+                AnnotationMirror am =
+                        getAnnotationMirror(
+                                data.annotationPool[idx],
+                                enclosingClassName,
+                                atypeFactory,
+                                data,
+                                elementTypes);
+                if (am != null) {
+                    set.add(am);
+                }
             }
         }
         return set;
@@ -266,28 +286,37 @@ public class BinaryStubReader {
      *
      * @param atm the annotated type mirror to annotate
      * @param annos the type annotations to apply
-     * @param data the binary stub data providing the string pool
+     * @param enclosingClassName fully-qualified name of the enclosing class, if any
+     * @param data the binary stub data
      * @param atypeFactory the type factory of the currently-running checker
-     * @param annoCache a per-class cache from annotation text to mirror
+     * @param elementTypes the container for the parsed annotations
      */
     private static void applyTypeAnnos(
             AnnotatedTypeMirror atm,
             BinaryStubData.TypeAnno[] annos,
+            String enclosingClassName,
             BinaryStubData data,
             AnnotatedTypeFactory atypeFactory,
-            Map<String, AnnotationMirror> annoCache) {
+            AnnotationFileElementTypes elementTypes) {
         for (BinaryStubData.TypeAnno ta : annos) {
-            AnnotationMirror am =
-                    parseAnnotation(data.stringPool[ta.annoIndex], atypeFactory, annoCache);
-            if (am != null) {
-                AnnotatedTypeMirror target = resolvePath(atm, ta.path);
-                if (target != null) {
-                    target.addAnnotation(am);
-                    AnnotationMirror fsfa =
-                            org.checkerframework.javacutil.AnnotationBuilder.fromClass(
-                                    atypeFactory.getElementUtils(),
-                                    org.checkerframework.framework.qual.FromStubFile.class);
-                    target.addAnnotation(fsfa);
+            if (ta.annoIndex >= 0 && ta.annoIndex < data.annotationPool.length) {
+                AnnotationMirror am =
+                        getAnnotationMirror(
+                                data.annotationPool[ta.annoIndex],
+                                enclosingClassName,
+                                atypeFactory,
+                                data,
+                                elementTypes);
+                if (am != null) {
+                    AnnotatedTypeMirror target = resolvePath(atm, ta.path);
+                    if (target != null) {
+                        target.addAnnotation(am);
+                        AnnotationMirror fsfa =
+                                org.checkerframework.javacutil.AnnotationBuilder.fromClass(
+                                        atypeFactory.getElementUtils(),
+                                        org.checkerframework.framework.qual.FromStubFile.class);
+                        target.addAnnotation(fsfa);
+                    }
                 }
             }
         }
@@ -342,162 +371,34 @@ public class BinaryStubReader {
     }
 
     /**
-     * Parses a serialised annotation string (as produced by {@code BinaryStubWriter}) into an
-     * {@link AnnotationMirror}. Results are memoised in {@code annoCache}. Annotations whose type
-     * is not on the annotation-processor classpath (e.g. JDK-internal {@code @DefinedBy}) are
-     * silently skipped and cached as {@code null}.
+     * Resolves a structural {@link BinaryStubData.AnnotationRecord} into an {@link
+     * AnnotationMirror}. Results are memoised in the per-factory cache held by {@code elementTypes}.
+     * Annotations whose type is not on the annotation-processor classpath are silently skipped.
      *
-     * @param annoStr the serialised annotation text, e.g. {@code
-     *     "@org.checkerframework.checker.nullness.qual.Nullable"}
+     * @param ar the structural annotation record to deserialize
+     * @param enclosingClassName the fully-qualified name of the enclosing class
      * @param atypeFactory the type factory of the currently-running checker
-     * @param annoCache a per-class cache from annotation text to mirror; {@code null} entries
-     *     indicate that the annotation could not be resolved and should be skipped
-     * @return the parsed annotation mirror, or {@code null} if the annotation cannot be resolved
+     * @param data the complete binary stub data, providing the string pool
+     * @param elementTypes per-factory state including the annotation mirror cache
+     * @return the resolved annotation mirror, or {@code null} if it cannot be resolved
      */
-    private static AnnotationMirror parseAnnotation(
-            String annoStr,
+    private static AnnotationMirror getAnnotationMirror(
+            BinaryStubData.AnnotationRecord ar,
+            String enclosingClassName,
             AnnotatedTypeFactory atypeFactory,
-            Map<String, AnnotationMirror> annoCache) {
-        return annoCache.computeIfAbsent(
-                annoStr,
-                s -> {
-                    try {
-                        // Fast path for marker annotations to avoid JavaParser overhead
-                        if (!s.contains("(")) {
-                            String fqn = s.substring(1).trim(); // remove '@'
-                            return org.checkerframework.javacutil.AnnotationBuilder.fromName(
-                                    atypeFactory.getProcessingEnv().getElementUtils(), fqn);
-                        }
-
-                        com.github.javaparser.ast.expr.AnnotationExpr ae =
-                                com.github.javaparser.StaticJavaParser.parseAnnotation(s);
-                        String fqn = ae.getNameAsString();
-                        if (ae instanceof com.github.javaparser.ast.expr.MarkerAnnotationExpr) {
-                            return org.checkerframework.javacutil.AnnotationBuilder.fromName(
-                                    atypeFactory.getProcessingEnv().getElementUtils(), fqn);
-                        }
-                        org.checkerframework.javacutil.AnnotationBuilder builder =
-                                new org.checkerframework.javacutil.AnnotationBuilder(
-                                        atypeFactory.getProcessingEnv(), fqn);
-                        if (ae
-                                instanceof
-                                com.github.javaparser.ast.expr.SingleMemberAnnotationExpr) {
-                            com.github.javaparser.ast.expr.Expression valExpr =
-                                    ((com.github.javaparser.ast.expr.SingleMemberAnnotationExpr) ae)
-                                            .getMemberValue();
-                            addValueToBuilder(
-                                    builder, "value", valExpr, atypeFactory.getProcessingEnv());
-                        } else if (ae
-                                instanceof com.github.javaparser.ast.expr.NormalAnnotationExpr) {
-                            for (com.github.javaparser.ast.expr.MemberValuePair mvp :
-                                    ((com.github.javaparser.ast.expr.NormalAnnotationExpr) ae)
-                                            .getPairs()) {
-                                addValueToBuilder(
-                                        builder,
-                                        mvp.getNameAsString(),
-                                        mvp.getValue(),
-                                        atypeFactory.getProcessingEnv());
-                            }
-                        }
-                        return builder.build();
-                    } catch (Throwable e) {
-                        // Silently ignore annotations that cannot be parsed or resolved
-                        // (e.g. JDK-internal annotations like @DefinedBy that are not on the
-                        // classpath).
-                        return null;
-                    }
-                });
-    }
-
-    /**
-     * Parses an annotation member value expression into an object suitable for passing to {@link
-     * org.checkerframework.javacutil.AnnotationBuilder#setValue}. Returns {@code null} if the
-     * expression kind is not supported.
-     *
-     * @param expr the JavaParser expression representing the annotation value
-     * @param expectedKind the expected type kind of the annotation member (used to select among
-     *     integer widths)
-     * @param env the annotation processing environment
-     * @return the parsed value, or {@code null} if unsupported
-     */
-    private static Object parseAnnotationValue(
-            com.github.javaparser.ast.expr.Expression expr,
-            javax.lang.model.type.TypeKind expectedKind,
-            ProcessingEnvironment env) {
-        if (expr instanceof com.github.javaparser.ast.expr.StringLiteralExpr) {
-            return ((com.github.javaparser.ast.expr.StringLiteralExpr) expr).getValue();
-        } else if (expr instanceof com.github.javaparser.ast.expr.BooleanLiteralExpr) {
-            return ((com.github.javaparser.ast.expr.BooleanLiteralExpr) expr).getValue();
-        } else if (expr instanceof com.github.javaparser.ast.expr.IntegerLiteralExpr) {
-            Number num = ((com.github.javaparser.ast.expr.IntegerLiteralExpr) expr).asNumber();
-            if (expectedKind == javax.lang.model.type.TypeKind.LONG) return num.longValue();
-            if (expectedKind == javax.lang.model.type.TypeKind.SHORT) return num.shortValue();
-            if (expectedKind == javax.lang.model.type.TypeKind.BYTE) return num.byteValue();
-            return num.intValue();
-        } else if (expr instanceof com.github.javaparser.ast.expr.UnaryExpr) {
-            com.github.javaparser.ast.expr.UnaryExpr ue =
-                    (com.github.javaparser.ast.expr.UnaryExpr) expr;
-            if (ue.getOperator() == com.github.javaparser.ast.expr.UnaryExpr.Operator.MINUS
-                    && ue.getExpression()
-                            instanceof com.github.javaparser.ast.expr.IntegerLiteralExpr) {
-                Number num =
-                        ((com.github.javaparser.ast.expr.IntegerLiteralExpr) ue.getExpression())
-                                .asNumber();
-                if (expectedKind == javax.lang.model.type.TypeKind.LONG) return -num.longValue();
-                if (expectedKind == javax.lang.model.type.TypeKind.SHORT)
-                    return (short) -num.shortValue();
-                if (expectedKind == javax.lang.model.type.TypeKind.BYTE)
-                    return (byte) -num.byteValue();
-                return -num.intValue();
-            } else if (ue.getOperator() == com.github.javaparser.ast.expr.UnaryExpr.Operator.MINUS
-                    && ue.getExpression()
-                            instanceof com.github.javaparser.ast.expr.LongLiteralExpr) {
-                return -((com.github.javaparser.ast.expr.LongLiteralExpr) ue.getExpression())
-                        .asNumber()
-                        .longValue();
-            }
-        } else if (expr instanceof com.github.javaparser.ast.expr.LongLiteralExpr) {
-            return ((com.github.javaparser.ast.expr.LongLiteralExpr) expr).asNumber().longValue();
-        } else if (expr instanceof com.github.javaparser.ast.expr.DoubleLiteralExpr) {
-            return ((com.github.javaparser.ast.expr.DoubleLiteralExpr) expr).asDouble();
-        } else if (expr instanceof com.github.javaparser.ast.expr.CharLiteralExpr) {
-            char val = ((com.github.javaparser.ast.expr.CharLiteralExpr) expr).asChar();
-            if (expectedKind == javax.lang.model.type.TypeKind.LONG) return (long) val;
-            if (expectedKind == javax.lang.model.type.TypeKind.INT) return (int) val;
-            if (expectedKind == javax.lang.model.type.TypeKind.SHORT) return (short) val;
-            if (expectedKind == javax.lang.model.type.TypeKind.BYTE) return (byte) val;
-            return val;
-        } else if (expr instanceof com.github.javaparser.ast.expr.ClassExpr) {
-            com.github.javaparser.ast.type.Type type =
-                    ((com.github.javaparser.ast.expr.ClassExpr) expr).getType();
-            TypeElement te = env.getElementUtils().getTypeElement(type.asString());
-            if (te != null) return te.asType();
-        } else if (expr instanceof com.github.javaparser.ast.expr.FieldAccessExpr) {
-            com.github.javaparser.ast.expr.FieldAccessExpr fae =
-                    (com.github.javaparser.ast.expr.FieldAccessExpr) expr;
-            String enumClassName = fae.getScope().toString();
-            String enumConstName = fae.getNameAsString();
-            TypeElement enumClass = env.getElementUtils().getTypeElement(enumClassName);
-            if (enumClass != null) {
-                for (javax.lang.model.element.Element elt : enumClass.getEnclosedElements()) {
-                    if (elt.getKind() == javax.lang.model.element.ElementKind.ENUM_CONSTANT
-                            && elt.getSimpleName().contentEquals(enumConstName)) {
-                        return elt;
-                    }
-                }
-            }
+            BinaryStubData data,
+            AnnotationFileElementTypes elementTypes) {
+        if (hasNameLiteralValue(ar)) {
+            return createAnnotationMirrorNoCache(ar, enclosingClassName, atypeFactory, data, elementTypes);
         }
-        return null;
+        return elementTypes.binaryAnnoCache.computeIfAbsent(
+                ar,
+                r -> createAnnotationMirrorNoCache(r, enclosingClassName, atypeFactory, data, elementTypes));
     }
 
     /**
      * Dispatches a scalar annotation-member value to the appropriate {@link
      * org.checkerframework.javacutil.AnnotationBuilder#setValue} overload.
-     *
-     * @param builder the builder to set the value on
-     * @param name the annotation member name
-     * @param val the value to set; must be one of the types accepted by {@code
-     *     AnnotationBuilder.setValue}
      */
     private static void dispatchSetValue(
             org.checkerframework.javacutil.AnnotationBuilder builder, String name, Object val) {
@@ -519,24 +420,161 @@ public class BinaryStubReader {
     }
 
     /**
-     * Parses a JavaParser expression representing one annotation member value and sets it on {@code
-     * builder}. Array values are wrapped in a singleton or multi-element list as required.
+     * Helper to recursively look up a field name in a TypeElement and its hierarchy.
      *
-     * @param builder the builder on which to set the value
-     * @param name the annotation member name
-     * @param expr the JavaParser expression for the value
-     * @param env the annotation processing environment
+     * @param te the type element to search
+     * @param name the simple name of the field to find
+     * @param env the processing environment
+     * @return the resolved variable element, or {@code null} if not found
      */
+    private static VariableElement findFieldInType(
+            TypeElement te, String name, ProcessingEnvironment env) {
+        if (te == null) return null;
+        for (javax.lang.model.element.Element elt : te.getEnclosedElements()) {
+            if (elt.getKind() == javax.lang.model.element.ElementKind.FIELD) {
+                VariableElement ve = (VariableElement) elt;
+                if (ve.getSimpleName().contentEquals(name)) {
+                    return ve;
+                }
+            }
+        }
+        if (te.getSuperclass().getKind() == TypeKind.DECLARED) {
+            javax.lang.model.element.Element superElt =
+                    env.getTypeUtils().asElement(te.getSuperclass());
+            if (superElt instanceof TypeElement) {
+                VariableElement ve = findFieldInType((TypeElement) superElt, name, env);
+                if (ve != null) return ve;
+            }
+        }
+        for (TypeMirror itf : te.getInterfaces()) {
+            if (itf.getKind() == TypeKind.DECLARED) {
+                javax.lang.model.element.Element itfElt = env.getTypeUtils().asElement(itf);
+                if (itfElt instanceof TypeElement) {
+                    VariableElement ve = findFieldInType((TypeElement) itfElt, name, env);
+                    if (ve != null) return ve;
+                }
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Resolves a single structural value item, converting it to the expected element type where
+     * necessary.
+     *
+     * @param val the value object to resolve
+     * @param expectedKind the expected type kind of the element
+     * @param enclosingClassName the fully-qualified name of the enclosing class
+     * @param atypeFactory the type factory of the currently-running checker
+     * @param data the complete binary stub data, providing the string pool
+     * @param elementTypes per-factory state including the annotation mirror cache
+     * @return the resolved object representing the annotation value, or {@code null} if it cannot
+     *     be resolved
+     */
+    private static Object resolveSingleValue(
+            Object val,
+            javax.lang.model.type.TypeKind expectedKind,
+            String enclosingClassName,
+            AnnotatedTypeFactory atypeFactory,
+            BinaryStubData data,
+            AnnotationFileElementTypes elementTypes) {
+        ProcessingEnvironment env = atypeFactory.getProcessingEnv();
+        if (val instanceof Boolean || val instanceof Character || val instanceof String) {
+            return val;
+        } else if (val instanceof Long) {
+            Long l = (Long) val;
+            if (expectedKind == javax.lang.model.type.TypeKind.LONG) return l;
+            if (expectedKind == javax.lang.model.type.TypeKind.SHORT) return l.shortValue();
+            if (expectedKind == javax.lang.model.type.TypeKind.BYTE) return l.byteValue();
+            if (expectedKind == javax.lang.model.type.TypeKind.CHAR) return (char) l.longValue();
+            return l.intValue();
+        } else if (val instanceof Double) {
+            Double d = (Double) val;
+            if (expectedKind == javax.lang.model.type.TypeKind.FLOAT) return d.floatValue();
+            return d;
+        } else if (val instanceof BinaryStubData.ClassLiteralValue) {
+            String fqName = ((BinaryStubData.ClassLiteralValue) val).className;
+            javax.lang.model.type.TypeMirror cachedType = elementTypes.resolvedClassTypesCache.get(fqName);
+            if (cachedType != null) {
+                return cachedType;
+            }
+            TypeElement te = env.getElementUtils().getTypeElement(fqName);
+            if (te != null) {
+                javax.lang.model.type.TypeMirror type = te.asType();
+                elementTypes.resolvedClassTypesCache.put(fqName, type);
+                return type;
+            }
+        } else if (val instanceof BinaryStubData.EnumConstantValue) {
+            BinaryStubData.EnumConstantValue ev = (BinaryStubData.EnumConstantValue) val;
+            TypeElement enumClass = env.getElementUtils().getTypeElement(ev.enumClassName);
+            if (enumClass != null) {
+                for (javax.lang.model.element.Element elt : enumClass.getEnclosedElements()) {
+                    if (elt.getKind() == javax.lang.model.element.ElementKind.ENUM_CONSTANT
+                            && elt.getSimpleName().contentEquals(ev.constantName)) {
+                        return elt;
+                    }
+                }
+            }
+        } else if (val instanceof BinaryStubData.NameLiteralValue) {
+            String constantName = ((BinaryStubData.NameLiteralValue) val).name;
+            if (enclosingClassName != null) {
+                String cacheKey = enclosingClassName + "#" + constantName;
+                Object cachedVal = elementTypes.resolvedConstantsCache.get(cacheKey);
+                if (cachedVal != null) {
+                    return coerceConstant(cachedVal, expectedKind);
+                }
+                TypeElement te = env.getElementUtils().getTypeElement(enclosingClassName);
+                VariableElement ve = findFieldInType(te, constantName, env);
+                if (ve != null) {
+                    Object cVal = ve.getConstantValue();
+                    if (cVal != null) {
+                        elementTypes.resolvedConstantsCache.put(cacheKey, cVal);
+                        return coerceConstant(cVal, expectedKind);
+                    }
+                }
+            }
+            throw new RuntimeException(
+                    "Could not resolve NameLiteralValue constant: "
+                            + constantName
+                            + " in enclosing class: "
+                            + enclosingClassName);
+        } else if (val instanceof BinaryStubData.AnnotationRecord) {
+            return getAnnotationMirror(
+                    (BinaryStubData.AnnotationRecord) val,
+                    enclosingClassName,
+                    atypeFactory,
+                    data,
+                    elementTypes);
+        }
+        return null;
+    }
+
+    /**
+     * Resolves a structural annotation member value and adds it to the annotation builder.
+     *
+     * @param builder the annotation builder to add the value to
+     * @param name the member element name
+     * @param val the serialized value object
+     * @param enclosingClassName the fully-qualified name of the enclosing class
+     * @param atypeFactory the type factory of the currently-running checker
+     * @param data the complete binary stub data, providing the string pool
+     * @param elementTypes the container for the parsed annotations
+     */
+    @SuppressWarnings("unchecked")
     private static void addValueToBuilder(
             org.checkerframework.javacutil.AnnotationBuilder builder,
             String name,
-            com.github.javaparser.ast.expr.Expression expr,
-            ProcessingEnvironment env) {
+            Object val,
+            String enclosingClassName,
+            AnnotatedTypeFactory atypeFactory,
+            BinaryStubData data,
+            AnnotationFileElementTypes elementTypes) {
         boolean isArray = false;
         javax.lang.model.type.TypeKind expectedKind = javax.lang.model.type.TypeKind.NONE;
+        javax.lang.model.type.TypeMirror returnType = null;
         try {
             javax.lang.model.element.ExecutableElement elem = builder.findElement(name);
-            javax.lang.model.type.TypeMirror returnType = elem.getReturnType();
+            returnType = elem.getReturnType();
             isArray = returnType.getKind() == javax.lang.model.type.TypeKind.ARRAY;
             if (isArray) {
                 expectedKind =
@@ -548,20 +586,137 @@ public class BinaryStubReader {
             // Silently ignore if the annotation element cannot be found.
         }
 
-        if (expr instanceof com.github.javaparser.ast.expr.ArrayInitializerExpr) {
-            List<Object> values = new java.util.ArrayList<>();
-            for (com.github.javaparser.ast.expr.Expression e :
-                    ((com.github.javaparser.ast.expr.ArrayInitializerExpr) expr).getValues()) {
-                Object val = parseAnnotationValue(e, expectedKind, env);
-                if (val != null) values.add(val);
+        if (isArray) {
+            if (val instanceof List) {
+                List<Object> rawList = (List<Object>) val;
+                List<Object> resolvedList = new java.util.ArrayList<>();
+                for (Object item : rawList) {
+                    Object resolved =
+                            resolveSingleValue(
+                                    item,
+                                    expectedKind,
+                                    enclosingClassName,
+                                    atypeFactory,
+                                    data,
+                                    elementTypes);
+                    if (resolved != null) {
+                        resolvedList.add(resolved);
+                    }
+                }
+                builder.setValue(name, resolvedList);
+            } else {
+                Object resolved =
+                        resolveSingleValue(
+                                val,
+                                expectedKind,
+                                enclosingClassName,
+                                atypeFactory,
+                                data,
+                                elementTypes);
+                if (resolved != null) {
+                    builder.setValue(name, java.util.Collections.singletonList(resolved));
+                }
             }
-            builder.setValue(name, values);
         } else {
-            Object val = parseAnnotationValue(expr, expectedKind, env);
-            if (val != null) {
-                if (isArray) builder.setValue(name, Collections.singletonList(val));
-                else dispatchSetValue(builder, name, val);
+            Object resolved =
+                    resolveSingleValue(
+                            val, expectedKind, enclosingClassName, atypeFactory, data, elementTypes);
+            if (resolved != null) {
+                dispatchSetValue(builder, name, resolved);
             }
         }
+    }
+
+
+
+    /**
+     * Coerces a raw constant value (Character or Number) to the expected type kind.
+     *
+     * @param cVal the raw constant value
+     * @param expectedKind the expected type kind
+     * @return the coerced value, or the original value if no coercion is needed
+     */
+    private static Object coerceConstant(Object cVal, javax.lang.model.type.TypeKind expectedKind) {
+        if (cVal instanceof Character) {
+            int charCode = (int) ((Character) cVal).charValue();
+            if (expectedKind == javax.lang.model.type.TypeKind.LONG) return (long) charCode;
+            if (expectedKind == javax.lang.model.type.TypeKind.SHORT) return (short) charCode;
+            if (expectedKind == javax.lang.model.type.TypeKind.BYTE) return (byte) charCode;
+            if (expectedKind == javax.lang.model.type.TypeKind.CHAR) return (char) charCode;
+            return charCode;
+        } else if (cVal instanceof Number) {
+            Number n = (Number) cVal;
+            if (expectedKind == javax.lang.model.type.TypeKind.LONG) return n.longValue();
+            if (expectedKind == javax.lang.model.type.TypeKind.SHORT) return n.shortValue();
+            if (expectedKind == javax.lang.model.type.TypeKind.BYTE) return n.byteValue();
+            if (expectedKind == javax.lang.model.type.TypeKind.CHAR) return (char) n.longValue();
+            return n.intValue();
+        }
+        return cVal;
+    }
+
+    /**
+     * Helper to create an AnnotationMirror structurally without caching the outer level.
+     *
+     * @param ar the structural annotation record to deserialize
+     * @param enclosingClassName the fully-qualified name of the enclosing class
+     * @param atypeFactory the type factory of the currently-running checker
+     * @param data the complete binary stub data, providing the string pool
+     * @param elementTypes per-factory state including the annotation mirror cache
+     * @return the resolved annotation mirror, or {@code null} if it cannot be resolved
+     */
+    private static AnnotationMirror createAnnotationMirrorNoCache(
+            BinaryStubData.AnnotationRecord ar,
+            String enclosingClassName,
+            AnnotatedTypeFactory atypeFactory,
+            BinaryStubData data,
+            AnnotationFileElementTypes elementTypes) {
+        try {
+            String fqn = data.stringPool[ar.nameIndex];
+            org.checkerframework.javacutil.AnnotationBuilder builder =
+                    new org.checkerframework.javacutil.AnnotationBuilder(
+                            atypeFactory.getProcessingEnv(), fqn);
+
+            for (Map.Entry<Integer, Object> entry : ar.elementValues.entrySet()) {
+                String memberName = data.stringPool[entry.getKey()];
+                addValueToBuilder(
+                        builder,
+                        memberName,
+                        entry.getValue(),
+                        enclosingClassName,
+                        atypeFactory,
+                        data,
+                        elementTypes);
+            }
+            return builder.build();
+        } catch (Throwable e) {
+            return null;
+        }
+    }
+
+    /**
+     * Recursively checks if an annotation record or value contains any name literal constant references.
+     *
+     * @param val the value to inspect
+     * @return {@code true} if a NameLiteralValue is found, {@code false} otherwise
+     */
+    private static boolean hasNameLiteralValue(Object val) {
+        if (val instanceof BinaryStubData.NameLiteralValue) {
+            return true;
+        } else if (val instanceof List) {
+            for (Object item : (List<?>) val) {
+                if (hasNameLiteralValue(item)) {
+                    return true;
+                }
+            }
+        } else if (val instanceof BinaryStubData.AnnotationRecord) {
+            BinaryStubData.AnnotationRecord ar = (BinaryStubData.AnnotationRecord) val;
+            for (Object v : ar.elementValues.values()) {
+                if (hasNameLiteralValue(v)) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 }

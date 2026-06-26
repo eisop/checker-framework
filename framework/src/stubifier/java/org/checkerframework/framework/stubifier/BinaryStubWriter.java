@@ -18,6 +18,7 @@ import com.github.javaparser.ast.type.Type;
 import com.github.javaparser.ast.type.WildcardType;
 import com.github.javaparser.ast.visitor.SimpleVoidVisitor;
 
+import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
@@ -33,15 +34,16 @@ import java.util.zip.GZIPOutputStream;
 /**
  * Utility to write parsed Java compilation units into a compressed binary stub format.
  *
- * <p>This extracts relevant annotations from declarations, fields, and methods, and writes them
- * into a dense binary format optimized for rapid loading during type-checking.
+ * <p>This extracts relevant annotations structurally from declarations, fields, and methods, and
+ * writes them into a dense binary format optimized for rapid loading without parsing overhead at
+ * compile time.
  */
 public class BinaryStubWriter {
     /** Magic number identifying the Checker Framework binary stub format. */
     public static final int MAGIC = 0xCF575542;
 
     /** Format version of the binary stub file. */
-    public static final short VERSION = 2;
+    public static final short VERSION = 3;
 
     /** Constant pool for strings to minimize binary size. */
     private static class ConstantPool {
@@ -73,6 +75,55 @@ public class BinaryStubWriter {
         }
     }
 
+    /** Unique structural annotation pool to avoid duplicate records. */
+    private static class AnnotationPool {
+        private final List<byte[]> serializedAnnos = new ArrayList<>();
+        private final Map<String, Integer> annoToIdx = new LinkedHashMap<>();
+
+        /**
+         * Adds a structural annotation to the pool and returns its index.
+         *
+         * @param anno the annotation expression
+         * @param cu the compilation unit context
+         * @param writer the writer holding the string pool and qualification logic
+         * @return the index in the annotation pool
+         * @throws IOException if serialization fails
+         */
+        public int addAnnotation(AnnotationExpr anno, CompilationUnit cu, BinaryStubWriter writer)
+                throws IOException {
+            AnnotationExpr qualified = writer.qualifyAnnotation(anno, cu);
+            String key = qualified.toString();
+            Integer idx = annoToIdx.get(key);
+            if (idx != null) {
+                return idx;
+            }
+
+            idx = annoToIdx.size();
+            annoToIdx.put(key, idx);
+
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            DataOutputStream dos = new DataOutputStream(baos);
+            writer.writeAnnotationInline(dos, qualified, cu);
+            dos.flush();
+            serializedAnnos.add(baos.toByteArray());
+
+            return idx;
+        }
+
+        /**
+         * Writes the size and all serialized annotations in the pool to the output stream.
+         *
+         * @param out the output stream
+         * @throws IOException if writing fails
+         */
+        public void write(DataOutputStream out) throws IOException {
+            out.writeInt(serializedAnnos.size());
+            for (byte[] data : serializedAnnos) {
+                out.write(data);
+            }
+        }
+    }
+
     /** Represents a step in a TypeAnnotation path. */
     private static class TypePathStep {
         /** The kind of path step (array component, wildcard bound, type argument, nested type). */
@@ -93,9 +144,9 @@ public class BinaryStubWriter {
         }
     }
 
-    /** Represents a TypeAnnotation with its path and string pool index. */
+    /** Represents a TypeAnnotation with its path and annotation pool index. */
     private static class TypeAnno {
-        /** Index into the constant pool of the serialized annotation text. */
+        /** Index into the annotation pool. */
         int annoIndex;
 
         /** The path to the annotated type component. */
@@ -104,7 +155,7 @@ public class BinaryStubWriter {
         /**
          * Constructs a TypeAnno.
          *
-         * @param annoIndex index of the annotation text in the string pool
+         * @param annoIndex index of the annotation record in the annotation pool
          * @param path the type path
          */
         TypeAnno(int annoIndex, List<TypePathStep> path) {
@@ -135,7 +186,7 @@ public class BinaryStubWriter {
         /** Index of the method signature in the constant pool. */
         int sigIndex;
 
-        /** Constant-pool indices of the declaration annotations on this method. */
+        /** Annotation-pool indices of the declaration annotations on this method. */
         List<Integer> declAnnos = new ArrayList<>();
 
         /** Type annotations on the return type. */
@@ -147,7 +198,7 @@ public class BinaryStubWriter {
         /** List of type annotations for each parameter. */
         List<List<TypeAnno>> paramAnnos = new ArrayList<>();
 
-        /** List of declaration annotation constant-pool indices for each parameter. */
+        /** List of declaration annotation pool indices for each parameter. */
         List<List<Integer>> paramDeclAnnos = new ArrayList<>();
     }
 
@@ -156,7 +207,7 @@ public class BinaryStubWriter {
         /** Index of the field name in the constant pool. */
         int nameIndex;
 
-        /** Constant-pool indices of the declaration annotations on this field. */
+        /** Annotation-pool indices of the declaration annotations on this field. */
         List<Integer> declAnnos = new ArrayList<>();
 
         /** Type annotations on the field's type. */
@@ -168,7 +219,7 @@ public class BinaryStubWriter {
         /** Index of the fully-qualified class name in the constant pool. */
         int nameIndex;
 
-        /** Constant-pool indices of the declaration annotations on this class. */
+        /** Annotation-pool indices of the declaration annotations on this class. */
         List<Integer> declAnnos = new ArrayList<>();
 
         /** Records for all annotated fields of this class. */
@@ -190,13 +241,16 @@ public class BinaryStubWriter {
     /** The constant pool used to share strings. */
     private final ConstantPool pool = new ConstantPool();
 
+    /** The structural annotation pool. */
+    private final AnnotationPool annosPool = new AnnotationPool();
+
     /** Records for all classes processed. */
     private final List<ClassRecord> classes = new ArrayList<>();
 
-    /** Map of package name to constant-pool indices of its declaration annotations. */
+    /** Map of package name to annotation-pool indices of its declaration annotations. */
     private final Map<String, List<Integer>> packages = new LinkedHashMap<>();
 
-    /** Map of module name to constant-pool indices of its declaration annotations. */
+    /** Map of module name to annotation-pool indices of its declaration annotations. */
     private final Map<String, List<Integer>> modules = new LinkedHashMap<>();
 
     /** Map from simple class names to their fully-qualified names. */
@@ -228,28 +282,38 @@ public class BinaryStubWriter {
         cu.getPackageDeclaration()
                 .ifPresent(
                         pkg -> {
-                            String pkgName = pkg.getNameAsString();
-                            pool.addString(pkgName);
-                            List<Integer> annos = new ArrayList<>();
-                            for (AnnotationExpr anno : pkg.getAnnotations()) {
-                                annos.add(pool.addString(serializeAnno(anno, cu)));
-                            }
-                            if (!annos.isEmpty()) {
-                                packages.put(pkgName, annos);
+                            try {
+                                String pkgName = pkg.getNameAsString();
+                                pool.addString(pkgName);
+                                List<Integer> annos = new ArrayList<>();
+                                for (AnnotationExpr anno : pkg.getAnnotations()) {
+                                    annos.add(annosPool.addAnnotation(anno, cu, this));
+                                }
+                                if (!annos.isEmpty()) {
+                                    packages.put(pkgName, annos);
+                                }
+                            } catch (IOException e) {
+                                throw new RuntimeException(
+                                        "Serialization failure in package: " + e.getMessage(), e);
                             }
                         });
 
         cu.getModule()
                 .ifPresent(
                         mod -> {
-                            String modName = mod.getNameAsString();
-                            pool.addString(modName);
-                            List<Integer> annos = new ArrayList<>();
-                            for (AnnotationExpr anno : mod.getAnnotations()) {
-                                annos.add(pool.addString(serializeAnno(anno, cu)));
-                            }
-                            if (!annos.isEmpty()) {
-                                modules.put(modName, annos);
+                            try {
+                                String modName = mod.getNameAsString();
+                                pool.addString(modName);
+                                List<Integer> annos = new ArrayList<>();
+                                for (AnnotationExpr anno : mod.getAnnotations()) {
+                                    annos.add(annosPool.addAnnotation(anno, cu, this));
+                                }
+                                if (!annos.isEmpty()) {
+                                    modules.put(modName, annos);
+                                }
+                            } catch (IOException e) {
+                                throw new RuntimeException(
+                                        "Serialization failure in module: " + e.getMessage(), e);
                             }
                         });
 
@@ -264,15 +328,8 @@ public class BinaryStubWriter {
         }
     }
 
-    /**
-     * Serializes a JavaParser annotation expression into a normalized string representation, fully
-     * qualifying types and member names to ensure consistency.
-     *
-     * @param anno the annotation expression to serialize
-     * @param cu the compilation unit, used to resolve imports
-     * @return a normalized string representation of the annotation
-     */
-    private String serializeAnno(AnnotationExpr anno, CompilationUnit cu) {
+    /** Helper to fully qualify class and annotation names inside an AnnotationExpr. */
+    private AnnotationExpr qualifyAnnotation(AnnotationExpr anno, CompilationUnit cu) {
         AnnotationExpr copy = anno.clone();
         copy.accept(
                 new com.github.javaparser.ast.visitor.ModifierVisitor<Void>() {
@@ -314,15 +371,154 @@ public class BinaryStubWriter {
                         }
                         return super.visit(n, arg);
                     }
-
-                    @Override
-                    public com.github.javaparser.ast.visitor.Visitable visit(
-                            com.github.javaparser.ast.expr.NameExpr n, Void arg) {
-                        return super.visit(n, arg);
-                    }
                 },
                 null);
-        return copy.toString();
+        return copy;
+    }
+
+    /** Serializes a single annotation value expression structurally to the stream. */
+    private void writeValue(
+            DataOutputStream out,
+            com.github.javaparser.ast.expr.Expression expr,
+            CompilationUnit cu)
+            throws IOException {
+        if (expr instanceof com.github.javaparser.ast.expr.BooleanLiteralExpr) {
+            out.writeByte('Z');
+            out.writeBoolean(((com.github.javaparser.ast.expr.BooleanLiteralExpr) expr).getValue());
+        } else if (expr instanceof com.github.javaparser.ast.expr.CharLiteralExpr) {
+            out.writeByte('C');
+            out.writeChar(((com.github.javaparser.ast.expr.CharLiteralExpr) expr).asChar());
+        } else if (expr instanceof com.github.javaparser.ast.expr.IntegerLiteralExpr) {
+            out.writeByte('J');
+            out.writeLong(
+                    ((com.github.javaparser.ast.expr.IntegerLiteralExpr) expr)
+                            .asNumber()
+                            .longValue());
+        } else if (expr instanceof com.github.javaparser.ast.expr.LongLiteralExpr) {
+            out.writeByte('J');
+            out.writeLong(
+                    ((com.github.javaparser.ast.expr.LongLiteralExpr) expr).asNumber().longValue());
+        } else if (expr instanceof com.github.javaparser.ast.expr.DoubleLiteralExpr) {
+            out.writeByte('D');
+            out.writeDouble(((com.github.javaparser.ast.expr.DoubleLiteralExpr) expr).asDouble());
+        } else if (expr instanceof com.github.javaparser.ast.expr.UnaryExpr) {
+            com.github.javaparser.ast.expr.UnaryExpr ue =
+                    (com.github.javaparser.ast.expr.UnaryExpr) expr;
+            if (ue.getOperator() == com.github.javaparser.ast.expr.UnaryExpr.Operator.MINUS) {
+                com.github.javaparser.ast.expr.Expression inner = ue.getExpression();
+                if (inner instanceof com.github.javaparser.ast.expr.IntegerLiteralExpr) {
+                    out.writeByte('J');
+                    out.writeLong(
+                            -((com.github.javaparser.ast.expr.IntegerLiteralExpr) inner)
+                                    .asNumber()
+                                    .longValue());
+                } else if (inner instanceof com.github.javaparser.ast.expr.LongLiteralExpr) {
+                    out.writeByte('J');
+                    out.writeLong(
+                            -((com.github.javaparser.ast.expr.LongLiteralExpr) inner)
+                                    .asNumber()
+                                    .longValue());
+                } else if (inner instanceof com.github.javaparser.ast.expr.DoubleLiteralExpr) {
+                    out.writeByte('D');
+                    out.writeDouble(
+                            -((com.github.javaparser.ast.expr.DoubleLiteralExpr) inner).asDouble());
+                } else {
+                    throw new IOException("Unsupported unary operator expression: " + expr);
+                }
+            } else {
+                throw new IOException("Unsupported unary operator: " + ue.getOperator());
+            }
+        } else if (expr instanceof com.github.javaparser.ast.expr.StringLiteralExpr) {
+            out.writeByte('s');
+            out.writeInt(
+                    pool.addString(
+                            ((com.github.javaparser.ast.expr.StringLiteralExpr) expr).getValue()));
+        } else if (expr instanceof com.github.javaparser.ast.expr.ClassExpr) {
+            out.writeByte('c');
+            Type type = ((com.github.javaparser.ast.expr.ClassExpr) expr).getType();
+            out.writeInt(pool.addString(fullyQualify(type, cu).toString()));
+        } else if (expr instanceof com.github.javaparser.ast.expr.FieldAccessExpr) {
+            out.writeByte('e');
+            com.github.javaparser.ast.expr.FieldAccessExpr fae =
+                    (com.github.javaparser.ast.expr.FieldAccessExpr) expr;
+            out.writeInt(pool.addString(fullyQualify(fae.getScope().toString(), cu)));
+            out.writeInt(pool.addString(fae.getNameAsString()));
+        } else if (expr instanceof AnnotationExpr) {
+            out.writeByte('@');
+            writeAnnotationInline(out, (AnnotationExpr) expr, cu);
+        } else if (expr instanceof com.github.javaparser.ast.expr.ArrayInitializerExpr) {
+            out.writeByte('[');
+            List<com.github.javaparser.ast.expr.Expression> vals =
+                    ((com.github.javaparser.ast.expr.ArrayInitializerExpr) expr).getValues();
+            out.writeShort(vals.size());
+            for (com.github.javaparser.ast.expr.Expression val : vals) {
+                writeValue(out, val, cu);
+            }
+        } else if (expr instanceof com.github.javaparser.ast.expr.NameExpr) {
+            out.writeByte('n');
+            out.writeInt(
+                    pool.addString(
+                            ((com.github.javaparser.ast.expr.NameExpr) expr).getNameAsString()));
+        } else if (expr instanceof com.github.javaparser.ast.expr.BinaryExpr) {
+            String val = evaluateStringLiteralConcatenation(expr);
+            out.writeByte('s');
+            out.writeInt(pool.addString(val));
+        } else {
+            throw new IOException(
+                    "Unsupported annotation value class: "
+                            + expr.getClass().getName()
+                            + " for expression: `"
+                            + expr
+                            + "`");
+        }
+    }
+
+    /**
+     * Recursively evaluates a binary expression that represents string literal concatenation.
+     *
+     * @param expr the expression representing the string literal concatenation
+     * @return the fully concatenated string value
+     * @throws IOException if the expression contains non-literal values that cannot be evaluated
+     */
+    private String evaluateStringLiteralConcatenation(
+            com.github.javaparser.ast.expr.Expression expr) throws IOException {
+        if (expr instanceof com.github.javaparser.ast.expr.StringLiteralExpr) {
+            return ((com.github.javaparser.ast.expr.StringLiteralExpr) expr).getValue();
+        } else if (expr instanceof com.github.javaparser.ast.expr.BinaryExpr) {
+            com.github.javaparser.ast.expr.BinaryExpr be =
+                    (com.github.javaparser.ast.expr.BinaryExpr) expr;
+            if (be.getOperator() == com.github.javaparser.ast.expr.BinaryExpr.Operator.PLUS) {
+                return evaluateStringLiteralConcatenation(be.getLeft())
+                        + evaluateStringLiteralConcatenation(be.getRight());
+            }
+        }
+        throw new IOException("Cannot evaluate string concatenation for expression: " + expr);
+    }
+
+    /** Writes an AnnotationExpr inline (for nested annotations). */
+    private void writeAnnotationInline(
+            DataOutputStream out, AnnotationExpr anno, CompilationUnit cu) throws IOException {
+        AnnotationExpr qualified = qualifyAnnotation(anno, cu);
+        out.writeInt(pool.addString(qualified.getNameAsString()));
+        if (qualified instanceof com.github.javaparser.ast.expr.MarkerAnnotationExpr) {
+            out.writeShort(0);
+        } else if (qualified instanceof com.github.javaparser.ast.expr.SingleMemberAnnotationExpr) {
+            out.writeShort(1);
+            out.writeInt(pool.addString("value"));
+            writeValue(
+                    out,
+                    ((com.github.javaparser.ast.expr.SingleMemberAnnotationExpr) qualified)
+                            .getMemberValue(),
+                    cu);
+        } else if (qualified instanceof com.github.javaparser.ast.expr.NormalAnnotationExpr) {
+            List<com.github.javaparser.ast.expr.MemberValuePair> pairs =
+                    ((com.github.javaparser.ast.expr.NormalAnnotationExpr) qualified).getPairs();
+            out.writeShort(pairs.size());
+            for (com.github.javaparser.ast.expr.MemberValuePair pair : pairs) {
+                out.writeInt(pool.addString(pair.getNameAsString()));
+                writeValue(out, pair.getValue(), cu);
+            }
+        }
     }
 
     /**
@@ -385,6 +581,12 @@ public class BinaryStubWriter {
                 || name.equals("Error")) {
             return "java.lang." + name;
         }
+        try {
+            Class.forName("java.lang." + name);
+            return "java.lang." + name;
+        } catch (ClassNotFoundException e) {
+            // ignore
+        }
         return name;
     }
 
@@ -407,8 +609,13 @@ public class BinaryStubWriter {
         ClassRecord cr = new ClassRecord(pool.addString(fqn));
         classes.add(cr);
 
-        for (AnnotationExpr anno : typeDecl.getAnnotations()) {
-            cr.declAnnos.add(pool.addString(serializeAnno(anno, cu)));
+        try {
+            for (AnnotationExpr anno : typeDecl.getAnnotations()) {
+                cr.declAnnos.add(annosPool.addAnnotation(anno, cu, this));
+            }
+        } catch (IOException e) {
+            throw new RuntimeException(
+                    "Serialization failure in class annotations: " + e.getMessage(), e);
         }
 
         for (BodyDeclaration<?> m : typeDecl.getMembers()) {
@@ -433,33 +640,39 @@ public class BinaryStubWriter {
      * @param cu the compilation unit
      */
     private void processMethod(MethodDeclaration md, ClassRecord cr, CompilationUnit cu) {
-        MethodRecord mr = new MethodRecord();
-        mr.sigIndex = pool.addString(MethodSignaturePrinter.toString(md));
-        for (AnnotationExpr anno : md.getAnnotations()) {
-            mr.declAnnos.add(pool.addString(serializeAnno(anno, cu)));
-        }
-        extractTypeAnnotations(md.getType(), new ArrayList<>(), mr.returnTypeAnnos, cu);
-
-        if (md.getReceiverParameter().isPresent()) {
-            com.github.javaparser.ast.body.ReceiverParameter rp = md.getReceiverParameter().get();
-            for (AnnotationExpr anno : rp.getAnnotations()) {
-                mr.receiverAnnos.add(
-                        new TypeAnno(pool.addString(serializeAnno(anno, cu)), new ArrayList<>()));
+        try {
+            MethodRecord mr = new MethodRecord();
+            mr.sigIndex = pool.addString(MethodSignaturePrinter.toString(md));
+            for (AnnotationExpr anno : md.getAnnotations()) {
+                mr.declAnnos.add(annosPool.addAnnotation(anno, cu, this));
             }
-            extractTypeAnnotations(rp.getType(), new ArrayList<>(), mr.receiverAnnos, cu);
-        }
+            extractTypeAnnotations(md.getType(), new ArrayList<>(), mr.returnTypeAnnos, cu);
 
-        for (Parameter p : md.getParameters()) {
-            List<TypeAnno> pAnnos = new ArrayList<>();
-            extractTypeAnnotations(p.getType(), new ArrayList<>(), pAnnos, cu);
-            mr.paramAnnos.add(pAnnos);
-            List<Integer> pdAnnos = new ArrayList<>();
-            for (AnnotationExpr anno : p.getAnnotations()) {
-                pdAnnos.add(pool.addString(serializeAnno(anno, cu)));
+            if (md.getReceiverParameter().isPresent()) {
+                com.github.javaparser.ast.body.ReceiverParameter rp =
+                        md.getReceiverParameter().get();
+                for (AnnotationExpr anno : rp.getAnnotations()) {
+                    mr.receiverAnnos.add(
+                            new TypeAnno(
+                                    annosPool.addAnnotation(anno, cu, this), new ArrayList<>()));
+                }
+                extractTypeAnnotations(rp.getType(), new ArrayList<>(), mr.receiverAnnos, cu);
             }
-            mr.paramDeclAnnos.add(pdAnnos);
+
+            for (Parameter p : md.getParameters()) {
+                List<TypeAnno> pAnnos = new ArrayList<>();
+                extractTypeAnnotations(p.getType(), new ArrayList<>(), pAnnos, cu);
+                mr.paramAnnos.add(pAnnos);
+                List<Integer> pdAnnos = new ArrayList<>();
+                for (AnnotationExpr anno : p.getAnnotations()) {
+                    pdAnnos.add(annosPool.addAnnotation(anno, cu, this));
+                }
+                mr.paramDeclAnnos.add(pdAnnos);
+            }
+            cr.methods.add(mr);
+        } catch (IOException e) {
+            throw new RuntimeException("Serialization failure in method: " + e.getMessage(), e);
         }
-        cr.methods.add(mr);
     }
 
     /**
@@ -471,32 +684,39 @@ public class BinaryStubWriter {
      * @param cu the compilation unit
      */
     private void processConstructor(ConstructorDeclaration cd, ClassRecord cr, CompilationUnit cu) {
-        MethodRecord mr = new MethodRecord();
-        mr.sigIndex = pool.addString(MethodSignaturePrinter.toString(cd));
-        for (AnnotationExpr anno : cd.getAnnotations()) {
-            mr.declAnnos.add(pool.addString(serializeAnno(anno, cu)));
-        }
-
-        if (cd.getReceiverParameter().isPresent()) {
-            com.github.javaparser.ast.body.ReceiverParameter rp = cd.getReceiverParameter().get();
-            for (AnnotationExpr anno : rp.getAnnotations()) {
-                mr.receiverAnnos.add(
-                        new TypeAnno(pool.addString(serializeAnno(anno, cu)), new ArrayList<>()));
+        try {
+            MethodRecord mr = new MethodRecord();
+            mr.sigIndex = pool.addString(MethodSignaturePrinter.toString(cd));
+            for (AnnotationExpr anno : cd.getAnnotations()) {
+                mr.declAnnos.add(annosPool.addAnnotation(anno, cu, this));
             }
-            extractTypeAnnotations(rp.getType(), new ArrayList<>(), mr.receiverAnnos, cu);
-        }
 
-        for (Parameter p : cd.getParameters()) {
-            List<TypeAnno> pAnnos = new ArrayList<>();
-            extractTypeAnnotations(p.getType(), new ArrayList<>(), pAnnos, cu);
-            mr.paramAnnos.add(pAnnos);
-            List<Integer> pdAnnos = new ArrayList<>();
-            for (AnnotationExpr anno : p.getAnnotations()) {
-                pdAnnos.add(pool.addString(serializeAnno(anno, cu)));
+            if (cd.getReceiverParameter().isPresent()) {
+                com.github.javaparser.ast.body.ReceiverParameter rp =
+                        cd.getReceiverParameter().get();
+                for (AnnotationExpr anno : rp.getAnnotations()) {
+                    mr.receiverAnnos.add(
+                            new TypeAnno(
+                                    annosPool.addAnnotation(anno, cu, this), new ArrayList<>()));
+                }
+                extractTypeAnnotations(rp.getType(), new ArrayList<>(), mr.receiverAnnos, cu);
             }
-            mr.paramDeclAnnos.add(pdAnnos);
+
+            for (Parameter p : cd.getParameters()) {
+                List<TypeAnno> pAnnos = new ArrayList<>();
+                extractTypeAnnotations(p.getType(), new ArrayList<>(), pAnnos, cu);
+                mr.paramAnnos.add(pAnnos);
+                List<Integer> pdAnnos = new ArrayList<>();
+                for (AnnotationExpr anno : p.getAnnotations()) {
+                    pdAnnos.add(annosPool.addAnnotation(anno, cu, this));
+                }
+                mr.paramDeclAnnos.add(pdAnnos);
+            }
+            cr.methods.add(mr);
+        } catch (IOException e) {
+            throw new RuntimeException(
+                    "Serialization failure in constructor: " + e.getMessage(), e);
         }
-        cr.methods.add(mr);
     }
 
     /**
@@ -507,14 +727,18 @@ public class BinaryStubWriter {
      * @param cu the compilation unit
      */
     private void processField(FieldDeclaration fd, ClassRecord cr, CompilationUnit cu) {
-        for (VariableDeclarator vd : fd.getVariables()) {
-            FieldRecord fr = new FieldRecord();
-            fr.nameIndex = pool.addString(vd.getNameAsString());
-            for (AnnotationExpr anno : fd.getAnnotations()) {
-                fr.declAnnos.add(pool.addString(serializeAnno(anno, cu)));
+        try {
+            for (VariableDeclarator vd : fd.getVariables()) {
+                FieldRecord fr = new FieldRecord();
+                fr.nameIndex = pool.addString(vd.getNameAsString());
+                for (AnnotationExpr anno : fd.getAnnotations()) {
+                    fr.declAnnos.add(annosPool.addAnnotation(anno, cu, this));
+                }
+                extractTypeAnnotations(vd.getType(), new ArrayList<>(), fr.typeAnnos, cu);
+                cr.fields.add(fr);
             }
-            extractTypeAnnotations(vd.getType(), new ArrayList<>(), fr.typeAnnos, cu);
-            cr.fields.add(fr);
+        } catch (IOException e) {
+            throw new RuntimeException("Serialization failure in field: " + e.getMessage(), e);
         }
     }
 
@@ -528,11 +752,12 @@ public class BinaryStubWriter {
      * @param cu the compilation unit
      */
     private void extractTypeAnnotations(
-            Type type, List<TypePathStep> currentPath, List<TypeAnno> result, CompilationUnit cu) {
+            Type type, List<TypePathStep> currentPath, List<TypeAnno> result, CompilationUnit cu)
+            throws IOException {
         if (type == null) return;
 
         for (AnnotationExpr ann : type.getAnnotations()) {
-            result.add(new TypeAnno(pool.addString(serializeAnno(ann, cu)), currentPath));
+            result.add(new TypeAnno(annosPool.addAnnotation(ann, cu, this), currentPath));
         }
 
         if (type instanceof ArrayType) {
@@ -578,6 +803,7 @@ public class BinaryStubWriter {
             out.writeInt(MAGIC);
             out.writeShort(VERSION);
             pool.write(out);
+            annosPool.write(out);
 
             out.writeInt(classes.size());
             for (ClassRecord cr : classes) {

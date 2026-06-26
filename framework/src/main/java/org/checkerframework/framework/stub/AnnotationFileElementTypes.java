@@ -95,9 +95,15 @@ public class AnnotationFileElementTypes {
 
     /**
      * Cache of parsed annotation mirrors for the binary stub reader. Shared across all classes to
-     * avoid repeatedly invoking JavaParser for the same annotation strings.
+     * avoid repeatedly creating identical annotation mirrors.
      */
-    final Map<String, AnnotationMirror> binaryAnnoCache = new HashMap<>();
+    final Map<BinaryStubData.AnnotationRecord, AnnotationMirror> binaryAnnoCache = new HashMap<>();
+
+    /** Cache of resolved Class types to avoid repeated TypeElement lookups. */
+    public final Map<String, TypeMirror> resolvedClassTypesCache = new HashMap<>();
+
+    /** Cache of resolved constant values to avoid repeated class hierarchy lookups. */
+    public final Map<String, Object> resolvedConstantsCache = new HashMap<>();
 
     /**
      * Cache for binary stub data and its associated metadata (e.g., inner classes mapping). This
