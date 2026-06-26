@@ -693,8 +693,9 @@ public class BinaryStubWriter {
             for (AnnotationExpr anno : md.getAnnotations()) {
                 int idx = annosPool.addAnnotation(anno, cu, this);
                 if (hasTypeUse(anno, cu)) {
-                    // Annotation has TYPE_USE in its target: applies to the return type.
-                    mr.returnTypeAnnos.add(new TypeAnno(idx));
+                    // Annotation in declaration position annotates the element type of an array
+                    // return (if any), not the array reference. Build the correct type path.
+                    mr.returnTypeAnnos.add(new TypeAnno(idx, arrayElementPath(md.getType())));
                 }
                 if (!isTypeUseOnly(anno, cu)) {
                     // Annotation has a declaration-position target: also a declaration annotation.
@@ -793,8 +794,9 @@ public class BinaryStubWriter {
                 for (AnnotationExpr anno : fd.getAnnotations()) {
                     int idx = annosPool.addAnnotation(anno, cu, this);
                     if (hasTypeUse(anno, cu)) {
-                        // Annotation has TYPE_USE in its target: applies to the field type.
-                        fr.typeAnnos.add(new TypeAnno(idx));
+                        // Annotation in declaration position annotates the element type of an
+                        // array field (if any), not the array reference.
+                        fr.typeAnnos.add(new TypeAnno(idx, arrayElementPath(vd.getType())));
                     }
                     if (!isTypeUseOnly(anno, cu)) {
                         // Annotation has a declaration-position target: also a declaration
@@ -1166,5 +1168,31 @@ public class BinaryStubWriter {
         } catch (ClassNotFoundException e) {
             return false;
         }
+    }
+
+    /**
+     * Returns a type-path list containing one {@code ARRAY} step for each array dimension of {@code
+     * type}. For a non-array type, returns an empty list (annotates the type itself).
+     *
+     * <p>The text-based stub parser's {@code annotateAsArray} calls {@code
+     * annotateInnermostComponentType}, which applies declaration-position {@code TYPE_USE}
+     * annotations to the innermost component of the array, not to the array reference. For example,
+     * {@code @Nullable T[]} (where {@code @Nullable} is {@code TYPE_USE}-only and appears in
+     * declaration position) has {@code @Nullable} applied to {@code T}, not to {@code T[]}. The
+     * correct binary type-path encoding is one ARRAY step per dimension. This does not apply to
+     * declaration annotations (non-{@code TYPE_USE}), which are handled by {@code declAnnos} and do
+     * bind to the whole array.
+     *
+     * @param type the JavaParser return type or field type
+     * @return a mutable list of ARRAY path steps (empty if the type is not an array)
+     */
+    private static List<TypePathStep> arrayElementPath(Type type) {
+        List<TypePathStep> path = new ArrayList<>();
+        Type t = type;
+        while (t instanceof ArrayType) {
+            path.add(new TypePathStep((byte) 0, (byte) 0)); // ARRAY step
+            t = ((ArrayType) t).getComponentType();
+        }
+        return path;
     }
 }
