@@ -45,8 +45,11 @@ public class BinaryStubWriter {
     /** Magic number identifying the Checker Framework binary stub format. */
     public static final int MAGIC = 0xCF575542;
 
-    /** Format version of the binary stub file. */
-    public static final short VERSION = 3;
+    /**
+     * Format version of the binary stub file. Must match {@code
+     * org.checkerframework.framework.stub.BinaryStubData#VERSION}.
+     */
+    public static final short VERSION = 1;
 
     /** Constant pool for strings to minimize binary size. */
     private static class ConstantPool {
@@ -233,6 +236,12 @@ public class BinaryStubWriter {
         /** Index of the fully-qualified class name in the constant pool. */
         int nameIndex;
 
+        /**
+         * Index of the outermost enclosing class name in the constant pool, or 0 if this is a
+         * top-level class (i.e., {@code nameIndex} itself is the outermost).
+         */
+        int outerNameIndex;
+
         /** Annotation-pool indices of the declaration annotations on this class. */
         List<Integer> declAnnos = new ArrayList<>();
 
@@ -246,9 +255,11 @@ public class BinaryStubWriter {
          * Constructs a ClassRecord.
          *
          * @param nameIndex index of the class name in the constant pool
+         * @param outerNameIndex index of the outermost enclosing class name, or 0 if top-level
          */
-        ClassRecord(int nameIndex) {
+        ClassRecord(int nameIndex, int outerNameIndex) {
             this.nameIndex = nameIndex;
+            this.outerNameIndex = outerNameIndex;
         }
     }
 
@@ -608,11 +619,30 @@ public class BinaryStubWriter {
      * Processes a class or interface declaration, extracting its annotations and members.
      *
      * @param typeDecl the class or interface declaration to process
-     * @param enclosingFqn the fully-qualified name of the enclosing class, or empty for top-level
+     * @param enclosingFqn the fully-qualified name of the enclosing class, or the package name for
+     *     top-level classes
      * @param cu the compilation unit
      */
     private void processClass(
             ClassOrInterfaceDeclaration typeDecl, String enclosingFqn, CompilationUnit cu) {
+        processClass(typeDecl, enclosingFqn, "", cu);
+    }
+
+    /**
+     * Processes a class or interface declaration, extracting its annotations and members.
+     *
+     * @param typeDecl the class or interface declaration to process
+     * @param enclosingFqn the fully-qualified name of the enclosing class, or the package name for
+     *     top-level classes
+     * @param outermostFqn the fully-qualified name of the outermost enclosing class, or empty for
+     *     top-level classes
+     * @param cu the compilation unit
+     */
+    private void processClass(
+            ClassOrInterfaceDeclaration typeDecl,
+            String enclosingFqn,
+            String outermostFqn,
+            CompilationUnit cu) {
         if (hasComplexAnnos(typeDecl)) {
             return;
         }
@@ -620,7 +650,10 @@ public class BinaryStubWriter {
                 enclosingFqn.isEmpty()
                         ? typeDecl.getNameAsString()
                         : enclosingFqn + "." + typeDecl.getNameAsString();
-        ClassRecord cr = new ClassRecord(pool.addString(fqn));
+        // For inner classes, outermost is the top-level class; for top-level classes it's empty.
+        String myOutermost = outermostFqn.isEmpty() ? fqn : outermostFqn;
+        int outerNameIndex = outermostFqn.isEmpty() ? 0 : pool.addString(outermostFqn);
+        ClassRecord cr = new ClassRecord(pool.addString(fqn), outerNameIndex);
         classes.add(cr);
 
         try {
@@ -640,7 +673,7 @@ public class BinaryStubWriter {
             } else if (m instanceof FieldDeclaration) {
                 processField((FieldDeclaration) m, cr, cu);
             } else if (m instanceof ClassOrInterfaceDeclaration) {
-                processClass((ClassOrInterfaceDeclaration) m, fqn, cu);
+                processClass((ClassOrInterfaceDeclaration) m, fqn, myOutermost, cu);
             }
         }
     }
@@ -843,6 +876,7 @@ public class BinaryStubWriter {
             out.writeInt(classes.size());
             for (ClassRecord cr : classes) {
                 out.writeInt(cr.nameIndex);
+                out.writeInt(cr.outerNameIndex);
                 out.writeShort(cr.declAnnos.size());
                 for (int annoIdx : cr.declAnnos) out.writeInt(annoIdx);
 

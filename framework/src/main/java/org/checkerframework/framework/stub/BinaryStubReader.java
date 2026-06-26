@@ -1,6 +1,5 @@
 package org.checkerframework.framework.stub;
 
-import org.checkerframework.framework.qual.FromStubFile;
 import org.checkerframework.framework.stub.AnnotationFileParser.AnnotationFileAnnotations;
 import org.checkerframework.framework.type.AnnotatedTypeFactory;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
@@ -48,6 +47,9 @@ import javax.lang.model.util.ElementFilter;
  * @see org.checkerframework.framework.stubifier.BinaryStubWriter
  */
 public class BinaryStubReader {
+
+    /** Do not instantiate; all methods are static. */
+    private BinaryStubReader() {}
 
     /**
      * Applies the package and module annotations from the binary stub data eagerly.
@@ -292,7 +294,8 @@ public class BinaryStubReader {
      * @param enclosingClassName fully-qualified name of the enclosing class, if any
      * @param data the binary stub data
      * @param atypeFactory the type factory of the currently-running checker
-     * @param elementTypes the container for the parsed annotations
+     * @param elementTypes the container for the parsed annotations, including a cached
+     *     {@code @FromStubFile} mirror
      */
     private static void applyTypeAnnos(
             AnnotatedTypeMirror atm,
@@ -314,10 +317,7 @@ public class BinaryStubReader {
                     AnnotatedTypeMirror target = resolvePath(atm, ta.path);
                     if (target != null) {
                         target.replaceAnnotation(am);
-                        AnnotationMirror fsfa =
-                                AnnotationBuilder.fromClass(
-                                        atypeFactory.getElementUtils(), FromStubFile.class);
-                        target.addAnnotation(fsfa);
+                        target.addAnnotation(elementTypes.fromStubFileAnno);
                     }
                 }
             }
@@ -395,7 +395,13 @@ public class BinaryStubReader {
             return createAnnotationMirrorNoCache(
                     ar, enclosingClassName, atypeFactory, data, elementTypes);
         }
-        return elementTypes.binaryAnnoCache.computeIfAbsent(
+        AnnotationFileElementTypes.BinaryStubDataCache cache =
+                elementTypes.getBinaryStubDataCache();
+        if (cache == null) {
+            return createAnnotationMirrorNoCache(
+                    ar, enclosingClassName, atypeFactory, data, elementTypes);
+        }
+        return cache.annoCache.computeIfAbsent(
                 ar,
                 r ->
                         createAnnotationMirrorNoCache(
@@ -405,6 +411,11 @@ public class BinaryStubReader {
     /**
      * Dispatches a scalar annotation-member value to the appropriate {@link
      * AnnotationBuilder#setValue} overload.
+     *
+     * @param builder the annotation builder to dispatch the value to
+     * @param name the annotation element name
+     * @param val the value to dispatch; must be a type handled by {@link
+     *     AnnotationBuilder#setValue}
      */
     private static void dispatchSetValue(AnnotationBuilder builder, String name, Object val) {
         if (val instanceof Boolean) builder.setValue(name, (Boolean) val);
@@ -416,12 +427,9 @@ public class BinaryStubReader {
         else if (val instanceof Short) builder.setValue(name, (Short) val);
         else if (val instanceof Byte) builder.setValue(name, (Short) ((Byte) val).shortValue());
         else if (val instanceof String) builder.setValue(name, (String) val);
-        else if (val instanceof TypeMirror)
-            builder.setValue(name, (TypeMirror) val);
-        else if (val instanceof VariableElement)
-            builder.setValue(name, (VariableElement) val);
-        else if (val instanceof AnnotationMirror)
-            builder.setValue(name, (AnnotationMirror) val);
+        else if (val instanceof TypeMirror) builder.setValue(name, (TypeMirror) val);
+        else if (val instanceof VariableElement) builder.setValue(name, (VariableElement) val);
+        else if (val instanceof AnnotationMirror) builder.setValue(name, (AnnotationMirror) val);
     }
 
     /**
@@ -498,15 +506,24 @@ public class BinaryStubReader {
             return d;
         } else if (val instanceof BinaryStubData.ClassLiteralValue) {
             String fqName = ((BinaryStubData.ClassLiteralValue) val).className;
-            TypeMirror cachedType = elementTypes.resolvedClassTypesCache.get(fqName);
-            if (cachedType != null) {
-                return cachedType;
-            }
-            TypeElement te = env.getElementUtils().getTypeElement(fqName);
-            if (te != null) {
-                TypeMirror type = te.asType();
-                elementTypes.resolvedClassTypesCache.put(fqName, type);
-                return type;
+            AnnotationFileElementTypes.BinaryStubDataCache cache =
+                    elementTypes.getBinaryStubDataCache();
+            if (cache != null) {
+                TypeMirror cachedType = cache.resolvedClassTypesCache.get(fqName);
+                if (cachedType != null) {
+                    return cachedType;
+                }
+                TypeElement te = env.getElementUtils().getTypeElement(fqName);
+                if (te != null) {
+                    TypeMirror type = te.asType();
+                    cache.resolvedClassTypesCache.put(fqName, type);
+                    return type;
+                }
+            } else {
+                TypeElement te = env.getElementUtils().getTypeElement(fqName);
+                if (te != null) {
+                    return te.asType();
+                }
             }
         } else if (val instanceof BinaryStubData.EnumConstantValue) {
             BinaryStubData.EnumConstantValue ev = (BinaryStubData.EnumConstantValue) val;
@@ -523,16 +540,22 @@ public class BinaryStubReader {
             String constantName = ((BinaryStubData.NameLiteralValue) val).name;
             if (enclosingClassName != null) {
                 String cacheKey = enclosingClassName + "#" + constantName;
-                Object cachedVal = elementTypes.resolvedConstantsCache.get(cacheKey);
-                if (cachedVal != null) {
-                    return coerceConstant(cachedVal, expectedKind);
+                AnnotationFileElementTypes.BinaryStubDataCache cache =
+                        elementTypes.getBinaryStubDataCache();
+                if (cache != null) {
+                    Object cachedVal = cache.resolvedConstantsCache.get(cacheKey);
+                    if (cachedVal != null) {
+                        return coerceConstant(cachedVal, expectedKind);
+                    }
                 }
                 TypeElement te = env.getElementUtils().getTypeElement(enclosingClassName);
                 VariableElement ve = findFieldInType(te, constantName, env);
                 if (ve != null) {
                     Object cVal = ve.getConstantValue();
                     if (cVal != null) {
-                        elementTypes.resolvedConstantsCache.put(cacheKey, cVal);
+                        if (cache != null) {
+                            cache.resolvedConstantsCache.put(cacheKey, cVal);
+                        }
                         return coerceConstant(cVal, expectedKind);
                     }
                 }

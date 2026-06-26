@@ -5,6 +5,7 @@ import com.sun.source.tree.CompilationUnitTree;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.checker.signature.qual.CanonicalNameOrEmpty;
 import org.checkerframework.common.basetype.BaseTypeChecker;
+import org.checkerframework.framework.qual.FromStubFile;
 import org.checkerframework.framework.qual.StubFiles;
 import org.checkerframework.framework.source.SourceChecker;
 import org.checkerframework.framework.stub.AnnotationFileParser.AnnotationFileAnnotations;
@@ -13,6 +14,7 @@ import org.checkerframework.framework.stub.AnnotationFileUtil.AnnotationFileType
 import org.checkerframework.framework.type.AnnotatedTypeFactory;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedExecutableType;
+import org.checkerframework.javacutil.AnnotationBuilder;
 import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.ElementUtils;
@@ -40,6 +42,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.IdentityHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -94,23 +97,17 @@ public class AnnotationFileElementTypes {
     private final Map<String, String> remainingJdkStubFilesJar = new HashMap<>();
 
     /**
-     * Cache of parsed annotation mirrors for the binary stub reader. Shared across all classes to
-     * avoid repeatedly creating identical annotation mirrors.
+     * The {@code @FromStubFile} annotation mirror, built once per factory and reused by {@link
+     * BinaryStubReader} to avoid reconstructing it for every type annotation applied.
      */
-    final Map<BinaryStubData.AnnotationRecord, AnnotationMirror> binaryAnnoCache = new HashMap<>();
-
-    /** Cache of resolved Class types to avoid repeated TypeElement lookups. */
-    public final Map<String, TypeMirror> resolvedClassTypesCache = new HashMap<>();
-
-    /** Cache of resolved constant values to avoid repeated class hierarchy lookups. */
-    public final Map<String, Object> resolvedConstantsCache = new HashMap<>();
+    final AnnotationMirror fromStubFileAnno;
 
     /**
      * Cache for binary stub data and its associated metadata (e.g., inner classes mapping). This
      * cache is stored in the compilation context to be shared across all checker instances in the
      * same compilation run.
      */
-    private static class BinaryStubDataCache {
+    static class BinaryStubDataCache {
         /** The loaded binary stub data. */
         final BinaryStubData data;
 
@@ -119,6 +116,18 @@ public class AnnotationFileElementTypes {
          * classes. Computed lazily.
          */
         Map<String, List<BinaryStubData.ClassRecord>> innerClassesMap = null;
+
+        /**
+         * Cache of parsed annotation mirrors. Shared across all factories in the same compilation
+         * to avoid repeatedly creating identical annotation mirrors for the same record.
+         */
+        final Map<BinaryStubData.AnnotationRecord, AnnotationMirror> annoCache = new HashMap<>();
+
+        /** Cache of resolved {@code Class} literal types to avoid repeated element lookups. */
+        final Map<String, TypeMirror> resolvedClassTypesCache = new HashMap<>();
+
+        /** Cache of resolved constant values to avoid repeated class hierarchy lookups. */
+        final Map<String, Object> resolvedConstantsCache = new HashMap<>();
 
         /**
          * Constructs a new cache holding the given binary stub data.
@@ -138,16 +147,26 @@ public class AnnotationFileElementTypes {
             BINARY_STUB_DATA_KEY = new com.sun.tools.javac.util.Context.Key<>();
 
     /**
+     * Locally cached reference to the compilation-context {@link BinaryStubDataCache}, avoiding
+     * repeated casts through the processing environment on every call.
+     */
+    private @Nullable BinaryStubDataCache cachedBinaryStubDataCache = null;
+
+    /**
      * Retrieves the {@link BinaryStubDataCache} from the compilation context.
      *
      * @return the cached binary stub data, or {@code null} if it has not been loaded yet
      */
-    private @Nullable BinaryStubDataCache getBinaryStubDataCache() {
+    @Nullable BinaryStubDataCache getBinaryStubDataCache() {
+        if (cachedBinaryStubDataCache != null) {
+            return cachedBinaryStubDataCache;
+        }
         com.sun.tools.javac.util.Context context =
                 ((com.sun.tools.javac.processing.JavacProcessingEnvironment)
                                 atypeFactory.getChecker().getProcessingEnvironment())
                         .getContext();
-        return context.get(BINARY_STUB_DATA_KEY);
+        cachedBinaryStubDataCache = context.get(BINARY_STUB_DATA_KEY);
+        return cachedBinaryStubDataCache;
     }
 
     /**
@@ -161,6 +180,7 @@ public class AnnotationFileElementTypes {
                                 atypeFactory.getChecker().getProcessingEnvironment())
                         .getContext();
         context.put(BINARY_STUB_DATA_KEY, cache);
+        cachedBinaryStubDataCache = cache;
     }
 
     /**
@@ -169,7 +189,7 @@ public class AnnotationFileElementTypes {
      * without interfering with {@link #processingClasses} which is managed by {@link
      * AnnotationFileParser}.
      */
-    private final Set<String> processedBinaryClasses = new LinkedHashSet<>();
+    private final Set<String> processedBinaryClasses = new HashSet<>();
 
     /**
      * Retrieves all inner class records for a given outermost class name from the binary data.
@@ -184,22 +204,12 @@ public class AnnotationFileElementTypes {
         }
         if (cache.innerClassesMap == null) {
             cache.innerClassesMap = new HashMap<>();
-            for (Map.Entry<String, BinaryStubData.ClassRecord> entry :
-                    cache.data.classes.entrySet()) {
-                String innerName = entry.getKey();
-                String outermost = null;
-                int dotIndex = -1;
-                while ((dotIndex = innerName.indexOf('.', dotIndex + 1)) != -1) {
-                    String prefix = innerName.substring(0, dotIndex);
-                    if (cache.data.classes.containsKey(prefix)) {
-                        outermost = prefix;
-                        break;
-                    }
-                }
-                if (outermost != null && !outermost.equals(innerName)) {
+            for (BinaryStubData.ClassRecord cr : cache.data.classes.values()) {
+                if (cr.outerNameIndex != 0) {
+                    String outerName = cache.data.stringPool[cr.outerNameIndex];
                     cache.innerClassesMap
-                            .computeIfAbsent(outermost, x -> new ArrayList<>())
-                            .add(entry.getValue());
+                            .computeIfAbsent(outerName, x -> new ArrayList<>())
+                            .add(cr);
                 }
             }
         }
@@ -307,6 +317,8 @@ public class AnnotationFileElementTypes {
         this.atypeFactory = atypeFactory;
         this.annotationFileAnnos = new AnnotationFileAnnotations();
         this.parsingCount = 0;
+        this.fromStubFileAnno =
+                AnnotationBuilder.fromClass(atypeFactory.getElementUtils(), FromStubFile.class);
         String release = SystemUtil.getReleaseValue(atypeFactory.getProcessingEnv());
         this.annotatedJdkVersion =
                 release != null ? release : String.valueOf(SystemUtil.jreVersion);

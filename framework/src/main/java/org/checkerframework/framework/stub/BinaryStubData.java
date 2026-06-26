@@ -30,6 +30,12 @@ import java.util.zip.GZIPInputStream;
  */
 public class BinaryStubData {
 
+    /**
+     * Format version of the binary stub file. Must match {@code
+     * org.checkerframework.framework.stubifier.BinaryStubWriter#VERSION}.
+     */
+    public static final short VERSION = 1;
+
     /** Annotation data containing its class name and structural element value pairs. */
     public static class AnnotationRecord {
         /**
@@ -214,6 +220,9 @@ public class BinaryStubData {
         /** Index into {@link BinaryStubData#stringPool} of the method's simple signature. */
         public int sigIndex;
 
+        /** Creates an empty MethodRecord; fields are populated by the binary reader. */
+        public MethodRecord() {}
+
         /** Annotation-pool indices of the declaration annotations on this method. */
         public int[] declAnnos;
 
@@ -241,6 +250,9 @@ public class BinaryStubData {
         /** Index into {@link BinaryStubData#stringPool} of the field's simple name. */
         public int nameIndex;
 
+        /** Creates an empty FieldRecord; fields are populated by the binary reader. */
+        public FieldRecord() {}
+
         /** Annotation-pool indices of the declaration annotations on this field. */
         public int[] declAnnos;
 
@@ -256,6 +268,14 @@ public class BinaryStubData {
          */
         public int nameIndex;
 
+        /**
+         * Index into {@link BinaryStubData#stringPool} of the outermost enclosing class name, or
+         * {@code 0} if this is a top-level class (i.e., it has no enclosing class recorded in the
+         * binary stub). For inner classes this is the name of the top-level class that contains
+         * them, used to efficiently build the inner-class map without a string-scan heuristic.
+         */
+        public int outerNameIndex;
+
         /** Annotation-pool indices of the declaration annotations on this class. */
         public int[] declAnnos;
 
@@ -264,6 +284,9 @@ public class BinaryStubData {
 
         /** Method and constructor records for the annotated methods of this class. */
         public MethodRecord[] methods;
+
+        /** Creates an empty ClassRecord; fields are populated by the binary reader. */
+        public ClassRecord() {}
     }
 
     /** All strings referenced by the binary data. */
@@ -301,7 +324,7 @@ public class BinaryStubData {
                 throw new IOException("Invalid magic number");
             }
             short version = dataIn.readShort();
-            if (version != 3) {
+            if (version != VERSION) {
                 throw new IOException("Unsupported version: " + version);
             }
 
@@ -328,6 +351,7 @@ public class BinaryStubData {
             for (int i = 0; i < classCount; i++) {
                 ClassRecord cr = new ClassRecord();
                 cr.nameIndex = dataIn.readInt();
+                cr.outerNameIndex = dataIn.readInt();
 
                 int declAnnoCount = dataIn.readShort();
                 cr.declAnnos = new int[declAnnoCount];
