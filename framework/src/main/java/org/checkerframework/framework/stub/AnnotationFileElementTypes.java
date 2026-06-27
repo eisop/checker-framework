@@ -1158,17 +1158,22 @@ public class AnnotationFileElementTypes {
                     BinaryStubReader.applyPackageAndModuleRecords(cache.data, atypeFactory, this);
                 }
             } catch (java.io.IOException e) {
-                System.err.println(
-                        "Warning: Could not read "
-                                + BinaryStubData.FILENAME
-                                + ", falling back to JavaParser. Error: "
-                                + e.getMessage());
+                atypeFactory
+                        .getChecker()
+                        .message(
+                                Diagnostic.Kind.NOTE,
+                                "Could not read "
+                                        + BinaryStubData.FILENAME
+                                        + ", falling back to JavaParser. Error: "
+                                        + e.getMessage());
             }
         } else {
-            System.err.println(
-                    "Warning: "
-                            + BinaryStubData.FILENAME
-                            + " not found, falling back to JavaParser.");
+            atypeFactory
+                    .getChecker()
+                    .message(
+                            Diagnostic.Kind.NOTE,
+                            BinaryStubData.FILENAME
+                                    + " not found, falling back to JavaParser.");
         }
 
         if (stubDebug) {
