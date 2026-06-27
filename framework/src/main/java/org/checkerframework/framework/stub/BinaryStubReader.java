@@ -43,6 +43,11 @@ import javax.lang.model.util.ElementFilter;
  * AnnotationFileAnnotations#atypes} or {@link AnnotationFileAnnotations#declAnnos} it is not
  * overwritten.
  *
+ * <p>Classes omitted from the binary stub (e.g. those skipped by {@code
+ * BinaryStubWriter.hasComplexAnnos} due to annotated type-parameter declarations) are not present
+ * in the {@link BinaryStubData#classes} map and fall through to the text-based {@link
+ * AnnotationFileParser} path in {@link AnnotationFileElementTypes#maybeParseEnclosingJdkClass}.
+ *
  * @see BinaryStubData
  * @see org.checkerframework.framework.stubifier.BinaryStubWriter
  */
@@ -560,11 +565,8 @@ public class BinaryStubReader {
                     }
                 }
             }
-            throw new RuntimeException(
-                    "Could not resolve NameLiteralValue constant: "
-                            + constantName
-                            + " in enclosing class: "
-                            + enclosingClassName);
+            // Could not resolve — skip silently, matching AnnotationFileParser behavior.
+            return null;
         } else if (val instanceof BinaryStubData.AnnotationRecord) {
             return getAnnotationMirror(
                     (BinaryStubData.AnnotationRecord) val,
@@ -716,7 +718,9 @@ public class BinaryStubReader {
                         elementTypes);
             }
             return builder.build();
-        } catch (Throwable e) {
+        } catch (Exception e) {
+            // Silently skip annotations that cannot be resolved (e.g. JDK-internal annotations
+            // not on the annotation-processor classpath), matching AnnotationFileParser behavior.
             return null;
         }
     }

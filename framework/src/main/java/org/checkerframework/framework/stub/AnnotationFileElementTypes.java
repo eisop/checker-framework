@@ -1172,8 +1172,7 @@ public class AnnotationFileElementTypes {
                     .getChecker()
                     .message(
                             Diagnostic.Kind.NOTE,
-                            BinaryStubData.FILENAME
-                                    + " not found, falling back to JavaParser.");
+                            BinaryStubData.FILENAME + " not found, falling back to JavaParser.");
         }
 
         if (stubDebug) {

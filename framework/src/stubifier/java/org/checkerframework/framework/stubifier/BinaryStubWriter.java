@@ -62,6 +62,14 @@ import java.util.zip.GZIPOutputStream;
  * <p>This extracts relevant annotations structurally from declarations, fields, and methods, and
  * writes them into a dense binary format optimized for rapid loading without parsing overhead at
  * compile time.
+ *
+ * <p><b>Limitation:</b> classes whose type-parameter declarations or {@code extends}/{@code
+ * implements} clauses carry annotations (detected by {@link #hasComplexAnnos}) are omitted from the
+ * binary stub entirely and fall back to the text-based {@link
+ * org.checkerframework.framework.stub.AnnotationFileParser} path. The whole class must be omitted —
+ * not just the type-parameter annotations — because losing a bound like {@code <K extends @NonNull
+ * Object>} would silently drop a nullness constraint that the text parser correctly enforces.
+ * Supporting these annotations requires adding type-parameter bound records to the binary format.
  */
 public class BinaryStubWriter {
     /**
