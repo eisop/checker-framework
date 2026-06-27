@@ -72,6 +72,10 @@ import javax.tools.Diagnostic;
  * using an ajava file, only holds information on public elements as with stub files.
  */
 public class AnnotationFileElementTypes {
+
+    /** Name of the annotated JDK directory inside {@code checker.jar}. */
+    private static final String ANNOTATED_JDK_PATH = "annotated-jdk";
+
     /** Annotations from annotation files (but not from annotated JDK files). */
     final AnnotationFileAnnotations annotationFileAnnos;
 
@@ -90,9 +94,14 @@ public class AnnotationFileElementTypes {
     private final Map<String, Path> remainingJdkStubFiles = new HashMap<>();
 
     /**
-     * Maps the fully-qualified class name to the file name in checker.jar.
+     * Mapping from fully-qualified class name to the corresponding JDK stub file name inside
+     * checker.jar that has not yet been read. When a file is read, its mapping is removed from this
+     * map.
      *
      * <p>By contrast, {@link #remainingJdkStubFiles} contains JDK stub files from the file system.
+     * When the binary stub path is active, both maps are also pruned for any class handled via
+     * {@link BinaryStubReader}, so the text parser is not invoked for classes already loaded from
+     * the binary format.
      */
     private final Map<String, String> remainingJdkStubFilesJar = new HashMap<>();
 
@@ -1101,7 +1110,7 @@ public class AnnotationFileElementTypes {
      * @return a JarURLConnection to "/jdk*"
      */
     private JarURLConnection getJarURLConnectionToJdk() {
-        URL resourceURL = atypeFactory.getClass().getResource("/annotated-jdk");
+        URL resourceURL = atypeFactory.getClass().getResource("/" + ANNOTATED_JDK_PATH);
         JarURLConnection connection;
         try {
             connection = (JarURLConnection) resourceURL.openConnection();
@@ -1126,8 +1135,11 @@ public class AnnotationFileElementTypes {
         if (!shouldParseJdk) {
             return;
         }
-        URL resourceURL = atypeFactory.getClass().getResource("/annotated-jdk");
-        URL binURL = atypeFactory.getClass().getResource("/annotated-jdk/annotated-jdk.bin.gz");
+        URL resourceURL = atypeFactory.getClass().getResource("/" + ANNOTATED_JDK_PATH);
+        URL binURL =
+                atypeFactory
+                        .getClass()
+                        .getResource("/" + ANNOTATED_JDK_PATH + "/" + BinaryStubData.FILENAME);
         boolean binaryLoaded = false;
         if (binURL != null) {
             try {
@@ -1147,12 +1159,16 @@ public class AnnotationFileElementTypes {
                 }
             } catch (java.io.IOException e) {
                 System.err.println(
-                        "Warning: Could not read annotated-jdk.bin.gz, falling back to JavaParser. Error: "
+                        "Warning: Could not read "
+                                + BinaryStubData.FILENAME
+                                + ", falling back to JavaParser. Error: "
                                 + e.getMessage());
             }
         } else {
             System.err.println(
-                    "Warning: annotated-jdk.bin.gz not found, falling back to JavaParser.");
+                    "Warning: "
+                            + BinaryStubData.FILENAME
+                            + " not found, falling back to JavaParser.");
         }
 
         if (stubDebug) {
@@ -1167,7 +1183,7 @@ public class AnnotationFileElementTypes {
             throw new BugInCF(
                     "JDK not found for type factory " + atypeFactory.getClass().getSimpleName());
         } else if (resourceURL.getProtocol().contentEquals("jar")) {
-            prepJdkFromJar(resourceURL, binaryLoaded);
+            prepJdkFromJar(binaryLoaded);
         } else if (resourceURL.getProtocol().contentEquals("file")) {
             prepJdkFromFile(resourceURL, binaryLoaded);
         } else {
@@ -1246,12 +1262,10 @@ public class AnnotationFileElementTypes {
      * Walk through the JDK directory and create a mapping, {@link #remainingJdkStubFilesJar}, from
      * file name to the class contained with in it. Also, parses all package-info.java files.
      *
-     * @param jdkJarfile the URL pointing to the JDK jarfile
      * @param binaryLoaded {@code true} if package and module annotations were successfully loaded
      *     from the binary stub file
      */
-    private void prepJdkFromJar(
-            @SuppressWarnings("UnusedVariable") URL jdkJarfile, boolean binaryLoaded) {
+    private void prepJdkFromJar(boolean binaryLoaded) {
         JarURLConnection connection = getJarURLConnectionToJdk();
 
         try (JarFile jarFile = connection.getJarFile()) {
@@ -1263,7 +1277,7 @@ public class AnnotationFileElementTypes {
                     continue;
                 }
                 String jarEntryName = jarEntry.getName();
-                if (!(jarEntryName.startsWith("annotated-jdk") && jarEntryName.endsWith(".java"))
+                if (!(jarEntryName.startsWith(ANNOTATED_JDK_PATH) && jarEntryName.endsWith(".java"))
                         // JavaParser can't parse module-info files, so skip them.
                         || jarEntryName.endsWith("module-info.java")) {
                     continue;

@@ -18,7 +18,7 @@ import java.util.zip.GZIPInputStream;
  * <p>The binary format consists of a GZIP-compressed stream containing:
  *
  * <ol>
- *   <li>A 4-byte magic number ({@code 0xCF575542}).
+ *   <li>A 4-byte magic number ({@code 0xCF4A444B}).
  *   <li>A 2-byte version number.
  *   <li>A constant pool of UTF-8 strings (class names, field names, signatures, string literals).
  *   <li>An annotation pool of structural annotation records.
@@ -31,10 +31,25 @@ import java.util.zip.GZIPInputStream;
 public class BinaryStubData {
 
     /**
+     * Magic number identifying the Checker Framework binary stub format. The four bytes are {@code
+     * 0xCF} (non-ASCII marker byte, analogous to Java class file {@code 0xCA}), {@code 'J'} (0x4A),
+     * {@code 'D'} (0x44), {@code 'K'} (0x4B) — i.e., {@code CF} + {@code JDK} for "Checker
+     * Framework JDK stub". Must match {@code
+     * org.checkerframework.framework.stubifier.BinaryStubWriter#MAGIC}.
+     */
+    public static final int MAGIC = 0xCF4A444B;
+
+    /**
      * Format version of the binary stub file. Must match {@code
      * org.checkerframework.framework.stubifier.BinaryStubWriter#VERSION}.
      */
     public static final short VERSION = 1;
+
+    /**
+     * File name of the binary stub file. Must match {@code
+     * org.checkerframework.framework.stubifier.BinaryStubWriter#OUTPUT_FILENAME}.
+     */
+    public static final String FILENAME = "annotated-jdk.bin.gz";
 
     /** Annotation data containing its class name and structural element value pairs. */
     public static class AnnotationRecord {
@@ -320,7 +335,7 @@ public class BinaryStubData {
      */
     public BinaryStubData(InputStream in) throws IOException {
         try (DataInputStream dataIn = new DataInputStream(new GZIPInputStream(in))) {
-            if (dataIn.readInt() != 0xCF575542) {
+            if (dataIn.readInt() != MAGIC) {
                 throw new IOException("Invalid magic number");
             }
             short version = dataIn.readShort();

@@ -576,6 +576,62 @@ so small per-call wins paid back substantially.
   handles first-encounter FQN annotations and populates both simple-name and FQN entries for future
   hits.
 
+- **PR #TODO** — *Binary pre-parsed JDK stub format.*
+  Text-based stub parsing (JavaParser + `AnnotationFileParser.process*`) was the
+  dominant cost in `allNullnessTests` (28–32% inclusive time on older baselines),
+  with PR #1776's AST cache eliminating the repeated parse but not the `process*`
+  phase. The binary format replaces text parsing entirely for the annotated JDK:
+  `BinaryStubWriter` (run once at build time by the `copyAndMinimizeAnnotatedJdkFiles`
+  Gradle task) walks the JavaParser AST and writes a compact GZIP-compressed binary
+  record for each class — string pool, structural annotation pool,
+  field/method/constructor records with type-path-encoded annotations. At checker run
+  time `BinaryStubData` reads the whole file once per JVM via `BinaryStubReader`,
+  which applies each class record lazily (on demand from `maybeParseEnclosingJdkClass`)
+  with no JavaParser involvement.
+
+  Key design points:
+  - **One load per compilation, shared across all factories.** `BinaryStubData` and
+    its caches (`annoCache`, `resolvedClassTypesCache`, `resolvedConstantsCache`,
+    `innerClassesMap`) live in a `BinaryStubDataCache` stored in the javac compilation
+    `Context`, so all four GATF instances in a nullness compile share one loaded copy.
+    `getBinaryStubDataCache()` caches the context lookup in a per-factory field.
+  - **TYPE_USE vs declaration annotations.** `BinaryStubWriter.isTypeUseOnly` and
+    `hasTypeUse` check `@Target` via reflection (checker-qual is on the stubifier
+    classpath) and route each annotation to `returnTypeAnnos`/`typeAnnos`,
+    `declAnnos`, or both — matching `AnnotationFileParser`'s dual-path behaviour for
+    dual-purpose annotations like `@MustCallAlias`. TYPE_USE-only annotations before
+    array types use `arrayElementPath` to build the correct ARRAY-step path, matching
+    `annotateInnermostComponentType` in the text parser.
+  - **`outerNameIndex` eliminates the inner-class string-scan.** Each `ClassRecord`
+    stores the pool index of its outermost enclosing class (0 = top-level). The
+    `innerClassesMap` is built in one O(n) pass instead of checking every dot-prefix
+    of every class name.
+  - **`@FromStubFile` cached per factory.** `AnnotationFileElementTypes` builds the
+    `@FromStubFile` mirror once in its constructor.
+  - **`applyTypeAnnos` uses `replaceAnnotation`.** Consistent with
+    `AnnotationFileParser.annotate`, avoids `type.invalid.conflicting.annos` when
+    multiple annotations from the same hierarchy appear at the same type path.
+  - Binary format version 1; `BinaryStubData.VERSION` and `BinaryStubWriter.VERSION`
+    must be kept in sync.
+
+  Wall-clock A/B on `allNullnessTests` (warm Gradle daemon, 4 reps each):
+  **master 1m 51s median, branch 1m 44–45s median — −7 s (−6%).**
+  Reps cluster tightly (≤1 s spread each side), so the gap is well outside noise.
+
+  Allocation A/B (one `--no-daemon allNullnessTests` each, TLAB events from JFR):
+
+  | Class | Master | Branch | Delta |
+  |---|---|---|---|
+  | Total TLAB events | 99 823 | 81 807 | **−18 016 (−18%)** |
+  | `[B` (byte arrays, JavaParser UTF-8 buffers) | 19 161 | 14 810 | −23% |
+  | `String` | 2 950 | 2 152 | −27% |
+  | `Object[]` | 15 258 | 13 123 | −14% |
+  | `ArrayList` | 5 454 | 4 754 | −13% |
+
+  The `[B` and `String` savings are directly from eliminating JavaParser's source
+  text and token buffers; the `Object[]` and `ArrayList` savings are from removing
+  the per-compilation `AnnotationFileParser.process*` data structures.
+
 - **PR #1776** — *Avoid the defensive deep copy in read-only
   `fromElement` consumers.* `AnnotatedTypeFactory.fromElement` returns
   `cached.deepCopy()` on every cache hit so callers may mutate the result; this is

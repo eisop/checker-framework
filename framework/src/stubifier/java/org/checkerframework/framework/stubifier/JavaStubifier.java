@@ -89,7 +89,7 @@ public class JavaStubifier {
                         });
 
         try {
-            File outputFile = new File(dir, "annotated-jdk.bin.gz");
+            File outputFile = new File(dir, BinaryStubWriter.OUTPUT_FILENAME);
             binaryStubWriter.writeTo(outputFile);
         } catch (IOException e) {
             System.err.println("Failed to write binary stub: " + e);

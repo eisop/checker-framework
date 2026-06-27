@@ -1,5 +1,6 @@
 package org.checkerframework.framework.stubifier;
 
+import com.github.javaparser.StaticJavaParser;
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.ImportDeclaration;
 import com.github.javaparser.ast.body.BodyDeclaration;
@@ -8,15 +9,36 @@ import com.github.javaparser.ast.body.ConstructorDeclaration;
 import com.github.javaparser.ast.body.FieldDeclaration;
 import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.body.Parameter;
+import com.github.javaparser.ast.body.ReceiverParameter;
 import com.github.javaparser.ast.body.TypeDeclaration;
 import com.github.javaparser.ast.body.VariableDeclarator;
 import com.github.javaparser.ast.expr.AnnotationExpr;
+import com.github.javaparser.ast.expr.ArrayInitializerExpr;
+import com.github.javaparser.ast.expr.BinaryExpr;
+import com.github.javaparser.ast.expr.BooleanLiteralExpr;
+import com.github.javaparser.ast.expr.CharLiteralExpr;
+import com.github.javaparser.ast.expr.ClassExpr;
+import com.github.javaparser.ast.expr.DoubleLiteralExpr;
+import com.github.javaparser.ast.expr.Expression;
+import com.github.javaparser.ast.expr.FieldAccessExpr;
+import com.github.javaparser.ast.expr.IntegerLiteralExpr;
+import com.github.javaparser.ast.expr.LongLiteralExpr;
+import com.github.javaparser.ast.expr.MarkerAnnotationExpr;
+import com.github.javaparser.ast.expr.MemberValuePair;
+import com.github.javaparser.ast.expr.NameExpr;
+import com.github.javaparser.ast.expr.NormalAnnotationExpr;
+import com.github.javaparser.ast.expr.SingleMemberAnnotationExpr;
+import com.github.javaparser.ast.expr.StringLiteralExpr;
+import com.github.javaparser.ast.expr.UnaryExpr;
 import com.github.javaparser.ast.type.ArrayType;
 import com.github.javaparser.ast.type.ClassOrInterfaceType;
 import com.github.javaparser.ast.type.PrimitiveType;
 import com.github.javaparser.ast.type.Type;
+import com.github.javaparser.ast.type.TypeParameter;
 import com.github.javaparser.ast.type.WildcardType;
+import com.github.javaparser.ast.visitor.ModifierVisitor;
 import com.github.javaparser.ast.visitor.SimpleVoidVisitor;
+import com.github.javaparser.ast.visitor.Visitable;
 
 import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
@@ -42,14 +64,21 @@ import java.util.zip.GZIPOutputStream;
  * compile time.
  */
 public class BinaryStubWriter {
-    /** Magic number identifying the Checker Framework binary stub format. */
-    public static final int MAGIC = 0xCF575542;
+    /**
+     * Magic number identifying the Checker Framework binary stub format ({@code CF} + {@code JDK}:
+     * 0xCF non-ASCII marker byte, {@code 'J'} 0x4A, {@code 'D'} 0x44, {@code 'K'} 0x4B). Must match
+     * {@code org.checkerframework.framework.stub.BinaryStubData#MAGIC}.
+     */
+    public static final int MAGIC = 0xCF4A444B;
 
     /**
      * Format version of the binary stub file. Must match {@code
      * org.checkerframework.framework.stub.BinaryStubData#VERSION}.
      */
     public static final short VERSION = 1;
+
+    /** File name of the binary stub output file. */
+    public static final String OUTPUT_FILENAME = "annotated-jdk.bin.gz";
 
     /** Constant pool for strings to minimize binary size. */
     private static class ConstantPool {
@@ -357,41 +386,35 @@ public class BinaryStubWriter {
     private AnnotationExpr qualifyAnnotation(AnnotationExpr anno, CompilationUnit cu) {
         AnnotationExpr copy = anno.clone();
         copy.accept(
-                new com.github.javaparser.ast.visitor.ModifierVisitor<Void>() {
+                new ModifierVisitor<Void>() {
                     @Override
-                    public com.github.javaparser.ast.visitor.Visitable visit(
-                            com.github.javaparser.ast.expr.ClassExpr n, Void arg) {
+                    public Visitable visit(ClassExpr n, Void arg) {
                         n.setType(fullyQualify(n.getType(), cu));
                         return super.visit(n, arg);
                     }
 
                     @Override
-                    public com.github.javaparser.ast.visitor.Visitable visit(
-                            com.github.javaparser.ast.expr.MarkerAnnotationExpr n, Void arg) {
+                    public Visitable visit(MarkerAnnotationExpr n, Void arg) {
                         n.setName(fullyQualify(n.getNameAsString(), cu));
                         return super.visit(n, arg);
                     }
 
                     @Override
-                    public com.github.javaparser.ast.visitor.Visitable visit(
-                            com.github.javaparser.ast.expr.NormalAnnotationExpr n, Void arg) {
+                    public Visitable visit(NormalAnnotationExpr n, Void arg) {
                         n.setName(fullyQualify(n.getNameAsString(), cu));
                         return super.visit(n, arg);
                     }
 
                     @Override
-                    public com.github.javaparser.ast.visitor.Visitable visit(
-                            com.github.javaparser.ast.expr.SingleMemberAnnotationExpr n, Void arg) {
+                    public Visitable visit(SingleMemberAnnotationExpr n, Void arg) {
                         n.setName(fullyQualify(n.getNameAsString(), cu));
                         return super.visit(n, arg);
                     }
 
                     @Override
-                    public com.github.javaparser.ast.visitor.Visitable visit(
-                            com.github.javaparser.ast.expr.FieldAccessExpr n, Void arg) {
-                        if (n.getScope() instanceof com.github.javaparser.ast.expr.NameExpr) {
-                            com.github.javaparser.ast.expr.NameExpr scope =
-                                    (com.github.javaparser.ast.expr.NameExpr) n.getScope();
+                    public Visitable visit(FieldAccessExpr n, Void arg) {
+                        if (n.getScope() instanceof NameExpr) {
+                            NameExpr scope = (NameExpr) n.getScope();
                             scope.setName(fullyQualify(scope.getNameAsString(), cu));
                         }
                         return super.visit(n, arg);
@@ -402,89 +425,68 @@ public class BinaryStubWriter {
     }
 
     /** Serializes a single annotation value expression structurally to the stream. */
-    private void writeValue(
-            DataOutputStream out,
-            com.github.javaparser.ast.expr.Expression expr,
-            CompilationUnit cu)
+    private void writeValue(DataOutputStream out, Expression expr, CompilationUnit cu)
             throws IOException {
-        if (expr instanceof com.github.javaparser.ast.expr.BooleanLiteralExpr) {
+        if (expr instanceof BooleanLiteralExpr) {
             out.writeByte('Z');
-            out.writeBoolean(((com.github.javaparser.ast.expr.BooleanLiteralExpr) expr).getValue());
-        } else if (expr instanceof com.github.javaparser.ast.expr.CharLiteralExpr) {
+            out.writeBoolean(((BooleanLiteralExpr) expr).getValue());
+        } else if (expr instanceof CharLiteralExpr) {
             out.writeByte('C');
-            out.writeChar(((com.github.javaparser.ast.expr.CharLiteralExpr) expr).asChar());
-        } else if (expr instanceof com.github.javaparser.ast.expr.IntegerLiteralExpr) {
+            out.writeChar(((CharLiteralExpr) expr).asChar());
+        } else if (expr instanceof IntegerLiteralExpr) {
             out.writeByte('J');
-            out.writeLong(
-                    ((com.github.javaparser.ast.expr.IntegerLiteralExpr) expr)
-                            .asNumber()
-                            .longValue());
-        } else if (expr instanceof com.github.javaparser.ast.expr.LongLiteralExpr) {
+            out.writeLong(((IntegerLiteralExpr) expr).asNumber().longValue());
+        } else if (expr instanceof LongLiteralExpr) {
             out.writeByte('J');
-            out.writeLong(
-                    ((com.github.javaparser.ast.expr.LongLiteralExpr) expr).asNumber().longValue());
-        } else if (expr instanceof com.github.javaparser.ast.expr.DoubleLiteralExpr) {
+            out.writeLong(((LongLiteralExpr) expr).asNumber().longValue());
+        } else if (expr instanceof DoubleLiteralExpr) {
             out.writeByte('D');
-            out.writeDouble(((com.github.javaparser.ast.expr.DoubleLiteralExpr) expr).asDouble());
-        } else if (expr instanceof com.github.javaparser.ast.expr.UnaryExpr) {
-            com.github.javaparser.ast.expr.UnaryExpr ue =
-                    (com.github.javaparser.ast.expr.UnaryExpr) expr;
-            if (ue.getOperator() == com.github.javaparser.ast.expr.UnaryExpr.Operator.MINUS) {
-                com.github.javaparser.ast.expr.Expression inner = ue.getExpression();
-                if (inner instanceof com.github.javaparser.ast.expr.IntegerLiteralExpr) {
+            out.writeDouble(((DoubleLiteralExpr) expr).asDouble());
+        } else if (expr instanceof UnaryExpr) {
+            UnaryExpr ue = (UnaryExpr) expr;
+            if (ue.getOperator() == UnaryExpr.Operator.MINUS) {
+                Expression inner = ue.getExpression();
+                if (inner instanceof IntegerLiteralExpr) {
                     out.writeByte('J');
-                    out.writeLong(
-                            -((com.github.javaparser.ast.expr.IntegerLiteralExpr) inner)
-                                    .asNumber()
-                                    .longValue());
-                } else if (inner instanceof com.github.javaparser.ast.expr.LongLiteralExpr) {
+                    out.writeLong(-((IntegerLiteralExpr) inner).asNumber().longValue());
+                } else if (inner instanceof LongLiteralExpr) {
                     out.writeByte('J');
-                    out.writeLong(
-                            -((com.github.javaparser.ast.expr.LongLiteralExpr) inner)
-                                    .asNumber()
-                                    .longValue());
-                } else if (inner instanceof com.github.javaparser.ast.expr.DoubleLiteralExpr) {
+                    out.writeLong(-((LongLiteralExpr) inner).asNumber().longValue());
+                } else if (inner instanceof DoubleLiteralExpr) {
                     out.writeByte('D');
-                    out.writeDouble(
-                            -((com.github.javaparser.ast.expr.DoubleLiteralExpr) inner).asDouble());
+                    out.writeDouble(-((DoubleLiteralExpr) inner).asDouble());
                 } else {
                     throw new IOException("Unsupported unary operator expression: " + expr);
                 }
             } else {
                 throw new IOException("Unsupported unary operator: " + ue.getOperator());
             }
-        } else if (expr instanceof com.github.javaparser.ast.expr.StringLiteralExpr) {
+        } else if (expr instanceof StringLiteralExpr) {
             out.writeByte('s');
-            out.writeInt(
-                    pool.addString(
-                            ((com.github.javaparser.ast.expr.StringLiteralExpr) expr).getValue()));
-        } else if (expr instanceof com.github.javaparser.ast.expr.ClassExpr) {
+            out.writeInt(pool.addString(((StringLiteralExpr) expr).getValue()));
+        } else if (expr instanceof ClassExpr) {
             out.writeByte('c');
-            Type type = ((com.github.javaparser.ast.expr.ClassExpr) expr).getType();
+            Type type = ((ClassExpr) expr).getType();
             out.writeInt(pool.addString(fullyQualify(type, cu).toString()));
-        } else if (expr instanceof com.github.javaparser.ast.expr.FieldAccessExpr) {
+        } else if (expr instanceof FieldAccessExpr) {
             out.writeByte('e');
-            com.github.javaparser.ast.expr.FieldAccessExpr fae =
-                    (com.github.javaparser.ast.expr.FieldAccessExpr) expr;
+            FieldAccessExpr fae = (FieldAccessExpr) expr;
             out.writeInt(pool.addString(fullyQualify(fae.getScope().toString(), cu)));
             out.writeInt(pool.addString(fae.getNameAsString()));
         } else if (expr instanceof AnnotationExpr) {
             out.writeByte('@');
             writeAnnotationInline(out, (AnnotationExpr) expr, cu);
-        } else if (expr instanceof com.github.javaparser.ast.expr.ArrayInitializerExpr) {
+        } else if (expr instanceof ArrayInitializerExpr) {
             out.writeByte('[');
-            List<com.github.javaparser.ast.expr.Expression> vals =
-                    ((com.github.javaparser.ast.expr.ArrayInitializerExpr) expr).getValues();
+            List<Expression> vals = ((ArrayInitializerExpr) expr).getValues();
             out.writeShort(vals.size());
-            for (com.github.javaparser.ast.expr.Expression val : vals) {
+            for (Expression val : vals) {
                 writeValue(out, val, cu);
             }
-        } else if (expr instanceof com.github.javaparser.ast.expr.NameExpr) {
+        } else if (expr instanceof NameExpr) {
             out.writeByte('n');
-            out.writeInt(
-                    pool.addString(
-                            ((com.github.javaparser.ast.expr.NameExpr) expr).getNameAsString()));
-        } else if (expr instanceof com.github.javaparser.ast.expr.BinaryExpr) {
+            out.writeInt(pool.addString(((NameExpr) expr).getNameAsString()));
+        } else if (expr instanceof BinaryExpr) {
             String val = evaluateStringLiteralConcatenation(expr);
             out.writeByte('s');
             out.writeInt(pool.addString(val));
@@ -505,14 +507,12 @@ public class BinaryStubWriter {
      * @return the fully concatenated string value
      * @throws IOException if the expression contains non-literal values that cannot be evaluated
      */
-    private String evaluateStringLiteralConcatenation(
-            com.github.javaparser.ast.expr.Expression expr) throws IOException {
-        if (expr instanceof com.github.javaparser.ast.expr.StringLiteralExpr) {
-            return ((com.github.javaparser.ast.expr.StringLiteralExpr) expr).getValue();
-        } else if (expr instanceof com.github.javaparser.ast.expr.BinaryExpr) {
-            com.github.javaparser.ast.expr.BinaryExpr be =
-                    (com.github.javaparser.ast.expr.BinaryExpr) expr;
-            if (be.getOperator() == com.github.javaparser.ast.expr.BinaryExpr.Operator.PLUS) {
+    private String evaluateStringLiteralConcatenation(Expression expr) throws IOException {
+        if (expr instanceof StringLiteralExpr) {
+            return ((StringLiteralExpr) expr).getValue();
+        } else if (expr instanceof BinaryExpr) {
+            BinaryExpr be = (BinaryExpr) expr;
+            if (be.getOperator() == BinaryExpr.Operator.PLUS) {
                 return evaluateStringLiteralConcatenation(be.getLeft())
                         + evaluateStringLiteralConcatenation(be.getRight());
             }
@@ -525,21 +525,16 @@ public class BinaryStubWriter {
             DataOutputStream out, AnnotationExpr anno, CompilationUnit cu) throws IOException {
         AnnotationExpr qualified = qualifyAnnotation(anno, cu);
         out.writeInt(pool.addString(qualified.getNameAsString()));
-        if (qualified instanceof com.github.javaparser.ast.expr.MarkerAnnotationExpr) {
+        if (qualified instanceof MarkerAnnotationExpr) {
             out.writeShort(0);
-        } else if (qualified instanceof com.github.javaparser.ast.expr.SingleMemberAnnotationExpr) {
+        } else if (qualified instanceof SingleMemberAnnotationExpr) {
             out.writeShort(1);
             out.writeInt(pool.addString("value"));
-            writeValue(
-                    out,
-                    ((com.github.javaparser.ast.expr.SingleMemberAnnotationExpr) qualified)
-                            .getMemberValue(),
-                    cu);
-        } else if (qualified instanceof com.github.javaparser.ast.expr.NormalAnnotationExpr) {
-            List<com.github.javaparser.ast.expr.MemberValuePair> pairs =
-                    ((com.github.javaparser.ast.expr.NormalAnnotationExpr) qualified).getPairs();
+            writeValue(out, ((SingleMemberAnnotationExpr) qualified).getMemberValue(), cu);
+        } else if (qualified instanceof NormalAnnotationExpr) {
+            List<MemberValuePair> pairs = ((NormalAnnotationExpr) qualified).getPairs();
             out.writeShort(pairs.size());
-            for (com.github.javaparser.ast.expr.MemberValuePair pair : pairs) {
+            for (MemberValuePair pair : pairs) {
                 out.writeInt(pool.addString(pair.getNameAsString()));
                 writeValue(out, pair.getValue(), cu);
             }
@@ -560,7 +555,7 @@ public class BinaryStubWriter {
             if (!cit.getScope().isPresent()) {
                 String fq = fullyQualify(name, cu);
                 if (!fq.equals(name)) {
-                    return com.github.javaparser.StaticJavaParser.parseType(fq);
+                    return StaticJavaParser.parseType(fq);
                 }
             }
         } else if (type instanceof ArrayType) {
@@ -585,7 +580,7 @@ public class BinaryStubWriter {
         if (simpleToFqn.containsKey(name)) {
             return simpleToFqn.get(name);
         }
-        for (com.github.javaparser.ast.ImportDeclaration imp : cu.getImports()) {
+        for (ImportDeclaration imp : cu.getImports()) {
             if (!imp.isAsterisk()) {
                 String impName = imp.getNameAsString();
                 if (impName.endsWith("." + name)) {
@@ -705,8 +700,7 @@ public class BinaryStubWriter {
             extractTypeAnnotations(md.getType(), new ArrayList<>(), mr.returnTypeAnnos, cu);
 
             if (md.getReceiverParameter().isPresent()) {
-                com.github.javaparser.ast.body.ReceiverParameter rp =
-                        md.getReceiverParameter().get();
+                ReceiverParameter rp = md.getReceiverParameter().get();
                 for (AnnotationExpr anno : rp.getAnnotations()) {
                     mr.receiverAnnos.add(new TypeAnno(annosPool.addAnnotation(anno, cu, this)));
                 }
@@ -754,8 +748,7 @@ public class BinaryStubWriter {
             }
 
             if (cd.getReceiverParameter().isPresent()) {
-                com.github.javaparser.ast.body.ReceiverParameter rp =
-                        cd.getReceiverParameter().get();
+                ReceiverParameter rp = cd.getReceiverParameter().get();
                 for (AnnotationExpr anno : rp.getAnnotations()) {
                     mr.receiverAnnos.add(new TypeAnno(annosPool.addAnnotation(anno, cu, this)));
                 }
@@ -1067,23 +1060,21 @@ public class BinaryStubWriter {
      * @return {@code true} if complex annotations are found, {@code false} otherwise
      */
     private boolean hasComplexAnnos(ClassOrInterfaceDeclaration typeDecl) {
-        for (com.github.javaparser.ast.type.TypeParameter tp : typeDecl.getTypeParameters()) {
+        for (TypeParameter tp : typeDecl.getTypeParameters()) {
             if (!tp.findAll(AnnotationExpr.class).isEmpty()) return true;
         }
         if (typeDecl.getExtendedTypes() != null) {
-            for (com.github.javaparser.ast.type.ClassOrInterfaceType t :
-                    typeDecl.getExtendedTypes()) {
+            for (ClassOrInterfaceType t : typeDecl.getExtendedTypes()) {
                 if (!t.findAll(AnnotationExpr.class).isEmpty()) return true;
             }
         }
         if (typeDecl.getImplementedTypes() != null) {
-            for (com.github.javaparser.ast.type.ClassOrInterfaceType t :
-                    typeDecl.getImplementedTypes()) {
+            for (ClassOrInterfaceType t : typeDecl.getImplementedTypes()) {
                 if (!t.findAll(AnnotationExpr.class).isEmpty()) return true;
             }
         }
         for (MethodDeclaration md : typeDecl.findAll(MethodDeclaration.class)) {
-            for (com.github.javaparser.ast.type.TypeParameter tp : md.getTypeParameters()) {
+            for (TypeParameter tp : md.getTypeParameters()) {
                 if (!tp.findAll(AnnotationExpr.class).isEmpty()) return true;
             }
         }
