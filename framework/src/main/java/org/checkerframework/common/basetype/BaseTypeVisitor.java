@@ -823,14 +823,9 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         // Set of polymorphic qualifiers for hierarchies that do not have a qualifier parameter and
         // therefore cannot appear on a field.
         AnnotationMirrorSet illegalOnFieldsPolyQual = new AnnotationMirrorSet();
-        // Set of polymorphic annotations for all hierarchies
-        AnnotationMirrorSet polys = new AnnotationMirrorSet();
         TypeElement classElement = TreeUtils.elementFromDeclaration(classTree);
         for (AnnotationMirror top : qualHierarchy.getTopAnnotations()) {
             AnnotationMirror poly = qualHierarchy.getPolymorphicAnnotation(top);
-            if (poly != null) {
-                polys.add(poly);
-            }
             // else {
             // If there is no polymorphic qualifier in the hierarchy, it could still have a
             // @HasQualifierParameter that must be checked.
@@ -879,7 +874,9 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                 if (ElementUtils.isStatic(TreeUtils.elementFromDeclaration((VariableTree) mem))) {
                     // A polymorphic qualifier is not allowed on a static field even if the class
                     // has a qualifier parameter.
-                    hasInvalidPoly = hasInvalidPolyScanner.visit(fieldType, polys);
+                    hasInvalidPoly =
+                            hasInvalidPolyScanner.visit(
+                                    fieldType, qualHierarchy.getPolymorphicAnnotations());
                 } else {
                     hasInvalidPoly =
                             hasInvalidPolyScanner.visit(fieldType, illegalOnFieldsPolyQual);
@@ -2257,12 +2254,9 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             typeCheckVectorCopyIntoArgument(tree, params);
         }
 
-        ExecutableElement invokedMethodElement = invokedMethod.getElement();
-        if (!ElementUtils.isStatic(invokedMethodElement)
-                && !TreeUtils.isSuperConstructorCall(tree)) {
-            checkMethodInvocability(invokedMethod, tree);
-        }
+        checkMethodInvocability(invokedMethod, tree);
 
+        ExecutableElement invokedMethodElement = invokedMethod.getElement();
         // check precondition annotations
         checkPreconditions(
                 tree, atypeFactory.getContractsFromMethod().getPreconditions(invokedMethodElement));
@@ -4203,12 +4197,12 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      */
     protected void checkMethodInvocability(
             AnnotatedExecutableType method, MethodInvocationTree tree) {
-        AnnotatedTypeMirror methodReceiver = method.getReceiverType();
-        if (methodReceiver == null) {
+        ExecutableElement invokedMethodElement = method.getElement();
+        if (ElementUtils.isStatic(invokedMethodElement)) {
             // Static methods don't have a receiver to check.
             return;
         }
-        if (method.getElement().getKind() == ElementKind.CONSTRUCTOR) {
+        if (invokedMethodElement.getKind() == ElementKind.CONSTRUCTOR) {
             // TODO: Explicit "this()" calls of constructors have an implicit passed
             // from the enclosing constructor. We must not use the self type, but
             // instead should find a way to determine the receiver of the enclosing constructor.
@@ -4217,21 +4211,66 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             return;
         }
 
-        AnnotatedTypeMirror erasedMethodReceiver = methodReceiver.getErased();
-        AnnotatedTypeMirror erasedTreeReceiver = erasedMethodReceiver.shallowCopy(false);
+        ParameterizedExecutableType methodDefPreSubstitution =
+                atypeFactory.methodFromUseWithoutTypeArgInference(tree);
+        List<AnnotatedTypeMirror> declaredTypeArgs =
+                methodDefPreSubstitution.executableType.getReceiverType().getTypeArguments();
+
+        AnnotatedDeclaredType methodReceiver = method.getReceiverType();
         AnnotatedTypeMirror treeReceiver = atypeFactory.getReceiverType(tree);
+        AnnotatedDeclaredType receiverToCheck = methodReceiver;
 
-        erasedTreeReceiver.addAnnotations(treeReceiver.getEffectiveAnnotations());
+        AnnotatedTypeMirror asSuper =
+                AnnotatedTypes.asSuper(atypeFactory, treeReceiver, methodReceiver);
+        if (asSuper instanceof AnnotatedDeclaredType) {
+            AnnotatedDeclaredType treeReceiverDeclared = (AnnotatedDeclaredType) asSuper;
+            List<AnnotatedTypeMirror> callingTypeArgs = treeReceiverDeclared.getTypeArguments();
 
-        if (!skipReceiverSubtypeCheck(tree, erasedMethodReceiver, treeReceiver)) {
+            if (!declaredTypeArgs.isEmpty() && callingTypeArgs.size() == declaredTypeArgs.size()) {
+                boolean needsSubstitution = false;
+                List<AnnotatedTypeMirror> newMethodTypeArgs =
+                        new java.util.ArrayList<>(methodReceiver.getTypeArguments());
+
+                for (int i = 0; i < callingTypeArgs.size(); ++i) {
+                    AnnotatedTypeMirror callingArg = callingTypeArgs.get(i);
+                    AnnotatedTypeMirror declaredArg = declaredTypeArgs.get(i);
+
+                    if (callingArg.getKind() == TypeKind.WILDCARD
+                            || callingArg.getKind() == TypeKind.TYPEVAR) {
+
+                        boolean hasPoly = false;
+                        for (AnnotationMirror methodPoly :
+                                qualHierarchy.getPolymorphicAnnotations()) {
+                            if (declaredArg.hasAnnotation(methodPoly)) {
+                                hasPoly = true;
+                                break;
+                            }
+                        }
+
+                        if (hasPoly) {
+                            // Relax the receiver check for this type argument by replacing it
+                            // with the calling type argument. This avoids unsoundly skipping
+                            // the entire receiver check.
+                            newMethodTypeArgs.set(i, callingArg);
+                            needsSubstitution = true;
+                        }
+                    }
+                }
+
+                if (needsSubstitution) {
+                    receiverToCheck = methodReceiver.deepCopy(true);
+                    receiverToCheck.setTypeArguments(newMethodTypeArgs);
+                }
+            }
+        }
+
+        if (!skipReceiverSubtypeCheck(tree, receiverToCheck, treeReceiver)) {
             // The diagnostic can be a bit misleading because the check is of the receiver but
             // `tree` is the entire method invocation (where the receiver might be implicit).
-            commonAssignmentCheckStartDiagnostic(methodReceiver, erasedTreeReceiver, tree);
-            boolean success = typeHierarchy.isSubtype(erasedTreeReceiver, erasedMethodReceiver);
-            commonAssignmentCheckEndDiagnostic(
-                    success, null, methodReceiver, erasedTreeReceiver, tree);
+            commonAssignmentCheckStartDiagnostic(methodReceiver, treeReceiver, tree);
+            boolean success = typeHierarchy.isSubtype(treeReceiver, receiverToCheck);
+            commonAssignmentCheckEndDiagnostic(success, null, methodReceiver, treeReceiver, tree);
             if (!success) {
-                // Don't report the erased types because they show up with '</*RAW*/>' as type args.
                 reportMethodInvocabilityError(tree, treeReceiver, methodReceiver);
             }
         }

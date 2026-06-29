@@ -12,6 +12,11 @@ Further performance improvements relative to the 3.49.5-eisop1 release:
 Several optimizations also reduce GC pressure and remove superlinear behavior,
 improving performance for large (e.g. auto-generated) files.
 
+The EISOP Checker Framework checks subtyping for receiver's type arguments when
+invoking a method.  The annotations on type arguments of a method receiver
+(e.g., `void test(Box<@NonNull T> this)`) were previously ignored during
+type-checking.
+
 **Implementation details:**
 
 Enabled the Gradle configuration cache, speeding up build times.
@@ -62,7 +67,7 @@ Other improvements and bug fixes:
 
 **Closed issues:**
 
-eisop#433, eisop#792, eisop#863, eisop#1801.
+typetools#3203, eisop#104, eisop#433, eisop#792, eisop#863, eisop#1801.
 
 
 Version 3.49.5-eisop1 (April 26, 2026)
