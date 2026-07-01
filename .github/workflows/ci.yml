@@ -22,7 +22,7 @@ env:
   USE_BAZEL_VERSION: "9.1.1"
   # JDK 27 early-access build; bump when a new EA build is published.
   JDK_EA_MAJOR: "27"
-  JDK_EA_BUILD: "27"
+  JDK_EA_BUILD: "28"
 
 jobs:
   # Basic sanity tests on the primary JDK.
