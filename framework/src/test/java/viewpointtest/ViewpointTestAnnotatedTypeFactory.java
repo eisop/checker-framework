@@ -1,12 +1,20 @@
 package viewpointtest;
 
+import com.sun.source.tree.MethodInvocationTree;
+
 import org.checkerframework.common.basetype.BaseAnnotatedTypeFactory;
 import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.framework.type.AbstractViewpointAdapter;
+import org.checkerframework.framework.type.AnnotatedTypeMirror;
+import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedExecutableType;
+import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedTypeVariable;
+import org.checkerframework.framework.type.AnnotatedTypeParameterBounds;
 import org.checkerframework.framework.type.QualifierHierarchy;
 import org.checkerframework.javacutil.AnnotationBuilder;
 
 import java.lang.annotation.Annotation;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Set;
 
 import javax.lang.model.element.AnnotationMirror;
@@ -60,5 +68,27 @@ public class ViewpointTestAnnotatedTypeFactory extends BaseAnnotatedTypeFactory 
     public QualifierHierarchy createQualifierHierarchy() {
         return new ViewpointTestQualifierHierarchy(
                 this.getSupportedTypeQualifiers(), elements, this);
+    }
+
+    /**
+     * Returns the method type parameter bounds adapted to the viewpoint of a method invocation.
+     *
+     * @param tree a method invocation
+     * @return the adapted method type parameter bounds
+     */
+    List<AnnotatedTypeParameterBounds> methodTypeVariablesFromUse(MethodInvocationTree tree) {
+        AnnotatedExecutableType invokedMethod =
+                methodFromUseWithoutTypeArgInference(tree).executableType;
+        List<AnnotatedTypeVariable> typeVariables = invokedMethod.getTypeVariables();
+        List<AnnotatedTypeParameterBounds> bounds = new ArrayList<>(typeVariables.size());
+        for (AnnotatedTypeVariable typeVariable : typeVariables) {
+            bounds.add(typeVariable.getBounds());
+        }
+
+        AnnotatedTypeMirror receiverType = getReceiverType(tree);
+        if (viewpointAdapter != null && receiverType != null) {
+            viewpointAdapter.viewpointAdaptTypeParameterBounds(receiverType, bounds);
+        }
+        return bounds;
     }
 }
