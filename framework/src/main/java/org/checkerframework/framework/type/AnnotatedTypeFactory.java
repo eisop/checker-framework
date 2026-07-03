@@ -659,6 +659,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         this.types = processingEnv.getTypeUtils();
 
         this.stubTypes = new AnnotationFileElementTypes(this);
+        this.stubTypes.setIsStubTypes(true);
         this.ajavaTypes = new AnnotationFileElementTypes(this);
         this.currentFileAjavaTypes = null;
 

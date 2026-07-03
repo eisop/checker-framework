@@ -59,17 +59,10 @@ import java.util.zip.GZIPOutputStream;
 /**
  * Utility to write parsed Java compilation units into a compressed binary stub format.
  *
- * <p>This extracts relevant annotations structurally from declarations, fields, and methods, and
- * writes them into a dense binary format optimized for rapid loading without parsing overhead at
- * compile time.
- *
- * <p><b>Limitation:</b> classes whose type-parameter declarations or {@code extends}/{@code
- * implements} clauses carry annotations (detected by {@link #hasComplexAnnos}) are omitted from the
- * binary stub entirely and fall back to the text-based {@link
- * org.checkerframework.framework.stub.AnnotationFileParser} path. The whole class must be omitted —
- * not just the type-parameter annotations — because losing a bound like {@code <K extends @NonNull
- * Object>} would silently drop a nullness constraint that the text parser correctly enforces.
- * Supporting these annotations requires adding type-parameter bound records to the binary format.
+ * <p>This extracts relevant annotations structurally from declarations, fields, and methods,
+ * including type-parameter bound annotations (stored as {@code TypeParamRecord} arrays), and writes
+ * them into a dense binary format optimized for rapid loading without parsing overhead at compile
+ * time.
  */
 public class BinaryStubWriter {
     /**
@@ -254,6 +247,9 @@ public class BinaryStubWriter {
 
         /** List of declaration annotation pool indices for each parameter. */
         List<List<Integer>> paramDeclAnnos = new ArrayList<>();
+
+        /** Per-type-parameter annotation records for this method. */
+        List<TypeParamRecord> typeParams = new ArrayList<>();
     }
 
     /** Represents the annotations for a single field. */
@@ -288,6 +284,9 @@ public class BinaryStubWriter {
         /** Records for all annotated methods of this class. */
         List<MethodRecord> methods = new ArrayList<>();
 
+        /** Per-type-parameter annotation records for this class. */
+        List<TypeParamRecord> typeParams = new ArrayList<>();
+
         /**
          * Constructs a ClassRecord.
          *
@@ -298,6 +297,15 @@ public class BinaryStubWriter {
             this.nameIndex = nameIndex;
             this.outerNameIndex = outerNameIndex;
         }
+    }
+
+    /** Annotation data for a single type parameter in the writer. */
+    private static class TypeParamRecord {
+        /** Annotation-pool indices of annotations on the type variable itself. */
+        List<Integer> typeVarAnnos = new ArrayList<>();
+
+        /** Per-bound type annotations. Element {@code i} holds annotations for the i-th bound. */
+        List<List<TypeAnno>> boundAnnos = new ArrayList<>();
     }
 
     /** The constant pool used to share strings. */
@@ -646,9 +654,6 @@ public class BinaryStubWriter {
             String enclosingFqn,
             String outermostFqn,
             CompilationUnit cu) {
-        if (hasComplexAnnos(typeDecl)) {
-            return;
-        }
         String fqn =
                 enclosingFqn.isEmpty()
                         ? typeDecl.getNameAsString()
@@ -663,6 +668,7 @@ public class BinaryStubWriter {
             for (AnnotationExpr anno : typeDecl.getAnnotations()) {
                 cr.declAnnos.add(annosPool.addAnnotation(anno, cu, this));
             }
+            cr.typeParams.addAll(extractTypeParams(typeDecl.getTypeParameters(), cu));
         } catch (IOException e) {
             throw new RuntimeException(
                     "Serialization failure in class annotations: " + e.getMessage(), e);
@@ -721,10 +727,25 @@ public class BinaryStubWriter {
                 mr.paramAnnos.add(pAnnos);
                 List<Integer> pdAnnos = new ArrayList<>();
                 for (AnnotationExpr anno : p.getAnnotations()) {
-                    pdAnnos.add(annosPool.addAnnotation(anno, cu, this));
+                    int idx = annosPool.addAnnotation(anno, cu, this);
+                    if (hasTypeUse(anno, cu)) {
+                        // For varargs, annotations on the parameter declaration apply to the
+                        // array element (component type), so use one ARRAY step.
+                        // For non-varargs, use the element path of the declared type.
+                        List<TypePathStep> path =
+                                p.isVarArgs()
+                                        ? Collections.singletonList(
+                                                new TypePathStep((byte) 0, (byte) 0))
+                                        : arrayElementPath(p.getType());
+                        pAnnos.add(new TypeAnno(idx, path));
+                    }
+                    if (!isTypeUseOnly(anno, cu)) {
+                        pdAnnos.add(idx);
+                    }
                 }
                 mr.paramDeclAnnos.add(pdAnnos);
             }
+            mr.typeParams.addAll(extractTypeParams(md.getTypeParameters(), cu));
             cr.methods.add(mr);
         } catch (IOException e) {
             throw new RuntimeException("Serialization failure in method: " + e.getMessage(), e);
@@ -769,10 +790,22 @@ public class BinaryStubWriter {
                 mr.paramAnnos.add(pAnnos);
                 List<Integer> pdAnnos = new ArrayList<>();
                 for (AnnotationExpr anno : p.getAnnotations()) {
-                    pdAnnos.add(annosPool.addAnnotation(anno, cu, this));
+                    int idx = annosPool.addAnnotation(anno, cu, this);
+                    if (hasTypeUse(anno, cu)) {
+                        List<TypePathStep> path =
+                                p.isVarArgs()
+                                        ? Collections.singletonList(
+                                                new TypePathStep((byte) 0, (byte) 0))
+                                        : arrayElementPath(p.getType());
+                        pAnnos.add(new TypeAnno(idx, path));
+                    }
+                    if (!isTypeUseOnly(anno, cu)) {
+                        pdAnnos.add(idx);
+                    }
                 }
                 mr.paramDeclAnnos.add(pdAnnos);
             }
+            mr.typeParams.addAll(extractTypeParams(cd.getTypeParameters(), cu));
             cr.methods.add(mr);
         } catch (IOException e) {
             throw new RuntimeException(
@@ -862,6 +895,55 @@ public class BinaryStubWriter {
     }
 
     /**
+     * Extracts type-parameter annotations from a list of {@link TypeParameter} declarations.
+     *
+     * @param typeParameters the type parameter declarations
+     * @param cu the compilation unit
+     * @return a list of TypeParamRecord, one per type parameter
+     * @throws IOException if annotation serialization fails
+     */
+    private List<TypeParamRecord> extractTypeParams(
+            List<TypeParameter> typeParameters, CompilationUnit cu) throws IOException {
+        List<TypeParamRecord> result = new ArrayList<>(typeParameters.size());
+        for (TypeParameter tp : typeParameters) {
+            TypeParamRecord rec = new TypeParamRecord();
+            // Annotations on the type variable itself (e.g. @X in <@X T>)
+            for (AnnotationExpr ann : tp.getAnnotations()) {
+                rec.typeVarAnnos.add(annosPool.addAnnotation(ann, cu, this));
+            }
+            // Annotations on each bound (e.g. @NonNull Object in <T extends @NonNull Object>)
+            for (ClassOrInterfaceType bound : tp.getTypeBound()) {
+                List<TypeAnno> boundAnnos = new ArrayList<>();
+                extractTypeAnnotations(bound, new ArrayList<>(), boundAnnos, cu);
+                rec.boundAnnos.add(boundAnnos);
+            }
+            result.add(rec);
+        }
+        return result;
+    }
+
+    /**
+     * Writes a list of type-parameter records to the output stream.
+     *
+     * @param out the output stream
+     * @param typeParams the list of type parameter records to write
+     * @throws IOException if writing fails
+     */
+    private static void writeTypeParams(DataOutputStream out, List<TypeParamRecord> typeParams)
+            throws IOException {
+        out.writeShort(typeParams.size());
+        for (TypeParamRecord tp : typeParams) {
+            out.writeShort(tp.typeVarAnnos.size());
+            for (int idx : tp.typeVarAnnos) out.writeInt(idx);
+            out.writeShort(tp.boundAnnos.size());
+            for (List<TypeAnno> boundList : tp.boundAnnos) {
+                out.writeShort(boundList.size());
+                for (TypeAnno ta : boundList) ta.write(out);
+            }
+        }
+    }
+
+    /**
      * Writes the accumulated class records and constant pool to the specified file in a compressed
      * binary format.
      *
@@ -917,7 +999,9 @@ public class BinaryStubWriter {
                             out.writeInt(idx);
                         }
                     }
+                    writeTypeParams(out, mr.typeParams);
                 }
+                writeTypeParams(out, cr.typeParams);
             }
 
             out.writeInt(packages.size());
@@ -1057,36 +1141,6 @@ public class BinaryStubWriter {
             n.getComponentType().accept(this, arg);
             sb.append("[]");
         }
-    }
-
-    /**
-     * Determines whether a class or interface declaration contains complex annotations (e.g.,
-     * annotations on type parameters or bounds) that are not currently supported by the binary stub
-     * format.
-     *
-     * @param typeDecl the class or interface declaration to check
-     * @return {@code true} if complex annotations are found, {@code false} otherwise
-     */
-    private boolean hasComplexAnnos(ClassOrInterfaceDeclaration typeDecl) {
-        for (TypeParameter tp : typeDecl.getTypeParameters()) {
-            if (!tp.findAll(AnnotationExpr.class).isEmpty()) return true;
-        }
-        if (typeDecl.getExtendedTypes() != null) {
-            for (ClassOrInterfaceType t : typeDecl.getExtendedTypes()) {
-                if (!t.findAll(AnnotationExpr.class).isEmpty()) return true;
-            }
-        }
-        if (typeDecl.getImplementedTypes() != null) {
-            for (ClassOrInterfaceType t : typeDecl.getImplementedTypes()) {
-                if (!t.findAll(AnnotationExpr.class).isEmpty()) return true;
-            }
-        }
-        for (MethodDeclaration md : typeDecl.findAll(MethodDeclaration.class)) {
-            for (TypeParameter tp : md.getTypeParameters()) {
-                if (!tp.findAll(AnnotationExpr.class).isEmpty()) return true;
-            }
-        }
-        return false;
     }
 
     /**

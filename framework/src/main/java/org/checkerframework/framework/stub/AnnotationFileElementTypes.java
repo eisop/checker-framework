@@ -231,6 +231,12 @@ public class AnnotationFileElementTypes {
     /** Should the JDK be parsed? */
     private final boolean shouldParseJdk;
 
+    /**
+     * True if this is the stub-types AFET ({@code stubTypes}); false if it is the ajava-types AFET
+     * ({@code ajavaTypes}). Binary JDK stub loading is only performed for stub-types AFETs.
+     */
+    private boolean isStubTypes;
+
     /** Parse all JDK files at startup rather than as needed. */
     private final boolean parseAllJdkFiles;
 
@@ -324,6 +330,7 @@ public class AnnotationFileElementTypes {
      */
     public AnnotationFileElementTypes(AnnotatedTypeFactory atypeFactory) {
         this.atypeFactory = atypeFactory;
+        this.isStubTypes = false;
         this.annotationFileAnnos = new AnnotationFileAnnotations();
         this.parsingCount = 0;
         this.fromStubFileAnno =
@@ -347,6 +354,17 @@ public class AnnotationFileElementTypes {
      */
     public boolean isParsing() {
         return parsingCount > 0;
+    }
+
+    /**
+     * Marks this AFET as the stub-types AFET ({@code stubTypes}). Should be called immediately
+     * after construction for the {@code stubTypes} field of {@link AnnotatedTypeFactory}. Binary
+     * JDK stub loading is only performed from stub-types AFETs, to prevent binary annotations from
+     * being loaded via the ajava-types path (which would interfere with user-supplied stub
+     * overrides).
+     */
+    public void setIsStubTypes(boolean value) {
+        this.isStubTypes = value;
     }
 
     /**
@@ -961,6 +979,13 @@ public class AnnotationFileElementTypes {
 
         BinaryStubDataCache cache = getBinaryStubDataCache();
         if (cache != null && cache.data != null) {
+            // Only load binary JDK stubs from the stub-types AFET (stubTypes), not from the
+            // ajava-types AFET (ajavaTypes). Loading from ajavaTypes would happen during
+            // AnnotatedTypeFactory.fromElement() before user-supplied stub files are fully
+            // parsed, causing the binary's annotations to override the user stubs.
+            if (!isStubTypes) {
+                return;
+            }
             BinaryStubData.ClassRecord cr = cache.data.classes.get(className);
             if (cr != null) {
                 // Use a separate set to track binary-processed classes, so we do not interfere

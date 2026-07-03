@@ -6,9 +6,11 @@ import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedArrayType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedDeclaredType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedExecutableType;
+import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedTypeVariable;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedWildcardType;
 import org.checkerframework.javacutil.AnnotationBuilder;
 import org.checkerframework.javacutil.AnnotationMirrorSet;
+import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.ElementUtils;
 
 import java.util.ArrayList;
@@ -23,6 +25,7 @@ import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.TypeElement;
+import javax.lang.model.element.TypeParameterElement;
 import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.ArrayType;
 import javax.lang.model.type.TypeKind;
@@ -119,6 +122,31 @@ public class BinaryStubReader {
                     ElementUtils.getQualifiedName(typeElt), classDeclAnnos);
         }
 
+        // Apply class type-parameter annotations (e.g. <K extends @NonNull Object>).
+        // Key insight from AnnotationFileParser: it stores AnnotatedTypeVariable keyed by
+        // TypeParameterElement, AND the full AnnotatedDeclaredType keyed by TypeElement.
+        // We must use createType (not fromElement) to avoid elementCache contamination.
+        if (cr.typeParams.length > 0) {
+            applyClassTypeParams(cr, className, typeElt, atypeFactory, elementTypes, data);
+        }
+
+        // Apply class-level TYPE_USE annotations (e.g. @Interned on "class Class<T>") to the
+        // AnnotatedDeclaredType stored in atypes[typeElt]. The BinaryStubWriter writes all class
+        // annotations into cr.declAnnos without filtering; here we push any that are supported
+        // qualifiers into the primary annotation of the declared type, matching what the text
+        // parser does in processType via annotate(type, decl.getAnnotations(), decl).
+        if (!classDeclAnnos.isEmpty()) {
+            AnnotatedTypeMirror storedType = annotationFileAnnos.atypes.get(typeElt);
+            if (storedType == null) {
+                // No type params stored a type yet — create one now.
+                storedType = AnnotatedTypeMirror.createType(typeElt.asType(), atypeFactory, false);
+                annotationFileAnnos.atypes.put(typeElt, storedType);
+            }
+            for (AnnotationMirror am : classDeclAnnos) {
+                storedType.replaceAnnotation(am);
+            }
+        }
+
         // Process fields.
         Map<String, VariableElement> fieldsByName = new HashMap<>();
         for (VariableElement ve : ElementFilter.fieldsIn(typeElt.getEnclosedElements())) {
@@ -132,8 +160,17 @@ public class BinaryStubReader {
                 AnnotationMirrorSet fieldDeclAnnos =
                         parseDeclAnnos(fr.declAnnos, className, data, atypeFactory, elementTypes);
                 if (!fieldDeclAnnos.isEmpty()) {
-                    annotationFileAnnos.declAnnos.putIfAbsent(
-                            ElementUtils.getQualifiedName(ve), fieldDeclAnnos);
+                    String veName = ElementUtils.getQualifiedName(ve);
+                    AnnotationMirrorSet existingField = annotationFileAnnos.declAnnos.get(veName);
+                    if (existingField == null) {
+                        annotationFileAnnos.declAnnos.put(veName, fieldDeclAnnos);
+                    } else {
+                        for (AnnotationMirror am : fieldDeclAnnos) {
+                            if (!AnnotationUtils.containsSameByName(existingField, am)) {
+                                existingField.add(am);
+                            }
+                        }
+                    }
                 }
                 if (fr.typeAnnos.length > 0) {
                     // Only apply if not already present from a user-supplied stub file.
@@ -161,8 +198,22 @@ public class BinaryStubReader {
                 AnnotationMirrorSet methodDeclAnnos =
                         parseDeclAnnos(mr.declAnnos, className, data, atypeFactory, elementTypes);
                 if (!methodDeclAnnos.isEmpty()) {
-                    annotationFileAnnos.declAnnos.putIfAbsent(
-                            ElementUtils.getQualifiedName(ee), methodDeclAnnos);
+                    // Use addIfNotPresent semantics: add binary annotations that aren't already
+                    // present. This handles the case where user stubs have stored @FromStubFile
+                    // (blocking a plain putIfAbsent), while still preserving user-stub annotations
+                    // that override binary ones.
+                    String eeName = ElementUtils.getQualifiedName(ee);
+                    AnnotationMirrorSet existing = annotationFileAnnos.declAnnos.get(eeName);
+                    if (existing == null) {
+                        annotationFileAnnos.declAnnos.put(eeName, methodDeclAnnos);
+                    } else {
+                        // Add any binary annotation not already present (by annotation type name).
+                        for (AnnotationMirror am : methodDeclAnnos) {
+                            if (!AnnotationUtils.containsSameByName(existing, am)) {
+                                existing.add(am);
+                            }
+                        }
+                    }
                 }
 
                 boolean hasAnyTypeAnnos =
@@ -175,12 +226,18 @@ public class BinaryStubReader {
 
                 // Only apply type annotations if this method is not already present from a
                 // user-supplied stub file.
-                if (hasAnyTypeAnnos && !annotationFileAnnos.atypes.containsKey(ee)) {
+                boolean eeAlreadyPresent = annotationFileAnnos.atypes.containsKey(ee);
+                if (hasAnyTypeAnnos && !eeAlreadyPresent) {
                     AnnotatedExecutableType aet =
                             (AnnotatedExecutableType)
                                     AnnotatedTypeMirror.createType(
                                             ee.asType(), atypeFactory, false);
                     aet.setElement(ee);
+                    // Apply element-level annotations (including type variable bounds from
+                    // bytecode) to get the same base type as the text-based stub parser.
+                    // NOTE: disabled - see below for why propagateClassTypeParamBounds handles this
+                    // org.checkerframework.framework.type.ElementAnnotationApplier.apply(
+                    //     aet, ee, atypeFactory);
 
                     applyTypeAnnos(
                             aet.getReturnType(),
@@ -214,8 +271,18 @@ public class BinaryStubReader {
                                         atypeFactory,
                                         elementTypes);
                         if (!paramDeclAnnos.isEmpty()) {
-                            annotationFileAnnos.declAnnos.putIfAbsent(
-                                    ElementUtils.getQualifiedName(pElt), paramDeclAnnos);
+                            String pEltName = ElementUtils.getQualifiedName(pElt);
+                            AnnotationMirrorSet existingParam =
+                                    annotationFileAnnos.declAnnos.get(pEltName);
+                            if (existingParam == null) {
+                                annotationFileAnnos.declAnnos.put(pEltName, paramDeclAnnos);
+                            } else {
+                                for (AnnotationMirror am : paramDeclAnnos) {
+                                    if (!AnnotationUtils.containsSameByName(existingParam, am)) {
+                                        existingParam.add(am);
+                                    }
+                                }
+                            }
                             if (!annotationFileAnnos.atypes.containsKey(pElt)) {
                                 AnnotatedTypeMirror pInner = getInnermostComponentType(pType);
                                 for (AnnotationMirror am : paramDeclAnnos) {
@@ -231,11 +298,252 @@ public class BinaryStubReader {
                                 data,
                                 atypeFactory,
                                 elementTypes);
+                        if (i == 0
+                                && data.stringPool[mr.sigIndex].contains("requireNonNull")
+                                && className.contains("Objects")) {}
                         annotationFileAnnos.atypes.putIfAbsent(pElt, pType);
                     }
+                    // Apply method type-parameter annotations (e.g. <T extends @X Object>).
+                    // The type variables are in aet.getTypeVariables(); we annotate them in place
+                    // and also store atypes[TypeParameterElement] matching the text parser.
+                    applyMethodTypeParams(
+                            mr.typeParams, aet, ee, className, data, atypeFactory, elementTypes);
+                    // Propagate class type-parameter bound annotations to type variables in
+                    // the method type (e.g. K and V in put(K key, V value) of Hashtable).
+                    propagateClassTypeParamBounds(aet, annotationFileAnnos);
                     annotationFileAnnos.atypes.put(ee, aet);
                 }
             }
+        }
+    }
+
+    /**
+     * Applies class type-parameter annotations from a {@link BinaryStubData.ClassRecord} to {@code
+     * annotationFileAnnos}. Stores each {@link AnnotatedTypeVariable} keyed by its {@link
+     * TypeParameterElement}, and also stores the full {@link AnnotatedDeclaredType} (with annotated
+     * type arguments) keyed by the {@link TypeElement}. This matches what {@link
+     * org.checkerframework.framework.stub.AnnotationFileParser#annotateTypeParameters} and {@code
+     * processType} store, enabling {@code fromElement} to pick up the annotations.
+     *
+     * <p>Uses {@link AnnotatedTypeMirror#createType} rather than {@code fromElement} to avoid
+     * populating the {@code elementCache} prematurely (which would prevent later stub annotations
+     * from being picked up).
+     *
+     * @param cr the class record from the binary stub data
+     * @param className the fully-qualified class name
+     * @param typeElt the TypeElement for the class
+     * @param atypeFactory the type factory
+     * @param elementTypes the annotation container
+     * @param data the binary stub data
+     */
+    private static void applyClassTypeParams(
+            BinaryStubData.ClassRecord cr,
+            String className,
+            TypeElement typeElt,
+            AnnotatedTypeFactory atypeFactory,
+            AnnotationFileElementTypes elementTypes,
+            BinaryStubData data) {
+        AnnotationFileAnnotations annotationFileAnnos = elementTypes.annotationFileAnnos;
+        List<? extends TypeParameterElement> typeParams = typeElt.getTypeParameters();
+
+        // Build AnnotatedDeclaredType using createType (avoids elementCache).
+        AnnotatedDeclaredType declType =
+                (AnnotatedDeclaredType)
+                        AnnotatedTypeMirror.createType(typeElt.asType(), atypeFactory, false);
+        List<? extends AnnotatedTypeMirror> typeArgs = declType.getTypeArguments();
+
+        for (int i = 0;
+                i < cr.typeParams.length && i < typeParams.size() && i < typeArgs.size();
+                i++) {
+            BinaryStubData.TypeParamRecord tp = cr.typeParams[i];
+            TypeParameterElement tpe = typeParams.get(i);
+
+            // Build and annotate the AnnotatedTypeVariable for this type parameter.
+            AnnotatedTypeVariable atv =
+                    (AnnotatedTypeVariable)
+                            AnnotatedTypeMirror.createType(tpe.asType(), atypeFactory, false);
+
+            // Annotations on the type variable itself → apply to lower bound.
+            for (int idx : tp.typeVarAnnos) {
+                if (idx >= 0 && idx < data.annotationPool.length) {
+                    AnnotationMirror am =
+                            getAnnotationMirror(
+                                    data.annotationPool[idx],
+                                    className,
+                                    atypeFactory,
+                                    data,
+                                    elementTypes);
+                    if (am != null) {
+                        atv.getLowerBound().replaceAnnotation(am);
+                    }
+                }
+            }
+
+            // Annotations on bounds → clear then apply (matches clearAnnotations in text parser).
+            if (tp.boundAnnos.length > 0 && tp.boundAnnos[0].length > 0) {
+                atv.getUpperBound().clearAnnotations();
+                applyTypeAnnos(
+                        atv.getUpperBound(),
+                        tp.boundAnnos[0],
+                        className,
+                        data,
+                        atypeFactory,
+                        elementTypes);
+            }
+
+            // Store keyed by TypeParameterElement — this is what fromElement(TypeParameterElement)
+            // reads via stubTypes.getAnnotatedTypeMirror(tpe).
+            annotationFileAnnos.atypes.putIfAbsent(tpe, atv);
+
+            // Also update the corresponding type argument in declType so the full class type is
+            // consistent.
+            if (typeArgs.get(i) instanceof AnnotatedTypeVariable) {
+                AnnotatedTypeVariable argAtv = (AnnotatedTypeVariable) typeArgs.get(i);
+                for (int idx : tp.typeVarAnnos) {
+                    if (idx >= 0 && idx < data.annotationPool.length) {
+                        AnnotationMirror am =
+                                getAnnotationMirror(
+                                        data.annotationPool[idx],
+                                        className,
+                                        atypeFactory,
+                                        data,
+                                        elementTypes);
+                        if (am != null) {
+                            argAtv.getLowerBound().replaceAnnotation(am);
+                        }
+                    }
+                }
+                if (tp.boundAnnos.length > 0 && tp.boundAnnos[0].length > 0) {
+                    argAtv.getUpperBound().clearAnnotations();
+                    applyTypeAnnos(
+                            argAtv.getUpperBound(),
+                            tp.boundAnnos[0],
+                            className,
+                            data,
+                            atypeFactory,
+                            elementTypes);
+                }
+            }
+        }
+
+        // Store the full declared type keyed by TypeElement — this is what
+        // fromElement(TypeElement) reads via stubTypes.getAnnotatedTypeMirror(typeElt).
+        annotationFileAnnos.atypes.putIfAbsent(typeElt, declType);
+    }
+
+    /**
+     * Applies method type-parameter annotations from a {@link BinaryStubData.TypeParamRecord} array
+     * to the type variables already present in {@code aet}. Unlike class type params, these are
+     * modified in-place on the {@link AnnotatedExecutableType} which is then stored in {@code
+     * atypes} by the caller.
+     *
+     * @param typeParams the type parameter records
+     * @param aet the annotated executable type whose type variables to annotate
+     * @param className the enclosing class name
+     * @param data the binary stub data
+     * @param atypeFactory the type factory
+     * @param elementTypes the annotation container
+     */
+    private static void applyMethodTypeParams(
+            BinaryStubData.TypeParamRecord[] typeParams,
+            AnnotatedExecutableType aet,
+            ExecutableElement ee,
+            String className,
+            BinaryStubData data,
+            AnnotatedTypeFactory atypeFactory,
+            AnnotationFileElementTypes elementTypes) {
+        List<? extends AnnotatedTypeMirror> typeVars = aet.getTypeVariables();
+        List<? extends TypeParameterElement> typeParamElts = ee.getTypeParameters();
+        for (int i = 0; i < typeParams.length && i < typeVars.size(); i++) {
+            BinaryStubData.TypeParamRecord tp = typeParams[i];
+            if (!(typeVars.get(i) instanceof AnnotatedTypeVariable)) {
+                continue;
+            }
+            AnnotatedTypeVariable atv = (AnnotatedTypeVariable) typeVars.get(i);
+
+            for (int idx : tp.typeVarAnnos) {
+                if (idx >= 0 && idx < data.annotationPool.length) {
+                    AnnotationMirror am =
+                            getAnnotationMirror(
+                                    data.annotationPool[idx],
+                                    className,
+                                    atypeFactory,
+                                    data,
+                                    elementTypes);
+                    if (am != null) {
+                        atv.getLowerBound().replaceAnnotation(am);
+                    }
+                }
+            }
+            if (tp.boundAnnos.length > 0 && tp.boundAnnos[0].length > 0) {
+                atv.getUpperBound().clearAnnotations();
+                applyTypeAnnos(
+                        atv.getUpperBound(),
+                        tp.boundAnnos[0],
+                        className,
+                        data,
+                        atypeFactory,
+                        elementTypes);
+            }
+            // Store the annotated type variable keyed by its TypeParameterElement, matching
+            // AnnotationFileParser.annotateTypeParameters which calls
+            // putMerge(atypes, paramType.getUnderlyingType().asElement(), paramType).
+            if (i < typeParamElts.size()) {
+                elementTypes.annotationFileAnnos.atypes.putIfAbsent(typeParamElts.get(i), atv);
+            }
+        }
+    }
+
+    /**
+     * Propagates class type-parameter bound annotations from {@code annotationFileAnnos.atypes} to
+     * any {@link AnnotatedTypeVariable} instances within {@code aet}. This is needed because when
+     * {@code aet} is built via {@link AnnotatedTypeMirror#createType}, type variables like {@code
+     * K} and {@code V} in {@code put(K key, V value)} do not yet carry the bounds stored for their
+     * {@link TypeParameterElement} keys (e.g. {@code @NonNull Object} for {@code V}).
+     *
+     * @param aet the annotated executable type to update
+     * @param annotationFileAnnos the annotation file annotations containing the type param entries
+     */
+    private static void propagateClassTypeParamBounds(
+            AnnotatedExecutableType aet, AnnotationFileAnnotations annotationFileAnnos) {
+        for (AnnotatedTypeMirror pType : aet.getParameterTypes()) {
+            copyBoundsFromAtypes(pType, annotationFileAnnos);
+        }
+        copyBoundsFromAtypes(aet.getReturnType(), annotationFileAnnos);
+        if (aet.getReceiverType() != null) {
+            copyBoundsFromAtypes(aet.getReceiverType(), annotationFileAnnos);
+        }
+    }
+
+    /**
+     * If {@code atm} is an {@link AnnotatedTypeVariable} whose element is stored in {@code
+     * annotationFileAnnos.atypes}, copies the bound annotations from the stored entry.
+     *
+     * @param atm the type to check
+     * @param annotationFileAnnos the annotation container
+     */
+    private static void copyBoundsFromAtypes(
+            AnnotatedTypeMirror atm, AnnotationFileAnnotations annotationFileAnnos) {
+        if (!(atm instanceof AnnotatedTypeVariable)) {
+            return;
+        }
+        AnnotatedTypeVariable atv = (AnnotatedTypeVariable) atm;
+        javax.lang.model.element.Element tpeElt = atv.getUnderlyingType().asElement();
+        if (tpeElt == null) {
+            return;
+        }
+        AnnotatedTypeMirror stored = annotationFileAnnos.atypes.get(tpeElt);
+        if (!(stored instanceof AnnotatedTypeVariable)) {
+            return;
+        }
+        AnnotatedTypeVariable storedAtv = (AnnotatedTypeVariable) stored;
+        // Copy upper bound annotations.
+        for (AnnotationMirror am : storedAtv.getUpperBound().getAnnotations()) {
+            atv.getUpperBound().replaceAnnotation(am);
+        }
+        // Copy lower bound annotations.
+        for (AnnotationMirror am : storedAtv.getLowerBound().getAnnotations()) {
+            atv.getLowerBound().replaceAnnotation(am);
         }
     }
 

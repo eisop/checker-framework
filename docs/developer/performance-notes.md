@@ -632,6 +632,29 @@ so small per-call wins paid back substantially.
   text and token buffers; the `Object[]` and `ArrayList` savings are from removing
   the per-compilation `AnnotationFileParser.process*` data structures.
 
+  The same PR also extends the format to cover **all** JDK classes by removing the
+  `hasComplexAnnos` fallback that previously sent classes with annotated type
+  parameters or bounds (e.g., `List`, `Collection`, `Hashtable`, `Comparable`,
+  `Objects`) back to the text parser. Key additions:
+  - **`TypeParamRecord` in `BinaryStubData`** stores type-parameter bound annotations
+    for both classes and methods; `BinaryStubReader` applies them via
+    `applyMethodTypeParams`, `applyClassTypeParams`, and
+    `propagateClassTypeParamBounds` (the last propagates class type-param bound
+    annotations into method parameter type variables, e.g., `K`/`V` in
+    `Hashtable.put(K, V)`).
+  - **Parameter annotation split in `BinaryStubWriter`**: TYPE_USE-only annotations
+    go to `paramAnnos`; declaration-only to `paramDeclAnnos`; varargs get an
+    `[ARRAY]` path.
+  - **`declAnnos` merge fix in `BinaryStubReader`**: binary declaration annotations
+    (e.g., `@Invoke` on `Method.invoke`) were silently dropped when user stubs ran
+    first and pre-populated `declAnnos` with `@FromStubFile`. Changed from
+    `putIfAbsent` to add-individual-annotations-if-not-present-by-name so
+    binary annotations are merged in alongside whatever user stubs stored.
+  - **`isStubTypes` flag on `AnnotationFileElementTypes`**: prevents the binary from
+    being loaded into `ajavaTypes`, where `mergeAnnotationFileAnnosIntoType` would
+    re-apply binary annotations on top of user-stub overrides after parsing completes.
+    Binary loading is now gated to the `stubTypes` path only.
+
 - **PR #1776** — *Avoid the defensive deep copy in read-only
   `fromElement` consumers.* `AnnotatedTypeFactory.fromElement` returns
   `cached.deepCopy()` on every cache hit so callers may mutate the result; this is

@@ -230,6 +230,33 @@ public class BinaryStubData {
         }
     }
 
+    /**
+     * Annotation data for a single type parameter (class-level or method-level). Stores the
+     * annotations on the type variable itself and type annotations on each of its bounds.
+     *
+     * <p>For {@code <T extends @X Bound>}: {@code typeVarAnnos} holds pool indices of annotations
+     * on {@code T} itself (applied to the lower bound); {@code boundAnnos[0]} holds the type
+     * annotations on {@code Bound} (path-encoded as for a type annotation).
+     */
+    public static class TypeParamRecord {
+        /**
+         * Annotation-pool indices of the annotations on the type variable itself (applied to its
+         * lower bound, matching how {@link
+         * org.checkerframework.framework.stub.AnnotationFileParser#annotateTypeParameters} applies
+         * them).
+         */
+        public int[] typeVarAnnos;
+
+        /**
+         * Per-bound type annotations. Element {@code i} holds the type annotations for the {@code
+         * i}-th bound of this type parameter.
+         */
+        public TypeAnno[][] boundAnnos;
+
+        /** Creates an empty TypeParamRecord; fields are populated by the binary reader. */
+        public TypeParamRecord() {}
+    }
+
     /** Annotation data for a single method or constructor. */
     public static class MethodRecord {
         /** Index into {@link BinaryStubData#stringPool} of the method's simple signature. */
@@ -258,6 +285,12 @@ public class BinaryStubData {
          * indices of the declaration annotations for parameter {@code i}.
          */
         public int[][] paramDeclAnnos;
+
+        /**
+         * Per-type-parameter annotation records. Element {@code i} holds the annotations for the
+         * {@code i}-th type parameter declared by this method or constructor.
+         */
+        public TypeParamRecord[] typeParams;
     }
 
     /** Annotation data for a single field. */
@@ -299,6 +332,12 @@ public class BinaryStubData {
 
         /** Method and constructor records for the annotated methods of this class. */
         public MethodRecord[] methods;
+
+        /**
+         * Per-type-parameter annotation records for this class. Element {@code i} holds the
+         * annotations for the {@code i}-th type parameter declared by this class.
+         */
+        public TypeParamRecord[] typeParams;
 
         /** Creates an empty ClassRecord; fields are populated by the binary reader. */
         public ClassRecord() {}
@@ -433,8 +472,10 @@ public class BinaryStubData {
                             mr.paramDeclAnnos[p][k] = dataIn.readInt();
                         }
                     }
+                    mr.typeParams = readTypeParams(dataIn);
                     cr.methods[j] = mr;
                 }
+                cr.typeParams = readTypeParams(dataIn);
                 classes.put(stringPool[cr.nameIndex], cr);
             }
 
@@ -534,5 +575,36 @@ public class BinaryStubData {
             path[i] = new TypePathStep(kind, argIndex);
         }
         return new TypeAnno(annoIndex, path);
+    }
+
+    /**
+     * Reads an array of {@link TypeParamRecord}s from the stream.
+     *
+     * @param dataIn the stream to read from
+     * @return the type parameter records
+     * @throws IOException if the stream cannot be read
+     */
+    private TypeParamRecord[] readTypeParams(DataInputStream dataIn) throws IOException {
+        int count = dataIn.readShort();
+        TypeParamRecord[] result = new TypeParamRecord[count];
+        for (int i = 0; i < count; i++) {
+            TypeParamRecord tp = new TypeParamRecord();
+            int varAnnoCount = dataIn.readShort();
+            tp.typeVarAnnos = new int[varAnnoCount];
+            for (int k = 0; k < varAnnoCount; k++) {
+                tp.typeVarAnnos[k] = dataIn.readInt();
+            }
+            int boundCount = dataIn.readShort();
+            tp.boundAnnos = new TypeAnno[boundCount][];
+            for (int b = 0; b < boundCount; b++) {
+                int bAnnoCount = dataIn.readShort();
+                tp.boundAnnos[b] = new TypeAnno[bAnnoCount];
+                for (int k = 0; k < bAnnoCount; k++) {
+                    tp.boundAnnos[b][k] = readTypeAnno(dataIn);
+                }
+            }
+            result[i] = tp;
+        }
+        return result;
     }
 }
