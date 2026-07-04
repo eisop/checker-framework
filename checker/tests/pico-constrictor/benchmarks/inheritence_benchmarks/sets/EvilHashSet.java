@@ -54,7 +54,8 @@ public class EvilHashSet extends GenericSet {
         evilList.add(5);
         evilMap.put(1, evilList);
         // One more evil in PICO because of field write is prevented and the type is not compatible
-        // :: error: (illegal.field.write) :: error: (assignment.type.incompatible)
+        // :: error: (illegal.field.write) :: error: (assignment.type.incompatible) :: error:
+        // (mutability.lost.lhs)
         this.table = evilMap;
         return false;
     }

@@ -23,7 +23,8 @@ public class MoveToFrontListSet extends GenericSet {
             }
             idx2 += 1;
         }
-        // :: error: (illegal.field.write) :: error: (assignment.type.incompatible)
+        // :: error: (illegal.field.write) :: error: (assignment.type.incompatible) :: error:
+        // (mutability.lost.lhs)
         this.list = newList;
         return this.list;
     }

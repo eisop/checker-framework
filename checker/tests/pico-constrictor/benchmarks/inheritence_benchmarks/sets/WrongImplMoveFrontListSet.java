@@ -28,7 +28,8 @@ public class WrongImplMoveFrontListSet extends GenericSet {
             }
             idx += 1;
         }
-        // :: error: (illegal.field.write) :: error: (assignment.type.incompatible)
+        // :: error: (illegal.field.write) :: error: (assignment.type.incompatible) :: error:
+        // (mutability.lost.lhs)
         this.list = new ArrayList<>(); // evil!
     }
 

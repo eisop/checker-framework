@@ -28,8 +28,8 @@ public class MutabilityNoInitSubchecker extends BaseTypeChecker {
     @Override
     public NavigableSet<String> getSuppressWarningsPrefixes() {
         NavigableSet<String> result = super.getSuppressWarningsPrefixes();
+        result.add("mutability");
         result.add("pico");
-        result.add("immutability");
         return result;
     }
 

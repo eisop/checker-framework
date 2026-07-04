@@ -11,8 +11,8 @@ import java.lang.annotation.Target;
 /**
  * Indicates that a field may be reassigned after initialization.
  *
- * <p>An {@code @Assignable} field is excluded from the object's abstract state for PICO's
- * immutability checks. This annotation is only meaningful on field declarations.
+ * <p>An {@code @Assignable} field is excluded from the object's abstract state for the Mutability
+ * Checker's immutability checks. This annotation is only meaningful on field declarations.
  */
 @Documented
 @Retention(RetentionPolicy.RUNTIME)

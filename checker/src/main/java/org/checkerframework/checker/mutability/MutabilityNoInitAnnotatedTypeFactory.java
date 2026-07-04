@@ -3,6 +3,7 @@ package org.checkerframework.checker.mutability;
 import com.sun.source.tree.BinaryTree;
 import com.sun.source.tree.ClassTree;
 import com.sun.source.tree.ExpressionTree;
+import com.sun.source.tree.MethodInvocationTree;
 import com.sun.source.tree.MethodTree;
 import com.sun.source.tree.NewArrayTree;
 import com.sun.source.tree.NewClassTree;
@@ -26,6 +27,8 @@ import org.checkerframework.framework.qual.DefaultFor;
 import org.checkerframework.framework.type.AnnotatedTypeFactory;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedExecutableType;
+import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedTypeVariable;
+import org.checkerframework.framework.type.AnnotatedTypeParameterBounds;
 import org.checkerframework.framework.type.GenericAnnotatedTypeFactory;
 import org.checkerframework.framework.type.QualifierHierarchy;
 import org.checkerframework.framework.type.ViewpointAdapter;
@@ -227,6 +230,30 @@ public class MutabilityNoInitAnnotatedTypeFactory
     }
 
     /**
+     * Returns the method type parameter bounds adapted to the viewpoint of a method invocation.
+     *
+     * <p>TODO: Move this to the framework so other viewpoint-adaptation checkers can reuse it.
+     *
+     * @param tree a method invocation
+     * @return the adapted method type parameter bounds
+     */
+    List<AnnotatedTypeParameterBounds> methodTypeVariablesFromUse(MethodInvocationTree tree) {
+        AnnotatedExecutableType invokedMethod =
+                methodFromUseWithoutTypeArgInference(tree).executableType;
+        List<AnnotatedTypeVariable> typeVariables = invokedMethod.getTypeVariables();
+        List<AnnotatedTypeParameterBounds> bounds = new ArrayList<>(typeVariables.size());
+        for (AnnotatedTypeVariable typeVariable : typeVariables) {
+            bounds.add(typeVariable.getBounds());
+        }
+
+        AnnotatedTypeMirror receiverType = getReceiverType(tree);
+        if (viewpointAdapter != null && receiverType != null) {
+            viewpointAdapter.viewpointAdaptTypeParameterBounds(receiverType, bounds);
+        }
+        return bounds;
+    }
+
+    /**
      * {@inheritDoc} Mutability defaults type declaration bounds to {@link Mutable}; special cases
      * such as implicitly immutable types, arrays, and enums are handled by {@link
      * #getTypeDeclarationBounds}.
@@ -247,7 +274,7 @@ public class MutabilityNoInitAnnotatedTypeFactory
      * @param atm the type to check
      * @return true if the underlying type is implicitly immutable
      */
-    public boolean isImplicitlyImmutableType(AnnotatedTypeMirror atm) {
+    boolean isImplicitlyImmutableType(AnnotatedTypeMirror atm) {
         return isInTypeKindsOfDefaultForOfImmutable(atm) || isInTypesOfDefaultForOfImmutable(atm);
     }
 
@@ -297,7 +324,7 @@ public class MutabilityNoInitAnnotatedTypeFactory
      * @param type a class declaration type
      * @return true if the class bound is valid
      */
-    public boolean isValidClassBound(AnnotatedTypeMirror type) {
+    boolean isValidClassBound(AnnotatedTypeMirror type) {
         return type.hasAnnotation(MUTABLE)
                 || type.hasAnnotation(RECEIVER_DEPENDENT_MUTABLE)
                 || type.hasAnnotation(IMMUTABLE);
@@ -370,7 +397,7 @@ public class MutabilityNoInitAnnotatedTypeFactory
      * @param node tree whose enclosing type declaration bound is needed
      * @return the enclosing type declaration bound, or null if no enclosing type was found
      */
-    public AnnotatedTypeMirror getBoundTypeOfEnclosingTypeDeclaration(Tree node) {
+    AnnotatedTypeMirror getBoundTypeOfEnclosingTypeDeclaration(Tree node) {
         TypeElement typeElement = null;
         if (node instanceof MethodTree) {
             ExecutableElement element = TreeUtils.elementFromDeclaration((MethodTree) node);
@@ -393,7 +420,7 @@ public class MutabilityNoInitAnnotatedTypeFactory
      * @param element element whose enclosing type declaration bound is needed
      * @return the enclosing type declaration bound, or null if no enclosing type was found
      */
-    public AnnotatedTypeMirror getBoundTypeOfEnclosingClass(Element element) {
+    private AnnotatedTypeMirror getBoundTypeOfEnclosingClass(Element element) {
         TypeElement typeElement = ElementUtils.enclosingTypeElement(element);
         if (typeElement != null) {
             return getAnnotatedType(typeElement);
@@ -424,7 +451,7 @@ public class MutabilityNoInitAnnotatedTypeFactory
      * @param variableElement the field element
      * @return true if the field is final
      */
-    public boolean isFinalField(Element variableElement) {
+    private boolean isFinalField(Element variableElement) {
         assert variableElement instanceof VariableElement;
         return ElementUtils.isFinal(variableElement);
     }
@@ -436,7 +463,7 @@ public class MutabilityNoInitAnnotatedTypeFactory
      * @param variableElement the field element
      * @return true if the field is assignable
      */
-    public boolean isAssignableField(Element variableElement) {
+    boolean isAssignableField(Element variableElement) {
         if (!(variableElement instanceof VariableElement)) {
             return false;
         }
@@ -454,7 +481,7 @@ public class MutabilityNoInitAnnotatedTypeFactory
      * @param variableElement the field element
      * @return true if the field is receiver-dependent assignable
      */
-    public boolean isReceiverDependentAssignable(Element variableElement) {
+    private boolean isReceiverDependentAssignable(Element variableElement) {
         assert variableElement instanceof VariableElement;
         if (ElementUtils.isStatic(variableElement)) {
             return false;
@@ -469,7 +496,7 @@ public class MutabilityNoInitAnnotatedTypeFactory
      * @param field the field element
      * @return true if the field has exactly one assignability status
      */
-    public boolean hasOneAndOnlyOneAssignabilityQualifier(VariableElement field) {
+    boolean hasOneAndOnlyOneAssignabilityQualifier(VariableElement field) {
         if (isAssignableField(field)
                 && !isFinalField(field)
                 && !isReceiverDependentAssignable(field)) {
@@ -493,7 +520,7 @@ public class MutabilityNoInitAnnotatedTypeFactory
      * @param tree the field selection tree
      * @return true if the selected field is assignable
      */
-    public boolean isAssigningAssignableField(ExpressionTree tree) {
+    boolean isAssigningAssignableField(ExpressionTree tree) {
         Element fieldElement = TreeUtils.elementFromUse(tree);
         return fieldElement != null && isAssignableField(fieldElement);
     }
@@ -623,7 +650,7 @@ public class MutabilityNoInitAnnotatedTypeFactory
     }
 
     /** Tree annotators for mutability-specific defaults and expression annotations. */
-    public static class MutabilityPropagationTreeAnnotator extends PropagationTreeAnnotator {
+    private static class MutabilityPropagationTreeAnnotator extends PropagationTreeAnnotator {
         /** The mutability type factory. */
         private final MutabilityNoInitAnnotatedTypeFactory mutabilityTypeFactory;
 
@@ -632,7 +659,7 @@ public class MutabilityNoInitAnnotatedTypeFactory
          *
          * @param atypeFactory the type factory
          */
-        public MutabilityPropagationTreeAnnotator(AnnotatedTypeFactory atypeFactory) {
+        private MutabilityPropagationTreeAnnotator(AnnotatedTypeFactory atypeFactory) {
             super(atypeFactory);
             mutabilityTypeFactory = (MutabilityNoInitAnnotatedTypeFactory) atypeFactory;
         }
@@ -655,7 +682,7 @@ public class MutabilityNoInitAnnotatedTypeFactory
     }
 
     /** Applies mutability-specific tree defaults. */
-    public static class MutabilityTreeAnnotator extends TreeAnnotator {
+    private static class MutabilityTreeAnnotator extends TreeAnnotator {
         /** The mutability type factory. */
         private final MutabilityNoInitAnnotatedTypeFactory mutabilityTypeFactory;
 
@@ -664,7 +691,7 @@ public class MutabilityNoInitAnnotatedTypeFactory
          *
          * @param atypeFactory the type factory
          */
-        public MutabilityTreeAnnotator(AnnotatedTypeFactory atypeFactory) {
+        private MutabilityTreeAnnotator(AnnotatedTypeFactory atypeFactory) {
             super(atypeFactory);
             mutabilityTypeFactory = (MutabilityNoInitAnnotatedTypeFactory) atypeFactory;
         }
@@ -711,7 +738,7 @@ public class MutabilityNoInitAnnotatedTypeFactory
     }
 
     /** Type annotators for mutability-specific defaults. */
-    public static class MutabilityTypeAnnotator extends TypeAnnotator {
+    private static class MutabilityTypeAnnotator extends TypeAnnotator {
         /** The mutability type factory. */
         private final MutabilityNoInitAnnotatedTypeFactory mutabilityTypeFactory;
 
@@ -720,7 +747,7 @@ public class MutabilityNoInitAnnotatedTypeFactory
          *
          * @param typeFactory the type factory
          */
-        public MutabilityTypeAnnotator(AnnotatedTypeFactory typeFactory) {
+        private MutabilityTypeAnnotator(AnnotatedTypeFactory typeFactory) {
             super(typeFactory);
             mutabilityTypeFactory = (MutabilityNoInitAnnotatedTypeFactory) typeFactory;
         }
@@ -764,7 +791,7 @@ public class MutabilityNoInitAnnotatedTypeFactory
     }
 
     /** QualifierForUseTypeAnnotator */
-    public static class MutabilityQualifierForUseTypeAnnotator
+    private static class MutabilityQualifierForUseTypeAnnotator
             extends DefaultQualifierForUseTypeAnnotator {
         /** The mutability type factory. */
         private final MutabilityNoInitAnnotatedTypeFactory mutabilityTypeFactory;
@@ -774,7 +801,7 @@ public class MutabilityNoInitAnnotatedTypeFactory
          *
          * @param typeFactory the type factory
          */
-        public MutabilityQualifierForUseTypeAnnotator(AnnotatedTypeFactory typeFactory) {
+        private MutabilityQualifierForUseTypeAnnotator(AnnotatedTypeFactory typeFactory) {
             super(typeFactory);
             mutabilityTypeFactory = (MutabilityNoInitAnnotatedTypeFactory) typeFactory;
         }
@@ -807,14 +834,14 @@ public class MutabilityNoInitAnnotatedTypeFactory
     }
 
     /** Applies Mutability defaults derived from {@link DefaultFor}. */
-    public static class MutabilityDefaultForTypeAnnotator extends DefaultForTypeAnnotator {
+    private static class MutabilityDefaultForTypeAnnotator extends DefaultForTypeAnnotator {
 
         /**
          * Create a new MutabilityDefaultForTypeAnnotator.
          *
          * @param typeFactory the type factory
          */
-        public MutabilityDefaultForTypeAnnotator(AnnotatedTypeFactory typeFactory) {
+        private MutabilityDefaultForTypeAnnotator(AnnotatedTypeFactory typeFactory) {
             super(typeFactory);
         }
 
@@ -833,7 +860,7 @@ public class MutabilityNoInitAnnotatedTypeFactory
     /**
      * Defaults enum declarations to immutable without changing other class declaration defaults.
      */
-    public static class MutabilityEnumDefaultAnnotator extends TypeAnnotator {
+    private static class MutabilityEnumDefaultAnnotator extends TypeAnnotator {
         /** The mutability type factory. */
         private final MutabilityNoInitAnnotatedTypeFactory mutabilityTypeFactory;
 
@@ -842,7 +869,7 @@ public class MutabilityNoInitAnnotatedTypeFactory
          *
          * @param typeFactory the type factory
          */
-        public MutabilityEnumDefaultAnnotator(AnnotatedTypeFactory typeFactory) {
+        private MutabilityEnumDefaultAnnotator(AnnotatedTypeFactory typeFactory) {
             super(typeFactory);
             mutabilityTypeFactory = (MutabilityNoInitAnnotatedTypeFactory) typeFactory;
         }

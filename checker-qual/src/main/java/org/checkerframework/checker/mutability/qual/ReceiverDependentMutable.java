@@ -17,8 +17,8 @@ import java.lang.annotation.Target;
  * mutability is determined by the target type. On a class declaration, the class may be used at
  * different mutability instantiations, such as {@code @Mutable} or {@code @Immutable}.
  *
- * <p>This qualifier is only meaningful where there is a receiver or target context from which PICO
- * can determine a concrete mutability.
+ * <p>This qualifier is only meaningful where there is a receiver or target context from which the
+ * Mutability Checker can determine a concrete mutability.
  */
 @SubtypeOf(Readonly.class)
 @Documented

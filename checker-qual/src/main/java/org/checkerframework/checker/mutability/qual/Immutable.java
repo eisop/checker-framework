@@ -23,7 +23,8 @@ import java.math.BigInteger;
  * written on a reference type, the referenced object cannot be mutated. When written on a class
  * declaration, instances of that class have an immutable declaration bound.
  *
- * <p>PICO treats primitive values, string literals, and common wrapper/value classes as immutable.
+ * <p>The Mutability Checker treats primitive values, string literals, and common wrapper/value
+ * classes as immutable.
  */
 @SubtypeOf({Readonly.class})
 @Documented

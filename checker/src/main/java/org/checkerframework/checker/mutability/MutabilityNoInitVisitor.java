@@ -24,6 +24,7 @@ import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedArrayType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedDeclaredType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedExecutableType;
+import org.checkerframework.framework.type.AnnotatedTypeParameterBounds;
 import org.checkerframework.framework.type.QualifierHierarchy;
 import org.checkerframework.framework.util.AnnotatedTypes;
 import org.checkerframework.javacutil.AnnotationMirrorSet;
@@ -56,6 +57,15 @@ public class MutabilityNoInitVisitor extends BaseTypeVisitor<MutabilityNoInitAnn
                     Tree.Kind.PREFIX_INCREMENT,
                     Tree.Kind.POSTFIX_DECREMENT,
                     Tree.Kind.PREFIX_DECREMENT);
+
+    /** Error key for {@code @MutabilityLost} in assignment targets. */
+    private static final @CompilerMessageKey String LOST_LHS = "mutability.lost.lhs";
+
+    /** Error key for {@code @MutabilityLost} in adapted parameter types. */
+    private static final @CompilerMessageKey String LOST_PARAMETER = "mutability.lost.parameter";
+
+    /** Error key for {@code @MutabilityLost} in adapted type parameter bounds. */
+    private static final @CompilerMessageKey String LOST_IN_BOUNDS = "mutability.lost.in.bounds";
 
     /**
      * Create a new MutabilityNoInitVisitor.
@@ -139,11 +149,52 @@ public class MutabilityNoInitVisitor extends BaseTypeVisitor<MutabilityNoInitAnn
                 // Viewpoint adaptation mutates varAdapted to the enclosing declaration bound.
                 atypeFactory.getViewpointAdapter().viewpointAdaptMember(bound, element, varAdapted);
                 // Pass the adapted copy as the lhs type.
-                return commonAssignmentCheck(varAdapted, valueExp, errorKey, extraArgs);
+                boolean result = commonAssignmentCheck(varAdapted, valueExp, errorKey, extraArgs);
+                return checkLostLhs(varAdapted, valueExp, result);
             }
         }
 
-        return commonAssignmentCheck(var, valueExp, errorKey, extraArgs);
+        boolean result = commonAssignmentCheck(var, valueExp, errorKey, extraArgs);
+        return checkLostLhs(var, valueExp, result);
+    }
+
+    /**
+     * Reports an error if {@code varType} contains {@code @MutabilityLost}.
+     *
+     * @param varType the assignment target type
+     * @param valueExpTree the assignment value tree
+     * @param result the result computed by the regular assignment check
+     * @return false if {@code varType} contains {@code @MutabilityLost}; otherwise {@code result}
+     */
+    private boolean checkLostLhs(
+            AnnotatedTypeMirror varType, ExpressionTree valueExpTree, boolean result) {
+        if (AnnotatedTypes.containsModifier(varType, atypeFactory.LOST)) {
+            checker.reportError(valueExpTree, LOST_LHS);
+            return false;
+        }
+        return result;
+    }
+
+    @Override
+    protected boolean commonAssignmentCheck(
+            AnnotatedTypeMirror varType,
+            AnnotatedTypeMirror valueType,
+            Tree valueExpTree,
+            @CompilerMessageKey String errorKey,
+            Object... extraArgs) {
+        boolean result =
+                super.commonAssignmentCheck(varType, valueType, valueExpTree, errorKey, extraArgs);
+        if (AnnotatedTypes.containsModifier(varType, atypeFactory.LOST)) {
+            if (errorKey.equals("argument.type.incompatible")
+                    || errorKey.equals("varargs.type.incompatible")) {
+                checker.reportError(valueExpTree, LOST_PARAMETER);
+            } else if (errorKey.equals("unary.increment.type.incompatible")
+                    || errorKey.equals("unary.decrement.type.incompatible")) {
+                checker.reportError(valueExpTree, LOST_LHS);
+            }
+            result = false;
+        }
+        return result;
     }
 
     @Override
@@ -380,7 +431,7 @@ public class MutabilityNoInitVisitor extends BaseTypeVisitor<MutabilityNoInitAnn
 
     @Override
     public Void visitMethodInvocation(MethodInvocationTree node, Void p) {
-        super.visitMethodInvocation(node, p);
+        Void result = super.visitMethodInvocation(node, p);
         ParameterizedExecutableType mfuPair = atypeFactory.methodFromUse(node);
         AnnotatedExecutableType invokedMethod = mfuPair.executableType;
         ExecutableElement invokedMethodElement = invokedMethod.getElement();
@@ -390,7 +441,28 @@ public class MutabilityNoInitVisitor extends BaseTypeVisitor<MutabilityNoInitAnn
                 && TreeUtils.isSuperConstructorCall(node)) {
             checkMethodInvocability(invokedMethod, node);
         }
-        return null;
+        checkLostMethodTypeParameterBounds(node);
+        return result;
+    }
+
+    /**
+     * Reports an error if a method invocation viewpoint-adapts a method type parameter bound to
+     * {@code @MutabilityLost}.
+     *
+     * @param tree the method invocation to check
+     */
+    private void checkLostMethodTypeParameterBounds(MethodInvocationTree tree) {
+        if (TreeUtils.elementFromUse(tree) == null || shouldSkipUses(tree)) {
+            return;
+        }
+
+        for (AnnotatedTypeParameterBounds bounds : atypeFactory.methodTypeVariablesFromUse(tree)) {
+            if (AnnotatedTypes.containsModifier(bounds.getUpperBound(), atypeFactory.LOST)
+                    || AnnotatedTypes.containsModifier(bounds.getLowerBound(), atypeFactory.LOST)) {
+                checker.reportError(tree, LOST_IN_BOUNDS);
+                return;
+            }
+        }
     }
 
     @Override
@@ -417,6 +489,8 @@ public class MutabilityNoInitVisitor extends BaseTypeVisitor<MutabilityNoInitAnn
         }
         AnnotatedTypeMirror bound = atypeFactory.getAnnotatedType(typeElement);
         if (!atypeFactory.isValidClassBound(bound)) {
+            // Let MutabilityValidator report the invalid bound, then avoid cascading member
+            // diagnostics that assume a valid class bound.
             validateType(tree, bound);
             return;
         }

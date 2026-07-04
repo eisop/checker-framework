@@ -19,7 +19,7 @@ import java.lang.annotation.Target;
  * written on a reference type, the object may be mutated through that reference. When written on a
  * class declaration, instances of that class have a mutable declaration bound.
  *
- * <p>{@code @Mutable} is the default qualifier in the PICO hierarchy.
+ * <p>{@code @Mutable} is the default qualifier in the mutability hierarchy.
  */
 @SubtypeOf({Readonly.class})
 @Documented

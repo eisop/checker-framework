@@ -58,7 +58,8 @@ public @ReceiverDependentMutable class RDMClassConstructor {
         // :: error: (argument.type.incompatible)
         new @Immutable RDMClassConstructor(rdmObject, immutableObject);
 
-        // :: error: (argument.type.incompatible) :: error: (constructor.invocation.invalid)
+        // :: error: (argument.type.incompatible) :: error: (constructor.invocation.invalid) ::
+        // error: (mutability.lost.parameter)
         new @Readonly RDMClassConstructor(readonlyObejct, immutableObject);
     }
 }

@@ -7,6 +7,7 @@ import org.checkerframework.checker.mutability.qual.ReceiverDependentMutable;
 @ReceiverDependentMutable public class ViewpointAdaptationRules {
 
     @Assignable @Readonly Object assignableReadonlyField;
+    @Assignable @ReceiverDependentMutable Object assignableRdmField;
     @ReceiverDependentMutable Object rdmField;
     @Immutable Object immutableField;
     @Assignable @Mutable Object assingableMuatbleField;
@@ -17,6 +18,7 @@ import org.checkerframework.checker.mutability.qual.ReceiverDependentMutable;
             @Immutable Object immutableObject,
             @Mutable Object muatbleObject) {
         this.assignableReadonlyField = readonlyObject;
+        this.assignableRdmField = rdmObject;
         this.rdmField = rdmObject;
         this.immutableField = immutableObject;
         this.assingableMuatbleField = muatbleObject;
@@ -123,14 +125,16 @@ import org.checkerframework.checker.mutability.qual.ReceiverDependentMutable;
             @Immutable Object immutableObject,
             @Readonly Object readonlyObject) {
         this.assignableReadonlyField = mutableObject;
-        // :: error: (assignment.type.incompatible) :: error: (illegal.field.write)
-        this.rdmField = mutableObject; // Field is adpated to MutabilityLost
+        // :: error: (assignment.type.incompatible) :: error: (illegal.field.write) :: error:
+        // (mutability.lost.lhs)
+        this.rdmField = mutableObject; // Field is adapted to MutabilityLost
         // :: error: (assignment.type.incompatible) :: error: (illegal.field.write)
         this.immutableField = mutableObject;
         this.assingableMuatbleField = mutableObject;
 
         this.assignableReadonlyField = immutableObject;
-        // :: error: (assignment.type.incompatible) :: error: (illegal.field.write)
+        // :: error: (assignment.type.incompatible) :: error: (illegal.field.write) :: error:
+        // (mutability.lost.lhs)
         this.rdmField = immutableObject;
         // :: error: (illegal.field.write)
         this.immutableField = immutableObject;
@@ -138,7 +142,10 @@ import org.checkerframework.checker.mutability.qual.ReceiverDependentMutable;
         this.assingableMuatbleField = immutableObject;
 
         this.assignableReadonlyField = readonlyObject;
-        // :: error: (assignment.type.incompatible) :: error: (illegal.field.write)
+        // :: error: (mutability.lost.lhs)
+        this.assignableRdmField = this.rdmField;
+        // :: error: (assignment.type.incompatible) :: error: (illegal.field.write) :: error:
+        // (mutability.lost.lhs)
         this.rdmField = readonlyObject;
         // :: error: (assignment.type.incompatible) :: error: (illegal.field.write)
         this.immutableField = readonlyObject;
