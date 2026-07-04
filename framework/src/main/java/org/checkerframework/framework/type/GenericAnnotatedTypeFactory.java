@@ -2418,6 +2418,23 @@ public abstract class GenericAnnotatedTypeFactory<
     }
 
     /**
+     * Cache used exclusively during stub parsing to memoize the primary defaults of parameter-less
+     * declared types (like {@code java.lang.Object}).
+     *
+     * <p>Standard factory caches are disabled during parsing to prevent caching partially loaded
+     * stub annotations. This targeted cache bridges the performance gap by preventing heavy
+     * redundant processing, and is explicitly cleared when parsing completes to ensure no
+     * incomplete state leaks into the main type-checking phase.
+     */
+    protected final IdentityHashMap<Element, AnnotationMirrorSet> parsePhasePrimaryDefaultsCache =
+            new IdentityHashMap<>();
+
+    @Override
+    public void clearParsePhaseCache() {
+        parsePhasePrimaryDefaultsCache.clear();
+    }
+
+    /**
      * To add annotations to the type of method or constructor parameters, add a {@link
      * TypeAnnotator} using {@link #createTypeAnnotator()} and see the comment in {@link
      * TypeAnnotator#visitExecutable(org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedExecutableType,
@@ -2428,11 +2445,29 @@ public abstract class GenericAnnotatedTypeFactory<
      */
     @Override
     public void addComputedTypeAnnotations(Element elt, AnnotatedTypeMirror type) {
+        boolean cacheParsePhasePrimaryDefaults = false;
+
+        if (isParsingAnnotationFile() && elt != null && type.getKind() == TypeKind.DECLARED) {
+            AnnotatedDeclaredType adt = (AnnotatedDeclaredType) type;
+            if (adt.getTypeArguments().isEmpty()) {
+                AnnotationMirrorSet cached = parsePhasePrimaryDefaultsCache.get(elt);
+                if (cached != null) {
+                    type.addMissingAnnotations(cached);
+                    return;
+                }
+                cacheParsePhasePrimaryDefaults = true;
+            }
+        }
+
         addAnnotationsFromDefaultForType(elt, type);
         applyQualifierParameterDefaults(elt, type);
         typeAnnotator.visit(type, null);
         defaults.annotate(elt, type);
         dependentTypesHelper.atLocalVariable(type, elt);
+
+        if (cacheParsePhasePrimaryDefaults) {
+            parsePhasePrimaryDefaultsCache.put(elt, type.getAnnotations());
+        }
     }
 
     @Override
