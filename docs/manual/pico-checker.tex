@@ -1,11 +1,11 @@
 \htmlhr
-\chapterAndLabel{PICO Checker}{pico-checker}
+\chapterAndLabel{Mutability Checker}{pico-checker}
 
-The PICO Checker enforces practical immutability for classes and objects.
+The Mutability Checker enforces practical immutability for classes and objects.
 It distinguishes references that permit mutation from references that are
 read-only, and it supports classes whose instances may be used either
 mutably or immutably.
-The PICO type system is described by Ta~\cite{Ta2018},
+The mutability type system is described by Ta~\cite{Ta2018},
 Sun~\cite{Sun2021}, and
 \href{https://uwspace.uwaterloo.ca/items/990ef07b-60be-420c-98ac-321ee7ad071c}{Shi}.
 
@@ -13,8 +13,8 @@ PICO is useful for APIs that expose read-only references to objects, for classes
 that should not mutate their abstract state after construction, and for
 code that wants to express when a method may mutate its receiver.
 
-To run the PICO Checker, supply the
-\code{-processor org.checkerframework.checker.pico.PICOChecker}
+To run the Mutability Checker, supply the
+\code{-processor org.checkerframework.checker.mutability.MutabilityChecker}
 command-line option to javac.
 
 \sectionAndLabel{PICO qualifiers}{pico-qualifiers}
@@ -23,62 +23,60 @@ The main PICO type qualifiers are:
 
 \begin{figure}
 \includeimage{pico}{5cm}
-\caption{Type hierarchy for the PICO mutability type system.
-  The \refqualclass{checker/pico/qual}{PolyMutable} qualifier is omitted
-  because it is substituted with a concrete qualifier at each use.
-  The internal \refqualclass{checker/pico/qual}{PICOLost} qualifier is
-  omitted.}
+\caption{Type hierarchy for the mutability type system.
+  The \refqualclass{checker/mutability/qual}{PolyMutable} qualifier is omitted
+  because it is substituted with a concrete qualifier at each use.}
 \label{fig-pico-hierarchy}
 \end{figure}
 
 \begin{description}
 
-\item[\refqualclass{checker/pico/qual}{Readonly}]
-  is the top qualifier in the PICO hierarchy.
+\item[\refqualclass{checker/mutability/qual}{Readonly}]
+  is the top qualifier in the mutability hierarchy.
   A reference of type \<@Readonly T> does not permit mutation of the
   referenced object's fields through that reference.
   The object might still be mutated through another alias with a more
   specific mutability type.
 
-\item[\refqualclass{checker/pico/qual}{Mutable}]
+\item[\refqualclass{checker/mutability/qual}{Mutable}]
   indicates that a reference permits mutation of the referenced object's
   fields.  When written on a class declaration, it means that instances of
   the class have a mutable declaration bound.
 
-\item[\refqualclass{checker/pico/qual}{Immutable}]
+\item[\refqualclass{checker/mutability/qual}{Immutable}]
   indicates that the referenced object is immutable.  When written on a
   class declaration, it means that instances of the class have an immutable
   declaration bound.
 
-\item[\refqualclass{checker/pico/qual}{ReceiverDependentMutable}]
+\item[\refqualclass{checker/mutability/qual}{ReceiverDependentMutable}]
   indicates that the effective mutability depends on the receiver.
   On a member type, it is replaced by the mutability of the receiver at a
   use site.  On a class declaration, it means that the class may be used at
   different mutability instantiations, such as \<@Mutable> or \<@Immutable>.
 
-\item[\refqualclass{checker/pico/qual}{PolyMutable}]
-  is the polymorphic qualifier for the PICO mutability hierarchy.
+\item[\refqualclass{checker/mutability/qual}{PolyMutable}]
+  is the polymorphic qualifier for the mutability hierarchy.
   At a call site, occurrences of \<@PolyMutable> in one polymorphic use are
   substituted with the same concrete mutability qualifier.
 
 \end{description}
 
 The checker also uses
-\refqualclass{checker/pico/qual}{PICOLost} internally when viewpoint
+\refqualclass{checker/mutability/qual}{MutabilityLost} internally when viewpoint
 adaptation loses precise mutability information, and
-\refqualclass{checker/pico/qual}{PICOBottom} as the bottom qualifier.
+\refqualclass{checker/mutability/qual}{MutabilityBottom} as the bottom qualifier.
 Programmers should normally write one of the main qualifiers above instead.
 
 \sectionAndLabel{Class bounds and receiver-dependent mutability}{pico-class-bounds}
 
-A PICO qualifier on a class declaration is a bound on valid uses of that
+A mutability qualifier on a class declaration is a bound on valid uses of that
 class.  For example, a class declared \<@Immutable> may only be used through
 immutable-compatible references, while a class declared
 \<@ReceiverDependentMutable> may be used at multiple mutability
 instantiations.
 
 \begin{Verbatim}
-import org.checkerframework.checker.pico.qual.*;
+import org.checkerframework.checker.mutability.qual.*;
 
 @ReceiverDependentMutable class Buffer {
     private String contents;
@@ -125,11 +123,11 @@ a concrete object mutability.
 
 PICO distinguishes an object's abstract state from fields that may be
 reassigned after initialization.  A field annotated
-\refqualclass{checker/pico/qual}{Assignable} may be reassigned even when
+\refqualclass{checker/mutability/qual}{Assignable} may be reassigned even when
 ordinary fields of the receiver may not be modified.
 
 \begin{Verbatim}
-import org.checkerframework.checker.pico.qual.*;
+import org.checkerframework.checker.mutability.qual.*;
 
 @ReceiverDependentMutable class CachedName {
     private final String name;
@@ -157,6 +155,3 @@ PICO treats primitive values, string literals, and common wrapper/value
 classes such as \<String>, \<Integer>, and \<BigInteger> as immutable.
 Such types should be used with \<@Immutable> or with the default qualifier
 that PICO assigns to them.
-
-% LocalWords:  PICO mutably mutability PolyMutable PICOLost PICOBottom
-% LocalWords:  BigInteger

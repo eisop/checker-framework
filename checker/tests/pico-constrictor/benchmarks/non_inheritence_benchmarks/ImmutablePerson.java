@@ -1,6 +1,6 @@
 // Adapted from https://www.baeldung.com/immutables
-import org.checkerframework.checker.pico.qual.Immutable;
-import org.checkerframework.checker.pico.qual.Readonly;
+import org.checkerframework.checker.mutability.qual.Immutable;
+import org.checkerframework.checker.mutability.qual.Readonly;
 
 @Immutable public class ImmutablePerson {
     private int idNum;

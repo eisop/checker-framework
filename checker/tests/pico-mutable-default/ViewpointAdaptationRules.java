@@ -1,8 +1,8 @@
-import org.checkerframework.checker.pico.qual.Assignable;
-import org.checkerframework.checker.pico.qual.Immutable;
-import org.checkerframework.checker.pico.qual.Mutable;
-import org.checkerframework.checker.pico.qual.Readonly;
-import org.checkerframework.checker.pico.qual.ReceiverDependentMutable;
+import org.checkerframework.checker.mutability.qual.Assignable;
+import org.checkerframework.checker.mutability.qual.Immutable;
+import org.checkerframework.checker.mutability.qual.Mutable;
+import org.checkerframework.checker.mutability.qual.Readonly;
+import org.checkerframework.checker.mutability.qual.ReceiverDependentMutable;
 
 @ReceiverDependentMutable public class ViewpointAdaptationRules {
 
@@ -124,7 +124,7 @@ import org.checkerframework.checker.pico.qual.ReceiverDependentMutable;
             @Readonly Object readonlyObject) {
         this.assignableReadonlyField = mutableObject;
         // :: error: (assignment.type.incompatible) :: error: (illegal.field.write)
-        this.rdmField = mutableObject; // Field is adpated to PICOLost
+        this.rdmField = mutableObject; // Field is adpated to MutabilityLost
         // :: error: (assignment.type.incompatible) :: error: (illegal.field.write)
         this.immutableField = mutableObject;
         this.assingableMuatbleField = mutableObject;

@@ -1,5 +1,5 @@
 // Adapted from https://docs.oracle.com/javase/tutorial/essential/concurrency/imstrat.html
-import org.checkerframework.checker.pico.qual.Readonly;
+import org.checkerframework.checker.mutability.qual.Readonly;
 
 public class ImmutableRgb {
     private int r;

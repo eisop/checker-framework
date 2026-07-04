@@ -1,5 +1,5 @@
-import org.checkerframework.checker.pico.qual.Assignable;
-import org.checkerframework.checker.pico.qual.Immutable;
+import org.checkerframework.checker.mutability.qual.Assignable;
+import org.checkerframework.checker.mutability.qual.Immutable;
 
 import java.util.List;
 

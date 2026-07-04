@@ -1,5 +1,5 @@
-import org.checkerframework.checker.pico.qual.Immutable;
-import org.checkerframework.checker.pico.qual.Readonly;
+import org.checkerframework.checker.mutability.qual.Immutable;
+import org.checkerframework.checker.mutability.qual.Readonly;
 
 @Immutable // inherits from MemoizedRectangle
 public class EvilMemoizedRectangle extends MemoizedRectangle {

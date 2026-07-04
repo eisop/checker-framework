@@ -1,5 +1,5 @@
-import org.checkerframework.checker.pico.qual.Immutable;
-import org.checkerframework.checker.pico.qual.Mutable;
+import org.checkerframework.checker.mutability.qual.Immutable;
+import org.checkerframework.checker.mutability.qual.Mutable;
 
 // Example taken from https://webagam.com/pages/2020/05/27/immutable-objects-with-builder-pattern/
 // TODO this seems to be a good example for fix the behaviour for the interaction between PICO and

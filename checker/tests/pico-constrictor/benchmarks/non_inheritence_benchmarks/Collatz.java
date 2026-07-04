@@ -1,5 +1,5 @@
-import org.checkerframework.checker.pico.qual.Assignable;
-import org.checkerframework.checker.pico.qual.Readonly;
+import org.checkerframework.checker.mutability.qual.Assignable;
+import org.checkerframework.checker.mutability.qual.Readonly;
 
 public class Collatz {
     private @Assignable boolean flag;

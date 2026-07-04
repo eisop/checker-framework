@@ -1,4 +1,4 @@
-import org.checkerframework.checker.pico.qual.Immutable;
+import org.checkerframework.checker.mutability.qual.Immutable;
 
 import java.util.ArrayList;
 

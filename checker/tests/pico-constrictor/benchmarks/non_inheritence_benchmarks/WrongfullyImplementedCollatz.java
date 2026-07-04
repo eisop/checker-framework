@@ -1,4 +1,4 @@
-import org.checkerframework.checker.pico.qual.Readonly;
+import org.checkerframework.checker.mutability.qual.Readonly;
 
 public class WrongfullyImplementedCollatz {
     private boolean flag;

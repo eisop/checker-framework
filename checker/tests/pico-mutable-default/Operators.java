@@ -1,5 +1,5 @@
-import org.checkerframework.checker.pico.qual.Immutable;
-import org.checkerframework.checker.pico.qual.Readonly;
+import org.checkerframework.checker.mutability.qual.Immutable;
+import org.checkerframework.checker.mutability.qual.Readonly;
 
 // I am not sure why this test case exist previous but adding here first.
 @Immutable public class Operators {
