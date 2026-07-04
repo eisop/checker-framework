@@ -2399,6 +2399,26 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     }
 
     /**
+     * Returns the method type parameter bounds adapted to the viewpoint of a method invocation.
+     *
+     * @param tree a method invocation
+     * @param invokedMethod the type of the invoked method
+     * @return the adapted method type parameter bounds
+     */
+    public List<AnnotatedTypeParameterBounds> methodTypeVariablesFromUse(
+            MethodInvocationTree tree, AnnotatedExecutableType invokedMethod) {
+        List<AnnotatedTypeParameterBounds> bounds =
+                CollectionsPlume.mapList(
+                        AnnotatedTypeVariable::getBounds, invokedMethod.getTypeVariables());
+
+        AnnotatedTypeMirror receiverType = getReceiverType(tree);
+        if (viewpointAdapter != null && receiverType != null) {
+            viewpointAdapter.viewpointAdaptTypeParameterBounds(receiverType, bounds);
+        }
+        return bounds;
+    }
+
+    /**
      * Creates and returns an AnnotatedNullType qualified with {@code annotations}.
      *
      * @param annotations the set of AnnotationMirrors to qualify the returned type with

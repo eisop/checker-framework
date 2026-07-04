@@ -2236,8 +2236,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         List<AnnotatedTypeMirror> typeargs = mType.typeArgs;
 
         List<AnnotatedTypeParameterBounds> paramBounds =
-                CollectionsPlume.mapList(
-                        AnnotatedTypeVariable::getBounds, invokedMethod.getTypeVariables());
+                atypeFactory.methodTypeVariablesFromUse(tree, invokedMethod);
 
         ExecutableElement method = invokedMethod.getElement();
         CharSequence methodName = ElementUtils.getSimpleDescription(method);
