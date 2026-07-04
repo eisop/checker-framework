@@ -2399,23 +2399,49 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     }
 
     /**
-     * Returns the method type parameter bounds adapted to the viewpoint of a method invocation.
+     * Returns the method type-variable bounds adapted to the viewpoint of a method invocation.
      *
      * @param tree a method invocation
      * @param invokedMethod the type of the invoked method
      * @return the adapted method type parameter bounds
      */
-    public List<AnnotatedTypeParameterBounds> methodTypeVariablesFromUse(
+    public List<AnnotatedTypeParameterBounds> methodTypeVariableBoundsFromUse(
             MethodInvocationTree tree, AnnotatedExecutableType invokedMethod) {
         List<AnnotatedTypeParameterBounds> bounds =
                 CollectionsPlume.mapList(
                         AnnotatedTypeVariable::getBounds, invokedMethod.getTypeVariables());
 
-        AnnotatedTypeMirror receiverType = getReceiverType(tree);
+        AnnotatedTypeMirror receiverType = getMethodReceiverType(tree);
         if (viewpointAdapter != null && receiverType != null) {
             viewpointAdapter.viewpointAdaptTypeParameterBounds(receiverType, bounds);
         }
         return bounds;
+    }
+
+    /**
+     * Returns the receiver type used to viewpoint-adapt a method invocation.
+     *
+     * @param tree a method invocation tree
+     * @return the receiver type, or null if the invocation has no receiver
+     */
+    private @Nullable AnnotatedTypeMirror getMethodReceiverType(MethodInvocationTree tree) {
+        ExecutableElement methodElt = TreeUtils.elementFromUse(tree);
+        if (ElementUtils.isStatic(methodElt)) {
+            return null;
+        }
+
+        AnnotatedTypeMirror receiverType = getReceiverType(tree);
+        if (receiverType == null
+                && (TreeUtils.isSuperConstructorCall(tree)
+                        || TreeUtils.isThisConstructorCall(tree))) {
+            // super() and this() calls don't have a receiver, but they should be view-point adapted
+            // as if "this" is the receiver.
+            receiverType = getSelfType(tree);
+        }
+        if (receiverType != null && receiverType.getKind() == TypeKind.DECLARED) {
+            receiverType = applyCaptureConversion(receiverType);
+        }
+        return receiverType;
     }
 
     /**
@@ -2753,17 +2779,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     protected ParameterizedExecutableType methodFromUse(
             MethodInvocationTree tree, boolean inferTypeArgs) {
         ExecutableElement methodElt = TreeUtils.elementFromUse(tree);
-        AnnotatedTypeMirror receiverType = getReceiverType(tree);
-        if (receiverType == null
-                && (TreeUtils.isSuperConstructorCall(tree)
-                        || TreeUtils.isThisConstructorCall(tree))) {
-            // super() and this() calls don't have a receiver, but they should be view-point adapted
-            // as if "this" is the receiver.
-            receiverType = getSelfType(tree);
-        }
-        if (receiverType != null && receiverType.getKind() == TypeKind.DECLARED) {
-            receiverType = applyCaptureConversion(receiverType);
-        }
+        AnnotatedTypeMirror receiverType = getMethodReceiverType(tree);
 
         ParameterizedExecutableType result =
                 methodFromUse(tree, methodElt, receiverType, inferTypeArgs);
