@@ -20,34 +20,27 @@ public class ViewpointAdaptationBounds {
     // :: error: (type.argument.type.incompatible)
     void incompatibleBBound(@B Generic<@A Object> a) {}
 
-    // Use @Bottom so the type argument is within the adapted @Lost bound. That isolates the
-    // diagnostic for @Lost in the adapted bound.
-    void topMainBottomArgument(
-            // :: error: (viewpointtest.lost.in.bounds)
-            @Top Generic<@Bottom Object> generic) {
-        // :: error: (viewpointtest.lost.in.bounds)
+    void topMainBottomArgument(@Top Generic<@Bottom Object> generic) {
         @Top Generic<@Bottom Object> local = generic;
     }
 
     void topMainAArgument(
-            // :: error: (type.argument.type.incompatible) :: error: (viewpointtest.lost.in.bounds)
+            // :: error: (type.argument.type.incompatible)
             @Top Generic<@A Object> a) {}
 
     void topMainBArgument(
-            // :: error: (type.argument.type.incompatible) :: error: (viewpointtest.lost.in.bounds)
+            // :: error: (type.argument.type.incompatible)
             @Top Generic<@B Object> b) {}
 
     void topMainReceiverDependentArgument(
-            // :: error: (type.argument.type.incompatible) :: error: (viewpointtest.lost.in.bounds)
+            // :: error: (type.argument.type.incompatible)
             @Top Generic<@ReceiverDependentQual Object> rdq) {}
 
     void topMainTopArgument(
-            // :: error: (type.argument.type.incompatible) :: error: (viewpointtest.lost.in.bounds)
+            // :: error: (type.argument.type.incompatible)
             @Top Generic<@Top Object> top) {}
 
-    void topMainLostArgument(
-            // :: error: (viewpointtest.lost.in.bounds)
-            @Top Generic<@Lost Object> lost) {}
+    void topMainLostArgument(@Top Generic<@Lost Object> lost) {}
 
     static class TopBounded<T extends @Top Object> {}
 
@@ -66,7 +59,7 @@ public class ViewpointAdaptationBounds {
 
     void callMethod(@Top Methods m, @A Object a, @Bottom Object b) {
         // The upper bound of T adapts to @Lost even though no argument compatibility check runs.
-        // :: error: (viewpointtest.lost.in.bounds)
+        // :: error: (type.argument.type.incompatible) :: error: (viewpointtest.lost.in.bounds)
         m.methodWithNoArgs();
 
         // Use an explicit type argument to avoid testing type argument inference here.

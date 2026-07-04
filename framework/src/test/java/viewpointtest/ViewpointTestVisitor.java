@@ -7,7 +7,6 @@ import com.sun.source.tree.Tree;
 
 import org.checkerframework.checker.compilermsgs.qual.CompilerMessageKey;
 import org.checkerframework.common.basetype.BaseTypeChecker;
-import org.checkerframework.common.basetype.BaseTypeValidator;
 import org.checkerframework.common.basetype.BaseTypeVisitor;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.AnnotatedTypeParameterBounds;
@@ -33,11 +32,6 @@ public class ViewpointTestVisitor extends BaseTypeVisitor<ViewpointTestAnnotated
      */
     public ViewpointTestVisitor(BaseTypeChecker checker) {
         super(checker);
-    }
-
-    @Override
-    protected BaseTypeValidator createTypeValidator() {
-        return new ViewpointTestTypeValidator(checker, this, atypeFactory);
     }
 
     @Override
