@@ -11,9 +11,14 @@ import java.util.Objects;
 import java.util.zip.GZIPInputStream;
 
 /**
- * In-memory representation of a binary JDK stub file ({@code annotated-jdk.bin.gz}). The binary
- * format stores annotation information extracted from the annotated JDK source files in a compact,
- * pre-parsed form that is faster to load than the original {@code .java} source stubs.
+ * In-memory representation of a binary stub file: the annotated JDK ({@code annotated-jdk.bin.gz})
+ * or the binary form of a built-in checker stub file ({@code *.astub.bin.gz}). The binary format
+ * stores annotation information extracted from the stub sources in a compact, pre-parsed form that
+ * is faster to load than the original text stubs.
+ *
+ * <p>Instances are immutable after construction and contain no javac objects (only strings and
+ * primitives), so they are cached per JVM and shared across compilations; see {@code
+ * AnnotationFileElementTypes#loadedBinaryStubData}.
  *
  * <p>The binary format consists of a GZIP-compressed stream containing:
  *
@@ -22,7 +27,9 @@ import java.util.zip.GZIPInputStream;
  *   <li>A 2-byte version number.
  *   <li>A constant pool of UTF-8 strings (class names, field names, signatures, string literals).
  *   <li>An annotation pool of structural annotation records.
- *   <li>A sequence of {@link ClassRecord} entries, one per annotated class or interface.
+ *   <li>A sequence of {@link ClassRecord} entries, one per class, interface, enum, or annotation
+ *       type.
+ *   <li>Package and module annotation records.
  * </ol>
  *
  * @see BinaryStubReader
@@ -31,25 +38,34 @@ import java.util.zip.GZIPInputStream;
 public class BinaryStubData {
 
     /**
-     * Magic number identifying the Checker Framework binary stub format. The four bytes are {@code
-     * 0xCF} (non-ASCII marker byte, analogous to Java class file {@code 0xCA}), {@code 'J'} (0x4A),
-     * {@code 'D'} (0x44), {@code 'K'} (0x4B) — i.e., {@code CF} + {@code JDK} for "Checker
-     * Framework JDK stub". Must match {@code
-     * org.checkerframework.framework.stubifier.BinaryStubWriter#MAGIC}.
+     * Magic number identifying the Checker Framework binary stub format. The value is defined once
+     * in {@link org.checkerframework.framework.stubifier.BinaryStubWriter#MAGIC} and referenced
+     * here (the constant is inlined at compile time, so there is no runtime dependency on the
+     * stubifier).
      */
-    public static final int MAGIC = 0xCF4A444B;
+    public static final int MAGIC = org.checkerframework.framework.stubifier.BinaryStubWriter.MAGIC;
 
     /**
-     * Format version of the binary stub file. Must match {@code
+     * Format version of the binary stub file. Defined once in {@link
      * org.checkerframework.framework.stubifier.BinaryStubWriter#VERSION}.
      */
-    public static final short VERSION = 1;
+    public static final short VERSION =
+            org.checkerframework.framework.stubifier.BinaryStubWriter.VERSION;
 
     /**
-     * File name of the binary stub file. Must match {@code
+     * File-name suffix appended to a source stub file's name to name its binary form (e.g. {@code
+     * jdk.astub} → {@code jdk.astub.bin.gz}). Defined once in {@link
+     * org.checkerframework.framework.stubifier.BinaryStubWriter#BIN_SUFFIX}.
+     */
+    public static final String BIN_SUFFIX =
+            org.checkerframework.framework.stubifier.BinaryStubWriter.BIN_SUFFIX;
+
+    /**
+     * File name of the binary stub file. Defined once in {@link
      * org.checkerframework.framework.stubifier.BinaryStubWriter#OUTPUT_FILENAME}.
      */
-    public static final String FILENAME = "annotated-jdk.bin.gz";
+    public static final String FILENAME =
+            org.checkerframework.framework.stubifier.BinaryStubWriter.OUTPUT_FILENAME;
 
     /** Annotation data containing its class name and structural element value pairs. */
     public static class AnnotationRecord {
@@ -63,6 +79,14 @@ public class BinaryStubData {
         public final Map<Integer, Object> elementValues;
 
         /**
+         * True if any element value (recursively) is a {@link NameLiteralValue}. Such a record's
+         * resolution depends on the enclosing class, so it must not be memoised in the
+         * enclosing-class-independent annotation cache; precomputed here so the reader does not
+         * re-scan the values on every application.
+         */
+        public final boolean hasNameLiteral;
+
+        /**
          * Constructs an AnnotationRecord.
          *
          * @param nameIndex index into the string pool of the fully-qualified annotation class name
@@ -72,20 +96,45 @@ public class BinaryStubData {
         public AnnotationRecord(int nameIndex, Map<Integer, Object> elementValues) {
             this.nameIndex = nameIndex;
             this.elementValues = elementValues;
+            boolean found = false;
+            for (Object value : elementValues.values()) {
+                if (containsNameLiteral(value)) {
+                    found = true;
+                    break;
+                }
+            }
+            this.hasNameLiteral = found;
         }
 
-        @Override
-        public boolean equals(Object o) {
-            if (this == o) return true;
-            if (!(o instanceof AnnotationRecord)) return false;
-            AnnotationRecord that = (AnnotationRecord) o;
-            return nameIndex == that.nameIndex && Objects.equals(elementValues, that.elementValues);
+        /**
+         * Returns true if the value (recursively) contains a {@link NameLiteralValue}. Nested
+         * annotation records are read before their enclosing record is constructed, so their
+         * precomputed flag is used rather than recursing into them.
+         *
+         * @param value the element value to inspect
+         * @return true if a name literal is found
+         */
+        private static boolean containsNameLiteral(Object value) {
+            if (value instanceof NameLiteralValue) {
+                return true;
+            }
+            if (value instanceof List) {
+                for (Object item : (List<?>) value) {
+                    if (containsNameLiteral(item)) {
+                        return true;
+                    }
+                }
+                return false;
+            }
+            if (value instanceof AnnotationRecord) {
+                return ((AnnotationRecord) value).hasNameLiteral;
+            }
+            return false;
         }
 
-        @Override
-        public int hashCode() {
-            return Objects.hash(nameIndex, elementValues);
-        }
+        // AnnotationRecords are canonical singletons within their BinaryStubData (the annotation
+        // pool deduplicates), and pool indices are only meaningful within one file, so records
+        // are compared by identity (see BinaryStubDataCache.annoCache); no equals/hashCode.
     }
 
     /** Represents a Class literal value. */
@@ -406,30 +455,15 @@ public class BinaryStubData {
                 ClassRecord cr = new ClassRecord();
                 cr.nameIndex = dataIn.readInt();
                 cr.outerNameIndex = dataIn.readInt();
-
-                int declAnnoCount = dataIn.readShort();
-                cr.declAnnos = new int[declAnnoCount];
-                for (int j = 0; j < declAnnoCount; j++) {
-                    cr.declAnnos[j] = dataIn.readInt();
-                }
+                cr.declAnnos = readAnnoIndices(dataIn);
 
                 int fieldCount = dataIn.readShort();
                 cr.fields = new FieldRecord[fieldCount];
                 for (int j = 0; j < fieldCount; j++) {
                     FieldRecord fr = new FieldRecord();
                     fr.nameIndex = dataIn.readInt();
-
-                    int fdAnnoCount = dataIn.readShort();
-                    fr.declAnnos = new int[fdAnnoCount];
-                    for (int k = 0; k < fdAnnoCount; k++) {
-                        fr.declAnnos[k] = dataIn.readInt();
-                    }
-
-                    int typeAnnoCount = dataIn.readShort();
-                    fr.typeAnnos = new TypeAnno[typeAnnoCount];
-                    for (int k = 0; k < typeAnnoCount; k++) {
-                        fr.typeAnnos[k] = readTypeAnno(dataIn);
-                    }
+                    fr.declAnnos = readAnnoIndices(dataIn);
+                    fr.typeAnnos = readTypeAnnos(dataIn);
                     cr.fields[j] = fr;
                 }
 
@@ -438,39 +472,16 @@ public class BinaryStubData {
                 for (int j = 0; j < methodCount; j++) {
                     MethodRecord mr = new MethodRecord();
                     mr.sigIndex = dataIn.readInt();
-
-                    int mdAnnoCount = dataIn.readShort();
-                    mr.declAnnos = new int[mdAnnoCount];
-                    for (int k = 0; k < mdAnnoCount; k++) {
-                        mr.declAnnos[k] = dataIn.readInt();
-                    }
-
-                    int retAnnoCount = dataIn.readShort();
-                    mr.returnTypeAnnos = new TypeAnno[retAnnoCount];
-                    for (int k = 0; k < retAnnoCount; k++) {
-                        mr.returnTypeAnnos[k] = readTypeAnno(dataIn);
-                    }
-
-                    int recAnnoCount = dataIn.readShort();
-                    mr.receiverAnnos = new TypeAnno[recAnnoCount];
-                    for (int k = 0; k < recAnnoCount; k++) {
-                        mr.receiverAnnos[k] = readTypeAnno(dataIn);
-                    }
+                    mr.declAnnos = readAnnoIndices(dataIn);
+                    mr.returnTypeAnnos = readTypeAnnos(dataIn);
+                    mr.receiverAnnos = readTypeAnnos(dataIn);
 
                     int paramCount = dataIn.readShort();
                     mr.paramAnnos = new TypeAnno[paramCount][];
                     mr.paramDeclAnnos = new int[paramCount][];
                     for (int p = 0; p < paramCount; p++) {
-                        int pTypeAnnoCount = dataIn.readShort();
-                        mr.paramAnnos[p] = new TypeAnno[pTypeAnnoCount];
-                        for (int k = 0; k < pTypeAnnoCount; k++) {
-                            mr.paramAnnos[p][k] = readTypeAnno(dataIn);
-                        }
-                        int pDeclAnnoCount = dataIn.readShort();
-                        mr.paramDeclAnnos[p] = new int[pDeclAnnoCount];
-                        for (int k = 0; k < pDeclAnnoCount; k++) {
-                            mr.paramDeclAnnos[p][k] = dataIn.readInt();
-                        }
+                        mr.paramAnnos[p] = readTypeAnnos(dataIn);
+                        mr.paramDeclAnnos[p] = readAnnoIndices(dataIn);
                     }
                     mr.typeParams = readTypeParams(dataIn);
                     cr.methods[j] = mr;
@@ -479,27 +490,8 @@ public class BinaryStubData {
                 classes.put(stringPool[cr.nameIndex], cr);
             }
 
-            int packageCount = dataIn.readInt();
-            for (int i = 0; i < packageCount; i++) {
-                String pkgName = stringPool[dataIn.readInt()];
-                int declAnnoCount = dataIn.readShort();
-                int[] annos = new int[declAnnoCount];
-                for (int j = 0; j < declAnnoCount; j++) {
-                    annos[j] = dataIn.readInt();
-                }
-                packages.put(pkgName, annos);
-            }
-
-            int moduleCount = dataIn.readInt();
-            for (int i = 0; i < moduleCount; i++) {
-                String modName = stringPool[dataIn.readInt()];
-                int declAnnoCount = dataIn.readShort();
-                int[] annos = new int[declAnnoCount];
-                for (int j = 0; j < declAnnoCount; j++) {
-                    annos[j] = dataIn.readInt();
-                }
-                modules.put(modName, annos);
-            }
+            readAnnotatedNames(dataIn, packages);
+            readAnnotatedNames(dataIn, modules);
         }
     }
 
@@ -556,6 +548,57 @@ public class BinaryStubData {
     }
 
     /**
+     * Reads a length-prefixed array of annotation-pool indices from the stream (the counterpart of
+     * {@code BinaryStubWriter#writeAnnoIndices}).
+     *
+     * @param dataIn the stream to read from
+     * @return the annotation-pool indices
+     * @throws IOException if the stream cannot be read
+     */
+    private static int[] readAnnoIndices(DataInputStream dataIn) throws IOException {
+        int count = dataIn.readShort();
+        int[] result = new int[count];
+        for (int i = 0; i < count; i++) {
+            result[i] = dataIn.readInt();
+        }
+        return result;
+    }
+
+    /**
+     * Reads a length-prefixed array of type annotations from the stream (the counterpart of {@code
+     * BinaryStubWriter#writeTypeAnnos}).
+     *
+     * @param dataIn the stream to read from
+     * @return the type annotations
+     * @throws IOException if the stream cannot be read
+     */
+    private TypeAnno[] readTypeAnnos(DataInputStream dataIn) throws IOException {
+        int count = dataIn.readShort();
+        TypeAnno[] result = new TypeAnno[count];
+        for (int i = 0; i < count; i++) {
+            result[i] = readTypeAnno(dataIn);
+        }
+        return result;
+    }
+
+    /**
+     * Reads a map from name (package or module) to annotation-pool indices from the stream (the
+     * counterpart of {@code BinaryStubWriter#writeAnnotatedNames}).
+     *
+     * @param dataIn the stream to read from
+     * @param target the map to read into
+     * @throws IOException if the stream cannot be read
+     */
+    private void readAnnotatedNames(DataInputStream dataIn, Map<String, int[]> target)
+            throws IOException {
+        int count = dataIn.readInt();
+        for (int i = 0; i < count; i++) {
+            String name = stringPool[dataIn.readInt()];
+            target.put(name, readAnnoIndices(dataIn));
+        }
+    }
+
+    /**
      * Reads a single {@link TypeAnno} from the stream.
      *
      * @param dataIn the stream to read from
@@ -589,19 +632,11 @@ public class BinaryStubData {
         TypeParamRecord[] result = new TypeParamRecord[count];
         for (int i = 0; i < count; i++) {
             TypeParamRecord tp = new TypeParamRecord();
-            int varAnnoCount = dataIn.readShort();
-            tp.typeVarAnnos = new int[varAnnoCount];
-            for (int k = 0; k < varAnnoCount; k++) {
-                tp.typeVarAnnos[k] = dataIn.readInt();
-            }
+            tp.typeVarAnnos = readAnnoIndices(dataIn);
             int boundCount = dataIn.readShort();
             tp.boundAnnos = new TypeAnno[boundCount][];
             for (int b = 0; b < boundCount; b++) {
-                int bAnnoCount = dataIn.readShort();
-                tp.boundAnnos[b] = new TypeAnno[bAnnoCount];
-                for (int k = 0; k < bAnnoCount; k++) {
-                    tp.boundAnnos[b][k] = readTypeAnno(dataIn);
-                }
+                tp.boundAnnos[b] = readTypeAnnos(dataIn);
             }
             result[i] = tp;
         }

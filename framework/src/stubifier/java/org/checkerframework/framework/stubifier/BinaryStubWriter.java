@@ -3,9 +3,14 @@ package org.checkerframework.framework.stubifier;
 import com.github.javaparser.StaticJavaParser;
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.ImportDeclaration;
+import com.github.javaparser.ast.body.AnnotationDeclaration;
+import com.github.javaparser.ast.body.AnnotationMemberDeclaration;
 import com.github.javaparser.ast.body.BodyDeclaration;
+import com.github.javaparser.ast.body.CallableDeclaration;
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import com.github.javaparser.ast.body.ConstructorDeclaration;
+import com.github.javaparser.ast.body.EnumConstantDeclaration;
+import com.github.javaparser.ast.body.EnumDeclaration;
 import com.github.javaparser.ast.body.FieldDeclaration;
 import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.body.Parameter;
@@ -40,6 +45,8 @@ import com.github.javaparser.ast.visitor.ModifierVisitor;
 import com.github.javaparser.ast.visitor.SimpleVoidVisitor;
 import com.github.javaparser.ast.visitor.Visitable;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
+
 import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
 import java.io.File;
@@ -57,29 +64,63 @@ import java.util.Map;
 import java.util.zip.GZIPOutputStream;
 
 /**
- * Utility to write parsed Java compilation units into a compressed binary stub format.
+ * Writes parsed stub compilation units into the compressed binary stub format read by {@code
+ * org.checkerframework.framework.stub.BinaryStubReader}. Used at build time for the annotated JDK
+ * (via {@link JavaStubifier}) and for the built-in checker stub files (via {@link
+ * BinaryStubFileGenerator}).
  *
- * <p>This extracts relevant annotations structurally from declarations, fields, and methods,
- * including type-parameter bound annotations (stored as {@code TypeParamRecord} arrays), and writes
- * them into a dense binary format optimized for rapid loading without parsing overhead at compile
- * time.
+ * <p>This extracts annotations structurally from class, interface, enum, and annotation-type
+ * declarations and their members — including type-parameter bound annotations, enum constants, and
+ * annotation-type members — and writes them into a dense binary format optimized for rapid loading
+ * without parsing overhead at checker startup. Record declarations are not supported; files
+ * containing them keep text parsing (see {@link BinaryStubFileGenerator}).
+ *
+ * <p>Name resolution and member filtering deliberately mirror the text parser ({@code
+ * AnnotationFileParser}): private declarations are skipped, annotation names resolve through
+ * explicit imports, {@code java.lang}, and asterisk imports, and {@code @CFComment} is dropped.
+ * Equivalence is enforced by {@code BinaryStubDiffChecker}; run {@code NullnessBinaryStubDiffTest}
+ * after changing this class.
  */
 public class BinaryStubWriter {
     /**
      * Magic number identifying the Checker Framework binary stub format ({@code CF} + {@code JDK}:
-     * 0xCF non-ASCII marker byte, {@code 'J'} 0x4A, {@code 'D'} 0x44, {@code 'K'} 0x4B). Must match
-     * {@code org.checkerframework.framework.stub.BinaryStubData#MAGIC}.
+     * 0xCF non-ASCII marker byte, {@code 'J'} 0x4A, {@code 'D'} 0x44, {@code 'K'} 0x4B). This is
+     * the canonical definition; {@code org.checkerframework.framework.stub.BinaryStubData#MAGIC}
+     * references it.
      */
     public static final int MAGIC = 0xCF4A444B;
 
     /**
-     * Format version of the binary stub file. Must match {@code
-     * org.checkerframework.framework.stub.BinaryStubData#VERSION}.
+     * Format version of the binary stub file. This is the canonical definition; {@code
+     * org.checkerframework.framework.stub.BinaryStubData#VERSION} references it. Increment whenever
+     * the binary format changes.
      */
     public static final short VERSION = 1;
 
-    /** File name of the binary stub output file. */
+    /**
+     * File name of the binary stub output file. This is the canonical definition; {@code
+     * org.checkerframework.framework.stub.BinaryStubData#FILENAME} references it.
+     */
     public static final String OUTPUT_FILENAME = "annotated-jdk.bin.gz";
+
+    /**
+     * File-name suffix appended to a source stub file's name to name its binary form (e.g. {@code
+     * jdk.astub} → {@code jdk.astub.bin.gz}). This is the canonical definition; {@code
+     * org.checkerframework.framework.stub.BinaryStubData#BIN_SUFFIX} references it.
+     */
+    public static final String BIN_SUFFIX = ".bin.gz";
+
+    /**
+     * Fully-qualified name of {@code CFComment}, which is never written to the binary format; see
+     * {@link AnnotationPool#addAnnotation}.
+     */
+    private static final String CF_COMMENT = "org.checkerframework.framework.qual.CFComment";
+
+    /**
+     * Sentinel returned by {@link AnnotationPool#addAnnotation} for annotations that are not
+     * written to the binary format ({@code @CFComment}). Callers must skip it.
+     */
+    private static final int IGNORED = -1;
 
     /** Constant pool for strings to minimize binary size. */
     private static class ConstantPool {
@@ -127,7 +168,14 @@ public class BinaryStubWriter {
          */
         public int addAnnotation(AnnotationExpr anno, CompilationUnit cu, BinaryStubWriter writer)
                 throws IOException {
+            // qualifyAnnotation deep-clones and qualifies all nested nodes, so neither
+            // writeAnnotationInline nor writeValue needs to qualify again.
             AnnotationExpr qualified = writer.qualifyAnnotation(anno, cu);
+            if (qualified.getNameAsString().equals(CF_COMMENT)) {
+                // @CFComment is documentation for humans with no effect on checking; do not
+                // waste binary-format space on it. Callers skip the IGNORED sentinel.
+                return IGNORED;
+            }
             String key = qualified.toString();
             Integer idx = annoToIdx.get(key);
             if (idx != null) {
@@ -327,27 +375,160 @@ public class BinaryStubWriter {
     private final Map<String, String> simpleToFqn = new HashMap<>();
 
     /**
+     * Package names imported via asterisk imports ({@code import java.beans.*;}) in the compilation
+     * unit currently being processed.
+     */
+    private final List<String> asteriskImportPackages = new ArrayList<>();
+
+    /**
+     * Fully qualifies an annotation name, mirroring how the text parser resolves annotation names
+     * at read time ({@code AnnotationFileParser.getImportedAnnotations} and {@code getAnnotation}):
+     * a dotted name is used as written; a simple name is resolved against the {@code java.lang}
+     * package (the text parser unconditionally adds all {@code java.lang} annotations, so e.g. an
+     * unimported {@code @Override} resolves — and {@code java.lang} wins name conflicts because it
+     * is added last there), then against the file's explicit imports, then against its asterisk
+     * imports. A name that resolves through none of these is returned unchanged; the reader will
+     * then fail to resolve it and drop the annotation — exactly as the text parser drops
+     * annotations it cannot resolve.
+     *
+     * @param name the annotation name as written in the source
+     * @return the fully-qualified annotation name, or {@code name} if it cannot be resolved
+     */
+    private String fullyQualifyAnnotationName(String name) {
+        if (name.contains(".")) {
+            return name;
+        }
+        String javaLang = annotationInPackage("java.lang", name);
+        if (javaLang != null) {
+            return javaLang;
+        }
+        String known = simpleToFqn.get(name);
+        if (known != null) {
+            return known;
+        }
+        for (String pkg : asteriskImportPackages) {
+            String candidate = annotationInPackage(pkg, name);
+            if (candidate != null) {
+                return candidate;
+            }
+        }
+        return name;
+    }
+
+    /**
+     * Returns the fully-qualified name of the annotation type with the given simple name in the
+     * given package, or {@code null} if the package contains no annotation type of that name (on
+     * the stubifier classpath).
+     *
+     * @param pkg the package name
+     * @param name the simple name
+     * @return the fully-qualified name, or {@code null}
+     */
+    private static String annotationInPackage(String pkg, String name) {
+        String candidate = pkg + "." + name;
+        try {
+            Class<?> cls = Class.forName(candidate);
+            return cls.isAnnotation() ? candidate : null;
+        } catch (ClassNotFoundException e) {
+            return null;
+        }
+    }
+
+    /**
+     * Sentinel for {@link #annotationTargetsCache}: the annotation class could not be loaded or has
+     * no {@code @Target} meta-annotation.
+     */
+    private static final ElementType[] UNKNOWN_TARGETS = new ElementType[0];
+
+    /**
+     * Cache from fully-qualified annotation class name to the element types in its {@code @Target}
+     * meta-annotation, or {@link #UNKNOWN_TARGETS} if the class cannot be loaded or has no
+     * {@code @Target}. Avoids a reflective {@code Class.forName} lookup per annotation occurrence
+     * (the same few annotation classes occur tens of thousands of times across the JDK stubs).
+     */
+    private final Map<String, ElementType[]> annotationTargetsCache = new HashMap<>();
+
+    /**
+     * Returns the element types in the {@code @Target} meta-annotation of the given annotation
+     * class, or {@link #UNKNOWN_TARGETS} if the class cannot be loaded (e.g. a JDK-internal
+     * annotation not on the stubifier classpath) or has no {@code @Target}.
+     *
+     * @param fqn the fully-qualified name of the annotation class
+     * @return the {@code @Target} element types, or {@link #UNKNOWN_TARGETS}
+     */
+    private ElementType[] annotationTargets(String fqn) {
+        return annotationTargetsCache.computeIfAbsent(
+                fqn,
+                name -> {
+                    try {
+                        Target target = Class.forName(name).getAnnotation(Target.class);
+                        return target == null ? UNKNOWN_TARGETS : target.value();
+                    } catch (ClassNotFoundException e) {
+                        return UNKNOWN_TARGETS;
+                    }
+                });
+    }
+
+    /**
      * Processes a single compilation unit, extracting annotations for its classes, methods, and
      * fields.
      *
      * @param cu the compilation unit to process
      */
     public void process(CompilationUnit cu) {
+        initImportTables(cu);
+        processTypes(cu);
+    }
+
+    /**
+     * Processes the compilation units of one stub file. A stub file may contain multiple {@code
+     * package} sections, which the stub parser represents as multiple compilation units; the text
+     * parser resolves names against the imports of the <em>first</em> unit only (see {@code
+     * AnnotationFileParser.getImportedAnnotations}), and this method does the same.
+     *
+     * @param cus the compilation units of the stub file, in order
+     */
+    public void processStubUnit(List<CompilationUnit> cus) {
+        if (cus.isEmpty()) {
+            return;
+        }
+        initImportTables(cus.get(0));
+        for (CompilationUnit cu : cus) {
+            processTypes(cu);
+        }
+    }
+
+    /**
+     * Initializes the per-file name-resolution tables ({@link #simpleToFqn}, {@link
+     * #asteriskImportPackages}) from the imports of the given compilation unit.
+     *
+     * @param cu the compilation unit whose imports to use
+     */
+    private void initImportTables(CompilationUnit cu) {
         simpleToFqn.clear();
-        simpleToFqn.put("SuppressWarnings", "java.lang.SuppressWarnings");
-        simpleToFqn.put("Deprecated", "java.lang.Deprecated");
-        simpleToFqn.put("Override", "java.lang.Override");
-        simpleToFqn.put("Documented", "java.lang.annotation.Documented");
-        simpleToFqn.put("Retention", "java.lang.annotation.Retention");
-        simpleToFqn.put("Target", "java.lang.annotation.Target");
+        asteriskImportPackages.clear();
 
         for (ImportDeclaration imp : cu.getImports()) {
-            if (!imp.isAsterisk() && !imp.isStatic()) {
+            if (imp.isStatic()) {
+                continue;
+            }
+            if (imp.isAsterisk()) {
+                asteriskImportPackages.add(imp.getNameAsString());
+            } else {
                 String fqn = imp.getNameAsString();
                 String simple = fqn.substring(fqn.lastIndexOf('.') + 1);
                 simpleToFqn.put(simple, fqn);
             }
         }
+    }
+
+    /**
+     * Processes the package, module, and type declarations of one compilation unit, using the
+     * name-resolution tables established by {@link #initImportTables}.
+     *
+     * @param cu the compilation unit to process
+     */
+    private void processTypes(CompilationUnit cu) {
 
         cu.getPackageDeclaration()
                 .ifPresent(
@@ -357,7 +538,10 @@ public class BinaryStubWriter {
                                 pool.addString(pkgName);
                                 List<Integer> annos = new ArrayList<>();
                                 for (AnnotationExpr anno : pkg.getAnnotations()) {
-                                    annos.add(annosPool.addAnnotation(anno, cu, this));
+                                    int idx = annosPool.addAnnotation(anno, cu, this);
+                                    if (idx != IGNORED) {
+                                        annos.add(idx);
+                                    }
                                 }
                                 if (!annos.isEmpty()) {
                                     packages.put(pkgName, annos);
@@ -376,7 +560,10 @@ public class BinaryStubWriter {
                                 pool.addString(modName);
                                 List<Integer> annos = new ArrayList<>();
                                 for (AnnotationExpr anno : mod.getAnnotations()) {
-                                    annos.add(annosPool.addAnnotation(anno, cu, this));
+                                    int idx = annosPool.addAnnotation(anno, cu, this);
+                                    if (idx != IGNORED) {
+                                        annos.add(idx);
+                                    }
                                 }
                                 if (!annos.isEmpty()) {
                                     modules.put(modName, annos);
@@ -392,9 +579,33 @@ public class BinaryStubWriter {
                         ? cu.getPackageDeclaration().get().getNameAsString()
                         : "";
         for (TypeDeclaration<?> typeDecl : cu.getTypes()) {
-            if (typeDecl instanceof ClassOrInterfaceDeclaration) {
-                processClass((ClassOrInterfaceDeclaration) typeDecl, pkg, cu);
-            }
+            processTypeDeclaration(typeDecl, pkg, "", cu);
+        }
+    }
+
+    /**
+     * Dispatches a type declaration to {@link #processClass}, {@link #processEnum}, or {@link
+     * #processAnnotationType}. Other kinds of type declarations (records) are not written to the
+     * binary format; their stub files keep text parsing (see {@link BinaryStubFileGenerator}).
+     *
+     * @param typeDecl the type declaration to process
+     * @param enclosingFqn the fully-qualified name of the enclosing class, or the package name for
+     *     top-level declarations
+     * @param outermostFqn the fully-qualified name of the outermost enclosing class, or empty for
+     *     top-level declarations
+     * @param cu the compilation unit
+     */
+    private void processTypeDeclaration(
+            BodyDeclaration<?> typeDecl,
+            String enclosingFqn,
+            String outermostFqn,
+            CompilationUnit cu) {
+        if (typeDecl instanceof ClassOrInterfaceDeclaration) {
+            processClass((ClassOrInterfaceDeclaration) typeDecl, enclosingFqn, outermostFqn, cu);
+        } else if (typeDecl instanceof EnumDeclaration) {
+            processEnum((EnumDeclaration) typeDecl, enclosingFqn, outermostFqn, cu);
+        } else if (typeDecl instanceof AnnotationDeclaration) {
+            processAnnotationType((AnnotationDeclaration) typeDecl, enclosingFqn, outermostFqn, cu);
         }
     }
 
@@ -411,19 +622,19 @@ public class BinaryStubWriter {
 
                     @Override
                     public Visitable visit(MarkerAnnotationExpr n, Void arg) {
-                        n.setName(fullyQualify(n.getNameAsString(), cu));
+                        n.setName(fullyQualifyAnnotationName(n.getNameAsString()));
                         return super.visit(n, arg);
                     }
 
                     @Override
                     public Visitable visit(NormalAnnotationExpr n, Void arg) {
-                        n.setName(fullyQualify(n.getNameAsString(), cu));
+                        n.setName(fullyQualifyAnnotationName(n.getNameAsString()));
                         return super.visit(n, arg);
                     }
 
                     @Override
                     public Visitable visit(SingleMemberAnnotationExpr n, Void arg) {
-                        n.setName(fullyQualify(n.getNameAsString(), cu));
+                        n.setName(fullyQualifyAnnotationName(n.getNameAsString()));
                         return super.visit(n, arg);
                     }
 
@@ -536,19 +747,26 @@ public class BinaryStubWriter {
         throw new IOException("Cannot evaluate string concatenation for expression: " + expr);
     }
 
-    /** Writes an AnnotationExpr inline (for nested annotations). */
+    /**
+     * Writes an AnnotationExpr inline (also used for nested annotation values).
+     *
+     * @param out the data output stream to write to
+     * @param anno the annotation to write; must already be fully qualified (see {@link
+     *     #qualifyAnnotation}, which qualifies nested annotation values as well)
+     * @param cu the compilation unit, used to resolve names in annotation values
+     * @throws IOException if writing fails
+     */
     private void writeAnnotationInline(
             DataOutputStream out, AnnotationExpr anno, CompilationUnit cu) throws IOException {
-        AnnotationExpr qualified = qualifyAnnotation(anno, cu);
-        out.writeInt(pool.addString(qualified.getNameAsString()));
-        if (qualified instanceof MarkerAnnotationExpr) {
+        out.writeInt(pool.addString(anno.getNameAsString()));
+        if (anno instanceof MarkerAnnotationExpr) {
             out.writeShort(0);
-        } else if (qualified instanceof SingleMemberAnnotationExpr) {
+        } else if (anno instanceof SingleMemberAnnotationExpr) {
             out.writeShort(1);
             out.writeInt(pool.addString("value"));
-            writeValue(out, ((SingleMemberAnnotationExpr) qualified).getMemberValue(), cu);
-        } else if (qualified instanceof NormalAnnotationExpr) {
-            List<MemberValuePair> pairs = ((NormalAnnotationExpr) qualified).getPairs();
+            writeValue(out, ((SingleMemberAnnotationExpr) anno).getMemberValue(), cu);
+        } else if (anno instanceof NormalAnnotationExpr) {
+            List<MemberValuePair> pairs = ((NormalAnnotationExpr) anno).getPairs();
             out.writeShort(pairs.size());
             for (MemberValuePair pair : pairs) {
                 out.writeInt(pool.addString(pair.getNameAsString()));
@@ -593,8 +811,9 @@ public class BinaryStubWriter {
         if (name.contains(".")) {
             return name;
         }
-        if (simpleToFqn.containsKey(name)) {
-            return simpleToFqn.get(name);
+        String known = simpleToFqn.get(name);
+        if (known != null) {
+            return known;
         }
         for (ImportDeclaration imp : cu.getImports()) {
             if (!imp.isAsterisk()) {
@@ -623,20 +842,60 @@ public class BinaryStubWriter {
         } catch (ClassNotFoundException e) {
             // ignore
         }
+        for (String pkg : asteriskImportPackages) {
+            String candidate = pkg + "." + name;
+            try {
+                Class.forName(candidate);
+                return candidate;
+            } catch (ClassNotFoundException e) {
+                // Try the next asterisk import.
+            }
+        }
         return name;
     }
 
     /**
-     * Processes a class or interface declaration, extracting its annotations and members.
+     * Shared prologue of {@link #processClass}, {@link #processEnum}, and {@link
+     * #processAnnotationType}: computes the fully-qualified name, creates the {@link ClassRecord}
+     * with the declaration's annotations, and registers it — or returns {@code null} for a private
+     * declaration, which the text parser skips (see {@code AnnotationFileParser.skipNode}).
      *
-     * @param typeDecl the class or interface declaration to process
+     * @param simpleName the declaration's simple name
+     * @param isPrivate whether the declaration is private
+     * @param annotations the annotations on the declaration
      * @param enclosingFqn the fully-qualified name of the enclosing class, or the package name for
-     *     top-level classes
+     *     top-level declarations
+     * @param outermostFqn the fully-qualified name of the outermost enclosing class, or empty for
+     *     top-level declarations
      * @param cu the compilation unit
+     * @return the registered class record, or {@code null} if the declaration is skipped
      */
-    private void processClass(
-            ClassOrInterfaceDeclaration typeDecl, String enclosingFqn, CompilationUnit cu) {
-        processClass(typeDecl, enclosingFqn, "", cu);
+    private @Nullable ClassRecord startClassRecord(
+            String simpleName,
+            boolean isPrivate,
+            List<AnnotationExpr> annotations,
+            String enclosingFqn,
+            String outermostFqn,
+            CompilationUnit cu) {
+        if (isPrivate) {
+            return null;
+        }
+        String fqn = enclosingFqn.isEmpty() ? simpleName : enclosingFqn + "." + simpleName;
+        int outerNameIndex = outermostFqn.isEmpty() ? 0 : pool.addString(outermostFqn);
+        ClassRecord cr = new ClassRecord(pool.addString(fqn), outerNameIndex);
+        classes.add(cr);
+        try {
+            for (AnnotationExpr anno : annotations) {
+                int idx = annosPool.addAnnotation(anno, cu, this);
+                if (idx != IGNORED) {
+                    cr.declAnnos.add(idx);
+                }
+            }
+        } catch (IOException e) {
+            throw new RuntimeException(
+                    "Serialization failure in annotations of " + fqn + ": " + e.getMessage(), e);
+        }
+        return cr;
     }
 
     /**
@@ -654,36 +913,194 @@ public class BinaryStubWriter {
             String enclosingFqn,
             String outermostFqn,
             CompilationUnit cu) {
+        ClassRecord cr =
+                startClassRecord(
+                        typeDecl.getNameAsString(),
+                        typeDecl.isPrivate(),
+                        typeDecl.getAnnotations(),
+                        enclosingFqn,
+                        outermostFqn,
+                        cu);
+        if (cr == null) {
+            return;
+        }
+        try {
+            cr.typeParams.addAll(extractTypeParams(typeDecl.getTypeParameters(), cu));
+        } catch (IOException e) {
+            throw new RuntimeException(
+                    "Serialization failure in class type parameters: " + e.getMessage(), e);
+        }
+
         String fqn =
                 enclosingFqn.isEmpty()
                         ? typeDecl.getNameAsString()
                         : enclosingFqn + "." + typeDecl.getNameAsString();
-        // For inner classes, outermost is the top-level class; for top-level classes it's empty.
         String myOutermost = outermostFqn.isEmpty() ? fqn : outermostFqn;
-        int outerNameIndex = outermostFqn.isEmpty() ? 0 : pool.addString(outermostFqn);
-        ClassRecord cr = new ClassRecord(pool.addString(fqn), outerNameIndex);
-        classes.add(cr);
+        processMembers(typeDecl.getMembers(), cr, fqn, myOutermost, cu);
+    }
 
+    /**
+     * Processes an enum declaration, extracting its annotations, enum constants, and members. The
+     * resulting {@link ClassRecord} is indistinguishable from a class record; the reader resolves
+     * enum constants through the same field lookup as ordinary fields.
+     *
+     * @param enumDecl the enum declaration to process
+     * @param enclosingFqn the fully-qualified name of the enclosing class, or the package name for
+     *     top-level enums
+     * @param outermostFqn the fully-qualified name of the outermost enclosing class, or empty for
+     *     top-level enums
+     * @param cu the compilation unit
+     */
+    private void processEnum(
+            EnumDeclaration enumDecl,
+            String enclosingFqn,
+            String outermostFqn,
+            CompilationUnit cu) {
+        ClassRecord cr =
+                startClassRecord(
+                        enumDecl.getNameAsString(),
+                        enumDecl.isPrivate(),
+                        enumDecl.getAnnotations(),
+                        enclosingFqn,
+                        outermostFqn,
+                        cu);
+        if (cr == null) {
+            return;
+        }
         try {
-            for (AnnotationExpr anno : typeDecl.getAnnotations()) {
-                cr.declAnnos.add(annosPool.addAnnotation(anno, cu, this));
+            // Enum constants are modeled as field records; the reader's field lookup
+            // (ElementFilter.fieldsIn) includes enum constants. A record is emitted even for
+            // unannotated constants: for built-in stub files, the reader marks every matched
+            // member with @FromStubFile, exactly as the text parser marks every enum constant it
+            // processes.
+            for (EnumConstantDeclaration constant : enumDecl.getEntries()) {
+                FieldRecord fr = new FieldRecord();
+                fr.nameIndex = pool.addString(constant.getNameAsString());
+                for (AnnotationExpr anno : constant.getAnnotations()) {
+                    int idx = annosPool.addAnnotation(anno, cu, this);
+                    if (idx == IGNORED) {
+                        continue;
+                    }
+                    if (hasTypeUse(anno, cu)) {
+                        fr.typeAnnos.add(new TypeAnno(idx));
+                    }
+                    if (!isTypeUseOnly(anno, cu)) {
+                        fr.declAnnos.add(idx);
+                    }
+                }
+                cr.fields.add(fr);
             }
-            cr.typeParams.addAll(extractTypeParams(typeDecl.getTypeParameters(), cu));
         } catch (IOException e) {
             throw new RuntimeException(
-                    "Serialization failure in class annotations: " + e.getMessage(), e);
+                    "Serialization failure in enum constants: " + e.getMessage(), e);
         }
 
-        for (BodyDeclaration<?> m : typeDecl.getMembers()) {
+        String fqn =
+                enclosingFqn.isEmpty()
+                        ? enumDecl.getNameAsString()
+                        : enclosingFqn + "." + enumDecl.getNameAsString();
+        String myOutermost = outermostFqn.isEmpty() ? fqn : outermostFqn;
+        processMembers(enumDecl.getMembers(), cr, fqn, myOutermost, cu);
+    }
+
+    /**
+     * Processes an annotation type declaration ({@code @interface}), extracting its annotations and
+     * members. The resulting {@link ClassRecord} is indistinguishable from a class record;
+     * annotation members are modeled as zero-parameter method records.
+     *
+     * @param annoDecl the annotation type declaration to process
+     * @param enclosingFqn the fully-qualified name of the enclosing class, or the package name for
+     *     top-level declarations
+     * @param outermostFqn the fully-qualified name of the outermost enclosing class, or empty for
+     *     top-level declarations
+     * @param cu the compilation unit
+     */
+    private void processAnnotationType(
+            AnnotationDeclaration annoDecl,
+            String enclosingFqn,
+            String outermostFqn,
+            CompilationUnit cu) {
+        ClassRecord cr =
+                startClassRecord(
+                        annoDecl.getNameAsString(),
+                        annoDecl.isPrivate(),
+                        annoDecl.getAnnotations(),
+                        enclosingFqn,
+                        outermostFqn,
+                        cu);
+        if (cr == null) {
+            return;
+        }
+        String fqn =
+                enclosingFqn.isEmpty()
+                        ? annoDecl.getNameAsString()
+                        : enclosingFqn + "." + annoDecl.getNameAsString();
+        String myOutermost = outermostFqn.isEmpty() ? fqn : outermostFqn;
+        processMembers(annoDecl.getMembers(), cr, fqn, myOutermost, cu);
+    }
+
+    /**
+     * Processes the member declarations of a class, interface, or enum: methods, constructors,
+     * fields, and nested class/interface/enum declarations.
+     *
+     * @param members the member declarations
+     * @param cr the record of the enclosing class to add member records to
+     * @param fqn the fully-qualified name of the enclosing class
+     * @param outermostFqn the fully-qualified name of the outermost enclosing class
+     * @param cu the compilation unit
+     */
+    private void processMembers(
+            List<BodyDeclaration<?>> members,
+            ClassRecord cr,
+            String fqn,
+            String outermostFqn,
+            CompilationUnit cu) {
+        for (BodyDeclaration<?> m : members) {
             if (m instanceof MethodDeclaration) {
                 processMethod((MethodDeclaration) m, cr, cu);
             } else if (m instanceof ConstructorDeclaration) {
                 processConstructor((ConstructorDeclaration) m, cr, cu);
             } else if (m instanceof FieldDeclaration) {
                 processField((FieldDeclaration) m, cr, cu);
-            } else if (m instanceof ClassOrInterfaceDeclaration) {
-                processClass((ClassOrInterfaceDeclaration) m, fqn, myOutermost, cu);
+            } else if (m instanceof AnnotationMemberDeclaration) {
+                processAnnotationMember((AnnotationMemberDeclaration) m, cr, cu);
+            } else {
+                processTypeDeclaration(m, fqn, outermostFqn, cu);
             }
+        }
+    }
+
+    /**
+     * Processes an annotation type member ({@code String value() default "";}), modeling it as a
+     * zero-parameter method record. Annotations are routed like method annotations: {@code
+     * TYPE_USE} annotations to the member's (return) type, others to the declaration annotations.
+     *
+     * @param member the annotation member declaration to process
+     * @param cr the record of the enclosing annotation type
+     * @param cu the compilation unit
+     */
+    private void processAnnotationMember(
+            AnnotationMemberDeclaration member, ClassRecord cr, CompilationUnit cu) {
+        try {
+            MethodRecord mr = new MethodRecord();
+            mr.sigIndex = pool.addString(member.getNameAsString() + "()");
+            for (AnnotationExpr anno : member.getAnnotations()) {
+                int idx = annosPool.addAnnotation(anno, cu, this);
+                if (idx == IGNORED) {
+                    continue;
+                }
+                if (hasTypeUse(anno, cu)) {
+                    mr.returnTypeAnnos.add(new TypeAnno(idx, arrayElementPath(member.getType())));
+                }
+                if (!isTypeUseOnly(anno, cu)) {
+                    mr.declAnnos.add(idx);
+                }
+            }
+            extractTypeAnnotations(member.getType(), new ArrayList<>(), mr.returnTypeAnnos, cu);
+            cr.methods.add(mr);
+        } catch (IOException e) {
+            throw new RuntimeException(
+                    "Serialization failure in annotation member: " + e.getMessage(), e);
         }
     }
 
@@ -696,38 +1113,91 @@ public class BinaryStubWriter {
      * @param cu the compilation unit
      */
     private void processMethod(MethodDeclaration md, ClassRecord cr, CompilationUnit cu) {
+        // A declaration-position TYPE_USE annotation on a method annotates the element type of an
+        // array return (if any), not the array reference; build the matching type path.
+        processCallable(md, md.getType(), arrayElementPath(md.getType()), cr, cu);
+    }
+
+    /**
+     * Processes a constructor declaration, extracting its annotations, receiver annotations, and
+     * parameter annotations.
+     *
+     * @param cd the constructor declaration to process
+     * @param cr the class record to add the constructor to
+     * @param cu the compilation unit
+     */
+    private void processConstructor(ConstructorDeclaration cd, ClassRecord cr, CompilationUnit cu) {
+        // A declaration-position TYPE_USE annotation on a constructor describes the constructed
+        // object; an empty type path targets the (return) type directly.
+        processCallable(cd, null, new ArrayList<>(), cr, cu);
+    }
+
+    /**
+     * Processes a method or constructor declaration: the signature, the annotations in declaration
+     * position (routed to the return type, the declaration annotations, or both, according to their
+     * {@code @Target}), the return type's type annotations, the receiver, the parameters, and the
+     * type parameters.
+     *
+     * @param decl the method or constructor declaration to process
+     * @param returnType the declared return type whose type annotations to extract, or {@code null}
+     *     for a constructor (which has none)
+     * @param declPositionPath the type path a declaration-position {@code TYPE_USE} annotation
+     *     applies to: the innermost array component of the return type for a method, the empty path
+     *     for a constructor
+     * @param cr the class record to add the method record to
+     * @param cu the compilation unit
+     */
+    private void processCallable(
+            CallableDeclaration<?> decl,
+            @Nullable Type returnType,
+            List<TypePathStep> declPositionPath,
+            ClassRecord cr,
+            CompilationUnit cu) {
+        if (decl.isPrivate()) {
+            // Mirror AnnotationFileParser.skipNode, which skips private declarations.
+            return;
+        }
         try {
             MethodRecord mr = new MethodRecord();
-            mr.sigIndex = pool.addString(MethodSignaturePrinter.toString(md));
-            for (AnnotationExpr anno : md.getAnnotations()) {
+            mr.sigIndex = pool.addString(MethodSignaturePrinter.toString(decl));
+            for (AnnotationExpr anno : decl.getAnnotations()) {
                 int idx = annosPool.addAnnotation(anno, cu, this);
+                if (idx == IGNORED) {
+                    continue;
+                }
                 if (hasTypeUse(anno, cu)) {
-                    // Annotation in declaration position annotates the element type of an array
-                    // return (if any), not the array reference. Build the correct type path.
-                    mr.returnTypeAnnos.add(new TypeAnno(idx, arrayElementPath(md.getType())));
+                    mr.returnTypeAnnos.add(new TypeAnno(idx, declPositionPath));
                 }
                 if (!isTypeUseOnly(anno, cu)) {
                     // Annotation has a declaration-position target: also a declaration annotation.
                     mr.declAnnos.add(idx);
                 }
             }
-            extractTypeAnnotations(md.getType(), new ArrayList<>(), mr.returnTypeAnnos, cu);
+            if (returnType != null) {
+                extractTypeAnnotations(returnType, new ArrayList<>(), mr.returnTypeAnnos, cu);
+            }
 
-            if (md.getReceiverParameter().isPresent()) {
-                ReceiverParameter rp = md.getReceiverParameter().get();
+            if (decl.getReceiverParameter().isPresent()) {
+                ReceiverParameter rp = decl.getReceiverParameter().get();
                 for (AnnotationExpr anno : rp.getAnnotations()) {
-                    mr.receiverAnnos.add(new TypeAnno(annosPool.addAnnotation(anno, cu, this)));
+                    int recIdx = annosPool.addAnnotation(anno, cu, this);
+                    if (recIdx != IGNORED) {
+                        mr.receiverAnnos.add(new TypeAnno(recIdx));
+                    }
                 }
                 extractTypeAnnotations(rp.getType(), new ArrayList<>(), mr.receiverAnnos, cu);
             }
 
-            for (Parameter p : md.getParameters()) {
+            for (Parameter p : decl.getParameters()) {
                 List<TypeAnno> pAnnos = new ArrayList<>();
                 extractTypeAnnotations(p.getType(), new ArrayList<>(), pAnnos, cu);
                 mr.paramAnnos.add(pAnnos);
                 List<Integer> pdAnnos = new ArrayList<>();
                 for (AnnotationExpr anno : p.getAnnotations()) {
                     int idx = annosPool.addAnnotation(anno, cu, this);
+                    if (idx == IGNORED) {
+                        continue;
+                    }
                     if (hasTypeUse(anno, cu)) {
                         // For varargs, annotations on the parameter declaration apply to the
                         // array element (component type), so use one ARRAY step.
@@ -745,71 +1215,12 @@ public class BinaryStubWriter {
                 }
                 mr.paramDeclAnnos.add(pdAnnos);
             }
-            mr.typeParams.addAll(extractTypeParams(md.getTypeParameters(), cu));
-            cr.methods.add(mr);
-        } catch (IOException e) {
-            throw new RuntimeException("Serialization failure in method: " + e.getMessage(), e);
-        }
-    }
-
-    /**
-     * Processes a constructor declaration, extracting its annotations, receiver annotations, and
-     * parameter annotations.
-     *
-     * @param cd the constructor declaration to process
-     * @param cr the class record to add the constructor to
-     * @param cu the compilation unit
-     */
-    private void processConstructor(ConstructorDeclaration cd, ClassRecord cr, CompilationUnit cu) {
-        try {
-            MethodRecord mr = new MethodRecord();
-            mr.sigIndex = pool.addString(MethodSignaturePrinter.toString(cd));
-            for (AnnotationExpr anno : cd.getAnnotations()) {
-                int idx = annosPool.addAnnotation(anno, cu, this);
-                if (hasTypeUse(anno, cu)) {
-                    // Annotation has TYPE_USE in its target: describes the constructed object.
-                    mr.returnTypeAnnos.add(new TypeAnno(idx));
-                }
-                if (!isTypeUseOnly(anno, cu)) {
-                    // Annotation has a declaration-position target: also a declaration annotation.
-                    mr.declAnnos.add(idx);
-                }
-            }
-
-            if (cd.getReceiverParameter().isPresent()) {
-                ReceiverParameter rp = cd.getReceiverParameter().get();
-                for (AnnotationExpr anno : rp.getAnnotations()) {
-                    mr.receiverAnnos.add(new TypeAnno(annosPool.addAnnotation(anno, cu, this)));
-                }
-                extractTypeAnnotations(rp.getType(), new ArrayList<>(), mr.receiverAnnos, cu);
-            }
-
-            for (Parameter p : cd.getParameters()) {
-                List<TypeAnno> pAnnos = new ArrayList<>();
-                extractTypeAnnotations(p.getType(), new ArrayList<>(), pAnnos, cu);
-                mr.paramAnnos.add(pAnnos);
-                List<Integer> pdAnnos = new ArrayList<>();
-                for (AnnotationExpr anno : p.getAnnotations()) {
-                    int idx = annosPool.addAnnotation(anno, cu, this);
-                    if (hasTypeUse(anno, cu)) {
-                        List<TypePathStep> path =
-                                p.isVarArgs()
-                                        ? Collections.singletonList(
-                                                new TypePathStep((byte) 0, (byte) 0))
-                                        : arrayElementPath(p.getType());
-                        pAnnos.add(new TypeAnno(idx, path));
-                    }
-                    if (!isTypeUseOnly(anno, cu)) {
-                        pdAnnos.add(idx);
-                    }
-                }
-                mr.paramDeclAnnos.add(pdAnnos);
-            }
-            mr.typeParams.addAll(extractTypeParams(cd.getTypeParameters(), cu));
+            mr.typeParams.addAll(extractTypeParams(decl.getTypeParameters(), cu));
             cr.methods.add(mr);
         } catch (IOException e) {
             throw new RuntimeException(
-                    "Serialization failure in constructor: " + e.getMessage(), e);
+                    "Serialization failure in " + decl.getNameAsString() + ": " + e.getMessage(),
+                    e);
         }
     }
 
@@ -821,12 +1232,19 @@ public class BinaryStubWriter {
      * @param cu the compilation unit
      */
     private void processField(FieldDeclaration fd, ClassRecord cr, CompilationUnit cu) {
+        if (fd.isPrivate()) {
+            // Mirror AnnotationFileParser.skipNode, which skips private declarations.
+            return;
+        }
         try {
             for (VariableDeclarator vd : fd.getVariables()) {
                 FieldRecord fr = new FieldRecord();
                 fr.nameIndex = pool.addString(vd.getNameAsString());
                 for (AnnotationExpr anno : fd.getAnnotations()) {
                     int idx = annosPool.addAnnotation(anno, cu, this);
+                    if (idx == IGNORED) {
+                        continue;
+                    }
                     if (hasTypeUse(anno, cu)) {
                         // Annotation in declaration position annotates the element type of an
                         // array field (if any), not the array reference.
@@ -861,7 +1279,10 @@ public class BinaryStubWriter {
         if (type == null) return;
 
         for (AnnotationExpr ann : type.getAnnotations()) {
-            result.add(new TypeAnno(annosPool.addAnnotation(ann, cu, this), currentPath));
+            int idx = annosPool.addAnnotation(ann, cu, this);
+            if (idx != IGNORED) {
+                result.add(new TypeAnno(idx, currentPath));
+            }
         }
 
         if (type instanceof ArrayType) {
@@ -909,7 +1330,10 @@ public class BinaryStubWriter {
             TypeParamRecord rec = new TypeParamRecord();
             // Annotations on the type variable itself (e.g. @X in <@X T>)
             for (AnnotationExpr ann : tp.getAnnotations()) {
-                rec.typeVarAnnos.add(annosPool.addAnnotation(ann, cu, this));
+                int idx = annosPool.addAnnotation(ann, cu, this);
+                if (idx != IGNORED) {
+                    rec.typeVarAnnos.add(idx);
+                }
             }
             // Annotations on each bound (e.g. @NonNull Object in <T extends @NonNull Object>)
             for (ClassOrInterfaceType bound : tp.getTypeBound()) {
@@ -923,6 +1347,53 @@ public class BinaryStubWriter {
     }
 
     /**
+     * Writes a length-prefixed list of annotation-pool indices to the output stream.
+     *
+     * @param out the output stream
+     * @param annoIndices the annotation-pool indices to write
+     * @throws IOException if writing fails
+     */
+    private static void writeAnnoIndices(DataOutputStream out, List<Integer> annoIndices)
+            throws IOException {
+        out.writeShort(annoIndices.size());
+        for (int annoIdx : annoIndices) {
+            out.writeInt(annoIdx);
+        }
+    }
+
+    /**
+     * Writes a length-prefixed list of type annotations to the output stream.
+     *
+     * @param out the output stream
+     * @param typeAnnos the type annotations to write
+     * @throws IOException if writing fails
+     */
+    private static void writeTypeAnnos(DataOutputStream out, List<TypeAnno> typeAnnos)
+            throws IOException {
+        out.writeShort(typeAnnos.size());
+        for (TypeAnno ta : typeAnnos) {
+            ta.write(out);
+        }
+    }
+
+    /**
+     * Writes a map from name (package or module) to annotation-pool indices to the output stream.
+     *
+     * @param out the output stream
+     * @param annotatedNames map from name to the annotation-pool indices of its declaration
+     *     annotations
+     * @throws IOException if writing fails
+     */
+    private void writeAnnotatedNames(
+            DataOutputStream out, Map<String, List<Integer>> annotatedNames) throws IOException {
+        out.writeInt(annotatedNames.size());
+        for (Map.Entry<String, List<Integer>> entry : annotatedNames.entrySet()) {
+            out.writeInt(pool.addString(entry.getKey()));
+            writeAnnoIndices(out, entry.getValue());
+        }
+    }
+
+    /**
      * Writes a list of type-parameter records to the output stream.
      *
      * @param out the output stream
@@ -933,12 +1404,10 @@ public class BinaryStubWriter {
             throws IOException {
         out.writeShort(typeParams.size());
         for (TypeParamRecord tp : typeParams) {
-            out.writeShort(tp.typeVarAnnos.size());
-            for (int idx : tp.typeVarAnnos) out.writeInt(idx);
+            writeAnnoIndices(out, tp.typeVarAnnos);
             out.writeShort(tp.boundAnnos.size());
             for (List<TypeAnno> boundList : tp.boundAnnos) {
-                out.writeShort(boundList.size());
-                for (TypeAnno ta : boundList) ta.write(out);
+                writeTypeAnnos(out, boundList);
             }
         }
     }
@@ -962,61 +1431,34 @@ public class BinaryStubWriter {
             for (ClassRecord cr : classes) {
                 out.writeInt(cr.nameIndex);
                 out.writeInt(cr.outerNameIndex);
-                out.writeShort(cr.declAnnos.size());
-                for (int annoIdx : cr.declAnnos) out.writeInt(annoIdx);
+                writeAnnoIndices(out, cr.declAnnos);
 
                 out.writeShort(cr.fields.size());
                 for (FieldRecord fr : cr.fields) {
                     out.writeInt(fr.nameIndex);
-                    out.writeShort(fr.declAnnos.size());
-                    for (int annoIdx : fr.declAnnos) out.writeInt(annoIdx);
-                    out.writeShort(fr.typeAnnos.size());
-                    for (TypeAnno ta : fr.typeAnnos) ta.write(out);
+                    writeAnnoIndices(out, fr.declAnnos);
+                    writeTypeAnnos(out, fr.typeAnnos);
                 }
 
                 out.writeShort(cr.methods.size());
                 for (MethodRecord mr : cr.methods) {
                     out.writeInt(mr.sigIndex);
-                    out.writeShort(mr.declAnnos.size());
-                    for (int annoIdx : mr.declAnnos) out.writeInt(annoIdx);
-
-                    out.writeShort(mr.returnTypeAnnos.size());
-                    for (TypeAnno ta : mr.returnTypeAnnos) ta.write(out);
-
-                    out.writeShort(mr.receiverAnnos.size());
-                    for (TypeAnno ta : mr.receiverAnnos) ta.write(out);
+                    writeAnnoIndices(out, mr.declAnnos);
+                    writeTypeAnnos(out, mr.returnTypeAnnos);
+                    writeTypeAnnos(out, mr.receiverAnnos);
 
                     out.writeShort(mr.paramAnnos.size());
                     for (int p = 0; p < mr.paramAnnos.size(); p++) {
-                        List<TypeAnno> ptAnnos = mr.paramAnnos.get(p);
-                        out.writeShort(ptAnnos.size());
-                        for (TypeAnno ta : ptAnnos) {
-                            ta.write(out);
-                        }
-                        List<Integer> pdAnnos = mr.paramDeclAnnos.get(p);
-                        out.writeShort(pdAnnos.size());
-                        for (int idx : pdAnnos) {
-                            out.writeInt(idx);
-                        }
+                        writeTypeAnnos(out, mr.paramAnnos.get(p));
+                        writeAnnoIndices(out, mr.paramDeclAnnos.get(p));
                     }
                     writeTypeParams(out, mr.typeParams);
                 }
                 writeTypeParams(out, cr.typeParams);
             }
 
-            out.writeInt(packages.size());
-            for (Map.Entry<String, List<Integer>> entry : packages.entrySet()) {
-                out.writeInt(pool.addString(entry.getKey()));
-                out.writeShort(entry.getValue().size());
-                for (int annoIdx : entry.getValue()) out.writeInt(annoIdx);
-            }
-
-            out.writeInt(modules.size());
-            for (Map.Entry<String, List<Integer>> entry : modules.entrySet()) {
-                out.writeInt(pool.addString(entry.getKey()));
-                out.writeShort(entry.getValue().size());
-                for (int annoIdx : entry.getValue()) out.writeInt(annoIdx);
-            }
+            writeAnnotatedNames(out, packages);
+            writeAnnotatedNames(out, modules);
         }
     }
 
@@ -1026,26 +1468,14 @@ public class BinaryStubWriter {
      */
     private static class MethodSignaturePrinter extends SimpleVoidVisitor<Void> {
         /**
-         * Returns the type-erased signature of a method declaration.
+         * Returns the type-erased signature of a method or constructor declaration.
          *
-         * @param md the method declaration
+         * @param decl the method or constructor declaration
          * @return the type-erased signature
          */
-        static String toString(MethodDeclaration md) {
+        static String toString(CallableDeclaration<?> decl) {
             MethodSignaturePrinter printer = new MethodSignaturePrinter();
-            md.accept(printer, null);
-            return printer.getOutput();
-        }
-
-        /**
-         * Returns the type-erased signature of a constructor declaration.
-         *
-         * @param cd the constructor declaration
-         * @return the type-erased signature
-         */
-        static String toString(ConstructorDeclaration cd) {
-            MethodSignaturePrinter printer = new MethodSignaturePrinter();
-            cd.accept(printer, null);
+            decl.accept(printer, null);
             return printer.getOutput();
         }
 
@@ -1064,30 +1494,27 @@ public class BinaryStubWriter {
         @Override
         public void visit(ConstructorDeclaration n, Void arg) {
             sb.append("<init>");
-            sb.append("(");
-            if (n.getParameters() != null) {
-                for (Iterator<Parameter> i = n.getParameters().iterator(); i.hasNext(); ) {
-                    Parameter p = i.next();
-                    p.accept(this, arg);
-                    if (i.hasNext()) {
-                        sb.append(",");
-                    }
-                }
-            }
-            sb.append(")");
+            appendParameters(n.getParameters(), arg);
         }
 
         @Override
         public void visit(MethodDeclaration n, Void arg) {
             sb.append(n.getName());
+            appendParameters(n.getParameters(), arg);
+        }
+
+        /**
+         * Appends the parenthesized, comma-separated parameter types.
+         *
+         * @param parameters the parameters
+         * @param arg the visitor argument
+         */
+        private void appendParameters(List<Parameter> parameters, Void arg) {
             sb.append("(");
-            if (n.getParameters() != null) {
-                for (Iterator<Parameter> i = n.getParameters().iterator(); i.hasNext(); ) {
-                    Parameter p = i.next();
-                    p.accept(this, arg);
-                    if (i.hasNext()) {
-                        sb.append(",");
-                    }
+            for (Iterator<Parameter> i = parameters.iterator(); i.hasNext(); ) {
+                i.next().accept(this, arg);
+                if (i.hasNext()) {
+                    sb.append(",");
                 }
             }
             sb.append(")");
@@ -1156,22 +1583,14 @@ public class BinaryStubWriter {
      * @see #isTypeUseOnly
      */
     private boolean hasTypeUse(AnnotationExpr anno, CompilationUnit cu) {
-        String fqn = fullyQualify(anno.getNameAsString(), cu);
-        try {
-            Class<?> cls = Class.forName(fqn);
-            Target target = cls.getAnnotation(Target.class);
-            if (target == null) {
-                return false;
+        ElementType[] targets =
+                annotationTargets(fullyQualifyAnnotationName(anno.getNameAsString()));
+        for (ElementType et : targets) {
+            if (et == ElementType.TYPE_USE) {
+                return true;
             }
-            for (ElementType et : target.value()) {
-                if (et == ElementType.TYPE_USE) {
-                    return true;
-                }
-            }
-            return false;
-        } catch (ClassNotFoundException e) {
-            return false;
         }
+        return false;
     }
 
     /**
@@ -1205,22 +1624,19 @@ public class BinaryStubWriter {
      * @see #hasTypeUse
      */
     private boolean isTypeUseOnly(AnnotationExpr anno, CompilationUnit cu) {
-        String fqn = fullyQualify(anno.getNameAsString(), cu);
-        try {
-            Class<?> cls = Class.forName(fqn);
-            Target target = cls.getAnnotation(Target.class);
-            if (target == null) {
-                return false;
-            }
-            for (ElementType et : target.value()) {
-                if (et != ElementType.TYPE_USE && et != ElementType.TYPE_PARAMETER) {
-                    return false;
-                }
-            }
-            return true;
-        } catch (ClassNotFoundException e) {
+        ElementType[] targets =
+                annotationTargets(fullyQualifyAnnotationName(anno.getNameAsString()));
+        if (targets.length == 0) {
+            // The class could not be loaded or has no @Target: conservatively treat the
+            // annotation as a declaration annotation.
             return false;
         }
+        for (ElementType et : targets) {
+            if (et != ElementType.TYPE_USE && et != ElementType.TYPE_PARAMETER) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /**
