@@ -167,12 +167,6 @@ spotlessPredeclare {
     java {
         googleJavaFormat(versions.googleJavaFormat)
     }
-    groovyGradle {
-        greclipse()
-    }
-    groovy {
-        greclipse()
-    }
 }
 
 allprojects { currentProj ->
@@ -373,7 +367,6 @@ allprojects { currentProj ->
             groovyGradle {
                 target '**/*.gradle'
                 targetExclude doNotFormat
-                greclipse()  // which formatter Spotless should use to format .gradle files.
                 if (eisopFormatting) {
                     leadingTabsToSpaces(4)
                 } else {
@@ -389,7 +382,6 @@ allprojects { currentProj ->
 
                 // removes semicolons at the end of lines
                 removeSemicolons()
-                greclipse()
                 leadingTabsToSpaces(2)
                 trimTrailingWhitespace()
             }
