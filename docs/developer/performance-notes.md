@@ -653,7 +653,148 @@ so small per-call wins paid back substantially.
   - **`isStubTypes` flag on `AnnotationFileElementTypes`**: prevents the binary from
     being loaded into `ajavaTypes`, where `mergeAnnotationFileAnnosIntoType` would
     re-apply binary annotations on top of user-stub overrides after parsing completes.
-    Binary loading is now gated to the `stubTypes` path only.
+    Binary loading is now gated to the `stubTypes` path only (now a constructor
+    parameter rather than a setter).
+
+  Follow-up review pass (July 2026), same PR:
+  - **`BinaryStubData` is cached per JVM** (`AnnotationFileElementTypes.loadedBinaryStubData`,
+    keyed by resource URL): the parsed form contains no javac objects, so only the
+    per-compilation `BinaryStubDataCache` wrapper (annotation mirrors, resolved elements)
+    is rebuilt per compilation. Saves the ~330 KB gunzip+parse per compilation in
+    test suites and persistent workers.
+  - **The checker.jar entry scan is shared per compilation**
+    (`BinaryStubDataCache.jdkJarEntriesByClass` / `jdkStubPathsByClass`): previously each
+    of the four factories of a nullness compile enumerated every jar entry to build its
+    text-fallback map; now the first factory's scan is reused.
+  - **`hasTypeInfo` (né `hasAnyTypeAnnos`) includes method type parameters.** Previously a
+    method whose only annotations are on its type parameters (exactly one in the JDK:
+    `StackWalker.walk`'s `<T extends @Nullable Object>`) was silently skipped.
+  - **Type-parameter semantics match `AnnotationFileParser.annotateTypeParameters`:**
+    a type parameter with no declared bound gets its annotations as the type variable's
+    primary annotation (previously: lower bound only); with multiple declared bounds,
+    the single annotated bound (any index, previously: index 0 only) is applied, and
+    multiple annotated bounds are skipped like the text parser's (unimplemented)
+    intersection handling.
+  - **Enum declarations are written to the binary format** (as ordinary class records; enum
+    constants become field records). Previously nested enums were silently dropped: their
+    enclosing class was handled by the binary path, so the text fallback never ran for
+    them and e.g. `@Pure` on `Character.UnicodeScript.of` was lost. Top-level enums also
+    no longer fall back to the text parser. Annotation declarations (`@interface`) remain
+    text-fallback (none in the JDK stubs carry Checker Framework annotations).
+  - **Private declarations are skipped by the writer**, matching
+    `AnnotationFileParser.skipNode`.
+  - **Annotation-name resolution matches the text parser**: names resolve through the
+    file's explicit imports, the `java.lang` package (which the text parser seeds
+    unconditionally), and asterisk imports; anything else is left unresolvable and
+    dropped by the reader, exactly as `AnnotationFileParser.getAnnotation` drops it.
+  - **Declaration annotations are filtered by `@Target` applicability** before being
+    recorded (matching `recordDeclAnnotation`), and merged by annotation name everywhere
+    (packages, modules, classes, fields, methods, parameters) instead of put/overwrite.
+  - **The `@FromStubFile` type-annotation write was removed**: the text parser does not
+    mark JDK-stub elements at all (`markAsFromStubFile` returns early for `JDK_STUB`),
+    and the mirror was never a supported qualifier, so `addAnnotation` filtered it — pure
+    dead work per applied annotation.
+  - **Differential test** (`NullnessBinaryStubDiffTest`, option `-AbinaryStubDiffCheck`,
+    `BinaryStubDiffChecker`): loads every class of the binary stub through both the
+    binary reader and the text parser into scratch containers and reports any
+    disagreement as an error; also verifies record-to-storage completeness (the
+    `StackWalker.walk` class of bug). Runs in ~6 s; 1441 top-level classes, 0 mismatches.
+    Comparison scope and its justification are documented in `BinaryStubDiffChecker`.
+
+  A/B after the review pass (same session, single forked `javac -processor nullness`,
+  deterministic `ThreadAllocationStatistics`, median of 5):
+
+  | Workload | master alloc | branch alloc | master wall | branch wall |
+  |---|---|---|---|---|
+  | Tiny.java (25 lines) | 367.5 MB | 209.0 MB (-43%) | 2.75 s | 2.03 s (-26%) |
+  | Big300.java (300 methods) | 836.8 MB | 762.1 MB (-9%) | 5.63 s | 5.44 s (-3%) |
+
+  `allNullnessTests` (warm daemon, median of 3, same session): master 1m40s ->
+  branch 1m30s (**-10%**); the improvement over the earlier -6% measurement comes
+  from the per-JVM `BinaryStubData` cache, which pays off across the suite's many
+  in-process compilations.
+
+  A JFR trace of the Tiny.java compile showed the binary mechanism itself below the
+  sampling floor; the dominant remaining stub cost (~36% inclusive of that compile)
+  was JavaParser text-parsing of the built-in `jdk.astub`/`jdkN.astub`/`@StubFiles`
+  checker stub files at factory initialization. That was addressed by a second pass
+  (below).
+
+  Second pass (July 2026), same PR:
+  - **Fake overrides are applied by the binary path** (`BinaryStubReader.applyFakeOverride`,
+    mirroring `AnnotationFileParser.processFakeOverride`). The extended differential test
+    found that the JDK stubs contain 9 fake overrides (e.g. `@Nullable` on
+    `UncheckedDocletException.getCause()`, declared on classes that only inherit the
+    method) that the binary path silently dropped. Unannotated fake declarations, for
+    which the text parser stores a defaults-only `getAnnotatedType` snapshot, are
+    deliberately not stored.
+  - **Built-in checker stub files are pre-parsed to binary at build time**:
+    `BinaryStubFileGenerator` (a `generateBinaryStubFiles` task that the top-level
+    build file registers in every subproject containing `.astub` files, consuming
+    the stubifier tool through framework's consumable `stubifierTool`
+    configuration) converts every `.astub` under `src/main/java` and
+    `src/main/resources` into a sibling `.astub.bin.gz` resource (42 files, 0 skipped).
+    `AnnotationFileElementTypes` loads the binary form when present — eagerly, with
+    `@FromStubFile` marking exactly like the text parser — and text-parses otherwise
+    (also for any file the generator cannot represent, e.g. one containing a record
+    declaration). User-supplied `-Astubs` files are always text parsed. The differential
+    check covers built-in stubs too (`BinaryStubDiffChecker.diffBuiltinStub`).
+  - **Enum and annotation-type declarations are written to the binary format**
+    (`@interface` members are modeled as zero-parameter method records), so text stubs
+    are no longer needed for them; records remain the only unsupported construct.
+  - **`@CFComment` is not written to the binary format** (it is documentation with no
+    effect on checking).
+  - **`annoCache` is identity-keyed**: annotation records from different binary files
+    contain indices into different string pools, so structural equality across files
+    would be wrong; each file's records are canonical singletons, so identity is both
+    correct and cheaper.
+
+  Final A/B (same methodology as above):
+
+  | Workload | master | after second pass |
+  |---|---|---|
+  | Tiny.java alloc / wall | 367.5 MB / 2.75 s | 132.1 MB (-64%) / 1.72 s (-37%) |
+  | Big300.java alloc / wall | 836.8 MB / 5.63 s | 672.5 MB (-20%) / 4.82 s (-14%) |
+  | `allNullnessTests` wall | 1m40s | 1m24-25s (**-16%**) |
+
+  Startup profile after all of the above (JFR aggregate of 8 identical Tiny.java
+  compiles, 427 samples): flat. Binary stub application is 23% inclusive — ~15%
+  lazy JDK delivery for classes the code actually uses (irreducible) and ~9% eager
+  built-in stub application; javac class-file loading is 17.6% (one third of it
+  `getTypeElement` calls made by stub application, the rest ordinary attribution);
+  `BinaryStubData` gunzip is 1–2% per fresh JVM (cached in persistent workers);
+  everything else is ≤2% diffuse. `AnnotationRecord.hasNameLiteral` is precomputed
+  at read time (was a recursive scan per annotation application; measured
+  within noise, kept as design hygiene).
+
+  **Identified next options**, in value order:
+
+  1. *Lazy built-in stub application* (~5–10% of a small compile): route the
+     built-in `.astub.bin.gz` records through the same per-class lazy dispatch the
+     JDK uses, skipping `getTypeElement` resolution and application for classes
+     the compilation never references (junit/log4j classes today). ⚠ Precedence
+     hazard: option stubs like `collection-object-parameters-may-be-null.astub`
+     deliberately override the annotated JDK for the same classes, and today's
+     eager-builtin-then-lazy-JDK order makes the builtin win by first write; a
+     lazy design must consult built-in data *before* the JDK data per class. The
+     per-file diff harness does not cover cross-file precedence — write a
+     dedicated test first (e.g. `Map.get` under that option, asserting the
+     override wins).
+  2. *Drop the text stubs from `checker.jar`* (~1.5 MB) once the binary format
+     has soaked; the CHANGELOG notes the intention. Blockers: record
+     declarations remain text-only, and `-AparseAllJdk` needs the text stubs.
+  3. *Diff check under every factory*: `BinaryStubDiffChecker` currently runs
+     under the first stub-types factory of the compilation; running it under all
+     four (nullness) would extend qualifier-routing coverage at ~4× the test's
+     ~6 s cost.
+  4. `JavaExpressionParseUtil.parseExpression` is the only stubparser use left on
+     the default checking path (dependent-type/contract expression strings). It
+     has never surfaced above the JFR sampling floor; per the ceiling rule,
+     build an annotation-string-saturated workload and confirm the frames appear
+     before considering a hand-rolled expression parser.
+
+  The text fallback remains exercised for `-Astubs` files and any
+  generator-skipped file.
 
 - **PR #1776** — *Avoid the defensive deep copy in read-only
   `fromElement` consumers.* `AnnotatedTypeFactory.fromElement` returns
