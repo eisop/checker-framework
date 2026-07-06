@@ -1279,6 +1279,8 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
 
     /**
      * TypeVariableSubstitutor provides a method to replace type parameters with their arguments.
+     *
+     * @return type variable substitutor to replace type parameters with their arguments
      */
     protected TypeVariableSubstitutor createTypeVariableSubstitutor() {
         return new TypeVariableSubstitutor();

@@ -194,6 +194,7 @@ import javax.lang.model.util.ElementFilter;
  * @see "JLS $4"
  * @see TypeHierarchy#isSubtype
  * @see AnnotatedTypeFactory
+ * @param <Factory> the type of the annotated type factory
  */
 public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?, ?>>
         extends SourceVisitor<Void, Void> {
