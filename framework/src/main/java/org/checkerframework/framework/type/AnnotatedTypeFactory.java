@@ -658,9 +658,8 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         this.elements = processingEnv.getElementUtils();
         this.types = processingEnv.getTypeUtils();
 
-        this.stubTypes = new AnnotationFileElementTypes(this);
-        this.stubTypes.setIsStubTypes(true);
-        this.ajavaTypes = new AnnotationFileElementTypes(this);
+        this.stubTypes = new AnnotationFileElementTypes(this, /* isStubTypes= */ true);
+        this.ajavaTypes = new AnnotationFileElementTypes(this, /* isStubTypes= */ false);
         this.currentFileAjavaTypes = null;
 
         this.cacheDeclAnnos = new IdentityHashMap<>();
@@ -1176,7 +1175,8 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
                 }
             }
             if (candidateAjavaFiles.size() == 1) {
-                currentFileAjavaTypes = new AnnotationFileElementTypes(this);
+                currentFileAjavaTypes =
+                        new AnnotationFileElementTypes(this, /* isStubTypes= */ false);
                 String ajavaPath = candidateAjavaFiles.toArray(new String[0])[0];
                 try {
                     currentFileAjavaTypes.parseAjavaFileWithTree(ajavaPath, root);

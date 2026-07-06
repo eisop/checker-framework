@@ -49,6 +49,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.StringJoiner;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 import java.util.stream.Collectors;
@@ -106,15 +107,13 @@ public class AnnotationFileElementTypes {
     private final Map<String, String> remainingJdkStubFilesJar = new HashMap<>();
 
     /**
-     * The {@code @FromStubFile} annotation mirror, built once per factory and reused by {@link
-     * BinaryStubReader} to avoid reconstructing it for every type annotation applied.
-     */
-    final AnnotationMirror fromStubFileAnno;
-
-    /**
      * Cache for binary stub data and its associated metadata (e.g., inner classes mapping). This
-     * cache is stored in the compilation context to be shared across all checker instances in the
-     * same compilation run.
+     * cache is stored in the compilation context to be shared across all checker and factory
+     * instances in the same compilation run.
+     *
+     * <p>The {@link BinaryStubData} itself contains no javac objects (only strings and primitives),
+     * so it is additionally cached per JVM in {@link #loadedBinaryStubData}; only this wrapper,
+     * whose caches hold javac {@code Element}s and {@code AnnotationMirror}s, is per-compilation.
      */
     static class BinaryStubDataCache {
         /** The loaded binary stub data. */
@@ -128,15 +127,44 @@ public class AnnotationFileElementTypes {
 
         /**
          * Cache of parsed annotation mirrors. Shared across all factories in the same compilation
-         * to avoid repeatedly creating identical annotation mirrors for the same record.
+         * to avoid repeatedly creating identical annotation mirrors for the same record. Keyed by
+         * identity: each {@link BinaryStubData} creates one canonical {@code AnnotationRecord}
+         * instance per pool entry, and structural equality must not be used because records from
+         * different binary files (the annotated JDK, per-checker {@code .astub} binaries) contain
+         * indices into different string pools.
          */
-        final Map<BinaryStubData.AnnotationRecord, AnnotationMirror> annoCache = new HashMap<>();
+        final IdentityHashMap<BinaryStubData.AnnotationRecord, AnnotationMirror> annoCache =
+                new IdentityHashMap<>();
 
         /** Cache of resolved {@code Class} literal types to avoid repeated element lookups. */
         final Map<String, TypeMirror> resolvedClassTypesCache = new HashMap<>();
 
         /** Cache of resolved constant values to avoid repeated class hierarchy lookups. */
         final Map<String, Object> resolvedConstantsCache = new HashMap<>();
+
+        /**
+         * Map from fully-qualified class name to the name of the jar entry containing its text
+         * stub, shared across all factories in the compilation so the checker.jar entry list is
+         * enumerated only once per compilation rather than once per factory. {@code null} until the
+         * first factory performs the enumeration. Only used when the JDK stubs come from a jar; see
+         * {@link #jdkStubPathsByClass} for the directory case.
+         */
+        @Nullable Map<String, String> jdkJarEntriesByClass = null;
+
+        /**
+         * Map from fully-qualified class name to the path of the file containing its text stub,
+         * shared across all factories in the compilation so the JDK directory is walked only once
+         * per compilation rather than once per factory. {@code null} until the first factory
+         * performs the walk. Only used when the JDK stubs come from a directory; see {@link
+         * #jdkJarEntriesByClass} for the jar case.
+         */
+        @Nullable Map<String, Path> jdkStubPathsByClass = null;
+
+        /**
+         * True once the {@code -AbinaryStubDiffCheck} differential check has run in this
+         * compilation, so it runs only once rather than once per factory.
+         */
+        boolean diffCheckDone = false;
 
         /**
          * Constructs a new cache holding the given binary stub data.
@@ -147,6 +175,17 @@ public class AnnotationFileElementTypes {
             this.data = data;
         }
     }
+
+    /**
+     * Binary stub data parsed from {@code annotated-jdk.bin.gz}, cached for the lifetime of the
+     * JVM, keyed by the URL of the binary stub resource. {@link BinaryStubData} is immutable after
+     * construction and contains only strings and primitives (no javac objects), so it can safely be
+     * shared across compilations — e.g. across the many in-process compilations of a test-suite
+     * run, or across builds in a persistent Gradle worker — avoiding a re-read and re-parse of the
+     * ~340 KB compressed file for every compilation.
+     */
+    private static final Map<String, BinaryStubData> loadedBinaryStubData =
+            new ConcurrentHashMap<>(2);
 
     /**
      * The key used to store and retrieve the {@link BinaryStubDataCache} from the compilation
@@ -206,9 +245,9 @@ public class AnnotationFileElementTypes {
      * @param outermostClass the fully-qualified name of the outermost class
      * @return the list of inner class records, or an empty list if none are found
      */
-    private List<BinaryStubData.ClassRecord> getInnerClassesFromBinary(String outermostClass) {
+    List<BinaryStubData.ClassRecord> getInnerClassesFromBinary(String outermostClass) {
         BinaryStubDataCache cache = getBinaryStubDataCache();
-        if (cache == null || cache.data == null) {
+        if (cache == null) {
             return Collections.emptyList();
         }
         if (cache.innerClassesMap == null) {
@@ -232,10 +271,13 @@ public class AnnotationFileElementTypes {
     private final boolean shouldParseJdk;
 
     /**
-     * True if this is the stub-types AFET ({@code stubTypes}); false if it is the ajava-types AFET
-     * ({@code ajavaTypes}). Binary JDK stub loading is only performed for stub-types AFETs.
+     * True if this is the stub-types AFET ({@code stubTypes}); false if it is an ajava-types AFET
+     * ({@code ajavaTypes} or {@code currentFileAjavaTypes}). Binary JDK stub loading is only
+     * performed for stub-types AFETs; loading via an ajava-types AFET would happen during {@code
+     * AnnotatedTypeFactory.fromElement()} before user-supplied stub files are fully parsed, causing
+     * the binary's annotations to override the user stubs.
      */
-    private boolean isStubTypes;
+    private final boolean isStubTypes;
 
     /** Parse all JDK files at startup rather than as needed. */
     private final boolean parseAllJdkFiles;
@@ -281,20 +323,7 @@ public class AnnotationFileElementTypes {
      */
     Map<String, ExecutableElement> methodSigIndex(TypeElement typeElt) {
         return methodSigIndexCache.computeIfAbsent(
-                typeElt,
-                t -> {
-                    List<ExecutableElement> methods =
-                            ElementFilter.methodsIn(t.getEnclosedElements());
-                    Map<String, ExecutableElement> index = new HashMap<>(methods.size() * 2);
-                    for (ExecutableElement m : methods) {
-                        try {
-                            index.put(ElementUtils.getSimpleSignature(m), m);
-                        } catch (Throwable th) {
-                            // Ignore methods with unresolvable/error types.
-                        }
-                    }
-                    return index;
-                });
+                typeElt, t -> buildSigIndex(ElementFilter.methodsIn(t.getEnclosedElements())));
     }
 
     /**
@@ -307,34 +336,45 @@ public class AnnotationFileElementTypes {
      */
     Map<String, ExecutableElement> constructorSigIndex(TypeElement typeElt) {
         return constructorSigIndexCache.computeIfAbsent(
-                typeElt,
-                t -> {
-                    List<ExecutableElement> constructors =
-                            ElementFilter.constructorsIn(t.getEnclosedElements());
-                    Map<String, ExecutableElement> index = new HashMap<>(constructors.size() * 2);
-                    for (ExecutableElement m : constructors) {
-                        try {
-                            index.put(ElementUtils.getSimpleSignature(m), m);
-                        } catch (Throwable th) {
-                            // Ignore constructors with unresolvable/error types.
-                        }
-                    }
-                    return index;
-                });
+                typeElt, t -> buildSigIndex(ElementFilter.constructorsIn(t.getEnclosedElements())));
+    }
+
+    /**
+     * Builds a map from simple signature to element for the given executables.
+     *
+     * @param executables the methods or constructors to index
+     * @return map from simple signature to element
+     */
+    private static Map<String, ExecutableElement> buildSigIndex(
+            List<ExecutableElement> executables) {
+        Map<String, ExecutableElement> index = new HashMap<>(executables.size() * 2);
+        for (ExecutableElement executable : executables) {
+            try {
+                index.put(ElementUtils.getSimpleSignature(executable), executable);
+            } catch (BugInCF e) {
+                throw e;
+            } catch (RuntimeException e) {
+                // Skip executables whose signature cannot be computed, e.g. because a parameter
+                // type is an unresolvable (error) type. They cannot be matched by a stub record.
+            }
+        }
+        return index;
     }
 
     /**
      * Creates an empty annotation source.
      *
      * @param atypeFactory a type factory
+     * @param isStubTypes true if this AFET holds stub-file annotations (it is the stub-types field
+     *     of {@link AnnotatedTypeFactory}); false if it holds ajava-file annotations ({@code
+     *     ajavaTypes} or {@code currentFileAjavaTypes}). Binary JDK stub loading is only performed
+     *     when this is true; see {@link #isStubTypes}.
      */
-    public AnnotationFileElementTypes(AnnotatedTypeFactory atypeFactory) {
+    public AnnotationFileElementTypes(AnnotatedTypeFactory atypeFactory, boolean isStubTypes) {
         this.atypeFactory = atypeFactory;
-        this.isStubTypes = false;
+        this.isStubTypes = isStubTypes;
         this.annotationFileAnnos = new AnnotationFileAnnotations();
         this.parsingCount = 0;
-        this.fromStubFileAnno =
-                AnnotationBuilder.fromClass(atypeFactory.getElementUtils(), FromStubFile.class);
         String release = SystemUtil.getReleaseValue(atypeFactory.getProcessingEnv());
         this.annotatedJdkVersion =
                 release != null ? release : String.valueOf(SystemUtil.jreVersion);
@@ -357,14 +397,109 @@ public class AnnotationFileElementTypes {
     }
 
     /**
-     * Marks this AFET as the stub-types AFET ({@code stubTypes}). Should be called immediately
-     * after construction for the {@code stubTypes} field of {@link AnnotatedTypeFactory}. Binary
-     * JDK stub loading is only performed from stub-types AFETs, to prevent binary annotations from
-     * being loaded via the ajava-types path (which would interfere with user-supplied stub
-     * overrides).
+     * The {@code @FromStubFile} mirror used to mark elements loaded from binary built-in stub
+     * files, built lazily by {@link #getFromStubFileAnno}.
      */
-    public void setIsStubTypes(boolean value) {
-        this.isStubTypes = value;
+    private @Nullable AnnotationMirror fromStubFileAnno = null;
+
+    /**
+     * Returns the {@code @FromStubFile} mirror, building it on first use.
+     *
+     * @return the {@code @FromStubFile} mirror
+     */
+    private AnnotationMirror getFromStubFileAnno() {
+        if (fromStubFileAnno == null) {
+            fromStubFileAnno =
+                    AnnotationBuilder.fromClass(atypeFactory.getElementUtils(), FromStubFile.class);
+        }
+        return fromStubFileAnno;
+    }
+
+    /**
+     * Returns the parsed binary stub data for the given resource, reading and parsing it on the
+     * first request in this JVM and returning the cached copy afterwards (see {@link
+     * #loadedBinaryStubData}).
+     *
+     * @param binURL the URL of the {@code .bin.gz} resource
+     * @return the parsed binary stub data
+     * @throws IOException if the resource cannot be read or has an invalid format
+     */
+    private static BinaryStubData loadBinaryStubData(URL binURL) throws IOException {
+        BinaryStubData data = loadedBinaryStubData.get(binURL.toString());
+        if (data == null) {
+            try (InputStream in = binURL.openStream()) {
+                data = new BinaryStubData(in);
+            }
+            loadedBinaryStubData.putIfAbsent(binURL.toString(), data);
+        }
+        return data;
+    }
+
+    /**
+     * Loads a built-in stub file from its pre-parsed binary form and applies all of it eagerly,
+     * marking matched elements with {@code @FromStubFile} exactly as the text parser does for
+     * built-in stub files. The parsed binary is cached per JVM.
+     *
+     * <p>When the {@code -AbinaryStubDiffCheck} option is set, the same stub file is also text
+     * parsed into a scratch container and compared against the binary result; see {@link
+     * BinaryStubDiffChecker#diffBuiltinStub}.
+     *
+     * @param binURL the URL of the {@code .bin.gz} resource
+     * @param textResourceURL the URL of the corresponding {@code .astub} resource, used by the
+     *     differential check; may be {@code null} if unknown
+     * @param description resource description for diagnostics
+     * @return true if the binary was loaded and applied; false if it could not be read (the caller
+     *     should fall back to text parsing)
+     */
+    private boolean loadBuiltinBinaryStub(
+            URL binURL, @Nullable URL textResourceURL, String description) {
+        BinaryStubData data;
+        try {
+            data = loadBinaryStubData(binURL);
+        } catch (IOException e) {
+            atypeFactory
+                    .getChecker()
+                    .message(
+                            Diagnostic.Kind.NOTE,
+                            "Could not read "
+                                    + binURL
+                                    + ", falling back to text parsing. Error: "
+                                    + e.getMessage());
+            return false;
+        }
+        applyBinaryStubData(data, annotationFileAnnos);
+        if (isStubTypes
+                && textResourceURL != null
+                && atypeFactory.getChecker().hasOption("binaryStubDiffCheck")) {
+            BinaryStubDiffChecker.diffBuiltinStub(
+                    description, textResourceURL, data, this, atypeFactory);
+        }
+        return true;
+    }
+
+    /**
+     * Applies every record of a built-in stub file's binary data into {@code target}: package and
+     * module annotations, then every class record, with {@code @FromStubFile} marking.
+     *
+     * <p>Unlike the annotated JDK, built-in stub files are small and are parsed eagerly by the text
+     * parser, so the binary form is also applied eagerly rather than per requested class.
+     *
+     * @param data the binary stub data of one built-in stub file
+     * @param target the annotation container to apply into
+     */
+    void applyBinaryStubData(BinaryStubData data, AnnotationFileAnnotations target) {
+        BinaryStubReader.applyPackageAndModuleRecords(data, atypeFactory, this, target);
+        AnnotationMirror fromStubFile = getFromStubFileAnno();
+        for (Map.Entry<String, BinaryStubData.ClassRecord> entry : data.classes.entrySet()) {
+            BinaryStubReader.applyClassRecord(
+                    entry.getValue(),
+                    entry.getKey(),
+                    atypeFactory,
+                    this,
+                    data,
+                    target,
+                    fromStubFile);
+        }
     }
 
     /**
@@ -463,6 +598,14 @@ public class AnnotationFileElementTypes {
     private void parseOneStubFile(Class<?> checkerClass, String stubFileName) {
         BaseTypeChecker checker = atypeFactory.getChecker();
         ProcessingEnvironment processingEnv = atypeFactory.getProcessingEnv();
+        URL binURL = checkerClass.getResource(stubFileName + BinaryStubData.BIN_SUFFIX);
+        if (binURL != null
+                && loadBuiltinBinaryStub(
+                        binURL,
+                        checkerClass.getResource(stubFileName),
+                        checkerClass.getSimpleName() + "/" + stubFileName)) {
+            return;
+        }
         try (InputStream jdkVersionStubIn = checkerClass.getResourceAsStream(stubFileName)) {
             if (jdkVersionStubIn != null) {
                 if (stubDebug) {
@@ -607,16 +750,26 @@ public class AnnotationFileElementTypes {
                     path = path.substring("checker.jar".length());
                 }
                 boolean issueWarning;
+                URL builtinBinURL =
+                        fileType == AnnotationFileType.BUILTIN_STUB
+                                ? checker.getClass().getResource(path + BinaryStubData.BIN_SUFFIX)
+                                : null;
                 try (InputStream in = checker.getClass().getResourceAsStream(path)) {
                     if (in != null) {
-                        AnnotationFileParser.parseStubFile(
-                                path,
-                                in,
-                                atypeFactory,
-                                processingEnv,
-                                annotationFileAnnos,
-                                fileType,
-                                this);
+                        if (builtinBinURL == null
+                                || !loadBuiltinBinaryStub(
+                                        builtinBinURL,
+                                        checker.getClass().getResource(path),
+                                        path)) {
+                            AnnotationFileParser.parseStubFile(
+                                    path,
+                                    in,
+                                    atypeFactory,
+                                    processingEnv,
+                                    annotationFileAnnos,
+                                    fileType,
+                                    this);
+                        }
                         issueWarning = false;
                     } else {
                         issueWarning = true;
@@ -978,7 +1131,7 @@ public class AnnotationFileElementTypes {
         }
 
         BinaryStubDataCache cache = getBinaryStubDataCache();
-        if (cache != null && cache.data != null) {
+        if (cache != null) {
             // Only load binary JDK stubs from the stub-types AFET (stubTypes), not from the
             // ajava-types AFET (ajavaTypes). Loading from ajavaTypes would happen during
             // AnnotatedTypeFactory.fromElement() before user-supplied stub files are fully
@@ -997,22 +1150,25 @@ public class AnnotationFileElementTypes {
                 }
                 remainingJdkStubFiles.remove(className);
                 remainingJdkStubFilesJar.remove(className);
-                BinaryStubReader.applyClassRecord(cr, className, atypeFactory, this, cache.data);
+                BinaryStubReader.applyClassRecord(
+                        cr, className, atypeFactory, this, cache.data, annotationFileAnnos);
 
                 // Also apply binary records for all inner classes in the same file.
                 // This mirrors the text parser's behavior of parsing the entire .java file at
                 // once (which includes all inner classes). Without this, inner-class annotations
                 // (e.g. @InternedDistinct on Symbol.Completer.NULL_COMPLETER) are missed.
-                List<BinaryStubData.ClassRecord> inners = getInnerClassesFromBinary(className);
-                if (inners != null) {
-                    for (BinaryStubData.ClassRecord innerCr : inners) {
-                        String innerName = cache.data.stringPool[innerCr.nameIndex];
-                        if (processedBinaryClasses.add(innerName)) {
-                            remainingJdkStubFiles.remove(innerName);
-                            remainingJdkStubFilesJar.remove(innerName);
-                            BinaryStubReader.applyClassRecord(
-                                    innerCr, innerName, atypeFactory, this, cache.data);
-                        }
+                for (BinaryStubData.ClassRecord innerCr : getInnerClassesFromBinary(className)) {
+                    String innerName = cache.data.stringPool[innerCr.nameIndex];
+                    if (processedBinaryClasses.add(innerName)) {
+                        remainingJdkStubFiles.remove(innerName);
+                        remainingJdkStubFilesJar.remove(innerName);
+                        BinaryStubReader.applyClassRecord(
+                                innerCr,
+                                innerName,
+                                atypeFactory,
+                                this,
+                                cache.data,
+                                annotationFileAnnos);
                     }
                 }
                 return;
@@ -1020,7 +1176,6 @@ public class AnnotationFileElementTypes {
         }
 
         Path stubPath = remainingJdkStubFiles.remove(className);
-
         if (stubPath != null) {
             parseJdkStubFile(stubPath);
         } else {
@@ -1170,19 +1325,17 @@ public class AnnotationFileElementTypes {
             try {
                 BinaryStubDataCache cache = getBinaryStubDataCache();
                 if (cache == null) {
-                    try (InputStream in = binURL.openStream()) {
-                        if (in != null) {
-                            cache = new BinaryStubDataCache(new BinaryStubData(in));
-                            setBinaryStubDataCache(cache);
-                        }
-                    }
+                    // The BinaryStubData contains no javac objects, so it is cached per JVM;
+                    // only the BinaryStubDataCache wrapper is per-compilation.
+                    cache = new BinaryStubDataCache(loadBinaryStubData(binURL));
+                    setBinaryStubDataCache(cache);
                 }
-                if (cache != null && cache.data != null) {
-                    binaryLoaded = true;
-                    // Apply package and module annotations eagerly as they are global
-                    BinaryStubReader.applyPackageAndModuleRecords(cache.data, atypeFactory, this);
-                }
-            } catch (java.io.IOException e) {
+                binaryLoaded = true;
+                // Apply package and module annotations eagerly, as they are global rather than
+                // per-class.
+                BinaryStubReader.applyPackageAndModuleRecords(
+                        cache.data, atypeFactory, this, annotationFileAnnos);
+            } catch (IOException e) {
                 atypeFactory
                         .getChecker()
                         .message(
@@ -1225,6 +1378,20 @@ public class AnnotationFileElementTypes {
                             + ". Unsupported protocol: "
                             + resourceURL.getProtocol());
         }
+
+        if (binaryLoaded
+                && isStubTypes
+                && atypeFactory.getChecker().hasOption("binaryStubDiffCheck")) {
+            // Test-only mode: compare, for every class in the binary stub, the annotations the
+            // binary path produces against the annotations the text parser produces, and report
+            // any disagreement as an error. See BinaryStubDiffChecker. Runs once per compilation
+            // (for the first factory to get here), not once per factory.
+            BinaryStubDataCache cache = getBinaryStubDataCache();
+            if (cache != null && !cache.diffCheckDone) {
+                cache.diffCheckDone = true;
+                BinaryStubDiffChecker.run(this, cache, atypeFactory);
+            }
+        }
     }
 
     /**
@@ -1236,6 +1403,20 @@ public class AnnotationFileElementTypes {
      *     from the binary stub file
      */
     private void prepJdkFromFile(URL jdkDirectory, boolean binaryLoaded) {
+        BinaryStubDataCache cache = getBinaryStubDataCache();
+        // The directory walk is shareable across the factories of a compilation when the binary
+        // stub is loaded: no per-factory parsing (of package-info files) happens during the walk
+        // then, so the walk's only output is the class-to-path map.
+        boolean shareWalk = binaryLoaded && !parseAllJdkFiles && cache != null;
+        if (shareWalk && cache.jdkStubPathsByClass != null) {
+            // Another factory in this compilation already walked the JDK directory.
+            remainingJdkStubFiles.putAll(cache.jdkStubPathsByClass);
+            if (stubDebug) {
+                printRemainingJdkStubFilesDebug(jdkDirectory);
+            }
+            return;
+        }
+
         Path root;
         try {
             root = Paths.get(jdkDirectory.toURI());
@@ -1251,6 +1432,8 @@ public class AnnotationFileElementTypes {
             for (Path path : paths) {
                 if (path.getFileName().toString().equals("package-info.java")) {
                     if (!binaryLoaded) {
+                        // When the binary stub is loaded, package annotations come from its
+                        // package records instead.
                         parseJdkStubFile(path);
                     }
                     continue;
@@ -1273,18 +1456,102 @@ public class AnnotationFileElementTypes {
                 String fqName = savepathWithoutExtension.replace(File.separatorChar, '.');
                 remainingJdkStubFiles.put(fqName, path);
             }
+            if (shareWalk) {
+                cache.jdkStubPathsByClass = new HashMap<>(remainingJdkStubFiles);
+            }
             if (stubDebug) {
-                System.out.printf(
-                        "Contents of remainingJdkStubFiles for %s from %s:%n",
-                        atypeFactory.getClass().getSimpleName(), jdkDirectory);
-                printSortedIndented(remainingJdkStubFiles.keySet());
-                System.out.printf(
-                        "End of remainingJdkStubFiles for %s from %s.%n",
-                        atypeFactory.getClass().getSimpleName(), jdkDirectory);
+                printRemainingJdkStubFilesDebug(jdkDirectory);
             }
         } catch (IOException e) {
             throw new BugInCF("prepJdkFromFile(" + jdkDirectory + ")", e);
         }
+    }
+
+    /**
+     * Text-parses the JDK stub source for {@code className} into {@code target}, if a stub source
+     * for it is known. Used only by {@link BinaryStubDiffChecker} to obtain the text parser's view
+     * of a class for comparison against the binary path. The stub source is looked up but not
+     * removed from {@link #remainingJdkStubFiles} / {@link #remainingJdkStubFilesJar}, so the
+     * normal lazy text-parsing behavior is unaffected.
+     *
+     * @param className fully-qualified name of an outermost class
+     * @param target the annotation container to parse into
+     * @return true if a stub source for the class was found and parsed
+     */
+    boolean parseJdkSourceInto(String className, AnnotationFileAnnotations target) {
+        Path path = remainingJdkStubFiles.get(className);
+        if (path != null) {
+            try (InputStream in = new FileInputStream(path.toFile())) {
+                parseJdkStreamInto(path.toFile().getName(), in, target);
+            } catch (IOException e) {
+                throw new BugInCF("cannot open the jdk stub file " + path, e);
+            }
+            return true;
+        }
+        String jarEntryName = remainingJdkStubFilesJar.get(className);
+        if (jarEntryName != null) {
+            JarURLConnection connection = getJarURLConnectionToJdk();
+            try (JarFile jarFile = connection.getJarFile();
+                    InputStream in = jarFile.getInputStream(jarFile.getJarEntry(jarEntryName))) {
+                parseJdkStreamInto(jarEntryName, in, target);
+            } catch (IOException e) {
+                throw new BugInCF("cannot open the jdk stub file " + jarEntryName, e);
+            }
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Text-parses one JDK stub source stream into {@code target}, with the usual parse-phase
+     * bookkeeping ({@link #parsingCount}, parse-phase cache clearing).
+     *
+     * @param name the stub source's name, for diagnostics
+     * @param in the stream to parse
+     * @param target the annotation container to parse into
+     */
+    private void parseJdkStreamInto(String name, InputStream in, AnnotationFileAnnotations target) {
+        ++parsingCount;
+        try {
+            AnnotationFileParser.parseJdkFileAsStub(
+                    name, in, atypeFactory, atypeFactory.getProcessingEnv(), target, this);
+        } finally {
+            --parsingCount;
+            if (parsingCount == 0) {
+                atypeFactory.clearParsePhaseCache();
+            }
+        }
+    }
+
+    /**
+     * Prints the contents of {@link #remainingJdkStubFiles} for debugging (option {@code
+     * -AstubDebug}).
+     *
+     * @param jdkDirectory the URL the JDK stub files were found under
+     */
+    private void printRemainingJdkStubFilesDebug(URL jdkDirectory) {
+        System.out.printf(
+                "Contents of remainingJdkStubFiles for %s from %s:%n",
+                atypeFactory.getClass().getSimpleName(), jdkDirectory);
+        printSortedIndented(remainingJdkStubFiles.keySet());
+        System.out.printf(
+                "End of remainingJdkStubFiles for %s from %s.%n",
+                atypeFactory.getClass().getSimpleName(), jdkDirectory);
+    }
+
+    /**
+     * Prints the contents of {@link #remainingJdkStubFilesJar} for debugging (option {@code
+     * -AstubDebug}). Used on the fast path of {@link #prepJdkFromJar} where the map was copied from
+     * the shared per-compilation cache rather than enumerated from the jar.
+     */
+    private void printRemainingJdkStubFilesJarDebug() {
+        String factoryClass = atypeFactory.getClass().getSimpleName();
+        System.out.printf(
+                "Contents of remainingJdkStubFilesJar for %s (from shared per-compilation"
+                        + " cache):%n",
+                factoryClass);
+        printSortedIndented(remainingJdkStubFilesJar.keySet());
+        System.out.printf("End of remainingJdkStubFilesJar for %s.%n", factoryClass);
     }
 
     /**
@@ -1295,6 +1562,20 @@ public class AnnotationFileElementTypes {
      *     from the binary stub file
      */
     private void prepJdkFromJar(boolean binaryLoaded) {
+        BinaryStubDataCache cache = getBinaryStubDataCache();
+        // The jar enumeration is shareable across the factories of a compilation when the binary
+        // stub is loaded: no per-factory parsing (of package-info files) happens during the
+        // enumeration then, so its only output is the class-to-jar-entry map.
+        boolean shareScan = binaryLoaded && !parseAllJdkFiles && cache != null;
+        if (shareScan && cache.jdkJarEntriesByClass != null) {
+            // Another factory in this compilation already enumerated the jar.
+            remainingJdkStubFilesJar.putAll(cache.jdkJarEntriesByClass);
+            if (stubDebug) {
+                printRemainingJdkStubFilesJarDebug();
+            }
+            return;
+        }
+
         JarURLConnection connection = getJarURLConnectionToJdk();
 
         try (JarFile jarFile = connection.getJarFile()) {
@@ -1311,8 +1592,15 @@ public class AnnotationFileElementTypes {
                         || jarEntryName.endsWith("module-info.java")) {
                     continue;
                 }
-                if (parseAllJdkFiles
-                        || (jarEntryName.endsWith("package-info.java") && !binaryLoaded)) {
+                if (jarEntryName.endsWith("package-info.java")) {
+                    if (parseAllJdkFiles || !binaryLoaded) {
+                        // When the binary stub is loaded, package annotations come from its
+                        // package records instead.
+                        parseJdkJarEntry(jarEntryName);
+                    }
+                    continue;
+                }
+                if (parseAllJdkFiles) {
                     parseJdkJarEntry(jarEntryName);
                     continue;
                 }
@@ -1321,6 +1609,9 @@ public class AnnotationFileElementTypes {
                 String fqClassName =
                         jarEntryName.substring(index, jarEntryName.length() - 5).replace('/', '.');
                 remainingJdkStubFilesJar.put(fqClassName, jarEntryName);
+            }
+            if (shareScan) {
+                cache.jdkJarEntriesByClass = new HashMap<>(remainingJdkStubFilesJar);
             }
             if (stubDebug) {
                 String factoryClass = atypeFactory.getClass().getSimpleName().toString();

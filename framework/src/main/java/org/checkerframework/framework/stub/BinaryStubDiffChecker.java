@@ -1,0 +1,841 @@
+package org.checkerframework.framework.stub;
+
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.framework.source.SourceChecker;
+import org.checkerframework.framework.stub.AnnotationFileParser.AnnotationFileAnnotations;
+import org.checkerframework.framework.type.AnnotatedTypeFactory;
+import org.checkerframework.framework.type.AnnotatedTypeMirror;
+import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedArrayType;
+import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedDeclaredType;
+import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedExecutableType;
+import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedIntersectionType;
+import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedTypeVariable;
+import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedUnionType;
+import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedWildcardType;
+import org.checkerframework.framework.type.visitor.SimpleAnnotatedTypeScanner;
+import org.checkerframework.javacutil.AnnotationMirrorSet;
+import org.checkerframework.javacutil.AnnotationUtils;
+import org.plumelib.util.IPair;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.IdentityHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.TreeSet;
+
+import javax.lang.model.element.AnnotationMirror;
+import javax.lang.model.element.Element;
+import javax.lang.model.element.ExecutableElement;
+import javax.lang.model.element.TypeElement;
+import javax.lang.model.type.TypeMirror;
+import javax.lang.model.type.WildcardType;
+import javax.tools.Diagnostic;
+
+/**
+ * Test-only differential checker for the binary stub path. For every top-level class in the binary
+ * stub data — of the annotated JDK ({@link #run}) and of each built-in checker stub file ({@link
+ * #diffBuiltinStub}) — it loads the class's annotations twice, once through {@link
+ * BinaryStubReader} and once through the text-based {@link AnnotationFileParser}, into separate
+ * scratch {@link AnnotationFileAnnotations} containers, and reports any disagreement between the
+ * two as an error.
+ *
+ * <p>Because the binary writer and reader re-implement the text parser's semantics (TYPE_USE
+ * routing, array-component rules, type-parameter bounds, fake overrides, {@code @FromStubFile}
+ * marking, ...), a silent divergence between the two paths is the main correctness risk of the
+ * binary format. This check turns such a divergence into a loud test failure. It is activated by
+ * the {@code -AbinaryStubDiffCheck} option (used by the {@code NullnessBinaryStubDiffTest} JUnit
+ * test) and is never active in normal checker runs.
+ *
+ * <p>Comparison semantics:
+ *
+ * <ul>
+ *   <li>Declaration annotations ({@link AnnotationFileAnnotations#declAnnos}) must have the same
+ *       keys and, per key, the same set of Checker Framework annotation class names. Non-checker
+ *       annotations (an unimported {@code @Override}, a {@code @DefinedBy} reachable only through a
+ *       static import, {@code @CFComment}) are kept or dropped differently by well-understood
+ *       text-parser name-resolution quirks, are consumed by no checker, and are excluded.
+ *   <li>Annotated types ({@link AnnotationFileAnnotations#atypes}) are compared per element key by
+ *       a parallel, cycle-safe structural walk that compares the set of annotation names at every
+ *       source-annotatable type component (see {@link #compareAtm} for the derived positions that
+ *       are excluded and why). An entry present on only one side is reported only if it carries
+ *       non-derived annotations.
+ *   <li>Positions whose baselines differ between the two loaders (type-variable declaration bounds,
+ *       fake overrides) are guarded by a record oracle instead: {@link #verifyRecordApplied}
+ *       asserts that everything the binary record promises was actually stored.
+ *   <li>Record components are not modeled by the binary format; if the text parser produces them
+ *       for a class in the binary stub, that is reported.
+ * </ul>
+ */
+public class BinaryStubDiffChecker {
+
+    /** Do not instantiate; all methods are static. */
+    private BinaryStubDiffChecker() {}
+
+    /** Maximum number of detailed mismatch messages to report before summarizing only. */
+    private static final int MAX_DETAILED_REPORTS = 100;
+
+    /**
+     * Runs the differential check over every top-level class in the binary stub data and reports
+     * mismatches as errors via the checker.
+     *
+     * @param elementTypes the stub-types AFET whose factory and stub sources to use
+     * @param cache the per-compilation binary stub cache; its data supplies the classes to check
+     * @param atypeFactory the factory used to create types and parse annotations
+     */
+    public static void run(
+            AnnotationFileElementTypes elementTypes,
+            AnnotationFileElementTypes.BinaryStubDataCache cache,
+            AnnotatedTypeFactory atypeFactory) {
+        BinaryStubData data = cache.data;
+        SourceChecker checker = atypeFactory.getChecker();
+
+        int classesChecked = 0;
+        int classesWithoutTextStub = 0;
+        List<String> reports = new ArrayList<>();
+
+        for (Map.Entry<String, BinaryStubData.ClassRecord> entry : data.classes.entrySet()) {
+            BinaryStubData.ClassRecord cr = entry.getValue();
+            if (cr.outerNameIndex != 0) {
+                // Inner classes are checked together with their outermost class, mirroring the
+                // text parser, which always parses a whole .java file at once.
+                continue;
+            }
+            String className = entry.getKey();
+
+            AnnotationFileAnnotations textAnnos = new AnnotationFileAnnotations();
+            if (!elementTypes.parseJdkSourceInto(className, textAnnos)) {
+                // Auxiliary (package-private) top-level classes live in the .java file of
+                // another class and have no file of their own; they are checked as part of
+                // that hosting file's comparison below.
+                classesWithoutTextStub++;
+                continue;
+            }
+
+            // The text parser processes a whole .java file at once, which may contain
+            // auxiliary (package-private) top-level classes besides the named one. Apply the
+            // binary records at the same granularity: the named class, plus every top-level
+            // class the text side produced results for, plus all their inner classes.
+            AnnotationFileAnnotations binaryAnnos = new AnnotationFileAnnotations();
+            Set<String> appliedTops = new HashSet<>();
+            List<BinaryStubData.ClassRecord> appliedRecords = new ArrayList<>();
+            applyTopLevelRecord(
+                    className,
+                    cr,
+                    appliedTops,
+                    appliedRecords,
+                    binaryAnnos,
+                    elementTypes,
+                    data,
+                    atypeFactory);
+            for (String top : topLevelClassesIn(textAnnos, data)) {
+                BinaryStubData.ClassRecord topCr = data.classes.get(top);
+                if (topCr != null && topCr.outerNameIndex == 0) {
+                    applyTopLevelRecord(
+                            top,
+                            topCr,
+                            appliedTops,
+                            appliedRecords,
+                            binaryAnnos,
+                            elementTypes,
+                            data,
+                            atypeFactory);
+                }
+            }
+
+            classesChecked++;
+            for (BinaryStubData.ClassRecord appliedCr : appliedRecords) {
+                verifyRecordApplied(
+                        data.stringPool[appliedCr.nameIndex],
+                        appliedCr,
+                        data,
+                        binaryAnnos,
+                        elementTypes,
+                        atypeFactory,
+                        reports);
+            }
+            compareClass(className, textAnnos, binaryAnnos, reports);
+        }
+
+        reportDiffs(checker, reports);
+        // Print the summary to standard output rather than as a NOTE diagnostic: the
+        // per-directory test harness treats every diagnostic as unexpected.
+        System.out.printf(
+                "binary stub diff: checked %d top-level classes (%d without text stub source),"
+                        + " %d mismatches.%n",
+                classesChecked, classesWithoutTextStub, reports.size());
+    }
+
+    /**
+     * Reports each mismatch as an error, up to {@link #MAX_DETAILED_REPORTS}, then summarizes any
+     * remainder.
+     *
+     * @param checker the checker to report through
+     * @param reports the mismatch descriptions
+     */
+    private static void reportDiffs(SourceChecker checker, List<String> reports) {
+        for (int i = 0; i < reports.size() && i < MAX_DETAILED_REPORTS; i++) {
+            checker.message(Diagnostic.Kind.ERROR, "binary stub diff: " + reports.get(i));
+        }
+        if (reports.size() > MAX_DETAILED_REPORTS) {
+            checker.message(
+                    Diagnostic.Kind.ERROR,
+                    "binary stub diff: "
+                            + (reports.size() - MAX_DETAILED_REPORTS)
+                            + " further mismatches suppressed.");
+        }
+    }
+
+    /**
+     * Differential check for one built-in checker stub file (e.g. {@code jdk.astub}): text-parses
+     * the {@code .astub} resource and applies its binary form into separate scratch containers,
+     * then reports any disagreement as an error, exactly like the annotated-JDK check in {@link
+     * #run}. Both sides include {@code @FromStubFile} marking, so the marking parity is verified as
+     * well.
+     *
+     * @param description resource description, used in report messages
+     * @param textResourceURL the URL of the {@code .astub} resource
+     * @param data the binary form of the stub file
+     * @param elementTypes the stub-types AFET whose factory to use
+     * @param atypeFactory the factory used to create types and parse annotations
+     */
+    public static void diffBuiltinStub(
+            String description,
+            java.net.URL textResourceURL,
+            BinaryStubData data,
+            AnnotationFileElementTypes elementTypes,
+            AnnotatedTypeFactory atypeFactory) {
+        SourceChecker checker = atypeFactory.getChecker();
+        AnnotationFileAnnotations textAnnos = new AnnotationFileAnnotations();
+        try (java.io.InputStream in = textResourceURL.openStream()) {
+            AnnotationFileParser.parseStubFile(
+                    description,
+                    in,
+                    atypeFactory,
+                    atypeFactory.getProcessingEnv(),
+                    textAnnos,
+                    AnnotationFileUtil.AnnotationFileType.BUILTIN_STUB,
+                    elementTypes);
+        } catch (java.io.IOException e) {
+            checker.message(
+                    Diagnostic.Kind.ERROR,
+                    "binary stub diff: cannot read " + textResourceURL + ": " + e.getMessage());
+            return;
+        }
+        AnnotationFileAnnotations binaryAnnos = new AnnotationFileAnnotations();
+        elementTypes.applyBinaryStubData(data, binaryAnnos);
+
+        List<String> reports = new ArrayList<>();
+        for (Map.Entry<String, BinaryStubData.ClassRecord> entry : data.classes.entrySet()) {
+            verifyRecordApplied(
+                    entry.getKey(),
+                    entry.getValue(),
+                    data,
+                    binaryAnnos,
+                    elementTypes,
+                    atypeFactory,
+                    reports);
+        }
+        compareClass(description, textAnnos, binaryAnnos, reports);
+        reportDiffs(checker, reports);
+        System.out.printf(
+                "binary stub diff: checked built-in stub %s, %d mismatches.%n",
+                description, reports.size());
+    }
+
+    /**
+     * Applies one top-level class record and all its inner-class records into {@code binaryAnnos},
+     * recording what was applied. Does nothing if the class was already applied for this
+     * comparison.
+     *
+     * @param className the fully-qualified name of the top-level class
+     * @param cr its class record
+     * @param appliedTops the top-level class names already applied for this comparison
+     * @param appliedRecords collects every record applied, for {@link #verifyRecordApplied}
+     * @param binaryAnnos the scratch container to apply into
+     * @param elementTypes the stub-types AFET
+     * @param data the binary stub data
+     * @param atypeFactory the factory used to create types and parse annotations
+     */
+    private static void applyTopLevelRecord(
+            String className,
+            BinaryStubData.ClassRecord cr,
+            Set<String> appliedTops,
+            List<BinaryStubData.ClassRecord> appliedRecords,
+            AnnotationFileAnnotations binaryAnnos,
+            AnnotationFileElementTypes elementTypes,
+            BinaryStubData data,
+            AnnotatedTypeFactory atypeFactory) {
+        if (!appliedTops.add(className)) {
+            return;
+        }
+        BinaryStubReader.applyClassRecord(
+                cr, className, atypeFactory, elementTypes, data, binaryAnnos);
+        appliedRecords.add(cr);
+        for (BinaryStubData.ClassRecord innerCr :
+                elementTypes.getInnerClassesFromBinary(className)) {
+            String innerName = data.stringPool[innerCr.nameIndex];
+            BinaryStubReader.applyClassRecord(
+                    innerCr, innerName, atypeFactory, elementTypes, data, binaryAnnos);
+            appliedRecords.add(innerCr);
+        }
+    }
+
+    /**
+     * Determines the top-level classes for which the text parse produced results, by examining the
+     * keys of both {@code atypes} (elements, walked to their outermost enclosing type) and {@code
+     * declAnnos} (qualified-name strings, matched against the binary class index by successively
+     * shorter prefixes).
+     *
+     * @param textAnnos the text parser's results for one file
+     * @param data the binary stub data, used to resolve a class to its outermost enclosing class
+     * @return the fully-qualified names of the outermost classes with results
+     */
+    private static Set<String> topLevelClassesIn(
+            AnnotationFileAnnotations textAnnos, BinaryStubData data) {
+        Set<String> result = new HashSet<>();
+        for (Element key : textAnnos.atypes.keySet()) {
+            Element e = key;
+            TypeElement outermost = null;
+            while (e != null) {
+                if (e instanceof TypeElement) {
+                    outermost = (TypeElement) e;
+                }
+                e = e.getEnclosingElement();
+            }
+            if (outermost != null) {
+                result.add(outermost.getQualifiedName().toString());
+            }
+        }
+        for (String key : textAnnos.declAnnos.keySet()) {
+            String name = key.indexOf('(') >= 0 ? key.substring(0, key.indexOf('(')) : key;
+            while (true) {
+                BinaryStubData.ClassRecord rec = data.classes.get(name);
+                if (rec != null) {
+                    result.add(
+                            rec.outerNameIndex == 0 ? name : data.stringPool[rec.outerNameIndex]);
+                    break;
+                }
+                int lastDot = name.lastIndexOf('.');
+                if (lastDot < 0) {
+                    break;
+                }
+                name = name.substring(0, lastDot);
+            }
+        }
+        return result;
+    }
+
+    /**
+     * Verifies that everything the binary record promises was actually stored by {@link
+     * BinaryStubReader#applyClassRecord}: an annotated type-parameter record must have produced an
+     * {@code atypes} entry for its {@code TypeParameterElement}, and a method record carrying type
+     * information must have produced an {@code atypes} entry for its {@code ExecutableElement}.
+     * This writer-to-reader presence check guards positions (such as type-variable declaration
+     * bounds) that {@link #compareAtm} cannot compare against the text parser because the two paths
+     * build them from different baselines; a reader change that silently skips applying a record —
+     * like the historical {@code hasAnyTypeAnnos} gap that dropped {@code StackWalker.walk}'s
+     * {@code <T extends @Nullable Object>} bound — fails here.
+     *
+     * @param className the fully-qualified name of the class
+     * @param cr the binary class record
+     * @param data the binary stub data that {@code cr} belongs to, providing its string pool (a
+     *     record's indices are only meaningful against its own file's pools)
+     * @param binaryAnnos the annotations produced from the record by the binary reader
+     * @param elementTypes the stub-types AFET, used for signature lookups
+     * @param atypeFactory the factory used to resolve elements
+     * @param reports the list to append failure descriptions to
+     */
+    private static void verifyRecordApplied(
+            String className,
+            BinaryStubData.ClassRecord cr,
+            BinaryStubData data,
+            AnnotationFileAnnotations binaryAnnos,
+            AnnotationFileElementTypes elementTypes,
+            AnnotatedTypeFactory atypeFactory,
+            List<String> reports) {
+        TypeElement typeElt =
+                atypeFactory.getProcessingEnv().getElementUtils().getTypeElement(className);
+        if (typeElt == null) {
+            return;
+        }
+        List<? extends Element> classTypeParams = typeElt.getTypeParameters();
+        for (int i = 0; i < cr.typeParams.length && i < classTypeParams.size(); i++) {
+            if (BinaryStubReader.typeParamRecordHasAnnos(cr.typeParams[i])
+                    && !binaryAnnos.atypes.containsKey(classTypeParams.get(i))) {
+                reports.add(
+                        String.format(
+                                "%s: class type-parameter %d has annotations in the binary record"
+                                        + " but no atypes entry was stored",
+                                className, i));
+            }
+        }
+        for (BinaryStubData.MethodRecord mr : cr.methods) {
+            if (!BinaryStubReader.hasTypeInfo(mr)) {
+                continue;
+            }
+            String sig = data.stringPool[mr.sigIndex];
+            ExecutableElement ee =
+                    sig.startsWith("<init>(")
+                            ? elementTypes.constructorSigIndex(typeElt).get(sig)
+                            : elementTypes.methodSigIndex(typeElt).get(sig);
+            if (ee != null) {
+                if (!binaryAnnos.atypes.containsKey(ee)) {
+                    reports.add(
+                            String.format(
+                                    "%s: method %s has type information in the binary record but"
+                                            + " no atypes entry was stored",
+                                    className, sig));
+                }
+            } else if (mr.returnTypeAnnos.length > 0 && !sig.startsWith("<init>(")) {
+                // The record is an annotated fake override (or a stub/JDK mismatch, in which
+                // case there is no overridden method and nothing to store).
+                ExecutableElement overridden =
+                        BinaryStubReader.findFakeOverriddenMethod(typeElt, sig, elementTypes);
+                if (overridden != null) {
+                    boolean stored = false;
+                    List<IPair<TypeMirror, AnnotatedTypeMirror>> entries =
+                            binaryAnnos.fakeOverrides.get(overridden);
+                    if (entries != null) {
+                        String location = typeElt.asType().toString();
+                        for (IPair<TypeMirror, AnnotatedTypeMirror> pair : entries) {
+                            if (pair.first.toString().equals(location)) {
+                                stored = true;
+                                break;
+                            }
+                        }
+                    }
+                    if (!stored) {
+                        reports.add(
+                                String.format(
+                                        "%s: fake override %s has return-type annotations in the"
+                                                + " binary record but no fakeOverrides entry was"
+                                                + " stored",
+                                        className, sig));
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Compares the text-parsed and binary-loaded annotations for one top-level class (including its
+     * inner classes) and appends a description of each mismatch to {@code reports}.
+     *
+     * @param className the fully-qualified name of the top-level class, for report messages
+     * @param text the annotations produced by the text parser
+     * @param binary the annotations produced by the binary reader
+     * @param reports the list to append mismatch descriptions to
+     */
+    private static void compareClass(
+            String className,
+            AnnotationFileAnnotations text,
+            AnnotationFileAnnotations binary,
+            List<String> reports) {
+        // Declaration annotations: same keys, and per key the same annotation names. The
+        // comparison is restricted to Checker Framework annotations — the payload the stub
+        // pipeline exists to deliver. Whether java.* and JDK-internal declaration annotations
+        // (e.g. an unimported @Override, or a @DefinedBy resolvable only through a static
+        // import) are kept differs between the two paths due to well-understood text-parser
+        // name-resolution quirks, and no checker consumes them from stubs.
+        Set<String> declKeys = new TreeSet<>();
+        declKeys.addAll(text.declAnnos.keySet());
+        declKeys.addAll(binary.declAnnos.keySet());
+        for (String key : declKeys) {
+            Set<String> textNames = checkerAnnotationNames(text.declAnnos.get(key));
+            Set<String> binaryNames = checkerAnnotationNames(binary.declAnnos.get(key));
+            if (!textNames.equals(binaryNames)) {
+                reports.add(
+                        String.format(
+                                "%s: declAnnos[%s]: text=%s binary=%s",
+                                className, key, textNames, binaryNames));
+            }
+        }
+
+        // Annotated types: per common element key a structural comparison; one-sided entries are
+        // a mismatch only if they carry annotations.
+        Set<Element> atypeKeys = new HashSet<>();
+        atypeKeys.addAll(text.atypes.keySet());
+        atypeKeys.addAll(binary.atypes.keySet());
+        for (Element key : atypeKeys) {
+            AnnotatedTypeMirror textAtm = text.atypes.get(key);
+            AnnotatedTypeMirror binaryAtm = binary.atypes.get(key);
+            if (textAtm == null) {
+                if (hasAnyAnnotation(binaryAtm)) {
+                    reports.add(
+                            String.format(
+                                    "%s: atypes[%s]: only in binary: %s",
+                                    className, key, binaryAtm));
+                }
+                continue;
+            }
+            if (binaryAtm == null) {
+                if (hasNonDerivedAnnotation(
+                        textAtm, false, Collections.newSetFromMap(new IdentityHashMap<>()))) {
+                    reports.add(
+                            String.format(
+                                    "%s: atypes[%s]: only in text: %s", className, key, textAtm));
+                }
+                continue;
+            }
+            List<String> componentDiffs = new ArrayList<>();
+            compareAtm(textAtm, binaryAtm, "", componentDiffs, new IdentityHashMap<>());
+            for (String diff : componentDiffs) {
+                reports.add(String.format("%s: atypes[%s]: %s", className, key, diff));
+            }
+        }
+
+        // Structures the binary format does not model at all.
+        if (!text.records.isEmpty()) {
+            reports.add(
+                    className + ": text parser produced record stubs: " + text.records.keySet());
+        }
+        // Fake overrides: every binary-side entry must have a text-side counterpart with the
+        // same fake location. The text parser additionally stores a fake-override entry for
+        // every unannotated fake declaration (its methodType is then just a getAnnotatedType
+        // snapshot with baked-in defaults) — the binary path deliberately skips those, so
+        // text-only keys are benign; a dropped *annotated* fake override is caught by the
+        // record oracle in verifyRecordApplied. The method types themselves are not compared:
+        // both sides bake time-dependent defaults via getAnnotatedType, which differ between
+        // the text parse and the binary application even when the stub annotations agree.
+        for (Map.Entry<ExecutableElement, List<IPair<TypeMirror, AnnotatedTypeMirror>>> entry :
+                binary.fakeOverrides.entrySet()) {
+            List<IPair<TypeMirror, AnnotatedTypeMirror>> textList =
+                    text.fakeOverrides.get(entry.getKey());
+            for (IPair<TypeMirror, AnnotatedTypeMirror> binaryPair : entry.getValue()) {
+                boolean locationMatched = false;
+                if (textList != null) {
+                    for (IPair<TypeMirror, AnnotatedTypeMirror> textPair : textList) {
+                        if (textPair.first.toString().equals(binaryPair.first.toString())) {
+                            locationMatched = true;
+                            break;
+                        }
+                    }
+                }
+                if (!locationMatched) {
+                    reports.add(
+                            String.format(
+                                    "%s: fakeOverrides[%s]: binary location %s has no text"
+                                            + " counterpart",
+                                    className, entry.getKey(), binaryPair.first));
+                }
+            }
+        }
+    }
+
+    /**
+     * Compares the annotations of two annotated types component by component, appending a
+     * description of each differing component to {@code diffs}. The walk is cycle-safe: an
+     * (already-visited text component, binary component) pair is not revisited, which terminates
+     * recursion through F-bounded type variables such as {@code Enum<E extends Enum<E>>}.
+     *
+     * <p>Derived positions are excluded from the comparison: the bounds of implicit (unbounded)
+     * wildcards and the bounds of type-variable <em>uses</em> cannot carry source annotations —
+     * whatever annotations they hold were computed at parse/load time from the type-parameter
+     * declaration (the text parser bakes parse-time {@code getAnnotatedType} results into them,
+     * which is order-dependent), and {@code mergeAnnotationFileAnnosIntoType}'s target recomputes
+     * that information at lookup time. Type-variable <em>declarations</em> ({@code
+     * atypes[TypeParameterElement]} entries, the direct type arguments of a class entry, and a
+     * method's {@code getTypeVariables()}) are source-annotatable, but their baselines also diverge
+     * (fromElement vs. createType), so their explicit annotations are guarded by the record-driven
+     * presence check in {@link #verifyRecordApplied} rather than by this comparison.
+     *
+     * @param text the text parser's type
+     * @param binary the binary reader's type
+     * @param path human-readable description of the current component's position, e.g. {@code
+     *     "return.typeArg[0]"}
+     * @param diffs the list to append difference descriptions to
+     * @param visited the pairs already visited, to terminate cycles
+     */
+    private static void compareAtm(
+            AnnotatedTypeMirror text,
+            AnnotatedTypeMirror binary,
+            String path,
+            List<String> diffs,
+            IdentityHashMap<AnnotatedTypeMirror, Set<AnnotatedTypeMirror>> visited) {
+        if (text == null || binary == null) {
+            if (text != binary) {
+                diffs.add(path + ": one side has no component: text=" + text + " binary=" + binary);
+            }
+            return;
+        }
+        Set<AnnotatedTypeMirror> visitedBinaries =
+                visited.computeIfAbsent(
+                        text, k -> Collections.newSetFromMap(new IdentityHashMap<>()));
+        if (!visitedBinaries.add(binary)) {
+            return;
+        }
+
+        Set<String> textNames = annotationNames(text.getAnnotations());
+        Set<String> binaryNames = annotationNames(binary.getAnnotations());
+        if (!textNames.equals(binaryNames)) {
+            diffs.add(
+                    String.format(
+                            "%s: text=%s binary=%s",
+                            path.isEmpty() ? "top" : path, textNames, binaryNames));
+        }
+
+        if (text instanceof AnnotatedExecutableType && binary instanceof AnnotatedExecutableType) {
+            AnnotatedExecutableType t = (AnnotatedExecutableType) text;
+            AnnotatedExecutableType b = (AnnotatedExecutableType) binary;
+            compareAtm(t.getReturnType(), b.getReturnType(), path + "return", diffs, visited);
+            compareLists(
+                    t.getParameterTypes(), b.getParameterTypes(), path + "param", diffs, visited);
+            if (t.getReceiverType() != null && b.getReceiverType() != null) {
+                compareAtm(
+                        t.getReceiverType(),
+                        b.getReceiverType(),
+                        path + "receiver",
+                        diffs,
+                        visited);
+            }
+            compareLists(
+                    t.getTypeVariables(), b.getTypeVariables(), path + "typeVar", diffs, visited);
+        } else if (text instanceof AnnotatedDeclaredType
+                && binary instanceof AnnotatedDeclaredType) {
+            compareLists(
+                    ((AnnotatedDeclaredType) text).getTypeArguments(),
+                    ((AnnotatedDeclaredType) binary).getTypeArguments(),
+                    path + ".typeArg",
+                    diffs,
+                    visited);
+        } else if (text instanceof AnnotatedArrayType && binary instanceof AnnotatedArrayType) {
+            compareAtm(
+                    ((AnnotatedArrayType) text).getComponentType(),
+                    ((AnnotatedArrayType) binary).getComponentType(),
+                    path + ".component",
+                    diffs,
+                    visited);
+        } else if (text instanceof AnnotatedWildcardType
+                && binary instanceof AnnotatedWildcardType) {
+            // Only explicit (source-written) wildcard bounds are compared; the bounds of an
+            // unbounded wildcard are derived state (see the method comment).
+            WildcardType underlying = ((AnnotatedWildcardType) text).getUnderlyingType();
+            if (underlying.getExtendsBound() != null) {
+                compareAtm(
+                        ((AnnotatedWildcardType) text).getExtendsBound(),
+                        ((AnnotatedWildcardType) binary).getExtendsBound(),
+                        path + ".extendsBound",
+                        diffs,
+                        visited);
+            } else if (underlying.getSuperBound() != null) {
+                compareAtm(
+                        ((AnnotatedWildcardType) text).getSuperBound(),
+                        ((AnnotatedWildcardType) binary).getSuperBound(),
+                        path + ".superBound",
+                        diffs,
+                        visited);
+            }
+        } else if (text instanceof AnnotatedTypeVariable
+                && binary instanceof AnnotatedTypeVariable) {
+            // Type-variable bounds are derived state at uses, and baseline-divergent at
+            // declarations; see the method comment. Only the primary annotations (compared
+            // above) are compared here.
+        } else if (text instanceof AnnotatedIntersectionType
+                && binary instanceof AnnotatedIntersectionType) {
+            compareLists(
+                    ((AnnotatedIntersectionType) text).getBounds(),
+                    ((AnnotatedIntersectionType) binary).getBounds(),
+                    path + ".bound",
+                    diffs,
+                    visited);
+        } else if (text instanceof AnnotatedUnionType && binary instanceof AnnotatedUnionType) {
+            compareLists(
+                    ((AnnotatedUnionType) text).getAlternatives(),
+                    ((AnnotatedUnionType) binary).getAlternatives(),
+                    path + ".alternative",
+                    diffs,
+                    visited);
+        } else if (!text.getClass().equals(binary.getClass())) {
+            diffs.add(
+                    String.format(
+                            "%s: different type shapes: text=%s binary=%s",
+                            path,
+                            text.getClass().getSimpleName(),
+                            binary.getClass().getSimpleName()));
+        }
+    }
+
+    /**
+     * Compares two lists of type components pairwise via {@link #compareAtm}.
+     *
+     * @param text the text parser's components
+     * @param binary the binary reader's components
+     * @param path human-readable position prefix; an index suffix is appended per component
+     * @param diffs the list to append difference descriptions to
+     * @param visited the pairs already visited, to terminate cycles
+     */
+    private static void compareLists(
+            List<? extends AnnotatedTypeMirror> text,
+            List<? extends AnnotatedTypeMirror> binary,
+            String path,
+            List<String> diffs,
+            IdentityHashMap<AnnotatedTypeMirror, Set<AnnotatedTypeMirror>> visited) {
+        if (text.size() != binary.size()) {
+            diffs.add(
+                    String.format(
+                            "%s: component count differs: text=%d binary=%d",
+                            path, text.size(), binary.size()));
+            return;
+        }
+        for (int i = 0; i < text.size(); i++) {
+            compareAtm(text.get(i), binary.get(i), path + "[" + i + "]", diffs, visited);
+        }
+    }
+
+    /**
+     * Returns the sorted set of annotation class names in the given annotations, or the empty set
+     * for {@code null}.
+     *
+     * @param annos the annotations, may be {@code null}
+     * @return the sorted annotation class names
+     */
+    private static Set<String> annotationNames(
+            @Nullable Iterable<? extends AnnotationMirror> annos) {
+        Set<String> names = new TreeSet<>();
+        if (annos != null) {
+            for (AnnotationMirror am : annos) {
+                names.add(AnnotationUtils.annotationName(am));
+            }
+        }
+        return names;
+    }
+
+    /**
+     * Returns the sorted set of annotation class names in the given set, or the empty set for
+     * {@code null}.
+     *
+     * @param annos the annotation set, may be {@code null}
+     * @return the sorted annotation class names
+     */
+    private static Set<String> annotationNames(@Nullable AnnotationMirrorSet annos) {
+        return annotationNames((Iterable<? extends AnnotationMirror>) annos);
+    }
+
+    /**
+     * Returns the sorted set of Checker Framework annotation class names (names starting with
+     * {@code org.checkerframework.}) in the given set, or the empty set for {@code null}. {@code
+     * CFComment} is also excluded: it is documentation for humans with no effect on checking, and
+     * the text parser drops it whenever its value uses string concatenation (which it cannot
+     * evaluate), whereas the binary writer evaluates the concatenation and keeps it.
+     *
+     * @param annos the annotation set, may be {@code null}
+     * @return the sorted Checker Framework annotation class names
+     */
+    private static Set<String> checkerAnnotationNames(@Nullable AnnotationMirrorSet annos) {
+        Set<String> names = new TreeSet<>();
+        if (annos != null) {
+            for (AnnotationMirror am : annos) {
+                String name = AnnotationUtils.annotationName(am);
+                if (name.startsWith("org.checkerframework.")
+                        && !name.equals("org.checkerframework.framework.qual.CFComment")) {
+                    names.add(name);
+                }
+            }
+        }
+        return names;
+    }
+
+    /**
+     * Returns true if {@code atm} carries an annotation anywhere outside a derived position. A
+     * derived position is inside the bounds of a wildcard or of a type-variable use: source code
+     * cannot annotate those positions directly, so any annotation there was computed by the text
+     * parser (implicit-wildcard-bound and type-variable-bound copying) from information that is
+     * available elsewhere. An entry stored only by the text parser whose every annotation is in a
+     * derived position is therefore benign: the binary path stores no entry, and checking
+     * recomputes the same information from the type-parameter declarations.
+     *
+     * <p>By contrast, if the member had any source annotation, the binary writer recorded it and
+     * the binary reader stores an entry, so the entry would not be one-sided in the first place.
+     *
+     * @param atm the type to scan, may be {@code null}
+     * @param inDerivedPosition true if the current component is inside a wildcard or type-variable
+     *     bound
+     * @param visited components already visited, to terminate cycles through F-bounded types
+     * @return true if an annotation exists outside derived positions
+     */
+    private static boolean hasNonDerivedAnnotation(
+            @Nullable AnnotatedTypeMirror atm,
+            boolean inDerivedPosition,
+            Set<AnnotatedTypeMirror> visited) {
+        if (atm == null || !visited.add(atm)) {
+            return false;
+        }
+        if (!inDerivedPosition && !atm.getAnnotations().isEmpty()) {
+            return true;
+        }
+        if (atm instanceof AnnotatedExecutableType) {
+            AnnotatedExecutableType exe = (AnnotatedExecutableType) atm;
+            if (hasNonDerivedAnnotation(exe.getReturnType(), inDerivedPosition, visited)
+                    || hasNonDerivedAnnotation(exe.getReceiverType(), inDerivedPosition, visited)) {
+                return true;
+            }
+            for (AnnotatedTypeMirror param : exe.getParameterTypes()) {
+                if (hasNonDerivedAnnotation(param, inDerivedPosition, visited)) {
+                    return true;
+                }
+            }
+            for (AnnotatedTypeMirror typeVar : exe.getTypeVariables()) {
+                if (hasNonDerivedAnnotation(typeVar, inDerivedPosition, visited)) {
+                    return true;
+                }
+            }
+            return false;
+        } else if (atm instanceof AnnotatedDeclaredType) {
+            for (AnnotatedTypeMirror typeArg : ((AnnotatedDeclaredType) atm).getTypeArguments()) {
+                if (hasNonDerivedAnnotation(typeArg, inDerivedPosition, visited)) {
+                    return true;
+                }
+            }
+            return false;
+        } else if (atm instanceof AnnotatedArrayType) {
+            return hasNonDerivedAnnotation(
+                    ((AnnotatedArrayType) atm).getComponentType(), inDerivedPosition, visited);
+        } else if (atm instanceof AnnotatedWildcardType) {
+            AnnotatedWildcardType wildcard = (AnnotatedWildcardType) atm;
+            return hasNonDerivedAnnotation(wildcard.getExtendsBound(), true, visited)
+                    || hasNonDerivedAnnotation(wildcard.getSuperBound(), true, visited);
+        } else if (atm instanceof AnnotatedTypeVariable) {
+            AnnotatedTypeVariable typeVar = (AnnotatedTypeVariable) atm;
+            return hasNonDerivedAnnotation(typeVar.getUpperBound(), true, visited)
+                    || hasNonDerivedAnnotation(typeVar.getLowerBound(), true, visited);
+        } else if (atm instanceof AnnotatedIntersectionType) {
+            for (AnnotatedTypeMirror bound : ((AnnotatedIntersectionType) atm).getBounds()) {
+                if (hasNonDerivedAnnotation(bound, inDerivedPosition, visited)) {
+                    return true;
+                }
+            }
+            return false;
+        } else if (atm instanceof AnnotatedUnionType) {
+            for (AnnotatedTypeMirror alt : ((AnnotatedUnionType) atm).getAlternatives()) {
+                if (hasNonDerivedAnnotation(alt, inDerivedPosition, visited)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+        return false;
+    }
+
+    /**
+     * Returns true if any component of {@code atm} carries any annotation. Used to decide whether
+     * an entry present on only one side is a real mismatch.
+     *
+     * @param atm the type to scan, may be {@code null}
+     * @return true if any component carries an annotation
+     */
+    private static boolean hasAnyAnnotation(AnnotatedTypeMirror atm) {
+        if (atm == null) {
+            return false;
+        }
+        Boolean result =
+                new SimpleAnnotatedTypeScanner<Boolean, Void>(
+                                (type, unused) -> !type.getAnnotations().isEmpty(),
+                                Boolean::logicalOr,
+                                false)
+                        .visit(atm);
+        return result != null && result;
+    }
+}

@@ -409,6 +409,11 @@ import javax.tools.Diagnostic;
     // org.checkerframework.framework.stub.AnnotationFileParser.debugAnnotationFileParser
     "stubDebug",
 
+    // Test-only: compare the binary JDK stub path against the text parser for every class in
+    // the binary stub and report any disagreement as an error.
+    // org.checkerframework.framework.stub.BinaryStubDiffChecker
+    "binaryStubDiffCheck",
+
     // Progress tracing
 
     // Output file names before checking
