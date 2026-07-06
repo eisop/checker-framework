@@ -61,6 +61,24 @@ tasks.named('jar') {
 configurations {
     implementation.extendsFrom(stubifierImplementation)
     implementation.extendsFrom(annotatedGuava)
+
+    // Exposes the stubifier tool (JavaStubifier, BinaryStubWriter, BinaryStubFileGenerator)
+    // together with its runtime dependencies, for the generateBinaryStubFiles tasks that the
+    // top-level build file registers in subprojects containing .astub files. A consumable
+    // configuration is required: resolving another project's sourceSets classpath directly is
+    // incompatible with the configuration cache.
+    stubifierTool {
+        canBeConsumed = true
+        canBeResolved = false
+        extendsFrom(stubifierImplementation)
+    }
+}
+
+// The stubifier classes themselves are the configuration's artifact.
+sourceSets.stubifier.output.classesDirs.each { classesDir ->
+    artifacts.add('stubifierTool', classesDir) {
+        builtBy(tasks.named('compileStubifierJava'))
+    }
 }
 
 dependencies {
