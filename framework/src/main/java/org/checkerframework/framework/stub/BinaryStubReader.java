@@ -165,6 +165,9 @@ public class BinaryStubReader {
             AnnotationFileAnnotations target,
             @Nullable AnnotationMirror fromStubFileAnno) {
 
+        @SuppressWarnings("signature:argument.type.incompatible") // className is read from the
+        // binary stub's string pool, which BinaryStubWriter populates only with fully-qualified
+        // names
         TypeElement typeElt =
                 atypeFactory.getProcessingEnv().getElementUtils().getTypeElement(className);
         if (typeElt == null) {
@@ -1204,6 +1207,9 @@ public class BinaryStubReader {
                     return cachedType;
                 }
             }
+            @SuppressWarnings("signature:argument.type.incompatible") // fqName is read from the
+            // binary stub's string pool, which BinaryStubWriter populates only with
+            // fully-qualified names
             TypeElement te = env.getElementUtils().getTypeElement(fqName);
             if (te == null) {
                 return null;
@@ -1215,6 +1221,9 @@ public class BinaryStubReader {
             return type;
         } else if (val instanceof BinaryStubData.EnumConstantValue) {
             BinaryStubData.EnumConstantValue ev = (BinaryStubData.EnumConstantValue) val;
+            @SuppressWarnings("signature:argument.type.incompatible") // ev.enumClassName is read
+            // from the binary stub's string pool, which BinaryStubWriter populates only with
+            // fully-qualified names
             TypeElement enumClass = env.getElementUtils().getTypeElement(ev.enumClassName);
             if (enumClass != null) {
                 for (Element elt : enumClass.getEnclosedElements()) {
@@ -1237,6 +1246,9 @@ public class BinaryStubReader {
                         return coerceConstant(cachedVal, expectedKind);
                     }
                 }
+                @SuppressWarnings("signature:argument.type.incompatible") // enclosingClassName is
+                // read from the binary stub's string pool, which BinaryStubWriter populates only
+                // with fully-qualified names
                 TypeElement te = env.getElementUtils().getTypeElement(enclosingClassName);
                 VariableElement ve = findFieldInType(te, constantName, env);
                 if (ve != null) {
@@ -1404,6 +1416,9 @@ public class BinaryStubReader {
             AnnotationFileElementTypes elementTypes) {
         try {
             String fqn = data.stringPool[ar.nameIndex];
+            @SuppressWarnings("signature:argument.type.incompatible") // fqn is read from the
+            // binary stub's string pool, which BinaryStubWriter populates only with
+            // fully-qualified names
             AnnotationBuilder builder = new AnnotationBuilder(atypeFactory.getProcessingEnv(), fqn);
 
             for (Map.Entry<Integer, Object> entry : ar.elementValues.entrySet()) {

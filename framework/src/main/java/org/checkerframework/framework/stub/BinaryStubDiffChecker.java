@@ -356,6 +356,9 @@ public class BinaryStubDiffChecker {
             AnnotationFileElementTypes elementTypes,
             AnnotatedTypeFactory atypeFactory,
             List<String> reports) {
+        @SuppressWarnings("signature:argument.type.incompatible") // className is read from the
+        // binary stub's string pool, which BinaryStubWriter populates only with fully-qualified
+        // names
         TypeElement typeElt =
                 atypeFactory.getProcessingEnv().getElementUtils().getTypeElement(className);
         if (typeElt == null) {
@@ -556,7 +559,7 @@ public class BinaryStubDiffChecker {
             List<String> diffs,
             IdentityHashMap<AnnotatedTypeMirror, Set<AnnotatedTypeMirror>> visited) {
         if (text == null || binary == null) {
-            if (text != binary) {
+            if ((text == null) != (binary == null)) {
                 diffs.add(path + ": one side has no component: text=" + text + " binary=" + binary);
             }
             return;
@@ -648,7 +651,7 @@ public class BinaryStubDiffChecker {
                     path + ".alternative",
                     diffs,
                     visited);
-        } else if (!text.getClass().equals(binary.getClass())) {
+        } else if (text.getClass() != binary.getClass()) {
             diffs.add(
                     String.format(
                             "%s: different type shapes: text=%s binary=%s",
@@ -730,7 +733,7 @@ public class BinaryStubDiffChecker {
             for (AnnotationMirror am : annos) {
                 String name = AnnotationUtils.annotationName(am);
                 if (name.startsWith("org.checkerframework.")
-                        && !name.equals("org.checkerframework.framework.qual.CFComment")) {
+                        && name != "org.checkerframework.framework.qual.CFComment") {
                     names.add(name);
                 }
             }

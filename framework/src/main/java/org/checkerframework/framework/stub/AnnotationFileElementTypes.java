@@ -351,11 +351,13 @@ public class AnnotationFileElementTypes {
         for (ExecutableElement executable : executables) {
             try {
                 index.put(ElementUtils.getSimpleSignature(executable), executable);
-            } catch (BugInCF e) {
-                throw e;
             } catch (RuntimeException e) {
                 // Skip executables whose signature cannot be computed, e.g. because a parameter
-                // type is an unresolvable (error) type. They cannot be matched by a stub record.
+                // type is an unresolvable (error) type -- TypesUtils.simpleTypeName throws
+                // BugInCF (a RuntimeException) for exactly that case, e.g. a JDK-internal
+                // parameter type like sun.util.locale.provider.LocaleResources that is not
+                // exported to the annotation processor's module. Such executables cannot be
+                // matched by any stub record anyway.
             }
         }
         return index;
