@@ -340,13 +340,14 @@ public class AnnotationFileElementTypes {
     }
 
     /**
-     * Builds a map from simple signature to element for the given executables.
+     * Builds a map from simple signature to element for the given executables. Package-private
+     * (rather than private) so that {@code AnnotationFileElementTypesTest} can exercise it directly
+     * with a constructed list of executables, without needing a full {@link AnnotatedTypeFactory}.
      *
      * @param executables the methods or constructors to index
      * @return map from simple signature to element
      */
-    private static Map<String, ExecutableElement> buildSigIndex(
-            List<ExecutableElement> executables) {
+    static Map<String, ExecutableElement> buildSigIndex(List<ExecutableElement> executables) {
         Map<String, ExecutableElement> index = new HashMap<>(executables.size() * 2);
         for (ExecutableElement executable : executables) {
             try {
