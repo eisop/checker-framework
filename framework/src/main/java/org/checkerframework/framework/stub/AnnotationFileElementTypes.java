@@ -491,7 +491,8 @@ public class AnnotationFileElementTypes {
      * @param target the annotation container to apply into
      */
     void applyBinaryStubData(BinaryStubData data, AnnotationFileAnnotations target) {
-        BinaryStubReader.applyPackageAndModuleRecords(data, atypeFactory, this, target);
+        BinaryStubReader.applyPackageAndModuleRecords(
+                data, atypeFactory, this, target, /* fromLazyJdk= */ false);
         AnnotationMirror fromStubFile = getFromStubFileAnno();
         for (Map.Entry<String, BinaryStubData.ClassRecord> entry : data.classes.entrySet()) {
             BinaryStubReader.applyClassRecord(
@@ -1337,7 +1338,11 @@ public class AnnotationFileElementTypes {
                 // Apply package and module annotations eagerly, as they are global rather than
                 // per-class.
                 BinaryStubReader.applyPackageAndModuleRecords(
-                        cache.data, atypeFactory, this, annotationFileAnnos);
+                        cache.data,
+                        atypeFactory,
+                        this,
+                        annotationFileAnnos,
+                        /* fromLazyJdk= */ true);
             } catch (IOException e) {
                 atypeFactory
                         .getChecker()
