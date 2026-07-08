@@ -1225,6 +1225,20 @@ public class BinaryStubWriter {
                         pdAnnos.add(idx);
                     }
                 }
+                if (p.isVarArgs()) {
+                    // Annotations written immediately before "..." (e.g. "Foo @Nullable ...
+                    // args") apply to the array type itself, matching
+                    // AnnotationFileParser.processParameters's
+                    // annotate(paramType, param.getVarArgsAnnotations(), param). JLS does not
+                    // permit declaration annotations in this position, so these are always
+                    // type-use and apply directly to the parameter's array type (empty path).
+                    for (AnnotationExpr anno : p.getVarArgsAnnotations()) {
+                        int idx = annosPool.addAnnotation(anno, cu, this);
+                        if (idx != IGNORED) {
+                            pAnnos.add(new TypeAnno(idx));
+                        }
+                    }
+                }
                 mr.paramDeclAnnos.add(pdAnnos);
             }
             mr.typeParams.addAll(extractTypeParams(decl.getTypeParameters(), cu));
