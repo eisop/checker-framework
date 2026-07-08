@@ -1152,10 +1152,12 @@ public class BinaryStubReader {
             } else if (step.kind == 2) { // WILDCARD_BOUND
                 if (current instanceof AnnotatedWildcardType) {
                     AnnotatedWildcardType awt = (AnnotatedWildcardType) current;
-                    current =
-                            awt.getExtendsBound() != null
-                                    ? awt.getExtendsBound()
-                                    : awt.getSuperBound();
+                    // CF's AnnotatedWildcardType always synthesizes both bounds (defaulting
+                    // whichever was not written in source), so getExtendsBound() is never null
+                    // and cannot be used to detect which bound this step is for; argIndex carries
+                    // that distinction instead (0 = extends, 1 = super -- see BinaryStubWriter's
+                    // extractTypeAnnotations, which writes it for exactly this reason).
+                    current = step.argIndex == 0 ? awt.getExtendsBound() : awt.getSuperBound();
                 } else {
                     return null;
                 }

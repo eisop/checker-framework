@@ -219,12 +219,18 @@ public class BinaryStubWriter {
         final byte kind;
 
         /**
-         * The type argument index, or 0 if not applicable. Kept as {@code byte} (matching JVMS's
-         * 1-byte {@code type_argument_index}) rather than widened to {@code int}, to avoid
-         * quadrupling the size of every {@link TypePathStep} instance (one per path step of every
-         * type annotation processed) for a value that is realistically always a small index; see
-         * {@code BinaryStubData.TypePathStep#argIndex} for how a value of 128 or greater is
-         * reinterpreted as unsigned on the reading side.
+         * For {@link #kind} {@code 3} (TYPE_ARGUMENT), the type argument index. For {@link #kind}
+         * {@code 2} (WILDCARD_BOUND), repurposed to distinguish an extends bound ({@code 0}) from a
+         * super bound ({@code 1}): JVMS itself leaves this byte unused for WILDCARD_BOUND
+         * (assuming, at the bytecode level, that a wildcard has only one structurally possible
+         * bound), but CF's {@code AnnotatedWildcardType} always synthesizes both bounds, so {@code
+         * BinaryStubReader.resolvePath} needs this to know which one a given path step is for.
+         * Unused (0) for every other kind. Kept as {@code byte} (matching JVMS's 1-byte {@code
+         * type_argument_index}) rather than widened to {@code int}, to avoid quadrupling the size
+         * of every {@link TypePathStep} instance (one per path step of every type annotation
+         * processed) for a value that is realistically always 0 or 1; see {@code
+         * BinaryStubData.TypePathStep#argIndex} for how a value of 128 or greater is reinterpreted
+         * as unsigned on the reading side.
          */
         final byte argIndex;
 
@@ -281,7 +287,10 @@ public class BinaryStubWriter {
             out.writeByte(path.size());
             for (TypePathStep step : path) {
                 out.writeByte(step.kind);
-                if (step.kind == 3) { // TYPE_ARGUMENT
+                // JVMS leaves argIndex (type_argument_index) unused (0) for every kind except
+                // TYPE_ARGUMENT (3), but WILDCARD_BOUND (2) repurposes it here to distinguish an
+                // extends bound (0) from a super bound (1) -- see TypePathStep's field javadoc.
+                if (step.kind == 3 || step.kind == 2) {
                     out.writeByte(step.argIndex);
                 }
             }
@@ -1329,12 +1338,19 @@ public class BinaryStubWriter {
         } else if (type instanceof WildcardType) {
             WildcardType wt = (WildcardType) type;
             if (wt.getExtendedType().isPresent()) {
-                currentPath.add(new TypePathStep((byte) 2, (byte) 0)); // WILDCARD_BOUND
+                // WILDCARD_BOUND. JVMS leaves argIndex unused (0) for this kind, since a real
+                // wildcard has only one structurally possible bound; CF's AnnotatedWildcardType,
+                // however, always synthesizes both an extends and a super bound (defaulting
+                // whichever was not written), so argIndex is repurposed here (0 = extends bound,
+                // 1 = super bound, below) to tell BinaryStubReader.resolvePath which one to
+                // annotate -- see that method for why this distinction cannot be recovered from
+                // the resolved AnnotatedWildcardType alone.
+                currentPath.add(new TypePathStep((byte) 2, (byte) 0));
                 extractTypeAnnotations(wt.getExtendedType().get(), currentPath, result, cu);
                 currentPath.remove(currentPath.size() - 1);
             }
             if (wt.getSuperType().isPresent()) {
-                currentPath.add(new TypePathStep((byte) 2, (byte) 0)); // WILDCARD_BOUND
+                currentPath.add(new TypePathStep((byte) 2, (byte) 1)); // WILDCARD_BOUND, super
                 extractTypeAnnotations(wt.getSuperType().get(), currentPath, result, cu);
                 currentPath.remove(currentPath.size() - 1);
             }

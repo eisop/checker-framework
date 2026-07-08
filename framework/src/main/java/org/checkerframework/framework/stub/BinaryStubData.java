@@ -243,10 +243,15 @@ public class BinaryStubData {
 
         /**
          * For {@link #kind} {@code 3} (type argument), the zero-based index of the type argument.
-         * Unused for other kinds. Stored as a signed {@code byte} to match the 1-byte width of
-         * JVMS's {@code type_argument_index} (a {@code u1}, so its wire value ranges over 0-255); a
-         * value of 128 or greater is stored as a negative {@code byte} and must be reinterpreted as
-         * unsigned ({@code & 0xFF}) wherever it is widened to {@code int} for use (see {@code
+         * For {@link #kind} {@code 2} (wildcard bound), repurposed to distinguish an extends bound
+         * ({@code 0}) from a super bound ({@code 1}): JVMS leaves this byte unused for wildcard
+         * bounds (a real wildcard has only one structurally possible bound), but CF's {@code
+         * AnnotatedWildcardType} always synthesizes both bounds, so {@link BinaryStubReader
+         * #resolvePath} needs this to know which one a given path step is for. Unused (0) for other
+         * kinds. Stored as a signed {@code byte} to match the 1-byte width of JVMS's {@code
+         * type_argument_index} (a {@code u1}, so its wire value ranges over 0-255); a value of 128
+         * or greater is stored as a negative {@code byte} and must be reinterpreted as unsigned
+         * ({@code & 0xFF}) wherever it is widened to {@code int} for use (see {@code
          * BinaryStubReader#resolvePath}). Left as {@code byte} rather than widened to {@code int}:
          * one {@code TypePathStep} exists per path step of every type annotation in the annotated
          * JDK, so widening every instance's fields would multiply that memory cost for a value that
@@ -259,8 +264,8 @@ public class BinaryStubData {
          *
          * @param kind the kind of path step: 0 = array component, 1 = nested type, 2 = wildcard
          *     bound, 3 = type argument
-         * @param argIndex for kind 3, the zero-based index of the type argument; unused for other
-         *     kinds
+         * @param argIndex for kind 3, the zero-based index of the type argument; for kind 2, 0 =
+         *     extends bound, 1 = super bound; unused (0) for other kinds
          */
         public TypePathStep(byte kind, byte argIndex) {
             this.kind = kind;
@@ -626,7 +631,10 @@ public class BinaryStubData {
         for (int i = 0; i < pathLength; i++) {
             byte kind = dataIn.readByte();
             byte argIndex = 0;
-            if (kind == 3) { // TYPE_ARGUMENT
+            // TYPE_ARGUMENT (3): the type argument index. WILDCARD_BOUND (2): repurposed to
+            // distinguish an extends bound (0) from a super bound (1); see TypePathStep#argIndex
+            // and BinaryStubWriter.TypeAnno#write, which writes it for exactly these two kinds.
+            if (kind == 3 || kind == 2) {
                 argIndex = dataIn.readByte();
             }
             path[i] = new TypePathStep(kind, argIndex);
