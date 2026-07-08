@@ -701,7 +701,8 @@ so small per-call wins paid back substantially.
     disagreement as an error; also verifies record-to-storage completeness (the
     `StackWalker.walk` class of bug). Runs in ~6 s; ~1450 top-level classes (count is
     JDK-version-dependent; e.g. 1450 with 316 without text stub source on JDK 25), 0
-    mismatches.
+    mismatches. (This snapshot predates the coverage fixes below, which raised the count
+    checked to 1652/114 on the same JDK -- see the second correctness follow-up.)
     Comparison scope and its justification are documented in `BinaryStubDiffChecker`.
 
   A/B after the review pass (same session, single forked `javac -processor nullness`,
@@ -804,6 +805,71 @@ so small per-call wins paid back substantially.
     `framework/jtreg` (4 passing); full `:framework:test`/`:checker:test`/`:javacutil:test`/
     `:dataflow:test`.
 
+  Second correctness follow-up (July 2026), same PR — three bugs found from a downstream
+  (Daikon) CI failure and, once one was fixed, from the differential check itself:
+  - **`getVarArgsAnnotations()` never read.** `BinaryStubWriter`'s parameter loop read a
+    `Parameter`'s `getAnnotations()` (its own declaration annotations, applying to the array's
+    component type for varargs) but never called `getVarArgsAnnotations()` — JavaParser's
+    separate list for an annotation written immediately before the varargs ellipsis (`Foo @X
+    ... args`), which applies to the array type itself. This silently dropped
+    `java.lang.Class.getMethod`'s `Class<?>@Nullable ... parameterTypes`, breaking downstream
+    code (Daikon CI) that passes a null varargs array to it. Confirmed via `git worktree`
+    bisection that this predates this whole session's other fixes and does not reproduce
+    against plain-text-parsing `master`. Fixed by extracting `getVarArgsAnnotations()` and
+    recording it with an empty path (applies directly to the array type), matching
+    `AnnotationFileParser.processParameters`'s `annotate(paramType,
+    param.getVarArgsAnnotations(), param)`. Added
+    `checker/jtreg/nullness/VarargsArrayAnnotation.java`: it must run against the real
+    annotated JDK's binary form specifically, since a user `-Astubs` file is always
+    text-parsed (would not exercise this writer bug) and the JUnit nullness test corpus does
+    not use the annotated JDK at all.
+  - **The differential check itself had two coverage gaps**, both found while investigating
+    why it reported 0 mismatches despite the bug above being real:
+    1. It ran once per *compilation* (`BinaryStubDataCache.diffCheckDone`, "whichever
+       stub-types factory's `prepJdkStubs()` gets there first"), not once per factory. For
+       Nullness's four sub-checker factories, that factory turned out to be **KeyFor**, which
+       does not support `@Nullable`/`@NonNull` at all; `AnnotatedTypeMirror.addAnnotation`
+       silently drops an unsupported annotation on both the text and binary sides equally, so
+       comparing under only that one factory made the whole check blind to nullness
+       annotations — exactly how the `Class.getMethod` bug above went unreported. Removed the
+       single-run gate; `prepJdkStubs` already runs exactly once per factory on its own, so
+       the check now runs under all four (previously an identified "next option": running
+       under every factory would extend qualifier-routing coverage at ~4x the ~6s cost --
+       confirmed by this session's ~11-12s runtime for four factories).
+    2. `parseJdkSourceInto` looked up a class's text-stub source in
+       `remainingJdkStubFiles`/`remainingJdkStubFilesJar`, the same maps
+       `maybeParseEnclosingJdkClass` consumes (removes entries from) as a side effect of
+       ordinary lazy resolution -- including resolution triggered by the diff check's own
+       comparison of an *earlier* class in the same run. A commonly-referenced type
+       (`java.lang.Class` among them) could already be resolved, and hence missing from these
+       maps, before the outer loop reached it as its own entry, silently moving it to
+       "without text stub source" instead of comparing it. Changed the lookup to
+       `BinaryStubDataCache`'s `jdkStubPathsByClass`/`jdkJarEntriesByClass` snapshots:
+       populated once by the initial directory walk/jar scan and never mutated afterward. On
+       this JDK checkout this took the comparison from 1450 classes (316 "without text stub
+       source") to 1652 (114).
+  - **Wildcard super-bound annotations, found immediately once the two gaps above were
+    fixed**: running the (now-thorough) check surfaced 40 real mismatches, all the same
+    shape — an annotation explicitly written on the lower bound of a `? super X` wildcard
+    (e.g. `Optional.filter`'s `Predicate<? super @NonNull T>`) present on the text side,
+    missing on the binary side. Two compounding bugs: (1) `BinaryStubReader.resolvePath`'s
+    `WILDCARD_BOUND` case picked `awt.getExtendsBound() != null ? extends : super` --  CF's
+    `AnnotatedWildcardType` always synthesizes *both* bounds (defaulting whichever was not
+    written), so `getExtendsBound()` is never null and this always picked the extends bound.
+    (2) Fixing that exposed a second bug: `BinaryStubWriter.TypeAnno#write` only ever
+    serialized a path step's `argIndex` byte for `TYPE_ARGUMENT` (kind 3); for
+    `WILDCARD_BOUND` (kind 2) the byte was never written at all, matching JVMS's own
+    assumption that it is unused for that kind (a real wildcard has only one structurally
+    possible bound; CF's wrapper does not). So even a correct in-memory extends/super marker
+    was silently dropped at serialization and always read back as 0. Fixed by writing/reading
+    `argIndex` for `WILDCARD_BOUND` too (0 = extends, 1 = super, repurposing the byte JVMS
+    itself leaves unused for this kind).
+
+    Verified: differential check back to 0 mismatches, now checked under all four Nullness
+    factories; full `checker/jtreg` (89 passing, +1 for the new varargs test) and
+    `framework/jtreg` (4 passing); full `:framework:test`/`:checker:test`/`:javacutil:test`/
+    `:dataflow:test`.
+
   Startup profile after all of the above (JFR aggregate of 8 identical Tiny.java
   compiles, 427 samples): flat. Binary stub application is 23% inclusive — ~15%
   lazy JDK delivery for classes the code actually uses (irreducible) and ~9% eager
@@ -830,11 +896,7 @@ so small per-call wins paid back substantially.
   2. *Drop the text stubs from `checker.jar`* (~1.5 MB) once the binary format
      has soaked; the CHANGELOG notes the intention. Blockers: record
      declarations remain text-only, and `-AparseAllJdk` needs the text stubs.
-  3. *Diff check under every factory*: `BinaryStubDiffChecker` currently runs
-     under the first stub-types factory of the compilation; running it under all
-     four (nullness) would extend qualifier-routing coverage at ~4× the test's
-     ~6 s cost.
-  4. `JavaExpressionParseUtil.parseExpression` is the only stubparser use left on
+  3. `JavaExpressionParseUtil.parseExpression` is the only stubparser use left on
      the default checking path (dependent-type/contract expression strings). It
      has never surfaced above the JFR sampling floor; per the ceiling rule,
      build an annotation-string-saturated workload and confirm the frames appear
