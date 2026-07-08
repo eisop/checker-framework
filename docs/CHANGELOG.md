@@ -4,10 +4,10 @@ Version 3.49.5-eisop2 (June ?, 2026)
 **User-visible changes:**
 
 Further performance improvements relative to the 3.49.5-eisop1 release:
-- `allNullnessTests`: 1m42s vs. 2m16s
-- `checkNullness`: 1m37s vs. 3m40s
-- `checkInterning`: 0m42s vs. 1m13s
-- `test`: 8m18s vs. 12m40s (lots of build overhead)
+- `allNullnessTests`: 1m24s vs. 2m16s
+- `checkNullness`: 1m28s vs. 3m40s
+- `checkInterning`: 0m35s vs. 1m13s
+- `test`: 7m15s vs. 12m40s (lots of build overhead)
 
 Several optimizations also reduce GC pressure and remove superlinear behavior,
 improving performance for large (e.g. auto-generated) files.
