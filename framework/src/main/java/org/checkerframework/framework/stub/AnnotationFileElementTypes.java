@@ -161,12 +161,6 @@ public class AnnotationFileElementTypes {
         @Nullable Map<String, Path> jdkStubPathsByClass = null;
 
         /**
-         * True once the {@code -AbinaryStubDiffCheck} differential check has run in this
-         * compilation, so it runs only once rather than once per factory.
-         */
-        boolean diffCheckDone = false;
-
-        /**
          * Constructs a new cache holding the given binary stub data.
          *
          * @param data the binary stub data to cache
@@ -1392,11 +1386,22 @@ public class AnnotationFileElementTypes {
                 && atypeFactory.getChecker().hasOption("binaryStubDiffCheck")) {
             // Test-only mode: compare, for every class in the binary stub, the annotations the
             // binary path produces against the annotations the text parser produces, and report
-            // any disagreement as an error. See BinaryStubDiffChecker. Runs once per compilation
-            // (for the first factory to get here), not once per factory.
+            // any disagreement as an error. See BinaryStubDiffChecker.
+            //
+            // Runs once per factory (prepJdkStubs, and so this method, runs exactly once per
+            // AnnotationFileElementTypes instance), not once per compilation: a compound checker
+            // like Nullness has several sub-checker factories (e.g. NullnessNoInit, KeyFor), each
+            // supporting a different, mostly-disjoint set of qualifiers. addAnnotation silently
+            // drops an annotation a factory's own atypeFactory does not support -- on both the
+            // text and binary sides equally -- so comparing under only one factory (formerly
+            // gated by BinaryStubDataCache.diffCheckDone, "whichever factory gets here first")
+            // made the check blind to every qualifier that factory does not support. If that
+            // factory happens to be, say, KeyFor, which does not support @Nullable at all, the
+            // entire annotated JDK's nullness annotations go uncompared on both sides -- exactly
+            // how a dropped @Nullable on Class.getMethod's varargs array (a real bug, found only
+            // by testing the checker directly, not by this comparison) went unreported.
             BinaryStubDataCache cache = getBinaryStubDataCache();
-            if (cache != null && !cache.diffCheckDone) {
-                cache.diffCheckDone = true;
+            if (cache != null) {
                 BinaryStubDiffChecker.run(this, cache, atypeFactory);
             }
         }
@@ -1478,16 +1483,30 @@ public class AnnotationFileElementTypes {
     /**
      * Text-parses the JDK stub source for {@code className} into {@code target}, if a stub source
      * for it is known. Used only by {@link BinaryStubDiffChecker} to obtain the text parser's view
-     * of a class for comparison against the binary path. The stub source is looked up but not
-     * removed from {@link #remainingJdkStubFiles} / {@link #remainingJdkStubFilesJar}, so the
-     * normal lazy text-parsing behavior is unaffected.
+     * of a class for comparison against the binary path.
+     *
+     * <p>Looks up the class's source location in the {@link BinaryStubDataCache}'s {@link
+     * BinaryStubDataCache#jdkStubPathsByClass}/{@link BinaryStubDataCache#jdkJarEntriesByClass}
+     * snapshots, not in {@link #remainingJdkStubFiles}/{@link #remainingJdkStubFilesJar}: those two
+     * are consumed (entries removed) by {@link #maybeParseEnclosingJdkClass} as a side effect of
+     * ordinary lazy resolution, including resolution triggered by the diff check's own comparisons
+     * of an <em>earlier</em> class in the same run (e.g., a field or parameter whose type is {@code
+     * java.lang.Class} resolves {@code Class} lazily, removing it from these maps before the outer
+     * loop ever reaches {@code Class} as its own top-level entry). Looking it up in the cache's
+     * snapshots instead means every class with a text stub source is compared exactly once,
+     * regardless of what else has already been resolved.
      *
      * @param className fully-qualified name of an outermost class
      * @param target the annotation container to parse into
      * @return true if a stub source for the class was found and parsed
      */
     boolean parseJdkSourceInto(String className, AnnotationFileAnnotations target) {
-        Path path = remainingJdkStubFiles.get(className);
+        BinaryStubDataCache cache = getBinaryStubDataCache();
+        Map<String, Path> stubPathsByClass =
+                cache != null && cache.jdkStubPathsByClass != null
+                        ? cache.jdkStubPathsByClass
+                        : remainingJdkStubFiles;
+        Path path = stubPathsByClass.get(className);
         if (path != null) {
             try (InputStream in = new FileInputStream(path.toFile())) {
                 parseJdkStreamInto(path.toFile().getName(), in, target);
@@ -1496,7 +1515,11 @@ public class AnnotationFileElementTypes {
             }
             return true;
         }
-        String jarEntryName = remainingJdkStubFilesJar.get(className);
+        Map<String, String> jarEntriesByClass =
+                cache != null && cache.jdkJarEntriesByClass != null
+                        ? cache.jdkJarEntriesByClass
+                        : remainingJdkStubFilesJar;
+        String jarEntryName = jarEntriesByClass.get(className);
         if (jarEntryName != null) {
             JarURLConnection connection = getJarURLConnectionToJdk();
             try (JarFile jarFile = connection.getJarFile();
