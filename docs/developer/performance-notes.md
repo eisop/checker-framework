@@ -576,7 +576,7 @@ so small per-call wins paid back substantially.
   handles first-encounter FQN annotations and populates both simple-name and FQN entries for future
   hits.
 
-- **PR #TODO** — *Binary pre-parsed JDK stub format.*
+- **PR #1853** — *Binary pre-parsed JDK stub format.*
   Text-based stub parsing (JavaParser + `AnnotationFileParser.process*`) was the
   dominant cost in `allNullnessTests` (28–32% inclusive time on older baselines),
   with PR #1776's AST cache eliminating the repeated parse but not the `process*`
@@ -606,8 +606,9 @@ so small per-call wins paid back substantially.
     stores the pool index of its outermost enclosing class (0 = top-level). The
     `innerClassesMap` is built in one O(n) pass instead of checking every dot-prefix
     of every class name.
-  - **`@FromStubFile` cached per factory.** `AnnotationFileElementTypes` builds the
-    `@FromStubFile` mirror once in its constructor.
+  - **`@FromStubFile` cached per factory, built lazily.** `AnnotationFileElementTypes`
+    builds the `@FromStubFile` mirror on first use (`getFromStubFileAnno`), not in its
+    constructor, and reuses it afterward.
   - **`applyTypeAnnos` uses `replaceAnnotation`.** Consistent with
     `AnnotationFileParser.annotate`, avoids `type.invalid.conflicting.annos` when
     multiple annotations from the same hierarchy appear at the same type path.
@@ -698,7 +699,9 @@ so small per-call wins paid back substantially.
     `BinaryStubDiffChecker`): loads every class of the binary stub through both the
     binary reader and the text parser into scratch containers and reports any
     disagreement as an error; also verifies record-to-storage completeness (the
-    `StackWalker.walk` class of bug). Runs in ~6 s; 1441 top-level classes, 0 mismatches.
+    `StackWalker.walk` class of bug). Runs in ~6 s; ~1450 top-level classes (count is
+    JDK-version-dependent; e.g. 1450 with 316 without text stub source on JDK 25), 0
+    mismatches.
     Comparison scope and its justification are documented in `BinaryStubDiffChecker`.
 
   A/B after the review pass (same session, single forked `javac -processor nullness`,
@@ -756,6 +759,50 @@ so small per-call wins paid back substantially.
   | Tiny.java alloc / wall | 367.5 MB / 2.75 s | 132.1 MB (-64%) / 1.72 s (-37%) |
   | Big300.java alloc / wall | 836.8 MB / 5.63 s | 672.5 MB (-20%) / 4.82 s (-14%) |
   | `allNullnessTests` wall | 1m40s | 1m24-25s (**-16%**) |
+
+  Correctness follow-up (July 2026), same PR — no perf claim, both fixes are
+  compactness/correctness only:
+  - **Signed/unsigned byte handling.** `path_length`, `type_path_kind`, and
+    `type_argument_index` in the type-annotation path encoding mirror JVMS
+    4.7.20.1/4.7.20.2's `u1` (unsigned byte) fields. Transient count/length locals
+    (element/field/method/param counts, array-value lengths, `path_length` itself) are read
+    via `readUnsignedShort()`/`readUnsignedByte()` into `int`, since they only size an array
+    or bound a loop and are never stored — no compactness cost to reading them correctly.
+    `TypePathStep.kind`/`argIndex`, in contrast, are stored once per path step of every type
+    annotation in the JDK, so widening them to `int` would multiply memory for a value that
+    is almost always a single digit; they stay `byte`; `BinaryStubReader.resolvePath`
+    reinterprets `argIndex` as unsigned only at the one point it is actually widened
+    (`Byte.toUnsignedInt`) — the standard idiom for storing an unsigned value compactly in
+    Java, which has no unsigned byte type.
+  - **Stub-precedence bug: a JDK class-level annotation could override a user's stub
+    override.** `java.util.Optional`'s annotated-JDK declaration carries a class-level
+    `@NonNull` specifically so a user stub can override the class to permit `@Nullable
+    Optional` (see the class's own javadoc). `BinaryStubReader.applyClassRecord`'s
+    class-level-annotation block instead fetched whatever `AnnotatedTypeMirror` was already
+    stored for the class — including one a user's `-Astubs` file had already established —
+    and mutated it in place, silently reintroducing `@NonNull`. This broke
+    `checker/jtreg/stubs/stub-over-jdk/Issue321.java`. Fixed by building the JDK's
+    annotations onto a fresh type and only storing it if nothing already exists for that
+    key, matching `AnnotationFileParser.putMerge`'s `JDK_STUB` case. Auditing every other
+    "fetch existing entry, mutate or unconditionally skip" site (using the `fromStubFileAnno
+    == null` signal already threaded through every call, to distinguish "the lazily-loaded
+    JDK, must never override" from "an eager built-in stub file, may override an earlier
+    built-in stub file's entry" per `parseStubFiles`'s documented "the qualifier in the last
+    stub file is applied" rule) found the same asymmetry in `mergeDeclAnnos` (declaration
+    annotations) and in `applyFieldRecords`/`applyMethodRecords`/`applyClassTypeParams`/
+    `applyMethodTypeParams` (type-use annotations on fields, methods, parameters, and
+    type-parameter bounds); all now store fresh, merge via
+    `AnnotatedTypeFactory.replaceAnnotations`, or back off, mirroring what the text parser
+    already does. The `mergeDeclAnnos` gap is not hypothetical: nullness's own
+    `junit-assertions.astub` and `permit-nullness-assertion-exception.astub` both declare
+    `org.junit.jupiter.api.Assertions.assertNotNull(Object)` with `@EnsuresNonNull("#1")` —
+    harmless today only because the content happens to match. The field/method/
+    type-parameter extensions are not currently exercised by any real stub-file combination
+    (checked all 42 built-in `.astub` files for overlapping declarations — none overlap);
+    they are defensive, matching the text parser's proven semantics for when one does appear.
+    Verified: differential check still 0 mismatches; full `checker/jtreg` (88 passing) and
+    `framework/jtreg` (4 passing); full `:framework:test`/`:checker:test`/`:javacutil:test`/
+    `:dataflow:test`.
 
   Startup profile after all of the above (JFR aggregate of 8 identical Tiny.java
   compiles, 427 samples): flat. Binary stub application is 23% inclusive — ~15%
