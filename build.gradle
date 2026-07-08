@@ -5,7 +5,7 @@ import org.gradle.api.tasks.testing.TestResult
 
 plugins {
     // https://plugins.gradle.org/plugin/com.gradleup.shadow
-    id 'com.gradleup.shadow' version '9.4.2'
+    id 'com.gradleup.shadow' version '9.5.1'
     // https://plugins.gradle.org/plugin/de.undercouch.download
     id 'de.undercouch.download' version '5.7.0'
     id 'java'
@@ -20,7 +20,7 @@ plugins {
     // Code formatting; defines targets "spotlessApply" and "spotlessCheck".
     // https://github.com/diffplug/spotless/tags ; see tags starting "gradle/"
     // Only works on JDK 11+ (even including the plugin crashes Gradle on JDK 8).
-    id 'com.diffplug.spotless' version '8.7.0'
+    id 'com.diffplug.spotless' version '8.8.0'
 }
 
 // There is another `repositories { ... }` block below; if you change this one, change that one as well.
@@ -166,12 +166,6 @@ spotlessPredeclare {
     //        > Add a step with [com.google.googlejavaformat:google-java-format:1.15.0] into the `spotlessPredeclare` block in the root project.
     java {
         googleJavaFormat(versions.googleJavaFormat)
-    }
-    groovyGradle {
-        greclipse()
-    }
-    groovy {
-        greclipse()
     }
 }
 
@@ -373,7 +367,6 @@ allprojects { currentProj ->
             groovyGradle {
                 target '**/*.gradle'
                 targetExclude doNotFormat
-                greclipse()  // which formatter Spotless should use to format .gradle files.
                 if (eisopFormatting) {
                     leadingTabsToSpaces(4)
                 } else {
@@ -389,7 +382,6 @@ allprojects { currentProj ->
 
                 // removes semicolons at the end of lines
                 removeSemicolons()
-                greclipse()
                 leadingTabsToSpaces(2)
                 trimTrailingWhitespace()
             }
