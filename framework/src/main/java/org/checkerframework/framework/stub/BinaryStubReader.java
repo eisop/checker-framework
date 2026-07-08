@@ -1013,8 +1013,13 @@ public class BinaryStubReader {
             } else if (step.kind == 3) { // TYPE_ARGUMENT
                 if (current instanceof AnnotatedDeclaredType) {
                     AnnotatedDeclaredType adt = (AnnotatedDeclaredType) current;
-                    if (step.argIndex < adt.getTypeArguments().size()) {
-                        current = adt.getTypeArguments().get(step.argIndex);
+                    // argIndex is stored as a signed byte (see TypePathStep#argIndex); widen it
+                    // back to its unsigned (0-255) meaning, matching JVMS's u1
+                    // type_argument_index, rather than sign-extending a value of 128 or greater
+                    // to a negative number.
+                    int argIndex = Byte.toUnsignedInt(step.argIndex);
+                    if (argIndex < adt.getTypeArguments().size()) {
+                        current = adt.getTypeArguments().get(argIndex);
                     } else {
                         return null;
                     }

@@ -210,10 +210,22 @@ public class BinaryStubWriter {
 
     /** Represents a step in a TypeAnnotation path. */
     private static class TypePathStep {
-        /** The kind of path step (array component, wildcard bound, type argument, nested type). */
+        /**
+         * The kind of path step (array component, wildcard bound, type argument, nested type). Only
+         * 4 values are ever assigned (all well within a signed byte's positive range), so this
+         * stays a plain {@code byte}, matching the reader's {@code
+         * BinaryStubData.TypePathStep#kind} field.
+         */
         final byte kind;
 
-        /** The type argument index, or 0 if not applicable. */
+        /**
+         * The type argument index, or 0 if not applicable. Kept as {@code byte} (matching JVMS's
+         * 1-byte {@code type_argument_index}) rather than widened to {@code int}, to avoid
+         * quadrupling the size of every {@link TypePathStep} instance (one per path step of every
+         * type annotation processed) for a value that is realistically always a small index; see
+         * {@code BinaryStubData.TypePathStep#argIndex} for how a value of 128 or greater is
+         * reinterpreted as unsigned on the reading side.
+         */
         final byte argIndex;
 
         /**

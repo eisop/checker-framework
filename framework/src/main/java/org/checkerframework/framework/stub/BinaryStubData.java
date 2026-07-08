@@ -235,13 +235,22 @@ public class BinaryStubData {
     public static class TypePathStep {
         /**
          * The kind of path step: {@code 0} = array component, {@code 1} = nested type, {@code 2} =
-         * wildcard bound, {@code 3} = type argument.
+         * wildcard bound, {@code 3} = type argument. Only 4 values are ever defined, so a signed
+         * {@code byte} is used as-is: no value this field takes needs the sign bit, so there is no
+         * unsigned/signed distinction to make here (contrast {@link #argIndex}).
          */
         public final byte kind;
 
         /**
          * For {@link #kind} {@code 3} (type argument), the zero-based index of the type argument.
-         * Unused for other kinds.
+         * Unused for other kinds. Stored as a signed {@code byte} to match the 1-byte width of
+         * JVMS's {@code type_argument_index} (a {@code u1}, so its wire value ranges over 0-255); a
+         * value of 128 or greater is stored as a negative {@code byte} and must be reinterpreted as
+         * unsigned ({@code & 0xFF}) wherever it is widened to {@code int} for use (see {@code
+         * BinaryStubReader#resolvePath}). Left as {@code byte} rather than widened to {@code int}:
+         * one {@code TypePathStep} exists per path step of every type annotation in the annotated
+         * JDK, so widening every instance's fields would multiply that memory cost for a value that
+         * is realistically always a small, single-digit index.
          */
         public final byte argIndex;
 
@@ -441,7 +450,7 @@ public class BinaryStubData {
             annotationPool = new AnnotationRecord[annoPoolSize];
             for (int i = 0; i < annoPoolSize; i++) {
                 int nameIdx = dataIn.readInt();
-                short elementCount = dataIn.readShort();
+                int elementCount = dataIn.readUnsignedShort();
                 Map<Integer, Object> elements = new HashMap<>();
                 for (int j = 0; j < elementCount; j++) {
                     int memberIdx = dataIn.readInt();
@@ -457,7 +466,7 @@ public class BinaryStubData {
                 cr.outerNameIndex = dataIn.readInt();
                 cr.declAnnos = readAnnoIndices(dataIn);
 
-                int fieldCount = dataIn.readShort();
+                int fieldCount = dataIn.readUnsignedShort();
                 cr.fields = new FieldRecord[fieldCount];
                 for (int j = 0; j < fieldCount; j++) {
                     FieldRecord fr = new FieldRecord();
@@ -467,7 +476,7 @@ public class BinaryStubData {
                     cr.fields[j] = fr;
                 }
 
-                int methodCount = dataIn.readShort();
+                int methodCount = dataIn.readUnsignedShort();
                 cr.methods = new MethodRecord[methodCount];
                 for (int j = 0; j < methodCount; j++) {
                     MethodRecord mr = new MethodRecord();
@@ -476,7 +485,7 @@ public class BinaryStubData {
                     mr.returnTypeAnnos = readTypeAnnos(dataIn);
                     mr.receiverAnnos = readTypeAnnos(dataIn);
 
-                    int paramCount = dataIn.readShort();
+                    int paramCount = dataIn.readUnsignedShort();
                     mr.paramAnnos = new TypeAnno[paramCount][];
                     mr.paramDeclAnnos = new int[paramCount][];
                     for (int p = 0; p < paramCount; p++) {
@@ -525,7 +534,7 @@ public class BinaryStubData {
             case '@':
                 {
                     int nameIdx = dataIn.readInt();
-                    short elementCount = dataIn.readShort();
+                    int elementCount = dataIn.readUnsignedShort();
                     Map<Integer, Object> elements = new HashMap<>();
                     for (int j = 0; j < elementCount; j++) {
                         int memberIdx = dataIn.readInt();
@@ -535,7 +544,7 @@ public class BinaryStubData {
                 }
             case '[':
                 {
-                    int len = dataIn.readShort();
+                    int len = dataIn.readUnsignedShort();
                     List<Object> list = new ArrayList<>(len);
                     for (int i = 0; i < len; i++) {
                         list.add(readAnnotationValue(dataIn));
@@ -556,7 +565,7 @@ public class BinaryStubData {
      * @throws IOException if the stream cannot be read
      */
     private static int[] readAnnoIndices(DataInputStream dataIn) throws IOException {
-        int count = dataIn.readShort();
+        int count = dataIn.readUnsignedShort();
         int[] result = new int[count];
         for (int i = 0; i < count; i++) {
             result[i] = dataIn.readInt();
@@ -573,7 +582,7 @@ public class BinaryStubData {
      * @throws IOException if the stream cannot be read
      */
     private TypeAnno[] readTypeAnnos(DataInputStream dataIn) throws IOException {
-        int count = dataIn.readShort();
+        int count = dataIn.readUnsignedShort();
         TypeAnno[] result = new TypeAnno[count];
         for (int i = 0; i < count; i++) {
             result[i] = readTypeAnno(dataIn);
@@ -607,7 +616,12 @@ public class BinaryStubData {
      */
     private TypeAnno readTypeAnno(DataInputStream dataIn) throws IOException {
         int annoIndex = dataIn.readInt();
-        int pathLength = dataIn.readByte();
+        // path_length (JVMS 4.7.20.1) is a u1; read unsigned since it sizes the path array below
+        // (a plain readByte() would misread a length of 128 or greater as negative). kind and
+        // argIndex are stored as signed bytes (see TypePathStep's field javadoc), so plain
+        // readByte() is equivalent to reading unsigned and narrowing back to byte; BinaryStubReader
+        // re-widens argIndex to its unsigned meaning where it actually matters, at point of use.
+        int pathLength = dataIn.readUnsignedByte();
         TypePathStep[] path = new TypePathStep[pathLength];
         for (int i = 0; i < pathLength; i++) {
             byte kind = dataIn.readByte();
@@ -628,12 +642,12 @@ public class BinaryStubData {
      * @throws IOException if the stream cannot be read
      */
     private TypeParamRecord[] readTypeParams(DataInputStream dataIn) throws IOException {
-        int count = dataIn.readShort();
+        int count = dataIn.readUnsignedShort();
         TypeParamRecord[] result = new TypeParamRecord[count];
         for (int i = 0; i < count; i++) {
             TypeParamRecord tp = new TypeParamRecord();
             tp.typeVarAnnos = readAnnoIndices(dataIn);
-            int boundCount = dataIn.readShort();
+            int boundCount = dataIn.readUnsignedShort();
             tp.boundAnnos = new TypeAnno[boundCount][];
             for (int b = 0; b < boundCount; b++) {
                 tp.boundAnnos[b] = readTypeAnnos(dataIn);
