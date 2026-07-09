@@ -284,7 +284,13 @@ public final class TypesUtils {
         if (t1.tsym.name != t2.tsym.name) {
             return false;
         }
-        return t1.toString().equals(t2.toString());
+        // tsym is the unique symbol for the declared type; identity comparison is correct and
+        // cheaper than toString() (which is implementation-defined and may allocate).
+        // Symbol objects are unique per type in javac's symbol table, but are not annotated
+        // @Interned, so the Interning Checker needs this suppression.
+        @SuppressWarnings("interning:not.interned")
+        boolean sameSymbol = t1.tsym == t2.tsym;
+        return sameSymbol;
     }
 
     /**
