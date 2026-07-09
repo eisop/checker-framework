@@ -1423,6 +1423,8 @@ public class BinaryStubReader {
                     return null;
                 }
             } else {
+                // Kind 1 (nested type) is never written, so it is never resolved; see
+                // BinaryStubData.TypePathStep#kind. Any other value is malformed.
                 return null;
             }
         }

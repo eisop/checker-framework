@@ -239,6 +239,16 @@ public class BinaryStubData {
          * wildcard bound, {@code 3} = type argument. Only 4 values are ever defined, so a signed
          * {@code byte} is used as-is: no value this field takes needs the sign bit, so there is no
          * unsigned/signed distinction to make here (contrast {@link #argIndex}).
+         *
+         * <p>Kind {@code 1} is reserved so the numbering matches JVMS &sect;4.7.20.2, but is never
+         * written and never resolved. {@code BinaryStubWriter#extractTypeAnnotations} descends into
+         * a type's own type arguments, not into those of its scope, so an annotation on a type
+         * argument of an <em>enclosing</em> type -- the {@code @D} of {@code Outer<@D X>.Inner<T>}
+         * -- is dropped rather than encoded with a nested-type step. That is not a divergence:
+         * {@code AnnotationFileParser#annotate}'s {@code DECLARED} case reads only {@code
+         * ClassOrInterfaceType.getTypeArguments()} and never {@code getScope()} or {@code
+         * AnnotatedDeclaredType.getEnclosingType()}, so the text parser drops the same annotation.
+         * {@code BinaryStubReader#resolvePath} therefore rejects kind {@code 1} outright.
          */
         public final byte kind;
 

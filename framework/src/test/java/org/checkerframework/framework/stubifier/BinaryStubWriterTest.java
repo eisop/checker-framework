@@ -18,6 +18,50 @@ import java.nio.file.Files;
 public class BinaryStubWriterTest {
 
     /**
+     * An annotation on a type argument of an <em>enclosing</em> type is dropped, not encoded.
+     *
+     * <p>{@code extractTypeAnnotations} descends into a {@code ClassOrInterfaceType}'s own type
+     * arguments but not into its scope's, so the {@code @Deprecated} on {@code Outer}'s type
+     * argument below produces no {@code TypeAnno}, while the one on {@code Inner}'s does. Encoding
+     * it would need a JVMS nested-type (kind 1) path step, which neither side emits.
+     *
+     * <p>This is not a divergence from the text parser: {@code AnnotationFileParser.annotate}'s
+     * {@code DECLARED} case reads only {@code getTypeArguments()}, never {@code getScope()}, so it
+     * drops the same annotation. The test pins the gap so a future change to either side has to
+     * confront it.
+     */
+    @Test
+    public void annotationOnAnEnclosingTypesTypeArgumentIsDropped() throws IOException {
+        BinaryStubWriter writer = new BinaryStubWriter();
+        CompilationUnit cu =
+                StaticJavaParser.parse(
+                        "public class Uses {"
+                                + " Outer<@Deprecated String>.Inner<@Deprecated Integer> f; }");
+        writer.process(cu);
+
+        File tmp = File.createTempFile("binarystubwritertest", ".bin.gz");
+        tmp.deleteOnExit();
+        try {
+            writer.writeTo(tmp);
+            BinaryStubData data;
+            try (InputStream in = Files.newInputStream(tmp.toPath())) {
+                data = new BinaryStubData(in);
+            }
+            BinaryStubData.FieldRecord fr = data.classes.get("Uses").fields[0];
+            Assert.assertEquals(
+                    "only Inner's own type argument is annotated; Outer's is dropped",
+                    1,
+                    fr.typeAnnos.length);
+            BinaryStubData.TypePathStep[] path = fr.typeAnnos[0].path;
+            Assert.assertEquals("a single TYPE_ARGUMENT step, no nested-type step", 1, path.length);
+            Assert.assertEquals("kind 3 == TYPE_ARGUMENT", 3, path[0].kind);
+            Assert.assertEquals(0, path[0].argIndex);
+        } finally {
+            tmp.delete();
+        }
+    }
+
+    /**
      * A failed serialization must not consume an annotation-pool index.
      *
      * <p>{@code AnnotationPool.addAnnotation} used to record the new index before serializing the

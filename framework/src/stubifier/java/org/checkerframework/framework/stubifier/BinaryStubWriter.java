@@ -240,6 +240,11 @@ public class BinaryStubWriter {
          * wildcard bound, {@code 3} = type argument. Only 4 values are ever assigned (all well
          * within a signed byte's positive range), so this stays a plain {@code byte}, matching the
          * reader's {@code BinaryStubData.TypePathStep#kind} field.
+         *
+         * <p>Kind {@code 1} exists only to keep the numbering aligned with JVMS &sect;4.7.20.2; no
+         * step of that kind is ever constructed. See {@link
+         * BinaryStubWriter#extractTypeAnnotations} for what is dropped instead, and why the text
+         * parser drops it too.
          */
         final byte kind;
 
@@ -1621,6 +1626,14 @@ public class BinaryStubWriter {
     /**
      * Extracts type annotations from a JavaParser type, walking the type tree to build the
      * corresponding type paths.
+     *
+     * <p>A {@code ClassOrInterfaceType}'s own type arguments are traversed, but not its scope's: an
+     * annotation on a type argument of an enclosing type -- the {@code @D} of {@code Outer<@D
+     * X>.Inner<T>} -- is dropped rather than encoded with a JVMS nested-type path step. {@code
+     * AnnotationFileParser#annotate}'s {@code DECLARED} case has the identical limitation (it reads
+     * only {@code getTypeArguments()}, never {@code getScope()}), so the two paths agree and {@code
+     * BinaryStubDiffChecker} sees no difference. Implementing this would mean emitting and
+     * resolving kind-1 path steps on both sides.
      *
      * @param type the type to extract annotations from
      * @param currentPath the current type path, built during traversal
