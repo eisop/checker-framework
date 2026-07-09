@@ -19,8 +19,10 @@ import java.lang.annotation.Target;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.AnnotationMirror;
@@ -618,11 +620,31 @@ public class BinaryStubReader {
      */
     static @Nullable ExecutableElement findFakeOverriddenMethod(
             TypeElement typeElt, String sig, AnnotationFileElementTypes elementTypes) {
+        return findFakeOverriddenMethod(
+                typeElt, sig, elementTypes, Collections.newSetFromMap(new IdentityHashMap<>()));
+    }
+
+    /**
+     * Worker for {@link #findFakeOverriddenMethod(TypeElement, String,
+     * AnnotationFileElementTypes)}.
+     *
+     * @param typeElt the class whose supertypes to search
+     * @param sig the method's simple signature
+     * @param elementTypes per-factory state, providing the per-class signature indexes
+     * @param visited interfaces already searched, to avoid re-traversing a shared ancestor
+     *     interface reachable through more than one path (diamond inheritance)
+     * @return the overridden method, or {@code null} if no supertype declares one
+     */
+    private static @Nullable ExecutableElement findFakeOverriddenMethod(
+            TypeElement typeElt,
+            String sig,
+            AnnotationFileElementTypes elementTypes,
+            Set<TypeElement> visited) {
         TypeElement superClass = ElementUtils.getSuperClass(typeElt);
         if (superClass != null) {
             ExecutableElement found = elementTypes.methodSigIndex(superClass).get(sig);
             if (found == null) {
-                found = findFakeOverriddenMethod(superClass, sig, elementTypes);
+                found = findFakeOverriddenMethod(superClass, sig, elementTypes, visited);
             }
             if (found != null) {
                 return found;
@@ -633,13 +655,16 @@ public class BinaryStubReader {
                 continue;
             }
             Element interfaceElt = ((javax.lang.model.type.DeclaredType) interfaceType).asElement();
-            if (!(interfaceElt instanceof TypeElement)) {
+            if (!(interfaceElt instanceof TypeElement)
+                    || !visited.add((TypeElement) interfaceElt)) {
                 continue;
             }
             ExecutableElement found =
                     elementTypes.methodSigIndex((TypeElement) interfaceElt).get(sig);
             if (found == null) {
-                found = findFakeOverriddenMethod((TypeElement) interfaceElt, sig, elementTypes);
+                found =
+                        findFakeOverriddenMethod(
+                                (TypeElement) interfaceElt, sig, elementTypes, visited);
             }
             if (found != null) {
                 return found;
