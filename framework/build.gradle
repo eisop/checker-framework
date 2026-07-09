@@ -168,8 +168,13 @@ tasks.register('copyAndMinimizeAnnotatedJdkFiles', JavaExec) {
         // output.)
         Set<String> annotatedDirs = new HashSet<>()
         tree.visit { FileVisitDetails fvd ->
+            // Use relativePath.pathString, not file.path: Gradle's RelativePath always joins
+            // segments with "/" regardless of platform, whereas File.path uses File.separator
+            // ("\\" on Windows), which made this exclusion silently never match there --
+            // pulling org/checkerframework/** (checker-qual's own vendored sources in the JDK
+            // clone) into the minimized annotated JDK and its binary stub only on Windows.
             if (!fvd.file.isDirectory() && fvd.file.name.matches('.*\\.java')
-            && !fvd.file.path.contains('org/checkerframework')) {
+            && !fvd.relativePath.pathString.contains('org/checkerframework')) {
                 fvd.getFile().readLines().any { line ->
                     if (line.contains('@AnnotatedFor') || line.contains('org.checkerframework') || line.contains('org.jspecify')) {
                         annotatedForFiles.add(fvd.file.absolutePath)
