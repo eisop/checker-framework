@@ -24,6 +24,7 @@ import com.github.javaparser.ast.expr.BooleanLiteralExpr;
 import com.github.javaparser.ast.expr.CharLiteralExpr;
 import com.github.javaparser.ast.expr.ClassExpr;
 import com.github.javaparser.ast.expr.DoubleLiteralExpr;
+import com.github.javaparser.ast.expr.EnclosedExpr;
 import com.github.javaparser.ast.expr.Expression;
 import com.github.javaparser.ast.expr.FieldAccessExpr;
 import com.github.javaparser.ast.expr.IntegerLiteralExpr;
@@ -688,7 +689,12 @@ public class BinaryStubWriter {
     /** Serializes a single annotation value expression structurally to the stream. */
     private void writeValue(DataOutputStream out, Expression expr, CompilationUnit cu)
             throws IOException {
-        if (expr instanceof BooleanLiteralExpr) {
+        if (expr instanceof EnclosedExpr) {
+            // Redundant parentheses are legal Java in an annotation value (e.g.
+            // "@SuppressWarnings((\"unchecked\"))"); unwrap them rather than falling through to
+            // the "unsupported" case below.
+            writeValue(out, ((EnclosedExpr) expr).getInner(), cu);
+        } else if (expr instanceof BooleanLiteralExpr) {
             out.writeByte('Z');
             out.writeBoolean(((BooleanLiteralExpr) expr).getValue());
         } else if (expr instanceof CharLiteralExpr) {

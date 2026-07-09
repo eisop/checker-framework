@@ -125,4 +125,68 @@ public class BinaryStubWriterTest {
             tmp.delete();
         }
     }
+
+    /**
+     * Returns the sole element value of the sole declaration annotation on the method with the
+     * given simple name.
+     *
+     * @param data the loaded binary stub data
+     * @param cr the class containing the method
+     * @param methodSimpleName the method's simple name (its signature must start with this followed
+     *     by "(")
+     * @return the sole element value
+     */
+    private static Object soleDeclAnnoValue(
+            BinaryStubData data, BinaryStubData.ClassRecord cr, String methodSimpleName) {
+        for (BinaryStubData.MethodRecord mr : cr.methods) {
+            if (data.stringPool[mr.sigIndex].startsWith(methodSimpleName + "(")) {
+                Assert.assertEquals(
+                        "method " + methodSimpleName + " has one declaration annotation",
+                        1,
+                        mr.declAnnos.length);
+                BinaryStubData.AnnotationRecord ar = data.annotationPool[mr.declAnnos[0]];
+                Assert.assertEquals(
+                        "annotation " + methodSimpleName + " has one element value",
+                        1,
+                        ar.elementValues.size());
+                return ar.elementValues.values().iterator().next();
+            }
+        }
+        throw new AssertionError("method " + methodSimpleName + " not found");
+    }
+
+    /**
+     * Regression test for an {@code EnclosedExpr} crash: redundant parentheses around an annotation
+     * value (e.g. {@code @SuppressWarnings(("unchecked"))}) are legal Java, but {@code writeValue}
+     * had no case for the parenthesized-expression AST node and fell through to its "unsupported
+     * annotation value" branch, throwing {@code IOException} -- which {@link
+     * BinaryStubWriter#processTypes} rethrows as an uncaught {@code RuntimeException}, aborting the
+     * entire binary stub generation run over one such value anywhere in the source tree.
+     */
+    @Test
+    public void parenthesizedAnnotationValueDoesNotCrash() throws IOException {
+        BinaryStubWriter writer = new BinaryStubWriter();
+        CompilationUnit cu =
+                StaticJavaParser.parse(
+                        "public class EnclosedExprTest {\n"
+                                + "  @SuppressWarnings((\"unchecked\")) void m() {}\n"
+                                + "}\n");
+        writer.process(cu);
+
+        File tmp = File.createTempFile("binarystubwritertest", ".bin.gz");
+        tmp.deleteOnExit();
+        try {
+            writer.writeTo(tmp);
+            BinaryStubData data;
+            try (InputStream in = Files.newInputStream(tmp.toPath())) {
+                data = new BinaryStubData(in);
+            }
+
+            BinaryStubData.ClassRecord cr = data.classes.get("EnclosedExprTest");
+            Assert.assertNotNull("EnclosedExprTest must be recorded", cr);
+            Assert.assertEquals("unchecked", soleDeclAnnoValue(data, cr, "m"));
+        } finally {
+            tmp.delete();
+        }
+    }
 }
