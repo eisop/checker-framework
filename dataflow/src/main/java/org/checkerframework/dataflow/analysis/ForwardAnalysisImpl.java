@@ -162,7 +162,7 @@ public class ForwardAnalysisImpl<
                                     + " non-exceptional successor unexpected";
                     propagateStoresTo(
                             succ, lastNode, currentInput, rb.getFlowRule(), addToWorklistAgain);
-                    break;
+                    return;
                 }
             case EXCEPTION_BLOCK:
                 {
@@ -210,7 +210,7 @@ public class ForwardAnalysisImpl<
                             }
                         }
                     }
-                    break;
+                    return;
                 }
             case CONDITIONAL_BLOCK:
                 {
@@ -224,7 +224,7 @@ public class ForwardAnalysisImpl<
                     Block elseSucc = cb.getElseSuccessor();
                     propagateStoresTo(thenSucc, null, input, cb.getThenFlowRule(), false);
                     propagateStoresTo(elseSucc, null, input, cb.getElseFlowRule(), false);
-                    break;
+                    return;
                 }
             case SPECIAL_BLOCK:
                 {
@@ -237,11 +237,12 @@ public class ForwardAnalysisImpl<
                         assert input != null : "@AssumeAssertion(nullness): invariant";
                         propagateStoresTo(succ, null, input, sb.getFlowRule(), false);
                     }
-                    break;
+                    return;
                 }
                 // No default: if a new BlockType is added, EP's MissingCasesInEnumSwitch fires
                 // and the build breaks under -Werror, forcing the developer to handle the new case.
         }
+        throw new BugInCF("Unexpected block type: " + b.getType());
     }
 
     @Override
