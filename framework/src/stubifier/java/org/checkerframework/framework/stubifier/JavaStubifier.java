@@ -60,17 +60,19 @@ public class JavaStubifier {
         }
     }
 
-    /** The writer used to generate the compressed binary stub file. */
-    private static final BinaryStubWriter binaryStubWriter = new BinaryStubWriter();
-
     /**
      * Process each file in the given directory; see class documentation for details.
      *
      * @param dir directory to process
      */
     private static void process(String dir) {
+        // Scoped to this call, not a shared/static field: main() may process several
+        // directories, and a BinaryStubWriter accumulates classes/pool state across every
+        // process(CompilationUnit) call with no reset, so reusing one across directories would
+        // make each directory's output file also contain every earlier directory's classes.
+        BinaryStubWriter binaryStubWriter = new BinaryStubWriter();
         Path root = dirnameToPath(dir);
-        MinimizerCallback mc = new MinimizerCallback();
+        MinimizerCallback mc = new MinimizerCallback(binaryStubWriter);
         CollectionStrategy strategy = new ParserCollectionStrategy();
         // Required to include directories that contain a module-info.java, which don't parse by
         // default.
@@ -127,9 +129,17 @@ public class JavaStubifier {
         /** The visitor instance. */
         private final MinimizerVisitor mv;
 
-        /** Create a MinimizerCallback instance. */
-        public MinimizerCallback() {
+        /** The writer used to generate the compressed binary stub file for this directory. */
+        private final BinaryStubWriter binaryStubWriter;
+
+        /**
+         * Create a MinimizerCallback instance.
+         *
+         * @param binaryStubWriter the writer to accumulate this directory's classes into
+         */
+        public MinimizerCallback(BinaryStubWriter binaryStubWriter) {
             this.mv = new MinimizerVisitor();
+            this.binaryStubWriter = binaryStubWriter;
         }
 
         @Override
