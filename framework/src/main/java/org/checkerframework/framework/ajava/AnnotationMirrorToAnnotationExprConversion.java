@@ -122,6 +122,8 @@ public class AnnotationMirrorToAnnotationExprConversion {
      * @return a JavaParser {@code Name} holding {@code name}
      */
     private static Name createQualifiedName(String name) {
+        // split on "." to decompose a fully qualified name; trailing empty strings cannot occur
+        @SuppressWarnings("StringSplitter")
         String[] components = name.split("\\.");
         Name result = new Name(components[0]);
         for (int i = 1; i < components.length; i++) {
@@ -186,6 +188,8 @@ public class AnnotationMirrorToAnnotationExprConversion {
         public Expression visitEnumConstant(VariableElement value, Void p) {
             // The enclosing element of an enum constant is the enum type itself.
             TypeElement enumElt = (TypeElement) value.getEnclosingElement();
+            // Splitting a fully-qualified name on "."; trailing empty strings cannot occur.
+            @SuppressWarnings("StringSplitter")
             String[] components = ElementUtils.getQualifiedName(enumElt).split("\\.");
             Expression enumName = new NameExpr(components[0]);
             for (int i = 1; i < components.length; i++) {

@@ -2661,7 +2661,9 @@ public abstract class GenericAnnotatedTypeFactory<
         // Index 0 is the visualizer class name and can be ignored.
         for (int i = 1; i < opts.size(); ++i) {
             String opt = opts.get(i);
-            String[] split = opt.split("=");
+            // Use limit -1 so a trailing "=" produces an empty-value token, caught by the
+            // switch default below as "Too many '='" rather than silently treating it as key="".
+            String[] split = opt.split("=", -1);
             switch (split.length) {
                 case 1:
                     res.put(split[0], true);

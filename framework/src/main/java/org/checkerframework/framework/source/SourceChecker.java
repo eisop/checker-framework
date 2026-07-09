@@ -2273,7 +2273,10 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
             String key = opt.getKey();
             String value = opt.getValue();
 
-            String[] split = key.split(OPTION_SEPARATOR);
+            // Use limit -1 so a trailing separator (e.g. "CheckerName.") produces an empty
+            // token; the switch default handles unexpected lengths rather than silently
+            // using "" as an option key.
+            String[] split = key.split(OPTION_SEPARATOR, -1);
 
             switch (split.length) {
                 case 1:

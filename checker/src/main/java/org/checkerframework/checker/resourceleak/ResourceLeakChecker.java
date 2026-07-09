@@ -226,7 +226,9 @@ public class ResourceLeakChecker extends AggregateChecker {
      * @return the set of ignored exceptions
      */
     protected SetOfTypes parseIgnoredExceptions(String ignoredExceptionsOptionValue) {
-        String[] exceptions = COMMAS.split(ignoredExceptionsOptionValue);
+        // Use limit -1 so a trailing comma produces an empty token that
+        // parseExceptionSpecifier will reject with a clear warning.
+        String[] exceptions = COMMAS.split(ignoredExceptionsOptionValue, -1);
         List<SetOfTypes> sets = new ArrayList<>();
         for (String e : exceptions) {
             SetOfTypes set = parseExceptionSpecifier(e, ignoredExceptionsOptionValue);
