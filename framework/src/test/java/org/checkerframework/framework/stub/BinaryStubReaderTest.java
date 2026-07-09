@@ -138,6 +138,40 @@ public class BinaryStubReaderTest {
     }
 
     /**
+     * Confirms {@code ElementUtils.getModuleElement} (used by {@code
+     * AnnotationFileParser#processModule} to resolve a stub-declared module name to a real element,
+     * mirroring {@code processPackage}'s {@code elements.getPackageElement}) resolves a real module
+     * name to a non-null element, and returns {@code null} for a nonexistent one. {@code
+     * Elements.getModuleElement(CharSequence)} itself is JDK 9+ only, so this also exercises that
+     * {@code ElementUtils}'s reflective wrapper works on the JDK actually running this test.
+     *
+     * @throws Exception if the test compilation cannot be created
+     */
+    @Test
+    public void getModuleElementResolvesRealModule() throws Exception {
+        JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
+        JavaCompiler.CompilationTask compilationTask =
+                compiler.getTask(
+                        new StringWriter(),
+                        null,
+                        null,
+                        Collections.singletonList("-proc:none"),
+                        null,
+                        Collections.singletonList(source("Empty", "class Empty {}")));
+        JavacTask task = (JavacTask) compilationTask;
+        task.analyze();
+        Element javaBase =
+                org.checkerframework.javacutil.ElementUtils.getModuleElement(
+                        task.getElements(), "java.base");
+        Assert.assertNotNull("java.base must resolve to a real module element", javaBase);
+        Element noSuchModule =
+                org.checkerframework.javacutil.ElementUtils.getModuleElement(
+                        task.getElements(), "no.such.module");
+        Assert.assertNull(
+                "a nonexistent module name must resolve to null, not throw", noSuchModule);
+    }
+
+    /**
      * Confirms a real record maps to {@code KIND_RECORD}, not {@code KIND_CLASS_OR_INTERFACE}.
      *
      * @throws Exception if the test compilation cannot be created

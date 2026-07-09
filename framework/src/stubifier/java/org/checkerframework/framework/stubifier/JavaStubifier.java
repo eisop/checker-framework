@@ -158,9 +158,13 @@ public class JavaStubifier {
                 mv.visit(cu, null);
                 // ClassOrInterfaceDeclaration, AnnotationDeclaration, EnumDeclaration, and
                 // RecordDeclaration all extend TypeDeclaration, so one findAll covers all four
-                // kinds with no predicate filter needed.
+                // kinds with no predicate filter needed. package-info.java and module-info.java
+                // never have any TypeDeclaration but still carry declaration annotations
+                // (BinaryStubWriter.processTypes reads cu.getPackageDeclaration()/cu.getModule()),
+                // so both are kept even when otherwise "empty".
                 if (cu.findAll(TypeDeclaration.class).isEmpty()
-                        && !absolutePath.endsWith("package-info.java")) {
+                        && !absolutePath.endsWith("package-info.java")
+                        && !absolutePath.endsWith("module-info.java")) {
                     // All content is removed, delete this file.
                     new File(absolutePath.toUri()).delete();
                     res = Result.DONT_SAVE;

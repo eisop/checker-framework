@@ -43,6 +43,7 @@ import com.github.javaparser.ast.expr.NullLiteralExpr;
 import com.github.javaparser.ast.expr.SingleMemberAnnotationExpr;
 import com.github.javaparser.ast.expr.StringLiteralExpr;
 import com.github.javaparser.ast.expr.UnaryExpr;
+import com.github.javaparser.ast.modules.ModuleDeclaration;
 import com.github.javaparser.ast.nodeTypes.NodeWithRange;
 import com.github.javaparser.ast.nodeTypes.NodeWithTypeParameters;
 import com.github.javaparser.ast.nodeTypes.modifiers.NodeWithAccessModifiers;
@@ -917,6 +918,10 @@ public class AnnotationFileParser {
             typeBeingParsed = new FqName(null, null);
         }
 
+        if (cu.getModule().isPresent()) {
+            processModule(cu.getModule().get());
+        }
+
         if (fileType.isStub()) {
             if (cu.getTypes() != null) {
                 for (TypeDeclaration<?> typeDeclaration : cu.getTypes()) {
@@ -957,6 +962,28 @@ public class AnnotationFileParser {
             recordDeclAnnotation(elem, packDecl.getAnnotations(), packDecl);
         }
         // TODO: Handle atypes???
+    }
+
+    /**
+     * Process the given module declaration: copy its annotations to {@code #annotationFileAnnos}.
+     * Mirrors {@link #processPackage}; a module declaration has no atypes-worthy structure (it is
+     * not a type), only declaration annotations.
+     *
+     * @param modDecl the module declaration to process
+     */
+    private void processModule(ModuleDeclaration modDecl) {
+        assert (modDecl != null);
+        if (!isAnnotatedForThisChecker(modDecl.getAnnotations())) {
+            return;
+        }
+        String moduleName = modDecl.getNameAsString();
+        Element elem = ElementUtils.getModuleElement(elements, moduleName);
+        // If the element lookup fails (that is, elem == null), it's because we have an annotation
+        // for a module that isn't on the classpath (or the current JDK predates the module
+        // system), which is fine.
+        if (elem != null) {
+            recordDeclAnnotation(elem, modDecl.getAnnotations(), modDecl);
+        }
     }
 
     /**

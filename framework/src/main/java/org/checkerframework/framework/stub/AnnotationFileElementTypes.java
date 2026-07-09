@@ -107,6 +107,39 @@ public class AnnotationFileElementTypes {
     private final Map<String, String> remainingJdkStubFilesJar = new HashMap<>();
 
     /**
+     * Mapping from fully-qualified package name to the path of the file system {@code
+     * package-info.java} declaring it, for every package the annotated JDK gives declaration
+     * annotations to. Unlike {@link #remainingJdkStubFiles}, entries are not removed as they are
+     * read: this map exists only for {@code BinaryStubDiffChecker} to re-parse a package's text
+     * source for comparison against the binary {@link BinaryStubData#packages} record; production
+     * code never text-parses {@code package-info.java} once the binary stub is loaded (see {@link
+     * #prepJdkFromFile}).
+     */
+    private final Map<String, Path> packageInfoPathsByPackage = new HashMap<>();
+
+    /**
+     * Mapping from fully-qualified package name to the corresponding {@code package-info.java} jar
+     * entry name inside checker.jar. The jar counterpart of {@link #packageInfoPathsByPackage}; see
+     * its documentation.
+     */
+    private final Map<String, String> packageInfoJarEntriesByPackage = new HashMap<>();
+
+    /**
+     * Mapping from fully-qualified module name to the path of the file system {@code
+     * module-info.java} declaring it, for every module the annotated JDK gives declaration
+     * annotations to. The module counterpart of {@link #packageInfoPathsByPackage}; see its
+     * documentation.
+     */
+    private final Map<String, Path> moduleInfoPathsByModule = new HashMap<>();
+
+    /**
+     * Mapping from fully-qualified module name to the corresponding {@code module-info.java} jar
+     * entry name inside checker.jar. The jar counterpart of {@link #moduleInfoPathsByModule}; see
+     * its documentation.
+     */
+    private final Map<String, String> moduleInfoJarEntriesByModule = new HashMap<>();
+
+    /**
      * Cache for binary stub data and its associated metadata (e.g., inner classes mapping). This
      * cache is stored in the compilation context to be shared across all checker and factory
      * instances in the same compilation run.
@@ -159,6 +192,41 @@ public class AnnotationFileElementTypes {
          * #jdkJarEntriesByClass} for the jar case.
          */
         @Nullable Map<String, Path> jdkStubPathsByClass = null;
+
+        /**
+         * Map from fully-qualified package name to the name of the jar entry containing its {@code
+         * package-info.java}, shared across all factories in the compilation like {@link
+         * #jdkJarEntriesByClass}. {@code null} until the first factory performs the enumeration.
+         * Only used when the JDK stubs come from a jar and only by {@code BinaryStubDiffChecker}
+         * (production code never text-parses {@code package-info.java} once the binary stub is
+         * loaded); see {@link #jdkPackageInfoPathsByPackage} for the directory case.
+         */
+        @Nullable Map<String, String> jdkPackageInfoJarEntriesByPackage = null;
+
+        /**
+         * Map from fully-qualified package name to the path of the file containing its {@code
+         * package-info.java}, shared across all factories in the compilation like {@link
+         * #jdkStubPathsByClass}. {@code null} until the first factory performs the walk. Only used
+         * when the JDK stubs come from a directory and only by {@code BinaryStubDiffChecker}; see
+         * {@link #jdkPackageInfoJarEntriesByPackage} for the jar case.
+         */
+        @Nullable Map<String, Path> jdkPackageInfoPathsByPackage = null;
+
+        /**
+         * Map from fully-qualified module name to the name of the jar entry containing its {@code
+         * module-info.java}, shared across all factories in the compilation like {@link
+         * #jdkPackageInfoJarEntriesByPackage}; see {@link #jdkModuleInfoPathsByModule} for the
+         * directory case.
+         */
+        @Nullable Map<String, String> jdkModuleInfoJarEntriesByModule = null;
+
+        /**
+         * Map from fully-qualified module name to the path of the file containing its {@code
+         * module-info.java}, shared across all factories in the compilation like {@link
+         * #jdkPackageInfoPathsByPackage}; see {@link #jdkModuleInfoJarEntriesByModule} for the jar
+         * case.
+         */
+        @Nullable Map<String, Path> jdkModuleInfoPathsByModule = null;
 
         /**
          * Constructs a new cache holding the given binary stub data.
@@ -1423,6 +1491,12 @@ public class AnnotationFileElementTypes {
         if (shareWalk && cache.jdkStubPathsByClass != null) {
             // Another factory in this compilation already walked the JDK directory.
             remainingJdkStubFiles.putAll(cache.jdkStubPathsByClass);
+            if (cache.jdkPackageInfoPathsByPackage != null) {
+                packageInfoPathsByPackage.putAll(cache.jdkPackageInfoPathsByPackage);
+            }
+            if (cache.jdkModuleInfoPathsByModule != null) {
+                moduleInfoPathsByModule.putAll(cache.jdkModuleInfoPathsByModule);
+            }
             if (stubDebug) {
                 printRemainingJdkStubFilesDebug(jdkDirectory);
             }
@@ -1443,6 +1517,18 @@ public class AnnotationFileElementTypes {
             paths.sort(Path::compareTo);
             for (Path path : paths) {
                 if (path.getFileName().toString().equals("package-info.java")) {
+                    // Record the path for BinaryStubDiffChecker regardless of binaryLoaded: it
+                    // needs to re-parse package-info.java for comparison even when production
+                    // code does not (see packageInfoPathsByPackage's own documentation).
+                    Path relativePath = root.relativize(path);
+                    Path savepath = relativePath.subpath(4, relativePath.getNameCount());
+                    String fqName =
+                            savepath.toString()
+                                    .substring(0, savepath.toString().length() - 5)
+                                    .replace(File.separatorChar, '.');
+                    // Strip the trailing ".package-info" to get the package name.
+                    packageInfoPathsByPackage.put(
+                            fqName.substring(0, fqName.length() - ".package-info".length()), path);
                     if (!binaryLoaded) {
                         // When the binary stub is loaded, package annotations come from its
                         // package records instead.
@@ -1451,7 +1537,18 @@ public class AnnotationFileElementTypes {
                     continue;
                 }
                 if (path.getFileName().toString().equals("module-info.java")) {
-                    // JavaParser can't parse module-info files, so skip them.
+                    // Record the path for BinaryStubDiffChecker regardless of binaryLoaded, like
+                    // package-info.java above. The module name is the JDK module directory
+                    // segment itself (e.g. "src/java.base/share/classes/module-info.java"), not
+                    // derived from the file's own declaration text.
+                    Path relativePath = root.relativize(path);
+                    String moduleName = relativePath.getName(1).toString();
+                    moduleInfoPathsByModule.put(moduleName, path);
+                    if (!binaryLoaded) {
+                        // When the binary stub is loaded, module annotations come from its
+                        // module records instead.
+                        parseJdkStubFile(path);
+                    }
                     continue;
                 }
                 if (parseAllJdkFiles) {
@@ -1470,6 +1567,8 @@ public class AnnotationFileElementTypes {
             }
             if (shareWalk) {
                 cache.jdkStubPathsByClass = new HashMap<>(remainingJdkStubFiles);
+                cache.jdkPackageInfoPathsByPackage = new HashMap<>(packageInfoPathsByPackage);
+                cache.jdkModuleInfoPathsByModule = new HashMap<>(moduleInfoPathsByModule);
             }
             if (stubDebug) {
                 printRemainingJdkStubFilesDebug(jdkDirectory);
@@ -1519,6 +1618,94 @@ public class AnnotationFileElementTypes {
                         ? cache.jdkJarEntriesByClass
                         : remainingJdkStubFilesJar;
         String jarEntryName = jarEntriesByClass.get(className);
+        if (jarEntryName != null) {
+            JarURLConnection connection = getJarURLConnectionToJdk();
+            try (JarFile jarFile = connection.getJarFile();
+                    InputStream in = jarFile.getInputStream(jarFile.getJarEntry(jarEntryName))) {
+                parseJdkStreamInto(jarEntryName, in, target);
+            } catch (IOException e) {
+                throw new BugInCF("cannot open the jdk stub file " + jarEntryName, e);
+            }
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Text-parses the {@code package-info.java} declaring {@code packageName} into {@code target},
+     * for {@code BinaryStubDiffChecker}'s comparison against the binary {@link
+     * BinaryStubData#packages} record. Production code never calls this: once the binary stub is
+     * loaded, package annotations come from its package records instead (see {@link
+     * #prepJdkFromFile}/{@link #prepJdkFromJar}), which is why this method -- unlike {@link
+     * #parseJdkSourceInto} -- has no ordinary caller to share with.
+     *
+     * @param packageName the fully-qualified package name
+     * @param target the annotation container to parse into
+     * @return true if a {@code package-info.java} for the package was found and parsed
+     */
+    boolean parseJdkPackageInfoInto(String packageName, AnnotationFileAnnotations target) {
+        BinaryStubDataCache cache = getBinaryStubDataCache();
+        Map<String, Path> pathsByPackage =
+                cache != null && cache.jdkPackageInfoPathsByPackage != null
+                        ? cache.jdkPackageInfoPathsByPackage
+                        : packageInfoPathsByPackage;
+        Path path = pathsByPackage.get(packageName);
+        if (path != null) {
+            try (InputStream in = new FileInputStream(path.toFile())) {
+                parseJdkStreamInto(path.toFile().getName(), in, target);
+            } catch (IOException e) {
+                throw new BugInCF("cannot open the jdk stub file " + path, e);
+            }
+            return true;
+        }
+        Map<String, String> jarEntriesByPackage =
+                cache != null && cache.jdkPackageInfoJarEntriesByPackage != null
+                        ? cache.jdkPackageInfoJarEntriesByPackage
+                        : packageInfoJarEntriesByPackage;
+        String jarEntryName = jarEntriesByPackage.get(packageName);
+        if (jarEntryName != null) {
+            JarURLConnection connection = getJarURLConnectionToJdk();
+            try (JarFile jarFile = connection.getJarFile();
+                    InputStream in = jarFile.getInputStream(jarFile.getJarEntry(jarEntryName))) {
+                parseJdkStreamInto(jarEntryName, in, target);
+            } catch (IOException e) {
+                throw new BugInCF("cannot open the jdk stub file " + jarEntryName, e);
+            }
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Text-parses the {@code module-info.java} declaring {@code moduleName} into {@code target},
+     * for {@code BinaryStubDiffChecker}'s comparison against the binary {@link
+     * BinaryStubData#modules} record. The module counterpart of {@link #parseJdkPackageInfoInto};
+     * see its documentation.
+     *
+     * @param moduleName the fully-qualified module name
+     * @param target the annotation container to parse into
+     * @return true if a {@code module-info.java} for the module was found and parsed
+     */
+    boolean parseJdkModuleInfoInto(String moduleName, AnnotationFileAnnotations target) {
+        BinaryStubDataCache cache = getBinaryStubDataCache();
+        Map<String, Path> pathsByModule =
+                cache != null && cache.jdkModuleInfoPathsByModule != null
+                        ? cache.jdkModuleInfoPathsByModule
+                        : moduleInfoPathsByModule;
+        Path path = pathsByModule.get(moduleName);
+        if (path != null) {
+            try (InputStream in = new FileInputStream(path.toFile())) {
+                parseJdkStreamInto(path.toFile().getName(), in, target);
+            } catch (IOException e) {
+                throw new BugInCF("cannot open the jdk stub file " + path, e);
+            }
+            return true;
+        }
+        Map<String, String> jarEntriesByModule =
+                cache != null && cache.jdkModuleInfoJarEntriesByModule != null
+                        ? cache.jdkModuleInfoJarEntriesByModule
+                        : moduleInfoJarEntriesByModule;
+        String jarEntryName = jarEntriesByModule.get(moduleName);
         if (jarEntryName != null) {
             JarURLConnection connection = getJarURLConnectionToJdk();
             try (JarFile jarFile = connection.getJarFile();
@@ -1600,6 +1787,12 @@ public class AnnotationFileElementTypes {
         if (shareScan && cache.jdkJarEntriesByClass != null) {
             // Another factory in this compilation already enumerated the jar.
             remainingJdkStubFilesJar.putAll(cache.jdkJarEntriesByClass);
+            if (cache.jdkPackageInfoJarEntriesByPackage != null) {
+                packageInfoJarEntriesByPackage.putAll(cache.jdkPackageInfoJarEntriesByPackage);
+            }
+            if (cache.jdkModuleInfoJarEntriesByModule != null) {
+                moduleInfoJarEntriesByModule.putAll(cache.jdkModuleInfoJarEntriesByModule);
+            }
             if (stubDebug) {
                 printRemainingJdkStubFilesJarDebug();
             }
@@ -1617,12 +1810,39 @@ public class AnnotationFileElementTypes {
                     continue;
                 }
                 String jarEntryName = jarEntry.getName();
-                if (!(jarEntryName.startsWith(ANNOTATED_JDK_PATH) && jarEntryName.endsWith(".java"))
-                        // JavaParser can't parse module-info files, so skip them.
-                        || jarEntryName.endsWith("module-info.java")) {
+                if (!(jarEntryName.startsWith(ANNOTATED_JDK_PATH)
+                        && jarEntryName.endsWith(".java"))) {
+                    continue;
+                }
+                if (jarEntryName.endsWith("module-info.java")) {
+                    // Record the jar entry for BinaryStubDiffChecker regardless of binaryLoaded,
+                    // like package-info.java below. The module name is the path segment between
+                    // "/src/" and "/share/classes/", not derived from the file's declaration text.
+                    int srcIndex = jarEntryName.indexOf("/src/") + "/src/".length();
+                    int shareIndex = jarEntryName.indexOf("/share/classes/");
+                    String moduleName = jarEntryName.substring(srcIndex, shareIndex);
+                    moduleInfoJarEntriesByModule.put(moduleName, jarEntryName);
+                    if (parseAllJdkFiles || !binaryLoaded) {
+                        // When the binary stub is loaded, module annotations come from its
+                        // module records instead.
+                        parseJdkJarEntry(jarEntryName);
+                    }
                     continue;
                 }
                 if (jarEntryName.endsWith("package-info.java")) {
+                    // Record the jar entry for BinaryStubDiffChecker regardless of binaryLoaded:
+                    // it needs to re-parse package-info.java for comparison even when production
+                    // code does not (see packageInfoJarEntriesByPackage's own documentation).
+                    int piIndex =
+                            jarEntryName.indexOf("/share/classes/") + "/share/classes/".length();
+                    String fqPackageInfoName =
+                            jarEntryName
+                                    .substring(piIndex, jarEntryName.length() - 5)
+                                    .replace('/', '.');
+                    packageInfoJarEntriesByPackage.put(
+                            fqPackageInfoName.substring(
+                                    0, fqPackageInfoName.length() - ".package-info".length()),
+                            jarEntryName);
                     if (parseAllJdkFiles || !binaryLoaded) {
                         // When the binary stub is loaded, package annotations come from its
                         // package records instead.
@@ -1642,6 +1862,9 @@ public class AnnotationFileElementTypes {
             }
             if (shareScan) {
                 cache.jdkJarEntriesByClass = new HashMap<>(remainingJdkStubFilesJar);
+                cache.jdkPackageInfoJarEntriesByPackage =
+                        new HashMap<>(packageInfoJarEntriesByPackage);
+                cache.jdkModuleInfoJarEntriesByModule = new HashMap<>(moduleInfoJarEntriesByModule);
             }
             if (stubDebug) {
                 String factoryClass = atypeFactory.getClass().getSimpleName().toString();

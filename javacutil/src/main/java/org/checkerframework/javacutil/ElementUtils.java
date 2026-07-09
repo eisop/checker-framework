@@ -1146,6 +1146,44 @@ public class ElementUtils {
         }
     }
 
+    /** The {@code Elements.getModuleElement(CharSequence)} method. */
+    private static final @Nullable Method ELEMENTS_GETMODULEELEMENT;
+
+    static {
+        if (SystemUtil.jreVersion >= 9) {
+            try {
+                ELEMENTS_GETMODULEELEMENT =
+                        Elements.class.getMethod("getModuleElement", CharSequence.class);
+            } catch (NoSuchMethodException e) {
+                throw new BugInCF("Cannot access Elements.getModuleElement(CharSequence)", e);
+            }
+        } else {
+            ELEMENTS_GETMODULEELEMENT = null;
+        }
+    }
+
+    /**
+     * Calls {@code getModuleElement(name)} on the given {@code Elements}. Uses reflection because
+     * this method is not available before JDK 9 (the module system's introduction). On earlier
+     * JDKs, which don't support modules anyway, returns {@code null}.
+     *
+     * @param elements the {@code Elements} instance to call {@code getModuleElement} on
+     * @param name the fully-qualified module name
+     * @return the module element for the given name, or {@code null} if not found or if {@code
+     *     getModuleElement} is not available on this JDK
+     */
+    @SuppressWarnings("nullness") // because of cast from reflection
+    public static @Nullable Element getModuleElement(Elements elements, CharSequence name) {
+        if (ELEMENTS_GETMODULEELEMENT == null) {
+            return null;
+        }
+        try {
+            return (@Nullable Element) ELEMENTS_GETMODULEELEMENT.invoke(elements, name);
+        } catch (IllegalAccessException | IllegalArgumentException | InvocationTargetException e) {
+            throw new Error("Cannot call Elements.getModuleElement(CharSequence)", e);
+        }
+    }
+
     /**
      * Check if the given element is a compact canonical record constructor.
      *

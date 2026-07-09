@@ -159,6 +159,8 @@ public class BinaryStubDiffChecker {
             compareClass(className, textAnnos, binaryAnnos, reports);
         }
 
+        comparePackagesAndModules(elementTypes, data, atypeFactory, reports);
+
         reportDiffs(checker, reports);
         // Print the summary to standard output rather than as a NOTE diagnostic: the
         // per-directory test harness treats every diagnostic as unexpected.
@@ -166,6 +168,60 @@ public class BinaryStubDiffChecker {
                 "binary stub diff: checked %d top-level classes (%d without text stub source),"
                         + " %d mismatches.%n",
                 classesChecked, classesWithoutTextStub, reports.size());
+    }
+
+    /**
+     * Differential check for package- and module-level declaration annotations: for every package
+     * and module the binary stub data gives annotations to ({@link BinaryStubData#packages}, {@link
+     * BinaryStubData#modules}), text-parses its {@code package-info.java}/{@code module-info.java}
+     * and compares the resulting declaration annotations against what {@link
+     * BinaryStubReader#applyPackageAndModuleRecords} produces from the binary record, reporting any
+     * disagreement. Unlike the per-class comparison in {@link #run}, this is a single pass over all
+     * packages and modules rather than one per class, since {@link BinaryStubData#packages}/{@link
+     * BinaryStubData#modules} are already complete, independent maps (not something the class loop
+     * discovers incrementally).
+     *
+     * @param elementTypes the stub-types AFET whose factory to use
+     * @param data the complete binary stub data
+     * @param atypeFactory the factory used to create types and parse annotations
+     * @param reports the list of mismatch descriptions to append to
+     */
+    private static void comparePackagesAndModules(
+            AnnotationFileElementTypes elementTypes,
+            BinaryStubData data,
+            AnnotatedTypeFactory atypeFactory,
+            List<String> reports) {
+        AnnotationFileAnnotations textAnnos = new AnnotationFileAnnotations();
+        for (String packageName : data.packages.keySet()) {
+            elementTypes.parseJdkPackageInfoInto(packageName, textAnnos);
+        }
+        for (String moduleName : data.modules.keySet()) {
+            elementTypes.parseJdkModuleInfoInto(moduleName, textAnnos);
+        }
+        AnnotationFileAnnotations binaryAnnos = new AnnotationFileAnnotations();
+        BinaryStubReader.applyPackageAndModuleRecords(
+                data, atypeFactory, elementTypes, binaryAnnos, /* fromLazyJdk= */ true);
+        for (String packageName : data.packages.keySet()) {
+            Set<String> textNames = checkerAnnotationNames(textAnnos.declAnnos.get(packageName));
+            Set<String> binaryNames =
+                    checkerAnnotationNames(binaryAnnos.declAnnos.get(packageName));
+            if (!textNames.equals(binaryNames)) {
+                reports.add(
+                        String.format(
+                                "package %s: declAnnos: text=%s binary=%s",
+                                packageName, textNames, binaryNames));
+            }
+        }
+        for (String moduleName : data.modules.keySet()) {
+            Set<String> textNames = checkerAnnotationNames(textAnnos.declAnnos.get(moduleName));
+            Set<String> binaryNames = checkerAnnotationNames(binaryAnnos.declAnnos.get(moduleName));
+            if (!textNames.equals(binaryNames)) {
+                reports.add(
+                        String.format(
+                                "module %s: declAnnos: text=%s binary=%s",
+                                moduleName, textNames, binaryNames));
+            }
+        }
     }
 
     /**
