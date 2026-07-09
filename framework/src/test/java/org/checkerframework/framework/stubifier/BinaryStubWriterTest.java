@@ -9,6 +9,8 @@ import org.checkerframework.framework.stub.BinaryStubData;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.io.ByteArrayOutputStream;
+import java.io.DataOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -16,6 +18,65 @@ import java.nio.file.Files;
 
 /** Tests for {@link BinaryStubWriter}. */
 public class BinaryStubWriterTest {
+
+    /**
+     * A count that does not fit its length prefix must fail the file, not truncate.
+     *
+     * <p>Every length prefix in the format is an unsigned 16-bit value, and {@code
+     * DataOutputStream.writeShort} silently keeps only the low 16 bits. A count of 65536 would be
+     * written as 0, and {@code BinaryStubData} -- which cannot tell a truncated count from a real
+     * one -- would then read every subsequent field of the file from the wrong offset. Nothing in a
+     * real stub file comes close to the limit; the guard is what makes the day one does a build
+     * failure rather than a silently wrong annotated JDK.
+     */
+    @Test
+    public void aCountTooLargeForItsLengthPrefixFailsRatherThanTruncating() throws IOException {
+        DataOutputStream out = new DataOutputStream(new ByteArrayOutputStream());
+        BinaryStubWriter.writeCount(out, 0xFFFF, "fields");
+        IOException e =
+                Assert.assertThrows(
+                        IOException.class,
+                        () -> BinaryStubWriter.writeCount(out, 0x10000, "fields"));
+        Assert.assertTrue(
+                "the failure must report the oversized count, but was: " + e.getMessage(),
+                e.getMessage().contains("65536") && e.getMessage().contains("65535"));
+    }
+
+    /**
+     * The 8-bit counterpart of {@link #aCountTooLargeForItsLengthPrefixFailsRatherThanTruncating},
+     * reached through a real call site: a type path has one ARRAY step per array dimension, and its
+     * length is a {@code u1} (JVMS 4.7.20.1). A 256-dimensional array would write a length of 0,
+     * and the reader would then take the next annotation's bytes for the enclosing record's fields.
+     *
+     * <p>Java caps array types at 255 dimensions, so a stub declaring 256 is already invalid; the
+     * point is that the writer says so rather than emitting a corrupt file.
+     */
+    @Test
+    public void aTypePathTooLongForItsLengthPrefixFailsRatherThanTruncating() throws IOException {
+        StringBuilder type = new StringBuilder("Object");
+        for (int i = 0; i < 256; i++) {
+            type.append("[]");
+        }
+        BinaryStubWriter writer = new BinaryStubWriter();
+        CompilationUnit cu =
+                StaticJavaParser.parse(
+                        "import org.checkerframework.checker.nullness.qual.Nullable;\n"
+                                + "public class Uses { @Nullable "
+                                + type
+                                + " f; }");
+        writer.process(cu);
+
+        File tmp = File.createTempFile("binarystubwritertest", ".bin.gz");
+        tmp.deleteOnExit();
+        try {
+            IOException e = Assert.assertThrows(IOException.class, () -> writer.writeTo(tmp));
+            Assert.assertTrue(
+                    "the failure must report the oversized path length, but was: " + e.getMessage(),
+                    e.getMessage().contains("256") && e.getMessage().contains("255"));
+        } finally {
+            tmp.delete();
+        }
+    }
 
     /**
      * An annotation on a type argument of an <em>enclosing</em> type is dropped, not encoded.

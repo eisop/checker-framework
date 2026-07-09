@@ -314,7 +314,7 @@ public class BinaryStubWriter {
          */
         void write(DataOutputStream out) throws IOException {
             out.writeInt(annoIndex);
-            out.writeByte(path.size());
+            writeByteCount(out, path.size(), "type-path steps");
             for (TypePathStep step : path) {
                 out.writeByte(step.kind);
                 // JVMS leaves argIndex (type_argument_index) unused (0) for every kind except
@@ -900,7 +900,7 @@ public class BinaryStubWriter {
         } else if (expr instanceof ArrayInitializerExpr) {
             out.writeByte('[');
             List<Expression> vals = ((ArrayInitializerExpr) expr).getValues();
-            out.writeShort(vals.size());
+            writeCount(out, vals.size(), "annotation array elements");
             for (Expression val : vals) {
                 writeValue(out, val, cu);
             }
@@ -961,7 +961,7 @@ public class BinaryStubWriter {
             writeValue(out, ((SingleMemberAnnotationExpr) anno).getMemberValue(), cu);
         } else if (anno instanceof NormalAnnotationExpr) {
             List<MemberValuePair> pairs = ((NormalAnnotationExpr) anno).getPairs();
-            out.writeShort(pairs.size());
+            writeCount(out, pairs.size(), "annotation elements");
             for (MemberValuePair pair : pairs) {
                 out.writeInt(pool.addString(pair.getNameAsString()));
                 writeValue(out, pair.getValue(), cu);
@@ -1661,6 +1661,13 @@ public class BinaryStubWriter {
             if (cit.getTypeArguments().isPresent()) {
                 int i = 0;
                 for (Type t : cit.getTypeArguments().get()) {
+                    if (i > 0xFF) {
+                        // The index is stored in one byte, matching JVMS's u1
+                        // type_argument_index; a 257th type argument would silently wrap to 1 and
+                        // annotate the wrong type argument on the reading side.
+                        throw new IOException(
+                                "too many type arguments (" + (i + 1) + ") on " + cit);
+                    }
                     currentPath.add(new TypePathStep((byte) 3, (byte) i)); // TYPE_ARGUMENT
                     extractTypeAnnotations(t, currentPath, result, cu);
                     currentPath.remove(currentPath.size() - 1);
@@ -1721,6 +1728,49 @@ public class BinaryStubWriter {
     }
 
     /**
+     * Writes {@code count} as an unsigned 16-bit value, the width every length prefix in this
+     * format uses ({@code BinaryStubData} reads them back with {@code readUnsignedShort}).
+     *
+     * <p>{@code DataOutputStream.writeShort} silently keeps only the low 16 bits, so an oversized
+     * count would produce a file whose every subsequent field is misaligned, and the reader has no
+     * way to notice. Refuse to write such a file instead. No stub file comes close to the limit;
+     * this exists so that the day one does, the build says so.
+     *
+     * <p>Package-private so {@code BinaryStubWriterTest} can exercise the bound directly: reaching
+     * it through a real stub file means parsing 65536 annotation values, which costs two minutes.
+     *
+     * @param out the output stream
+     * @param count the count to write
+     * @param what what is being counted, for the error message
+     * @throws IOException if {@code count} does not fit in an unsigned 16-bit value
+     */
+    static void writeCount(DataOutputStream out, int count, String what) throws IOException {
+        if (count > 0xFFFF) {
+            throw new IOException(
+                    "too many " + what + " (" + count + "); the binary stub format records 65535");
+        }
+        out.writeShort(count);
+    }
+
+    /**
+     * Writes {@code count} as an unsigned 8-bit value, the width JVMS &sect;4.7.20.1 gives a type
+     * path's length. The 16-bit counterpart of {@link #writeCount}; see it for why the truncation
+     * {@code writeByte} would perform is not acceptable.
+     *
+     * @param out the output stream
+     * @param count the count to write
+     * @param what what is being counted, for the error message
+     * @throws IOException if {@code count} does not fit in an unsigned 8-bit value
+     */
+    static void writeByteCount(DataOutputStream out, int count, String what) throws IOException {
+        if (count > 0xFF) {
+            throw new IOException(
+                    "too many " + what + " (" + count + "); the binary stub format records 255");
+        }
+        out.writeByte(count);
+    }
+
+    /**
      * Writes a length-prefixed list of annotation-pool indices to the output stream.
      *
      * @param out the output stream
@@ -1729,7 +1779,7 @@ public class BinaryStubWriter {
      */
     private static void writeAnnoIndices(DataOutputStream out, List<Integer> annoIndices)
             throws IOException {
-        out.writeShort(annoIndices.size());
+        writeCount(out, annoIndices.size(), "declaration annotations");
         for (int annoIdx : annoIndices) {
             out.writeInt(annoIdx);
         }
@@ -1744,7 +1794,7 @@ public class BinaryStubWriter {
      */
     private static void writeTypeAnnos(DataOutputStream out, List<TypeAnno> typeAnnos)
             throws IOException {
-        out.writeShort(typeAnnos.size());
+        writeCount(out, typeAnnos.size(), "type annotations");
         for (TypeAnno ta : typeAnnos) {
             ta.write(out);
         }
@@ -1776,10 +1826,10 @@ public class BinaryStubWriter {
      */
     private static void writeTypeParams(DataOutputStream out, List<TypeParamRecord> typeParams)
             throws IOException {
-        out.writeShort(typeParams.size());
+        writeCount(out, typeParams.size(), "type parameters");
         for (TypeParamRecord tp : typeParams) {
             writeAnnoIndices(out, tp.typeVarAnnos);
-            out.writeShort(tp.boundAnnos.size());
+            writeCount(out, tp.boundAnnos.size(), "type-parameter bounds");
             for (List<TypeAnno> boundList : tp.boundAnnos) {
                 writeTypeAnnos(out, boundList);
             }
@@ -1808,21 +1858,21 @@ public class BinaryStubWriter {
                 out.writeByte(cr.kind);
                 writeAnnoIndices(out, cr.declAnnos);
 
-                out.writeShort(cr.fields.size());
+                writeCount(out, cr.fields.size(), "fields");
                 for (FieldRecord fr : cr.fields) {
                     out.writeInt(fr.nameIndex);
                     writeAnnoIndices(out, fr.declAnnos);
                     writeTypeAnnos(out, fr.typeAnnos);
                 }
 
-                out.writeShort(cr.methods.size());
+                writeCount(out, cr.methods.size(), "methods");
                 for (MethodRecord mr : cr.methods) {
                     out.writeInt(mr.sigIndex);
                     writeAnnoIndices(out, mr.declAnnos);
                     writeTypeAnnos(out, mr.returnTypeAnnos);
                     writeTypeAnnos(out, mr.receiverAnnos);
 
-                    out.writeShort(mr.paramAnnos.size());
+                    writeCount(out, mr.paramAnnos.size(), "method parameters");
                     for (int p = 0; p < mr.paramAnnos.size(); p++) {
                         writeTypeAnnos(out, mr.paramAnnos.get(p));
                         writeAnnoIndices(out, mr.paramDeclAnnos.get(p));
@@ -1831,7 +1881,7 @@ public class BinaryStubWriter {
                 }
                 writeTypeParams(out, cr.typeParams);
                 if (cr.kind == ClassRecord.KIND_RECORD) {
-                    out.writeShort(cr.components.size());
+                    writeCount(out, cr.components.size(), "record components");
                     for (ComponentRecord comp : cr.components) {
                         out.writeInt(comp.nameIndex);
                         writeAnnoIndices(out, comp.declAnnos);
@@ -1840,7 +1890,10 @@ public class BinaryStubWriter {
                     }
                     out.writeBoolean(cr.canonicalConstructorParamAnnos != null);
                     if (cr.canonicalConstructorParamAnnos != null) {
-                        out.writeShort(cr.canonicalConstructorParamAnnos.size());
+                        writeCount(
+                                out,
+                                cr.canonicalConstructorParamAnnos.size(),
+                                "canonical constructor parameters");
                         for (List<TypeAnno> paramAnnos : cr.canonicalConstructorParamAnnos) {
                             writeTypeAnnos(out, paramAnnos);
                         }
