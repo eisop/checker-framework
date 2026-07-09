@@ -24,6 +24,7 @@ import com.github.javaparser.utils.SourceRoot;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Optional;
@@ -92,11 +93,23 @@ public class JavaStubifier {
                             }
                         });
 
+        File outputFile = new File(dir, BinaryStubWriter.OUTPUT_FILENAME);
         try {
-            File outputFile = new File(dir, BinaryStubWriter.OUTPUT_FILENAME);
             binaryStubWriter.writeTo(outputFile);
         } catch (IOException e) {
-            System.err.println("Failed to write binary stub: " + e);
+            // Do not print and carry on. The checker prefers this file over the text stubs
+            // whenever it exists, so a truncated one -- or one an earlier run left behind --
+            // would ship and be applied in place of the JDK's real annotations, silently.
+            // BinaryStubFileGenerator makes the same file-level failure fatal for the same
+            // reason; it can afford to merely skip a stub file because that file then keeps its
+            // text parsing, whereas there is no text fallback for a half-written annotated JDK.
+            try {
+                Files.deleteIfExists(outputFile.toPath());
+            } catch (IOException cleanupFailure) {
+                throw new RuntimeException(
+                        "Could not delete incomplete binary stub " + outputFile, cleanupFailure);
+            }
+            throw new RuntimeException("Failed to write binary stub " + outputFile, e);
         }
     }
 

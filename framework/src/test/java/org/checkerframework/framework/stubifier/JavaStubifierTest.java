@@ -65,6 +65,39 @@ public class JavaStubifierTest {
     }
 
     /**
+     * A binary stub that cannot be written must abort the run, not leave a stale or truncated file
+     * behind.
+     *
+     * <p>{@code process} used to print the {@code IOException} to stderr and return. Whatever
+     * {@code annotated-jdk.bin.gz} an earlier run had left in the directory then shipped, and the
+     * checker prefers that file over the text stubs whenever it exists, so its (wrong) contents
+     * would be applied in place of the JDK's real annotations, silently. {@code
+     * BinaryStubFileGenerator} already treats the same file-level failure as fatal.
+     *
+     * <p>The write is made to fail by putting a directory where the output file belongs.
+     */
+    @Test
+    public void unwritableBinaryStubAbortsRatherThanLeavingAStaleFile() throws IOException {
+        Path dir = Files.createTempDirectory("javastubifiertest");
+        try {
+            writeClass(dir, "Kept");
+            // A FileOutputStream cannot open a directory for writing.
+            Files.createDirectory(dir.resolve(BinaryStubWriter.OUTPUT_FILENAME));
+
+            RuntimeException e =
+                    Assert.assertThrows(
+                            RuntimeException.class,
+                            () -> JavaStubifier.main(new String[] {dir.toString()}));
+            Assert.assertTrue(
+                    "the failure must name the binary stub it could not write, but was: "
+                            + e.getMessage(),
+                    e.getMessage().contains(BinaryStubWriter.OUTPUT_FILENAME));
+        } finally {
+            deleteRecursively(dir);
+        }
+    }
+
+    /**
      * Verifies that processing two directories in one {@code main()} invocation does not leak
      * classes from the first directory into the second one's binary stub output; see the class
      * documentation for the underlying bug.
