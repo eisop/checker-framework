@@ -1238,7 +1238,7 @@ public class QualifierDefaults {
                             && isTopLevelType) {
                         outer.addAnnotation(t, qual);
                     }
-                    break;
+                    return;
                 case LOCAL_VARIABLE:
                     if (outer.scope != null
                             && outer.scope.getKind() == ElementKind.LOCAL_VARIABLE
@@ -1246,14 +1246,14 @@ public class QualifierDefaults {
                         // TODO: how do we determine that we are in a cast or instanceof type?
                         outer.addAnnotation(t, qual);
                     }
-                    break;
+                    return;
                 case RESOURCE_VARIABLE:
                     if (outer.scope != null
                             && outer.scope.getKind() == ElementKind.RESOURCE_VARIABLE
                             && isTopLevelType) {
                         outer.addAnnotation(t, qual);
                     }
-                    break;
+                    return;
                 case EXCEPTION_PARAMETER:
                     if (outer.scope != null
                             && outer.scope.getKind() == ElementKind.EXCEPTION_PARAMETER
@@ -1267,7 +1267,7 @@ public class QualifierDefaults {
                             }
                         }
                     }
-                    break;
+                    return;
                 case PARAMETER:
                     if (outer.scope != null
                             && outer.scope.getKind() == ElementKind.PARAMETER
@@ -1285,7 +1285,7 @@ public class QualifierDefaults {
                             }
                         }
                     }
-                    break;
+                    return;
                 case RECEIVER:
                     if (outer.scope != null
                             && outer.scope.getKind() == ElementKind.PARAMETER
@@ -1306,7 +1306,7 @@ public class QualifierDefaults {
                             outer.addAnnotation(receiver, qual);
                         }
                     }
-                    break;
+                    return;
                 case RETURN:
                     if (outer.scope != null
                             && outer.scope.getKind() == ElementKind.METHOD
@@ -1318,7 +1318,7 @@ public class QualifierDefaults {
                             outer.addAnnotation(returnType, qual);
                         }
                     }
-                    break;
+                    return;
                 case CONSTRUCTOR_RESULT:
                     if (outer.scope != null
                             && outer.scope.getKind() == ElementKind.CONSTRUCTOR
@@ -1332,7 +1332,7 @@ public class QualifierDefaults {
                             outer.addAnnotation(returnType, qual);
                         }
                     }
-                    break;
+                    return;
                 case IMPLICIT_LOWER_BOUND:
                     if (isLowerBound
                             && (boundType == BoundType.TYPEVAR_UNBOUNDED
@@ -1342,19 +1342,19 @@ public class QualifierDefaults {
                         // TODO: split type variables and wildcards?
                         outer.addAnnotation(t, qual);
                     }
-                    break;
+                    return;
                 case EXPLICIT_LOWER_BOUND:
                     if (isLowerBound && boundType == BoundType.WILDCARD_LOWER) {
                         // TODO: split type variables and wildcards?
                         outer.addAnnotation(t, qual);
                     }
-                    break;
+                    return;
                 case LOWER_BOUND:
                     if (isLowerBound) {
                         // TODO: split type variables and wildcards?
                         outer.addAnnotation(t, qual);
                     }
-                    break;
+                    return;
                 case IMPLICIT_UPPER_BOUND:
                     if (isUpperBound
                             && (boundType == BoundType.TYPEVAR_UNBOUNDED
@@ -1362,61 +1362,64 @@ public class QualifierDefaults {
                                     || boundType == BoundType.WILDCARD_LOWER)) {
                         outer.addAnnotation(t, qual);
                     }
-                    break;
+                    return;
                 case IMPLICIT_TYPE_PARAMETER_UPPER_BOUND:
                     if (isUpperBound && boundType == BoundType.TYPEVAR_UNBOUNDED) {
                         outer.addAnnotation(t, qual);
                     }
-                    break;
+                    return;
                 case IMPLICIT_WILDCARD_UPPER_BOUND_NO_SUPER:
                     if (isUpperBound && boundType == BoundType.WILDCARD_UNBOUNDED) {
                         outer.addAnnotation(t, qual);
                     }
-                    break;
+                    return;
                 case IMPLICIT_WILDCARD_UPPER_BOUND_SUPER:
                     if (isUpperBound && boundType == BoundType.WILDCARD_LOWER) {
                         outer.addAnnotation(t, qual);
                     }
-                    break;
+                    return;
                 case IMPLICIT_WILDCARD_UPPER_BOUND:
                     if (isUpperBound
                             && (boundType == BoundType.WILDCARD_UNBOUNDED
                                     || boundType == BoundType.WILDCARD_LOWER)) {
                         outer.addAnnotation(t, qual);
                     }
-                    break;
+                    return;
                 case EXPLICIT_UPPER_BOUND:
                     if (isUpperBound
                             && (boundType == BoundType.TYPEVAR_UPPER
                                     || boundType == BoundType.WILDCARD_UPPER)) {
                         outer.addAnnotation(t, qual);
                     }
-                    break;
+                    return;
                 case EXPLICIT_TYPE_PARAMETER_UPPER_BOUND:
                     if (isUpperBound && boundType == BoundType.TYPEVAR_UPPER) {
                         outer.addAnnotation(t, qual);
                     }
-                    break;
+                    return;
                 case EXPLICIT_WILDCARD_UPPER_BOUND:
                     if (isUpperBound && boundType == BoundType.WILDCARD_UPPER) {
                         outer.addAnnotation(t, qual);
                     }
-                    break;
+                    return;
                 case UPPER_BOUND:
                     if (isUpperBound) {
                         // TODO: split type variables and wildcards?
                         outer.addAnnotation(t, qual);
                     }
-                    break;
+                    return;
                 case OTHERWISE:
                 case ALL:
                     // TODO: forbid ALL if anything else was given.
                     outer.addAnnotation(t, qual);
-                    break;
+                    return;
                 case TYPE_VARIABLE_USE:
                     // This location is handled in visitTypeVariable below. Do nothing here.
-                    break;
+                    return;
             }
+            throw new BugInCF(
+                    "QualifierDefaults.DefaultApplierElement: unhandled location: "
+                            + outer.location);
         }
 
         @Override
