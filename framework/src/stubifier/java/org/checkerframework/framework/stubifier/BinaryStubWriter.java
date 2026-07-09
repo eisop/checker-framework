@@ -415,6 +415,9 @@ public class BinaryStubWriter {
      */
     private final List<String> asteriskImportPackages = new ArrayList<>();
 
+    /** Cache for {@link #annotationInPackage}, keyed by {@code pkg + "." + name}. */
+    private final Map<String, String> annotationInPackageCache = new HashMap<>();
+
     /**
      * Fully qualifies an annotation name, mirroring how the text parser resolves annotation names
      * at read time ({@code AnnotationFileParser.getImportedAnnotations} and {@code getAnnotation}):
@@ -459,15 +462,29 @@ public class BinaryStubWriter {
      * @param name the simple name
      * @return the fully-qualified name, or {@code null}
      */
-    private static String annotationInPackage(String pkg, String name) {
+    private String annotationInPackage(String pkg, String name) {
         String candidate = pkg + "." + name;
-        try {
-            Class<?> cls = Class.forName(candidate);
-            return cls.isAnnotation() ? candidate : null;
-        } catch (ClassNotFoundException e) {
-            return null;
-        }
+        // Cache by candidate, including negative (not-found) results: fullyQualifyAnnotationName
+        // calls this once per simple annotation name per candidate package for every annotation
+        // use in the whole source tree, and most candidates -- e.g. "java.lang." + some
+        // non-java.lang simple name -- do not exist, so an uncached Class.forName would repeatedly
+        // pay for throwing and discarding a ClassNotFoundException for the exact same string.
+        String result =
+                annotationInPackageCache.computeIfAbsent(
+                        candidate,
+                        c -> {
+                            try {
+                                Class<?> cls = Class.forName(c);
+                                return cls.isAnnotation() ? c : NOT_FOUND;
+                            } catch (ClassNotFoundException e) {
+                                return NOT_FOUND;
+                            }
+                        });
+        return result == NOT_FOUND ? null : result;
     }
+
+    /** Sentinel for {@link #annotationInPackageCache}: no annotation class by that name exists. */
+    private static final String NOT_FOUND = "";
 
     /**
      * Sentinel for {@link #annotationTargetsCache}: the annotation class could not be loaded or has
