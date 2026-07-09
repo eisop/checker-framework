@@ -1,5 +1,6 @@
 package org.checkerframework.framework.stub;
 
+import java.io.BufferedInputStream;
 import java.io.DataInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -502,7 +503,10 @@ public class BinaryStubData {
      * @throws IOException if the stream cannot be read or contains an invalid/unsupported format
      */
     public BinaryStubData(InputStream in) throws IOException {
-        try (DataInputStream dataIn = new DataInputStream(new GZIPInputStream(in))) {
+        // The format is dominated by small fixed-width reads; without an intervening buffer each
+        // one inflates a single byte at a time.
+        try (DataInputStream dataIn =
+                new DataInputStream(new BufferedInputStream(new GZIPInputStream(in)))) {
             if (dataIn.readInt() != MAGIC) {
                 throw new IOException("Invalid magic number");
             }
