@@ -120,7 +120,6 @@ import javax.lang.model.type.ArrayType;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
-import javax.lang.model.type.TypeVariable;
 import javax.lang.model.util.ElementFilter;
 import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
@@ -2240,12 +2239,21 @@ public class AnnotationFileParser {
         }
         for (int i = 0, n = javacParams.size(); i < n; ++i) {
             TypeMirror javacType = javacParams.get(i).asType();
+            if (javacType.getKind() == TypeKind.TYPEVAR) {
+                // A type variable parameter (e.g. "K key") can't be overloaded against a
+                // differently-typed parameter in the same position without an erasure clash, so
+                // any declaration in this position is an acceptable match; properly viewpoint-
+                // adapting the type variable to compare it structurally is unnecessary. (This
+                // also sidesteps comparing this bound's element name, e.g. "Object", against the
+                // stub's own type-variable reference name, e.g. "K" -- which are never the same
+                // string and so never matched, permanently dropping fake-override annotations
+                // for any method with a type-variable parameter whenever the corresponding JDK
+                // version doesn't declare the method directly, e.g. TreeMap.computeIfPresent on
+                // JDK 11, which only inherits it from Map.)
+                continue;
+            }
             Parameter javaParserParam = javaParserParams.get(i);
             Type javaParserType = javaParserParam.getType();
-            if (javacType.getKind() == TypeKind.TYPEVAR) {
-                // TODO: Hack, need to viewpoint-adapt.
-                javacType = ((TypeVariable) javacType).getUpperBound();
-            }
             if (!sameType(javacType, javaParserType)) {
                 return false;
             }
@@ -2288,8 +2296,18 @@ public class AnnotationFileParser {
                         (com.sun.tools.javac.code.Type) javacType;
                 ClassOrInterfaceType javaParserClassType = (ClassOrInterfaceType) javaParserType;
 
-                // Use asString() because toString() includes annotations.
-                String javaParserString = javaParserClassType.asString();
+                // Use getNameWithScope(), not asString() or toString(): this method matches an
+                // overload by its (possibly generic) parameter types, e.g. to find a JDK method
+                // that a stub-file fake override applies to, and overload identity depends only on
+                // erasure, not on the exact generic type arguments or annotations written in the
+                // stub -- asString() (unlike getNameWithScope()) includes type arguments, so it
+                // never matched a generic type such as "BiFunction<? super K, ? super V, ? extends
+                // V>" (a mismatch silently and permanently dropped this method's fake-override
+                // annotations wherever the corresponding JDK version doesn't declare the method
+                // directly, e.g. TreeMap.computeIfPresent on JDK 11, which only inherits it from
+                // Map, versus a newer JDK where TreeMap declares it directly and this code path is
+                // never reached at all).
+                String javaParserString = javaParserClassType.getNameWithScope();
                 Element javacElement = javacTypeInternal.asElement();
                 // Check both fully-qualified name and simple name.
                 return javacElement.toString().equals(javaParserString)
