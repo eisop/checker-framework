@@ -128,6 +128,19 @@ public class BinaryStubWriter {
         private final Map<String, Integer> stringToIndex = new LinkedHashMap<>();
 
         /**
+         * Constructs an empty constant pool, with index 0 unconditionally reserved for the empty
+         * string. Several {@code ClassRecord} fields (e.g. {@code outerNameIndex}) use 0 as a
+         * sentinel meaning "no such string" without going through {@link #addString}; without this
+         * reservation, whichever real string is added first would silently take index 0 instead,
+         * making it indistinguishable from the sentinel (e.g. a nested class whose outer class
+         * happens to be the very first class processed in this writer's lifetime would have its --
+         * correct -- outerNameIndex of 0 misread by the reader as "top-level").
+         */
+        ConstantPool() {
+            addString("");
+        }
+
+        /**
          * Adds a string to the constant pool and returns its index.
          *
          * @param s the string to add (may be {@code null}, which is treated as empty)
