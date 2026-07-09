@@ -60,9 +60,9 @@ import javax.lang.model.util.ElementFilter;
  * by annotation name rather than replaced.
  *
  * <p>A stub method that the enclosing class only inherits is applied as a fake override (see {@link
- * #applyFakeOverride}). Classes that are not present in the binary stub (record declarations are
- * the one construct {@code BinaryStubWriter} does not write) fall through to the text-based {@link
- * AnnotationFileParser} path.
+ * #applyFakeOverride}). Classes that are not present in the binary stub -- e.g. a file the writer
+ * failed to serialize, or a user-supplied {@code -Astubs} file, which is always text-parsed -- fall
+ * through to the text-based {@link AnnotationFileParser} path.
  *
  * <p>Semantic equivalence of this class and the text parser is enforced by {@code
  * BinaryStubDiffChecker} (option {@code -AbinaryStubDiffCheck}); run {@code

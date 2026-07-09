@@ -74,11 +74,11 @@ import java.util.zip.GZIPOutputStream;
  * e.g. {@link #OUTPUT_FILENAME}). Used at build time for the annotated JDK (via {@link
  * JavaStubifier}) and for the built-in checker stub files (via {@link BinaryStubFileGenerator}).
  *
- * <p>This extracts annotations structurally from class, interface, enum, and annotation-type
- * declarations and their members — including type-parameter bound annotations, enum constants, and
- * annotation-type members — and writes them into a dense binary format optimized for rapid loading
- * without parsing overhead at checker startup. Record declarations are not supported; files
- * containing them keep text parsing (see {@link BinaryStubFileGenerator}).
+ * <p>This extracts annotations structurally from class, interface, enum, annotation-type, and
+ * record declarations and their members — including type-parameter bound annotations, enum
+ * constants, annotation-type members, and record components (including an explicit canonical
+ * constructor's parameter annotation overrides) — and writes them into a dense binary format
+ * optimized for rapid loading without parsing overhead at checker startup.
  *
  * <p>Name resolution and member filtering deliberately mirror the text parser ({@code
  * AnnotationFileParser}): private declarations are skipped, annotation names resolve through

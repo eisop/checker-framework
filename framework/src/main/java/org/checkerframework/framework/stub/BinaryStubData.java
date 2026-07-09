@@ -27,8 +27,8 @@ import java.util.zip.GZIPInputStream;
  *   <li>A 2-byte version number.
  *   <li>A constant pool of UTF-8 strings (class names, field names, signatures, string literals).
  *   <li>An annotation pool of structural annotation records.
- *   <li>A sequence of {@link ClassRecord} entries, one per class, interface, enum, or annotation
- *       type.
+ *   <li>A sequence of {@link ClassRecord} entries, one per class, interface, enum, annotation type,
+ *       or record.
  *   <li>Package and module annotation records.
  * </ol>
  *
