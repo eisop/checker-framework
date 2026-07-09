@@ -196,16 +196,23 @@ public class BinaryStubReader {
         // below instead.
         AnnotationMirrorSet classDeclAnnos =
                 parseDeclAnnos(cr.declAnnos, className, data, atypeFactory, elementTypes);
-        // @AnnotatedFor check: match AnnotationFileParser.isAnnotatedForThisChecker — if the
-        // class carries @AnnotatedFor and the current checker is not in its list, skip the
-        // entire class record, exactly as the text parser returns null for such a type.
-        for (AnnotationMirror am : classDeclAnnos) {
-            if (AnnotationUtils.annotationName(am)
-                    .equals("org.checkerframework.framework.qual.AnnotatedFor")) {
-                if (!atypeFactory.doesAnnotatedForApplyToThisChecker(am)) {
-                    return;
+        // @AnnotatedFor check: match AnnotationFileParser.isAnnotatedForThisChecker — but only for
+        // a built-in stub file (fromStubFileAnno != null). isAnnotatedForThisChecker always
+        // returns true, without even inspecting the annotation, when parsing the JDK
+        // (fileType == JDK_STUB, the fromStubFileAnno == null case here): "The JDK stubs have
+        // purity annotations that should be read for all checkers." Applying this skip
+        // unconditionally regressed hundreds of JDK classes carrying @AnnotatedFor for an
+        // unrelated checker (e.g. @AnnotatedFor("interning")) to have no declaration annotations
+        // at all under every other checker.
+        if (fromStubFileAnno != null) {
+            for (AnnotationMirror am : classDeclAnnos) {
+                if (AnnotationUtils.annotationName(am)
+                        .equals("org.checkerframework.framework.qual.AnnotatedFor")) {
+                    if (!atypeFactory.doesAnnotatedForApplyToThisChecker(am)) {
+                        return;
+                    }
+                    break;
                 }
-                break;
             }
         }
         if (!classDeclAnnos.isEmpty()) {
