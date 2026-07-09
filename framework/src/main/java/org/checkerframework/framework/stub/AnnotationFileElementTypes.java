@@ -1205,6 +1205,15 @@ public class AnnotationFileElementTypes {
             // ajava-types AFET (ajavaTypes). Loading from ajavaTypes would happen during
             // AnnotatedTypeFactory.fromElement() before user-supplied stub files are fully
             // parsed, causing the binary's annotations to override the user stubs.
+            //
+            // The text path below needs no such guard, and its absence there is not an
+            // oversight: remainingJdkStubFiles and remainingJdkStubFilesJar are per-AFET fields,
+            // populated only by prepJdkStubs, which runs only from parseStubFiles, which
+            // AnnotatedTypeFactory calls only on stubTypes. For an ajava-types AFET both maps are
+            // therefore always empty and everything below this block is already a no-op. The
+            // binary cache is what changes that: it lives in the javac Context (see
+            // BINARY_STUB_DATA_KEY), so every AFET of the compilation can see the JDK records the
+            // moment stubTypes loads them, whether or not that AFET ever prepped the JDK itself.
             if (!isStubTypes) {
                 return;
             }
