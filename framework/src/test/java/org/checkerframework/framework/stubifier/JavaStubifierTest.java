@@ -64,6 +64,13 @@ public class JavaStubifierTest {
         }
     }
 
+    /**
+     * Verifies that processing two directories in one {@code main()} invocation does not leak
+     * classes from the first directory into the second one's binary stub output; see the class
+     * documentation for the underlying bug.
+     *
+     * @throws IOException if a temporary file or directory cannot be created, written, or read
+     */
     @Test
     public void eachDirectoryGetsOnlyItsOwnClasses() throws IOException {
         Path dir1 = Files.createTempDirectory("stubifier-test-1");
