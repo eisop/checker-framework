@@ -818,11 +818,15 @@ so small per-call wins paid back substantially.
     against plain-text-parsing `master`. Fixed by extracting `getVarArgsAnnotations()` and
     recording it with an empty path (applies directly to the array type), matching
     `AnnotationFileParser.processParameters`'s `annotate(paramType,
-    param.getVarArgsAnnotations(), param)`. Added
-    `checker/jtreg/nullness/VarargsArrayAnnotation.java`: it must run against the real
-    annotated JDK's binary form specifically, since a user `-Astubs` file is always
-    text-parsed (would not exercise this writer bug) and the JUnit nullness test corpus does
-    not use the annotated JDK at all.
+    param.getVarArgsAnnotations(), param)`. Added a regression test as
+    `checker/jtreg/nullness/VarargsArrayAnnotation.java` (a user `-Astubs` file is always
+    text-parsed, so would not exercise this writer bug). **Correction:** the test was
+    originally justified with the claim that "the JUnit nullness test corpus does not use
+    the annotated JDK at all" — that is wrong (`checker/tests/nullness/AnnotatedJdkTest.java`
+    already relies on the annotated JDK's `Arrays.asList` stub via the same
+    `CheckerFrameworkPerDirectoryTest` harness used by every other nullness JUnit test); the
+    test was later moved to `checker/tests/nullness/VarargsArrayAnnotation.java` using the
+    ordinary `// :: error:` convention, dropping the jtreg count below back to 88.
   - **The differential check itself had two coverage gaps**, both found while investigating
     why it reported 0 mismatches despite the bug above being real:
     1. It ran once per *compilation* (`BinaryStubDataCache.diffCheckDone`, "whichever
@@ -866,7 +870,8 @@ so small per-call wins paid back substantially.
     itself leaves unused for this kind).
 
     Verified: differential check back to 0 mismatches, now checked under all four Nullness
-    factories; full `checker/jtreg` (89 passing, +1 for the new varargs test) and
+    factories; full `checker/jtreg` (89 passing, +1 for the new varargs test — later 88 again
+    once the test moved to `checker/tests/nullness/`, see the correction above) and
     `framework/jtreg` (4 passing); full `:framework:test`/`:checker:test`/`:javacutil:test`/
     `:dataflow:test`.
 
