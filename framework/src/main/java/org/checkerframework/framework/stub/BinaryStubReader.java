@@ -209,7 +209,20 @@ public class BinaryStubReader {
         // stores the class's AnnotatedDeclaredType keyed by the TypeElement: fresh if
         // typeAlreadyPresent is false, merged onto the existing entry if fromStubFileAnno != null
         // (an earlier built-in stub file), or left untouched otherwise (the lazily-loaded JDK).
-        if (cr.typeParams.length > 0) {
+        // cr.typeParams.length > 0 only means the class is generic (e.g. "class Foo<T>"), not that
+        // any type parameter is actually annotated -- checking typeParamRecordHasAnnos first avoids
+        // building an AnnotatedDeclaredType (createType, below) for every generic class in the
+        // source tree when none of its type parameters carry an annotation. If this is skipped, the
+        // class-level-annotation code below still creates the stored type on demand (see its
+        // "cr.typeParams was empty" comment, which also covers this case).
+        boolean anyTypeParamAnnotated = false;
+        for (BinaryStubData.TypeParamRecord tp : cr.typeParams) {
+            if (typeParamRecordHasAnnos(tp)) {
+                anyTypeParamAnnotated = true;
+                break;
+            }
+        }
+        if (anyTypeParamAnnotated) {
             applyClassTypeParams(
                     cr,
                     className,
