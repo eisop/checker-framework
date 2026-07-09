@@ -453,10 +453,47 @@ public class BinaryStubReader {
             byName.put(name, stub);
         }
 
+        RecordStub recordStub = new RecordStub(byName);
+        if (cr.canonicalConstructorParamAnnos != null) {
+            // An explicit (non-compact) canonical constructor's own parameter annotations override
+            // the record components' -- matching AnnotationFileParser's
+            // RecordStub#componentsInCanonicalConstructor. Find the real canonical constructor
+            // (there is always exactly one per record) and apply the recorded per-parameter
+            // annotations to its own parameter types.
+            for (ExecutableElement ctor :
+                    ElementFilter.constructorsIn(typeElt.getEnclosedElements())) {
+                if (!AnnotationFileUtil.isCanonicalConstructor(
+                        ctor, atypeFactory.getProcessingEnv().getTypeUtils())) {
+                    continue;
+                }
+                List<? extends VariableElement> ctorParams = ctor.getParameters();
+                if (ctorParams.size() != cr.canonicalConstructorParamAnnos.length) {
+                    // Version skew: the real canonical constructor's parameter count no longer
+                    // matches what the writer recorded. Leave componentsInCanonicalConstructor
+                    // unset; RecordStub falls back to the (still valid) per-component annotations.
+                    break;
+                }
+                List<AnnotatedTypeMirror> annotatedParameters = new ArrayList<>(ctorParams.size());
+                for (int i = 0; i < ctorParams.size(); i++) {
+                    AnnotatedTypeMirror atm =
+                            AnnotatedTypeMirror.createType(
+                                    ctorParams.get(i).asType(), atypeFactory, false);
+                    BinaryStubData.TypeAnno[] paramAnnos = cr.canonicalConstructorParamAnnos[i];
+                    if (paramAnnos.length > 0) {
+                        applyTypeAnnos(
+                                atm, paramAnnos, className, data, atypeFactory, elementTypes);
+                    }
+                    annotatedParameters.add(atm);
+                }
+                recordStub.componentsInCanonicalConstructor = annotatedParameters;
+                break;
+            }
+        }
+
         // Always store a RecordStub for a KIND_RECORD class, even one with no (or no resolvable)
         // components, matching AnnotationFileParser's unconditional
         // annotationFileAnnos.records.put(...) for every RecordDeclaration.
-        target.records.put(className, new RecordStub(byName));
+        target.records.put(className, recordStub);
     }
 
     /**

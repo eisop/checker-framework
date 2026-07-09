@@ -263,21 +263,12 @@ public class BinaryStubWriterTest {
     @Test
     public void recordComponentAnnotationsAndAccessorFlagAreWritten() throws IOException {
         BinaryStubWriter writer = new BinaryStubWriter();
-        // Records require language level JAVA_14+; StaticJavaParser's default is older, matching
-        // production code (JavaStubifier.DEFAULT_LANGUAGE_LEVEL,
-        // BinaryStubFileGenerator.parseStubUnit), which both configure JAVA_21.
-        ParserConfiguration configuration = new ParserConfiguration();
-        configuration.setLanguageLevel(ParserConfiguration.LanguageLevel.JAVA_21);
         CompilationUnit cu =
-                new JavaParser(configuration)
-                        .parse(
-                                "import org.checkerframework.checker.nullness.qual.Nullable;\n"
-                                        + "public record PersonRecord(@Nullable String name, int"
-                                        + " age) {\n"
-                                        + "  public String name() { return name; }\n"
-                                        + "}\n")
-                        .getResult()
-                        .get();
+                parseRecord(
+                        "import org.checkerframework.checker.nullness.qual.Nullable;\n"
+                                + "public record PersonRecord(@Nullable String name, int age) {\n"
+                                + "  public String name() { return name; }\n"
+                                + "}\n");
         writer.process(cu);
 
         File tmp = File.createTempFile("binarystubwritertest", ".bin.gz");
@@ -315,5 +306,97 @@ public class BinaryStubWriterTest {
         } finally {
             tmp.delete();
         }
+    }
+
+    /**
+     * Confirms an explicit (non-compact) canonical constructor -- one whose parameter types match
+     * the record header's components in count and order -- produces a {@code
+     * canonicalConstructorParamAnnos} override carrying the constructor's own parameter
+     * annotations, matching {@code AnnotationFileParser}'s {@code
+     * RecordStub#componentsInCanonicalConstructor}.
+     */
+    @Test
+    public void explicitCanonicalConstructorProducesOverride() throws IOException {
+        BinaryStubWriter writer = new BinaryStubWriter();
+        CompilationUnit cu =
+                parseRecord(
+                        "import org.checkerframework.checker.nullness.qual.Nullable;\n"
+                                + "public record Box(String value) {\n"
+                                + "  public Box(@Nullable String value) {\n"
+                                + "    this.value = value;\n"
+                                + "  }\n"
+                                + "}\n");
+        writer.process(cu);
+
+        File tmp = File.createTempFile("binarystubwritertest", ".bin.gz");
+        tmp.deleteOnExit();
+        try {
+            writer.writeTo(tmp);
+            BinaryStubData data;
+            try (InputStream in = Files.newInputStream(tmp.toPath())) {
+                data = new BinaryStubData(in);
+            }
+
+            BinaryStubData.ClassRecord cr = data.classes.get("Box");
+            Assert.assertNotNull("Box must be recorded", cr);
+            Assert.assertNotNull(
+                    "an explicit canonical constructor must produce a"
+                            + " canonicalConstructorParamAnnos override",
+                    cr.canonicalConstructorParamAnnos);
+            Assert.assertEquals(1, cr.canonicalConstructorParamAnnos.length);
+            Assert.assertEquals(
+                    "the explicit constructor's own @Nullable must be recorded",
+                    1,
+                    cr.canonicalConstructorParamAnnos[0].length);
+        } finally {
+            tmp.delete();
+        }
+    }
+
+    /**
+     * Confirms a compact canonical constructor (no parameter list of its own to carry annotations)
+     * does not produce a {@code canonicalConstructorParamAnnos} override, leaving the record
+     * components' own annotations as the source of truth.
+     */
+    @Test
+    public void compactCanonicalConstructorDoesNotProduceOverride() throws IOException {
+        BinaryStubWriter writer = new BinaryStubWriter();
+        CompilationUnit cu =
+                parseRecord("public record Box(String value) {\n  public Box {\n  }\n}\n");
+        writer.process(cu);
+
+        File tmp = File.createTempFile("binarystubwritertest", ".bin.gz");
+        tmp.deleteOnExit();
+        try {
+            writer.writeTo(tmp);
+            BinaryStubData data;
+            try (InputStream in = Files.newInputStream(tmp.toPath())) {
+                data = new BinaryStubData(in);
+            }
+
+            BinaryStubData.ClassRecord cr = data.classes.get("Box");
+            Assert.assertNotNull("Box must be recorded", cr);
+            Assert.assertNull(
+                    "a compact canonical constructor has no parameter list of its own to override"
+                            + " with, so no canonicalConstructorParamAnnos should be recorded",
+                    cr.canonicalConstructorParamAnnos);
+        } finally {
+            tmp.delete();
+        }
+    }
+
+    /**
+     * Parses {@code source} with language level JAVA_21, required for record declarations.
+     * StaticJavaParser's default language level is older; production code
+     * (JavaStubifier.DEFAULT_LANGUAGE_LEVEL, BinaryStubFileGenerator.parseStubUnit) both configure
+     * JAVA_21.
+     *
+     * @param source the source text to parse, containing a record declaration
+     * @return the parsed compilation unit
+     */
+    private static CompilationUnit parseRecord(String source) {
+        ParserConfiguration configuration = new ParserConfiguration();
+        configuration.setLanguageLevel(ParserConfiguration.LanguageLevel.JAVA_21);
+        return new JavaParser(configuration).parse(source).getResult().get();
     }
 }

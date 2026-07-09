@@ -425,6 +425,18 @@ public class BinaryStubWriter {
         List<ComponentRecord> components = new ArrayList<>();
 
         /**
+         * For a record declaration ({@code kind == KIND_RECORD}) whose body declares an explicit
+         * (non-compact) canonical constructor, one type-annotation list per constructor parameter,
+         * in parameter order -- matching {@code AnnotationFileParser}'s {@code
+         * RecordStub#componentsInCanonicalConstructor} override, which suppresses automatic
+         * transfer of the record component's own annotations onto the canonical constructor in
+         * favor of whatever the explicit constructor declares itself. {@code null} if the record
+         * has no such explicit constructor (the common case: the canonical constructor is compact,
+         * or absent, and the component's own annotations are used instead).
+         */
+        @Nullable List<List<TypeAnno>> canonicalConstructorParamAnnos;
+
+        /**
          * Constructs a ClassRecord.
          *
          * @param nameIndex index of the class name in the constant pool
@@ -1216,6 +1228,47 @@ public class BinaryStubWriter {
             }
         }
 
+        // Find an explicit (non-compact) canonical constructor: a ConstructorDeclaration (not
+        // CompactConstructorDeclaration, which has no parameter list of its own to annotate) whose
+        // parameter types match the record header's own components in count and order, ignoring
+        // annotations and parameter names. Java forbids two constructors with the same erased
+        // signature, so this syntactic match is equivalent to AnnotationFileUtil
+        // .isCanonicalConstructor's real-type-based check, but computable from the writer's
+        // unresolved JavaParser AST alone. If found, its own parameter annotations override the
+        // record components' when propagated to the canonical constructor (matching
+        // AnnotationFileParser's RecordStub#componentsInCanonicalConstructor).
+        String headerSignature =
+                MethodSignaturePrinter.parameterTypesSignature(recordDecl.getParameters());
+        for (BodyDeclaration<?> m : recordDecl.getMembers()) {
+            if (!(m instanceof ConstructorDeclaration)) {
+                continue;
+            }
+            ConstructorDeclaration ctor = (ConstructorDeclaration) m;
+            if (!MethodSignaturePrinter.parameterTypesSignature(ctor.getParameters())
+                    .equals(headerSignature)) {
+                continue;
+            }
+            try {
+                List<List<TypeAnno>> paramAnnos = new ArrayList<>(ctor.getParameters().size());
+                for (Parameter param : ctor.getParameters()) {
+                    List<TypeAnno> annos = new ArrayList<>();
+                    for (AnnotationExpr anno : param.getAnnotations()) {
+                        int idx = annosPool.addAnnotation(anno, cu, this);
+                        if (idx != IGNORED && hasTypeUse(anno, cu)) {
+                            annos.add(new TypeAnno(idx));
+                        }
+                    }
+                    paramAnnos.add(annos);
+                }
+                cr.canonicalConstructorParamAnnos = paramAnnos;
+            } catch (IOException e) {
+                throw new RuntimeException(
+                        "Serialization failure in record canonical constructor: " + e.getMessage(),
+                        e);
+            }
+            break;
+        }
+
         // Process each record component.
         for (Parameter comp : recordDecl.getParameters()) {
             try {
@@ -1710,6 +1763,13 @@ public class BinaryStubWriter {
                         writeTypeAnnos(out, comp.typeAnnos);
                         out.writeBoolean(comp.hasAccessor);
                     }
+                    out.writeBoolean(cr.canonicalConstructorParamAnnos != null);
+                    if (cr.canonicalConstructorParamAnnos != null) {
+                        out.writeShort(cr.canonicalConstructorParamAnnos.size());
+                        for (List<TypeAnno> paramAnnos : cr.canonicalConstructorParamAnnos) {
+                            writeTypeAnnos(out, paramAnnos);
+                        }
+                    }
                 }
             }
 
@@ -1732,6 +1792,26 @@ public class BinaryStubWriter {
         static String toString(CallableDeclaration<?> decl) {
             MethodSignaturePrinter printer = new MethodSignaturePrinter();
             decl.accept(printer, null);
+            return printer.getOutput();
+        }
+
+        /**
+         * Returns the type-erased, parenthesized parameter-type signature of {@code parameters}
+         * alone (no method/constructor name prefix) -- e.g. {@code "(String,int)"}. Used to
+         * structurally match a record's header components against a candidate explicit canonical
+         * constructor's parameters, ignoring annotations and parameter names: since Java forbids
+         * two constructors with the same erased signature, a constructor whose parameter types
+         * (ignoring annotations) match the record's own components in count and order must be the
+         * canonical constructor, mirroring {@code AnnotationFileUtil#isCanonicalConstructor}'s
+         * real-type-based check (which compares resolved parameter types, not names) but computable
+         * purely from the writer's unresolved JavaParser AST.
+         *
+         * @param parameters the parameters
+         * @return the parenthesized, comma-separated, type-erased parameter-type signature
+         */
+        static String parameterTypesSignature(List<Parameter> parameters) {
+            MethodSignaturePrinter printer = new MethodSignaturePrinter();
+            printer.appendParameters(parameters, null);
             return printer.getOutput();
         }
 

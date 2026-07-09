@@ -459,6 +459,15 @@ public class BinaryStubData {
          */
         public ComponentRecord[] components;
 
+        /**
+         * For a record declaration ({@code kind == KIND_RECORD}) whose body declares an explicit
+         * (non-compact) canonical constructor, one type-annotation array per constructor parameter,
+         * in parameter order -- matching {@code AnnotationFileParser}'s {@code
+         * RecordStub#componentsInCanonicalConstructor} override. {@code null} if the record has no
+         * such explicit constructor.
+         */
+        public TypeAnno[][] canonicalConstructorParamAnnos;
+
         /** Creates an empty ClassRecord; fields are populated by the binary reader. */
         public ClassRecord() {}
     }
@@ -569,6 +578,13 @@ public class BinaryStubData {
                         comp.typeAnnos = readTypeAnnos(dataIn);
                         comp.hasAccessor = dataIn.readBoolean();
                         cr.components[j] = comp;
+                    }
+                    if (dataIn.readBoolean()) {
+                        int paramCount = dataIn.readUnsignedShort();
+                        cr.canonicalConstructorParamAnnos = new TypeAnno[paramCount][];
+                        for (int j = 0; j < paramCount; j++) {
+                            cr.canonicalConstructorParamAnnos[j] = readTypeAnnos(dataIn);
+                        }
                     }
                 } else {
                     cr.components = new ComponentRecord[0];
