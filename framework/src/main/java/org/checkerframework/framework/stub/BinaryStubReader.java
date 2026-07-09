@@ -622,7 +622,19 @@ public class BinaryStubReader {
                     atypeFactory,
                     elementTypes);
 
-            if (aet.getReceiverType() != null && mr.receiverAnnos.length > 0) {
+            // A receiver's declared type is always the enclosing class with its own type
+            // arguments, so a TYPE_ARGUMENT-indexed receiver annotation is only meaningful if the
+            // enclosing class's real type-parameter count (now) matches what the writer recorded
+            // (cr.typeParams.length, one entry per declared type parameter -- see
+            // BinaryStubWriter.extractTypeParams). A JDK class's own type-parameter count can
+            // drift across JDK versions (e.g. java.util.concurrent.ConcurrentSkipListMap.KeySet
+            // has one type parameter under JDK 8's real class but two under later JDKs' stub
+            // source), in which case applying the recorded index would target the wrong type
+            // argument. Skip entirely on a mismatch, matching AnnotationFileParser.annotate's own
+            // "Mismatch in type argument size" guard for exactly this case.
+            if (aet.getReceiverType() != null
+                    && mr.receiverAnnos.length > 0
+                    && cr.typeParams.length == typeElt.getTypeParameters().size()) {
                 applyTypeAnnos(
                         aet.getReceiverType(),
                         mr.receiverAnnos,
