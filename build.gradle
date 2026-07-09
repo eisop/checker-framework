@@ -597,43 +597,140 @@ allprojects { currentProj ->
                 options.errorprone.enabled = (useJdkVersionInt >= 21) && (useJdkVersionInt <= 26)
                 options.errorprone.disableWarningsInGeneratedCode = true
                 options.errorprone.errorproneArgs = [
-                    // Many compiler classes are interned.
+                    // -------------------------------------------------------------------------
+                    // Checks kept OFF: the reason is fundamental to this codebase.
+                    // -------------------------------------------------------------------------
+
+                    // Many javac compiler classes (Name, Symbol, …) are interned and compared
+                    // with == intentionally. The Interning Checker enforces this separately.
                     '-Xep:ReferenceEquality:OFF',
-                    // Not useful to suggest Splitter; maybe clean up.
-                    '-Xep:StringSplitter:OFF',
-                    // Too broad, rejects seemingly-correct code.
+                    // The typeinference8 value types use getClass() == in equals() so that
+                    // distinct subtypes (e.g. CaptureVariable extends Variable) are never
+                    // equal to each other. This is intentional and symmetric.
                     '-Xep:EqualsGetClass:OFF',
-                    // Not a real problem
-                    '-Xep:MixedMutabilityReturnType:OFF',
-                    // Don't want to add a dependency to ErrorProne.
-                    '-Xep:AnnotateFormatMethod:OFF',
-                    // Warns for every use of "@checker_framework.manual"
+                    // The visitor pattern throughout this codebase passes Void as the
+                    // parameter type (e.g. TreeVisitor<R, Void>). 1 000+ occurrences.
+                    '-Xep:VoidUsed:OFF',
+                    // The CF manual uses a custom @checker_framework.manual Javadoc tag
+                    // processed by ManualTaglet. EP cannot know about this tag.
                     '-Xep:InvalidBlockTag:OFF',
-                    // Recommends writing @InlineMe which is an Error-Prone-specific annotation
+                    // T extends Object is used deliberately as a CF type-annotation target.
+                    '-Xep:ExtendsObject:OFF',
+                    // MixedMutabilityReturnType fires on methods that deliberately return
+                    // unmodifiable views; the callers must not mutate them regardless of type.
+                    '-Xep:MixedMutabilityReturnType:OFF',
+
+                    // -------------------------------------------------------------------------
+                    // Checks kept OFF: would require adopting EP-specific annotations as a
+                    // compile-time dependency of this project.
+                    // -------------------------------------------------------------------------
+
+                    // Would require @FormatMethod (EP annotation).
+                    '-Xep:AnnotateFormatMethod:OFF',
+                    // Would require @InlineMe (EP annotation).
                     '-Xep:InlineMeSuggester:OFF',
-                    // Recommends writing @CanIgnoreReturnValue which is an Error-Prone-specific annotation.
+                    // Would require @CanIgnoreReturnValue (EP annotation).
                     // It would be great if Error Prone recognized the @This annotation.
                     '-Xep:CanIgnoreReturnValueSuggester:OFF',
-                    // Should be turned off when using the Checker Framework.
-                    '-Xep:ExtendsObject:OFF',
-                    // For Visitors it is convenient to just pass a Void parameter.
-                    '-Xep:VoidUsed:OFF',
-                    // -Werror halts the build if Error Prone issues a warning, which ensures that
-                    // the errors get fixed.  On the downside, Error Prone (or maybe the compiler?)
-                    // stops as soon as it issues one warning, rather than outputting them all.
-                    // https://github.com/google/error-prone/issues/436
-                    // -Werror is already in 'compilerArgs' above. Disable it there.
-                    // '-Werror',
-                    // To automatically patch Error Prone issues, list the EP checkers below and
-                    // remove '-Werror' in the 'compilerArgs' above.
+
+                    // -------------------------------------------------------------------------
+                    // Newly enabled checks (previously default-on WARNING, promoted to ERROR).
+                    // Zero current violations; kept at ERROR to prevent future regressions.
+                    // -------------------------------------------------------------------------
+
+                    // Switches on enum types must cover all cases or have a default, so new
+                    // enum constants added in future JDK versions are never silently ignored.
+                    '-Xep:MissingCasesInEnumSwitch:ERROR',
+                    // Counterpart: when all enum values are already handled, an explicit
+                    // default defeats exhaustiveness checking for future enum additions.
+                    '-Xep:UnnecessaryDefaultInEnumSwitch:ERROR',
+                    // TypeMirror/AnnotatedTypeMirror objects must be compared with
+                    // Types#isSameType, not == or .equals(); the latter is implementation-defined.
+                    '-Xep:TypeEquals:ERROR',
+                    // Declaring a type parameter only in the return type hides unsafe casts at
+                    // call sites and interacts badly with overload resolution.
+                    '-Xep:TypeParameterUnusedInFormals:ERROR',
+                    // Non-static inner classes that don't use the enclosing instance hold an
+                    // implicit reference to it, which prevents GC of annotation processor state.
+                    '-Xep:ClassCanBeStatic:ERROR',
+                    // Silently swallowing exceptions in an annotation processor makes
+                    // debugging nearly impossible.
+                    '-Xep:EmptyCatch:ERROR',
+                    // Undocumented switch fall-through is almost always a bug.
+                    // (javac's own -Xlint:-fallthrough is left in compilerArgs to suppress the
+                    // javac duplicate; EP's version is superior because it allows documented
+                    // fall-through via a "// fall through" comment.)
+                    '-Xep:FallThrough:ERROR',
+                    // Bitwise operators mixed with arithmetic or comparisons without explicit
+                    // grouping parentheses are a common source of precedence bugs.
+                    '-Xep:OperatorPrecedence:ERROR',
+                    // Non-atomic read-modify-write on a volatile field is unsafe even though
+                    // the field is volatile.
+                    '-Xep:NonAtomicVolatileUpdate:ERROR',
+                    // Importing a nested class or static member with a commonly-overloaded
+                    // short name (e.g. com.sun.tools.javac.util.List) hides the JDK type.
+                    '-Xep:BadImport:ERROR',
+                    // Assigning to a static field from a constructor is highly error-prone
+                    // in an annotation processor where multiple instances may coexist.
+                    '-Xep:StaticAssignmentInConstructor:ERROR',
+
+                    // -------------------------------------------------------------------------
+                    // Newly enabled experimental checks (zero current violations → ERROR).
+                    // -------------------------------------------------------------------------
+
+                    // @deprecated Javadoc tag must always be paired with @Deprecated so that
+                    // IDEs and tools that detect deprecated-API usage actually see it.
+                    '-Xep:DepAnn:ERROR',
+                    // "if (cond);" — semicolon accidentally terminating an if statement — is
+                    // almost always a bug.
+                    '-Xep:EmptyIf:ERROR',
+                    // Lowercase 'l' suffix on long literals (e.g. 1l) is easily misread as '1'.
+                    '-Xep:LongLiteralLowerCaseSuffix:ERROR',
+                    // Verifies that compareTo/compare implementations obey the sign contract.
+                    '-Xep:ComparisonContractViolated:ERROR',
+
+                    // -------------------------------------------------------------------------
+                    // Newly enabled experimental checks (violations exist → WARN for cleanup).
+                    // -------------------------------------------------------------------------
+
+                    // TypeMirror#toString() and Element#toString() should not be used for
+                    // comparison: the format is implementation-defined and the call is expensive.
+                    // Known violations: TypesUtils.java, AnnotationFileParser.java, etc.
+                    '-Xep:TypeToString:WARN',
+                    '-Xep:SymbolToString:WARN',
+                    // Pattern.compile() on a constant string should be a static final field
+                    // to avoid recompiling the pattern on every call.
+                    '-Xep:ConstantPatternCompile:WARN',
+                    // I/O constructors without an explicit charset silently use the platform
+                    // default, which can differ between JVM executions.
+                    '-Xep:DefaultCharset:WARN',
+                    // String.split() has surprising behaviour: it silently discards trailing
+                    // empty strings. Reviewing call sites may reveal latent bugs.
+                    '-Xep:StringSplitter:WARN',
+                    // Methods that declare checked exceptions they cannot actually throw
+                    // mislead callers into writing unnecessary catch blocks.
+                    '-Xep:CheckedExceptionNotThrown:WARN',
+                    // A private static final ImmutableList used only for .contains() checks
+                    // should be an ImmutableSet for clarity and O(1) lookup.
+                    '-Xep:ImmutableSetForContains:WARN',
+                    // System.exit() in non-main methods makes library code untestable.
+                    // Existing legitimate uses in CLI entry-point helpers should be suppressed
+                    // with @SuppressWarnings("SystemExitOutsideMain").
+                    '-Xep:SystemExitOutsideMain:WARN',
+
+                    // -------------------------------------------------------------------------
+                    // Patch automation (uncomment to auto-fix, re-comment before committing).
+                    // -------------------------------------------------------------------------
                     // '-XepPatchChecks:EffectivelyPrivate',
                     // '-XepPatchLocation:IN_PLACE',
                 ]
 
                 if (compilationTask.name.equals('compileTestJava')) {
                     options.errorprone.errorproneArgs.addAll([
-                        // Some Value Checker tests use int literals intentionally(?).
-                        '-Xep:IntLiteralCast:OFF'
+                        // Some Value Checker tests use int literals intentionally.
+                        '-Xep:IntLiteralCast:OFF',
+                        // Test code legitimately calls System.exit in CLI-style test helpers.
+                        '-Xep:SystemExitOutsideMain:OFF',
                     ])
                 }
 
