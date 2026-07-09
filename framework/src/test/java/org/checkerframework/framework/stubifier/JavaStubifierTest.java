@@ -95,4 +95,34 @@ public class JavaStubifierTest {
             deleteRecursively(dir2);
         }
     }
+
+    /**
+     * Regression test for a single-pass rewrite of the "does this file have any interesting
+     * declaration" check ({@code cu.findAll(ClassOrInterfaceDeclaration.class).isEmpty() &&
+     * cu.findAll(AnnotationDeclaration.class).isEmpty() && cu.findAll(EnumDeclaration.class)
+     * .isEmpty()}, replaced by a single {@code findAll(TypeDeclaration.class, predicate)}): {@code
+     * RecordDeclaration} also extends {@code TypeDeclaration}, so a naive replacement that dropped
+     * the predicate would treat a record-only file as non-empty and keep it, whereas
+     * BinaryStubWriter does not support records and the file should still be deleted as empty.
+     */
+    @Test
+    public void recordOnlyFileIsStillTreatedAsEmpty() throws IOException {
+        Path dir = Files.createTempDirectory("stubifier-test-record");
+        try {
+            Path recordFile = dir.resolve("JavaStubifierTestRecord.java");
+            Files.write(
+                    recordFile,
+                    "public record JavaStubifierTestRecord(int x) {}"
+                            .getBytes(StandardCharsets.UTF_8));
+
+            JavaStubifier.main(new String[] {dir.toString()});
+
+            Assert.assertFalse(
+                    "a record-only file must still be deleted as empty, since"
+                            + " BinaryStubWriter does not support records",
+                    Files.exists(recordFile));
+        } finally {
+            deleteRecursively(dir);
+        }
+    }
 }

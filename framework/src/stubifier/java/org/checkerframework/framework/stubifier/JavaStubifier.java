@@ -13,6 +13,7 @@ import com.github.javaparser.ast.body.EnumDeclaration;
 import com.github.javaparser.ast.body.FieldDeclaration;
 import com.github.javaparser.ast.body.InitializerDeclaration;
 import com.github.javaparser.ast.body.MethodDeclaration;
+import com.github.javaparser.ast.body.TypeDeclaration;
 import com.github.javaparser.ast.expr.NormalAnnotationExpr;
 import com.github.javaparser.ast.nodeTypes.modifiers.NodeWithAccessModifiers;
 import com.github.javaparser.ast.stmt.BlockStmt;
@@ -154,9 +155,18 @@ public class JavaStubifier {
                 // removed.
                 cu.getAllContainedComments().forEach(Node::remove);
                 mv.visit(cu, null);
-                if (cu.findAll(ClassOrInterfaceDeclaration.class).isEmpty()
-                        && cu.findAll(AnnotationDeclaration.class).isEmpty()
-                        && cu.findAll(EnumDeclaration.class).isEmpty()
+                // ClassOrInterfaceDeclaration, AnnotationDeclaration, and EnumDeclaration all
+                // extend TypeDeclaration (as does RecordDeclaration, deliberately excluded here:
+                // BinaryStubWriter does not support records, so a record-only file must still be
+                // treated as empty), so one findAll with a predicate replaces three separate
+                // traversals of the AST with one.
+                if (cu.findAll(
+                                        TypeDeclaration.class,
+                                        td ->
+                                                td instanceof ClassOrInterfaceDeclaration
+                                                        || td instanceof AnnotationDeclaration
+                                                        || td instanceof EnumDeclaration)
+                                .isEmpty()
                         && !absolutePath.endsWith("package-info.java")) {
                     // All content is removed, delete this file.
                     new File(absolutePath.toUri()).delete();
