@@ -43,6 +43,12 @@ Performance optimizations:
   proven itself (shrinking `checker.jar` by about 1.5 MB). A differential test
   (`NullnessBinaryStubDiffTest`, option `-AbinaryStubDiffCheck`) verifies that
   the binary and text paths load identical annotations for every JDK class.
+  Each binary class record now also stores whether it was written from a
+  class/interface, enum, or annotation-type declaration; `BinaryStubReader`
+  skips applying a record whose kind disagrees with the real `TypeElement`'s
+  kind, mirroring the text path's existing handling of a JDK class whose kind
+  has changed between JDK versions (e.g. `java.nio.ByteOrder` became an enum
+  in JDK 26 after being a plain class through JDK 25).
 - The built-in checker stub files (`jdk.astub`, `jdkN.astub`, and `@StubFiles`
   resources) are likewise pre-parsed into sibling `.astub.bin.gz` resources at
   build time (`BinaryStubFileGenerator`) and loaded from the binary form at

@@ -374,6 +374,18 @@ public class BinaryStubData {
     /** Annotation data for a single class or interface, including its members. */
     public static class ClassRecord {
         /**
+         * {@link #kind} value for a class or interface declaration (also used for a record
+         * declaration, though the binary format does not model records at all).
+         */
+        public static final byte KIND_CLASS_OR_INTERFACE = 0;
+
+        /** {@link #kind} value for an enum declaration. */
+        public static final byte KIND_ENUM = 1;
+
+        /** {@link #kind} value for an annotation-type declaration. */
+        public static final byte KIND_ANNOTATION_TYPE = 2;
+
+        /**
          * Index into {@link BinaryStubData#stringPool} of the fully-qualified class name (using
          * {@code '.'} as separator, e.g. {@code "com.sun.tools.javac.code.Symbol.Completer"}).
          */
@@ -386,6 +398,16 @@ public class BinaryStubData {
          * them, used to efficiently build the inner-class map without a string-scan heuristic.
          */
         public int outerNameIndex;
+
+        /**
+         * One of the {@code KIND_*} constants, recording what kind of declaration this class record
+         * was written from. The reader compares this against the real {@code TypeElement}'s kind
+         * before applying the record, since the JDK being compiled against can differ in version
+         * from the one the annotated JDK's stub sources were written against (e.g. {@code
+         * java.nio.ByteOrder} became a real enum in JDK 26 after being a plain class through JDK
+         * 25) -- see {@code BinaryStubReader#applyClassRecord}.
+         */
+        public byte kind;
 
         /** Annotation-pool indices of the declaration annotations on this class. */
         public int[] declAnnos;
@@ -469,6 +491,7 @@ public class BinaryStubData {
                 ClassRecord cr = new ClassRecord();
                 cr.nameIndex = dataIn.readInt();
                 cr.outerNameIndex = dataIn.readInt();
+                cr.kind = dataIn.readByte();
                 cr.declAnnos = readAnnoIndices(dataIn);
 
                 int fieldCount = dataIn.readUnsignedShort();

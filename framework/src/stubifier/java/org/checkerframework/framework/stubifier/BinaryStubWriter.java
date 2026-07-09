@@ -350,6 +350,18 @@ public class BinaryStubWriter {
 
     /** Represents the annotations and members of a single class. */
     private static class ClassRecord {
+        /**
+         * {@link #kind} value for a class or interface declaration (also used for a record
+         * declaration, though {@code BinaryStubWriter} does not write records at all).
+         */
+        static final byte KIND_CLASS_OR_INTERFACE = 0;
+
+        /** {@link #kind} value for an enum declaration. */
+        static final byte KIND_ENUM = 1;
+
+        /** {@link #kind} value for an annotation-type declaration. */
+        static final byte KIND_ANNOTATION_TYPE = 2;
+
         /** Index of the fully-qualified class name in the constant pool. */
         int nameIndex;
 
@@ -358,6 +370,17 @@ public class BinaryStubWriter {
          * top-level class (i.e., {@code nameIndex} itself is the outermost).
          */
         int outerNameIndex;
+
+        /**
+         * One of the {@code KIND_*} constants, recording what kind of declaration this class record
+         * came from. Read back by the reader and compared against the real {@code TypeElement}'s
+         * kind, mirroring {@code AnnotationFileParser.processTypeDecl}'s own defensive check for
+         * exactly this mismatch (e.g. a stub still declaring {@code java.nio.ByteOrder} as a class
+         * after it became a real enum in JDK 26): if they disagree, the class record must not be
+         * applied, since the annotated JDK is meant to be usable across JDK versions whose API can
+         * drift out from under a fixed stub source.
+         */
+        byte kind;
 
         /** Annotation-pool indices of the declaration annotations on this class. */
         List<Integer> declAnnos = new ArrayList<>();
@@ -376,10 +399,12 @@ public class BinaryStubWriter {
          *
          * @param nameIndex index of the class name in the constant pool
          * @param outerNameIndex index of the outermost enclosing class name, or 0 if top-level
+         * @param kind one of the {@code KIND_*} constants
          */
-        ClassRecord(int nameIndex, int outerNameIndex) {
+        ClassRecord(int nameIndex, int outerNameIndex, byte kind) {
             this.nameIndex = nameIndex;
             this.outerNameIndex = outerNameIndex;
+            this.kind = kind;
         }
     }
 
@@ -925,6 +950,8 @@ public class BinaryStubWriter {
      *     top-level declarations
      * @param outermostFqn the fully-qualified name of the outermost enclosing class, or empty for
      *     top-level declarations
+     * @param kind one of the {@link ClassRecord}{@code .KIND_*} constants, identifying which of the
+     *     three callers this is
      * @param cu the compilation unit
      * @return the registered class record, or {@code null} if the declaration is skipped
      */
@@ -934,13 +961,14 @@ public class BinaryStubWriter {
             List<AnnotationExpr> annotations,
             String enclosingFqn,
             String outermostFqn,
+            byte kind,
             CompilationUnit cu) {
         if (isPrivate) {
             return null;
         }
         String fqn = enclosingFqn.isEmpty() ? simpleName : enclosingFqn + "." + simpleName;
         int outerNameIndex = outermostFqn.isEmpty() ? 0 : pool.addString(outermostFqn);
-        ClassRecord cr = new ClassRecord(pool.addString(fqn), outerNameIndex);
+        ClassRecord cr = new ClassRecord(pool.addString(fqn), outerNameIndex, kind);
         classes.add(cr);
         try {
             for (AnnotationExpr anno : annotations) {
@@ -978,6 +1006,7 @@ public class BinaryStubWriter {
                         typeDecl.getAnnotations(),
                         enclosingFqn,
                         outermostFqn,
+                        ClassRecord.KIND_CLASS_OR_INTERFACE,
                         cu);
         if (cr == null) {
             return;
@@ -1021,6 +1050,7 @@ public class BinaryStubWriter {
                         enumDecl.getAnnotations(),
                         enclosingFqn,
                         outermostFqn,
+                        ClassRecord.KIND_ENUM,
                         cu);
         if (cr == null) {
             return;
@@ -1085,6 +1115,7 @@ public class BinaryStubWriter {
                         annoDecl.getAnnotations(),
                         enclosingFqn,
                         outermostFqn,
+                        ClassRecord.KIND_ANNOTATION_TYPE,
                         cu);
         if (cr == null) {
             return;
@@ -1518,6 +1549,7 @@ public class BinaryStubWriter {
             for (ClassRecord cr : classes) {
                 out.writeInt(cr.nameIndex);
                 out.writeInt(cr.outerNameIndex);
+                out.writeByte(cr.kind);
                 writeAnnoIndices(out, cr.declAnnos);
 
                 out.writeShort(cr.fields.size());

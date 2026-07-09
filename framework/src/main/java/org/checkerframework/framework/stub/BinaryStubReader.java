@@ -181,6 +181,16 @@ public class BinaryStubReader {
             // compiling with an older --release version. Nothing to annotate.
             return;
         }
+        // Kind check: match AnnotationFileParser.processTypeDecl's own defensive handling of
+        // exactly this drift (e.g. it warns and skips java.nio.ByteOrder, which became a real
+        // enum in JDK 26 after being a plain class through JDK 25, when the annotated JDK's own
+        // stub source still declares it as a class). The annotated JDK is meant to work across
+        // JDK versions whose real API can differ in kind from a fixed stub source; a stub written
+        // for one kind of declaration must not be blindly applied to a differently-kinded real
+        // element; member-level records (fields, methods) would not line up either.
+        if (classRecordKind(typeElt.getKind()) != cr.kind) {
+            return;
+        }
 
         // Whether a type is already stored for this class BEFORE any of this class record's own
         // processing runs -- e.g. because a user-supplied stub file (-Astubs) was parsed earlier
@@ -320,6 +330,35 @@ public class BinaryStubReader {
                     data,
                     target,
                     fromStubFileAnno);
+        }
+    }
+
+    /**
+     * Returns the {@code BinaryStubData.ClassRecord.KIND_*} constant corresponding to {@code kind},
+     * for the {@code ENUM}, {@code ANNOTATION_TYPE}, {@code CLASS}, and {@code INTERFACE} kinds
+     * {@code BinaryStubWriter} writes a class record for, or {@code -1} for any other {@code
+     * ElementKind} -- notably {@code RECORD}, which the writer never writes a record for. The
+     * {@code -1} sentinel can never equal a real {@code ClassRecord.kind} value, so it forces a
+     * mismatch (a real record class only reaches this method if a stub source elsewhere was written
+     * against an older JDK where the same name was a class or interface, e.g. a hypothetical future
+     * JDK converting a class to a record the way JDK 26 converted {@code java.nio.ByteOrder} to an
+     * enum). {@code ElementKind.RECORD} itself is deliberately not referenced here, since it does
+     * not exist before JDK 16 and this class must compile against older JDKs too.
+     *
+     * @param kind the real {@code TypeElement}'s kind
+     * @return the corresponding {@code KIND_*} constant, or {@code -1} if none corresponds
+     */
+    static int classRecordKind(ElementKind kind) {
+        switch (kind) {
+            case ENUM:
+                return BinaryStubData.ClassRecord.KIND_ENUM;
+            case ANNOTATION_TYPE:
+                return BinaryStubData.ClassRecord.KIND_ANNOTATION_TYPE;
+            case CLASS:
+            case INTERFACE:
+                return BinaryStubData.ClassRecord.KIND_CLASS_OR_INTERFACE;
+            default:
+                return -1;
         }
     }
 

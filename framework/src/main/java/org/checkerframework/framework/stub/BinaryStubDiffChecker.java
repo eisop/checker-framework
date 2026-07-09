@@ -363,6 +363,11 @@ public class BinaryStubDiffChecker {
         if (typeElt == null) {
             return;
         }
+        if (BinaryStubReader.classRecordKind(typeElt.getKind()) != cr.kind) {
+            // applyClassRecord skipped this record entirely for the same reason (see its own
+            // comment): nothing was applied, so there is nothing to verify here either.
+            return;
+        }
         List<? extends Element> classTypeParams = typeElt.getTypeParameters();
         for (int i = 0; i < cr.typeParams.length && i < classTypeParams.size(); i++) {
             if (BinaryStubReader.typeParamRecordHasAnnos(cr.typeParams[i])
