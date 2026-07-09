@@ -634,8 +634,7 @@ allprojects { currentProj ->
                     '-Xep:CanIgnoreReturnValueSuggester:OFF',
 
                     // -------------------------------------------------------------------------
-                    // Newly enabled checks (previously default-on WARNING, promoted to ERROR).
-                    // Zero current violations; kept at ERROR to prevent future regressions.
+                    // Enabled checks: standard EP checks, severity raised to ERROR.
                     // -------------------------------------------------------------------------
 
                     // Switches on enum types must cover all cases or have a default, so new
@@ -675,7 +674,7 @@ allprojects { currentProj ->
                     '-Xep:StaticAssignmentInConstructor:ERROR',
 
                     // -------------------------------------------------------------------------
-                    // Newly enabled experimental checks (zero current violations → ERROR).
+                    // Enabled checks: experimental EP checks, explicitly opted in at ERROR.
                     // -------------------------------------------------------------------------
 
                     // @deprecated Javadoc tag must always be paired with @Deprecated so that
