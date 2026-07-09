@@ -555,38 +555,93 @@ public class BinaryStubWriter {
     private static final String NOT_FOUND = "";
 
     /**
-     * Sentinel for {@link #annotationTargetsCache}: the annotation class could not be loaded or has
-     * no {@code @Target} meta-annotation.
+     * Sentinel for {@link #annotationTargetsCache}: the annotation class loaded, but carries no
+     * {@code @Target} meta-annotation. Such an annotation is permitted in every declaration context
+     * and no type context (JLS 9.6.4.1), which is exactly what an empty array means to {@link
+     * #hasTypeUse} and {@link #isTypeUseOnly}. Distinct from {@link #NOT_LOADABLE}: {@code
+     * java.lang.SuppressWarnings} really does report no {@code @Target} through reflection.
      */
-    private static final ElementType[] UNKNOWN_TARGETS = new ElementType[0];
+    private static final ElementType[] NO_TARGET = new ElementType[0];
+
+    /**
+     * Sentinel for {@link #annotationTargetsCache}: the annotation class could not be loaded, so
+     * its {@code @Target} is unknown. Must not be confused with {@link #NO_TARGET}; see {@link
+     * #annotationTargets(AnnotationExpr)}.
+     */
+    private static final ElementType[] NOT_LOADABLE = new ElementType[0];
 
     /**
      * Cache from fully-qualified annotation class name to the element types in its {@code @Target}
-     * meta-annotation, or {@link #UNKNOWN_TARGETS} if the class cannot be loaded or has no
-     * {@code @Target}. Avoids a reflective {@code Class.forName} lookup per annotation occurrence
-     * (the same few annotation classes occur tens of thousands of times across the JDK stubs).
+     * meta-annotation, or to {@link #NO_TARGET} or {@link #NOT_LOADABLE}. Avoids a reflective
+     * {@code Class.forName} lookup per annotation occurrence (the same few annotation classes occur
+     * tens of thousands of times across the JDK stubs).
      */
     private final Map<String, ElementType[]> annotationTargetsCache = new HashMap<>();
 
     /**
      * Returns the element types in the {@code @Target} meta-annotation of the given annotation
-     * class, or {@link #UNKNOWN_TARGETS} if the class cannot be loaded (e.g. a JDK-internal
-     * annotation not on the stubifier classpath) or has no {@code @Target}.
+     * class, or {@link #NO_TARGET} if it declares none, or {@link #NOT_LOADABLE} if the class
+     * cannot be loaded.
      *
      * @param fqn the fully-qualified name of the annotation class
-     * @return the {@code @Target} element types, or {@link #UNKNOWN_TARGETS}
+     * @return the {@code @Target} element types, or a sentinel
      */
-    private ElementType[] annotationTargets(String fqn) {
+    private ElementType[] annotationTargetsByName(String fqn) {
         return annotationTargetsCache.computeIfAbsent(
                 fqn,
                 name -> {
                     try {
                         Target target = Class.forName(name).getAnnotation(Target.class);
-                        return target == null ? UNKNOWN_TARGETS : target.value();
-                    } catch (ClassNotFoundException e) {
-                        return UNKNOWN_TARGETS;
+                        return target == null ? NO_TARGET : target.value();
+                    } catch (ClassNotFoundException | LinkageError e) {
+                        return NOT_LOADABLE;
                     }
                 });
+    }
+
+    /**
+     * Returns the {@code @Target} element types of {@code anno}, for {@link #hasTypeUse} and {@link
+     * #isTypeUseOnly} to route the annotation with.
+     *
+     * <p>Both callers must know the {@code @Target} to route an annotation correctly, and both used
+     * to read a failure to load the class as "no {@code @Target}" -- which routes a {@code
+     * TYPE_USE}-only qualifier to {@code declAnnos} alone, whereupon {@code
+     * BinaryStubReader.filterApplicable} discards it against the real {@code @Target} at checker
+     * runtime. The annotation vanishes, with no diagnostic on either side. Since the stubifier's
+     * classpath (stubparser plus checker-qual) is narrower than a checker's, that is a live hazard
+     * for any stub file naming a third-party annotation. Fail instead: the caller turns this into a
+     * skipped stub file, which then keeps its text parsing.
+     *
+     * <p>A name that is not fully qualified was never resolved at all -- no import, no {@code
+     * java.lang} match, no asterisk import matched it (see {@link #fullyQualifyAnnotationName}).
+     * There is nothing to fail over: neither {@code BinaryStubReader} nor the text parser can
+     * resolve such a name either ({@code AnnotationFileParser.getAnnotation} looks it up with
+     * {@code Elements.getTypeElement} and skips it on null), so both drop the annotation and the
+     * binary form's routing of it cannot matter. Two names in the annotated JDK reach this case
+     * ({@code SuppressFBWarnings}, {@code ConstructorProperties}) and two in the built-in stub
+     * files ({@code EnsuresNonNullIf}, misspelled {@code SafeEFfect}, both missing an import in
+     * their {@code .astub}).
+     *
+     * @param anno the annotation expression
+     * @return the {@code @Target} element types, or {@link #NO_TARGET} if the annotation declares
+     *     none or its simple name could not be resolved
+     * @throws IOException if {@code anno}'s name resolved to a fully-qualified name whose class
+     *     cannot be loaded, leaving its {@code @Target} unknown
+     */
+    private ElementType[] annotationTargets(AnnotationExpr anno) throws IOException {
+        String fqn = fullyQualifyAnnotationName(anno.getNameAsString());
+        ElementType[] targets = annotationTargetsByName(fqn);
+        if (targets == NOT_LOADABLE) {
+            if (fqn.indexOf('.') == -1) {
+                return NO_TARGET;
+            }
+            throw new IOException(
+                    "cannot load annotation "
+                            + fqn
+                            + " to read its @Target, so it cannot be routed to the type or the"
+                            + " declaration; put it on the stubifier classpath");
+        }
+        return targets;
     }
 
     /**
@@ -1113,10 +1168,10 @@ public class BinaryStubWriter {
                     if (idx == IGNORED) {
                         continue;
                     }
-                    if (hasTypeUse(anno, cu)) {
+                    if (hasTypeUse(anno)) {
                         fr.typeAnnos.add(new TypeAnno(idx));
                     }
-                    if (!isTypeUseOnly(anno, cu)) {
+                    if (!isTypeUseOnly(anno)) {
                         fr.declAnnos.add(idx);
                     }
                 }
@@ -1254,7 +1309,7 @@ public class BinaryStubWriter {
                     List<TypeAnno> annos = new ArrayList<>();
                     for (AnnotationExpr anno : param.getAnnotations()) {
                         int idx = annosPool.addAnnotation(anno, cu, this);
-                        if (idx != IGNORED && hasTypeUse(anno, cu)) {
+                        if (idx != IGNORED && hasTypeUse(anno)) {
                             annos.add(new TypeAnno(idx));
                         }
                     }
@@ -1281,13 +1336,13 @@ public class BinaryStubWriter {
                     if (idx == IGNORED) {
                         continue;
                     }
-                    if (hasTypeUse(anno, cu)) {
+                    if (hasTypeUse(anno)) {
                         // Annotation in declaration position on a record component annotates
                         // the element type of an array component (if any), matching
                         // AnnotationFileParser.processRecordField's annotate() call.
                         compRec.typeAnnos.add(new TypeAnno(idx, arrayElementPath(comp.getType())));
                     }
-                    if (!isTypeUseOnly(anno, cu)) {
+                    if (!isTypeUseOnly(anno)) {
                         compRec.declAnnos.add(idx);
                     }
                 }
@@ -1359,10 +1414,10 @@ public class BinaryStubWriter {
                 if (idx == IGNORED) {
                     continue;
                 }
-                if (hasTypeUse(anno, cu)) {
+                if (hasTypeUse(anno)) {
                     mr.returnTypeAnnos.add(new TypeAnno(idx, arrayElementPath(member.getType())));
                 }
-                if (!isTypeUseOnly(anno, cu)) {
+                if (!isTypeUseOnly(anno)) {
                     mr.declAnnos.add(idx);
                 }
             }
@@ -1435,10 +1490,10 @@ public class BinaryStubWriter {
                 if (idx == IGNORED) {
                     continue;
                 }
-                if (hasTypeUse(anno, cu)) {
+                if (hasTypeUse(anno)) {
                     mr.returnTypeAnnos.add(new TypeAnno(idx, declPositionPath));
                 }
-                if (!isTypeUseOnly(anno, cu)) {
+                if (!isTypeUseOnly(anno)) {
                     // Annotation has a declaration-position target: also a declaration annotation.
                     mr.declAnnos.add(idx);
                 }
@@ -1468,7 +1523,7 @@ public class BinaryStubWriter {
                     if (idx == IGNORED) {
                         continue;
                     }
-                    if (hasTypeUse(anno, cu)) {
+                    if (hasTypeUse(anno)) {
                         // For varargs, annotations on the parameter declaration apply to the
                         // innermost array component (matching AnnotationFileParser.
                         // annotateInnermostComponentType), which for a multidimensional vararg
@@ -1487,7 +1542,7 @@ public class BinaryStubWriter {
                         }
                         pAnnos.add(new TypeAnno(idx, path));
                     }
-                    if (!isTypeUseOnly(anno, cu)) {
+                    if (!isTypeUseOnly(anno)) {
                         pdAnnos.add(idx);
                     }
                 }
@@ -1537,12 +1592,12 @@ public class BinaryStubWriter {
                     if (idx == IGNORED) {
                         continue;
                     }
-                    if (hasTypeUse(anno, cu)) {
+                    if (hasTypeUse(anno)) {
                         // Annotation in declaration position annotates the element type of an
                         // array field (if any), not the array reference.
                         fr.typeAnnos.add(new TypeAnno(idx, arrayElementPath(vd.getType())));
                     }
-                    if (!isTypeUseOnly(anno, cu)) {
+                    if (!isTypeUseOnly(anno)) {
                         // Annotation has a declaration-position target: also a declaration
                         // annotation.
                         fr.declAnnos.add(idx);
@@ -1911,17 +1966,14 @@ public class BinaryStubWriter {
      * whether it also contains declaration-position element types. Use this to decide whether an
      * annotation in declaration position should also be applied to the adjacent type.
      *
-     * <p>If the annotation class cannot be loaded, returns false conservatively.
-     *
      * @param anno the annotation expression
-     * @param cu the compilation unit, used to resolve the annotation's simple name to its FQN
      * @return true if the annotation's {@code @Target} contains {@code TYPE_USE}
+     * @throws IOException if the annotation's {@code @Target} cannot be determined; see {@link
+     *     #annotationTargets(AnnotationExpr)}
      * @see #isTypeUseOnly
      */
-    private boolean hasTypeUse(AnnotationExpr anno, CompilationUnit cu) {
-        ElementType[] targets =
-                annotationTargets(fullyQualifyAnnotationName(anno.getNameAsString()));
-        for (ElementType et : targets) {
+    private boolean hasTypeUse(AnnotationExpr anno) throws IOException {
+        for (ElementType et : annotationTargets(anno)) {
             if (et == ElementType.TYPE_USE) {
                 return true;
             }
@@ -1950,21 +2002,18 @@ public class BinaryStubWriter {
      * an annotation appearing in declaration position must be treated exclusively as a type
      * annotation (and not also stored in {@code declAnnos}).
      *
-     * <p>If the annotation class cannot be loaded (e.g., not on the stubifier classpath), returns
-     * false conservatively.
-     *
      * @param anno the annotation expression
-     * @param cu the compilation unit, used to resolve the annotation's simple name to its FQN
      * @return true if the annotation's {@code @Target} contains only {@code TYPE_USE} and/or {@code
      *     TYPE_PARAMETER}
+     * @throws IOException if the annotation's {@code @Target} cannot be determined; see {@link
+     *     #annotationTargets(AnnotationExpr)}
      * @see #hasTypeUse
      */
-    private boolean isTypeUseOnly(AnnotationExpr anno, CompilationUnit cu) {
-        ElementType[] targets =
-                annotationTargets(fullyQualifyAnnotationName(anno.getNameAsString()));
+    private boolean isTypeUseOnly(AnnotationExpr anno) throws IOException {
+        ElementType[] targets = annotationTargets(anno);
         if (targets.length == 0) {
-            // The class could not be loaded or has no @Target: conservatively treat the
-            // annotation as a declaration annotation.
+            // The annotation declares no @Target, or its simple name could not be resolved:
+            // conservatively treat it as a declaration annotation.
             return false;
         }
         for (ElementType et : targets) {

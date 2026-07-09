@@ -18,6 +18,99 @@ import java.nio.file.Files;
 public class BinaryStubWriterTest {
 
     /**
+     * A fully-qualified annotation name whose class is not on the stubifier classpath must abort
+     * the file rather than be routed by guesswork.
+     *
+     * <p>{@code hasTypeUse} and {@code isTypeUseOnly} both used to read "class did not load" as "no
+     * {@code @Target}", which routes the annotation to {@code declAnnos} only. If the annotation is
+     * really {@code TYPE_USE}-only, {@code BinaryStubReader.filterApplicable} then discards it
+     * against the real {@code @Target} at checker runtime and the annotation disappears from the
+     * binary form with no diagnostic anywhere. The stubifier's classpath (stubparser plus
+     * checker-qual) is narrower than any checker's, so a stub naming a third-party annotation would
+     * hit exactly this. Failing makes {@code BinaryStubFileGenerator} skip the file, which then
+     * keeps its (correct) text parsing.
+     */
+    @Test
+    public void unloadableQualifiedAnnotationFailsRatherThanBeingMisrouted() {
+        BinaryStubWriter writer = new BinaryStubWriter();
+        CompilationUnit cu =
+                StaticJavaParser.parse(
+                        "import com.example.NotOnClasspath;\n"
+                                + "public class Uses { @NotOnClasspath Object f; }");
+        RuntimeException e = Assert.assertThrows(RuntimeException.class, () -> writer.process(cu));
+        Assert.assertTrue(
+                "the failure must name the annotation it could not load, but was: "
+                        + e.getMessage(),
+                e.getMessage().contains("com.example.NotOnClasspath"));
+    }
+
+    /**
+     * An annotation whose <em>simple</em> name resolves to nothing is not a failure: neither {@code
+     * BinaryStubReader} nor the text parser can resolve such a name (both look it up with {@code
+     * Elements.getTypeElement} and skip it on null), so both drop the annotation and the binary
+     * form's routing of it cannot matter. Four names in the shipped stub sources reach this case,
+     * including a misspelled {@code SafeEFfect} and an unimported {@code EnsuresNonNullIf}.
+     */
+    @Test
+    public void unresolvableSimpleAnnotationNameIsNotAFailure() throws IOException {
+        BinaryStubWriter writer = new BinaryStubWriter();
+        CompilationUnit cu =
+                StaticJavaParser.parse("public class Uses { @NeverImported Object f; }");
+        writer.process(cu);
+
+        File tmp = File.createTempFile("binarystubwritertest", ".bin.gz");
+        tmp.deleteOnExit();
+        try {
+            writer.writeTo(tmp);
+            BinaryStubData data;
+            try (InputStream in = Files.newInputStream(tmp.toPath())) {
+                data = new BinaryStubData(in);
+            }
+            Assert.assertNotNull("Uses must still be recorded", data.classes.get("Uses"));
+        } finally {
+            tmp.delete();
+        }
+    }
+
+    /**
+     * An annotation that loads but declares no {@code @Target} -- {@code
+     * java.lang.SuppressWarnings} really is one, through reflection -- must be treated as a
+     * declaration annotation, not as an unloadable class. This is the distinction between the
+     * {@code NO_TARGET} and {@code NOT_LOADABLE} sentinels.
+     */
+    @Test
+    public void annotationWithoutTargetIsADeclarationAnnotation() throws IOException {
+        BinaryStubWriter writer = new BinaryStubWriter();
+        CompilationUnit cu =
+                StaticJavaParser.parse("public class Uses { @SuppressWarnings(\"x\") Object f; }");
+        writer.process(cu);
+
+        File tmp = File.createTempFile("binarystubwritertest", ".bin.gz");
+        tmp.deleteOnExit();
+        try {
+            writer.writeTo(tmp);
+            BinaryStubData data;
+            try (InputStream in = Files.newInputStream(tmp.toPath())) {
+                data = new BinaryStubData(in);
+            }
+            BinaryStubData.ClassRecord cr = data.classes.get("Uses");
+            Assert.assertNotNull(cr);
+            Assert.assertEquals(1, cr.fields.length);
+            Assert.assertEquals(
+                    "@SuppressWarnings has no runtime-visible @Target, so it is a declaration"
+                            + " annotation",
+                    1,
+                    cr.fields[0].declAnnos.length);
+            Assert.assertEquals(
+                    "and it must not also be routed to the field's type",
+                    0,
+                    cr.fields[0].typeAnnos.length);
+        } finally {
+            tmp.delete();
+        }
+    }
+
+    /**
      * Regression test for a constant-pool sentinel bug: {@code ClassRecord#outerNameIndex} uses
      * {@code 0} to mean "top-level class" (see {@code BinaryStubWriter.makeClassRecord}'s {@code
      * outermostFqn.isEmpty() ? 0 : pool.addString(outermostFqn)}), but the constant pool does not
