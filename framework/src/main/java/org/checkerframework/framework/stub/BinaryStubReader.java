@@ -196,6 +196,18 @@ public class BinaryStubReader {
         // below instead.
         AnnotationMirrorSet classDeclAnnos =
                 parseDeclAnnos(cr.declAnnos, className, data, atypeFactory, elementTypes);
+        // @AnnotatedFor check: match AnnotationFileParser.isAnnotatedForThisChecker — if the
+        // class carries @AnnotatedFor and the current checker is not in its list, skip the
+        // entire class record, exactly as the text parser returns null for such a type.
+        for (AnnotationMirror am : classDeclAnnos) {
+            if (AnnotationUtils.annotationName(am)
+                    .equals("org.checkerframework.framework.qual.AnnotatedFor")) {
+                if (!atypeFactory.doesAnnotatedForApplyToThisChecker(am)) {
+                    return;
+                }
+                break;
+            }
+        }
         if (!classDeclAnnos.isEmpty()) {
             AnnotationMirrorSet applicable = filterApplicable(classDeclAnnos, typeElt.getKind());
             if (!applicable.isEmpty()) {
