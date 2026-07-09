@@ -104,16 +104,15 @@ public class JavaStubifierTest {
     }
 
     /**
-     * Regression test for a single-pass rewrite of the "does this file have any interesting
-     * declaration" check ({@code cu.findAll(ClassOrInterfaceDeclaration.class).isEmpty() &&
-     * cu.findAll(AnnotationDeclaration.class).isEmpty() && cu.findAll(EnumDeclaration.class)
-     * .isEmpty()}, replaced by a single {@code findAll(TypeDeclaration.class, predicate)}): {@code
-     * RecordDeclaration} also extends {@code TypeDeclaration}, so a naive replacement that dropped
-     * the predicate would treat a record-only file as non-empty and keep it, whereas
-     * BinaryStubWriter does not support records and the file should still be deleted as empty.
+     * Regression test for the "does this file have any interesting declaration" check. {@code
+     * RecordDeclaration} extends {@code TypeDeclaration}, so the simplified {@code
+     * cu.findAll(TypeDeclaration.class).isEmpty()} check correctly treats a record-only file as
+     * non-empty and keeps it. This test verifies that a file containing only a record declaration
+     * is not deleted (previously it was deleted because BinaryStubWriter did not support records,
+     * but now it does).
      */
     @Test
-    public void recordOnlyFileIsStillTreatedAsEmpty() throws IOException {
+    public void recordOnlyFileIsKept() throws IOException {
         Path dir = Files.createTempDirectory("stubifier-test-record");
         try {
             Path recordFile = dir.resolve("JavaStubifierTestRecord.java");
@@ -124,9 +123,8 @@ public class JavaStubifierTest {
 
             JavaStubifier.main(new String[] {dir.toString()});
 
-            Assert.assertFalse(
-                    "a record-only file must still be deleted as empty, since"
-                            + " BinaryStubWriter does not support records",
+            Assert.assertTrue(
+                    "a record-only file must be kept, since BinaryStubWriter now supports records",
                     Files.exists(recordFile));
         } finally {
             deleteRecursively(dir);

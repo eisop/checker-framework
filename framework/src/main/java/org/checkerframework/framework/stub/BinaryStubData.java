@@ -356,6 +356,31 @@ public class BinaryStubData {
         public TypeParamRecord[] typeParams;
     }
 
+    /**
+     * Annotation data for a single record component (i.e., one entry in a {@code record Foo(A a, B
+     * b)} header).
+     */
+    public static class ComponentRecord {
+        /** Index into {@link BinaryStubData#stringPool} of the component's simple name. */
+        public int nameIndex;
+
+        /** Creates an empty ComponentRecord; fields are populated by the binary reader. */
+        public ComponentRecord() {}
+
+        /** Annotation-pool indices of the declaration annotations on this component. */
+        public int[] declAnnos;
+
+        /** Type annotations on the component's type. */
+        public TypeAnno[] typeAnnos;
+
+        /**
+         * True if the stub file contains an explicit zero-argument accessor method with the same
+         * name as this component. When true, annotation propagation from the component to the
+         * accessor is suppressed (the accessor's own annotations take precedence).
+         */
+        public boolean hasAccessor;
+    }
+
     /** Annotation data for a single field. */
     public static class FieldRecord {
         /** Index into {@link BinaryStubData#stringPool} of the field's simple name. */
@@ -374,8 +399,8 @@ public class BinaryStubData {
     /** Annotation data for a single class or interface, including its members. */
     public static class ClassRecord {
         /**
-         * {@link #kind} value for a class or interface declaration (also used for a record
-         * declaration, though the binary format does not model records at all).
+         * {@link #kind} value for a class or interface declaration (also used for an interface
+         * since the reader maps both to {@link ElementKind#CLASS} / {@link ElementKind#INTERFACE}).
          */
         public static final byte KIND_CLASS_OR_INTERFACE = 0;
 
@@ -384,6 +409,9 @@ public class BinaryStubData {
 
         /** {@link #kind} value for an annotation-type declaration. */
         public static final byte KIND_ANNOTATION_TYPE = 2;
+
+        /** {@link #kind} value for a record declaration. */
+        public static final byte KIND_RECORD = 3;
 
         /**
          * Index into {@link BinaryStubData#stringPool} of the fully-qualified class name (using
@@ -423,6 +451,13 @@ public class BinaryStubData {
          * annotations for the {@code i}-th type parameter declared by this class.
          */
         public TypeParamRecord[] typeParams;
+
+        /**
+         * Per-component annotation records for a record declaration ({@code kind == KIND_RECORD}).
+         * Empty (zero-length) for non-record classes; non-null but possibly empty for records that
+         * declare no annotated components.
+         */
+        public ComponentRecord[] components;
 
         /** Creates an empty ClassRecord; fields are populated by the binary reader. */
         public ClassRecord() {}
@@ -524,6 +559,20 @@ public class BinaryStubData {
                     cr.methods[j] = mr;
                 }
                 cr.typeParams = readTypeParams(dataIn);
+                if (cr.kind == ClassRecord.KIND_RECORD) {
+                    int componentCount = dataIn.readUnsignedShort();
+                    cr.components = new ComponentRecord[componentCount];
+                    for (int j = 0; j < componentCount; j++) {
+                        ComponentRecord comp = new ComponentRecord();
+                        comp.nameIndex = dataIn.readInt();
+                        comp.declAnnos = readAnnoIndices(dataIn);
+                        comp.typeAnnos = readTypeAnnos(dataIn);
+                        comp.hasAccessor = dataIn.readBoolean();
+                        cr.components[j] = comp;
+                    }
+                } else {
+                    cr.components = new ComponentRecord[0];
+                }
                 classes.put(stringPool[cr.nameIndex], cr);
             }
 

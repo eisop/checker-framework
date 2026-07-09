@@ -5,7 +5,6 @@ import com.github.javaparser.ParseResult;
 import com.github.javaparser.ParserConfiguration;
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.StubUnit;
-import com.github.javaparser.ast.body.RecordDeclaration;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -25,8 +24,8 @@ import java.util.stream.Stream;
  * stub file if present and falls back to text parsing otherwise.
  *
  * <p>A file is skipped — no binary is emitted, so the checker text-parses it — if it cannot be
- * parsed, contains a construct the binary format does not model (record declarations), or fails to
- * serialize. Skipping is always safe; it only forgoes the speedup for that file.
+ * parsed, or fails to serialize. Skipping is always safe; it only forgoes the speedup for that
+ * file.
  *
  * <p>Usage: {@code BinaryStubFileGenerator <outputDir> <inputRoot>...}
  */
@@ -107,16 +106,6 @@ public class BinaryStubFileGenerator {
                 return false;
             }
             List<CompilationUnit> cus = parseResult.getResult().get().getCompilationUnits();
-            for (CompilationUnit cu : cus) {
-                if (!cu.findAll(RecordDeclaration.class).isEmpty()) {
-                    System.err.println(
-                            "BinaryStubFileGenerator: "
-                                    + astub
-                                    + " contains a record declaration, which the binary format"
-                                    + " does not model (falls back to text parsing).");
-                    return false;
-                }
-            }
             BinaryStubWriter writer = new BinaryStubWriter();
             writer.processStubUnit(cus);
             Files.createDirectories(out.getParent());

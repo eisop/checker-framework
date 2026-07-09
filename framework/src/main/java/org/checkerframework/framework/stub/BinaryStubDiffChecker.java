@@ -64,8 +64,9 @@ import javax.tools.Diagnostic;
  *   <li>Positions whose baselines differ between the two loaders (type-variable declaration bounds,
  *       fake overrides) are guarded by a record oracle instead: {@link #verifyRecordApplied}
  *       asserts that everything the binary record promises was actually stored.
- *   <li>Record components are not modeled by the binary format; if the text parser produces them
- *       for a class in the binary stub, that is reported.
+ *   <li>Record stubs ({@link AnnotationFileParser.AnnotationFileAnnotations#records}) are compared
+ *       structurally: same class keys and same component names in the same order. Annotation
+ *       agreement is covered by the atypes and declAnnos checks above.
  * </ul>
  */
 public class BinaryStubDiffChecker {
@@ -494,10 +495,33 @@ public class BinaryStubDiffChecker {
             }
         }
 
-        // Structures the binary format does not model at all.
-        if (!text.records.isEmpty()) {
-            reports.add(
-                    className + ": text parser produced record stubs: " + text.records.keySet());
+        // Record stubs: both sides should agree on which classes are records and which components
+        // they have. Annotation agreement is already guaranteed by the atypes/declAnnos checks
+        // above (the binary reader stores component types in atypes[componentElement] and
+        // declaration annotations in declAnnos[componentElement]). We only verify structural
+        // agreement: same record keys and same component names in the same order.
+        Set<String> textRecordKeys = text.records.keySet();
+        Set<String> binaryRecordKeys = binary.records.keySet();
+        for (String key : textRecordKeys) {
+            if (!binaryRecordKeys.contains(key)) {
+                reports.add(className + ": records[" + key + "]: in text but not in binary");
+            } else {
+                List<String> textComponents =
+                        new ArrayList<>(text.records.get(key).componentsByName.keySet());
+                List<String> binaryComponents =
+                        new ArrayList<>(binary.records.get(key).componentsByName.keySet());
+                if (!textComponents.equals(binaryComponents)) {
+                    reports.add(
+                            String.format(
+                                    "%s: records[%s]: component names differ: text=%s binary=%s",
+                                    className, key, textComponents, binaryComponents));
+                }
+            }
+        }
+        for (String key : binaryRecordKeys) {
+            if (!textRecordKeys.contains(key)) {
+                reports.add(className + ": records[" + key + "]: in binary but not in text");
+            }
         }
         // Fake overrides: every binary-side entry must have a text-side counterpart with the
         // same fake location. The text parser additionally stores a fake-override entry for

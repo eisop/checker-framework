@@ -432,6 +432,16 @@ public class AnnotationFileParser {
         public boolean hasAccessorInStubs() {
             return hasAccessorInStubs;
         }
+
+        /**
+         * Marks this record component as having an explicit accessor in a stub file.
+         *
+         * <p>Used by the binary stub reader to propagate the {@code hasAccessor} flag from the
+         * serialized component record.
+         */
+        public void setHasAccessorInStubs() {
+            hasAccessorInStubs = true;
+        }
     }
 
     /**

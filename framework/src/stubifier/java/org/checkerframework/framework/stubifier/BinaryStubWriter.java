@@ -15,6 +15,7 @@ import com.github.javaparser.ast.body.FieldDeclaration;
 import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.body.Parameter;
 import com.github.javaparser.ast.body.ReceiverParameter;
+import com.github.javaparser.ast.body.RecordDeclaration;
 import com.github.javaparser.ast.body.TypeDeclaration;
 import com.github.javaparser.ast.body.VariableDeclarator;
 import com.github.javaparser.ast.expr.AnnotationExpr;
@@ -58,10 +59,12 @@ import java.lang.annotation.Target;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.zip.GZIPOutputStream;
 
 /**
@@ -348,11 +351,29 @@ public class BinaryStubWriter {
         List<TypeAnno> typeAnnos = new ArrayList<>();
     }
 
+    /** Represents the annotation data for a single record component. */
+    private static class ComponentRecord {
+        /** Index of the component name in the constant pool. */
+        int nameIndex;
+
+        /** Annotation-pool indices of the declaration annotations on this component. */
+        List<Integer> declAnnos = new ArrayList<>();
+
+        /** Type annotations on the component's type. */
+        List<TypeAnno> typeAnnos = new ArrayList<>();
+
+        /**
+         * True if the record body contains an explicit zero-argument accessor method with the same
+         * name as this component.
+         */
+        boolean hasAccessor;
+    }
+
     /** Represents the annotations and members of a single class. */
     private static class ClassRecord {
         /**
-         * {@link #kind} value for a class or interface declaration (also used for a record
-         * declaration, though {@code BinaryStubWriter} does not write records at all).
+         * {@link #kind} value for a class or interface declaration (also used for an interface
+         * since the reader maps both to {@link ElementKind#CLASS}/{@link ElementKind#INTERFACE}).
          */
         static final byte KIND_CLASS_OR_INTERFACE = 0;
 
@@ -361,6 +382,9 @@ public class BinaryStubWriter {
 
         /** {@link #kind} value for an annotation-type declaration. */
         static final byte KIND_ANNOTATION_TYPE = 2;
+
+        /** {@link #kind} value for a record declaration. */
+        static final byte KIND_RECORD = 3;
 
         /** Index of the fully-qualified class name in the constant pool. */
         int nameIndex;
@@ -393,6 +417,12 @@ public class BinaryStubWriter {
 
         /** Per-type-parameter annotation records for this class. */
         List<TypeParamRecord> typeParams = new ArrayList<>();
+
+        /**
+         * Per-component records for a record declaration ({@code kind == KIND_RECORD}). Empty for
+         * non-record classes.
+         */
+        List<ComponentRecord> components = new ArrayList<>();
 
         /**
          * Constructs a ClassRecord.
@@ -662,9 +692,9 @@ public class BinaryStubWriter {
     }
 
     /**
-     * Dispatches a type declaration to {@link #processClass}, {@link #processEnum}, or {@link
-     * #processAnnotationType}. Other kinds of type declarations (records) are not written to the
-     * binary format; their stub files keep text parsing (see {@link BinaryStubFileGenerator}).
+     * Dispatches a type declaration to {@link #processClass}, {@link #processEnum}, {@link
+     * #processAnnotationType}, or {@link #processRecord}. Other kinds of type declarations are
+     * silently skipped.
      *
      * @param typeDecl the type declaration to process
      * @param enclosingFqn the fully-qualified name of the enclosing class, or the package name for
@@ -684,6 +714,8 @@ public class BinaryStubWriter {
             processEnum((EnumDeclaration) typeDecl, enclosingFqn, outermostFqn, cu);
         } else if (typeDecl instanceof AnnotationDeclaration) {
             processAnnotationType((AnnotationDeclaration) typeDecl, enclosingFqn, outermostFqn, cu);
+        } else if (typeDecl instanceof RecordDeclaration) {
+            processRecord((RecordDeclaration) typeDecl, enclosingFqn, outermostFqn, cu);
         }
     }
 
@@ -1126,6 +1158,102 @@ public class BinaryStubWriter {
                         : enclosingFqn + "." + annoDecl.getNameAsString();
         String myOutermost = outermostFqn.isEmpty() ? fqn : outermostFqn;
         processMembers(annoDecl.getMembers(), cr, fqn, myOutermost, cu);
+    }
+
+    /**
+     * Processes a record declaration, extracting its annotations, record components, and body
+     * members. Each component is written as a {@link ComponentRecord} carrying its type
+     * annotations, declaration annotations, and an {@code hasAccessor} flag that mirrors the text
+     * parser's {@code hasAccessorInStubs} field on {@code RecordComponentStub}: true when the
+     * record body contains an explicit zero-argument accessor method with the same name.
+     *
+     * @param recordDecl the record declaration to process
+     * @param enclosingFqn the fully-qualified name of the enclosing class, or the package name for
+     *     top-level records
+     * @param outermostFqn the fully-qualified name of the outermost enclosing class, or empty for
+     *     top-level records
+     * @param cu the compilation unit
+     */
+    private void processRecord(
+            RecordDeclaration recordDecl,
+            String enclosingFqn,
+            String outermostFqn,
+            CompilationUnit cu) {
+        ClassRecord cr =
+                startClassRecord(
+                        recordDecl.getNameAsString(),
+                        recordDecl.isPrivate(),
+                        recordDecl.getAnnotations(),
+                        enclosingFqn,
+                        outermostFqn,
+                        ClassRecord.KIND_RECORD,
+                        cu);
+        if (cr == null) {
+            return;
+        }
+        try {
+            cr.typeParams.addAll(extractTypeParams(recordDecl.getTypeParameters(), cu));
+        } catch (IOException e) {
+            throw new RuntimeException(
+                    "Serialization failure in record type parameters: " + e.getMessage(), e);
+        }
+
+        String fqn =
+                enclosingFqn.isEmpty()
+                        ? recordDecl.getNameAsString()
+                        : enclosingFqn + "." + recordDecl.getNameAsString();
+
+        // Build a set of component names that have an explicit zero-arg accessor in the body.
+        // A zero-arg MethodDeclaration whose name equals a component name is considered an
+        // accessor (matching AnnotationFileParser's hasAccessorInStubs logic).
+        Set<String> accessorNames = new HashSet<>();
+        for (BodyDeclaration<?> m : recordDecl.getMembers()) {
+            if (m instanceof MethodDeclaration) {
+                MethodDeclaration md = (MethodDeclaration) m;
+                if (md.getParameters().isEmpty()) {
+                    accessorNames.add(md.getNameAsString());
+                }
+            }
+        }
+
+        // Process each record component.
+        for (Parameter comp : recordDecl.getParameters()) {
+            try {
+                ComponentRecord compRec = new ComponentRecord();
+                compRec.nameIndex = pool.addString(comp.getNameAsString());
+
+                // Declaration-position annotations: dual-route like method annotations.
+                for (AnnotationExpr anno : comp.getAnnotations()) {
+                    int idx = annosPool.addAnnotation(anno, cu, this);
+                    if (idx == IGNORED) {
+                        continue;
+                    }
+                    if (hasTypeUse(anno, cu)) {
+                        // Annotation in declaration position on a record component annotates
+                        // the element type of an array component (if any), matching
+                        // AnnotationFileParser.processRecordField's annotate() call.
+                        compRec.typeAnnos.add(new TypeAnno(idx, arrayElementPath(comp.getType())));
+                    }
+                    if (!isTypeUseOnly(anno, cu)) {
+                        compRec.declAnnos.add(idx);
+                    }
+                }
+                extractTypeAnnotations(comp.getType(), new ArrayList<>(), compRec.typeAnnos, cu);
+
+                compRec.hasAccessor = accessorNames.contains(comp.getNameAsString());
+                cr.components.add(compRec);
+            } catch (IOException e) {
+                throw new RuntimeException(
+                        "Serialization failure in record component "
+                                + comp.getNameAsString()
+                                + ": "
+                                + e.getMessage(),
+                        e);
+            }
+        }
+
+        String myOutermost = outermostFqn.isEmpty() ? fqn : outermostFqn;
+        processMembers(recordDecl.getMembers(), cr, fqn, myOutermost, cu);
     }
 
     /**
@@ -1574,6 +1702,15 @@ public class BinaryStubWriter {
                     writeTypeParams(out, mr.typeParams);
                 }
                 writeTypeParams(out, cr.typeParams);
+                if (cr.kind == ClassRecord.KIND_RECORD) {
+                    out.writeShort(cr.components.size());
+                    for (ComponentRecord comp : cr.components) {
+                        out.writeInt(comp.nameIndex);
+                        writeAnnoIndices(out, comp.declAnnos);
+                        writeTypeAnnos(out, comp.typeAnnos);
+                        out.writeBoolean(comp.hasAccessor);
+                    }
+                }
             }
 
             writeAnnotatedNames(out, packages);

@@ -612,12 +612,10 @@ so small per-call wins paid back substantially.
     documented "last stub file wins" rule. Getting this precedence wrong silently breaks
     `java.util.Optional`'s user-override contract.
   - `ClassRecord.kind` records whether a class record came from a class/interface, enum,
-    or annotation-type declaration; the reader skips applying a record whose kind
+    annotation-type, or record declaration; the reader skips applying a record whose kind
     disagrees with the real `TypeElement`'s kind, so the annotated JDK keeps working even
     when a class's kind changes between JDK versions (e.g. `java.nio.ByteOrder` became an
     enum in JDK 26).
-  - Record declarations (Java `record`) are not supported by the writer; files
-    containing them fall back to text parsing entirely.
 
   Known limitations / next options:
   1. *Lazy built-in stub application* (~5–10% of a small compile): route built-in stub
@@ -625,8 +623,7 @@ so small per-call wins paid back substantially.
      lazy design must consult built-in data before JDK data per class, since some option
      stubs deliberately override the JDK.
   2. *Drop text stubs from `checker.jar`* (~1.5 MB) once the binary format has soaked.
-     Blocked on record-declaration support and `-AparseAllJdk`, which needs the text
-     stubs.
+     Blocked on `-AparseAllJdk`, which needs the text stubs.
   3. `JavaExpressionParseUtil.parseExpression` (dependent-type/contract expression
      strings) is the only stubparser use left on the default checking path; has never
      surfaced above the JFR sampling floor.

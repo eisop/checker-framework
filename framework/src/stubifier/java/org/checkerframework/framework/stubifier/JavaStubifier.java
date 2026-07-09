@@ -6,7 +6,6 @@ import com.github.javaparser.ast.AccessSpecifier;
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.NodeList;
-import com.github.javaparser.ast.body.AnnotationDeclaration;
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import com.github.javaparser.ast.body.ConstructorDeclaration;
 import com.github.javaparser.ast.body.EnumDeclaration;
@@ -157,18 +156,10 @@ public class JavaStubifier {
                 // removed.
                 cu.getAllContainedComments().forEach(Node::remove);
                 mv.visit(cu, null);
-                // ClassOrInterfaceDeclaration, AnnotationDeclaration, and EnumDeclaration all
-                // extend TypeDeclaration (as does RecordDeclaration, deliberately excluded here:
-                // BinaryStubWriter does not support records, so a record-only file must still be
-                // treated as empty), so one findAll with a predicate replaces three separate
-                // traversals of the AST with one.
-                if (cu.findAll(
-                                        TypeDeclaration.class,
-                                        td ->
-                                                td instanceof ClassOrInterfaceDeclaration
-                                                        || td instanceof AnnotationDeclaration
-                                                        || td instanceof EnumDeclaration)
-                                .isEmpty()
+                // ClassOrInterfaceDeclaration, AnnotationDeclaration, EnumDeclaration, and
+                // RecordDeclaration all extend TypeDeclaration, so one findAll covers all four
+                // kinds with no predicate filter needed.
+                if (cu.findAll(TypeDeclaration.class).isEmpty()
                         && !absolutePath.endsWith("package-info.java")) {
                     // All content is removed, delete this file.
                     new File(absolutePath.toUri()).delete();

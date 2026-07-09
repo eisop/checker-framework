@@ -2,6 +2,8 @@ package org.checkerframework.framework.stub;
 
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.framework.stub.AnnotationFileParser.AnnotationFileAnnotations;
+import org.checkerframework.framework.stub.AnnotationFileParser.RecordComponentStub;
+import org.checkerframework.framework.stub.AnnotationFileParser.RecordStub;
 import org.checkerframework.framework.type.AnnotatedTypeFactory;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedArrayType;
@@ -20,6 +22,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.IdentityHashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -331,19 +334,20 @@ public class BinaryStubReader {
                     target,
                     fromStubFileAnno);
         }
+
+        if (cr.kind == BinaryStubData.ClassRecord.KIND_RECORD && cr.components.length > 0) {
+            applyRecordComponents(cr, className, typeElt, atypeFactory, elementTypes, data, target);
+        }
     }
 
     /**
      * Returns the {@code BinaryStubData.ClassRecord.KIND_*} constant corresponding to {@code kind},
-     * for the {@code ENUM}, {@code ANNOTATION_TYPE}, {@code CLASS}, and {@code INTERFACE} kinds
-     * {@code BinaryStubWriter} writes a class record for, or {@code -1} for any other {@code
-     * ElementKind} -- notably {@code RECORD}, which the writer never writes a record for. The
-     * {@code -1} sentinel can never equal a real {@code ClassRecord.kind} value, so it forces a
-     * mismatch (a real record class only reaches this method if a stub source elsewhere was written
-     * against an older JDK where the same name was a class or interface, e.g. a hypothetical future
-     * JDK converting a class to a record the way JDK 26 converted {@code java.nio.ByteOrder} to an
-     * enum). {@code ElementKind.RECORD} itself is deliberately not referenced here, since it does
-     * not exist before JDK 16 and this class must compile against older JDKs too.
+     * for the {@code ENUM}, {@code ANNOTATION_TYPE}, {@code CLASS}, {@code INTERFACE}, and {@code
+     * RECORD} kinds {@code BinaryStubWriter} writes a class record for, or {@code -1} for any other
+     * {@code ElementKind}. The {@code -1} sentinel can never equal a real {@code ClassRecord.kind}
+     * value, so it forces a mismatch and causes the record to be skipped. {@code
+     * ElementKind.RECORD} itself is deliberately not referenced here by name, since it does not
+     * exist before JDK 16 and this class must compile against older JDKs too.
      *
      * @param kind the real {@code TypeElement}'s kind
      * @return the corresponding {@code KIND_*} constant, or {@code -1} if none corresponds
@@ -358,7 +362,92 @@ public class BinaryStubReader {
             case INTERFACE:
                 return BinaryStubData.ClassRecord.KIND_CLASS_OR_INTERFACE;
             default:
+                // ElementKind.RECORD does not exist before JDK 16 so it cannot be named here;
+                // test by name to stay compatible with older compiler versions.
+                if (kind.name().equals("RECORD")) {
+                    return BinaryStubData.ClassRecord.KIND_RECORD;
+                }
                 return -1;
+        }
+    }
+
+    /**
+     * Applies the component records of a record class to build a {@link
+     * AnnotationFileParser.RecordStub} and store it in {@code target.records}. This mirrors what
+     * {@link AnnotationFileParser} does inside {@code processTypeDecl} for a {@code
+     * RecordDeclaration}: it creates a {@code RecordComponentStub} for each component carrying the
+     * component's annotated type, declaration annotations, and the {@code hasAccessorInStubs} flag,
+     * then stores a {@code RecordStub} keyed by the record's fully-qualified name.
+     *
+     * @param cr the class record with {@code kind == KIND_RECORD}
+     * @param className the fully-qualified name of the record class
+     * @param typeElt the element of the record class
+     * @param atypeFactory the factory used to create types and parse annotations
+     * @param elementTypes per-factory state, including the annotation-mirror cache
+     * @param data the complete binary stub data
+     * @param target the annotation container to store the results in
+     */
+    private static void applyRecordComponents(
+            BinaryStubData.ClassRecord cr,
+            String className,
+            TypeElement typeElt,
+            AnnotatedTypeFactory atypeFactory,
+            AnnotationFileElementTypes elementTypes,
+            BinaryStubData data,
+            AnnotationFileAnnotations target) {
+        // Build a name-to-element map for the record's components using getRecordComponents(),
+        // accessed reflectively (ElementUtils.getRecordComponents) for pre-JDK-16 compatibility.
+        Map<String, Element> componentByName = new HashMap<>();
+        for (Element comp : ElementUtils.getRecordComponents(typeElt)) {
+            componentByName.put(comp.getSimpleName().toString(), comp);
+        }
+
+        Map<String, RecordComponentStub> byName = new LinkedHashMap<>();
+        for (BinaryStubData.ComponentRecord comp : cr.components) {
+            String name = data.stringPool[comp.nameIndex];
+            Element compElt = componentByName.get(name);
+            if (compElt == null) {
+                // Component not found in the real element; skip (version skew, same as fields).
+                continue;
+            }
+
+            // Build the annotated type for this component.
+            AnnotatedTypeMirror compType =
+                    AnnotatedTypeMirror.createType(compElt.asType(), atypeFactory, false);
+            if (comp.typeAnnos.length > 0) {
+                applyTypeAnnos(
+                        compType, comp.typeAnnos, className, data, atypeFactory, elementTypes);
+            }
+            // Store keyed by component element (VariableElement) in atypes, matching
+            // AnnotationFileParser.processRecordField's putMerge(atypes, elt, fieldType).
+            target.atypes.putIfAbsent((VariableElement) compElt, compType);
+
+            // Parse declaration annotations.
+            AnnotationMirrorSet declAnnos =
+                    parseDeclAnnos(comp.declAnnos, className, data, atypeFactory, elementTypes);
+            if (!declAnnos.isEmpty()) {
+                String eltName = ElementUtils.getQualifiedName(compElt);
+                AnnotationMirrorSet existing = target.declAnnos.get(eltName);
+                if (existing == null) {
+                    target.declAnnos.put(eltName, declAnnos);
+                } else {
+                    for (AnnotationMirror am : declAnnos) {
+                        if (!AnnotationUtils.containsSameByName(existing, am)) {
+                            existing.add(am);
+                        }
+                    }
+                }
+            }
+
+            RecordComponentStub stub = new RecordComponentStub(compType, declAnnos);
+            if (comp.hasAccessor) {
+                stub.setHasAccessorInStubs();
+            }
+            byName.put(name, stub);
+        }
+
+        if (!byName.isEmpty()) {
+            target.records.put(className, new RecordStub(byName));
         }
     }
 
