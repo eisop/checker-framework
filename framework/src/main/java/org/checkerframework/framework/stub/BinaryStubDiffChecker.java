@@ -730,6 +730,11 @@ public class BinaryStubDiffChecker {
         Set<String> names = new TreeSet<>();
         if (annos != null) {
             for (AnnotationMirror am : annos) {
+                // AnnotationUtils.annotationName always returns an interned String (see its
+                // @Interned return type and ElementUtils.getQualifiedName's explicit intern()
+                // calls, on both the CheckerFrameworkAnnotationMirror fast path and the general
+                // one), so comparing against the literal below with != is a correct, cheap
+                // identity check, not a bug -- do not "fix" this to .equals().
                 String name = AnnotationUtils.annotationName(am);
                 if (name.startsWith("org.checkerframework.")
                         && name != "org.checkerframework.framework.qual.CFComment") {
@@ -742,11 +747,13 @@ public class BinaryStubDiffChecker {
 
     /**
      * Returns true if {@code atm} carries an annotation anywhere outside a derived position. A
-     * derived position is inside the bounds of a wildcard or of a type-variable use: source code
-     * cannot annotate those positions directly, so any annotation there was computed by the text
-     * parser (implicit-wildcard-bound and type-variable-bound copying) from information that is
-     * available elsewhere. An entry stored only by the text parser whose every annotation is in a
-     * derived position is therefore benign: the binary path stores no entry, and checking
+     * derived position is inside the bounds of a wildcard or of any {@code AnnotatedTypeVariable}
+     * -- this method does not distinguish a type-variable declaration (e.g. the {@code T} of {@code
+     * <T extends Foo>} itself) from a type-variable use (e.g. a parameter of type {@code T}): both
+     * are bounds source code cannot annotate directly, so any annotation there was computed by the
+     * text parser (implicit-wildcard-bound and type-variable-bound copying) from information that
+     * is available elsewhere. An entry stored only by the text parser whose every annotation is in
+     * a derived position is therefore benign: the binary path stores no entry, and checking
      * recomputes the same information from the type-parameter declarations.
      *
      * <p>By contrast, if the member had any source annotation, the binary writer recorded it and

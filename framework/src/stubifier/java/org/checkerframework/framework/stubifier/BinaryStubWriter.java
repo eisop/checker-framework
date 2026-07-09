@@ -66,9 +66,10 @@ import java.util.zip.GZIPOutputStream;
 
 /**
  * Writes parsed stub compilation units into the compressed binary stub format read by {@code
- * org.checkerframework.framework.stub.BinaryStubReader}. Used at build time for the annotated JDK
- * (via {@link JavaStubifier}) and for the built-in checker stub files (via {@link
- * BinaryStubFileGenerator}).
+ * org.checkerframework.framework.stub.BinaryStubReader}. The output is a GZIP-compressed file (see
+ * {@link #writeTo}), conventionally named with the {@link #BIN_SUFFIX} suffix ({@code .bin.gz},
+ * e.g. {@link #OUTPUT_FILENAME}). Used at build time for the annotated JDK (via {@link
+ * JavaStubifier}) and for the built-in checker stub files (via {@link BinaryStubFileGenerator}).
  *
  * <p>This extracts annotations structurally from class, interface, enum, and annotation-type
  * declarations and their members — including type-parameter bound annotations, enum constants, and
@@ -225,10 +226,10 @@ public class BinaryStubWriter {
     /** Represents a step in a TypeAnnotation path. */
     private static class TypePathStep {
         /**
-         * The kind of path step (array component, wildcard bound, type argument, nested type). Only
-         * 4 values are ever assigned (all well within a signed byte's positive range), so this
-         * stays a plain {@code byte}, matching the reader's {@code
-         * BinaryStubData.TypePathStep#kind} field.
+         * The kind of path step: {@code 0} = array component, {@code 1} = nested type, {@code 2} =
+         * wildcard bound, {@code 3} = type argument. Only 4 values are ever assigned (all well
+         * within a signed byte's positive range), so this stays a plain {@code byte}, matching the
+         * reader's {@code BinaryStubData.TypePathStep#kind} field.
          */
         final byte kind;
 

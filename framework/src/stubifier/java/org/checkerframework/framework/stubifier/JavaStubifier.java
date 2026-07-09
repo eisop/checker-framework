@@ -30,7 +30,9 @@ import java.nio.file.Paths;
 import java.util.Optional;
 
 /**
- * Process Java source files in a directory to produce, in-place, minimal stub files.
+ * Process Java source files in a directory to produce, in-place, minimal stub files, and also
+ * generate the compressed binary stub file ({@link BinaryStubWriter#OUTPUT_FILENAME}) for the same
+ * directory from the same parsed compilation units.
  *
  * <p>To process a file means to remove:
  *

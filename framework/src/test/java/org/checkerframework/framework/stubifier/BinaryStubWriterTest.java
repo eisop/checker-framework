@@ -189,4 +189,64 @@ public class BinaryStubWriterTest {
             tmp.delete();
         }
     }
+
+    /**
+     * Confirms a mixed-target annotation (valid in both declaration and {@code TYPE_USE} positions,
+     * e.g. {@code org.checkerframework.checker.mustcall.qual.MustCallAlias}, whose {@code @Target}
+     * includes both {@code METHOD} and {@code TYPE_USE}) written in declaration-position before a
+     * method's return type is stored in <em>both</em> {@code MethodRecord.declAnnos} and {@code
+     * MethodRecord.returnTypeAnnos}, not just one -- matching the dual-storage pattern documented
+     * at {@link BinaryStubWriter#isTypeUseOnly} and confirming a review claim that such annotations
+     * are silently dropped for method return types does not reproduce against the current code.
+     */
+    @Test
+    public void mixedTargetAnnotationOnReturnTypeIsStoredInBothPlaces() throws IOException {
+        BinaryStubWriter writer = new BinaryStubWriter();
+        CompilationUnit cu =
+                StaticJavaParser.parse(
+                        "import org.checkerframework.checker.mustcall.qual.MustCallAlias;\n"
+                                + "public class MixedTargetTest {\n"
+                                + "  public @MustCallAlias String m() { return null; }\n"
+                                + "}\n");
+        writer.process(cu);
+
+        File tmp = File.createTempFile("binarystubwritertest", ".bin.gz");
+        tmp.deleteOnExit();
+        try {
+            writer.writeTo(tmp);
+            BinaryStubData data;
+            try (InputStream in = Files.newInputStream(tmp.toPath())) {
+                data = new BinaryStubData(in);
+            }
+
+            BinaryStubData.ClassRecord cr = data.classes.get("MixedTargetTest");
+            Assert.assertNotNull("MixedTargetTest must be recorded", cr);
+            BinaryStubData.MethodRecord mr = null;
+            for (BinaryStubData.MethodRecord candidate : cr.methods) {
+                if (data.stringPool[candidate.sigIndex].startsWith("m(")) {
+                    mr = candidate;
+                }
+            }
+            Assert.assertNotNull("method m must be recorded", mr);
+
+            Assert.assertEquals(
+                    "@MustCallAlias must be stored as a declaration annotation on the method",
+                    1,
+                    mr.declAnnos.length);
+            Assert.assertEquals(
+                    "@MustCallAlias must ALSO be stored as a type annotation on the return type"
+                            + " -- not dropped just because it is also a declaration annotation",
+                    1,
+                    mr.returnTypeAnnos.length);
+            String declAnnoName = data.stringPool[data.annotationPool[mr.declAnnos[0]].nameIndex];
+            String typeAnnoName =
+                    data.stringPool[data.annotationPool[mr.returnTypeAnnos[0].annoIndex].nameIndex];
+            Assert.assertEquals(
+                    "org.checkerframework.checker.mustcall.qual.MustCallAlias", declAnnoName);
+            Assert.assertEquals(
+                    "org.checkerframework.checker.mustcall.qual.MustCallAlias", typeAnnoName);
+        } finally {
+            tmp.delete();
+        }
+    }
 }
