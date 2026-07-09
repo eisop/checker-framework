@@ -17,6 +17,7 @@ import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
+import javax.lang.model.type.TypeKind;
 import javax.lang.model.util.ElementFilter;
 import javax.tools.JavaCompiler;
 import javax.tools.JavaFileObject;
@@ -185,6 +186,62 @@ public class BinaryStubReaderTest {
         Assert.assertNotEquals(
                 BinaryStubData.ClassRecord.KIND_CLASS_OR_INTERFACE,
                 BinaryStubReader.classRecordKind(recordElt.getKind()));
+    }
+
+    /**
+     * Regression test for {@link BinaryStubReader#coerceToKind}: an integral literal written for a
+     * floating-point annotation member must be converted to that member's kind.
+     *
+     * <p>The writer records every integral literal as a long, so {@code @DoubleExample(0)} and
+     * {@code @DoubleExample(0L)} (both legal Java when {@code DoubleExample.value()} is a {@code
+     * double}; see {@code checker/jtreg/stubs/issue1542/Stub.astub}) reach the reader as a {@code
+     * Long}. Returning an {@code Integer} for them, as the reader used to, makes {@code
+     * AnnotationBuilder.setValue} throw and the whole annotation get silently dropped. The text
+     * parser's {@code AnnotationFileParser.convert} has always had the {@code FLOAT} and {@code
+     * DOUBLE} cases.
+     */
+    @Test
+    public void integralValueIsWidenedToFloatingPointMember() {
+        Assert.assertEquals(0.0d, BinaryStubReader.coerceToKind(0L, TypeKind.DOUBLE));
+        Assert.assertEquals(0.0f, BinaryStubReader.coerceToKind(0L, TypeKind.FLOAT));
+        Assert.assertEquals(3.0d, BinaryStubReader.coerceToKind(3L, TypeKind.DOUBLE));
+        Assert.assertEquals(3.0f, BinaryStubReader.coerceToKind(3L, TypeKind.FLOAT));
+    }
+
+    /**
+     * Confirms {@link BinaryStubReader#coerceToKind} narrows and widens between every numeric kind,
+     * and converts a character value for a numeric member through its code point, matching the text
+     * parser's {@code convert((int) charValue, valueKind)}.
+     */
+    @Test
+    public void coerceToKindConvertsBetweenNumericKinds() {
+        Assert.assertEquals((short) 7, BinaryStubReader.coerceToKind(7L, TypeKind.SHORT));
+        Assert.assertEquals(7, BinaryStubReader.coerceToKind(7L, TypeKind.INT));
+        Assert.assertEquals(7L, BinaryStubReader.coerceToKind(7L, TypeKind.LONG));
+        Assert.assertEquals('\7', BinaryStubReader.coerceToKind(7L, TypeKind.CHAR));
+
+        // A double literal for a float member; the writer records both as a double.
+        Assert.assertEquals(1.5f, BinaryStubReader.coerceToKind(1.5d, TypeKind.FLOAT));
+        Assert.assertEquals(1.5d, BinaryStubReader.coerceToKind(1.5d, TypeKind.DOUBLE));
+
+        // A character value for a numeric member goes through its code point.
+        Assert.assertEquals(97, BinaryStubReader.coerceToKind('a', TypeKind.INT));
+        Assert.assertEquals(97L, BinaryStubReader.coerceToKind('a', TypeKind.LONG));
+        Assert.assertEquals(97.0d, BinaryStubReader.coerceToKind('a', TypeKind.DOUBLE));
+        Assert.assertEquals('a', BinaryStubReader.coerceToKind('a', TypeKind.CHAR));
+    }
+
+    /**
+     * Confirms {@link BinaryStubReader#coerceToKind} leaves a value alone when the member's kind is
+     * not a numeric primitive -- in particular {@code TypeKind.NONE}, which {@code
+     * addValueToBuilder} uses when the annotation member cannot be found at all.
+     */
+    @Test
+    public void coerceToKindLeavesNonNumericKindsAlone() {
+        Assert.assertEquals(7L, BinaryStubReader.coerceToKind(7L, TypeKind.NONE));
+        Assert.assertEquals('a', BinaryStubReader.coerceToKind('a', TypeKind.NONE));
+        Assert.assertEquals("s", BinaryStubReader.coerceToKind("s", TypeKind.DECLARED));
+        Assert.assertEquals(true, BinaryStubReader.coerceToKind(true, TypeKind.BOOLEAN));
     }
 
     /**

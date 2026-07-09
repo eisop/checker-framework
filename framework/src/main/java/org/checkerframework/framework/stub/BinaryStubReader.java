@@ -1569,32 +1569,12 @@ public class BinaryStubReader {
             BinaryStubData data,
             AnnotationFileElementTypes elementTypes) {
         ProcessingEnvironment env = atypeFactory.getProcessingEnv();
-        if (val instanceof Boolean || val instanceof Character || val instanceof String) {
+        if (val instanceof Boolean || val instanceof String) {
             return val;
-        } else if (val instanceof Long) {
-            // The writer stores every integral literal as a long; narrow it to the kind the
-            // annotation member declares.
-            Long l = (Long) val;
-            if (expectedKind == TypeKind.LONG) {
-                return l;
-            }
-            if (expectedKind == TypeKind.SHORT) {
-                return l.shortValue();
-            }
-            if (expectedKind == TypeKind.BYTE) {
-                return l.byteValue();
-            }
-            if (expectedKind == TypeKind.CHAR) {
-                return (char) l.longValue();
-            }
-            return l.intValue();
-        } else if (val instanceof Double) {
-            // The writer stores every floating-point literal as a double.
-            Double d = (Double) val;
-            if (expectedKind == TypeKind.FLOAT) {
-                return d.floatValue();
-            }
-            return d;
+        } else if (val instanceof Character || val instanceof Number) {
+            // The writer stores every integral literal as a long and every floating-point literal
+            // as a double; convert to the kind the annotation member declares.
+            return coerceToKind(val, expectedKind);
         } else if (val instanceof BinaryStubData.ClassLiteralValue) {
             String fqName = ((BinaryStubData.ClassLiteralValue) val).className;
             AnnotationFileElementTypes.BinaryStubDataCache cache =
@@ -1641,7 +1621,7 @@ public class BinaryStubReader {
                 if (cache != null) {
                     Object cachedVal = cache.resolvedConstantsCache.get(cacheKey);
                     if (cachedVal != null) {
-                        return coerceConstant(cachedVal, expectedKind);
+                        return coerceToKind(cachedVal, expectedKind);
                     }
                 }
                 @SuppressWarnings("signature:argument.type.incompatible") // enclosingClassName is
@@ -1655,7 +1635,7 @@ public class BinaryStubReader {
                         if (cache != null) {
                             cache.resolvedConstantsCache.put(cacheKey, cVal);
                         }
-                        return coerceConstant(cVal, expectedKind);
+                        return coerceToKind(cVal, expectedKind);
                     }
                 }
             }
@@ -1755,45 +1735,58 @@ public class BinaryStubReader {
     }
 
     /**
-     * Coerces a raw constant value (Character or Number) to the expected type kind.
+     * Converts a numeric or character annotation-member value to the primitive kind the member
+     * declares, mirroring {@code AnnotationFileParser.convert} (which the text parser applies to
+     * every integer, long, and character literal, and to every resolved numeric constant).
      *
-     * @param cVal the raw constant value
-     * @param expectedKind the expected type kind
-     * @return the coerced value, or the original value if no coercion is needed
+     * <p>Both of this method's callers need every primitive kind handled, including {@code FLOAT}
+     * and {@code DOUBLE}. Widening an integral literal to a floating-point member is ordinary Java
+     * ({@code @Anno(0)} for {@code double value();}), and the writer records that {@code 0} as a
+     * long; returning it unconverted makes {@code AnnotationBuilder.setValue} reject an {@code
+     * Integer} where a {@code Double} is expected, which {@code createAnnotationMirrorNoCache}
+     * turns into a silently dropped annotation. The same applies to a character literal or constant
+     * used for a numeric member ({@code @Anno('a')} for {@code int value();}), which the text
+     * parser converts through {@code (int) charValue}.
+     *
+     * <p>A value whose kind this method does not convert (e.g. a {@code String} constant, or a
+     * numeric value for a member whose kind could not be determined) is returned unchanged.
+     *
+     * @param value the raw value: a {@code Character}, or a {@code Number} as recorded by the
+     *     writer or read from a resolved constant field
+     * @param expectedKind the type kind of the annotation member (for an array member, of its
+     *     component type)
+     * @return the converted value, or {@code value} itself if no conversion applies
      */
-    private static Object coerceConstant(Object cVal, TypeKind expectedKind) {
-        if (cVal instanceof Character) {
-            int charCode = (int) ((Character) cVal).charValue();
-            if (expectedKind == TypeKind.LONG) {
-                return (long) charCode;
-            }
-            if (expectedKind == TypeKind.SHORT) {
-                return (short) charCode;
-            }
-            if (expectedKind == TypeKind.BYTE) {
-                return (byte) charCode;
-            }
-            if (expectedKind == TypeKind.CHAR) {
-                return (char) charCode;
-            }
-            return charCode;
-        } else if (cVal instanceof Number) {
-            Number n = (Number) cVal;
-            if (expectedKind == TypeKind.LONG) {
-                return n.longValue();
-            }
-            if (expectedKind == TypeKind.SHORT) {
-                return n.shortValue();
-            }
-            if (expectedKind == TypeKind.BYTE) {
-                return n.byteValue();
-            }
-            if (expectedKind == TypeKind.CHAR) {
-                return (char) n.longValue();
-            }
-            return n.intValue();
+    static Object coerceToKind(Object value, TypeKind expectedKind) {
+        Number number;
+        if (value instanceof Character) {
+            number = (int) ((Character) value).charValue();
+        } else if (value instanceof Number) {
+            number = (Number) value;
+        } else {
+            return value;
         }
-        return cVal;
+        switch (expectedKind) {
+            case BYTE:
+                return number.byteValue();
+            case SHORT:
+                return number.shortValue();
+            case INT:
+                return number.intValue();
+            case LONG:
+                return number.longValue();
+            case CHAR:
+                return (char) number.longValue();
+            case FLOAT:
+                return number.floatValue();
+            case DOUBLE:
+                return number.doubleValue();
+            default:
+                // The member's kind is not a numeric primitive -- e.g. it could not be determined
+                // (TypeKind.NONE, see addValueToBuilder). Leave the value alone; setValue will
+                // reject it and the annotation is skipped, as before.
+                return value;
+        }
     }
 
     /**
