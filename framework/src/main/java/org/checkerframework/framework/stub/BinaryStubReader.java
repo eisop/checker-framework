@@ -217,7 +217,7 @@ public class BinaryStubReader {
         if (fromStubFileAnno != null) {
             for (AnnotationMirror am : classDeclAnnos) {
                 if (AnnotationUtils.annotationName(am)
-                        .equals("org.checkerframework.framework.qual.AnnotatedFor")) {
+                        == "org.checkerframework.framework.qual.AnnotatedFor") {
                     if (!atypeFactory.doesAnnotatedForApplyToThisChecker(am)) {
                         return;
                     }
