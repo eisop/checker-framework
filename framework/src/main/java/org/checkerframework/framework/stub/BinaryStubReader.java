@@ -14,7 +14,9 @@ import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedWildcard
 import org.checkerframework.javacutil.AnnotationBuilder;
 import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.AnnotationUtils;
+import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.ElementUtils;
+import org.checkerframework.javacutil.UserError;
 import org.plumelib.util.IPair;
 
 import java.lang.annotation.Target;
@@ -39,6 +41,7 @@ import javax.lang.model.type.ArrayType;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.ElementFilter;
+import javax.tools.Diagnostic;
 
 /**
  * Applies annotation data from a {@link BinaryStubData.ClassRecord} to a checker's {@link
@@ -1662,6 +1665,8 @@ public class BinaryStubReader {
      * @param atypeFactory the type factory of the currently-running checker
      * @param data the complete binary stub data, providing the string pool
      * @param elementTypes per-factory state including the annotation mirror cache
+     * @throws BugInCF if the annotation type declares no member named {@code name}, or if the
+     *     resolved value does not fit that member's declared type
      */
     @SuppressWarnings("unchecked")
     private static void addValueToBuilder(
@@ -1672,20 +1677,17 @@ public class BinaryStubReader {
             AnnotatedTypeFactory atypeFactory,
             BinaryStubData data,
             AnnotationFileElementTypes elementTypes) {
-        boolean isArray = false;
-        TypeKind expectedKind = TypeKind.NONE;
-        try {
-            ExecutableElement elem = builder.findElement(name);
-            TypeMirror returnType = elem.getReturnType();
-            isArray = returnType.getKind() == TypeKind.ARRAY;
-            if (isArray) {
-                expectedKind = ((ArrayType) returnType).getComponentType().getKind();
-            } else {
-                expectedKind = returnType.getKind();
-            }
-        } catch (Exception e) {
-            // Silently ignore if the annotation element cannot be found.
-        }
+        // findElement throws BugInCF if the annotation type declares no such member, which the
+        // caller turns into a skipped annotation. Letting it escape here rather than catching it
+        // loses nothing: every path below reaches AnnotationBuilder.setValue, whose own
+        // findElement call would throw the same exception a moment later.
+        ExecutableElement elem = builder.findElement(name);
+        TypeMirror returnType = elem.getReturnType();
+        boolean isArray = returnType.getKind() == TypeKind.ARRAY;
+        TypeKind expectedKind =
+                isArray
+                        ? ((ArrayType) returnType).getComponentType().getKind()
+                        : returnType.getKind();
 
         if (isArray) {
             if (val instanceof List) {
@@ -1799,19 +1801,30 @@ public class BinaryStubReader {
      * @param elementTypes per-factory state including the annotation mirror cache
      * @return the resolved annotation mirror, or {@code null} if it cannot be resolved
      */
-    private static AnnotationMirror createAnnotationMirrorNoCache(
+    private static @Nullable AnnotationMirror createAnnotationMirrorNoCache(
             BinaryStubData.AnnotationRecord ar,
             String enclosingClassName,
             AnnotatedTypeFactory atypeFactory,
             BinaryStubData data,
             AnnotationFileElementTypes elementTypes) {
+        String fqn = data.stringPool[ar.nameIndex];
+        AnnotationBuilder builder;
         try {
-            String fqn = data.stringPool[ar.nameIndex];
             @SuppressWarnings("signature:argument.type.incompatible") // fqn is read from the
             // binary stub's string pool, which BinaryStubWriter populates only with
             // fully-qualified names
-            AnnotationBuilder builder = new AnnotationBuilder(atypeFactory.getProcessingEnv(), fqn);
+            AnnotationBuilder b = new AnnotationBuilder(atypeFactory.getProcessingEnv(), fqn);
+            builder = b;
+        } catch (UserError e) {
+            // The annotation's type is not on the annotation-processor classpath -- e.g. a
+            // JDK-internal annotation such as @DefinedBy, which the annotated JDK's stub sources
+            // carry but no checker can see. AnnotationBuilder's constructor is the only place this
+            // is detected, and it is the sole expected failure of this method: skip the annotation
+            // silently, matching AnnotationFileParser.
+            return null;
+        }
 
+        try {
             for (Map.Entry<Integer, Object> entry : ar.elementValues.entrySet()) {
                 String memberName = data.stringPool[entry.getKey()];
                 addValueToBuilder(
@@ -1824,9 +1837,26 @@ public class BinaryStubReader {
                         elementTypes);
             }
             return builder.build();
-        } catch (Exception e) {
-            // Silently skip annotations that cannot be resolved (e.g. JDK-internal annotations
-            // not on the annotation-processor classpath), matching AnnotationFileParser behavior.
+        } catch (BugInCF e) {
+            // The annotation's type resolved, but one of its element values did not fit the
+            // member it was written for -- a bug in this class or in BinaryStubWriter, not a
+            // condition a stub file can legitimately produce. Skip the annotation rather than
+            // aborting the compilation, but say so: the previous catch of every Exception made
+            // such a bug indistinguishable from the expected UserError above, and hid a reader
+            // that could not widen an integral literal to a floating-point member. Anything other
+            // than a BugInCF (a NullPointerException, say) is a defect with no recovery story and
+            // now propagates.
+            atypeFactory
+                    .getChecker()
+                    .message(
+                            Diagnostic.Kind.WARNING,
+                            "Binary stub: could not build @"
+                                    + fqn
+                                    + (enclosingClassName == null
+                                            ? ""
+                                            : " in " + enclosingClassName)
+                                    + "; skipping it. This is a Checker Framework bug: "
+                                    + e.getMessage());
             return null;
         }
     }
