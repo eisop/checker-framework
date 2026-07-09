@@ -12,7 +12,6 @@ import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedIntersec
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedTypeVariable;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedUnionType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedWildcardType;
-import org.checkerframework.framework.type.visitor.SimpleAnnotatedTypeScanner;
 import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.AnnotationUtils;
 import org.plumelib.util.IPair;
@@ -826,19 +825,84 @@ public class BinaryStubDiffChecker {
      * Returns true if any component of {@code atm} carries any annotation. Used to decide whether
      * an entry present on only one side is a real mismatch.
      *
+     * <p>Hand-rolled (rather than a {@code SimpleAnnotatedTypeScanner}, which has no short-circuit
+     * support and would always traverse the whole type) to return as soon as one annotation is
+     * found, mirroring {@link #hasNonDerivedAnnotation}'s structure and cycle-safety in the same
+     * file. Unlike that method, every position counts here (there is no "derived" exclusion): the
+     * other side of the comparison has no entry at all, so any annotation on this side, anywhere,
+     * is a real difference.
+     *
      * @param atm the type to scan, may be {@code null}
      * @return true if any component carries an annotation
      */
-    private static boolean hasAnyAnnotation(AnnotatedTypeMirror atm) {
-        if (atm == null) {
+    private static boolean hasAnyAnnotation(@Nullable AnnotatedTypeMirror atm) {
+        return hasAnyAnnotation(atm, Collections.newSetFromMap(new IdentityHashMap<>()));
+    }
+
+    /**
+     * Worker for {@link #hasAnyAnnotation(AnnotatedTypeMirror)}.
+     *
+     * @param atm the type to scan, may be {@code null}
+     * @param visited components already visited, to terminate cycles through F-bounded types
+     * @return true if any component carries an annotation
+     */
+    private static boolean hasAnyAnnotation(
+            @Nullable AnnotatedTypeMirror atm, Set<AnnotatedTypeMirror> visited) {
+        if (atm == null || !visited.add(atm)) {
             return false;
         }
-        Boolean result =
-                new SimpleAnnotatedTypeScanner<Boolean, Void>(
-                                (type, unused) -> !type.getAnnotations().isEmpty(),
-                                Boolean::logicalOr,
-                                false)
-                        .visit(atm);
-        return result != null && result;
+        if (!atm.getAnnotations().isEmpty()) {
+            return true;
+        }
+        if (atm instanceof AnnotatedExecutableType) {
+            AnnotatedExecutableType exe = (AnnotatedExecutableType) atm;
+            if (hasAnyAnnotation(exe.getReturnType(), visited)
+                    || hasAnyAnnotation(exe.getReceiverType(), visited)) {
+                return true;
+            }
+            for (AnnotatedTypeMirror param : exe.getParameterTypes()) {
+                if (hasAnyAnnotation(param, visited)) {
+                    return true;
+                }
+            }
+            for (AnnotatedTypeMirror typeVar : exe.getTypeVariables()) {
+                if (hasAnyAnnotation(typeVar, visited)) {
+                    return true;
+                }
+            }
+            return false;
+        } else if (atm instanceof AnnotatedDeclaredType) {
+            for (AnnotatedTypeMirror typeArg : ((AnnotatedDeclaredType) atm).getTypeArguments()) {
+                if (hasAnyAnnotation(typeArg, visited)) {
+                    return true;
+                }
+            }
+            return false;
+        } else if (atm instanceof AnnotatedArrayType) {
+            return hasAnyAnnotation(((AnnotatedArrayType) atm).getComponentType(), visited);
+        } else if (atm instanceof AnnotatedWildcardType) {
+            AnnotatedWildcardType wildcard = (AnnotatedWildcardType) atm;
+            return hasAnyAnnotation(wildcard.getExtendsBound(), visited)
+                    || hasAnyAnnotation(wildcard.getSuperBound(), visited);
+        } else if (atm instanceof AnnotatedTypeVariable) {
+            AnnotatedTypeVariable typeVar = (AnnotatedTypeVariable) atm;
+            return hasAnyAnnotation(typeVar.getUpperBound(), visited)
+                    || hasAnyAnnotation(typeVar.getLowerBound(), visited);
+        } else if (atm instanceof AnnotatedIntersectionType) {
+            for (AnnotatedTypeMirror bound : ((AnnotatedIntersectionType) atm).getBounds()) {
+                if (hasAnyAnnotation(bound, visited)) {
+                    return true;
+                }
+            }
+            return false;
+        } else if (atm instanceof AnnotatedUnionType) {
+            for (AnnotatedTypeMirror alt : ((AnnotatedUnionType) atm).getAlternatives()) {
+                if (hasAnyAnnotation(alt, visited)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+        return false;
     }
 }
