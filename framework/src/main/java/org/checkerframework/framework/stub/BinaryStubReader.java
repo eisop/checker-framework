@@ -335,7 +335,7 @@ public class BinaryStubReader {
                     fromStubFileAnno);
         }
 
-        if (cr.kind == BinaryStubData.ClassRecord.KIND_RECORD && cr.components.length > 0) {
+        if (cr.kind == BinaryStubData.ClassRecord.KIND_RECORD) {
             applyRecordComponents(cr, className, typeElt, atypeFactory, elementTypes, data, target);
         }
     }
@@ -395,17 +395,24 @@ public class BinaryStubReader {
             AnnotationFileElementTypes elementTypes,
             BinaryStubData data,
             AnnotationFileAnnotations target) {
-        // Build a name-to-element map for the record's components using getRecordComponents(),
-        // accessed reflectively (ElementUtils.getRecordComponents) for pre-JDK-16 compatibility.
-        Map<String, Element> componentByName = new HashMap<>();
-        for (Element comp : ElementUtils.getRecordComponents(typeElt)) {
-            componentByName.put(comp.getSimpleName().toString(), comp);
+        // Build a name-to-element map for the record's components using the same FIELD elements
+        // AnnotationFileParser.findFieldElement uses (ElementFilter.fieldsIn), not
+        // TypeElement.getRecordComponents(): a component's RECORD_COMPONENT element is a distinct
+        // Element from its compiler-generated backing FIELD (different identity, confirmed: they
+        // are not .equals()), and the text parser stores the component's atypes entry keyed by the
+        // FIELD. Keying by RECORD_COMPONENT instead would silently make the field's own type-use
+        // annotations unreachable through AnnotationFileElementTypes.getAnnotatedTypeMirror, which
+        // does a bare Element-keyed lookup with no name-based fallback (unlike getDeclAnnotations,
+        // which does have one, for declaration annotations only).
+        Map<String, VariableElement> componentByName = new HashMap<>();
+        for (VariableElement field : ElementFilter.fieldsIn(typeElt.getEnclosedElements())) {
+            componentByName.put(field.getSimpleName().toString(), field);
         }
 
         Map<String, RecordComponentStub> byName = new LinkedHashMap<>();
         for (BinaryStubData.ComponentRecord comp : cr.components) {
             String name = data.stringPool[comp.nameIndex];
-            Element compElt = componentByName.get(name);
+            VariableElement compElt = componentByName.get(name);
             if (compElt == null) {
                 // Component not found in the real element; skip (version skew, same as fields).
                 continue;
@@ -418,9 +425,9 @@ public class BinaryStubReader {
                 applyTypeAnnos(
                         compType, comp.typeAnnos, className, data, atypeFactory, elementTypes);
             }
-            // Store keyed by component element (VariableElement) in atypes, matching
+            // Store keyed by the field element in atypes, matching
             // AnnotationFileParser.processRecordField's putMerge(atypes, elt, fieldType).
-            target.atypes.putIfAbsent((VariableElement) compElt, compType);
+            target.atypes.putIfAbsent(compElt, compType);
 
             // Parse declaration annotations.
             AnnotationMirrorSet declAnnos =
@@ -446,9 +453,10 @@ public class BinaryStubReader {
             byName.put(name, stub);
         }
 
-        if (!byName.isEmpty()) {
-            target.records.put(className, new RecordStub(byName));
-        }
+        // Always store a RecordStub for a KIND_RECORD class, even one with no (or no resolvable)
+        // components, matching AnnotationFileParser's unconditional
+        // annotationFileAnnos.records.put(...) for every RecordDeclaration.
+        target.records.put(className, new RecordStub(byName));
     }
 
     /**

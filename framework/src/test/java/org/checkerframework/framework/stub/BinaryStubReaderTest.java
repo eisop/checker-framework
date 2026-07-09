@@ -11,9 +11,13 @@ import org.junit.Test;
 import java.io.StringWriter;
 import java.net.URI;
 import java.util.Collections;
+import java.util.List;
 
 import javax.lang.model.element.Element;
+import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.TypeElement;
+import javax.lang.model.element.VariableElement;
+import javax.lang.model.util.ElementFilter;
 import javax.tools.JavaCompiler;
 import javax.tools.JavaFileObject;
 import javax.tools.SimpleJavaFileObject;
@@ -131,5 +135,62 @@ public class BinaryStubReaderTest {
         Assert.assertNotEquals(
                 BinaryStubData.ClassRecord.KIND_CLASS_OR_INTERFACE,
                 BinaryStubReader.classRecordKind(annoElt.getKind()));
+    }
+
+    /**
+     * Confirms a real record maps to {@code KIND_RECORD}, not {@code KIND_CLASS_OR_INTERFACE}.
+     *
+     * @throws Exception if the test compilation cannot be created
+     */
+    @Test
+    public void recordMapsToRecordNotClassOrInterface() throws Exception {
+        TypeElement recordElt = compileToTypeElement("SomeRecord", "record SomeRecord(int a) {}");
+        Assert.assertEquals(
+                BinaryStubData.ClassRecord.KIND_RECORD,
+                BinaryStubReader.classRecordKind(recordElt.getKind()));
+        Assert.assertNotEquals(
+                BinaryStubData.ClassRecord.KIND_CLASS_OR_INTERFACE,
+                BinaryStubReader.classRecordKind(recordElt.getKind()));
+    }
+
+    /**
+     * Regression test for the root cause of a bug in {@code
+     * BinaryStubReader.applyRecordComponents}: a record component's {@code RECORD_COMPONENT}-kind
+     * element (returned by {@code TypeElement.getRecordComponents()}) is a distinct {@link Element}
+     * from its compiler-generated backing {@code FIELD}-kind element (returned by {@code
+     * ElementFilter.fieldsIn}), even though both share the same simple name. {@code
+     * AnnotationFileParser.processRecordField} (the text parser) stores a component's annotated
+     * type in {@code atypes} keyed by the {@code FIELD} element; {@code applyRecordComponents}
+     * previously keyed it by the {@code RECORD_COMPONENT} element instead, which silently made a
+     * component's type-use annotations unreachable through {@code
+     * AnnotationFileElementTypes#getAnnotatedTypeMirror} (a bare {@code Element}-keyed lookup with
+     * no name-based fallback). This test locks in the fact that motivated the fix, so a future
+     * change cannot reintroduce the mismatch without also breaking this test.
+     *
+     * @throws Exception if the test compilation cannot be created
+     */
+    @Test
+    public void recordComponentElementDiffersFromItsBackingField() throws Exception {
+        TypeElement recordElt = compileToTypeElement("SomeRecord", "record SomeRecord(int a) {}");
+        List<? extends Element> components = recordElt.getRecordComponents();
+        Assert.assertEquals(1, components.size());
+        Element componentElt = components.get(0);
+
+        List<VariableElement> fields = ElementFilter.fieldsIn(recordElt.getEnclosedElements());
+        Assert.assertEquals(1, fields.size());
+        VariableElement fieldElt = fields.get(0);
+
+        Assert.assertEquals(ElementKind.RECORD_COMPONENT, componentElt.getKind());
+        Assert.assertEquals(ElementKind.FIELD, fieldElt.getKind());
+        Assert.assertEquals(
+                "the component and its backing field share the same simple name",
+                componentElt.getSimpleName().toString(),
+                fieldElt.getSimpleName().toString());
+        Assert.assertNotEquals(
+                "a record component's RECORD_COMPONENT element must NOT be treated as"
+                        + " interchangeable with its backing FIELD element -- atypes must be keyed"
+                        + " by the FIELD element, matching the text parser",
+                componentElt,
+                fieldElt);
     }
 }

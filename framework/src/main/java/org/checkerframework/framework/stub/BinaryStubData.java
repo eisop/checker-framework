@@ -399,8 +399,8 @@ public class BinaryStubData {
     /** Annotation data for a single class or interface, including its members. */
     public static class ClassRecord {
         /**
-         * {@link #kind} value for a class or interface declaration (also used for an interface
-         * since the reader maps both to {@link ElementKind#CLASS} / {@link ElementKind#INTERFACE}).
+         * {@link #kind} value for a class or interface declaration: both {@code ElementKind.CLASS}
+         * and {@code ElementKind.INTERFACE} map to this constant.
          */
         public static final byte KIND_CLASS_OR_INTERFACE = 0;
 

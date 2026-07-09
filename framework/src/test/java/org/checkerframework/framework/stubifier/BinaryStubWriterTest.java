@@ -1,5 +1,7 @@
 package org.checkerframework.framework.stubifier;
 
+import com.github.javaparser.JavaParser;
+import com.github.javaparser.ParserConfiguration;
 import com.github.javaparser.StaticJavaParser;
 import com.github.javaparser.ast.CompilationUnit;
 
@@ -245,6 +247,71 @@ public class BinaryStubWriterTest {
                     "org.checkerframework.checker.mustcall.qual.MustCallAlias", declAnnoName);
             Assert.assertEquals(
                     "org.checkerframework.checker.mustcall.qual.MustCallAlias", typeAnnoName);
+        } finally {
+            tmp.delete();
+        }
+    }
+
+    /**
+     * Confirms a record declaration is written as a {@code KIND_RECORD} class record with one
+     * {@code ComponentRecord} per header component, in header order, each carrying its own type
+     * annotations and {@code hasAccessor} flag: a component with an explicit zero-argument accessor
+     * of the same name in the record body must have {@code hasAccessor == true}, and one without
+     * must have {@code hasAccessor == false} -- matching {@code AnnotationFileParser}'s {@code
+     * hasAccessorInStubs} semantics.
+     */
+    @Test
+    public void recordComponentAnnotationsAndAccessorFlagAreWritten() throws IOException {
+        BinaryStubWriter writer = new BinaryStubWriter();
+        // Records require language level JAVA_14+; StaticJavaParser's default is older, matching
+        // production code (JavaStubifier.DEFAULT_LANGUAGE_LEVEL,
+        // BinaryStubFileGenerator.parseStubUnit), which both configure JAVA_21.
+        ParserConfiguration configuration = new ParserConfiguration();
+        configuration.setLanguageLevel(ParserConfiguration.LanguageLevel.JAVA_21);
+        CompilationUnit cu =
+                new JavaParser(configuration)
+                        .parse(
+                                "import org.checkerframework.checker.nullness.qual.Nullable;\n"
+                                        + "public record PersonRecord(@Nullable String name, int"
+                                        + " age) {\n"
+                                        + "  public String name() { return name; }\n"
+                                        + "}\n")
+                        .getResult()
+                        .get();
+        writer.process(cu);
+
+        File tmp = File.createTempFile("binarystubwritertest", ".bin.gz");
+        tmp.deleteOnExit();
+        try {
+            writer.writeTo(tmp);
+            BinaryStubData data;
+            try (InputStream in = Files.newInputStream(tmp.toPath())) {
+                data = new BinaryStubData(in);
+            }
+
+            BinaryStubData.ClassRecord cr = data.classes.get("PersonRecord");
+            Assert.assertNotNull("PersonRecord must be recorded", cr);
+            Assert.assertEquals(
+                    "PersonRecord's kind must be KIND_RECORD",
+                    BinaryStubData.ClassRecord.KIND_RECORD,
+                    cr.kind);
+            Assert.assertEquals("PersonRecord has two components", 2, cr.components.length);
+
+            BinaryStubData.ComponentRecord name = cr.components[0];
+            BinaryStubData.ComponentRecord age = cr.components[1];
+            Assert.assertEquals(
+                    "components must be in header order", "name", data.stringPool[name.nameIndex]);
+            Assert.assertEquals(
+                    "components must be in header order", "age", data.stringPool[age.nameIndex]);
+
+            Assert.assertEquals(
+                    "the @Nullable component has one type annotation", 1, name.typeAnnos.length);
+            Assert.assertEquals(
+                    "the unannotated component has no type annotations", 0, age.typeAnnos.length);
+
+            Assert.assertTrue(
+                    "name has an explicit zero-arg accessor in the record body", name.hasAccessor);
+            Assert.assertFalse("age has no explicit accessor in the record body", age.hasAccessor);
         } finally {
             tmp.delete();
         }
