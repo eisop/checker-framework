@@ -62,4 +62,67 @@ public class BinaryStubWriterTest {
             tmp.delete();
         }
     }
+
+    /**
+     * Regression test for a varargs type-path bug: a declaration-position, type-use-applicable
+     * annotation on a vararg parameter (e.g. {@code @Nullable String[]... args}) must apply to the
+     * innermost array component, matching {@code AnnotationFileParser}'s {@code
+     * annotateInnermostComponentType} (reached, on the text side, via {@code annotateAsArray}'s
+     * call to it before descending the declared array levels). For a multidimensional vararg like
+     * this one -- equivalent to {@code String[][] args} -- that is two levels below the overall
+     * parameter type: one {@code ARRAY} step for the vararg's own implicit array level, plus one
+     * more for the explicit {@code []} already present in the declared type ({@code String[]}). The
+     * previous code hardcoded a single {@code ARRAY} step, which for this case pointed at the
+     * middle {@code String[]} level instead of the innermost {@code String}.
+     */
+    @Test
+    public void multidimensionalVarargsAnnotationPathHasOneStepPerArrayLevel() throws IOException {
+        BinaryStubWriter writer = new BinaryStubWriter();
+        CompilationUnit cu =
+                StaticJavaParser.parse(
+                        "import org.checkerframework.checker.nullness.qual.Nullable;\n"
+                                + "public class VarargsDim {\n"
+                                + "  public void m(@Nullable String[]... args) {}\n"
+                                + "}\n");
+        writer.process(cu);
+
+        File tmp = File.createTempFile("binarystubwritertest", ".bin.gz");
+        tmp.deleteOnExit();
+        try {
+            writer.writeTo(tmp);
+            BinaryStubData data;
+            try (InputStream in = Files.newInputStream(tmp.toPath())) {
+                data = new BinaryStubData(in);
+            }
+
+            BinaryStubData.ClassRecord cr = data.classes.get("VarargsDim");
+            Assert.assertNotNull("VarargsDim must be recorded", cr);
+            BinaryStubData.MethodRecord mr = null;
+            for (BinaryStubData.MethodRecord candidate : cr.methods) {
+                if (data.stringPool[candidate.sigIndex].startsWith("m(")) {
+                    mr = candidate;
+                }
+            }
+            Assert.assertNotNull("method m must be recorded", mr);
+
+            Assert.assertEquals("m has one parameter", 1, mr.paramAnnos.length);
+            BinaryStubData.TypeAnno[] argAnnos = mr.paramAnnos[0];
+            Assert.assertEquals(
+                    "@Nullable is the only type annotation on the vararg parameter",
+                    1,
+                    argAnnos.length);
+            BinaryStubData.TypePathStep[] path = argAnnos[0].path;
+            Assert.assertEquals(
+                    "path must have one ARRAY step for the vararg's own implicit array level plus"
+                            + " one for the declared type's own [] -- not a single step, which"
+                            + " would point at the middle String[] level instead of the"
+                            + " innermost String",
+                    2,
+                    path.length);
+            Assert.assertEquals("first step is ARRAY", 0, path[0].kind);
+            Assert.assertEquals("second step is ARRAY", 0, path[1].kind);
+        } finally {
+            tmp.delete();
+        }
+    }
 }

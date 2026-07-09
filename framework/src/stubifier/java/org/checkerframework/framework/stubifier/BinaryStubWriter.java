@@ -1234,13 +1234,21 @@ public class BinaryStubWriter {
                     }
                     if (hasTypeUse(anno, cu)) {
                         // For varargs, annotations on the parameter declaration apply to the
-                        // array element (component type), so use one ARRAY step.
-                        // For non-varargs, use the element path of the declared type.
-                        List<TypePathStep> path =
-                                p.isVarArgs()
-                                        ? Collections.singletonList(
-                                                new TypePathStep((byte) 0, (byte) 0))
-                                        : arrayElementPath(p.getType());
+                        // innermost array component (matching AnnotationFileParser.
+                        // annotateInnermostComponentType), which for a multidimensional vararg
+                        // (e.g. "String[]... args", equivalent to "String[][] args") is more than
+                        // one level below the overall parameter type: one ARRAY step for the
+                        // vararg's own implicit array level, plus one more per array level already
+                        // present in the declared type (p.getType(), "String[]" here). For
+                        // non-varargs, use only the element path of the declared type.
+                        List<TypePathStep> path;
+                        if (p.isVarArgs()) {
+                            path = new ArrayList<>();
+                            path.add(new TypePathStep((byte) 0, (byte) 0));
+                            path.addAll(arrayElementPath(p.getType()));
+                        } else {
+                            path = arrayElementPath(p.getType());
+                        }
                         pAnnos.add(new TypeAnno(idx, path));
                     }
                     if (!isTypeUseOnly(anno, cu)) {
