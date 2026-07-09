@@ -182,7 +182,9 @@ public class BinaryStubWriter {
          * @param cu the compilation unit context
          * @param writer the writer holding the string pool and qualification logic
          * @return the index in the annotation pool
-         * @throws IOException if serialization fails
+         * @throws IOException if serialization fails; the annotation pool is left unchanged (the
+         *     string pool may retain entries added for the abandoned annotation, which is harmless:
+         *     an unreferenced constant-pool string only costs space)
          */
         public int addAnnotation(AnnotationExpr anno, CompilationUnit cu, BinaryStubWriter writer)
                 throws IOException {
@@ -200,16 +202,21 @@ public class BinaryStubWriter {
                 return idx;
             }
 
-            idx = annoToIdx.size();
-            annoToIdx.put(key, idx);
-
+            // Serialize before recording the index, so that a failure leaves the pool consistent.
+            // The other order hands out an index that serializedAnnos never receives an entry for,
+            // shifting every later index down by one -- so a reader given such a file would
+            // silently apply the wrong annotation rather than fail. Both production callers happen
+            // to abort the whole writer on this exception, which is the only reason the desync has
+            // never been observed.
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
             DataOutputStream dos = new DataOutputStream(baos);
             writer.writeAnnotationInline(dos, qualified, cu);
             dos.flush();
-            serializedAnnos.add(baos.toByteArray());
 
-            return idx;
+            int newIdx = serializedAnnos.size();
+            serializedAnnos.add(baos.toByteArray());
+            annoToIdx.put(key, newIdx);
+            return newIdx;
         }
 
         /**

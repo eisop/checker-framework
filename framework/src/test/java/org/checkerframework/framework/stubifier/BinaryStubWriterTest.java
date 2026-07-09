@@ -18,6 +18,63 @@ import java.nio.file.Files;
 public class BinaryStubWriterTest {
 
     /**
+     * A failed serialization must not consume an annotation-pool index.
+     *
+     * <p>{@code AnnotationPool.addAnnotation} used to record the new index before serializing the
+     * annotation into it. When {@code writeAnnotationInline} then threw -- here on {@code 1 + x},
+     * which {@code evaluateStringLiteralConcatenation} cannot fold -- the index was handed out but
+     * {@code serializedAnnos} never received a corresponding entry. Every later annotation's index
+     * shifted down by one relative to the pool it is written into, so a reader given such a file
+     * would apply the wrong annotation, or none, rather than fail. Both production callers happen
+     * to abort the whole writer on this exception, which is the only reason the desync has never
+     * been observed.
+     *
+     * <p>Here the writer is reused across two {@code process} calls, as {@code JavaStubifier} does
+     * across the files of one directory, so the surviving state is observable.
+     */
+    @Test
+    public void aFailedAnnotationDoesNotConsumeAPoolIndex() throws IOException {
+        BinaryStubWriter writer = new BinaryStubWriter();
+
+        CompilationUnit bad =
+                StaticJavaParser.parse("public class Bad { @SuppressWarnings(1 + x) Object f; }");
+        Assert.assertThrows(RuntimeException.class, () -> writer.process(bad));
+
+        CompilationUnit good =
+                StaticJavaParser.parse("public class Good { @Deprecated Object g; }");
+        writer.process(good);
+
+        File tmp = File.createTempFile("binarystubwritertest", ".bin.gz");
+        tmp.deleteOnExit();
+        try {
+            writer.writeTo(tmp);
+            BinaryStubData data;
+            try (InputStream in = Files.newInputStream(tmp.toPath())) {
+                data = new BinaryStubData(in);
+            }
+            BinaryStubData.ClassRecord cr = data.classes.get("Good");
+            Assert.assertNotNull(cr);
+            Assert.assertEquals(1, cr.fields.length);
+            Assert.assertEquals(1, cr.fields[0].declAnnos.length);
+
+            int annoIdx = cr.fields[0].declAnnos[0];
+            Assert.assertTrue(
+                    "@Deprecated's pool index "
+                            + annoIdx
+                            + " must be within the pool, whose size is "
+                            + data.annotationPool.length,
+                    annoIdx >= 0 && annoIdx < data.annotationPool.length);
+            Assert.assertEquals(
+                    "and it must resolve to @Deprecated, not to some other annotation the"
+                            + " abandoned index shifted it onto",
+                    "java.lang.Deprecated",
+                    data.stringPool[data.annotationPool[annoIdx].nameIndex]);
+        } finally {
+            tmp.delete();
+        }
+    }
+
+    /**
      * A fully-qualified annotation name whose class is not on the stubifier classpath must abort
      * the file rather than be routed by guesswork.
      *
