@@ -114,11 +114,7 @@ public class I18nFormatterVisitor extends BaseTypeVisitor<I18nFormatterAnnotated
                         }
                         tu.warning(invc, "i18nformat.indirect.arguments");
                         break;
-                    default:
-                        break;
                 }
-                break;
-            default:
                 break;
         }
     }

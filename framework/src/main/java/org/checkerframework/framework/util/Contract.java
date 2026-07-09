@@ -166,9 +166,8 @@ public abstract class Contract {
             case CONDITIONALPOSTCONDITION:
                 return new ConditionalPostcondition(
                         expressionString, annotation, contractAnnotation, ensuresQualifierIf);
-            default:
-                throw new BugInCF("Unrecognized kind: " + kind);
         }
+        throw new BugInCF("Unrecognized kind: " + kind);
     }
 
     // Note that equality requires exact match of the run-time class and that it ignores the

@@ -239,8 +239,8 @@ public class ForwardAnalysisImpl<
                     }
                     break;
                 }
-            default:
-                throw new BugInCF("Unexpected block type: " + b.getType());
+                // No default: if a new BlockType is added, EP's MissingCasesInEnumSwitch fires
+                // and the build breaks under -Werror, forcing the developer to handle the new case.
         }
     }
 

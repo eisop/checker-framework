@@ -1416,10 +1416,6 @@ public class QualifierDefaults {
                 case TYPE_VARIABLE_USE:
                     // This location is handled in visitTypeVariable below. Do nothing here.
                     break;
-                default:
-                    throw new BugInCF(
-                            "QualifierDefaults.DefaultApplierElement: unhandled location: "
-                                    + outer.location);
             }
         }
 

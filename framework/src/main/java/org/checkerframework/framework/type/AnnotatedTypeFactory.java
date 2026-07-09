@@ -706,7 +706,9 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         // for @Regex(value = 5).
         if (checker.hasOption("aliasedTypeAnnos")) {
             String aliasesOption = checker.getOption("aliasedTypeAnnos");
-            String[] annos = aliasesOption.split(";");
+            // Use limit -1 so a trailing ";" produces an empty token and triggers a UserError
+            // from parseAliasesFromString rather than silently being ignored.
+            String[] annos = aliasesOption.split(";", -1);
             for (String alias : annos) {
                 IPair<Class<? extends Annotation>, @FullyQualifiedName String[]> aliasPair =
                         parseAliasesFromString(alias);
@@ -721,7 +723,9 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         // e.g. this will not be usable to declare an alias for @EnsuresNonNull(...).
         if (checker.hasOption("aliasedDeclAnnos")) {
             String aliasesOption = checker.getOption("aliasedDeclAnnos");
-            String[] annos = aliasesOption.split(";");
+            // Use limit -1 so a trailing ";" produces an empty token and triggers a UserError
+            // from parseAliasesFromString rather than silently being ignored.
+            String[] annos = aliasesOption.split(";", -1);
             for (String alias : annos) {
                 IPair<Class<? extends Annotation>, @FullyQualifiedName String[]> aliasPair =
                         parseAliasesFromString(alias);
@@ -849,7 +853,9 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     @SuppressWarnings({"unchecked", "signature"})
     private IPair<Class<? extends Annotation>, @FullyQualifiedName String[]> parseAliasesFromString(
             String alias) {
-        String[] parts = alias.split(":");
+        // Use limit -1 so a trailing ":" or "," produces an empty token caught by the validation
+        // below, rather than being silently dropped and causing a confusing ClassNotFoundException.
+        String[] parts = alias.split(":", -1);
         if (parts.length != 2) {
             throw new UserError(
                     String.format(
@@ -863,7 +869,9 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             throw new UserError(
                     String.format("The name %s is an invalid annotation name.", parts[0]));
         }
-        String[] aliases = parts[1].trim().split("\\s*,\\s*");
+        // Use limit -1 so a trailing "," produces an empty token; Class.forName("") will then
+        // throw ClassNotFoundException, giving a clear UserError rather than silent omission.
+        String[] aliases = parts[1].trim().split("\\s*,\\s*", -1);
         return IPair.of(canonical, aliases);
     }
 
@@ -3832,9 +3840,8 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
                 return getNarrowedPrimitive(exprPrimitiveType, widenedType.getUnderlyingType());
             case SAME:
                 return exprType;
-            default:
-                throw new BugInCF("unhandled PrimitiveConversionKind");
         }
+        throw new BugInCF("unhandled PrimitiveConversionKind");
     }
 
     /**
