@@ -688,39 +688,42 @@ allprojects { currentProj ->
                     '-Xep:LongLiteralLowerCaseSuffix:ERROR',
                     // Verifies that compareTo/compare implementations obey the sign contract.
                     '-Xep:ComparisonContractViolated:ERROR',
-
-                    // -------------------------------------------------------------------------
-                    // Newly enabled experimental checks (violations exist → WARN for cleanup).
-                    // -------------------------------------------------------------------------
-
                     // TypeMirror#toString() and Element#toString() should not be used for
                     // comparison: the format is implementation-defined and the call is expensive.
-                    // Known violations: TypesUtils.java, AnnotationFileParser.java, etc.
-                    '-Xep:TypeToString:WARN',
-                    '-Xep:SymbolToString:WARN',
+                    '-Xep:TypeToString:ERROR',
+                    '-Xep:SymbolToString:ERROR',
                     // Pattern.compile() on a constant string should be a static final field
                     // to avoid recompiling the pattern on every call.
-                    '-Xep:ConstantPatternCompile:WARN',
+                    '-Xep:ConstantPatternCompile:ERROR',
                     // I/O constructors without an explicit charset silently use the platform
                     // default, which can differ between JVM executions.
-                    '-Xep:DefaultCharset:WARN',
+                    '-Xep:DefaultCharset:ERROR',
                     // String.split() has surprising behaviour: it silently discards trailing
-                    // empty strings. Reviewing call sites may reveal latent bugs.
-                    '-Xep:StringSplitter:WARN',
+                    // empty strings. Use split(pattern, -1) for user input, or suppress with
+                    // an explanation for program-controlled strings.
+                    '-Xep:StringSplitter:ERROR',
                     // Methods that declare checked exceptions they cannot actually throw
                     // mislead callers into writing unnecessary catch blocks.
-                    '-Xep:CheckedExceptionNotThrown:WARN',
+                    '-Xep:CheckedExceptionNotThrown:ERROR',
                     // A private static final ImmutableList used only for .contains() checks
                     // should be an ImmutableSet for clarity and O(1) lookup.
-                    '-Xep:ImmutableSetForContains:WARN',
+                    '-Xep:ImmutableSetForContains:ERROR',
                     // System.exit() in non-main methods makes library code untestable.
                     // Existing legitimate uses in CLI entry-point helpers should be suppressed
                     // with @SuppressWarnings("SystemExitOutsideMain").
-                    '-Xep:SystemExitOutsideMain:WARN',
+                    '-Xep:SystemExitOutsideMain:ERROR',
 
                     // -------------------------------------------------------------------------
                     // Patch automation (uncomment to auto-fix, re-comment before committing).
                     // -------------------------------------------------------------------------
+                    // -Werror halts the build if Error Prone issues a warning, which ensures
+                    // that the errors get fixed.  On the downside, Error Prone (or maybe the
+                    // compiler?) stops as soon as it issues one warning, rather than outputting
+                    // them all.  https://github.com/google/error-prone/issues/436
+                    // -Werror is already in 'compilerArgs' above. To use the patch flags below,
+                    // temporarily disable it there while fixing.
+                    // To automatically patch Error Prone issues, list the EP checkers below and
+                    // remove '-Werror' in the 'compilerArgs' above.
                     // '-XepPatchChecks:EffectivelyPrivate',
                     // '-XepPatchLocation:IN_PLACE',
                 ]
@@ -729,8 +732,6 @@ allprojects { currentProj ->
                     options.errorprone.errorproneArgs.addAll([
                         // Some Value Checker tests use int literals intentionally.
                         '-Xep:IntLiteralCast:OFF',
-                        // Test code legitimately calls System.exit in CLI-style test helpers.
-                        '-Xep:SystemExitOutsideMain:OFF',
                     ])
                 }
 
