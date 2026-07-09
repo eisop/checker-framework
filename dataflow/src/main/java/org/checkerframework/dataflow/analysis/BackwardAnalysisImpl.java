@@ -188,9 +188,8 @@ public class BackwardAnalysisImpl<
                     }
                     break;
                 }
-                // No default: if a new BlockType is added, EP's UnnecessaryDefaultInEnumSwitch
-                // warning disappears and MissingCasesInEnumSwitch fires instead, breaking the
-                // build under -Werror and forcing the developer to handle the new case.
+                // No default: if a new BlockType is added, EP's MissingCasesInEnumSwitch fires
+                // and the build breaks under -Werror, forcing the developer to handle the new case.
         }
     }
 
