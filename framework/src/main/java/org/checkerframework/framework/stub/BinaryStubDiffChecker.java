@@ -201,25 +201,46 @@ public class BinaryStubDiffChecker {
         AnnotationFileAnnotations binaryAnnos = new AnnotationFileAnnotations();
         BinaryStubReader.applyPackageAndModuleRecords(
                 data, atypeFactory, elementTypes, binaryAnnos, /* fromLazyJdk= */ true);
-        for (String packageName : data.packages.keySet()) {
-            Set<String> textNames = checkerAnnotationNames(textAnnos.declAnnos.get(packageName));
-            Set<String> binaryNames =
-                    checkerAnnotationNames(binaryAnnos.declAnnos.get(packageName));
+
+        compareAnnotations(
+                "package",
+                data.packages.keySet(),
+                textAnnos.declAnnos,
+                binaryAnnos.declAnnos,
+                reports);
+        compareAnnotations(
+                "module",
+                data.modules.keySet(),
+                textAnnos.declAnnos,
+                binaryAnnos.declAnnos,
+                reports);
+    }
+
+    /**
+     * Compares declaration annotations for a set of items (like packages or modules) between
+     * text-parsed and binary-loaded representations, appending mismatch descriptions to the given
+     * reports list.
+     *
+     * @param typeName a human-readable description of the item type (e.g., "package" or "module")
+     * @param names the set of item names to compare
+     * @param textAnnos the annotations produced by the text parser
+     * @param binaryAnnos the annotations produced by the binary reader
+     * @param reports the list to append mismatch descriptions to
+     */
+    private static void compareAnnotations(
+            String typeName,
+            Set<String> names,
+            Map<String, AnnotationMirrorSet> textAnnos,
+            Map<String, AnnotationMirrorSet> binaryAnnos,
+            List<String> reports) {
+        for (String name : names) {
+            Set<String> textNames = checkerAnnotationNames(textAnnos.get(name));
+            Set<String> binaryNames = checkerAnnotationNames(binaryAnnos.get(name));
             if (!textNames.equals(binaryNames)) {
                 reports.add(
                         String.format(
-                                "package %s: declAnnos: text=%s binary=%s",
-                                packageName, textNames, binaryNames));
-            }
-        }
-        for (String moduleName : data.modules.keySet()) {
-            Set<String> textNames = checkerAnnotationNames(textAnnos.declAnnos.get(moduleName));
-            Set<String> binaryNames = checkerAnnotationNames(binaryAnnos.declAnnos.get(moduleName));
-            if (!textNames.equals(binaryNames)) {
-                reports.add(
-                        String.format(
-                                "module %s: declAnnos: text=%s binary=%s",
-                                moduleName, textNames, binaryNames));
+                                "%s %s: declAnnos: text=%s binary=%s",
+                                typeName, name, textNames, binaryNames));
             }
         }
     }

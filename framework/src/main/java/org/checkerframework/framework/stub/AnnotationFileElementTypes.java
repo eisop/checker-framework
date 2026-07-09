@@ -1579,32 +1579,20 @@ public class AnnotationFileElementTypes {
     }
 
     /**
-     * Text-parses the JDK stub source for {@code className} into {@code target}, if a stub source
-     * for it is known. Used only by {@link BinaryStubDiffChecker} to obtain the text parser's view
-     * of a class for comparison against the binary path.
+     * Helper method to parse JDK stub information from either a file path or a JAR entry.
      *
-     * <p>Looks up the class's source location in the {@link BinaryStubDataCache}'s {@link
-     * BinaryStubDataCache#jdkStubPathsByClass}/{@link BinaryStubDataCache#jdkJarEntriesByClass}
-     * snapshots, not in {@link #remainingJdkStubFiles}/{@link #remainingJdkStubFilesJar}: those two
-     * are consumed (entries removed) by {@link #maybeParseEnclosingJdkClass} as a side effect of
-     * ordinary lazy resolution, including resolution triggered by the diff check's own comparisons
-     * of an <em>earlier</em> class in the same run (e.g., a field or parameter whose type is {@code
-     * java.lang.Class} resolves {@code Class} lazily, removing it from these maps before the outer
-     * loop ever reaches {@code Class} as its own top-level entry). Looking it up in the cache's
-     * snapshots instead means every class with a text stub source is compared exactly once,
-     * regardless of what else has already been resolved.
-     *
-     * @param className fully-qualified name of an outermost class
+     * @param name the fully-qualified name of the item (e.g., class, package, or module)
+     * @param pathsByItem a map from item name to its file path
+     * @param jarEntriesByItem a map from item name to its JAR entry name
      * @param target the annotation container to parse into
-     * @return true if a stub source for the class was found and parsed
+     * @return true if a stub source for the item was found and parsed
      */
-    boolean parseJdkSourceInto(String className, AnnotationFileAnnotations target) {
-        BinaryStubDataCache cache = getBinaryStubDataCache();
-        Map<String, Path> stubPathsByClass =
-                cache != null && cache.jdkStubPathsByClass != null
-                        ? cache.jdkStubPathsByClass
-                        : remainingJdkStubFiles;
-        Path path = stubPathsByClass.get(className);
+    private boolean parseJdkInfoInto(
+            String name,
+            Map<String, Path> pathsByItem,
+            Map<String, String> jarEntriesByItem,
+            AnnotationFileAnnotations target) {
+        Path path = pathsByItem.get(name);
         if (path != null) {
             try (InputStream in = new FileInputStream(path.toFile())) {
                 parseJdkStreamInto(path.toFile().getName(), in, target);
@@ -1613,11 +1601,7 @@ public class AnnotationFileElementTypes {
             }
             return true;
         }
-        Map<String, String> jarEntriesByClass =
-                cache != null && cache.jdkJarEntriesByClass != null
-                        ? cache.jdkJarEntriesByClass
-                        : remainingJdkStubFilesJar;
-        String jarEntryName = jarEntriesByClass.get(className);
+        String jarEntryName = jarEntriesByItem.get(name);
         if (jarEntryName != null) {
             JarURLConnection connection = getJarURLConnectionToJdk();
             try (JarFile jarFile = connection.getJarFile();
@@ -1632,12 +1616,41 @@ public class AnnotationFileElementTypes {
     }
 
     /**
+     * Text-parses the {@code .java} stub file for {@code className} into {@code target}, for {@link
+     * BinaryStubDiffChecker}'s comparison against the binary record. Reuses the index maps built by
+     * the background JDK scan if available, falling back to synchronous scans on cache miss.
+     * Crucially, on cache hit, it looks up the file in the cache's <em>clone </em> of the maps, not
+     * the active {@link #remainingJdkStubFiles}: active scans delete entries from the map as they
+     * go so that a file is not parsed redundantly. But they can trigger via ordinary lazy
+     * resolution, including resolution triggered by the diff check's own comparisons of an
+     * <em>earlier</em> class in the same run (e.g., a field or parameter whose type is {@code
+     * java.lang.Class} resolves {@code Class} lazily, removing it from these maps before the outer
+     * loop ever reaches {@code Class} as its own top-level entry). Looking it up in the cache's
+     * snapshots instead means every class with a text stub source is compared exactly once,
+     * regardless of what else has already been resolved.
+     *
+     * @param className fully-qualified name of an outermost class
+     * @param target the annotation container to parse into
+     * @return true if a stub source for the class was found and parsed
+     */
+    boolean parseJdkSourceInto(String className, AnnotationFileAnnotations target) {
+        BinaryStubDataCache cache = getBinaryStubDataCache();
+        return parseJdkInfoInto(
+                className,
+                cache != null && cache.jdkStubPathsByClass != null
+                        ? cache.jdkStubPathsByClass
+                        : remainingJdkStubFiles,
+                cache != null && cache.jdkJarEntriesByClass != null
+                        ? cache.jdkJarEntriesByClass
+                        : remainingJdkStubFilesJar,
+                target);
+    }
+
+    /**
      * Text-parses the {@code package-info.java} declaring {@code packageName} into {@code target},
      * for {@code BinaryStubDiffChecker}'s comparison against the binary {@link
-     * BinaryStubData#packages} record. Production code never calls this: once the binary stub is
-     * loaded, package annotations come from its package records instead (see {@link
-     * #prepJdkFromFile}/{@link #prepJdkFromJar}), which is why this method -- unlike {@link
-     * #parseJdkSourceInto} -- has no ordinary caller to share with.
+     * BinaryStubData#packages} record. Reuses the index maps built by the background JDK scan if
+     * available, falling back to synchronous scans on cache miss.
      *
      * @param packageName the fully-qualified package name
      * @param target the annotation container to parse into
@@ -1645,35 +1658,15 @@ public class AnnotationFileElementTypes {
      */
     boolean parseJdkPackageInfoInto(String packageName, AnnotationFileAnnotations target) {
         BinaryStubDataCache cache = getBinaryStubDataCache();
-        Map<String, Path> pathsByPackage =
+        return parseJdkInfoInto(
+                packageName,
                 cache != null && cache.jdkPackageInfoPathsByPackage != null
                         ? cache.jdkPackageInfoPathsByPackage
-                        : packageInfoPathsByPackage;
-        Path path = pathsByPackage.get(packageName);
-        if (path != null) {
-            try (InputStream in = new FileInputStream(path.toFile())) {
-                parseJdkStreamInto(path.toFile().getName(), in, target);
-            } catch (IOException e) {
-                throw new BugInCF("cannot open the jdk stub file " + path, e);
-            }
-            return true;
-        }
-        Map<String, String> jarEntriesByPackage =
+                        : packageInfoPathsByPackage,
                 cache != null && cache.jdkPackageInfoJarEntriesByPackage != null
                         ? cache.jdkPackageInfoJarEntriesByPackage
-                        : packageInfoJarEntriesByPackage;
-        String jarEntryName = jarEntriesByPackage.get(packageName);
-        if (jarEntryName != null) {
-            JarURLConnection connection = getJarURLConnectionToJdk();
-            try (JarFile jarFile = connection.getJarFile();
-                    InputStream in = jarFile.getInputStream(jarFile.getJarEntry(jarEntryName))) {
-                parseJdkStreamInto(jarEntryName, in, target);
-            } catch (IOException e) {
-                throw new BugInCF("cannot open the jdk stub file " + jarEntryName, e);
-            }
-            return true;
-        }
-        return false;
+                        : packageInfoJarEntriesByPackage,
+                target);
     }
 
     /**
@@ -1688,35 +1681,15 @@ public class AnnotationFileElementTypes {
      */
     boolean parseJdkModuleInfoInto(String moduleName, AnnotationFileAnnotations target) {
         BinaryStubDataCache cache = getBinaryStubDataCache();
-        Map<String, Path> pathsByModule =
+        return parseJdkInfoInto(
+                moduleName,
                 cache != null && cache.jdkModuleInfoPathsByModule != null
                         ? cache.jdkModuleInfoPathsByModule
-                        : moduleInfoPathsByModule;
-        Path path = pathsByModule.get(moduleName);
-        if (path != null) {
-            try (InputStream in = new FileInputStream(path.toFile())) {
-                parseJdkStreamInto(path.toFile().getName(), in, target);
-            } catch (IOException e) {
-                throw new BugInCF("cannot open the jdk stub file " + path, e);
-            }
-            return true;
-        }
-        Map<String, String> jarEntriesByModule =
+                        : moduleInfoPathsByModule,
                 cache != null && cache.jdkModuleInfoJarEntriesByModule != null
                         ? cache.jdkModuleInfoJarEntriesByModule
-                        : moduleInfoJarEntriesByModule;
-        String jarEntryName = jarEntriesByModule.get(moduleName);
-        if (jarEntryName != null) {
-            JarURLConnection connection = getJarURLConnectionToJdk();
-            try (JarFile jarFile = connection.getJarFile();
-                    InputStream in = jarFile.getInputStream(jarFile.getJarEntry(jarEntryName))) {
-                parseJdkStreamInto(jarEntryName, in, target);
-            } catch (IOException e) {
-                throw new BugInCF("cannot open the jdk stub file " + jarEntryName, e);
-            }
-            return true;
-        }
-        return false;
+                        : moduleInfoJarEntriesByModule,
+                target);
     }
 
     /**
