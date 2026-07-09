@@ -122,7 +122,7 @@ public class AnnotationMirrorToAnnotationExprConversion {
      * @return a JavaParser {@code Name} holding {@code name}
      */
     private static Name createQualifiedName(String name) {
-        // split on "." to decompose a fully qualified name; trailing empty strings cannot occur
+        // split on "." to decompose a fully qualified name; trailing empty strings cannot occur.
         @SuppressWarnings("StringSplitter")
         String[] components = name.split("\\.");
         Name result = new Name(components[0]);
