@@ -1436,6 +1436,17 @@ public class BinaryStubReader {
      * resolution depends on the enclosing class. Annotations whose type is not on the
      * annotation-processor classpath are silently skipped.
      *
+     * <p>A failure to resolve is memoised too, as a null value: {@code computeIfAbsent} does not
+     * record a null result, so an unresolvable record would be rebuilt on every one of its
+     * occurrences -- rethrowing and refilling a stack trace that is immediately discarded, and
+     * re-reporting {@code createAnnotationMirrorNoCache}'s warning once per occurrence rather than
+     * once per record. Nothing in the annotated JDK or in the built-in stub files is unresolvable
+     * today: the JDK-internal {@code @DefinedBy}, {@code @IntrinsicCandidate}, and
+     * {@code @CallerSensitive} all resolve through {@code Elements.getTypeElement} even though
+     * their packages are not exported. So this costs one extra {@code containsKey} on a path
+     * nothing currently takes; it is here so the memoisation is not silently wrong for the first
+     * annotation that does fail.
+     *
      * @param ar the structural annotation record to deserialize
      * @param enclosingClassName the fully-qualified name of the enclosing class
      * @param atypeFactory the type factory of the currently-running checker
@@ -1443,7 +1454,7 @@ public class BinaryStubReader {
      * @param elementTypes per-factory state including the annotation mirror cache
      * @return the resolved annotation mirror, or {@code null} if it cannot be resolved
      */
-    private static AnnotationMirror getAnnotationMirror(
+    private static @Nullable AnnotationMirror getAnnotationMirror(
             BinaryStubData.AnnotationRecord ar,
             String enclosingClassName,
             AnnotatedTypeFactory atypeFactory,
@@ -1459,11 +1470,18 @@ public class BinaryStubReader {
             return createAnnotationMirrorNoCache(
                     ar, enclosingClassName, atypeFactory, data, elementTypes);
         }
-        return cache.annoCache.computeIfAbsent(
-                ar,
-                r ->
-                        createAnnotationMirrorNoCache(
-                                r, enclosingClassName, atypeFactory, data, elementTypes));
+        // Not computeIfAbsent: it does not record a null result, so an unresolvable annotation
+        // would be recomputed -- and rethrow -- on every one of its occurrences. One map lookup on
+        // the hot (resolved) path; the containsKey call is reached only for a null value.
+        AnnotationMirror cached = cache.annoCache.get(ar);
+        if (cached != null || cache.annoCache.containsKey(ar)) {
+            return cached;
+        }
+        AnnotationMirror am =
+                createAnnotationMirrorNoCache(
+                        ar, enclosingClassName, atypeFactory, data, elementTypes);
+        cache.annoCache.put(ar, am);
+        return am;
     }
 
     /**

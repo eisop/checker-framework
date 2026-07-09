@@ -165,9 +165,13 @@ public class AnnotationFileElementTypes {
          * instance per pool entry, and structural equality must not be used because records from
          * different binary files (the annotated JDK, per-checker {@code .astub} binaries) contain
          * indices into different string pools.
+         *
+         * <p>A null value memoises "this record cannot be resolved" -- the annotation's type is not
+         * on the annotation-processor classpath. Use {@code containsKey} to tell such an entry from
+         * an absent one; see {@code BinaryStubReader#getAnnotationMirror}.
          */
-        final IdentityHashMap<BinaryStubData.AnnotationRecord, AnnotationMirror> annoCache =
-                new IdentityHashMap<>();
+        final IdentityHashMap<BinaryStubData.AnnotationRecord, @Nullable AnnotationMirror>
+                annoCache = new IdentityHashMap<>();
 
         /** Cache of resolved {@code Class} literal types to avoid repeated element lookups. */
         final Map<String, TypeMirror> resolvedClassTypesCache = new HashMap<>();
