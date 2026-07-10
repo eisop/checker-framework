@@ -598,6 +598,39 @@ so small per-call wins paid back substantially.
   | Big300.java (300 methods) alloc / wall | 836.8 MB / 5.63 s | 672.5 MB (-20%) / 4.82 s (-14%) |
   | `allNullnessTests` wall | 1m40s | 1m24-25s (**-16%**) |
 
+  *Follow-up: unannotated member records.* 69.6% of the annotated JDK's 32,195 method
+  records and 85.6% of its 4,939 field records carried no annotation anywhere. They
+  exist so a built-in stub file's members can be marked `@FromStubFile`; the JDK is
+  never marked, and applying an all-empty record is a no-op (`hasTypeInfo` false, no
+  decl annos, `applyFakeOverride` returns on empty `returnTypeAnnos`). `JavaStubifier`
+  now constructs `BinaryStubWriter` with `omitUnannotatedMembers`; `BinaryStubFileGenerator`
+  does not. `annotated-jdk.bin.gz`: **321,004 → 236,657 bytes (-26.3%)**, and 22,398
+  fewer `MethodRecord`s + 4,227 fewer `FieldRecord`s allocated per `BinaryStubData` load.
+  Class records are still emitted for entirely unannotated classes — their presence is
+  what stops `AnnotationFileElementTypes` from text-parsing the class. This is a size and
+  allocation win only; see the rejected list below for why no CPU win was expected.
+
+  *Tried and rejected — do not re-propose.* A JFR capture of `./gradlew --no-daemon
+  checknullness` (9746 on-CPU `ExecutionSample`s, 130 s wall) puts **everything under
+  `BinaryStubReader` at 86 samples (0.88%)** and the `Stub/JDK annotation loading` phase
+  at 68 (0.70%). Within that budget:
+
+  - **Caching `@Target` element-kind sets in `BinaryStubReader.filterApplicable`.**
+    `filterApplicable` calls `asElement().getAnnotation(Target.class)` (a reflective
+    proxy over a javac `Symbol`) plus `AnnotationUtils.getElementKindsForTarget` (an
+    `EnumSet` allocation) once per declaration annotation per element. Sounds hot; the
+    `AnnoConstruct.getAttribute` leaf is **2 of 9746 samples (0.02%)**.
+  - **A cached `fieldNameIndex(TypeElement)` to match `methodSigIndexCache`.**
+    `applyFieldRecords` and `applyRecordComponents` each rebuild a name→`VariableElement`
+    map per class record. Does not appear in the profile.
+  - **Pre-sizing `BinaryStubData.classes`/`packages`, and dropping `stringPool[i].intern()`.**
+    Both are one-off costs paid once per JVM (the parsed `BinaryStubData` is cached in
+    `loadedBinaryStubData`); `BinaryStubData.<init>` does not reach 1% of any capture.
+
+  Note that `checknullness` amortizes stub loading across ten subprojects in one worker
+  JVM. A cold single-file `javac` run is dominated by JVM startup and yields ~52 samples
+  total — too few to conclude anything from, so it does not rescue these three.
+
   Design points worth remembering when touching this code:
   - One `BinaryStubData`/`BinaryStubDataCache` load per compilation (keyed on the javac
     `Context`), shared across all factories of a compilation.
