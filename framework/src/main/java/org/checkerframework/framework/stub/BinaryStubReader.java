@@ -201,9 +201,11 @@ public class BinaryStubReader {
         // Whether a type is already stored for this class BEFORE any of this class record's own
         // processing runs -- e.g. because a user-supplied stub file (-Astubs) was parsed earlier
         // and already established Optional's type. Captured up front, since applyClassTypeParams
-        // below may itself populate target.atypes[typeElt] (via putIfAbsent) once this method
-        // starts running; testing containsKey() again afterwards would then always be true and
-        // could never detect the JDK-vs-user-stub case this guards against.
+        // below may itself populate target.atypes[typeElt] once this method starts running;
+        // testing containsKey() again afterwards would then always be true and could never detect
+        // the JDK-vs-user-stub case this guards against. This is why the class's own type cannot
+        // go through storeOrMerge, which every other site here uses: storeOrMerge decides against
+        // the map as it stands when it is called.
         boolean typeAlreadyPresent = target.atypes.containsKey(typeElt);
 
         // Apply class declaration annotations, merged by name with any existing entry. Only
@@ -549,24 +551,14 @@ public class BinaryStubReader {
                         fromStubFileAnno == null);
             }
             if (fr.typeAnnos.length > 0) {
-                boolean alreadyPresent = target.atypes.containsKey(ve);
-                if (!alreadyPresent || fromStubFileAnno != null) {
-                    // Build fresh either way (matches applyClassRecord's class-level merge):
-                    // if nothing is stored yet, this becomes the stored type; if something from
-                    // an earlier built-in stub file is already stored, this built-in stub file's
-                    // annotations replace it (last stub file wins), but never the reverse -- see
-                    // applyClassRecord's class-level-annotation comment for the full rationale.
+                // Skip building the type at all when storeOrMerge would discard it: an entry
+                // exists and this content is from the lazily-loaded JDK.
+                if (!target.atypes.containsKey(ve) || fromStubFileAnno != null) {
                     AnnotatedTypeMirror atm =
                             AnnotatedTypeMirror.createType(ve.asType(), atypeFactory, false);
                     applyTypeAnnos(atm, fr.typeAnnos, className, data, atypeFactory, elementTypes);
-                    if (!alreadyPresent) {
-                        target.atypes.put(ve, atm);
-                    } else {
-                        atypeFactory.replaceAnnotations(atm, target.atypes.get(ve));
-                    }
+                    storeOrMerge(target, ve, atm, atypeFactory, fromStubFileAnno);
                 }
-                // else: fromStubFileAnno == null (the lazily-loaded JDK) and an entry already
-                // exists from an earlier source -- leave it untouched.
             }
         }
     }
@@ -719,14 +711,8 @@ public class BinaryStubReader {
                 if (!(ee.isVarArgs() && i == paramTypes.size() - 1)) {
                     // The text parser does not store an entry for the vararg parameter itself
                     // (see AnnotationFileParser.processParameters); its annotations are part of
-                    // the stored method type. As with the method's own aet (see below), a
-                    // pre-existing entry from the lazily-loaded JDK is never touched, but one
-                    // from an earlier built-in stub file is merged onto (last stub file wins).
-                    if (!target.atypes.containsKey(pElt)) {
-                        target.atypes.put(pElt, pType);
-                    } else if (fromStubFileAnno != null) {
-                        atypeFactory.replaceAnnotations(pType, target.atypes.get(pElt));
-                    }
+                    // the stored method type.
+                    storeOrMerge(target, pElt, pType, atypeFactory, fromStubFileAnno);
                 }
             }
 
@@ -746,16 +732,9 @@ public class BinaryStubReader {
             // Propagate class type-parameter bound annotations to type variables in the method
             // type (e.g. K and V in put(K key, V value) of Hashtable).
             propagateClassTypeParamBounds(aet, target);
-            // As with the field- and class-level cases (see applyClassRecord's class-level
-            // comment): store fresh if nothing existed, merge onto an existing entry from an
-            // earlier built-in stub file (last stub file wins), or -- methodAlreadyPresent &&
-            // fromStubFileAnno == null -- this point is unreachable (the lazily-loaded JDK case
-            // already backed off above).
-            if (!methodAlreadyPresent) {
-                target.atypes.put(ee, aet);
-            } else {
-                atypeFactory.replaceAnnotations(aet, target.atypes.get(ee));
-            }
+            // storeOrMerge's third case -- an entry exists and this is the lazily-loaded JDK --
+            // is unreachable here: the loop already backed off above.
+            storeOrMerge(target, ee, aet, atypeFactory, fromStubFileAnno);
         }
     }
 
@@ -960,6 +939,48 @@ public class BinaryStubReader {
     }
 
     /**
+     * Stores {@code fresh} in {@code target.atypes} under {@code elt}, or reconciles it with the
+     * type already stored there. The counterpart of {@link #mergeDeclAnnos} for annotated types,
+     * and the same three-way decision the text parser's {@code putMerge} makes:
+     *
+     * <ul>
+     *   <li>Nothing stored yet: {@code fresh} becomes the stored type.
+     *   <li>Something stored, and {@code fresh} comes from a built-in stub file ({@code
+     *       fromStubFileAnno != null}): merge onto the existing entry, so a later-processed stub
+     *       file's qualifier replaces an earlier one's, matching {@code parseStubFiles}'s
+     *       documented "the qualifier in the last stub file is applied" rule.
+     *   <li>Something stored, and {@code fresh} comes from the lazily-loaded annotated JDK ({@code
+     *       fromStubFileAnno == null}): leave the entry alone. The JDK is applied last, on demand,
+     *       so anything already present -- from a user-supplied {@code -Astubs} file or a built-in
+     *       stub -- takes precedence.
+     * </ul>
+     *
+     * <p>{@code applyClassRecord} cannot use this for the class's own type: it must decide against
+     * whether an entry existed <em>before</em> the class record began processing, since {@code
+     * applyClassTypeParams} may itself have stored one in the meantime.
+     *
+     * @param target the annotation container to store into
+     * @param elt the element to key the type by
+     * @param fresh the newly built annotated type
+     * @param atypeFactory the factory, used to merge onto an existing entry
+     * @param fromStubFileAnno the {@code @FromStubFile} mirror if this content is from a built-in
+     *     stub file, or {@code null} for the lazily-loaded JDK; only its nullness is consulted
+     */
+    private static void storeOrMerge(
+            AnnotationFileAnnotations target,
+            Element elt,
+            AnnotatedTypeMirror fresh,
+            AnnotatedTypeFactory atypeFactory,
+            @Nullable AnnotationMirror fromStubFileAnno) {
+        AnnotatedTypeMirror existing = target.atypes.get(elt);
+        if (existing == null) {
+            target.atypes.put(elt, fresh);
+        } else if (fromStubFileAnno != null) {
+            atypeFactory.replaceAnnotations(fresh, existing);
+        }
+    }
+
+    /**
      * Marks {@code elt} as coming from a stub file by merging the {@code @FromStubFile} mirror into
      * its declaration annotations, matching {@code AnnotationFileParser.markAsFromStubFile}. Only
      * ever called for built-in stub files (the annotated JDK is never marked), so this is always a
@@ -1052,27 +1073,13 @@ public class BinaryStubReader {
                     cr.typeParams[i], atv, className, data, atypeFactory, elementTypes);
             // Store keyed by TypeParameterElement — this is what
             // fromElement(TypeParameterElement) reads via stubTypes.getAnnotatedTypeMirror(tpe).
-            // The same object is a type argument of declType, matching the text parser. As with
-            // applyClassRecord's class-level annotations: store fresh if absent, merge onto an
-            // existing entry from an earlier built-in stub file (last stub file wins), or leave
-            // untouched if the existing entry is from a non-JDK source and this is the lazily
-            // loaded JDK.
-            TypeParameterElement tpe = typeParamElts.get(i);
-            if (!target.atypes.containsKey(tpe)) {
-                target.atypes.put(tpe, atv);
-            } else if (fromStubFileAnno != null) {
-                atypeFactory.replaceAnnotations(atv, target.atypes.get(tpe));
-            }
+            // The same object is a type argument of declType, matching the text parser.
+            storeOrMerge(target, typeParamElts.get(i), atv, atypeFactory, fromStubFileAnno);
         }
 
         // Store the full declared type keyed by TypeElement — this is what
-        // fromElement(TypeElement) reads via stubTypes.getAnnotatedTypeMirror(typeElt). Same
-        // store/merge/skip decision as above.
-        if (!target.atypes.containsKey(typeElt)) {
-            target.atypes.put(typeElt, declType);
-        } else if (fromStubFileAnno != null) {
-            atypeFactory.replaceAnnotations(declType, target.atypes.get(typeElt));
-        }
+        // fromElement(TypeElement) reads via stubTypes.getAnnotatedTypeMirror(typeElt).
+        storeOrMerge(target, typeElt, declType, atypeFactory, fromStubFileAnno);
     }
 
     /**
@@ -1112,12 +1119,7 @@ public class BinaryStubReader {
             AnnotatedTypeVariable atv = (AnnotatedTypeVariable) typeVars.get(i);
             applyTypeParamRecord(typeParams[i], atv, className, data, atypeFactory, elementTypes);
             if (i < typeParamElts.size()) {
-                TypeParameterElement tpe = typeParamElts.get(i);
-                if (!target.atypes.containsKey(tpe)) {
-                    target.atypes.put(tpe, atv);
-                } else if (fromStubFileAnno != null) {
-                    atypeFactory.replaceAnnotations(atv, target.atypes.get(tpe));
-                }
+                storeOrMerge(target, typeParamElts.get(i), atv, atypeFactory, fromStubFileAnno);
             }
         }
     }
