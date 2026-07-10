@@ -20,6 +20,90 @@ import java.nio.file.Files;
 public class BinaryStubWriterTest {
 
     /**
+     * Writes {@code source} with the given writer mode and reads the result back.
+     *
+     * @param source the source text of one compilation unit
+     * @param omitUnannotatedMembers whether the writer omits member records carrying no annotations
+     * @return the binary stub data the writer produced
+     * @throws IOException if the temporary file cannot be written or read
+     */
+    private static BinaryStubData roundTrip(String source, boolean omitUnannotatedMembers)
+            throws IOException {
+        BinaryStubWriter writer = new BinaryStubWriter(omitUnannotatedMembers);
+        writer.process(StaticJavaParser.parse(source));
+        File tmp = File.createTempFile("binarystubwritertest", ".bin.gz");
+        tmp.deleteOnExit();
+        try {
+            writer.writeTo(tmp);
+            try (InputStream in = Files.newInputStream(tmp.toPath())) {
+                return new BinaryStubData(in);
+            }
+        } finally {
+            tmp.delete();
+        }
+    }
+
+    /** Source declaring one annotated and one unannotated method, field, and enum constant. */
+    private static final String MIXED_MEMBERS =
+            "import org.checkerframework.checker.nullness.qual.Nullable;\n"
+                    + "public class Mixed {\n"
+                    + "  public Object plain;\n"
+                    + "  public @Nullable Object annotated;\n"
+                    + "  public void plainMethod(Object p) {}\n"
+                    + "  public @Nullable Object annotatedMethod(Object p) { return null; }\n"
+                    + "}\n";
+
+    /**
+     * The annotated-JDK writer omits member records carrying no annotations, and keeps the rest.
+     *
+     * <p>69.6% of the annotated JDK's method records and 85.6% of its field records are all-empty,
+     * costing 26% of the compressed file and 22,398 {@code MethodRecord} objects per load. They
+     * exist only so a built-in stub file's members can be marked {@code @FromStubFile}; the JDK is
+     * never marked, and applying an all-empty record is a no-op there.
+     */
+    @Test
+    public void jdkWriterOmitsUnannotatedMemberRecords() throws IOException {
+        BinaryStubData data = roundTrip(MIXED_MEMBERS, /* omitUnannotatedMembers= */ true);
+        BinaryStubData.ClassRecord cr = data.classes.get("Mixed");
+        Assert.assertNotNull("the class record is written even so", cr);
+        Assert.assertEquals("only the annotated field", 1, cr.fields.length);
+        Assert.assertEquals("annotated", data.stringPool[cr.fields[0].nameIndex]);
+        Assert.assertEquals("only the annotated method", 1, cr.methods.length);
+        Assert.assertEquals("annotatedMethod(Object)", data.stringPool[cr.methods[0].sigIndex]);
+    }
+
+    /**
+     * A built-in stub file's writer keeps every member record, annotated or not: {@code
+     * BinaryStubReader} marks each matched member with {@code @FromStubFile}, and a member with no
+     * record is never matched.
+     */
+    @Test
+    public void builtinStubWriterKeepsUnannotatedMemberRecords() throws IOException {
+        BinaryStubData data = roundTrip(MIXED_MEMBERS, /* omitUnannotatedMembers= */ false);
+        BinaryStubData.ClassRecord cr = data.classes.get("Mixed");
+        Assert.assertNotNull(cr);
+        Assert.assertEquals("both fields", 2, cr.fields.length);
+        Assert.assertEquals("both methods", 2, cr.methods.length);
+    }
+
+    /**
+     * A class with no annotated members at all still gets a class record from the annotated-JDK
+     * writer: its presence in {@code BinaryStubData.classes} is what stops {@code
+     * AnnotationFileElementTypes} from falling back to text-parsing the class.
+     */
+    @Test
+    public void jdkWriterKeepsTheClassRecordOfAnEntirelyUnannotatedClass() throws IOException {
+        BinaryStubData data =
+                roundTrip(
+                        "public class Plain { public Object f; public void m() {} }",
+                        /* omitUnannotatedMembers= */ true);
+        BinaryStubData.ClassRecord cr = data.classes.get("Plain");
+        Assert.assertNotNull("the class record must survive", cr);
+        Assert.assertEquals(0, cr.fields.length);
+        Assert.assertEquals(0, cr.methods.length);
+    }
+
+    /**
      * A count that does not fit its length prefix must fail the file, not truncate.
      *
      * <p>Every length prefix in the format is an unsigned 16-bit value, and {@code

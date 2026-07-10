@@ -83,8 +83,11 @@ import java.util.zip.GZIPOutputStream;
  * <p>Name resolution and member filtering deliberately mirror the text parser ({@code
  * AnnotationFileParser}): private declarations are skipped, annotation names resolve through
  * explicit imports, {@code java.lang}, and asterisk imports, and {@code @CFComment} is dropped.
- * Equivalence is enforced by {@code BinaryStubDiffChecker}; run {@code NullnessBinaryStubDiffTest}
- * after changing this class.
+ *
+ * <p>A writer constructed with {@link #BinaryStubWriter(boolean) omitUnannotatedMembers} also drops
+ * member records that carry no annotations; that is correct only for the annotated JDK. See that
+ * field's documentation. Equivalence is enforced by {@code BinaryStubDiffChecker}; run {@code
+ * NullnessBinaryStubDiffTest} after changing this class.
  */
 public class BinaryStubWriter {
     /**
@@ -126,6 +129,43 @@ public class BinaryStubWriter {
      * written to the binary format ({@code @CFComment}). Callers must skip it.
      */
     private static final int IGNORED = -1;
+
+    /**
+     * Whether to omit member records that carry no annotations at all. True when writing the
+     * annotated JDK, false when writing a built-in stub file's binary form.
+     *
+     * <p>A built-in stub file needs a record for every member it declares, annotated or not: {@code
+     * BinaryStubReader} marks each matched member with {@code @FromStubFile}, exactly as {@code
+     * AnnotationFileParser.markAsFromStubFile} does on the text side, and a member with no record
+     * is never matched. The annotated JDK is never marked, and applying an all-empty record is a
+     * no-op there -- {@code applyMethodRecords} finds no declaration annotations, {@code
+     * hasTypeInfo} is false so it builds no {@code AnnotatedExecutableType}, and {@code
+     * applyFakeOverride} returns immediately on empty {@code returnTypeAnnos}. Since 69.6% of the
+     * annotated JDK's method records and 85.6% of its field records are all-empty, writing them
+     * costs 26% of the compressed file (320,674 down to 237,283 bytes) and 22,398 {@code
+     * MethodRecord} objects, with their arrays, on every {@code BinaryStubData} load, to accomplish
+     * nothing.
+     *
+     * <p>Class records are always written, even when nothing about the class is annotated: their
+     * presence in {@code BinaryStubData.classes} is what tells {@code AnnotationFileElementTypes}
+     * not to fall back to text-parsing that class.
+     */
+    private final boolean omitUnannotatedMembers;
+
+    /** Creates a writer for a built-in stub file, which keeps every member record. */
+    public BinaryStubWriter() {
+        this(false);
+    }
+
+    /**
+     * Creates a writer.
+     *
+     * @param omitUnannotatedMembers whether to omit member records carrying no annotations; see
+     *     {@link #omitUnannotatedMembers}. Pass true only for the annotated JDK.
+     */
+    public BinaryStubWriter(boolean omitUnannotatedMembers) {
+        this.omitUnannotatedMembers = omitUnannotatedMembers;
+    }
 
     /** Constant pool for strings to minimize binary size. */
     private static class ConstantPool {
@@ -1169,9 +1209,9 @@ public class BinaryStubWriter {
         try {
             // Enum constants are modeled as field records; the reader's field lookup
             // (ElementFilter.fieldsIn) includes enum constants. A record is emitted even for
-            // unannotated constants: for built-in stub files, the reader marks every matched
-            // member with @FromStubFile, exactly as the text parser marks every enum constant it
-            // processes.
+            // unannotated constants, unless omitUnannotatedMembers: for built-in stub files, the
+            // reader marks every matched member with @FromStubFile, exactly as the text parser
+            // marks every enum constant it processes.
             for (EnumConstantDeclaration constant : enumDecl.getEntries()) {
                 FieldRecord fr = new FieldRecord();
                 fr.nameIndex = pool.addString(constant.getNameAsString());
@@ -1187,7 +1227,7 @@ public class BinaryStubWriter {
                         fr.declAnnos.add(idx);
                     }
                 }
-                cr.fields.add(fr);
+                addFieldRecord(cr, fr);
             }
         } catch (IOException e) {
             throw new RuntimeException(
@@ -1434,7 +1474,7 @@ public class BinaryStubWriter {
                 }
             }
             extractTypeAnnotations(member.getType(), new ArrayList<>(), mr.returnTypeAnnos, cu);
-            cr.methods.add(mr);
+            addMethodRecord(cr, mr);
         } catch (IOException e) {
             throw new RuntimeException(
                     "Serialization failure in annotation member: " + e.getMessage(), e);
@@ -1575,7 +1615,7 @@ public class BinaryStubWriter {
                 mr.paramDeclAnnos.add(pdAnnos);
             }
             mr.typeParams.addAll(extractTypeParams(decl.getTypeParameters(), cu));
-            cr.methods.add(mr);
+            addMethodRecord(cr, mr);
         } catch (IOException e) {
             throw new RuntimeException(
                     "Serialization failure in " + decl.getNameAsString() + ": " + e.getMessage(),
@@ -1616,7 +1656,7 @@ public class BinaryStubWriter {
                     }
                 }
                 extractTypeAnnotations(vd.getType(), new ArrayList<>(), fr.typeAnnos, cu);
-                cr.fields.add(fr);
+                addFieldRecord(cr, fr);
             }
         } catch (IOException e) {
             throw new RuntimeException("Serialization failure in field: " + e.getMessage(), e);
@@ -2095,6 +2135,81 @@ public class BinaryStubWriter {
             }
         }
         return true;
+    }
+
+    /**
+     * Returns true if {@code mr} carries no annotation anywhere: not on the method, its return
+     * type, its receiver, any parameter, or any type parameter. Such a record is a no-op for the
+     * annotated JDK; see {@link #omitUnannotatedMembers}. The condition is the negation of {@code
+     * BinaryStubReader.hasTypeInfo} conjoined with having no declaration annotations.
+     *
+     * @param mr the method record to inspect
+     * @return true if the record carries no annotations
+     */
+    private static boolean isUnannotated(MethodRecord mr) {
+        if (!mr.declAnnos.isEmpty()
+                || !mr.returnTypeAnnos.isEmpty()
+                || !mr.receiverAnnos.isEmpty()) {
+            return false;
+        }
+        for (List<TypeAnno> paramAnnos : mr.paramAnnos) {
+            if (!paramAnnos.isEmpty()) {
+                return false;
+            }
+        }
+        for (List<Integer> paramDeclAnnos : mr.paramDeclAnnos) {
+            if (!paramDeclAnnos.isEmpty()) {
+                return false;
+            }
+        }
+        for (TypeParamRecord tp : mr.typeParams) {
+            if (!tp.typeVarAnnos.isEmpty()) {
+                return false;
+            }
+            for (List<TypeAnno> boundAnnos : tp.boundAnnos) {
+                if (!boundAnnos.isEmpty()) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    /**
+     * Returns true if {@code fr} carries no annotation, on the field or on its type. See {@link
+     * #isUnannotated(MethodRecord)}.
+     *
+     * @param fr the field record to inspect
+     * @return true if the record carries no annotations
+     */
+    private static boolean isUnannotated(FieldRecord fr) {
+        return fr.declAnnos.isEmpty() && fr.typeAnnos.isEmpty();
+    }
+
+    /**
+     * Adds {@code mr} to {@code cr}, unless it is an unannotated record that this writer omits.
+     *
+     * @param cr the class record to add to
+     * @param mr the method record to add
+     */
+    private void addMethodRecord(ClassRecord cr, MethodRecord mr) {
+        if (omitUnannotatedMembers && isUnannotated(mr)) {
+            return;
+        }
+        cr.methods.add(mr);
+    }
+
+    /**
+     * Adds {@code fr} to {@code cr}, unless it is an unannotated record that this writer omits.
+     *
+     * @param cr the class record to add to
+     * @param fr the field record to add
+     */
+    private void addFieldRecord(ClassRecord cr, FieldRecord fr) {
+        if (omitUnannotatedMembers && isUnannotated(fr)) {
+            return;
+        }
+        cr.fields.add(fr);
     }
 
     /**

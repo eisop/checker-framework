@@ -73,7 +73,13 @@ public class JavaStubifier {
         // directories, and a BinaryStubWriter accumulates classes/pool state across every
         // process(CompilationUnit) call with no reset, so reusing one across directories would
         // make each directory's output file also contain every earlier directory's classes.
-        BinaryStubWriter binaryStubWriter = new BinaryStubWriter();
+        //
+        // omitUnannotatedMembers: this writer produces the annotated JDK, whose members the
+        // reader never marks with @FromStubFile, so a member record with no annotations has no
+        // effect and is not worth writing. BinaryStubFileGenerator, which produces the built-in
+        // stub files' binaries, must not pass this.
+        BinaryStubWriter binaryStubWriter =
+                new BinaryStubWriter(/* omitUnannotatedMembers= */ true);
         Path root = dirnameToPath(dir);
         MinimizerCallback mc = new MinimizerCallback(binaryStubWriter);
         CollectionStrategy strategy = new ParserCollectionStrategy();
