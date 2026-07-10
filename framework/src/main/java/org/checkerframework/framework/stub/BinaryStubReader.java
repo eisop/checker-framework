@@ -80,6 +80,12 @@ public class BinaryStubReader {
     private BinaryStubReader() {}
 
     /**
+     * Prefix of the simple signature of a constructor, as {@code ElementUtils.getSimpleSignature}
+     * writes it: {@code <init>(...)}.
+     */
+    private static final String CONSTRUCTOR_SIG_PREFIX = "<init>(";
+
+    /**
      * Applies the package and module annotations from the binary stub data. Called eagerly when the
      * binary stub file is loaded, because package and module annotations are global rather than
      * per-class.
@@ -589,8 +595,9 @@ public class BinaryStubReader {
             String sig = data.stringPool[mr.sigIndex];
             // Constructor signatures start with "<init>("; use the matching index so the other
             // index is not computed unnecessarily.
+            boolean isConstructor = sig.startsWith(CONSTRUCTOR_SIG_PREFIX);
             ExecutableElement ee =
-                    sig.startsWith("<init>(")
+                    isConstructor
                             ? elementTypes.constructorSigIndex(typeElt).get(sig)
                             : elementTypes.methodSigIndex(typeElt).get(sig);
             if (ee == null) {
@@ -598,7 +605,7 @@ public class BinaryStubReader {
                 // annotations on an inherited method that apply only at this subtype (see
                 // AnnotationFileParser.processFakeOverride). Otherwise the method does not
                 // exist in the JDK being compiled against and there is nothing to apply.
-                if (!sig.startsWith("<init>(")) {
+                if (!isConstructor) {
                     applyFakeOverride(
                             mr, sig, typeElt, className, data, atypeFactory, elementTypes, target);
                 }
