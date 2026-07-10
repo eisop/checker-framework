@@ -410,8 +410,9 @@ import javax.tools.Diagnostic;
     "stubDebug",
 
     // Test-only: compare the binary JDK stub path against the text parser for every class in
-    // the binary stub and report any disagreement as an error.
-    // org.checkerframework.framework.stub.BinaryStubDiffChecker
+    // the binary stub and report any disagreement as an error. Requires
+    // org.checkerframework.framework.stub.BinaryStubDiffChecker, which ships in the framework's
+    // test fixtures rather than in checker.jar.
     "binaryStubDiffCheck",
 
     // Progress tracing

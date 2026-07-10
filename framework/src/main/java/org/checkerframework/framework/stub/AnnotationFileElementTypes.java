@@ -20,6 +20,7 @@ import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.SystemUtil;
 import org.checkerframework.javacutil.TypesUtils;
+import org.checkerframework.javacutil.UserError;
 import org.plumelib.util.CollectionsPlume;
 import org.plumelib.util.IPair;
 import org.plumelib.util.SystemPlume;
@@ -30,6 +31,8 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.ProcessBuilder.Redirect;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.net.JarURLConnection;
 import java.net.URISyntaxException;
 import java.net.URL;
@@ -504,13 +507,66 @@ public class AnnotationFileElementTypes {
     }
 
     /**
+     * Fully-qualified name of the differential checker, which lives in the {@code testFixtures}
+     * source set rather than here: it is a test-only verification tool, roughly a thousand lines,
+     * used by nothing but {@code NullnessBinaryStubDiffTest}, and there is no reason to ship it in
+     * {@code checker.jar}. It sits in this package so it can keep reading this class's
+     * package-private state.
+     */
+    private static final String DIFF_CHECKER_CLASS =
+            "org.checkerframework.framework.stub.BinaryStubDiffChecker";
+
+    /**
+     * Invokes a static method of {@code BinaryStubDiffChecker} reflectively.
+     *
+     * <p>Only ever reached when the user passes {@code -AbinaryStubDiffCheck}. If the class is
+     * absent -- the ordinary case, since it is not on a released {@code checker.jar} -- report a
+     * {@code UserError} rather than failing obscurely: the option is real (it is listed in {@code
+     * SourceChecker}'s supported options) but it needs a build that puts the test fixtures on the
+     * annotation-processor classpath.
+     *
+     * @param methodName the static method to invoke
+     * @param parameterTypes the method's parameter types
+     * @param args the arguments to pass
+     */
+    private void invokeDiffChecker(String methodName, Class<?>[] parameterTypes, Object[] args) {
+        Method method;
+        try {
+            method = Class.forName(DIFF_CHECKER_CLASS).getMethod(methodName, parameterTypes);
+        } catch (ClassNotFoundException e) {
+            throw new UserError(
+                    "-AbinaryStubDiffCheck requires "
+                            + DIFF_CHECKER_CLASS
+                            + " on the annotation-processor classpath. It ships in the framework's"
+                            + " test fixtures, not in checker.jar.");
+        } catch (NoSuchMethodException e) {
+            throw new BugInCF("Cannot find " + DIFF_CHECKER_CLASS + "." + methodName, e);
+        }
+        try {
+            method.invoke(null, args);
+        } catch (IllegalAccessException e) {
+            throw new BugInCF("Cannot call " + DIFF_CHECKER_CLASS + "." + methodName, e);
+        } catch (InvocationTargetException e) {
+            Throwable cause = e.getCause();
+            if (cause instanceof RuntimeException) {
+                throw (RuntimeException) cause;
+            }
+            if (cause instanceof Error) {
+                throw (Error) cause;
+            }
+            throw new BugInCF("Cannot call " + DIFF_CHECKER_CLASS + "." + methodName, cause);
+        }
+    }
+
+    /**
      * Loads a built-in stub file from its pre-parsed binary form and applies all of it eagerly,
      * marking matched elements with {@code @FromStubFile} exactly as the text parser does for
      * built-in stub files. The parsed binary is cached per JVM.
      *
      * <p>When the {@code -AbinaryStubDiffCheck} option is set, the same stub file is also text
-     * parsed into a scratch container and compared against the binary result; see {@link
-     * BinaryStubDiffChecker#diffBuiltinStub}.
+     * parsed into a scratch container and compared against the binary result; see {@code
+     * BinaryStubDiffChecker#diffBuiltinStub}. That class is not on this source set's classpath, so
+     * it is named, not linked, and reached through {@link #invokeDiffChecker}.
      *
      * @param binURL the URL of the {@code .bin.gz} resource
      * @param textResourceURL the URL of the corresponding {@code .astub} resource, used by the
@@ -539,8 +595,16 @@ public class AnnotationFileElementTypes {
         if (isStubTypes
                 && textResourceURL != null
                 && atypeFactory.getChecker().hasOption("binaryStubDiffCheck")) {
-            BinaryStubDiffChecker.diffBuiltinStub(
-                    description, textResourceURL, data, this, atypeFactory);
+            invokeDiffChecker(
+                    "diffBuiltinStub",
+                    new Class<?>[] {
+                        String.class,
+                        URL.class,
+                        BinaryStubData.class,
+                        AnnotationFileElementTypes.class,
+                        AnnotatedTypeFactory.class
+                    },
+                    new Object[] {description, textResourceURL, data, this, atypeFactory});
         }
         return true;
     }
@@ -1482,7 +1546,14 @@ public class AnnotationFileElementTypes {
             // by testing the checker directly, not by this comparison) went unreported.
             BinaryStubDataCache cache = getBinaryStubDataCache();
             if (cache != null) {
-                BinaryStubDiffChecker.run(this, cache, atypeFactory);
+                invokeDiffChecker(
+                        "run",
+                        new Class<?>[] {
+                            AnnotationFileElementTypes.class,
+                            BinaryStubDataCache.class,
+                            AnnotatedTypeFactory.class
+                        },
+                        new Object[] {this, cache, atypeFactory});
             }
         }
     }
