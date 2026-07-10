@@ -284,12 +284,13 @@ public final class TypesUtils {
         if (t1.tsym.name != t2.tsym.name) {
             return false;
         }
-        // Types#isSameType would be more correct, but no Types object is available here.
-        // Type.ClassType.toString() produces a canonical source-form name that includes type
-        // arguments, so it correctly distinguishes e.g. List<String> from List<Integer>.
-        @SuppressWarnings("TypeToString")
-        boolean sameType = t1.toString().equals(t2.toString());
-        return sameType;
+        // tsym is the unique symbol for the declared type; identity comparison is correct and
+        // cheaper than toString() (which is implementation-defined and may allocate).
+        // Symbol objects are unique per type in javac's symbol table, but are not annotated
+        // @Interned, so the Interning Checker needs this suppression.
+        @SuppressWarnings("interning:not.interned")
+        boolean sameSymbol = t1.tsym == t2.tsym;
+        return sameSymbol;
     }
 
     /**
