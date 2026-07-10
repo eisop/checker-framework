@@ -271,23 +271,56 @@ public final class TypesUtils {
     // Equality
 
     /**
-     * Returns true iff the arguments are both the same declared types.
+     * Returns true iff the two arguments represent the same declared type, including type
+     * arguments.
      *
-     * <p>This is needed because class {@code Type.ClassType} does not override equals.
+     * <p>This method compares the canonical string representations of the types (via {@code
+     * toString()}), which includes type arguments. For example, {@code List<String>} and {@code
+     * List<Integer>} are considered different types by this method.
+     *
+     * <p>{@link javax.lang.model.util.Types#isSameType} would be more correct but requires a {@code
+     * Types} object that is not available in all call sites. The {@code toString()} format is
+     * implementation-defined, but is stable within a single javac version and sufficient for the
+     * intended use.
+     *
+     * <p>This method exists because {@code Type.ClassType} does not override {@code equals}.
      *
      * @param t1 the first type to test
      * @param t2 the second type to test
-     * @return whether the arguments are the same declared types
+     * @return whether the arguments are the same declared type, including type arguments
      */
     public static boolean areSameDeclaredTypes(Type.ClassType t1, Type.ClassType t2) {
         // Do a cheaper test first
         if (t1.tsym.name != t2.tsym.name) {
             return false;
         }
-        // tsym is the unique symbol for the declared type; identity comparison is correct and
-        // cheaper than toString() (which is implementation-defined and may allocate).
-        // Symbol objects are unique per type in javac's symbol table, but are not annotated
-        // @Interned, so the Interning Checker needs this suppression.
+        // Type.ClassType.toString() includes type arguments and produces a canonical source-form
+        // name. Types#isSameType would be more correct but is not available at all call sites.
+        @SuppressWarnings("TypeToString")
+        boolean sameType = t1.toString().equals(t2.toString());
+        return sameType;
+    }
+
+    /**
+     * Returns true iff the two arguments have the same raw declared type, ignoring type arguments.
+     *
+     * <p>This is an optimized form of {@link #areSameDeclaredTypes} for callers that have already
+     * established that type arguments are absent or irrelevant (for example, annotation element
+     * values of type {@code Class<?>}, which cannot carry type parameters in Java). It compares
+     * types by {@code tsym} identity — a single pointer comparison — rather than building and
+     * comparing strings.
+     *
+     * <p>Do not use this method when type arguments matter: {@code List<String>} and {@code
+     * List<Integer>} have the same {@code tsym} and this method returns {@code true} for them.
+     *
+     * @param t1 the first type to test
+     * @param t2 the second type to test
+     * @return whether the arguments have the same raw declared type, ignoring type arguments
+     */
+    public static boolean areSameRawDeclaredType(Type.ClassType t1, Type.ClassType t2) {
+        // tsym is the unique TypeSymbol for the raw declared type, shared across all
+        // parameterizations. Symbol objects are unique per type within a javac compilation
+        // context but are not annotated @Interned, hence the suppression.
         @SuppressWarnings("interning:not.interned")
         boolean sameSymbol = t1.tsym == t2.tsym;
         return sameSymbol;
