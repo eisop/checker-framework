@@ -432,21 +432,18 @@ public class BinaryStubReader {
             // AnnotationFileParser.processRecordField's putMerge(atypes, elt, fieldType).
             target.atypes.putIfAbsent(compElt, compType);
 
-            // Parse declaration annotations.
+            // Parse declaration annotations. Merged with fromLazyJdk semantics -- an existing
+            // annotation of the same type wins -- because applyRecordComponents has no
+            // fromStubFileAnno parameter to distinguish the two sources; applyClassRecord does not
+            // pass it one. That is what the code inlined here has always done.
             AnnotationMirrorSet declAnnos =
                     parseDeclAnnos(comp.declAnnos, className, data, atypeFactory, elementTypes);
             if (!declAnnos.isEmpty()) {
-                String eltName = ElementUtils.getQualifiedName(compElt);
-                AnnotationMirrorSet existing = target.declAnnos.get(eltName);
-                if (existing == null) {
-                    target.declAnnos.put(eltName, declAnnos);
-                } else {
-                    for (AnnotationMirror am : declAnnos) {
-                        if (!AnnotationUtils.containsSameByName(existing, am)) {
-                            existing.add(am);
-                        }
-                    }
-                }
+                mergeDeclAnnos(
+                        target,
+                        ElementUtils.getQualifiedName(compElt),
+                        declAnnos,
+                        /* fromLazyJdk= */ true);
             }
 
             RecordComponentStub stub = new RecordComponentStub(compType, declAnnos);
