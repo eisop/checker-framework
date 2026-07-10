@@ -368,6 +368,14 @@ public class ReflectiveEvaluator {
         return results;
     }
 
+    /**
+     * Returns the constructor object for the given {@code tree} and {@code typeToCreate}.
+     *
+     * @param tree a {@code new} expression
+     * @param typeToCreate the type to create
+     * @return the constructor object
+     * @throws NoSuchMethodException if the constructor cannot be found
+     */
     private Constructor<?> getConstructorObject(NewClassTree tree, TypeMirror typeToCreate)
             throws NoSuchMethodException {
         ExecutableElement ele = TreeUtils.elementFromUse(tree);
