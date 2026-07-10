@@ -12,6 +12,10 @@ Further performance improvements relative to the 3.49.5-eisop1 release:
 Several optimizations also reduce GC pressure and remove superlinear behavior,
 improving performance for large (e.g. auto-generated) files.
 
+Fixed a typo (`@SafeEFfect`) in the Guieffect Checker's `org-eclipse.astub` that
+made `CompareEditorInput.getMessage()` inherit the enclosing `@UIType`'s
+`@UIEffect` default rather than being `@SafeEffect`.
+
 **Implementation details:**
 
 Enabled the Gradle configuration cache, speeding up build times.
