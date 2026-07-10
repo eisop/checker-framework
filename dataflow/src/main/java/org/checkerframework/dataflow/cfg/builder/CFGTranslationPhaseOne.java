@@ -78,6 +78,7 @@ import org.checkerframework.dataflow.cfg.node.CaseNode;
 import org.checkerframework.dataflow.cfg.node.CatchMarkerNode;
 import org.checkerframework.dataflow.cfg.node.CharacterLiteralNode;
 import org.checkerframework.dataflow.cfg.node.ClassDeclarationNode;
+import org.checkerframework.dataflow.cfg.node.ClassLiteralNode;
 import org.checkerframework.dataflow.cfg.node.ClassNameNode;
 import org.checkerframework.dataflow.cfg.node.ConditionalAndNode;
 import org.checkerframework.dataflow.cfg.node.ConditionalNotNode;
@@ -3714,6 +3715,12 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
     public Node visitMemberSelect(MemberSelectTree tree, Void p) {
         Node expr = scan(tree.getExpression(), p);
         if (!TreeUtils.isFieldAccess(tree)) {
+            if (TreeUtils.isClassLiteral(tree)) {
+                Node result = new ClassLiteralNode(tree, expr);
+                extendWithNode(result);
+                return result;
+            }
+
             // Could be a selector of a class or package
             Element element = TreeUtils.elementFromUse(tree);
             if (ElementUtils.isTypeElement(element)) {

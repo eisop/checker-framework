@@ -148,6 +148,8 @@ public interface NodeVisitor<R, P> {
 
     R visitPrimitiveType(PrimitiveTypeNode n, P p);
 
+    R visitClassLiteral(ClassLiteralNode n, P p);
+
     R visitClassName(ClassNameNode n, P p);
 
     R visitPackageName(PackageNameNode n, P p);
