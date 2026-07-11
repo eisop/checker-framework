@@ -934,13 +934,18 @@ public class AnnotationFileElementTypes {
                         fileType == AnnotationFileType.BUILTIN_STUB
                                 ? checker.getClass().getResource(path + BinaryStubData.BIN_SUFFIX)
                                 : null;
-                try (InputStream in = checker.getClass().getResourceAsStream(path)) {
-                    if (in != null) {
-                        if (builtinBinURL == null
-                                || !loadBuiltinBinaryStub(
-                                        builtinBinURL,
-                                        checker.getClass().getResource(path),
-                                        path)) {
+                URL textResourceURL = checker.getClass().getResource(path);
+                if (textResourceURL == null) {
+                    issueWarning = true;
+                } else if (builtinBinURL != null
+                        && loadBuiltinBinaryStub(builtinBinURL, textResourceURL, path)) {
+                    // The binary stub was loaded successfully; no need to open the (possibly
+                    // decompressing) text stream at all.
+                    issueWarning = false;
+                } else {
+                    // Fall back to text parsing: only now does the text stream need to be opened.
+                    try (InputStream in = checker.getClass().getResourceAsStream(path)) {
+                        if (in != null) {
                             AnnotationFileParser.parseStubFile(
                                     path,
                                     in,
@@ -949,15 +954,16 @@ public class AnnotationFileElementTypes {
                                     annotationFileAnnos,
                                     fileType,
                                     this);
+                            issueWarning = false;
+                        } else {
+                            issueWarning = true;
                         }
-                        issueWarning = false;
-                    } else {
+                    } catch (IOException e) {
                         issueWarning = true;
+                        checker.message(
+                                Diagnostic.Kind.NOTE,
+                                "Could not read annotation resource: " + path);
                     }
-                } catch (IOException e) {
-                    issueWarning = true;
-                    checker.message(
-                            Diagnostic.Kind.NOTE, "Could not read annotation resource: " + path);
                 }
 
                 if (issueWarning) {
