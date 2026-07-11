@@ -488,6 +488,7 @@ public abstract class GenericAnnotatedTypeFactory<
         this.scannedClasses = new IdentityHashMap<>();
         // this.reachableNodes.clear();
         this.flowResult = null;
+        this.finalLocalValuesByDeclarer.clear();
         this.regularExitStores = new IdentityHashMap<>();
         this.exceptionalExitStores = new IdentityHashMap<>();
         this.returnStatementStores = new IdentityHashMap<>();
@@ -1394,6 +1395,30 @@ public abstract class GenericAnnotatedTypeFactory<
     }
 
     /**
+     * The values of effectively-final local variables, indexed by the element that declares the
+     * variable's enclosing method/lambda/initializer. Contains the same entries as {@link
+     * #getFinalLocalValues()}; maintained in {@link #analyze} so that {@link
+     * org.checkerframework.framework.flow.CFAbstractTransfer} can look up the final locals declared
+     * in one enclosing element without scanning every final local in the compilation unit for each
+     * analyzed method (which is quadratic in the number of methods).
+     */
+    private final IdentityHashMap<Element, Map<VariableElement, Value>> finalLocalValuesByDeclarer =
+            new IdentityHashMap<>();
+
+    /**
+     * Returns the values of the effectively-final local variables whose declaration is directly
+     * enclosed by the given element.
+     *
+     * @param declarer an element, typically a method, lambda, or initializer
+     * @return the values of the effectively-final local variables declared directly in {@code
+     *     declarer}; the empty map if there are none
+     */
+    public Map<VariableElement, Value> getFinalLocalValues(Element declarer) {
+        Map<VariableElement, Value> result = finalLocalValuesByDeclarer.get(declarer);
+        return result != null ? result : Collections.emptyMap();
+    }
+
+    /**
      * Returns true if the receiver of a method or constructor might not be fully initialized.
      *
      * @param methodDeclTree the declaration of the method or constructor
@@ -1709,6 +1734,15 @@ public abstract class GenericAnnotatedTypeFactory<
 
         // store result
         flowResult.combine(result);
+        // Maintain the by-declarer index of final local values in step with flowResult.
+        for (Map.Entry<VariableElement, Value> e : result.getFinalLocalValues().entrySet()) {
+            Element declarer = e.getKey().getEnclosingElement();
+            if (declarer != null) {
+                finalLocalValuesByDeclarer
+                        .computeIfAbsent(declarer, k -> new HashMap<>(4))
+                        .put(e.getKey(), e.getValue());
+            }
+        }
         if (ast.getKind() == UnderlyingAST.Kind.METHOD) {
             // store exit store (for checking postconditions)
             CFGMethod mast = (CFGMethod) ast;
