@@ -1045,11 +1045,17 @@ subprojects {
                     file('src/main/java').absolutePath,
                     file('src/main/resources').absolutePath)
         }
-        // Wiring the task provider (not the plain directory) as the srcDir lets Gradle
-        // track generateBinaryStubFiles as the task that builds these resources, so every
-        // consumer of sourceSets.main.resources (processResources, sourcesJar, ...) picks
-        // up the dependency automatically, without enumerating consumers by name.
-        sourceSets.main.resources.srcDir(tasks.named('generateBinaryStubFiles'))
+        sourceSets.main.resources.srcDir(binaryStubFilesDir)
+        tasks.named('processResources').configure { dependsOn 'generateBinaryStubFiles' }
+        // sourcesJar also packages sourceSets.main.resources (see the copyAndMinimizeAnnotatedJdkFiles
+        // task in framework/build.gradle for the same pattern), so it needs the same dependency.
+        // Use configureEach (not tasks.named), since the java plugin's sourcesJar task may not be
+        // registered yet at this point in this subproject's configuration.
+        tasks.configureEach { task ->
+            if (task.name == 'sourcesJar') {
+                task.dependsOn 'generateBinaryStubFiles'
+            }
+        }
     }
 
     configurations {
