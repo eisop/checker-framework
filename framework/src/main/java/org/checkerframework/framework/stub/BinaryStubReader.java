@@ -17,6 +17,7 @@ import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.ElementUtils;
+import org.checkerframework.javacutil.InternalUtils;
 import org.checkerframework.javacutil.UserError;
 import org.plumelib.util.IPair;
 
@@ -1578,9 +1579,18 @@ public class BinaryStubReader {
     }
 
     /**
-     * Recursively looks up a field with the given simple name in a TypeElement, its superclasses,
-     * and its interfaces. Used to resolve simple-name constant references in annotation values
-     * (e.g. {@code @IntRange(from = MIN_CODE_POINT)}).
+     * Looks up a field (not an enum constant) with the given simple name in a TypeElement, its
+     * superclasses, and its interfaces. Used to resolve simple-name constant references in
+     * annotation values (e.g. {@code @IntRange(from = MIN_CODE_POINT)}).
+     *
+     * <p>Traverses in the same order as the text parser's {@code
+     * AnnotationFileParser#findFieldElement}, which iterates {@link
+     * ElementUtils#getAllFieldsIn(TypeElement, javax.lang.model.util.Elements)}: the type's own
+     * fields first, then its superclasses and interfaces in {@link
+     * ElementUtils#getSuperTypes(TypeElement, javax.lang.model.util.Elements)}'s traversal order. A
+     * hand-rolled recursion that instead exhausts the whole superclass chain before looking at any
+     * interface can pick a different field than the text parser for an ambiguous simple name
+     * declared in both an interface and a deeper superclass.
      *
      * @param te the type element to search
      * @param name the simple name of the field to find
@@ -1591,32 +1601,13 @@ public class BinaryStubReader {
         if (te == null) {
             return null;
         }
-        for (Element elt : te.getEnclosedElements()) {
-            if (elt.getKind() == ElementKind.FIELD) {
-                VariableElement ve = (VariableElement) elt;
-                if (ve.getSimpleName().contentEquals(name)) {
-                    return ve;
-                }
-            }
-        }
-        if (te.getSuperclass().getKind() == TypeKind.DECLARED) {
-            Element superElt = env.getTypeUtils().asElement(te.getSuperclass());
-            if (superElt instanceof TypeElement) {
-                VariableElement ve = findFieldInType((TypeElement) superElt, name, env);
-                if (ve != null) {
-                    return ve;
-                }
-            }
-        }
-        for (TypeMirror itf : te.getInterfaces()) {
-            if (itf.getKind() == TypeKind.DECLARED) {
-                Element itfElt = env.getTypeUtils().asElement(itf);
-                if (itfElt instanceof TypeElement) {
-                    VariableElement ve = findFieldInType((TypeElement) itfElt, name, env);
-                    if (ve != null) {
-                        return ve;
-                    }
-                }
+        for (VariableElement field : ElementUtils.getAllFieldsIn(te, env.getElementUtils())) {
+            // ElementFilter.fieldsIn (used by getAllFieldsIn) also matches ENUM_CONSTANT
+            // elements; skip those; callers use a separate ENUM_CONSTANT-specific lookup for
+            // that.
+            if (field.getKind() == ElementKind.FIELD
+                    && InternalUtils.sameName(field.getSimpleName(), name)) {
+                return field;
             }
         }
         return null;

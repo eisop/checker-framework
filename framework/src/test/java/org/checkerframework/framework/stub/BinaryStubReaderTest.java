@@ -250,6 +250,39 @@ public class BinaryStubReaderTest {
     }
 
     /**
+     * Regression test for {@link BinaryStubReader#findFieldInType}'s traversal order: it used to
+     * exhaust the whole superclass chain before ever looking at an interface, whereas the text
+     * parser's {@code AnnotationFileParser#findFieldElement} loops over {@code
+     * ElementUtils.getAllFieldsIn}, which interleaves interfaces with superclasses (a type's
+     * directly-implemented interfaces are visited before its superclass's superclass). For an
+     * ambiguous simple name declared in both {@code Iface} (implemented directly by {@code Child})
+     * and {@code Grandparent} (two levels up {@code Child}'s superclass chain), the old recursion
+     * returned the superclass field; {@code getAllFieldsIn} -- and so the text parser -- returns
+     * the interface field first. This test pins the field-lookup order to match the text parser.
+     *
+     * @throws Exception if the test compilation cannot be created
+     */
+    @Test
+    public void findFieldInTypeMatchesTextParserOrderForAmbiguousName() throws Exception {
+        TypeElement childElt =
+                compileToTypeElement(
+                        "Child",
+                        "class Child extends Parent implements Iface {}\n"
+                                + "class Parent extends Grandparent {}\n"
+                                + "class Grandparent { int x; }\n"
+                                + "interface Iface { int x = 1; }\n");
+        ProcessingEnvironment env = freshProcessingEnvironment();
+
+        VariableElement field = BinaryStubReader.findFieldInType(childElt, "x", env);
+        Assert.assertNotNull("field x must resolve via either Iface or Grandparent", field);
+        Assert.assertEquals(
+                "getAllFieldsIn visits Child's directly-implemented interfaces before the"
+                        + " superclass chain's higher ancestors, so the interface field must win",
+                "Iface",
+                field.getEnclosingElement().getSimpleName().toString());
+    }
+
+    /**
      * Confirms a real record maps to {@code KIND_RECORD}, not {@code KIND_CLASS_OR_INTERFACE}.
      *
      * @throws Exception if the test compilation cannot be created
