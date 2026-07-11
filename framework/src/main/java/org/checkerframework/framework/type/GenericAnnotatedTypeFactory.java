@@ -2695,12 +2695,17 @@ public abstract class GenericAnnotatedTypeFactory<
         // Index 0 is the visualizer class name and can be ignored.
         for (int i = 1; i < opts.size(); ++i) {
             String opt = opts.get(i);
-            String[] split = opt.split("=");
+            // Use limit -1 so a trailing "=" produces an empty-value token, which is
+            // rejected below rather than silently treating it as key="".
+            String[] split = opt.split("=", -1);
             switch (split.length) {
                 case 1:
                     res.put(split[0], true);
                     break;
                 case 2:
+                    if (split[1].isEmpty()) {
+                        throw new UserError("Empty value in cfgviz option: " + opt);
+                    }
                     res.put(split[0], split[1]);
                     break;
                 default:

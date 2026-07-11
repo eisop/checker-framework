@@ -1439,7 +1439,11 @@ public final class TreeUtils {
                 for (int i = 0; i < paramTypes.length; ++i) {
                     VariableElement ve = params.get(i);
                     TypeMirror tm = TypeAnnotationUtils.unannotatedType(ve.asType());
-                    if (!tm.toString().equals(paramTypes[i])) {
+                    // The caller supplies paramTypes as canonical name strings; comparing
+                    // against TypeMirror.toString() is intentional string-level matching.
+                    @SuppressWarnings("TypeToString")
+                    boolean typeMismatch = !tm.toString().equals(paramTypes[i]);
+                    if (typeMismatch) {
                         typesMatch = false;
                         break;
                     }
@@ -2213,9 +2217,8 @@ public final class TreeUtils {
                     return TOPLEVEL;
                 case ARRAY_CTOR:
                     return ARRAY_CTOR;
-                default:
-                    throw new BugInCF("Unexpected ReferenceKind: %s", memberTree.kind);
             }
+            throw new BugInCF("Unexpected ReferenceKind: %s", memberTree.kind);
         }
     }
 

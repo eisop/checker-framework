@@ -756,8 +756,11 @@ public class AnnotationBuilder {
         }
         if (!isSubtype) {
             // Annotations in stub files sometimes are the same type, but Types#isSubtype fails
-            // anyway.
-            isSubtype = found.toString().equals(expected.toString());
+            // anyway. Comparing toString() representations is a correct fallback for this case:
+            // both found and expected are annotation types whose string forms are canonical names.
+            @SuppressWarnings("TypeToString")
+            boolean sameByName = found.toString().equals(expected.toString());
+            isSubtype = sameByName;
         }
 
         if (!isSubtype) {
