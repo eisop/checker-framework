@@ -1,6 +1,5 @@
 package org.checkerframework.common.value;
 
-import com.sun.source.tree.CompilationUnitTree;
 import com.sun.source.tree.ExpressionTree;
 import com.sun.source.tree.NewArrayTree;
 import com.sun.source.tree.Tree;
@@ -72,7 +71,6 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.IdentityHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -233,6 +231,34 @@ public class ValueAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
     public final ExecutableElement stringValValueElement =
             TreeUtils.getMethod(StringVal.class, "value", 0, processingEnv);
 
+    /**
+     * Returns the cached value() element for the Value annotation with the given name, or null if
+     * the name is not one of the single-array-element Value annotations. Used to avoid the
+     * name-based (linear-scan) element lookup on hot comparison paths.
+     *
+     * @param annoName the interned fully-qualified annotation name, as returned by {@link
+     *     AnnotationUtils#annotationName}
+     * @return the value() element for {@code annoName}, or null
+     */
+    /*package-private*/ @Nullable ExecutableElement valueElementForName(@Interned String annoName) {
+        if (annoName == INTVAL_NAME) {
+            return intValValueElement;
+        } else if (annoName == ARRAYLEN_NAME) {
+            return arrayLenValueElement;
+        } else if (annoName == BOOLVAL_NAME) {
+            return boolValValueElement;
+        } else if (annoName == DOUBLEVAL_NAME) {
+            return doubleValValueElement;
+        } else if (annoName == STRINGVAL_NAME) {
+            return stringValValueElement;
+        } else if (annoName == MATCHES_REGEX_NAME) {
+            return matchesRegexValueElement;
+        } else if (annoName == DOES_NOT_MATCH_REGEX_NAME) {
+            return doesNotMatchRegexValueElement;
+        }
+        return null;
+    }
+
     /** Should this type factory report warnings? */
     private final boolean reportEvalWarnings;
 
@@ -302,16 +328,6 @@ public class ValueAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
 
         if (this.getClass() == ValueAnnotatedTypeFactory.class) {
             this.postInit();
-        }
-    }
-
-    @Override
-    public void setRoot(@Nullable CompilationUnitTree root) {
-        super.setRoot(root);
-        // Clear out the cache between compilation units.
-        // TODO: It would be nice to have a identity-based LRU cache.
-        if (specialIntRangeCache.size() > 100) {
-            specialIntRangeCache.clear();
         }
     }
 
@@ -762,13 +778,6 @@ public class ValueAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
     }
 
     /**
-     * Identity cache: true iff the mirror is one of IntRangeFromPositive/NonNeg/GTENegOne. Absence
-     * from the map means "unknown"; false means "known non-special".
-     */
-    private final IdentityHashMap<AnnotationMirror, Boolean> specialIntRangeCache =
-            new IdentityHashMap<>();
-
-    /**
      * Converts {@link IntRangeFromPositive}, {@link IntRangeFromNonNegative}, or {@link
      * IntRangeFromGTENegativeOne} to {@link IntRange}. Any other annotation is just returned.
      *
@@ -779,33 +788,22 @@ public class ValueAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
      */
     private AnnotationMirror convertSpecialIntRangeToStandardIntRange(
             AnnotationMirror anm, long max) {
-        Boolean cached = specialIntRangeCache.get(anm);
-        if (Boolean.FALSE.equals(cached)) {
-            return anm; // fast path, ~95%+ of calls
-        }
-
+        // No cache: annotationName is a field read for CheckerFrameworkAnnotationMirror (the
+        // common case here) and cached in ElementUtils otherwise, so three interned-name
+        // comparisons are cheaper than the identity-keyed map this method used to maintain.
+        // Fresh mirrors are created constantly, so that map grew with every created annotation
+        // and missed on the first sight of each.
         String name = AnnotationUtils.annotationName(anm);
-        AnnotationMirror res;
-        boolean isSpecial;
-
         if (name == INTRANGE_FROMPOS_NAME) {
-            res = createIntRangeAnnotation(1, max);
-            isSpecial = true;
-        } else if (name == INTRANGE_FROMNONNEG_NAME) {
-            res = createIntRangeAnnotation(0, max);
-            isSpecial = true;
-        } else if (name == INTRANGE_FROMGTENEGONE_NAME) {
-            res = createIntRangeAnnotation(-1, max);
-            isSpecial = true;
-        } else {
-            res = anm;
-            isSpecial = false;
+            return createIntRangeAnnotation(1, max);
         }
-
-        if (cached == null && !isSpecial) {
-            specialIntRangeCache.put(anm, false);
+        if (name == INTRANGE_FROMNONNEG_NAME) {
+            return createIntRangeAnnotation(0, max);
         }
-        return res;
+        if (name == INTRANGE_FROMGTENEGONE_NAME) {
+            return createIntRangeAnnotation(-1, max);
+        }
+        return anm;
     }
 
     /**
