@@ -1255,6 +1255,8 @@ public class ValueAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
      * for the Index Checker's {@link org.checkerframework.checker.index.qual.Positive} annotation.
      * It is treated everywhere as an IntRange annotation, but is not checked when it appears as the
      * left hand side of an assignment (because the Lower Bound Checker will check it).
+     *
+     * @return an {@link IntRangeFromPositive} annotation
      */
     private AnnotationMirror createIntRangeFromPositive() {
         AnnotationBuilder builder = annotationBuilder(IntRangeFromPositive.class);
@@ -1267,6 +1269,8 @@ public class ValueAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
      * annotation. It is treated everywhere as an IntRange annotation, but is not checked when it
      * appears as the left hand side of an assignment (because the Lower Bound Checker will check
      * it).
+     *
+     * @return an {@link IntRangeFromNonNegative} annotation
      */
     private AnnotationMirror createIntRangeFromNonNegative() {
         AnnotationBuilder builder = annotationBuilder(IntRangeFromNonNegative.class);
@@ -1279,6 +1283,8 @@ public class ValueAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
      * annotation. It is treated everywhere as an IntRange annotation, but is not checked when it
      * appears as the left hand side of an assignment (because the Lower Bound Checker will check
      * it).
+     *
+     * @return an {@link IntRangeFromGTENegativeOne} annotation
      */
     private AnnotationMirror createIntRangeFromGTENegativeOne() {
         AnnotationBuilder builder = annotationBuilder(IntRangeFromGTENegativeOne.class);
@@ -1288,6 +1294,10 @@ public class ValueAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
     /**
      * Create an {@code @ArrayLenRange} annotation from the two (inclusive) bounds. Does not return
      * BOTTOMVAL or UNKNOWNVAL.
+     *
+     * @param from the lower bound (inclusive)
+     * @param to the upper bound (inclusive)
+     * @return an {@code @ArrayLenRange} annotation
      */
     public AnnotationMirror createArrayLenRangeAnnotation(int from, int to) {
         assert from <= to;

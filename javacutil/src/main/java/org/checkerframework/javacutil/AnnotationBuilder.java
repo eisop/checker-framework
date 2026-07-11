@@ -689,6 +689,8 @@ public class AnnotationBuilder {
     }
 
     /**
+     * Checks that the given value is a subtype of the expected type.
+     *
      * @param expected the expected type
      * @param givenValue the object whose run-time class to check
      * @throws BugInCF if the type of {@code givenValue} is not the same as {@code expected}
