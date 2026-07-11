@@ -1761,9 +1761,33 @@ public class BinaryStubWriter {
                 extractTypeAnnotations(rp.getType(), new ArrayList<>(), mr.receiverAnnos, cu);
             }
 
+            // BinaryStubReader.applyMethodRecords resolves every paramAnnos path against the
+            // FULL parameter type, which for a vararg parameter is the implicit array type. The
+            // three annotation sources of a vararg parameter anchor at different depths of that
+            // type, so each needs its own path prefix relative to the array type:
+            //
+            //   source                            anchors at                    path prefix
+            //   --------------------------------  ----------------------------  ----------------
+            //   annotations embedded in the       the array's component type    one ARRAY step
+            //   declared type (p.getType())       (p.getType() excludes the
+            //                                     implicit array level)
+            //   decl-position annotations         the innermost array           ARRAY +
+            //   (p.getAnnotations())              component                     arrayElementPath
+            //   annotations before "..."          the array type itself         none (empty)
+            //   (p.getVarArgsAnnotations())
+            //
+            // The text parser anchors identically: AnnotationFileParser.processParameters
+            // annotates the array's component type with the declared type, routes decl-position
+            // type qualifiers to the innermost component, and applies getVarArgsAnnotations()
+            // to the array type.
             for (Parameter p : decl.getParameters()) {
                 List<TypeAnno> pAnnos = new ArrayList<>();
-                extractTypeAnnotations(p.getType(), new ArrayList<>(), pAnnos, cu);
+                List<TypePathStep> declaredTypePath = new ArrayList<>();
+                if (p.isVarArgs()) {
+                    // The vararg's implicit array level (see the table above).
+                    declaredTypePath.add(new TypePathStep((byte) 0, (byte) 0)); // ARRAY
+                }
+                extractTypeAnnotations(p.getType(), declaredTypePath, pAnnos, cu);
                 mr.paramAnnos.add(pAnnos);
                 List<Integer> pdAnnos = new ArrayList<>();
                 for (AnnotationExpr anno : p.getAnnotations()) {

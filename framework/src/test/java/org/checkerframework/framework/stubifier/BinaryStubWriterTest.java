@@ -498,6 +498,96 @@ public class BinaryStubWriterTest {
     }
 
     /**
+     * Regression test for a varargs type-path off-by-one: an annotation embedded in the declared
+     * type of a vararg parameter (the {@code @Nullable} of {@code List<@Nullable String>... args})
+     * must carry a leading {@code ARRAY} step for the vararg's implicit array level. JavaParser's
+     * {@code Parameter.getType()} is the element type ({@code List<String>} here), but the reader
+     * ({@code BinaryStubReader.applyMethodRecords}) resolves the recorded paths against the full
+     * array parameter type. The previous code extracted the paths with no prefix, so the reader's
+     * {@code resolvePath} hit a {@code TYPE_ARGUMENT} step on an {@code AnnotatedArrayType},
+     * returned null, and the annotation was silently dropped -- while the text parser ({@code
+     * AnnotationFileParser.processParameters}) anchors the declared type at the array's component
+     * type and keeps it.
+     */
+    @Test
+    public void varargsDeclaredTypeAnnotationPathStartsWithTheImplicitArrayStep()
+            throws IOException {
+        BinaryStubData data =
+                roundTrip(
+                        "import java.util.List;\n"
+                                + "import org.checkerframework.checker.nullness.qual.Nullable;\n"
+                                + "public class VarargsEmbedded {\n"
+                                + "  public void m(List<@Nullable String>... args) {}\n"
+                                + "}\n",
+                        /* omitUnannotatedMembers= */ true);
+
+        BinaryStubData.ClassRecord cr = data.classes.get("VarargsEmbedded");
+        Assert.assertNotNull("VarargsEmbedded must be recorded", cr);
+        Assert.assertEquals("method m must be recorded", 1, cr.methods.length);
+        BinaryStubData.MethodRecord mr = cr.methods[0];
+
+        Assert.assertEquals("m has one parameter", 1, mr.paramAnnos.length);
+        BinaryStubData.TypeAnno[] argAnnos = mr.paramAnnos[0];
+        Assert.assertEquals(
+                "@Nullable is the only type annotation on the vararg parameter",
+                1,
+                argAnnos.length);
+        BinaryStubData.TypePathStep[] path = argAnnos[0].path;
+        Assert.assertEquals(
+                "path must be [ARRAY, TYPE_ARGUMENT]: one step for the vararg's implicit array"
+                        + " level, then one into List's type argument -- without the leading"
+                        + " ARRAY step the reader resolves TYPE_ARGUMENT against the array type"
+                        + " and drops the annotation",
+                2,
+                path.length);
+        Assert.assertEquals("first step is ARRAY", 0, path[0].kind);
+        Assert.assertEquals("second step is TYPE_ARGUMENT", 3, path[1].kind);
+        Assert.assertEquals("of the first type argument", 0, path[1].argIndex);
+    }
+
+    /**
+     * The empty-path counterpart of {@link
+     * #varargsDeclaredTypeAnnotationPathStartsWithTheImplicitArrayStep}: an annotation written
+     * inside a fully-qualified vararg element type ({@code java.lang.@Nullable String... args}) is
+     * attached by JavaParser to the type, not to the parameter declaration, so it reaches the
+     * writer through {@code extractTypeAnnotations(p.getType(), ...)} with an empty path within the
+     * declared type. Without the implicit array level's leading {@code ARRAY} step, the empty path
+     * lands the annotation on the array type itself instead of the element type -- the text parser
+     * puts it on the element type ({@code annotate} on the array's component type).
+     */
+    @Test
+    public void varargsFullyQualifiedElementTypeAnnotationGetsTheImplicitArrayStep()
+            throws IOException {
+        BinaryStubData data =
+                roundTrip(
+                        "import org.checkerframework.checker.nullness.qual.Nullable;\n"
+                                + "public class VarargsFqElement {\n"
+                                + "  public void m(java.lang.@Nullable String... args) {}\n"
+                                + "}\n",
+                        /* omitUnannotatedMembers= */ true);
+
+        BinaryStubData.ClassRecord cr = data.classes.get("VarargsFqElement");
+        Assert.assertNotNull("VarargsFqElement must be recorded", cr);
+        Assert.assertEquals("method m must be recorded", 1, cr.methods.length);
+        BinaryStubData.MethodRecord mr = cr.methods[0];
+
+        Assert.assertEquals("m has one parameter", 1, mr.paramAnnos.length);
+        BinaryStubData.TypeAnno[] argAnnos = mr.paramAnnos[0];
+        Assert.assertEquals(
+                "@Nullable is the only type annotation on the vararg parameter",
+                1,
+                argAnnos.length);
+        BinaryStubData.TypePathStep[] path = argAnnos[0].path;
+        Assert.assertEquals(
+                "path must be the single ARRAY step for the vararg's implicit array level -- an"
+                        + " empty path would land the annotation on the array type itself instead"
+                        + " of the element type",
+                1,
+                path.length);
+        Assert.assertEquals("the step is ARRAY", 0, path[0].kind);
+    }
+
+    /**
      * Returns the sole element value of the sole declaration annotation on the method with the
      * given simple name.
      *
