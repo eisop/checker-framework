@@ -88,9 +88,13 @@ public class BinaryStubFileGenerator {
             // Mirror JavaParserUtil.parseStubUnit: a stub file may contain several `package`
             // sections, which the stub parser represents as several compilation units.
             ParserConfiguration configuration = new ParserConfiguration();
-            // Same language level as JavaParserUtil.DEFAULT_LANGUAGE_LEVEL, which the text
-            // parser uses (JavaParserUtil is not on the stubifier classpath).
-            configuration.setLanguageLevel(ParserConfiguration.LanguageLevel.JAVA_21);
+            // Same language level as JavaStubifier.DEFAULT_LANGUAGE_LEVEL, which is in this same
+            // source set. That constant in turn matches JavaParserUtil.DEFAULT_LANGUAGE_LEVEL,
+            // which the text parser uses; that duplication can't be unified further here because
+            // JavaParserUtil is not on the stubifier classpath (framework main depends on the
+            // stubifier source set's output, not the other way around, and framework.jar ships no
+            // stubifier classes), so enum constants can't compile-time-fold across that boundary.
+            configuration.setLanguageLevel(JavaStubifier.DEFAULT_LANGUAGE_LEVEL);
             configuration.setStoreTokens(false);
             configuration.setLexicalPreservationEnabled(false);
             configuration.setAttributeComments(false);
