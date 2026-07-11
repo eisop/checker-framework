@@ -1336,20 +1336,51 @@ public class AnnotationFileElementTypes {
             }
             BinaryStubData.ClassRecord cr = cache.data.classes.get(className);
             if (cr != null) {
-                if (!applyBinaryClassRecord(className, cr, cache)) {
-                    // Already processed via binary path; nothing more to do.
-                    return;
-                }
+                // Bracket the whole outer-plus-inner application with `parsingCount`, mirroring
+                // parseJdkStubFile/parseJdkJarEntry below. This call can be reentered: applying a
+                // class record can call BinaryStubReader.applyFakeOverride, which calls
+                // atypeFactory.getAnnotatedType on an overridden method, which can land back here
+                // for a sibling (not-yet-applied) inner class. A counter (rather than a boolean)
+                // is required so that the reentrant, still-in-progress outer call keeps
+                // `isParsingAnnotationFile()` true, and only the outermost call clears the cache.
+                // Without this bracket, `AnnotatedTypeFactory.fromElement`'s `elementCache.put`
+                // and `cacheDeclAnnos.put` (both guarded only by `!isParsingAnnotationFile()`)
+                // could freeze a type into those caches before its stub annotations are fully
+                // applied.
+                ++parsingCount;
+                boolean appliedAny = false;
+                try {
+                    if (!applyBinaryClassRecord(className, cr, cache)) {
+                        // Already processed via binary path; nothing more to do.
+                        return;
+                    }
+                    appliedAny = true;
 
-                // Also apply binary records for all inner classes in the same file.
-                // This mirrors the text parser's behavior of parsing the entire .java file at
-                // once (which includes all inner classes). Without this, inner-class annotations
-                // (e.g. @InternedDistinct on Symbol.Completer.NULL_COMPLETER) are missed.
-                for (BinaryStubData.ClassRecord innerCr : getInnerClassesFromBinary(className)) {
-                    String innerName = cache.data.stringPool[innerCr.nameIndex];
-                    applyBinaryClassRecord(innerName, innerCr, cache);
+                    // Also apply binary records for all inner classes in the same file.
+                    // This mirrors the text parser's behavior of parsing the entire .java file at
+                    // once (which includes all inner classes). Without this, inner-class
+                    // annotations (e.g. @InternedDistinct on Symbol.Completer.NULL_COMPLETER) are
+                    // missed.
+                    for (BinaryStubData.ClassRecord innerCr :
+                            getInnerClassesFromBinary(className)) {
+                        String innerName = cache.data.stringPool[innerCr.nameIndex];
+                        applyBinaryClassRecord(innerName, innerCr, cache);
+                    }
+                    return;
+                } finally {
+                    --parsingCount;
+                    // `parsePhasePrimaryDefaultsCache` (GenericAnnotatedTypeFactory ~2429) is
+                    // populated only while isParsingAnnotationFile() is true, so bracketing this
+                    // lazy application in `parsingCount` (above) makes this clear REQUIRED: without
+                    // it, incomplete parse-phase defaults computed while this class's (or a
+                    // reentrant sibling's) records were only partially applied would leak into
+                    // checking. Only clear once the outermost call in a reentrant chain returns,
+                    // and only if this call actually applied at least one record. The clear itself
+                    // is cheap (a small IdentityHashMap).
+                    if (parsingCount == 0 && appliedAny) {
+                        atypeFactory.clearParsePhaseCache();
+                    }
                 }
-                return;
             }
         }
 
