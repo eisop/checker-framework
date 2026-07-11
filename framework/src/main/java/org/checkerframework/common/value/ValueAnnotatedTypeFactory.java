@@ -7,6 +7,7 @@ import com.sun.source.tree.Tree;
 import com.sun.source.util.TreePath;
 
 import org.checkerframework.checker.interning.qual.Interned;
+import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.checker.nullness.qual.PolyNull;
 import org.checkerframework.checker.regex.qual.Regex;
@@ -69,10 +70,12 @@ import java.lang.annotation.Annotation;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.IdentityHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.regex.Pattern;
@@ -732,6 +735,33 @@ public class ValueAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
     }
 
     /**
+     * Cache of the {@link TypeElement} for the annotation classes this factory builds, so that the
+     * frequent {@code create*Annotation} methods do not perform an {@link
+     * javax.lang.model.util.Elements#getTypeElement} name lookup (which validates and searches for
+     * the name) per created annotation. Lazily initialized, because {@link #annotationBuilder} is
+     * called from field initializers that run before this field's own initializer would.
+     */
+    private @MonotonicNonNull Map<Class<? extends Annotation>, TypeElement> annotationClassElements;
+
+    /**
+     * Returns a new {@link AnnotationBuilder} for the given annotation class, looking up the
+     * annotation's {@link TypeElement} only on the first use of each class.
+     *
+     * @param clazz the annotation class to build
+     * @return a new {@link AnnotationBuilder} for {@code clazz}
+     */
+    private AnnotationBuilder annotationBuilder(Class<? extends Annotation> clazz) {
+        Map<Class<? extends Annotation>, TypeElement> cache = annotationClassElements;
+        if (cache == null) {
+            cache = new HashMap<>(16);
+            annotationClassElements = cache;
+        }
+        TypeElement annoElt =
+                cache.computeIfAbsent(clazz, c -> elements.getTypeElement(c.getCanonicalName()));
+        return new AnnotationBuilder(processingEnv, annoElt);
+    }
+
+    /**
      * Identity cache: true iff the mirror is one of IntRangeFromPositive/NonNeg/GTENegOne. Absence
      * from the map means "unknown"; false means "known non-special".
      */
@@ -950,7 +980,7 @@ public class ValueAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
             long valMax = values.get(values.size() - 1);
             return createIntRangeAnnotation(valMin, valMax);
         } else {
-            AnnotationBuilder builder = new AnnotationBuilder(processingEnv, IntVal.class);
+            AnnotationBuilder builder = annotationBuilder(IntVal.class);
             builder.setValue("value", values);
             return builder.build();
         }
@@ -988,7 +1018,7 @@ public class ValueAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
         if (values.size() > MAX_VALUES) {
             return UNKNOWNVAL;
         } else {
-            AnnotationBuilder builder = new AnnotationBuilder(processingEnv, DoubleVal.class);
+            AnnotationBuilder builder = annotationBuilder(DoubleVal.class);
             builder.setValue("value", values);
             return builder.build();
         }
@@ -1038,7 +1068,7 @@ public class ValueAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
             List<Integer> lengths = ValueCheckerUtils.getLengthsForStringValues(values);
             return createArrayLenAnnotation(lengths);
         } else {
-            AnnotationBuilder builder = new AnnotationBuilder(processingEnv, StringVal.class);
+            AnnotationBuilder builder = annotationBuilder(StringVal.class);
             builder.setValue("value", values);
             return builder.build();
         }
@@ -1067,7 +1097,7 @@ public class ValueAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
         } else if (values.size() > MAX_VALUES) {
             return createArrayLenRangeAnnotation(Collections.min(values), Collections.max(values));
         } else {
-            AnnotationBuilder builder = new AnnotationBuilder(processingEnv, ArrayLen.class);
+            AnnotationBuilder builder = annotationBuilder(ArrayLen.class);
             builder.setValue("value", values);
             return builder.build();
         }
@@ -1096,7 +1126,7 @@ public class ValueAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
             // arguments {true}, {false}, and {true, false}, respectively) in advance and return one
             // of them?  (Maybe an advantage of this implementation is that it is identical to
             // some other implementations and therefore might be less error-prone.)
-            AnnotationBuilder builder = new AnnotationBuilder(processingEnv, BoolVal.class);
+            AnnotationBuilder builder = annotationBuilder(BoolVal.class);
             builder.setValue("value", values);
             return builder.build();
         }
@@ -1188,7 +1218,7 @@ public class ValueAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
      */
     /*package-private*/ AnnotationMirror createIntRangeAnnotation(long from, long to) {
         assert from <= to;
-        AnnotationBuilder builder = new AnnotationBuilder(processingEnv, IntRange.class);
+        AnnotationBuilder builder = annotationBuilder(IntRange.class);
         builder.setValue("from", from);
         builder.setValue("to", to);
         return builder.build();
@@ -1218,8 +1248,7 @@ public class ValueAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
      * left hand side of an assignment (because the Lower Bound Checker will check it).
      */
     private AnnotationMirror createIntRangeFromPositive() {
-        AnnotationBuilder builder =
-                new AnnotationBuilder(processingEnv, IntRangeFromPositive.class);
+        AnnotationBuilder builder = annotationBuilder(IntRangeFromPositive.class);
         return builder.build();
     }
 
@@ -1231,8 +1260,7 @@ public class ValueAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
      * it).
      */
     private AnnotationMirror createIntRangeFromNonNegative() {
-        AnnotationBuilder builder =
-                new AnnotationBuilder(processingEnv, IntRangeFromNonNegative.class);
+        AnnotationBuilder builder = annotationBuilder(IntRangeFromNonNegative.class);
         return builder.build();
     }
 
@@ -1244,8 +1272,7 @@ public class ValueAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
      * it).
      */
     private AnnotationMirror createIntRangeFromGTENegativeOne() {
-        AnnotationBuilder builder =
-                new AnnotationBuilder(processingEnv, IntRangeFromGTENegativeOne.class);
+        AnnotationBuilder builder = annotationBuilder(IntRangeFromGTENegativeOne.class);
         return builder.build();
     }
 
@@ -1255,7 +1282,7 @@ public class ValueAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
      */
     public AnnotationMirror createArrayLenRangeAnnotation(int from, int to) {
         assert from <= to;
-        AnnotationBuilder builder = new AnnotationBuilder(processingEnv, ArrayLenRange.class);
+        AnnotationBuilder builder = annotationBuilder(ArrayLenRange.class);
         builder.setValue("from", from);
         builder.setValue("to", to);
         return builder.build();
@@ -1289,7 +1316,7 @@ public class ValueAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
         if (regexes.isEmpty()) {
             return BOTTOMVAL;
         }
-        AnnotationBuilder builder = new AnnotationBuilder(processingEnv, MatchesRegex.class);
+        AnnotationBuilder builder = annotationBuilder(MatchesRegex.class);
         builder.setValue("value", regexes.toArray(new String[0]));
         return builder.build();
     }
@@ -1308,7 +1335,7 @@ public class ValueAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
         if (regexes.isEmpty()) {
             return UNKNOWNVAL;
         }
-        AnnotationBuilder builder = new AnnotationBuilder(processingEnv, DoesNotMatchRegex.class);
+        AnnotationBuilder builder = annotationBuilder(DoesNotMatchRegex.class);
         builder.setValue("value", regexes.toArray(new String[0]));
         return builder.build();
     }

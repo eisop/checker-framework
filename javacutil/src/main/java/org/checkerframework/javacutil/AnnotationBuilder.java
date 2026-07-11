@@ -114,6 +114,29 @@ public class AnnotationBuilder {
     }
 
     /**
+     * Create a new AnnotationBuilder for the given annotation element (with no elements/fields, but
+     * they can be added later).
+     *
+     * <p>Use this constructor on hot paths: unlike the name-based constructors, it performs no
+     * {@link Elements#getTypeElement(CharSequence)} lookup (which validates and searches for the
+     * name on every call). Callers that repeatedly build annotations of the same type should look
+     * the {@link TypeElement} up once and reuse it.
+     *
+     * @param env the processing environment
+     * @param annotationElt the type element of the annotation to build
+     */
+    public AnnotationBuilder(ProcessingEnvironment env, TypeElement annotationElt) {
+        this.elements = env.getElementUtils();
+        this.types = env.getTypeUtils();
+        if (annotationElt.getKind() != ElementKind.ANNOTATION_TYPE) {
+            throw new BugInCF("Not an annotation type: " + annotationElt);
+        }
+        this.annotationElt = annotationElt;
+        this.annotationType = (DeclaredType) annotationElt.asType();
+        this.elementValues = new ArrayMap<>(2); // most annotations have few elements
+    }
+
+    /**
      * Create a new AnnotationBuilder that copies the given annotation, including its
      * elements/fields.
      *
