@@ -771,6 +771,41 @@ public class BinaryStubWriter {
     }
 
     /**
+     * Collects the declaration annotations of a package or module declaration into {@code target},
+     * keyed by {@code name}. Does nothing if there are no annotations to store.
+     *
+     * @param name the package or module name
+     * @param annos the declaration's annotations
+     * @param target the map to populate ({@link #packages} or {@link #modules})
+     * @param kindWord a word describing the kind of declaration ({@code "package"} or {@code
+     *     "module"}), used only in the exception message on failure
+     * @param cu the enclosing compilation unit
+     */
+    private void collectDeclAnnos(
+            String name,
+            List<AnnotationExpr> annos,
+            Map<String, List<Integer>> target,
+            String kindWord,
+            CompilationUnit cu) {
+        try {
+            pool.addString(name);
+            List<Integer> indices = new ArrayList<>();
+            for (AnnotationExpr anno : annos) {
+                int idx = annosPool.addAnnotation(anno, cu, this);
+                if (idx != IGNORED) {
+                    indices.add(idx);
+                }
+            }
+            if (!indices.isEmpty()) {
+                target.put(name, indices);
+            }
+        } catch (IOException e) {
+            throw new RuntimeException(
+                    "Serialization failure in " + kindWord + ": " + e.getMessage(), e);
+        }
+    }
+
+    /**
      * Processes the package, module, and type declarations of one compilation unit, using the
      * name-resolution tables established by {@link #initImportTables}.
      *
@@ -780,47 +815,23 @@ public class BinaryStubWriter {
 
         cu.getPackageDeclaration()
                 .ifPresent(
-                        pkg -> {
-                            try {
-                                String pkgName = pkg.getNameAsString();
-                                pool.addString(pkgName);
-                                List<Integer> annos = new ArrayList<>();
-                                for (AnnotationExpr anno : pkg.getAnnotations()) {
-                                    int idx = annosPool.addAnnotation(anno, cu, this);
-                                    if (idx != IGNORED) {
-                                        annos.add(idx);
-                                    }
-                                }
-                                if (!annos.isEmpty()) {
-                                    packages.put(pkgName, annos);
-                                }
-                            } catch (IOException e) {
-                                throw new RuntimeException(
-                                        "Serialization failure in package: " + e.getMessage(), e);
-                            }
-                        });
+                        pkg ->
+                                collectDeclAnnos(
+                                        pkg.getNameAsString(),
+                                        pkg.getAnnotations(),
+                                        packages,
+                                        "package",
+                                        cu));
 
         cu.getModule()
                 .ifPresent(
-                        mod -> {
-                            try {
-                                String modName = mod.getNameAsString();
-                                pool.addString(modName);
-                                List<Integer> annos = new ArrayList<>();
-                                for (AnnotationExpr anno : mod.getAnnotations()) {
-                                    int idx = annosPool.addAnnotation(anno, cu, this);
-                                    if (idx != IGNORED) {
-                                        annos.add(idx);
-                                    }
-                                }
-                                if (!annos.isEmpty()) {
-                                    modules.put(modName, annos);
-                                }
-                            } catch (IOException e) {
-                                throw new RuntimeException(
-                                        "Serialization failure in module: " + e.getMessage(), e);
-                            }
-                        });
+                        mod ->
+                                collectDeclAnnos(
+                                        mod.getNameAsString(),
+                                        mod.getAnnotations(),
+                                        modules,
+                                        "module",
+                                        cu));
 
         String pkg =
                 cu.getPackageDeclaration().isPresent()
