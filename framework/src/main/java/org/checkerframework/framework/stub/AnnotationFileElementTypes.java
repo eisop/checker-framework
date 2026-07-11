@@ -1649,7 +1649,7 @@ public class AnnotationFileElementTypes {
                     // Strip the trailing ".package-info" to get the package name.
                     packageInfoPathsByPackage.put(
                             fqName.substring(0, fqName.length() - ".package-info".length()), path);
-                    if (!binaryLoaded) {
+                    if (parseAllJdkFiles || !binaryLoaded) {
                         // When the binary stub is loaded, package annotations come from its
                         // package records instead.
                         parseJdkStubFile(path);
@@ -1664,7 +1664,7 @@ public class AnnotationFileElementTypes {
                     Path relativePath = root.relativize(path);
                     String moduleName = relativePath.getName(1).toString();
                     moduleInfoPathsByModule.put(moduleName, path);
-                    if (!binaryLoaded) {
+                    if (parseAllJdkFiles || !binaryLoaded) {
                         // When the binary stub is loaded, module annotations come from its
                         // module records instead.
                         parseJdkStubFile(path);
