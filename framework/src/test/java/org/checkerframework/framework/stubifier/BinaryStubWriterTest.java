@@ -784,6 +784,54 @@ public class BinaryStubWriterTest {
     }
 
     /**
+     * T20(a): a class literal naming an unimported class in the stub file's own package must be
+     * qualified against that package, mirroring the text parser's package-prefix fallback ({@code
+     * AnnotationFileParser.findTypeOfName}). Before this fix, {@code fullyQualify(String,
+     * CompilationUnit)} tried only the explicit imports and asterisk imports, leaving the class
+     * literal as the bare simple name {@code "BinaryStubWriter"} -- which {@code
+     * BinaryStubReader#resolveSingleValue}'s single {@code Elements.getTypeElement(fqName)} call
+     * cannot resolve, silently dropping the class-literal annotation element.
+     */
+    @Test
+    public void classLiteralInCurrentPackageIsFullyQualified() throws IOException {
+        BinaryStubWriter writer = new BinaryStubWriter();
+        CompilationUnit cu =
+                StaticJavaParser.parse(
+                        "package org.checkerframework.framework.stubifier;\n"
+                                + "import org.checkerframework.framework.qual.RelevantJavaTypes;\n"
+                                + "@RelevantJavaTypes(BinaryStubWriter.class)\n"
+                                + "public class UsesSamePackageLiteral { }\n");
+        writer.process(cu);
+
+        File tmp = File.createTempFile("binarystubwritertest", ".bin.gz");
+        tmp.deleteOnExit();
+        try {
+            writer.writeTo(tmp);
+            BinaryStubData data;
+            try (InputStream in = Files.newInputStream(tmp.toPath())) {
+                data = new BinaryStubData(in);
+            }
+            BinaryStubData.ClassRecord cr =
+                    data.classes.get(
+                            "org.checkerframework.framework.stubifier.UsesSamePackageLiteral");
+            Assert.assertNotNull("UsesSamePackageLiteral must be recorded", cr);
+            Assert.assertEquals(1, cr.declAnnos.length);
+            BinaryStubData.AnnotationRecord ar = data.annotationPool[cr.declAnnos[0]];
+            Object value = ar.elementValues.values().iterator().next();
+            Assert.assertTrue(
+                    "the class literal must be written as a ClassLiteralValue, but was: " + value,
+                    value instanceof BinaryStubData.ClassLiteralValue);
+            Assert.assertEquals(
+                    "an unimported class in the stub file's own package must be qualified"
+                            + " against that package",
+                    "org.checkerframework.framework.stubifier.BinaryStubWriter",
+                    ((BinaryStubData.ClassLiteralValue) value).className);
+        } finally {
+            tmp.delete();
+        }
+    }
+
+    /**
      * Parses {@code source} with language level JAVA_21, required for record declarations.
      * StaticJavaParser's default language level is older; production code
      * (JavaStubifier.DEFAULT_LANGUAGE_LEVEL, BinaryStubFileGenerator.parseStubUnit) both configure

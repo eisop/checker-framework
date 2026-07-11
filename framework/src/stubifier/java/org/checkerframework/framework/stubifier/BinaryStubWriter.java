@@ -662,6 +662,36 @@ public class BinaryStubWriter {
         return result == NOT_FOUND ? null : result;
     }
 
+    /** Cache for {@link #classInPackage}, keyed by {@code pkg + "." + name}. */
+    private final Map<String, String> classInPackageCache = new HashMap<>();
+
+    /**
+     * Returns the fully-qualified name of the class with the given simple name in the given
+     * package, or {@code null} if the package contains no class of that name (on the stubifier
+     * classpath). Like {@link #annotationInPackage}, but for class-literal resolution: it does not
+     * require the loaded class to be an annotation type, and negative results are cached the same
+     * way and for the same reason (see {@link #annotationInPackage}'s comment).
+     *
+     * @param pkg the package name
+     * @param name the simple name
+     * @return the fully-qualified name, or {@code null}
+     */
+    private String classInPackage(String pkg, String name) {
+        String candidate = pkg + "." + name;
+        String result =
+                classInPackageCache.computeIfAbsent(
+                        candidate,
+                        c -> {
+                            try {
+                                Class.forName(c);
+                                return c;
+                            } catch (ClassNotFoundException e) {
+                                return NOT_FOUND;
+                            }
+                        });
+        return result == NOT_FOUND ? null : result;
+    }
+
     /** Sentinel for {@link #annotationInPackageCache}: no annotation class by that name exists. */
     private static final String NOT_FOUND = "";
 
@@ -1133,11 +1163,23 @@ public class BinaryStubWriter {
     }
 
     /**
-     * Fully qualifies a simple name by resolving it against the compilation unit's imports or
-     * standard java.lang classes.
+     * Fully qualifies a simple name, trying in order: the compilation unit's explicit imports, its
+     * own package, {@code java.lang}, then its asterisk imports.
+     *
+     * <p>This mirrors the text parser's {@code AnnotationFileParser.findTypeOfName} lookup order
+     * for the cases the two share (explicit imports, current package, {@code java.lang}), with two
+     * known divergences, both accepted as build-time-classpath limitations of the stubifier (see
+     * the class javadoc): {@code findTypeOfName} also walks enclosing classes, which does not apply
+     * here since a class literal's unqualified name is never an inherited member type of the stub's
+     * own enclosing class; and it resolves asterisk-imported types with the same priority as
+     * explicit imports (both populate one lookup table as the imports are scanned), whereas this
+     * method tries them only as a last resort, after {@code java.lang} -- a misqualification is
+     * possible only when an asterisk-imported package and {@code java.lang} (or the current
+     * package) both declare a class of the same simple name, which does not occur in the shipped
+     * stub sources.
      *
      * @param name the simple name to fully qualify
-     * @param cu the compilation unit, used to resolve imports
+     * @param cu the compilation unit, used to resolve imports and the current package
      * @return the fully-qualified name, or the original name if resolution fails
      */
     private String fullyQualify(String name, CompilationUnit cu) {
@@ -1147,6 +1189,19 @@ public class BinaryStubWriter {
         String known = simpleToFqn.get(name);
         if (known != null) {
             return known;
+        }
+        // An unimported class in the stub file's own package (e.g. "Foo" in
+        // "@Anno(Foo.class)" where Foo is declared elsewhere in the same package): the text
+        // parser's AnnotationFileParser.findTypeOfName tries this same packagePrefix + name
+        // fallback. Without it, such a class literal stays an unqualified simple name that
+        // BinaryStubReader#resolveSingleValue's single Elements.getTypeElement(fqName) call
+        // cannot resolve, silently dropping the class-literal annotation element.
+        if (cu.getPackageDeclaration().isPresent()) {
+            String currentPackage = cu.getPackageDeclaration().get().getNameAsString();
+            String inCurrentPackage = classInPackage(currentPackage, name);
+            if (inCurrentPackage != null) {
+                return inCurrentPackage;
+            }
         }
         for (ImportDeclaration imp : cu.getImports()) {
             if (!imp.isAsterisk()) {
