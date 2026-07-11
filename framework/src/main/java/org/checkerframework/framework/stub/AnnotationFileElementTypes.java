@@ -270,12 +270,23 @@ public class AnnotationFileElementTypes {
     private @Nullable BinaryStubDataCache cachedBinaryStubDataCache = null;
 
     /**
+     * True once {@link #prepJdkStubs()} has finished running for this factory. Used to memoize a
+     * negative {@link #getBinaryStubDataCache()} lookup: {@link #prepJdkStubs()} is this factory's
+     * only opportunity to load the binary JDK stub (it runs exactly once, from {@link
+     * #parseStubFiles()}), so if it completes without ever calling {@link #setBinaryStubDataCache},
+     * no later call will find one in the compilation context either -- the classpath resource that
+     * would produce one cannot appear partway through a single JVM's compilation. Only ever set
+     * from {@code false} to {@code true}.
+     */
+    private boolean binaryStubCacheChecked = false;
+
+    /**
      * Retrieves the {@link BinaryStubDataCache} from the compilation context.
      *
      * @return the cached binary stub data, or {@code null} if it has not been loaded yet
      */
     @Nullable BinaryStubDataCache getBinaryStubDataCache() {
-        if (cachedBinaryStubDataCache != null) {
+        if (cachedBinaryStubDataCache != null || binaryStubCacheChecked) {
             return cachedBinaryStubDataCache;
         }
         com.sun.tools.javac.util.Context context =
@@ -1505,6 +1516,23 @@ public class AnnotationFileElementTypes {
         if (!shouldParseJdk) {
             return;
         }
+        try {
+            prepJdkStubsImpl();
+        } finally {
+            // This method runs exactly once for this factory (see #binaryStubCacheChecked), so
+            // regardless of which branch below returned or threw, this is the last chance to
+            // observe a binary stub load; memoize a still-null cachedBinaryStubDataCache as
+            // permanently absent.
+            binaryStubCacheChecked = true;
+        }
+    }
+
+    /**
+     * Does the actual work of {@link #prepJdkStubs()}; split out so that {@link #prepJdkStubs()}
+     * can bracket every exit path (normal return or exception) with the {@link
+     * #binaryStubCacheChecked} bookkeeping in one {@code finally} block.
+     */
+    private void prepJdkStubsImpl() {
         URL resourceURL = atypeFactory.getClass().getResource("/" + ANNOTATED_JDK_PATH);
         URL binURL =
                 atypeFactory
