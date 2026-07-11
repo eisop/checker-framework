@@ -1544,37 +1544,40 @@ public class BinaryStubReader {
      * Dispatches a scalar annotation-member value to the appropriate {@link
      * AnnotationBuilder#setValue} overload.
      *
+     * <p>{@code TypeMirror} (erase/box special-casing) and {@code VariableElement} (exact enum
+     * enclosing-element match, bypassing {@code checkSubtype}) have dedicated {@code
+     * AnnotationBuilder} overloads with real logic and are kept as explicit branches, as is the
+     * {@code Byte -> Short} workaround ({@code AnnotationBuilder} has no {@code Byte} overload;
+     * routing a raw {@code Byte} through the generic overload would store the wrong box type, so it
+     * must be converted to {@code Short} first). Every other supported type is a pure delegation on
+     * the {@code AnnotationBuilder} side to the generic {@link
+     * AnnotationBuilder#setValue(CharSequence, Object)} overload, so this method calls that
+     * overload directly rather than re-deriving the dispatch that {@code AnnotationBuilder} already
+     * performs.
+     *
      * @param builder the annotation builder to dispatch the value to
      * @param name the annotation element name
      * @param val the value to dispatch; must be a type handled by {@link
      *     AnnotationBuilder#setValue}
      */
     private static void dispatchSetValue(AnnotationBuilder builder, String name, Object val) {
-        if (val instanceof Boolean) {
-            builder.setValue(name, (Boolean) val);
-        } else if (val instanceof Character) {
-            builder.setValue(name, (Character) val);
-        } else if (val instanceof Double) {
-            builder.setValue(name, (Double) val);
-        } else if (val instanceof Float) {
-            builder.setValue(name, (Float) val);
-        } else if (val instanceof Integer) {
-            builder.setValue(name, (Integer) val);
-        } else if (val instanceof Long) {
-            builder.setValue(name, (Long) val);
-        } else if (val instanceof Short) {
-            builder.setValue(name, (Short) val);
-        } else if (val instanceof Byte) {
-            // AnnotationBuilder has no Byte overload; a byte member accepts a Short value.
-            builder.setValue(name, (Short) ((Byte) val).shortValue());
-        } else if (val instanceof String) {
-            builder.setValue(name, (String) val);
-        } else if (val instanceof TypeMirror) {
+        if (val instanceof TypeMirror) {
             builder.setValue(name, (TypeMirror) val);
         } else if (val instanceof VariableElement) {
             builder.setValue(name, (VariableElement) val);
-        } else if (val instanceof AnnotationMirror) {
-            builder.setValue(name, (AnnotationMirror) val);
+        } else if (val instanceof Byte) {
+            // AnnotationBuilder has no Byte overload; a byte member accepts a Short value.
+            builder.setValue(name, (Short) ((Byte) val).shortValue());
+        } else if (val instanceof Boolean
+                || val instanceof Character
+                || val instanceof Double
+                || val instanceof Float
+                || val instanceof Integer
+                || val instanceof Long
+                || val instanceof Short
+                || val instanceof String
+                || val instanceof AnnotationMirror) {
+            builder.setValue(name, val);
         }
     }
 
