@@ -150,6 +150,14 @@ public class BinaryStubWriter {
     public static final byte KIND_RECORD = 3;
 
     /**
+     * Prefix of the simple signature of a constructor, as {@code
+     * org.checkerframework.javacutil.ElementUtils#getSimpleSignature} writes it: {@code
+     * <init>(...)}. This is the canonical definition; {@code
+     * org.checkerframework.framework.stub.BinaryStubData#CONSTRUCTOR_SIG_PREFIX} references it.
+     */
+    public static final String CONSTRUCTOR_SIG_PREFIX = "<init>(";
+
+    /**
      * Fully-qualified name of {@code CFComment}, which is never written to the binary format; see
      * {@link AnnotationPool#addAnnotation}.
      */

@@ -68,6 +68,14 @@ public class BinaryStubData {
     public static final String FILENAME =
             org.checkerframework.framework.stubifier.BinaryStubWriter.OUTPUT_FILENAME;
 
+    /**
+     * Prefix of the simple signature of a constructor, as {@code ElementUtils.getSimpleSignature}
+     * writes it: {@code <init>(...)}. Defined once in {@link
+     * org.checkerframework.framework.stubifier.BinaryStubWriter#CONSTRUCTOR_SIG_PREFIX}.
+     */
+    public static final String CONSTRUCTOR_SIG_PREFIX =
+            org.checkerframework.framework.stubifier.BinaryStubWriter.CONSTRUCTOR_SIG_PREFIX;
+
     /** Annotation data containing its class name and structural element value pairs. */
     public static class AnnotationRecord {
         /**

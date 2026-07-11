@@ -455,7 +455,7 @@ public class BinaryStubDiffChecker {
             }
             String sig = data.stringPool[mr.sigIndex];
             ExecutableElement ee =
-                    sig.startsWith("<init>(")
+                    sig.startsWith(BinaryStubData.CONSTRUCTOR_SIG_PREFIX)
                             ? elementTypes.constructorSigIndex(typeElt).get(sig)
                             : elementTypes.methodSigIndex(typeElt).get(sig);
             if (ee != null) {
@@ -466,7 +466,8 @@ public class BinaryStubDiffChecker {
                                             + " no atypes entry was stored",
                                     className, sig));
                 }
-            } else if (mr.returnTypeAnnos.length > 0 && !sig.startsWith("<init>(")) {
+            } else if (mr.returnTypeAnnos.length > 0
+                    && !sig.startsWith(BinaryStubData.CONSTRUCTOR_SIG_PREFIX)) {
                 // The record is an annotated fake override (or a stub/JDK mismatch, in which
                 // case there is no overridden method and nothing to store).
                 ExecutableElement overridden =
