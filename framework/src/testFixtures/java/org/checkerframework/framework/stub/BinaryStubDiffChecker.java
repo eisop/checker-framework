@@ -14,6 +14,7 @@ import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedUnionTyp
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedWildcardType;
 import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.AnnotationUtils;
+import org.checkerframework.javacutil.ElementUtils;
 import org.plumelib.util.IPair;
 
 import java.util.ArrayList;
@@ -374,17 +375,8 @@ public class BinaryStubDiffChecker {
             AnnotationFileAnnotations textAnnos, BinaryStubData data) {
         Set<String> result = new HashSet<>();
         for (Element key : textAnnos.atypes.keySet()) {
-            Element e = key;
-            TypeElement outermost = null;
-            while (e != null) {
-                if (e instanceof TypeElement) {
-                    outermost = (TypeElement) e;
-                }
-                e = e.getEnclosingElement();
-            }
-            if (outermost != null) {
-                result.add(outermost.getQualifiedName().toString());
-            }
+            TypeElement outermost = ElementUtils.toplevelEnclosingTypeElement(key);
+            result.add(outermost.getQualifiedName().toString());
         }
         for (String key : textAnnos.declAnnos.keySet()) {
             String name = key.indexOf('(') >= 0 ? key.substring(0, key.indexOf('(')) : key;
