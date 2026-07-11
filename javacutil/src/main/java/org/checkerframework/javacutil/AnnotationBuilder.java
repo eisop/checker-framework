@@ -605,7 +605,19 @@ public class AnnotationBuilder {
         throw new BugInCF("cannot be here");
     }
 
-    private AnnotationBuilder setValue(CharSequence key, Object value) {
+    /**
+     * Set the element/field with the given name, to the given value. This is the generic fallback
+     * that the typed {@code setValue} overloads above (for {@code Boolean}, {@code Character},
+     * {@code Double}, {@code Float}, {@code Integer}, {@code Long}, {@code Short}, {@code String},
+     * and {@code AnnotationMirror}) all delegate to; call it directly if the caller already holds
+     * an {@code Object} of one of those supported types.
+     *
+     * @param key the element/field name
+     * @param value the new value for the element/field; must be an instance of one of the types
+     *     supported by the typed {@code setValue} overloads
+     * @return this
+     */
+    public AnnotationBuilder setValue(CharSequence key, Object value) {
         assertNotBuilt();
         AnnotationValue val = createValue(value);
         ExecutableElement var = findElement(key);
