@@ -62,6 +62,7 @@ import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TypeKindUtils;
 import org.checkerframework.javacutil.TypeSystemError;
 import org.checkerframework.javacutil.TypesUtils;
+import org.checkerframework.javacutil.UserError;
 import org.plumelib.util.ArraySet;
 import org.plumelib.util.CollectionsPlume;
 
@@ -772,8 +773,18 @@ public class ValueAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
             cache = new HashMap<>(16);
             annotationClassElements = cache;
         }
-        TypeElement annoElt =
-                cache.computeIfAbsent(clazz, c -> elements.getTypeElement(c.getCanonicalName()));
+        TypeElement annoElt = cache.get(clazz);
+        if (annoElt == null) {
+            @SuppressWarnings(
+                    "nullness") // getCanonicalName expected to be non-null for annotation types
+            String name = clazz.getCanonicalName();
+            annoElt = elements.getTypeElement(name);
+            if (annoElt == null) {
+                throw new UserError(
+                        "Could not find annotation: " + name + ". Is it on the classpath?");
+            }
+            cache.put(clazz, annoElt);
+        }
         return new AnnotationBuilder(processingEnv, annoElt);
     }
 
