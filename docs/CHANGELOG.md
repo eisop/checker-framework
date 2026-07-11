@@ -16,6 +16,19 @@ Fixed a typo (`@SafeEFfect`) in the Guieffect Checker's `org-eclipse.astub` that
 made `CompareEditorInput.getMessage()` inherit the enclosing `@UIType`'s
 `@UIEffect` default rather than being `@SafeEffect`.
 
+Fixed `AnnotationFileParser`'s `fakeOverriddenMethod` generic-parameter
+matching, which had silently dropped annotated-JDK annotations from
+`TreeMap.computeIfPresent()`, `computeIfAbsent()`, `compute()`, and `merge()`
+under JDK 11 and 21.
+
+Fixed a `NullPointerException` in `AnnotationFileParser`'s handling of
+unbounded wildcards (e.g. `Class<?>`) under `--release 8`, which had silently
+aborted parsing of the remaining methods in the enclosing stub file.
+
+Fixed `permit-nullness-assertion-exception.astub`'s missing `EnsuresNonNullIf`
+import, which caused two spurious warnings for every user passing
+`-Astubs=permit-nullness-assertion-exception.astub`.
+
 **Implementation details:**
 
 Enabled the Gradle configuration cache, speeding up build times.
