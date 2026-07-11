@@ -1319,17 +1319,10 @@ public class AnnotationFileElementTypes {
             }
             BinaryStubData.ClassRecord cr = cache.data.classes.get(className);
             if (cr != null) {
-                // Use a separate set to track binary-processed classes, so we do not interfere
-                // with processingClasses which is managed by AnnotationFileParser and throws
-                // BugInCF if a class is added twice.
-                if (!processedBinaryClasses.add(className)) {
+                if (!applyBinaryClassRecord(className, cr, cache)) {
                     // Already processed via binary path; nothing more to do.
                     return;
                 }
-                remainingJdkStubFiles.remove(className);
-                remainingJdkStubFilesJar.remove(className);
-                BinaryStubReader.applyClassRecord(
-                        cr, className, atypeFactory, this, cache.data, annotationFileAnnos);
 
                 // Also apply binary records for all inner classes in the same file.
                 // This mirrors the text parser's behavior of parsing the entire .java file at
@@ -1337,17 +1330,7 @@ public class AnnotationFileElementTypes {
                 // (e.g. @InternedDistinct on Symbol.Completer.NULL_COMPLETER) are missed.
                 for (BinaryStubData.ClassRecord innerCr : getInnerClassesFromBinary(className)) {
                     String innerName = cache.data.stringPool[innerCr.nameIndex];
-                    if (processedBinaryClasses.add(innerName)) {
-                        remainingJdkStubFiles.remove(innerName);
-                        remainingJdkStubFilesJar.remove(innerName);
-                        BinaryStubReader.applyClassRecord(
-                                innerCr,
-                                innerName,
-                                atypeFactory,
-                                this,
-                                cache.data,
-                                annotationFileAnnos);
-                    }
+                    applyBinaryClassRecord(innerName, innerCr, cache);
                 }
                 return;
             }
@@ -1366,6 +1349,35 @@ public class AnnotationFileElementTypes {
                 }
             }
         }
+    }
+
+    /**
+     * Applies a single binary class record for {@code className}, unless it was already applied by
+     * an earlier call. Only does the processed-classes bookkeeping and the record application
+     * itself; it does not manage any cache/parsing state (such as {@code parsingCount}), so a
+     * caller that needs to bracket the outer-class-plus-inner-classes application in one such scope
+     * (see the {@code parsingCount} coordination note on this file's binary-JDK loading) can still
+     * do so around a sequence of calls to this method.
+     *
+     * @param className the fully-qualified name of the class to apply the record for
+     * @param cr the binary class record to apply
+     * @param cache the binary stub data cache {@code cr} was read from
+     * @return true if the record was newly applied by this call, false if {@code className} had
+     *     already been processed via the binary path (in which case this method does nothing)
+     */
+    private boolean applyBinaryClassRecord(
+            String className, BinaryStubData.ClassRecord cr, BinaryStubDataCache cache) {
+        // Use a separate set to track binary-processed classes, so we do not interfere with
+        // processingClasses, which is managed by AnnotationFileParser and throws BugInCF if a
+        // class is added twice.
+        if (!processedBinaryClasses.add(className)) {
+            return false;
+        }
+        remainingJdkStubFiles.remove(className);
+        remainingJdkStubFilesJar.remove(className);
+        BinaryStubReader.applyClassRecord(
+                cr, className, atypeFactory, this, cache.data, annotationFileAnnos);
+        return true;
     }
 
     /**
