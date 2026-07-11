@@ -489,16 +489,41 @@ public class BinaryStubWriter {
         @Nullable List<List<TypeAnno>> canonicalConstructorParamAnnos;
 
         /**
+         * This class's own fully-qualified name, computed once by {@link #startClassRecord} from
+         * the {@code enclosingFqn}/simple-name it was given. Not serialized; exists so the four
+         * {@code process*} callers don't each re-derive it.
+         */
+        final String fqn;
+
+        /**
+         * The fully-qualified name this class's own members should treat as their outermost
+         * enclosing class: {@link #fqn} itself if this class is top-level, otherwise the same
+         * outermost name that was passed to this class. Not serialized; computed once by {@link
+         * #startClassRecord} alongside {@link #fqn}.
+         */
+        final String childOutermostFqn;
+
+        /**
          * Constructs a ClassRecord.
          *
          * @param nameIndex index of the class name in the constant pool
          * @param outerNameIndex index of the outermost enclosing class name, or 0 if top-level
          * @param kind one of the {@code KIND_*} constants
+         * @param fqn this class's own fully-qualified name
+         * @param childOutermostFqn the fully-qualified name this class's own members should treat
+         *     as their outermost enclosing class
          */
-        ClassRecord(int nameIndex, int outerNameIndex, byte kind) {
+        ClassRecord(
+                int nameIndex,
+                int outerNameIndex,
+                byte kind,
+                String fqn,
+                String childOutermostFqn) {
             this.nameIndex = nameIndex;
             this.outerNameIndex = outerNameIndex;
             this.kind = kind;
+            this.fqn = fqn;
+            this.childOutermostFqn = childOutermostFqn;
         }
     }
 
@@ -1154,7 +1179,10 @@ public class BinaryStubWriter {
      * @param kind one of the {@link ClassRecord}{@code .KIND_*} constants, identifying which of the
      *     three callers this is
      * @param cu the compilation unit
-     * @return the registered class record, or {@code null} if the declaration is skipped
+     * @return the registered class record, or {@code null} if the declaration is skipped. Its
+     *     {@link ClassRecord#fqn} and {@link ClassRecord#childOutermostFqn} fields carry the
+     *     composed fqn and the outermost name to pass to this class's own members, so callers do
+     *     not need to re-derive either.
      */
     private @Nullable ClassRecord startClassRecord(
             String simpleName,
@@ -1169,7 +1197,9 @@ public class BinaryStubWriter {
         }
         String fqn = enclosingFqn.isEmpty() ? simpleName : enclosingFqn + "." + simpleName;
         int outerNameIndex = outermostFqn.isEmpty() ? 0 : pool.addString(outermostFqn);
-        ClassRecord cr = new ClassRecord(pool.addString(fqn), outerNameIndex, kind);
+        String childOutermostFqn = outermostFqn.isEmpty() ? fqn : outermostFqn;
+        ClassRecord cr =
+                new ClassRecord(pool.addString(fqn), outerNameIndex, kind, fqn, childOutermostFqn);
         classes.add(cr);
         try {
             for (AnnotationExpr anno : annotations) {
@@ -1219,12 +1249,7 @@ public class BinaryStubWriter {
                     "Serialization failure in class type parameters: " + e.getMessage(), e);
         }
 
-        String fqn =
-                enclosingFqn.isEmpty()
-                        ? typeDecl.getNameAsString()
-                        : enclosingFqn + "." + typeDecl.getNameAsString();
-        String myOutermost = outermostFqn.isEmpty() ? fqn : outermostFqn;
-        processMembers(typeDecl.getMembers(), cr, fqn, myOutermost, cu);
+        processMembers(typeDecl.getMembers(), cr, cr.fqn, cr.childOutermostFqn, cu);
     }
 
     /**
@@ -1284,12 +1309,7 @@ public class BinaryStubWriter {
                     "Serialization failure in enum constants: " + e.getMessage(), e);
         }
 
-        String fqn =
-                enclosingFqn.isEmpty()
-                        ? enumDecl.getNameAsString()
-                        : enclosingFqn + "." + enumDecl.getNameAsString();
-        String myOutermost = outermostFqn.isEmpty() ? fqn : outermostFqn;
-        processMembers(enumDecl.getMembers(), cr, fqn, myOutermost, cu);
+        processMembers(enumDecl.getMembers(), cr, cr.fqn, cr.childOutermostFqn, cu);
     }
 
     /**
@@ -1321,12 +1341,7 @@ public class BinaryStubWriter {
         if (cr == null) {
             return;
         }
-        String fqn =
-                enclosingFqn.isEmpty()
-                        ? annoDecl.getNameAsString()
-                        : enclosingFqn + "." + annoDecl.getNameAsString();
-        String myOutermost = outermostFqn.isEmpty() ? fqn : outermostFqn;
-        processMembers(annoDecl.getMembers(), cr, fqn, myOutermost, cu);
+        processMembers(annoDecl.getMembers(), cr, cr.fqn, cr.childOutermostFqn, cu);
     }
 
     /**
@@ -1366,11 +1381,6 @@ public class BinaryStubWriter {
             throw new RuntimeException(
                     "Serialization failure in record type parameters: " + e.getMessage(), e);
         }
-
-        String fqn =
-                enclosingFqn.isEmpty()
-                        ? recordDecl.getNameAsString()
-                        : enclosingFqn + "." + recordDecl.getNameAsString();
 
         // Build a set of component names that have an explicit zero-arg accessor in the body.
         // A zero-arg MethodDeclaration whose name equals a component name is considered an
@@ -1462,8 +1472,7 @@ public class BinaryStubWriter {
             }
         }
 
-        String myOutermost = outermostFqn.isEmpty() ? fqn : outermostFqn;
-        processMembers(recordDecl.getMembers(), cr, fqn, myOutermost, cu);
+        processMembers(recordDecl.getMembers(), cr, cr.fqn, cr.childOutermostFqn, cu);
     }
 
     /**
