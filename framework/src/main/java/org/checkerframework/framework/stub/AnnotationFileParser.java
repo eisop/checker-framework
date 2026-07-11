@@ -2244,6 +2244,35 @@ public class AnnotationFileParser {
      */
     private @Nullable ExecutableElement fakeOverriddenMethod(
             TypeElement typeElt, MethodDeclaration methodDecl) {
+        // Two passes: first look for a candidate whose every parameter matches exactly; only if
+        // none does, retry accepting any candidate parameter whose type is a type variable.  The
+        // lenient pass is needed because a type-variable parameter's javac type has no textual
+        // form that reliably matches the stub's spelling (see the comment in sameTypes).  But
+        // running only the lenient pass would let a stub parameter such as "String" match a
+        // type-variable parameter "T" -- and "<T> void f(T)" and "void f(String)" legally coexist
+        // as overloads (erasures f(Object) and f(String)), so a fake override "f(String)" could
+        // bind to whichever overload happens to be visited first.  The exact pass binds it to
+        // f(String).
+        ExecutableElement exactMatch =
+                fakeOverriddenMethod(typeElt, methodDecl, /* typevarLenient= */ false);
+        if (exactMatch != null) {
+            return exactMatch;
+        }
+        return fakeOverriddenMethod(typeElt, methodDecl, /* typevarLenient= */ true);
+    }
+
+    /**
+     * Implementation of {@link #fakeOverriddenMethod(TypeElement, MethodDeclaration)} for one
+     * matching mode.
+     *
+     * @param typeElt the type in which the method appears
+     * @param methodDecl the method declaration that does not correspond to an element
+     * @param typevarLenient if true, a candidate parameter whose type is a type variable matches
+     *     any declared parameter type in the same position; see {@link #sameTypes}
+     * @return the methods that the given method declaration would override, or null if none
+     */
+    private @Nullable ExecutableElement fakeOverriddenMethod(
+            TypeElement typeElt, MethodDeclaration methodDecl, boolean typevarLenient) {
         for (Element elt : typeElt.getEnclosedElements()) {
             if (elt.getKind() != ElementKind.METHOD) {
                 continue;
@@ -2254,14 +2283,14 @@ public class AnnotationFileParser {
                 continue;
             }
             List<? extends VariableElement> candidateParams = candidate.getParameters();
-            if (sameTypes(candidateParams, methodDecl.getParameters())) {
+            if (sameTypes(candidateParams, methodDecl.getParameters(), typevarLenient)) {
                 return candidate;
             }
         }
 
         TypeElement superType = ElementUtils.getSuperClass(typeElt);
         if (superType != null) {
-            ExecutableElement result = fakeOverriddenMethod(superType, methodDecl);
+            ExecutableElement result = fakeOverriddenMethod(superType, methodDecl, typevarLenient);
             if (result != null) {
                 return result;
             }
@@ -2270,7 +2299,8 @@ public class AnnotationFileParser {
         for (TypeMirror interfaceTypeMirror : typeElt.getInterfaces()) {
             TypeElement interfaceElement =
                     (TypeElement) ((DeclaredType) interfaceTypeMirror).asElement();
-            ExecutableElement result = fakeOverriddenMethod(interfaceElement, methodDecl);
+            ExecutableElement result =
+                    fakeOverriddenMethod(interfaceElement, methodDecl, typevarLenient);
             if (result != null) {
                 return result;
             }
@@ -2285,26 +2315,32 @@ public class AnnotationFileParser {
      *
      * @param javacParams parameter list in javac form
      * @param javaParserParams parameter list in JavaParser form
+     * @param typevarLenient if true, a javac parameter whose type is a type variable matches any
+     *     JavaParser parameter type in the same position
      * @return true if the two signatures are the same
      */
     private boolean sameTypes(
-            List<? extends VariableElement> javacParams, NodeList<Parameter> javaParserParams) {
+            List<? extends VariableElement> javacParams,
+            NodeList<Parameter> javaParserParams,
+            boolean typevarLenient) {
         if (javacParams.size() != javaParserParams.size()) {
             return false;
         }
         for (int i = 0, n = javacParams.size(); i < n; ++i) {
             TypeMirror javacType = javacParams.get(i).asType();
-            if (javacType.getKind() == TypeKind.TYPEVAR) {
-                // A type variable parameter (e.g. "K key") can't be overloaded against a
-                // differently-typed parameter in the same position without an erasure clash, so
-                // any declaration in this position is an acceptable match; properly viewpoint-
-                // adapting the type variable to compare it structurally is unnecessary. (This
-                // also sidesteps comparing this bound's element name, e.g. "Object", against the
-                // stub's own type-variable reference name, e.g. "K" -- which are never the same
-                // string and so never matched, permanently dropping fake-override annotations
-                // for any method with a type-variable parameter whenever the corresponding JDK
-                // version doesn't declare the method directly, e.g. TreeMap.computeIfPresent on
-                // JDK 11, which only inherits it from Map.)
+            if (typevarLenient && javacType.getKind() == TypeKind.TYPEVAR) {
+                // Accept any declaration in this position.  A type-variable parameter (e.g.
+                // "K key") has no javac textual form that reliably matches the stub's spelling:
+                // an earlier version of this code compared the type variable's upper bound's
+                // element name, e.g. "Object", against the stub's own type-variable reference
+                // name, e.g. "K" -- which are never the same string and so never matched,
+                // permanently dropping fake-override annotations for any method with a
+                // type-variable parameter whenever the corresponding JDK version doesn't declare
+                // the method directly, e.g. TreeMap.computeIfPresent on JDK 11, which only
+                // inherits it from Map.  This leniency can match the wrong overload when a
+                // type-variable parameter overload coexists with a differently-erased one (e.g.
+                // "<T> void f(T)" vs. "void f(String)"), which is why fakeOverriddenMethod only
+                // uses it as a fallback after looking for an exact match.
                 continue;
             }
             Parameter javaParserParam = javaParserParams.get(i);

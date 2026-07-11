@@ -19,7 +19,10 @@ made `CompareEditorInput.getMessage()` inherit the enclosing `@UIType`'s
 Fixed `AnnotationFileParser`'s `fakeOverriddenMethod` generic-parameter
 matching, which had silently dropped annotated-JDK annotations from
 `TreeMap.computeIfPresent()`, `computeIfAbsent()`, `compute()`, and `merge()`
-under JDK 11 and 21.
+under JDK 11 and 21. `fakeOverriddenMethod` now also prefers an overload whose
+parameter types match the stub declaration exactly, so a fake override such as
+`f(String)` no longer binds to a coexisting type-variable overload `<T> f(T)`
+that happens to be visited first.
 
 Fixed a `NullPointerException` in `AnnotationFileParser`'s handling of
 unbounded wildcards (e.g. `Class<?>`) under `--release 8`, which had silently

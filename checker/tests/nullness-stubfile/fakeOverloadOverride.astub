@@ -1,0 +1,9 @@
+// Fake override for FakeOverloadOverride.java: FakeOverloadSub does not declare f, so this
+// declaration must bind to the inherited FakeOverloadSuper.f(String), not to the
+// type-variable overload FakeOverloadSuper.f(T) (which is declared first).
+
+import org.checkerframework.checker.nullness.qual.Nullable;
+
+class FakeOverloadSub {
+    @Nullable String f(String x);
+}
