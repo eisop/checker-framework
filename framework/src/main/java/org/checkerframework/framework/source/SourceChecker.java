@@ -2273,9 +2273,9 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
             String key = opt.getKey();
             String value = opt.getValue();
 
-            // Use limit -1 so a trailing separator (e.g. "CheckerName.") produces an empty
-            // token; the switch default handles unexpected lengths rather than silently
-            // using "" as an option key.
+            // Use limit -1 so a trailing separator (e.g. "CheckerName_") produces an empty
+            // token; we explicitly check for this rather than silently using "" as an
+            // option key.
             String[] split = key.split(OPTION_SEPARATOR, -1);
 
             switch (split.length) {
@@ -2284,6 +2284,13 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
                     activeOpts.put(key, value);
                     break;
                 case 2:
+                    if (split[1].isEmpty()) {
+                        // Trailing separator. Option might be for another processor. Add option
+                        // anyways. javac will warn if no processor supports the option.
+                        activeOpts.put(key, value);
+                        break;
+                    }
+
                     Class<?> clazz = this.getClass();
 
                     do {
