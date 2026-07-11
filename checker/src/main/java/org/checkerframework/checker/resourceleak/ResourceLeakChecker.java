@@ -285,7 +285,7 @@ public class ResourceLeakChecker extends AggregateChecker {
                         ? SetOfTypes.allSubtypes(type)
                         : SetOfTypes.singleton(type);
             }
-        } else if (!exceptionSpecifier.trim().isEmpty()) {
+        } else {
             message(
                     Diagnostic.Kind.WARNING,
                     "The string '%s' appears in the -A%s=%s option,"
