@@ -1540,8 +1540,7 @@ public class BinaryStubReader {
      * @param env the processing environment
      * @return the resolved variable element, or {@code null} if not found
      */
-    private static VariableElement findFieldInType(
-            TypeElement te, String name, ProcessingEnvironment env) {
+    static VariableElement findFieldInType(TypeElement te, String name, ProcessingEnvironment env) {
         if (te == null) {
             return null;
         }
@@ -1627,7 +1626,24 @@ public class BinaryStubReader {
             }
             return type;
         } else if (val instanceof BinaryStubData.EnumConstantValue) {
+            // Despite the name, the writer tags every FieldAccessExpr this way (see
+            // BinaryStubWriter#writeValue), so the referenced member need not be an enum
+            // constant: e.g. "@IntRange(to = Integer.MAX_VALUE)" refers to a plain static final
+            // field. Mirror AnnotationFileParser#getValueOfExpressionInAnnotation, which resolves
+            // the field first and only then asks for its constant value (an enum constant has
+            // none, so the element itself is used; a constant field's value is used and coerced).
             BinaryStubData.EnumConstantValue ev = (BinaryStubData.EnumConstantValue) val;
+            String cacheKey = ev.enumClassName + "#" + ev.constantName;
+            AnnotationFileElementTypes.BinaryStubDataCache cache =
+                    elementTypes.getBinaryStubDataCache();
+            if (cache != null) {
+                Object cachedVal = cache.resolvedConstantsCache.get(cacheKey);
+                if (cachedVal != null) {
+                    // coerceToKind is a no-op for a cached enum-constant VariableElement; it only
+                    // converts a cached constant field's numeric/character value.
+                    return coerceToKind(cachedVal, expectedKind);
+                }
+            }
             @SuppressWarnings("signature:argument.type.incompatible") // ev.enumClassName is read
             // from the binary stub's string pool, which BinaryStubWriter populates only with
             // fully-qualified names
@@ -1636,7 +1652,20 @@ public class BinaryStubReader {
                 for (Element elt : enumClass.getEnclosedElements()) {
                     if (elt.getKind() == ElementKind.ENUM_CONSTANT
                             && elt.getSimpleName().contentEquals(ev.constantName)) {
+                        if (cache != null) {
+                            cache.resolvedConstantsCache.put(cacheKey, elt);
+                        }
                         return elt;
+                    }
+                }
+                VariableElement fieldElt = findFieldInType(enumClass, ev.constantName, env);
+                if (fieldElt != null) {
+                    Object cVal = fieldElt.getConstantValue();
+                    if (cVal != null) {
+                        if (cache != null) {
+                            cache.resolvedConstantsCache.put(cacheKey, cVal);
+                        }
+                        return coerceToKind(cVal, expectedKind);
                     }
                 }
             }

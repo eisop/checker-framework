@@ -4,6 +4,8 @@ import com.sun.source.tree.ClassTree;
 import com.sun.source.tree.CompilationUnitTree;
 import com.sun.source.util.JavacTask;
 import com.sun.source.util.Trees;
+import com.sun.tools.javac.processing.JavacProcessingEnvironment;
+import com.sun.tools.javac.util.Context;
 
 import org.junit.Assert;
 import org.junit.Test;
@@ -13,6 +15,7 @@ import java.net.URI;
 import java.util.Collections;
 import java.util.List;
 
+import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.TypeElement;
@@ -170,6 +173,80 @@ public class BinaryStubReaderTest {
                         task.getElements(), "no.such.module");
         Assert.assertNull(
                 "a nonexistent module name must resolve to null, not throw", noSuchModule);
+    }
+
+    /**
+     * Returns a {@link ProcessingEnvironment} backed by a fresh javac {@link Context}, without
+     * compiling or attributing any source. {@code java.lang.Integer} and other JDK classes are
+     * still resolvable through it via the default (system) classpath, exactly as {@link
+     * StubGenerator#main} sets up its {@code ProcessingEnvironment} for the same reason. Avoids the
+     * heavier {@code JavaCompiler.getTask(...).analyze()} dance used elsewhere in this file, since
+     * no test source needs to be parsed.
+     *
+     * @return a usable {@link ProcessingEnvironment} with no associated compilation
+     */
+    private static ProcessingEnvironment freshProcessingEnvironment() {
+        Context context = new Context();
+        com.sun.tools.javac.main.JavaCompiler javac =
+                com.sun.tools.javac.main.JavaCompiler.instance(context);
+        javac.initModules(com.sun.tools.javac.util.List.nil());
+        javac.enterDone();
+        return JavacProcessingEnvironment.instance(context);
+    }
+
+    /**
+     * Regression test for the root cause of a bug in {@link BinaryStubReader#resolveSingleValue}:
+     * the writer tags every {@code FieldAccessExpr} annotation value with the same {@code 'e'} tag
+     * (see {@code BinaryStubWriter#writeValue}), regardless of whether the referenced member is an
+     * enum constant or a plain static final field, so the reader cannot tell which one it is from
+     * the tag alone. {@code resolveSingleValue} used to only look for an {@code ENUM_CONSTANT}
+     * member and silently drop the value otherwise, so a stub value like {@code IntRange(to =
+     * Integer.MAX_VALUE)} lost the member entirely. {@link BinaryStubReader#findFieldInType} is the
+     * fallback lookup the fix added for exactly this case; this test confirms it finds a real,
+     * non-enum constant field and that {@link BinaryStubReader#coerceToKind} then narrows its value
+     * to the annotation member's declared kind, matching what {@code
+     * AnnotationFileParser.getValueOfExpressionInAnnotation} does for the text parser.
+     */
+    @Test
+    public void findFieldInTypeResolvesANonEnumStaticConstant() {
+        ProcessingEnvironment env = freshProcessingEnvironment();
+        TypeElement integerElt = env.getElementUtils().getTypeElement("java.lang.Integer");
+        Assert.assertNotNull("java.lang.Integer must resolve", integerElt);
+
+        VariableElement maxValue = BinaryStubReader.findFieldInType(integerElt, "MAX_VALUE", env);
+        Assert.assertNotNull(
+                "MAX_VALUE is a plain static final field, not an enum constant, but"
+                        + " findFieldInType must still find it",
+                maxValue);
+        Assert.assertEquals(ElementKind.FIELD, maxValue.getKind());
+        Assert.assertEquals(Integer.MAX_VALUE, maxValue.getConstantValue());
+        Assert.assertEquals(
+                "the resolved constant must narrow to the annotation member's declared kind, the"
+                        + " same way a NameLiteralValue constant does",
+                Integer.MAX_VALUE,
+                BinaryStubReader.coerceToKind(maxValue.getConstantValue(), TypeKind.INT));
+    }
+
+    /**
+     * Confirms {@link BinaryStubReader#findFieldInType} does not match a real enum constant: {@code
+     * TimeUnit.SECONDS} is an {@code ENUM_CONSTANT}, not a {@code FIELD}, so {@code
+     * resolveSingleValue}'s existing {@code ENUM_CONSTANT} loop -- not the fallback this task added
+     * -- is the one that must resolve it. This pins the two-step split in {@code
+     * resolveSingleValue}: try the enum-constant loop first, and only fall back to {@code
+     * findFieldInType} when that loop does not find the member.
+     */
+    @Test
+    public void findFieldInTypeDoesNotMatchAnEnumConstant() {
+        ProcessingEnvironment env = freshProcessingEnvironment();
+        TypeElement timeUnitElt =
+                env.getElementUtils().getTypeElement("java.util.concurrent.TimeUnit");
+        Assert.assertNotNull("java.util.concurrent.TimeUnit must resolve", timeUnitElt);
+
+        VariableElement secondsAsField =
+                BinaryStubReader.findFieldInType(timeUnitElt, "SECONDS", env);
+        Assert.assertNull(
+                "SECONDS is an ENUM_CONSTANT, not a FIELD, so findFieldInType must not match it",
+                secondsAsField);
     }
 
     /**
