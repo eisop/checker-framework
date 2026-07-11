@@ -291,11 +291,17 @@ public class BinaryStubWriterTest {
     }
 
     /**
-     * An annotation whose <em>simple</em> name resolves to nothing is not a failure: neither {@code
-     * BinaryStubReader} nor the text parser can resolve such a name (both look it up with {@code
-     * Elements.getTypeElement} and skip it on null), so both drop the annotation and the binary
-     * form's routing of it cannot matter. Four names in the shipped stub sources reach this case,
-     * including a misspelled {@code SafeEFfect} and an unimported {@code EnsuresNonNullIf}.
+     * An annotation whose <em>simple</em> name resolves to nothing, in a compilation unit with no
+     * asterisk import, is not a failure: nothing (no {@code java.lang} match, no explicit import,
+     * no asterisk import -- there is none) could have supplied the name, so neither {@code
+     * BinaryStubReader} nor the text parser can resolve it either ({@code
+     * AnnotationFileParser.getAnnotation} looks the as-written name up with {@code
+     * Elements.getTypeElement}, which fails the same way on a bare, unqualified name), and the
+     * binary form's routing of it cannot matter. The annotated JDK's own
+     * {@code @SuppressFBWarnings} and {@code @ConstructorProperties} (used by same-package
+     * visibility, with no import) reach this case today. Contrast with {@link
+     * #unresolvableSimpleNameWithAsteriskImportFailsRatherThanBeingDropped}, where an asterisk
+     * import exists and this IS a failure.
      */
     @Test
     public void unresolvableSimpleAnnotationNameIsNotAFailure() throws IOException {
@@ -316,6 +322,30 @@ public class BinaryStubWriterTest {
         } finally {
             tmp.delete();
         }
+    }
+
+    /**
+     * An annotation whose <em>simple</em> name resolves to nothing IS a failure when the
+     * compilation unit has an asterisk import: {@link BinaryStubWriter#fullyQualifyAnnotationName}
+     * tried the asterisk-imported package via {@code Class.forName} and failed, but that only
+     * proves the package is absent from the stubifier's own build classpath -- not that a checker's
+     * {@code Elements}, resolving against whatever classpath its invocation supplies, would also
+     * fail. Silently treating this the same as the no-import case above would route the annotation
+     * as a bare, unqualified name that {@code BinaryStubReader} can never resolve either, dropping
+     * an annotation the text parser could have resolved, with no diagnostic on either side.
+     */
+    @Test
+    public void unresolvableSimpleNameWithAsteriskImportFailsRatherThanBeingDropped() {
+        BinaryStubWriter writer = new BinaryStubWriter();
+        CompilationUnit cu =
+                StaticJavaParser.parse(
+                        "import com.example.*;\n"
+                                + "public class Uses { @NeverImported Object f; }");
+        RuntimeException e = Assert.assertThrows(RuntimeException.class, () -> writer.process(cu));
+        Assert.assertTrue(
+                "the failure must name the annotation it could not resolve, but was: "
+                        + e.getMessage(),
+                e.getMessage().contains("NeverImported"));
     }
 
     /**

@@ -3,6 +3,7 @@ package org.checkerframework.framework.stubifier;
 import com.github.javaparser.StaticJavaParser;
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.ImportDeclaration;
+import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.body.AnnotationDeclaration;
 import com.github.javaparser.ast.body.AnnotationMemberDeclaration;
 import com.github.javaparser.ast.body.BodyDeclaration;
@@ -64,6 +65,7 @@ import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.zip.GZIPOutputStream;
 
@@ -604,9 +606,15 @@ public class BinaryStubWriter {
      * package (the text parser unconditionally adds all {@code java.lang} annotations, so e.g. an
      * unimported {@code @Override} resolves — and {@code java.lang} wins name conflicts because it
      * is added last there), then against the file's explicit imports, then against its asterisk
-     * imports. A name that resolves through none of these is returned unchanged; the reader will
-     * then fail to resolve it and drop the annotation — exactly as the text parser drops
-     * annotations it cannot resolve.
+     * imports. A name that resolves through none of these is returned unchanged.
+     *
+     * <p>An unchanged (dotless) result is NOT always safe to treat as unresolvable by both this
+     * writer and the text parser: the asterisk-import probe above resolves a candidate package via
+     * {@code Class.forName} on the stubifier's own (narrow) build classpath, so failure there only
+     * proves the package is absent from THAT classpath, not that {@code Elements} would fail to
+     * resolve it at checker runtime on whatever classpath the checker's invocation supplies. {@link
+     * #annotationTargets} is the caller that acts on this distinction: see its documentation for
+     * how it tells a genuinely-unresolvable name (no import at all) apart from this case.
      *
      * @param name the annotation name as written in the source
      * @return the fully-qualified annotation name, or {@code name} if it cannot be resolved
@@ -753,28 +761,61 @@ public class BinaryStubWriter {
      * for any stub file naming a third-party annotation. Fail instead: the caller turns this into a
      * skipped stub file, which then keeps its text parsing.
      *
-     * <p>A name that is not fully qualified was never resolved at all -- no import, no {@code
-     * java.lang} match, no asterisk import matched it (see {@link #fullyQualifyAnnotationName}).
-     * There is nothing to fail over: neither {@code BinaryStubReader} nor the text parser can
-     * resolve such a name either ({@code AnnotationFileParser.getAnnotation} looks it up with
-     * {@code Elements.getTypeElement} and skips it on null), so both drop the annotation and the
-     * binary form's routing of it cannot matter. Two names in the annotated JDK reach this case
-     * ({@code SuppressFBWarnings}, {@code ConstructorProperties}) and two in the built-in stub
-     * files ({@code EnsuresNonNullIf}, misspelled {@code SafeEFfect}, both missing an import in
-     * their {@code .astub}).
+     * <p>A dotless result from {@link #fullyQualifyAnnotationName} means the name was never
+     * resolved: no {@code java.lang} match, no explicit import, no asterisk import matched it
+     * either. Two different situations produce that outcome, and only one of them is safe to treat
+     * as "no {@code @Target}" silently:
+     *
+     * <ul>
+     *   <li>The compilation unit has no asterisk import at all, so nothing could have supplied the
+     *       name -- it is either a typo or (as with the JDK's own {@code java.beans.EventHandler}
+     *       and {@code java.beans.Statement}, which use {@code @ConstructorProperties} by
+     *       same-package visibility with no import) a reference the text parser cannot qualify
+     *       either: {@code AnnotationFileParser.getAnnotation} looks the as-written name up with
+     *       {@code Elements.getTypeElement}, which requires a canonical name and so also fails on a
+     *       bare same-package reference. Neither this writer nor the text parser can resolve such a
+     *       name, so both drop the annotation and the binary form's routing of it cannot matter.
+     *       {@code SuppressFBWarnings} and {@code ConstructorProperties} are the two names in the
+     *       annotated JDK that reach this case today.
+     *   <li>The compilation unit DOES have an asterisk import, and {@link
+     *       #fullyQualifyAnnotationName} tried every one of them via {@code Class.forName} and
+     *       failed for all of them. That only shows the package is missing from the stubifier's own
+     *       narrow build classpath (stubparser plus checker-qual) -- not that a checker's {@code
+     *       Elements}, resolving against whatever classpath its invocation supplies, would also
+     *       fail. Silently falling through here used to route the annotation as a bare, unqualified
+     *       name that {@code BinaryStubReader} then also cannot resolve ({@code AnnotationBuilder}
+     *       throws a {@code UserError} that is swallowed to {@code null}) -- dropping an annotation
+     *       the text parser could have resolved, with no diagnostic on either side. Fail instead,
+     *       the same way as the dotted {@code NOT_LOADABLE} case below.
+     * </ul>
      *
      * @param anno the annotation expression
      * @return the {@code @Target} element types, or {@link #NO_TARGET} if the annotation declares
-     *     none or its simple name could not be resolved
+     *     none, or its simple name could not be resolved and no asterisk import could be
+     *     responsible
      * @throws IOException if {@code anno}'s name resolved to a fully-qualified name whose class
-     *     cannot be loaded, leaving its {@code @Target} unknown
+     *     cannot be loaded, or is a dotless name that an asterisk import in the same compilation
+     *     unit might have supplied, leaving its {@code @Target} unknown either way
      */
     private ElementType[] annotationTargets(AnnotationExpr anno) throws IOException {
         String fqn = fullyQualifyAnnotationName(anno.getNameAsString());
         ElementType[] targets = annotationTargetsByName(fqn);
         if (targets == NOT_LOADABLE) {
             if (fqn.indexOf('.') == -1) {
-                return NO_TARGET;
+                if (asteriskImportPackages.isEmpty()) {
+                    return NO_TARGET;
+                }
+                throw new IOException(
+                        "cannot resolve annotation @"
+                                + fqn
+                                + " in "
+                                + sourceDescription(anno)
+                                + ": it matched neither java.lang, nor an explicit import, nor any"
+                                + " of this file's asterisk imports ("
+                                + String.join(", ", asteriskImportPackages)
+                                + ") on the stubifier's classpath, so its @Target cannot be read;"
+                                + " put the annotation's declaring package on the stubifier"
+                                + " classpath, or import the annotation explicitly");
             }
             throw new IOException(
                     "cannot load annotation "
@@ -783,6 +824,25 @@ public class BinaryStubWriter {
                             + " declaration; put it on the stubifier classpath");
         }
         return targets;
+    }
+
+    /**
+     * Returns a description of {@code node}'s source file for use in error messages, or the node's
+     * compilation unit if no file storage is available (e.g. a compilation unit parsed from a
+     * stream, as {@link BinaryStubFileGenerator} does).
+     *
+     * @param node an AST node
+     * @return a description of the node's source, for diagnostics
+     */
+    private static String sourceDescription(Node node) {
+        Optional<CompilationUnit> cu = node.findCompilationUnit();
+        if (!cu.isPresent()) {
+            return "<unknown source>";
+        }
+        return cu.get()
+                .getStorage()
+                .map(s -> s.getPath().toString())
+                .orElseGet(() -> cu.get().toString());
     }
 
     /**
