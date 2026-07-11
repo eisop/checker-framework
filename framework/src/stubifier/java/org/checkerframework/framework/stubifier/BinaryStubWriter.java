@@ -1140,6 +1140,9 @@ public class BinaryStubWriter {
 
     /**
      * Fully qualifies a JavaParser type by resolving it against the compilation unit's imports.
+     * Used only for class-literal types ({@code ClassExpr.getType()}), which JLS 15.8.2 requires to
+     * be raw (no type arguments), so a scoped {@code ClassOrInterfaceType} never carries type
+     * arguments at any level here.
      *
      * @param type the type to fully qualify
      * @param cu the compilation unit, used to resolve imports
@@ -1148,8 +1151,29 @@ public class BinaryStubWriter {
     private Type fullyQualify(Type type, CompilationUnit cu) {
         if (type instanceof ClassOrInterfaceType) {
             ClassOrInterfaceType cit = (ClassOrInterfaceType) type;
-            String name = cit.getNameAsString();
-            if (!cit.getScope().isPresent()) {
+            if (cit.getScope().isPresent()) {
+                // A scoped name like "Map.Entry": only the outermost scope ("Map") can be an
+                // imported or same-package simple name -- the nested parts ("Entry") are member
+                // types resolved relative to it, not independently importable. Qualify the
+                // outermost scope through the same tables as the unscoped case, then re-attach
+                // the nested simple names unchanged ("Map.Entry" -> "java.util.Map.Entry").
+                // Before this fix, a scoped ClassOrInterfaceType was never qualified at all, so
+                // e.g. "Map.Entry.class" with "import java.util.Map;" in scope was written as
+                // "Map.Entry" -- unresolvable by BinaryStubReader#resolveSingleValue's single
+                // Elements.getTypeElement(fqName) call.
+                ClassOrInterfaceType scope = cit;
+                StringBuilder nestedNames = new StringBuilder();
+                while (scope.getScope().isPresent()) {
+                    nestedNames.insert(0, "." + scope.getNameAsString());
+                    scope = scope.getScope().get();
+                }
+                String outerName = scope.getNameAsString();
+                String fqOuter = fullyQualify(outerName, cu);
+                if (!fqOuter.equals(outerName)) {
+                    return StaticJavaParser.parseType(fqOuter + nestedNames);
+                }
+            } else {
+                String name = cit.getNameAsString();
                 String fq = fullyQualify(name, cu);
                 if (!fq.equals(name)) {
                     return StaticJavaParser.parseType(fq);

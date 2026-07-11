@@ -832,6 +832,49 @@ public class BinaryStubWriterTest {
     }
 
     /**
+     * T20(b): a scoped class-literal type like {@code Map.Entry} must be qualified through its
+     * outermost scope, not skipped just because {@code ClassOrInterfaceType.getScope()} is present.
+     * Before this fix, {@code fullyQualify(Type, CompilationUnit)} qualified a {@code
+     * ClassOrInterfaceType} only when {@code !cit.getScope().isPresent()}, so {@code Map.Entry} was
+     * written as-is even with {@code import java.util.Map;} in scope.
+     */
+    @Test
+    public void scopedClassLiteralIsFullyQualified() throws IOException {
+        BinaryStubWriter writer = new BinaryStubWriter();
+        CompilationUnit cu =
+                StaticJavaParser.parse(
+                        "import java.util.Map;\n"
+                                + "import org.checkerframework.framework.qual.RelevantJavaTypes;\n"
+                                + "@RelevantJavaTypes(Map.Entry.class)\n"
+                                + "public class UsesScopedLiteral { }\n");
+        writer.process(cu);
+
+        File tmp = File.createTempFile("binarystubwritertest", ".bin.gz");
+        tmp.deleteOnExit();
+        try {
+            writer.writeTo(tmp);
+            BinaryStubData data;
+            try (InputStream in = Files.newInputStream(tmp.toPath())) {
+                data = new BinaryStubData(in);
+            }
+            BinaryStubData.ClassRecord cr = data.classes.get("UsesScopedLiteral");
+            Assert.assertNotNull("UsesScopedLiteral must be recorded", cr);
+            Assert.assertEquals(1, cr.declAnnos.length);
+            BinaryStubData.AnnotationRecord ar = data.annotationPool[cr.declAnnos[0]];
+            Object value = ar.elementValues.values().iterator().next();
+            Assert.assertTrue(
+                    "the class literal must be written as a ClassLiteralValue, but was: " + value,
+                    value instanceof BinaryStubData.ClassLiteralValue);
+            Assert.assertEquals(
+                    "a scoped type like Map.Entry must be qualified through its outermost scope",
+                    "java.util.Map.Entry",
+                    ((BinaryStubData.ClassLiteralValue) value).className);
+        } finally {
+            tmp.delete();
+        }
+    }
+
+    /**
      * Parses {@code source} with language level JAVA_21, required for record declarations.
      * StaticJavaParser's default language level is older; production code
      * (JavaStubifier.DEFAULT_LANGUAGE_LEVEL, BinaryStubFileGenerator.parseStubUnit) both configure
