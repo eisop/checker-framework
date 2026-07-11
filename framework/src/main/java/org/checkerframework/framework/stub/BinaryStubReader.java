@@ -108,31 +108,90 @@ public class BinaryStubReader {
             AnnotationFileAnnotations target,
             boolean fromLazyJdk) {
         for (Map.Entry<String, int[]> entry : data.packages.entrySet()) {
-            AnnotationMirrorSet pkgDeclAnnos =
-                    parseApplicableDeclAnnos(
-                            entry.getValue(),
-                            ElementKind.PACKAGE,
-                            null,
-                            data,
-                            atypeFactory,
-                            elementTypes);
-            if (!pkgDeclAnnos.isEmpty()) {
-                mergeDeclAnnos(target, entry.getKey(), pkgDeclAnnos, fromLazyJdk);
-            }
+            applyPackageOrModuleRecord(
+                    entry.getKey(),
+                    entry.getValue(),
+                    ElementKind.PACKAGE,
+                    data,
+                    atypeFactory,
+                    elementTypes,
+                    target,
+                    fromLazyJdk);
         }
         for (Map.Entry<String, int[]> entry : data.modules.entrySet()) {
-            AnnotationMirrorSet modDeclAnnos =
-                    parseApplicableDeclAnnos(
-                            entry.getValue(),
-                            ElementKind.MODULE,
-                            null,
-                            data,
-                            atypeFactory,
-                            elementTypes);
-            if (!modDeclAnnos.isEmpty()) {
-                mergeDeclAnnos(target, entry.getKey(), modDeclAnnos, fromLazyJdk);
+            applyPackageOrModuleRecord(
+                    entry.getKey(),
+                    entry.getValue(),
+                    ElementKind.MODULE,
+                    data,
+                    atypeFactory,
+                    elementTypes,
+                    target,
+                    fromLazyJdk);
+        }
+    }
+
+    /**
+     * Applies the declaration annotations of a single package or module record, honoring
+     * {@code @AnnotatedFor} the same way {@link #applyClassRecord} does for classes.
+     *
+     * @param name the fully-qualified package or module name
+     * @param annoPoolIndices indices into {@link BinaryStubData#annotationPool} for this record's
+     *     declaration annotations
+     * @param kind {@link ElementKind#PACKAGE} or {@link ElementKind#MODULE}
+     * @param data the complete binary stub data, providing the string pool and annotation pool
+     * @param atypeFactory the factory used to create types and parse annotations
+     * @param elementTypes per-factory state, including the annotation-mirror cache
+     * @param target the annotation container to store the results in
+     * @param fromLazyJdk true if this is the lazily-loaded annotated JDK; false if it is a built-in
+     *     stub file
+     */
+    private static void applyPackageOrModuleRecord(
+            String name,
+            int[] annoPoolIndices,
+            ElementKind kind,
+            BinaryStubData data,
+            AnnotatedTypeFactory atypeFactory,
+            AnnotationFileElementTypes elementTypes,
+            AnnotationFileAnnotations target,
+            boolean fromLazyJdk) {
+        AnnotationMirrorSet declAnnos =
+                parseDeclAnnos(annoPoolIndices, null, data, atypeFactory, elementTypes);
+        // @AnnotatedFor check: match AnnotationFileParser.isAnnotatedForThisChecker -- but only
+        // for a built-in stub file (!fromLazyJdk), for the same reason applyClassRecord's
+        // identical gate is scoped to fromStubFileAnno != null: isAnnotatedForThisChecker always
+        // returns true, without even inspecting the annotation, when parsing the JDK.
+        if (!fromLazyJdk && !isAnnotatedForThisChecker(declAnnos, atypeFactory)) {
+            return;
+        }
+        AnnotationMirrorSet applicable = filterApplicable(declAnnos, kind);
+        if (!applicable.isEmpty()) {
+            mergeDeclAnnos(target, name, applicable, fromLazyJdk);
+        }
+    }
+
+    /**
+     * Returns whether {@code declAnnos} permits this checker to see the enclosing declaration's
+     * stub annotations: true unless one of {@code declAnnos} is {@code @AnnotatedFor} and the
+     * current checker is not among the checkers it lists. Matches {@code
+     * AnnotationFileParser.isAnnotatedForThisChecker} for the non-JDK case (callers are responsible
+     * for skipping this check entirely when parsing the JDK, since {@code
+     * isAnnotatedForThisChecker} unconditionally returns true there).
+     *
+     * @param declAnnos the (unfiltered) declaration annotations parsed for the element
+     * @param atypeFactory the factory used to evaluate {@code @AnnotatedFor}
+     * @return false if {@code declAnnos} contains an {@code @AnnotatedFor} that excludes this
+     *     checker; true otherwise
+     */
+    private static boolean isAnnotatedForThisChecker(
+            AnnotationMirrorSet declAnnos, AnnotatedTypeFactory atypeFactory) {
+        for (AnnotationMirror am : declAnnos) {
+            if (AnnotationUtils.annotationName(am)
+                    == "org.checkerframework.framework.qual.AnnotatedFor") {
+                return atypeFactory.doesAnnotatedForApplyToThisChecker(am);
             }
         }
+        return true;
     }
 
     /**
@@ -228,16 +287,8 @@ public class BinaryStubReader {
         // unconditionally regressed hundreds of JDK classes carrying @AnnotatedFor for an
         // unrelated checker (e.g. @AnnotatedFor("interning")) to have no declaration annotations
         // at all under every other checker.
-        if (fromStubFileAnno != null) {
-            for (AnnotationMirror am : classDeclAnnos) {
-                if (AnnotationUtils.annotationName(am)
-                        == "org.checkerframework.framework.qual.AnnotatedFor") {
-                    if (!atypeFactory.doesAnnotatedForApplyToThisChecker(am)) {
-                        return;
-                    }
-                    break;
-                }
-            }
+        if (fromStubFileAnno != null && !isAnnotatedForThisChecker(classDeclAnnos, atypeFactory)) {
+            return;
         }
         if (!classDeclAnnos.isEmpty()) {
             AnnotationMirrorSet applicable = filterApplicable(classDeclAnnos, typeElt.getKind());
