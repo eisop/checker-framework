@@ -797,7 +797,15 @@ public class BinaryStubReader {
      * Matching {@code AnnotationFileParser.processFakeOverride}, only the return-type annotations
      * are applied (to a fresh {@code getAnnotatedType} of the overridden method), and the result is
      * stored in {@link AnnotationFileAnnotations#fakeOverrides} keyed by the overridden method,
-     * together with the type of the class the stub declared it on.
+     * together with the type of the class the stub declared it on -- unconditionally, even when
+     * {@code mr.returnTypeAnnos} is empty: a fake override resets the member's type at this subtype
+     * to a fresh {@code getAnnotatedType(overridden)}, overruling whatever was computed before, and
+     * that reset applies regardless of whether the fake-override declaration itself carries any
+     * annotations (see {@code AnnotatedTypeFactory#applyFakeOverrides}, which wholesale-replaces
+     * the viewpoint-adapted member type whenever a stored entry is present). This call runs under
+     * {@link AnnotationFileElementTypes}'s {@code parsingCount} bracketing (commit c0ba0bba4), the
+     * same protection the built-in and text-parsing paths rely on for the {@code
+     * atypeFactory.getAnnotatedType(overridden)} call below, which can reenter this reader.
      *
      * @param mr the method record whose signature did not match any declared method
      * @param sig the method's simple signature
@@ -817,10 +825,6 @@ public class BinaryStubReader {
             AnnotatedTypeFactory atypeFactory,
             AnnotationFileElementTypes elementTypes,
             AnnotationFileAnnotations target) {
-        if (mr.returnTypeAnnos.length == 0) {
-            // The text parser applies only return-type annotations to fake overrides.
-            return;
-        }
         ExecutableElement overridden = findFakeOverriddenMethod(typeElt, sig, elementTypes);
         if (overridden == null) {
             // Also not inherited: the stub does not match the JDK being compiled against.
