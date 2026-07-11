@@ -119,6 +119,37 @@ public class BinaryStubWriter {
     public static final String BIN_SUFFIX = ".bin.gz";
 
     /**
+     * {@code ClassRecord.kind} value for a class or interface declaration: both {@code
+     * ElementKind.CLASS} and {@code ElementKind.INTERFACE} map to this constant. This is the
+     * canonical definition; {@code
+     * org.checkerframework.framework.stub.BinaryStubData.ClassRecord#KIND_CLASS_OR_INTERFACE}
+     * references it.
+     */
+    public static final byte KIND_CLASS_OR_INTERFACE = 0;
+
+    /**
+     * {@code ClassRecord.kind} value for an enum declaration. This is the canonical definition;
+     * {@code org.checkerframework.framework.stub.BinaryStubData.ClassRecord#KIND_ENUM} references
+     * it.
+     */
+    public static final byte KIND_ENUM = 1;
+
+    /**
+     * {@code ClassRecord.kind} value for an annotation-type declaration. This is the canonical
+     * definition; {@code
+     * org.checkerframework.framework.stub.BinaryStubData.ClassRecord#KIND_ANNOTATION_TYPE}
+     * references it.
+     */
+    public static final byte KIND_ANNOTATION_TYPE = 2;
+
+    /**
+     * {@code ClassRecord.kind} value for a record declaration. This is the canonical definition;
+     * {@code org.checkerframework.framework.stub.BinaryStubData.ClassRecord#KIND_RECORD} references
+     * it.
+     */
+    public static final byte KIND_RECORD = 3;
+
+    /**
      * Fully-qualified name of {@code CFComment}, which is never written to the binary format; see
      * {@link AnnotationPool#addAnnotation}.
      */
@@ -423,21 +454,6 @@ public class BinaryStubWriter {
 
     /** Represents the annotations and members of a single class. */
     private static class ClassRecord {
-        /**
-         * {@link #kind} value for a class or interface declaration: both {@code ElementKind.CLASS}
-         * and {@code ElementKind.INTERFACE} map to this constant.
-         */
-        static final byte KIND_CLASS_OR_INTERFACE = 0;
-
-        /** {@link #kind} value for an enum declaration. */
-        static final byte KIND_ENUM = 1;
-
-        /** {@link #kind} value for an annotation-type declaration. */
-        static final byte KIND_ANNOTATION_TYPE = 2;
-
-        /** {@link #kind} value for a record declaration. */
-        static final byte KIND_RECORD = 3;
-
         /** Index of the fully-qualified class name in the constant pool. */
         int nameIndex;
 
@@ -1176,8 +1192,8 @@ public class BinaryStubWriter {
      *     top-level declarations
      * @param outermostFqn the fully-qualified name of the outermost enclosing class, or empty for
      *     top-level declarations
-     * @param kind one of the {@link ClassRecord}{@code .KIND_*} constants, identifying which of the
-     *     three callers this is
+     * @param kind one of this class's {@code KIND_*} constants, identifying which of the three
+     *     callers this is
      * @param cu the compilation unit
      * @return the registered class record, or {@code null} if the declaration is skipped. Its
      *     {@link ClassRecord#fqn} and {@link ClassRecord#childOutermostFqn} fields carry the
@@ -1237,7 +1253,7 @@ public class BinaryStubWriter {
                         typeDecl.getAnnotations(),
                         enclosingFqn,
                         outermostFqn,
-                        ClassRecord.KIND_CLASS_OR_INTERFACE,
+                        KIND_CLASS_OR_INTERFACE,
                         cu);
         if (cr == null) {
             return;
@@ -1276,7 +1292,7 @@ public class BinaryStubWriter {
                         enumDecl.getAnnotations(),
                         enclosingFqn,
                         outermostFqn,
-                        ClassRecord.KIND_ENUM,
+                        KIND_ENUM,
                         cu);
         if (cr == null) {
             return;
@@ -1336,7 +1352,7 @@ public class BinaryStubWriter {
                         annoDecl.getAnnotations(),
                         enclosingFqn,
                         outermostFqn,
-                        ClassRecord.KIND_ANNOTATION_TYPE,
+                        KIND_ANNOTATION_TYPE,
                         cu);
         if (cr == null) {
             return;
@@ -1370,7 +1386,7 @@ public class BinaryStubWriter {
                         recordDecl.getAnnotations(),
                         enclosingFqn,
                         outermostFqn,
-                        ClassRecord.KIND_RECORD,
+                        KIND_RECORD,
                         cu);
         if (cr == null) {
             return;
@@ -1979,7 +1995,7 @@ public class BinaryStubWriter {
                     writeTypeParams(out, mr.typeParams);
                 }
                 writeTypeParams(out, cr.typeParams);
-                if (cr.kind == ClassRecord.KIND_RECORD) {
+                if (cr.kind == KIND_RECORD) {
                     writeCount(out, cr.components.size(), "record components");
                     for (ComponentRecord comp : cr.components) {
                         out.writeInt(comp.nameIndex);

@@ -411,18 +411,32 @@ public class BinaryStubData {
     public static class ClassRecord {
         /**
          * {@link #kind} value for a class or interface declaration: both {@code ElementKind.CLASS}
-         * and {@code ElementKind.INTERFACE} map to this constant.
+         * and {@code ElementKind.INTERFACE} map to this constant. Defined once in {@link
+         * org.checkerframework.framework.stubifier.BinaryStubWriter#KIND_CLASS_OR_INTERFACE}.
          */
-        public static final byte KIND_CLASS_OR_INTERFACE = 0;
+        public static final byte KIND_CLASS_OR_INTERFACE =
+                org.checkerframework.framework.stubifier.BinaryStubWriter.KIND_CLASS_OR_INTERFACE;
 
-        /** {@link #kind} value for an enum declaration. */
-        public static final byte KIND_ENUM = 1;
+        /**
+         * {@link #kind} value for an enum declaration. Defined once in {@link
+         * org.checkerframework.framework.stubifier.BinaryStubWriter#KIND_ENUM}.
+         */
+        public static final byte KIND_ENUM =
+                org.checkerframework.framework.stubifier.BinaryStubWriter.KIND_ENUM;
 
-        /** {@link #kind} value for an annotation-type declaration. */
-        public static final byte KIND_ANNOTATION_TYPE = 2;
+        /**
+         * {@link #kind} value for an annotation-type declaration. Defined once in {@link
+         * org.checkerframework.framework.stubifier.BinaryStubWriter#KIND_ANNOTATION_TYPE}.
+         */
+        public static final byte KIND_ANNOTATION_TYPE =
+                org.checkerframework.framework.stubifier.BinaryStubWriter.KIND_ANNOTATION_TYPE;
 
-        /** {@link #kind} value for a record declaration. */
-        public static final byte KIND_RECORD = 3;
+        /**
+         * {@link #kind} value for a record declaration. Defined once in {@link
+         * org.checkerframework.framework.stubifier.BinaryStubWriter#KIND_RECORD}.
+         */
+        public static final byte KIND_RECORD =
+                org.checkerframework.framework.stubifier.BinaryStubWriter.KIND_RECORD;
 
         /**
          * Index into {@link BinaryStubData#stringPool} of the fully-qualified class name (using
