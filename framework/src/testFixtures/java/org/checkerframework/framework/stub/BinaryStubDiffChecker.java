@@ -822,6 +822,41 @@ public class BinaryStubDiffChecker {
      * the text parser drops it whenever its value uses string concatenation (which it cannot
      * evaluate), whereas the binary writer evaluates the concatenation and keeps it.
      *
+     * <p>The restriction to {@code org.checkerframework.} names is deliberate, not merely
+     * unfinished: this method is used only for declaration annotations (see the two call sites),
+     * and widening it to compare all declaration annotations was tried and reverted. Doing so
+     * surfaced mismatches that are text-parser name-resolution quirks, not binary-reader bugs, for
+     * example (observed comparing the JDK 21 annotated JDK, both under {@code
+     * NullnessBinaryStubDiffTest}):
+     *
+     * <ul>
+     *   <li>{@code java.lang.Override}/{@code java.lang.Deprecated}/{@code
+     *       java.lang.SuppressWarnings}: the binary reader resolves the
+     *       {@code @Retention}/{@code @Target} meta-annotations written on these annotation-type
+     *       declarations themselves; the text parser does not import or resolve them there and
+     *       drops them.
+     *   <li>{@code com.sun.tools.javac.file.JavacFileManager.setPathFactory(..)}: a
+     *       {@code @DefinedBy} annotation reachable only via a static import; the text parser's
+     *       {@code AnnotationFileParser.findVariableElement(NameExpr)} resolution does not cover
+     *       this position, so it drops the annotation while the binary writer's build-time
+     *       classpath resolution keeps it.
+     *   <li>{@code com.sun.tools.javac.api.ClientCodeWrapper.Trusted}, {@code
+     *       java.lang.invoke.LambdaForm.Compiled}, {@code Tree.Kind.DEFAULT_CASE_LABEL}:
+     *       JDK-internal meta-annotations ({@code @Retention}/{@code @Target}/{@code
+     *       jdk.internal.javac.PreviewFeature}) on JDK-internal declarations that the text parser
+     *       never resolves (they are not imported by the stub source), but that the binary writer,
+     *       running against the full JDK classpath at build time, resolves and keeps.
+     * </ul>
+     *
+     * <p>None of the dropped names are consumed by any checker from a stub file, so the asymmetry
+     * is benign; see the caller-side comment in {@link #compareClass} for the rationale from the
+     * comparison's point of view. If {@code org.jspecify} annotations enter the annotated JDK in
+     * the future, they will fall on the excluded side of this filter and go unverified by this
+     * harness until this method is revisited (the JDK minimizer already preserves {@code
+     * org.jspecify} content per {@code framework/build.gradle}'s {@code
+     * copyAndMinimizeAnnotatedJdkFiles} configuration, so this is a real, not merely hypothetical,
+     * gap).
+     *
      * @param annos the annotation set, may be {@code null}
      * @return the sorted Checker Framework annotation class names
      */
