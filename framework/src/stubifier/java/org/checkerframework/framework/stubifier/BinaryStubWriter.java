@@ -1227,40 +1227,14 @@ public class BinaryStubWriter {
                 return inCurrentPackage;
             }
         }
-        for (ImportDeclaration imp : cu.getImports()) {
-            if (!imp.isAsterisk()) {
-                String impName = imp.getNameAsString();
-                if (impName.endsWith("." + name)) {
-                    return impName;
-                }
-            }
-        }
-        if (name.equals("String")
-                || name.equals("Object")
-                || name.equals("Class")
-                || name.equals("Enum")
-                || name.equals("Math")
-                || name.equals("System")
-                || name.equals("Thread")
-                || name.equals("Exception")
-                || name.equals("RuntimeException")
-                || name.equals("Throwable")
-                || name.equals("Error")) {
-            return "java.lang." + name;
-        }
-        try {
-            Class.forName("java.lang." + name);
-            return "java.lang." + name;
-        } catch (ClassNotFoundException e) {
-            // ignore
+        String javaLang = classInPackage("java.lang", name);
+        if (javaLang != null) {
+            return javaLang;
         }
         for (String pkg : asteriskImportPackages) {
-            String candidate = pkg + "." + name;
-            try {
-                Class.forName(candidate);
+            String candidate = classInPackage(pkg, name);
+            if (candidate != null) {
                 return candidate;
-            } catch (ClassNotFoundException e) {
-                // Try the next asterisk import.
             }
         }
         return name;
