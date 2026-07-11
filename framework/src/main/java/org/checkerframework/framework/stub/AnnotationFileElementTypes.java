@@ -392,7 +392,12 @@ public class AnnotationFileElementTypes {
      */
     Map<String, ExecutableElement> methodSigIndex(TypeElement typeElt) {
         return methodSigIndexCache.computeIfAbsent(
-                typeElt, t -> buildSigIndex(ElementFilter.methodsIn(t.getEnclosedElements())));
+                typeElt,
+                t ->
+                        buildSigIndex(
+                                ElementFilter.methodsIn(t.getEnclosedElements()),
+                                stubDebug,
+                                atypeFactory.getProcessingEnv()));
     }
 
     /**
@@ -405,18 +410,42 @@ public class AnnotationFileElementTypes {
      */
     Map<String, ExecutableElement> constructorSigIndex(TypeElement typeElt) {
         return constructorSigIndexCache.computeIfAbsent(
-                typeElt, t -> buildSigIndex(ElementFilter.constructorsIn(t.getEnclosedElements())));
+                typeElt,
+                t ->
+                        buildSigIndex(
+                                ElementFilter.constructorsIn(t.getEnclosedElements()),
+                                stubDebug,
+                                atypeFactory.getProcessingEnv()));
     }
 
     /**
-     * Builds a map from simple signature to element for the given executables. Package-private
-     * (rather than private) so that {@code AnnotationFileElementTypesTest} can exercise it directly
-     * with a constructed list of executables, without needing a full {@link AnnotatedTypeFactory}.
+     * Builds a map from simple signature to element for the given executables, with debug printing
+     * disabled. Package-private (rather than private) so that {@code
+     * AnnotationFileElementTypesTest} can exercise it directly with a constructed list of
+     * executables, without needing a full {@link AnnotatedTypeFactory}.
      *
      * @param executables the methods or constructors to index
      * @return map from simple signature to element
      */
     static Map<String, ExecutableElement> buildSigIndex(List<ExecutableElement> executables) {
+        return buildSigIndex(executables, false, null);
+    }
+
+    /**
+     * Builds a map from simple signature to element for the given executables.
+     *
+     * @param executables the methods or constructors to index
+     * @param stubDebug true if {@code -AstubDebug} was passed on the command line; if so, an
+     *     executable that is skipped because its signature cannot be computed is reported via
+     *     {@code processingEnv}
+     * @param processingEnv the processing environment to report skipped executables through; may be
+     *     null if {@code stubDebug} is false
+     * @return map from simple signature to element
+     */
+    static Map<String, ExecutableElement> buildSigIndex(
+            List<ExecutableElement> executables,
+            boolean stubDebug,
+            @Nullable ProcessingEnvironment processingEnv) {
         Map<String, ExecutableElement> index = new HashMap<>(executables.size() * 2);
         for (ExecutableElement executable : executables) {
             try {
@@ -427,6 +456,13 @@ public class AnnotationFileElementTypes {
                 // BugInCF for exactly that case, e.g. a JDK-internal parameter type like
                 // sun.util.locale.provider.LocaleResources that is not exported to the annotation
                 // processor's module. Such executables cannot be matched by any stub record anyway.
+                if (stubDebug) {
+                    AnnotationFileParser.stubDebugStatic(
+                            processingEnv,
+                            "buildSigIndex: skipping %s, signature could not be computed: %s",
+                            executable,
+                            e.getMessage());
+                }
             }
         }
         return index;
