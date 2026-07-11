@@ -53,6 +53,12 @@ Performance optimizations:
 - `AnnotatedTypeScanner.visitedNodes` is now lazily allocated.
 - Made `StructuralEqualityComparer.arePrimaryAnnosEqual` non-mutating, enabling
   comparison of shared immutable types.
+- Optimized the Value Checker and annotation construction: `AnnotationBuilder`
+  gained a `TypeElement`-taking constructor and a fast path that avoids an
+  `Elements.getTypeElement` lookup per annotation value; final local values are
+  indexed by declaring element instead of scanned per method (quadratic in
+  methods per class); `ValueQualifierHierarchy` uses cached `value()` elements.
+  Wall clock on constant-heavy 1500-method classes improved ~18%.
 
 Other improvements and bug fixes:
 - `TreeUtils` has a new `inferredTypeArguments(ExpressionTree)` method to

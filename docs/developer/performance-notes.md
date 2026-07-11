@@ -202,6 +202,27 @@ so small per-call wins paid back substantially.
   callers that only need identity comparison or hashing now go through
   it. `Name` instances from the same `Elements` are guaranteed
   comparable by `==` within one javac invocation.
+- **`AnnotationBuilder`: name-match fast path in `checkSubtype`, and a `TypeElement`-taking
+  constructor (July 2026, Value-checker campaign).** On an annotation-construction-heavy workload
+  (Value checker over 1500-method constant-heavy classes; see the Value Checker section),
+  `AnnotationBuilder.checkSubtype` was **9.0% inclusive** and `AnnotationBuilder.<init>` **2.9%**.
+  Both costs were `Elements.getTypeElement(CharSequence)`: javac validates the name on every call
+  (`SourceVersion.isName` = a `String.split` plus per-segment `isIdentifier`/`isKeyword` checks —
+  `String.split` alone was 2.6% of samples) and searches every module. `checkSubtype` called it per
+  *value* (e.g. `getTypeElement("java.lang.Long")` for each element of an `@IntVal` list) and then
+  ran a `Types.isSubtype` visitor walk over the erasures. Two changes: (1) `checkSubtype` gets a
+  fast path — for a primitive (boxed) expected type, compare the value's run-time class against the
+  statically-known boxed class; for a declared expected type, compare `ElementUtils.getQualifiedName`
+  (interned, cached) against the value class's canonical name. Name equality was *already* accepted
+  as proof of compatibility by the slow path's `found.toString().equals(expected.toString())`
+  recovery, so this is behavior-preserving; mismatches still take the old path. (2) A new
+  `AnnotationBuilder(ProcessingEnvironment, TypeElement)` constructor skips the name lookup
+  entirely; `ValueAnnotatedTypeFactory` routes its twelve `create*Annotation` builder sites through
+  a per-factory `Class → TypeElement` cache (per-factory, not static, to avoid pinning one
+  compilation's symbols in a daemon JVM). After both, `checkSubtype`/`<init>`/`String.split` leave
+  the profile entirely. Part of the −18% wall / −19% alloc Value-workload total (see Value Checker
+  section); negligible on `checknullness` (both were ≤0.2% there — nullness mostly reuses
+  pre-built mirrors).
 
 ### `AnnotatedTypeScanner` iterator allocation
 
@@ -742,6 +763,24 @@ so small per-call wins paid back substantially.
   delegate `HashMap`. For the actual fixpoint-convergence speedup, measure on a real project with
   `./gradlew --no-daemon checknullness` (warm-daemon reps); the generic-shape tiny-file corpus
   stresses per-file overhead, not the fixpoint loop.
+- **`addFinalLocalValues`: index final-local values by declaring element (July 2026, Value-checker
+  campaign).** `CFAbstractTransfer.addFinalLocalValues` (called once per analyzed
+  method/lambda/initializer when building the initial store) scanned **every** effectively-final
+  local value accumulated in `flowResult` for the whole compilation unit, testing each key's
+  declaring element against the current enclosing chain — O(methods × finals) per class, i.e.
+  quadratic in class size. (PR #1817 had already turned the *inner* chain walk into a set lookup;
+  the outer full-map scan remained.) On a 1500-method constant-heavy class this was **5.6%
+  inclusive** (nearly all `HashMap.getNode`/iterator self-time). `GenericAnnotatedTypeFactory` now
+  maintains `finalLocalValuesByDeclarer` — an `IdentityHashMap<Element, Map<VariableElement,
+  Value>>` updated at the single `flowResult.combine(result)` site in `analyze()` and cleared in
+  `setRoot` — and `addFinalLocalValues` walks only the (short) enclosing chain, looking up each
+  element's own finals: O(chain) instead of O(all finals). The old flat-map early-out for the
+  empty case is kept. Visibility semantics are unchanged: the index updates exactly where the flat
+  map gained entries, and the `runAnalysisFor` re-run path never fed `flowResult` in the first
+  place. Checker-independent (any dataflow-based checker); on `checknullness` the method was only
+  0.08% (framework classes are small), so this is mostly protection for many-method classes plus a
+  measurable slice of the Value-workload win. `addFinalLocalValues` drops 134 → 1 samples on the
+  Value workload.
 
 ### Generic map/lookup patterns
 
@@ -957,6 +996,57 @@ so small per-call wins paid back substantially.
 - **PR #1647** — *Cache a frequent conversion in the Value Checker.*
   `ValueAnnotatedTypeFactory.convertSpecialIntRangeToStandardIntRange`
   cached per `AnnotationMirror`; the unbounded-call profile flattened.
+  **Superseded (July 2026): the cache was removed again** — see the campaign entry below.
+- **Value Checker profiling campaign (July 2026).** First dedicated Value Checker profile (the
+  checker had never been traced on a realistic workload; there is no `checkValue` Gradle task).
+  Workloads: the ValueChecker via `checker/bin/javac` over (a) 1500-method constant-heavy classes
+  (constant arithmetic, conditional value-list lubs, string concatenation, constant-length arrays,
+  loop widening; generator preserved as the recipe in this entry's PR) and (b) the all-systems
+  corpus. The baseline trace (2,411 samples, 3×1500 methods) was dominated by annotation
+  *construction and decoding* machinery, not by range arithmetic: `AnnotationBuilder.setValue`
+  10.3% / `checkSubtype` 9.0% inclusive, `createIntValAnnotation` 10.1%,
+  `CFAbstractTransfer.addFinalLocalValues` 5.6%, `convertSpecialIntRangeToStandardIntRange`'s
+  cache lookups ~2.5%, and `isSubtypeQualifiers`'s name-based `getElementValueArray` 3.2% self.
+  Four changes shipped (each also logged in its own subsystem section above):
+  1. *`AnnotationBuilder.checkSubtype` fast path + `TypeElement` constructor* (see
+     `AnnotationMirrorSet` and annotation utilities).
+  2. *`addFinalLocalValues` by-declarer index* (see Dataflow stores, analysis, and transfer).
+  3. *`convertSpecialIntRangeToStandardIntRange`: identity cache removed.* PR #1647's
+     `IdentityHashMap<AnnotationMirror, Boolean>` predates the interned-name `==` comparisons and
+     the cached decoded name on `CheckerFrameworkAnnotationMirror`. By July 2026 the "miss" work
+     (a field read plus three interned-`String` identity compares) was cheaper than the cache hit
+     (an `IdentityHashMap.get` on a map that grows with every freshly-created mirror within a CU —
+     2.5% of samples in `get` plus a share of `resize`). The method now just compares the name;
+     the map, its `setRoot` clearing, and the size-100 heuristic are gone. Lesson: a cache whose
+     key is a freshly-allocated object per query degenerates into pure overhead once the computed
+     answer becomes cheap — re-audit identity-keyed caches after representation improvements.
+  4. *`ValueQualifierHierarchy.isSubtypeQualifiers`: dispatch to the cached `value()` elements.*
+     The same-name generic branch (`IntVal` vs `IntVal` etc., the most common comparison) used the
+     deprecated name-based `getElementValueArray(anno, "value", Object.class, false)`, which scans
+     the element-values map comparing simple names via `Name` content equality per query. A new
+     `ValueAnnotatedTypeFactory.valueElementForName(String)` maps the interned annotation name to
+     the factory's cached `ExecutableElement`, so both lookups become a map `get` on the element.
+     The deprecated path remains as fallback for names without a cached element.
+  **Measured (same-session interleaved A/B, `assembleForJavac` rebuilt per side, median of 3–5):**
+  1500-method constant-heavy file: allocation **4493 → 3633 MB (−19.1%)**, wall **13.19 → 10.80 s
+  (−18.1%)**; on-CPU samples on the 3-file trace 2,411 → ~2,000 with `checkSubtype`,
+  `AnnotationBuilder.<init>`, `String.split`, and `addFinalLocalValues` gone from the profile.
+  all-systems (tiny files, little constant work): allocation −0.6%, wall flat. Nullness
+  (all-systems and the full `checknullness` trace): flat — every targeted method was ≤0.2% there;
+  warm-daemon `checknullness` wall (3 reps/side, same session) 1:45/1:37/1:36 treatment vs.
+  1:45/1:37/1:35 master. `alltests` green (the two failures in the first run were the
+  `valueElementForName` interning error, fixed with `@Interned`, and Issue1438 jtreg 20-second
+  compile-timeout flakiness under parallel test load — 6 s when run directly, green in an isolated
+  `:checker:jtregTests` run).
+  Remaining Value hotspots, in case of a follow-up: `ElementQualifierHierarchy.getQualifierKind`'s
+  `IdentityHashMap.get` (8.6% self on this workload — caching was already tried and rejected, see
+  Tried and rejected), `AnnotationUtils.getElementValueArray` residual under decoding (list
+  materialization per comparison), `CFAbstractValue.canBeMissingAnnotations` (~2%, diffuse
+  `getKind()` dispatch). The Index checker's factories (`SameLen`, `LTLengthOf`,
+  `UBQualifier.convertUBQualifierToAnnotation`, ...) still use the name-based `AnnotationBuilder`
+  constructor per created annotation; they get the `checkSubtype` fast path for free, and could
+  adopt the `TypeElement`-caching pattern if an Index profile shows the constructor lookup —
+  unprofiled, so not changed.
 
 ### Visitor and checker reviews
 
