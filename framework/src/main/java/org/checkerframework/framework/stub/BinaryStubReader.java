@@ -11,6 +11,7 @@ import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedDeclared
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedExecutableType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedTypeVariable;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedWildcardType;
+import org.checkerframework.framework.util.AnnotatedTypes;
 import org.checkerframework.javacutil.AnnotationBuilder;
 import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.AnnotationUtils;
@@ -757,7 +758,7 @@ public class BinaryStubReader {
                         // pType/pInner unconditionally (whether or not pElt already has a stored
                         // entry): the merge-vs-store decision below propagates this either way,
                         // since pType is a component of the fresh aet being built.
-                        AnnotatedTypeMirror pInner = getInnermostComponentType(pType);
+                        AnnotatedTypeMirror pInner = AnnotatedTypes.innerMostType(pType);
                         for (AnnotationMirror am : paramDeclAnnos) {
                             pInner.replaceAnnotation(am);
                         }
@@ -1373,21 +1374,6 @@ public class BinaryStubReader {
                 parseDeclAnnos(
                         annoPoolIndices, enclosingClassName, data, atypeFactory, elementTypes),
                 kind);
-    }
-
-    /**
-     * Returns the innermost component type of {@code atm}, unwrapping array layers. For non-array
-     * types, returns {@code atm} itself.
-     *
-     * @param atm the annotated type mirror to unwrap
-     * @return the innermost non-array component type, or {@code atm} if it is not an array
-     */
-    private static AnnotatedTypeMirror getInnermostComponentType(AnnotatedTypeMirror atm) {
-        AnnotatedTypeMirror current = atm;
-        while (current.getKind() == TypeKind.ARRAY) {
-            current = ((AnnotatedArrayType) current).getComponentType();
-        }
-        return current;
     }
 
     /**
