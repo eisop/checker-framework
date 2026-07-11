@@ -1066,10 +1066,17 @@ public class BinaryStubReader {
      *
      * @param annos the annotations to filter
      * @param kind the kind of the annotated element
-     * @return the annotations applicable to {@code kind}; may be the empty set
+     * @return the annotations applicable to {@code kind}; may be the shared {@link
+     *     AnnotationMirrorSet#emptySet()}
      */
     private static AnnotationMirrorSet filterApplicable(
             AnnotationMirrorSet annos, ElementKind kind) {
+        if (annos.isEmpty()) {
+            // Common case (most JDK annotations are type annotations, not decl annotations):
+            // avoid allocating a set that would stay empty. Safe to share: every caller that
+            // might store or mutate the result first checks !isEmpty() (see parseDeclAnnos).
+            return AnnotationMirrorSet.emptySet();
+        }
         AnnotationMirrorSet result = new AnnotationMirrorSet();
         for (AnnotationMirror am : annos) {
             Target targetMeta = am.getAnnotationType().asElement().getAnnotation(Target.class);
@@ -1331,7 +1338,8 @@ public class BinaryStubReader {
      * @param data the binary stub data
      * @param atypeFactory the type factory of the currently-running checker
      * @param elementTypes per-factory state including the annotation mirror cache
-     * @return the set of successfully resolved annotation mirrors
+     * @return the set of successfully resolved annotation mirrors; may be the shared {@link
+     *     AnnotationMirrorSet#emptySet()}
      */
     private static AnnotationMirrorSet parseDeclAnnos(
             int[] annoPoolIndices,
@@ -1339,6 +1347,14 @@ public class BinaryStubReader {
             BinaryStubData data,
             AnnotatedTypeFactory atypeFactory,
             AnnotationFileElementTypes elementTypes) {
+        if (annoPoolIndices.length == 0) {
+            // Most JDK annotations are type annotations, not decl annotations, so a zero-length
+            // index array is the common case; avoid allocating a set that would stay empty.
+            // Safe to share: every caller stores or otherwise mutates the result only after
+            // checking !isEmpty() first (see mergeDeclAnnos call sites in this class), so the
+            // canonical empty set is never stored into a map or added to.
+            return AnnotationMirrorSet.emptySet();
+        }
         AnnotationMirrorSet set = new AnnotationMirrorSet();
         for (int idx : annoPoolIndices) {
             AnnotationMirror am =
