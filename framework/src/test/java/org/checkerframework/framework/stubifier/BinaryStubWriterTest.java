@@ -725,6 +725,65 @@ public class BinaryStubWriterTest {
     }
 
     /**
+     * A bare reference to a statically-imported constant (e.g. {@code MAX_VALUE} from {@code import
+     * static java.lang.Integer.MAX_VALUE;}) must be written the same way a qualified reference
+     * ({@code Integer.MAX_VALUE}) is -- the {@code 'e'} tag, qualified with the constant's
+     * declaring class -- not as an unqualified {@code NameLiteralValue}. {@code
+     * BinaryStubReader#findFieldInType}, which resolves an unqualified {@code NameLiteralValue},
+     * only searches the annotation's enclosing class and its supertypes; a constant from an
+     * unrelated class reached only through a static import is invisible to it and would otherwise
+     * be silently dropped, unlike the text parser ({@code
+     * AnnotationFileParser#findVariableElement(NameExpr)}), which resolves it through its {@code
+     * importedConstants} table.
+     */
+    @Test
+    public void staticImportedConstantIsWrittenQualified() throws IOException {
+        BinaryStubWriter writer = new BinaryStubWriter();
+        CompilationUnit cu =
+                StaticJavaParser.parse(
+                        "import static java.lang.Integer.MAX_VALUE;\n"
+                                + "import org.checkerframework.common.value.qual.IntRange;\n"
+                                + "public class StaticImportTest {\n"
+                                + "  public @IntRange(to = MAX_VALUE) int f;\n"
+                                + "}\n");
+        writer.process(cu);
+
+        File tmp = File.createTempFile("binarystubwritertest", ".bin.gz");
+        tmp.deleteOnExit();
+        try {
+            writer.writeTo(tmp);
+            BinaryStubData data;
+            try (InputStream in = Files.newInputStream(tmp.toPath())) {
+                data = new BinaryStubData(in);
+            }
+
+            BinaryStubData.ClassRecord cr = data.classes.get("StaticImportTest");
+            Assert.assertNotNull("StaticImportTest must be recorded", cr);
+            Assert.assertEquals("f has one field record", 1, cr.fields.length);
+            BinaryStubData.FieldRecord fr = cr.fields[0];
+            Assert.assertEquals("@IntRange is a type annotation", 1, fr.typeAnnos.length);
+            BinaryStubData.AnnotationRecord ar = data.annotationPool[fr.typeAnnos[0].annoIndex];
+            Assert.assertEquals(
+                    "org.checkerframework.common.value.qual.IntRange",
+                    data.stringPool[ar.nameIndex]);
+            Assert.assertEquals(
+                    "@IntRange(to = ...) has one element value", 1, ar.elementValues.size());
+
+            Object value = ar.elementValues.values().iterator().next();
+            Assert.assertTrue(
+                    "the statically-imported MAX_VALUE must be written as an EnumConstantValue"
+                            + " (the 'e' tag), not a NameLiteralValue (the 'n' tag), but was: "
+                            + value,
+                    value instanceof BinaryStubData.EnumConstantValue);
+            BinaryStubData.EnumConstantValue ev = (BinaryStubData.EnumConstantValue) value;
+            Assert.assertEquals("java.lang.Integer", ev.enumClassName);
+            Assert.assertEquals("MAX_VALUE", ev.constantName);
+        } finally {
+            tmp.delete();
+        }
+    }
+
+    /**
      * Parses {@code source} with language level JAVA_21, required for record declarations.
      * StaticJavaParser's default language level is older; production code
      * (JavaStubifier.DEFAULT_LANGUAGE_LEVEL, BinaryStubFileGenerator.parseStubUnit) both configure

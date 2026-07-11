@@ -530,6 +530,16 @@ public class BinaryStubWriter {
     private final Map<String, String> simpleToFqn = new HashMap<>();
 
     /**
+     * Map from the simple name of a statically-imported constant to the fully-qualified name of its
+     * declaring class, e.g. {@code "MAX_VALUE" -> "java.lang.Integer"} for {@code import static
+     * java.lang.Integer.MAX_VALUE;}. Populated only from non-asterisk static imports; an asterisk
+     * static import ({@code import static java.lang.Integer.*;}) does not name the constant's
+     * declaring class up front, so it is left unresolved here the same way an asterisk (non-static)
+     * import is left out of {@link #simpleToFqn}.
+     */
+    private final Map<String, String> staticImportedConstants = new HashMap<>();
+
+    /**
      * Package names imported via asterisk imports ({@code import java.beans.*;}) in the compilation
      * unit currently being processed.
      */
@@ -727,16 +737,27 @@ public class BinaryStubWriter {
 
     /**
      * Initializes the per-file name-resolution tables ({@link #simpleToFqn}, {@link
-     * #asteriskImportPackages}) from the imports of the given compilation unit.
+     * #asteriskImportPackages}, {@link #staticImportedConstants}) from the imports of the given
+     * compilation unit.
      *
      * @param cu the compilation unit whose imports to use
      */
     private void initImportTables(CompilationUnit cu) {
         simpleToFqn.clear();
         asteriskImportPackages.clear();
+        staticImportedConstants.clear();
 
         for (ImportDeclaration imp : cu.getImports()) {
             if (imp.isStatic()) {
+                if (!imp.isAsterisk()) {
+                    String fqn = imp.getNameAsString();
+                    int lastDot = fqn.lastIndexOf('.');
+                    if (lastDot != -1) {
+                        String memberName = fqn.substring(lastDot + 1);
+                        String declaringClass = fqn.substring(0, lastDot);
+                        staticImportedConstants.put(memberName, declaringClass);
+                    }
+                }
                 continue;
             }
             if (imp.isAsterisk()) {
@@ -945,8 +966,26 @@ public class BinaryStubWriter {
                 writeValue(out, val, cu);
             }
         } else if (expr instanceof NameExpr) {
-            out.writeByte('n');
-            out.writeInt(pool.addString(((NameExpr) expr).getNameAsString()));
+            String name = ((NameExpr) expr).getNameAsString();
+            String declaringClass = staticImportedConstants.get(name);
+            if (declaringClass != null) {
+                // A bare reference to a statically-imported constant (e.g. "MAX_VALUE" from
+                // "import static java.lang.Integer.MAX_VALUE;"). The reader's 'n'
+                // (NameLiteralValue) tag is resolved only against the enclosing class and its
+                // supertypes (BinaryStubReader#findFieldInType), which never finds a constant
+                // imported from an unrelated class. Emit it the same way a FieldAccessExpr is
+                // emitted instead (the 'e' tag, declaring class FQN + constant name), which
+                // BinaryStubReader#resolveSingleValue resolves via an enum-constant lookup or,
+                // since a static-imported constant is usually a plain field, the findFieldInType
+                // fallback. Mirrors AnnotationFileParser#findVariableElement(NameExpr), which
+                // resolves a bare name the same way via its importedConstants table.
+                out.writeByte('e');
+                out.writeInt(pool.addString(declaringClass));
+                out.writeInt(pool.addString(name));
+            } else {
+                out.writeByte('n');
+                out.writeInt(pool.addString(name));
+            }
         } else if (expr instanceof BinaryExpr) {
             String val = evaluateStringLiteralConcatenation(expr);
             out.writeByte('s');
