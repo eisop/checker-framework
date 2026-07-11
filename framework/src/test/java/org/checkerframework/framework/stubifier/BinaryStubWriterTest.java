@@ -87,6 +87,29 @@ public class BinaryStubWriterTest {
     }
 
     /**
+     * A fully-unannotated method that carries {@code @Override} must survive the annotated-JDK
+     * writer's omission even though it carries no annotations: at read time, such a declaration can
+     * be a fake override -- a stub declaration for a method the class only inherits -- whose reset
+     * semantics (replacing the member's computed type with a fresh {@code
+     * getAnnotatedType(overridden)} at this subtype) applies regardless of whether the record
+     * itself carries any annotations. Omitting it here would silently drop that reset before the
+     * reader ever sees it.
+     */
+    @Test
+    public void jdkWriterKeepsUnannotatedOverrideMethodRecords() throws IOException {
+        String source =
+                "public class Sub extends Super {\n"
+                        + "  @Override public void m(Object p) {}\n"
+                        + "}\n";
+        BinaryStubData data = roundTrip(source, /* omitUnannotatedMembers= */ true);
+        BinaryStubData.ClassRecord cr = data.classes.get("Sub");
+        Assert.assertNotNull(cr);
+        Assert.assertEquals(
+                "the unannotated @Override method must still be written", 1, cr.methods.length);
+        Assert.assertEquals("m(Object)", data.stringPool[cr.methods[0].sigIndex]);
+    }
+
+    /**
      * A class with no annotated members at all still gets a class record from the annotated-JDK
      * writer: its presence in {@code BinaryStubData.classes} is what stops {@code
      * AnnotationFileElementTypes} from falling back to text-parsing the class.
