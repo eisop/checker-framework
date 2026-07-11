@@ -970,7 +970,11 @@ public class ElementUtils {
                 // simple name.
                 goalName = parameters[i].getSimpleName();
             }
-            if (!params.get(i).asType().toString().equals(goalName)) {
+            // Class.getCanonicalName() returns the source-form name that TypeMirror.toString()
+            // also produces; string-level matching is intentional here.
+            @SuppressWarnings("TypeToString")
+            boolean typeMismatch = !params.get(i).asType().toString().equals(goalName);
+            if (typeMismatch) {
                 return false;
             }
         }
