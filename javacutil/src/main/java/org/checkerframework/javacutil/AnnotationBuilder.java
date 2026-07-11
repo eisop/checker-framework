@@ -114,6 +114,29 @@ public class AnnotationBuilder {
     }
 
     /**
+     * Create a new AnnotationBuilder for the given annotation element (with no elements/fields, but
+     * they can be added later).
+     *
+     * <p>Use this constructor on hot paths: unlike the name-based constructors, it performs no
+     * {@link Elements#getTypeElement(CharSequence)} lookup (which validates and searches for the
+     * name on every call). Callers that repeatedly build annotations of the same type should look
+     * the {@link TypeElement} up once and reuse it.
+     *
+     * @param env the processing environment
+     * @param annotationElt the type element of the annotation to build
+     */
+    public AnnotationBuilder(ProcessingEnvironment env, TypeElement annotationElt) {
+        this.elements = env.getElementUtils();
+        this.types = env.getTypeUtils();
+        if (annotationElt.getKind() != ElementKind.ANNOTATION_TYPE) {
+            throw new BugInCF("Not an annotation type: " + annotationElt);
+        }
+        this.annotationElt = annotationElt;
+        this.annotationType = (DeclaredType) annotationElt.asType();
+        this.elementValues = new ArrayMap<>(2); // most annotations have few elements
+    }
+
+    /**
      * Create a new AnnotationBuilder that copies the given annotation, including its
      * elements/fields.
      *
@@ -636,12 +659,66 @@ public class AnnotationBuilder {
     }
 
     /**
+     * Returns the boxed class corresponding to the given primitive type kind, or null if the kind
+     * is not primitive.
+     *
+     * @param kind a type kind
+     * @return the boxed class for {@code kind}, or null
+     */
+    private static @Nullable Class<?> boxedClassFor(TypeKind kind) {
+        switch (kind) {
+            case BOOLEAN:
+                return Boolean.class;
+            case BYTE:
+                return Byte.class;
+            case CHAR:
+                return Character.class;
+            case DOUBLE:
+                return Double.class;
+            case FLOAT:
+                return Float.class;
+            case INT:
+                return Integer.class;
+            case LONG:
+                return Long.class;
+            case SHORT:
+                return Short.class;
+            default:
+                return null;
+        }
+    }
+
+    /**
+     * Checks that the given value is a subtype of the expected type.
+     *
      * @param expected the expected type
      * @param givenValue the object whose run-time class to check
      * @throws BugInCF if the type of {@code givenValue} is not the same as {@code expected}
      */
     private void checkSubtype(TypeMirror expected, Object givenValue) {
-        if (expected.getKind().isPrimitive()) {
+        // Fast path: annotation element types are restricted by the JLS, so in the common case
+        // the value's run-time class matches the (boxed) expected type exactly.  Name equality
+        // is already accepted as proof of compatibility by the slow path below (see the
+        // toString comparison); checking it first avoids an Elements lookup (with its name
+        // validation) and a Types.isSubtype visitor walk per value.
+        TypeKind expectedKind = expected.getKind();
+        if (expectedKind.isPrimitive()) {
+            if (givenValue.getClass() == boxedClassFor(expectedKind)) {
+                return;
+            }
+        } else if (expectedKind == TypeKind.DECLARED
+                && !(givenValue instanceof TypeMirror)
+                && !(givenValue instanceof AnnotationMirror)
+                && !(givenValue instanceof VariableElement)) {
+            String expectedName =
+                    ElementUtils.getQualifiedName(
+                            (TypeElement) ((DeclaredType) expected).asElement());
+            if (expectedName.equals(givenValue.getClass().getCanonicalName())) {
+                return;
+            }
+        }
+
+        if (expectedKind.isPrimitive()) {
             expected = types.boxedClass((PrimitiveType) expected).asType();
         }
 
