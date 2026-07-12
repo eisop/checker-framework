@@ -79,6 +79,13 @@ public class BinaryStubDiffChecker {
     private static final int MAX_DETAILED_REPORTS = 100;
 
     /**
+     * The fully-qualified name of the {@code @CFComment} annotation. Interned to permit cheap
+     * identity comparisons in {@link #checkerAnnotationNames}.
+     */
+    private static final String CF_COMMENT =
+            org.checkerframework.framework.qual.CFComment.class.getCanonicalName().intern();
+
+    /**
      * Runs the differential check over every top-level class in the binary stub data and reports
      * mismatches as errors via the checker.
      *
@@ -874,8 +881,7 @@ public class BinaryStubDiffChecker {
                 // one), so comparing against the literal below with != is a correct, cheap
                 // identity check, not a bug -- do not "fix" this to .equals().
                 String name = AnnotationUtils.annotationName(am);
-                if (name.startsWith("org.checkerframework.")
-                        && name != "org.checkerframework.framework.qual.CFComment") {
+                if (name.startsWith("org.checkerframework.") && name != CF_COMMENT) {
                     names.add(name);
                 }
             }
