@@ -1,5 +1,7 @@
 package org.checkerframework.framework.stub;
 
+import org.checkerframework.framework.stubifier.BinaryStubWriter;
+
 import java.io.BufferedInputStream;
 import java.io.DataInputStream;
 import java.io.IOException;
@@ -34,47 +36,37 @@ import java.util.zip.GZIPInputStream;
  * </ol>
  *
  * @see BinaryStubReader
- * @see org.checkerframework.framework.stubifier.BinaryStubWriter
+ * @see BinaryStubWriter
  */
 public class BinaryStubData {
 
     /**
      * Magic number identifying the Checker Framework binary stub format. The value is defined once
-     * in {@link org.checkerframework.framework.stubifier.BinaryStubWriter#MAGIC} and referenced
-     * here (the constant is inlined at compile time, so there is no runtime dependency on the
-     * stubifier).
+     * in {@link BinaryStubWriter#MAGIC} and referenced here (the constant is inlined at compile
+     * time, so there is no runtime dependency on the stubifier).
      */
-    public static final int MAGIC = org.checkerframework.framework.stubifier.BinaryStubWriter.MAGIC;
+    public static final int MAGIC = BinaryStubWriter.MAGIC;
 
-    /**
-     * Format version of the binary stub file. Defined once in {@link
-     * org.checkerframework.framework.stubifier.BinaryStubWriter#VERSION}.
-     */
-    public static final short VERSION =
-            org.checkerframework.framework.stubifier.BinaryStubWriter.VERSION;
+    /** Format version of the binary stub file. Defined once in {@link BinaryStubWriter#VERSION}. */
+    public static final short VERSION = BinaryStubWriter.VERSION;
 
     /**
      * File-name suffix appended to a source stub file's name to name its binary form (e.g. {@code
-     * jdk.astub} → {@code jdk.astub.bin.gz}). Defined once in {@link
-     * org.checkerframework.framework.stubifier.BinaryStubWriter#BIN_SUFFIX}.
+     * jdk.astub} → {@code jdk.astub.bin.gz}). Defined once in {@link BinaryStubWriter#BIN_SUFFIX}.
      */
-    public static final String BIN_SUFFIX =
-            org.checkerframework.framework.stubifier.BinaryStubWriter.BIN_SUFFIX;
+    public static final String BIN_SUFFIX = BinaryStubWriter.BIN_SUFFIX;
 
     /**
-     * File name of the binary stub file. Defined once in {@link
-     * org.checkerframework.framework.stubifier.BinaryStubWriter#OUTPUT_FILENAME}.
+     * File name of the binary stub file. Defined once in {@link BinaryStubWriter#OUTPUT_FILENAME}.
      */
-    public static final String FILENAME =
-            org.checkerframework.framework.stubifier.BinaryStubWriter.OUTPUT_FILENAME;
+    public static final String FILENAME = BinaryStubWriter.OUTPUT_FILENAME;
 
     /**
      * Prefix of the simple signature of a constructor, as {@code ElementUtils.getSimpleSignature}
      * writes it: {@code <init>(...)}. Defined once in {@link
-     * org.checkerframework.framework.stubifier.BinaryStubWriter#CONSTRUCTOR_SIG_PREFIX}.
+     * BinaryStubWriter#CONSTRUCTOR_SIG_PREFIX}.
      */
-    public static final String CONSTRUCTOR_SIG_PREFIX =
-            org.checkerframework.framework.stubifier.BinaryStubWriter.CONSTRUCTOR_SIG_PREFIX;
+    public static final String CONSTRUCTOR_SIG_PREFIX = BinaryStubWriter.CONSTRUCTOR_SIG_PREFIX;
 
     /** Annotation data containing its class name and structural element value pairs. */
     public static class AnnotationRecord {
@@ -420,31 +412,27 @@ public class BinaryStubData {
         /**
          * {@link #kind} value for a class or interface declaration: both {@code ElementKind.CLASS}
          * and {@code ElementKind.INTERFACE} map to this constant. Defined once in {@link
-         * org.checkerframework.framework.stubifier.BinaryStubWriter#KIND_CLASS_OR_INTERFACE}.
+         * BinaryStubWriter#KIND_CLASS_OR_INTERFACE}.
          */
-        public static final byte KIND_CLASS_OR_INTERFACE =
-                org.checkerframework.framework.stubifier.BinaryStubWriter.KIND_CLASS_OR_INTERFACE;
+        public static final byte KIND_CLASS_OR_INTERFACE = BinaryStubWriter.KIND_CLASS_OR_INTERFACE;
 
         /**
          * {@link #kind} value for an enum declaration. Defined once in {@link
-         * org.checkerframework.framework.stubifier.BinaryStubWriter#KIND_ENUM}.
+         * BinaryStubWriter#KIND_ENUM}.
          */
-        public static final byte KIND_ENUM =
-                org.checkerframework.framework.stubifier.BinaryStubWriter.KIND_ENUM;
+        public static final byte KIND_ENUM = BinaryStubWriter.KIND_ENUM;
 
         /**
          * {@link #kind} value for an annotation-type declaration. Defined once in {@link
-         * org.checkerframework.framework.stubifier.BinaryStubWriter#KIND_ANNOTATION_TYPE}.
+         * BinaryStubWriter#KIND_ANNOTATION_TYPE}.
          */
-        public static final byte KIND_ANNOTATION_TYPE =
-                org.checkerframework.framework.stubifier.BinaryStubWriter.KIND_ANNOTATION_TYPE;
+        public static final byte KIND_ANNOTATION_TYPE = BinaryStubWriter.KIND_ANNOTATION_TYPE;
 
         /**
          * {@link #kind} value for a record declaration. Defined once in {@link
-         * org.checkerframework.framework.stubifier.BinaryStubWriter#KIND_RECORD}.
+         * BinaryStubWriter#KIND_RECORD}.
          */
-        public static final byte KIND_RECORD =
-                org.checkerframework.framework.stubifier.BinaryStubWriter.KIND_RECORD;
+        public static final byte KIND_RECORD = BinaryStubWriter.KIND_RECORD;
 
         /**
          * Index into {@link BinaryStubData#stringPool} of the fully-qualified class name (using
