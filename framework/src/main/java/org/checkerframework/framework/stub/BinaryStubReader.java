@@ -1556,12 +1556,9 @@ public class BinaryStubReader {
      *
      * <p>{@code TypeMirror} (erase/box special-casing) and {@code VariableElement} (exact enum
      * enclosing-element match, bypassing {@code checkSubtype}) have dedicated {@code
-     * AnnotationBuilder} overloads with real logic and are kept as explicit branches, as is the
-     * {@code Byte -> Short} workaround ({@code AnnotationBuilder} has no {@code Byte} overload;
-     * routing a raw {@code Byte} through the generic overload would store the wrong box type, so it
-     * must be converted to {@code Short} first). Every other supported type is a pure delegation on
-     * the {@code AnnotationBuilder} side to the generic {@link
-     * AnnotationBuilder#setValue(CharSequence, Object)} overload, so this method calls that
+     * AnnotationBuilder} overloads with real logic and are kept as explicit branches. Every other
+     * supported type is a pure delegation on the {@code AnnotationBuilder} side to the generic
+     * {@link AnnotationBuilder#setValue(CharSequence, Object)} overload, so this method calls that
      * overload directly rather than re-deriving the dispatch that {@code AnnotationBuilder} already
      * performs.
      *
@@ -1575,10 +1572,8 @@ public class BinaryStubReader {
             builder.setValue(name, (TypeMirror) val);
         } else if (val instanceof VariableElement) {
             builder.setValue(name, (VariableElement) val);
-        } else if (val instanceof Byte) {
-            // AnnotationBuilder has no Byte overload; a byte member accepts a Short value.
-            builder.setValue(name, (Short) ((Byte) val).shortValue());
         } else if (val instanceof Boolean
+                || val instanceof Byte
                 || val instanceof Character
                 || val instanceof Double
                 || val instanceof Float

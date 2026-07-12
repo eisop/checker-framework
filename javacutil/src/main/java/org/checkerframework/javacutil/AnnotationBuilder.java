@@ -411,6 +411,11 @@ public class AnnotationBuilder {
     }
 
     /** Set the element/field with the given name, to the given value. */
+    public AnnotationBuilder setValue(CharSequence elementName, Byte value) {
+        return setValue(elementName, (Object) value);
+    }
+
+    /** Set the element/field with the given name, to the given value. */
     public AnnotationBuilder setValue(CharSequence elementName, Character value) {
         return setValue(elementName, (Object) value);
     }
@@ -607,10 +612,10 @@ public class AnnotationBuilder {
 
     /**
      * Set the element/field with the given name, to the given value. This is the generic fallback
-     * that the typed {@code setValue} overloads above (for {@code Boolean}, {@code Character},
-     * {@code Double}, {@code Float}, {@code Integer}, {@code Long}, {@code Short}, {@code String},
-     * and {@code AnnotationMirror}) all delegate to; call it directly if the caller already holds
-     * an {@code Object} of one of those supported types.
+     * that the typed {@code setValue} overloads above (for {@code Boolean}, {@code Byte}, {@code
+     * Character}, {@code Double}, {@code Float}, {@code Integer}, {@code Long}, {@code Short},
+     * {@code String}, and {@code AnnotationMirror}) all delegate to; call it directly if the caller
+     * already holds an {@code Object} of one of those supported types.
      *
      * @param key the element/field name
      * @param value the new value for the element/field; must be an instance of one of the types
@@ -865,6 +870,8 @@ public class AnnotationBuilder {
                 return v.visitArray((List<? extends AnnotationValue>) value, p);
             } else if (value instanceof Boolean) {
                 return v.visitBoolean((Boolean) value, p);
+            } else if (value instanceof Byte) {
+                return v.visitByte((Byte) value, p);
             } else if (value instanceof Character) {
                 return v.visitChar((Character) value, p);
             } else if (value instanceof Double) {

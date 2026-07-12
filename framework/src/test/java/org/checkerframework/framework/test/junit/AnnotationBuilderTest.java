@@ -233,6 +233,32 @@ public class AnnotationBuilderTest {
         builder.setValue("value", MyEnum.NOT);
     }
 
+    public static @interface ByteElt {
+        byte value();
+    }
+
+    @Test
+    public void testBytePositive() {
+        AnnotationBuilder builder = new AnnotationBuilder(env, ByteElt.class);
+        builder.setValue("value", (byte) 1);
+        AnnotationMirror anno = builder.build();
+        Assert.assertEquals(1, anno.getElementValues().size());
+        anno.getElementValues()
+                .values()
+                .forEach(
+                        v ->
+                                v.accept(
+                                        new javax.lang.model.util.SimpleAnnotationValueVisitor8<
+                                                Void, Void>() {
+                                            @Override
+                                            public Void visitByte(byte b, Void p) {
+                                                Assert.assertEquals((byte) 1, b);
+                                                return null;
+                                            }
+                                        },
+                                        null));
+    }
+
     @Test(expected = BugInCF.class)
     public void testEnumNegative() {
         AnnotationBuilder builder = new AnnotationBuilder(env, EnumElt.class);
