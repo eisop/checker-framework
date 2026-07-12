@@ -15,7 +15,13 @@ plugins {
 evaluationDependsOn(':javacutil')
 
 ext {
-    annotatedJdkHome = '../../jdk'
+    // Location of the annotated JDK clone, relative to this directory by default. Overridable
+    // (-PannotatedJdkHome=/abs/path) so a build that needs this project's own default JDK
+    // checkout to coexist with a *different* annotated JDK at the same conventional sibling
+    // location (e.g. an external checker's own JDK fork, built via --include-build) can point
+    // this at wherever eisop's own clone actually lives. See
+    // checker/bin-devel/test-jspecify-reference-checker.sh for a caller that uses this.
+    annotatedJdkHome = project.findProperty('annotatedJdkHome') ?: '../../jdk'
 }
 
 sourceSets {
