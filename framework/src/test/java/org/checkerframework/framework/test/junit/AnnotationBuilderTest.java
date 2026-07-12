@@ -17,6 +17,7 @@ import org.junit.Test;
 
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.AnnotationMirror;
+import javax.lang.model.element.AnnotationValue;
 import javax.lang.model.type.TypeMirror;
 
 public class AnnotationBuilderTest {
@@ -237,26 +238,16 @@ public class AnnotationBuilderTest {
         byte value();
     }
 
+    // A byte-typed element must keep its Byte value: converting it to a Short (as the binary stub
+    // reader used to do, for lack of a Byte overload) makes checkSubtype throw.
     @Test
     public void testBytePositive() {
         AnnotationBuilder builder = new AnnotationBuilder(env, ByteElt.class);
         builder.setValue("value", (byte) 1);
         AnnotationMirror anno = builder.build();
         Assert.assertEquals(1, anno.getElementValues().size());
-        anno.getElementValues()
-                .values()
-                .forEach(
-                        v ->
-                                v.accept(
-                                        new javax.lang.model.util.SimpleAnnotationValueVisitor8<
-                                                Void, Void>() {
-                                            @Override
-                                            public Void visitByte(byte b, Void p) {
-                                                Assert.assertEquals((byte) 1, b);
-                                                return null;
-                                            }
-                                        },
-                                        null));
+        AnnotationValue value = anno.getElementValues().values().iterator().next();
+        Assert.assertEquals((byte) 1, value.getValue());
     }
 
     @Test(expected = BugInCF.class)
