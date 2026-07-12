@@ -400,8 +400,10 @@ public class BinaryStubDiffChecker {
     /**
      * Verifies that everything the binary record promises was actually stored by {@link
      * BinaryStubReader#applyClassRecord}: an annotated type-parameter record must have produced an
-     * {@code atypes} entry for its {@code TypeParameterElement}, and a method record carrying type
-     * information must have produced an {@code atypes} entry for its {@code ExecutableElement}.
+     * {@code atypes} entry for its {@code TypeParameterElement}, a method record carrying type
+     * information must have produced an {@code atypes} entry for its {@code ExecutableElement}, and
+     * a method record that matches no declared method but an inherited one — a fake override,
+     * whether or not it carries any annotations — must have produced a {@code fakeOverrides} entry.
      * This writer-to-reader presence check guards positions (such as type-variable declaration
      * bounds) that {@link #compareAtm} cannot compare against the text parser because the two paths
      * build them from different baselines; a reader change that silently skips applying a record —
@@ -450,26 +452,26 @@ public class BinaryStubDiffChecker {
             }
         }
         for (BinaryStubData.MethodRecord mr : cr.methods) {
-            if (!BinaryStubReader.hasTypeInfo(mr)) {
-                continue;
-            }
             String sig = data.stringPool[mr.sigIndex];
+            boolean isConstructor = sig.startsWith(BinaryStubData.CONSTRUCTOR_SIG_PREFIX);
             ExecutableElement ee =
-                    sig.startsWith(BinaryStubData.CONSTRUCTOR_SIG_PREFIX)
+                    isConstructor
                             ? elementTypes.constructorSigIndex(typeElt).get(sig)
                             : elementTypes.methodSigIndex(typeElt).get(sig);
             if (ee != null) {
-                if (!binaryAnnos.atypes.containsKey(ee)) {
+                if (BinaryStubReader.hasTypeInfo(mr) && !binaryAnnos.atypes.containsKey(ee)) {
                     reports.add(
                             String.format(
                                     "%s: method %s has type information in the binary record but"
                                             + " no atypes entry was stored",
                                     className, sig));
                 }
-            } else if (mr.returnTypeAnnos.length > 0
-                    && !sig.startsWith(BinaryStubData.CONSTRUCTOR_SIG_PREFIX)) {
-                // The record is an annotated fake override (or a stub/JDK mismatch, in which
-                // case there is no overridden method and nothing to store).
+            } else if (!isConstructor) {
+                // The record is a fake override (or a stub/JDK mismatch, in which case there is
+                // no overridden method and nothing to store). Checked for EVERY record, even one
+                // carrying no annotations at all: both paths store a fakeOverrides entry for
+                // every matched fake-override record, because the entry's presence alone resets
+                // the method's type at this subtype (see BinaryStubReader#applyFakeOverride).
                 ExecutableElement overridden =
                         BinaryStubReader.findFakeOverriddenMethod(typeElt, sig, elementTypes);
                 if (overridden != null) {
@@ -488,9 +490,8 @@ public class BinaryStubDiffChecker {
                     if (!stored) {
                         reports.add(
                                 String.format(
-                                        "%s: fake override %s has return-type annotations in the"
-                                                + " binary record but no fakeOverrides entry was"
-                                                + " stored",
+                                        "%s: fake override %s matches an inherited method but no"
+                                                + " fakeOverrides entry was stored",
                                         className, sig));
                     }
                 }
@@ -594,13 +595,16 @@ public class BinaryStubDiffChecker {
             }
         }
         // Fake overrides: every binary-side entry must have a text-side counterpart with the
-        // same fake location. The text parser additionally stores a fake-override entry for
-        // every unannotated fake declaration (its methodType is then just a getAnnotatedType
-        // snapshot with baked-in defaults) — the binary path deliberately skips those, so
-        // text-only keys are benign; a dropped *annotated* fake override is caught by the
-        // record oracle in verifyRecordApplied. The method types themselves are not compared:
-        // both sides bake time-dependent defaults via getAnnotatedType, which differ between
-        // the text parse and the binary application even when the stub annotations agree.
+        // same fake location. Both paths now store a fakeOverrides entry for every matched
+        // fake-override record, annotated or not (BinaryStubReader#applyFakeOverride no longer
+        // special-cases an empty returnTypeAnnos, matching
+        // AnnotationFileParser#processFakeOverride, which never did): a fake override resets
+        // the method's type at that subtype regardless of whether the declaration itself carries
+        // any annotations, so an unannotated one is not a no-op to skip. A dropped fake override
+        // (annotated or not) is caught by the record oracle in verifyRecordApplied. The method
+        // types themselves are not compared here: both sides bake time-dependent defaults via
+        // getAnnotatedType, which differ between the text parse and the binary application even
+        // when the stub annotations agree.
         for (Map.Entry<ExecutableElement, List<IPair<TypeMirror, AnnotatedTypeMirror>>> entry :
                 binary.fakeOverrides.entrySet()) {
             List<IPair<TypeMirror, AnnotatedTypeMirror>> textList =
