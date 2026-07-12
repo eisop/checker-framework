@@ -184,11 +184,18 @@ public class BinaryStubWriter {
     public static final byte TYPE_PATH_WILDCARD_BOUND_SUPER = 1;
 
     /**
-     * Fully-qualified name of {@code CFComment}, which is never written to the binary format; see
-     * {@link AnnotationPool#addAnnotation}. Interned for reference-equality checks.
+     * Fully-qualified name of {@code org.checkerframework.framework.qual.CFComment}, which is never
+     * written to the binary format; see {@link AnnotationPool#addAnnotation}. {@code
+     * BinaryStubDiffChecker} filters the same annotation out of the text-parsed side.
+     *
+     * <p>Must stay a compile-time constant (hence the literal, rather than {@code
+     * CFComment.class.getCanonicalName()}): it is the one thing the {@code framework} source sets
+     * read from this class, and a constant is inlined by javac, so no code outside this source set
+     * acquires a runtime dependency on it. See {@code framework/build.gradle}'s {@code stubifier}
+     * source set. Interned by javac, so the reference-equality check in {@code
+     * BinaryStubDiffChecker} works.
      */
-    public static final String CF_COMMENT =
-            org.checkerframework.framework.qual.CFComment.class.getCanonicalName().intern();
+    public static final String CF_COMMENT = "org.checkerframework.framework.qual.CFComment";
 
     /**
      * Sentinel returned by {@link AnnotationPool#addAnnotation} for annotations that are not
@@ -1959,10 +1966,9 @@ public class BinaryStubWriter {
             for (VariableDeclarator vd : fd.getVariables()) {
                 FieldRecord fr = new FieldRecord();
                 fr.nameIndex = pool.addString(vd.getNameAsString());
-                // Annotation in declaration position annotates the element type of an
-                // array field (if any), not the array reference.
-                // Annotation has a declaration-position target: also a declaration
-                // annotation.
+                // A type-use annotation in declaration position annotates the element type of an
+                // array field (if any), not the array reference; an annotation with a
+                // declaration-position target is also a declaration annotation.
                 routeAnnotations(
                         fd.getAnnotations(),
                         fr.typeAnnos,
