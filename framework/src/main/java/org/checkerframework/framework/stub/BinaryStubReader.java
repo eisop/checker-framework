@@ -237,6 +237,12 @@ public class BinaryStubReader {
             BinaryStubData data,
             AnnotationFileAnnotations target,
             @Nullable AnnotationMirror fromStubFileAnno) {
+        // Record application must run under parsingCount bracketing (see commit c0ba0bba4):
+        // AnnotatedTypeFactory's elementCache/cacheDeclAnnos writes are suppressed only while
+        // isParsingAnnotationFile() is true, so a caller that let this run outside the bracket
+        // could freeze a type computed from a partially-applied class record into those caches
+        // permanently.
+        assert atypeFactory.isParsingAnnotationFile();
 
         @SuppressWarnings("signature:argument.type.incompatible") // className is read from the
         // binary stub's string pool, which BinaryStubWriter populates only with fully-qualified
