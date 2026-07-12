@@ -1362,6 +1362,42 @@ public class BinaryStubWriter {
     }
 
     /**
+     * Processes annotations on a declaration, routing them into type-use and/or declaration
+     * annotations.
+     *
+     * @param annotations the annotations to process
+     * @param typeAnnos the list to which type-use annotations are added, or null to skip
+     * @param declAnnos the list to which declaration annotations are added, or null to skip
+     * @param typePath the path used for type-use annotations
+     * @param filterByTarget if true, annotations are checked with {@link #hasTypeUse} and {@link
+     *     #isTypeUseOnly}; if false, all valid annotations are added to the provided list(s)
+     *     unconditionally.
+     * @param cu the compilation unit
+     * @throws IOException if writing to the annotation pool fails
+     */
+    private void routeAnnotations(
+            List<AnnotationExpr> annotations,
+            @Nullable List<TypeAnno> typeAnnos,
+            @Nullable List<Integer> declAnnos,
+            List<TypePathStep> typePath,
+            boolean filterByTarget,
+            CompilationUnit cu)
+            throws IOException {
+        for (AnnotationExpr anno : annotations) {
+            int idx = annosPool.addAnnotation(anno, cu, this);
+            if (idx == IGNORED) {
+                continue;
+            }
+            if (typeAnnos != null && (!filterByTarget || hasTypeUse(anno))) {
+                typeAnnos.add(new TypeAnno(idx, typePath));
+            }
+            if (declAnnos != null && (!filterByTarget || !isTypeUseOnly(anno))) {
+                declAnnos.add(idx);
+            }
+        }
+    }
+
+    /**
      * Shared prologue of {@link #processClass}, {@link #processEnum}, and {@link
      * #processAnnotationType}: computes the fully-qualified name, creates the {@link ClassRecord}
      * with the declaration's annotations, and registers it — or returns {@code null} for a private
@@ -1400,12 +1436,7 @@ public class BinaryStubWriter {
                 new ClassRecord(pool.addString(fqn), outerNameIndex, kind, fqn, childOutermostFqn);
         classes.add(cr);
         try {
-            for (AnnotationExpr anno : annotations) {
-                int idx = annosPool.addAnnotation(anno, cu, this);
-                if (idx != IGNORED) {
-                    cr.declAnnos.add(idx);
-                }
-            }
+            routeAnnotations(annotations, null, cr.declAnnos, Collections.emptyList(), false, cu);
         } catch (IOException e) {
             throw new RuntimeException(
                     "Serialization failure in annotations of " + fqn + ": " + e.getMessage(), e);
@@ -1501,18 +1532,13 @@ public class BinaryStubWriter {
             for (EnumConstantDeclaration constant : enumDecl.getEntries()) {
                 FieldRecord fr = new FieldRecord();
                 fr.nameIndex = pool.addString(constant.getNameAsString());
-                for (AnnotationExpr anno : constant.getAnnotations()) {
-                    int idx = annosPool.addAnnotation(anno, cu, this);
-                    if (idx == IGNORED) {
-                        continue;
-                    }
-                    if (hasTypeUse(anno)) {
-                        fr.typeAnnos.add(new TypeAnno(idx));
-                    }
-                    if (!isTypeUseOnly(anno)) {
-                        fr.declAnnos.add(idx);
-                    }
-                }
+                routeAnnotations(
+                        constant.getAnnotations(),
+                        fr.typeAnnos,
+                        fr.declAnnos,
+                        Collections.emptyList(),
+                        true,
+                        cu);
                 addFieldRecord(cr, fr);
             }
         } catch (IOException e) {
@@ -1630,12 +1656,8 @@ public class BinaryStubWriter {
                 List<List<TypeAnno>> paramAnnos = new ArrayList<>(ctor.getParameters().size());
                 for (Parameter param : ctor.getParameters()) {
                     List<TypeAnno> annos = new ArrayList<>();
-                    for (AnnotationExpr anno : param.getAnnotations()) {
-                        int idx = annosPool.addAnnotation(anno, cu, this);
-                        if (idx != IGNORED && hasTypeUse(anno)) {
-                            annos.add(new TypeAnno(idx));
-                        }
-                    }
+                    routeAnnotations(
+                            param.getAnnotations(), annos, null, Collections.emptyList(), true, cu);
                     paramAnnos.add(annos);
                 }
                 cr.canonicalConstructorParamAnnos = paramAnnos;
@@ -1654,21 +1676,16 @@ public class BinaryStubWriter {
                 compRec.nameIndex = pool.addString(comp.getNameAsString());
 
                 // Declaration-position annotations: dual-route like method annotations.
-                for (AnnotationExpr anno : comp.getAnnotations()) {
-                    int idx = annosPool.addAnnotation(anno, cu, this);
-                    if (idx == IGNORED) {
-                        continue;
-                    }
-                    if (hasTypeUse(anno)) {
-                        // Annotation in declaration position on a record component annotates
-                        // the element type of an array component (if any), matching
-                        // AnnotationFileParser.processRecordField's annotate() call.
-                        compRec.typeAnnos.add(new TypeAnno(idx, arrayElementPath(comp.getType())));
-                    }
-                    if (!isTypeUseOnly(anno)) {
-                        compRec.declAnnos.add(idx);
-                    }
-                }
+                // Annotation in declaration position on a record component annotates
+                // the element type of an array component (if any), matching
+                // AnnotationFileParser.processRecordField's annotate() call.
+                routeAnnotations(
+                        comp.getAnnotations(),
+                        compRec.typeAnnos,
+                        compRec.declAnnos,
+                        arrayElementPath(comp.getType()),
+                        true,
+                        cu);
                 extractTypeAnnotations(comp.getType(), new ArrayList<>(), compRec.typeAnnos, cu);
 
                 compRec.hasAccessor = accessorNames.contains(comp.getNameAsString());
@@ -1731,18 +1748,13 @@ public class BinaryStubWriter {
         try {
             MethodRecord mr = new MethodRecord();
             mr.sigIndex = pool.addString(member.getNameAsString() + "()");
-            for (AnnotationExpr anno : member.getAnnotations()) {
-                int idx = annosPool.addAnnotation(anno, cu, this);
-                if (idx == IGNORED) {
-                    continue;
-                }
-                if (hasTypeUse(anno)) {
-                    mr.returnTypeAnnos.add(new TypeAnno(idx, arrayElementPath(member.getType())));
-                }
-                if (!isTypeUseOnly(anno)) {
-                    mr.declAnnos.add(idx);
-                }
-            }
+            routeAnnotations(
+                    member.getAnnotations(),
+                    mr.returnTypeAnnos,
+                    mr.declAnnos,
+                    arrayElementPath(member.getType()),
+                    true,
+                    cu);
             extractTypeAnnotations(member.getType(), new ArrayList<>(), mr.returnTypeAnnos, cu);
             addMethodRecord(cr, mr);
         } catch (IOException e) {
@@ -1811,19 +1823,14 @@ public class BinaryStubWriter {
             // "Deprecated" check: both run over unresolved JavaParser ASTs with no Elements to
             // resolve a possibly-qualified annotation name against.
             mr.hasOverrideAnnotation = decl.isAnnotationPresent("Override");
-            for (AnnotationExpr anno : decl.getAnnotations()) {
-                int idx = annosPool.addAnnotation(anno, cu, this);
-                if (idx == IGNORED) {
-                    continue;
-                }
-                if (hasTypeUse(anno)) {
-                    mr.returnTypeAnnos.add(new TypeAnno(idx, declPositionPath));
-                }
-                if (!isTypeUseOnly(anno)) {
-                    // Annotation has a declaration-position target: also a declaration annotation.
-                    mr.declAnnos.add(idx);
-                }
-            }
+            // Annotation has a declaration-position target: also a declaration annotation.
+            routeAnnotations(
+                    decl.getAnnotations(),
+                    mr.returnTypeAnnos,
+                    mr.declAnnos,
+                    declPositionPath,
+                    true,
+                    cu);
             if (returnType != null) {
                 extractTypeAnnotations(returnType, new ArrayList<>(), mr.returnTypeAnnos, cu);
             }
@@ -1868,34 +1875,23 @@ public class BinaryStubWriter {
                 extractTypeAnnotations(p.getType(), declaredTypePath, pAnnos, cu);
                 mr.paramAnnos.add(pAnnos);
                 List<Integer> pdAnnos = new ArrayList<>();
-                for (AnnotationExpr anno : p.getAnnotations()) {
-                    int idx = annosPool.addAnnotation(anno, cu, this);
-                    if (idx == IGNORED) {
-                        continue;
-                    }
-                    if (hasTypeUse(anno)) {
-                        // For varargs, annotations on the parameter declaration apply to the
-                        // innermost array component (matching AnnotationFileParser.
-                        // annotateInnermostComponentType), which for a multidimensional vararg
-                        // (e.g. "String[]... args", equivalent to "String[][] args") is more than
-                        // one level below the overall parameter type: one ARRAY step for the
-                        // vararg's own implicit array level, plus one more per array level already
-                        // present in the declared type (p.getType(), "String[]" here). For
-                        // non-varargs, use only the element path of the declared type.
-                        List<TypePathStep> path;
-                        if (p.isVarArgs()) {
-                            path = new ArrayList<>();
-                            path.add(new TypePathStep((byte) 0, (byte) 0));
-                            path.addAll(arrayElementPath(p.getType()));
-                        } else {
-                            path = arrayElementPath(p.getType());
-                        }
-                        pAnnos.add(new TypeAnno(idx, path));
-                    }
-                    if (!isTypeUseOnly(anno)) {
-                        pdAnnos.add(idx);
-                    }
+                // For varargs, annotations on the parameter declaration apply to the
+                // innermost array component (matching AnnotationFileParser.
+                // annotateInnermostComponentType), which for a multidimensional vararg
+                // (e.g. "String[]... args", equivalent to "String[][] args") is more than
+                // one level below the overall parameter type: one ARRAY step for the
+                // vararg's own implicit array level, plus one more per array level already
+                // present in the declared type (p.getType(), "String[]" here). For
+                // non-varargs, use only the element path of the declared type.
+                List<TypePathStep> paramPath;
+                if (p.isVarArgs()) {
+                    paramPath = new ArrayList<>();
+                    paramPath.add(new TypePathStep((byte) 0, (byte) 0));
+                    paramPath.addAll(arrayElementPath(p.getType()));
+                } else {
+                    paramPath = arrayElementPath(p.getType());
                 }
+                routeAnnotations(p.getAnnotations(), pAnnos, pdAnnos, paramPath, true, cu);
                 if (p.isVarArgs()) {
                     // Annotations written immediately before "..." (e.g. "Foo @Nullable ...
                     // args") apply to the array type itself, matching
@@ -1903,12 +1899,13 @@ public class BinaryStubWriter {
                     // annotate(paramType, param.getVarArgsAnnotations(), param). JLS does not
                     // permit declaration annotations in this position, so these are always
                     // type-use and apply directly to the parameter's array type (empty path).
-                    for (AnnotationExpr anno : p.getVarArgsAnnotations()) {
-                        int idx = annosPool.addAnnotation(anno, cu, this);
-                        if (idx != IGNORED) {
-                            pAnnos.add(new TypeAnno(idx));
-                        }
-                    }
+                    routeAnnotations(
+                            p.getVarArgsAnnotations(),
+                            pAnnos,
+                            null,
+                            Collections.emptyList(),
+                            false,
+                            cu);
                 }
                 mr.paramDeclAnnos.add(pdAnnos);
             }
@@ -1937,22 +1934,17 @@ public class BinaryStubWriter {
             for (VariableDeclarator vd : fd.getVariables()) {
                 FieldRecord fr = new FieldRecord();
                 fr.nameIndex = pool.addString(vd.getNameAsString());
-                for (AnnotationExpr anno : fd.getAnnotations()) {
-                    int idx = annosPool.addAnnotation(anno, cu, this);
-                    if (idx == IGNORED) {
-                        continue;
-                    }
-                    if (hasTypeUse(anno)) {
-                        // Annotation in declaration position annotates the element type of an
-                        // array field (if any), not the array reference.
-                        fr.typeAnnos.add(new TypeAnno(idx, arrayElementPath(vd.getType())));
-                    }
-                    if (!isTypeUseOnly(anno)) {
-                        // Annotation has a declaration-position target: also a declaration
-                        // annotation.
-                        fr.declAnnos.add(idx);
-                    }
-                }
+                // Annotation in declaration position annotates the element type of an
+                // array field (if any), not the array reference.
+                // Annotation has a declaration-position target: also a declaration
+                // annotation.
+                routeAnnotations(
+                        fd.getAnnotations(),
+                        fr.typeAnnos,
+                        fr.declAnnos,
+                        arrayElementPath(vd.getType()),
+                        true,
+                        cu);
                 extractTypeAnnotations(vd.getType(), new ArrayList<>(), fr.typeAnnos, cu);
                 addFieldRecord(cr, fr);
             }
