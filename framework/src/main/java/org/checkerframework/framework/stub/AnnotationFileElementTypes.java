@@ -1137,7 +1137,8 @@ public class AnnotationFileElementTypes {
                 RecordComponentStub recordComponentStub =
                         recordStub.componentsByName.get(elt.getSimpleName().toString());
                 if (recordComponentStub != null) {
-                    return recordComponentStub.getAnnotationsForTarget(elt.getKind());
+                    return recordComponentStub.getAnnotationsForTarget(
+                            elt.getKind(), annotationFileAnnos.declAnnos);
                 }
             }
         }
@@ -1176,9 +1177,13 @@ public class AnnotationFileElementTypes {
                             recordComponentType.componentsByName.get(
                                     elt.getSimpleName().toString());
                     if (recordComponentStub != null && !recordComponentStub.hasAccessorInStubs()) {
-                        memberType
-                                .getReturnType()
-                                .replaceAnnotations(recordComponentStub.type.getAnnotations());
+                        AnnotatedTypeMirror compType =
+                                annotationFileAnnos.atypes.get(recordComponentStub.elt);
+                        if (compType != null) {
+                            memberType
+                                    .getReturnType()
+                                    .replaceAnnotations(compType.getAnnotations());
+                        }
                     }
                 }
             }
@@ -1189,7 +1194,8 @@ public class AnnotationFileElementTypes {
                         annotationFileAnnos.records.get(ElementUtils.getQualifiedName(enclosing));
                 if (recordComponentType != null) {
                     List<AnnotatedTypeMirror> componentsInCanonicalConstructor =
-                            recordComponentType.getComponentsInCanonicalConstructor();
+                            recordComponentType.getComponentsInCanonicalConstructor(
+                                    annotationFileAnnos.atypes);
                     if (componentsInCanonicalConstructor != null) {
                         for (int i = 0; i < componentsInCanonicalConstructor.size(); i++) {
                             memberType

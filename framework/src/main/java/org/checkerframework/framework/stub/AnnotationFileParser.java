@@ -365,11 +365,12 @@ public class AnnotationFileParser {
          *
          * @return the annotated types for the parameters to the canonical constructor
          */
-        public List<AnnotatedTypeMirror> getComponentsInCanonicalConstructor() {
+        public List<AnnotatedTypeMirror> getComponentsInCanonicalConstructor(
+                Map<Element, AnnotatedTypeMirror> atypes) {
             if (componentsInCanonicalConstructor != null) {
                 return componentsInCanonicalConstructor;
             } else {
-                return CollectionsPlume.mapList(c -> c.type, componentsByName.values());
+                return CollectionsPlume.mapList(c -> atypes.get(c.elt), componentsByName.values());
             }
         }
     }
@@ -381,38 +382,35 @@ public class AnnotationFileParser {
      * annotations that would otherwise be copied from the component in the stubs to the acessor.
      */
     public static class RecordComponentStub {
-        /** The type of the record component. */
-        public final AnnotatedTypeMirror type;
-
-        /**
-         * The set of all annotations on the declaration of the record component. If applicable
-         * these will be copied to the corresponding field, accessor method, and compact canonical
-         * constructor parameter.
-         */
-        private final AnnotationMirrorSet allAnnotations;
+        /** The variable element of the record component. */
+        public final VariableElement elt;
 
         /** Whether this component has an accessor of exactly the same name in the stubs file. */
         private boolean hasAccessorInStubs = false;
 
         /**
-         * Creates a new RecordComponentStub with the given type.
+         * Creates a new RecordComponentStub with the given element.
          *
-         * @param type the type of the record component
-         * @param allAnnotations the declaration annotations on the component
+         * @param elt the variable element of the record component
          */
-        public RecordComponentStub(AnnotatedTypeMirror type, AnnotationMirrorSet allAnnotations) {
-            this.type = type;
-            this.allAnnotations = allAnnotations;
+        public RecordComponentStub(VariableElement elt) {
+            this.elt = elt;
         }
 
         /**
          * Get the record component annotations that are applicable to the given element kind.
          *
          * @param elementKind the element kind to apply to (e.g., FIELD, METHOD)
+         * @param declAnnos the global map of declaration annotations
          * @return the set of annotations from the component that apply
          */
-        public AnnotationMirrorSet getAnnotationsForTarget(ElementKind elementKind) {
+        public AnnotationMirrorSet getAnnotationsForTarget(
+                ElementKind elementKind, Map<String, AnnotationMirrorSet> declAnnos) {
             AnnotationMirrorSet filtered = new AnnotationMirrorSet();
+            AnnotationMirrorSet allAnnotations = declAnnos.get(ElementUtils.getQualifiedName(elt));
+            if (allAnnotations == null) {
+                return filtered;
+            }
             for (AnnotationMirror annoMirror : allAnnotations) {
                 Target target =
                         annoMirror.getAnnotationType().asElement().getAnnotation(Target.class);
@@ -1163,8 +1161,7 @@ public class AnnotationFileParser {
                                         typeElt, recordMember.getNameAsString(), recordMember));
                 byName.put(recordMember.getNameAsString(), stub);
             }
-            annotationFileAnnos.records.put(
-                    recordDecl.getFullyQualifiedName().get(), new RecordStub(byName));
+            putMergeRecords(recordDecl.getFullyQualifiedName().get(), new RecordStub(byName));
         }
 
         IPair<Map<Element, BodyDeclaration<?>>, Map<Element, List<BodyDeclaration<?>>>> members =
@@ -1868,12 +1865,7 @@ public class AnnotationFileParser {
 
         annotate(fieldType, decl.getType(), decl.getAnnotations(), decl);
         putMerge(annotationFileAnnos.atypes, elt, fieldType);
-        AnnotationMirrorSet annos = new AnnotationMirrorSet();
-        for (AnnotationExpr annotation : decl.getAnnotations()) {
-            AnnotationMirror annoMirror = getAnnotation(annotation, allAnnotations);
-            annos.add(annoMirror);
-        }
-        return new RecordComponentStub(fieldType, annos);
+        return new RecordComponentStub(elt);
     }
 
     /**
@@ -3276,6 +3268,44 @@ public class AnnotationFileParser {
             // existingType is already in the map, so no need to put into m.
         } else {
             m.put(key, newType);
+        }
+    }
+
+    /**
+     * Merges a new RecordStub into the existing one in {@code annotationFileAnnos.records}.
+     *
+     * @param key the fully-qualified name of the record
+     * @param newStub the new RecordStub to merge
+     */
+    private void putMergeRecords(String key, RecordStub newStub) {
+        RecordStub existing = annotationFileAnnos.records.get(key);
+        if (existing == null) {
+            annotationFileAnnos.records.put(key, newStub);
+        } else {
+            for (Map.Entry<String, RecordComponentStub> e : newStub.componentsByName.entrySet()) {
+                RecordComponentStub existingComp = existing.componentsByName.get(e.getKey());
+                if (existingComp != null) {
+                    if (e.getValue().hasAccessorInStubs()) {
+                        existingComp.setHasAccessorInStubs();
+                    }
+                } else {
+                    existing.componentsByName.put(e.getKey(), e.getValue());
+                }
+            }
+            if (newStub.componentsInCanonicalConstructor != null) {
+                if (existing.componentsInCanonicalConstructor != null) {
+                    if (fileType != AnnotationFileType.JDK_STUB) {
+                        for (int i = 0; i < newStub.componentsInCanonicalConstructor.size(); i++) {
+                            atypeFactory.replaceAnnotations(
+                                    newStub.componentsInCanonicalConstructor.get(i),
+                                    existing.componentsInCanonicalConstructor.get(i));
+                        }
+                    }
+                } else {
+                    existing.componentsInCanonicalConstructor =
+                            newStub.componentsInCanonicalConstructor;
+                }
+            }
         }
     }
 

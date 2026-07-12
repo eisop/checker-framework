@@ -400,7 +400,15 @@ public class BinaryStubReader {
         }
 
         if (cr.kind == BinaryStubData.ClassRecord.KIND_RECORD) {
-            applyRecordComponents(cr, className, typeElt, atypeFactory, elementTypes, data, target);
+            applyRecordComponents(
+                    cr,
+                    className,
+                    typeElt,
+                    atypeFactory,
+                    elementTypes,
+                    data,
+                    target,
+                    fromStubFileAnno);
         }
     }
 
@@ -450,6 +458,8 @@ public class BinaryStubReader {
      * @param elementTypes per-factory state, including the annotation-mirror cache
      * @param data the complete binary stub data
      * @param target the annotation container to store the results in
+     * @param fromStubFileAnno the {@code @FromStubFile} mirror to mark matched components with, or
+     *     {@code null} to not mark
      */
     private static void applyRecordComponents(
             BinaryStubData.ClassRecord cr,
@@ -458,7 +468,8 @@ public class BinaryStubReader {
             AnnotatedTypeFactory atypeFactory,
             AnnotationFileElementTypes elementTypes,
             BinaryStubData data,
-            AnnotationFileAnnotations target) {
+            AnnotationFileAnnotations target,
+            @Nullable AnnotationMirror fromStubFileAnno) {
         // Build a name-to-element map for the record's components using the same FIELD elements
         // AnnotationFileParser.findFieldElement uses (ElementFilter.fieldsIn), not
         // TypeElement.getRecordComponents(): a component's RECORD_COMPONENT element is a distinct
@@ -482,6 +493,10 @@ public class BinaryStubReader {
                 continue;
             }
 
+            if (fromStubFileAnno != null) {
+                markFromStubFile(target, compElt, fromStubFileAnno);
+            }
+
             // Build the annotated type for this component.
             AnnotatedTypeMirror compType =
                     AnnotatedTypeMirror.createType(compElt.asType(), atypeFactory, false);
@@ -491,12 +506,9 @@ public class BinaryStubReader {
             }
             // Store keyed by the field element in atypes, matching
             // AnnotationFileParser.processRecordField's putMerge(atypes, elt, fieldType).
-            target.atypes.putIfAbsent(compElt, compType);
+            storeOrMerge(target, compElt, compType, atypeFactory, fromStubFileAnno);
 
-            // Parse declaration annotations. Merged with fromLazyJdk semantics -- an existing
-            // annotation of the same type wins -- because applyRecordComponents has no
-            // fromStubFileAnno parameter to distinguish the two sources; applyClassRecord does not
-            // pass it one. That is what the code inlined here has always done.
+            // Parse declaration annotations.
             AnnotationMirrorSet declAnnos =
                     parseDeclAnnos(comp.declAnnos, className, data, atypeFactory, elementTypes);
             if (!declAnnos.isEmpty()) {
@@ -504,10 +516,10 @@ public class BinaryStubReader {
                         target,
                         ElementUtils.getQualifiedName(compElt),
                         declAnnos,
-                        /* fromLazyJdk= */ true);
+                        /* fromLazyJdk= */ fromStubFileAnno == null);
             }
 
-            RecordComponentStub stub = new RecordComponentStub(compType, declAnnos);
+            RecordComponentStub stub = new RecordComponentStub(compElt);
             if (comp.hasAccessor) {
                 stub.setHasAccessorInStubs();
             }
