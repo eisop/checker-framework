@@ -1538,15 +1538,28 @@ public class BinaryStubReader {
             AnnotatedTypeFactory atypeFactory,
             BinaryStubData data,
             AnnotationFileElementTypes elementTypes) {
-        if (ar.hasNameLiteral) {
-            return createAnnotationMirrorNoCache(
-                    ar, enclosingClassName, atypeFactory, data, elementTypes);
-        }
         AnnotationFileElementTypes.BinaryStubDataCache cache =
                 elementTypes.getBinaryStubDataCache();
         if (cache == null) {
             return createAnnotationMirrorNoCache(
                     ar, enclosingClassName, atypeFactory, data, elementTypes);
+        }
+        if (ar.hasNameLiteral) {
+            Map<String, @Nullable AnnotationMirror> enclosingMap =
+                    cache.nameLiteralAnnoCache.get(ar);
+            if (enclosingMap == null) {
+                enclosingMap = new HashMap<>();
+                cache.nameLiteralAnnoCache.put(ar, enclosingMap);
+            }
+            AnnotationMirror cached = enclosingMap.get(enclosingClassName);
+            if (cached != null || enclosingMap.containsKey(enclosingClassName)) {
+                return cached;
+            }
+            AnnotationMirror am =
+                    createAnnotationMirrorNoCache(
+                            ar, enclosingClassName, atypeFactory, data, elementTypes);
+            enclosingMap.put(enclosingClassName, am);
+            return am;
         }
         // Not computeIfAbsent: it does not record a null result, so an unresolvable annotation
         // would be recomputed -- and rethrow -- on every one of its occurrences. One map lookup on

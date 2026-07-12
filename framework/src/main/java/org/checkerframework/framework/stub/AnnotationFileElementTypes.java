@@ -177,6 +177,14 @@ public class AnnotationFileElementTypes {
         final IdentityHashMap<BinaryStubData.AnnotationRecord, @Nullable AnnotationMirror>
                 annoCache = new IdentityHashMap<>();
 
+        /**
+         * Cache of parsed annotation mirrors for records containing name literals. These records
+         * are resolved in the context of the enclosing class name.
+         */
+        final IdentityHashMap<
+                        BinaryStubData.AnnotationRecord, Map<String, @Nullable AnnotationMirror>>
+                nameLiteralAnnoCache = new IdentityHashMap<>();
+
         /** Cache of resolved {@code Class} literal types to avoid repeated element lookups. */
         final Map<String, TypeMirror> resolvedClassTypesCache = new HashMap<>();
 
