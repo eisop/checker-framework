@@ -145,40 +145,51 @@ public class AnnotationFileElementTypesTest {
                 index.containsKey("bad(NoSuchType)"));
     }
 
+    /**
+     * {@code extractFqClassName} handles both forms of the annotated JDK's layout -- a jar entry,
+     * which includes the {@code annotated-jdk} root, and a file path relative to that root -- and
+     * returns null for anything that does not follow the layout, so that the caller skips it
+     * instead of crashing on an unguarded {@code substring}.
+     */
     @Test
     public void testExtractFqClassName() {
-        // Standard layout
         Assert.assertEquals(
                 "java.lang.System",
                 AnnotationFileElementTypes.extractFqClassName(
                         "annotated-jdk/src/java.base/share/classes/java/lang/System.java"));
-        // Non-standard layout (no share/classes, relative to root)
-        Assert.assertEquals(
-                "java.lang.System",
-                AnnotationFileElementTypes.extractFqClassName("java/lang/System.java"));
-        // Non-standard layout with annotated-jdk prefix
         Assert.assertEquals(
                 "java.lang.System",
                 AnnotationFileElementTypes.extractFqClassName(
-                        "annotated-jdk/java/lang/System.java"));
-        // Modular non-standard layout
-        Assert.assertEquals(
-                "java.lang.System",
-                AnnotationFileElementTypes.extractFqClassName(
-                        "annotated-jdk/java.base/java/lang/System.java"));
-        // package-info standard layout
+                        "src/java.base/share/classes/java/lang/System.java"));
         Assert.assertEquals(
                 "java.lang.package-info",
                 AnnotationFileElementTypes.extractFqClassName(
                         "annotated-jdk/src/java.base/share/classes/java/lang/package-info.java"));
-        // package-info non-standard layout
-        Assert.assertEquals(
-                "java.lang.package-info",
+        // Not the annotated JDK's layout: no "/share/classes/" segment.
+        Assert.assertNull(AnnotationFileElementTypes.extractFqClassName("java/lang/System.java"));
+        // Not a Java file.
+        Assert.assertNull(
                 AnnotationFileElementTypes.extractFqClassName(
-                        "annotated-jdk/java/lang/package-info.java"));
-        // Unknown prefix
-        Assert.assertNull(AnnotationFileElementTypes.extractFqClassName("foo/bar/Baz.java"));
-        // Not a java file
-        Assert.assertNull(AnnotationFileElementTypes.extractFqClassName("java/lang/System.class"));
+                        "annotated-jdk/src/java.base/share/classes/java/lang/System.class"));
+    }
+
+    /**
+     * {@code extractModuleName} returns the module directory segment of a {@code module-info.java}
+     * entry, for both forms of the layout, and null for anything else.
+     */
+    @Test
+    public void testExtractModuleName() {
+        Assert.assertEquals(
+                "java.base",
+                AnnotationFileElementTypes.extractModuleName(
+                        "annotated-jdk/src/java.base/share/classes/module-info.java"));
+        Assert.assertEquals(
+                "java.base",
+                AnnotationFileElementTypes.extractModuleName(
+                        "src/java.base/share/classes/module-info.java"));
+        // Not the annotated JDK's layout: no "src/" segment, and no "/share/classes/" segment.
+        Assert.assertNull(
+                AnnotationFileElementTypes.extractModuleName(
+                        "annotated-jdk/java.base/module-info.java"));
     }
 }

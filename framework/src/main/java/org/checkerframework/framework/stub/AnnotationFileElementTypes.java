@@ -81,6 +81,12 @@ public class AnnotationFileElementTypes {
     /** Name of the annotated JDK directory inside {@code checker.jar}. */
     private static final String ANNOTATED_JDK_PATH = "annotated-jdk";
 
+    /**
+     * The directory segment that separates a JDK module directory from the package hierarchy below
+     * it, in the annotated JDK's {@code src/<module>/share/classes/<package>} layout.
+     */
+    private static final String SHARE_CLASSES = "/share/classes/";
+
     /** Annotations from annotation files (but not from annotated JDK files). */
     final AnnotationFileAnnotations annotationFileAnnos;
 
@@ -1765,8 +1771,8 @@ public class AnnotationFileElementTypes {
                     // Record the path for BinaryStubDiffChecker regardless of binaryLoaded: it
                     // needs to re-parse package-info.java for comparison even when production
                     // code does not (see packageInfoPathsByPackage's own documentation).
-                    Path relativePath = root.relativize(path);
-                    String fqPackageInfoName = extractFqClassName(relativePath);
+                    String fqPackageInfoName =
+                            extractFqClassName(toSlashSeparated(root.relativize(path)));
                     if (fqPackageInfoName != null) {
                         String packageName =
                                 fqPackageInfoName.substring(
@@ -1782,32 +1788,8 @@ public class AnnotationFileElementTypes {
                 }
                 if (path.getFileName().toString().equals("module-info.java")) {
                     // Record the path for BinaryStubDiffChecker regardless of binaryLoaded, like
-                    // package-info.java above. The module name is the JDK module directory
-                    // segment itself (e.g. "src/java.base/share/classes/module-info.java"), not
-                    // derived from the file's own declaration text.
-                    Path relativePath = root.relativize(path);
-                    String moduleName = null;
-                    String relPathStr = relativePath.toString().replace(File.separatorChar, '/');
-                    int srcPos = relPathStr.startsWith("src/") ? 0 : relPathStr.indexOf("/src/");
-                    int sharePos = relPathStr.indexOf("/share/classes/");
-                    if (srcPos != -1 && sharePos != -1) {
-                        int srcIndex = srcPos == 0 ? 4 : srcPos + "/src/".length();
-                        if (srcIndex < sharePos) {
-                            moduleName = relPathStr.substring(srcIndex, sharePos);
-                        }
-                    }
-                    if (moduleName == null) {
-                        // Fallback logic for extracting module name when path structure is
-                        // non-standard
-                        String[] parts = relPathStr.split("/");
-                        if (parts.length > 1
-                                && parts[parts.length - 1].equals("module-info.java")) {
-                            String potentialModuleName = parts[parts.length - 2];
-                            if (!potentialModuleName.equals(ANNOTATED_JDK_PATH)) {
-                                moduleName = potentialModuleName;
-                            }
-                        }
-                    }
+                    // package-info.java above.
+                    String moduleName = extractModuleName(toSlashSeparated(root.relativize(path)));
                     if (moduleName != null) {
                         moduleInfoPathsByModule.put(moduleName, path);
                     }
@@ -1822,8 +1804,7 @@ public class AnnotationFileElementTypes {
                     parseJdkStubFile(path);
                     continue;
                 }
-                Path relativePath = root.relativize(path);
-                String fqName = extractFqClassName(relativePath);
+                String fqName = extractFqClassName(toSlashSeparated(root.relativize(path)));
                 if (fqName != null) {
                     remainingJdkStubFiles.put(fqName, path);
                 }
@@ -2052,36 +2033,8 @@ public class AnnotationFileElementTypes {
                 }
                 if (jarEntryName.endsWith("module-info.java")) {
                     // Record the jar entry for BinaryStubDiffChecker regardless of binaryLoaded,
-                    // like package-info.java below. The module name is the path segment between
-                    // "/src/" and "/share/classes/", not derived from the file's declaration text.
-                    String moduleName = null;
-                    int srcPos =
-                            jarEntryName.startsWith("src/") ? 0 : jarEntryName.indexOf("/src/");
-                    if (srcPos == -1 && jarEntryName.startsWith(ANNOTATED_JDK_PATH + "/src/")) {
-                        srcPos = ANNOTATED_JDK_PATH.length() + 1;
-                    }
-                    int sharePos = jarEntryName.indexOf("/share/classes/");
-                    if (srcPos != -1 && sharePos != -1) {
-                        int srcIndex =
-                                (srcPos == 0 || srcPos == ANNOTATED_JDK_PATH.length() + 1)
-                                        ? srcPos + 4
-                                        : srcPos + "/src/".length();
-                        if (srcIndex < sharePos) {
-                            moduleName = jarEntryName.substring(srcIndex, sharePos);
-                        }
-                    }
-                    if (moduleName == null) {
-                        // Fallback logic for extracting module name when path structure is
-                        // non-standard
-                        String[] parts = jarEntryName.split("/");
-                        if (parts.length > 1
-                                && parts[parts.length - 1].equals("module-info.java")) {
-                            String potentialModuleName = parts[parts.length - 2];
-                            if (!potentialModuleName.equals(ANNOTATED_JDK_PATH)) {
-                                moduleName = potentialModuleName;
-                            }
-                        }
-                    }
+                    // like package-info.java below.
+                    String moduleName = extractModuleName(jarEntryName);
                     if (moduleName != null) {
                         moduleInfoJarEntriesByModule.put(moduleName, jarEntryName);
                     }
@@ -2194,70 +2147,64 @@ public class AnnotationFileElementTypes {
     }
 
     /**
-     * Finds the index in the path array where the fully qualified class/package name starts.
-     * Returns -1 if no known package prefix is found.
+     * Converts a path to its {@code '/'}-separated textual form, which is what the annotated-JDK
+     * jar entries already use and what {@link #extractFqClassName} and {@link #extractModuleName}
+     * expect.
      *
-     * @param parts path segments
-     * @return the start index of the package, or -1
+     * @param path a path
+     * @return the path, with {@code '/'} as the name separator
      */
-    static int findPackageStartIndex(String[] parts) {
-        for (int i = 0; i < parts.length; i++) {
-            String part = parts[i];
-            if (part.equals("java")
-                    || part.equals("javax")
-                    || part.equals("jdk")
-                    || part.equals("sun")
-                    || part.equals("com")
-                    || part.equals("org")
-                    || part.equals("netscape")
-                    || part.equals("sunw")) {
-                return i;
-            }
-        }
-        return -1;
+    private static String toSlashSeparated(Path path) {
+        return path.toString().replace(File.separatorChar, '/');
     }
 
     /**
-     * Extract the fully qualified class name from a jar entry name or file path.
+     * Returns the fully-qualified name of the class, {@code package-info}, or {@code module-info}
+     * declared by the given annotated-JDK source file, whose name is relative to the annotated-JDK
+     * root ({@code "src/<module>/share/classes/java/lang/System.java"}) or, for a jar entry,
+     * includes that root ({@code "annotated-jdk/src/..."}).
      *
-     * @param path jar entry name or file path
-     * @return fully qualified class name, or null
+     * @param path a {@code '/'}-separated jar entry name or relative file path
+     * @return the fully-qualified name, or null if {@code path} does not follow the annotated JDK's
+     *     directory layout
      */
-    static String extractFqClassName(String path) {
+    static @Nullable String extractFqClassName(String path) {
         if (!path.endsWith(".java")) {
             return null;
         }
-        int index = path.indexOf("/share/classes/");
-        if (index != -1) {
-            index += "/share/classes/".length();
-            return path.substring(index, path.length() - 5).replace('/', '.');
+        int index = path.indexOf(SHARE_CLASSES);
+        if (index == -1) {
+            return null;
         }
-        // Fallback: split by '/'
-        String[] parts = path.split("/");
-        int pkgStart = findPackageStartIndex(parts);
-        if (pkgStart != -1) {
-            StringBuilder sb = new StringBuilder();
-            for (int i = pkgStart; i < parts.length; i++) {
-                if (sb.length() > 0) {
-                    sb.append('.');
-                }
-                sb.append(parts[i]);
-            }
-            String fq = sb.toString();
-            return fq.substring(0, fq.length() - 5); // remove ".java"
-        }
-        return null;
+        index += SHARE_CLASSES.length();
+        return path.substring(index, path.length() - ".java".length()).replace('/', '.');
     }
 
     /**
-     * Extracts the FQN of the class/package-info from a relative Path.
+     * Returns the JDK module that the given annotated-JDK source file belongs to: the path segment
+     * between {@code "src/"} and {@code "/share/classes/"}. The module is the directory segment
+     * itself, not something derived from the file's own declaration text.
      *
-     * @param relativePath relative Path object
-     * @return fully qualified class name, or null
+     * @param path a {@code '/'}-separated jar entry name or relative file path
+     * @return the module name, or null if {@code path} does not follow the annotated JDK's
+     *     directory layout
      */
-    static String extractFqClassName(Path relativePath) {
-        String pathString = relativePath.toString().replace(File.separatorChar, '/');
-        return extractFqClassName(pathString);
+    static @Nullable String extractModuleName(String path) {
+        int srcIndex;
+        if (path.startsWith("src/")) {
+            srcIndex = "src/".length();
+        } else {
+            int slashSrcIndex = path.indexOf("/src/");
+            if (slashSrcIndex == -1) {
+                return null;
+            }
+            srcIndex = slashSrcIndex + "/src/".length();
+        }
+        int shareIndex = path.indexOf(SHARE_CLASSES);
+        if (shareIndex <= srcIndex) {
+            return null;
+        }
+        return path.substring(srcIndex, shareIndex);
     }
 
     /**
