@@ -40,12 +40,30 @@ configurations {
         canBeConsumed = true
         canBeResolved = false
     }
+
+    // Resolves framework's stubifierTool configuration (JavaStubifier, BinaryStubWriter,
+    // BinaryStubFileGenerator) in isolation from "implementation"/"api", purely so shadowJar can
+    // merge it in and minimize() can be told to keep it -- see both uses below. A dedicated
+    // configuration is required: adding this as another "api project(':framework', configuration:
+    // ...)" dependency directly conflicts with the plain "api project(':framework')" dependency
+    // above (Gradle rejects two different variants/capabilities of the same project being
+    // requested within one resolvable configuration, e.g. testCompileClasspath).
+    stubifierToolForShadow {
+        canBeConsumed = false
+        canBeResolved = true
+    }
 }
 
 dependencies {
     // Use "api" instead of "implementation" to re-export sub-projects, making
     // sure "minimize()" does not remove those classes.
     api project(':framework')
+
+    // Guarantees the stubifier tool is always present in checker.jar, for external checkers to
+    // build their own binary annotated JDK or .astub files against (see framework/build.gradle's
+    // stubifierTool configuration doc comment). Not "api"/"implementation": see the
+    // stubifierToolForShadow configuration's own comment above for why.
+    stubifierToolForShadow project(path: ':framework', configuration: 'stubifierTool')
 
     /* NO-AFU
      // AFU is an "includedBuild" imported in checker-framework/settings.gradle, so the version number doesn't matter.
@@ -275,11 +293,19 @@ tasks.named('shadowJar') {
     // doFirst { println sourceSets.main.runtimeClasspath.asPath }
     archiveClassifier = 'all'
 
+    // Merge in the stubifierToolForShadow configuration too, so the exclude below has a genuine,
+    // separately-resolved dependency node to protect (see that configuration's own comment).
+    configurations.add(project.configurations.stubifierToolForShadow)
+
     minimize {
         // Keep all classes from checker-qual and checker-util rather than
         // relying on the `api` re-export to protect them from minimize().
         exclude(dependency('org.checkerframework:checker-qual:.*'))
         exclude(dependency('org.checkerframework:checker-util:.*'))
+        // Same reasoning for the stubifier tool (JavaStubifier, BinaryStubWriter,
+        // BinaryStubFileGenerator): keep it regardless of whether anything else in checker.jar
+        // happens to reference it.
+        exclude(project(path: ':framework', configuration: 'stubifierTool'))
     }
 }
 
