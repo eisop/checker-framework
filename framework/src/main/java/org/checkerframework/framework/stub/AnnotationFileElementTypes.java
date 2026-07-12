@@ -638,20 +638,32 @@ public class AnnotationFileElementTypes {
                                     + e.getMessage());
             return false;
         }
-        applyBinaryStubData(data, annotationFileAnnos);
-        if (isStubTypes
-                && textResourceURL != null
-                && atypeFactory.getChecker().hasOption("binaryStubDiffCheck")) {
-            invokeDiffChecker(
-                    "diffBuiltinStub",
-                    new Class<?>[] {
-                        String.class,
-                        URL.class,
-                        BinaryStubData.class,
-                        AnnotationFileElementTypes.class,
-                        AnnotatedTypeFactory.class
-                    },
-                    new Object[] {description, textResourceURL, data, this, atypeFactory});
+        try {
+            applyBinaryStubData(data, annotationFileAnnos);
+            if (isStubTypes
+                    && textResourceURL != null
+                    && atypeFactory.getChecker().hasOption("binaryStubDiffCheck")) {
+                invokeDiffChecker(
+                        "diffBuiltinStub",
+                        new Class<?>[] {
+                            String.class,
+                            URL.class,
+                            BinaryStubData.class,
+                            AnnotationFileElementTypes.class,
+                            AnnotatedTypeFactory.class
+                        },
+                        new Object[] {description, textResourceURL, data, this, atypeFactory});
+            }
+        } catch (RuntimeException e) {
+            atypeFactory
+                    .getChecker()
+                    .message(
+                            Diagnostic.Kind.NOTE,
+                            "Could not apply binary stub data for "
+                                    + binURL
+                                    + ", falling back to text parsing. Error: "
+                                    + e.getMessage());
+            return false;
         }
         return true;
     }
@@ -710,62 +722,67 @@ public class AnnotationFileElementTypes {
     public void parseStubFiles() {
         assert parsingCount == 0;
         ++parsingCount;
-        BaseTypeChecker checker = atypeFactory.getChecker();
-        if (stubDebug) {
-            System.out.printf(
-                    "entered parseStubFiles() for %s, ignorejdkastub=%s%n",
-                    atypeFactory.getClass().getSimpleName(), ignorejdkastub);
-        }
-        if (!ignorejdkastub) {
-            // 1. Annotated JDK
-            // This preps but does not parse the JDK files (except package-info.java files).
-            // The JDK source code files will be parsed later, on demand.
-            prepJdkStubs();
-
-            // 2. jdk.astub
-            // Only look in .jar files, and parse it right away.
-            String[] jdkVersions = {"", annotatedJdkVersion};
-            for (String jdkVersion : jdkVersions) {
-                String jdkVersionStub = "jdk" + jdkVersion + ".astub";
-                parseOneStubFile(this.getClass(), jdkVersionStub);
-                parseOneStubFile(checker.getClass(), jdkVersionStub);
+        try {
+            BaseTypeChecker checker = atypeFactory.getChecker();
+            if (stubDebug) {
+                System.out.printf(
+                        "entered parseStubFiles() for %s, ignorejdkastub=%s%n",
+                        atypeFactory.getClass().getSimpleName(), ignorejdkastub);
             }
-            // This needs to be special-cased for every jdkX.astub for which files exist. :-(
-            // TODO: not clear what this is supposed to mean - if we are on Java 8, why parse Java
-            // 11 stub files?
-            // It would make more sense to parse this if we're e.g. on Java 12.
-            if (annotatedJdkVersion.equals("8")) {
-                String jdk11Stub = "jdk11.astub";
-                parseOneStubFile(this.getClass(), jdk11Stub);
-                parseOneStubFile(checker.getClass(), jdk11Stub);
+            if (!ignorejdkastub) {
+                // 1. Annotated JDK
+                // This preps but does not parse the JDK files (except package-info.java files).
+                // The JDK source code files will be parsed later, on demand.
+                prepJdkStubs();
+
+                // 2. jdk.astub
+                // Only look in .jar files, and parse it right away.
+                String[] jdkVersions = {"", annotatedJdkVersion};
+                for (String jdkVersion : jdkVersions) {
+                    String jdkVersionStub = "jdk" + jdkVersion + ".astub";
+                    parseOneStubFile(this.getClass(), jdkVersionStub);
+                    parseOneStubFile(checker.getClass(), jdkVersionStub);
+                }
+                // This needs to be special-cased for every jdkX.astub for which files exist. :-(
+                // TODO: not clear what this is supposed to mean - if we are on Java 8, why parse
+                // Java
+                // 11 stub files?
+                // It would make more sense to parse this if we're e.g. on Java 12.
+                if (annotatedJdkVersion.equals("8")) {
+                    String jdk11Stub = "jdk11.astub";
+                    parseOneStubFile(this.getClass(), jdk11Stub);
+                    parseOneStubFile(checker.getClass(), jdk11Stub);
+                }
             }
-        }
 
-        // 3. Stub files listed in @StubFiles annotation on the checker
-        StubFiles stubFilesAnnotation = checker.getClass().getAnnotation(StubFiles.class);
-        if (stubFilesAnnotation != null) {
-            parseAnnotationFiles(
-                    Arrays.asList(stubFilesAnnotation.value()), AnnotationFileType.BUILTIN_STUB);
-        }
+            // 3. Stub files listed in @StubFiles annotation on the checker
+            StubFiles stubFilesAnnotation = checker.getClass().getAnnotation(StubFiles.class);
+            if (stubFilesAnnotation != null) {
+                parseAnnotationFiles(
+                        Arrays.asList(stubFilesAnnotation.value()),
+                        AnnotationFileType.BUILTIN_STUB);
+            }
 
-        // 4. Stub files returned by the `getExtraStubFiles()` method
-        parseAnnotationFiles(checker.getExtraStubFiles(), AnnotationFileType.BUILTIN_STUB);
+            // 4. Stub files returned by the `getExtraStubFiles()` method
+            parseAnnotationFiles(checker.getExtraStubFiles(), AnnotationFileType.BUILTIN_STUB);
 
-        // 5. Stub files provided via -Astubs command-line option
-        String stubsOption = checker.getOption("stubs");
-        if (stubsOption != null) {
-            parseAnnotationFiles(
-                    SystemUtil.PATH_SEPARATOR_SPLITTER.splitToList(stubsOption),
-                    AnnotationFileType.COMMAND_LINE_STUB);
-        }
+            // 5. Stub files provided via -Astubs command-line option
+            String stubsOption = checker.getOption("stubs");
+            if (stubsOption != null) {
+                parseAnnotationFiles(
+                        SystemUtil.PATH_SEPARATOR_SPLITTER.splitToList(stubsOption),
+                        AnnotationFileType.COMMAND_LINE_STUB);
+            }
+        } finally {
+            --parsingCount;
+            assert parsingCount == 0;
+            atypeFactory.clearParsePhaseCache();
 
-        --parsingCount;
-        assert parsingCount == 0;
-        atypeFactory.clearParsePhaseCache();
-
-        if (stubDebug) {
-            System.out.printf(
-                    "exited parseStubFiles() for %s%n", atypeFactory.getClass().getSimpleName());
+            if (stubDebug) {
+                System.out.printf(
+                        "exited parseStubFiles() for %s%n",
+                        atypeFactory.getClass().getSimpleName());
+            }
         }
     }
 
@@ -819,14 +836,17 @@ public class AnnotationFileElementTypes {
     public void parseAjavaFiles() {
         assert parsingCount == 0;
         ++parsingCount;
-        // TODO: Error if this is called more than once?
-        SourceChecker checker = atypeFactory.getChecker();
-        List<String> ajavaFiles = checker.getStringsOption("ajava", File.pathSeparator);
+        try {
+            // TODO: Error if this is called more than once?
+            SourceChecker checker = atypeFactory.getChecker();
+            List<String> ajavaFiles = checker.getStringsOption("ajava", File.pathSeparator);
 
-        parseAnnotationFiles(ajavaFiles, AnnotationFileType.AJAVA);
-        --parsingCount;
-        assert parsingCount == 0;
-        atypeFactory.clearParsePhaseCache();
+            parseAnnotationFiles(ajavaFiles, AnnotationFileType.AJAVA);
+        } finally {
+            --parsingCount;
+            assert parsingCount == 0;
+            atypeFactory.clearParsePhaseCache();
+        }
     }
 
     /**
@@ -841,27 +861,35 @@ public class AnnotationFileElementTypes {
     public void parseAjavaFileWithTree(String ajavaPath, CompilationUnitTree root) {
         assert parsingCount == 0;
         ++parsingCount;
-        SourceChecker checker = atypeFactory.getChecker();
-        ProcessingEnvironment processingEnv = atypeFactory.getProcessingEnv();
-        try (InputStream in = new FileInputStream(ajavaPath)) {
-            if (stubDebug) {
-                AnnotationFileParser.stubDebugStatic(
-                        processingEnv,
-                        "parseAjavaFileWithTree(%s, %s): checker = %s, in = %s%n",
+        try {
+            SourceChecker checker = atypeFactory.getChecker();
+            ProcessingEnvironment processingEnv = atypeFactory.getProcessingEnv();
+            try (InputStream in = new FileInputStream(ajavaPath)) {
+                if (stubDebug) {
+                    AnnotationFileParser.stubDebugStatic(
+                            processingEnv,
+                            "parseAjavaFileWithTree(%s, %s): checker = %s, in = %s%n",
+                            ajavaPath,
+                            System.identityHashCode(root),
+                            checker.getClass().getSimpleName(),
+                            in);
+                }
+                AnnotationFileParser.parseAjavaFile(
                         ajavaPath,
-                        System.identityHashCode(root),
-                        checker.getClass().getSimpleName(),
-                        in);
+                        in,
+                        root,
+                        atypeFactory,
+                        processingEnv,
+                        annotationFileAnnos,
+                        this);
+            } catch (IOException e) {
+                checker.message(Diagnostic.Kind.NOTE, "Could not read ajava file: " + ajavaPath);
             }
-            AnnotationFileParser.parseAjavaFile(
-                    ajavaPath, in, root, atypeFactory, processingEnv, annotationFileAnnos, this);
-        } catch (IOException e) {
-            checker.message(Diagnostic.Kind.NOTE, "Could not read ajava file: " + ajavaPath);
+        } finally {
+            --parsingCount;
+            assert parsingCount == 0;
+            atypeFactory.clearParsePhaseCache();
         }
-
-        --parsingCount;
-        assert parsingCount == 0;
-        atypeFactory.clearParsePhaseCache();
     }
 
     /**
