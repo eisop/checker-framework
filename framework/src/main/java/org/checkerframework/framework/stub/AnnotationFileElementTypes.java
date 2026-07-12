@@ -30,6 +30,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.UncheckedIOException;
 import java.lang.ProcessBuilder.Redirect;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -543,14 +544,19 @@ public class AnnotationFileElementTypes {
      * @throws IOException if the resource cannot be read or has an invalid format
      */
     private static BinaryStubData loadBinaryStubData(URL binURL) throws IOException {
-        BinaryStubData data = loadedBinaryStubData.get(binURL.toString());
-        if (data == null) {
-            try (InputStream in = binURL.openStream()) {
-                data = new BinaryStubData(in);
-            }
-            loadedBinaryStubData.putIfAbsent(binURL.toString(), data);
+        try {
+            return loadedBinaryStubData.computeIfAbsent(
+                    binURL.toString(),
+                    key -> {
+                        try (InputStream in = binURL.openStream()) {
+                            return new BinaryStubData(in);
+                        } catch (IOException e) {
+                            throw new UncheckedIOException(e);
+                        }
+                    });
+        } catch (UncheckedIOException e) {
+            throw e.getCause();
         }
-        return data;
     }
 
     /**
