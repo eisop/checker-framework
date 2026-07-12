@@ -87,7 +87,6 @@ import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TypesUtils;
 import org.checkerframework.javacutil.UserError;
 import org.plumelib.util.ArrayMap;
-import org.plumelib.util.CollectionsPlume;
 import org.plumelib.util.IPair;
 import org.plumelib.util.SystemPlume;
 
@@ -363,23 +362,39 @@ public class AnnotationFileParser {
          * either from explicit annotations on the constructor in the stubs, otherwise it's taken
          * from the annotations on the record components in the stubs.
          *
+         * @param atypes the annotated types from all annotation files, keyed by element; every
+         *     component of this record has an entry in it
          * @return the annotated types for the parameters to the canonical constructor
          */
         public List<AnnotatedTypeMirror> getComponentsInCanonicalConstructor(
                 Map<Element, AnnotatedTypeMirror> atypes) {
             if (componentsInCanonicalConstructor != null) {
                 return componentsInCanonicalConstructor;
-            } else {
-                return CollectionsPlume.mapList(c -> atypes.get(c.elt), componentsByName.values());
             }
+            List<AnnotatedTypeMirror> result = new ArrayList<>(componentsByName.size());
+            for (RecordComponentStub component : componentsByName.values()) {
+                AnnotatedTypeMirror componentType = atypes.get(component.elt);
+                if (componentType == null) {
+                    // Every source of a RecordComponentStub also stores the component's type:
+                    // processRecordField's putMerge, and BinaryStubReader's storeOrMerge.
+                    throw new BugInCF("No annotated type for record component " + component.elt);
+                }
+                result.add(componentType);
+            }
+            return result;
         }
     }
 
     /**
-     * Information about a record component: its type, and whether there was an accessor in the
-     * stubs for that component. That is, for a component "foo" was there a method named exactly
-     * "foo()" in the stubs. If so, annotations on that accessor will take precedence over
-     * annotations that would otherwise be copied from the component in the stubs to the acessor.
+     * Information about a record component: the component's element, and whether there was an
+     * accessor in the stubs for that component. That is, for a component "foo" was there a method
+     * named exactly "foo()" in the stubs. If so, annotations on that accessor will take precedence
+     * over annotations that would otherwise be copied from the component in the stubs to the
+     * acessor.
+     *
+     * <p>The component's type and declaration annotations are not stored here; they are in {@code
+     * annotationFileAnnos.atypes} and {@code annotationFileAnnos.declAnnos}, keyed by {@link #elt},
+     * so that they are merged across annotation files like those of any other declaration.
      */
     public static class RecordComponentStub {
         /** The variable element of the record component. */
@@ -433,10 +448,9 @@ public class AnnotationFileParser {
         }
 
         /**
-         * Marks this record component as having an explicit accessor in a stub file.
-         *
-         * <p>Used by the binary stub reader to propagate the {@code hasAccessor} flag from the
-         * serialized component record.
+         * Marks this record component as having an explicit accessor in a stub file: an accessor
+         * written in the stub file being parsed, or the {@code hasAccessor} flag of a serialized
+         * component record.
          */
         public void setHasAccessorInStubs() {
             hasAccessorInStubs = true;
@@ -1427,7 +1441,7 @@ public class AnnotationFileParser {
                     RecordComponentStub recordComponentStub =
                             recordStub.componentsByName.get(methodDeclaration.getNameAsString());
                     if (recordComponentStub != null) {
-                        recordComponentStub.hasAccessorInStubs = true;
+                        recordComponentStub.setHasAccessorInStubs();
                     }
                 }
             }
@@ -3281,30 +3295,20 @@ public class AnnotationFileParser {
         RecordStub existing = annotationFileAnnos.records.get(key);
         if (existing == null) {
             annotationFileAnnos.records.put(key, newStub);
-        } else {
-            for (Map.Entry<String, RecordComponentStub> e : newStub.componentsByName.entrySet()) {
-                RecordComponentStub existingComp = existing.componentsByName.get(e.getKey());
-                if (existingComp != null) {
-                    if (e.getValue().hasAccessorInStubs()) {
-                        existingComp.setHasAccessorInStubs();
-                    }
-                } else {
-                    existing.componentsByName.put(e.getKey(), e.getValue());
-                }
-            }
-            if (newStub.componentsInCanonicalConstructor != null) {
-                if (existing.componentsInCanonicalConstructor != null) {
-                    if (fileType != AnnotationFileType.JDK_STUB) {
-                        for (int i = 0; i < newStub.componentsInCanonicalConstructor.size(); i++) {
-                            atypeFactory.replaceAnnotations(
-                                    newStub.componentsInCanonicalConstructor.get(i),
-                                    existing.componentsInCanonicalConstructor.get(i));
-                        }
-                    }
-                } else {
-                    existing.componentsInCanonicalConstructor =
-                            newStub.componentsInCanonicalConstructor;
-                }
+            return;
+        }
+        // Keep the existing RecordStub, so that a canonical constructor recorded from an earlier
+        // stub file (see processCallable, which sets componentsInCanonicalConstructor on the stub
+        // that is already in the map) survives this stub file. A RecordComponentStub holds no
+        // annotations of its own -- the component's type and declaration annotations live in
+        // annotationFileAnnos.atypes and .declAnnos, which are merged across stub files -- so the
+        // only per-component state to carry over is the accessor flag.
+        for (Map.Entry<String, RecordComponentStub> entry : newStub.componentsByName.entrySet()) {
+            RecordComponentStub existingComponent = existing.componentsByName.get(entry.getKey());
+            if (existingComponent == null) {
+                existing.componentsByName.put(entry.getKey(), entry.getValue());
+            } else if (entry.getValue().hasAccessorInStubs()) {
+                existingComponent.setHasAccessorInStubs();
             }
         }
     }
