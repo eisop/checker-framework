@@ -144,4 +144,41 @@ public class AnnotationFileElementTypesTest {
                 "the method with the unresolvable parameter must be skipped, not indexed",
                 index.containsKey("bad(NoSuchType)"));
     }
+
+    @Test
+    public void testExtractFqClassName() {
+        // Standard layout
+        Assert.assertEquals(
+                "java.lang.System",
+                AnnotationFileElementTypes.extractFqClassName(
+                        "annotated-jdk/src/java.base/share/classes/java/lang/System.java"));
+        // Non-standard layout (no share/classes, relative to root)
+        Assert.assertEquals(
+                "java.lang.System",
+                AnnotationFileElementTypes.extractFqClassName("java/lang/System.java"));
+        // Non-standard layout with annotated-jdk prefix
+        Assert.assertEquals(
+                "java.lang.System",
+                AnnotationFileElementTypes.extractFqClassName(
+                        "annotated-jdk/java/lang/System.java"));
+        // Modular non-standard layout
+        Assert.assertEquals(
+                "java.lang.System",
+                AnnotationFileElementTypes.extractFqClassName(
+                        "annotated-jdk/java.base/java/lang/System.java"));
+        // package-info standard layout
+        Assert.assertEquals(
+                "java.lang.package-info",
+                AnnotationFileElementTypes.extractFqClassName(
+                        "annotated-jdk/src/java.base/share/classes/java/lang/package-info.java"));
+        // package-info non-standard layout
+        Assert.assertEquals(
+                "java.lang.package-info",
+                AnnotationFileElementTypes.extractFqClassName(
+                        "annotated-jdk/java/lang/package-info.java"));
+        // Unknown prefix
+        Assert.assertNull(AnnotationFileElementTypes.extractFqClassName("foo/bar/Baz.java"));
+        // Not a java file
+        Assert.assertNull(AnnotationFileElementTypes.extractFqClassName("java/lang/System.class"));
+    }
 }
