@@ -1813,7 +1813,7 @@ public class AnnotationFileElementTypes {
     }
 
     /**
-     * Text-parses the {@code .java} stub file for {@code className} into {@code target}, for {@link
+     * Text-parses the {@code .java} stub file for {@code className} into {@code target}, for {@code
      * BinaryStubDiffChecker}'s comparison against the binary record. Reuses the index maps built by
      * the background JDK scan if available, falling back to synchronous scans on cache miss.
      * Crucially, on cache hit, it looks up the file in the cache's <em>clone </em> of the maps, not
