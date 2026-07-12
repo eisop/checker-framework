@@ -30,6 +30,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.AnnotationMirror;
@@ -1074,6 +1075,9 @@ public class BinaryStubReader {
                 target, ElementUtils.getQualifiedName(elt), marker, /* fromLazyJdk= */ false);
     }
 
+    /** Cache for annotation @Target meta-annotations, keyed by annotation type name. */
+    private static final Map<String, Set<ElementKind>> targetCache = new ConcurrentHashMap<>();
+
     /**
      * Returns the subset of {@code annos} whose {@code @Target} meta-annotation permits use on an
      * element of the given kind. The text parser applies the same filter before recording a
@@ -1096,8 +1100,19 @@ public class BinaryStubReader {
         }
         AnnotationMirrorSet result = new AnnotationMirrorSet();
         for (AnnotationMirror am : annos) {
-            Target targetMeta = am.getAnnotationType().asElement().getAnnotation(Target.class);
-            if (AnnotationUtils.getElementKindsForTarget(targetMeta).contains(kind)) {
+            String annoName = AnnotationUtils.annotationName(am);
+            Set<ElementKind> targetKinds =
+                    targetCache.computeIfAbsent(
+                            annoName,
+                            k -> {
+                                Target targetMeta =
+                                        am.getAnnotationType()
+                                                .asElement()
+                                                .getAnnotation(Target.class);
+                                return Collections.unmodifiableSet(
+                                        AnnotationUtils.getElementKindsForTarget(targetMeta));
+                            });
+            if (targetKinds.contains(kind)) {
                 result.add(am);
             }
         }
