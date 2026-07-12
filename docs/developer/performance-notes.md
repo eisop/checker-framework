@@ -1531,6 +1531,14 @@ Bring new evidence before revisiting any of these — a JFR trace on a
 workload not previously considered, or a measurement that contradicts
 the prior finding. A fresh hypothesis is not new evidence.
 
+- **Deduplicating `BinaryStubReader.resolvePath` with `ElementAnnotationUtil.getTypeAtLocation`.**
+  `BinaryStubReader` parses type paths manually with an allocation-free `switch` loop over a custom byte struct.
+  Replacing this with the conceptually identical `ElementAnnotationUtil.getTypeAtLocation` requires allocating
+  an `ArrayList` and `TypePathEntry` objects for every step. More importantly, the utility method signals an
+  unreachable path (common when a stub tries to annotate an erased target) by formatting and throwing an
+  `UnexpectedAnnotationLocationException` (complete with a stack trace), whereas the manual loop just returns
+  `null`. Since binary stub parsing runs on a critical path for every project dependency, the object-allocation and
+  exception-handling overhead outweighs the DRY principle here, so the manual loop remains.
 - **`AbstractAnalysis.getValue(Node)` subnode gate — identity rewrite, reorder, and check-removal
   all measured-and-rejected (June 2026).** The subnode gate in `getValue` uses `Collection#contains(n)`
   (structural `Node#equals`), even though the `nodeValues` map it guards is an `IdentityHashMap` and

@@ -242,20 +242,60 @@ public class BinaryStubData {
      */
     public static class TypePathStep {
         /**
-         * The kind of path step: {@code 0} = array component, {@code 1} = nested type, {@code 2} =
-         * wildcard bound, {@code 3} = type argument. Only 4 values are ever defined, so a signed
-         * {@code byte} is used as-is: no value this field takes needs the sign bit, so there is no
-         * unsigned/signed distinction to make here (contrast {@link #argIndex}).
+         * Constant for an array component path step (JVMS §4.7.20.2: 0). Defined once in {@link
+         * BinaryStubWriter#TYPE_PATH_KIND_ARRAY}.
+         */
+        public static final byte KIND_ARRAY = BinaryStubWriter.TYPE_PATH_KIND_ARRAY;
+
+        /**
+         * Constant for a nested type path step (JVMS §4.7.20.2: 1). Defined once in {@link
+         * BinaryStubWriter#TYPE_PATH_KIND_INNER_TYPE}.
+         */
+        public static final byte KIND_INNER_TYPE = BinaryStubWriter.TYPE_PATH_KIND_INNER_TYPE;
+
+        /**
+         * Constant for a wildcard bound path step (JVMS §4.7.20.2: 2). Defined once in {@link
+         * BinaryStubWriter#TYPE_PATH_KIND_WILDCARD}.
+         */
+        public static final byte KIND_WILDCARD = BinaryStubWriter.TYPE_PATH_KIND_WILDCARD;
+
+        /**
+         * Constant for a type argument path step (JVMS §4.7.20.2: 3). Defined once in {@link
+         * BinaryStubWriter#TYPE_PATH_KIND_TYPE_ARGUMENT}.
+         */
+        public static final byte KIND_TYPE_ARGUMENT = BinaryStubWriter.TYPE_PATH_KIND_TYPE_ARGUMENT;
+
+        /**
+         * Constant for an extends bound in a wildcard (repurposed argIndex). Defined once in {@link
+         * BinaryStubWriter#TYPE_PATH_WILDCARD_BOUND_EXTENDS}.
+         */
+        public static final byte WILDCARD_BOUND_EXTENDS =
+                BinaryStubWriter.TYPE_PATH_WILDCARD_BOUND_EXTENDS;
+
+        /**
+         * Constant for a super bound in a wildcard (repurposed argIndex). Defined once in {@link
+         * BinaryStubWriter#TYPE_PATH_WILDCARD_BOUND_SUPER}.
+         */
+        public static final byte WILDCARD_BOUND_SUPER =
+                BinaryStubWriter.TYPE_PATH_WILDCARD_BOUND_SUPER;
+
+        /**
+         * The kind of path step: {@link #KIND_ARRAY} = array component, {@link #KIND_INNER_TYPE} =
+         * nested type, {@link #KIND_WILDCARD} = wildcard bound, {@link #KIND_TYPE_ARGUMENT} = type
+         * argument. Only 4 values are ever defined, so a signed {@code byte} is used as-is: no
+         * value this field takes needs the sign bit, so there is no unsigned/signed distinction to
+         * make here (contrast {@link #argIndex}).
          *
-         * <p>Kind {@code 1} is reserved so the numbering matches JVMS &sect;4.7.20.2, but is never
-         * written and never resolved. {@code BinaryStubWriter#extractTypeAnnotations} descends into
-         * a type's own type arguments, not into those of its scope, so an annotation on a type
-         * argument of an <em>enclosing</em> type -- the {@code @D} of {@code Outer<@D X>.Inner<T>}
-         * -- is dropped rather than encoded with a nested-type step. That is not a divergence:
-         * {@code AnnotationFileParser#annotate}'s {@code DECLARED} case reads only {@code
-         * ClassOrInterfaceType.getTypeArguments()} and never {@code getScope()} or {@code
+         * <p>{@link #KIND_INNER_TYPE} is reserved so the numbering matches JVMS &sect;4.7.20.2, but
+         * is never written and never resolved. {@code BinaryStubWriter#extractTypeAnnotations}
+         * descends into a type's own type arguments, not into those of its scope, so an annotation
+         * on a type argument of an <em>enclosing</em> type -- the {@code @D} of {@code Outer<@D
+         * X>.Inner<T>} -- is dropped rather than encoded with a nested-type step. That is not a
+         * divergence: {@code AnnotationFileParser#annotate}'s {@code DECLARED} case reads only
+         * {@code ClassOrInterfaceType.getTypeArguments()} and never {@code getScope()} or {@code
          * AnnotatedDeclaredType.getEnclosingType()}, so the text parser drops the same annotation.
-         * {@code BinaryStubReader#resolvePath} therefore rejects kind {@code 1} outright.
+         * {@code BinaryStubReader#resolvePath} therefore rejects kind {@link #KIND_INNER_TYPE}
+         * outright.
          */
         public final byte kind;
 
@@ -280,10 +320,11 @@ public class BinaryStubData {
         /**
          * Constructs a TypePathStep.
          *
-         * @param kind the kind of path step: 0 = array component, 1 = nested type, 2 = wildcard
-         *     bound, 3 = type argument
-         * @param argIndex for kind 3, the zero-based index of the type argument; for kind 2, 0 =
-         *     extends bound, 1 = super bound; unused (0) for other kinds
+         * @param kind the kind of path step (one of {@link #KIND_ARRAY}, {@link #KIND_INNER_TYPE},
+         *     {@link #KIND_WILDCARD}, {@link #KIND_TYPE_ARGUMENT})
+         * @param argIndex for {@link #KIND_TYPE_ARGUMENT}, the zero-based index of the type
+         *     argument; for {@link #KIND_WILDCARD}, {@link #WILDCARD_BOUND_EXTENDS} or {@link
+         *     #WILDCARD_BOUND_SUPER}; unused (0) for other kinds
          */
         public TypePathStep(byte kind, byte argIndex) {
             this.kind = kind;
@@ -750,10 +791,11 @@ public class BinaryStubData {
         for (int i = 0; i < pathLength; i++) {
             byte kind = dataIn.readByte();
             byte argIndex = 0;
-            // TYPE_ARGUMENT (3): the type argument index. WILDCARD_BOUND (2): repurposed to
-            // distinguish an extends bound (0) from a super bound (1); see TypePathStep#argIndex
-            // and BinaryStubWriter.TypeAnno#write, which writes it for exactly these two kinds.
-            if (kind == 3 || kind == 2) {
+            // TYPE_ARGUMENT: the type argument index. WILDCARD_BOUND: repurposed to distinguish
+            // an extends bound (WILDCARD_BOUND_EXTENDS) from a super bound (WILDCARD_BOUND_SUPER);
+            // see TypePathStep#argIndex and BinaryStubWriter.TypeAnno#write, which writes it for
+            // exactly these two kinds.
+            if (kind == TypePathStep.KIND_TYPE_ARGUMENT || kind == TypePathStep.KIND_WILDCARD) {
                 argIndex = dataIn.readByte();
             }
             path[i] = new TypePathStep(kind, argIndex);

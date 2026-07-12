@@ -1468,6 +1468,15 @@ public class BinaryStubReader {
      * reached after following all steps in {@code path}. Returns {@code null} if the path is
      * invalid for the given type.
      *
+     * <p>Performance note: This intentionally duplicates the logic in {@link
+     * org.checkerframework.framework.util.element.ElementAnnotationUtil#getTypeAtLocation} rather
+     * than delegating to it. Reusing the utility method requires mapping the {@link
+     * BinaryStubData.TypePathStep} array into an {@code ArrayList} of {@code TypePathEntry}
+     * objects, which causes unnecessary memory allocations and garbage collection overhead in the
+     * critical path of parsing binary stubs. Furthermore, the utility method communicates an
+     * invalid path by throwing a formatted exception, whereas this method can simply return {@code
+     * null} with zero overhead.
+     *
      * @param atm the starting annotated type mirror
      * @param path the sequence of type-path steps
      * @return the annotated type mirror at the end of the path, or {@code null} if unreachable
@@ -1479,25 +1488,28 @@ public class BinaryStubReader {
             if (current == null) {
                 return null;
             }
-            if (step.kind == 0) { // ARRAY
+            if (step.kind == BinaryStubData.TypePathStep.KIND_ARRAY) {
                 if (current instanceof AnnotatedArrayType) {
                     current = ((AnnotatedArrayType) current).getComponentType();
                 } else {
                     return null;
                 }
-            } else if (step.kind == 2) { // WILDCARD_BOUND
+            } else if (step.kind == BinaryStubData.TypePathStep.KIND_WILDCARD) {
                 if (current instanceof AnnotatedWildcardType) {
                     AnnotatedWildcardType awt = (AnnotatedWildcardType) current;
                     // CF's AnnotatedWildcardType always synthesizes both bounds (defaulting
                     // whichever was not written in source), so getExtendsBound() is never null
                     // and cannot be used to detect which bound this step is for; argIndex carries
-                    // that distinction instead (0 = extends, 1 = super -- see BinaryStubWriter's
-                    // extractTypeAnnotations, which writes it for exactly this reason).
-                    current = step.argIndex == 0 ? awt.getExtendsBound() : awt.getSuperBound();
+                    // that distinction instead (see BinaryStubWriter's extractTypeAnnotations,
+                    // which writes it for exactly this reason).
+                    current =
+                            step.argIndex == BinaryStubData.TypePathStep.WILDCARD_BOUND_EXTENDS
+                                    ? awt.getExtendsBound()
+                                    : awt.getSuperBound();
                 } else {
                     return null;
                 }
-            } else if (step.kind == 3) { // TYPE_ARGUMENT
+            } else if (step.kind == BinaryStubData.TypePathStep.KIND_TYPE_ARGUMENT) {
                 if (current instanceof AnnotatedDeclaredType) {
                     AnnotatedDeclaredType adt = (AnnotatedDeclaredType) current;
                     // argIndex is stored as a signed byte (see TypePathStep#argIndex); widen it
@@ -1514,7 +1526,7 @@ public class BinaryStubReader {
                     return null;
                 }
             } else {
-                // Kind 1 (nested type) is never written, so it is never resolved; see
+                // KIND_INNER_TYPE is never written, so it is never resolved; see
                 // BinaryStubData.TypePathStep#kind. Any other value is malformed.
                 return null;
             }

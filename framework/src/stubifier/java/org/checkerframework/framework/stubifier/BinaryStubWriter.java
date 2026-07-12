@@ -159,6 +159,30 @@ public class BinaryStubWriter {
      */
     public static final String CONSTRUCTOR_SIG_PREFIX = "<init>(";
 
+    /** Constant for an array component path step (JVMS §4.7.20.2: 0). */
+    public static final byte TYPE_PATH_KIND_ARRAY = 0;
+
+    /** Constant for a nested type path step (JVMS §4.7.20.2: 1). */
+    public static final byte TYPE_PATH_KIND_INNER_TYPE = 1;
+
+    /** Constant for a wildcard bound path step (JVMS §4.7.20.2: 2). */
+    public static final byte TYPE_PATH_KIND_WILDCARD = 2;
+
+    /** Constant for a type argument path step (JVMS §4.7.20.2: 3). */
+    public static final byte TYPE_PATH_KIND_TYPE_ARGUMENT = 3;
+
+    /**
+     * For {@link #TYPE_PATH_KIND_WILDCARD}, repurposed {@code type_argument_index} indicating an
+     * extends bound.
+     */
+    public static final byte TYPE_PATH_WILDCARD_BOUND_EXTENDS = 0;
+
+    /**
+     * For {@link #TYPE_PATH_KIND_WILDCARD}, repurposed {@code type_argument_index} indicating a
+     * super bound.
+     */
+    public static final byte TYPE_PATH_WILDCARD_BOUND_SUPER = 1;
+
     /**
      * Fully-qualified name of {@code CFComment}, which is never written to the binary format; see
      * {@link AnnotationPool#addAnnotation}. Interned for reference-equality checks.
@@ -333,13 +357,14 @@ public class BinaryStubWriter {
     /** Represents a step in a TypeAnnotation path. */
     private static class TypePathStep {
         /**
-         * The kind of path step: {@code 0} = array component, {@code 1} = nested type, {@code 2} =
-         * wildcard bound, {@code 3} = type argument. Only 4 values are ever assigned (all well
-         * within a signed byte's positive range), so this stays a plain {@code byte}, matching the
-         * reader's {@code BinaryStubData.TypePathStep#kind} field.
+         * The kind of path step: {@link #TYPE_PATH_KIND_ARRAY} = array component, {@link
+         * #TYPE_PATH_KIND_INNER_TYPE} = nested type, {@link #TYPE_PATH_KIND_WILDCARD} = wildcard
+         * bound, {@link #TYPE_PATH_KIND_TYPE_ARGUMENT} = type argument. Only 4 values are ever
+         * assigned (all well within a signed byte's positive range), so this stays a plain {@code
+         * byte}, matching the reader's {@code BinaryStubData.TypePathStep#kind} field.
          *
-         * <p>Kind {@code 1} exists only to keep the numbering aligned with JVMS &sect;4.7.20.2; no
-         * step of that kind is ever constructed. See {@link
+         * <p>{@link #TYPE_PATH_KIND_INNER_TYPE} exists only to keep the numbering aligned with JVMS
+         * &sect;4.7.20.2; no step of that kind is ever constructed. See {@link
          * BinaryStubWriter#extractTypeAnnotations} for what is dropped instead, and why the text
          * parser drops it too.
          */
@@ -1870,7 +1895,7 @@ public class BinaryStubWriter {
                 List<TypePathStep> declaredTypePath = new ArrayList<>();
                 if (p.isVarArgs()) {
                     // The vararg's implicit array level (see the table above).
-                    declaredTypePath.add(new TypePathStep((byte) 0, (byte) 0)); // ARRAY
+                    declaredTypePath.add(new TypePathStep(TYPE_PATH_KIND_ARRAY, (byte) 0)); // ARRAY
                 }
                 extractTypeAnnotations(p.getType(), declaredTypePath, pAnnos, cu);
                 mr.paramAnnos.add(pAnnos);
@@ -1886,7 +1911,7 @@ public class BinaryStubWriter {
                 List<TypePathStep> paramPath;
                 if (p.isVarArgs()) {
                     paramPath = new ArrayList<>();
-                    paramPath.add(new TypePathStep((byte) 0, (byte) 0));
+                    paramPath.add(new TypePathStep(TYPE_PATH_KIND_ARRAY, (byte) 0));
                     paramPath.addAll(arrayElementPath(p.getType()));
                 } else {
                     paramPath = arrayElementPath(p.getType());
@@ -1983,7 +2008,7 @@ public class BinaryStubWriter {
         }
 
         if (type instanceof ArrayType) {
-            currentPath.add(new TypePathStep((byte) 0, (byte) 0)); // ARRAY
+            currentPath.add(new TypePathStep(TYPE_PATH_KIND_ARRAY, (byte) 0)); // ARRAY
             extractTypeAnnotations(((ArrayType) type).getComponentType(), currentPath, result, cu);
             currentPath.remove(currentPath.size() - 1);
         } else if (type instanceof ClassOrInterfaceType) {
@@ -1998,7 +2023,9 @@ public class BinaryStubWriter {
                         throw new IOException(
                                 "too many type arguments (" + (i + 1) + ") on " + cit);
                     }
-                    currentPath.add(new TypePathStep((byte) 3, (byte) i)); // TYPE_ARGUMENT
+                    currentPath.add(
+                            new TypePathStep(
+                                    TYPE_PATH_KIND_TYPE_ARGUMENT, (byte) i)); // TYPE_ARGUMENT
                     extractTypeAnnotations(t, currentPath, result, cu);
                     currentPath.remove(currentPath.size() - 1);
                     i++;
@@ -2014,12 +2041,17 @@ public class BinaryStubWriter {
                 // 1 = super bound, below) to tell BinaryStubReader.resolvePath which one to
                 // annotate -- see that method for why this distinction cannot be recovered from
                 // the resolved AnnotatedWildcardType alone.
-                currentPath.add(new TypePathStep((byte) 2, (byte) 0));
+                currentPath.add(
+                        new TypePathStep(
+                                TYPE_PATH_KIND_WILDCARD, TYPE_PATH_WILDCARD_BOUND_EXTENDS));
                 extractTypeAnnotations(wt.getExtendedType().get(), currentPath, result, cu);
                 currentPath.remove(currentPath.size() - 1);
             }
             if (wt.getSuperType().isPresent()) {
-                currentPath.add(new TypePathStep((byte) 2, (byte) 1)); // WILDCARD_BOUND, super
+                currentPath.add(
+                        new TypePathStep(
+                                TYPE_PATH_KIND_WILDCARD,
+                                TYPE_PATH_WILDCARD_BOUND_SUPER)); // WILDCARD_BOUND, super
                 extractTypeAnnotations(wt.getSuperType().get(), currentPath, result, cu);
                 currentPath.remove(currentPath.size() - 1);
             }
@@ -2556,7 +2588,7 @@ public class BinaryStubWriter {
         List<TypePathStep> path = new ArrayList<>();
         Type t = type;
         while (t instanceof ArrayType) {
-            path.add(new TypePathStep((byte) 0, (byte) 0)); // ARRAY step
+            path.add(new TypePathStep(TYPE_PATH_KIND_ARRAY, (byte) 0)); // ARRAY step
             t = ((ArrayType) t).getComponentType();
         }
         return path;
