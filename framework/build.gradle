@@ -88,6 +88,14 @@ dependencies {
     api 'org.checkerframework:stubparser:3.27.1'
     stubifierImplementation 'org.checkerframework:stubparser:3.27.1'
     stubifierImplementation project(':checker-qual')
+    // Lets main sourceSet code (e.g. BinaryStubData, RemoveAnnotationsForInference) compile
+    // against stubifier classes. WARNING: this does not bundle those classes into framework.jar,
+    // which must work standalone -- they ship only inside checker.jar's shadow jar. Main
+    // sourceSet code may only reference stubifier compile-time constants (inlined by javac, so
+    // no runtime dependency results) or classes that are exclusively invoked against
+    // checker.jar's classpath (e.g. RemoveAnnotationsForInference's `main` method, run via
+    // checker/dist/checker.jar, never via framework.jar). Never add a real (non-inlined) runtime
+    // call from framework.jar-shipped code into a stubifier class.
     implementation sourceSets.stubifier.output
 
     /* NO-AFU
