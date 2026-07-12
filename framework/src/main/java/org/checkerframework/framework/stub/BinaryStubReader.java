@@ -79,6 +79,14 @@ import javax.tools.Diagnostic;
  */
 public class BinaryStubReader {
 
+    /**
+     * The element kinds that an annotation's {@code @Target} meta-annotation permits it on, keyed
+     * by the annotation's fully-qualified name; see {@link #filterApplicable}. An annotation type's
+     * {@code @Target} never changes, and the values are only {@code ElementKind} enum constants
+     * (nothing tied to a compilation), so this cache is shared for the life of the JVM.
+     */
+    private static final Map<String, Set<ElementKind>> targetCache = new ConcurrentHashMap<>();
+
     /** Do not instantiate; all methods are static. */
     private BinaryStubReader() {}
 
@@ -1075,9 +1083,6 @@ public class BinaryStubReader {
                 target, ElementUtils.getQualifiedName(elt), marker, /* fromLazyJdk= */ false);
     }
 
-    /** Cache for annotation @Target meta-annotations, keyed by annotation type name. */
-    private static final Map<String, Set<ElementKind>> targetCache = new ConcurrentHashMap<>();
-
     /**
      * Returns the subset of {@code annos} whose {@code @Target} meta-annotation permits use on an
      * element of the given kind. The text parser applies the same filter before recording a
@@ -1468,14 +1473,15 @@ public class BinaryStubReader {
      * reached after following all steps in {@code path}. Returns {@code null} if the path is
      * invalid for the given type.
      *
-     * <p>Performance note: This intentionally duplicates the logic in {@link
-     * org.checkerframework.framework.util.element.ElementAnnotationUtil#getTypeAtLocation} rather
-     * than delegating to it. Reusing the utility method requires mapping the {@link
-     * BinaryStubData.TypePathStep} array into an {@code ArrayList} of {@code TypePathEntry}
-     * objects, which causes unnecessary memory allocations and garbage collection overhead in the
-     * critical path of parsing binary stubs. Furthermore, the utility method communicates an
-     * invalid path by throwing a formatted exception, whereas this method can simply return {@code
-     * null} with zero overhead.
+     * <p>{@link
+     * org.checkerframework.framework.util.element.ElementAnnotationUtil#getTypeAtLocation}
+     * navigates the same JVMS &sect;4.7.20.2 path shape and is deliberately not reused here. It
+     * takes a {@code List<TypeAnnotationPosition.TypePathEntry>}, a different representation than
+     * this format's {@link BinaryStubData.TypePathStep} array, so each call would allocate a list
+     * and an entry per step; and it reports an unreachable path by throwing {@code
+     * UnexpectedAnnotationLocationException}, whereas this method's contract is to return {@code
+     * null} for a path that does not fit the type, which the caller skips. This method runs once
+     * per type annotation in the annotated JDK. See {@code docs/developer/performance-notes.md}.
      *
      * @param atm the starting annotated type mirror
      * @param path the sequence of type-path steps

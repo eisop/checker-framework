@@ -1531,14 +1531,17 @@ Bring new evidence before revisiting any of these — a JFR trace on a
 workload not previously considered, or a measurement that contradicts
 the prior finding. A fresh hypothesis is not new evidence.
 
-- **Deduplicating `BinaryStubReader.resolvePath` with `ElementAnnotationUtil.getTypeAtLocation`.**
-  `BinaryStubReader` parses type paths manually with an allocation-free `switch` loop over a custom byte struct.
-  Replacing this with the conceptually identical `ElementAnnotationUtil.getTypeAtLocation` requires allocating
-  an `ArrayList` and `TypePathEntry` objects for every step. More importantly, the utility method signals an
-  unreachable path (common when a stub tries to annotate an erased target) by formatting and throwing an
-  `UnexpectedAnnotationLocationException` (complete with a stack trace), whereas the manual loop just returns
-  `null`. Since binary stub parsing runs on a critical path for every project dependency, the object-allocation and
-  exception-handling overhead outweighs the DRY principle here, so the manual loop remains.
+- **Deduplicating `BinaryStubReader.resolvePath` with `ElementAnnotationUtil.getTypeAtLocation`
+  (reasoned, not measured).** Both walk the same JVMS §4.7.20.2 path shape, so reuse was proposed.
+  Rejected on two costs that reuse would add to a method called once per type annotation in the
+  annotated JDK: `getTypeAtLocation` takes a `List<TypeAnnotationPosition.TypePathEntry>`, a
+  different representation than the binary format's `TypePathStep` array, so each call would have to
+  allocate a list and a `TypePathEntry` per step; and it reports an unreachable path by throwing
+  `UnexpectedAnnotationLocationException`, where `resolvePath` returns `null` and the caller skips
+  the annotation — so a path that does not fit the type would go from a null check to constructing
+  and throwing an exception. Neither cost was measured, so the size of the win from *not* reusing is
+  unknown; the point is only that reuse is not free. If the two path representations are ever
+  unified, the first cost goes away and this is worth revisiting.
 - **`AbstractAnalysis.getValue(Node)` subnode gate — identity rewrite, reorder, and check-removal
   all measured-and-rejected (June 2026).** The subnode gate in `getValue` uses `Collection#contains(n)`
   (structural `Node#equals`), even though the `nodeValues` map it guards is an `IdentityHashMap` and
