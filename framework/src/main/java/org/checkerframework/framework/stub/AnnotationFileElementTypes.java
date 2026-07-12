@@ -658,32 +658,24 @@ public class AnnotationFileElementTypes {
                                     + e.getMessage());
             return false;
         }
-        try {
-            applyBinaryStubData(data, annotationFileAnnos);
-            if (isStubTypes
-                    && textResourceURL != null
-                    && atypeFactory.getChecker().hasOption("binaryStubDiffCheck")) {
-                invokeDiffChecker(
-                        "diffBuiltinStub",
-                        new Class<?>[] {
-                            String.class,
-                            URL.class,
-                            BinaryStubData.class,
-                            AnnotationFileElementTypes.class,
-                            AnnotatedTypeFactory.class
-                        },
-                        new Object[] {description, textResourceURL, data, this, atypeFactory});
-            }
-        } catch (RuntimeException e) {
-            atypeFactory
-                    .getChecker()
-                    .message(
-                            Diagnostic.Kind.NOTE,
-                            "Could not apply binary stub data for "
-                                    + binURL
-                                    + ", falling back to text parsing. Error: "
-                                    + e.getMessage());
-            return false;
+        // Applying the data is not guarded: a failure here is a bug in this framework's own
+        // reader or in a binary stub that this framework's own writer produced, not a
+        // recoverable property of the input, and falling back to text parsing would merge the
+        // text annotations on top of a partially applied binary stub.
+        applyBinaryStubData(data, annotationFileAnnos);
+        if (isStubTypes
+                && textResourceURL != null
+                && atypeFactory.getChecker().hasOption("binaryStubDiffCheck")) {
+            invokeDiffChecker(
+                    "diffBuiltinStub",
+                    new Class<?>[] {
+                        String.class,
+                        URL.class,
+                        BinaryStubData.class,
+                        AnnotationFileElementTypes.class,
+                        AnnotatedTypeFactory.class
+                    },
+                    new Object[] {description, textResourceURL, data, this, atypeFactory});
         }
         return true;
     }
@@ -765,8 +757,7 @@ public class AnnotationFileElementTypes {
                 }
                 // This needs to be special-cased for every jdkX.astub for which files exist. :-(
                 // TODO: not clear what this is supposed to mean - if we are on Java 8, why parse
-                // Java
-                // 11 stub files?
+                // Java 11 stub files?
                 // It would make more sense to parse this if we're e.g. on Java 12.
                 if (annotatedJdkVersion.equals("8")) {
                     String jdk11Stub = "jdk11.astub";
