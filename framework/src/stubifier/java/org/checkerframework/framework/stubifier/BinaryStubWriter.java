@@ -161,10 +161,10 @@ public class BinaryStubWriter {
 
     /**
      * Fully-qualified name of {@code CFComment}, which is never written to the binary format; see
-     * {@link AnnotationPool#addAnnotation}.
+     * {@link AnnotationPool#addAnnotation}. Interned for reference-equality checks.
      */
-    private static final String CF_COMMENT =
-            org.checkerframework.framework.qual.CFComment.class.getCanonicalName();
+    public static final String CF_COMMENT =
+            org.checkerframework.framework.qual.CFComment.class.getCanonicalName().intern();
 
     /**
      * Sentinel returned by {@link AnnotationPool#addAnnotation} for annotations that are not

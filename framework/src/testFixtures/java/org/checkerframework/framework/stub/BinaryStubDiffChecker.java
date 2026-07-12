@@ -3,6 +3,7 @@ package org.checkerframework.framework.stub;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.framework.source.SourceChecker;
 import org.checkerframework.framework.stub.AnnotationFileParser.AnnotationFileAnnotations;
+import org.checkerframework.framework.stubifier.BinaryStubWriter;
 import org.checkerframework.framework.type.AnnotatedTypeFactory;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedArrayType;
@@ -77,13 +78,6 @@ public class BinaryStubDiffChecker {
 
     /** Maximum number of detailed mismatch messages to report before summarizing only. */
     private static final int MAX_DETAILED_REPORTS = 100;
-
-    /**
-     * The fully-qualified name of the {@code @CFComment} annotation. Interned to permit cheap
-     * identity comparisons in {@link #checkerAnnotationNames}.
-     */
-    private static final String CF_COMMENT =
-            org.checkerframework.framework.qual.CFComment.class.getCanonicalName().intern();
 
     /**
      * Runs the differential check over every top-level class in the binary stub data and reports
@@ -881,7 +875,8 @@ public class BinaryStubDiffChecker {
                 // one), so comparing against the literal below with != is a correct, cheap
                 // identity check, not a bug -- do not "fix" this to .equals().
                 String name = AnnotationUtils.annotationName(am);
-                if (name.startsWith("org.checkerframework.") && name != CF_COMMENT) {
+                if (name.startsWith("org.checkerframework.")
+                        && name != BinaryStubWriter.CF_COMMENT) {
                     names.add(name);
                 }
             }
