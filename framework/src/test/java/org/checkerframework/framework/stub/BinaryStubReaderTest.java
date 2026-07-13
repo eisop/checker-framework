@@ -62,6 +62,15 @@ public class BinaryStubReaderTest {
     }
 
     /**
+     * Skips the calling test unless the JDK running it supports records. A test that compiles a
+     * record declaration must call this: on an older JDK, javac does not parse {@code record} and
+     * {@link #compileToTypeElement} gets an erroneous tree rather than a class.
+     */
+    private static void assumeRecordsSupported() {
+        Assume.assumeTrue("records require JDK 16 or later", SystemUtil.jreVersion >= 16);
+    }
+
+    /**
      * Compiles {@code code} (with attribution, but no annotation processing) and returns the {@link
      * TypeElement} for its first top-level type declaration.
      *
@@ -167,13 +176,15 @@ public class BinaryStubReaderTest {
                         Collections.singletonList(source("Empty", "class Empty {}")));
         JavacTask task = (JavacTask) compilationTask;
         task.analyze();
-        Element javaBase =
-                org.checkerframework.javacutil.ElementUtils.getModuleElement(
-                        task.getElements(), "java.base");
-        Assert.assertNotNull("java.base must resolve to a real module element", javaBase);
-        Element noSuchModule =
-                org.checkerframework.javacutil.ElementUtils.getModuleElement(
-                        task.getElements(), "no.such.module");
+        Element javaBase = ElementUtils.getModuleElement(task.getElements(), "java.base");
+        if (SystemUtil.jreVersion >= 9) {
+            Assert.assertNotNull("java.base must resolve to a real module element", javaBase);
+        } else {
+            Assert.assertNull(
+                    "on a JDK without modules, the wrapper returns null rather than throwing",
+                    javaBase);
+        }
+        Element noSuchModule = ElementUtils.getModuleElement(task.getElements(), "no.such.module");
         Assert.assertNull(
                 "a nonexistent module name must resolve to null, not throw", noSuchModule);
     }
@@ -292,6 +303,8 @@ public class BinaryStubReaderTest {
      */
     @Test
     public void recordMapsToRecordNotClassOrInterface() throws Exception {
+        assumeRecordsSupported();
+
         TypeElement recordElt = compileToTypeElement("SomeRecord", "record SomeRecord(int a) {}");
         Assert.assertEquals(
                 BinaryStubData.ClassRecord.KIND_RECORD,
@@ -375,8 +388,7 @@ public class BinaryStubReaderTest {
      */
     @Test
     public void recordComponentElementDiffersFromItsBackingField() throws Exception {
-        // Records, and the element API this test uses, are JDK 16+.
-        Assume.assumeTrue(SystemUtil.jreVersion >= 16);
+        assumeRecordsSupported();
 
         TypeElement recordElt = compileToTypeElement("SomeRecord", "record SomeRecord(int a) {}");
         List<? extends Element> components = ElementUtils.getRecordComponents(recordElt);
