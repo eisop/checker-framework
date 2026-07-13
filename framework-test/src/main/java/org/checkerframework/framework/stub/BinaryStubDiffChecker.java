@@ -210,17 +210,9 @@ public class BinaryStubDiffChecker {
                 data, atypeFactory, elementTypes, binaryAnnos, /* fromLazyJdk= */ true);
 
         compareAnnotations(
-                "package",
-                data.packages.keySet(),
-                textAnnos.declAnnos,
-                binaryAnnos.declAnnos,
-                reports);
+                "package", data.packages, textAnnos.declAnnos, binaryAnnos.declAnnos, reports);
         compareAnnotations(
-                "module",
-                data.modules.keySet(),
-                textAnnos.declAnnos,
-                binaryAnnos.declAnnos,
-                reports);
+                "module", data.modules, textAnnos.declAnnos, binaryAnnos.declAnnos, reports);
     }
 
     /**
@@ -229,18 +221,18 @@ public class BinaryStubDiffChecker {
      * reports list.
      *
      * @param typeName a human-readable description of the item type (e.g., "package" or "module")
-     * @param names the set of item names to compare
+     * @param items the items to compare, keyed by name; only the keys are used
      * @param textAnnos the annotations produced by the text parser
      * @param binaryAnnos the annotations produced by the binary reader
      * @param reports the list to append mismatch descriptions to
      */
     private static void compareAnnotations(
             String typeName,
-            Set<String> names,
+            Map<String, ?> items,
             Map<String, AnnotationMirrorSet> textAnnos,
             Map<String, AnnotationMirrorSet> binaryAnnos,
             List<String> reports) {
-        for (String name : names) {
+        for (String name : items.keySet()) {
             Set<String> textNames = comparedAnnotationNames(textAnnos.get(name));
             Set<String> binaryNames = comparedAnnotationNames(binaryAnnos.get(name));
             if (!textNames.equals(binaryNames)) {
@@ -587,14 +579,17 @@ public class BinaryStubDiffChecker {
         // agreement: same record keys and same component names in the same order.
         Set<String> textRecordKeys = text.records.keySet();
         Set<String> binaryRecordKeys = binary.records.keySet();
-        for (String key : textRecordKeys) {
-            if (!binaryRecordKeys.contains(key)) {
+        for (Map.Entry<String, AnnotationFileParser.RecordStub> textEntry :
+                text.records.entrySet()) {
+            String key = textEntry.getKey();
+            AnnotationFileParser.RecordStub binaryRecord = binary.records.get(key);
+            if (binaryRecord == null) {
                 reports.add(className + ": records[" + key + "]: in text but not in binary");
             } else {
                 List<String> textComponents =
-                        new ArrayList<>(text.records.get(key).componentsByName.keySet());
+                        new ArrayList<>(textEntry.getValue().componentsByName.keySet());
                 List<String> binaryComponents =
-                        new ArrayList<>(binary.records.get(key).componentsByName.keySet());
+                        new ArrayList<>(binaryRecord.componentsByName.keySet());
                 if (!textComponents.equals(binaryComponents)) {
                     reports.add(
                             String.format(
@@ -702,13 +697,10 @@ public class BinaryStubDiffChecker {
             compareAtm(t.getReturnType(), b.getReturnType(), path + "return", diffs, visited);
             compareLists(
                     t.getParameterTypes(), b.getParameterTypes(), path + "param", diffs, visited);
-            if (t.getReceiverType() != null && b.getReceiverType() != null) {
-                compareAtm(
-                        t.getReceiverType(),
-                        b.getReceiverType(),
-                        path + "receiver",
-                        diffs,
-                        visited);
+            AnnotatedDeclaredType textReceiver = t.getReceiverType();
+            AnnotatedDeclaredType binaryReceiver = b.getReceiverType();
+            if (textReceiver != null && binaryReceiver != null) {
+                compareAtm(textReceiver, binaryReceiver, path + "receiver", diffs, visited);
             }
             compareLists(
                     t.getTypeVariables(), b.getTypeVariables(), path + "typeVar", diffs, visited);
