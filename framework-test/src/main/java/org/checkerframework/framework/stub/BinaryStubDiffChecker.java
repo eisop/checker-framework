@@ -32,6 +32,7 @@ import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.type.WildcardType;
+import javax.lang.model.util.Types;
 import javax.tools.Diagnostic;
 
 /**
@@ -157,7 +158,12 @@ public class BinaryStubDiffChecker {
                         atypeFactory,
                         reports);
             }
-            compareClass(className, textAnnos, binaryAnnos, reports);
+            compareClass(
+                    className,
+                    textAnnos,
+                    binaryAnnos,
+                    atypeFactory.getProcessingEnv().getTypeUtils(),
+                    reports);
         }
 
         comparePackagesAndModules(elementTypes, data, atypeFactory, reports);
@@ -316,7 +322,12 @@ public class BinaryStubDiffChecker {
                     atypeFactory,
                     reports);
         }
-        compareClass(description, textAnnos, binaryAnnos, reports);
+        compareClass(
+                description,
+                textAnnos,
+                binaryAnnos,
+                atypeFactory.getProcessingEnv().getTypeUtils(),
+                reports);
         reportDiffs(checker, reports);
         System.out.printf(
                 "binary stub diff: checked built-in stub %s, %d mismatches.%n",
@@ -479,9 +490,10 @@ public class BinaryStubDiffChecker {
                     List<IPair<TypeMirror, AnnotatedTypeMirror>> entries =
                             binaryAnnos.fakeOverrides.get(overridden);
                     if (entries != null) {
-                        String location = typeElt.asType().toString();
+                        Types types = atypeFactory.getProcessingEnv().getTypeUtils();
+                        TypeMirror location = typeElt.asType();
                         for (IPair<TypeMirror, AnnotatedTypeMirror> pair : entries) {
-                            if (pair.first.toString().equals(location)) {
+                            if (types.isSameType(pair.first, location)) {
                                 stored = true;
                                 break;
                             }
@@ -506,12 +518,14 @@ public class BinaryStubDiffChecker {
      * @param className the fully-qualified name of the top-level class, for report messages
      * @param text the annotations produced by the text parser
      * @param binary the annotations produced by the binary reader
+     * @param types the type utilities, for comparing fake-override locations
      * @param reports the list to append mismatch descriptions to
      */
     private static void compareClass(
             String className,
             AnnotationFileAnnotations text,
             AnnotationFileAnnotations binary,
+            Types types,
             List<String> reports) {
         // Declaration annotations: same keys, and per key the same annotation names. The
         // comparison is restricted to Checker Framework annotations — the payload the stub
@@ -613,7 +627,7 @@ public class BinaryStubDiffChecker {
                 boolean locationMatched = false;
                 if (textList != null) {
                     for (IPair<TypeMirror, AnnotatedTypeMirror> textPair : textList) {
-                        if (textPair.first.toString().equals(binaryPair.first.toString())) {
+                        if (types.isSameType(textPair.first, binaryPair.first)) {
                             locationMatched = true;
                             break;
                         }
