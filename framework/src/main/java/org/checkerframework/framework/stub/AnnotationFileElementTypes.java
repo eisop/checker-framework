@@ -1542,7 +1542,15 @@ public class AnnotationFileElementTypes {
             // sub-checker factories.
             return;
         }
-        atypeFactory.getChecker().reportWarning(/* source= */ null, messageKey, args);
+        // Report through the checker the user requested, not through whichever of a compound
+        // checker's sub-checkers happens to own this factory: a sub-checker may suppress its own
+        // diagnostics because its parent re-reports them (InitializationFieldAccessSubchecker does
+        // exactly that), and these warnings, which no one re-reports, would be swallowed if such a
+        // sub-checker's factory were the one that reached warnOnce first.
+        atypeFactory
+                .getChecker()
+                .getUltimateParentChecker()
+                .reportWarning(/* source= */ null, messageKey, args);
     }
 
     /**
