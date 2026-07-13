@@ -1218,6 +1218,17 @@ public class AnnotationFileParser {
                     processTypeDecl((EnumDeclaration) decl, innerName, null);
                     break;
                 default:
+                    // A nested record is handled here rather than in a "case RECORD:" label,
+                    // because ElementKind.RECORD does not exist before JDK 16 and this code must
+                    // compile under JDK 8; see ElementUtils.isRecordElement, which the rest of the
+                    // framework uses for the same reason. Without this, a record declared inside
+                    // another type was ignored entirely: neither its components nor any of its
+                    // members received the annotations written on them in the annotation file.
+                    if (ElementUtils.isRecordElement(elt) && decl instanceof TypeDeclaration) {
+                        // Not processing an ajava file, so ignore the return value.
+                        processTypeDecl((TypeDeclaration<?>) decl, innerName, null);
+                        break;
+                    }
                     /* do nothing */
                     stubWarnNotFound(decl, "AnnotationFileParser ignoring: " + elt);
                     break;
@@ -2231,6 +2242,11 @@ public class AnnotationFileParser {
             if (elt != null) {
                 putIfAbsent(elementsToDecl, elt, member);
             }
+        } else if (member instanceof RecordDeclaration) {
+            Element elt = findElement(typeElt, (RecordDeclaration) member);
+            if (elt != null) {
+                putIfAbsent(elementsToDecl, elt, member);
+            }
         } else {
             stubDebug("ignoring element of type %s in %s", member.getClass(), typeDeclName);
         }
@@ -2540,6 +2556,29 @@ public class AnnotationFileParser {
                 stubDebug("    %s", method);
             }
         }
+        return null;
+    }
+
+    /**
+     * Looks for the nested record element in the typeElt and returns it if the element has the same
+     * name as the provided record declaration. If the nested element is not found, returns null.
+     *
+     * @param typeElt an element where the nested record element should be looked for
+     * @param recordDecl record declaration whose name should be found among the nested elements of
+     *     typeElt
+     * @return the record element nested in typeElt with the name of the provided record, or null if
+     *     it is not found
+     */
+    private @Nullable Element findElement(TypeElement typeElt, RecordDeclaration recordDecl) {
+        String wantedRecordName = recordDecl.getNameAsString();
+        for (TypeElement typeElement : ElementUtils.getAllTypeElementsIn(typeElt)) {
+            if (InternalUtils.sameName(typeElement.getSimpleName(), wantedRecordName)) {
+                return typeElement;
+            }
+        }
+
+        stubWarnNotFound(
+                recordDecl, "record " + wantedRecordName + " not found in type " + typeElt);
         return null;
     }
 
