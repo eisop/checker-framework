@@ -1621,6 +1621,31 @@ Bring new evidence before revisiting any of these — a JFR trace on a
 workload not previously considered, or a measurement that contradicts
 the prior finding. A fresh hypothesis is not new evidence.
 
+- **Sharing `AnnotationFileElementTypes`'s method/constructor signature indexes across a
+  compilation's type factories — measured-and-rejected (July 2026).** `methodSigIndexCache` and
+  `constructorSigIndexCache` are fields of `AnnotationFileElementTypes`, so a compound checker
+  builds the same index once per sub-checker factory. Moving them into the javac `Context`, as
+  `BinaryStubDataCache` already is, would share them. The redundancy is real and large, but the
+  activity is not: instrumenting every index build (`buildSigIndex` call, i.e. every cache miss)
+  under the Nullness Checker gives
+
+  | corpus | index builds | repeat builds | redundant | total in `buildSigIndex` |
+  |---|---|---|---|---|
+  | `:javacutil:checkNullness` (13 s) | 1280 | 959 | 75% | 65 ms |
+  | `:framework:checkNullness` (49 s) | 1597 | 1197 | 75% | 52 ms |
+
+  So three quarters of the builds are indeed repeats from a sibling factory — and eliminating all
+  of them would recover about 40–50 ms, which is 0.1–0.5% of those runs. Not worth moving two
+  caches into shared compilation state. Note that JFR cannot see this at all (0 of 40
+  `ExecutionSample`s, at the 10 ms sampling floor, land in `buildSigIndex`): the cost is spread
+  across thousands of calls of ~33 µs each, so it takes direct instrumentation to measure, and a
+  profile that does not show it is not evidence that it is expensive.
+
+  Also: do not benchmark this (or anything) on `checker/tests/nullness/*.java` compiled as one
+  javac invocation. Those files deliberately violate javac's public-class/file-name rule, so the
+  compilation fails before annotation processing begins and the checker never runs; what such a
+  "benchmark" times is JDK loading, not checking.
+
 - **Deduplicating `BinaryStubReader.resolvePath` with `ElementAnnotationUtil.getTypeAtLocation`
   (reasoned, not measured).** Both walk the same JVMS §4.7.20.2 path shape, so reuse was proposed.
   Rejected on two costs that reuse would add to a method called once per type annotation in the
