@@ -1811,6 +1811,20 @@ public class AnnotationFileElementTypes {
     private void prepJdkStubsImpl() {
         URL resourceURL = atypeFactory.getClass().getResource("/" + ANNOTATED_JDK_PATH);
         URL binURL = resourceURL == null ? null : binaryStubURL(resourceURL);
+        // -AparseAllJdk means "parse every JDK source file". Reading the binary stub file as well
+        // would apply the same annotations a second time -- the text is parsed eagerly below, and
+        // the binary would then be applied on top of it, class by class -- so the option would
+        // silently be more expensive than the default rather than a way to run without the binary.
+        // Skip it, which makes -AparseAllJdk the supported way to exercise the text path.
+        //
+        // -AbinaryStubDiffCheck is the exception: it compares what the binary and the text produce,
+        // so it needs both. Passing the two options together is meaningful and stays supported.
+        boolean skipBinaryForParseAllJdk =
+                parseAllJdkFiles && !atypeFactory.getChecker().hasOption("binaryStubDiffCheck");
+        if (skipBinaryForParseAllJdk) {
+            // No warning: this is a deliberate request for the text path, not a missing binary.
+            binURL = null;
+        }
         boolean binaryLoaded = false;
         if (binURL != null) {
             try {
@@ -1834,7 +1848,7 @@ public class AnnotationFileElementTypes {
                 warnTextParsingAnnotatedJdk(
                         "could not read " + binURL + " (" + e.getMessage() + ")");
             }
-        } else if (resourceURL != null) {
+        } else if (resourceURL != null && !skipBinaryForParseAllJdk) {
             warnTextParsingAnnotatedJdk(
                     "the annotated JDK in " + resourceURL + " has no " + BinaryStubData.FILENAME);
         }
