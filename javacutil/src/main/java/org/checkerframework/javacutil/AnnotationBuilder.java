@@ -355,7 +355,13 @@ public class AnnotationBuilder {
         }
     }
 
-    /** Set the element/field with the given name, to the given value. */
+    /**
+     * Set the element/field with the given name, to the given value.
+     *
+     * @param elementName the element/field name
+     * @param value the new value for the element/field
+     * @return this
+     */
     public AnnotationBuilder setValue(CharSequence elementName, AnnotationMirror value) {
         setValue(elementName, (Object) value);
         return this;
@@ -400,52 +406,112 @@ public class AnnotationBuilder {
         return this;
     }
 
-    /** Set the element/field with the given name, to the given value. */
+    /**
+     * Set the element/field with the given name, to the given value.
+     *
+     * @param elementName the element/field name
+     * @param values the new value for the element/field
+     * @return this
+     */
     public AnnotationBuilder setValue(CharSequence elementName, Object[] values) {
         return setValue(elementName, Arrays.asList(values));
     }
 
-    /** Set the element/field with the given name, to the given value. */
+    /**
+     * Set the element/field with the given name, to the given value.
+     *
+     * @param elementName the element/field name
+     * @param value the new value for the element/field
+     * @return this
+     */
     public AnnotationBuilder setValue(CharSequence elementName, Boolean value) {
         return setValue(elementName, (Object) value);
     }
 
-    /** Set the element/field with the given name, to the given value. */
+    /**
+     * Set the element/field with the given name, to the given value.
+     *
+     * @param elementName the element/field name
+     * @param value the new value for the element/field
+     * @return this
+     */
     public AnnotationBuilder setValue(CharSequence elementName, Byte value) {
         return setValue(elementName, (Object) value);
     }
 
-    /** Set the element/field with the given name, to the given value. */
+    /**
+     * Set the element/field with the given name, to the given value.
+     *
+     * @param elementName the element/field name
+     * @param value the new value for the element/field
+     * @return this
+     */
     public AnnotationBuilder setValue(CharSequence elementName, Character value) {
         return setValue(elementName, (Object) value);
     }
 
-    /** Set the element/field with the given name, to the given value. */
+    /**
+     * Set the element/field with the given name, to the given value.
+     *
+     * @param elementName the element/field name
+     * @param value the new value for the element/field
+     * @return this
+     */
     public AnnotationBuilder setValue(CharSequence elementName, Double value) {
         return setValue(elementName, (Object) value);
     }
 
-    /** Set the element/field with the given name, to the given value. */
+    /**
+     * Set the element/field with the given name, to the given value.
+     *
+     * @param elementName the element/field name
+     * @param value the new value for the element/field
+     * @return this
+     */
     public AnnotationBuilder setValue(CharSequence elementName, Float value) {
         return setValue(elementName, (Object) value);
     }
 
-    /** Set the element/field with the given name, to the given value. */
+    /**
+     * Set the element/field with the given name, to the given value.
+     *
+     * @param elementName the element/field name
+     * @param value the new value for the element/field
+     * @return this
+     */
     public AnnotationBuilder setValue(CharSequence elementName, Integer value) {
         return setValue(elementName, (Object) value);
     }
 
-    /** Set the element/field with the given name, to the given value. */
+    /**
+     * Set the element/field with the given name, to the given value.
+     *
+     * @param elementName the element/field name
+     * @param value the new value for the element/field
+     * @return this
+     */
     public AnnotationBuilder setValue(CharSequence elementName, Long value) {
         return setValue(elementName, (Object) value);
     }
 
-    /** Set the element/field with the given name, to the given value. */
+    /**
+     * Set the element/field with the given name, to the given value.
+     *
+     * @param elementName the element/field name
+     * @param value the new value for the element/field
+     * @return this
+     */
     public AnnotationBuilder setValue(CharSequence elementName, Short value) {
         return setValue(elementName, (Object) value);
     }
 
-    /** Set the element/field with the given name, to the given value. */
+    /**
+     * Set the element/field with the given name, to the given value.
+     *
+     * @param elementName the element/field name
+     * @param value the new value for the element/field
+     * @return this
+     */
     public AnnotationBuilder setValue(CharSequence elementName, String value) {
         return setValue(elementName, (Object) value);
     }
