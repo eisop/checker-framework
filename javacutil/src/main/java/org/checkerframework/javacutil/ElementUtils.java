@@ -1146,7 +1146,7 @@ public class ElementUtils {
             return (@NonNull List<? extends Element>)
                     TYPEELEMENT_GETRECORDCOMPONENTS.invoke(element);
         } catch (IllegalAccessException | IllegalArgumentException | InvocationTargetException e) {
-            throw new Error("Cannot call TypeElement.getRecordComponents()", e);
+            throw new BugInCF("Cannot call TypeElement.getRecordComponents()", e);
         }
     }
 
@@ -1184,7 +1184,7 @@ public class ElementUtils {
         try {
             return (@Nullable Element) ELEMENTS_GETMODULEELEMENT.invoke(elements, name);
         } catch (IllegalAccessException | IllegalArgumentException | InvocationTargetException e) {
-            throw new Error("Cannot call Elements.getModuleElement(CharSequence)", e);
+            throw new BugInCF("Cannot call Elements.getModuleElement(CharSequence)", e);
         }
     }
 
