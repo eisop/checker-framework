@@ -1121,7 +1121,10 @@ subprojects {
         d.isDirectory() && !fileTree(d) { include '**/*.astub' }.isEmpty()
     }
     if (hasAstubs) {
-        def binaryStubFilesDir = layout.buildDirectory.dir('generated/resources/binstubs')
+        // Not under 'generated/resources': framework/build.gradle adds that whole directory as a
+        // resources srcDir, which would package every file below it a second time, under a
+        // 'binstubs/' prefix, in addition to the correct sibling path this srcDir gives it.
+        def binaryStubFilesDir = layout.buildDirectory.dir('generated/binaryStubFiles')
         configurations {
             binaryStubGenerator
         }
