@@ -2,6 +2,7 @@ package org.checkerframework.framework.stub;
 
 import com.sun.source.tree.CompilationUnitTree;
 
+import org.checkerframework.checker.compilermsgs.qual.CompilerMessageKey;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.checker.signature.qual.CanonicalNameOrEmpty;
 import org.checkerframework.common.basetype.BaseTypeChecker;
@@ -279,6 +280,28 @@ public class AnnotationFileElementTypes {
      */
     private static final com.sun.tools.javac.util.Context.Key<BinaryStubDataCache>
             BINARY_STUB_DATA_KEY = new com.sun.tools.javac.util.Context.Key<>();
+
+    /**
+     * The key used to store and retrieve, from the compilation context, the text-parsing warnings
+     * that have already been issued; see {@link #warnOnce}. The set lives in the context, not in
+     * this object or in {@link BinaryStubDataCache}, for two reasons: a compound checker such as
+     * the Nullness Checker has several sub-checker factories, each with its own
+     * AnnotationFileElementTypes, which would otherwise each issue the same warning; and the
+     * warning that matters most -- that an annotated JDK has no binary stub at all -- is issued
+     * exactly when there is no {@code BinaryStubDataCache} to hold the set.
+     */
+    private static final com.sun.tools.javac.util.Context.Key<Set<String>>
+            TEXT_PARSING_WARNINGS_KEY = new com.sun.tools.javac.util.Context.Key<>();
+
+    /** Message key: the annotated JDK has no binary stub, or it could not be read. */
+    private static final @CompilerMessageKey String TEXT_PARSING_JDK_KEY = "text.parsing.jdk";
+
+    /** Message key: a JDK class has no record in the binary stub that was loaded. */
+    private static final @CompilerMessageKey String TEXT_PARSING_JDK_CLASS_KEY =
+            "text.parsing.jdk.class";
+
+    /** Message key: a stub file that a checker ships has no binary stub. */
+    private static final @CompilerMessageKey String TEXT_PARSING_STUB_KEY = "text.parsing.stub";
 
     /**
      * Locally cached reference to the compilation-context {@link BinaryStubDataCache}, avoiding
@@ -826,6 +849,7 @@ public class AnnotationFileElementTypes {
                             stubFileName,
                             jdkVersionStubIn);
                 }
+                warnTextParsingBuiltinStub(checkerClass.getSimpleName() + "/" + stubFileName);
                 AnnotationFileParser.parseStubFile(
                         checkerClass.getResource(stubFileName).toString(),
                         jdkVersionStubIn,
@@ -987,6 +1011,11 @@ public class AnnotationFileElementTypes {
                     // Fall back to text parsing: only now does the text stream need to be opened.
                     try (InputStream in = checker.getClass().getResourceAsStream(path)) {
                         if (in != null) {
+                            if (fileType == AnnotationFileType.BUILTIN_STUB) {
+                                // A stub file the checker itself ships is expected to have been
+                                // pre-parsed into the binary format; a user-supplied one never is.
+                                warnTextParsingBuiltinStub(path);
+                            }
                             AnnotationFileParser.parseStubFile(
                                     path,
                                     in,
@@ -1433,10 +1462,12 @@ public class AnnotationFileElementTypes {
 
         Path stubPath = remainingJdkStubFiles.remove(className);
         if (stubPath != null) {
+            warnTextParsingJdkClass(className);
             parseJdkStubFile(stubPath);
         } else {
             String jarEntry = remainingJdkStubFilesJar.remove(className);
             if (jarEntry != null) {
+                warnTextParsingJdkClass(className);
                 parseJdkJarEntry(jarEntry);
             } else {
                 if (stubDebug) {
@@ -1444,6 +1475,70 @@ public class AnnotationFileElementTypes {
                 }
             }
         }
+    }
+
+    /**
+     * Warns that {@code className} is being text-parsed from the annotated JDK's sources because
+     * the loaded binary stub has no record for it. Reaching this with a binary stub loaded means
+     * the binary and the JDK sources beside it disagree about which classes exist, which is a bug
+     * in whatever generated the binary.
+     *
+     * <p>No warning is issued when no binary stub was loaded at all: {@link
+     * #warnTextParsingAnnotatedJdk} has already said so once, and repeating it per class would bury
+     * it. Nor when {@code -AparseAllJdkFiles} was given, which reaches neither of this method's
+     * call sites (that option parses every JDK file eagerly in {@code prepJdkFrom*} without
+     * populating {@code remainingJdkStubFiles}).
+     *
+     * @param className the fully-qualified name of the JDK class being text-parsed
+     * @see #warnTextParsingAnnotatedJdk
+     * @see #warnTextParsingBuiltinStub
+     * @see #warnOnce
+     */
+    private void warnTextParsingJdkClass(String className) {
+        if (getBinaryStubDataCache() == null) {
+            // No binary stub was loaded at all. warnTextParsingAnnotatedJdk has already said so
+            // once; repeating it for every JDK class the compilation touches would bury it.
+            return;
+        }
+        warnOnce(TEXT_PARSING_JDK_CLASS_KEY, className, className, BinaryStubData.FILENAME);
+    }
+
+    /**
+     * Issues the warning that {@code messageKey} names, unless the same warning was already issued
+     * in this compilation. This is the shared implementation of the three {@code
+     * warnTextParsing...} methods; every warning that an annotation file is being text-parsed
+     * rather than read from a binary stub goes through here.
+     *
+     * <p>The warning is reported with a null source, because it is issued while the checker is
+     * initializing, before any source file is processed: it has no source position, so there is no
+     * declaration on which a {@code @SuppressWarnings} annotation could be written, and only {@code
+     * -AsuppressWarnings} can suppress it. {@link SourceChecker#reportWarning} handles that (and
+     * the suppression) like any other keyed message.
+     *
+     * @param messageKey the message key, defined in {@code framework/source/messages.properties}
+     * @param dedupKey distinguishes warnings that share a message key; the pair (messageKey,
+     *     dedupKey) is issued at most once per compilation
+     * @param args arguments to interpolate into the message
+     * @see #warnTextParsingAnnotatedJdk
+     * @see #warnTextParsingJdkClass
+     * @see #warnTextParsingBuiltinStub
+     */
+    private void warnOnce(@CompilerMessageKey String messageKey, String dedupKey, Object... args) {
+        com.sun.tools.javac.util.Context context =
+                ((com.sun.tools.javac.processing.JavacProcessingEnvironment)
+                                atypeFactory.getProcessingEnv())
+                        .getContext();
+        Set<String> alreadyWarned = context.get(TEXT_PARSING_WARNINGS_KEY);
+        if (alreadyWarned == null) {
+            alreadyWarned = new HashSet<>();
+            context.put(TEXT_PARSING_WARNINGS_KEY, alreadyWarned);
+        }
+        if (!alreadyWarned.add(messageKey + " " + dedupKey)) {
+            // Already issued in this compilation, possibly by another of a compound checker's
+            // sub-checker factories.
+            return;
+        }
+        atypeFactory.getChecker().reportWarning(/* source= */ null, messageKey, args);
     }
 
     /**
@@ -1613,6 +1708,50 @@ public class AnnotationFileElementTypes {
     }
 
     /**
+     * Warns that the annotated JDK will be text-parsed by JavaParser rather than read from its
+     * binary stub, which is slow and is never intended: every annotated JDK is expected to ship a
+     * binary stub, generated at build time.
+     *
+     * <p>The warning is not merely informational. A checker that ships its own annotated JDK gets
+     * <em>no</em> annotated JDK annotations from this project's binary stub -- see {@link
+     * #binaryStubURL} for why loading it would be wrong -- so this is the only signal that its
+     * build is missing a step.
+     *
+     * <p>This warns that the annotated JDK as a whole has no usable binary stub. {@link
+     * #warnTextParsingJdkClass} warns about a single JDK class that a loaded binary stub is
+     * missing.
+     *
+     * @param reason why the binary stub could not be used, as a sentence fragment naming the JDK
+     * @see #warnTextParsingJdkClass
+     * @see #warnTextParsingBuiltinStub
+     * @see #warnOnce
+     */
+    private void warnTextParsingAnnotatedJdk(String reason) {
+        warnOnce(TEXT_PARSING_JDK_KEY, reason, reason, BinaryStubData.FILENAME);
+    }
+
+    /**
+     * Warns that {@code stubDescription}, a stub file that a checker ships (rather than one a user
+     * passed with {@code -Astubs}), will be text-parsed rather than read from its binary stub.
+     *
+     * <p>A checker's own stub files are expected to be pre-parsed into the binary format at build
+     * time; see the {@code generateBinaryStubFiles} task in the top-level {@code build.gradle},
+     * which does this for every {@code .astub} under a subproject's {@code src/main}. A
+     * user-supplied stub file has no binary form and does not warn.
+     *
+     * <p>This is the stub-file counterpart of {@link #warnTextParsingAnnotatedJdk}, which warns
+     * about the annotated JDK.
+     *
+     * @param stubDescription a description of the stub file, for diagnostics
+     * @see #warnTextParsingAnnotatedJdk
+     * @see #warnTextParsingJdkClass
+     * @see #warnOnce
+     */
+    private void warnTextParsingBuiltinStub(String stubDescription) {
+        warnOnce(TEXT_PARSING_STUB_KEY, stubDescription, stubDescription);
+    }
+
+    /**
      * Returns a JarURLConnection to "/jdk*".
      *
      * @return a JarURLConnection to "/jdk*"
@@ -1682,21 +1821,12 @@ public class AnnotationFileElementTypes {
                         annotationFileAnnos,
                         /* fromLazyJdk= */ true);
             } catch (IOException e) {
-                atypeFactory
-                        .getChecker()
-                        .message(
-                                Diagnostic.Kind.NOTE,
-                                "Could not read "
-                                        + BinaryStubData.FILENAME
-                                        + ", falling back to JavaParser. Error: "
-                                        + e.getMessage());
+                warnTextParsingAnnotatedJdk(
+                        "could not read " + binURL + " (" + e.getMessage() + ")");
             }
-        } else {
-            atypeFactory
-                    .getChecker()
-                    .message(
-                            Diagnostic.Kind.NOTE,
-                            BinaryStubData.FILENAME + " not found, falling back to JavaParser.");
+        } else if (resourceURL != null) {
+            warnTextParsingAnnotatedJdk(
+                    "the annotated JDK in " + resourceURL + " has no " + BinaryStubData.FILENAME);
         }
 
         if (stubDebug) {
