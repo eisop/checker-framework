@@ -342,14 +342,24 @@ JDK annotations for an existing type system.
 
 An annotated JDK should be accompanied by a \emph{binary stub file}, which the
 Checker Framework reads instead of parsing the JDK's source code.  Reading it is
-much faster than text-parsing the JDK\@.  Generate it by running
-\<JavaStubifier> (Section~\ref{stub-creating-with-source}) over the annotated
-JDK's root directory --- the directory that contains \<src>, not \<src> itself
---- which writes \<annotated-jdk.bin.gz> into that directory.  The Checker
-Framework looks for the binary stub file within the same \<.jar> file that
-supplies the annotated JDK, so a checker that distributes its own annotated JDK
-uses its own binary stub file; the Checker Framework never substitutes the
-binary stub file of a different annotated JDK for a missing one.
+much faster than text-parsing the JDK\@.
+
+An annotated JDK is packaged at the top level of a \<.jar> file, in a directory
+named \<annotated-jdk>, and the Checker Framework reads its binary stub file
+from the root of that directory:
+\begin{Verbatim}
+  annotated-jdk/annotated-jdk.bin.gz    the binary stub file
+  annotated-jdk/src/...                 the JDK sources it was generated from
+\end{Verbatim}
+Generate the binary stub file by running \<JavaStubifier>
+(Section~\ref{stub-creating-with-source}) on the \<annotated-jdk> directory:
+\<JavaStubifier> writes \<annotated-jdk.bin.gz> into the directory it is given,
+which is where the Checker Framework looks for it.
+
+The Checker Framework looks for the binary stub file within the same \<.jar> file
+that supplies the annotated JDK, so a checker that distributes its own annotated
+JDK uses its own binary stub file; the Checker Framework never uses the binary
+stub file of a different annotated JDK in its place.
 
 If an annotated JDK has no binary stub file, the Checker Framework text-parses
 it and issues a warning.  Section~\ref{suppresswarnings-command-line} tells how
