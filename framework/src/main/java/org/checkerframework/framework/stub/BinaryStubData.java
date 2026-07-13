@@ -547,7 +547,20 @@ public class BinaryStubData {
         public ClassRecord() {}
     }
 
-    /** All strings referenced by the binary data. */
+    /**
+     * All strings referenced by the binary data.
+     *
+     * <p>These are not interned. Nothing compares them by reference: class names and signatures are
+     * only ever used as map keys or compared with {@code equals}, and the one identity comparison
+     * on an annotation name ({@code BinaryStubReader.isAnnotatedForThisChecker}) compares the
+     * result of {@code AnnotationUtils.annotationName}, which is interned by its own contract, not
+     * a string from this pool.
+     *
+     * <p>Interning them bought nothing and cost most of the load: interning this pool's ~24,000
+     * strings took the annotated JDK's binary stub file from about 20 ms to about 130 ms to load
+     * (measured; the cost is the cold string-table insertions). That is once per JVM, since the
+     * parsed data is cached in {@code AnnotationFileElementTypes#loadedBinaryStubData}.
+     */
     public final String[] stringPool;
 
     /** Pre-parsed structural annotations referenced by indices in the records. */
@@ -592,7 +605,7 @@ public class BinaryStubData {
             int poolSize = readCount(dataIn, "string pool size");
             stringPool = new String[poolSize];
             for (int i = 0; i < poolSize; i++) {
-                stringPool[i] = dataIn.readUTF().intern();
+                stringPool[i] = dataIn.readUTF();
             }
 
             int annoPoolSize = readCount(dataIn, "annotation pool size");
