@@ -198,23 +198,40 @@ public class BinaryStubWriter {
     public static final String CF_COMMENT = "org.checkerframework.framework.qual.CFComment";
 
     /**
-     * Package prefix of the JDK's own internal annotations ({@code @RequiresIdentity},
-     * {@code @ValueBased}, {@code @Stable}, ...), which are never written to the binary format; see
-     * {@link AnnotationPool#addAnnotation}.
-     *
-     * <p>No JDK module exports {@code jdk.internal}, so such an annotation can never be a type
-     * qualifier that user code writes, nor an annotation that a checker resolves by name as an
-     * alias: it carries no meaning for type-checking, and only costs space in the binary.
-     *
-     * <p>They must be dropped without consulting their {@code @Target}, because their classes need
-     * not exist on the JVM running the stubifier. {@link #annotationTargets} reads {@code @Target}
-     * reflectively, and a project that stubifies a JDK newer than the JVM running this tool cannot
-     * load them at all -- the JSpecify reference checker's JDK fork uses {@code @RequiresIdentity},
-     * which a JDK 21 {@code java.base} does not have. The "put it on the stubifier classpath"
-     * failure that {@code annotationTargets} raises for an unloadable annotation is the right
-     * answer for a checker's own annotation, but there is no classpath a user could supply here.
+     * Package prefix of the JDK's own internal annotations ({@code @Stable},
+     * {@code @IntrinsicCandidate}, {@code @ValueBased}, ...), which are never written to the binary
+     * format; see {@link AnnotationPool#addAnnotation}. No JDK module exports {@code jdk.internal},
+     * so such an annotation can be neither a type qualifier that user code writes nor an annotation
+     * that a checker resolves by name as an alias.
      */
     private static final String JDK_INTERNAL_PREFIX = "jdk.internal.";
+
+    /**
+     * Package prefixes of annotations that the Java platform itself declares. An annotation in one
+     * of these packages that the running JVM cannot load is omitted from the binary format rather
+     * than failing the stubifier; see {@link #isUnloadablePlatformAnnotation}.
+     */
+    private static final String[] PLATFORM_PACKAGE_PREFIXES = {
+        "java.", "javax.", "jdk.", "sun.", "com.sun."
+    };
+
+    /** Platform annotations already reported by {@link #isUnloadablePlatformAnnotation}. */
+    private final Set<String> reportedUnloadableAnnotations = new HashSet<>();
+
+    /**
+     * Returns true if {@code name} is in a package that the Java platform declares.
+     *
+     * @param name a fully-qualified annotation name, or a package name with a trailing {@code "."}
+     * @return true if the name is in a Java platform package
+     */
+    private static boolean isPlatformPackage(String name) {
+        for (String prefix : PLATFORM_PACKAGE_PREFIXES) {
+            if (name.startsWith(prefix)) {
+                return true;
+            }
+        }
+        return false;
+    }
 
     /**
      * Sentinel returned by {@link AnnotationPool#addAnnotation} for annotations that are not
@@ -340,11 +357,10 @@ public class BinaryStubWriter {
             AnnotationExpr qualified = writer.qualifyAnnotation(anno, cu);
             String qualifiedName = qualified.getNameAsString();
             if (qualifiedName.equals(CF_COMMENT) || qualifiedName.startsWith(JDK_INTERNAL_PREFIX)) {
-                // @CFComment is documentation for humans, and a jdk.internal annotation is a JDK
-                // implementation marker; neither affects checking, so do not waste binary-format
-                // space on either. Dropping the jdk.internal one here, before the caller asks for
-                // its @Target, is also what keeps the stubifier working on a JDK whose java.base
-                // does not declare it; see JDK_INTERNAL_PREFIX. Callers skip the IGNORED sentinel.
+                // @CFComment is documentation for humans, and no JDK module exports jdk.internal,
+                // so no code a checker sees can name one of its annotations: neither affects
+                // checking, so do not waste binary-format space on either. Callers skip the
+                // IGNORED sentinel.
                 return IGNORED;
             }
             String key = qualified.toString();
@@ -862,6 +878,77 @@ public class BinaryStubWriter {
                         return NOT_LOADABLE;
                     }
                 });
+    }
+
+    /**
+     * Returns true if {@code fqn} names an annotation that the Java platform declares but that the
+     * JVM running the stubifier cannot load -- in which case it is omitted from the binary format
+     * instead of failing the stubifier.
+     *
+     * <p>This is the case of stubifying a JDK newer than the JVM doing the stubifying. Its
+     * annotations then simply do not exist here: {@code java.io.Serial} arrived in Java 14 and
+     * {@code java.beans.BeanProperty} in Java 9, so neither can be loaded on a Java 8 JVM, and
+     * {@code jdk.internal.RequiresIdentity} cannot be loaded on a JVM older than the JDK that
+     * introduced it. No classpath can supply them, so {@link #annotationTargets}'s "put it on the
+     * stubifier classpath" failure -- the right answer for a checker's own annotation, which is
+     * merely missing -- is unfixable advice here.
+     *
+     * <p>Omitting them loses nothing. A checker running on this same JVM cannot resolve such an
+     * annotation either, so the text parser drops it too: the binary and the text agree. And the
+     * annotation cannot matter to type-checking on this JVM, since no code compiled against this
+     * JDK can even name it.
+     *
+     * <p>The platform packages are listed rather than "anything that fails to load" because an
+     * annotation that fails to load from any other package is a real misconfiguration -- a
+     * checker's qualifier absent from the stubifier classpath -- which must stay fatal, since
+     * dropping it would silently discard annotations that the text parser would have applied. That
+     * is what {@link #annotationTargets} does. Note that the platform packages include annotations
+     * that the Checker Framework aliases ({@code com.sun.istack.NotNull}, {@code
+     * javax.annotation.Nullable}, {@code jdk.jfr.Unsigned}): dropping one of those when it cannot
+     * be loaded is still correct, by the same argument -- a checker on this JVM cannot resolve it
+     * either.
+     *
+     * @param fqn the fully-qualified name of an annotation
+     * @return true if the annotation is a platform annotation this JVM cannot load
+     */
+    private boolean isUnloadablePlatformAnnotation(String name) {
+        // Resolve exactly as annotationTargets does, so that this method omits an annotation only
+        // when annotationTargets would have failed on it. qualifyAnnotation, whose output the
+        // caller passes in, does not consult asterisk imports; fullyQualifyAnnotationName does.
+        String fqn = fullyQualifyAnnotationName(name);
+        if (fqn.indexOf('.') == -1) {
+            // A simple name that fullyQualifyAnnotationName could not resolve: no explicit import
+            // supplied it and it is not in java.lang, so it comes from one of this file's asterisk
+            // imports -- and the only reason it did not resolve against those is that the class
+            // cannot be loaded. Omit it if every asterisk import is a platform package, which makes
+            // the annotation a platform annotation this JVM lacks (e.g. "@BeanProperty" under
+            // "import java.beans.*;" in javax/swing/JRootPane.java, on a Java 8 JVM). If any
+            // asterisk import is not a platform package, a checker's qualifier could be the
+            // unresolved name, so leave it to annotationTargets to fail.
+            if (asteriskImportPackages.isEmpty()) {
+                // annotationTargets treats this as NO_TARGET rather than a failure; leave it be.
+                return false;
+            }
+            for (String asteriskImportPackage : asteriskImportPackages) {
+                if (!isPlatformPackage(asteriskImportPackage + ".")) {
+                    return false;
+                }
+            }
+        } else if (!isPlatformPackage(fqn) || annotationTargetsByName(fqn) != NOT_LOADABLE) {
+            return false;
+        }
+        if (reportedUnloadableAnnotations.add(fqn)) {
+            System.err.println(
+                    "BinaryStubWriter: omitting @"
+                            + fqn
+                            + " from the binary stub file: it is declared by a Java platform newer"
+                            + " than the Java "
+                            + System.getProperty("java.specification.version")
+                            + " JVM running the stubifier, which therefore cannot read its @Target."
+                            + " A checker running on this JVM cannot resolve it either, so the text"
+                            + " parser drops it too.");
+        }
+        return true;
     }
 
     /**
@@ -1441,6 +1528,14 @@ public class BinaryStubWriter {
         for (AnnotationExpr anno : annotations) {
             int idx = annosPool.addAnnotation(anno, cu, this);
             if (idx == IGNORED) {
+                continue;
+            }
+            if (filterByTarget && isUnloadablePlatformAnnotation(anno.getNameAsString())) {
+                // Routing needs the annotation's @Target, which cannot be read here; see
+                // isUnloadablePlatformAnnotation. Leave it out of both lists rather than fail.
+                // Only the routing path is affected: a caller that does not route by @Target (a
+                // class declaration's annotations, say) never needs to load the annotation at all,
+                // and still writes it.
                 continue;
             }
             if (typeAnnos != null && (!filterByTarget || hasTypeUse(anno))) {
