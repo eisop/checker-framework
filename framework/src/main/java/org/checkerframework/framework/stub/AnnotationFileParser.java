@@ -1799,22 +1799,16 @@ public class AnnotationFileParser {
                             .addAnnotations(atv.getLowerBound().getAnnotations());
                 } else if (primaryAnnotations.isEmpty()) {
                     // Unannotated unbounded wildcard "?" whose corresponding type variable could
-                    // not
-                    // be determined (AnnotatedWildcardType#getTypeVariable can be null -- it is
-                    // only set
-                    // while building a declared type's type arguments, see
+                    // not be determined (AnnotatedWildcardType#getTypeVariable can be null -- it is
+                    // only set while building a declared type's type arguments, see
                     // AnnotatedDeclaredType#getTypeArguments and BoundsInitializer): leave the
-                    // wildcard's
-                    // bounds as already computed by the type factory rather than crashing. This
-                    // previously threw an uncaught NullPointerException while parsing an unbounded
-                    // wildcard type argument (e.g. Class<?>) for some JDK releases (e.g. --release
-                    // 8),
-                    // silently aborting all remaining processing of the enclosing stub file --
-                    // observed
-                    // via -AbinaryStubDiffCheck forcing a full re-parse of every JDK stub file,
-                    // which
-                    // ordinary lazy per-reference parsing had never exercised for this combination
-                    // before.
+                    // wildcard's bounds as already computed by the type factory rather than
+                    // crashing. This previously threw an uncaught NullPointerException while
+                    // parsing an unbounded wildcard type argument (e.g. Class<?>) for some JDK
+                    // releases (e.g. --release 8), silently aborting all remaining processing of
+                    // the enclosing stub file -- observed via -AbinaryStubDiffCheck forcing a full
+                    // re-parse of every JDK stub file, which ordinary lazy per-reference parsing
+                    // had never exercised for this combination before.
                 } else {
                     // Annotated unbounded wildcard "@A ?": use annotations.
                     annotate(atype, primaryAnnotations, astNode);
