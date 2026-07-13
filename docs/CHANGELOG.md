@@ -12,6 +12,38 @@ Further performance improvements relative to the 3.49.5-eisop1 release:
 Several optimizations also reduce GC pressure and remove superlinear behavior,
 improving performance for large (e.g. auto-generated) files.
 
+A checker that ships its own annotated JDK (as the JSpecify reference checker
+does) no longer loads checker.jar's binary annotated JDK on top of it. The
+binary stub is now resolved within the jar that supplies the annotated JDK,
+rather than by a separate classpath-wide lookup that could reach past that
+checker's JDK into checker.jar's.
+
+The Checker Framework now issues a warning when it text-parses the annotated
+JDK, or a stub file that a checker ships, instead of reading the binary stub
+that such a file is expected to have. To generate the annotated JDK's binary
+stub, run `JavaStubifier` over the annotated JDK's root directory (the one
+containing `src`, not `src` itself); for a checker's own `.astub` files, run
+`BinaryStubFileGenerator`. Stub files supplied with `-Astubs` and `.ajava` files
+are text-parsed as before, without a warning.
+
+These warnings are issued before any source file is processed, so they have no
+source position and `@SuppressWarnings` cannot suppress them: there is no
+declaration to write it on. Suppress them with
+`-AsuppressWarnings=text.parsing`, or individually with
+`-AsuppressWarnings=text.parsing.jdk` (the annotated JDK has no binary stub),
+`-AsuppressWarnings=text.parsing.jdk.class` (a JDK class is missing from the
+binary stub), or `-AsuppressWarnings=text.parsing.stub` (a checker's stub file
+has no binary stub).
+
+**Implementation details:**
+
+`SourceChecker.reportError` and `SourceChecker.reportWarning` now accept a null
+source, for a message that has no source position. Such a message is reported
+against the compilation as a whole, and is suppressed only by
+`-AsuppressWarnings`, not by a `@SuppressWarnings` annotation. Previously such a
+message had to bypass the message-key mechanism entirely (by calling
+`SourceChecker.message`), and so could not be suppressed at all.
+
 Fixed a typo (`@SafeEFfect`) in the Guieffect Checker's `org-eclipse.astub` that
 made `CompareEditorInput.getMessage()` inherit the enclosing `@UIType`'s
 `@UIEffect` default rather than being `@SafeEffect`.
