@@ -81,6 +81,17 @@ public class BinaryStubData {
      */
     public static final String CONSTRUCTOR_SIG_PREFIX = BinaryStubWriter.CONSTRUCTOR_SIG_PREFIX;
 
+    /**
+     * Fully-qualified name of {@code CFComment}, which is never written to the binary format.
+     * Defined once in {@link BinaryStubWriter#CF_COMMENT}.
+     *
+     * <p>Re-exported here so that {@code BinaryStubDiffChecker}, which must filter the same
+     * annotation out of the text-parsed side, can name it without depending on the stubifier source
+     * set: {@code framework-test}, where that class lives, does not have the stubifier on its
+     * classpath. This is a compile-time constant, so reading it creates no runtime dependency.
+     */
+    public static final String CF_COMMENT = BinaryStubWriter.CF_COMMENT;
+
     /** Annotation data containing its class name and structural element value pairs. */
     public static class AnnotationRecord {
         /**

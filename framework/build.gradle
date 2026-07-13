@@ -103,7 +103,6 @@ dependencies {
     // checker/dist/checker.jar, never via framework.jar). Never add a real (non-inlined) runtime
     // call from framework.jar-shipped code into a stubifier class.
     implementation sourceSets.stubifier.output
-    testFixturesImplementation sourceSets.stubifier.output
 
     /* NO-AFU
      // AFU is an "includedBuild" imported in checker-framework/settings.gradle, so the version number doesn't matter.

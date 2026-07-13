@@ -609,10 +609,12 @@ public class AnnotationFileElementTypes {
     }
 
     /**
-     * Fully-qualified name of the differential checker, which lives in the {@code testFixtures}
-     * source set rather than here: it is a test-only verification tool, roughly a thousand lines,
-     * used by nothing but {@code NullnessBinaryStubDiffTest}, and there is no reason to ship it in
-     * {@code checker.jar}. It sits in this package so it can keep reading this class's
+     * Fully-qualified name of the differential checker, which lives in the {@code framework-test}
+     * artifact rather than here: it is a verification tool, roughly a thousand lines, and there is
+     * no reason to ship it in {@code checker.jar}. {@code framework-test} is published, so a
+     * checker that ships its own annotated JDK -- the JSpecify reference checker, say -- can put it
+     * on its annotation-processor classpath and check its own JDK with {@code
+     * -AbinaryStubDiffCheck}. It stays in this package so it can keep reading this class's
      * package-private state.
      */
     private static final String DIFF_CHECKER_CLASS =
@@ -624,8 +626,8 @@ public class AnnotationFileElementTypes {
      * <p>Only ever reached when the user passes {@code -AbinaryStubDiffCheck}. If the class is
      * absent -- the ordinary case, since it is not on a released {@code checker.jar} -- report a
      * {@code UserError} rather than failing obscurely: the option is real (it is listed in {@code
-     * SourceChecker}'s supported options) but it needs a build that puts the test fixtures on the
-     * annotation-processor classpath.
+     * SourceChecker}'s supported options) but it needs a build that puts {@code framework-test} on
+     * the annotation-processor classpath.
      *
      * @param methodName the static method to invoke
      * @param parameterTypes the method's parameter types
@@ -639,8 +641,8 @@ public class AnnotationFileElementTypes {
             throw new UserError(
                     "-AbinaryStubDiffCheck requires "
                             + DIFF_CHECKER_CLASS
-                            + " on the annotation-processor classpath. It ships in the framework's"
-                            + " test fixtures, not in checker.jar.");
+                            + " on the annotation-processor classpath. It ships in the"
+                            + " framework-test artifact, not in checker.jar.");
         } catch (NoSuchMethodException e) {
             throw new BugInCF("Cannot find " + DIFF_CHECKER_CLASS + "." + methodName, e);
         }

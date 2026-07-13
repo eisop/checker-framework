@@ -3,7 +3,6 @@ package org.checkerframework.framework.stub;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.framework.source.SourceChecker;
 import org.checkerframework.framework.stub.AnnotationFileParser.AnnotationFileAnnotations;
-import org.checkerframework.framework.stubifier.BinaryStubWriter;
 import org.checkerframework.framework.type.AnnotatedTypeFactory;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedArrayType;
@@ -429,7 +428,8 @@ public class BinaryStubDiffChecker {
             AnnotatedTypeFactory atypeFactory,
             List<String> reports) {
         @SuppressWarnings("signature:argument.type.incompatible") // className is read from the
-        // binary stub's string pool, which BinaryStubWriter populates only with fully-qualified
+        // binary stub's string pool, which the binary stub writer populates only with
+        // fully-qualified
         // names
         TypeElement typeElt =
                 atypeFactory.getProcessingEnv().getElementUtils().getTypeElement(className);
@@ -875,8 +875,7 @@ public class BinaryStubDiffChecker {
                 // one), so comparing against the literal below with != is a correct, cheap
                 // identity check, not a bug -- do not "fix" this to .equals().
                 String name = AnnotationUtils.annotationName(am);
-                if (name.startsWith("org.checkerframework.")
-                        && name != BinaryStubWriter.CF_COMMENT) {
+                if (name.startsWith("org.checkerframework.") && name != BinaryStubData.CF_COMMENT) {
                     names.add(name);
                 }
             }
