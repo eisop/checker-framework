@@ -235,8 +235,8 @@ public class BinaryStubDiffChecker {
             Map<String, AnnotationMirrorSet> binaryAnnos,
             List<String> reports) {
         for (String name : names) {
-            Set<String> textNames = checkerAnnotationNames(textAnnos.get(name));
-            Set<String> binaryNames = checkerAnnotationNames(binaryAnnos.get(name));
+            Set<String> textNames = comparedAnnotationNames(textAnnos.get(name));
+            Set<String> binaryNames = comparedAnnotationNames(binaryAnnos.get(name));
             if (!textNames.equals(binaryNames)) {
                 reports.add(
                         String.format(
@@ -429,8 +429,7 @@ public class BinaryStubDiffChecker {
             List<String> reports) {
         @SuppressWarnings("signature:argument.type.incompatible") // className is read from the
         // binary stub's string pool, which the binary stub writer populates only with
-        // fully-qualified
-        // names
+        // fully-qualified names.
         TypeElement typeElt =
                 atypeFactory.getProcessingEnv().getElementUtils().getTypeElement(className);
         if (typeElt == null) {
@@ -524,8 +523,8 @@ public class BinaryStubDiffChecker {
         declKeys.addAll(text.declAnnos.keySet());
         declKeys.addAll(binary.declAnnos.keySet());
         for (String key : declKeys) {
-            Set<String> textNames = checkerAnnotationNames(text.declAnnos.get(key));
-            Set<String> binaryNames = checkerAnnotationNames(binary.declAnnos.get(key));
+            Set<String> textNames = comparedAnnotationNames(text.declAnnos.get(key));
+            Set<String> binaryNames = comparedAnnotationNames(binary.declAnnos.get(key));
             if (!textNames.equals(binaryNames)) {
                 reports.add(
                         String.format(
@@ -821,18 +820,19 @@ public class BinaryStubDiffChecker {
     }
 
     /**
-     * Returns the sorted set of Checker Framework annotation class names (names starting with
-     * {@code org.checkerframework.}) in the given set, or the empty set for {@code null}. {@code
-     * CFComment} is also excluded: it is documentation for humans with no effect on checking, and
-     * the text parser drops it whenever its value uses string concatenation (which it cannot
-     * evaluate), whereas the binary writer evaluates the concatenation and keeps it.
+     * Returns the sorted set of the names of the annotations in the given set that are compared, or
+     * the empty set for {@code null}: every annotation except the Java platform's own, and except
+     * {@code CFComment}.
      *
-     * <p>The restriction to {@code org.checkerframework.} names is deliberate, not merely
-     * unfinished: this method is used only for declaration annotations (see the two call sites),
-     * and widening it to compare all declaration annotations was tried and reverted. Doing so
-     * surfaced mismatches that are text-parser name-resolution quirks, not binary-reader bugs, for
-     * example (observed comparing the JDK 21 annotated JDK, both under {@code
-     * NullnessBinaryStubDiffTest}):
+     * <p>An annotation a checker could act on is compared, whichever package it is in: a checker's
+     * own qualifiers, and the third-party annotations a checker resolves by name as aliases --
+     * {@code org.jspecify.annotations.Nullable}, say, which is what the annotated JDK of the
+     * JSpecify reference checker is written in.
+     *
+     * <p>The Java platform's own annotations ({@code java.}, {@code jdk.}, {@code sun.}, {@code
+     * com.sun.}) are excluded because the two sides legitimately disagree about them, in ways that
+     * are text-parser name-resolution quirks rather than binary-reader bugs (observed comparing the
+     * JDK 21 annotated JDK, under {@code NullnessBinaryStubDiffTest}):
      *
      * <ul>
      *   <li>{@code java.lang.Override}/{@code java.lang.Deprecated}/{@code
@@ -847,25 +847,25 @@ public class BinaryStubDiffChecker {
      *       classpath resolution keeps it.
      *   <li>{@code com.sun.tools.javac.api.ClientCodeWrapper.Trusted}, {@code
      *       java.lang.invoke.LambdaForm.Compiled}, {@code Tree.Kind.DEFAULT_CASE_LABEL}:
-     *       JDK-internal meta-annotations ({@code @Retention}/{@code @Target}/{@code
-     *       jdk.internal.javac.PreviewFeature}) on JDK-internal declarations that the text parser
-     *       never resolves (they are not imported by the stub source), but that the binary writer,
+     *       JDK-internal meta-annotations on JDK-internal declarations that the text parser never
+     *       resolves (they are not imported by the stub source), but that the binary writer,
      *       running against the full JDK classpath at build time, resolves and keeps.
      * </ul>
      *
-     * <p>None of the dropped names are consumed by any checker from a stub file, so the asymmetry
-     * is benign; see the caller-side comment in {@link #compareClass} for the rationale from the
-     * comparison's point of view. If {@code org.jspecify} annotations enter the annotated JDK in
-     * the future, they will fall on the excluded side of this filter and go unverified by this
-     * harness until this method is revisited (the JDK minimizer already preserves {@code
-     * org.jspecify} content per {@code framework/build.gradle}'s {@code
-     * copyAndMinimizeAnnotatedJdkFiles} configuration, so this is a real, not merely hypothetical,
-     * gap).
+     * <p>No checker consumes any of those from an annotation file, so the asymmetry is benign; see
+     * the caller-side comment in {@link #compareClass}. A platform annotation that a checker
+     * <em>does</em> alias (say {@code javax.annotation.Nullable}) is still compared: {@code javax.}
+     * is not on the excluded list.
+     *
+     * <p>{@code CFComment} is excluded for a different reason: it is documentation for humans with
+     * no effect on checking, and the text parser drops it whenever its value uses string
+     * concatenation (which it cannot evaluate), whereas the binary writer evaluates the
+     * concatenation and keeps it.
      *
      * @param annos the annotation set, may be {@code null}
-     * @return the sorted Checker Framework annotation class names
+     * @return the sorted names of the annotations that are compared
      */
-    private static Set<String> checkerAnnotationNames(@Nullable AnnotationMirrorSet annos) {
+    private static Set<String> comparedAnnotationNames(@Nullable AnnotationMirrorSet annos) {
         Set<String> names = new TreeSet<>();
         if (annos != null) {
             for (AnnotationMirror am : annos) {
@@ -875,7 +875,11 @@ public class BinaryStubDiffChecker {
                 // one), so comparing against the literal below with != is a correct, cheap
                 // identity check, not a bug -- do not "fix" this to .equals().
                 String name = AnnotationUtils.annotationName(am);
-                if (name.startsWith("org.checkerframework.") && name != BinaryStubData.CF_COMMENT) {
+                if (!name.startsWith("java.")
+                        && !name.startsWith("jdk.")
+                        && !name.startsWith("sun.")
+                        && !name.startsWith("com.sun.")
+                        && name != BinaryStubData.CF_COMMENT) {
                     names.add(name);
                 }
             }
