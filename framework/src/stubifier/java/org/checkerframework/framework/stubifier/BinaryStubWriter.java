@@ -198,6 +198,25 @@ public class BinaryStubWriter {
     public static final String CF_COMMENT = "org.checkerframework.framework.qual.CFComment";
 
     /**
+     * Package prefix of the JDK's own internal annotations ({@code @RequiresIdentity},
+     * {@code @ValueBased}, {@code @Stable}, ...), which are never written to the binary format; see
+     * {@link AnnotationPool#addAnnotation}.
+     *
+     * <p>No JDK module exports {@code jdk.internal}, so such an annotation can never be a type
+     * qualifier that user code writes, nor an annotation that a checker resolves by name as an
+     * alias: it carries no meaning for type-checking, and only costs space in the binary.
+     *
+     * <p>They must be dropped without consulting their {@code @Target}, because their classes need
+     * not exist on the JVM running the stubifier. {@link #annotationTargets} reads {@code @Target}
+     * reflectively, and a project that stubifies a JDK newer than the JVM running this tool cannot
+     * load them at all -- the JSpecify reference checker's JDK fork uses {@code @RequiresIdentity},
+     * which a JDK 21 {@code java.base} does not have. The "put it on the stubifier classpath"
+     * failure that {@code annotationTargets} raises for an unloadable annotation is the right
+     * answer for a checker's own annotation, but there is no classpath a user could supply here.
+     */
+    private static final String JDK_INTERNAL_PREFIX = "jdk.internal.";
+
+    /**
      * Sentinel returned by {@link AnnotationPool#addAnnotation} for annotations that are not
      * written to the binary format ({@code @CFComment}). Callers must skip it.
      */
@@ -319,9 +338,13 @@ public class BinaryStubWriter {
             // qualifyAnnotation deep-clones and qualifies all nested nodes, so neither
             // writeAnnotationInline nor writeValue needs to qualify again.
             AnnotationExpr qualified = writer.qualifyAnnotation(anno, cu);
-            if (qualified.getNameAsString().equals(CF_COMMENT)) {
-                // @CFComment is documentation for humans with no effect on checking; do not
-                // waste binary-format space on it. Callers skip the IGNORED sentinel.
+            String qualifiedName = qualified.getNameAsString();
+            if (qualifiedName.equals(CF_COMMENT) || qualifiedName.startsWith(JDK_INTERNAL_PREFIX)) {
+                // @CFComment is documentation for humans, and a jdk.internal annotation is a JDK
+                // implementation marker; neither affects checking, so do not waste binary-format
+                // space on either. Dropping the jdk.internal one here, before the caller asks for
+                // its @Target, is also what keeps the stubifier working on a JDK whose java.base
+                // does not declare it; see JDK_INTERNAL_PREFIX. Callers skip the IGNORED sentinel.
                 return IGNORED;
             }
             String key = qualified.toString();
