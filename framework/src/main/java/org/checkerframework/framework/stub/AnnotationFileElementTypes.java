@@ -591,6 +591,16 @@ public class AnnotationFileElementTypes {
                             return new BinaryStubData(in);
                         } catch (IOException e) {
                             throw new UncheckedIOException(e);
+                        } catch (RuntimeException e) {
+                            // A damaged file can hold an index that points outside a pool, which
+                            // surfaces as ArrayIndexOutOfBoundsException rather than as an
+                            // IOException. BinaryStubData validates what it can (see its
+                            // readCount), but not every index. Report any such failure as what it
+                            // is -- a file that cannot be read -- so that the caller falls back to
+                            // text parsing rather than crashing the compilation and asking the user
+                            // to report a Checker Framework bug.
+                            throw new UncheckedIOException(
+                                    new IOException("Malformed binary stub file: " + e, e));
                         }
                     });
         } catch (UncheckedIOException e) {

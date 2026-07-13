@@ -58,6 +58,12 @@ public class BinaryStubData {
     public static final short VERSION = BinaryStubWriter.VERSION;
 
     /**
+     * Largest value that a count read from the file may take; see {@link #readCount}. A sanity
+     * bound on a corrupt file, not a limit of the format.
+     */
+    private static final int MAX_COUNT = 1 << 24;
+
+    /**
      * File-name suffix appended to a source stub file's name to name its binary form (e.g. {@code
      * jdk.astub} → {@code jdk.astub.bin.gz}). Defined once in {@link BinaryStubWriter#BIN_SUFFIX}.
      */
@@ -583,13 +589,13 @@ public class BinaryStubData {
                 throw new IOException("Unsupported version: " + version);
             }
 
-            int poolSize = dataIn.readInt();
+            int poolSize = readCount(dataIn, "string pool size");
             stringPool = new String[poolSize];
             for (int i = 0; i < poolSize; i++) {
                 stringPool[i] = dataIn.readUTF().intern();
             }
 
-            int annoPoolSize = dataIn.readInt();
+            int annoPoolSize = readCount(dataIn, "annotation pool size");
             annotationPool = new AnnotationRecord[annoPoolSize];
             for (int i = 0; i < annoPoolSize; i++) {
                 int nameIdx = dataIn.readInt();
@@ -602,7 +608,7 @@ public class BinaryStubData {
                 annotationPool[i] = new AnnotationRecord(nameIdx, elements);
             }
 
-            int classCount = dataIn.readInt();
+            int classCount = readCount(dataIn, "class count");
             for (int i = 0; i < classCount; i++) {
                 ClassRecord cr = new ClassRecord();
                 cr.nameIndex = dataIn.readInt();
@@ -667,6 +673,34 @@ public class BinaryStubData {
             readAnnotatedNames(dataIn, packages);
             readAnnotatedNames(dataIn, modules);
         }
+    }
+
+    /**
+     * Reads a count that sizes an array, and rejects one that cannot be a real count.
+     *
+     * <p>A count is read straight from the file, so a corrupt file can supply any {@code int}. Left
+     * unchecked, a negative one throws {@code NegativeArraySizeException} and an absurdly large one
+     * throws {@code OutOfMemoryError} -- neither an {@code IOException}, so neither is caught by
+     * {@code AnnotationFileElementTypes.loadBinaryStubData}, whose contract is to fall back to text
+     * parsing when the binary cannot be read. The compilation crashed instead, telling the user to
+     * report a Checker Framework bug for what is a damaged file. Report it as the malformed input
+     * it is.
+     *
+     * <p>The upper bound is a sanity bound, not a format limit: it is far above any real annotated
+     * JDK (whose largest count, the string pool, is about 24,000) and far below a size that would
+     * exhaust memory.
+     *
+     * @param dataIn the stream to read from
+     * @param what what is being counted, for the error message
+     * @return the count
+     * @throws IOException if the stream cannot be read, or the count is not a plausible one
+     */
+    private static int readCount(DataInputStream dataIn, String what) throws IOException {
+        int count = dataIn.readInt();
+        if (count < 0 || count > MAX_COUNT) {
+            throw new IOException("Malformed binary stub file: implausible " + what + ": " + count);
+        }
+        return count;
     }
 
     /**
@@ -765,7 +799,7 @@ public class BinaryStubData {
      */
     private void readAnnotatedNames(DataInputStream dataIn, Map<String, int[]> target)
             throws IOException {
-        int count = dataIn.readInt();
+        int count = readCount(dataIn, "annotated-name count");
         for (int i = 0; i < count; i++) {
             String name = stringPool[dataIn.readInt()];
             target.put(name, readAnnoIndices(dataIn));
