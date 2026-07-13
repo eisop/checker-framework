@@ -922,8 +922,6 @@ public class ValueTransfer extends CFTransfer {
                     case BITWISE_XOR:
                         resultValues.add(nmLeft.bitwiseXor(right));
                         break;
-                    default:
-                        throw new TypeSystemError("ValueTransfer: unsupported operation: " + op);
                 }
             }
         }
@@ -1151,8 +1149,6 @@ public class ValueTransfer extends CFTransfer {
                 case BITWISE_COMPLEMENT:
                     resultValues.add(nmLeft.bitwiseComplement());
                     break;
-                default:
-                    throw new TypeSystemError("ValueTransfer: unsupported operation: " + op);
             }
         }
         return resultValues;

@@ -3176,6 +3176,8 @@ public class AnnotationFileParser {
             // Search importedConstants for full annotation name.
             for (String imp : importedConstants) {
                 // TODO: should this use AnnotationFileUtil.partitionQualifiedName?
+                // Splitting an imported constant name on "."; trailing empty strings cannot occur.
+                @SuppressWarnings("StringSplitter")
                 String[] importDelimited = imp.split("\\.");
                 if (importDelimited[importDelimited.length - 1].equals(
                         faexpr.getScope().toString())) {
