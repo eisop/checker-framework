@@ -35,6 +35,8 @@ import java.lang.ProcessBuilder.Redirect;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.net.JarURLConnection;
+import java.net.MalformedURLException;
+import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.file.Files;
@@ -1568,6 +1570,49 @@ public class AnnotationFileElementTypes {
     }
 
     /**
+     * Returns the URL of the binary stub of the annotated JDK that is rooted at {@code
+     * jdkResourceURL}, or null if that annotated JDK has no binary stub.
+     *
+     * <p>The binary is resolved <em>within</em> the jar (or directory) that supplied the annotated
+     * JDK, rather than by a second classpath-wide {@code getResource} lookup. A downstream checker
+     * may ship its own annotated JDK ahead of checker.jar on the classpath -- the JSpecify
+     * reference checker does exactly that, packaging JSpecify's JDK as {@code annotated-jdk/src/}
+     * in its own jar. A classpath-wide lookup for {@code "/annotated-jdk/annotated-jdk.bin.gz"}
+     * would miss that checker's own JDK and find checker.jar's binary instead, which is a
+     * serialization of <em>this</em> project's annotated JDK: its annotations would then be applied
+     * on top of the other project's JDK sources.
+     *
+     * @param jdkResourceURL the URL of the annotated JDK's root directory or jar entry
+     * @return the URL of that annotated JDK's binary stub, or null if it has none
+     */
+    private static @Nullable URL binaryStubURL(URL jdkResourceURL) {
+        // Whether a directory URL ends with "/" depends on the class loader: CheckerMain's returns
+        // "jar:file:/...!/annotated-jdk/", Gradle's test class loader
+        // "jar:file:/...!/annotated-jdk".
+        // Appending to the former without trimming yields a "//" that opens nothing, which would
+        // silently text-parse the whole JDK.
+        String base = jdkResourceURL.toExternalForm();
+        while (base.endsWith("/")) {
+            base = base.substring(0, base.length() - 1);
+        }
+        URL binURL;
+        try {
+            binURL = new URI(base + "/" + BinaryStubData.FILENAME).toURL();
+        } catch (URISyntaxException | MalformedURLException e) {
+            return null;
+        }
+        // Probe this one URL, rather than asking the classloader whether the resource exists
+        // anywhere on the classpath -- which is the question that must not be asked here.
+        try {
+            InputStream in = binURL.openStream();
+            in.close();
+            return binURL;
+        } catch (IOException e) {
+            return null;
+        }
+    }
+
+    /**
      * Returns a JarURLConnection to "/jdk*".
      *
      * @return a JarURLConnection to "/jdk*"
@@ -1616,10 +1661,7 @@ public class AnnotationFileElementTypes {
      */
     private void prepJdkStubsImpl() {
         URL resourceURL = atypeFactory.getClass().getResource("/" + ANNOTATED_JDK_PATH);
-        URL binURL =
-                atypeFactory
-                        .getClass()
-                        .getResource("/" + ANNOTATED_JDK_PATH + "/" + BinaryStubData.FILENAME);
+        URL binURL = resourceURL == null ? null : binaryStubURL(resourceURL);
         boolean binaryLoaded = false;
         if (binURL != null) {
             try {
