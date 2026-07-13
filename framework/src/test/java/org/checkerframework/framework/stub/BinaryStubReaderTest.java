@@ -7,7 +7,10 @@ import com.sun.source.util.Trees;
 import com.sun.tools.javac.processing.JavacProcessingEnvironment;
 import com.sun.tools.javac.util.Context;
 
+import org.checkerframework.javacutil.ElementUtils;
+import org.checkerframework.javacutil.SystemUtil;
 import org.junit.Assert;
+import org.junit.Assume;
 import org.junit.Test;
 
 import java.io.StringWriter;
@@ -372,8 +375,11 @@ public class BinaryStubReaderTest {
      */
     @Test
     public void recordComponentElementDiffersFromItsBackingField() throws Exception {
+        // Records, and the element API this test uses, are JDK 16+.
+        Assume.assumeTrue(SystemUtil.jreVersion >= 16);
+
         TypeElement recordElt = compileToTypeElement("SomeRecord", "record SomeRecord(int a) {}");
-        List<? extends Element> components = recordElt.getRecordComponents();
+        List<? extends Element> components = ElementUtils.getRecordComponents(recordElt);
         Assert.assertEquals(1, components.size());
         Element componentElt = components.get(0);
 
@@ -381,7 +387,9 @@ public class BinaryStubReaderTest {
         Assert.assertEquals(1, fields.size());
         VariableElement fieldElt = fields.get(0);
 
-        Assert.assertEquals(ElementKind.RECORD_COMPONENT, componentElt.getKind());
+        Assert.assertTrue(
+                "the component element must be of kind RECORD_COMPONENT",
+                ElementUtils.isRecordComponentElement(componentElt));
         Assert.assertEquals(ElementKind.FIELD, fieldElt.getKind());
         Assert.assertEquals(
                 "the component and its backing field share the same simple name",
