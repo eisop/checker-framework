@@ -1482,23 +1482,31 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     /**
      * Reports an error. By default, prints it to the screen via the compiler's internal messager.
      *
-     * @param source the source position information; may be an Element or a Tree
+     * @param source the source position information; may be an Element or a Tree. Null means the
+     *     error has no source position -- for example, it is issued while the checker is
+     *     initializing, before any source file is processed -- and is reported against the
+     *     compilation as a whole.
      * @param messageKey the message key
      * @param args arguments for interpolation in the string corresponding to the given message key
      */
-    public void reportError(Object source, @CompilerMessageKey String messageKey, Object... args) {
+    public void reportError(
+            @Nullable Object source, @CompilerMessageKey String messageKey, Object... args) {
         report(source, Diagnostic.Kind.ERROR, messageKey, args);
     }
 
     /**
      * Reports a warning. By default, prints it to the screen via the compiler's internal messager.
      *
-     * @param source the source position information; may be an Element or a Tree
+     * @param source the source position information; may be an Element or a Tree. Null means the
+     *     warning has no source position -- for example, it is issued while the checker is
+     *     initializing, before any source file is processed. Such a warning cannot be suppressed by
+     *     a {@code @SuppressWarnings} annotation, because there is no declaration to write one on;
+     *     only the {@code -AsuppressWarnings} command-line option suppresses it.
      * @param messageKey the message key
      * @param args arguments for interpolation in the string corresponding to the given message key
      */
     public void reportWarning(
-            Object source, @CompilerMessageKey String messageKey, Object... args) {
+            @Nullable Object source, @CompilerMessageKey String messageKey, Object... args) {
         report(source, Diagnostic.Kind.MANDATORY_WARNING, messageKey, args);
     }
 
@@ -1509,10 +1517,13 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      * <p>It is rare to use this method. Most clients should use {@link #reportError} or {@link
      * #reportWarning}.
      *
-     * @param source the source position information; may be an Element or a Tree
+     * @param source the source position information; may be an Element or a Tree. Null means the
+     *     message has no source position -- for example, it is issued while the checker is
+     *     initializing, before any source file is processed -- and is reported against the
+     *     compilation as a whole.
      * @param d the diagnostic message
      */
-    public void report(Object source, DiagMessage d) {
+    public void report(@Nullable Object source, DiagMessage d) {
         report(source, d.getKind(), d.getMessageKey(), d.getArgs());
     }
 
@@ -1520,7 +1531,12 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      * Reports a diagnostic message. By default, it prints it to the screen via the compiler's
      * internal messager; however, it might also store it for later output.
      *
-     * @param source the source position information; may be an Element or a Tree
+     * @param source the source position information; may be an Element or a Tree. Null means the
+     *     message has no source position -- for example, it is issued while the checker is
+     *     initializing, before any source file is processed. Such a message is reported against the
+     *     compilation as a whole, and only the {@code -AsuppressWarnings} command-line option can
+     *     suppress it: a {@code @SuppressWarnings} annotation cannot, because there is no
+     *     declaration to write one on.
      * @param kind the type of message
      * @param messageKey the message key
      * @param args arguments for interpolation in the string corresponding to the given message key
@@ -1530,7 +1546,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     // @FormatMethod
     @SuppressWarnings("formatter:format.string.invalid") // arg is a format string or a property key
     private void report(
-            Object source,
+            @Nullable Object source,
             Diagnostic.Kind kind,
             @CompilerMessageKey String messageKey,
             Object... args) {
@@ -1539,7 +1555,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
         if (shouldSuppressWarnings(source, messageKey)) {
             return;
         }
-        Object preciseSource = getSourceWithPrecisePosition(source);
+        Object preciseSource = source == null ? null : getSourceWithPrecisePosition(source);
 
         for (int i = 0; i < args.length; ++i) {
             args[i] = processErrorMessageArg(args[i]);
@@ -1580,7 +1596,10 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
             kind = Diagnostic.Kind.MANDATORY_WARNING;
         }
 
-        if (preciseSource instanceof Element) {
+        if (preciseSource == null) {
+            // The message has no source position; report it against the compilation as a whole.
+            messager.printMessage(kind, messageText);
+        } else if (preciseSource instanceof Element) {
             messager.printMessage(kind, messageText, (Element) preciseSource);
         } else if (preciseSource instanceof Tree) {
             printOrStoreMessage(kind, messageText, (Tree) preciseSource, currentRoot);
@@ -2718,14 +2737,19 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      * implementation just delegates to an overloaded, more specific version of {@code
      * shouldSuppressWarnings()}.
      *
-     * @param src the position object to test; may be an Element, a Tree, or a TreePath
+     * @param src the position object to test; may be an Element, a Tree, or a TreePath. Null means
+     *     the message has no source position, so no {@code @SuppressWarnings} annotation can apply
+     *     to it and only {@code -AsuppressWarnings} can suppress it.
      * @param errKey the error key the checker is emitting
      * @return true if all warnings pertaining to the given source should be suppressed
      * @see #shouldSuppressWarnings(Element, String)
      * @see #shouldSuppressWarnings(Tree, String)
      */
-    private boolean shouldSuppressWarnings(Object src, String errKey) {
-        if (src instanceof Element) {
+    private boolean shouldSuppressWarnings(@Nullable Object src, String errKey) {
+        if (src == null) {
+            // There is no declaration on which a @SuppressWarnings annotation could be written.
+            return shouldSuppress(getSuppressWarningsStringsFromOption(), errKey);
+        } else if (src instanceof Element) {
             return shouldSuppressWarnings((Element) src, errKey);
         } else if (src instanceof Tree) {
             return shouldSuppressWarnings((Tree) src, errKey);
