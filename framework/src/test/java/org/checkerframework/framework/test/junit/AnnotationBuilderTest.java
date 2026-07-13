@@ -234,12 +234,21 @@ public class AnnotationBuilderTest {
         builder.setValue("value", MyEnum.NOT);
     }
 
+    /** An annotation with a byte-typed element. */
     public static @interface ByteElt {
+        /**
+         * Returns the annotation's byte-typed element.
+         *
+         * @return the annotation's byte-typed element
+         */
         byte value();
     }
 
-    // A byte-typed element must keep its Byte value: converting it to a Short (as the binary stub
-    // reader used to do, for lack of a Byte overload) makes checkSubtype throw.
+    /**
+     * A byte-typed element must keep its {@code Byte} value: converting it to a {@code Short} (as
+     * the binary stub reader used to do, for lack of a {@code Byte} overload) makes {@code
+     * checkSubtype} throw.
+     */
     @Test
     public void testBytePositive() {
         AnnotationBuilder builder = new AnnotationBuilder(env, ByteElt.class);
@@ -250,6 +259,7 @@ public class AnnotationBuilderTest {
         Assert.assertEquals((byte) 1, value.getValue());
     }
 
+    /** Setting an enum-typed element to a value that is not an enum constant must fail. */
     @Test(expected = BugInCF.class)
     public void testEnumNegative() {
         AnnotationBuilder builder = new AnnotationBuilder(env, EnumElt.class);
