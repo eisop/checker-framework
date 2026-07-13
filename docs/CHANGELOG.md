@@ -12,41 +12,34 @@ Further performance improvements relative to the 3.49.5-eisop1 release:
 Several optimizations also reduce GC pressure and remove superlinear behavior,
 improving performance for large (e.g. auto-generated) files.
 
+The annotated JDK is now distributed additionally as a pre-parsed binary file
+(`annotated-jdk.bin.gz`), so checker startup no longer text-parses the JDK
+stubs. The text stubs remain in `checker.jar` as a fallback; they are expected
+to be dropped in a future release, shrinking `checker.jar` by about 1.5 MB.
+
+The built-in checker stub files (`jdk.astub`, `jdkN.astub`, and `@StubFiles`
+resources) are likewise pre-parsed into sibling `.astub.bin.gz` resources at
+build time and loaded from the binary form at checker startup, removing
+JavaParser from checker initialization entirely. A stub file that cannot be
+represented in binary form falls back to text parsing; user-supplied `-Astubs`
+files are always text-parsed.
+
 A checker that ships its own annotated JDK (as the JSpecify reference checker
-does) no longer loads checker.jar's binary annotated JDK on top of it. The
-binary stub is now resolved within the jar that supplies the annotated JDK,
-rather than by a separate classpath-wide lookup that could reach past that
-checker's JDK into checker.jar's.
+does) no longer also loads `checker.jar`'s binary annotated JDK on top of it.
 
-The Checker Framework now issues a warning when it text-parses the annotated
-JDK, or a stub file that a checker ships, instead of reading the binary stub
-that such a file is expected to have. To generate the annotated JDK's binary
-stub, run `JavaStubifier` over the annotated JDK's root directory (the one
-containing `src`, not `src` itself); for a checker's own `.astub` files, run
-`BinaryStubFileGenerator`. Stub files supplied with `-Astubs` and `.ajava` files
-are text-parsed as before, without a warning.
+The Checker Framework now warns when it text-parses the annotated JDK, or a
+stub file that a checker ships, instead of reading that file's binary stub.
+Generate a missing binary stub by running `JavaStubifier` on the annotated
+JDK's `annotated-jdk` directory, or `BinaryStubFileGenerator` on a checker's
+`.astub` files. Stub files supplied with `-Astubs` and `.ajava` files are
+text-parsed as before, without a warning.
 
-These warnings are issued before any source file is processed, so they have no
-source position and `@SuppressWarnings` cannot suppress them: there is no
-declaration to write it on. Suppress them with
-`-AsuppressWarnings=text.parsing`, or individually with
-`-AsuppressWarnings=text.parsing.jdk` (the annotated JDK has no binary stub),
-`-AsuppressWarnings=text.parsing.jdk.class` (a JDK class is missing from the
-binary stub), or `-AsuppressWarnings=text.parsing.stub` (a checker's stub file
-has no binary stub).
-
-**Implementation details:**
-
-`SourceChecker.reportError` and `SourceChecker.reportWarning` now accept a null
-source, for a message that has no source position. Such a message is reported
-against the compilation as a whole, and is suppressed only by
-`-AsuppressWarnings`, not by a `@SuppressWarnings` annotation. Previously such a
-message had to bypass the message-key mechanism entirely (by calling
-`SourceChecker.message`), and so could not be suppressed at all.
-
-Fixed a typo (`@SafeEFfect`) in the Guieffect Checker's `org-eclipse.astub` that
-made `CompareEditorInput.getMessage()` inherit the enclosing `@UIType`'s
-`@UIEffect` default rather than being `@SafeEffect`.
+These warnings have no source position, so `@SuppressWarnings` cannot suppress
+them. Suppress them with `-AsuppressWarnings=text.parsing`, or individually
+with `-AsuppressWarnings=text.parsing.jdk` (the annotated JDK has no binary
+stub), `-AsuppressWarnings=text.parsing.jdk.class` (a JDK class is missing from
+the binary stub), or `-AsuppressWarnings=text.parsing.stub` (a checker's stub
+file has no binary stub).
 
 Fixed `AnnotationFileParser`'s `fakeOverriddenMethod` generic-parameter
 matching, which had silently dropped annotated-JDK annotations from
@@ -56,15 +49,29 @@ parameter types match the stub declaration exactly, so a fake override such as
 `f(String)` no longer binds to a coexisting type-variable overload `<T> f(T)`
 that happens to be visited first.
 
-Fixed a `NullPointerException` in `AnnotationFileParser`'s handling of
-unbounded wildcards (e.g. `Class<?>`) under `--release 8`, which had silently
-aborted parsing of the remaining methods in the enclosing stub file.
+Fixed a typo (`@SafeEFfect`) in the Guieffect Checker's `org-eclipse.astub` that
+made `CompareEditorInput.getMessage()` inherit the enclosing `@UIType`'s
+`@UIEffect` default rather than being `@SafeEffect`.
 
 Fixed `permit-nullness-assertion-exception.astub`'s missing `EnsuresNonNullIf`
 import, which caused two spurious warnings for every user passing
 `-Astubs=permit-nullness-assertion-exception.astub`.
 
 **Implementation details:**
+
+`SourceChecker.reportError` and `SourceChecker.reportWarning` now accept a null
+source, for a message that has no source position. Such a message is reported
+against the compilation as a whole, and is suppressed only by
+`-AsuppressWarnings`. Previously such a message had to bypass the message-key
+mechanism entirely, and so could not be suppressed at all.
+
+A differential test (`NullnessBinaryStubDiffTest`, option
+`-AbinaryStubDiffCheck`) verifies that the binary and text paths load identical
+annotations for every JDK class and every built-in stub file.
+
+Fixed a `NullPointerException` in `AnnotationFileParser`'s handling of
+unbounded wildcards (e.g. `Class<?>`) under `--release 8`, which had silently
+aborted parsing of the remaining methods in the enclosing stub file.
 
 Enabled the Gradle configuration cache, speeding up build times.
 
@@ -85,28 +92,6 @@ Performance optimizations:
   on generics-heavy code.
 - The annotated-JDK stub AST is now parsed once per JVM and shared across
   compilations.
-- The annotated JDK is now distributed additionally as a pre-parsed binary file
-  (`annotated-jdk.bin.gz`, generated by `BinaryStubWriter` at build time and read
-  by `BinaryStubReader`), eliminating JavaParser text parsing of JDK stubs at
-  checker startup. The parsed form is cached per JVM and shared across all
-  factories of a compilation. The text stubs remain in `checker.jar` as a
-  fallback for constructs the binary format does not model; they are expected to
-  be dropped from `checker.jar` in a future release, once the binary format has
-  proven itself (shrinking `checker.jar` by about 1.5 MB). A differential test
-  (`NullnessBinaryStubDiffTest`, option `-AbinaryStubDiffCheck`) verifies that
-  the binary and text paths load identical annotations for every JDK class.
-  Each binary class record now also stores whether it was written from a
-  class/interface, enum, or annotation-type declaration; `BinaryStubReader`
-  skips applying a record whose kind disagrees with the real `TypeElement`'s
-  kind, mirroring the text path's existing handling of a JDK class whose kind
-  has changed between JDK versions (e.g. `java.nio.ByteOrder` became an enum
-  in JDK 26 after being a plain class through JDK 25).
-- The built-in checker stub files (`jdk.astub`, `jdkN.astub`, and `@StubFiles`
-  resources) are likewise pre-parsed into sibling `.astub.bin.gz` resources at
-  build time (`BinaryStubFileGenerator`) and loaded from the binary form at
-  checker startup, removing JavaParser from checker initialization entirely.
-  A stub file the generator cannot represent gets no binary form and falls back
-  to text parsing; user-supplied `-Astubs` files are always text parsed.
 - Greatly reduced allocations by reusing several `AnnotatedTypeScanner`s
   and lowering default visitor map capacities (`VISITED_NODES_INITIAL_CAPACITY`).
 - Eliminated `Iterator` allocation when iterating `AnnotationMirrorSet`, and added
