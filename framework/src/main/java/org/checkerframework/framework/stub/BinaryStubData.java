@@ -622,11 +622,11 @@ public class BinaryStubData {
             int annoPoolSize = readCount(dataIn, "annotation pool size");
             annotationPool = new AnnotationRecord[annoPoolSize];
             for (int i = 0; i < annoPoolSize; i++) {
-                int nameIdx = dataIn.readInt();
+                int nameIdx = readStringIndex(dataIn, "annotation name");
                 int elementCount = dataIn.readUnsignedShort();
                 Map<Integer, Object> elements = new HashMap<>();
                 for (int j = 0; j < elementCount; j++) {
-                    int memberIdx = dataIn.readInt();
+                    int memberIdx = readStringIndex(dataIn, "annotation member name");
                     elements.put(memberIdx, readAnnotationValue(dataIn));
                 }
                 annotationPool[i] = new AnnotationRecord(nameIdx, elements);
@@ -635,8 +635,8 @@ public class BinaryStubData {
             int classCount = readCount(dataIn, "class count");
             for (int i = 0; i < classCount; i++) {
                 ClassRecord cr = new ClassRecord();
-                cr.nameIndex = dataIn.readInt();
-                cr.outerNameIndex = dataIn.readInt();
+                cr.nameIndex = readStringIndex(dataIn, "class name");
+                cr.outerNameIndex = readStringIndex(dataIn, "outer class name");
                 cr.kind = dataIn.readByte();
                 cr.declAnnos = readAnnoIndices(dataIn);
 
@@ -644,7 +644,7 @@ public class BinaryStubData {
                 cr.fields = new FieldRecord[fieldCount];
                 for (int j = 0; j < fieldCount; j++) {
                     FieldRecord fr = new FieldRecord();
-                    fr.nameIndex = dataIn.readInt();
+                    fr.nameIndex = readStringIndex(dataIn, "field name");
                     fr.declAnnos = readAnnoIndices(dataIn);
                     fr.typeAnnos = readTypeAnnos(dataIn);
                     cr.fields[j] = fr;
@@ -654,7 +654,7 @@ public class BinaryStubData {
                 cr.methods = new MethodRecord[methodCount];
                 for (int j = 0; j < methodCount; j++) {
                     MethodRecord mr = new MethodRecord();
-                    mr.sigIndex = dataIn.readInt();
+                    mr.sigIndex = readStringIndex(dataIn, "method signature");
                     mr.declAnnos = readAnnoIndices(dataIn);
                     mr.returnTypeAnnos = readTypeAnnos(dataIn);
                     mr.receiverAnnos = readTypeAnnos(dataIn);
@@ -675,7 +675,7 @@ public class BinaryStubData {
                     cr.components = new ComponentRecord[componentCount];
                     for (int j = 0; j < componentCount; j++) {
                         ComponentRecord comp = new ComponentRecord();
-                        comp.nameIndex = dataIn.readInt();
+                        comp.nameIndex = readStringIndex(dataIn, "record component name");
                         comp.declAnnos = readAnnoIndices(dataIn);
                         comp.typeAnnos = readTypeAnnos(dataIn);
                         comp.hasAccessor = dataIn.readBoolean();
@@ -725,6 +725,36 @@ public class BinaryStubData {
             throw new IOException("Malformed binary stub file: implausible " + what + ": " + count);
         }
         return count;
+    }
+
+    /**
+     * Reads an index into {@link #stringPool}, and rejects one that does not point into it.
+     *
+     * <p>Like a count (see {@link #readCount}), an index is read straight from the file, so a
+     * corrupt file can supply any {@code int}. Validate it here, where an {@code IOException} makes
+     * the caller fall back to text parsing. Most of these indices are not dereferenced while
+     * reading the file, but later, when a class's records are applied -- and that happens outside
+     * the {@code RuntimeException} guard in {@code AnnotationFileElementTypes.loadBinaryStubData},
+     * so an {@code ArrayIndexOutOfBoundsException} there crashes the compilation and asks the user
+     * to report a Checker Framework bug for what is a damaged file.
+     *
+     * @param dataIn the stream to read from
+     * @param what what the index identifies, for the error message
+     * @return the index
+     * @throws IOException if the stream cannot be read, or the index is outside the string pool
+     */
+    private int readStringIndex(DataInputStream dataIn, String what) throws IOException {
+        int index = dataIn.readInt();
+        if (index < 0 || index >= stringPool.length) {
+            throw new IOException(
+                    "Malformed binary stub file: "
+                            + what
+                            + " index "
+                            + index
+                            + " is outside the string pool of size "
+                            + stringPool.length);
+        }
+        return index;
     }
 
     /**
