@@ -909,31 +909,23 @@ public class AnnotationFileElementTypes {
      */
     public void parseAjavaFileWithTree(String ajavaPath, CompilationUnitTree root) {
         assert parsingCount == 0;
+        SourceChecker checker = atypeFactory.getChecker();
+        ProcessingEnvironment processingEnv = atypeFactory.getProcessingEnv();
         ++parsingCount;
-        try {
-            SourceChecker checker = atypeFactory.getChecker();
-            ProcessingEnvironment processingEnv = atypeFactory.getProcessingEnv();
-            try (InputStream in = new FileInputStream(ajavaPath)) {
-                if (stubDebug) {
-                    AnnotationFileParser.stubDebugStatic(
-                            processingEnv,
-                            "parseAjavaFileWithTree(%s, %s): checker = %s, in = %s%n",
-                            ajavaPath,
-                            System.identityHashCode(root),
-                            checker.getClass().getSimpleName(),
-                            in);
-                }
-                AnnotationFileParser.parseAjavaFile(
-                        ajavaPath,
-                        in,
-                        root,
-                        atypeFactory,
+        try (InputStream in = new FileInputStream(ajavaPath)) {
+            if (stubDebug) {
+                AnnotationFileParser.stubDebugStatic(
                         processingEnv,
-                        annotationFileAnnos,
-                        this);
-            } catch (IOException e) {
-                checker.message(Diagnostic.Kind.NOTE, "Could not read ajava file: " + ajavaPath);
+                        "parseAjavaFileWithTree(%s, %s): checker = %s, in = %s%n",
+                        ajavaPath,
+                        System.identityHashCode(root),
+                        checker.getClass().getSimpleName(),
+                        in);
             }
+            AnnotationFileParser.parseAjavaFile(
+                    ajavaPath, in, root, atypeFactory, processingEnv, annotationFileAnnos, this);
+        } catch (IOException e) {
+            checker.message(Diagnostic.Kind.NOTE, "Could not read ajava file: " + ajavaPath);
         } finally {
             --parsingCount;
             assert parsingCount == 0;
