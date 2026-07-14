@@ -1041,4 +1041,36 @@ public class BinaryStubWriterTest {
         configuration.setLanguageLevel(ParserConfiguration.LanguageLevel.JAVA_21);
         return new JavaParser(configuration).parse(source).getResult().get();
     }
+
+    /**
+     * Confirms that evaluateStringLiteralConcatenation properly unwraps EnclosedExpr and evaluates
+     * fallback primitive literals using standard toString() coercion.
+     */
+    @Test
+    public void stringLiteralConcatenationWithPrimitivesAndEnclosedExprIsEvaluated()
+            throws IOException {
+        BinaryStubWriter writer = new BinaryStubWriter();
+        CompilationUnit cu =
+                StaticJavaParser.parse(
+                        "public class ConcatExprTest {\n"
+                                + "  @SuppressWarnings(\"A\" + (\"B\" + \"C\") + 1 + 'D') void m() {}\n"
+                                + "}\n");
+        writer.process(cu);
+
+        File tmp = File.createTempFile("binarystubwritertest", ".bin.gz");
+        tmp.deleteOnExit();
+        try {
+            writer.writeTo(tmp);
+            BinaryStubData data;
+            try (InputStream in = Files.newInputStream(tmp.toPath())) {
+                data = new BinaryStubData(in);
+            }
+
+            BinaryStubData.ClassRecord cr = data.classes.get("ConcatExprTest");
+            Assert.assertNotNull("ConcatExprTest must be recorded", cr);
+            Assert.assertEquals("ABC1D", soleDeclAnnoValue(data, cr, "m"));
+        } finally {
+            tmp.delete();
+        }
+    }
 }
