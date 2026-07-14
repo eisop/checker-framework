@@ -30,11 +30,13 @@ import com.github.javaparser.ast.expr.EnclosedExpr;
 import com.github.javaparser.ast.expr.Expression;
 import com.github.javaparser.ast.expr.FieldAccessExpr;
 import com.github.javaparser.ast.expr.IntegerLiteralExpr;
+import com.github.javaparser.ast.expr.LiteralStringValueExpr;
 import com.github.javaparser.ast.expr.LongLiteralExpr;
 import com.github.javaparser.ast.expr.MarkerAnnotationExpr;
 import com.github.javaparser.ast.expr.MemberValuePair;
 import com.github.javaparser.ast.expr.NameExpr;
 import com.github.javaparser.ast.expr.NormalAnnotationExpr;
+import com.github.javaparser.ast.expr.NullLiteralExpr;
 import com.github.javaparser.ast.expr.SingleMemberAnnotationExpr;
 import com.github.javaparser.ast.expr.StringLiteralExpr;
 import com.github.javaparser.ast.expr.UnaryExpr;
@@ -1321,15 +1323,26 @@ public class BinaryStubWriter {
     }
 
     /**
-     * Recursively evaluates a binary expression that represents string literal concatenation.
+     * Recursively evaluates an expression that represents string literal concatenation.
+     *
+     * <p>Note: This logic is duplicated in {@code
+     * JavaParserUtil.evaluateStringLiteralConcatenation} due to module boundary restrictions
+     * (stubifier cannot depend on main, and vice-versa). If you change this method, please update
+     * the other one as well.
      *
      * @param expr the expression representing the string literal concatenation
      * @return the fully concatenated string value
      * @throws IOException if the expression contains non-literal values that cannot be evaluated
      */
     private String evaluateStringLiteralConcatenation(Expression expr) throws IOException {
-        if (expr instanceof StringLiteralExpr) {
-            return ((StringLiteralExpr) expr).getValue();
+        if (expr instanceof LiteralStringValueExpr) {
+            return ((LiteralStringValueExpr) expr).getValue();
+        } else if (expr instanceof BooleanLiteralExpr) {
+            return String.valueOf(((BooleanLiteralExpr) expr).getValue());
+        } else if (expr instanceof NullLiteralExpr) {
+            return "null";
+        } else if (expr instanceof EnclosedExpr) {
+            return evaluateStringLiteralConcatenation(((EnclosedExpr) expr).getInner());
         } else if (expr instanceof BinaryExpr) {
             BinaryExpr be = (BinaryExpr) expr;
             if (be.getOperator() == BinaryExpr.Operator.PLUS) {

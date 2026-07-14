@@ -16,10 +16,15 @@ import com.github.javaparser.ast.body.TypeDeclaration;
 import com.github.javaparser.ast.expr.AnnotationExpr;
 import com.github.javaparser.ast.expr.ArrayInitializerExpr;
 import com.github.javaparser.ast.expr.BinaryExpr;
+import com.github.javaparser.ast.expr.BooleanLiteralExpr;
+import com.github.javaparser.ast.expr.EnclosedExpr;
 import com.github.javaparser.ast.expr.Expression;
+import com.github.javaparser.ast.expr.LiteralStringValueExpr;
+import com.github.javaparser.ast.expr.NullLiteralExpr;
 import com.github.javaparser.ast.expr.StringLiteralExpr;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.javacutil.BugInCF;
 
 import java.io.File;
@@ -378,30 +383,65 @@ public class JavaParserUtil {
         node.accept(new StringLiteralConcatenateVisitor(), null);
     }
 
+    /**
+     * Recursively evaluates an expression that represents string literal concatenation.
+     *
+     * <p>Note: This logic is duplicated in {@code
+     * BinaryStubWriter.evaluateStringLiteralConcatenation} due to module boundary restrictions
+     * (stubifier cannot depend on main, and vice-versa). If you change this method, please update
+     * the other one as well.
+     *
+     * @param expr the expression representing the string literal concatenation
+     * @return the fully concatenated string value, or null if it cannot be evaluated
+     */
+    public static @Nullable String evaluateStringLiteralConcatenation(Expression expr) {
+        if (expr instanceof LiteralStringValueExpr) {
+            return ((LiteralStringValueExpr) expr).getValue();
+        } else if (expr instanceof BooleanLiteralExpr) {
+            return String.valueOf(((BooleanLiteralExpr) expr).getValue());
+        } else if (expr instanceof NullLiteralExpr) {
+            return "null";
+        } else if (expr instanceof EnclosedExpr) {
+            return evaluateStringLiteralConcatenation(((EnclosedExpr) expr).getInner());
+        } else if (expr instanceof BinaryExpr) {
+            BinaryExpr be = (BinaryExpr) expr;
+            if (be.getOperator() == BinaryExpr.Operator.PLUS) {
+                String left = evaluateStringLiteralConcatenation(be.getLeft());
+                String right = evaluateStringLiteralConcatenation(be.getRight());
+                if (left != null && right != null) {
+                    return left + right;
+                }
+            }
+        }
+        return null;
+    }
+
     /** Visitor that combines added String literals, see {@link #concatenateAddedStringLiterals}. */
     public static class StringLiteralConcatenateVisitor extends VoidVisitorAdapter<Void> {
         @Override
         public void visit(BinaryExpr node, Void p) {
             super.visit(node, p);
-            if (node.getOperator() == BinaryExpr.Operator.PLUS
-                    && node.getRight().isStringLiteralExpr()) {
-                String right = node.getRight().asStringLiteralExpr().getValue();
-                if (node.getLeft().isStringLiteralExpr()) {
-                    String left = node.getLeft().asStringLiteralExpr().getValue();
-                    node.replace(new StringLiteralExpr(left + right));
-                } else if (node.getLeft().isBinaryExpr()) {
-                    BinaryExpr leftExpr = node.getLeft().asBinaryExpr();
-                    if (leftExpr.getOperator() == BinaryExpr.Operator.PLUS
-                            && leftExpr.getRight().isStringLiteralExpr()) {
-                        String left = leftExpr.getRight().asStringLiteralExpr().getValue();
-                        node.replace(
-                                new BinaryExpr(
-                                        leftExpr.getLeft(),
-                                        new StringLiteralExpr(left + right),
-                                        BinaryExpr.Operator.PLUS));
-                    }
+            if (node.getOperator() == BinaryExpr.Operator.PLUS && containsStringLiteral(node)) {
+                String result = evaluateStringLiteralConcatenation(node);
+                if (result != null) {
+                    node.replace(new StringLiteralExpr(result));
                 }
             }
+        }
+
+        private boolean containsStringLiteral(Expression expr) {
+            if (expr instanceof StringLiteralExpr) {
+                return true;
+            } else if (expr instanceof EnclosedExpr) {
+                return containsStringLiteral(((EnclosedExpr) expr).getInner());
+            } else if (expr instanceof BinaryExpr) {
+                BinaryExpr be = (BinaryExpr) expr;
+                if (be.getOperator() == BinaryExpr.Operator.PLUS) {
+                    return containsStringLiteral(be.getLeft())
+                            || containsStringLiteral(be.getRight());
+                }
+            }
+            return false;
         }
     }
 
