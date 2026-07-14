@@ -1279,7 +1279,7 @@ public class BinaryStubWriter {
         } else if (expr instanceof FieldAccessExpr) {
             out.writeByte('e');
             FieldAccessExpr fae = (FieldAccessExpr) expr;
-            out.writeInt(pool.addString(fullyQualify(fae.getScope().toString(), cu)));
+            out.writeInt(pool.addString(fae.getScope().toString()));
             out.writeInt(pool.addString(fae.getNameAsString()));
         } else if (expr instanceof AnnotationExpr) {
             out.writeByte('@');
