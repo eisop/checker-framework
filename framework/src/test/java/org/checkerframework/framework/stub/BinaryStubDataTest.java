@@ -1,5 +1,6 @@
 package org.checkerframework.framework.stub;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -34,10 +35,25 @@ public class BinaryStubDataTest {
      * @throws IOException if the bytes cannot be written
      */
     private static InputStream binaryStub(BodyWriter body) throws IOException {
+        return compressed(
+                out -> {
+                    out.writeInt(BinaryStubData.MAGIC);
+                    out.writeShort(BinaryStubData.VERSION);
+                    body.write(out);
+                });
+    }
+
+    /**
+     * Returns a GZIP-compressed stream of {@code body}'s bytes, with no header of its own: for a
+     * file whose magic number or version is itself what is wrong.
+     *
+     * @param body writes the file's bytes
+     * @return the compressed bytes
+     * @throws IOException if the bytes cannot be written
+     */
+    private static InputStream compressed(BodyWriter body) throws IOException {
         ByteArrayOutputStream bytes = new ByteArrayOutputStream();
         try (DataOutputStream out = new DataOutputStream(new GZIPOutputStream(bytes))) {
-            out.writeInt(BinaryStubData.MAGIC);
-            out.writeShort(BinaryStubData.VERSION);
             body.write(out);
         }
         return new ByteArrayInputStream(bytes.toByteArray());
@@ -59,13 +75,18 @@ public class BinaryStubDataTest {
      * message contains {@code expectedMessage}.
      *
      * @param in the binary stub data to read
-     * @param expectedMessage a substring of the expected exception message
+     * @param expectedMessage a substring of the expected exception message, or null to accept any
+     *     (a truncated file fails with an EOFException, whose message is null)
      */
-    private static void assertMalformed(InputStream in, String expectedMessage) {
+    private static void assertMalformed(InputStream in, @Nullable String expectedMessage) {
         try {
             new BinaryStubData(in);
             Assert.fail("expected an IOException, but the file was read successfully");
         } catch (IOException e) {
+            if (expectedMessage == null) {
+                // A truncated file fails with an EOFException, whose message is null.
+                return;
+            }
             Assert.assertTrue(
                     "expected a message containing \""
                             + expectedMessage
@@ -132,40 +153,36 @@ public class BinaryStubDataTest {
     /** A file that stops in the middle of a record must be rejected. */
     @Test
     public void truncatedFileIsMalformed() throws IOException {
-        try {
-            new BinaryStubData(
-                    binaryStub(
-                            out -> {
-                                out.writeInt(2); // string pool: claims two entries
-                                out.writeUTF("Foo"); // but supplies only one
-                            }));
-            Assert.fail("expected an IOException, but the file was read successfully");
-        } catch (IOException e) {
-            // An EOFException is an IOException, so the caller falls back to text parsing.
-        } catch (RuntimeException e) {
-            Assert.fail("expected an IOException, but got " + e);
-        }
+        assertMalformed(
+                binaryStub(
+                        out -> {
+                            out.writeInt(2); // string pool: claims two entries
+                            out.writeUTF("Foo"); // but supplies only one
+                        }),
+                null);
     }
 
     /** A file that is not a binary stub file at all must be rejected. */
     @Test
     public void wrongMagicIsMalformed() throws IOException {
-        ByteArrayOutputStream bytes = new ByteArrayOutputStream();
-        try (DataOutputStream out = new DataOutputStream(new GZIPOutputStream(bytes))) {
-            out.writeInt(0xDEADBEEF);
-            out.writeShort(BinaryStubData.VERSION);
-        }
-        assertMalformed(new ByteArrayInputStream(bytes.toByteArray()), "Invalid magic number");
+        assertMalformed(
+                compressed(
+                        out -> {
+                            out.writeInt(0xDEADBEEF);
+                            out.writeShort(BinaryStubData.VERSION);
+                        }),
+                "Invalid magic number");
     }
 
     /** A file written by a different version of the format must be rejected. */
     @Test
     public void wrongVersionIsMalformed() throws IOException {
-        ByteArrayOutputStream bytes = new ByteArrayOutputStream();
-        try (DataOutputStream out = new DataOutputStream(new GZIPOutputStream(bytes))) {
-            out.writeInt(BinaryStubData.MAGIC);
-            out.writeShort(BinaryStubData.VERSION + 1);
-        }
-        assertMalformed(new ByteArrayInputStream(bytes.toByteArray()), "Unsupported version");
+        assertMalformed(
+                compressed(
+                        out -> {
+                            out.writeInt(BinaryStubData.MAGIC);
+                            out.writeShort(BinaryStubData.VERSION + 1);
+                        }),
+                "Unsupported version");
     }
 }

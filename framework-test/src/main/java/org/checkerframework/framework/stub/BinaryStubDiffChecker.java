@@ -12,6 +12,7 @@ import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedIntersec
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedTypeVariable;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedUnionType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedWildcardType;
+import org.checkerframework.framework.type.visitor.SimpleAnnotatedTypeScanner;
 import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.ElementUtils;
@@ -540,14 +541,6 @@ public class BinaryStubDiffChecker {
      * covers a type variable's bounds -- {@code <T extends @Nullable Object>} -- which the
      * structural walk cannot compare (see this class's javadoc).
      *
-     * <p>This is an oracle against the record rather than a text-vs-binary comparison, because the
-     * two loaders' bounds have different baselines: the text parser bakes defaulting into the bound
-     * it stores (the upper bound of {@code java.util.List}'s {@code E} comes out
-     * {@code @Initialized @NonNull @UnknownKeyFor}), while the binary reader stores only what the
-     * stub wrote and lets the framework default the rest later. Comparing the two reports those
-     * defaults as mismatches; asking whether everything the record promises is present does not,
-     * since defaulting only ever adds annotations.
-     *
      * <p>Only the qualifiers this factory supports are demanded. {@code
      * AnnotatedTypeMirror.addAnnotation} drops an annotation outside the factory's own hierarchy,
      * so a {@code @Nullable} in the record is correctly not applied by, say, the Initialization
@@ -588,49 +581,22 @@ public class BinaryStubDiffChecker {
             return;
         }
         Set<String> applied = new TreeSet<>();
-        collectAnnotationNames(
-                binaryAtm, applied, Collections.newSetFromMap(new IdentityHashMap<>()));
+        // AnnotatedTypeScanner visits every component of the type, including a type variable's
+        // bounds, and is cycle-safe.
+        new SimpleAnnotatedTypeScanner<Void, Set<String>>(
+                        (type, names) -> {
+                            for (AnnotationMirror am : type.getAnnotations()) {
+                                names.add(AnnotationUtils.annotationName(am));
+                            }
+                            return null;
+                        })
+                .visit(binaryAtm, applied);
         promised.removeAll(applied);
         for (String missing : promised) {
             reports.add(
                     String.format(
                             "%s: %s: the binary record names %s but it was not applied to %s",
                             className, what, missing, binaryAtm));
-        }
-    }
-
-    /**
-     * Collects the names of every annotation anywhere in {@code atm}, including on the bounds of a
-     * type variable or wildcard. Cycle-safe.
-     *
-     * @param atm the type to walk
-     * @param names the set to add annotation names to
-     * @param visited the types already walked
-     */
-    private static void collectAnnotationNames(
-            AnnotatedTypeMirror atm, Set<String> names, Set<AnnotatedTypeMirror> visited) {
-        if (!visited.add(atm)) {
-            return;
-        }
-        for (AnnotationMirror am : atm.getAnnotations()) {
-            names.add(AnnotationUtils.annotationName(am));
-        }
-        if (atm instanceof AnnotatedTypeVariable) {
-            collectAnnotationNames(((AnnotatedTypeVariable) atm).getUpperBound(), names, visited);
-            collectAnnotationNames(((AnnotatedTypeVariable) atm).getLowerBound(), names, visited);
-        } else if (atm instanceof AnnotatedWildcardType) {
-            collectAnnotationNames(((AnnotatedWildcardType) atm).getExtendsBound(), names, visited);
-            collectAnnotationNames(((AnnotatedWildcardType) atm).getSuperBound(), names, visited);
-        } else if (atm instanceof AnnotatedIntersectionType) {
-            for (AnnotatedTypeMirror bound : ((AnnotatedIntersectionType) atm).getBounds()) {
-                collectAnnotationNames(bound, names, visited);
-            }
-        } else if (atm instanceof AnnotatedDeclaredType) {
-            for (AnnotatedTypeMirror targ : ((AnnotatedDeclaredType) atm).getTypeArguments()) {
-                collectAnnotationNames(targ, names, visited);
-            }
-        } else if (atm instanceof AnnotatedArrayType) {
-            collectAnnotationNames(((AnnotatedArrayType) atm).getComponentType(), names, visited);
         }
     }
 
@@ -784,66 +750,57 @@ public class BinaryStubDiffChecker {
                 reports.add(className + ": records[" + key + "]: in binary but not in text");
             }
         }
-        // Fake overrides: every binary-side entry must have a text-side counterpart with the
-        // same fake location. Both paths now store a fakeOverrides entry for every matched
-        // fake-override record, annotated or not (BinaryStubReader#applyFakeOverride no longer
-        // special-cases an empty returnTypeAnnos, matching
-        // AnnotationFileParser#processFakeOverride, which never did): a fake override resets
-        // the method's type at that subtype regardless of whether the declaration itself carries
-        // any annotations, so an unannotated one is not a no-op to skip. A dropped fake override
-        // (annotated or not) is caught by the record oracle in verifyRecordApplied. The method
-        // types themselves are not compared here: both sides bake time-dependent defaults via
-        // getAnnotatedType, which differ between the text parse and the binary application even
-        // when the stub annotations agree.
+        // Fake overrides: the two sides must store an entry for the same (overridden method,
+        // subtype) pairs, in both directions -- the binary path resolves a fake override by a
+        // signature lookup and the text path by matching parameters structurally, so either can
+        // miss one the other applies. Both store an entry for every matched declaration, annotated
+        // or not, since the entry's presence alone resets the method's type at that subtype. The
+        // stored method types are not compared: both sides bake time-dependent defaults into them
+        // via getAnnotatedType, which differ between the two loaders even when the stub
+        // annotations agree.
+        compareFakeOverrideLocations(
+                className, "binary", binary.fakeOverrides, text.fakeOverrides, types, reports);
+        compareFakeOverrideLocations(
+                className, "text", text.fakeOverrides, binary.fakeOverrides, types, reports);
+    }
+
+    /**
+     * Reports every fake-override entry of {@code from} that {@code to} does not also have, keyed
+     * by the same overridden method and recorded at the same subtype.
+     *
+     * @param className the fully-qualified name of the class, for report messages
+     * @param fromSide the name of the side {@code from} came from, for report messages
+     * @param from the fake overrides of one side
+     * @param to the fake overrides of the other side
+     * @param types the type utilities, for comparing the subtypes an override is recorded at
+     * @param reports the list to append mismatch descriptions to
+     */
+    private static void compareFakeOverrideLocations(
+            String className,
+            String fromSide,
+            Map<ExecutableElement, List<IPair<TypeMirror, AnnotatedTypeMirror>>> from,
+            Map<ExecutableElement, List<IPair<TypeMirror, AnnotatedTypeMirror>>> to,
+            Types types,
+            List<String> reports) {
         for (Map.Entry<ExecutableElement, List<IPair<TypeMirror, AnnotatedTypeMirror>>> entry :
-                binary.fakeOverrides.entrySet()) {
-            List<IPair<TypeMirror, AnnotatedTypeMirror>> textList =
-                    text.fakeOverrides.get(entry.getKey());
-            for (IPair<TypeMirror, AnnotatedTypeMirror> binaryPair : entry.getValue()) {
-                boolean locationMatched = false;
-                if (textList != null) {
-                    for (IPair<TypeMirror, AnnotatedTypeMirror> textPair : textList) {
-                        if (types.isSameType(textPair.first, binaryPair.first)) {
-                            locationMatched = true;
+                from.entrySet()) {
+            List<IPair<TypeMirror, AnnotatedTypeMirror>> toEntries = to.get(entry.getKey());
+            for (IPair<TypeMirror, AnnotatedTypeMirror> fromEntry : entry.getValue()) {
+                boolean found = false;
+                if (toEntries != null) {
+                    for (IPair<TypeMirror, AnnotatedTypeMirror> toEntry : toEntries) {
+                        if (types.isSameType(toEntry.first, fromEntry.first)) {
+                            found = true;
                             break;
                         }
                     }
                 }
-                if (!locationMatched) {
+                if (!found) {
                     reports.add(
                             String.format(
-                                    "%s: fakeOverrides[%s]: binary location %s has no text"
-                                            + " counterpart",
-                                    className, entry.getKey(), binaryPair.first));
-                }
-            }
-        }
-        // And the reverse direction. The binary path resolves a fake override by looking its
-        // signature up in a signature index (BinaryStubReader#findFakeOverriddenMethod), while the
-        // text path matches parameters structurally (AnnotationFileParser#fakeOverriddenMethod),
-        // so the binary path can fail to resolve one that the text path applies. That divergence
-        // is invisible to the loop above, and to verifyRecordApplied, whose fake-override check is
-        // itself gated on the binary lookup succeeding.
-        for (Map.Entry<ExecutableElement, List<IPair<TypeMirror, AnnotatedTypeMirror>>> entry :
-                text.fakeOverrides.entrySet()) {
-            List<IPair<TypeMirror, AnnotatedTypeMirror>> binaryList =
-                    binary.fakeOverrides.get(entry.getKey());
-            for (IPair<TypeMirror, AnnotatedTypeMirror> textPair : entry.getValue()) {
-                boolean locationMatched = false;
-                if (binaryList != null) {
-                    for (IPair<TypeMirror, AnnotatedTypeMirror> binaryPair : binaryList) {
-                        if (types.isSameType(binaryPair.first, textPair.first)) {
-                            locationMatched = true;
-                            break;
-                        }
-                    }
-                }
-                if (!locationMatched) {
-                    reports.add(
-                            String.format(
-                                    "%s: fakeOverrides[%s]: text location %s has no binary"
-                                            + " counterpart",
-                                    className, entry.getKey(), textPair.first));
+                                    "%s: fakeOverrides[%s]: %s location %s has no counterpart on"
+                                            + " the other side",
+                                    className, entry.getKey(), fromSide, fromEntry.first));
                 }
             }
         }
