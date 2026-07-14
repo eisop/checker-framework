@@ -197,8 +197,15 @@ public class AnnotationFileElementTypes {
         /** Cache of resolved {@code Class} literal types to avoid repeated element lookups. */
         final Map<String, TypeMirror> resolvedClassTypesCache = new HashMap<>();
 
-        /** Cache of resolved constant values to avoid repeated class hierarchy lookups. */
-        final Map<String, Object> resolvedConstantsCache = new HashMap<>();
+        /**
+         * Cache of resolved constant values to avoid repeated class hierarchy lookups.
+         *
+         * <p>The outer map is keyed by the fully-qualified name of the class containing the
+         * constant. The inner map is keyed by the simple name of the constant, and its value is the
+         * resolved constant object (e.g., an {@code Element} or a primitive value). A null value in
+         * the inner map indicates that the constant could not be resolved.
+         */
+        final Map<String, Map<String, Object>> resolvedConstantsCache = new HashMap<>();
 
         /**
          * Map from fully-qualified class name to the name of the jar entry containing its text

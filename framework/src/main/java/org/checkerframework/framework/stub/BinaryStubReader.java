@@ -1860,12 +1860,12 @@ public class BinaryStubReader {
             // the field first and only then asks for its constant value (an enum constant has
             // none, so the element itself is used; a constant field's value is used and coerced).
             BinaryStubData.EnumConstantValue ev = (BinaryStubData.EnumConstantValue) val;
-            String cacheKey = ev.enumClassName + "#" + ev.constantName;
             AnnotationFileElementTypes.BinaryStubDataCache cache =
                     elementTypes.getBinaryStubDataCache();
             if (cache != null) {
-                if (cache.resolvedConstantsCache.containsKey(cacheKey)) {
-                    Object cachedVal = cache.resolvedConstantsCache.get(cacheKey);
+                Map<String, Object> innerCache = cache.resolvedConstantsCache.get(ev.enumClassName);
+                if (innerCache != null && innerCache.containsKey(ev.constantName)) {
+                    Object cachedVal = innerCache.get(ev.constantName);
                     if (cachedVal != null) {
                         // coerceToKind is a no-op for a cached enum-constant VariableElement; it
                         // only converts a cached constant field's numeric/character value.
@@ -1897,7 +1897,12 @@ public class BinaryStubReader {
             }
 
             if (cache != null) {
-                cache.resolvedConstantsCache.put(cacheKey, resolved);
+                Map<String, Object> innerCache = cache.resolvedConstantsCache.get(ev.enumClassName);
+                if (innerCache == null) {
+                    innerCache = new HashMap<>();
+                    cache.resolvedConstantsCache.put(ev.enumClassName, innerCache);
+                }
+                innerCache.put(ev.constantName, resolved);
             }
 
             if (resolved != null) {
@@ -1908,12 +1913,13 @@ public class BinaryStubReader {
             // A simple-name reference to a constant in the enclosing class (or a supertype).
             String constantName = ((BinaryStubData.NameLiteralValue) val).name;
             if (enclosingClassName != null) {
-                String cacheKey = enclosingClassName + "#" + constantName;
                 AnnotationFileElementTypes.BinaryStubDataCache cache =
                         elementTypes.getBinaryStubDataCache();
                 if (cache != null) {
-                    if (cache.resolvedConstantsCache.containsKey(cacheKey)) {
-                        Object cachedVal = cache.resolvedConstantsCache.get(cacheKey);
+                    Map<String, Object> innerCache =
+                            cache.resolvedConstantsCache.get(enclosingClassName);
+                    if (innerCache != null && innerCache.containsKey(constantName)) {
+                        Object cachedVal = innerCache.get(constantName);
                         if (cachedVal != null) {
                             return coerceToKind(cachedVal, expectedKind);
                         }
@@ -1932,7 +1938,13 @@ public class BinaryStubReader {
                 }
 
                 if (cache != null) {
-                    cache.resolvedConstantsCache.put(cacheKey, resolved);
+                    Map<String, Object> innerCache =
+                            cache.resolvedConstantsCache.get(enclosingClassName);
+                    if (innerCache == null) {
+                        innerCache = new HashMap<>();
+                        cache.resolvedConstantsCache.put(enclosingClassName, innerCache);
+                    }
+                    innerCache.put(constantName, resolved);
                 }
 
                 if (resolved != null) {
