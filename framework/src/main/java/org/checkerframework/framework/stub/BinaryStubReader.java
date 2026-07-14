@@ -1839,19 +1839,15 @@ public class BinaryStubReader {
             AnnotationFileElementTypes.BinaryStubDataCache cache =
                     elementTypes.getBinaryStubDataCache();
             if (cache != null) {
-                TypeMirror cachedType = cache.resolvedClassTypesCache.get(fqName);
-                if (cachedType != null) {
-                    return cachedType;
+                if (cache.resolvedClassTypesCache.containsKey(fqName)) {
+                    return cache.resolvedClassTypesCache.get(fqName);
                 }
             }
             @SuppressWarnings("signature:argument.type.incompatible") // fqName is read from the
             // binary stub's string pool, which BinaryStubWriter populates only with
             // fully-qualified names
             TypeElement te = env.getElementUtils().getTypeElement(fqName);
-            if (te == null) {
-                return null;
-            }
-            TypeMirror type = te.asType();
+            TypeMirror type = te == null ? null : te.asType();
             if (cache != null) {
                 cache.resolvedClassTypesCache.put(fqName, type);
             }
@@ -1868,13 +1864,18 @@ public class BinaryStubReader {
             AnnotationFileElementTypes.BinaryStubDataCache cache =
                     elementTypes.getBinaryStubDataCache();
             if (cache != null) {
-                Object cachedVal = cache.resolvedConstantsCache.get(cacheKey);
-                if (cachedVal != null) {
-                    // coerceToKind is a no-op for a cached enum-constant VariableElement; it only
-                    // converts a cached constant field's numeric/character value.
-                    return coerceToKind(cachedVal, expectedKind);
+                if (cache.resolvedConstantsCache.containsKey(cacheKey)) {
+                    Object cachedVal = cache.resolvedConstantsCache.get(cacheKey);
+                    if (cachedVal != null) {
+                        // coerceToKind is a no-op for a cached enum-constant VariableElement; it
+                        // only converts a cached constant field's numeric/character value.
+                        return coerceToKind(cachedVal, expectedKind);
+                    }
+                    return null;
                 }
             }
+
+            Object resolved = null;
             @SuppressWarnings("signature:argument.type.incompatible") // ev.enumClassName is read
             // from the binary stub's string pool, which BinaryStubWriter populates only with
             // fully-qualified names
@@ -1883,23 +1884,26 @@ public class BinaryStubReader {
                 for (Element elt : enumClass.getEnclosedElements()) {
                     if (elt.getKind() == ElementKind.ENUM_CONSTANT
                             && elt.getSimpleName().contentEquals(ev.constantName)) {
-                        if (cache != null) {
-                            cache.resolvedConstantsCache.put(cacheKey, elt);
-                        }
-                        return elt;
+                        resolved = elt;
+                        break;
                     }
                 }
-                VariableElement fieldElt = findFieldInType(enumClass, ev.constantName, env);
-                if (fieldElt != null) {
-                    Object cVal = fieldElt.getConstantValue();
-                    if (cVal != null) {
-                        if (cache != null) {
-                            cache.resolvedConstantsCache.put(cacheKey, cVal);
-                        }
-                        return coerceToKind(cVal, expectedKind);
+                if (resolved == null) {
+                    VariableElement fieldElt = findFieldInType(enumClass, ev.constantName, env);
+                    if (fieldElt != null) {
+                        resolved = fieldElt.getConstantValue();
                     }
                 }
             }
+
+            if (cache != null) {
+                cache.resolvedConstantsCache.put(cacheKey, resolved);
+            }
+
+            if (resolved != null) {
+                return coerceToKind(resolved, expectedKind);
+            }
+            return null;
         } else if (val instanceof BinaryStubData.NameLiteralValue) {
             // A simple-name reference to a constant in the enclosing class (or a supertype).
             String constantName = ((BinaryStubData.NameLiteralValue) val).name;
@@ -1908,24 +1912,31 @@ public class BinaryStubReader {
                 AnnotationFileElementTypes.BinaryStubDataCache cache =
                         elementTypes.getBinaryStubDataCache();
                 if (cache != null) {
-                    Object cachedVal = cache.resolvedConstantsCache.get(cacheKey);
-                    if (cachedVal != null) {
-                        return coerceToKind(cachedVal, expectedKind);
+                    if (cache.resolvedConstantsCache.containsKey(cacheKey)) {
+                        Object cachedVal = cache.resolvedConstantsCache.get(cacheKey);
+                        if (cachedVal != null) {
+                            return coerceToKind(cachedVal, expectedKind);
+                        }
+                        return null;
                     }
                 }
+
+                Object resolved = null;
                 @SuppressWarnings("signature:argument.type.incompatible") // enclosingClassName is
                 // read from the binary stub's string pool, which BinaryStubWriter populates only
                 // with fully-qualified names
                 TypeElement te = env.getElementUtils().getTypeElement(enclosingClassName);
                 VariableElement ve = findFieldInType(te, constantName, env);
                 if (ve != null) {
-                    Object cVal = ve.getConstantValue();
-                    if (cVal != null) {
-                        if (cache != null) {
-                            cache.resolvedConstantsCache.put(cacheKey, cVal);
-                        }
-                        return coerceToKind(cVal, expectedKind);
-                    }
+                    resolved = ve.getConstantValue();
+                }
+
+                if (cache != null) {
+                    cache.resolvedConstantsCache.put(cacheKey, resolved);
+                }
+
+                if (resolved != null) {
+                    return coerceToKind(resolved, expectedKind);
                 }
             }
             // Could not resolve — skip silently, matching AnnotationFileParser behavior.
