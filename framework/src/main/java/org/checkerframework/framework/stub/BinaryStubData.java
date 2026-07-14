@@ -624,16 +624,16 @@ public class BinaryStubData {
      * separator and covers both top-level classes and inner classes (e.g. {@code
      * "com.sun.tools.javac.code.Symbol.Completer"}).
      */
-    public final Map<String, ClassRecord> classes = new HashMap<>();
+    public final Map<String, ClassRecord> classes;
 
     /**
      * Map from fully-qualified package name to annotation-pool indices of its declaration
      * annotations.
      */
-    public final Map<String, int[]> packages = new HashMap<>();
+    public final Map<String, int[]> packages;
 
     /** Map from module name to annotation-pool indices of its declaration annotations. */
-    public final Map<String, int[]> modules = new HashMap<>();
+    public final Map<String, int[]> modules;
 
     /**
      * Reads binary stub data from the given stream. The stream must supply the GZIP-compressed
@@ -680,6 +680,7 @@ public class BinaryStubData {
             }
 
             int classCount = readCount(dataIn, "class count");
+            classes = new HashMap<>((int) (classCount / 0.75f) + 1);
             for (int i = 0; i < classCount; i++) {
                 ClassRecord cr = new ClassRecord();
                 cr.nameIndex = readStringIndex(dataIn, "class name");
@@ -772,8 +773,8 @@ public class BinaryStubData {
                 classes.put(stringPool[cr.nameIndex], cr);
             }
 
-            readAnnotatedNames(dataIn, packages);
-            readAnnotatedNames(dataIn, modules);
+            packages = readAnnotatedNames(dataIn);
+            modules = readAnnotatedNames(dataIn);
         }
     }
 
@@ -964,16 +965,17 @@ public class BinaryStubData {
      * counterpart of {@code BinaryStubWriter#writeAnnotatedNames}).
      *
      * @param dataIn the stream to read from
-     * @param target the map to read into
+     * @return the parsed map
      * @throws IOException if the stream cannot be read
      */
-    private void readAnnotatedNames(DataInputStream dataIn, Map<String, int[]> target)
-            throws IOException {
+    private Map<String, int[]> readAnnotatedNames(DataInputStream dataIn) throws IOException {
         int count = readCount(dataIn, "annotated-name count");
+        Map<String, int[]> target = new HashMap<>((int) (count / 0.75f) + 1);
         for (int i = 0; i < count; i++) {
             String name = stringPool[readStringIndex(dataIn, "annotated name")];
             target.put(name, readAnnoIndices(dataIn));
         }
+        return target;
     }
 
     /**
