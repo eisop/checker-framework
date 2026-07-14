@@ -1001,11 +1001,12 @@ public class BinaryStubDiffChecker {
      */
     private static Set<String> annotationNames(
             @Nullable Iterable<? extends AnnotationMirror> annos) {
+        if (annos == null || !annos.iterator().hasNext()) {
+            return Collections.emptySet();
+        }
         Set<String> names = new TreeSet<>();
-        if (annos != null) {
-            for (AnnotationMirror am : annos) {
-                names.add(AnnotationUtils.annotationName(am));
-            }
+        for (AnnotationMirror am : annos) {
+            names.add(AnnotationUtils.annotationName(am));
         }
         return names;
     }
@@ -1072,31 +1073,32 @@ public class BinaryStubDiffChecker {
      */
     private static Set<String> comparedAnnotationNames(
             @Nullable AnnotationMirrorSet annos, AnnotatedTypeFactory atypeFactory) {
+        if (annos == null || annos.isEmpty()) {
+            return Collections.emptySet();
+        }
         Set<String> names = new TreeSet<>();
-        if (annos != null) {
-            for (AnnotationMirror am : annos) {
-                // AnnotationUtils.annotationName always returns an interned String (see its
-                // @Interned return type and ElementUtils.getQualifiedName's explicit intern()
-                // calls, on both the CheckerFrameworkAnnotationMirror fast path and the general
-                // one), so comparing against the literal below with != is a correct, cheap
-                // identity check, not a bug -- do not "fix" this to .equals().
-                String name = AnnotationUtils.annotationName(am);
-                if (name == BinaryStubData.CF_COMMENT) {
-                    continue;
-                }
-                // A platform annotation is excluded only if this checker cannot act on it. Asking
-                // the factory, rather than trusting the package name, is what makes the rule "an
-                // annotation a checker could act on is compared" true: a checker can alias an
-                // annotation out of any package, including the platform's own (the Signedness
-                // Checker aliases jdk.jfr.Unsigned, the Interning Checker
-                // com.sun.istack.internal.Interned).
-                if (isPlatformAnnotationName(name)
-                        && !atypeFactory.isSupportedQualifier(am)
-                        && atypeFactory.canonicalAnnotation(am) == null) {
-                    continue;
-                }
-                names.add(name);
+        for (AnnotationMirror am : annos) {
+            // AnnotationUtils.annotationName always returns an interned String (see its
+            // @Interned return type and ElementUtils.getQualifiedName's explicit intern()
+            // calls, on both the CheckerFrameworkAnnotationMirror fast path and the general
+            // one), so comparing against the literal below with != is a correct, cheap
+            // identity check, not a bug -- do not "fix" this to .equals().
+            String name = AnnotationUtils.annotationName(am);
+            if (name == BinaryStubData.CF_COMMENT) {
+                continue;
             }
+            // A platform annotation is excluded only if this checker cannot act on it. Asking
+            // the factory, rather than trusting the package name, is what makes the rule "an
+            // annotation a checker could act on is compared" true: a checker can alias an
+            // annotation out of any package, including the platform's own (the Signedness
+            // Checker aliases jdk.jfr.Unsigned, the Interning Checker
+            // com.sun.istack.internal.Interned).
+            if (isPlatformAnnotationName(name)
+                    && !atypeFactory.isSupportedQualifier(am)
+                    && atypeFactory.canonicalAnnotation(am) == null) {
+                continue;
+            }
+            names.add(name);
         }
         return names;
     }

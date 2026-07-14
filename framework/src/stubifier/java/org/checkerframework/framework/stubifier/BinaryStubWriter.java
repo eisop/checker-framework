@@ -460,7 +460,11 @@ public class BinaryStubWriter {
          */
         TypeAnno(int annoIndex, List<TypePathStep> path) {
             this.annoIndex = annoIndex;
-            this.path = new ArrayList<>(path);
+            if (path.isEmpty()) {
+                this.path = Collections.emptyList();
+            } else {
+                this.path = new ArrayList<>(path);
+            }
         }
 
         /**

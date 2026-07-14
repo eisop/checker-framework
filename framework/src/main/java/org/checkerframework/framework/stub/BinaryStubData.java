@@ -14,6 +14,7 @@ import java.io.DataInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -665,10 +666,15 @@ public class BinaryStubData {
             for (int i = 0; i < annoPoolSize; i++) {
                 int nameIdx = readStringIndex(dataIn, "annotation name");
                 int elementCount = dataIn.readUnsignedShort();
-                Map<Integer, Object> elements = new HashMap<>();
-                for (int j = 0; j < elementCount; j++) {
-                    int memberIdx = readStringIndex(dataIn, "annotation member name");
-                    elements.put(memberIdx, readAnnotationValue(dataIn));
+                Map<Integer, Object> elements;
+                if (elementCount == 0) {
+                    elements = Collections.emptyMap();
+                } else {
+                    elements = new HashMap<>();
+                    for (int j = 0; j < elementCount; j++) {
+                        int memberIdx = readStringIndex(dataIn, "annotation member name");
+                        elements.put(memberIdx, readAnnotationValue(dataIn));
+                    }
                 }
                 annotationPool[i] = new AnnotationRecord(nameIdx, elements);
             }
@@ -861,16 +867,25 @@ public class BinaryStubData {
                 {
                     int nameIdx = readStringIndex(dataIn, "nested annotation name");
                     int elementCount = dataIn.readUnsignedShort();
-                    Map<Integer, Object> elements = new HashMap<>();
-                    for (int j = 0; j < elementCount; j++) {
-                        int memberIdx = readStringIndex(dataIn, "nested annotation member name");
-                        elements.put(memberIdx, readAnnotationValue(dataIn));
+                    Map<Integer, Object> elements;
+                    if (elementCount == 0) {
+                        elements = Collections.emptyMap();
+                    } else {
+                        elements = new HashMap<>();
+                        for (int j = 0; j < elementCount; j++) {
+                            int memberIdx =
+                                    readStringIndex(dataIn, "nested annotation member name");
+                            elements.put(memberIdx, readAnnotationValue(dataIn));
+                        }
                     }
                     return new AnnotationRecord(nameIdx, elements);
                 }
             case '[':
                 {
                     int len = dataIn.readUnsignedShort();
+                    if (len == 0) {
+                        return Collections.emptyList();
+                    }
                     List<Object> list = new ArrayList<>(len);
                     for (int i = 0; i < len; i++) {
                         list.add(readAnnotationValue(dataIn));
