@@ -86,10 +86,11 @@ import java.util.zip.GZIPOutputStream;
  * AnnotationFileParser}): private declarations are skipped, annotation names resolve through
  * explicit imports, {@code java.lang}, and asterisk imports, and {@code @CFComment} is dropped.
  *
- * <p>A writer constructed with {@link #BinaryStubWriter(boolean) omitUnannotatedMembers} also drops
- * member records that carry no annotations; that is correct only for the annotated JDK. See that
- * field's documentation. Equivalence is enforced by {@code BinaryStubDiffChecker}; run {@code
- * NullnessBinaryStubDiffTest} after changing this class.
+ * <p>A writer constructed with {@link #BinaryStubWriter(boolean) omitUnannotatedMembers} drops
+ * field records that carry no annotations and demotes unannotated method records to bare
+ * presence-only signature entries (see {@link ClassRecord#presenceOnlyMethodSigs}); that is correct
+ * only for the annotated JDK. See that field's documentation. Equivalence is enforced by {@code
+ * BinaryStubDiffChecker}; run {@code NullnessBinaryStubDiffTest} after changing this class.
  */
 public class BinaryStubWriter {
     /**
@@ -240,39 +241,24 @@ public class BinaryStubWriter {
     private static final int IGNORED = -1;
 
     /**
-     * Whether to omit member records that carry no annotations at all. True when writing the
-     * annotated JDK, false when writing a built-in stub file's binary form.
+     * Whether to drop unannotated field and constructor records and write an unannotated method as
+     * a signature alone ({@link ClassRecord#presenceOnlyMethodSigs}). True for the annotated JDK,
+     * false for a built-in stub file.
      *
-     * <p>A built-in stub file needs a record for every member it declares, annotated or not: {@code
-     * BinaryStubReader} marks each matched member with {@code @FromStubFile}, exactly as {@code
-     * AnnotationFileParser.markAsFromStubFile} does on the text side, and a member with no record
-     * is never matched. The annotated JDK is never marked, and applying an all-empty record is a
-     * no-op there for a genuinely-declared member -- {@code applyMethodRecords} finds no
-     * declaration annotations and {@code hasTypeInfo} is false, so it builds no {@code
-     * AnnotatedExecutableType}.
+     * <p>A built-in stub file needs a full record for every member it declares, annotated or not:
+     * {@code BinaryStubReader} marks each matched member with {@code @FromStubFile}, as {@code
+     * AnnotationFileParser.markAsFromStubFile} does on the text side, and an unrecorded member is
+     * never matched. The annotated JDK is never marked, so an unannotated member's record is a
+     * no-op there -- except that its signature can still make it a fake override, which is why the
+     * signature is kept.
      *
-     * <p>That no-op argument does NOT extend to a fake override: a stub declaration for a method
-     * the class only inherits, at this subtype, resets the member's type to a fresh {@code
-     * getAnnotatedType(overridden)} even when {@code mr.returnTypeAnnos} is empty (see {@code
-     * BinaryStubReader#applyFakeOverride}) -- an all-empty fake-override record is NOT a no-op, so
-     * {@link #isUnannotated(MethodRecord)} must never omit one. Whether a given method record will
-     * be treated as a fake override at read time depends on the JDK version actually being compiled
-     * against (the annotated JDK's own source tree reflects one JDK's shape; an older or newer real
-     * JDK can declare a member directly where this tree's version only inherits it, or vice versa),
-     * which this writer cannot know. {@link MethodRecord#hasOverrideAnnotation} therefore acts as
-     * the writer's exemption: a method with no override relationship at all can never be a fake
-     * override, and the annotated JDK's OpenJDK-derived style marks every actual override with
-     * {@code @Override}, so a record is only considered for omission when it carries neither
-     * annotations nor {@code @Override}.
+     * <p>69.6% of the annotated JDK's method records and 85.6% of its field records are all-empty;
+     * writing them in full costs about a quarter of the compressed file, and 22,398 {@code
+     * MethodRecord} objects with their arrays on every {@code BinaryStubData} load.
      *
-     * <p>Since 69.6% of the annotated JDK's method records and 85.6% of its field records are
-     * all-empty, writing them costs 26% of the compressed file (320,674 down to 237,283 bytes) and
-     * 22,398 {@code MethodRecord} objects, with their arrays, on every {@code BinaryStubData} load,
-     * to accomplish nothing.
-     *
-     * <p>Class records are always written, even when nothing about the class is annotated: their
-     * presence in {@code BinaryStubData.classes} is what tells {@code AnnotationFileElementTypes}
-     * not to fall back to text-parsing that class.
+     * <p>Class records are always written, even for a class with nothing annotated: their presence
+     * in {@code BinaryStubData.classes} is what tells {@code AnnotationFileElementTypes} not to
+     * text-parse that class.
      */
     private final boolean omitUnannotatedMembers;
 
@@ -284,8 +270,9 @@ public class BinaryStubWriter {
     /**
      * Creates a writer.
      *
-     * @param omitUnannotatedMembers whether to omit member records carrying no annotations; see
-     *     {@link #omitUnannotatedMembers}. Pass true only for the annotated JDK.
+     * @param omitUnannotatedMembers whether to omit unannotated field records and demote
+     *     unannotated method records to presence-only signature entries; see {@link
+     *     #omitUnannotatedMembers}. Pass true only for the annotated JDK.
      */
     public BinaryStubWriter(boolean omitUnannotatedMembers) {
         this.omitUnannotatedMembers = omitUnannotatedMembers;
@@ -517,23 +504,6 @@ public class BinaryStubWriter {
 
         /** Per-type-parameter annotation records for this method. */
         List<TypeParamRecord> typeParams = new ArrayList<>();
-
-        /**
-         * Whether the declaration carries an {@code @Override} annotation. A method that overrides
-         * or implements something can be a fake override at read time -- the reader classifies a
-         * method as a fake override purely by failing to find it among the class's own declared
-         * members ({@code BinaryStubReader#applyMethodRecords}), which depends on the JDK version
-         * actually being compiled against, not on anything this writer can determine build-time
-         * (see {@link #isUnannotated(MethodRecord)}). A method with no override relationship at all
-         * can never be a fake override, so this flag is the writer's best available, purely
-         * syntactic proxy for "might be one": conservatively true whenever {@code @Override} is
-         * written, false otherwise (the {@code @Target} of {@code java.lang.Override} is {@code
-         * METHOD} only, so it would already end up in {@link #declAnnos} via the same {@code
-         * isTypeUseOnly} routing as any other declaration annotation; this field makes that
-         * exemption explicit and independent of that routing instead of relying on it as a side
-         * effect).
-         */
-        boolean hasOverrideAnnotation;
     }
 
     /** Represents the annotations for a single field. */
@@ -596,6 +566,31 @@ public class BinaryStubWriter {
 
         /** Records for all annotated methods of this class. */
         List<MethodRecord> methods = new ArrayList<>();
+
+        /**
+         * Constant-pool indices of the signatures of this class's unannotated methods ({@link
+         * #isUnannotated(MethodRecord)}), written instead of a full all-empty {@link MethodRecord}
+         * when {@link #omitUnannotatedMembers} is set.
+         *
+         * <p>An unannotated method declaration is not a no-op. If the class being compiled against
+         * does not really declare the method, the declaration is a fake override, which resets the
+         * member's type at this subtype to a fresh {@code getAnnotatedType(overridden)} -- so the
+         * inherited annotations are replaced by defaults -- whether or not the declaration is
+         * annotated. Both loaders do this ({@code BinaryStubReader#applyFakeOverride}, {@code
+         * AnnotationFileParser#processFakeOverride}), and the manual specifies it ("Stub methods in
+         * subclasses of the declaring class"). The signature is all that behavior needs.
+         *
+         * <p>The writer cannot tell a fake override from an ordinary declaration: it parses source
+         * with no symbol table, and the overridden method is usually not in the annotated JDK's
+         * source at all, which lists only the members it annotates. Whether a declaration is one
+         * also depends on the JDK being compiled against, which the writer does not know. So every
+         * unannotated method's signature is kept; syntactic approximations were tried and were
+         * unsound.
+         *
+         * <p>Constructors are not listed here: a constructor is never a fake override (both loaders
+         * skip that path for one), so an unannotated constructor record is dropped outright.
+         */
+        List<Integer> presenceOnlyMethodSigs = new ArrayList<>();
 
         /** Per-type-parameter annotation records for this class. */
         List<TypeParamRecord> typeParams = new ArrayList<>();
@@ -674,34 +669,6 @@ public class BinaryStubWriter {
 
     /** Records for all classes processed. */
     private final List<ClassRecord> classes = new ArrayList<>();
-
-    /**
-     * Constant-pool indices (see {@link #pool}) of the signatures of every method directly declared
-     * by an {@code interface} processed so far, across the whole run -- not scoped to one class's
-     * own supertypes. A method overriding an interface's (possibly default) method is the only
-     * shape of method that can ever be a fake override at read time (see {@link
-     * #omitUnannotatedMembers}): {@code BinaryStubReader} falls back to the fake-override path
-     * exactly when a stub-declared method is not found among a class's own real members, which
-     * happens for a method the class inherits rather than overrides -- and only interface default
-     * methods (or, across JDK versions, a method a later JDK "pulled down" into a concrete
-     * override, as {@code java.util.TreeMap}'s {@code computeIfPresent} et al. did) are ever both
-     * "declared here" and "sometimes only inherited elsewhere." A same-signature method declared
-     * only in a superclass, not an interface, cannot become a fake override this way and is exempt
-     * only via {@link MethodRecord#hasOverrideAnnotation}, not this set.
-     *
-     * <p>This is a whole-run, not a per-hierarchy, index: it does not verify that the exempted
-     * method's class actually implements the matching interface, only that some interface somewhere
-     * in the processed tree declares the same signature. That is a deliberately conservative
-     * over-approximation -- computing the real supertype chain would need this writer to track and
-     * resolve each class's supertypes, which it does not do -- and only affects which unannotated
-     * records are kept, never which annotations are applied.
-     *
-     * <p>Populated as interfaces are processed and consulted only when {@link #writeTo} makes the
-     * final omission decision, since a class using this pattern (e.g. {@code
-     * java.util.TreeMap.NavigableSubMap}) can be processed before the interface it implements (e.g.
-     * {@code java.util.Map}) in file-traversal order.
-     */
-    private final Set<Integer> interfaceMethodSigs = new HashSet<>();
 
     /** Map of package name to annotation-pool indices of its declaration annotations. */
     private final Map<String, List<Integer>> packages = new LinkedHashMap<>();
@@ -1628,19 +1595,6 @@ public class BinaryStubWriter {
                     "Serialization failure in class type parameters: " + e.getMessage(), e);
         }
 
-        if (typeDecl.isInterface()) {
-            // See interfaceMethodSigs: record every method this interface directly declares, so a
-            // fake-override candidate elsewhere in the tree that overrides one of them -- even
-            // unannotated and without @Override -- is exempted from omission once writeTo makes
-            // that decision.
-            for (BodyDeclaration<?> m : typeDecl.getMembers()) {
-                if (m instanceof MethodDeclaration) {
-                    interfaceMethodSigs.add(
-                            pool.addString(MethodSignaturePrinter.toString((MethodDeclaration) m)));
-                }
-            }
-        }
-
         processMembers(typeDecl.getMembers(), cr, cr.fqn, cr.childOutermostFqn, cu);
     }
 
@@ -1906,7 +1860,7 @@ public class BinaryStubWriter {
                     true,
                     cu);
             extractTypeAnnotations(member.getType(), new ArrayList<>(), mr.returnTypeAnnos, cu);
-            addMethodRecord(cr, mr);
+            addMethodRecord(cr, mr, /* isConstructor= */ false);
         } catch (IOException e) {
             throw new RuntimeException(
                     "Serialization failure in annotation member: " + e.getMessage(), e);
@@ -1969,10 +1923,6 @@ public class BinaryStubWriter {
         try {
             MethodRecord mr = new MethodRecord();
             mr.sigIndex = pool.addString(MethodSignaturePrinter.toString(decl));
-            // Checked by simple name, matching JavaStubifier.MinimizerVisitor's identical
-            // "Deprecated" check: both run over unresolved JavaParser ASTs with no Elements to
-            // resolve a possibly-qualified annotation name against.
-            mr.hasOverrideAnnotation = decl.isAnnotationPresent("Override");
             // Annotation has a declaration-position target: also a declaration annotation.
             routeAnnotations(
                     decl.getAnnotations(),
@@ -2060,7 +2010,7 @@ public class BinaryStubWriter {
                 mr.paramDeclAnnos.add(pdAnnos);
             }
             mr.typeParams.addAll(extractTypeParams(decl.getTypeParameters(), cu));
-            addMethodRecord(cr, mr);
+            addMethodRecord(cr, mr, decl instanceof ConstructorDeclaration);
         } catch (IOException e) {
             throw new RuntimeException(
                     "Serialization failure in " + decl.getNameAsString() + ": " + e.getMessage(),
@@ -2330,14 +2280,6 @@ public class BinaryStubWriter {
      * @throws IOException if writing to the file fails
      */
     public void writeTo(File file) throws IOException {
-        if (omitUnannotatedMembers) {
-            // Deferred from addMethodRecord: interfaceMethodSigs is only complete once every
-            // compilation unit in the run has been processed, so the omission decision for a
-            // method record that might be a fake override cannot be made until now.
-            for (ClassRecord cr : classes) {
-                cr.methods.removeIf(this::isOmittable);
-            }
-        }
         try (DataOutputStream out =
                 new DataOutputStream(new GZIPOutputStream(new FileOutputStream(file)))) {
             out.writeInt(MAGIC);
@@ -2372,6 +2314,11 @@ public class BinaryStubWriter {
                         writeAnnoIndices(out, mr.paramDeclAnnos.get(p));
                     }
                     writeTypeParams(out, mr.typeParams);
+                }
+                writeCount(
+                        out, cr.presenceOnlyMethodSigs.size(), "presence-only method signatures");
+                for (int sigIdx : cr.presenceOnlyMethodSigs) {
+                    out.writeInt(sigIdx);
                 }
                 writeTypeParams(out, cr.typeParams);
                 if (cr.kind == KIND_RECORD) {
@@ -2628,34 +2575,6 @@ public class BinaryStubWriter {
     }
 
     /**
-     * Returns true if {@code mr} is safe for {@link #writeTo} to omit: it carries no annotation
-     * anywhere ({@link #isUnannotated(MethodRecord)}), AND it cannot be a fake override at read
-     * time. Such a record is a genuine no-op for the annotated JDK; see {@link
-     * #omitUnannotatedMembers}.
-     *
-     * <p>A method record that could be a fake override must be kept even when {@link
-     * #isUnannotated} is true, because {@code BinaryStubReader#applyFakeOverride} resets the
-     * member's type at this subtype from a fresh {@code getAnnotatedType(overridden)} whenever the
-     * record matches nothing among the class's own real members, independent of whether the record
-     * carries any annotations. Two syntactic signals approximate "could be a fake override", since
-     * this writer cannot resolve the real class hierarchy the reader will see: {@link
-     * MethodRecord#hasOverrideAnnotation} (an explicit {@code @Override}, which also covers a
-     * superclass override) and {@link #interfaceMethodSigs} (the signature matches some processed
-     * interface's own method, which covers an unmarked interface-default override like {@code
-     * java.util.TreeMap.NavigableSubMap}'s {@code computeIfAbsent}/{@code computeIfPresent}/{@code
-     * compute}/{@code merge}/{@code putIfAbsent}, none of which carry {@code @Override} in the
-     * annotated JDK's own source).
-     *
-     * @param mr the method record to inspect
-     * @return true if the record carries no annotations and cannot be a fake override
-     */
-    private boolean isOmittable(MethodRecord mr) {
-        return isUnannotated(mr)
-                && !mr.hasOverrideAnnotation
-                && !interfaceMethodSigs.contains(mr.sigIndex);
-    }
-
-    /**
      * Returns true if {@code fr} carries no annotation, on the field or on its type. See {@link
      * #isUnannotated(MethodRecord)}.
      *
@@ -2667,15 +2586,21 @@ public class BinaryStubWriter {
     }
 
     /**
-     * Adds {@code mr} to {@code cr}. Unlike {@link #addFieldRecord}, the omission decision for an
-     * unannotated record is not made here: whether {@code mr} is exempt as a possible fake override
-     * can depend on an interface processed later in the run (see {@link #interfaceMethodSigs}), so
-     * every method record is kept until {@link #writeTo} makes the final decision.
+     * Adds {@code mr} to {@code cr}. When {@link #omitUnannotatedMembers} is set, an unannotated
+     * method is reduced to its signature ({@link ClassRecord#presenceOnlyMethodSigs}, which says
+     * why the signature must survive) and an unannotated constructor is dropped.
      *
      * @param cr the class record to add to
      * @param mr the method record to add
+     * @param isConstructor true if {@code mr} was written from a constructor declaration
      */
-    private void addMethodRecord(ClassRecord cr, MethodRecord mr) {
+    private void addMethodRecord(ClassRecord cr, MethodRecord mr, boolean isConstructor) {
+        if (omitUnannotatedMembers && isUnannotated(mr)) {
+            if (!isConstructor) {
+                cr.presenceOnlyMethodSigs.add(mr.sigIndex);
+            }
+            return;
+        }
         cr.methods.add(mr);
     }
 

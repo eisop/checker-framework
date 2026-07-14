@@ -87,6 +87,9 @@ public class BinaryStubReader {
      */
     private static final Map<String, Set<ElementKind>> targetCache = new ConcurrentHashMap<>();
 
+    /** The empty type-annotation array, for presence-only method entries. */
+    private static final BinaryStubData.TypeAnno[] NO_TYPE_ANNOS = new BinaryStubData.TypeAnno[0];
+
     /** Do not instantiate; all methods are static. */
     private BinaryStubReader() {}
 
@@ -396,7 +399,7 @@ public class BinaryStubReader {
                     fromStubFileAnno);
         }
 
-        if (cr.methods.length > 0) {
+        if (cr.methods.length > 0 || cr.presenceOnlyMethodSigs.length > 0) {
             applyMethodRecords(
                     cr,
                     className,
@@ -644,7 +647,10 @@ public class BinaryStubReader {
     }
 
     /**
-     * Applies the method and constructor records of {@code cr} to the members of {@code typeElt}.
+     * Applies the method and constructor records of {@code cr} to the members of {@code typeElt},
+     * followed by its presence-only method entries (unannotated stub-declared methods recorded as
+     * bare signatures; see {@link BinaryStubData.ClassRecord#presenceOnlyMethodSigs}), which only
+     * matter when they turn out to be fake overrides.
      *
      * @param cr the class record whose method records to apply
      * @param className the fully-qualified name of the class
@@ -681,7 +687,14 @@ public class BinaryStubReader {
                 // exist in the JDK being compiled against and there is nothing to apply.
                 if (!isConstructor) {
                     applyFakeOverride(
-                            mr, sig, typeElt, className, data, atypeFactory, elementTypes, target);
+                            mr.returnTypeAnnos,
+                            sig,
+                            typeElt,
+                            className,
+                            data,
+                            atypeFactory,
+                            elementTypes,
+                            target);
                 }
                 continue;
             }
@@ -817,6 +830,26 @@ public class BinaryStubReader {
             // is unreachable here: the loop already backed off above.
             storeOrMerge(target, ee, aet, atypeFactory, fromStubFileAnno);
         }
+
+        // Presence-only entries: unannotated stub-declared methods, recorded as bare signatures
+        // (see BinaryStubData.ClassRecord#presenceOnlyMethodSigs). A method the class really
+        // declares needs nothing applied; one it does not declare is a fake override, whose
+        // presence alone resets the member's type at this subtype. Only the annotated JDK writes
+        // these entries, and it is never @FromStubFile-marked, so no marking is needed here.
+        for (int sigIdx : cr.presenceOnlyMethodSigs) {
+            String sig = data.stringPool[sigIdx];
+            if (elementTypes.methodSigIndex(typeElt).get(sig) == null) {
+                applyFakeOverride(
+                        NO_TYPE_ANNOS,
+                        sig,
+                        typeElt,
+                        className,
+                        data,
+                        atypeFactory,
+                        elementTypes,
+                        target);
+            }
+        }
     }
 
     /**
@@ -834,8 +867,9 @@ public class BinaryStubReader {
      * same protection the built-in and text-parsing paths rely on for the {@code
      * atypeFactory.getAnnotatedType(overridden)} call below, which can reenter this reader.
      *
-     * @param mr the method record whose signature did not match any declared method
-     * @param sig the method's simple signature
+     * @param returnTypeAnnos the record's return-type annotations; {@link #NO_TYPE_ANNOS} for a
+     *     presence-only entry
+     * @param sig the method's simple signature, which did not match any declared method
      * @param typeElt the class the stub declared the method on
      * @param className the fully-qualified name of that class
      * @param data the complete binary stub data
@@ -844,7 +878,7 @@ public class BinaryStubReader {
      * @param target the annotation container to store the results in
      */
     private static void applyFakeOverride(
-            BinaryStubData.MethodRecord mr,
+            BinaryStubData.TypeAnno[] returnTypeAnnos,
             String sig,
             TypeElement typeElt,
             String className,
@@ -864,12 +898,7 @@ public class BinaryStubReader {
         }
         AnnotatedExecutableType aet = (AnnotatedExecutableType) methodType;
         applyTypeAnnos(
-                aet.getReturnType(),
-                mr.returnTypeAnnos,
-                className,
-                data,
-                atypeFactory,
-                elementTypes);
+                aet.getReturnType(), returnTypeAnnos, className, data, atypeFactory, elementTypes);
         target.fakeOverrides
                 .computeIfAbsent(overridden, k -> new ArrayList<>(1))
                 .add(IPair.of(typeElt.asType(), aet));

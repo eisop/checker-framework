@@ -533,6 +533,20 @@ public class BinaryStubData {
         public MethodRecord[] methods;
 
         /**
+         * Indices into {@link BinaryStubData#stringPool} of the simple signatures of this class's
+         * unannotated stub-declared methods, written in place of an all-empty {@link MethodRecord}.
+         *
+         * <p>Such a method is not a no-op: if the class does not really declare it, the declaration
+         * is a fake override, and its presence alone resets the member's type at this subtype (see
+         * {@code BinaryStubReader#applyFakeOverride}). Only the signature is needed for that.
+         *
+         * <p>Empty for a built-in stub file, whose unannotated members keep full records so that
+         * they can be {@code @FromStubFile}-marked; see {@code
+         * BinaryStubWriter#omitUnannotatedMembers}.
+         */
+        public int[] presenceOnlyMethodSigs;
+
+        /**
          * Per-type-parameter annotation records for this class. Element {@code i} holds the
          * annotations for the {@code i}-th type parameter declared by this class.
          */
@@ -668,6 +682,12 @@ public class BinaryStubData {
                     }
                     mr.typeParams = readTypeParams(dataIn);
                     cr.methods[j] = mr;
+                }
+                int presenceOnlyCount = dataIn.readUnsignedShort();
+                cr.presenceOnlyMethodSigs = new int[presenceOnlyCount];
+                for (int j = 0; j < presenceOnlyCount; j++) {
+                    cr.presenceOnlyMethodSigs[j] =
+                            readStringIndex(dataIn, "presence-only method signature");
                 }
                 cr.typeParams = readTypeParams(dataIn);
                 if (cr.kind == ClassRecord.KIND_RECORD) {

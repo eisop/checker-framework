@@ -54,26 +54,34 @@ public class BinaryStubWriterTest {
                     + "}\n";
 
     /**
-     * The annotated-JDK writer omits member records carrying no annotations, and keeps the rest.
+     * The annotated-JDK writer omits field records carrying no annotations and demotes unannotated
+     * method records to bare presence-only signature entries.
      *
      * <p>69.6% of the annotated JDK's method records and 85.6% of its field records are all-empty,
-     * costing 26% of the compressed file and 22,398 {@code MethodRecord} objects per load. They
-     * exist only so a built-in stub file's members can be marked {@code @FromStubFile}; the JDK is
-     * never marked, and applying an all-empty record is a no-op there.
+     * costing about a quarter of the compressed file and 22,398 {@code MethodRecord} objects per
+     * load when written in full. An unannotated method's signature must still be recorded, though:
+     * on a JDK where the class does not really declare the method, the declaration is a fake
+     * override whose presence alone resets the member's type at that subtype (see {@code
+     * BinaryStubReader#applyFakeOverride}).
      */
     @Test
-    public void jdkWriterOmitsUnannotatedMemberRecords() throws IOException {
+    public void jdkWriterDemotesUnannotatedMethodRecords() throws IOException {
         BinaryStubData data = roundTrip(MIXED_MEMBERS, /* omitUnannotatedMembers= */ true);
         BinaryStubData.ClassRecord cr = data.classes.get("Mixed");
         Assert.assertNotNull("the class record is written even so", cr);
         Assert.assertEquals("only the annotated field", 1, cr.fields.length);
         Assert.assertEquals("annotated", data.stringPool[cr.fields[0].nameIndex]);
-        Assert.assertEquals("only the annotated method", 1, cr.methods.length);
+        Assert.assertEquals("only the annotated method in full", 1, cr.methods.length);
         Assert.assertEquals("annotatedMethod(Object)", data.stringPool[cr.methods[0].sigIndex]);
+        Assert.assertEquals(
+                "the unannotated method as a presence-only signature",
+                1,
+                cr.presenceOnlyMethodSigs.length);
+        Assert.assertEquals("plainMethod(Object)", data.stringPool[cr.presenceOnlyMethodSigs[0]]);
     }
 
     /**
-     * A built-in stub file's writer keeps every member record, annotated or not: {@code
+     * A built-in stub file's writer keeps every member record in full, annotated or not: {@code
      * BinaryStubReader} marks each matched member with {@code @FromStubFile}, and a member with no
      * record is never matched.
      */
@@ -84,29 +92,26 @@ public class BinaryStubWriterTest {
         Assert.assertNotNull(cr);
         Assert.assertEquals("both fields", 2, cr.fields.length);
         Assert.assertEquals("both methods", 2, cr.methods.length);
+        Assert.assertEquals(
+                "no presence-only entries for a built-in stub",
+                0,
+                cr.presenceOnlyMethodSigs.length);
     }
 
     /**
-     * A fully-unannotated method that carries {@code @Override} must survive the annotated-JDK
-     * writer's omission even though it carries no annotations: at read time, such a declaration can
-     * be a fake override -- a stub declaration for a method the class only inherits -- whose reset
-     * semantics (replacing the member's computed type with a fresh {@code
-     * getAnnotatedType(overridden)} at this subtype) applies regardless of whether the record
-     * itself carries any annotations. Omitting it here would silently drop that reset before the
-     * reader ever sees it.
+     * An unannotated constructor is dropped entirely by the annotated-JDK writer, with no
+     * presence-only entry either: a constructor can never be a fake override (both the binary
+     * reader and the text parser skip the fake-override path for constructors), so an all-empty
+     * constructor record is a true no-op.
      */
     @Test
-    public void jdkWriterKeepsUnannotatedOverrideMethodRecords() throws IOException {
-        String source =
-                "public class Sub extends Super {\n"
-                        + "  @Override public void m(Object p) {}\n"
-                        + "}\n";
+    public void jdkWriterDropsUnannotatedConstructorRecords() throws IOException {
+        String source = "public class Ctor {\n" + "  public Ctor(Object p) {}\n" + "}\n";
         BinaryStubData data = roundTrip(source, /* omitUnannotatedMembers= */ true);
-        BinaryStubData.ClassRecord cr = data.classes.get("Sub");
+        BinaryStubData.ClassRecord cr = data.classes.get("Ctor");
         Assert.assertNotNull(cr);
-        Assert.assertEquals(
-                "the unannotated @Override method must still be written", 1, cr.methods.length);
-        Assert.assertEquals("m(Object)", data.stringPool[cr.methods[0].sigIndex]);
+        Assert.assertEquals(0, cr.methods.length);
+        Assert.assertEquals(0, cr.presenceOnlyMethodSigs.length);
     }
 
     /**
@@ -124,6 +129,11 @@ public class BinaryStubWriterTest {
         Assert.assertNotNull("the class record must survive", cr);
         Assert.assertEquals(0, cr.fields.length);
         Assert.assertEquals(0, cr.methods.length);
+        Assert.assertEquals(
+                "the unannotated method survives as a presence-only signature",
+                1,
+                cr.presenceOnlyMethodSigs.length);
+        Assert.assertEquals("m()", data.stringPool[cr.presenceOnlyMethodSigs[0]]);
     }
 
     /**
