@@ -619,17 +619,65 @@ so small per-call wins paid back substantially.
   | Big300.java (300 methods) alloc / wall | 836.8 MB / 5.63 s | 672.5 MB (-20%) / 4.82 s (-14%) |
   | `allNullnessTests` wall | 1m40s | 1m24-25s (**-16%**) |
 
-  *Follow-up: unannotated member records.* 69.6% of the annotated JDK's 32,195 method
-  records and 85.6% of its 4,939 field records carried no annotation anywhere. They
-  exist so a built-in stub file's members can be marked `@FromStubFile`; the JDK is
-  never marked, and applying an all-empty record is a no-op (`hasTypeInfo` false, no
-  decl annos, `applyFakeOverride` returns on empty `returnTypeAnnos`). `JavaStubifier`
-  now constructs `BinaryStubWriter` with `omitUnannotatedMembers`; `BinaryStubFileGenerator`
-  does not. `annotated-jdk.bin.gz`: **321,004 → 236,657 bytes (-26.3%)**, and 22,398
-  fewer `MethodRecord`s + 4,227 fewer `FieldRecord`s allocated per `BinaryStubData` load.
-  Class records are still emitted for entirely unannotated classes — their presence is
-  what stops `AnnotationFileElementTypes` from text-parsing the class. This is a size and
-  allocation win only; see the rejected list below for why no CPU win was expected.
+  *Follow-up: unannotated member records — the first attempt was wrong.* Most of the
+  annotated JDK's member records carry no annotation anywhere (69.6% of methods, 85.6% of
+  fields), so the writer dropped them when `omitUnannotatedMembers` is set. That reasoning
+  — "an all-empty record is a no-op" — is **false for a method**, and the resulting binary
+  disagreed with the text JDK.
+
+  An unannotated method declaration is not a no-op. If the class being compiled against
+  does not really declare the method, the declaration is a *fake override*, and its
+  presence alone resets the member's type at that subtype: the inherited annotations are
+  replaced by defaults. The manual specifies this ("Stub methods in subclasses of the
+  declaring class"), both loaders implement it, and dropping the record silently skipped
+  it. Nine fake overrides were lost from the shipped binary JDK — `CubicCurve2D.Double
+  .getBounds2D()`, `QuadCurve2D`, three `ForkJoinTask` inner classes, `Pattern`,
+  `com.sun.tools.javac.code.Type.ErrorType.allparams()`. The writer cannot tell a fake
+  override from an ordinary declaration: it parses source with JavaParser, has no symbol
+  table, and the overridden method is usually not in the annotated JDK's source at all
+  (which lists only the members it annotates). Two syntactic approximations (an explicit
+  `@Override`; a signature matching some interface's method) were tried and were unsound.
+
+  The fix keeps every unannotated method's **signature**, which is all the fake-override
+  reset needs, as a bare constant-pool index (`ClassRecord.presenceOnlyMethodSigs`)
+  instead of a full all-empty record. Unannotated *constructors* are still dropped (a
+  constructor is never a fake override, in either loader), as are unannotated fields.
+
+  | `annotated-jdk.bin.gz` | bytes |
+  |---|---|
+  | every record written in full | 306,462 |
+  | **presence-only signatures (current)** | **283,552** |
+  | unannotated methods dropped (incorrect) | 247,744 |
+
+  The compact form recovers 22,910 of the 58,718 bytes that full records cost, and still
+  avoids allocating 20,253 `MethodRecord`s with their five arrays per `BinaryStubData`
+  load. The shipped file holds 2,819 class records, 9,696 full method records, 20,253
+  presence-only signatures, 708 field records, and a 24,171-entry string pool.
+
+  The correctness gap was invisible because the differential harness compared fake
+  overrides in one direction only (binary → text), and its record oracle was gated on the
+  binary path's own lookup succeeding. Both are fixed; `BinaryStubDiffChecker` now compares
+  both directions.
+
+  *Re-measured after the fix* (median of 5, `checker/bin/javac`, same machine):
+
+  | Workload | master | branch |
+  |---|---|---|
+  | Tiny.java (25 lines) wall | 2.58 s | 1.66 s (**-36%**) |
+  | Big300.java (300 methods) wall | 5.57 s | 4.79 s (**-14%**) |
+
+  matching the -37% / -14% measured before the presence-only change: keeping the
+  signatures costs no measurable time. A JFR capture of `./gradlew --no-daemon
+  checkNullness` (7,745 on-CPU `ExecutionSample`s, 97 s) puts `BinaryStubReader` at 0.28%
+  of samples, `BinaryStubData` at 0.43%, `AnnotationFileElementTypes` at 1.56%, and
+  **JavaParser at 0.13%** — the point of the whole exercise. The 20,253 extra signature
+  lookups the presence-only entries add do not appear (`methodSigIndex`/`getSimpleSignature`
+  together: 11 samples, 0.14%).
+
+  *Benchmarking pitfall.* Drive these with `checker/bin/javac`, not a bare `javac
+  -processorpath checker.jar`: the latter dies with `NoClassDefFoundError` (CF needs the
+  `--add-opens` that `CheckerMain` supplies) and it fails *fast*, which yields plausible
+  looking wall-clock numbers for a run that never type-checked anything.
 
   *Tried and rejected — do not re-propose.* A JFR capture of `./gradlew --no-daemon
   checknullness` (9746 on-CPU `ExecutionSample`s, 130 s wall) puts **everything under
@@ -644,13 +692,24 @@ so small per-call wins paid back substantially.
   - **A cached `fieldNameIndex(TypeElement)` to match `methodSigIndexCache`.**
     `applyFieldRecords` and `applyRecordComponents` each rebuild a name→`VariableElement`
     map per class record. Does not appear in the profile.
-  - **Pre-sizing `BinaryStubData.classes`/`packages`, and dropping `stringPool[i].intern()`.**
-    Both are one-off costs paid once per JVM (the parsed `BinaryStubData` is cached in
-    `loadedBinaryStubData`); `BinaryStubData.<init>` does not reach 1% of any capture.
+  - **Pre-sizing `BinaryStubData.classes`/`packages`.** A one-off cost paid once per JVM
+    (the parsed `BinaryStubData` is cached in `loadedBinaryStubData`);
+    `BinaryStubData.<init>` does not reach 1% of any capture.
 
   Note that `checknullness` amortizes stub loading across ten subprojects in one worker
   JVM. A cold single-file `javac` run is dominated by JVM startup and yields ~52 samples
-  total — too few to conclude anything from, so it does not rescue these three.
+  total — too few to conclude anything from, so it does not rescue these.
+
+  *Applied, despite belonging to that same "one-off cost" family: dropping
+  `stringPool[i].intern()`* (commit `92e734c49`). Interning the 24,171-entry pool is a
+  one-off cost, and a sampling profiler at a 10 ms floor cannot see it — but it is not
+  free: it cut `BinaryStubData` load time from ~130 ms to ~20 ms, which a single-file
+  `javac` run pays in full and cannot amortize. Nothing needs those strings interned: they
+  are used as map keys or compared with `equals`, and the one identity comparison on an
+  annotation name (`BinaryStubReader.isAnnotatedForThisChecker`) compares the result of
+  `AnnotationUtils.annotationName`, which is interned by its own contract. The lesson is
+  the one the rejected list keeps re-teaching from the other direction: "invisible to JFR"
+  is not the same as "cheap" when the cost is one big pause rather than many small ones.
 
   Design points worth remembering when touching this code:
   - One `BinaryStubData`/`BinaryStubDataCache` load per compilation (keyed on the javac
