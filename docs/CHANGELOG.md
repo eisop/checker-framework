@@ -41,13 +41,22 @@ stub), `-AsuppressWarnings=text.parsing.jdk.class` (a JDK class is missing from
 the binary stub), or `-AsuppressWarnings=text.parsing.stub` (a checker's stub
 file has no binary stub).
 
-Fixed `AnnotationFileParser`'s `fakeOverriddenMethod` generic-parameter
-matching, which had silently dropped annotated-JDK annotations from
-`TreeMap.computeIfPresent()`, `computeIfAbsent()`, `compute()`, and `merge()`
-under JDK 11 and 21. `fakeOverriddenMethod` now also prefers an overload whose
-parameter types match the stub declaration exactly, so a fake override such as
-`f(String)` no longer binds to a coexisting type-variable overload `<T> f(T)`
-that happens to be visited first.
+Fixed four bugs in how `AnnotationFileParser` matches a fake override to the
+method it overrides. Each made a stub declaration bind to the wrong method, or
+to none at all, silently changing or dropping the annotations it provides:
+
+- Generic-parameter matching dropped annotated-JDK annotations from
+  `TreeMap.computeIfPresent()`, `computeIfAbsent()`, `compute()`, and `merge()`
+  under JDK 11 and 21.
+- An overload whose parameter types match the stub declaration exactly is now
+  preferred, so a fake override `f(String)` no longer binds to a coexisting
+  type-variable overload `<T> f(T)` that happens to be visited first.
+- A varargs stub parameter (`X...`) was compared by its element type, so it
+  could bind to an unrelated one-argument overload `f(X)`.
+- A parameter type written with a partial scope (`HTML.Tag` for
+  `javax.swing.text.html.HTML.Tag`) matched neither the fully-qualified nor the
+  simple name, so the fake override was dropped; such a name is now matched as
+  a suffix of the fully-qualified name.
 
 Fixed a typo (`@SafeEFfect`) in the Guieffect Checker's `org-eclipse.astub` that
 made `CompareEditorInput.getMessage()` inherit the enclosing `@UIType`'s

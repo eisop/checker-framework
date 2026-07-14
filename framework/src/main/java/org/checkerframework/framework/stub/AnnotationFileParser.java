@@ -2289,6 +2289,7 @@ public class AnnotationFileParser {
      */
     private @Nullable ExecutableElement fakeOverriddenMethod(
             TypeElement typeElt, MethodDeclaration methodDecl, boolean typevarLenient) {
+        ExecutableElement match = null;
         for (Element elt : typeElt.getEnclosedElements()) {
             if (elt.getKind() != ElementKind.METHOD) {
                 continue;
@@ -2300,8 +2301,26 @@ public class AnnotationFileParser {
             }
             List<? extends VariableElement> candidateParams = candidate.getParameters();
             if (sameTypes(candidateParams, methodDecl.getParameters(), typevarLenient)) {
-                return candidate;
+                if (match != null) {
+                    // Two of this type's overloads match. A parameter type is compared by name,
+                    // and a simple or partially-qualified name can be a suffix of more than one
+                    // type's fully-qualified name (see sameType), so this declaration does not say
+                    // which overload it means. Annotating whichever one javac happens to enumerate
+                    // first would be arbitrary, so annotate neither.
+                    warn(
+                            methodDecl,
+                            "fake override %s is ambiguous: it matches both %s and %s. Write its"
+                                    + " parameter types as fully-qualified names.",
+                            methodDecl.getSignature(),
+                            match,
+                            candidate);
+                    return null;
+                }
+                match = candidate;
             }
+        }
+        if (match != null) {
+            return match;
         }
 
         TypeElement superType = ElementUtils.getSuperClass(typeElt);
@@ -2344,6 +2363,18 @@ public class AnnotationFileParser {
         }
         for (int i = 0, n = javacParams.size(); i < n; ++i) {
             TypeMirror javacType = javacParams.get(i).asType();
+            Parameter javaParserParam = javaParserParams.get(i);
+            if (javaParserParam.isVarArgs()) {
+                // A varargs parameter's getType() is the element type: "..." is a flag on the
+                // Parameter, not part of the Type. Its javac counterpart is an array, so compare
+                // against the component type. Otherwise a stub's "X..." matches a plain "X"
+                // parameter, which made the stub's "union(CharPredicate...)" a fake override of
+                // CharPredicate's unrelated one-argument "union(CharPredicate)".
+                if (javacType.getKind() != TypeKind.ARRAY) {
+                    return false;
+                }
+                javacType = ((ArrayType) javacType).getComponentType();
+            }
             if (typevarLenient && javacType.getKind() == TypeKind.TYPEVAR) {
                 // Accept any declaration in this position.  A type-variable parameter (e.g.
                 // "K key") has no javac textual form that reliably matches the stub's spelling:
@@ -2359,7 +2390,6 @@ public class AnnotationFileParser {
                 // uses it as a fallback after looking for an exact match.
                 continue;
             }
-            Parameter javaParserParam = javaParserParams.get(i);
             Type javaParserType = javaParserParam.getType();
             if (!sameType(javacType, javaParserType)) {
                 return false;
@@ -2416,8 +2446,13 @@ public class AnnotationFileParser {
                 // never reached at all).
                 String javaParserString = javaParserClassType.getNameWithScope();
                 Element javacElement = javacTypeInternal.asElement();
-                // Check both fully-qualified name and simple name.
-                return javacElement.toString().equals(javaParserString)
+                // Accept the fully-qualified name, the simple name, or a partial qualification: a
+                // suffix at a '.' boundary, such as a stub's "HTML.Tag" against javac's
+                // "javax.swing.text.html.HTML.Tag". Such a name previously matched neither, so a
+                // fake override written with one was silently dropped.
+                String javacString = javacElement.toString();
+                return javacString.equals(javaParserString)
+                        || javacString.endsWith("." + javaParserString)
                         || InternalUtils.sameName(javacElement.getSimpleName(), javaParserString);
 
             case ARRAY:
