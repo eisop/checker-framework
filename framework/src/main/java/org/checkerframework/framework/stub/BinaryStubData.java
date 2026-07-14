@@ -796,21 +796,22 @@ public class BinaryStubData {
             case 'D':
                 return dataIn.readDouble();
             case 's':
-                return stringPool[dataIn.readInt()];
+                return stringPool[readStringIndex(dataIn, "string value")];
             case 'c':
-                return new ClassLiteralValue(stringPool[dataIn.readInt()]);
+                return new ClassLiteralValue(stringPool[readStringIndex(dataIn, "class literal")]);
             case 'e':
                 return new EnumConstantValue(
-                        stringPool[dataIn.readInt()], stringPool[dataIn.readInt()]);
+                        stringPool[readStringIndex(dataIn, "enum class")],
+                        stringPool[readStringIndex(dataIn, "enum constant")]);
             case 'n':
-                return new NameLiteralValue(stringPool[dataIn.readInt()]);
+                return new NameLiteralValue(stringPool[readStringIndex(dataIn, "name literal")]);
             case '@':
                 {
-                    int nameIdx = dataIn.readInt();
+                    int nameIdx = readStringIndex(dataIn, "nested annotation name");
                     int elementCount = dataIn.readUnsignedShort();
                     Map<Integer, Object> elements = new HashMap<>();
                     for (int j = 0; j < elementCount; j++) {
-                        int memberIdx = dataIn.readInt();
+                        int memberIdx = readStringIndex(dataIn, "nested annotation member name");
                         elements.put(memberIdx, readAnnotationValue(dataIn));
                     }
                     return new AnnotationRecord(nameIdx, elements);
@@ -830,6 +831,28 @@ public class BinaryStubData {
     }
 
     /**
+     * Reads an index into {@link #annotationPool}, and rejects one that does not point into it.
+     *
+     * @param dataIn the stream to read from
+     * @param what what the index identifies, for the error message
+     * @return the index
+     * @throws IOException if the stream cannot be read, or the index is outside the pool
+     */
+    private int readAnnoIndex(DataInputStream dataIn, String what) throws IOException {
+        int index = dataIn.readInt();
+        if (index < 0 || index >= annotationPool.length) {
+            throw new IOException(
+                    "Malformed binary stub file: "
+                            + what
+                            + " index "
+                            + index
+                            + " is outside the annotation pool of size "
+                            + annotationPool.length);
+        }
+        return index;
+    }
+
+    /**
      * Reads a length-prefixed array of annotation-pool indices from the stream (the counterpart of
      * {@code BinaryStubWriter#writeAnnoIndices}).
      *
@@ -837,11 +860,11 @@ public class BinaryStubData {
      * @return the annotation-pool indices
      * @throws IOException if the stream cannot be read
      */
-    private static int[] readAnnoIndices(DataInputStream dataIn) throws IOException {
+    private int[] readAnnoIndices(DataInputStream dataIn) throws IOException {
         int count = dataIn.readUnsignedShort();
         int[] result = new int[count];
         for (int i = 0; i < count; i++) {
-            result[i] = dataIn.readInt();
+            result[i] = readAnnoIndex(dataIn, "annotation");
         }
         return result;
     }
@@ -875,7 +898,7 @@ public class BinaryStubData {
             throws IOException {
         int count = readCount(dataIn, "annotated-name count");
         for (int i = 0; i < count; i++) {
-            String name = stringPool[dataIn.readInt()];
+            String name = stringPool[readStringIndex(dataIn, "annotated name")];
             target.put(name, readAnnoIndices(dataIn));
         }
     }
@@ -888,7 +911,7 @@ public class BinaryStubData {
      * @throws IOException if the stream cannot be read
      */
     private TypeAnno readTypeAnno(DataInputStream dataIn) throws IOException {
-        int annoIndex = dataIn.readInt();
+        int annoIndex = readAnnoIndex(dataIn, "type annotation");
         // path_length (JVMS 4.7.20.1) is a u1; read unsigned since it sizes the path array below
         // (a plain readByte() would misread a length of 128 or greater as negative). kind and
         // argIndex are stored as signed bytes (see TypePathStep's field javadoc), so plain

@@ -150,6 +150,38 @@ public class BinaryStubDataTest {
                 "outside the string pool");
     }
 
+    /**
+     * An annotation-pool index that points outside the pool must be rejected while the file is
+     * read.
+     *
+     * <p>Similar to string pool indices, an annotation index is only dereferenced later during
+     * application. Left unvalidated, an out-of-bounds index throws ArrayIndexOutOfBoundsException
+     * later on, crashing the compiler.
+     */
+    @Test
+    public void annotationPoolIndexOutsideThePoolIsMalformed() throws IOException {
+        assertMalformed(
+                binaryStub(
+                        out -> {
+                            out.writeInt(1); // string pool: one entry, index 0
+                            out.writeUTF("Foo");
+                            out.writeInt(0); // annotation pool: empty
+                            out.writeInt(1); // one class record
+                            out.writeInt(0); // class name: "Foo"
+                            out.writeInt(0); // no outer class
+                            out.writeByte(BinaryStubData.ClassRecord.KIND_CLASS_OR_INTERFACE);
+                            out.writeShort(1); // one declaration annotation
+                            out.writeInt(9999); //   its index: outside the annotation pool
+                            out.writeShort(0); // no fields
+                            out.writeShort(0); // no methods
+                            out.writeShort(0); // no presence-only method signatures
+                            out.writeShort(0); // no type parameters
+                            out.writeInt(0); // no annotated packages
+                            out.writeInt(0); // no annotated modules
+                        }),
+                "outside the annotation pool");
+    }
+
     /** A file that stops in the middle of a record must be rejected. */
     @Test
     public void truncatedFileIsMalformed() throws IOException {
