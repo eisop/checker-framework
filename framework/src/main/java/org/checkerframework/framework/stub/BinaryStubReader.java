@@ -11,6 +11,7 @@ import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedDeclared
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedExecutableType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedTypeVariable;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedWildcardType;
+import org.checkerframework.framework.type.visitor.AnnotatedTypeScanner;
 import org.checkerframework.framework.util.AnnotatedTypes;
 import org.checkerframework.javacutil.AnnotationBuilder;
 import org.checkerframework.javacutil.AnnotationMirrorSet;
@@ -517,6 +518,7 @@ public class BinaryStubReader {
                 applyTypeAnnos(
                         compType, comp.typeAnnos, className, data, atypeFactory, elementTypes);
             }
+            BOUND_PROPAGATOR.visit(compType, target);
             // Store keyed by the field element in atypes, matching
             // AnnotationFileParser.processRecordField's putMerge(atypes, elt, fieldType).
             storeOrMerge(target, compElt, compType, atypeFactory, fromStubFileAnno);
@@ -641,6 +643,7 @@ public class BinaryStubReader {
                     AnnotatedTypeMirror atm =
                             AnnotatedTypeMirror.createType(ve.asType(), atypeFactory, false);
                     applyTypeAnnos(atm, fr.typeAnnos, className, data, atypeFactory, elementTypes);
+                    BOUND_PROPAGATOR.visit(atm, target);
                     storeOrMerge(target, ve, atm, atypeFactory, fromStubFileAnno);
                 }
             }
@@ -826,7 +829,7 @@ public class BinaryStubReader {
                     fromStubFileAnno);
             // Propagate class type-parameter bound annotations to type variables in the method
             // type (e.g. K and V in put(K key, V value) of Hashtable).
-            propagateClassTypeParamBounds(aet, target);
+            BOUND_PROPAGATOR.visit(aet, target);
             // storeOrMerge's third case -- an entry exists and this is the lazily-loaded JDK --
             // is unreachable here: the loop already backed off above.
             storeOrMerge(target, ee, aet, atypeFactory, fromStubFileAnno);
@@ -1439,54 +1442,32 @@ public class BinaryStubReader {
 
     /**
      * Propagates class type-parameter bound annotations from {@code target.atypes} to any {@link
-     * AnnotatedTypeVariable} instances within {@code aet}. This is needed because when {@code aet}
+     * AnnotatedTypeVariable} instances within the visited type. This is needed because when a type
      * is built via {@link AnnotatedTypeMirror#createType}, type variables like {@code K} and {@code
      * V} in {@code put(K key, V value)} do not yet carry the bounds stored for their {@link
      * TypeParameterElement} keys (e.g. {@code @NonNull Object} for {@code V}).
-     *
-     * @param aet the annotated executable type to update
-     * @param target the annotation container holding the stored type-parameter entries
      */
-    private static void propagateClassTypeParamBounds(
-            AnnotatedExecutableType aet, AnnotationFileAnnotations target) {
-        for (AnnotatedTypeMirror pType : aet.getParameterTypes()) {
-            copyBoundsFromAtypes(pType, target);
-        }
-        copyBoundsFromAtypes(aet.getReturnType(), target);
-        if (aet.getReceiverType() != null) {
-            copyBoundsFromAtypes(aet.getReceiverType(), target);
-        }
-    }
-
-    /**
-     * If {@code atm} is an {@link AnnotatedTypeVariable} whose element is stored in {@code
-     * target.atypes}, copies the bound annotations from the stored entry.
-     *
-     * @param atm the type to check
-     * @param target the annotation container holding the stored type-parameter entries
-     */
-    private static void copyBoundsFromAtypes(
-            AnnotatedTypeMirror atm, AnnotationFileAnnotations target) {
-        if (!(atm instanceof AnnotatedTypeVariable)) {
-            return;
-        }
-        AnnotatedTypeVariable atv = (AnnotatedTypeVariable) atm;
-        Element tpeElt = atv.getUnderlyingType().asElement();
-        if (tpeElt == null) {
-            return;
-        }
-        AnnotatedTypeMirror stored = target.atypes.get(tpeElt);
-        if (!(stored instanceof AnnotatedTypeVariable)) {
-            return;
-        }
-        AnnotatedTypeVariable storedAtv = (AnnotatedTypeVariable) stored;
-        for (AnnotationMirror am : storedAtv.getUpperBound().getAnnotations()) {
-            atv.getUpperBound().replaceAnnotation(am);
-        }
-        for (AnnotationMirror am : storedAtv.getLowerBound().getAnnotations()) {
-            atv.getLowerBound().replaceAnnotation(am);
-        }
-    }
+    private static final AnnotatedTypeScanner<Void, AnnotationFileAnnotations> BOUND_PROPAGATOR =
+            new AnnotatedTypeScanner<Void, AnnotationFileAnnotations>() {
+                @Override
+                public Void visitTypeVariable(
+                        AnnotatedTypeVariable type, AnnotationFileAnnotations target) {
+                    Element tpeElt = type.getUnderlyingType().asElement();
+                    if (tpeElt != null) {
+                        AnnotatedTypeMirror stored = target.atypes.get(tpeElt);
+                        if (stored instanceof AnnotatedTypeVariable) {
+                            AnnotatedTypeVariable storedAtv = (AnnotatedTypeVariable) stored;
+                            for (AnnotationMirror am : storedAtv.getUpperBound().getAnnotations()) {
+                                type.getUpperBound().replaceAnnotation(am);
+                            }
+                            for (AnnotationMirror am : storedAtv.getLowerBound().getAnnotations()) {
+                                type.getLowerBound().replaceAnnotation(am);
+                            }
+                        }
+                    }
+                    return super.visitTypeVariable(type, target);
+                }
+            };
 
     /**
      * Resolves one annotation-pool index into an {@link AnnotationMirror}. Returns {@code null} for
