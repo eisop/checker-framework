@@ -92,6 +92,33 @@ public class BinaryStubData {
      */
     public static final String CF_COMMENT = BinaryStubWriter.CF_COMMENT;
 
+    /** Shared singleton for empty 1D int arrays to reduce GC pressure. */
+    private static final int[] EMPTY_INT_ARRAY = new int[0];
+
+    /** Shared singleton for empty 2D int arrays to reduce GC pressure. */
+    private static final int[][] EMPTY_INT_ARRAY_2D = new int[0][];
+
+    /** Shared singleton for empty TypeAnno arrays to reduce GC pressure. */
+    private static final TypeAnno[] EMPTY_TYPE_ANNO_ARRAY = new TypeAnno[0];
+
+    /** Shared singleton for empty 2D TypeAnno arrays to reduce GC pressure. */
+    private static final TypeAnno[][] EMPTY_TYPE_ANNO_ARRAY_2D = new TypeAnno[0][];
+
+    /** Shared singleton for empty TypePathStep arrays to reduce GC pressure. */
+    private static final TypePathStep[] EMPTY_TYPE_PATH_STEP_ARRAY = new TypePathStep[0];
+
+    /** Shared singleton for empty TypeParamRecord arrays to reduce GC pressure. */
+    private static final TypeParamRecord[] EMPTY_TYPE_PARAM_RECORD_ARRAY = new TypeParamRecord[0];
+
+    /** Shared singleton for empty FieldRecord arrays to reduce GC pressure. */
+    private static final FieldRecord[] EMPTY_FIELD_RECORD_ARRAY = new FieldRecord[0];
+
+    /** Shared singleton for empty MethodRecord arrays to reduce GC pressure. */
+    private static final MethodRecord[] EMPTY_METHOD_RECORD_ARRAY = new MethodRecord[0];
+
+    /** Shared singleton for empty ComponentRecord arrays to reduce GC pressure. */
+    private static final ComponentRecord[] EMPTY_COMPONENT_RECORD_ARRAY = new ComponentRecord[0];
+
     /** Annotation data containing its class name and structural element value pairs. */
     public static class AnnotationRecord {
         /**
@@ -655,61 +682,86 @@ public class BinaryStubData {
                 cr.declAnnos = readAnnoIndices(dataIn);
 
                 int fieldCount = dataIn.readUnsignedShort();
-                cr.fields = new FieldRecord[fieldCount];
-                for (int j = 0; j < fieldCount; j++) {
-                    FieldRecord fr = new FieldRecord();
-                    fr.nameIndex = readStringIndex(dataIn, "field name");
-                    fr.declAnnos = readAnnoIndices(dataIn);
-                    fr.typeAnnos = readTypeAnnos(dataIn);
-                    cr.fields[j] = fr;
+                if (fieldCount == 0) {
+                    cr.fields = EMPTY_FIELD_RECORD_ARRAY;
+                } else {
+                    cr.fields = new FieldRecord[fieldCount];
+                    for (int j = 0; j < fieldCount; j++) {
+                        FieldRecord fr = new FieldRecord();
+                        fr.nameIndex = readStringIndex(dataIn, "field name");
+                        fr.declAnnos = readAnnoIndices(dataIn);
+                        fr.typeAnnos = readTypeAnnos(dataIn);
+                        cr.fields[j] = fr;
+                    }
                 }
 
                 int methodCount = dataIn.readUnsignedShort();
-                cr.methods = new MethodRecord[methodCount];
-                for (int j = 0; j < methodCount; j++) {
-                    MethodRecord mr = new MethodRecord();
-                    mr.sigIndex = readStringIndex(dataIn, "method signature");
-                    mr.declAnnos = readAnnoIndices(dataIn);
-                    mr.returnTypeAnnos = readTypeAnnos(dataIn);
-                    mr.receiverAnnos = readTypeAnnos(dataIn);
+                if (methodCount == 0) {
+                    cr.methods = EMPTY_METHOD_RECORD_ARRAY;
+                } else {
+                    cr.methods = new MethodRecord[methodCount];
+                    for (int j = 0; j < methodCount; j++) {
+                        MethodRecord mr = new MethodRecord();
+                        mr.sigIndex = readStringIndex(dataIn, "method signature");
+                        mr.declAnnos = readAnnoIndices(dataIn);
+                        mr.returnTypeAnnos = readTypeAnnos(dataIn);
+                        mr.receiverAnnos = readTypeAnnos(dataIn);
 
-                    int paramCount = dataIn.readUnsignedShort();
-                    mr.paramAnnos = new TypeAnno[paramCount][];
-                    mr.paramDeclAnnos = new int[paramCount][];
-                    for (int p = 0; p < paramCount; p++) {
-                        mr.paramAnnos[p] = readTypeAnnos(dataIn);
-                        mr.paramDeclAnnos[p] = readAnnoIndices(dataIn);
+                        int paramCount = dataIn.readUnsignedShort();
+                        if (paramCount == 0) {
+                            mr.paramAnnos = EMPTY_TYPE_ANNO_ARRAY_2D;
+                            mr.paramDeclAnnos = EMPTY_INT_ARRAY_2D;
+                        } else {
+                            mr.paramAnnos = new TypeAnno[paramCount][];
+                            mr.paramDeclAnnos = new int[paramCount][];
+                            for (int p = 0; p < paramCount; p++) {
+                                mr.paramAnnos[p] = readTypeAnnos(dataIn);
+                                mr.paramDeclAnnos[p] = readAnnoIndices(dataIn);
+                            }
+                        }
+                        mr.typeParams = readTypeParams(dataIn);
+                        cr.methods[j] = mr;
                     }
-                    mr.typeParams = readTypeParams(dataIn);
-                    cr.methods[j] = mr;
                 }
                 int presenceOnlyCount = dataIn.readUnsignedShort();
-                cr.presenceOnlyMethodSigs = new int[presenceOnlyCount];
-                for (int j = 0; j < presenceOnlyCount; j++) {
-                    cr.presenceOnlyMethodSigs[j] =
-                            readStringIndex(dataIn, "presence-only method signature");
+                if (presenceOnlyCount == 0) {
+                    cr.presenceOnlyMethodSigs = EMPTY_INT_ARRAY;
+                } else {
+                    cr.presenceOnlyMethodSigs = new int[presenceOnlyCount];
+                    for (int j = 0; j < presenceOnlyCount; j++) {
+                        cr.presenceOnlyMethodSigs[j] =
+                                readStringIndex(dataIn, "presence-only method signature");
+                    }
                 }
                 cr.typeParams = readTypeParams(dataIn);
                 if (cr.kind == ClassRecord.KIND_RECORD) {
                     int componentCount = dataIn.readUnsignedShort();
-                    cr.components = new ComponentRecord[componentCount];
-                    for (int j = 0; j < componentCount; j++) {
-                        ComponentRecord comp = new ComponentRecord();
-                        comp.nameIndex = readStringIndex(dataIn, "record component name");
-                        comp.declAnnos = readAnnoIndices(dataIn);
-                        comp.typeAnnos = readTypeAnnos(dataIn);
-                        comp.hasAccessor = dataIn.readBoolean();
-                        cr.components[j] = comp;
+                    if (componentCount == 0) {
+                        cr.components = EMPTY_COMPONENT_RECORD_ARRAY;
+                    } else {
+                        cr.components = new ComponentRecord[componentCount];
+                        for (int j = 0; j < componentCount; j++) {
+                            ComponentRecord comp = new ComponentRecord();
+                            comp.nameIndex = readStringIndex(dataIn, "record component name");
+                            comp.declAnnos = readAnnoIndices(dataIn);
+                            comp.typeAnnos = readTypeAnnos(dataIn);
+                            comp.hasAccessor = dataIn.readBoolean();
+                            cr.components[j] = comp;
+                        }
                     }
                     if (dataIn.readBoolean()) {
                         int paramCount = dataIn.readUnsignedShort();
-                        cr.canonicalConstructorParamAnnos = new TypeAnno[paramCount][];
-                        for (int j = 0; j < paramCount; j++) {
-                            cr.canonicalConstructorParamAnnos[j] = readTypeAnnos(dataIn);
+                        if (paramCount == 0) {
+                            cr.canonicalConstructorParamAnnos = EMPTY_TYPE_ANNO_ARRAY_2D;
+                        } else {
+                            cr.canonicalConstructorParamAnnos = new TypeAnno[paramCount][];
+                            for (int j = 0; j < paramCount; j++) {
+                                cr.canonicalConstructorParamAnnos[j] = readTypeAnnos(dataIn);
+                            }
                         }
                     }
                 } else {
-                    cr.components = new ComponentRecord[0];
+                    cr.components = EMPTY_COMPONENT_RECORD_ARRAY;
                 }
                 classes.put(stringPool[cr.nameIndex], cr);
             }
@@ -862,6 +914,9 @@ public class BinaryStubData {
      */
     private int[] readAnnoIndices(DataInputStream dataIn) throws IOException {
         int count = dataIn.readUnsignedShort();
+        if (count == 0) {
+            return EMPTY_INT_ARRAY;
+        }
         int[] result = new int[count];
         for (int i = 0; i < count; i++) {
             result[i] = readAnnoIndex(dataIn, "annotation");
@@ -879,6 +934,9 @@ public class BinaryStubData {
      */
     private TypeAnno[] readTypeAnnos(DataInputStream dataIn) throws IOException {
         int count = dataIn.readUnsignedShort();
+        if (count == 0) {
+            return EMPTY_TYPE_ANNO_ARRAY;
+        }
         TypeAnno[] result = new TypeAnno[count];
         for (int i = 0; i < count; i++) {
             result[i] = readTypeAnno(dataIn);
@@ -918,6 +976,9 @@ public class BinaryStubData {
         // readByte() is equivalent to reading unsigned and narrowing back to byte; BinaryStubReader
         // re-widens argIndex to its unsigned meaning where it actually matters, at point of use.
         int pathLength = dataIn.readUnsignedByte();
+        if (pathLength == 0) {
+            return new TypeAnno(annoIndex, EMPTY_TYPE_PATH_STEP_ARRAY);
+        }
         TypePathStep[] path = new TypePathStep[pathLength];
         for (int i = 0; i < pathLength; i++) {
             byte kind = dataIn.readByte();
@@ -943,14 +1004,21 @@ public class BinaryStubData {
      */
     private TypeParamRecord[] readTypeParams(DataInputStream dataIn) throws IOException {
         int count = dataIn.readUnsignedShort();
+        if (count == 0) {
+            return EMPTY_TYPE_PARAM_RECORD_ARRAY;
+        }
         TypeParamRecord[] result = new TypeParamRecord[count];
         for (int i = 0; i < count; i++) {
             TypeParamRecord tp = new TypeParamRecord();
             tp.typeVarAnnos = readAnnoIndices(dataIn);
             int boundCount = dataIn.readUnsignedShort();
-            tp.boundAnnos = new TypeAnno[boundCount][];
-            for (int b = 0; b < boundCount; b++) {
-                tp.boundAnnos[b] = readTypeAnnos(dataIn);
+            if (boundCount == 0) {
+                tp.boundAnnos = EMPTY_TYPE_ANNO_ARRAY_2D;
+            } else {
+                tp.boundAnnos = new TypeAnno[boundCount][];
+                for (int b = 0; b < boundCount; b++) {
+                    tp.boundAnnos[b] = readTypeAnnos(dataIn);
+                }
             }
             result[i] = tp;
         }
