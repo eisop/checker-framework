@@ -1140,57 +1140,93 @@ public class BinaryStubDiffChecker {
             @Nullable AnnotatedTypeMirror atm,
             boolean inDerivedPosition,
             Set<AnnotatedTypeMirror> visited) {
+        return hasAnnotationWorker(atm, inDerivedPosition, false, visited);
+    }
+
+    /**
+     * Unified worker for {@link #hasAnyAnnotation(AnnotatedTypeMirror)} and {@link
+     * #hasNonDerivedAnnotation(AnnotatedTypeMirror, boolean, Set)}.
+     *
+     * @param atm the type to scan, may be {@code null}
+     * @param inDerivedPosition true if the current component is in a derived position (e.g.
+     *     wildcard bound)
+     * @param ignoreDerivedPositions if true, checks all positions; if false, skips derived
+     *     positions
+     * @param visited components already visited, to terminate cycles through F-bounded types
+     * @return true if an annotation is found (respecting the derived positions rules)
+     */
+    private static boolean hasAnnotationWorker(
+            @Nullable AnnotatedTypeMirror atm,
+            boolean inDerivedPosition,
+            boolean ignoreDerivedPositions,
+            Set<AnnotatedTypeMirror> visited) {
         if (atm == null || !visited.add(atm)) {
             return false;
         }
-        if (!inDerivedPosition && !atm.getAnnotations().isEmpty()) {
+        if ((ignoreDerivedPositions || !inDerivedPosition) && !atm.getAnnotations().isEmpty()) {
             return true;
         }
         if (atm instanceof AnnotatedExecutableType) {
             AnnotatedExecutableType exe = (AnnotatedExecutableType) atm;
-            if (hasNonDerivedAnnotation(exe.getReturnType(), inDerivedPosition, visited)
-                    || hasNonDerivedAnnotation(exe.getReceiverType(), inDerivedPosition, visited)) {
+            if (hasAnnotationWorker(
+                            exe.getReturnType(), inDerivedPosition, ignoreDerivedPositions, visited)
+                    || hasAnnotationWorker(
+                            exe.getReceiverType(),
+                            inDerivedPosition,
+                            ignoreDerivedPositions,
+                            visited)) {
                 return true;
             }
             for (AnnotatedTypeMirror param : exe.getParameterTypes()) {
-                if (hasNonDerivedAnnotation(param, inDerivedPosition, visited)) {
+                if (hasAnnotationWorker(
+                        param, inDerivedPosition, ignoreDerivedPositions, visited)) {
                     return true;
                 }
             }
             for (AnnotatedTypeMirror typeVar : exe.getTypeVariables()) {
-                if (hasNonDerivedAnnotation(typeVar, inDerivedPosition, visited)) {
+                if (hasAnnotationWorker(
+                        typeVar, inDerivedPosition, ignoreDerivedPositions, visited)) {
                     return true;
                 }
             }
             return false;
         } else if (atm instanceof AnnotatedDeclaredType) {
             for (AnnotatedTypeMirror typeArg : ((AnnotatedDeclaredType) atm).getTypeArguments()) {
-                if (hasNonDerivedAnnotation(typeArg, inDerivedPosition, visited)) {
+                if (hasAnnotationWorker(
+                        typeArg, inDerivedPosition, ignoreDerivedPositions, visited)) {
                     return true;
                 }
             }
             return false;
         } else if (atm instanceof AnnotatedArrayType) {
-            return hasNonDerivedAnnotation(
-                    ((AnnotatedArrayType) atm).getComponentType(), inDerivedPosition, visited);
+            return hasAnnotationWorker(
+                    ((AnnotatedArrayType) atm).getComponentType(),
+                    inDerivedPosition,
+                    ignoreDerivedPositions,
+                    visited);
         } else if (atm instanceof AnnotatedWildcardType) {
             AnnotatedWildcardType wildcard = (AnnotatedWildcardType) atm;
-            return hasNonDerivedAnnotation(wildcard.getExtendsBound(), true, visited)
-                    || hasNonDerivedAnnotation(wildcard.getSuperBound(), true, visited);
+            return hasAnnotationWorker(
+                            wildcard.getExtendsBound(), true, ignoreDerivedPositions, visited)
+                    || hasAnnotationWorker(
+                            wildcard.getSuperBound(), true, ignoreDerivedPositions, visited);
         } else if (atm instanceof AnnotatedTypeVariable) {
             AnnotatedTypeVariable typeVar = (AnnotatedTypeVariable) atm;
-            return hasNonDerivedAnnotation(typeVar.getUpperBound(), true, visited)
-                    || hasNonDerivedAnnotation(typeVar.getLowerBound(), true, visited);
+            return hasAnnotationWorker(
+                            typeVar.getUpperBound(), true, ignoreDerivedPositions, visited)
+                    || hasAnnotationWorker(
+                            typeVar.getLowerBound(), true, ignoreDerivedPositions, visited);
         } else if (atm instanceof AnnotatedIntersectionType) {
             for (AnnotatedTypeMirror bound : ((AnnotatedIntersectionType) atm).getBounds()) {
-                if (hasNonDerivedAnnotation(bound, inDerivedPosition, visited)) {
+                if (hasAnnotationWorker(
+                        bound, inDerivedPosition, ignoreDerivedPositions, visited)) {
                     return true;
                 }
             }
             return false;
         } else if (atm instanceof AnnotatedUnionType) {
             for (AnnotatedTypeMirror alt : ((AnnotatedUnionType) atm).getAlternatives()) {
-                if (hasNonDerivedAnnotation(alt, inDerivedPosition, visited)) {
+                if (hasAnnotationWorker(alt, inDerivedPosition, ignoreDerivedPositions, visited)) {
                     return true;
                 }
             }
@@ -1214,73 +1250,7 @@ public class BinaryStubDiffChecker {
      * @return true if any component carries an annotation
      */
     private static boolean hasAnyAnnotation(@Nullable AnnotatedTypeMirror atm) {
-        return hasAnyAnnotation(atm, Collections.newSetFromMap(new IdentityHashMap<>()));
-    }
-
-    /**
-     * Worker for {@link #hasAnyAnnotation(AnnotatedTypeMirror)}.
-     *
-     * @param atm the type to scan, may be {@code null}
-     * @param visited components already visited, to terminate cycles through F-bounded types
-     * @return true if any component carries an annotation
-     */
-    private static boolean hasAnyAnnotation(
-            @Nullable AnnotatedTypeMirror atm, Set<AnnotatedTypeMirror> visited) {
-        if (atm == null || !visited.add(atm)) {
-            return false;
-        }
-        if (!atm.getAnnotations().isEmpty()) {
-            return true;
-        }
-        if (atm instanceof AnnotatedExecutableType) {
-            AnnotatedExecutableType exe = (AnnotatedExecutableType) atm;
-            if (hasAnyAnnotation(exe.getReturnType(), visited)
-                    || hasAnyAnnotation(exe.getReceiverType(), visited)) {
-                return true;
-            }
-            for (AnnotatedTypeMirror param : exe.getParameterTypes()) {
-                if (hasAnyAnnotation(param, visited)) {
-                    return true;
-                }
-            }
-            for (AnnotatedTypeMirror typeVar : exe.getTypeVariables()) {
-                if (hasAnyAnnotation(typeVar, visited)) {
-                    return true;
-                }
-            }
-            return false;
-        } else if (atm instanceof AnnotatedDeclaredType) {
-            for (AnnotatedTypeMirror typeArg : ((AnnotatedDeclaredType) atm).getTypeArguments()) {
-                if (hasAnyAnnotation(typeArg, visited)) {
-                    return true;
-                }
-            }
-            return false;
-        } else if (atm instanceof AnnotatedArrayType) {
-            return hasAnyAnnotation(((AnnotatedArrayType) atm).getComponentType(), visited);
-        } else if (atm instanceof AnnotatedWildcardType) {
-            AnnotatedWildcardType wildcard = (AnnotatedWildcardType) atm;
-            return hasAnyAnnotation(wildcard.getExtendsBound(), visited)
-                    || hasAnyAnnotation(wildcard.getSuperBound(), visited);
-        } else if (atm instanceof AnnotatedTypeVariable) {
-            AnnotatedTypeVariable typeVar = (AnnotatedTypeVariable) atm;
-            return hasAnyAnnotation(typeVar.getUpperBound(), visited)
-                    || hasAnyAnnotation(typeVar.getLowerBound(), visited);
-        } else if (atm instanceof AnnotatedIntersectionType) {
-            for (AnnotatedTypeMirror bound : ((AnnotatedIntersectionType) atm).getBounds()) {
-                if (hasAnyAnnotation(bound, visited)) {
-                    return true;
-                }
-            }
-            return false;
-        } else if (atm instanceof AnnotatedUnionType) {
-            for (AnnotatedTypeMirror alt : ((AnnotatedUnionType) atm).getAlternatives()) {
-                if (hasAnyAnnotation(alt, visited)) {
-                    return true;
-                }
-            }
-            return false;
-        }
-        return false;
+        return hasAnnotationWorker(
+                atm, false, true, Collections.newSetFromMap(new IdentityHashMap<>()));
     }
 }
