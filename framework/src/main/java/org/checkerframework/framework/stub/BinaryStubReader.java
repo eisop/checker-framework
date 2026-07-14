@@ -18,6 +18,7 @@ import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.InternalUtils;
+import org.checkerframework.javacutil.TypesUtils;
 import org.checkerframework.javacutil.UserError;
 import org.plumelib.util.IPair;
 
@@ -917,8 +918,35 @@ public class BinaryStubReader {
      */
     static @Nullable ExecutableElement findFakeOverriddenMethod(
             TypeElement typeElt, String sig, AnnotationFileElementTypes elementTypes) {
+        ExecutableElement exact =
+                findFakeOverriddenMethod(
+                        typeElt,
+                        sig,
+                        elementTypes,
+                        Collections.newSetFromMap(new IdentityHashMap<>()),
+                        /* typevarLenient= */ false);
+        if (exact != null) {
+            return exact;
+        }
+        // The lenient pass starts at typeElt's own methods, as the text parser's does
+        // (AnnotationFileParser.fakeOverriddenMethod scans getEnclosedElements() before recurring
+        // to supertypes, in both passes). The caller has already looked typeElt up exactly, and
+        // failed, but a type variable renamed between the stub and the JDK being compiled against
+        // means the class does declare the method under a different spelling: the stub declares
+        // ConcurrentSkipListMap.KeySet<K,V>.ceiling(K), while JDK 8's KeySet<E> declares
+        // ceiling(E). Without this, the two loaders key the entry by different overridden
+        // methods -- this class's own, or the one it inherits from NavigableSet.
+        ExecutableElement ownLenient =
+                declaredMethod(typeElt, sig, elementTypes, /* typevarLenient= */ true);
+        if (ownLenient != null) {
+            return ownLenient;
+        }
         return findFakeOverriddenMethod(
-                typeElt, sig, elementTypes, Collections.newSetFromMap(new IdentityHashMap<>()));
+                typeElt,
+                sig,
+                elementTypes,
+                Collections.newSetFromMap(new IdentityHashMap<>()),
+                /* typevarLenient= */ true);
     }
 
     /**
@@ -936,12 +964,15 @@ public class BinaryStubReader {
             TypeElement typeElt,
             String sig,
             AnnotationFileElementTypes elementTypes,
-            Set<TypeElement> visited) {
+            Set<TypeElement> visited,
+            boolean typevarLenient) {
         TypeElement superClass = ElementUtils.getSuperClass(typeElt);
         if (superClass != null) {
-            ExecutableElement found = elementTypes.methodSigIndex(superClass).get(sig);
+            ExecutableElement found = declaredMethod(superClass, sig, elementTypes, typevarLenient);
             if (found == null) {
-                found = findFakeOverriddenMethod(superClass, sig, elementTypes, visited);
+                found =
+                        findFakeOverriddenMethod(
+                                superClass, sig, elementTypes, visited, typevarLenient);
             }
             if (found != null) {
                 return found;
@@ -957,17 +988,91 @@ public class BinaryStubReader {
                 continue;
             }
             ExecutableElement found =
-                    elementTypes.methodSigIndex((TypeElement) interfaceElt).get(sig);
+                    declaredMethod((TypeElement) interfaceElt, sig, elementTypes, typevarLenient);
             if (found == null) {
                 found =
                         findFakeOverriddenMethod(
-                                (TypeElement) interfaceElt, sig, elementTypes, visited);
+                                (TypeElement) interfaceElt,
+                                sig,
+                                elementTypes,
+                                visited,
+                                typevarLenient);
             }
             if (found != null) {
                 return found;
             }
         }
         return null;
+    }
+
+    /**
+     * Returns the method that {@code typeElt} declares with the given simple signature, or null.
+     *
+     * <p>The exact pass is a lookup in the class's signature index. The lenient pass accepts a
+     * parameter whose type in {@code typeElt} is a type variable, whatever the stub spells in that
+     * position, mirroring {@code AnnotationFileParser.sameTypes}'s {@code typevarLenient} pass --
+     * without which the two loaders disagree about a fake override whose overridden method is
+     * generic. {@code java.util.Properties}'s stub declares {@code computeIfPresent(Object,
+     * BiFunction)}; under a JDK whose {@code Properties} does not declare that method itself (JDK
+     * 8), it is inherited from {@code Hashtable<K,V>}, whose signature is {@code
+     * computeIfPresent(K,BiFunction)}. The text parser matches those structurally; a signature
+     * lookup cannot, and the binary path silently applied no fake override at all.
+     *
+     * <p>An ambiguous lenient match -- two of the class's overloads matching one signature -- is no
+     * match, again as the text parser does: annotating whichever one javac enumerates first would
+     * be arbitrary.
+     *
+     * @param typeElt the class whose declared methods to search
+     * @param sig the method's simple signature
+     * @param elementTypes per-factory state, providing the per-class signature indexes
+     * @param typevarLenient whether a type-variable parameter of {@code typeElt} matches any type
+     *     the signature spells in that position
+     * @return the method {@code typeElt} declares with that signature, or null
+     */
+    private static @Nullable ExecutableElement declaredMethod(
+            TypeElement typeElt,
+            String sig,
+            AnnotationFileElementTypes elementTypes,
+            boolean typevarLenient) {
+        if (!typevarLenient) {
+            return elementTypes.methodSigIndex(typeElt).get(sig);
+        }
+        int paren = sig.indexOf('(');
+        if (paren == -1 || !sig.endsWith(")")) {
+            return null;
+        }
+        String name = sig.substring(0, paren);
+        String paramList = sig.substring(paren + 1, sig.length() - 1);
+        String[] sigParams = paramList.isEmpty() ? new String[0] : paramList.split(",", -1);
+        ExecutableElement match = null;
+        for (ExecutableElement candidate : ElementFilter.methodsIn(typeElt.getEnclosedElements())) {
+            if (!InternalUtils.sameName(candidate.getSimpleName(), name)) {
+                continue;
+            }
+            List<? extends VariableElement> params = candidate.getParameters();
+            if (params.size() != sigParams.length) {
+                continue;
+            }
+            boolean matches = true;
+            for (int i = 0; i < sigParams.length; i++) {
+                TypeMirror paramType = params.get(i).asType();
+                if (paramType.getKind() == TypeKind.TYPEVAR) {
+                    // Accepts whatever the stub spells here; see this method's javadoc.
+                    continue;
+                }
+                if (!TypesUtils.simpleTypeName(paramType).equals(sigParams[i])) {
+                    matches = false;
+                    break;
+                }
+            }
+            if (matches) {
+                if (match != null) {
+                    return null;
+                }
+                match = candidate;
+            }
+        }
+        return match;
     }
 
     /**
