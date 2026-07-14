@@ -1194,9 +1194,16 @@ public class BinaryStubReader {
                         AnnotatedTypeMirror.createType(typeElt.asType(), atypeFactory, false);
         List<? extends AnnotatedTypeMirror> typeArgs = declType.getTypeArguments();
 
-        for (int i = 0;
-                i < cr.typeParams.length && i < typeParamElts.size() && i < typeArgs.size();
-                i++) {
+        // The records are positional, so they are meaningless unless the class still declares the
+        // type parameters the writer saw: a JDK class's type-parameter count can drift across JDK
+        // versions (see the receiver-annotation guard in applyMethodRecords for an example), and
+        // applying record i to a different type parameter i would annotate the wrong one. Apply
+        // none of them on a mismatch, as the text parser does (AnnotationFileParser
+        // .annotateTypeParameters warns and returns), and still store the declared type below.
+        boolean typeParamsMatch =
+                cr.typeParams.length == typeParamElts.size()
+                        && cr.typeParams.length == typeArgs.size();
+        for (int i = 0; typeParamsMatch && i < cr.typeParams.length; i++) {
             if (!(typeArgs.get(i) instanceof AnnotatedTypeVariable)) {
                 continue;
             }
@@ -1244,7 +1251,12 @@ public class BinaryStubReader {
             @Nullable AnnotationMirror fromStubFileAnno) {
         List<? extends AnnotatedTypeMirror> typeVars = aet.getTypeVariables();
         List<? extends TypeParameterElement> typeParamElts = ee.getTypeParameters();
-        for (int i = 0; i < typeParams.length && i < typeVars.size(); i++) {
+        // Positional records: meaningless unless the method still declares the type parameters the
+        // writer saw. Apply none on a mismatch, as the text parser does; see applyClassTypeParams.
+        if (typeParams.length != typeVars.size()) {
+            return;
+        }
+        for (int i = 0; i < typeParams.length; i++) {
             if (!(typeVars.get(i) instanceof AnnotatedTypeVariable)) {
                 continue;
             }
