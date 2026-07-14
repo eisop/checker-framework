@@ -1080,6 +1080,8 @@ public class BinaryStubDiffChecker {
      * concatenation and keeps it.
      *
      * @param annos the annotation set, may be {@code null}
+     * @param atypeFactory the factory, which decides whether this checker can act on a platform
+     *     annotation
      * @return the sorted names of the annotations that are compared
      */
     private static Set<String> comparedAnnotationNames(
