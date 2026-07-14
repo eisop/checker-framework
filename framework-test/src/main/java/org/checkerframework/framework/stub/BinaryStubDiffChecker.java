@@ -63,9 +63,26 @@ import javax.tools.Diagnostic;
  *       source-annotatable type component (see {@link #compareAtm} for the derived positions that
  *       are excluded and why). An entry present on only one side is reported only if it carries
  *       non-derived annotations.
- *   <li>Positions whose baselines differ between the two loaders (type-variable declaration bounds,
- *       fake overrides) are guarded by a record oracle instead: {@link #verifyRecordApplied}
- *       asserts that everything the binary record promises was actually stored.
+ *   <li>Fake overrides ({@link AnnotationFileAnnotations#fakeOverrides}) are compared by which
+ *       (overridden method, subtype) entries exist, in both directions -- not by the stored types,
+ *       whose baselines differ between the two loaders. Both directions are needed: the binary path
+ *       resolves a fake override by a signature lookup and the text path by matching parameters
+ *       structurally, so either can miss one the other applies. {@link #verifyRecordApplied} adds a
+ *       record oracle on top, asserting that every binary record -- including a presence-only
+ *       signature -- that matches an inherited method did produce an entry.
+ *   <li>A type variable's <em>primary</em> annotation -- the shape written {@code <@Nullable T>} --
+ *       is compared by the structural walk wherever it appears, including on the type arguments of
+ *       the declared type stored for a {@code TypeElement}.
+ *   <li>A type variable's <em>bounds</em> -- the shape written {@code <T extends @Nullable
+ *       Object>}, as on {@code StackWalker.walk} -- are covered by {@link
+ *       #verifyTypeParamAnnosApplied}, an oracle against the binary record, rather than by the
+ *       structural walk. The walk cannot compare them: the two loaders' bounds have different
+ *       baselines, so a direct comparison reports defaults as mismatches (the text parser stores
+ *       {@code java.util.List}'s {@code E} with its upper bound already defaulted to
+ *       {@code @Initialized @NonNull @UnknownKeyFor}, while the binary reader stores only what the
+ *       stub wrote and lets the framework default the rest later). Asking instead whether
+ *       everything the record promises was applied is immune to that, since defaulting only ever
+ *       adds annotations.
  *   <li>Record stubs ({@link AnnotationFileParser.AnnotationFileAnnotations#records}) are compared
  *       structurally: same class keys and same component names in the same order. Annotation
  *       agreement is covered by the atypes and declAnnos checks above.
@@ -158,12 +175,7 @@ public class BinaryStubDiffChecker {
                         atypeFactory,
                         reports);
             }
-            compareClass(
-                    className,
-                    textAnnos,
-                    binaryAnnos,
-                    atypeFactory.getProcessingEnv().getTypeUtils(),
-                    reports);
+            compareClass(className, textAnnos, binaryAnnos, atypeFactory, reports);
         }
 
         comparePackagesAndModules(elementTypes, data, atypeFactory, reports);
@@ -210,9 +222,19 @@ public class BinaryStubDiffChecker {
                 data, atypeFactory, elementTypes, binaryAnnos, /* fromLazyJdk= */ true);
 
         compareAnnotations(
-                "package", data.packages, textAnnos.declAnnos, binaryAnnos.declAnnos, reports);
+                "package",
+                data.packages,
+                textAnnos.declAnnos,
+                binaryAnnos.declAnnos,
+                atypeFactory,
+                reports);
         compareAnnotations(
-                "module", data.modules, textAnnos.declAnnos, binaryAnnos.declAnnos, reports);
+                "module",
+                data.modules,
+                textAnnos.declAnnos,
+                binaryAnnos.declAnnos,
+                atypeFactory,
+                reports);
     }
 
     /**
@@ -224,6 +246,7 @@ public class BinaryStubDiffChecker {
      * @param items the items to compare, keyed by name; only the keys are used
      * @param textAnnos the annotations produced by the text parser
      * @param binaryAnnos the annotations produced by the binary reader
+     * @param atypeFactory the factory, for recognizing aliased annotations
      * @param reports the list to append mismatch descriptions to
      */
     private static void compareAnnotations(
@@ -231,10 +254,11 @@ public class BinaryStubDiffChecker {
             Map<String, ?> items,
             Map<String, AnnotationMirrorSet> textAnnos,
             Map<String, AnnotationMirrorSet> binaryAnnos,
+            AnnotatedTypeFactory atypeFactory,
             List<String> reports) {
         for (String name : items.keySet()) {
-            Set<String> textNames = comparedAnnotationNames(textAnnos.get(name));
-            Set<String> binaryNames = comparedAnnotationNames(binaryAnnos.get(name));
+            Set<String> textNames = comparedAnnotationNames(textAnnos.get(name), atypeFactory);
+            Set<String> binaryNames = comparedAnnotationNames(binaryAnnos.get(name), atypeFactory);
             if (!textNames.equals(binaryNames)) {
                 reports.add(
                         String.format(
@@ -314,12 +338,7 @@ public class BinaryStubDiffChecker {
                     atypeFactory,
                     reports);
         }
-        compareClass(
-                description,
-                textAnnos,
-                binaryAnnos,
-                atypeFactory.getProcessingEnv().getTypeUtils(),
-                reports);
+        compareClass(description, textAnnos, binaryAnnos, atypeFactory, reports);
         reportDiffs(checker, reports);
         System.out.printf(
                 "binary stub diff: checked built-in stub %s, %d mismatches.%n",
@@ -453,6 +472,14 @@ public class BinaryStubDiffChecker {
                                         + " but no atypes entry was stored",
                                 className, i));
             }
+            verifyTypeParamAnnosApplied(
+                    className,
+                    "class type-parameter " + i,
+                    cr.typeParams[i],
+                    binaryAnnos.atypes.get(classTypeParams.get(i)),
+                    data,
+                    atypeFactory,
+                    reports);
         }
         for (BinaryStubData.MethodRecord mr : cr.methods) {
             String sig = data.stringPool[mr.sigIndex];
@@ -469,37 +496,189 @@ public class BinaryStubDiffChecker {
                                             + " no atypes entry was stored",
                                     className, sig));
                 }
+                // Per type parameter, not just per method: the method's atypes entry exists
+                // whenever the record carries any type information at all, so its presence says
+                // nothing about whether a given type parameter's bounds were applied. This is what
+                // covers the shape written <T extends @Nullable Object>, as on StackWalker.walk.
+                List<? extends Element> methodTypeParams = ee.getTypeParameters();
+                for (int i = 0; i < mr.typeParams.length && i < methodTypeParams.size(); i++) {
+                    verifyTypeParamAnnosApplied(
+                            className,
+                            "method " + sig + " type-parameter " + i,
+                            mr.typeParams[i],
+                            binaryAnnos.atypes.get(methodTypeParams.get(i)),
+                            data,
+                            atypeFactory,
+                            reports);
+                }
             } else if (!isConstructor) {
                 // The record is a fake override (or a stub/JDK mismatch, in which case there is
                 // no overridden method and nothing to store). Checked for EVERY record, even one
                 // carrying no annotations at all: both paths store a fakeOverrides entry for
                 // every matched fake-override record, because the entry's presence alone resets
                 // the method's type at this subtype (see BinaryStubReader#applyFakeOverride).
-                ExecutableElement overridden =
-                        BinaryStubReader.findFakeOverriddenMethod(typeElt, sig, elementTypes);
-                if (overridden != null) {
-                    boolean stored = false;
-                    List<IPair<TypeMirror, AnnotatedTypeMirror>> entries =
-                            binaryAnnos.fakeOverrides.get(overridden);
-                    if (entries != null) {
-                        Types types = atypeFactory.getProcessingEnv().getTypeUtils();
-                        TypeMirror location = typeElt.asType();
-                        for (IPair<TypeMirror, AnnotatedTypeMirror> pair : entries) {
-                            if (types.isSameType(pair.first, location)) {
-                                stored = true;
-                                break;
-                            }
-                        }
-                    }
-                    if (!stored) {
-                        reports.add(
-                                String.format(
-                                        "%s: fake override %s matches an inherited method but no"
-                                                + " fakeOverrides entry was stored",
-                                        className, sig));
-                    }
+                verifyFakeOverrideStored(
+                        className, sig, typeElt, binaryAnnos, elementTypes, atypeFactory, reports);
+            }
+        }
+        // Presence-only entries (annotated-JDK writer only): a signature the stub source declares
+        // with no annotations. If the real class declares the method, the entry is a no-op and
+        // nothing needs to have been stored; otherwise it is a fake override whose presence alone
+        // must have produced a fakeOverrides entry, exactly like an all-empty full record.
+        for (int sigIdx : cr.presenceOnlyMethodSigs) {
+            String sig = data.stringPool[sigIdx];
+            if (elementTypes.methodSigIndex(typeElt).get(sig) == null) {
+                verifyFakeOverrideStored(
+                        className, sig, typeElt, binaryAnnos, elementTypes, atypeFactory, reports);
+            }
+        }
+    }
+
+    /**
+     * Verifies that every annotation a type-parameter record names was applied to the type variable
+     * the binary reader stored for it, and appends a report for each one that was not. This is what
+     * covers a type variable's bounds -- {@code <T extends @Nullable Object>} -- which the
+     * structural walk cannot compare (see this class's javadoc).
+     *
+     * <p>This is an oracle against the record rather than a text-vs-binary comparison, because the
+     * two loaders' bounds have different baselines: the text parser bakes defaulting into the bound
+     * it stores (the upper bound of {@code java.util.List}'s {@code E} comes out
+     * {@code @Initialized @NonNull @UnknownKeyFor}), while the binary reader stores only what the
+     * stub wrote and lets the framework default the rest later. Comparing the two reports those
+     * defaults as mismatches; asking whether everything the record promises is present does not,
+     * since defaulting only ever adds annotations.
+     *
+     * <p>Only the qualifiers this factory supports are demanded. {@code
+     * AnnotatedTypeMirror.addAnnotation} drops an annotation outside the factory's own hierarchy,
+     * so a {@code @Nullable} in the record is correctly not applied by, say, the Initialization
+     * Checker's factory -- and the differential check runs once per factory of the compound
+     * checker.
+     *
+     * @param className the fully-qualified name of the class, for report messages
+     * @param what identifies the type parameter, for report messages
+     * @param tp the type-parameter record
+     * @param binaryAtm the type the binary reader stored for this type parameter, or null
+     * @param data the complete binary stub data, for resolving annotation names
+     * @param atypeFactory the factory, whose supported qualifiers decide what must be applied
+     * @param reports the list to append failure descriptions to
+     */
+    private static void verifyTypeParamAnnosApplied(
+            String className,
+            String what,
+            BinaryStubData.TypeParamRecord tp,
+            @Nullable AnnotatedTypeMirror binaryAtm,
+            BinaryStubData data,
+            AnnotatedTypeFactory atypeFactory,
+            List<String> reports) {
+        if (binaryAtm == null || !BinaryStubReader.typeParamRecordHasAnnos(tp)) {
+            // A missing entry for a record that promises annotations is reported by the caller.
+            return;
+        }
+        Set<String> promised = new TreeSet<>();
+        for (int annoIdx : tp.typeVarAnnos) {
+            promised.add(data.stringPool[data.annotationPool[annoIdx].nameIndex]);
+        }
+        for (BinaryStubData.TypeAnno[] boundList : tp.boundAnnos) {
+            for (BinaryStubData.TypeAnno ta : boundList) {
+                promised.add(data.stringPool[data.annotationPool[ta.annoIndex].nameIndex]);
+            }
+        }
+        promised.removeIf(name -> !atypeFactory.isSupportedQualifier(name));
+        if (promised.isEmpty()) {
+            return;
+        }
+        Set<String> applied = new TreeSet<>();
+        collectAnnotationNames(
+                binaryAtm, applied, Collections.newSetFromMap(new IdentityHashMap<>()));
+        promised.removeAll(applied);
+        for (String missing : promised) {
+            reports.add(
+                    String.format(
+                            "%s: %s: the binary record names %s but it was not applied to %s",
+                            className, what, missing, binaryAtm));
+        }
+    }
+
+    /**
+     * Collects the names of every annotation anywhere in {@code atm}, including on the bounds of a
+     * type variable or wildcard. Cycle-safe.
+     *
+     * @param atm the type to walk
+     * @param names the set to add annotation names to
+     * @param visited the types already walked
+     */
+    private static void collectAnnotationNames(
+            AnnotatedTypeMirror atm, Set<String> names, Set<AnnotatedTypeMirror> visited) {
+        if (!visited.add(atm)) {
+            return;
+        }
+        for (AnnotationMirror am : atm.getAnnotations()) {
+            names.add(AnnotationUtils.annotationName(am));
+        }
+        if (atm instanceof AnnotatedTypeVariable) {
+            collectAnnotationNames(((AnnotatedTypeVariable) atm).getUpperBound(), names, visited);
+            collectAnnotationNames(((AnnotatedTypeVariable) atm).getLowerBound(), names, visited);
+        } else if (atm instanceof AnnotatedWildcardType) {
+            collectAnnotationNames(((AnnotatedWildcardType) atm).getExtendsBound(), names, visited);
+            collectAnnotationNames(((AnnotatedWildcardType) atm).getSuperBound(), names, visited);
+        } else if (atm instanceof AnnotatedIntersectionType) {
+            for (AnnotatedTypeMirror bound : ((AnnotatedIntersectionType) atm).getBounds()) {
+                collectAnnotationNames(bound, names, visited);
+            }
+        } else if (atm instanceof AnnotatedDeclaredType) {
+            for (AnnotatedTypeMirror targ : ((AnnotatedDeclaredType) atm).getTypeArguments()) {
+                collectAnnotationNames(targ, names, visited);
+            }
+        } else if (atm instanceof AnnotatedArrayType) {
+            collectAnnotationNames(((AnnotatedArrayType) atm).getComponentType(), names, visited);
+        }
+    }
+
+    /**
+     * Verifies that, if {@code sig} (which matches no method the real class declares) matches an
+     * inherited method, a {@code fakeOverrides} entry keyed by the overridden method with this
+     * class as its location was stored. Appends a report otherwise.
+     *
+     * @param className the fully-qualified name of the class, for report messages
+     * @param sig the method's simple signature
+     * @param typeElt the class the stub declared the method on
+     * @param binaryAnnos the annotations produced by the binary reader
+     * @param elementTypes the stub-types AFET, used for signature lookups
+     * @param atypeFactory the factory, used for type utilities
+     * @param reports the list to append failure descriptions to
+     */
+    private static void verifyFakeOverrideStored(
+            String className,
+            String sig,
+            TypeElement typeElt,
+            AnnotationFileAnnotations binaryAnnos,
+            AnnotationFileElementTypes elementTypes,
+            AnnotatedTypeFactory atypeFactory,
+            List<String> reports) {
+        ExecutableElement overridden =
+                BinaryStubReader.findFakeOverriddenMethod(typeElt, sig, elementTypes);
+        if (overridden == null) {
+            return;
+        }
+        boolean stored = false;
+        List<IPair<TypeMirror, AnnotatedTypeMirror>> entries =
+                binaryAnnos.fakeOverrides.get(overridden);
+        if (entries != null) {
+            Types types = atypeFactory.getProcessingEnv().getTypeUtils();
+            TypeMirror location = typeElt.asType();
+            for (IPair<TypeMirror, AnnotatedTypeMirror> pair : entries) {
+                if (types.isSameType(pair.first, location)) {
+                    stored = true;
+                    break;
                 }
             }
+        }
+        if (!stored) {
+            reports.add(
+                    String.format(
+                            "%s: fake override %s matches an inherited method but no"
+                                    + " fakeOverrides entry was stored",
+                            className, sig));
         }
     }
 
@@ -510,15 +689,16 @@ public class BinaryStubDiffChecker {
      * @param className the fully-qualified name of the top-level class, for report messages
      * @param text the annotations produced by the text parser
      * @param binary the annotations produced by the binary reader
-     * @param types the type utilities, for comparing fake-override locations
+     * @param atypeFactory the factory, for type utilities and for recognizing aliased annotations
      * @param reports the list to append mismatch descriptions to
      */
     private static void compareClass(
             String className,
             AnnotationFileAnnotations text,
             AnnotationFileAnnotations binary,
-            Types types,
+            AnnotatedTypeFactory atypeFactory,
             List<String> reports) {
+        Types types = atypeFactory.getProcessingEnv().getTypeUtils();
         // Declaration annotations: same keys, and per key the same annotation names. The
         // comparison is restricted to Checker Framework annotations — the payload the stub
         // pipeline exists to deliver. Whether java.* and JDK-internal declaration annotations
@@ -529,8 +709,9 @@ public class BinaryStubDiffChecker {
         declKeys.addAll(text.declAnnos.keySet());
         declKeys.addAll(binary.declAnnos.keySet());
         for (String key : declKeys) {
-            Set<String> textNames = comparedAnnotationNames(text.declAnnos.get(key));
-            Set<String> binaryNames = comparedAnnotationNames(binary.declAnnos.get(key));
+            Set<String> textNames = comparedAnnotationNames(text.declAnnos.get(key), atypeFactory);
+            Set<String> binaryNames =
+                    comparedAnnotationNames(binary.declAnnos.get(key), atypeFactory);
             if (!textNames.equals(binaryNames)) {
                 reports.add(
                         String.format(
@@ -634,6 +815,35 @@ public class BinaryStubDiffChecker {
                                     "%s: fakeOverrides[%s]: binary location %s has no text"
                                             + " counterpart",
                                     className, entry.getKey(), binaryPair.first));
+                }
+            }
+        }
+        // And the reverse direction. The binary path resolves a fake override by looking its
+        // signature up in a signature index (BinaryStubReader#findFakeOverriddenMethod), while the
+        // text path matches parameters structurally (AnnotationFileParser#fakeOverriddenMethod),
+        // so the binary path can fail to resolve one that the text path applies. That divergence
+        // is invisible to the loop above, and to verifyRecordApplied, whose fake-override check is
+        // itself gated on the binary lookup succeeding.
+        for (Map.Entry<ExecutableElement, List<IPair<TypeMirror, AnnotatedTypeMirror>>> entry :
+                text.fakeOverrides.entrySet()) {
+            List<IPair<TypeMirror, AnnotatedTypeMirror>> binaryList =
+                    binary.fakeOverrides.get(entry.getKey());
+            for (IPair<TypeMirror, AnnotatedTypeMirror> textPair : entry.getValue()) {
+                boolean locationMatched = false;
+                if (binaryList != null) {
+                    for (IPair<TypeMirror, AnnotatedTypeMirror> binaryPair : binaryList) {
+                        if (types.isSameType(binaryPair.first, textPair.first)) {
+                            locationMatched = true;
+                            break;
+                        }
+                    }
+                }
+                if (!locationMatched) {
+                    reports.add(
+                            String.format(
+                                    "%s: fakeOverrides[%s]: text location %s has no binary"
+                                            + " counterpart",
+                                    className, entry.getKey(), textPair.first));
                 }
             }
         }
@@ -858,10 +1068,11 @@ public class BinaryStubDiffChecker {
      *       running against the full JDK classpath at build time, resolves and keeps.
      * </ul>
      *
-     * <p>No checker consumes any of those from an annotation file, so the asymmetry is benign; see
-     * the caller-side comment in {@link #compareClass}. A platform annotation that a checker
-     * <em>does</em> alias (say {@code javax.annotation.Nullable}) is still compared: {@code javax.}
-     * is not on the excluded list.
+     * <p>A platform annotation that this checker <em>can</em> act on is compared even so: one it
+     * supports as a qualifier, or aliases to one ({@code jdk.jfr.Unsigned} for the Signedness
+     * Checker, {@code com.sun.istack.internal.Interned} for the Interning Checker). The factory
+     * decides that, not the package name, so the exclusion never hides an annotation a checker
+     * would have consumed.
      *
      * <p>{@code CFComment} is excluded for a different reason: it is documentation for humans with
      * no effect on checking, and the text parser drops it whenever its value uses string
@@ -871,7 +1082,8 @@ public class BinaryStubDiffChecker {
      * @param annos the annotation set, may be {@code null}
      * @return the sorted names of the annotations that are compared
      */
-    private static Set<String> comparedAnnotationNames(@Nullable AnnotationMirrorSet annos) {
+    private static Set<String> comparedAnnotationNames(
+            @Nullable AnnotationMirrorSet annos, AnnotatedTypeFactory atypeFactory) {
         Set<String> names = new TreeSet<>();
         if (annos != null) {
             for (AnnotationMirror am : annos) {
@@ -881,16 +1093,37 @@ public class BinaryStubDiffChecker {
                 // one), so comparing against the literal below with != is a correct, cheap
                 // identity check, not a bug -- do not "fix" this to .equals().
                 String name = AnnotationUtils.annotationName(am);
-                if (!name.startsWith("java.")
-                        && !name.startsWith("jdk.")
-                        && !name.startsWith("sun.")
-                        && !name.startsWith("com.sun.")
-                        && name != BinaryStubData.CF_COMMENT) {
-                    names.add(name);
+                if (name == BinaryStubData.CF_COMMENT) {
+                    continue;
                 }
+                // A platform annotation is excluded only if this checker cannot act on it. Asking
+                // the factory, rather than trusting the package name, is what makes the rule "an
+                // annotation a checker could act on is compared" true: a checker can alias an
+                // annotation out of any package, including the platform's own (the Signedness
+                // Checker aliases jdk.jfr.Unsigned, the Interning Checker
+                // com.sun.istack.internal.Interned).
+                if (isPlatformAnnotationName(name)
+                        && !atypeFactory.isSupportedQualifier(am)
+                        && atypeFactory.canonicalAnnotation(am) == null) {
+                    continue;
+                }
+                names.add(name);
             }
         }
         return names;
+    }
+
+    /**
+     * Returns true if {@code name} names an annotation declared by the Java platform itself.
+     *
+     * @param name the fully-qualified name of an annotation
+     * @return true if the annotation is the Java platform's own
+     */
+    private static boolean isPlatformAnnotationName(String name) {
+        return name.startsWith("java.")
+                || name.startsWith("jdk.")
+                || name.startsWith("sun.")
+                || name.startsWith("com.sun.");
     }
 
     /**
