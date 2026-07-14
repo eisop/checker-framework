@@ -567,36 +567,65 @@ public class BinaryStubDiffChecker {
             // A missing entry for a record that promises annotations is reported by the caller.
             return;
         }
-        Set<String> promised = new TreeSet<>();
+
+        Set<String> promisedPrimary = new TreeSet<>();
         for (int annoIdx : tp.typeVarAnnos) {
-            promised.add(data.stringPool[data.annotationPool[annoIdx].nameIndex]);
+            promisedPrimary.add(data.stringPool[data.annotationPool[annoIdx].nameIndex]);
         }
-        for (BinaryStubData.TypeAnno[] boundList : tp.boundAnnos) {
-            for (BinaryStubData.TypeAnno ta : boundList) {
-                promised.add(data.stringPool[data.annotationPool[ta.annoIndex].nameIndex]);
+        promisedPrimary.removeIf(name -> !atypeFactory.isSupportedQualifier(name));
+        if (!promisedPrimary.isEmpty()) {
+            Set<String> appliedPrimary = new TreeSet<>();
+            for (AnnotationMirror am : binaryAtm.getAnnotations()) {
+                appliedPrimary.add(AnnotationUtils.annotationName(am));
+            }
+            promisedPrimary.removeAll(appliedPrimary);
+            for (String missing : promisedPrimary) {
+                reports.add(
+                        String.format(
+                                "%s: %s: the binary record names %s but it was not applied to %s",
+                                className, what, missing, binaryAtm));
             }
         }
-        promised.removeIf(name -> !atypeFactory.isSupportedQualifier(name));
-        if (promised.isEmpty()) {
-            return;
-        }
-        Set<String> applied = new TreeSet<>();
-        // AnnotatedTypeScanner visits every component of the type, including a type variable's
-        // bounds, and is cycle-safe.
-        new SimpleAnnotatedTypeScanner<Void, Set<String>>(
-                        (type, names) -> {
-                            for (AnnotationMirror am : type.getAnnotations()) {
-                                names.add(AnnotationUtils.annotationName(am));
-                            }
-                            return null;
-                        })
-                .visit(binaryAtm, applied);
-        promised.removeAll(applied);
-        for (String missing : promised) {
-            reports.add(
-                    String.format(
-                            "%s: %s: the binary record names %s but it was not applied to %s",
-                            className, what, missing, binaryAtm));
+
+        if (binaryAtm instanceof AnnotatedTypeVariable) {
+            AnnotatedTypeMirror upperBound = ((AnnotatedTypeVariable) binaryAtm).getUpperBound();
+            List<AnnotatedTypeMirror> atmBounds;
+            if (upperBound instanceof AnnotatedIntersectionType) {
+                atmBounds = ((AnnotatedIntersectionType) upperBound).getBounds();
+            } else {
+                atmBounds = Collections.singletonList(upperBound);
+            }
+            for (int i = 0; i < tp.boundAnnos.length && i < atmBounds.size(); i++) {
+                BinaryStubData.TypeAnno[] boundAnnos = tp.boundAnnos[i];
+                if (boundAnnos.length == 0) continue;
+                Set<String> promisedBound = new TreeSet<>();
+                for (BinaryStubData.TypeAnno ta : boundAnnos) {
+                    promisedBound.add(data.stringPool[data.annotationPool[ta.annoIndex].nameIndex]);
+                }
+                promisedBound.removeIf(name -> !atypeFactory.isSupportedQualifier(name));
+                if (promisedBound.isEmpty()) continue;
+
+                Set<String> appliedBound = new TreeSet<>();
+                new SimpleAnnotatedTypeScanner<Void, Set<String>>(
+                                (type, names) -> {
+                                    for (AnnotationMirror am : type.getAnnotations()) {
+                                        names.add(AnnotationUtils.annotationName(am));
+                                    }
+                                    return null;
+                                })
+                        .visit(atmBounds.get(i), appliedBound);
+
+                promisedBound.removeAll(appliedBound);
+                for (String missing : promisedBound) {
+                    reports.add(
+                            String.format(
+                                    "%s: %s: the binary record names %s but it was not applied to %s",
+                                    className,
+                                    "bound " + i + " of " + what,
+                                    missing,
+                                    atmBounds.get(i)));
+                }
+            }
         }
     }
 
