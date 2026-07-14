@@ -2417,7 +2417,7 @@ public class BinaryStubWriter {
 
         @Override
         public void visit(MethodDeclaration n, Void arg) {
-            sb.append(n.getName());
+            sb.append(n.getNameAsString());
             appendParameters(n.getParameters(), arg);
         }
 
@@ -2448,7 +2448,7 @@ public class BinaryStubWriter {
 
         @Override
         public void visit(ClassOrInterfaceType n, Void arg) {
-            sb.append(n.getName());
+            sb.append(n.getNameAsString());
         }
 
         @Override
