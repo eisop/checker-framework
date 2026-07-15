@@ -416,7 +416,15 @@ public class JavaParserUtil {
         return null;
     }
 
-    /** Visitor that combines added String literals, see {@link #concatenateAddedStringLiterals}. */
+    /**
+     * Visitor that combines String literals in binary "+" expressions to match javac's
+     * constant-folding behavior. javac folds only {@code String + String} concatenation in the AST
+     * (not {@code char + String}, {@code null + String}, etc.), so this visitor must mirror that
+     * precisely to keep the JavaParser AST in sync with javac's tree during the joint traversal
+     * performed by {@link org.checkerframework.framework.ajava.JointJavacJavaParserVisitor}.
+     *
+     * @see #concatenateAddedStringLiterals
+     */
     public static class StringLiteralConcatenateVisitor extends VoidVisitorAdapter<Void> {
 
         /** Creates a new StringLiteralConcatenateVisitor. */
@@ -425,34 +433,28 @@ public class JavaParserUtil {
         @Override
         public void visit(BinaryExpr node, Void p) {
             super.visit(node, p);
-            if (node.getOperator() == BinaryExpr.Operator.PLUS && containsStringLiteral(node)) {
-                String result = evaluateStringLiteralConcatenation(node);
-                if (result != null) {
-                    node.replace(new StringLiteralExpr(result));
+            if (node.getOperator() == BinaryExpr.Operator.PLUS
+                    && node.getRight().isStringLiteralExpr()) {
+                String right = node.getRight().asStringLiteralExpr().getValue();
+                if (node.getLeft().isStringLiteralExpr()) {
+                    // String + String → fold into a single StringLiteralExpr.
+                    String left = node.getLeft().asStringLiteralExpr().getValue();
+                    node.replace(new StringLiteralExpr(left + right));
+                } else if (node.getLeft().isBinaryExpr()) {
+                    // expr + strLit + strLit → fold the two rightmost string literals.
+                    // This matches javac's partial folding of adjacent string constants.
+                    BinaryExpr leftExpr = node.getLeft().asBinaryExpr();
+                    if (leftExpr.getOperator() == BinaryExpr.Operator.PLUS
+                            && leftExpr.getRight().isStringLiteralExpr()) {
+                        String left = leftExpr.getRight().asStringLiteralExpr().getValue();
+                        node.replace(
+                                new BinaryExpr(
+                                        leftExpr.getLeft(),
+                                        new StringLiteralExpr(left + right),
+                                        BinaryExpr.Operator.PLUS));
+                    }
                 }
             }
-        }
-
-        /**
-         * Returns true if the expression contains a string literal (possibly nested inside
-         * parentheses or binary addition).
-         *
-         * @param expr the expression to check
-         * @return true if a string literal is found
-         */
-        private boolean containsStringLiteral(Expression expr) {
-            if (expr instanceof StringLiteralExpr) {
-                return true;
-            } else if (expr instanceof EnclosedExpr) {
-                return containsStringLiteral(((EnclosedExpr) expr).getInner());
-            } else if (expr instanceof BinaryExpr) {
-                BinaryExpr be = (BinaryExpr) expr;
-                if (be.getOperator() == BinaryExpr.Operator.PLUS) {
-                    return containsStringLiteral(be.getLeft())
-                            || containsStringLiteral(be.getRight());
-                }
-            }
-            return false;
         }
     }
 
