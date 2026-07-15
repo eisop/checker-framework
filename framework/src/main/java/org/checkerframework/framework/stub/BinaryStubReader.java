@@ -365,7 +365,8 @@ public class BinaryStubReader {
             if (!typeAlreadyPresent) {
                 AnnotatedTypeMirror storedType = target.atypes.get(typeElt);
                 if (storedType == null) {
-                    // cr.typeParams was empty, so applyClassTypeParams did not run; create one now.
+                    // anyTypeParamAnnotated was false, so applyClassTypeParams did not run; create
+                    // one now.
                     storedType =
                             AnnotatedTypeMirror.createType(typeElt.asType(), atypeFactory, false);
                     target.atypes.put(typeElt, storedType);
@@ -1216,10 +1217,11 @@ public class BinaryStubReader {
      */
     private static void markFromStubFile(
             AnnotationFileAnnotations target, Element elt, AnnotationMirror fromStubFileAnno) {
-        AnnotationMirrorSet marker = new AnnotationMirrorSet();
-        marker.add(fromStubFileAnno);
         mergeDeclAnnos(
-                target, ElementUtils.getQualifiedName(elt), marker, /* fromLazyJdk= */ false);
+                target,
+                ElementUtils.getQualifiedName(elt),
+                AnnotationMirrorSet.singleton(fromStubFileAnno),
+                /* fromLazyJdk= */ false);
     }
 
     /**
