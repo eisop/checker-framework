@@ -21,6 +21,7 @@ import com.sun.source.tree.UnaryTree;
 import com.sun.source.tree.VariableTree;
 import com.sun.source.util.SimpleTreeVisitor;
 
+import org.checkerframework.checker.compilermsgs.qual.CompilerMessageKey;
 import org.checkerframework.checker.initialization.InitializationFieldAccessAnnotatedTypeFactory;
 import org.checkerframework.checker.initialization.InitializationFieldAccessSubchecker;
 import org.checkerframework.checker.initialization.InitializationFieldAccessTreeAnnotator;
@@ -847,7 +848,7 @@ public class NullnessNoInitAnnotatedTypeFactory
      * @return the diagnostic message key explaining why the copy is unsafe, or null if it's safe or
      *     not an Arrays.copyOf call
      */
-    public String getCopyOfUnsafeReason(MethodInvocationTree tree) {
+    public @Nullable @CompilerMessageKey String getCopyOfUnsafeReason(MethodInvocationTree tree) {
         if (TreeUtils.isMethodInvocation(tree, copyOfMethods, processingEnv)) {
             List<? extends ExpressionTree> args = tree.getArguments();
             ExpressionTree arrayArg = args.get(0);
