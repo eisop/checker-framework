@@ -378,7 +378,13 @@ public class AnnotationBuilder {
         }
     }
 
-    /** Set the element/field with the given name, to the given value. */
+    /**
+     * Set the element/field with the given name, to the given value.
+     *
+     * @param elementName the element/field name
+     * @param value the new value for the element/field
+     * @return this
+     */
     public AnnotationBuilder setValue(CharSequence elementName, AnnotationMirror value) {
         setValue(elementName, (Object) value);
         return this;
@@ -423,47 +429,112 @@ public class AnnotationBuilder {
         return this;
     }
 
-    /** Set the element/field with the given name, to the given value. */
+    /**
+     * Set the element/field with the given name, to the given value.
+     *
+     * @param elementName the element/field name
+     * @param values the new value for the element/field
+     * @return this
+     */
     public AnnotationBuilder setValue(CharSequence elementName, Object[] values) {
         return setValue(elementName, Arrays.asList(values));
     }
 
-    /** Set the element/field with the given name, to the given value. */
+    /**
+     * Set the element/field with the given name, to the given value.
+     *
+     * @param elementName the element/field name
+     * @param value the new value for the element/field
+     * @return this
+     */
     public AnnotationBuilder setValue(CharSequence elementName, Boolean value) {
         return setValue(elementName, (Object) value);
     }
 
-    /** Set the element/field with the given name, to the given value. */
+    /**
+     * Set the element/field with the given name, to the given value.
+     *
+     * @param elementName the element/field name
+     * @param value the new value for the element/field
+     * @return this
+     */
+    public AnnotationBuilder setValue(CharSequence elementName, Byte value) {
+        return setValue(elementName, (Object) value);
+    }
+
+    /**
+     * Set the element/field with the given name, to the given value.
+     *
+     * @param elementName the element/field name
+     * @param value the new value for the element/field
+     * @return this
+     */
     public AnnotationBuilder setValue(CharSequence elementName, Character value) {
         return setValue(elementName, (Object) value);
     }
 
-    /** Set the element/field with the given name, to the given value. */
+    /**
+     * Set the element/field with the given name, to the given value.
+     *
+     * @param elementName the element/field name
+     * @param value the new value for the element/field
+     * @return this
+     */
     public AnnotationBuilder setValue(CharSequence elementName, Double value) {
         return setValue(elementName, (Object) value);
     }
 
-    /** Set the element/field with the given name, to the given value. */
+    /**
+     * Set the element/field with the given name, to the given value.
+     *
+     * @param elementName the element/field name
+     * @param value the new value for the element/field
+     * @return this
+     */
     public AnnotationBuilder setValue(CharSequence elementName, Float value) {
         return setValue(elementName, (Object) value);
     }
 
-    /** Set the element/field with the given name, to the given value. */
+    /**
+     * Set the element/field with the given name, to the given value.
+     *
+     * @param elementName the element/field name
+     * @param value the new value for the element/field
+     * @return this
+     */
     public AnnotationBuilder setValue(CharSequence elementName, Integer value) {
         return setValue(elementName, (Object) value);
     }
 
-    /** Set the element/field with the given name, to the given value. */
+    /**
+     * Set the element/field with the given name, to the given value.
+     *
+     * @param elementName the element/field name
+     * @param value the new value for the element/field
+     * @return this
+     */
     public AnnotationBuilder setValue(CharSequence elementName, Long value) {
         return setValue(elementName, (Object) value);
     }
 
-    /** Set the element/field with the given name, to the given value. */
+    /**
+     * Set the element/field with the given name, to the given value.
+     *
+     * @param elementName the element/field name
+     * @param value the new value for the element/field
+     * @return this
+     */
     public AnnotationBuilder setValue(CharSequence elementName, Short value) {
         return setValue(elementName, (Object) value);
     }
 
-    /** Set the element/field with the given name, to the given value. */
+    /**
+     * Set the element/field with the given name, to the given value.
+     *
+     * @param elementName the element/field name
+     * @param value the new value for the element/field
+     * @return this
+     */
     public AnnotationBuilder setValue(CharSequence elementName, String value) {
         return setValue(elementName, (Object) value);
     }
@@ -628,7 +699,19 @@ public class AnnotationBuilder {
         throw new BugInCF("cannot be here");
     }
 
-    private AnnotationBuilder setValue(CharSequence key, Object value) {
+    /**
+     * Set the element/field with the given name, to the given value. This is the generic fallback
+     * that the typed {@code setValue} overloads above (for {@code Boolean}, {@code Byte}, {@code
+     * Character}, {@code Double}, {@code Float}, {@code Integer}, {@code Long}, {@code Short},
+     * {@code String}, and {@code AnnotationMirror}) all delegate to; call it directly if the caller
+     * already holds an {@code Object} of one of those supported types.
+     *
+     * @param key the element/field name
+     * @param value the new value for the element/field; must be an instance of one of the types
+     *     supported by the typed {@code setValue} overloads
+     * @return this
+     */
+    public AnnotationBuilder setValue(CharSequence key, Object value) {
         assertNotBuilt();
         AnnotationValue val = createValue(value);
         ExecutableElement var = findElement(key);
@@ -933,6 +1016,8 @@ public class AnnotationBuilder {
                 return v.visitArray((List<? extends AnnotationValue>) value, p);
             } else if (value instanceof Boolean) {
                 return v.visitBoolean((Boolean) value, p);
+            } else if (value instanceof Byte) {
+                return v.visitByte((Byte) value, p);
             } else if (value instanceof Character) {
                 return v.visitChar((Character) value, p);
             } else if (value instanceof Double) {

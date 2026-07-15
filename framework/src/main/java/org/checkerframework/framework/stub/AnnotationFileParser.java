@@ -43,6 +43,7 @@ import com.github.javaparser.ast.expr.NullLiteralExpr;
 import com.github.javaparser.ast.expr.SingleMemberAnnotationExpr;
 import com.github.javaparser.ast.expr.StringLiteralExpr;
 import com.github.javaparser.ast.expr.UnaryExpr;
+import com.github.javaparser.ast.modules.ModuleDeclaration;
 import com.github.javaparser.ast.nodeTypes.NodeWithRange;
 import com.github.javaparser.ast.nodeTypes.NodeWithTypeParameters;
 import com.github.javaparser.ast.nodeTypes.modifiers.NodeWithAccessModifiers;
@@ -86,7 +87,6 @@ import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TypesUtils;
 import org.checkerframework.javacutil.UserError;
 import org.plumelib.util.ArrayMap;
-import org.plumelib.util.CollectionsPlume;
 import org.plumelib.util.IPair;
 import org.plumelib.util.SystemPlume;
 
@@ -120,7 +120,6 @@ import javax.lang.model.type.ArrayType;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
-import javax.lang.model.type.TypeVariable;
 import javax.lang.model.util.ElementFilter;
 import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
@@ -363,56 +362,70 @@ public class AnnotationFileParser {
          * either from explicit annotations on the constructor in the stubs, otherwise it's taken
          * from the annotations on the record components in the stubs.
          *
+         * @param atypes the annotated types from all annotation files, keyed by element; every
+         *     component of this record has an entry in it
          * @return the annotated types for the parameters to the canonical constructor
          */
-        public List<AnnotatedTypeMirror> getComponentsInCanonicalConstructor() {
+        public List<AnnotatedTypeMirror> getComponentsInCanonicalConstructor(
+                Map<Element, AnnotatedTypeMirror> atypes) {
             if (componentsInCanonicalConstructor != null) {
                 return componentsInCanonicalConstructor;
-            } else {
-                return CollectionsPlume.mapList(c -> c.type, componentsByName.values());
             }
+            List<AnnotatedTypeMirror> result = new ArrayList<>(componentsByName.size());
+            for (RecordComponentStub component : componentsByName.values()) {
+                AnnotatedTypeMirror componentType = atypes.get(component.elt);
+                if (componentType == null) {
+                    // Every source of a RecordComponentStub also stores the component's type:
+                    // processRecordField's putMerge, and BinaryStubReader's storeOrMerge.
+                    throw new BugInCF("No annotated type for record component " + component.elt);
+                }
+                result.add(componentType);
+            }
+            return result;
         }
     }
 
     /**
-     * Information about a record component: its type, and whether there was an accessor in the
-     * stubs for that component. That is, for a component "foo" was there a method named exactly
-     * "foo()" in the stubs. If so, annotations on that accessor will take precedence over
-     * annotations that would otherwise be copied from the component in the stubs to the acessor.
+     * Information about a record component: the component's element, and whether there was an
+     * accessor in the stubs for that component. That is, for a component "foo" was there a method
+     * named exactly "foo()" in the stubs. If so, annotations on that accessor will take precedence
+     * over annotations that would otherwise be copied from the component in the stubs to the
+     * acessor.
+     *
+     * <p>The component's type and declaration annotations are not stored here; they are in {@code
+     * annotationFileAnnos.atypes} and {@code annotationFileAnnos.declAnnos}, keyed by {@link #elt},
+     * so that they are merged across annotation files like those of any other declaration.
      */
     public static class RecordComponentStub {
-        /** The type of the record component. */
-        public final AnnotatedTypeMirror type;
-
-        /**
-         * The set of all annotations on the declaration of the record component. If applicable
-         * these will be copied to the corresponding field, accessor method, and compact canonical
-         * constructor parameter.
-         */
-        private final AnnotationMirrorSet allAnnotations;
+        /** The variable element of the record component. */
+        public final VariableElement elt;
 
         /** Whether this component has an accessor of exactly the same name in the stubs file. */
         private boolean hasAccessorInStubs = false;
 
         /**
-         * Creates a new RecordComponentStub with the given type.
+         * Creates a new RecordComponentStub with the given element.
          *
-         * @param type the type of the record component
-         * @param allAnnotations the declaration annotations on the component
+         * @param elt the variable element of the record component
          */
-        public RecordComponentStub(AnnotatedTypeMirror type, AnnotationMirrorSet allAnnotations) {
-            this.type = type;
-            this.allAnnotations = allAnnotations;
+        public RecordComponentStub(VariableElement elt) {
+            this.elt = elt;
         }
 
         /**
          * Get the record component annotations that are applicable to the given element kind.
          *
          * @param elementKind the element kind to apply to (e.g., FIELD, METHOD)
+         * @param declAnnos the global map of declaration annotations
          * @return the set of annotations from the component that apply
          */
-        public AnnotationMirrorSet getAnnotationsForTarget(ElementKind elementKind) {
+        public AnnotationMirrorSet getAnnotationsForTarget(
+                ElementKind elementKind, Map<String, AnnotationMirrorSet> declAnnos) {
             AnnotationMirrorSet filtered = new AnnotationMirrorSet();
+            AnnotationMirrorSet allAnnotations = declAnnos.get(ElementUtils.getQualifiedName(elt));
+            if (allAnnotations == null) {
+                return filtered;
+            }
             for (AnnotationMirror annoMirror : allAnnotations) {
                 Target target =
                         annoMirror.getAnnotationType().asElement().getAnnotation(Target.class);
@@ -432,6 +445,15 @@ public class AnnotationFileParser {
          */
         public boolean hasAccessorInStubs() {
             return hasAccessorInStubs;
+        }
+
+        /**
+         * Marks this record component as having an explicit accessor in a stub file: an accessor
+         * written in the stub file being parsed, or the {@code hasAccessor} flag of a serialized
+         * component record.
+         */
+        public void setHasAccessorInStubs() {
+            hasAccessorInStubs = true;
         }
     }
 
@@ -908,6 +930,10 @@ public class AnnotationFileParser {
             typeBeingParsed = new FqName(null, null);
         }
 
+        if (cu.getModule().isPresent()) {
+            processModule(cu.getModule().get());
+        }
+
         if (fileType.isStub()) {
             if (cu.getTypes() != null) {
                 for (TypeDeclaration<?> typeDeclaration : cu.getTypes()) {
@@ -948,6 +974,28 @@ public class AnnotationFileParser {
             recordDeclAnnotation(elem, packDecl.getAnnotations(), packDecl);
         }
         // TODO: Handle atypes???
+    }
+
+    /**
+     * Process the given module declaration: copy its annotations to {@code #annotationFileAnnos}.
+     * Mirrors {@link #processPackage}; a module declaration has no atypes-worthy structure (it is
+     * not a type), only declaration annotations.
+     *
+     * @param modDecl the module declaration to process
+     */
+    private void processModule(ModuleDeclaration modDecl) {
+        assert (modDecl != null);
+        if (!isAnnotatedForThisChecker(modDecl.getAnnotations())) {
+            return;
+        }
+        String moduleName = modDecl.getNameAsString();
+        Element elem = ElementUtils.getModuleElement(elements, moduleName);
+        // If the element lookup fails (that is, elem == null), it's because we have an annotation
+        // for a module that isn't on the classpath (or the current JDK predates the module
+        // system), which is fine.
+        if (elem != null) {
+            recordDeclAnnotation(elem, modDecl.getAnnotations(), modDecl);
+        }
     }
 
     /**
@@ -1127,8 +1175,7 @@ public class AnnotationFileParser {
                                         typeElt, recordMember.getNameAsString(), recordMember));
                 byName.put(recordMember.getNameAsString(), stub);
             }
-            annotationFileAnnos.records.put(
-                    recordDecl.getFullyQualifiedName().get(), new RecordStub(byName));
+            putMergeRecords(recordDecl.getFullyQualifiedName().get(), new RecordStub(byName));
         }
 
         IPair<Map<Element, BodyDeclaration<?>>, Map<Element, List<BodyDeclaration<?>>>> members =
@@ -1171,6 +1218,17 @@ public class AnnotationFileParser {
                     processTypeDecl((EnumDeclaration) decl, innerName, null);
                     break;
                 default:
+                    // A nested record is handled here rather than in a "case RECORD:" label,
+                    // because ElementKind.RECORD does not exist before JDK 16 and this code must
+                    // compile under JDK 8; see ElementUtils.isRecordElement, which the rest of the
+                    // framework uses for the same reason. Without this, a record declared inside
+                    // another type was ignored entirely: neither its components nor any of its
+                    // members received the annotations written on them in the annotation file.
+                    if (ElementUtils.isRecordElement(elt) && decl instanceof TypeDeclaration) {
+                        // Not processing an ajava file, so ignore the return value.
+                        processTypeDecl((TypeDeclaration<?>) decl, innerName, null);
+                        break;
+                    }
                     /* do nothing */
                     stubWarnNotFound(decl, "AnnotationFileParser ignoring: " + elt);
                     break;
@@ -1394,7 +1452,7 @@ public class AnnotationFileParser {
                     RecordComponentStub recordComponentStub =
                             recordStub.componentsByName.get(methodDeclaration.getNameAsString());
                     if (recordComponentStub != null) {
-                        recordComponentStub.hasAccessorInStubs = true;
+                        recordComponentStub.setHasAccessorInStubs();
                     }
                 }
             }
@@ -1724,7 +1782,7 @@ public class AnnotationFileParser {
                             null,
                             astNode);
                     annotate(wildcardType.getExtendsBound(), primaryAnnotations, astNode);
-                } else if (primaryAnnotations.isEmpty()) {
+                } else if (primaryAnnotations.isEmpty() && wildcardType.getTypeVariable() != null) {
                     // Unannotated unbounded wildcard "?": remove any existing annotations and
                     // add the annotations from the type variable corresponding to the wildcard.
                     wildcardType.getExtendsBound().clearAnnotations();
@@ -1739,6 +1797,18 @@ public class AnnotationFileParser {
                     wildcardType
                             .getSuperBound()
                             .addAnnotations(atv.getLowerBound().getAnnotations());
+                } else if (primaryAnnotations.isEmpty()) {
+                    // Unannotated unbounded wildcard "?" whose corresponding type variable could
+                    // not be determined (AnnotatedWildcardType#getTypeVariable can be null -- it is
+                    // only set while building a declared type's type arguments, see
+                    // AnnotatedDeclaredType#getTypeArguments and BoundsInitializer): leave the
+                    // wildcard's bounds as already computed by the type factory rather than
+                    // crashing. This previously threw an uncaught NullPointerException while
+                    // parsing an unbounded wildcard type argument (e.g. Class<?>) for some JDK
+                    // releases (e.g. --release 8), silently aborting all remaining processing of
+                    // the enclosing stub file -- observed via -AbinaryStubDiffCheck forcing a full
+                    // re-parse of every JDK stub file, which ordinary lazy per-reference parsing
+                    // had never exercised for this combination before.
                 } else {
                     // Annotated unbounded wildcard "@A ?": use annotations.
                     annotate(atype, primaryAnnotations, astNode);
@@ -1814,12 +1884,7 @@ public class AnnotationFileParser {
 
         annotate(fieldType, decl.getType(), decl.getAnnotations(), decl);
         putMerge(annotationFileAnnos.atypes, elt, fieldType);
-        AnnotationMirrorSet annos = new AnnotationMirrorSet();
-        for (AnnotationExpr annotation : decl.getAnnotations()) {
-            AnnotationMirror annoMirror = getAnnotation(annotation, allAnnotations);
-            annos.add(annoMirror);
-        }
-        return new RecordComponentStub(fieldType, annos);
+        return new RecordComponentStub(elt);
     }
 
     /**
@@ -2171,6 +2236,11 @@ public class AnnotationFileParser {
             if (elt != null) {
                 putIfAbsent(elementsToDecl, elt, member);
             }
+        } else if (member instanceof RecordDeclaration) {
+            Element elt = findElement(typeElt, (RecordDeclaration) member);
+            if (elt != null) {
+                putIfAbsent(elementsToDecl, elt, member);
+            }
         } else {
             stubDebug("ignoring element of type %s in %s", member.getClass(), typeDeclName);
         }
@@ -2190,6 +2260,36 @@ public class AnnotationFileParser {
      */
     private @Nullable ExecutableElement fakeOverriddenMethod(
             TypeElement typeElt, MethodDeclaration methodDecl) {
+        // Two passes: first look for a candidate whose every parameter matches exactly; only if
+        // none does, retry accepting any candidate parameter whose type is a type variable.  The
+        // lenient pass is needed because a type-variable parameter's javac type has no textual
+        // form that reliably matches the stub's spelling (see the comment in sameTypes).  But
+        // running only the lenient pass would let a stub parameter such as "String" match a
+        // type-variable parameter "T" -- and "<T> void f(T)" and "void f(String)" legally coexist
+        // as overloads (erasures f(Object) and f(String)), so a fake override "f(String)" could
+        // bind to whichever overload happens to be visited first.  The exact pass binds it to
+        // f(String).
+        ExecutableElement exactMatch =
+                fakeOverriddenMethod(typeElt, methodDecl, /* typevarLenient= */ false);
+        if (exactMatch != null) {
+            return exactMatch;
+        }
+        return fakeOverriddenMethod(typeElt, methodDecl, /* typevarLenient= */ true);
+    }
+
+    /**
+     * Implementation of {@link #fakeOverriddenMethod(TypeElement, MethodDeclaration)} for one
+     * matching mode.
+     *
+     * @param typeElt the type in which the method appears
+     * @param methodDecl the method declaration that does not correspond to an element
+     * @param typevarLenient if true, a candidate parameter whose type is a type variable matches
+     *     any declared parameter type in the same position; see {@link #sameTypes}
+     * @return the methods that the given method declaration would override, or null if none
+     */
+    private @Nullable ExecutableElement fakeOverriddenMethod(
+            TypeElement typeElt, MethodDeclaration methodDecl, boolean typevarLenient) {
+        ExecutableElement match = null;
         for (Element elt : typeElt.getEnclosedElements()) {
             if (elt.getKind() != ElementKind.METHOD) {
                 continue;
@@ -2200,14 +2300,32 @@ public class AnnotationFileParser {
                 continue;
             }
             List<? extends VariableElement> candidateParams = candidate.getParameters();
-            if (sameTypes(candidateParams, methodDecl.getParameters())) {
-                return candidate;
+            if (sameTypes(candidateParams, methodDecl.getParameters(), typevarLenient)) {
+                if (match != null) {
+                    // Two of this type's overloads match. A parameter type is compared by name,
+                    // and a simple or partially-qualified name can be a suffix of more than one
+                    // type's fully-qualified name (see sameType), so this declaration does not say
+                    // which overload it means. Annotating whichever one javac happens to enumerate
+                    // first would be arbitrary, so annotate neither.
+                    warn(
+                            methodDecl,
+                            "fake override %s is ambiguous: it matches both %s and %s. Write its"
+                                    + " parameter types as fully-qualified names.",
+                            methodDecl.getSignature(),
+                            match,
+                            candidate);
+                    return null;
+                }
+                match = candidate;
             }
+        }
+        if (match != null) {
+            return match;
         }
 
         TypeElement superType = ElementUtils.getSuperClass(typeElt);
         if (superType != null) {
-            ExecutableElement result = fakeOverriddenMethod(superType, methodDecl);
+            ExecutableElement result = fakeOverriddenMethod(superType, methodDecl, typevarLenient);
             if (result != null) {
                 return result;
             }
@@ -2216,7 +2334,8 @@ public class AnnotationFileParser {
         for (TypeMirror interfaceTypeMirror : typeElt.getInterfaces()) {
             TypeElement interfaceElement =
                     (TypeElement) ((DeclaredType) interfaceTypeMirror).asElement();
-            ExecutableElement result = fakeOverriddenMethod(interfaceElement, methodDecl);
+            ExecutableElement result =
+                    fakeOverriddenMethod(interfaceElement, methodDecl, typevarLenient);
             if (result != null) {
                 return result;
             }
@@ -2231,21 +2350,47 @@ public class AnnotationFileParser {
      *
      * @param javacParams parameter list in javac form
      * @param javaParserParams parameter list in JavaParser form
+     * @param typevarLenient if true, a javac parameter whose type is a type variable matches any
+     *     JavaParser parameter type in the same position
      * @return true if the two signatures are the same
      */
     private boolean sameTypes(
-            List<? extends VariableElement> javacParams, NodeList<Parameter> javaParserParams) {
+            List<? extends VariableElement> javacParams,
+            NodeList<Parameter> javaParserParams,
+            boolean typevarLenient) {
         if (javacParams.size() != javaParserParams.size()) {
             return false;
         }
         for (int i = 0, n = javacParams.size(); i < n; ++i) {
             TypeMirror javacType = javacParams.get(i).asType();
             Parameter javaParserParam = javaParserParams.get(i);
-            Type javaParserType = javaParserParam.getType();
-            if (javacType.getKind() == TypeKind.TYPEVAR) {
-                // TODO: Hack, need to viewpoint-adapt.
-                javacType = ((TypeVariable) javacType).getUpperBound();
+            if (javaParserParam.isVarArgs()) {
+                // A varargs parameter's getType() is the element type: "..." is a flag on the
+                // Parameter, not part of the Type. Its javac counterpart is an array, so compare
+                // against the component type. Otherwise a stub's "X..." matches a plain "X"
+                // parameter, which made the stub's "union(CharPredicate...)" a fake override of
+                // CharPredicate's unrelated one-argument "union(CharPredicate)".
+                if (javacType.getKind() != TypeKind.ARRAY) {
+                    return false;
+                }
+                javacType = ((ArrayType) javacType).getComponentType();
             }
+            if (typevarLenient && javacType.getKind() == TypeKind.TYPEVAR) {
+                // Accept any declaration in this position.  A type-variable parameter (e.g.
+                // "K key") has no javac textual form that reliably matches the stub's spelling:
+                // an earlier version of this code compared the type variable's upper bound's
+                // element name, e.g. "Object", against the stub's own type-variable reference
+                // name, e.g. "K" -- which are never the same string and so never matched,
+                // permanently dropping fake-override annotations for any method with a
+                // type-variable parameter whenever the corresponding JDK version doesn't declare
+                // the method directly, e.g. TreeMap.computeIfPresent on JDK 11, which only
+                // inherits it from Map.  This leniency can match the wrong overload when a
+                // type-variable parameter overload coexists with a differently-erased one (e.g.
+                // "<T> void f(T)" vs. "void f(String)"), which is why fakeOverriddenMethod only
+                // uses it as a fallback after looking for an exact match.
+                continue;
+            }
+            Type javaParserType = javaParserParam.getType();
             if (!sameType(javacType, javaParserType)) {
                 return false;
             }
@@ -2288,11 +2433,26 @@ public class AnnotationFileParser {
                         (com.sun.tools.javac.code.Type) javacType;
                 ClassOrInterfaceType javaParserClassType = (ClassOrInterfaceType) javaParserType;
 
-                // Use asString() because toString() includes annotations.
-                String javaParserString = javaParserClassType.asString();
+                // Use getNameWithScope(), not asString() or toString(): this method matches an
+                // overload by its (possibly generic) parameter types, e.g. to find a JDK method
+                // that a stub-file fake override applies to, and overload identity depends only on
+                // erasure, not on the exact generic type arguments or annotations written in the
+                // stub -- asString() (unlike getNameWithScope()) includes type arguments, so it
+                // never matched a generic type such as "BiFunction<? super K, ? super V, ? extends
+                // V>" (a mismatch silently and permanently dropped this method's fake-override
+                // annotations wherever the corresponding JDK version doesn't declare the method
+                // directly, e.g. TreeMap.computeIfPresent on JDK 11, which only inherits it from
+                // Map, versus a newer JDK where TreeMap declares it directly and this code path is
+                // never reached at all).
+                String javaParserString = javaParserClassType.getNameWithScope();
                 Element javacElement = javacTypeInternal.asElement();
-                // Check both fully-qualified name and simple name.
-                return javacElement.toString().equals(javaParserString)
+                // Accept the fully-qualified name, the simple name, or a partial qualification: a
+                // suffix at a '.' boundary, such as a stub's "HTML.Tag" against javac's
+                // "javax.swing.text.html.HTML.Tag". Such a name previously matched neither, so a
+                // fake override written with one was silently dropped.
+                String javacString = javacElement.toString();
+                return javacString.equals(javaParserString)
+                        || javacString.endsWith("." + javaParserString)
                         || InternalUtils.sameName(javacElement.getSimpleName(), javaParserString);
 
             case ARRAY:
@@ -2425,6 +2585,29 @@ public class AnnotationFileParser {
                 stubDebug("    %s", method);
             }
         }
+        return null;
+    }
+
+    /**
+     * Looks for the nested record element in the typeElt and returns it if the element has the same
+     * name as the provided record declaration. If the nested element is not found, returns null.
+     *
+     * @param typeElt an element where the nested record element should be looked for
+     * @param recordDecl record declaration whose name should be found among the nested elements of
+     *     typeElt
+     * @return the record element nested in typeElt with the name of the provided record, or null if
+     *     it is not found
+     */
+    private @Nullable Element findElement(TypeElement typeElt, RecordDeclaration recordDecl) {
+        String wantedRecordName = recordDecl.getNameAsString();
+        for (TypeElement typeElement : ElementUtils.getAllTypeElementsIn(typeElt)) {
+            if (InternalUtils.sameName(typeElement.getSimpleName(), wantedRecordName)) {
+                return typeElement;
+            }
+        }
+
+        stubWarnNotFound(
+                recordDecl, "record " + wantedRecordName + " not found in type " + typeElt);
         return null;
     }
 
@@ -3169,6 +3352,34 @@ public class AnnotationFileParser {
             // existingType is already in the map, so no need to put into m.
         } else {
             m.put(key, newType);
+        }
+    }
+
+    /**
+     * Merges a new RecordStub into the existing one in {@code annotationFileAnnos.records}.
+     *
+     * @param key the fully-qualified name of the record
+     * @param newStub the new RecordStub to merge
+     */
+    private void putMergeRecords(String key, RecordStub newStub) {
+        RecordStub existing = annotationFileAnnos.records.get(key);
+        if (existing == null) {
+            annotationFileAnnos.records.put(key, newStub);
+            return;
+        }
+        // Keep the existing RecordStub, so that a canonical constructor recorded from an earlier
+        // stub file (see processCallable, which sets componentsInCanonicalConstructor on the stub
+        // that is already in the map) survives this stub file. A RecordComponentStub holds no
+        // annotations of its own -- the component's type and declaration annotations live in
+        // annotationFileAnnos.atypes and .declAnnos, which are merged across stub files -- so the
+        // only per-component state to carry over is the accessor flag.
+        for (Map.Entry<String, RecordComponentStub> entry : newStub.componentsByName.entrySet()) {
+            RecordComponentStub existingComponent = existing.componentsByName.get(entry.getKey());
+            if (existingComponent == null) {
+                existing.componentsByName.put(entry.getKey(), entry.getValue());
+            } else if (entry.getValue().hasAccessorInStubs()) {
+                existingComponent.setHasAccessorInStubs();
+            }
         }
     }
 
