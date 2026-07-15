@@ -66,6 +66,11 @@ Fixed `permit-nullness-assertion-exception.astub`'s missing `EnsuresNonNullIf`
 import, which caused two spurious warnings for every user passing
 `-Astubs=permit-nullness-assertion-exception.astub`.
 
+The EISOP Checker Framework checks subtyping for receiver's type arguments when
+invoking a method.  The annotations on type arguments of a method receiver
+(e.g., `void test(Box<@NonNull T> this)`) were previously ignored during
+type-checking.
+
 **Implementation details:**
 
 `SourceChecker.reportError` and `SourceChecker.reportWarning` now accept a null
@@ -136,7 +141,7 @@ Other improvements and bug fixes:
 
 **Closed issues:**
 
-eisop#433, eisop#792, eisop#863, eisop#1801.
+typetools#3203, eisop#104, eisop#433, eisop#792, eisop#863, eisop#1801.
 
 
 Version 3.49.5-eisop1 (April 26, 2026)

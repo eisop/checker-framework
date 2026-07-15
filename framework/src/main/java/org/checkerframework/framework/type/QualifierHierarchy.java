@@ -122,6 +122,32 @@ public abstract class QualifierHierarchy {
      */
     public abstract @Nullable AnnotationMirror getPolymorphicAnnotation(AnnotationMirror qualifier);
 
+    /** Cached set of all polymorphic annotations. */
+    private @Nullable AnnotationMirrorSet polymorphicAnnotations = null;
+
+    /**
+     * Returns the set of all polymorphic annotations in all hierarchies.
+     *
+     * @return the set of all polymorphic annotations in all hierarchies
+     */
+    public AnnotationMirrorSet getPolymorphicAnnotations() {
+        if (polymorphicAnnotations == null) {
+            AnnotationMirrorSet polys = new AnnotationMirrorSet();
+            for (AnnotationMirror top : getTopAnnotations()) {
+                AnnotationMirror poly = getPolymorphicAnnotation(top);
+                if (poly != null) {
+                    polys.add(poly);
+                }
+            }
+            if (polys.isEmpty()) {
+                polymorphicAnnotations = AnnotationMirrorSet.emptySet();
+            } else {
+                polymorphicAnnotations = AnnotationMirrorSet.unmodifiableSet(polys);
+            }
+        }
+        return polymorphicAnnotations;
+    }
+
     /**
      * Returns {@code true} if the qualifier is a polymorphic qualifier; otherwise, returns {@code
      * false}.
