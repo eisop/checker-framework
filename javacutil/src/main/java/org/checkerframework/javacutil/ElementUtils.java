@@ -445,6 +445,10 @@ public class ElementUtils {
      * <p>By contrast, {@link ElementUtils#isElementFromByteCode(Element)} returns true if there is
      * a classfile for the given element, even if there is also a source file.
      *
+     * <p>An element with no enclosing type element is not from a source file that is being
+     * compiled, so this returns false for it: a package, or the type variable of a captured
+     * wildcard, which javac synthesizes and which no source file declares.
+     *
      * @param element the element to check, or null
      * @return true if a source file containing the element is being compiled
      */
@@ -454,7 +458,7 @@ public class ElementUtils {
         }
         TypeElement enclosingTypeElement = enclosingTypeElement(element);
         if (enclosingTypeElement == null) {
-            throw new BugInCF("enclosingTypeElement(%s) is null", element);
+            return false;
         }
         return isElementFromSourceCodeImpl((Symbol.ClassSymbol) enclosingTypeElement);
     }
@@ -482,7 +486,13 @@ public class ElementUtils {
      *
      * @param elt some element
      * @return true if the element is declared in ByteCode
+     * @deprecated Use {@code !isElementFromSourceCode(elt)} to check if an element is not being
+     *     compiled from source. If you also need to account for stub files, use {@link
+     *     org.checkerframework.framework.type.AnnotatedTypeFactory#isFromByteCode(Element)}. This
+     *     method is deprecated because its semantics are rarely what is desired: it returns true if
+     *     a classfile exists for the given element, even if it is also being compiled from source.
      */
+    @Deprecated // 2026-07-15
     public static boolean isElementFromByteCode(@Nullable Element elt) {
         if (elt == null) {
             return false;

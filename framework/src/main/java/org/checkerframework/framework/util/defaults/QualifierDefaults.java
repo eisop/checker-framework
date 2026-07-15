@@ -840,17 +840,8 @@ public class QualifierDefaults {
             return false;
         }
 
-        // TODO: I would expect this:
-        //   atypeFactory.isFromByteCode(annotationScope)) {
-        // to work instead of the
-        // isElementFromByteCode/declarationFromElement/isFromStubFile calls,
-        // but it doesn't work correctly and tests fail.
-
         boolean isFromStubFile = atypeFactory.isFromStubFile(annotationScope);
-        boolean isBytecode =
-                ElementUtils.isElementFromByteCode(annotationScope)
-                        && atypeFactory.declarationFromElement(annotationScope) == null
-                        && !isFromStubFile;
+        boolean isBytecode = atypeFactory.isFromByteCode(annotationScope);
         if (isBytecode) {
             return useConservativeDefaultsBytecode
                     && !isElementAnnotatedForThisChecker(annotationScope);

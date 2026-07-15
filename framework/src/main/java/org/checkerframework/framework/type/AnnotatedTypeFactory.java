@@ -1862,7 +1862,18 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         Tree decl = declarationFromElement(elt);
 
         if (decl == null) {
-            type = stubTypes.getAnnotatedTypeMirror(elt);
+            // An annotation file annotates code that is not being compiled: "if file A.java is
+            // being compiled, then by default any stub for class A is ignored" (the manual,
+            // "Using stub classes"); -AmergeStubsWithSource, handled below, is how a user asks for
+            // both. Test that by where the element is declared, not by the absence of a tree:
+            // declarationFromElement returns null for a source element too, whenever `root` is
+            // unset and for a member javac synthesizes and has no tree for, such as a record's
+            // canonical constructor and its accessors.
+            if (!ElementUtils.isElementFromSourceCode(elt)) {
+                type = stubTypes.getAnnotatedTypeMirror(elt);
+            } else {
+                type = null;
+            }
             if (type == null) {
                 type = toAnnotatedType(elt.asType(), ElementUtils.isTypeDeclaration(elt));
                 ElementAnnotationApplier.apply(type, elt, this);
@@ -4787,14 +4798,25 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     }
 
     /**
-     * Returns true if the element is from bytecode and the if the element did not appear in a stub
-     * file. Currently only works for methods, constructors, and fields.
+     * Returns true if the element is from bytecode -- that is, it is not being compiled -- and did
+     * not appear in a stub file.
+     *
+     * <p>"Not being compiled" is decided by where the element is declared ({@link
+     * ElementUtils#isElementFromSourceCode}), not by whether a classfile happens to exist for it
+     * ({@link ElementUtils#isElementFromByteCode}, which is true even when the element is also
+     * being compiled from source), and not by whether a tree happens to be available for it ({@link
+     * #declarationFromElement}, which returns null for a source element too: whenever {@code root}
+     * is unset, and for a member javac synthesizes and has no tree for, such as a record's
+     * canonical constructor and its accessors).
+     *
+     * @param element an element
+     * @return true if the element is from bytecode and did not appear in a stub file
      */
     public boolean isFromByteCode(Element element) {
         if (isFromStubFile(element)) {
             return false;
         }
-        return ElementUtils.isElementFromByteCode(element);
+        return !ElementUtils.isElementFromSourceCode(element);
     }
 
     /**
