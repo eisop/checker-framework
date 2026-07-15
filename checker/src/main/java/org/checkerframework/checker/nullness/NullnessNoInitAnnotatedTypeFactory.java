@@ -1,20 +1,25 @@
 package org.checkerframework.checker.nullness;
 
 import com.sun.source.tree.AnnotationTree;
+import com.sun.source.tree.ArrayAccessTree;
 import com.sun.source.tree.BinaryTree;
 import com.sun.source.tree.CompoundAssignmentTree;
+import com.sun.source.tree.ConditionalExpressionTree;
 import com.sun.source.tree.ExpressionTree;
 import com.sun.source.tree.IdentifierTree;
+import com.sun.source.tree.LiteralTree;
 import com.sun.source.tree.MemberSelectTree;
 import com.sun.source.tree.MethodInvocationTree;
 import com.sun.source.tree.MethodTree;
 import com.sun.source.tree.NewArrayTree;
 import com.sun.source.tree.NewClassTree;
+import com.sun.source.tree.ParenthesizedTree;
 import com.sun.source.tree.ReturnTree;
 import com.sun.source.tree.Tree;
 import com.sun.source.tree.TypeCastTree;
 import com.sun.source.tree.UnaryTree;
 import com.sun.source.tree.VariableTree;
+import com.sun.source.util.SimpleTreeVisitor;
 
 import org.checkerframework.checker.initialization.InitializationFieldAccessAnnotatedTypeFactory;
 import org.checkerframework.checker.initialization.InitializationFieldAccessSubchecker;
@@ -755,24 +760,117 @@ public class NullnessNoInitAnnotatedTypeFactory
                 List<? extends ExpressionTree> args = tree.getArguments();
                 ExpressionTree lengthArg = args.get(1);
                 if (TreeUtils.isArrayLengthAccess(lengthArg)) {
-                    // TODO: This syntactic test may not be not correct if the array expression has
-                    // a side effect that affects the array length.  This code could require that
-                    // the expression has no method calls, assignments, etc.
                     ExpressionTree arrayArg = args.get(0);
-                    if (TreeUtils.sameTree(
-                            arrayArg, ((MemberSelectTree) lengthArg).getExpression())) {
+                    if (TreeUtils.sameTree(arrayArg, ((MemberSelectTree) lengthArg).getExpression())
+                            && Boolean.TRUE.equals(pureExpressionVisitor.visit(arrayArg, null))) {
                         AnnotatedArrayType arrayArgType =
                                 (AnnotatedArrayType) getAnnotatedType(arrayArg);
                         AnnotatedTypeMirror arrayArgComponentType = arrayArgType.getComponentType();
-                        // Maybe this call is only necessary if argNullness is @NonNull.
                         ((AnnotatedArrayType) type)
-                                .getComponentType()
-                                .replaceAnnotations(arrayArgComponentType.getAnnotations());
+                                .setComponentType(arrayArgComponentType.deepCopy());
                     }
                 }
             }
             return super.visitMethodInvocation(tree, type);
         }
+    }
+
+    /**
+     * A visitor that determines if an expression is pure (i.e. side-effect-free and deterministic).
+     * Used for safely optimizing Arrays.copyOf assignments when the length argument matches the
+     * array.
+     */
+    private final SimpleTreeVisitor<Boolean, Void> pureExpressionVisitor =
+            new SimpleTreeVisitor<Boolean, Void>(false) {
+                @Override
+                public Boolean visitIdentifier(IdentifierTree node, Void p) {
+                    return true;
+                }
+
+                @Override
+                public Boolean visitMemberSelect(MemberSelectTree node, Void p) {
+                    return visit(node.getExpression(), p);
+                }
+
+                @Override
+                public Boolean visitArrayAccess(ArrayAccessTree node, Void p) {
+                    return visit(node.getExpression(), p) && visit(node.getIndex(), p);
+                }
+
+                @Override
+                public Boolean visitLiteral(LiteralTree node, Void p) {
+                    return true;
+                }
+
+                @Override
+                public Boolean visitTypeCast(TypeCastTree node, Void p) {
+                    return visit(node.getExpression(), p);
+                }
+
+                @Override
+                public Boolean visitParenthesized(ParenthesizedTree node, Void p) {
+                    return visit(node.getExpression(), p);
+                }
+
+                @Override
+                public Boolean visitMethodInvocation(MethodInvocationTree node, Void p) {
+                    ExecutableElement methodElement = TreeUtils.elementFromUse(node);
+                    if (methodElement == null
+                            || !isDeterministic(methodElement)
+                            || !isSideEffectFree(methodElement)) {
+                        return false;
+                    }
+                    if (!visit(node.getMethodSelect(), p)) {
+                        return false;
+                    }
+                    for (Tree arg : node.getArguments()) {
+                        if (!visit(arg, p)) {
+                            return false;
+                        }
+                    }
+                    return true;
+                }
+
+                @Override
+                public Boolean visitConditionalExpression(ConditionalExpressionTree node, Void p) {
+                    return visit(node.getCondition(), p)
+                            && visit(node.getTrueExpression(), p)
+                            && visit(node.getFalseExpression(), p);
+                }
+            };
+
+    /**
+     * Returns the message key for why a call to Arrays.copyOf cannot return an array of
+     * {@code @NonNull} elements, or null if the call is safe or not applicable.
+     *
+     * @param tree the method invocation tree to analyze
+     * @return the diagnostic message key explaining why the copy is unsafe, or null if it's safe or
+     *     not an Arrays.copyOf call
+     */
+    public String getCopyOfUnsafeReason(MethodInvocationTree tree) {
+        if (TreeUtils.isMethodInvocation(tree, copyOfMethods, processingEnv)) {
+            List<? extends ExpressionTree> args = tree.getArguments();
+            ExpressionTree arrayArg = args.get(0);
+            AnnotatedTypeMirror arrayArgType = getAnnotatedType(arrayArg);
+            if (arrayArgType instanceof AnnotatedArrayType) {
+                AnnotatedTypeMirror arrayArgComponentType =
+                        ((AnnotatedArrayType) arrayArgType).getComponentType();
+                if (arrayArgComponentType.hasEffectiveAnnotation(NonNull.class)) {
+                    ExpressionTree lengthArg = args.get(1);
+                    if (!TreeUtils.isArrayLengthAccess(lengthArg)) {
+                        return "arrays.copyof.size.mismatch";
+                    }
+                    if (!TreeUtils.sameTree(
+                            arrayArg, ((MemberSelectTree) lengthArg).getExpression())) {
+                        return "arrays.copyof.array.mismatch";
+                    }
+                    if (!Boolean.TRUE.equals(pureExpressionVisitor.visit(arrayArg, null))) {
+                        return "arrays.copyof.impure";
+                    }
+                }
+            }
+        }
+        return null;
     }
 
     @Override
