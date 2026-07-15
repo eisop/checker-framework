@@ -1217,11 +1217,11 @@ public class BinaryStubReader {
      */
     private static void markFromStubFile(
             AnnotationFileAnnotations target, Element elt, AnnotationMirror fromStubFileAnno) {
+        // Mutable set as it might get modified later.
+        AnnotationMirrorSet marker = new AnnotationMirrorSet();
+        marker.add(fromStubFileAnno);
         mergeDeclAnnos(
-                target,
-                ElementUtils.getQualifiedName(elt),
-                AnnotationMirrorSet.singleton(fromStubFileAnno),
-                /* fromLazyJdk= */ false);
+                target, ElementUtils.getQualifiedName(elt), marker, /* fromLazyJdk= */ false);
     }
 
     /**
