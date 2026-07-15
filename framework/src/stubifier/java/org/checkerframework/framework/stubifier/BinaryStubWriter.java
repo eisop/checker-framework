@@ -213,6 +213,9 @@ public class BinaryStubWriter {
      * Package prefixes of annotations that the Java platform itself declares. An annotation in one
      * of these packages that the running JVM cannot load is omitted from the binary format rather
      * than failing the stubifier; see {@link #isUnloadablePlatformAnnotation}.
+     *
+     * <p>If you update this list, also update {@link
+     * org.checkerframework.framework.stub.BinaryStubDiffChecker#isPlatformAnnotationName}.
      */
     private static final String[] PLATFORM_PACKAGE_PREFIXES = {
         "java.", "javax.", "jdk.", "sun.", "com.sun."

@@ -1106,11 +1106,15 @@ public class BinaryStubDiffChecker {
     /**
      * Returns true if {@code name} names an annotation declared by the Java platform itself.
      *
+     * <p>If you update this list, also update {@link
+     * org.checkerframework.framework.stubifier.BinaryStubWriter#PLATFORM_PACKAGE_PREFIXES}.
+     *
      * @param name the fully-qualified name of an annotation
      * @return true if the annotation is the Java platform's own
      */
     private static boolean isPlatformAnnotationName(String name) {
         return name.startsWith("java.")
+                || name.startsWith("javax.")
                 || name.startsWith("jdk.")
                 || name.startsWith("sun.")
                 || name.startsWith("com.sun.");
