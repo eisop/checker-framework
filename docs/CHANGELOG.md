@@ -127,6 +127,7 @@ Performance optimizations:
   indexed by declaring element instead of scanned per method (quadratic in
   methods per class); `ValueQualifierHierarchy` uses cached `value()` elements.
   Wall clock on constant-heavy 1500-method classes improved ~18%.
+- `TreeUtils.sameTree()`: use a visitor instead of an expensive `toString()`.
 
 Other improvements and bug fixes:
 - `TreeUtils` has a new `inferredTypeArguments(ExpressionTree)` method to

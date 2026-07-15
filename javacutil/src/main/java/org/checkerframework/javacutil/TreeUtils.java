@@ -9,6 +9,7 @@ import com.sun.source.tree.BlockTree;
 import com.sun.source.tree.CaseTree;
 import com.sun.source.tree.ClassTree;
 import com.sun.source.tree.CompoundAssignmentTree;
+import com.sun.source.tree.ConditionalExpressionTree;
 import com.sun.source.tree.ErroneousTree;
 import com.sun.source.tree.ExpressionStatementTree;
 import com.sun.source.tree.ExpressionTree;
@@ -36,6 +37,7 @@ import com.sun.source.tree.Tree.Kind;
 import com.sun.source.tree.TreeVisitor;
 import com.sun.source.tree.TypeCastTree;
 import com.sun.source.tree.TypeParameterTree;
+import com.sun.source.tree.UnaryTree;
 import com.sun.source.tree.UnionTypeTree;
 import com.sun.source.tree.VariableTree;
 import com.sun.source.util.SimpleTreeVisitor;
@@ -94,6 +96,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.StringJoiner;
 import java.util.regex.Pattern;
@@ -2503,6 +2506,173 @@ public final class TreeUtils {
     }
 
     /**
+     * A singleton instance of {@link SameTreeVisitor} used by {@link #sameTree(ExpressionTree,
+     * ExpressionTree)}.
+     */
+    private static final SameTreeVisitor SAME_TREE_VISITOR = new SameTreeVisitor();
+
+    /**
+     * A visitor that structurally compares two AST nodes for syntactic equivalence. This avoids
+     * expensive string conversions when comparing trees.
+     */
+    @SuppressWarnings("interning")
+    private static class SameTreeVisitor extends SimpleTreeVisitor<Boolean, Tree> {
+        @Override
+        protected Boolean defaultAction(Tree node, Tree other) {
+            return node == other
+                    || (node != null
+                            && other != null
+                            && node.getKind() == other.getKind()
+                            && node.toString().equals(other.toString()));
+        }
+
+        /**
+         * Returns true if tree1 and tree2 are structurally equivalent.
+         *
+         * @param tree1 the first tree to compare
+         * @param tree2 the second tree to compare
+         * @return true if the two trees are structurally equivalent
+         */
+        boolean same(Tree tree1, Tree tree2) {
+            if (tree1 == tree2) {
+                return true;
+            }
+            if (tree1 == null || tree2 == null) {
+                return false;
+            }
+            if (tree1 instanceof ExpressionTree) {
+                tree1 = TreeUtils.withoutParens((ExpressionTree) tree1);
+            }
+            if (tree2 instanceof ExpressionTree) {
+                tree2 = TreeUtils.withoutParens((ExpressionTree) tree2);
+            }
+            if (tree1.getKind() != tree2.getKind()) {
+                return false;
+            }
+            return visit(tree1, tree2);
+        }
+
+        /**
+         * Returns true if two lists of trees are structurally equivalent element-by-element.
+         *
+         * @param list1 the first list of trees to compare
+         * @param list2 the second list of trees to compare
+         * @return true if both lists have the same size and their corresponding elements are
+         *     equivalent
+         */
+        private boolean sameList(List<? extends Tree> list1, List<? extends Tree> list2) {
+            if (list1 == list2) return true;
+            if (list1 == null || list2 == null) return false;
+            if (list1.size() != list2.size()) return false;
+            for (int i = 0; i < list1.size(); i++) {
+                if (!same(list1.get(i), list2.get(i))) return false;
+            }
+            return true;
+        }
+
+        @Override
+        public Boolean visitIdentifier(IdentifierTree node, Tree other) {
+            return node.getName().contentEquals(((IdentifierTree) other).getName());
+        }
+
+        @Override
+        public Boolean visitMemberSelect(MemberSelectTree node, Tree other) {
+            MemberSelectTree otherSel = (MemberSelectTree) other;
+            return node.getIdentifier().contentEquals(otherSel.getIdentifier())
+                    && same(node.getExpression(), otherSel.getExpression());
+        }
+
+        @Override
+        public Boolean visitArrayAccess(ArrayAccessTree node, Tree other) {
+            ArrayAccessTree otherAcc = (ArrayAccessTree) other;
+            return same(node.getExpression(), otherAcc.getExpression())
+                    && same(node.getIndex(), otherAcc.getIndex());
+        }
+
+        @Override
+        public Boolean visitMethodInvocation(MethodInvocationTree node, Tree other) {
+            MethodInvocationTree otherInv = (MethodInvocationTree) other;
+            return same(node.getMethodSelect(), otherInv.getMethodSelect())
+                    && sameList(node.getTypeArguments(), otherInv.getTypeArguments())
+                    && sameList(node.getArguments(), otherInv.getArguments());
+        }
+
+        @Override
+        public Boolean visitLiteral(LiteralTree node, Tree other) {
+            Object v1 = node.getValue();
+            Object v2 = ((LiteralTree) other).getValue();
+            return Objects.equals(v1, v2);
+        }
+
+        @Override
+        public Boolean visitTypeCast(TypeCastTree node, Tree other) {
+            TypeCastTree otherCast = (TypeCastTree) other;
+            return same(node.getType(), otherCast.getType())
+                    && same(node.getExpression(), otherCast.getExpression());
+        }
+
+        @Override
+        public Boolean visitBinary(BinaryTree node, Tree other) {
+            BinaryTree otherBin = (BinaryTree) other;
+            return same(node.getLeftOperand(), otherBin.getLeftOperand())
+                    && same(node.getRightOperand(), otherBin.getRightOperand());
+        }
+
+        @Override
+        public Boolean visitUnary(UnaryTree node, Tree other) {
+            UnaryTree otherUn = (UnaryTree) other;
+            return same(node.getExpression(), otherUn.getExpression());
+        }
+
+        @Override
+        public Boolean visitConditionalExpression(ConditionalExpressionTree node, Tree other) {
+            ConditionalExpressionTree otherCond = (ConditionalExpressionTree) other;
+            return same(node.getCondition(), otherCond.getCondition())
+                    && same(node.getTrueExpression(), otherCond.getTrueExpression())
+                    && same(node.getFalseExpression(), otherCond.getFalseExpression());
+        }
+
+        @Override
+        public Boolean visitAssignment(AssignmentTree node, Tree other) {
+            AssignmentTree otherAssign = (AssignmentTree) other;
+            return same(node.getVariable(), otherAssign.getVariable())
+                    && same(node.getExpression(), otherAssign.getExpression());
+        }
+
+        @Override
+        public Boolean visitCompoundAssignment(CompoundAssignmentTree node, Tree other) {
+            CompoundAssignmentTree otherAssign = (CompoundAssignmentTree) other;
+            return same(node.getVariable(), otherAssign.getVariable())
+                    && same(node.getExpression(), otherAssign.getExpression());
+        }
+
+        @Override
+        public Boolean visitInstanceOf(InstanceOfTree node, Tree other) {
+            InstanceOfTree otherInst = (InstanceOfTree) other;
+            return same(node.getExpression(), otherInst.getExpression())
+                    && same(node.getType(), otherInst.getType());
+        }
+
+        @Override
+        public Boolean visitNewArray(NewArrayTree node, Tree other) {
+            NewArrayTree otherNa = (NewArrayTree) other;
+            return same(node.getType(), otherNa.getType())
+                    && sameList(node.getDimensions(), otherNa.getDimensions())
+                    && sameList(node.getInitializers(), otherNa.getInitializers());
+        }
+
+        @Override
+        public Boolean visitNewClass(NewClassTree node, Tree other) {
+            NewClassTree otherNc = (NewClassTree) other;
+            return same(node.getEnclosingExpression(), otherNc.getEnclosingExpression())
+                    && sameList(node.getTypeArguments(), otherNc.getTypeArguments())
+                    && same(node.getIdentifier(), otherNc.getIdentifier())
+                    && sameList(node.getArguments(), otherNc.getArguments())
+                    && same(node.getClassBody(), otherNc.getClassBody());
+        }
+    }
+
+    /**
      * Returns true if two expressions originating from the same scope are identical, i.e. they are
      * syntactically represented in the same way (modulo parentheses) and represent the same value.
      *
@@ -2515,11 +2685,7 @@ public final class TreeUtils {
      * @return true if the expressions expr1 and expr2 are syntactically identical
      */
     public static boolean sameTree(ExpressionTree expr1, ExpressionTree expr2) {
-        expr1 = TreeUtils.withoutParens(expr1);
-        expr2 = TreeUtils.withoutParens(expr2);
-        // Converting to a string in order to compare is somewhat inefficient, and it doesn't handle
-        // internal parentheses.  We could create a visitor instead.
-        return expr1.getKind() == expr2.getKind() && expr1.toString().equals(expr2.toString());
+        return SAME_TREE_VISITOR.same(expr1, expr2);
     }
 
     /**
