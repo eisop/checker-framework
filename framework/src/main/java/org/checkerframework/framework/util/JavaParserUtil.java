@@ -418,6 +418,10 @@ public class JavaParserUtil {
 
     /** Visitor that combines added String literals, see {@link #concatenateAddedStringLiterals}. */
     public static class StringLiteralConcatenateVisitor extends VoidVisitorAdapter<Void> {
+
+        /** Creates a new StringLiteralConcatenateVisitor. */
+        public StringLiteralConcatenateVisitor() {}
+
         @Override
         public void visit(BinaryExpr node, Void p) {
             super.visit(node, p);
@@ -429,6 +433,13 @@ public class JavaParserUtil {
             }
         }
 
+        /**
+         * Returns true if the expression contains a string literal (possibly nested inside
+         * parentheses or binary addition).
+         *
+         * @param expr the expression to check
+         * @return true if a string literal is found
+         */
         private boolean containsStringLiteral(Expression expr) {
             if (expr instanceof StringLiteralExpr) {
                 return true;

@@ -961,6 +961,8 @@ public class BinaryStubReader {
      * @param elementTypes per-factory state, providing the per-class signature indexes
      * @param visited interfaces already searched, to avoid re-traversing a shared ancestor
      *     interface reachable through more than one path (diamond inheritance)
+     * @param typevarLenient whether a type-variable parameter of a candidate method matches any
+     *     type the signature spells in that position
      * @return the overridden method, or {@code null} if no supertype declares one
      */
     private static @Nullable ExecutableElement findFakeOverriddenMethod(
