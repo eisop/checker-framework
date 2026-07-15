@@ -2517,6 +2517,10 @@ public final class TreeUtils {
      */
     @SuppressWarnings("interning")
     private static class SameTreeVisitor extends SimpleTreeVisitor<Boolean, Tree> {
+
+        /** Creates a SameTreeVisitor. */
+        private SameTreeVisitor() {}
+
         @Override
         protected Boolean defaultAction(Tree node, Tree other) {
             return node == other
