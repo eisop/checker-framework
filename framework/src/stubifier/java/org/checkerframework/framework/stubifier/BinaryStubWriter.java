@@ -1332,11 +1332,6 @@ public class BinaryStubWriter {
     /**
      * Recursively evaluates an expression that represents string literal concatenation.
      *
-     * <p>Note: This logic is duplicated in {@code
-     * JavaParserUtil.evaluateStringLiteralConcatenation} due to module boundary restrictions
-     * (stubifier cannot depend on main, and vice-versa). If you change this method, please update
-     * the other one as well.
-     *
      * @param expr the expression representing the string literal concatenation
      * @return the fully concatenated string value
      * @throws IOException if the expression contains non-literal values that cannot be evaluated
