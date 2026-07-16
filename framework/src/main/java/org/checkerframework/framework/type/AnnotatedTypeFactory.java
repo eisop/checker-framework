@@ -1769,13 +1769,12 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * Returns the set of qualifiers that are the upper bounds for a use of the type. If there is a
      * viewpoint adapter, the adapted type declaration bounds based on the use type are returned.
      *
-     * @param type the type whose upper bounds to obtain
-     * @param useType the actual type use
+     * @param useType the actual type use whose upper bounds to obtain
      * @return the set of adapted qualifiers that are the upper bounds for a use of the type
      */
-    public AnnotationMirrorSet getAdaptedTypeDeclarationBounds(
-            TypeMirror type, AnnotatedDeclaredType useType) {
-        AnnotationMirrorSet typeDeclarationBounds = getTypeDeclarationBounds(type);
+    public AnnotationMirrorSet getAdaptedTypeDeclarationBounds(AnnotatedDeclaredType useType) {
+        AnnotationMirrorSet typeDeclarationBounds =
+                getTypeDeclarationBounds(useType.getUnderlyingType());
         if (viewpointAdapter == null) {
             return typeDeclarationBounds;
         }
