@@ -75,6 +75,7 @@ import org.checkerframework.framework.util.FieldInvariants;
 import org.checkerframework.framework.util.TreePathCacher;
 import org.checkerframework.framework.util.typeinference8.DefaultTypeArgumentInference;
 import org.checkerframework.framework.util.typeinference8.TypeArgumentInference;
+import org.checkerframework.framework.util.typeinference8.util.Java8InferenceContext;
 import org.checkerframework.framework.util.visualize.LspTypeInformationPresenter;
 import org.checkerframework.framework.util.visualize.TypeInformationPresenter;
 import org.checkerframework.javacutil.AnnotationBuilder;
@@ -503,26 +504,40 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     /** Size of LRU cache if one isn't specified using the atfCacheSize option. */
     private static final int DEFAULT_CACHE_SIZE = 2048;
 
-    /** Mapping from a Tree to its annotated type; defaults have been applied. */
-    private final IdentityHashMap<Tree, AnnotatedTypeMirror> classAndMethodTreeCache;
+    /**
+     * Mapping from a Tree to its annotated type; defaults have been applied.
+     *
+     * <p>This field is intentionally not final; it should only be re-assigned by {@link
+     * #setRoot(CompilationUnitTree)}.
+     */
+    private IdentityHashMap<Tree, AnnotatedTypeMirror> classAndMethodTreeCache;
 
     /**
      * Mapping from an expression tree to its annotated type; before defaults are applied, just what
      * the programmer wrote.
+     *
+     * <p>This field is intentionally not final; it should only be re-assigned by {@link
+     * #setRoot(CompilationUnitTree)}.
      */
-    protected final IdentityHashMap<Tree, AnnotatedTypeMirror> fromExpressionTreeCache;
+    protected IdentityHashMap<Tree, AnnotatedTypeMirror> fromExpressionTreeCache;
 
     /**
      * Mapping from a member tree to its annotated type; before defaults are applied, just what the
      * programmer wrote.
+     *
+     * <p>This field is intentionally not final; it should only be re-assigned by {@link
+     * #setRoot(CompilationUnitTree)}.
      */
-    protected final IdentityHashMap<Tree, AnnotatedTypeMirror> fromMemberTreeCache;
+    protected IdentityHashMap<Tree, AnnotatedTypeMirror> fromMemberTreeCache;
 
     /**
      * Mapping from a type tree to its annotated type; before defaults are applied, just what the
      * programmer wrote.
+     *
+     * <p>This field is intentionally not final; it should only be re-assigned by {@link
+     * #setRoot(CompilationUnitTree)}.
      */
-    protected final IdentityHashMap<Tree, AnnotatedTypeMirror> fromTypeTreeCache;
+    protected IdentityHashMap<Tree, AnnotatedTypeMirror> fromTypeTreeCache;
 
     /**
      * Mapping from an Element to its annotated type; before defaults are applied, just what the
@@ -542,13 +557,21 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      */
     private final @Nullable Map<Element, AnnotatedTypeMirror> elementTypeCache;
 
-    /** Mapping from an Element to the source Tree of the declaration. */
-    private final IdentityHashMap<Element, Tree> elementToTreeCache;
+    /**
+     * Mapping from an Element to the source Tree of the declaration.
+     *
+     * <p>This field is intentionally not final; it should only be re-assigned by {@link
+     * #setRoot(CompilationUnitTree)}.
+     */
+    private IdentityHashMap<Element, Tree> elementToTreeCache;
 
     /**
      * Set of enclosing trees (like MethodTree/ClassTree) already scanned for variable declarations.
+     *
+     * <p>This field is intentionally not final; it should only be re-assigned by {@link
+     * #setRoot(CompilationUnitTree)}.
      */
-    private final @Nullable Set<Tree> scannedEnclosingTrees;
+    private @Nullable Set<Tree> scannedEnclosingTrees;
 
     /**
      * Cache for the substituted method type from {@link #computeMethodTypeAsMemberOf} — the
@@ -635,8 +658,8 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         this.elements = processingEnv.getElementUtils();
         this.types = processingEnv.getTypeUtils();
 
-        this.stubTypes = new AnnotationFileElementTypes(this);
-        this.ajavaTypes = new AnnotationFileElementTypes(this);
+        this.stubTypes = new AnnotationFileElementTypes(this, /* isStubTypes= */ true);
+        this.ajavaTypes = new AnnotationFileElementTypes(this, /* isStubTypes= */ false);
         this.currentFileAjavaTypes = null;
 
         this.cacheDeclAnnos = new IdentityHashMap<>();
@@ -683,7 +706,9 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         // for @Regex(value = 5).
         if (checker.hasOption("aliasedTypeAnnos")) {
             String aliasesOption = checker.getOption("aliasedTypeAnnos");
-            String[] annos = aliasesOption.split(";");
+            // Use limit -1 so a trailing ";" produces an empty token and triggers a UserError
+            // from parseAliasesFromString rather than silently being ignored.
+            String[] annos = aliasesOption.split(";", -1);
             for (String alias : annos) {
                 IPair<Class<? extends Annotation>, @FullyQualifiedName String[]> aliasPair =
                         parseAliasesFromString(alias);
@@ -698,7 +723,9 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         // e.g. this will not be usable to declare an alias for @EnsuresNonNull(...).
         if (checker.hasOption("aliasedDeclAnnos")) {
             String aliasesOption = checker.getOption("aliasedDeclAnnos");
-            String[] annos = aliasesOption.split(";");
+            // Use limit -1 so a trailing ";" produces an empty token and triggers a UserError
+            // from parseAliasesFromString rather than silently being ignored.
+            String[] annos = aliasesOption.split(";", -1);
             for (String alias : annos) {
                 IPair<Class<? extends Annotation>, @FullyQualifiedName String[]> aliasPair =
                         parseAliasesFromString(alias);
@@ -826,7 +853,9 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     @SuppressWarnings({"unchecked", "signature"})
     private IPair<Class<? extends Annotation>, @FullyQualifiedName String[]> parseAliasesFromString(
             String alias) {
-        String[] parts = alias.split(":");
+        // Use limit -1 so a trailing ":" or "," produces an empty token caught by the validation
+        // below, rather than being silently dropped and causing a confusing ClassNotFoundException.
+        String[] parts = alias.split(":", -1);
         if (parts.length != 2) {
             throw new UserError(
                     String.format(
@@ -840,7 +869,15 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             throw new UserError(
                     String.format("The name %s is an invalid annotation name.", parts[0]));
         }
-        String[] aliases = parts[1].trim().split("\\s*,\\s*");
+        // Use limit -1 so a trailing "," produces an empty token; we explicitly check for
+        // empty aliases and throw a UserError rather than silently omitting them or allowing
+        // empty string as an alias.
+        String[] aliases = parts[1].trim().split("\\s*,\\s*", -1);
+        for (String a : aliases) {
+            if (a.isEmpty()) {
+                throw new UserError(String.format("Empty alias found in argument: %s", alias));
+            }
+        }
         return IPair.of(canonical, aliases);
     }
 
@@ -1071,12 +1108,12 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         if (shouldCache) {
             // Clear the caches with trees because once the compilation unit changes,
             // the trees may be modified and lose type arguments.
-            elementToTreeCache.clear();
-            scannedEnclosingTrees.clear();
-            fromExpressionTreeCache.clear();
-            fromMemberTreeCache.clear();
-            fromTypeTreeCache.clear();
-            classAndMethodTreeCache.clear();
+            elementToTreeCache = new IdentityHashMap<>();
+            scannedEnclosingTrees = Collections.newSetFromMap(new IdentityHashMap<>());
+            fromExpressionTreeCache = new IdentityHashMap<>();
+            fromMemberTreeCache = new IdentityHashMap<>();
+            fromTypeTreeCache = new IdentityHashMap<>();
+            classAndMethodTreeCache = new IdentityHashMap<>();
 
             // There is no need to clear the following cache, it is limited by cache size and it
             // contents won't change between compilation units.
@@ -1152,7 +1189,8 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
                 }
             }
             if (candidateAjavaFiles.size() == 1) {
-                currentFileAjavaTypes = new AnnotationFileElementTypes(this);
+                currentFileAjavaTypes =
+                        new AnnotationFileElementTypes(this, /* isStubTypes= */ false);
                 String ajavaPath = candidateAjavaFiles.toArray(new String[0])[0];
                 try {
                     currentFileAjavaTypes.parseAjavaFileWithTree(ajavaPath, root);
@@ -1261,6 +1299,42 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
 
     public TypeArgumentInference getTypeArgumentInference() {
         return typeArgumentInference;
+    }
+
+    /** The cached value of {@link #getInferenceWorkBudget}; -1 until first computed. */
+    private int inferenceWorkBudget = -1;
+
+    /**
+     * Returns the Java 8 type-argument-inference bound-incorporation work budget for this checker:
+     * the value of {@code -AinferenceWorkBudget=N} if set, otherwise {@link
+     * Java8InferenceContext#MAX_INCORPORATION_WORK}. Computed once and cached: the option is
+     * constant for a compilation, but inference creates a {@link Java8InferenceContext} once per
+     * generic invocation, so reading and parsing the option there would repeat this work on a hot
+     * path.
+     *
+     * @return the bound-incorporation work budget for type-argument inference
+     */
+    public int getInferenceWorkBudget() {
+        if (inferenceWorkBudget == -1) {
+            String option = getChecker().getOption("inferenceWorkBudget");
+            if (option == null) {
+                inferenceWorkBudget = Java8InferenceContext.MAX_INCORPORATION_WORK;
+            } else {
+                int budget;
+                try {
+                    budget = Integer.parseInt(option);
+                } catch (NumberFormatException e) {
+                    budget = -1;
+                }
+                if (budget <= 0) {
+                    throw new UserError(
+                            "Value of -AinferenceWorkBudget must be a positive integer, not "
+                                    + option);
+                }
+                inferenceWorkBudget = budget;
+            }
+        }
+        return inferenceWorkBudget;
     }
 
     /**
@@ -1788,7 +1862,18 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         Tree decl = declarationFromElement(elt);
 
         if (decl == null) {
-            type = stubTypes.getAnnotatedTypeMirror(elt);
+            // An annotation file annotates code that is not being compiled: "if file A.java is
+            // being compiled, then by default any stub for class A is ignored" (the manual,
+            // "Using stub classes"); -AmergeStubsWithSource, handled below, is how a user asks for
+            // both. Test that by where the element is declared, not by the absence of a tree:
+            // declarationFromElement returns null for a source element too, whenever `root` is
+            // unset and for a member javac synthesizes and has no tree for, such as a record's
+            // canonical constructor and its accessors.
+            if (!ElementUtils.isElementFromSourceCode(elt)) {
+                type = stubTypes.getAnnotatedTypeMirror(elt);
+            } else {
+                type = null;
+            }
             if (type == null) {
                 type = toAnnotatedType(elt.asType(), ElementUtils.isTypeDeclaration(elt));
                 ElementAnnotationApplier.apply(type, elt, this);
@@ -3376,6 +3461,14 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     }
 
     /**
+     * Clears any caches used exclusively during the parse phase. Subclasses may override this to
+     * clear their own caches.
+     */
+    public void clearParsePhaseCache() {
+        // Do nothing by default.
+    }
+
+    /**
      * Gets the type of the resulting constructor call of a MemberReferenceTree.
      *
      * @param memberReferenceTree MemberReferenceTree where the member is a constructor
@@ -3788,9 +3881,8 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
                 return getNarrowedPrimitive(exprPrimitiveType, widenedType.getUnderlyingType());
             case SAME:
                 return exprType;
-            default:
-                throw new BugInCF("unhandled PrimitiveConversionKind");
         }
+        throw new BugInCF("unhandled PrimitiveConversionKind");
     }
 
     /**
@@ -4729,14 +4821,25 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     }
 
     /**
-     * Returns true if the element is from bytecode and the if the element did not appear in a stub
-     * file. Currently only works for methods, constructors, and fields.
+     * Returns true if the element is from bytecode -- that is, it is not being compiled -- and did
+     * not appear in a stub file.
+     *
+     * <p>"Not being compiled" is decided by where the element is declared ({@link
+     * ElementUtils#isElementFromSourceCode}), not by whether a classfile happens to exist for it
+     * ({@link ElementUtils#isElementFromByteCode}, which is true even when the element is also
+     * being compiled from source), and not by whether a tree happens to be available for it ({@link
+     * #declarationFromElement}, which returns null for a source element too: whenever {@code root}
+     * is unset, and for a member javac synthesizes and has no tree for, such as a record's
+     * canonical constructor and its accessors).
+     *
+     * @param element an element
+     * @return true if the element is from bytecode and did not appear in a stub file
      */
     public boolean isFromByteCode(Element element) {
         if (isFromStubFile(element)) {
             return false;
         }
-        return ElementUtils.isElementFromByteCode(element);
+        return !ElementUtils.isElementFromSourceCode(element);
     }
 
     /**

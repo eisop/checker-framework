@@ -6,8 +6,22 @@ plugins {
     id 'java-test-fixtures'
 }
 
+// allSourcesJar (below) reads project(':javacutil').sourceSets.main.allJava directly.
+// javacutil is declared after framework in settings.gradle's include order, so without
+// this, that access would run before javacutil's own build.gradle has had a chance to
+// configure its sourceSets -- harmless today only because javacutil never customizes
+// them, but not something Gradle guarantees. dataflow doesn't need the same guard: it's
+// declared before framework already.
+evaluationDependsOn(':javacutil')
+
 ext {
-    annotatedJdkHome = '../../jdk'
+    // Location of the annotated JDK clone, relative to this directory by default. Overridable
+    // (-PannotatedJdkHome=/abs/path) so a build that needs this project's own default JDK
+    // checkout to coexist with a *different* annotated JDK at the same conventional sibling
+    // location (e.g. an external checker's own JDK fork, built via --include-build) can point
+    // this at wherever eisop's own clone actually lives. See
+    // checker/bin-devel/test-jspecify-reference-checker.sh for a caller that uses this.
+    annotatedJdkHome = project.findProperty('annotatedJdkHome') ?: '../../jdk'
 }
 
 sourceSets {
@@ -40,12 +54,12 @@ sourceSets {
     stubifier
 }
 
-sourcesJar {
+tasks.named('sourcesJar') {
     // The resources duplicate content from the src directory.
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 }
 
-jar {
+tasks.named('jar') {
     // The resources duplicate content from the src directory.
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 }
@@ -53,6 +67,24 @@ jar {
 configurations {
     implementation.extendsFrom(stubifierImplementation)
     implementation.extendsFrom(annotatedGuava)
+
+    // Exposes the stubifier tool (JavaStubifier, BinaryStubWriter, BinaryStubFileGenerator)
+    // together with its runtime dependencies, for the generateBinaryStubFiles tasks that the
+    // top-level build file registers in subprojects containing .astub files. A consumable
+    // configuration is required: resolving another project's sourceSets classpath directly is
+    // incompatible with the configuration cache.
+    stubifierTool {
+        canBeConsumed = true
+        canBeResolved = false
+        extendsFrom(stubifierImplementation)
+    }
+}
+
+// The stubifier classes themselves are the configuration's artifact.
+sourceSets.stubifier.output.classesDirs.each { classesDir ->
+    artifacts.add('stubifierTool', classesDir) {
+        builtBy(tasks.named('compileStubifierJava'))
+    }
 }
 
 dependencies {
@@ -61,6 +93,15 @@ dependencies {
     // At the moement, there are no differences between eisop and typetools stubparsers.
     api 'org.checkerframework:stubparser:3.27.1'
     stubifierImplementation 'org.checkerframework:stubparser:3.27.1'
+    stubifierImplementation project(':checker-qual')
+    // Lets main sourceSet code (e.g. BinaryStubData, RemoveAnnotationsForInference) compile
+    // against stubifier classes. WARNING: this does not bundle those classes into framework.jar,
+    // which must work standalone -- they ship only inside checker.jar's shadow jar. Main
+    // sourceSet code may only reference stubifier compile-time constants (inlined by javac, so
+    // no runtime dependency results) or classes that are exclusively invoked against
+    // checker.jar's classpath (e.g. RemoveAnnotationsForInference's `main` method, run via
+    // checker/dist/checker.jar, never via framework.jar). Never add a real (non-inlined) runtime
+    // call from framework.jar-shipped code into a stubifier class.
     implementation sourceSets.stubifier.output
 
     /* NO-AFU
@@ -141,10 +182,15 @@ tasks.register('copyAndMinimizeAnnotatedJdkFiles', JavaExec) {
         // output.)
         Set<String> annotatedDirs = new HashSet<>()
         tree.visit { FileVisitDetails fvd ->
+            // Use relativePath.pathString, not file.path: Gradle's RelativePath always joins
+            // segments with "/" regardless of platform, whereas File.path uses File.separator
+            // ("\\" on Windows), which made this exclusion silently never match there --
+            // pulling org/checkerframework/** (checker-qual's own vendored sources in the JDK
+            // clone) into the minimized annotated JDK and its binary stub only on Windows.
             if (!fvd.file.isDirectory() && fvd.file.name.matches('.*\\.java')
-            && !fvd.file.path.contains('org/checkerframework')) {
+            && !fvd.relativePath.pathString.contains('org/checkerframework')) {
                 fvd.getFile().readLines().any { line ->
-                    if (line.contains('@AnnotatedFor') || line.contains('org.checkerframework') || line.contains('org.jspecify')) {
+                    if (line.contains('@AnnotatedFor') || line.contains('org.checkerframework')) {
                         annotatedForFiles.add(fvd.file.absolutePath)
                         File p = fvd.file.parentFile
                         while (p != null
@@ -210,7 +256,7 @@ tasks.register('allJavadocJar', Jar) {
     }
 }
 
-shadowJar {
+tasks.named('shadowJar') {
     description = 'Creates the "fat" framework.jar in dist'
     destinationDirectory = file("${projectDir}/dist")
     archiveFileName = 'framework.jar'
@@ -221,7 +267,7 @@ shadowJar {
     minimize()
 }
 
-createCheckTypeTask(project.name, 'CompilerMessages',
+rootProject.createCheckTypeTask(project.name, 'CompilerMessages',
         'org.checkerframework.checker.compilermsgs.CompilerMessagesChecker')
 tasks.named('checkCompilerMessages') {
     options.compilerArgs += [
@@ -233,7 +279,7 @@ tasks.register('loaderTests', Exec) {
     dependsOn 'shadowJar'
     group = 'Verification'
     description = 'Run tests for the annotation class loader'
-    dependsOn(compileTestJava)
+    dependsOn('compileTestJava')
 
     // TODO: this dependency on checker is a bit ugly.
     dependsOn ':checker-qual:jar'
@@ -246,7 +292,7 @@ tasks.register('cleanLoaderTests', Exec) {
     commandLine 'make', '-C', 'tests/annotationclassloader/', 'clean'
 }
 
-clean {
+tasks.named('clean') {
     dependsOn 'cleanLoaderTests'
 
     delete('tests/returnsreceiverdelomboked')
@@ -256,7 +302,7 @@ clean {
 
 
 if (skipDelombok) {
-    test {
+    tasks.named('test') {
         exclude '**/ReturnsReceiverLombokTest.java'
     }
 } else {

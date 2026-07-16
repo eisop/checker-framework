@@ -112,11 +112,16 @@ public class ArrayCreation extends JavaExpression {
             return false;
         }
         ArrayCreation other = (ArrayCreation) obj;
-        return this.dimensions.equals(other.getDimensions())
-                && this.initializers.equals(other.getInitializers())
-                // It might be better to use Types.isSameType(getType(), other.getType()), but I
-                // don't have a Types object.
-                && getType().toString().equals(other.getType().toString());
+        // Types#isSameType would be more correct, but no Types object is available here.
+        // TypeMirror.toString() produces a canonical source-form name for array types,
+        // which is sufficient for structural equality checks in this context.
+        // The type comparison is last so the cheaper list comparisons short-circuit first.
+        @SuppressWarnings("TypeToString")
+        boolean result =
+                this.dimensions.equals(other.getDimensions())
+                        && this.initializers.equals(other.getInitializers())
+                        && getType().toString().equals(other.getType().toString());
+        return result;
     }
 
     @Override
@@ -125,9 +130,16 @@ public class ArrayCreation extends JavaExpression {
             return false;
         }
         ArrayCreation other = (ArrayCreation) je;
-        return JavaExpression.syntacticEqualsList(this.dimensions, other.dimensions)
-                && JavaExpression.syntacticEqualsList(this.initializers, other.initializers)
-                && getType().toString().equals(other.getType().toString());
+        // Types#isSameType would be more correct, but no Types object is available here.
+        // TypeMirror.toString() produces a canonical source-form name for array types,
+        // which is sufficient for structural equality checks in this context.
+        // The type comparison is last so the cheaper list comparisons short-circuit first.
+        @SuppressWarnings("TypeToString")
+        boolean result =
+                JavaExpression.syntacticEqualsList(this.dimensions, other.dimensions)
+                        && JavaExpression.syntacticEqualsList(this.initializers, other.initializers)
+                        && getType().toString().equals(other.getType().toString());
+        return result;
     }
 
     @Override

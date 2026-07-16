@@ -1015,9 +1015,8 @@ public class JavaExpressionParseUtil {
                     return Tree.Kind.PREFIX_DECREMENT;
                 case PREFIX_INCREMENT:
                     return Tree.Kind.PREFIX_INCREMENT;
-                default:
-                    throw new BugInCF("unhandled " + op);
             }
+            throw new BugInCF("unhandled " + op);
         }
 
         @Override
@@ -1108,9 +1107,8 @@ public class JavaExpressionParseUtil {
                     return Tree.Kind.UNSIGNED_RIGHT_SHIFT;
                 case XOR:
                     return Tree.Kind.XOR;
-                default:
-                    throw new BugInCF("unhandled " + op);
             }
+            throw new BugInCF("unhandled " + op);
         }
 
         /**
