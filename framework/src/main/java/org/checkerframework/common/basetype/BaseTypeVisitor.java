@@ -5504,7 +5504,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         // Don't use isSubtype(ATM, ATM) because it will return false if the types have qualifier
         // parameters.
         AnnotationMirrorSet tops = qualHierarchy.getTopAnnotations();
-        AnnotationMirrorSet upperBounds = atypeFactory.getAdaptedTypeDeclarationBounds(useType);
+        AnnotationMirrorSet upperBounds = atypeFactory.getTypeDeclarationBoundsFromUse(useType);
 
         for (AnnotationMirror top : tops) {
             AnnotationMirror upperBound = qualHierarchy.findAnnotationInHierarchy(upperBounds, top);

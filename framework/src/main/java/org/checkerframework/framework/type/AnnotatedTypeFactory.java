@@ -1767,12 +1767,13 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
 
     /**
      * Returns the set of qualifiers that are the upper bounds for a use of the type. If there is a
-     * viewpoint adapter, the adapted type declaration bounds based on the use type are returned.
+     * viewpoint adapter, the type declaration bounds are viewpoint-adapted to the use type before
+     * they are returned.
      *
      * @param useType the actual type use whose upper bounds to obtain
      * @return the set of adapted qualifiers that are the upper bounds for a use of the type
      */
-    public AnnotationMirrorSet getAdaptedTypeDeclarationBounds(AnnotatedDeclaredType useType) {
+    public AnnotationMirrorSet getTypeDeclarationBoundsFromUse(AnnotatedDeclaredType useType) {
         AnnotationMirrorSet typeDeclarationBounds =
                 getTypeDeclarationBounds(useType.getUnderlyingType());
         if (viewpointAdapter == null) {
@@ -1780,15 +1781,10 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         }
         AnnotatedDeclaredType boundType = useType.shallowCopy();
         boundType.replaceAnnotations(typeDeclarationBounds);
-        AnnotatedTypeMirror adaptedType = viewpointAdapter.viewpointAdaptType(useType, boundType);
-
-        AnnotationMirrorSet result = new AnnotationMirrorSet();
-        for (AnnotationMirror anno : typeDeclarationBounds) {
-            AnnotationMirror adaptedAnno =
-                    qualHierarchy.findAnnotationInSameHierarchy(adaptedType.getAnnotations(), anno);
-            result.add(adaptedAnno != null ? adaptedAnno : anno);
-        }
-        return result;
+        // getTypeDeclarationBounds returns a qualifier for every hierarchy and viewpoint
+        // adaptation replaces primary qualifiers without removing any, so the adapted type's
+        // primary annotations are exactly the adapted bounds.
+        return viewpointAdapter.viewpointAdaptType(useType, boundType).getAnnotations();
     }
 
     /**
