@@ -85,23 +85,25 @@ public class MutabilityNoInitVisitor extends BaseTypeVisitor<MutabilityNoInitAnn
     protected void checkConstructorResult(
             AnnotatedExecutableType constructorType, ExecutableElement constructorElement) {}
 
-    // Validate that a mutability qualifier use conforms to the type declaration bound.
-    // declarationType comes from AnnotatedTypeFactory#getAnnotatedType(Element), whose result must
-    // remain consistent with MutabilityNoInitAnnotatedTypeFactory's class-bound helpers.
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Unlike {@link BaseTypeVisitor#isValidUse(AnnotatedDeclaredType, AnnotatedDeclaredType,
+     * Tree)}, which checks {@code use <: (use |> bound(C))}, mutability uses the well-formedness
+     * rule {@code (q |> bound(C)) <: q}. That allows {@code @Readonly} (and other) uses of classes
+     * whose declaration bound is mutable or receiver-dependent.
+     */
     @Override
     public boolean isValidUse(
             AnnotatedDeclaredType declarationType, AnnotatedDeclaredType useType, Tree tree) {
 
-        // FIXME workaround for poly anno, remove after fix substitutable poly and add poly vp rules
         if (useType.hasAnnotation(atypeFactory.POLY_MUTABLE)
                 || useType.hasAnnotation(atypeFactory.LOST)) {
             return true;
         }
 
-        AnnotationMirror declared = declarationType.getAnnotationInHierarchy(atypeFactory.READONLY);
-        AnnotationMirror used = useType.getAnnotationInHierarchy(atypeFactory.READONLY);
-
-        return isAdaptedSubtype(used, declared);
+        AnnotationMirrorSet adaptedBounds = atypeFactory.getTypeDeclarationBoundsFromUse(useType);
+        return typeHierarchy.isSubtypeShallowEffective(adaptedBounds, useType);
     }
 
     @Override
@@ -110,20 +112,6 @@ public class MutabilityNoInitVisitor extends BaseTypeVisitor<MutabilityNoInitAnn
         // valid except bottom.
         AnnotationMirror used = type.getAnnotationInHierarchy(atypeFactory.READONLY);
         return !AnnotationUtils.areSame(used, atypeFactory.BOTTOM);
-    }
-
-    /**
-     * Tests whether the left-hand qualifier is valid against the right-hand declaration bound after
-     * viewpoint adaptation.
-     *
-     * @param lhs the qualifier on the type use
-     * @param rhs the qualifier on the declaration bound
-     * @return true if the adapted declaration bound is a subtype of the use qualifier
-     */
-    private boolean isAdaptedSubtype(AnnotationMirror lhs, AnnotationMirror rhs) {
-        MutabilityViewpointAdapter vpa = atypeFactory.getViewpointAdapter();
-        AnnotationMirror adapted = vpa.combineAnnotationWithAnnotation(lhs, rhs);
-        return atypeFactory.getQualifierHierarchy().isSubtypeQualifiersOnly(adapted, lhs);
     }
 
     @Override
