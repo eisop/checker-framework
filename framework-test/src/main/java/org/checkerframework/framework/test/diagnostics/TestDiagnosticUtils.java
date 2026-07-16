@@ -223,7 +223,10 @@ public class TestDiagnosticUtils {
             String pairParens = diagnosticStrings[lastAdditionalToken];
             // remove the leading and trailing parentheses and spaces
             String pair = pairParens.substring(2, pairParens.length() - 2);
-            String[] diagPositionString = pair.split(", ");
+            // Splitting on the fixed two-character literal ", "; Pattern.quote prevents regex
+            // interpretation. Trailing empty strings cannot occur in "(start, end)" format.
+            @SuppressWarnings("StringSplitter")
+            String[] diagPositionString = pair.split(Pattern.quote(", "));
             long startPosition = Long.parseLong(diagPositionString[0]);
             long endPosition = Long.parseLong(diagPositionString[1]);
 

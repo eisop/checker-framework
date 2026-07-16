@@ -48,8 +48,11 @@ public class ForwardAnalysisImpl<
     /**
      * Number of times each block has been analyzed since the last time widening was applied. Null
      * if maxCountBeforeWidening is -1, which implies widening isn't used for this analysis.
+     *
+     * <p>This field is intentionally not final; it should only be re-assigned by {@link
+     * #initFields}.
      */
-    protected final @Nullable IdentityHashMap<Block, Integer> blockCount;
+    protected @Nullable IdentityHashMap<Block, Integer> blockCount;
 
     /**
      * Number of times a block can be analyzed before widening. -1 implies that widening shouldn't
@@ -57,14 +60,29 @@ public class ForwardAnalysisImpl<
      */
     protected final int maxCountBeforeWidening;
 
-    /** Then stores before every basic block (assumed to be 'no information' if not present). */
-    protected final IdentityHashMap<Block, S> thenStores;
+    /**
+     * Then stores before every basic block (assumed to be 'no information' if not present).
+     *
+     * <p>This field is intentionally not final; it should only be re-assigned by {@link
+     * #initFields}.
+     */
+    protected IdentityHashMap<Block, S> thenStores;
 
-    /** Else stores before every basic block (assumed to be 'no information' if not present). */
-    protected final IdentityHashMap<Block, S> elseStores;
+    /**
+     * Else stores before every basic block (assumed to be 'no information' if not present).
+     *
+     * <p>This field is intentionally not final; it should only be re-assigned by {@link
+     * #initFields}.
+     */
+    protected IdentityHashMap<Block, S> elseStores;
 
-    /** The stores after every return statement. */
-    protected final IdentityHashMap<ReturnNode, TransferResult<V, S>> storesAtReturnStatements;
+    /**
+     * The stores after every return statement.
+     *
+     * <p>This field is intentionally not final; it should only be re-assigned by {@link
+     * #initFields}.
+     */
+    protected IdentityHashMap<ReturnNode, TransferResult<V, S>> storesAtReturnStatements;
 
     // `@code`, not `@link`, because dataflow module doesn't depend on framework module.
     /**
@@ -144,7 +162,7 @@ public class ForwardAnalysisImpl<
                                     + " non-exceptional successor unexpected";
                     propagateStoresTo(
                             succ, lastNode, currentInput, rb.getFlowRule(), addToWorklistAgain);
-                    break;
+                    return;
                 }
             case EXCEPTION_BLOCK:
                 {
@@ -192,7 +210,7 @@ public class ForwardAnalysisImpl<
                             }
                         }
                     }
-                    break;
+                    return;
                 }
             case CONDITIONAL_BLOCK:
                 {
@@ -206,7 +224,7 @@ public class ForwardAnalysisImpl<
                     Block elseSucc = cb.getElseSuccessor();
                     propagateStoresTo(thenSucc, null, input, cb.getThenFlowRule(), false);
                     propagateStoresTo(elseSucc, null, input, cb.getElseFlowRule(), false);
-                    break;
+                    return;
                 }
             case SPECIAL_BLOCK:
                 {
@@ -219,11 +237,12 @@ public class ForwardAnalysisImpl<
                         assert input != null : "@AssumeAssertion(nullness): invariant";
                         propagateStoresTo(succ, null, input, sb.getFlowRule(), false);
                     }
-                    break;
+                    return;
                 }
-            default:
-                throw new BugInCF("Unexpected block type: " + b.getType());
+                // No default: if a new BlockType is added, EP's MissingCasesInEnumSwitch fires
+                // and the build breaks under -Werror, forcing the developer to handle the new case.
         }
+        throw new BugInCF("Unexpected block type: " + b.getType());
     }
 
     @Override
@@ -348,12 +367,12 @@ public class ForwardAnalysisImpl<
 
     @Override
     protected void initFields(ControlFlowGraph cfg) {
-        thenStores.clear();
-        elseStores.clear();
+        thenStores = new IdentityHashMap<>();
+        elseStores = new IdentityHashMap<>();
         if (blockCount != null) {
-            blockCount.clear();
+            blockCount = new IdentityHashMap<>();
         }
-        storesAtReturnStatements.clear();
+        storesAtReturnStatements = new IdentityHashMap<>();
         super.initFields(cfg);
     }
 
