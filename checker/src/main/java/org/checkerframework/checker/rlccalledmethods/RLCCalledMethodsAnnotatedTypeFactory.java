@@ -36,7 +36,6 @@ import org.checkerframework.dataflow.cfg.block.Block;
 import org.checkerframework.dataflow.cfg.node.LocalVariableNode;
 import org.checkerframework.dataflow.cfg.node.MethodInvocationNode;
 import org.checkerframework.dataflow.cfg.node.Node;
-import org.checkerframework.framework.flow.CFStore;
 import org.checkerframework.framework.source.SourceChecker;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.GenericAnnotatedTypeFactory;
@@ -241,10 +240,9 @@ public class RLCCalledMethodsAnnotatedTypeFactory extends CalledMethodsAnnotated
      * Returns the {@link MustCall#value} element/argument of the @MustCall annotation on the class
      * type of {@code element}. If there is no such annotation, returns the empty list.
      *
-     * <p>Do not use this method to get the MustCall values of an {@link
-     * org.checkerframework.checker.resourceleak.MustCallConsistencyAnalyzer.Obligation}. Instead,
-     * use {@link
-     * org.checkerframework.checker.resourceleak.MustCallConsistencyAnalyzer.Obligation#getMustCallMethods(RLCCalledMethodsAnnotatedTypeFactory,
+     * <p>Do not use this method to get the MustCall values of a {@code
+     * MustCallConsistencyAnalyzer.Obligation} (a package-private class). Instead, use {@code
+     * MustCallConsistencyAnalyzer.Obligation#getMustCallMethods(RLCCalledMethodsAnnotatedTypeFactory,
      * CFStore)}.
      *
      * <p>Do not call {@link List#isEmpty()} on the result of this method: prefer to call {@link
@@ -328,10 +326,9 @@ public class RLCCalledMethodsAnnotatedTypeFactory extends CalledMethodsAnnotated
      * inferred, type of the tree.
      *
      * <p>Do not use this method if you are trying to get the must-call obligations of the resource
-     * aliases of an {@link
-     * org.checkerframework.checker.resourceleak.MustCallConsistencyAnalyzer.Obligation}. Instead,
-     * use {@link
-     * org.checkerframework.checker.resourceleak.MustCallConsistencyAnalyzer.Obligation#getMustCallMethods(RLCCalledMethodsAnnotatedTypeFactory,
+     * aliases of a {@code MustCallConsistencyAnalyzer.Obligation} (a package-private class).
+     * Instead, use {@code
+     * MustCallConsistencyAnalyzer.Obligation#getMustCallMethods(RLCCalledMethodsAnnotatedTypeFactory,
      * CFStore)}.
      *
      * @param tree a tree

@@ -6,13 +6,13 @@ import com.github.javaparser.ast.AccessSpecifier;
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.NodeList;
-import com.github.javaparser.ast.body.AnnotationDeclaration;
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import com.github.javaparser.ast.body.ConstructorDeclaration;
 import com.github.javaparser.ast.body.EnumDeclaration;
 import com.github.javaparser.ast.body.FieldDeclaration;
 import com.github.javaparser.ast.body.InitializerDeclaration;
 import com.github.javaparser.ast.body.MethodDeclaration;
+import com.github.javaparser.ast.body.TypeDeclaration;
 import com.github.javaparser.ast.expr.NormalAnnotationExpr;
 import com.github.javaparser.ast.nodeTypes.modifiers.NodeWithAccessModifiers;
 import com.github.javaparser.ast.stmt.BlockStmt;
@@ -24,12 +24,15 @@ import com.github.javaparser.utils.SourceRoot;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Optional;
 
 /**
- * Process Java source files in a directory to produce, in-place, minimal stub files.
+ * Process Java source files in a directory to produce, in-place, minimal stub files, and also
+ * generate the compressed binary stub file ({@link BinaryStubWriter#OUTPUT_FILENAME}) for the same
+ * directory from the same parsed compilation units.
  *
  * <p>To process a file means to remove:
  *
@@ -43,6 +46,15 @@ import java.util.Optional;
  * </ol>
  */
 public class JavaStubifier {
+    /**
+     * The language level used to parse both the annotated JDK sources (by this class) and the
+     * built-in {@code .astub} files (by {@link BinaryStubFileGenerator}, which reuses this
+     * constant). Intentionally duplicates {@code JavaParserUtil.DEFAULT_LANGUAGE_LEVEL}, which the
+     * text parser uses at checker runtime: {@code JavaParserUtil} lives in framework main, which
+     * this stubifier source set cannot depend on (the dependency runs the other way — framework
+     * main depends on this source set's output — and framework.jar ships no stubifier classes), so
+     * the constant can't be unified further.
+     */
     public static final LanguageLevel DEFAULT_LANGUAGE_LEVEL = LanguageLevel.JAVA_21;
 
     /**
@@ -66,8 +78,19 @@ public class JavaStubifier {
      * @param dir directory to process
      */
     private static void process(String dir) {
+        // Scoped to this call, not a shared/static field: main() may process several
+        // directories, and a BinaryStubWriter accumulates classes/pool state across every
+        // process(CompilationUnit) call with no reset, so reusing one across directories would
+        // make each directory's output file also contain every earlier directory's classes.
+        //
+        // omitUnannotatedMembers: this writer produces the annotated JDK, whose members the
+        // reader never marks with @FromStubFile, so a member record with no annotations has no
+        // effect and is not worth writing. BinaryStubFileGenerator, which produces the built-in
+        // stub files' binaries, must not pass this.
+        BinaryStubWriter binaryStubWriter =
+                new BinaryStubWriter(/* omitUnannotatedMembers= */ true);
         Path root = dirnameToPath(dir);
-        MinimizerCallback mc = new MinimizerCallback();
+        MinimizerCallback mc = new MinimizerCallback(binaryStubWriter);
         CollectionStrategy strategy = new ParserCollectionStrategy();
         // Required to include directories that contain a module-info.java, which don't parse by
         // default.
@@ -84,6 +107,25 @@ public class JavaStubifier {
                                 System.err.println("IOException: " + e);
                             }
                         });
+
+        File outputFile = new File(dir, BinaryStubWriter.OUTPUT_FILENAME);
+        try {
+            binaryStubWriter.writeTo(outputFile);
+        } catch (IOException e) {
+            // Do not print and carry on. The checker prefers this file over the text stubs
+            // whenever it exists, so a truncated one -- or one an earlier run left behind --
+            // would ship and be applied in place of the JDK's real annotations, silently.
+            // BinaryStubFileGenerator makes the same file-level failure fatal for the same
+            // reason; it can afford to merely skip a stub file because that file then keeps its
+            // text parsing, whereas there is no text fallback for a half-written annotated JDK.
+            try {
+                Files.deleteIfExists(outputFile.toPath());
+            } catch (IOException cleanupFailure) {
+                throw new RuntimeException(
+                        "Could not delete incomplete binary stub " + outputFile, cleanupFailure);
+            }
+            throw new RuntimeException("Failed to write binary stub " + outputFile, e);
+        }
     }
 
     /**
@@ -117,9 +159,17 @@ public class JavaStubifier {
         /** The visitor instance. */
         private final MinimizerVisitor mv;
 
-        /** Create a MinimizerCallback instance. */
-        public MinimizerCallback() {
+        /** The writer used to generate the compressed binary stub file for this directory. */
+        private final BinaryStubWriter binaryStubWriter;
+
+        /**
+         * Create a MinimizerCallback instance.
+         *
+         * @param binaryStubWriter the writer to accumulate this directory's classes into
+         */
+        public MinimizerCallback(BinaryStubWriter binaryStubWriter) {
             this.mv = new MinimizerVisitor();
+            this.binaryStubWriter = binaryStubWriter;
         }
 
         @Override
@@ -134,13 +184,20 @@ public class JavaStubifier {
                 // removed.
                 cu.getAllContainedComments().forEach(Node::remove);
                 mv.visit(cu, null);
-                if (cu.findAll(ClassOrInterfaceDeclaration.class).isEmpty()
-                        && cu.findAll(AnnotationDeclaration.class).isEmpty()
-                        && cu.findAll(EnumDeclaration.class).isEmpty()
-                        && !absolutePath.endsWith("package-info.java")) {
+                // ClassOrInterfaceDeclaration, AnnotationDeclaration, EnumDeclaration, and
+                // RecordDeclaration all extend TypeDeclaration, so one findAll covers all four
+                // kinds with no predicate filter needed. package-info.java and module-info.java
+                // never have any TypeDeclaration but still carry declaration annotations
+                // (BinaryStubWriter.processTypes reads cu.getPackageDeclaration()/cu.getModule()),
+                // so both are kept even when otherwise "empty".
+                if (cu.findAll(TypeDeclaration.class).isEmpty()
+                        && !absolutePath.endsWith("package-info.java")
+                        && !absolutePath.endsWith("module-info.java")) {
                     // All content is removed, delete this file.
                     new File(absolutePath.toUri()).delete();
                     res = Result.DONT_SAVE;
+                } else {
+                    binaryStubWriter.process(cu);
                 }
             }
             return res;

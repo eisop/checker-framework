@@ -3,231 +3,142 @@ Version 3.49.5-eisop2 (June ?, 2026)
 
 **User-visible changes:**
 
-Further performance improvements. `allNullnessTests` down to below 2 minutes
-and `checkNullness` to around 2.5 minutes (last release: 2.5 and 4 minutes,
-respectively). Several optimizations also reduce GC pressure.
+Further performance improvements relative to the 3.49.5-eisop1 release:
+- `allNullnessTests`: 1m24s vs. 2m16s
+- `checkNullness`: 1m28s vs. 3m40s
+- `checkInterning`: 0m35s vs. 1m13s
+- `test`: 7m15s vs. 12m40s (lots of build overhead)
+
+Several optimizations also reduce GC pressure and remove superlinear behavior,
+improving performance for large (e.g. auto-generated) files.
+
+The annotated JDK is now distributed additionally as a pre-parsed binary file
+(`annotated-jdk.bin.gz`), so checker startup no longer text-parses the JDK
+stubs. The text stubs remain in `checker.jar` as a fallback; they are expected
+to be dropped in a future release, shrinking `checker.jar` by about 1.5 MB.
+
+The built-in checker stub files (`jdk.astub`, `jdkN.astub`, and `@StubFiles`
+resources) are likewise pre-parsed into sibling `.astub.bin.gz` resources at
+build time and loaded from the binary form at checker startup, removing
+JavaParser from checker initialization entirely. A stub file that cannot be
+represented in binary form falls back to text parsing; user-supplied `-Astubs`
+files are always text-parsed.
+
+A checker that ships its own annotated JDK (as the JSpecify reference checker
+does) no longer also loads `checker.jar`'s binary annotated JDK on top of it.
+
+The Checker Framework now warns when it text-parses the annotated JDK, or a
+stub file that a checker ships, instead of reading that file's binary stub.
+Generate a missing binary stub by running `JavaStubifier` on the annotated
+JDK's `annotated-jdk` directory, or `BinaryStubFileGenerator` on a checker's
+`.astub` files. Stub files supplied with `-Astubs` and `.ajava` files are
+text-parsed as before, without a warning.
+
+These warnings have no source position, so `@SuppressWarnings` cannot suppress
+them. Suppress them with `-AsuppressWarnings=text.parsing`, or individually
+with `-AsuppressWarnings=text.parsing.jdk` (the annotated JDK has no binary
+stub), `-AsuppressWarnings=text.parsing.jdk.class` (a JDK class is missing from
+the binary stub), or `-AsuppressWarnings=text.parsing.stub` (a checker's stub
+file has no binary stub).
+
+Fixed four bugs in how `AnnotationFileParser` matches a fake override to the
+method it overrides. Each made a stub declaration bind to the wrong method, or
+to none at all, silently changing or dropping the annotations it provides:
+
+- Generic-parameter matching dropped annotated-JDK annotations from
+  `TreeMap.computeIfPresent()`, `computeIfAbsent()`, `compute()`, and `merge()`
+  under JDK 11 and 21.
+- An overload whose parameter types match the stub declaration exactly is now
+  preferred, so a fake override `f(String)` no longer binds to a coexisting
+  type-variable overload `<T> f(T)` that happens to be visited first.
+- A varargs stub parameter (`X...`) was compared by its element type, so it
+  could bind to an unrelated one-argument overload `f(X)`.
+- A parameter type written with a partial scope (`HTML.Tag` for
+  `javax.swing.text.html.HTML.Tag`) matched neither the fully-qualified nor the
+  simple name, so the fake override was dropped; such a name is now matched as
+  a suffix of the fully-qualified name.
+
+Fixed a typo (`@SafeEFfect`) in the Guieffect Checker's `org-eclipse.astub` that
+made `CompareEditorInput.getMessage()` inherit the enclosing `@UIType`'s
+`@UIEffect` default rather than being `@SafeEffect`.
+
+Fixed `permit-nullness-assertion-exception.astub`'s missing `EnsuresNonNullIf`
+import, which caused two spurious warnings for every user passing
+`-Astubs=permit-nullness-assertion-exception.astub`.
+
+The Nullness Checker now checks if `Arrays.copyOf` is called with a
+side-effecting array expression, avoiding unsound behavior. It now also issues
+a warning message explaining why `copyOf` used a `@Nullable` return type,
+making errors with `copyOf` easier to fix.
 
 **Implementation details:**
 
-Performance: when reporting a warning or error on a tree, the path used for the
-`@SuppressWarnings` lookup is now found starting from the visitor's current path
-rather than rescanning the whole compilation unit from its root. This was
-O(compilation unit) per reported message, hence quadratic for code that produces
-many messages (e.g. the Interning Checker on a file with many `==` comparisons);
-on a generated 3000-comparison file its on-CPU samples dropped about 2x.
+`SourceChecker.reportError` and `SourceChecker.reportWarning` now accept a null
+source, for a message that has no source position. Such a message is reported
+against the compilation as a whole, and is suppressed only by
+`-AsuppressWarnings`. Previously such a message had to bypass the message-key
+mechanism entirely, and so could not be suppressed at all.
 
-Performance: the synthetic array tree created for a varargs call is now given a tree
-path under the call site, so defaulting its type no longer rescans the whole
-compilation unit via `getPath`. This was O(compilation unit) per varargs call --
-quadratic over a file of varargs calls; on a 3000-call file the nullness checker's
-on-CPU samples dropped about 4x. Only checkers that default heavily (e.g. nullness)
-were affected.
+A differential test (`NullnessBinaryStubDiffTest`, option
+`-AbinaryStubDiffCheck`) verifies that the binary and text paths load identical
+annotations for every JDK class and every built-in stub file.
 
-Performance: `AnnotatedTypeFactory.declarationFromElement` no longer calls
-`Trees.getTree` to locate the enclosing declaration of a member or variable,
-which made javac scan the enclosing class on every call (O(class) per call,
-O(class^2) across a class's members). It now obtains the enclosing method/class
-tree from the current visitor path when available, and `DeclarationScanner`
-caches declarations under their raw symbol. Reduces `declarationFromElement`
-from 8.4% to 1.5% of `checkNullness` self time and is about 7% faster
-end-to-end; worst-case (a single large class) improves by roughly half.
-
-Performance and robustness: Java 8 type argument inference now caps the amount of
-bound-incorporation work it performs for a single invocation
-(`Java8InferenceContext.MAX_INCORPORATION_WORK`). Incorporating bounds to a fixed
-point is roughly cubic in the nesting depth of a generic invocation, so a single
-deeply nested (typically machine-generated) invocation could take many seconds or
-effectively hang the compiler. When the budget is exceeded, inference is abandoned
-soundly: a new `type.argument.inference.budget` error is reported (pointing the user at
-the fix with a concrete example -- the explicit type arguments that javac inferred for the
-call) and a conservative (defaulted) return type is used so that checking continues. The default budget has
-roughly two orders of magnitude of headroom over the largest amount of work observed
-on hand-written code, so realistic programs are unaffected; the worst case (e.g. a
-30-deep nested generic call) drops from tens of seconds to bounded time.
-
-Performance: the Java 8 type-argument-inference bound-incorporation fixpoint no longer
-re-scans the bounds of inference variables that have fully resolved. Once every bound of a
-variable is a proper type its bounds can no longer change (applying instantiations to a
-proper type is the identity), so such variables are skipped on subsequent iterations
-instead of being re-scanned every iteration. This reduces the fixpoint's cost on deeply
-nested generic invocations (about 9% faster at nesting depth 20, with the gain growing with
-depth). Two smaller repeated computations on the same hot path were also removed: the
-fixpoint no longer builds a fresh set of instantiated variables every iteration just to
-test whether one exists (it short-circuits on the first), and a proper type caches its
-erasure instead of recomputing it on every subtyping check.
+Fixed a `NullPointerException` in `AnnotationFileParser`'s handling of
+unbounded wildcards (e.g. `Class<?>`) under `--release 8`, which had silently
+aborted parsing of the remaining methods in the enclosing stub file.
 
 Enabled the Gradle configuration cache, speeding up build times.
 
-`AnnotationMirrorSet` has a new `get(int)` method that returns the element at a
-given index in iteration order, letting hot callers iterate by index without
-allocating an `Iterator`.
+Added the `-AinferenceWorkBudget=N` command-line option to bound Java
+type-argument-inference work, averting hangs on deeply nested (e.g.,
+machine-generated) invocations. Defaults to 10000; raises a
+`type.argument.inference.budget` error if exceeded.
 
-`AnnotatedTypeFactory` has a new `getElementAnnotations(Element)` method that
-returns an element's primary annotations without the defensive deep copy that
-`fromElement` makes on every cache hit; for read-only callers that only need the
-primary annotations.
+Performance optimizations:
+- Capped Java type argument inference bound-incorporation work and optimized
+  the fixpoint algorithm to short-circuit and re-scan fewer variables.
+- Optimized `TreePath` resolution in `CFCFGBuilder` and warning reporting by
+  caching paths and using tight starting bounds, removing quadratic overheads.
+- `AnnotatedTypeFactory.declarationFromElement` leverages the visitor's
+  current path and caches declarations, significantly improving performance on large files.
+- Optimized applying default qualifiers to traverse types once and memoize
+  the precedence-ordered default list, cutting defaulting time roughly 30%
+  on generics-heavy code.
+- The annotated-JDK stub AST is now parsed once per JVM and shared across
+  compilations.
+- Greatly reduced allocations by reusing several `AnnotatedTypeScanner`s
+  and lowering default visitor map capacities (`VISITED_NODES_INITIAL_CAPACITY`).
+- Eliminated `Iterator` allocation when iterating `AnnotationMirrorSet`, and added
+  a new `get(int)` method for index access.
+- Avoided defensive deep copies via new `freeze()` and `isFrozen()` methods on
+  `AnnotatedTypeMirror`. `getAnnotatedType(Tree)` and a new
+  `getElementAnnotations(Element)` method now return shared frozen types.
+- Eliminated cache thrashing by replacing the 2048-entry LRU caches in
+  `AnnotatedTypeFactory` with per-compilation-unit `IdentityHashMap`s.
+- Avoided UTF-8 decoding costs by comparing `Name` objects by identity
+  (via new `InternalUtils` helpers) instead of using `String.contentEquals()`.
+- Reduced `String` overhead by updating `AnnotationFileParser` and others
+  to return `IdentityHashMap<Name, TypeElement>`. **API change**: Callers
+  must update their declared types accordingly.
+- Deferred `toString()` costs for suppressed errors in `BaseTypeVisitor.FoundRequired`
+  by storing `Object` instead of `String`. **API change**: Callers reading into a
+  `String` variable must call `.toString()` explicitly.
+- `AnnotatedTypeScanner.visitedNodes` is now lazily allocated.
+- Made `StructuralEqualityComparer.arePrimaryAnnosEqual` non-mutating, enabling
+  comparison of shared immutable types.
+- Optimized the Value Checker and annotation construction: `AnnotationBuilder`
+  gained a `TypeElement`-taking constructor and a fast path that avoids an
+  `Elements.getTypeElement` lookup per annotation value; final local values are
+  indexed by declaring element instead of scanned per method (quadratic in
+  methods per class); `ValueQualifierHierarchy` uses cached `value()` elements.
+  Wall clock on constant-heavy 1500-method classes improved ~18%.
+- `TreeUtils.sameTree()`: use a visitor instead of an expensive `toString()`.
 
-`TreeUtils` has a new `inferredTypeArguments(ExpressionTree)` method that returns the
-Java types javac inferred for a generic method or constructor invocation's type
-variables (recovered by matching the declared signature against javac's instantiated
-method type); best-effort, for diagnostics.
-
-Performance: the annotated-JDK stub AST is now parsed once per JVM and shared
-across compilations instead of being re-parsed for every compilation. This speeds
-up multi-compilation JVMs such as the test suite, the Gradle daemon, and the
-language server (the JavaParser parse share of `allNullnessTests` roughly halved);
-a single compilation is unaffected.
-
-Performance: several `AnnotatedTypeScanner`s that were constructed per use are now
-reused — the `QualifierDefaults` defaulting scanner, `ElementAnnotationApplier`'s
-`TypeVarAnnotator`, and `BaseTypeValidator`'s structural-validity scanner — instead of
-allocating a scanner (and its `IdentityHashMap`) for every type. This removes ~99% of
-per-use scanner-construction allocations in realistic compilations.
-
-Performance: new caches in the `AnnotatedTypeFactory`: `methodAsMemberOfCache`
-to cache method types, `directSupertypesCache` to cache direct supertypes, and
-`elementTypeCache` to cache defaulted Element types.
-
-Performance: reduced the `AnnotatedTypeScanner`, `AnnotatedTypeCopier`, and
-`EquivalentAtmComboScanner` visitor-map pre-size from 64 to 8 (constant
-`VISITED_NODES_INITIAL_CAPACITY`). These per-scan `IdentityHashMap` backing
-arrays were the largest transient-allocation source in realistic compilations,
-and most scans visit only a few nodes; the smaller pre-size cuts that allocation
-substantially and lowers GC pressure with no wall-clock cost. Also pre-sized the
-small `wildcardToAnnos` map in `ElementAnnotationUtil` to 4.
-
-`AnnotatedTypeScanner.visitedNodes` is now `private` and lazily allocated: the
-`IdentityHashMap` is created on the first stored node rather than in a field
-initializer, so scans that touch no recursive type allocate nothing. Subclasses
-now go through three `protected final` accessors — `hasVisited`, `getVisited`,
-and `markVisited` — instead of touching the field directly, which centralizes the
-lazy-null invariant in one place. This is primarily an encapsulation change;
-allocation and wall clock are unchanged within measurement noise (the eager-vs-lazy
-map allocation count is essentially the same once the previous per-use scanner
-pooling is in place).
-
-Performance: `CFCFGBuilder` now obtains each method/lambda body's `TreePath` from the
-checker's shared `TreePathCacher` instead of an uncached `Trees.getPath` search per
-body. The old search was quadratic in bodies-per-file (each rescanned the preceding
-bodies) and was the largest `TreePath` allocator; caching it removes that quadratic.
-The effect scales with methods-per-file: negligible on small files, but large on very
-large or machine-generated single-class files (e.g. −33% allocation, −6.5% wall clock
-on a 1500-method class).
-
-Performance: `TreePathCacher` now builds each `TreePath` lazily — it allocates only the
-nodes on the path to the requested tree, instead of one for every tree it scans past — and
-`AnnotatedTypeFactory.getPath` routes its searches through the cacher. This further reduces
-allocation when many paths are requested from one compilation unit; on a 1500-method class
-it roughly halves total allocation again on top of the previous change, with no effect on
-normal code. No user-visible behavior change.
-
-Performance: `AnnotatedTypeFactory.getPath` and dataflow now search for tree paths from the
-tightest known starting point instead of rescanning the whole compilation unit. Previously a
-path lookup during checking or flow analysis could rescan an entire class, making allocation
-quadratic in the number of members; it is now linear. On a 6000-method class this roughly
-halves total allocation (~32 GB to ~15 GB); on normal code there is no change. No user-visible
-behavior change.
-
-Performance: iterating an unmodifiable `AnnotationMirrorSet` no longer allocates the backing
-list's iterator; the read-only iterator now walks the backing list by index. This removes the
-single largest remaining source of `Iterator` allocation in type checking. No user-visible
-behavior change.
-
-Performance: `InternalUtils` has new helpers (`isInitName`, `isThisName`, `isSuperName`,
-`isValueName`, `isJavaLangObjectName`, `isJavaLangEnumName`) that compare a javac `Name`
-against the table's pre-interned name by identity instead of `Name.contentEquals`, which
-decodes the name's UTF-8 bytes into a fresh `String` on every call on byte-backed name
-tables (javac's default before JDK 23, and what Gradle's `-XDuseUnsharedTable` forces on
-all JDK versions). All call sites that compared a `Name` against these fixed literals
-(`TreeUtils.isConstructor`, `TreeUtils.isEnumSuperCall`, identifier `this`/`super` checks
-in dataflow and the checkers, annotation-element `value` checks) now use them. For
-comparisons against dynamic-but-bounded strings (annotation element names, method names a
-checker matches against), the new `InternalUtils.sameName(Name, CharSequence)` interns the
-target into the name's own table through a table-validated cache and compares by identity
-(~6x faster, allocation-free, on byte-backed tables); `sameName(Name, Name)` compares
-same-table names by identity. `AnnotationUtils.getElementValue` and
-`AnnotationBuilder.findElement` — the hottest `Name` comparisons in the Called Methods,
-Must Call, and Resource Leak checkers — now use it. No user-visible behavior change.
-
-Performance: the `AnnotatedTypeFactory` tree-type caches (`classAndMethodTreeCache`,
-`fromExpressionTreeCache`, `fromMemberTreeCache`, `fromTypeTreeCache`, and `elementToTreeCache`) are
-now unbounded `IdentityHashMap`s cleared per compilation unit, rather than LRU caches capped at 2048
-entries. On a large compilation unit the live tree set overflowed the cap, so the LRU evicted
-still-needed entries and recomputed (and deep-copied) their annotated types; the per-compilation-unit
-`IdentityHashMap` removes that thrash. A single pass over each enclosing method/class now records all of
-its declaration trees instead of re-scanning per local variable, and `AnnotatedTypeCopier` reuses a
-thread-local map instead of allocating one per copy. Total allocation on large single-class files
-dropped 14-19% (e.g. -19% on a 1500-method class) and about 7% on a many-file corpus; wall clock is
-roughly unchanged, the gain being reduced GC pressure. No user-visible behavior change.
-
-`AnnotatedTypeMirror` has new `freeze()` and `isFrozen()` methods. Freezing a type
-makes it (and every type reachable from it) reject primary-annotation changes,
-throwing `BugInCF` on an attempted mutation; lazy initialization of bounds and type
-arguments is still permitted. This lets the framework share an immutable cached type
-without defensively deep-copying it.
-
-Fixed a latent aliasing bug in `AnnotatedTypeCopier`: when copying an executable
-type, the copy shared the original's vararg type instead of copying it, so
-`deepCopy()` did not produce a fully independent type. The annotated-type caches in
-`AnnotatedTypeFactory` now freeze the value they store (the masters), so a future
-in-place mutation of a cached type fails fast with `BugInCF` instead of silently
-corrupting the shared value.
-
-`StructuralEqualityComparer.arePrimaryAnnosEqual` is now non-mutating. The Value
-Checker's override previously normalized the two operands' annotations to a canonical
-form by calling `replaceAnnotation` on them -- an equality check with a side effect on
-its operands, which also prevents comparing a shared immutable type. It now computes
-the canonical annotations and compares them without mutating the types.
-
-Performance: `getAnnotatedType(Tree)` for class and method declarations
-(`classAndMethodTreeCache`) now returns the shared frozen cached type instead of a deep
-copy on every hit; the few callers that mutate the result copy it first. This removes a
-deep copy per cache hit for the read-only majority of callers. No user-visible behavior
-change.
-
-Fixed a bug that caused an IndexOutOfBoundsException for lambdas in varargs,
-for type systems that had the Aliasing Checker as a subchecker, like the
-Optional Checker.
-
-Performance: `BaseTypeVisitor.FoundRequired.found` and `.required` are now
-typed as `Object` instead of `String`; their `toString()` returns the
-lazily-formatted annotated-type string. This defers `AnnotatedTypeMirror.toString()`
-(which traverses the type structure and decodes UTF-8 names) until a diagnostic is
-actually emitted, so suppressed errors pay no formatting cost. **API change:**
-callers that read these fields into a `String` variable must call `.toString()`
-explicitly.
-
-Performance: `AnnotationFileParser.annosInPackage`, `annosInType`, and
-`createNameToAnnotationMap` now return
-`IdentityHashMap<javax.lang.model.element.Name, TypeElement>` instead of
-`Map<String, TypeElement>`, keyed by the live `Name` objects from the
-compilation's name table. The same change applies to
-`InsertAjavaAnnotations.FileState.allAnnotations` and the `TypeAnnotationMover`
-constructor parameter. Within one compilation's `Elements` instance, same-content
-names are interned to the same object, so identity comparison is correct and avoids
-UTF-8 decodes on every annotation lookup. **API changes:** callers of the three
-`AnnotationFileParser` methods and the `TypeAnnotationMover` constructor must
-update their declared types from `Map<String, TypeElement>` to
-`IdentityHashMap<Name, TypeElement>`.
-
-Performance: `SourceChecker.shouldSkipUses(Element)` now caches results per
-enclosing-class qualified `Name`, avoiding a repeated `Symbol.toString()` UTF-8
-decode and regex match for every element within the same class. No behavior change.
-
-Performance: `LocalVariableNode.hashCode()` and `equals()` now read the variable
-name as a `Name` directly from the tree instead of going through `getName()` (which
-decodes to `String`). `equals` uses `InternalUtils.sameName`; `hashCode` uses
-`Name.hashCode()` directly (which returns the name-table byte offset — no decode).
-No behavior change.
-
-Performance: `Variable.computeHashCode` and `ProperType.computeHashCode` in the
-type-inference-8 subsystem no longer call `toString()` to compute a hash; they use
-`Name.hashCode()` and `TypeKind` instead. No behavior change.
-
-Together the above changes (PR #1797) reduce `Convert.utf2chars` +
-`Convert.utf2string` self-time from ~2.3% to ~0.89% of a full `checknullness`
-build; wall-clock A/B shows ~5% improvement on `checknullness` (~135 s → ~128 s,
-median of four warm-daemon reps per side).
+Other improvements and bug fixes:
+- `TreeUtils` has a new `inferredTypeArguments(ExpressionTree)` method to
+  recover Java type variables inferred by javac.
+- Fixed a latent aliasing bug in `AnnotatedTypeCopier` for executable types.
+- Fixed an `IndexOutOfBoundsException` for lambdas in varargs.
 
 **Closed issues:**
 
