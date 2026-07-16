@@ -997,8 +997,8 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
     }
 
     /**
-     * Prints a diagnostic about entering {@link #checkExtendsOrImplements}, if the showchecks
-     * option was set.
+     * Prints a diagnostic before checking an extends or implements clause, if the {@code
+     * -Ashowchecks} command-line option is provided.
      *
      * @param boundClause an extends or implements clause
      * @param classAnno the annotation on the class declaration
@@ -1017,11 +1017,9 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         if (showchecks) {
             String clause = isExtends ? "extends" : "implements";
             System.out.printf(
-                    "%s %s (at %s): %s tree = %s %s%n     actual: %s %s%n   expected: %s %s%n",
+                    "%s about to test whether the class declaration annotation is a subtype of the %s clause annotation (at %s): %s tree = %s %s%n     actual: %s %s%n   expected: %s %s%n",
                     this.getClass().getSimpleName(),
-                    "about to test whether the class declaration annotation is a subtype of the "
-                            + clause
-                            + " clause annotation",
+                    clause,
                     fileAndLineNumber(boundClause),
                     clause,
                     boundClause.getKind(),
@@ -1034,8 +1032,8 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
     }
 
     /**
-     * Prints a diagnostic about exiting {@link #checkExtendsOrImplements}, if the showchecks option
-     * was set.
+     * Prints a diagnostic after checking an extends or implements clause, if the {@code
+     * -Ashowchecks} command-line option is provided.
      *
      * @param success whether the check succeeded or failed
      * @param boundClause an extends or implements clause
@@ -1056,12 +1054,10 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         if (showchecks) {
             String clause = isExtends ? "extends" : "implements";
             System.out.printf(
-                    " %s  (at %s): %s tree = %s %s%n     actual: %s %s%n   expected: %s %s%n",
-                    (success
-                                    ? "success: class declaration annotation is subtype of "
-                                    : "FAILURE: class declaration annotation is not subtype of ")
-                            + clause
-                            + " clause annotation",
+                    " %s: class declaration annotation %s subtype of %s clause annotation  (at %s): %s tree = %s %s%n     actual: %s %s%n   expected: %s %s%n",
+                    success ? "success" : "FAILURE",
+                    success ? "is" : "is not",
+                    clause,
                     fileAndLineNumber(boundClause),
                     clause,
                     boundClause.getKind(),
