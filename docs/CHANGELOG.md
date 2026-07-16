@@ -4,15 +4,88 @@ Version 3.49.5-eisop2 (June ?, 2026)
 **User-visible changes:**
 
 Further performance improvements relative to the 3.49.5-eisop1 release:
-- `allNullnessTests`: 1m42s vs. 2m16s
-- `checkNullness`: 1m37s vs. 3m40s
-- `checkInterning`: 0m42s vs. 1m13s
-- `test`: 8m18s vs. 12m40s (lots of build overhead)
+- `allNullnessTests`: 1m24s vs. 2m16s
+- `checkNullness`: 1m28s vs. 3m40s
+- `checkInterning`: 0m35s vs. 1m13s
+- `test`: 7m15s vs. 12m40s (lots of build overhead)
 
 Several optimizations also reduce GC pressure and remove superlinear behavior,
 improving performance for large (e.g. auto-generated) files.
 
+The annotated JDK is now distributed additionally as a pre-parsed binary file
+(`annotated-jdk.bin.gz`), so checker startup no longer text-parses the JDK
+stubs. The text stubs remain in `checker.jar` as a fallback; they are expected
+to be dropped in a future release, shrinking `checker.jar` by about 1.5 MB.
+
+The built-in checker stub files (`jdk.astub`, `jdkN.astub`, and `@StubFiles`
+resources) are likewise pre-parsed into sibling `.astub.bin.gz` resources at
+build time and loaded from the binary form at checker startup, removing
+JavaParser from checker initialization entirely. A stub file that cannot be
+represented in binary form falls back to text parsing; user-supplied `-Astubs`
+files are always text-parsed.
+
+A checker that ships its own annotated JDK (as the JSpecify reference checker
+does) no longer also loads `checker.jar`'s binary annotated JDK on top of it.
+
+The Checker Framework now warns when it text-parses the annotated JDK, or a
+stub file that a checker ships, instead of reading that file's binary stub.
+Generate a missing binary stub by running `JavaStubifier` on the annotated
+JDK's `annotated-jdk` directory, or `BinaryStubFileGenerator` on a checker's
+`.astub` files. Stub files supplied with `-Astubs` and `.ajava` files are
+text-parsed as before, without a warning.
+
+These warnings have no source position, so `@SuppressWarnings` cannot suppress
+them. Suppress them with `-AsuppressWarnings=text.parsing`, or individually
+with `-AsuppressWarnings=text.parsing.jdk` (the annotated JDK has no binary
+stub), `-AsuppressWarnings=text.parsing.jdk.class` (a JDK class is missing from
+the binary stub), or `-AsuppressWarnings=text.parsing.stub` (a checker's stub
+file has no binary stub).
+
+Fixed four bugs in how `AnnotationFileParser` matches a fake override to the
+method it overrides. Each made a stub declaration bind to the wrong method, or
+to none at all, silently changing or dropping the annotations it provides:
+
+- Generic-parameter matching dropped annotated-JDK annotations from
+  `TreeMap.computeIfPresent()`, `computeIfAbsent()`, `compute()`, and `merge()`
+  under JDK 11 and 21.
+- An overload whose parameter types match the stub declaration exactly is now
+  preferred, so a fake override `f(String)` no longer binds to a coexisting
+  type-variable overload `<T> f(T)` that happens to be visited first.
+- A varargs stub parameter (`X...`) was compared by its element type, so it
+  could bind to an unrelated one-argument overload `f(X)`.
+- A parameter type written with a partial scope (`HTML.Tag` for
+  `javax.swing.text.html.HTML.Tag`) matched neither the fully-qualified nor the
+  simple name, so the fake override was dropped; such a name is now matched as
+  a suffix of the fully-qualified name.
+
+Fixed a typo (`@SafeEFfect`) in the Guieffect Checker's `org-eclipse.astub` that
+made `CompareEditorInput.getMessage()` inherit the enclosing `@UIType`'s
+`@UIEffect` default rather than being `@SafeEffect`.
+
+Fixed `permit-nullness-assertion-exception.astub`'s missing `EnsuresNonNullIf`
+import, which caused two spurious warnings for every user passing
+`-Astubs=permit-nullness-assertion-exception.astub`.
+
+The Nullness Checker now checks if `Arrays.copyOf` is called with a
+side-effecting array expression, avoiding unsound behavior. It now also issues
+a warning message explaining why `copyOf` used a `@Nullable` return type,
+making errors with `copyOf` easier to fix.
+
 **Implementation details:**
+
+`SourceChecker.reportError` and `SourceChecker.reportWarning` now accept a null
+source, for a message that has no source position. Such a message is reported
+against the compilation as a whole, and is suppressed only by
+`-AsuppressWarnings`. Previously such a message had to bypass the message-key
+mechanism entirely, and so could not be suppressed at all.
+
+A differential test (`NullnessBinaryStubDiffTest`, option
+`-AbinaryStubDiffCheck`) verifies that the binary and text paths load identical
+annotations for every JDK class and every built-in stub file.
+
+Fixed a `NullPointerException` in `AnnotationFileParser`'s handling of
+unbounded wildcards (e.g. `Class<?>`) under `--release 8`, which had silently
+aborted parsing of the remaining methods in the enclosing stub file.
 
 Enabled the Gradle configuration cache, speeding up build times.
 
@@ -53,6 +126,13 @@ Performance optimizations:
 - `AnnotatedTypeScanner.visitedNodes` is now lazily allocated.
 - Made `StructuralEqualityComparer.arePrimaryAnnosEqual` non-mutating, enabling
   comparison of shared immutable types.
+- Optimized the Value Checker and annotation construction: `AnnotationBuilder`
+  gained a `TypeElement`-taking constructor and a fast path that avoids an
+  `Elements.getTypeElement` lookup per annotation value; final local values are
+  indexed by declaring element instead of scanned per method (quadratic in
+  methods per class); `ValueQualifierHierarchy` uses cached `value()` elements.
+  Wall clock on constant-heavy 1500-method classes improved ~18%.
+- `TreeUtils.sameTree()`: use a visitor instead of an expensive `toString()`.
 
 Other improvements and bug fixes:
 - `TreeUtils` has a new `inferredTypeArguments(ExpressionTree)` method to

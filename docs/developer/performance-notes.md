@@ -202,6 +202,27 @@ so small per-call wins paid back substantially.
   callers that only need identity comparison or hashing now go through
   it. `Name` instances from the same `Elements` are guaranteed
   comparable by `==` within one javac invocation.
+- **`AnnotationBuilder`: name-match fast path in `checkSubtype`, and a `TypeElement`-taking
+  constructor (July 2026, Value-checker campaign).** On an annotation-construction-heavy workload
+  (Value checker over 1500-method constant-heavy classes; see the Value Checker section),
+  `AnnotationBuilder.checkSubtype` was **9.0% inclusive** and `AnnotationBuilder.<init>` **2.9%**.
+  Both costs were `Elements.getTypeElement(CharSequence)`: javac validates the name on every call
+  (`SourceVersion.isName` = a `String.split` plus per-segment `isIdentifier`/`isKeyword` checks —
+  `String.split` alone was 2.6% of samples) and searches every module. `checkSubtype` called it per
+  *value* (e.g. `getTypeElement("java.lang.Long")` for each element of an `@IntVal` list) and then
+  ran a `Types.isSubtype` visitor walk over the erasures. Two changes: (1) `checkSubtype` gets a
+  fast path — for a primitive (boxed) expected type, compare the value's run-time class against the
+  statically-known boxed class; for a declared expected type, compare `ElementUtils.getQualifiedName`
+  (interned, cached) against the value class's canonical name. Name equality was *already* accepted
+  as proof of compatibility by the slow path's `found.toString().equals(expected.toString())`
+  recovery, so this is behavior-preserving; mismatches still take the old path. (2) A new
+  `AnnotationBuilder(ProcessingEnvironment, TypeElement)` constructor skips the name lookup
+  entirely; `ValueAnnotatedTypeFactory` routes its twelve `create*Annotation` builder sites through
+  a per-factory `Class → TypeElement` cache (per-factory, not static, to avoid pinning one
+  compilation's symbols in a daemon JVM). After both, `checkSubtype`/`<init>`/`String.split` leave
+  the profile entirely. Part of the −18% wall / −19% alloc Value-workload total (see Value Checker
+  section); negligible on `checknullness` (both were ≤0.2% there — nullness mostly reuses
+  pre-built mirrors).
 
 ### `AnnotatedTypeScanner` iterator allocation
 
@@ -576,6 +597,153 @@ so small per-call wins paid back substantially.
   handles first-encounter FQN annotations and populates both simple-name and FQN entries for future
   hits.
 
+- **PR #1853** — *Binary pre-parsed JDK stub format.*
+  Text-based stub parsing (JavaParser + `AnnotationFileParser.process*`) was the
+  dominant cost in `allNullnessTests` (28–32% inclusive time on older baselines), with
+  PR #1776's AST cache eliminating the repeated parse but not the `process*` phase.
+  `BinaryStubWriter` (run once at build time by `copyAndMinimizeAnnotatedJdkFiles`) walks
+  the JavaParser AST of the annotated JDK and writes a compact GZIP-compressed binary
+  record per class (string pool, structural annotation pool, field/method/constructor
+  records with type-path-encoded annotations, class/enum/annotation-type kind,
+  type-parameter bounds). At checker run time, `BinaryStubData`/`BinaryStubReader` load
+  the file once per JVM and apply each class record lazily, with no JavaParser
+  involvement. `BinaryStubFileGenerator` applies the same format to the built-in checker
+  stub files (`jdk.astub`, `jdkN.astub`, `@StubFiles` resources).
+
+  Final results (after two follow-up passes: extending coverage to all JDK classes and
+  pre-parsing the built-in checker stubs too):
+
+  | Workload | master | branch |
+  |---|---|---|
+  | Tiny.java (25 lines) alloc / wall | 367.5 MB / 2.75 s | 132.1 MB (-64%) / 1.72 s (-37%) |
+  | Big300.java (300 methods) alloc / wall | 836.8 MB / 5.63 s | 672.5 MB (-20%) / 4.82 s (-14%) |
+  | `allNullnessTests` wall | 1m40s | 1m24-25s (**-16%**) |
+
+  *Follow-up: unannotated member records — the first attempt was wrong.* Most of the
+  annotated JDK's member records carry no annotation anywhere (69.6% of methods, 85.6% of
+  fields), so the writer dropped them when `omitUnannotatedMembers` is set. That reasoning
+  — "an all-empty record is a no-op" — is **false for a method**, and the resulting binary
+  disagreed with the text JDK.
+
+  An unannotated method declaration is not a no-op. If the class being compiled against
+  does not really declare the method, the declaration is a *fake override*, and its
+  presence alone resets the member's type at that subtype: the inherited annotations are
+  replaced by defaults. The manual specifies this ("Stub methods in subclasses of the
+  declaring class"), both loaders implement it, and dropping the record silently skipped
+  it. Nine fake overrides were lost from the shipped binary JDK — `CubicCurve2D.Double
+  .getBounds2D()`, `QuadCurve2D`, three `ForkJoinTask` inner classes, `Pattern`,
+  `com.sun.tools.javac.code.Type.ErrorType.allparams()`. The writer cannot tell a fake
+  override from an ordinary declaration: it parses source with JavaParser, has no symbol
+  table, and the overridden method is usually not in the annotated JDK's source at all
+  (which lists only the members it annotates). Two syntactic approximations (an explicit
+  `@Override`; a signature matching some interface's method) were tried and were unsound.
+
+  The fix keeps every unannotated method's **signature**, which is all the fake-override
+  reset needs, as a bare constant-pool index (`ClassRecord.presenceOnlyMethodSigs`)
+  instead of a full all-empty record. Unannotated *constructors* are still dropped (a
+  constructor is never a fake override, in either loader), as are unannotated fields.
+
+  | `annotated-jdk.bin.gz` | bytes |
+  |---|---|
+  | every record written in full | 306,462 |
+  | **presence-only signatures (current)** | **283,552** |
+  | unannotated methods dropped (incorrect) | 247,744 |
+
+  The compact form recovers 22,910 of the 58,718 bytes that full records cost, and still
+  avoids allocating 20,253 `MethodRecord`s with their five arrays per `BinaryStubData`
+  load. The shipped file holds 2,819 class records, 9,696 full method records, 20,253
+  presence-only signatures, 708 field records, and a 24,171-entry string pool.
+
+  The correctness gap was invisible because the differential harness compared fake
+  overrides in one direction only (binary → text), and its record oracle was gated on the
+  binary path's own lookup succeeding. Both are fixed; `BinaryStubDiffChecker` now compares
+  both directions.
+
+  *Re-measured after the fix* (median of 5, `checker/bin/javac`, same machine):
+
+  | Workload | master | branch |
+  |---|---|---|
+  | Tiny.java (25 lines) wall | 2.58 s | 1.66 s (**-36%**) |
+  | Big300.java (300 methods) wall | 5.57 s | 4.79 s (**-14%**) |
+
+  matching the -37% / -14% measured before the presence-only change: keeping the
+  signatures costs no measurable time. A JFR capture of `./gradlew --no-daemon
+  checkNullness` (7,745 on-CPU `ExecutionSample`s, 97 s) puts `BinaryStubReader` at 0.28%
+  of samples, `BinaryStubData` at 0.43%, `AnnotationFileElementTypes` at 1.56%, and
+  **JavaParser at 0.13%** — the point of the whole exercise. The 20,253 extra signature
+  lookups the presence-only entries add do not appear (`methodSigIndex`/`getSimpleSignature`
+  together: 11 samples, 0.14%).
+
+  *Benchmarking pitfall.* Drive these with `checker/bin/javac`, not a bare `javac
+  -processorpath checker.jar`: the latter dies with `NoClassDefFoundError` (CF needs the
+  `--add-opens` that `CheckerMain` supplies) and it fails *fast*, which yields plausible
+  looking wall-clock numbers for a run that never type-checked anything.
+
+  *Tried and rejected — do not re-propose.* A JFR capture of `./gradlew --no-daemon
+  checknullness` (9746 on-CPU `ExecutionSample`s, 130 s wall) puts **everything under
+  `BinaryStubReader` at 86 samples (0.88%)** and the `Stub/JDK annotation loading` phase
+  at 68 (0.70%). Within that budget:
+
+  - **Caching `@Target` element-kind sets in `BinaryStubReader.filterApplicable`.**
+    `filterApplicable` calls `asElement().getAnnotation(Target.class)` (a reflective
+    proxy over a javac `Symbol`) plus `AnnotationUtils.getElementKindsForTarget` (an
+    `EnumSet` allocation) once per declaration annotation per element. Sounds hot; the
+    `AnnoConstruct.getAttribute` leaf is **2 of 9746 samples (0.02%)**.
+  - **A cached `fieldNameIndex(TypeElement)` to match `methodSigIndexCache`.**
+    `applyFieldRecords` and `applyRecordComponents` each rebuild a name→`VariableElement`
+    map per class record. Does not appear in the profile.
+  - **Pre-sizing `BinaryStubData.classes`/`packages`.** A one-off cost paid once per JVM
+    (the parsed `BinaryStubData` is cached in `loadedBinaryStubData`);
+    `BinaryStubData.<init>` does not reach 1% of any capture.
+
+  Note that `checknullness` amortizes stub loading across ten subprojects in one worker
+  JVM. A cold single-file `javac` run is dominated by JVM startup and yields ~52 samples
+  total — too few to conclude anything from, so it does not rescue these.
+
+  *Applied, despite belonging to that same "one-off cost" family: dropping
+  `stringPool[i].intern()`* (commit `92e734c49`). Interning the 24,171-entry pool is a
+  one-off cost, and a sampling profiler at a 10 ms floor cannot see it — but it is not
+  free: it cut `BinaryStubData` load time from ~130 ms to ~20 ms, which a single-file
+  `javac` run pays in full and cannot amortize. Nothing needs those strings interned: they
+  are used as map keys or compared with `equals`, and the one identity comparison on an
+  annotation name (`BinaryStubReader.isAnnotatedForThisChecker`) compares the result of
+  `AnnotationUtils.annotationName`, which is interned by its own contract. The lesson is
+  the one the rejected list keeps re-teaching from the other direction: "invisible to JFR"
+  is not the same as "cheap" when the cost is one big pause rather than many small ones.
+
+  Design points worth remembering when touching this code:
+  - One `BinaryStubData`/`BinaryStubDataCache` load per compilation (keyed on the javac
+    `Context`), shared across all factories of a compilation.
+  - Name resolution, `@Target`-based TYPE_USE/declaration routing, and type-parameter/
+    wildcard-bound semantics are all written to mirror `AnnotationFileParser` exactly.
+    `BinaryStubDiffChecker` (`NullnessBinaryStubDiffTest`, `-AbinaryStubDiffCheck`) loads
+    every class through both the binary and text paths and fails on any disagreement —
+    run it after any change to `BinaryStubWriter`/`BinaryStubReader` (checks ~1652
+    top-level classes, 0 mismatches).
+  - JDK-stub data must never overwrite an already-established type (e.g. from a user
+    `-Astubs` file); built-in stub files may override an earlier built-in file, per the
+    documented "last stub file wins" rule. Getting this precedence wrong silently breaks
+    `java.util.Optional`'s user-override contract.
+  - `ClassRecord.kind` records whether a class record came from a class/interface, enum,
+    annotation-type, or record declaration; the reader skips applying a record whose kind
+    disagrees with the real `TypeElement`'s kind, so the annotated JDK keeps working even
+    when a class's kind changes between JDK versions (e.g. `java.nio.ByteOrder` became an
+    enum in JDK 26).
+
+  Known limitations / next options:
+  1. *Lazy built-in stub application* (~5–10% of a small compile): route built-in stub
+     records through the same per-class lazy dispatch the JDK uses. Precedence hazard: a
+     lazy design must consult built-in data before JDK data per class, since some option
+     stubs deliberately override the JDK.
+  2. *Drop text stubs from `checker.jar`* (~1.5 MB) once the binary format has soaked.
+     Blocked on `-AparseAllJdk`, which needs the text stubs.
+  3. `JavaExpressionParseUtil.parseExpression` (dependent-type/contract expression
+     strings) is the only stubparser use left on the default checking path; has never
+     surfaced above the JFR sampling floor.
+
+  The text fallback remains exercised for `-Astubs` files and any generator-skipped file
+  (records).
+
 - **PR #1776** — *Avoid the defensive deep copy in read-only
   `fromElement` consumers.* `AnnotatedTypeFactory.fromElement` returns
   `cached.deepCopy()` on every cache hit so callers may mutate the result; this is
@@ -742,6 +910,24 @@ so small per-call wins paid back substantially.
   delegate `HashMap`. For the actual fixpoint-convergence speedup, measure on a real project with
   `./gradlew --no-daemon checknullness` (warm-daemon reps); the generic-shape tiny-file corpus
   stresses per-file overhead, not the fixpoint loop.
+- **`addFinalLocalValues`: index final-local values by declaring element (July 2026, Value-checker
+  campaign).** `CFAbstractTransfer.addFinalLocalValues` (called once per analyzed
+  method/lambda/initializer when building the initial store) scanned **every** effectively-final
+  local value accumulated in `flowResult` for the whole compilation unit, testing each key's
+  declaring element against the current enclosing chain — O(methods × finals) per class, i.e.
+  quadratic in class size. (PR #1817 had already turned the *inner* chain walk into a set lookup;
+  the outer full-map scan remained.) On a 1500-method constant-heavy class this was **5.6%
+  inclusive** (nearly all `HashMap.getNode`/iterator self-time). `GenericAnnotatedTypeFactory` now
+  maintains `finalLocalValuesByDeclarer` — an `IdentityHashMap<Element, Map<VariableElement,
+  Value>>` updated at the single `flowResult.combine(result)` site in `analyze()` and cleared in
+  `setRoot` — and `addFinalLocalValues` walks only the (short) enclosing chain, looking up each
+  element's own finals: O(chain) instead of O(all finals). The old flat-map early-out for the
+  empty case is kept. Visibility semantics are unchanged: the index updates exactly where the flat
+  map gained entries, and the `runAnalysisFor` re-run path never fed `flowResult` in the first
+  place. Checker-independent (any dataflow-based checker); on `checknullness` the method was only
+  0.08% (framework classes are small), so this is mostly protection for many-method classes plus a
+  measurable slice of the Value-workload win. `addFinalLocalValues` drops 134 → 1 samples on the
+  Value workload.
 
 ### Generic map/lookup patterns
 
@@ -957,6 +1143,57 @@ so small per-call wins paid back substantially.
 - **PR #1647** — *Cache a frequent conversion in the Value Checker.*
   `ValueAnnotatedTypeFactory.convertSpecialIntRangeToStandardIntRange`
   cached per `AnnotationMirror`; the unbounded-call profile flattened.
+  **Superseded (July 2026): the cache was removed again** — see the campaign entry below.
+- **Value Checker profiling campaign (July 2026).** First dedicated Value Checker profile (the
+  checker had never been traced on a realistic workload; there is no `checkValue` Gradle task).
+  Workloads: the ValueChecker via `checker/bin/javac` over (a) 1500-method constant-heavy classes
+  (constant arithmetic, conditional value-list lubs, string concatenation, constant-length arrays,
+  loop widening; generator preserved as the recipe in this entry's PR) and (b) the all-systems
+  corpus. The baseline trace (2,411 samples, 3×1500 methods) was dominated by annotation
+  *construction and decoding* machinery, not by range arithmetic: `AnnotationBuilder.setValue`
+  10.3% / `checkSubtype` 9.0% inclusive, `createIntValAnnotation` 10.1%,
+  `CFAbstractTransfer.addFinalLocalValues` 5.6%, `convertSpecialIntRangeToStandardIntRange`'s
+  cache lookups ~2.5%, and `isSubtypeQualifiers`'s name-based `getElementValueArray` 3.2% self.
+  Four changes shipped (each also logged in its own subsystem section above):
+  1. *`AnnotationBuilder.checkSubtype` fast path + `TypeElement` constructor* (see
+     `AnnotationMirrorSet` and annotation utilities).
+  2. *`addFinalLocalValues` by-declarer index* (see Dataflow stores, analysis, and transfer).
+  3. *`convertSpecialIntRangeToStandardIntRange`: identity cache removed.* PR #1647's
+     `IdentityHashMap<AnnotationMirror, Boolean>` predates the interned-name `==` comparisons and
+     the cached decoded name on `CheckerFrameworkAnnotationMirror`. By July 2026 the "miss" work
+     (a field read plus three interned-`String` identity compares) was cheaper than the cache hit
+     (an `IdentityHashMap.get` on a map that grows with every freshly-created mirror within a CU —
+     2.5% of samples in `get` plus a share of `resize`). The method now just compares the name;
+     the map, its `setRoot` clearing, and the size-100 heuristic are gone. Lesson: a cache whose
+     key is a freshly-allocated object per query degenerates into pure overhead once the computed
+     answer becomes cheap — re-audit identity-keyed caches after representation improvements.
+  4. *`ValueQualifierHierarchy.isSubtypeQualifiers`: dispatch to the cached `value()` elements.*
+     The same-name generic branch (`IntVal` vs `IntVal` etc., the most common comparison) used the
+     deprecated name-based `getElementValueArray(anno, "value", Object.class, false)`, which scans
+     the element-values map comparing simple names via `Name` content equality per query. A new
+     `ValueAnnotatedTypeFactory.valueElementForName(String)` maps the interned annotation name to
+     the factory's cached `ExecutableElement`, so both lookups become a map `get` on the element.
+     The deprecated path remains as fallback for names without a cached element.
+  **Measured (same-session interleaved A/B, `assembleForJavac` rebuilt per side, median of 3–5):**
+  1500-method constant-heavy file: allocation **4493 → 3633 MB (−19.1%)**, wall **13.19 → 10.80 s
+  (−18.1%)**; on-CPU samples on the 3-file trace 2,411 → ~2,000 with `checkSubtype`,
+  `AnnotationBuilder.<init>`, `String.split`, and `addFinalLocalValues` gone from the profile.
+  all-systems (tiny files, little constant work): allocation −0.6%, wall flat. Nullness
+  (all-systems and the full `checknullness` trace): flat — every targeted method was ≤0.2% there;
+  warm-daemon `checknullness` wall (3 reps/side, same session) 1:45/1:37/1:36 treatment vs.
+  1:45/1:37/1:35 master. `alltests` green (the two failures in the first run were the
+  `valueElementForName` interning error, fixed with `@Interned`, and Issue1438 jtreg 20-second
+  compile-timeout flakiness under parallel test load — 6 s when run directly, green in an isolated
+  `:checker:jtregTests` run).
+  Remaining Value hotspots, in case of a follow-up: `ElementQualifierHierarchy.getQualifierKind`'s
+  `IdentityHashMap.get` (8.6% self on this workload — caching was already tried and rejected, see
+  Tried and rejected), `AnnotationUtils.getElementValueArray` residual under decoding (list
+  materialization per comparison), `CFAbstractValue.canBeMissingAnnotations` (~2%, diffuse
+  `getKind()` dispatch). The Index checker's factories (`SameLen`, `LTLengthOf`,
+  `UBQualifier.convertUBQualifierToAnnotation`, ...) still use the name-based `AnnotationBuilder`
+  constructor per created annotation; they get the `checkSubtype` fast path for free, and could
+  adopt the `TypeElement`-caching pattern if an Index profile shows the constructor lookup —
+  unprofiled, so not changed.
 
 ### Visitor and checker reviews
 
@@ -1443,6 +1680,42 @@ Bring new evidence before revisiting any of these — a JFR trace on a
 workload not previously considered, or a measurement that contradicts
 the prior finding. A fresh hypothesis is not new evidence.
 
+- **Sharing `AnnotationFileElementTypes`'s method/constructor signature indexes across a
+  compilation's type factories — measured-and-rejected (July 2026).** `methodSigIndexCache` and
+  `constructorSigIndexCache` are fields of `AnnotationFileElementTypes`, so a compound checker
+  builds the same index once per sub-checker factory. Moving them into the javac `Context`, as
+  `BinaryStubDataCache` already is, would share them. The redundancy is real and large, but the
+  activity is not: instrumenting every index build (`buildSigIndex` call, i.e. every cache miss)
+  under the Nullness Checker gives
+
+  | corpus | index builds | repeat builds | redundant | total in `buildSigIndex` |
+  |---|---|---|---|---|
+  | `:javacutil:checkNullness` (13 s) | 1280 | 959 | 75% | 65 ms |
+  | `:framework:checkNullness` (49 s) | 1597 | 1197 | 75% | 52 ms |
+
+  So three quarters of the builds are indeed repeats from a sibling factory — and eliminating all
+  of them would recover about 40–50 ms, which is 0.1–0.5% of those runs. Not worth moving two
+  caches into shared compilation state. Note that JFR cannot see this at all (0 of 40
+  `ExecutionSample`s, at the 10 ms sampling floor, land in `buildSigIndex`): the cost is spread
+  across thousands of calls of ~33 µs each, so it takes direct instrumentation to measure, and a
+  profile that does not show it is not evidence that it is expensive.
+
+  Also: do not benchmark this (or anything) on `checker/tests/nullness/*.java` compiled as one
+  javac invocation. Those files deliberately violate javac's public-class/file-name rule, so the
+  compilation fails before annotation processing begins and the checker never runs; what such a
+  "benchmark" times is JDK loading, not checking.
+
+- **Deduplicating `BinaryStubReader.resolvePath` with `ElementAnnotationUtil.getTypeAtLocation`
+  (reasoned, not measured).** Both walk the same JVMS §4.7.20.2 path shape, so reuse was proposed.
+  Rejected on two costs that reuse would add to a method called once per type annotation in the
+  annotated JDK: `getTypeAtLocation` takes a `List<TypeAnnotationPosition.TypePathEntry>`, a
+  different representation than the binary format's `TypePathStep` array, so each call would have to
+  allocate a list and a `TypePathEntry` per step; and it reports an unreachable path by throwing
+  `UnexpectedAnnotationLocationException`, where `resolvePath` returns `null` and the caller skips
+  the annotation — so a path that does not fit the type would go from a null check to constructing
+  and throwing an exception. Neither cost was measured, so the size of the win from *not* reusing is
+  unknown; the point is only that reuse is not free. If the two path representations are ever
+  unified, the first cost goes away and this is worth revisiting.
 - **`AbstractAnalysis.getValue(Node)` subnode gate — identity rewrite, reorder, and check-removal
   all measured-and-rejected (June 2026).** The subnode gate in `getValue` uses `Collection#contains(n)`
   (structural `Node#equals`), even though the `nodeValues` map it guards is an `IdentityHashMap` and

@@ -133,7 +133,7 @@ public class BackwardAnalysisImpl<
                                 FlowRule.EACH_TO_EACH,
                                 addToWorklistAgain);
                     }
-                    break;
+                    return;
                 }
             case EXCEPTION_BLOCK:
                 {
@@ -155,7 +155,7 @@ public class BackwardAnalysisImpl<
                     for (Block pred : eb.getPredecessors()) {
                         addStoreAfter(pred, node, mergedStore, addToWorklistAgain);
                     }
-                    break;
+                    return;
                 }
             case CONDITIONAL_BLOCK:
                 {
@@ -166,7 +166,7 @@ public class BackwardAnalysisImpl<
                     for (Block pred : cb.getPredecessors()) {
                         propagateStoresTo(pred, null, input, FlowRule.EACH_TO_EACH, false);
                     }
-                    break;
+                    return;
                 }
             case SPECIAL_BLOCK:
                 {
@@ -186,11 +186,12 @@ public class BackwardAnalysisImpl<
                             propagateStoresTo(pred, null, input, FlowRule.EACH_TO_EACH, false);
                         }
                     }
-                    break;
+                    return;
                 }
-            default:
-                throw new BugInCF("Unexpected block type: " + b.getType());
+                // No default: if a new BlockType is added, EP's MissingCasesInEnumSwitch fires
+                // and the build breaks under -Werror, forcing the developer to handle the new case.
         }
+        throw new BugInCF("Unexpected block type: " + b.getType());
     }
 
     @Override

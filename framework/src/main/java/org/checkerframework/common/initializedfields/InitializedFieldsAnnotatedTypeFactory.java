@@ -141,7 +141,7 @@ public class InitializedFieldsAnnotatedTypeFactory extends AccumulationAnnotated
             Set<Contract.Postcondition> result = super.getPostconditions(executableElement);
 
             // Only process constructors defined in source code being type-checked.
-            if (declarationFromElement(executableElement) != null
+            if (ElementUtils.isElementFromSourceCode(executableElement)
                     && executableElement.getKind() == ElementKind.CONSTRUCTOR) {
                 String[] fieldsToInitialize =
                         fieldsToInitialize((TypeElement) executableElement.getEnclosingElement());

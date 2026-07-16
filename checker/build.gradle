@@ -40,12 +40,36 @@ configurations {
         canBeConsumed = true
         canBeResolved = false
     }
+
+    // Resolves framework's stubifierTool configuration (JavaStubifier, BinaryStubWriter,
+    // BinaryStubFileGenerator) in isolation from "implementation"/"api", so shadowJar's
+    // "from(...)" below can merge its classesDir into checker.jar's content -- see that use.
+    //
+    // Do NOT instead register this configuration in shadowJar's "configurations" (e.g. via
+    // configurations.add(...)): Shadow 9.5.1's minimize() silently corrupts its reachability
+    // analysis for the *entire* jar as soon as "configurations" holds more than one entry, even
+    // when the second entry is unrelated to :framework (confirmed by swapping it for an
+    // unrelated external Maven dependency and observing the same corruption) -- this appears to
+    // be an upstream Shadow limitation, not something specific to this project dependency.
+    // Merging via "from(...)" avoids adding a second configuration; minimize() still analyzes
+    // the merged classes, so they are kept as roots via sourceSetsClassesDirs -- see the
+    // shadowJar block below.
+    stubifierToolForShadow {
+        canBeConsumed = false
+        canBeResolved = true
+    }
 }
 
 dependencies {
     // Use "api" instead of "implementation" to re-export sub-projects, making
     // sure "minimize()" does not remove those classes.
     api project(':framework')
+
+    // Guarantees the stubifier tool is always present in checker.jar, for external checkers to
+    // build their own binary annotated JDK or .astub files against (see framework/build.gradle's
+    // stubifierTool configuration doc comment, and the stubifierToolForShadow configuration's
+    // own comment above).
+    stubifierToolForShadow project(path: ':framework', configuration: 'stubifierTool')
 
     /* NO-AFU
      // AFU is an "includedBuild" imported in checker-framework/settings.gradle, so the version number doesn't matter.
@@ -274,6 +298,23 @@ tasks.named('shadowJar') {
     // To see what files are incorporated into the shadow jar file:
     // doFirst { println sourceSets.main.runtimeClasspath.asPath }
     archiveClassifier = 'all'
+
+    // The stubifier tool's compiled classes (JavaStubifier, BinaryStubWriter,
+    // BinaryStubFileGenerator). Only the classesDir artifact is taken (not the configuration's
+    // transitive dependency jars, e.g. stubparser), since those already reach checker.jar
+    // through framework's own "api" dependency.
+    def stubifierClasses = project.configurations.stubifierToolForShadow.filter { it.isDirectory() }
+    // Copy those classes straight into the jar's content. See the stubifierToolForShadow
+    // configuration's own comment for why this must NOT go through configurations.add(...).
+    from(stubifierClasses)
+    // Also register the classesDir as a minimize() root, alongside checker's own source sets
+    // (this appends to sourceSetsClassesDirs' convention rather than replacing it). Without
+    // this, minimize() prunes BinaryStubFileGenerator: it is a build-time main class with no
+    // caller reachable from any root, so unlike JavaStubifier and BinaryStubWriter (kept only
+    // incidentally, because framework's RemoveAnnotationsForInference calls JavaStubifier) it
+    // would otherwise be dropped. Making the whole classesDir a root keeps all three
+    // unconditionally, without a synthetic keep-alive reference.
+    sourceSetsClassesDirs.from(stubifierClasses)
 
     minimize {
         // Keep all classes from checker-qual and checker-util rather than

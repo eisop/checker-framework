@@ -658,8 +658,8 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         this.elements = processingEnv.getElementUtils();
         this.types = processingEnv.getTypeUtils();
 
-        this.stubTypes = new AnnotationFileElementTypes(this);
-        this.ajavaTypes = new AnnotationFileElementTypes(this);
+        this.stubTypes = new AnnotationFileElementTypes(this, /* isStubTypes= */ true);
+        this.ajavaTypes = new AnnotationFileElementTypes(this, /* isStubTypes= */ false);
         this.currentFileAjavaTypes = null;
 
         this.cacheDeclAnnos = new IdentityHashMap<>();
@@ -706,7 +706,9 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         // for @Regex(value = 5).
         if (checker.hasOption("aliasedTypeAnnos")) {
             String aliasesOption = checker.getOption("aliasedTypeAnnos");
-            String[] annos = aliasesOption.split(";");
+            // Use limit -1 so a trailing ";" produces an empty token and triggers a UserError
+            // from parseAliasesFromString rather than silently being ignored.
+            String[] annos = aliasesOption.split(";", -1);
             for (String alias : annos) {
                 IPair<Class<? extends Annotation>, @FullyQualifiedName String[]> aliasPair =
                         parseAliasesFromString(alias);
@@ -721,7 +723,9 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         // e.g. this will not be usable to declare an alias for @EnsuresNonNull(...).
         if (checker.hasOption("aliasedDeclAnnos")) {
             String aliasesOption = checker.getOption("aliasedDeclAnnos");
-            String[] annos = aliasesOption.split(";");
+            // Use limit -1 so a trailing ";" produces an empty token and triggers a UserError
+            // from parseAliasesFromString rather than silently being ignored.
+            String[] annos = aliasesOption.split(";", -1);
             for (String alias : annos) {
                 IPair<Class<? extends Annotation>, @FullyQualifiedName String[]> aliasPair =
                         parseAliasesFromString(alias);
@@ -849,7 +853,9 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     @SuppressWarnings({"unchecked", "signature"})
     private IPair<Class<? extends Annotation>, @FullyQualifiedName String[]> parseAliasesFromString(
             String alias) {
-        String[] parts = alias.split(":");
+        // Use limit -1 so a trailing ":" or "," produces an empty token caught by the validation
+        // below, rather than being silently dropped and causing a confusing ClassNotFoundException.
+        String[] parts = alias.split(":", -1);
         if (parts.length != 2) {
             throw new UserError(
                     String.format(
@@ -863,7 +869,15 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             throw new UserError(
                     String.format("The name %s is an invalid annotation name.", parts[0]));
         }
-        String[] aliases = parts[1].trim().split("\\s*,\\s*");
+        // Use limit -1 so a trailing "," produces an empty token; we explicitly check for
+        // empty aliases and throw a UserError rather than silently omitting them or allowing
+        // empty string as an alias.
+        String[] aliases = parts[1].trim().split("\\s*,\\s*", -1);
+        for (String a : aliases) {
+            if (a.isEmpty()) {
+                throw new UserError(String.format("Empty alias found in argument: %s", alias));
+            }
+        }
         return IPair.of(canonical, aliases);
     }
 
@@ -1175,7 +1189,8 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
                 }
             }
             if (candidateAjavaFiles.size() == 1) {
-                currentFileAjavaTypes = new AnnotationFileElementTypes(this);
+                currentFileAjavaTypes =
+                        new AnnotationFileElementTypes(this, /* isStubTypes= */ false);
                 String ajavaPath = candidateAjavaFiles.toArray(new String[0])[0];
                 try {
                     currentFileAjavaTypes.parseAjavaFileWithTree(ajavaPath, root);
@@ -1847,7 +1862,18 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         Tree decl = declarationFromElement(elt);
 
         if (decl == null) {
-            type = stubTypes.getAnnotatedTypeMirror(elt);
+            // An annotation file annotates code that is not being compiled: "if file A.java is
+            // being compiled, then by default any stub for class A is ignored" (the manual,
+            // "Using stub classes"); -AmergeStubsWithSource, handled below, is how a user asks for
+            // both. Test that by where the element is declared, not by the absence of a tree:
+            // declarationFromElement returns null for a source element too, whenever `root` is
+            // unset and for a member javac synthesizes and has no tree for, such as a record's
+            // canonical constructor and its accessors.
+            if (!ElementUtils.isElementFromSourceCode(elt)) {
+                type = stubTypes.getAnnotatedTypeMirror(elt);
+            } else {
+                type = null;
+            }
             if (type == null) {
                 type = toAnnotatedType(elt.asType(), ElementUtils.isTypeDeclaration(elt));
                 ElementAnnotationApplier.apply(type, elt, this);
@@ -3868,9 +3894,8 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
                 return getNarrowedPrimitive(exprPrimitiveType, widenedType.getUnderlyingType());
             case SAME:
                 return exprType;
-            default:
-                throw new BugInCF("unhandled PrimitiveConversionKind");
         }
+        throw new BugInCF("unhandled PrimitiveConversionKind");
     }
 
     /**
@@ -4809,14 +4834,25 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     }
 
     /**
-     * Returns true if the element is from bytecode and the if the element did not appear in a stub
-     * file. Currently only works for methods, constructors, and fields.
+     * Returns true if the element is from bytecode -- that is, it is not being compiled -- and did
+     * not appear in a stub file.
+     *
+     * <p>"Not being compiled" is decided by where the element is declared ({@link
+     * ElementUtils#isElementFromSourceCode}), not by whether a classfile happens to exist for it
+     * ({@link ElementUtils#isElementFromByteCode}, which is true even when the element is also
+     * being compiled from source), and not by whether a tree happens to be available for it ({@link
+     * #declarationFromElement}, which returns null for a source element too: whenever {@code root}
+     * is unset, and for a member javac synthesizes and has no tree for, such as a record's
+     * canonical constructor and its accessors).
+     *
+     * @param element an element
+     * @return true if the element is from bytecode and did not appear in a stub file
      */
     public boolean isFromByteCode(Element element) {
         if (isFromStubFile(element)) {
             return false;
         }
-        return ElementUtils.isElementFromByteCode(element);
+        return !ElementUtils.isElementFromSourceCode(element);
     }
 
     /**
