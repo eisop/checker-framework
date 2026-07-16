@@ -66,6 +66,11 @@ Fixed `permit-nullness-assertion-exception.astub`'s missing `EnsuresNonNullIf`
 import, which caused two spurious warnings for every user passing
 `-Astubs=permit-nullness-assertion-exception.astub`.
 
+The Nullness Checker now checks if `Arrays.copyOf` is called with a
+side-effecting array expression, avoiding unsound behavior. It now also issues
+a warning message explaining why `copyOf` used a `@Nullable` return type,
+making errors with `copyOf` easier to fix.
+
 **Implementation details:**
 
 `SourceChecker.reportError` and `SourceChecker.reportWarning` now accept a null
