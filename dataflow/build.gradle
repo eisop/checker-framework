@@ -74,11 +74,13 @@ tasks.register('manual', Exec) {
     commandLine 'make', '-C', 'manual'
 }
 
-tasks.withType(Test) {
+tasks.withType(Test).configureEach {
     // Disable the gradle generated test task as the dataflow framework does not use JUnit for testing. If it were kept enabled (which is the default), gradlew would produce a deprecation warning.
     // The `allDataflowTests` task dependency is still enabled.
     enabled = false
     dependsOn('allDataflowTests')
+    // The tests are run by allDataflowTests.
+    exclude '**/*'
 }
 
 tasks.register('allDataflowTests') {
@@ -180,16 +182,11 @@ if (useJdkVersionInt >= 22) {
     testDataflowAnalysis("unnamedPatternTest", "java22/unnamed-pattern", "reachingdef.ReachingDefinition", true)
 }
 
-test {
-    // The tests are run by allDataflowTests.
-    exclude '**/*'
-}
-
 apply from: rootProject.file('gradle-mvn-push.gradle')
 
 /** Adds information to the publication for uploading the dataflow artifacts to Maven repositories. */
 final dataflowPom(publication) {
-    sharedPublicationConfiguration(publication)
+    rootProject.sharedPublicationConfiguration(publication)
     publication.from components.java
     // Information that is in all pom files is configured in checker-framework/gradle-mvn-push.gradle.
     publication.pom {
@@ -210,7 +207,7 @@ final dataflowPom(publication) {
  * @param shadedPkgName the name of the shaded package to use; also used as part of the artifact name: "dataflow-${shadePkgName}"
  */
 final dataflowShadedPom(MavenPublication publication, String shadedPkgName) {
-    sharedPublicationConfiguration(publication)
+    rootProject.sharedPublicationConfiguration(publication)
 
     def ver = version
 

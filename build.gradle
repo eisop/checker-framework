@@ -5,7 +5,7 @@ import org.gradle.api.tasks.testing.TestResult
 
 plugins {
     // https://plugins.gradle.org/plugin/com.gradleup.shadow
-    id 'com.gradleup.shadow' version '9.4.2'
+    id 'com.gradleup.shadow' version '9.5.1'
     // https://plugins.gradle.org/plugin/de.undercouch.download
     id 'de.undercouch.download' version '5.7.0'
     id 'java'
@@ -20,7 +20,7 @@ plugins {
     // Code formatting; defines targets "spotlessApply" and "spotlessCheck".
     // https://github.com/diffplug/spotless/tags ; see tags starting "gradle/"
     // Only works on JDK 11+ (even including the plugin crashes Gradle on JDK 8).
-    id 'com.diffplug.spotless' version '8.7.0'
+    id 'com.diffplug.spotless' version '8.8.0'
 }
 
 // There is another `repositories { ... }` block below; if you change this one, change that one as well.
@@ -49,7 +49,7 @@ ext {
     // The int corresponding to the major version of the current JVM.
     currentRuntimeJavaVersion = majorVersionToInt(JavaVersion.current().getMajorVersion())
 
-    String useJdkVersionProp = project.getProperties().get('useJdkVersion')
+    String useJdkVersionProp = findProperty('useJdkVersion')
     if (useJdkVersionProp == null) {
         // If the property is not given, use the same version as the runtime.
         useJdkVersionInt = currentRuntimeJavaVersion
@@ -167,15 +167,21 @@ spotlessPredeclare {
     java {
         googleJavaFormat(versions.googleJavaFormat)
     }
-    groovyGradle {
-        greclipse()
-    }
-    groovy {
-        greclipse()
-    }
 }
 
 allprojects { currentProj ->
+    // Explicitly propagate root-level ext properties so subproject build scripts
+    // can access them directly without triggering the deprecated implicit-parent-lookup.
+    ext {
+        currentRuntimeJavaVersion = rootProject.ext.currentRuntimeJavaVersion
+        useJdkVersionInt = rootProject.ext.useJdkVersionInt
+        isJava8 = rootProject.ext.isJava8
+        skipDelombok = rootProject.ext.skipDelombok
+        versions = rootProject.ext.versions
+        javadocMemberLevel = rootProject.ext.javadocMemberLevel
+        eisopFormatting = rootProject.ext.eisopFormatting
+    }
+
     // Increment the minor version (second number) rather than just the patch
     // level (third number) if:
     //   * any new checkers have been added, or
@@ -190,6 +196,13 @@ allprojects { currentProj ->
     apply plugin: 'net.ltgt.errorprone'
 
     group = 'io.github.eisop'
+
+    java {
+        // Using `options.release.set(8)` here leads to compilation
+        // errors such as "package com.sun.source.tree does not exist".
+        sourceCompatibility = JavaVersion.VERSION_1_8
+        targetCompatibility = JavaVersion.VERSION_1_8
+    }
 
     // Keep in sync with "repositories { ... }" block above.
     repositories {
@@ -221,7 +234,7 @@ allprojects { currentProj ->
         // Always define javacJar, not just when `isJava8` is true, because we redistribute it in checker/build.gradle.
         javacJar("com.google.errorprone:javac:9+181-r4173-1")
 
-        allProjects subprojects
+        subprojects.each { sp -> allProjects project(sp.path) }
     }
 
     eclipse.classpath {
@@ -354,7 +367,6 @@ allprojects { currentProj ->
             groovyGradle {
                 target '**/*.gradle'
                 targetExclude doNotFormat
-                greclipse()  // which formatter Spotless should use to format .gradle files.
                 if (eisopFormatting) {
                     leadingTabsToSpaces(4)
                 } else {
@@ -370,7 +382,6 @@ allprojects { currentProj ->
 
                 // removes semicolons at the end of lines
                 removeSemicolons()
-                greclipse()
                 leadingTabsToSpaces(2)
                 trimTrailingWhitespace()
             }
@@ -503,7 +514,7 @@ allprojects { currentProj ->
         }
 
         // Add standard javac options
-        tasks.withType(JavaCompile) { compilationTask ->
+        tasks.withType(JavaCompile).configureEach { compilationTask ->
             dependsOn(':installGitHooks')
 
             // Sorting is commented out because it disables incremental compilation.
@@ -514,10 +525,7 @@ allprojects { currentProj ->
             // This test is for whether the Checker Framework supports (runs under) Java 8.
             // Currently, the Checker Framework does support Java 8.
             if (true) {
-                // Using `options.release.set(8)` here leads to compilation
-                // errors such as "package com.sun.source.tree does not exist".
-                sourceCompatibility = 8
-                targetCompatibility = 8
+                // This needs to be done earlier now. Look for `sourceCompatibility = JavaVersion.VERSION_1_8`.
                 // Because the target is 8, all of the public compiler classes are accessible, so
                 // --add-exports are not required (nor are they allowed with target 8). See
                 // https://openjdk.org/jeps/247 for details on compiling for older versions.
@@ -589,33 +597,130 @@ allprojects { currentProj ->
                 options.errorprone.enabled = (useJdkVersionInt >= 21) && (useJdkVersionInt <= 26)
                 options.errorprone.disableWarningsInGeneratedCode = true
                 options.errorprone.errorproneArgs = [
-                    // Many compiler classes are interned.
+                    // -------------------------------------------------------------------------
+                    // Checks kept OFF: the reason is fundamental to this codebase.
+                    // -------------------------------------------------------------------------
+
+                    // Many javac compiler classes (Name, Symbol, …) are interned and compared
+                    // with == intentionally. The Interning Checker enforces this separately.
                     '-Xep:ReferenceEquality:OFF',
-                    // Not useful to suggest Splitter; maybe clean up.
-                    '-Xep:StringSplitter:OFF',
-                    // Too broad, rejects seemingly-correct code.
+                    // The typeinference8 value types use getClass() == in equals() so that
+                    // distinct subtypes (e.g. CaptureVariable extends Variable) are never
+                    // equal to each other. This is intentional and symmetric.
                     '-Xep:EqualsGetClass:OFF',
-                    // Not a real problem
-                    '-Xep:MixedMutabilityReturnType:OFF',
-                    // Don't want to add a dependency to ErrorProne.
-                    '-Xep:AnnotateFormatMethod:OFF',
-                    // Warns for every use of "@checker_framework.manual"
+                    // The visitor pattern throughout this codebase passes Void as the
+                    // parameter type (e.g. TreeVisitor<R, Void>). 1 000+ occurrences.
+                    '-Xep:VoidUsed:OFF',
+                    // The CF manual uses a custom @checker_framework.manual Javadoc tag
+                    // processed by ManualTaglet. EP cannot know about this tag.
                     '-Xep:InvalidBlockTag:OFF',
-                    // Recommends writing @InlineMe which is an Error-Prone-specific annotation
+                    // T extends Object is used deliberately as a CF type-annotation target.
+                    '-Xep:ExtendsObject:OFF',
+                    // MixedMutabilityReturnType fires on methods that deliberately return
+                    // unmodifiable views; the callers must not mutate them regardless of type.
+                    '-Xep:MixedMutabilityReturnType:OFF',
+
+                    // -------------------------------------------------------------------------
+                    // Checks kept OFF: would require adopting EP-specific annotations as a
+                    // compile-time dependency of this project.
+                    // -------------------------------------------------------------------------
+
+                    // Would require @FormatMethod (EP annotation).
+                    '-Xep:AnnotateFormatMethod:OFF',
+                    // Would require @InlineMe (EP annotation).
                     '-Xep:InlineMeSuggester:OFF',
-                    // Recommends writing @CanIgnoreReturnValue which is an Error-Prone-specific annotation.
+                    // Would require @CanIgnoreReturnValue (EP annotation).
                     // It would be great if Error Prone recognized the @This annotation.
                     '-Xep:CanIgnoreReturnValueSuggester:OFF',
-                    // Should be turned off when using the Checker Framework.
-                    '-Xep:ExtendsObject:OFF',
-                    // For Visitors it is convenient to just pass a Void parameter.
-                    '-Xep:VoidUsed:OFF',
-                    // -Werror halts the build if Error Prone issues a warning, which ensures that
-                    // the errors get fixed.  On the downside, Error Prone (or maybe the compiler?)
-                    // stops as soon as it issues one warning, rather than outputting them all.
-                    // https://github.com/google/error-prone/issues/436
-                    // -Werror is already in 'compilerArgs' above. Disable it there.
-                    // '-Werror',
+
+                    // -------------------------------------------------------------------------
+                    // Enabled checks: standard EP checks, severity raised to ERROR.
+                    // -------------------------------------------------------------------------
+
+                    // Switches on enum types must cover all cases or have a default, so new
+                    // enum constants added in future JDK versions are never silently ignored.
+                    '-Xep:MissingCasesInEnumSwitch:ERROR',
+                    // Counterpart: when all enum values are already handled, an explicit
+                    // default defeats exhaustiveness checking for future enum additions.
+                    '-Xep:UnnecessaryDefaultInEnumSwitch:ERROR',
+                    // TypeMirror/AnnotatedTypeMirror objects must be compared with
+                    // Types#isSameType, not == or .equals(); the latter is implementation-defined.
+                    '-Xep:TypeEquals:ERROR',
+                    // Declaring a type parameter only in the return type hides unsafe casts at
+                    // call sites and interacts badly with overload resolution.
+                    '-Xep:TypeParameterUnusedInFormals:ERROR',
+                    // Non-static inner classes that don't use the enclosing instance hold an
+                    // implicit reference to it, which prevents GC of annotation processor state.
+                    '-Xep:ClassCanBeStatic:ERROR',
+                    // Silently swallowing exceptions in an annotation processor makes
+                    // debugging nearly impossible.
+                    '-Xep:EmptyCatch:ERROR',
+                    // Undocumented switch fall-through is almost always a bug.
+                    // (javac's own -Xlint:-fallthrough is left in compilerArgs to suppress the
+                    // javac duplicate; EP's version is superior because it allows documented
+                    // fall-through via a "// fall through" comment.)
+                    '-Xep:FallThrough:ERROR',
+                    // Bitwise operators mixed with arithmetic or comparisons without explicit
+                    // grouping parentheses are a common source of precedence bugs.
+                    '-Xep:OperatorPrecedence:ERROR',
+                    // Non-atomic read-modify-write on a volatile field is unsafe even though
+                    // the field is volatile.
+                    '-Xep:NonAtomicVolatileUpdate:ERROR',
+                    // Importing a nested class or static member with a commonly-overloaded
+                    // short name (e.g. com.sun.tools.javac.util.List) hides the JDK type.
+                    '-Xep:BadImport:ERROR',
+                    // Assigning to a static field from a constructor is highly error-prone
+                    // in an annotation processor where multiple instances may coexist.
+                    '-Xep:StaticAssignmentInConstructor:ERROR',
+
+                    // -------------------------------------------------------------------------
+                    // Enabled checks: experimental EP checks, explicitly opted in at ERROR.
+                    // -------------------------------------------------------------------------
+
+                    // @deprecated Javadoc tag must always be paired with @Deprecated so that
+                    // IDEs and tools that detect deprecated-API usage actually see it.
+                    '-Xep:DepAnn:ERROR',
+                    // "if (cond);" — semicolon accidentally terminating an if statement — is
+                    // almost always a bug.
+                    '-Xep:EmptyIf:ERROR',
+                    // Lowercase 'l' suffix on long literals (e.g. 1l) is easily misread as '1'.
+                    '-Xep:LongLiteralLowerCaseSuffix:ERROR',
+                    // Verifies that compareTo/compare implementations obey the sign contract.
+                    '-Xep:ComparisonContractViolated:ERROR',
+                    // TypeMirror#toString() and Element#toString() should not be used for
+                    // comparison: the format is implementation-defined and the call is expensive.
+                    '-Xep:TypeToString:ERROR',
+                    '-Xep:SymbolToString:ERROR',
+                    // Pattern.compile() on a constant string should be a static final field
+                    // to avoid recompiling the pattern on every call.
+                    '-Xep:ConstantPatternCompile:ERROR',
+                    // I/O constructors without an explicit charset silently use the platform
+                    // default, which can differ between JVM executions.
+                    '-Xep:DefaultCharset:ERROR',
+                    // String.split() has surprising behaviour: it silently discards trailing
+                    // empty strings. Use split(pattern, -1) for user input, or suppress with
+                    // an explanation for program-controlled strings.
+                    '-Xep:StringSplitter:ERROR',
+                    // Methods that declare checked exceptions they cannot actually throw
+                    // mislead callers into writing unnecessary catch blocks.
+                    '-Xep:CheckedExceptionNotThrown:ERROR',
+                    // A private static final ImmutableList used only for .contains() checks
+                    // should be an ImmutableSet for clarity and O(1) lookup.
+                    '-Xep:ImmutableSetForContains:ERROR',
+                    // System.exit() in non-main methods makes library code untestable.
+                    // Existing legitimate uses in CLI entry-point helpers should be suppressed
+                    // with @SuppressWarnings("SystemExitOutsideMain").
+                    '-Xep:SystemExitOutsideMain:ERROR',
+
+                    // -------------------------------------------------------------------------
+                    // Patch automation (uncomment to auto-fix, re-comment before committing).
+                    // -------------------------------------------------------------------------
+                    // -Werror halts the build if Error Prone issues a warning, which ensures
+                    // that the errors get fixed.  On the downside, Error Prone (or maybe the
+                    // compiler?) stops as soon as it issues one warning, rather than outputting
+                    // them all.  https://github.com/google/error-prone/issues/436
+                    // -Werror is already in 'compilerArgs' above. To use the patch flags below,
+                    // temporarily disable it there while fixing.
                     // To automatically patch Error Prone issues, list the EP checkers below and
                     // remove '-Werror' in the 'compilerArgs' above.
                     // '-XepPatchChecks:EffectivelyPrivate',
@@ -624,8 +729,8 @@ allprojects { currentProj ->
 
                 if (compilationTask.name.equals('compileTestJava')) {
                     options.errorprone.errorproneArgs.addAll([
-                        // Some Value Checker tests use int literals intentionally(?).
-                        '-Xep:IntLiteralCast:OFF'
+                        // Some Value Checker tests use int literals intentionally.
+                        '-Xep:IntLiteralCast:OFF',
                     ])
                 }
 
@@ -654,8 +759,9 @@ allprojects { currentProj ->
 tasks.register('version') {
     group = 'Documentation'
     description = 'Print Checker Framework version'
+    def v = version
     doLast {
-        println version
+        println v
     }
 }
 
@@ -732,7 +838,11 @@ tasks.register('htmlValidate', Exec) {
         '/build/',
         '/docs/manual/manual.html',
         '/docs/manual/plume-bib/docs/index.html',
-        '/checker/jdk/nullness/src/java/lang/ref/package.html'
+        '/checker/jdk/nullness/src/java/lang/ref/package.html',
+        // javadoc generates overview-summary.html as a redirect with
+        // content="0;index.html" instead of the HTML5-valid "0; URL=index.html".
+        // This is a javadoc tool bug; suppress it here.
+        'overview-summary.html'
     ]
 }
 
@@ -813,6 +923,14 @@ tasks.register('allJavadoc', Javadoc) {
 
     if (isJava8) {
         classpath += configurations.javacJar
+        // ManualTaglet (tagletJdk8) imports com.sun.javadoc / com.sun.tools.doclets from
+        // tools.jar.  Javadoc needs tools.jar on the compile classpath to process its source.
+        def compilerProvider = javaToolchains.compilerFor {
+            languageVersion = JavaLanguageVersion.of(8)
+        }
+        classpath += files(compilerProvider.map { compiler ->
+            new File(compiler.metadata.installationPath.asFile, "lib/tools.jar")
+        })
     }
 
     // disable interpreting module-info.java files until all sub-modules support them
@@ -828,8 +946,8 @@ tasks.register('cleanManual', Exec) {
     description = 'Clean the manual'
     commandLine 'make', '-C', 'docs/manual', 'clean'
 }
-clean.dependsOn('cleanManual')
-clean {
+tasks.named('clean') {
+    dependsOn 'cleanManual'
     delete(file("${rootDir}/docs/api"))
 }
 
@@ -877,7 +995,6 @@ def createJavadocTask(taskName, taskDescription, memberLevel) {
     tasks.register(taskName, Javadoc) {
         description = taskDescription
         destinationDir = file("${rootDir}/docs/tmpapi")
-        destinationDir.mkdirs()
         subprojects.forEach {
             if (!it.name.startsWith('checker-qual-android')) {
                 source += it.sourceSets.main.allJava
@@ -888,7 +1005,6 @@ def createJavadocTask(taskName, taskDescription, memberLevel) {
         // disable interpreting module-info.java files until all sub-modules support them
         modularity.inferModulePath = false
 
-        destinationDir.deleteDir()
         options.memberLevel = memberLevel
         options.addBooleanOption('Xdoclint:all', true)
         options.addStringOption('Xmaxwarns', '99999')
@@ -916,7 +1032,7 @@ tasks.register('downloadJtreg', Download) {
     // dest new File(buildDir, 'jtreg-4.2.0-tip.tar.gz')
     // src 'https://builds.shipilev.net/jtreg/jtreg4.2-b16.zip'
     src 'https://builds.shipilev.net/jtreg/jtreg-7.5+1.zip'
-    dest new File(buildDir, 'jtreg.zip')
+    dest layout.buildDirectory.file('jtreg.zip').get().asFile
     overwrite true
     retries 3
 
@@ -992,6 +1108,56 @@ tasks.register('tags', Exec) {
 }
 
 subprojects {
+    // Pre-parse the subproject's built-in .astub files into the binary stub format
+    // (sibling <name>.astub.bin.gz resources read by BinaryStubReader; see
+    // BinaryStubFileGenerator). Registered for every subproject that contains .astub
+    // files under its main sources or resources; a stub file the generator cannot
+    // represent gets no binary form and keeps text parsing.
+    def hasAstubs = [
+        'src/main/java',
+        'src/main/resources'
+    ].any { dir ->
+        def d = file(dir)
+        d.isDirectory() && !fileTree(d) { include '**/*.astub' }.isEmpty()
+    }
+    if (hasAstubs) {
+        // Not under 'generated/resources': framework/build.gradle adds that whole directory as a
+        // resources srcDir, which would package every file below it a second time, under a
+        // 'binstubs/' prefix, in addition to the correct sibling path this srcDir gives it.
+        def binaryStubFilesDir = layout.buildDirectory.dir('generated/binaryStubFiles')
+        configurations {
+            binaryStubGenerator
+        }
+        dependencies {
+            binaryStubGenerator project(path: ':framework', configuration: 'stubifierTool')
+        }
+        tasks.register('generateBinaryStubFiles', JavaExec) {
+            group = 'Build'
+            description = 'Pre-parse .astub files into the binary stub format.'
+            classpath = configurations.binaryStubGenerator
+            mainClass = 'org.checkerframework.framework.stubifier.BinaryStubFileGenerator'
+            inputs.files(fileTree('src/main/java') { include '**/*.astub' })
+            .withPropertyName('javaDirAstubs')
+            inputs.files(fileTree('src/main/resources') { include '**/*.astub' })
+            .withPropertyName('resourcesDirAstubs')
+            outputs.dir(binaryStubFilesDir)
+            args(binaryStubFilesDir.get().asFile.absolutePath,
+                    file('src/main/java').absolutePath,
+                    file('src/main/resources').absolutePath)
+        }
+        sourceSets.main.resources.srcDir(binaryStubFilesDir)
+        tasks.named('processResources').configure { dependsOn 'generateBinaryStubFiles' }
+        // sourcesJar also packages sourceSets.main.resources (see the copyAndMinimizeAnnotatedJdkFiles
+        // task in framework/build.gradle for the same pattern), so it needs the same dependency.
+        // Use configureEach (not tasks.named), since the java plugin's sourcesJar task may not be
+        // registered yet at this point in this subproject's configuration.
+        tasks.configureEach { task ->
+            if (task.name == 'sourcesJar') {
+                task.dependsOn 'generateBinaryStubFiles'
+            }
+        }
+    }
+
     configurations {
         annotatedGuava
     }
@@ -1005,7 +1171,7 @@ subprojects {
         }
     }
 
-    shadowJar {
+    tasks.named('shadowJar') {
         // If you add an external dependency, then do the following:
         //  * On the master branch and on the modified branch, run:
         //    ./gradlew assembleForJavac && jar tf checker/dist/checker.jar | grep -v '^annotated-jdk/' | sort > checker-jar-contents.txt
@@ -1065,7 +1231,7 @@ subprojects {
     // until the project is evaluated.
     afterEvaluate {
         // Adds manifest to all Jar files
-        tasks.withType(Jar) {
+        tasks.withType(Jar).configureEach {
             includeEmptyDirs = false
             if (archiveFileName.get().startsWith('checker-qual') || archiveFileName.get().startsWith('checker-util')) {
                 metaInf {
@@ -1093,25 +1259,25 @@ subprojects {
         // Tasks such as `checkResourceLeak` to run various checkers on all the main source sets.
         // These pass and are run by the `typecheck` task.
         // When you add one here, also update a dependsOn item for the 'typecheck' task.
-        createCheckTypeTask(project.name, 'Formatter',
+        rootProject.createCheckTypeTask(project.name,'Formatter',
                 'org.checkerframework.checker.formatter.FormatterChecker')
-        createCheckTypeTask(project.name, 'Interning',
+        rootProject.createCheckTypeTask(project.name,'Interning',
                 'org.checkerframework.checker.interning.InterningChecker',
                 [
                     '-Astubs=javax-lang-model-element-name.astub'
                 ])
-        createCheckTypeTask(project.name, 'Optional',
+        rootProject.createCheckTypeTask(project.name,'Optional',
                 'org.checkerframework.checker.optional.OptionalChecker',
                 [
                     // to avoid having to annotate JavaParser
                     '-AassumePureGetters',
                     '-AassumeAssertionsAreEnabled',
                 ])
-        createCheckTypeTask(project.name, 'Purity',
+        rootProject.createCheckTypeTask(project.name,'Purity',
                 'org.checkerframework.framework.util.PurityChecker')
-        createCheckTypeTask(project.name, 'ResourceLeak',
+        rootProject.createCheckTypeTask(project.name,'ResourceLeak',
                 'org.checkerframework.checker.resourceleak.ResourceLeakChecker')
-        createCheckTypeTask(project.name, 'Signature',
+        rootProject.createCheckTypeTask(project.name,'Signature',
                 'org.checkerframework.checker.signature.SignatureChecker')
 
         def isDataflow = project.name.is('dataflow')
@@ -1122,7 +1288,7 @@ subprojects {
         //  * All files outside the 'framework' and 'checker' subprojects.
         //  * In the 'framework' and 'checker' subprojects, files with `@AnnotatedFor("nullness")`.
         if (isFramework || isChecker) {
-            createCheckTypeTask(project.name, 'Nullness',
+            rootProject.createCheckTypeTask(project.name,'Nullness',
                     'org.checkerframework.checker.nullness.NullnessChecker',
                     [
                         '-AskipUses=com\\.sun\\.*',
@@ -1131,7 +1297,7 @@ subprojects {
                         '-AconservativeArgumentNullnessAfterInvocation=true',
                     ])
         } else {
-            createCheckTypeTask(project.name, 'Nullness',
+            rootProject.createCheckTypeTask(project.name,'Nullness',
                     'org.checkerframework.checker.nullness.NullnessChecker',
                     [
                         '-AskipUses=com\\.sun\\.*',
@@ -1155,7 +1321,7 @@ subprojects {
                 String name = 'all'
                 String tests = '.'
 
-                executable "${jtregHome}/bin/jtreg"
+                executable "${rootProject.jtregHome}/bin/jtreg"
                 args = [
                     "-dir:${projectDir}/jtreg",
                     "-workDir:${jtregOutput}/${name}/work",
@@ -1219,7 +1385,7 @@ subprojects {
         }
 
         // Configure JUnit tests
-        tasks.withType(Test) {
+        tasks.withType(Test).configureEach {
             if (isJava8) {
                 jvmArgs "-Xbootclasspath/p:${configurations.javacJar.asPath}".toString()
             } else {
@@ -1264,6 +1430,14 @@ subprojects {
             if (project.hasProperty('emit.test.debug')) {
                 systemProperties += ['emit.test.debug': 'true']
             }
+
+            // The typeinference8 incorporation worklist confirms each fixed point with a full rescan
+            // that, in production, silently self-heals if the worklist ever skipped needed work. Run
+            // this project's own tests in strict mode instead, so such a skip throws and a worklist
+            // regression is a loud CI failure rather than a silent (still-correct) recovery. The
+            // checker runs in-process in the test JVM (TypecheckExecutor uses ToolProvider), so this
+            // system property reaches it.
+            systemProperties += ['cf.typeinference.worklist.strict': 'true']
 
             // Always re-run tests.  This must live at the test task level.
             outputs.upToDateWhen { false }
@@ -1405,9 +1579,10 @@ subprojects {
 // The assemble task also produces Javadoc jars, because its purpose is to build
 // all artifacts produced by the Gradle project:
 // https://docs.gradle.org/current/userguide/base_plugin.html#sec:base_tasks
-assemble.dependsOn(':checker:assembleForJavac')
-
-assemble.mustRunAfter(clean)
+tasks.named('assemble') {
+    dependsOn(':checker:assembleForJavac')
+    mustRunAfter('clean')
+}
 
 tasks.register('buildAll') {
     group = 'Build'
@@ -1439,7 +1614,9 @@ tasks.register('releaseAndTest') {
 }
 
 // Don't create an empty checker-framework-VERSION.jar
-jar.onlyIf {false}
+tasks.named('jar') {
+    onlyIf { false }
+}
 
 /**
  * Adds the shared pom information to the given publication.
