@@ -1279,8 +1279,6 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
 
     /**
      * TypeVariableSubstitutor provides a method to replace type parameters with their arguments.
-     *
-     * @return type variable substitutor to replace type parameters with their arguments
      */
     protected TypeVariableSubstitutor createTypeVariableSubstitutor() {
         return new TypeVariableSubstitutor();
@@ -2449,32 +2447,6 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     }
 
     /**
-     * Returns the receiver type used to viewpoint-adapt a method invocation.
-     *
-     * @param tree a method invocation tree
-     * @return the receiver type, or null if the invocation has no receiver
-     */
-    private @Nullable AnnotatedTypeMirror getMethodReceiverType(MethodInvocationTree tree) {
-        ExecutableElement methodElt = TreeUtils.elementFromUse(tree);
-        if (ElementUtils.isStatic(methodElt)) {
-            return null;
-        }
-
-        AnnotatedTypeMirror receiverType = getReceiverType(tree);
-        if (receiverType == null
-                && (TreeUtils.isSuperConstructorCall(tree)
-                        || TreeUtils.isThisConstructorCall(tree))) {
-            // super() and this() calls don't have a receiver, but they should be view-point adapted
-            // as if "this" is the receiver.
-            receiverType = getSelfType(tree);
-        }
-        if (receiverType != null && receiverType.getKind() == TypeKind.DECLARED) {
-            receiverType = applyCaptureConversion(receiverType);
-        }
-        return receiverType;
-    }
-
-    /**
      * Creates and returns an AnnotatedNullType qualified with {@code annotations}.
      *
      * @param annotations the set of AnnotationMirrors to qualify the returned type with
@@ -2809,7 +2781,17 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     protected ParameterizedExecutableType methodFromUse(
             MethodInvocationTree tree, boolean inferTypeArgs) {
         ExecutableElement methodElt = TreeUtils.elementFromUse(tree);
-        AnnotatedTypeMirror receiverType = getMethodReceiverType(tree);
+        AnnotatedTypeMirror receiverType = getReceiverType(tree);
+        if (receiverType == null
+                && (TreeUtils.isSuperConstructorCall(tree)
+                        || TreeUtils.isThisConstructorCall(tree))) {
+            // super() and this() calls don't have a receiver, but they should be view-point adapted
+            // as if "this" is the receiver.
+            receiverType = getSelfType(tree);
+        }
+        if (receiverType != null && receiverType.getKind() == TypeKind.DECLARED) {
+            receiverType = applyCaptureConversion(receiverType);
+        }
 
         ParameterizedExecutableType result =
                 methodFromUse(tree, methodElt, receiverType, inferTypeArgs);
