@@ -250,6 +250,40 @@ stresses (`generic` default, `vararg`, `deep-nesting`, `many-fields`) — e.g. `
 vararg` stresses `AnnotatedExecutableType` copying and is what exposed PR #1798's copier
 vararg-aliasing bug; add a shape there for other mechanisms (large `switch`, etc.).
 
+### Sweeping a single STRUCTURAL dimension (gen-shapes.py + sweep.sh)
+
+`gen-sized-program.py` sweeps the *method count* and fixes the per-construct shape, so it cannot
+isolate a cost that is super-linear in some *structural* dimension (nesting depth, chain length,
+case count). For that, use **`gen-shapes.py`** (fixes the count at R reps, sweeps a dimension D) and
+**`sweep.sh`** (generates each D, measures deterministic allocation, prints the **marginal**
+Δalloc/ΔD). The marginal — not the absolute — is the signature: **roughly constant marginal =
+linear; marginal that doubles each time D doubles = quadratic; quadruples = cubic.** Differencing
+consecutive D cancels the fixed JDK-stub allocation floor. **Always sweep the `control` shape too —
+it calibrates that the harness reports linear as linear** (a flat marginal); without that baseline
+you cannot trust a "rising" marginal.
+
+```
+# after ./gradlew assembleForJavac:
+.claude/skills/cf-performance/sweep.sh control 60 20 40 80 160   # calibration: marginal must be flat
+.claude/skills/cf-performance/sweep.sh cond    60 20 40 80 160   # marginal climbs => super-linear
+```
+
+Shapes: `control` (linear), `cond` (nested ternary), `chain` (`.self()` chain), `inherit` (deep
+class chain), `switchc` (big switch), `repeat` (same-method calls), `tryfin` (nested try/finally),
+`loops` (nested for). June-2026 audit found `cond` severe super-linear (28 GB at depth 160 — Issue
+#602 conditional non-caching) and `inherit` quadratic (asSuper depth); the rest linear or mild. Then
+localize with `jfr-analyze.java inclusive` / `under` at the largest D, and confirm the root cause
+before proposing a fix (see the metric-mismatch trap below).
+
+**Metric-mismatch trap (cost you, June 2026): a CPU-inclusive hotspot is not necessarily the
+allocation driver — optimize the metric you're actually measuring.** On the `cond` shape,
+`TernaryExpressionNode.equals` was 32% *inclusive* (a CPU cost via `AbstractAnalysis.getValue`'s
+structural `contains`), so an identity rewrite of that check looked like the fix. But the size sweep
+measures *allocation*, which is driven by the #602 type-rebuild, not by `equals` (which barely
+allocates); the identity rewrite left allocation *worse*. When a sweep flags a super-linear in
+allocation, attribute the **allocation** (capture with `record-jfr.sh`'s JFC + `alloc`/`top`), not
+the inclusive-CPU leaderboard, before concluding what to change.
+
 ## Measuring wall-clock effects (the A/B that decides if a change is worth it)
 
 JFR self-time / `phase` percentages are for **mechanism** ("which leaf
@@ -342,6 +376,41 @@ but cost ≈10% wall clock (far more than its hit-rate delta implied). Cut
   guard is a counter on the code you changed — if it never fires, "no effect" is a workload
   bug, not a verdict on the change. Pair this with picking a workload that *maximizes* traffic
   through the target (the size-sweep / shape generators exist for this).
+- **Measure the *ceiling* before micro-optimizing a dispatch — profile the adversarial
+  workload, not the typical one.** When tempted to change *how* something is represented or
+  compared (string vs. `Name`, a "kind" tag, a second-level cache), first bound the maximum
+  possible win: build a workload that *maximizes* traffic through the target and check whether the
+  target's frames even appear above the sample floor. If they don't, no variant can help and you
+  stop in one profile instead of an A/B per variant. The String→`Name` annotation-name migration
+  (see *Tried and rejected*) died this way: an annotation-saturated, checker-bound workload (400
+  methods × 40 explicitly-annotated locals) at 2596 samples showed `annotationName` /
+  `annotationNameAsName` / `areSameByName` / `isSupportedQualifier` / `Name.toString` / `intern`
+  at **0 samples** — and the hot leaf that *did* surface (`IdentityHashMap.get` → `getQualifierKind`)
+  was itself an already-rejected target. The reason the ceiling was ~0: the hot representation
+  (`CheckerFrameworkAnnotationMirror`) already caches the decoded interned name, so the decode the
+  change "removed" was never happening. **Before optimizing a lookup, ask what the common carrier
+  already caches.**
+- **Caching a per-tree annotated type: stability ≠ cacheable, and two measurement traps.** The
+  pre-flow `getAnnotatedType` split-cache (June 2026, *Tried and rejected* → getAnnotatedType #2) is
+  the cautionary tale. **Stability ≠ cacheable:** even after correctly measuring value-leaf pre-flow
+  types as **0%** unstable, the built cache was rejected — it was unsound for checkers that override
+  `addComputedTypeAnnotations` (Index/Lock/Optional/Signedness add annotations after `super`, which a
+  `getAnnotatedType` cache hit bypasses → `IndexTest` failed), and flat-to-mixed on nullness where it
+  was correct. A framework-level type cache must **compose with subclass overrides**, and the per-hit
+  `deepCopy` can cancel the saved work — so validate correctness on the override-checkers, not just
+  nullness. Two traps nearly produced the *opposite* wrong verdict ("25–59% unstable, unsound") first:
+  1. **Compare PER HIERARCHY, never via `AnnotatedTypeMirror.toString()`.** `toString()` over-reports
+     instability by counting *cross-hierarchy completeness* — an `int` literal printing as `int` vs
+     `@Initialized int` is just the Initialization hierarchy's annotation absent vs present, harmless
+     to a per-hierarchy cache — as if it were a within-hierarchy disagreement. The right signature is
+     a map {hierarchy-top-name → annotation-in-that-hierarchy}, compared key-by-key. (`getTopAnnotations()`
+     order is *not* a hazard — it is a build-once `ArrayList`-backed `AnnotationMirrorSet` over a
+     `TreeMap`, already stable.)
+  2. **A checker runs SEVERAL `AnnotatedTypeFactory` instances — never key shared/`static` state on
+     `Tree`.** A `nullness` compile drives four GATFs (`NullnessNoInit`, `Initialization`,
+     `InitializationFieldAccess`, `KeyFor`), each with its own qualifier hierarchy. A `static`
+     per-`Tree` map (or cache) mixes one type system's result for a tree with another's. Keep such
+     state on the factory instance; confirm by logging `this.getClass().getSimpleName()`.
 
 ## Removing a defensive copy (the opposite of adding a cache)
 
@@ -381,6 +450,64 @@ is a distinct kind of work with its own failure mode, learned the hard way in PR
   freezing. A pure correctness fix like this needs a unit test asserting `deepCopy`
   independence, or it ships together with the enforcement that makes it observable.
 
+## Shipping a risky correctness-sensitive hot-path change (the self-correcting safety net)
+
+When the optimization is an algorithmic shortcut on a path where a *wrong* result is a
+mis-diagnosis (not just slower) — e.g. the typeinference8 incorporation worklist (PR #1829),
+which re-scans only the inference variables a newly instantiated one can affect, via
+over-approximate reverse-dependency edges — the failure mode is "the shortcut skipped work it
+shouldn't have." A self-correcting safety net makes that failure mode impossible to ship while
+keeping the fast path:
+
+- **Make the cheap path *confirm* itself against the full computation, and self-heal on
+  mismatch.** The worklist declares a fixed point, then a full un-gated rescan verifies it; if
+  the rescan finds more work, it applies it (marks everything dirty, re-propagates) so the
+  result is **identical to the full scan by construction**. In production a worklist bug
+  becomes a silent (still-correct, slightly slower) recovery, never a wrong diagnostic.
+- **Turn the same check into a loud failure under a test-only flag.** A
+  `-Dcf.typeinference.worklist.strict` system property makes the mismatch *throw* instead of
+  self-healing; `build.gradle` sets it for the test tasks (the in-process `TypecheckExecutor`
+  runs the checker in the test JVM, so a system property reaches it). CI then catches any
+  edge-coverage regression as a hard failure, while users get the safety net. Net: correctness
+  does not depend on the edges being complete — only performance does.
+- **A regression-/stress test for this kind of change targets the *assumption*, not the
+  feature.** `checker/tests/nullness/Java8InferenceWorklistStress.java` concentrates the
+  inference shapes where a reverse-dependency edge is most likely missed (F-bounds, capture,
+  intersection, nested generics, lub, lambdas, varargs, **and their combinations** — a missed
+  edge most often hides where two mechanisms interact). It is `@SuppressWarnings`-ed because it
+  exercises *inference*, not the type system; the strict-mode check is independent of
+  diagnostics (it throws from inside inference).
+
+### A/B for an always-on safety net: toggle it in ONE build, don't compare against master
+
+If the change ships an always-on verification/self-heal step, the question reviewers ask is
+"what does the *safety net* cost," not "what does the whole feature cost." Comparing
+worklist-branch vs. master conflates two opposite-signed effects — the worklist *saves* scan
+work, the always-on rescan *adds* it — and on realistic code they roughly cancel, so the diff
+reads as noise and tells you nothing about either piece. Instead isolate the net within the
+**same build**: a `-Pnoselfheal`-style gradle property that flips a `-D` flag on the forked
+checker JVM, so self-heal-on vs self-heal-off run identical bytecode. (Confirm the toggle
+actually reached the fork — print a one-line marker like `CF-SELFHEAL-DISABLED` at startup —
+before trusting a flat result; a flag that never reaches the worker reads as "no effect" for
+the wrong reason. See "a flat A/B can mean the workload never reached your code.") This is the
+same one-variable-per-A/B and same-build-toggle discipline as the addressable-fraction habit,
+applied to a safety net rather than a cache.
+
+### Sizing a work budget / cutoff from real workloads
+
+To set a cutoff that abandons pathological work (here `Java8InferenceContext`'s
+`MAX_INCORPORATION_WORK`, lowered 100000 → 10000 in PR #1829, overridable via
+`-AinferenceWorkBudget`), don't guess — **instrument the operation counter and take the max
+over the whole suite plus a large real project.** Max real-code incorporation work was
+framework 363, the stress test 296, Guava 994; a 10000 budget clears the worst real case ~10×
+while still catching a cubic-in-nesting-depth blowup. Two gotchas: the budget is **checker-
+independent** (Java-type incorporation dominates, so Nullness and Interning hit the same per-
+problem cost — inference difficulty tracks the *types*, not the qualifier lattice); and the
+context is created **per generic invocation**, not per compilation, so cache any per-factory
+config (`getInferenceWorkBudget()`) rather than recomputing it. Validate a lowered budget by
+re-running a large project (Guava) under several checkers and confirming **zero** new
+budget-exceeded errors — a false positive there is a user-visible regression.
+
 ## What to look for
 
 In order of historical hit rate on this codebase:
@@ -407,6 +534,12 @@ In order of historical hit rate on this codebase:
 - Switching map implementations purely on micro-benchmark intuition —
   measure on a real workload.
 - Lock-removal changes without auditing all reachable threads.
+- Rerepresenting annotation *names* for dispatch (`String`→`Name` + `==`,
+  per-qualifier "kind" tags) or caching `getQualifierKind` — both measured
+  flat (see *Tried and rejected*). `CheckerFrameworkAnnotationMirror`
+  already caches the decoded interned name, so the decode you would remove
+  is not on the hot path; identity-comparing `Name`s is no cheaper than the
+  existing interned-`String` comparison.
 
 ## Producing the patch
 
