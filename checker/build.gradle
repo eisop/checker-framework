@@ -40,12 +40,36 @@ configurations {
         canBeConsumed = true
         canBeResolved = false
     }
+
+    // Resolves framework's stubifierTool configuration (JavaStubifier, BinaryStubWriter,
+    // BinaryStubFileGenerator) in isolation from "implementation"/"api", so shadowJar's
+    // "from(...)" below can merge its classesDir into checker.jar's content -- see that use.
+    //
+    // Do NOT instead register this configuration in shadowJar's "configurations" (e.g. via
+    // configurations.add(...)): Shadow 9.5.1's minimize() silently corrupts its reachability
+    // analysis for the *entire* jar as soon as "configurations" holds more than one entry, even
+    // when the second entry is unrelated to :framework (confirmed by swapping it for an
+    // unrelated external Maven dependency and observing the same corruption) -- this appears to
+    // be an upstream Shadow limitation, not something specific to this project dependency.
+    // Merging via "from(...)" avoids adding a second configuration; minimize() still analyzes
+    // the merged classes, so they are kept as roots via sourceSetsClassesDirs -- see the
+    // shadowJar block below.
+    stubifierToolForShadow {
+        canBeConsumed = false
+        canBeResolved = true
+    }
 }
 
 dependencies {
     // Use "api" instead of "implementation" to re-export sub-projects, making
     // sure "minimize()" does not remove those classes.
     api project(':framework')
+
+    // Guarantees the stubifier tool is always present in checker.jar, for external checkers to
+    // build their own binary annotated JDK or .astub files against (see framework/build.gradle's
+    // stubifierTool configuration doc comment, and the stubifierToolForShadow configuration's
+    // own comment above).
+    stubifierToolForShadow project(path: ':framework', configuration: 'stubifierTool')
 
     /* NO-AFU
      // AFU is an "includedBuild" imported in checker-framework/settings.gradle, so the version number doesn't matter.
@@ -275,6 +299,23 @@ tasks.named('shadowJar') {
     // doFirst { println sourceSets.main.runtimeClasspath.asPath }
     archiveClassifier = 'all'
 
+    // The stubifier tool's compiled classes (JavaStubifier, BinaryStubWriter,
+    // BinaryStubFileGenerator). Only the classesDir artifact is taken (not the configuration's
+    // transitive dependency jars, e.g. stubparser), since those already reach checker.jar
+    // through framework's own "api" dependency.
+    def stubifierClasses = project.configurations.stubifierToolForShadow.filter { it.isDirectory() }
+    // Copy those classes straight into the jar's content. See the stubifierToolForShadow
+    // configuration's own comment for why this must NOT go through configurations.add(...).
+    from(stubifierClasses)
+    // Also register the classesDir as a minimize() root, alongside checker's own source sets
+    // (this appends to sourceSetsClassesDirs' convention rather than replacing it). Without
+    // this, minimize() prunes BinaryStubFileGenerator: it is a build-time main class with no
+    // caller reachable from any root, so unlike JavaStubifier and BinaryStubWriter (kept only
+    // incidentally, because framework's RemoveAnnotationsForInference calls JavaStubifier) it
+    // would otherwise be dropped. Making the whole classesDir a root keeps all three
+    // unconditionally, without a synthetic keep-alive reference.
+    sourceSetsClassesDirs.from(stubifierClasses)
+
     minimize {
         // Keep all classes from checker-qual and checker-util rather than
         // relying on the `api` re-export to protect them from minimize().
@@ -302,6 +343,8 @@ tasks.named('clean') {
     def injected = project.objects.newInstance(InjectedExecOps)
     def commandLineDir = file('tests/command-line')
     def nullnessExtraDir = file('tests/nullness-extra')
+    // Capture the build directory provider at configuration time.
+    def cleanBuildDir = layout.buildDirectory
 
     delete("${projectDir}/dist")
     delete('tests/calledmethods-delomboked')
@@ -324,11 +367,7 @@ tasks.named('clean') {
             commandLine 'make', 'clean'
         }
     }
-}
 
-// Capture the build directory provider at configuration time.
-def cleanBuildDir = layout.buildDirectory
-tasks.named('clean') {
     doLast {
         def buildDirFile = cleanBuildDir.get().asFile
         int maxAttempts = 6
@@ -410,7 +449,7 @@ tasks.register('demosTests') {
 
     def injected = project.objects.newInstance(InjectedExecOps)
     def checkerLibPath = layout.projectDirectory.dir('dist').file('checker.jar').asFile.absolutePath
-    def demosDirFile = new File(demosDir.toString())
+    def demosDirFile = new File(rootProject.demosDir.toString())
 
     doLast {
         injected.execOps.exec {
@@ -425,7 +464,7 @@ tasks.register('templateforaCheckerTests') {
     group = 'Verification'
     description = 'Test that the templatefora-checker is working as expected.'
     def injected = project.objects.newInstance(InjectedExecOps)
-    def templateforaDir = file(templateforaCheckerDir)
+    def templateforaDir = file(rootProject.templateforaCheckerDir)
 
     doLast {
         injected.execOps.exec {
@@ -479,7 +518,7 @@ tasks.register('jtregJdk11Tests', Exec) {
     String jtregOutput = layout.buildDirectory.dir('jtregJdk11').get().asFile.absolutePath
     String name = 'all'
 
-    executable "${jtregHome}/bin/jtreg"
+    executable "${rootProject.jtregHome}/bin/jtreg"
     args = [
         "-dir:${projectDir}/jtregJdk11",
         "-workDir:${jtregOutput}/${name}/work",
@@ -511,6 +550,17 @@ tasks.named('test') {
         exclude '**/org/checkerframework/checker/test/junit/CalledMethodsDisableReturnsReceiverTest.class'
         exclude '**/org/checkerframework/checker/test/junit/NullnessNoDelombokTest.class'
     }
+
+    useJUnit {
+        // These categories are run in task ainferTest.
+        excludeCategories 'org.checkerframework.checker.test.junit.ainferrunners.AinferTestCheckerJaifsGenerationTest'
+        excludeCategories 'org.checkerframework.checker.test.junit.ainferrunners.AinferTestCheckerStubsGenerationTest'
+        excludeCategories 'org.checkerframework.checker.test.junit.ainferrunners.AinferTestCheckerAjavaGenerationTest'
+        excludeCategories 'org.checkerframework.checker.test.junit.ainferrunners.AinferNullnessJaifsGenerationTest'
+        excludeCategories 'org.checkerframework.checker.test.junit.ainferrunners.AinferNullnessAjavaGenerationTest'
+        excludeCategories 'org.checkerframework.checker.test.junit.ainferrunners.AinferIndexAjavaGenerationTest'
+        excludeCategories 'org.checkerframework.checker.test.junit.ainferrunners.AinferResourceLeakAjavaGenerationTest'
+    }
 }
 
 if (!skipDelombok) {
@@ -538,20 +588,9 @@ if (!skipDelombok) {
 
 //
 // Tests of the -Ainfer command-line argument.  These are not whole-program inference tests.
+// (The main `test` task's excludeCategories for the ainfer runners is configured above,
+// alongside the other test-task settings.)
 //
-
-tasks.named('test') {
-    useJUnit {
-        // These are run in task ainferTest.
-        excludeCategories 'org.checkerframework.checker.test.junit.ainferrunners.AinferTestCheckerJaifsGenerationTest'
-        excludeCategories 'org.checkerframework.checker.test.junit.ainferrunners.AinferTestCheckerStubsGenerationTest'
-        excludeCategories 'org.checkerframework.checker.test.junit.ainferrunners.AinferTestCheckerAjavaGenerationTest'
-        excludeCategories 'org.checkerframework.checker.test.junit.ainferrunners.AinferNullnessJaifsGenerationTest'
-        excludeCategories 'org.checkerframework.checker.test.junit.ainferrunners.AinferNullnessAjavaGenerationTest'
-        excludeCategories 'org.checkerframework.checker.test.junit.ainferrunners.AinferIndexAjavaGenerationTest'
-        excludeCategories 'org.checkerframework.checker.test.junit.ainferrunners.AinferResourceLeakAjavaGenerationTest'
-    }
-}
 
 // Shared, configuration-cache-safe file services/values for the whole-program-inference
 // (ainfer) task actions below: Project.copy/delete/fileTree referenced from a doFirst/doLast
@@ -753,7 +792,7 @@ tasks.register('ainferTestCheckerGenerateJaifsInsertAnnotations', InsertAnnotati
     dependsOn 'ainferTestCheckerGenerateJaifs'
     dependsOn ':checker-qual:jar'
 
-    afuDir = afu
+    afuDir = rootProject.afu
     testDir = 'tests/ainfer-testchecker'
     def checkerQualJar = project(':checker-qual').tasks.named('jar', Jar).flatMap { it.archiveFile }
     classpath = checkerQualJar.map { "${sourceSets.test.output.asPath}:${it.asFile}:" }
@@ -920,7 +959,7 @@ tasks.register('ainferNullnessGenerateJaifsInsertAnnotations', InsertAnnotations
     dependsOn 'ainferNullnessGenerateJaifs'
     dependsOn ':checker-qual:jar'
 
-    afuDir = afu
+    afuDir = rootProject.afu
     testDir = 'tests/ainfer-nullness/'
     def checkerQualJar = project(':checker-qual').tasks.named('jar', Jar).flatMap { it.archiveFile }
     classpath = "${sourceSets.test.output.asPath}:${checkerQualJar.get().asFile}:"

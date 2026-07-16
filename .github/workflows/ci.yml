@@ -19,10 +19,10 @@ permissions:
 
 env:
   PRIMARY_JDK: "21"
-  USE_BAZEL_VERSION: "9.1.1"
+  USE_BAZEL_VERSION: "9.2.0"
   # JDK 27 early-access build; bump when a new EA build is published.
   JDK_EA_MAJOR: "27"
-  JDK_EA_BUILD: "27"
+  JDK_EA_BUILD: "30"
 
 jobs:
   # Basic sanity tests on the primary JDK.

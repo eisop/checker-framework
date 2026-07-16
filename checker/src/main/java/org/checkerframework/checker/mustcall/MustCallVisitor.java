@@ -335,7 +335,7 @@ public class MustCallVisitor extends BaseTypeVisitor<MustCallAnnotatedTypeFactor
      */
     @Override
     protected AnnotationMirrorSet getExceptionParameterLowerBoundAnnotations() {
-        return new AnnotationMirrorSet(atypeFactory.BOTTOM);
+        return AnnotationMirrorSet.singleton(atypeFactory.BOTTOM);
     }
 
     /**
