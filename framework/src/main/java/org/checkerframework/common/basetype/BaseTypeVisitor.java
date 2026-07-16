@@ -2637,8 +2637,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         checkVarargs(constructorType, tree);
 
         List<AnnotatedTypeParameterBounds> paramBounds =
-                CollectionsPlume.mapList(
-                        AnnotatedTypeVariable::getBounds, constructorType.getTypeVariables());
+                atypeFactory.constructorTypeVariableBoundsFromUse(tree, constructorType);
 
         checkTypeArguments(
                 tree,

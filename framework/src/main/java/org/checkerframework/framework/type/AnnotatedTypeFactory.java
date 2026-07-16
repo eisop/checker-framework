@@ -2445,12 +2445,76 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     }
 
     /**
+     * Returns the constructor type-variable bounds adapted to the viewpoint of a constructor
+     * invocation.
+     *
+     * @param tree a constructor invocation
+     * @param invokedConstructor the type of the invoked constructor
+     * @return the adapted constructor type parameter bounds
+     */
+    public List<AnnotatedTypeParameterBounds> constructorTypeVariableBoundsFromUse(
+            NewClassTree tree, AnnotatedExecutableType invokedConstructor) {
+        List<AnnotatedTypeParameterBounds> bounds =
+                CollectionsPlume.mapList(
+                        AnnotatedTypeVariable::getBounds, invokedConstructor.getTypeVariables());
+
+        if (viewpointAdapter != null) {
+            AnnotatedTypeMirror receiverType = getConstructorReceiverType(tree);
+            viewpointAdapter.viewpointAdaptTypeParameterBounds(receiverType, bounds);
+        }
+        return bounds;
+    }
+
+    /**
+     * Returns the receiver type used to viewpoint-adapt a constructor invocation.
+     *
+     * @param tree a constructor invocation tree
+     * @return the receiver type
+     * @see #getReceiverType(ExpressionTree)
+     * @see #getMethodReceiverType(MethodInvocationTree)
+     */
+    public AnnotatedDeclaredType getConstructorReceiverType(NewClassTree tree) {
+        // Get the annotations written on the new class tree.
+        AnnotatedDeclaredType type =
+                (AnnotatedDeclaredType) toAnnotatedType(TreeUtils.typeOf(tree), false);
+        if (!TreeUtils.isDiamondTree(tree)) {
+            if (tree.getClassBody() == null) {
+                type.setTypeArguments(getExplicitNewClassClassTypeArgs(tree));
+            }
+        } else {
+            type = getAnnotatedType(TypesUtils.getTypeElement(type.underlyingType));
+            // Add explicit annotations below.
+            type.clearAnnotations();
+        }
+
+        AnnotationMirrorSet explicitAnnos = getExplicitNewClassAnnos(tree);
+        type.addAnnotations(explicitAnnos);
+
+        // Get the enclosing type of the constructor, if one exists.
+        // this.new InnerClass()
+        AnnotatedDeclaredType enclosingType = (AnnotatedDeclaredType) getReceiverType(tree);
+        if (enclosingType != null && enclosingType.isFrozen()) {
+            // getReceiverType may return a shared frozen cache value; it is embedded in `type` and
+            // mutated by addComputedTypeAnnotations below, so copy it first.
+            enclosingType = enclosingType.deepCopy();
+        }
+        type.setEnclosingType(enclosingType);
+
+        // Add computed annotations to the type.
+        addComputedTypeAnnotations(tree, type);
+
+        return type;
+    }
+
+    /**
      * Returns the receiver type used to viewpoint-adapt a method invocation.
      *
      * @param tree a method invocation tree
      * @return the receiver type, or null if the invocation has no receiver
+     * @see #getReceiverType(ExpressionTree)
+     * @see #getConstructorReceiverType(NewClassTree)
      */
-    private @Nullable AnnotatedTypeMirror getMethodReceiverType(MethodInvocationTree tree) {
+    public @Nullable AnnotatedTypeMirror getMethodReceiverType(MethodInvocationTree tree) {
         ExecutableElement methodElt = TreeUtils.elementFromUse(tree);
         if (ElementUtils.isStatic(methodElt)) {
             return null;
@@ -2684,6 +2748,8 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      *
      * @param expression the expression for which to determine the receiver type
      * @return the type of the receiver of expression
+     * @see #getMethodReceiverType(MethodInvocationTree)
+     * @see #getConstructorReceiverType(NewClassTree)
      */
     public final @Nullable AnnotatedTypeMirror getReceiverType(ExpressionTree expression) {
         AnnotatedTypeMirror receiverType;
@@ -3533,34 +3599,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      */
     protected ParameterizedExecutableType constructorFromUse(
             NewClassTree tree, boolean inferTypeArgs) {
-        // Get the annotations written on the new class tree.
-        AnnotatedDeclaredType type =
-                (AnnotatedDeclaredType) toAnnotatedType(TreeUtils.typeOf(tree), false);
-        if (!TreeUtils.isDiamondTree(tree)) {
-            if (tree.getClassBody() == null) {
-                type.setTypeArguments(getExplicitNewClassClassTypeArgs(tree));
-            }
-        } else {
-            type = getAnnotatedType(TypesUtils.getTypeElement(type.underlyingType));
-            // Add explicit annotations below.
-            type.clearAnnotations();
-        }
-
-        AnnotationMirrorSet explicitAnnos = getExplicitNewClassAnnos(tree);
-        type.addAnnotations(explicitAnnos);
-
-        // Get the enclosing type of the constructor, if one exists.
-        // this.new InnerClass()
-        AnnotatedDeclaredType enclosingType = (AnnotatedDeclaredType) getReceiverType(tree);
-        if (enclosingType != null && enclosingType.isFrozen()) {
-            // getReceiverType may return a shared frozen cache value; it is embedded in `type` and
-            // mutated by addComputedTypeAnnotations below, so copy it first.
-            enclosingType = enclosingType.deepCopy();
-        }
-        type.setEnclosingType(enclosingType);
-
-        // Add computed annotations to the type.
-        addComputedTypeAnnotations(tree, type);
+        AnnotatedDeclaredType type = getConstructorReceiverType(tree);
 
         ExecutableElement ctor = TreeUtils.elementFromUse(tree);
         AnnotatedExecutableType con = getAnnotatedType(ctor); // get unsubstituted type
@@ -3659,9 +3698,9 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             addDefaultAnnotations(returnType);
             con.setReturnType(returnType);
         }
-        if (enclosingType != null) {
+        if (type.getEnclosingType() != null) {
             // Reset the enclosing type because it can be substituted incorrectly.
-            ((AnnotatedDeclaredType) con.getReturnType()).setEnclosingType(enclosingType);
+            ((AnnotatedDeclaredType) con.getReturnType()).setEnclosingType(type.getEnclosingType());
         }
         if (type.isUnderlyingTypeRaw() || TypesUtils.isRaw(TreeUtils.typeOf(tree))) {
             ((AnnotatedDeclaredType) con.getReturnType()).setIsUnderlyingTypeRaw();
