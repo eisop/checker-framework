@@ -11,24 +11,23 @@ public class ConstructorTypeVariableBounds {
         <T extends @ReceiverDependentQual Object> C(T t) {}
     }
 
-    void topViewpoint(
-            @Top Object top, @A Object a, @B Object b, @Bottom Object bottom) {
+    void topViewpoint(@Top Object top, @A Object a, @B Object b, @Bottom Object bottom) {
         // Constructed type @Top adapts @ReceiverDependentQual to @Lost. Creating @Top is also
         // forbidden by the viewpoint test checker.
         // :: error: (new.class.type.invalid) :: error: (type.argument.type.incompatible)
         new @Top C();
 
         // :: error: (new.class.type.invalid) :: error: (type.argument.type.incompatible)
-        new <@Top Object> @Top C(top);
+        new <@Top Object>@Top C(top);
 
         // :: error: (new.class.type.invalid) :: error: (type.argument.type.incompatible)
-        new <@A Object> @Top C(a);
+        new <@A Object>@Top C(a);
 
         // :: error: (new.class.type.invalid) :: error: (type.argument.type.incompatible)
-        new <@B Object> @Top C(b);
+        new <@B Object>@Top C(b);
 
         // :: error: (new.class.type.invalid)
-        new <@Bottom Object> @Top C(bottom);
+        new <@Bottom Object>@Top C(bottom);
 
         // :: error: (new.class.type.invalid) :: error: (type.arguments.not.inferred)
         new @Top C(top);
@@ -43,25 +42,26 @@ public class ConstructorTypeVariableBounds {
         new @Top C(bottom);
     }
 
-    void aViewpoint(
-            @Top Object top, @A Object a, @B Object b, @Bottom Object bottom) {
+    void aViewpoint(@Top Object top, @A Object a, @B Object b, @Bottom Object bottom) {
         // Constructed type @A adapts @ReceiverDependentQual to @A, so @A and @Bottom are within
         // the adapted constructor type parameter bound. Inference instantiates T to @A for the
         // no-arg constructor.
         // :: warning: (cast.unsafe.constructor.invocation)
         new @A C();
 
-        // :: error: (type.argument.type.incompatible) :: warning: (cast.unsafe.constructor.invocation)
-        new <@Top Object> @A C(top);
+        // :: error: (type.argument.type.incompatible) :: warning:
+        // (cast.unsafe.constructor.invocation)
+        new <@Top Object>@A C(top);
 
         // :: warning: (cast.unsafe.constructor.invocation)
-        new <@A Object> @A C(a);
+        new <@A Object>@A C(a);
 
-        // :: error: (type.argument.type.incompatible) :: warning: (cast.unsafe.constructor.invocation)
-        new <@B Object> @A C(b);
+        // :: error: (type.argument.type.incompatible) :: warning:
+        // (cast.unsafe.constructor.invocation)
+        new <@B Object>@A C(b);
 
         // :: warning: (cast.unsafe.constructor.invocation)
-        new <@Bottom Object> @A C(bottom);
+        new <@Bottom Object>@A C(bottom);
 
         // :: error: (type.arguments.not.inferred)
         new @A C(top);
