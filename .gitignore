@@ -107,6 +107,7 @@ docs/examples/jspecify/Out.txt
 docs/examples/lombok/.gradle/
 docs/examples/lombok/Out.txt
 docs/examples/lombok/lombok.config
+docs/examples/publish-smoketest/.gradle/
 docs/manual/*.png
 docs/manual/*.svg
 docs/manual/contributors.txt
@@ -133,6 +134,8 @@ target/
 checker/tests/command-line/issue618/TwoCheckers.class
 checker/tests/command-line/issue618/out.txt
 checker/tests/nullness-extra/*.class
+checker/tests/nullness-extra/cfgviz-nodevalues/*.class
+checker/tests/nullness-extra/cfgviz-nodevalues/Out.txt
 checker/tests/nullness-extra/compat/Out.txt
 checker/tests/nullness-extra/compat/javax/annotation/Nullable.class
 checker/tests/nullness-extra/compat/lib/Lib.class
@@ -166,6 +169,7 @@ checker/tests/ainfer-testchecker/annotated/
 checker/tests/ainfer-testchecker/inference-output/
 checker/tests/ainfer-resourceleak/annotated/
 checker/tests/ainfer-resourceleak/inference-output/
+framework/tests/annotationclassloader/Out.txt
 framework/tests/returnsreceiverdelomboked/
 
 dataflow/tests/busyexpr/Out.txt
@@ -183,6 +187,10 @@ dataflow/tests/java22/unnamed-pattern/Out.txt
 dataflow/tests/java22/unnamed-pattern/*.class
 
 checker/jtreg/multipleexecutions/Main.class
+
+# Downloaded by the Makefile's shell-style-check target when checkbashisms
+# is not already on the PATH.
+/.checkbashisms
 
 # Source is copied from elsewhere.
 checker-qual-android/src

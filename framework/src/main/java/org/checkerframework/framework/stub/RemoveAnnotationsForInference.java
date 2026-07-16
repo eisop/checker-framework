@@ -511,7 +511,10 @@ public class RemoveAnnotationsForInference {
 
         // Try every element of suppressee's fully-qualified name.
         for (String suppressee : suppressees) {
-            for (String fqPart : suppressee.split("\\.")) {
+            // Splitting a fully-qualified name on "."; trailing empty strings cannot occur.
+            @SuppressWarnings("StringSplitter")
+            String[] fqParts = suppressee.split("\\.");
+            for (String fqPart : fqParts) {
                 if (checkerNames.contains(fqPart)) {
                     return true;
                 }

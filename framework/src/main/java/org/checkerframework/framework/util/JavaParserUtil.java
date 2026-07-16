@@ -378,8 +378,20 @@ public class JavaParserUtil {
         node.accept(new StringLiteralConcatenateVisitor(), null);
     }
 
-    /** Visitor that combines added String literals, see {@link #concatenateAddedStringLiterals}. */
+    /**
+     * Visitor that combines String literals in binary "+" expressions to match javac's
+     * constant-folding behavior. javac folds only {@code String + String} concatenation in the AST
+     * (not {@code char + String}, {@code null + String}, etc.), so this visitor must mirror that
+     * precisely to keep the JavaParser AST in sync with javac's tree during the joint traversal
+     * performed by {@link org.checkerframework.framework.ajava.JointJavacJavaParserVisitor}.
+     *
+     * @see #concatenateAddedStringLiterals
+     */
     public static class StringLiteralConcatenateVisitor extends VoidVisitorAdapter<Void> {
+
+        /** Creates a new StringLiteralConcatenateVisitor. */
+        public StringLiteralConcatenateVisitor() {}
+
         @Override
         public void visit(BinaryExpr node, Void p) {
             super.visit(node, p);
@@ -387,9 +399,12 @@ public class JavaParserUtil {
                     && node.getRight().isStringLiteralExpr()) {
                 String right = node.getRight().asStringLiteralExpr().getValue();
                 if (node.getLeft().isStringLiteralExpr()) {
+                    // String + String → fold into a single StringLiteralExpr.
                     String left = node.getLeft().asStringLiteralExpr().getValue();
                     node.replace(new StringLiteralExpr(left + right));
                 } else if (node.getLeft().isBinaryExpr()) {
+                    // expr + strLit + strLit → fold the two rightmost string literals.
+                    // This matches javac's partial folding of adjacent string constants.
                     BinaryExpr leftExpr = node.getLeft().asBinaryExpr();
                     if (leftExpr.getOperator() == BinaryExpr.Operator.PLUS
                             && leftExpr.getRight().isStringLiteralExpr()) {

@@ -675,8 +675,7 @@ public class RLCCalledMethodsVisitor extends CalledMethodsVisitor {
                 return "@EnsuresCalledMethods";
             case EXCEPTIONAL_EXIT:
                 return "@EnsuresCalledMethodsOnException";
-            default:
-                throw new UnsupportedOperationException(exitKind.toString());
         }
+        throw new UnsupportedOperationException(exitKind.toString());
     }
 }
