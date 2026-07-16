@@ -120,9 +120,15 @@ public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
             AnnotatedTypeMirror p = combineTypeWithType(receiverType, parameterType);
             mappings.put(parameterType, p);
         }
-        for (AnnotatedTypeMirror typeVariable : typeVariables) {
-            AnnotatedTypeMirror tv = combineTypeWithType(receiverType, typeVariable);
-            mappings.put(typeVariable, tv);
+        // Adapt type-variable declarations separately. AnnotatedTypeCopierWithReplacement does not
+        // replace executable type parameters (see its visitTypeVariable), so install the adapted
+        // declarations explicitly below.
+        List<AnnotatedTypeVariable> adaptedTypeVariables = new ArrayList<>(typeVariables.size());
+        for (AnnotatedTypeVariable typeVariable : typeVariables) {
+            AnnotatedTypeVariable adapted =
+                    (AnnotatedTypeVariable) combineTypeWithType(receiverType, typeVariable);
+            mappings.put(typeVariable, adapted);
+            adaptedTypeVariables.add(adapted);
         }
         AnnotatedTypeMirror cr = combineTypeWithType(receiverType, constructorReturn);
         mappings.put(constructorReturn, cr);
@@ -133,7 +139,7 @@ public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
                                 unsubstitutedConstructorType, mappings);
 
         constructorType.setParameterTypes(unsubstitutedConstructorType.getParameterTypes());
-        constructorType.setTypeVariables(unsubstitutedConstructorType.getTypeVariables());
+        constructorType.setTypeVariables(adaptedTypeVariables);
         constructorType.setReturnType(unsubstitutedConstructorType.getReturnType());
     }
 
@@ -163,9 +169,17 @@ public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
             mappings.put(parameterType, p);
         }
 
+        // Adapt type-variable declarations separately. AnnotatedTypeCopierWithReplacement does not
+        // replace executable type parameters (see its visitTypeVariable), so install the adapted
+        // declarations explicitly below. Without this, inference and checkTypeArguments would see
+        // the unadapted declaration bounds (e.g. @ReceiverDependentQual instead of the
+        // receiver-adapted qualifier).
+        List<AnnotatedTypeVariable> adaptedTypeVariables = new ArrayList<>(typeVariables.size());
         for (AnnotatedTypeVariable typeVariable : typeVariables) {
-            AnnotatedTypeMirror tv = combineTypeWithType(receiverType, typeVariable);
-            mappings.put(typeVariable, tv);
+            AnnotatedTypeVariable adapted =
+                    (AnnotatedTypeVariable) combineTypeWithType(receiverType, typeVariable);
+            mappings.put(typeVariable, adapted);
+            adaptedTypeVariables.add(adapted);
         }
 
         if (returnType.getKind() != TypeKind.VOID) {
@@ -184,11 +198,11 @@ public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
                                 unsubstitutedMethodType, mappings);
 
         // Because we can't viewpoint adapt asMemberOf result, we adapt the declared method first,
-        // and sets the corresponding parts to asMemberOf result
+        // and set the corresponding parts on the asMemberOf result.
         methodType.setReturnType(unsubstitutedMethodType.getReturnType());
         methodType.setReceiverType(unsubstitutedMethodType.getReceiverType());
         methodType.setParameterTypes(unsubstitutedMethodType.getParameterTypes());
-        methodType.setTypeVariables(unsubstitutedMethodType.getTypeVariables());
+        methodType.setTypeVariables(adaptedTypeVariables);
     }
 
     /**

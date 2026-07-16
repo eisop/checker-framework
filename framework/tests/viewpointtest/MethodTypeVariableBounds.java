@@ -44,8 +44,8 @@ public class MethodTypeVariableBounds {
     void aReceiver(
             @A Methods methods, @Top Object top, @A Object a, @B Object b, @Bottom Object bottom) {
         // @A viewpoint-adapts @ReceiverDependentQual to @A, so @A and @Bottom are within the
-        // adapted method type parameter bound.
-        // :: error: (type.argument.type.incompatible)
+        // adapted method type parameter bound. Inference instantiates T to the adapted upper
+        // bound @A, which is a valid type argument.
         methods.noArg();
 
         // :: error: (type.argument.type.incompatible)
@@ -61,7 +61,7 @@ public class MethodTypeVariableBounds {
         // :: error: (type.arguments.not.inferred)
         methods.withArg(top);
 
-        // :: error: (type.arguments.not.inferred)
+        // Inference succeeds: argument @A is within the adapted bound @A.
         methods.withArg(a);
 
         // :: error: (type.arguments.not.inferred)
