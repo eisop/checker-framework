@@ -1193,6 +1193,15 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
             messageStore = new TreeSet<>();
         }
 
+        Collection<String> prefixes = getSuppressWarningsPrefixes();
+        if (prefixes.isEmpty()
+                || (prefixes.size() == 1 && prefixes.contains(SUPPRESS_ALL_PREFIX))) {
+            throw new BugInCF(
+                    "Checker must provide a SuppressWarnings prefix."
+                            + " SourceChecker#getSuppressWarningsPrefixes was not overridden"
+                            + " correctly.");
+        }
+
         // Validate the lint flags, if they haven't been used already.
         if (this.activeLints == null) {
             this.activeLints = createActiveLints(getOptions());
@@ -2822,20 +2831,13 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      *
      * @param path the TreePath that might be a source of, or related to, a warning
      * @param errKey the error key the checker is emitting
-     * @return true if no warning should be emitted for the given path because it is contained by a
-     *     declaration with an appropriately-valued {@code @SuppressWarnings} annotation; false
+     * @return true if no warning should be emitted for the given path, either because it is
+     *     contained by a declaration with an appropriately-valued {@code @SuppressWarnings}
+     *     annotation, because it is suppressed by command-line arguments, or because it is outside
+     *     an {@link AnnotatedFor} scope when source-based conservative defaults are enabled; false
      *     otherwise
      */
     public boolean shouldSuppressWarnings(TreePath path, String errKey) {
-        Collection<String> prefixes = getSuppressWarningsPrefixes();
-        if (prefixes.isEmpty()
-                || (prefixes.contains(SUPPRESS_ALL_PREFIX) && prefixes.size() == 1)) {
-            throw new BugInCF(
-                    "Checker must provide a SuppressWarnings prefix."
-                            + " SourceChecker#getSuppressWarningsPrefixes was not overridden"
-                            + " correctly.");
-        }
-
         if (shouldSuppress(getSuppressWarningsStringsFromOption(), errKey)) {
             return true;
         }
@@ -2936,10 +2938,17 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      * true if the element is within the scope of a @SuppressWarnings annotation, one of whose
      * values suppresses all the checker's warnings.
      *
+     * <p>This overload also accounts for source-position-based suppression from unchecked code: if
+     * no matching {@code @SuppressWarnings} is found, then warnings outside a relevant {@link
+     * AnnotatedFor} scope are suppressed when {@code
+     * -AuseConservativeDefaultsForUncheckedCode=source} or {@code -AonlyAnnotatedFor} is in effect.
+     *
      * @param elt the Element that might be a source of, or related to, a warning
      * @param errKey the error key the checker is emitting
-     * @return true if no warning should be emitted for the given Element because it is contained by
-     *     a declaration with an appropriately-valued {@code @SuppressWarnings} annotation; false
+     * @return true if no warning should be emitted for the given Element, either because it is
+     *     contained by a declaration with an appropriately-valued {@code @SuppressWarnings}
+     *     annotation, because it is suppressed by command-line arguments, or because it is outside
+     *     an {@link AnnotatedFor} scope when source-based conservative defaults are enabled; false
      *     otherwise
      */
     public boolean shouldSuppressWarnings(Element elt, String errKey) {
@@ -2947,11 +2956,24 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
             return true;
         }
 
+        boolean foundAnnotatedFor = false;
         for (Element currElt = elt; currElt != null; currElt = currElt.getEnclosingElement()) {
             if (hasSuppressWarningsAnnotationForErrorKey(currElt, errKey)) {
                 return true;
             }
+            if (!foundAnnotatedFor && isAnnotatedForThisCheckerOrUpstreamChecker(currElt)) {
+                foundAnnotatedFor = true;
+            }
         }
+
+        if (foundAnnotatedFor) {
+            return false;
+        } else if (useConservativeDefaultsSource || onlyAnnotatedFor) {
+            // If we got this far without hitting an @AnnotatedFor and returning
+            // false, we DO suppress the warning.
+            return true;
+        }
+
         return false;
     }
 
