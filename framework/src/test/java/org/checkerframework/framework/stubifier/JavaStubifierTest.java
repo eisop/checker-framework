@@ -4,10 +4,12 @@ import org.checkerframework.framework.stub.BinaryStubData;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -159,6 +161,87 @@ public class JavaStubifierTest {
             Assert.assertTrue(
                     "a record-only file must be kept, since BinaryStubWriter now supports records",
                     Files.exists(recordFile));
+        } finally {
+            deleteRecursively(dir);
+        }
+    }
+
+    /** Source text of a class whose field is annotated with an annotation not on the classpath. */
+    private static final String UNLOADABLE_ANNOTATION_SOURCE =
+            "import com.example.NotOnClasspath;\n"
+                    + "public class NeedsAnnotation {\n"
+                    + "  public @NotOnClasspath Object f;\n"
+                    + "}\n";
+
+    /**
+     * By default, an unloadable annotation aborts the whole run, and the failure names both the
+     * annotation and the source file that was being processed -- the file path used to be missing,
+     * which made finding the offending file among thousands require grepping the whole tree.
+     */
+    @Test
+    public void unloadableAnnotationFailsWithFilePathInMessage() throws IOException {
+        Path dir = Files.createTempDirectory("stubifier-test-unloadable");
+        try {
+            Path file = dir.resolve("NeedsAnnotation.java");
+            Files.write(file, UNLOADABLE_ANNOTATION_SOURCE.getBytes(StandardCharsets.UTF_8));
+
+            RuntimeException e =
+                    Assert.assertThrows(
+                            RuntimeException.class,
+                            () -> JavaStubifier.main(new String[] {dir.toString()}));
+            Assert.assertTrue(
+                    "the failure must name the unloadable annotation, but was: " + e.getMessage(),
+                    e.getMessage().contains("com.example.NotOnClasspath"));
+            Assert.assertTrue(
+                    "the failure must name the file being processed, but was: " + e.getMessage(),
+                    e.getMessage().contains(file.toString()));
+        } finally {
+            deleteRecursively(dir);
+        }
+    }
+
+    /**
+     * With {@link JavaStubifier#SKIP_UNLOADABLE_ANNOTATIONS_FLAG}, the same input succeeds instead:
+     * the unloadable annotation is dropped from the binary stub output (so the field ends up with
+     * no annotations, and the annotated-JDK writer then omits its record entirely, per {@link
+     * BinaryStubWriterTest#jdkWriterDemotesUnannotatedMethodRecords}'s analogous case for methods),
+     * and a warning naming the annotation and the file is printed to stderr.
+     */
+    @Test
+    public void skipUnloadableAnnotationsFlagOmitsAnnotationAndSucceeds() throws IOException {
+        Path dir = Files.createTempDirectory("stubifier-test-skip");
+        try {
+            Path file = dir.resolve("NeedsAnnotation.java");
+            Files.write(file, UNLOADABLE_ANNOTATION_SOURCE.getBytes(StandardCharsets.UTF_8));
+
+            PrintStream originalErr = System.err;
+            ByteArrayOutputStream capturedErr = new ByteArrayOutputStream();
+            System.setErr(new PrintStream(capturedErr, true, StandardCharsets.UTF_8));
+            try {
+                JavaStubifier.main(
+                        new String[] {
+                            JavaStubifier.SKIP_UNLOADABLE_ANNOTATIONS_FLAG, dir.toString()
+                        });
+            } finally {
+                System.setErr(originalErr);
+            }
+            String warnings = capturedErr.toString(StandardCharsets.UTF_8);
+            Assert.assertTrue(
+                    "the warning must name the dropped annotation, but was: " + warnings,
+                    warnings.contains("NotOnClasspath"));
+            Assert.assertTrue(
+                    "the warning must name the file it was dropped from, but was: " + warnings,
+                    warnings.contains(file.toString()));
+
+            BinaryStubData data = load(dir);
+            BinaryStubData.ClassRecord cr = data.classes.get("NeedsAnnotation");
+            Assert.assertNotNull("the class record must still be written", cr);
+            Assert.assertEquals(
+                    "the field must be omitted: its only annotation was dropped, leaving it"
+                            + " unannotated, and the annotated-JDK writer drops unannotated field"
+                            + " records",
+                    0,
+                    cr.fields.length);
         } finally {
             deleteRecursively(dir);
         }
