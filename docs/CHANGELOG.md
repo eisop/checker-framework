@@ -94,6 +94,9 @@ type-argument-inference work, averting hangs on deeply nested (e.g.,
 machine-generated) invocations. Defaults to 10000; raises a
 `type.argument.inference.budget` error if exceeded.
 
+`BaseTypeValidator.visitParameterizedType`'s captured-wildcard bound recheck
+is extracted into an overridable `checkCapturedWildcardBounds` method.
+
 Performance optimizations:
 - Capped Java type argument inference bound-incorporation work and optimized
   the fixpoint algorithm to short-circuit and re-scan fewer variables.
