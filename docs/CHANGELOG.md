@@ -94,6 +94,12 @@ type-argument-inference work, averting hangs on deeply nested (e.g.,
 machine-generated) invocations. Defaults to 10000; raises a
 `type.argument.inference.budget` error if exceeded.
 
+`BaseTypeVisitor`'s type-argument-inference failure report is extracted into
+an overridable `reportTypeArgumentInferenceFailure` method, so a checker
+whose qualifier encoding makes this failure mode common and usually spurious
+can report a warning (or suppress the diagnostic) instead of the default
+hard error.
+
 Performance optimizations:
 - Capped Java type argument inference bound-incorporation work and optimized
   the fixpoint algorithm to short-circuit and re-scan fewer variables.
