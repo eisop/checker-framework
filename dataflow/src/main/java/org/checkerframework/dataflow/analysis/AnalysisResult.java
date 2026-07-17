@@ -350,9 +350,8 @@ public class AnalysisResult<V extends AbstractValue<V>, S extends Store<S>> impl
                             nodeValues,
                             analysisCaches);
                 }
-            default:
-                throw new BugInCF("Unknown direction: " + analysis.getDirection());
         }
+        throw new BugInCF("Unknown direction: " + analysis.getDirection());
     }
 
     /**
@@ -392,9 +391,8 @@ public class AnalysisResult<V extends AbstractValue<V>, S extends Store<S>> impl
                 }
             case BACKWARD:
                 return transferInput.getRegularStore();
-            default:
-                throw new BugInCF("Unknown direction: " + analysis.getDirection());
         }
+        throw new BugInCF("Unknown direction: " + analysis.getDirection());
     }
 
     /**

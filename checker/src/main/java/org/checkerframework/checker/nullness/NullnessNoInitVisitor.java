@@ -969,6 +969,24 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
     }
 
     @Override
+    protected void reportCommonAssignmentError(
+            AnnotatedTypeMirror varType,
+            AnnotatedTypeMirror valueType,
+            Tree valueTree,
+            @CompilerMessageKey String errorKey,
+            Object... extraArgs) {
+        super.reportCommonAssignmentError(varType, valueType, valueTree, errorKey, extraArgs);
+
+        if (valueTree instanceof MethodInvocationTree) {
+            String copyOfUnsafeReason =
+                    atypeFactory.getCopyOfUnsafeReason((MethodInvocationTree) valueTree);
+            if (copyOfUnsafeReason != null) {
+                checker.reportWarning(valueTree, copyOfUnsafeReason);
+            }
+        }
+    }
+
+    @Override
     protected TypeValidator createTypeValidator() {
         return new NullnessValidator(checker, this, atypeFactory);
     }

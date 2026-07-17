@@ -23,6 +23,12 @@ dependencies {
         tagletJdk8Implementation files(toolsJar)
     }
 
+    // BinaryStubDiffChecker (org.checkerframework.framework.stub) type-checks against framework's
+    // internals, but framework is not a published artifact: it is bundled into checker.jar, which
+    // every consumer of framework-test already has on its classpath. compileOnly therefore compiles
+    // against it without putting an unresolvable dependency in framework-test's POM.
+    compileOnly project(':framework')
+
     testImplementation project(':framework')
 }
 

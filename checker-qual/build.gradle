@@ -43,7 +43,7 @@ tasks.named('javadoc') {
 
 tasks.named('jar') {
     manifest {
-        attributes('Export-Package': '*')
+        attributes('-exportcontents': '*')
     }
 }
 

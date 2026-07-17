@@ -488,6 +488,7 @@ public abstract class GenericAnnotatedTypeFactory<
         this.scannedClasses = new IdentityHashMap<>();
         // this.reachableNodes.clear();
         this.flowResult = null;
+        this.finalLocalValuesByDeclarer.clear();
         this.regularExitStores = new IdentityHashMap<>();
         this.exceptionalExitStores = new IdentityHashMap<>();
         this.returnStatementStores = new IdentityHashMap<>();
@@ -1394,6 +1395,30 @@ public abstract class GenericAnnotatedTypeFactory<
     }
 
     /**
+     * The values of effectively-final local variables, indexed by the element that declares the
+     * variable's enclosing method/lambda/initializer. Contains the same entries as {@link
+     * #getFinalLocalValues()}; maintained in {@link #analyze} so that {@link
+     * org.checkerframework.framework.flow.CFAbstractTransfer} can look up the final locals declared
+     * in one enclosing element without scanning every final local in the compilation unit for each
+     * analyzed method (which is quadratic in the number of methods).
+     */
+    private final IdentityHashMap<Element, Map<VariableElement, Value>> finalLocalValuesByDeclarer =
+            new IdentityHashMap<>();
+
+    /**
+     * Returns the values of the effectively-final local variables whose declaration is directly
+     * enclosed by the given element.
+     *
+     * @param declarer an element, typically a method, lambda, or initializer
+     * @return the values of the effectively-final local variables declared directly in {@code
+     *     declarer}; the empty map if there are none
+     */
+    public Map<VariableElement, Value> getFinalLocalValues(Element declarer) {
+        Map<VariableElement, Value> result = finalLocalValuesByDeclarer.get(declarer);
+        return result != null ? result : Collections.emptyMap();
+    }
+
+    /**
      * Returns true if the receiver of a method or constructor might not be fully initialized.
      *
      * @param methodDeclTree the declaration of the method or constructor
@@ -1709,6 +1734,15 @@ public abstract class GenericAnnotatedTypeFactory<
 
         // store result
         flowResult.combine(result);
+        // Maintain the by-declarer index of final local values in step with flowResult.
+        for (Map.Entry<VariableElement, Value> e : result.getFinalLocalValues().entrySet()) {
+            Element declarer = e.getKey().getEnclosingElement();
+            if (declarer != null) {
+                finalLocalValuesByDeclarer
+                        .computeIfAbsent(declarer, k -> new HashMap<>(4))
+                        .put(e.getKey(), e.getValue());
+            }
+        }
         if (ast.getKind() == UnderlyingAST.Kind.METHOD) {
             // store exit store (for checking postconditions)
             CFGMethod mast = (CFGMethod) ast;
@@ -2418,6 +2452,23 @@ public abstract class GenericAnnotatedTypeFactory<
     }
 
     /**
+     * Cache used exclusively during stub parsing to memoize the primary defaults of parameter-less
+     * declared types (like {@code java.lang.Object}).
+     *
+     * <p>Standard factory caches are disabled during parsing to prevent caching partially loaded
+     * stub annotations. This targeted cache bridges the performance gap by preventing heavy
+     * redundant processing, and is explicitly cleared when parsing completes to ensure no
+     * incomplete state leaks into the main type-checking phase.
+     */
+    protected final IdentityHashMap<Element, AnnotationMirrorSet> parsePhasePrimaryDefaultsCache =
+            new IdentityHashMap<>();
+
+    @Override
+    public void clearParsePhaseCache() {
+        parsePhasePrimaryDefaultsCache.clear();
+    }
+
+    /**
      * To add annotations to the type of method or constructor parameters, add a {@link
      * TypeAnnotator} using {@link #createTypeAnnotator()} and see the comment in {@link
      * TypeAnnotator#visitExecutable(org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedExecutableType,
@@ -2428,11 +2479,29 @@ public abstract class GenericAnnotatedTypeFactory<
      */
     @Override
     public void addComputedTypeAnnotations(Element elt, AnnotatedTypeMirror type) {
+        boolean cacheParsePhasePrimaryDefaults = false;
+
+        if (isParsingAnnotationFile() && elt != null && type.getKind() == TypeKind.DECLARED) {
+            AnnotatedDeclaredType adt = (AnnotatedDeclaredType) type;
+            if (adt.getTypeArguments().isEmpty()) {
+                AnnotationMirrorSet cached = parsePhasePrimaryDefaultsCache.get(elt);
+                if (cached != null) {
+                    type.addMissingAnnotations(cached);
+                    return;
+                }
+                cacheParsePhasePrimaryDefaults = true;
+            }
+        }
+
         addAnnotationsFromDefaultForType(elt, type);
         applyQualifierParameterDefaults(elt, type);
         typeAnnotator.visit(type, null);
         defaults.annotate(elt, type);
         dependentTypesHelper.atLocalVariable(type, elt);
+
+        if (cacheParsePhasePrimaryDefaults) {
+            parsePhasePrimaryDefaultsCache.put(elt, type.getAnnotations());
+        }
     }
 
     @Override
@@ -2626,12 +2695,17 @@ public abstract class GenericAnnotatedTypeFactory<
         // Index 0 is the visualizer class name and can be ignored.
         for (int i = 1; i < opts.size(); ++i) {
             String opt = opts.get(i);
-            String[] split = opt.split("=");
+            // Use limit -1 so a trailing "=" produces an empty-value token, which is
+            // rejected below rather than silently treating it as key="".
+            String[] split = opt.split("=", -1);
             switch (split.length) {
                 case 1:
                     res.put(split[0], true);
                     break;
                 case 2:
+                    if (split[1].isEmpty()) {
+                        throw new UserError("Empty value in cfgviz option: " + opt);
+                    }
                     res.put(split[0], split[1]);
                     break;
                 default:

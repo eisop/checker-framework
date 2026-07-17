@@ -1,0 +1,9 @@
+import org.checkerframework.checker.nullness.qual.Nullable;
+
+// A record nested in another type. Until AnnotationFileParser learned to descend into a nested
+// record declaration, every annotation written here was silently ignored: the record was not in
+// the member map (getMembers/putNewElement did not handle RecordDeclaration), so neither its
+// components nor its members were annotated.
+class NestedRecordOuter {
+    record Inner(String key, @Nullable Object value) {}
+}
