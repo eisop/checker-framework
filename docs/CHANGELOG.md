@@ -94,6 +94,9 @@ type-argument-inference work, averting hangs on deeply nested (e.g.,
 machine-generated) invocations. Defaults to 10000; raises a
 `type.argument.inference.budget` error if exceeded.
 
+`BaseTypeValidator.visitParameterizedType`'s captured-wildcard bound recheck
+is extracted into an overridable `checkCapturedWildcardBounds` method.
+
 `BaseTypeVisitor`'s type-argument-inference failure report is extracted into
 an overridable `reportTypeArgumentInferenceFailure` method, so a checker
 whose qualifier encoding makes this failure mode common and usually spurious
