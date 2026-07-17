@@ -598,6 +598,35 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
             return null;
         }
 
+        checkCapturedWildcardBounds(type, capturedType, tree);
+        checkExplicitSuperBoundWildcards(type, capturedType, tree);
+
+        return null;
+    }
+
+    /**
+     * Rechecks, for every wildcard type argument whose capture is a captured type variable, that
+     * the upper bound of the captured type variable is a subtype of the extends bound of the
+     * wildcard, and issues the "type.argument.type.incompatible" error if it is not.
+     *
+     * <p>For most captured type variables, this will trivially hold, as capturing incorporated the
+     * extends bound of the wildcard into the upper bound of the type variable. This will fail if
+     * the bound and the wildcard have generic types and there is no appropriate glb, in which case
+     * the two bounds have contradictory requirements and no type can satisfy both.
+     *
+     * <p>Checkers with a nonstandard subtyping relationship (where this recheck can spuriously fail
+     * even though capture conversion itself succeeded) may override this method to do nothing.
+     *
+     * @param type the (possibly unconverted) parameterized type being validated
+     * @param capturedType {@code type} after capture conversion
+     * @param tree the tree for {@code type}
+     */
+    protected void checkCapturedWildcardBounds(
+            AnnotatedDeclaredType type,
+            AnnotatedDeclaredType capturedType,
+            ParameterizedTypeTree tree) {
+        TypeElement element = (TypeElement) type.getUnderlyingType().asElement();
+
         // Check that the extends bound of the captured type variable is a subtype of the
         // extends bound of the wildcard.
         int numTypeArgs = capturedType.getTypeArguments().size();
@@ -621,35 +650,69 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
             }
             AnnotatedTypeMirror captureTypeArg = capturedType.getTypeArguments().get(i);
             AnnotatedWildcardType wildcard = (AnnotatedWildcardType) type.getTypeArguments().get(i);
+            if (!TypesUtils.isCapturedTypeVariable(captureTypeArg.getUnderlyingType())) {
+                continue;
+            }
+            AnnotatedTypeVariable capturedTypeVar = (AnnotatedTypeVariable) captureTypeArg;
+            // Substitute the captured type variables with their wildcards. Without
+            // this, the isSubtype check crashes because wildcards aren't comparable
+            // with type variables.
+            AnnotatedTypeMirror captureTypeVarUB =
+                    atypeFactory
+                            .getTypeVarSubstitutor()
+                            .substituteWithoutCopyingTypeArguments(
+                                    typeVarToWildcard, capturedTypeVar.getUpperBound());
+            if (!atypeFactory
+                    .getTypeHierarchy()
+                    .isSubtype(captureTypeVarUB, wildcard.getExtendsBound())) {
+                // For most captured type variables, this will trivially hold, as capturing
+                // incorporated the extends bound of the wildcard into the upper bound of the
+                // type variable.
+                // This will fail if the bound and the wildcard have generic types and there is
+                // no appropriate GLB.
+                // This issues an error for types that cannot be satisfied, because the two
+                // bounds have contradictory requirements.
+                checker.reportError(
+                        tree.getTypeArguments().get(i),
+                        "type.argument.type.incompatible",
+                        element.getTypeParameters().get(i),
+                        element.getSimpleName(),
+                        wildcard.getExtendsBound(),
+                        capturedTypeVar.getUpperBound());
+            }
+        }
+    }
+
+    /**
+     * Checks, for every wildcard type argument whose capture is not itself a captured type
+     * variable, the special case described by JDK-8054309: if the super bound of the wildcard is
+     * the same as the upper bound of the type parameter, then javac uses the bound rather than
+     * creating a fresh type variable. (See https://bugs.openjdk.org/browse/JDK-8054309.) In this
+     * case, the Checker Framework uses the annotations on the super bound of the wildcard and
+     * ignores the annotations on the extends bound. For example, {@code Set<@1 ? super @2 Object>}
+     * will collapse into {@code Set<@2 Object>}. This method issues the
+     * "type.invalid.super.wildcard" error if the annotations on the extends bound are not the same
+     * as the annotations on the super bound.
+     *
+     * @param type the (possibly unconverted) parameterized type being validated
+     * @param capturedType {@code type} after capture conversion
+     * @param tree the tree for {@code type}
+     */
+    protected void checkExplicitSuperBoundWildcards(
+            AnnotatedDeclaredType type,
+            AnnotatedDeclaredType capturedType,
+            ParameterizedTypeTree tree) {
+        int numTypeArgs = capturedType.getTypeArguments().size();
+        for (int i = 0; i < numTypeArgs; i++) {
+            if (type.getTypeArguments().get(i).getKind() != TypeKind.WILDCARD) {
+                continue;
+            }
+            AnnotatedTypeMirror captureTypeArg = capturedType.getTypeArguments().get(i);
+            AnnotatedWildcardType wildcard = (AnnotatedWildcardType) type.getTypeArguments().get(i);
             if (TypesUtils.isCapturedTypeVariable(captureTypeArg.getUnderlyingType())) {
-                AnnotatedTypeVariable capturedTypeVar = (AnnotatedTypeVariable) captureTypeArg;
-                // Substitute the captured type variables with their wildcards. Without
-                // this, the isSubtype check crashes because wildcards aren't comparable
-                // with type variables.
-                AnnotatedTypeMirror captureTypeVarUB =
-                        atypeFactory
-                                .getTypeVarSubstitutor()
-                                .substituteWithoutCopyingTypeArguments(
-                                        typeVarToWildcard, capturedTypeVar.getUpperBound());
-                if (!atypeFactory
-                        .getTypeHierarchy()
-                        .isSubtype(captureTypeVarUB, wildcard.getExtendsBound())) {
-                    // For most captured type variables, this will trivially hold, as capturing
-                    // incorporated the extends bound of the wildcard into the upper bound of the
-                    // type variable.
-                    // This will fail if the bound and the wildcard have generic types and there is
-                    // no appropriate GLB.
-                    // This issues an error for types that cannot be satisfied, because the two
-                    // bounds have contradictory requirements.
-                    checker.reportError(
-                            tree.getTypeArguments().get(i),
-                            "type.argument.type.incompatible",
-                            element.getTypeParameters().get(i),
-                            element.getSimpleName(),
-                            wildcard.getExtendsBound(),
-                            capturedTypeVar.getUpperBound());
-                }
-            } else if (AnnotatedTypes.hasExplicitSuperBound(wildcard)) {
+                continue;
+            }
+            if (AnnotatedTypes.hasExplicitSuperBound(wildcard)) {
                 // If the super bound of the wildcard is the same as the upper bound of the
                 // type parameter, then javac uses the bound rather than creating a fresh
                 // type variable.
@@ -675,8 +738,6 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
                 }
             }
         }
-
-        return null;
     }
 
     @Override
