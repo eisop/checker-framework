@@ -322,6 +322,10 @@ final class SupertypeFinder {
                     adt.setIsUnderlyingTypeRaw();
                 }
             }
+
+            for (AnnotatedDeclaredType adt : supertypes) {
+                atypeFactory.addComputedTypeAnnotations(adt.getUnderlyingType().asElement(), adt);
+            }
             return supertypes;
         }
 
@@ -384,6 +388,7 @@ final class SupertypeFinder {
                 }
             }
             adt.addAnnotations(type.getAnnotationsField());
+            atypeFactory.addComputedTypeAnnotations(adt.getUnderlyingType().asElement(), adt);
             return adt;
         }
 
