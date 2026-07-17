@@ -8,8 +8,15 @@ import org.checkerframework.javacutil.TreeUtils;
 
 import javax.lang.model.element.Element;
 
+/** Reports a diagnostic on selected class elements to test element-based suppression. */
 public class ElementSuppressionVisitor
         extends BaseTypeVisitor<org.checkerframework.common.basetype.BaseAnnotatedTypeFactory> {
+
+    /**
+     * Creates a new ElementSuppressionVisitor.
+     *
+     * @param checker the checker
+     */
     public ElementSuppressionVisitor(BaseTypeChecker checker) {
         super(checker);
     }

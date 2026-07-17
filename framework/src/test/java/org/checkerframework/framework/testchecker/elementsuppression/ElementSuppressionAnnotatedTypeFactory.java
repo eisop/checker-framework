@@ -9,7 +9,14 @@ import java.lang.annotation.Annotation;
 import java.util.LinkedHashSet;
 import java.util.Set;
 
+/** The annotated type factory for {@link ElementSuppressionChecker}. */
 public class ElementSuppressionAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
+
+    /**
+     * Creates a new ElementSuppressionAnnotatedTypeFactory.
+     *
+     * @param checker the checker
+     */
     @SuppressWarnings("this-escape")
     public ElementSuppressionAnnotatedTypeFactory(BaseTypeChecker checker) {
         super(checker);
