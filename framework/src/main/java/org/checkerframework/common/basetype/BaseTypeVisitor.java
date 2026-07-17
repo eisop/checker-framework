@@ -978,7 +978,11 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         TypeMirror boundTM = boundType.getUnderlyingType();
         for (AnnotationMirror classAnno : classBounds) {
             AnnotationMirror boundAnno = boundType.getAnnotationInHierarchy(classAnno);
-            if (!qualHierarchy.isSubtypeShallow(classAnno, classType, boundAnno, boundTM)) {
+            checkExtendsOrImplementsStartDiagnostic(
+                    boundClause, classAnno, classType, boundAnno, boundTM, isExtends);
+            boolean success =
+                    qualHierarchy.isSubtypeShallow(classAnno, classType, boundAnno, boundTM);
+            if (!success) {
                 checker.reportError(
                         boundClause,
                         (isExtends
@@ -987,6 +991,81 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                         classAnno,
                         boundAnno);
             }
+            checkExtendsOrImplementsEndDiagnostic(
+                    success, boundClause, classAnno, classType, boundAnno, boundTM, isExtends);
+        }
+    }
+
+    /**
+     * Prints a diagnostic before checking an extends or implements clause, if the {@code
+     * -Ashowchecks} command-line option is provided.
+     *
+     * @param boundClause an extends or implements clause
+     * @param classAnno the annotation on the class declaration
+     * @param classType the type being declared
+     * @param boundAnno the annotation on the extends or implements clause
+     * @param boundTM the type of the extends or implements clause
+     * @param isExtends true for an extends clause, false for an implements clause
+     */
+    protected final void checkExtendsOrImplementsStartDiagnostic(
+            Tree boundClause,
+            AnnotationMirror classAnno,
+            TypeMirror classType,
+            AnnotationMirror boundAnno,
+            TypeMirror boundTM,
+            boolean isExtends) {
+        if (showchecks) {
+            String clause = isExtends ? "extends" : "implements";
+            System.out.printf(
+                    "%s about to test whether the class declaration annotation is a subtype of the %s clause annotation (at %s): %s tree = %s %s%n     actual: %s %s%n   expected: %s %s%n",
+                    this.getClass().getSimpleName(),
+                    clause,
+                    fileAndLineNumber(boundClause),
+                    clause,
+                    boundClause.getKind(),
+                    boundClause,
+                    classAnno,
+                    classType,
+                    boundAnno,
+                    boundTM);
+        }
+    }
+
+    /**
+     * Prints a diagnostic after checking an extends or implements clause, if the {@code
+     * -Ashowchecks} command-line option is provided.
+     *
+     * @param success whether the check succeeded or failed
+     * @param boundClause an extends or implements clause
+     * @param classAnno the annotation on the class declaration
+     * @param classType the type being declared
+     * @param boundAnno the annotation on the extends or implements clause
+     * @param boundTM the type of the extends or implements clause
+     * @param isExtends true for an extends clause, false for an implements clause
+     */
+    protected final void checkExtendsOrImplementsEndDiagnostic(
+            boolean success,
+            Tree boundClause,
+            AnnotationMirror classAnno,
+            TypeMirror classType,
+            AnnotationMirror boundAnno,
+            TypeMirror boundTM,
+            boolean isExtends) {
+        if (showchecks) {
+            String clause = isExtends ? "extends" : "implements";
+            System.out.printf(
+                    " %s: class declaration annotation %s subtype of %s clause annotation  (at %s): %s tree = %s %s%n     actual: %s %s%n   expected: %s %s%n",
+                    success ? "success" : "FAILURE",
+                    success ? "is" : "is not",
+                    clause,
+                    fileAndLineNumber(boundClause),
+                    clause,
+                    boundClause.getKind(),
+                    boundClause,
+                    classAnno,
+                    classType,
+                    boundAnno,
+                    boundTM);
         }
     }
 
@@ -5504,8 +5583,8 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         // Don't use isSubtype(ATM, ATM) because it will return false if the types have qualifier
         // parameters.
         AnnotationMirrorSet tops = qualHierarchy.getTopAnnotations();
-        TypeMirror declarationTM = declarationType.getUnderlyingType();
-        AnnotationMirrorSet upperBounds = atypeFactory.getTypeDeclarationBounds(declarationTM);
+        AnnotationMirrorSet upperBounds = atypeFactory.getTypeDeclarationBoundsFromUse(useType);
+
         for (AnnotationMirror top : tops) {
             AnnotationMirror upperBound = qualHierarchy.findAnnotationInHierarchy(upperBounds, top);
             if (!typeHierarchy.isSubtypeShallowEffective(useType, upperBound)) {

@@ -562,6 +562,30 @@ list of warning suppression strings, as in
 When possible, it is better to write a \<@SuppressWarnings> annotation with a
 smaller scope, rather than using the \<-AsuppressWarnings> command-line option.
 
+A few warnings are issued before any source file is processed, so they have no
+source position:  there is no declaration on which a \<@SuppressWarnings>
+annotation could be written, and \<-AsuppressWarnings> is the only way to
+suppress them.  They warn that an annotation file is being text-parsed rather
+than read from a binary stub file, which is slower
+(Section~\ref{annotating-jdk}):
+
+\begin{itemize}
+\item
+  \<-AsuppressWarnings=text.parsing.jdk>:  the annotated JDK has no binary stub
+  file, or it could not be read.
+\item
+  \<-AsuppressWarnings=text.parsing.jdk.class>:  a class of the annotated JDK is
+  missing from the binary stub file that was read.
+\item
+  \<-AsuppressWarnings=text.parsing.stub>:  a stub file that a checker
+  distributes has no binary stub file.
+\end{itemize}
+
+\noindent
+\<-AsuppressWarnings=text.parsing> suppresses all three.  Rather than suppressing
+these warnings, it is usually better to generate the missing binary stub file, as
+described in Sections~\ref{annotating-jdk} and~\ref{stub-distributing}.
+
 
 \sectionAndLabel{\code{-AskipUses} and \code{-AonlyUses} command-line options}{askipuses}
 

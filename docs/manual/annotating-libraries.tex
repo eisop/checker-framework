@@ -340,6 +340,31 @@ JDK source code, as described in Section~\ref{creating-a-checker-annotated-jdk}.
 Section~\ref{reporting-bugs-annotated-libraries} tells how to improve
 JDK annotations for an existing type system.
 
+An annotated JDK should be accompanied by a \emph{binary stub file}, which the
+Checker Framework reads instead of parsing the JDK's source code.  Reading it is
+much faster than text-parsing the JDK\@.
+
+An annotated JDK is packaged at the top level of a \<.jar> file, in a directory
+named \<annotated-jdk>, and the Checker Framework reads its binary stub file
+from the root of that directory:
+\begin{Verbatim}
+  annotated-jdk/annotated-jdk.bin.gz    the binary stub file
+  annotated-jdk/src/...                 the JDK sources it was generated from
+\end{Verbatim}
+Generate the binary stub file by running \<JavaStubifier>
+(Section~\ref{stub-creating-with-source}) on the \<annotated-jdk> directory:
+\<JavaStubifier> writes \<annotated-jdk.bin.gz> into the directory it is given,
+which is where the Checker Framework looks for it.
+
+The Checker Framework looks for the binary stub file within the same \<.jar> file
+that supplies the annotated JDK, so a checker that distributes its own annotated
+JDK uses its own binary stub file; the Checker Framework never uses the binary
+stub file of a different annotated JDK in its place.
+
+If an annotated JDK has no binary stub file, the Checker Framework text-parses
+it and issues a warning.  Section~\ref{suppresswarnings-command-line} tells how
+to suppress that warning.
+
 
 \sectionAndLabel{Compiling partially-annotated libraries}{compiling-libraries}
 
@@ -691,7 +716,7 @@ minimal stub files.
 \begin{Verbatim}
   mkdir project-stubs
   cp -R project/src project-stubs
-  java -cp $CHECKERFRAMEWORK/checker/dist/checker.jar org.checkerframework.framework.stub.JavaStubifier project-stubs
+  java -cp $CHECKERFRAMEWORK/checker/dist/checker.jar org.checkerframework.framework.stubifier.JavaStubifier project-stubs
   find project-stubs -type f -name "*.java" -exec rename 's/.java$/.astub/' {} \;
 \end{Verbatim}
 
@@ -821,6 +846,17 @@ Framework they appear in files such as
 checker/src/main/java/org/checkerframework/checker/regex/apache-xerces.astub
 checker/src/main/java/org/checkerframework/checker/signature/javaparser.astub
 \end{Verbatim}
+
+A stub file that a checker distributes should be accompanied by a \emph{binary
+stub file}, which the Checker Framework reads instead of parsing the \<.astub>
+file.  Generate it at build time by running
+\<org.checkerframework.framework.stubifier.BinaryStubFileGenerator>, giving it an
+output directory and the directories that contain the \<.astub> files.  If a
+checker's stub file has no binary stub file, the Checker Framework text-parses
+it and issues a warning; Section~\ref{suppresswarnings-command-line} tells how to
+suppress that warning.  A stub file that a user supplies with \<-Astubs>, and an
+\<.ajava> file, are text-parsed without a warning: they are not expected to have
+a binary stub file.
 
 If you are distributing stub files with a checker implementation, you must
 configure your build system to copy the stub files into the distributed jar for
