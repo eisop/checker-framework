@@ -33,6 +33,17 @@ public class NullnessNoInitStore extends CFAbstractStore<NullnessNoInitValue, Nu
      * GenericAnnotatedTypeFactory, NullnessNoInitValue)} as cache to avoid performance issue in
      * #1438.
      *
+     * <p>This map is deliberately excluded from {@link #leastUpperBound}, {@link #equals}, and
+     * {@link #hashCode}: it caches a value that depends only on the field's declaration (not on the
+     * current store's path-sensitive state), so it is safe to keep, drop, or share the map without
+     * keeping it in sync with the rest of the store. In particular, dropping it (as the
+     * least-upper-bound store does, since it is freshly created rather than copied) is sound: the
+     * next call to {@link #newFieldValueAfterMethodCall} simply recomputes the answer via {@link
+     * InitializationAnnotatedTypeFactory#isInitialized} instead of reusing a cached one. Merging
+     * the maps of two stores at a control-flow-graph merge point, on the other hand, would be
+     * unsound in general: a field cached as initialized along one branch is not necessarily still
+     * initialized in the merged store. See #1818 for the analysis that led to this comment.
+     *
      * @see
      *     InitializationAnnotatedTypeFactory#isInitialized(org.checkerframework.framework.type.GenericAnnotatedTypeFactory,
      *     org.checkerframework.framework.flow.CFAbstractValue,
@@ -120,6 +131,9 @@ public class NullnessNoInitStore extends CFAbstractStore<NullnessNoInitValue, Nu
         NullnessNoInitStore lub = super.leastUpperBound(other);
         lub.isPolyNullNonNull = isPolyNullNonNull && other.isPolyNullNonNull;
         lub.isPolyNullNull = isPolyNullNull && other.isPolyNullNull;
+        // lub.initializedFields is intentionally left unset (null) here rather than merged from
+        // this.initializedFields and other.initializedFields: see the javadoc of
+        // #initializedFields for why that is sound.
         return lub;
     }
 
@@ -198,7 +212,8 @@ public class NullnessNoInitStore extends CFAbstractStore<NullnessNoInitValue, Nu
             return false;
         }
         NullnessNoInitStore other = (NullnessNoInitStore) o;
-        // TODO: what about initializedFields?
+        // initializedFields is deliberately not compared: it is a cache of information derivable
+        // from the rest of the store's state, not additional state itself. See its javadoc.
         return isPolyNullNonNull == other.isPolyNullNonNull
                 && isPolyNullNull == other.isPolyNullNull;
     }
