@@ -1672,6 +1672,45 @@ triggered without deep nesting.
   two regression tests; `checker/tests/nullness/Java8InferenceWorklistStress.java` exercises the
   worklist's dependency tracking across interacting inference features under strict mode.
 
+### `AnnotatedTypeFactory.isFromByteCode` caching (July 2026)
+
+PR #1868 (three days prior, `Use ElementUtils.isElementFromSourceCode and deprecate
+isElementFromByteCode`) changed `isFromByteCode`'s implementation from a cheap
+`classfile.getKind()` comparison to `!ElementUtils.isElementFromSourceCode(element)`, which
+(via `isElementFromSourceCodeImpl`) calls `symbol.sourcefile.toUri().toString().startsWith("file:")`
+on every invocation — uncached. For a `Symbol.ClassSymbol` backed by a real on-disk source file,
+`Path.toUri()` is not a cheap getter: it builds a fresh `URI` (percent-encoding each path
+character via `sun.nio.fs.UnixUriUtils.match`/`toUri`, then re-parsing it with `URI$Parser.scan`).
+The old bytecode-only check never took this path; only the new source-code check does, and it is
+expensive precisely on the common case (a real, on-disk source file), not the rare one.
+
+**JFR evidence (full `checknullness`, warm-ish `--no-daemon`, ~1735 on-CPU `ExecutionSample`s on
+the `:checker:checkNullness` worker):** 93 samples (5.36%) fell under
+`isElementFromSourceCodeImpl`; 89.2% of those co-occurred with `QualifierDefaults`/`isFromByteCode`
+(i.e. `QualifierDefaults.applyConservativeDefaults` → `AnnotatedTypeFactory.isFromByteCode` →
+`ElementUtils.isElementFromSourceCode`). `sun.nio.fs.UnixUriUtils.match` alone was 2.6–2.7%
+self-time, 95%+ of it attributed to `isElementFromSourceCodeImpl` by nearest-CF-frame search — not
+mentioned anywhere previously in this file, i.e. a genuinely new (three-day-old) regression, not an
+already-mined leaf.
+
+**Fix.** Added `isFromByteCodeCache: IdentityHashMap<Element, Boolean>` to `AnnotatedTypeFactory`,
+matching the existing `cacheDeclAnnos`/`methodDeclaresPolyCache` per-factory-instance idiom (not
+cleared between compilation units, since the result — like those two caches' — does not change
+within a compile). This covers the dominant call site (`isFromByteCode`); the handful of direct
+`ElementUtils.isElementFromSourceCode` callers (WPI storage, an assertion in `BaseTypeVisitor`, one
+`InitializationFieldAccessTreeAnnotator` check) are outside `applyConservativeDefaults`'s hot loop
+and were not targeted.
+
+**Verification.** Re-traced `checknullness` after the fix: samples under `isElementFromSourceCodeImpl`
+dropped from 93/1735 (5.36%) to 33/1909 (1.73%); `sun.nio.fs.UnixUriUtils.match` fell out of the
+top-30 self-time leaves entirely. Wall-clock A/B (warm daemon, `./gradlew checknullness`, all ~10
+subprojects, `shadowJar` rebuilt each side, 3 reps/side after a discarded warm-up rep): master
+103–104 s (104, 103, 104), patched 92 s (101 cold, 92, 92) — **≈11% faster** on the full build. Ran
+`:framework:test :javacutil:test :dataflow:test` and `:checker:NullnessTest`,
+`:checker:NullnessSafeDefaultsBytecodeTest`, `:checker:NullnessSafeDefaultsSourceCodeTest`,
+`:checker:AnnotatedForNullnessTest` (all pass); `:checker:AinferTestCheckerJaifsGenerationTest`
+fails identically on unmodified master (pre-existing, unrelated).
+
 ---
 
 ## Tried and rejected

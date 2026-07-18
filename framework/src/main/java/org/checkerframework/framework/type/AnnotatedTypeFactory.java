@@ -344,6 +344,9 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      */
     private final IdentityHashMap<Element, AnnotationMirrorSet> cacheDeclAnnos;
 
+    /** A cache for the result of {@link #isFromByteCode(Element)}, keyed by element. */
+    private final IdentityHashMap<Element, Boolean> isFromByteCodeCache;
+
     /**
      * A set containing declaration annotations that should be inherited. A declaration annotation
      * will be inherited if it is in this set, or if it has the
@@ -663,6 +666,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         this.currentFileAjavaTypes = null;
 
         this.cacheDeclAnnos = new IdentityHashMap<>();
+        this.isFromByteCodeCache = new IdentityHashMap<>();
         this.methodDeclaresPolyCache = new IdentityHashMap<>();
 
         // get the shared instance from the checker
@@ -1120,6 +1124,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             // elementCache.clear();
             // elementTypeCache.clear();
             // cacheDeclAnnos.clear();
+            // isFromByteCodeCache.clear();
             // methodDeclaresPolyCache.clear();
         }
 
@@ -4835,10 +4840,13 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * @return true if the element is from bytecode and did not appear in a stub file
      */
     public boolean isFromByteCode(Element element) {
-        if (isFromStubFile(element)) {
-            return false;
+        Boolean cached = isFromByteCodeCache.get(element);
+        if (cached != null) {
+            return cached;
         }
-        return !ElementUtils.isElementFromSourceCode(element);
+        boolean result = !isFromStubFile(element) && !ElementUtils.isElementFromSourceCode(element);
+        isFromByteCodeCache.put(element, result);
+        return result;
     }
 
     /**
