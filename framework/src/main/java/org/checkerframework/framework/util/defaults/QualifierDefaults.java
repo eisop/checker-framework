@@ -185,6 +185,13 @@ public class QualifierDefaults {
     // Fields are defaulted to top so that warnings are issued at field reads, which we believe are
     // more common than field writes. Future work is to specify different defaults for field reads
     // and field writes.  (When a field is written to, its type should be bottom.)
+    // This is the root cause of https://github.com/eisop/checker-framework/issues/1358 : because
+    // TypeUseLocation.FIELD does not distinguish reads from writes, a field write under
+    // conservative defaults is unsoundly checked against the same (read-oriented) top default as
+    // a field read, instead of requiring the bottom qualifier.  Fixing this needs a way for
+    // QualifierDefaults to apply a different default when
+    // GenericAnnotatedTypeFactory#isComputingAnnotatedTypeMirrorOfLhs() is true; see the issue for
+    // discussion.
     public static final List<TypeUseLocation> STANDARD_UNCHECKED_DEFAULTS_TOP =
             Collections.unmodifiableList(
                     Arrays.asList(
