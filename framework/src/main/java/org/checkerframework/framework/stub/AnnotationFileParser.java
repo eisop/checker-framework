@@ -1217,6 +1217,15 @@ public class AnnotationFileParser {
                     // Not processing an ajava file, so ignore the return value.
                     processTypeDecl((EnumDeclaration) decl, innerName, null);
                     break;
+                case ANNOTATION_TYPE:
+                    // Without this case, a nested annotation type declaration (e.g. the JDK's
+                    // own ClientCodeWrapper.Trusted or LambdaForm.Compiled) fell through to
+                    // `default`, so any declaration annotations written on the nested
+                    // declaration itself (its own @Retention/@Target) were silently dropped:
+                    // `default` only calls processTypeDecl for a record.
+                    // Not processing an ajava file, so ignore the return value.
+                    processTypeDecl((AnnotationDeclaration) decl, innerName, null);
+                    break;
                 default:
                     // A nested record is handled here rather than in a "case RECORD:" label,
                     // because ElementKind.RECORD does not exist before JDK 16 and this code must
@@ -2241,6 +2250,11 @@ public class AnnotationFileParser {
             if (elt != null) {
                 putIfAbsent(elementsToDecl, elt, member);
             }
+        } else if (member instanceof AnnotationDeclaration) {
+            Element elt = findElement(typeElt, (AnnotationDeclaration) member);
+            if (elt != null) {
+                putIfAbsent(elementsToDecl, elt, member);
+            }
         } else {
             stubDebug("ignoring element of type %s in %s", member.getClass(), typeDeclName);
         }
@@ -2608,6 +2622,32 @@ public class AnnotationFileParser {
 
         stubWarnNotFound(
                 recordDecl, "record " + wantedRecordName + " not found in type " + typeElt);
+        return null;
+    }
+
+    /**
+     * Looks for the nested annotation type element in the typeElt and returns it if the element has
+     * the same name as the provided annotation declaration. If the nested element is not found,
+     * returns null.
+     *
+     * @param typeElt an element where the nested annotation type element should be looked for
+     * @param annotationDecl annotation type declaration whose name should be found among the nested
+     *     elements of typeElt
+     * @return the annotation type element nested in typeElt with the name of the provided
+     *     annotation type declaration, or null if it is not found
+     */
+    private @Nullable Element findElement(
+            TypeElement typeElt, AnnotationDeclaration annotationDecl) {
+        String wantedAnnotationName = annotationDecl.getNameAsString();
+        for (TypeElement typeElement : ElementUtils.getAllTypeElementsIn(typeElt)) {
+            if (InternalUtils.sameName(typeElement.getSimpleName(), wantedAnnotationName)) {
+                return typeElement;
+            }
+        }
+
+        stubWarnNotFound(
+                annotationDecl,
+                "annotation type " + wantedAnnotationName + " not found in type " + typeElt);
         return null;
     }
 

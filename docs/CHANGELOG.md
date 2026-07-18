@@ -103,6 +103,14 @@ had silently dropped such annotations, including
 `@DefinedBy(DefinedBy.Api.COMPILER)` in the annotated JDK, the one place that
 writes this form instead of the more common `Api.COMPILER`.
 
+Fixed `AnnotationFileParser` to process a nested annotation type declaration
+(e.g. `Outer.Nested`) the same way it already processed a nested class,
+interface, enum, or record. Previously, the whole declaration was silently
+ignored, including any declaration annotations written on it, such as the
+`@Retention`/`@Target` meta-annotations that the annotated JDK's own
+`com.sun.tools.javac.api.ClientCodeWrapper.Trusted` and
+`java.lang.invoke.LambdaForm.Compiled` write on themselves.
+
 Enabled the Gradle configuration cache, speeding up build times.
 
 Added the `-AinferenceWorkBudget=N` command-line option to bound Java

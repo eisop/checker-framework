@@ -1,0 +1,15 @@
+import java.lang.annotation.*;
+
+// AnnotationFileParser's member-processing switch (in processTypeDecl) had no case for
+// ElementKind.ANNOTATION_TYPE, so a nested annotation type declaration -- like this one, or
+// the real annotated JDK's com.sun.tools.javac.api.ClientCodeWrapper.Trusted and
+// java.lang.invoke.LambdaForm.Compiled -- fell through to the default case, which only handles
+// records. The whole nested declaration, including its own @Retention/@Target
+// meta-annotations, was silently ignored, with only a "AnnotationFileParser ignoring: ..."
+// diagnostic (suppressed for the JDK; visible here via -AstubWarnIfNotFound).
+class Outer {
+    @Retention(RetentionPolicy.RUNTIME)
+    @Target(ElementType.TYPE)
+    @interface Nested {
+    }
+}
