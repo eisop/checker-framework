@@ -58,6 +58,14 @@ to none at all, silently changing or dropping the annotations it provides:
   simple name, so the fake override was dropped; such a name is now matched as
   a suffix of the fully-qualified name.
 
+Fixed a bug where `AnnotatedTypeFactory.getAnnotatedType(Element)` could cache
+an incomplete type for an element visited reentrantly while an annotation file
+was still being parsed (e.g., via a fake override's `getAnnotatedType`
+lookup on the overridden method, when that method's own declaring class had
+not been processed yet), permanently poisoning that element's type for the
+rest of the compilation. The cache write is now skipped while parsing is in
+progress, matching the guard `fromElement` already had.
+
 Fixed a typo (`@SafeEFfect`) in the Guieffect Checker's `org-eclipse.astub` that
 made `CompareEditorInput.getMessage()` inherit the enclosing `@UIType`'s
 `@UIEffect` default rather than being `@SafeEffect`.
