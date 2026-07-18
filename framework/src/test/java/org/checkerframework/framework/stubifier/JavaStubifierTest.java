@@ -216,7 +216,14 @@ public class JavaStubifierTest {
 
             PrintStream originalErr = System.err;
             ByteArrayOutputStream capturedErr = new ByteArrayOutputStream();
-            System.setErr(new PrintStream(capturedErr, true, StandardCharsets.UTF_8));
+            // The three-argument PrintStream(OutputStream, boolean, Charset) constructor is not
+            // available on Java 8, which this project's compileTestJava must still target; the
+            // String-charset-name overload is the Java-8-compatible equivalent, and is explicit
+            // about the charset (unlike the default-charset constructor), so no behavior is lost.
+            @SuppressWarnings("JdkObsolete")
+            PrintStream captureStream =
+                    new PrintStream(capturedErr, true, StandardCharsets.UTF_8.name());
+            System.setErr(captureStream);
             try {
                 JavaStubifier.main(
                         new String[] {
@@ -225,7 +232,10 @@ public class JavaStubifierTest {
             } finally {
                 System.setErr(originalErr);
             }
-            String warnings = capturedErr.toString(StandardCharsets.UTF_8);
+            // Same Java-8-compatibility reasoning as above: ByteArrayOutputStream.toString(Charset)
+            // is not available on Java 8.
+            @SuppressWarnings("JdkObsolete")
+            String warnings = capturedErr.toString(StandardCharsets.UTF_8.name());
             Assert.assertTrue(
                     "the warning must name the dropped annotation, but was: " + warnings,
                     warnings.contains("NotOnClasspath"));
