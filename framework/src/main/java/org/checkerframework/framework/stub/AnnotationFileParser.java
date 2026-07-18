@@ -3273,6 +3273,28 @@ public class AnnotationFileParser {
                 }
             }
 
+            if (rcvElt == null && scopeName.indexOf('.') != -1) {
+                // The scope is itself a (possibly multi-level) field access, e.g. "DefinedBy.Api"
+                // in `@DefinedBy(DefinedBy.Api.COMPILER)` -- unlike the common `Api.COMPILER`
+                // form, where "Api" is imported directly, this scope's own scope ("DefinedBy") is
+                // an imported top-level type and "Api" is one of its nested types. Resolve the
+                // outermost segment the same way a simple scope is resolved above, then look up
+                // the remaining dotted suffix as a nested type of it. This handles exactly one
+                // extra level of nesting beyond what the loop above and the checks above handle;
+                // deeper chains still fall through to the warning below.
+                String outerName = scopeName.substring(0, scopeName.indexOf('.'));
+                String innerSuffix = scopeName.substring(scopeName.indexOf('.') + 1);
+                TypeElement outerElt = elements.getTypeElement(outerName);
+                if (outerElt == null) {
+                    outerElt = importedTypes.get(outerName);
+                }
+                if (outerElt != null) {
+                    rcvElt =
+                            elements.getTypeElement(
+                                    outerElt.getQualifiedName() + "." + innerSuffix);
+                }
+            }
+
             if (rcvElt == null) {
                 stubWarnNotFound(faexpr, "type " + faexpr.getScope() + " not found");
                 return null;

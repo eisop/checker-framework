@@ -95,6 +95,14 @@ the `@Retention`/`@Target` meta-annotations that the annotated JDK's own
 `java.lang.Override`, `Deprecated`, and `SuppressWarnings` declarations write
 on themselves.
 
+Fixed `AnnotationFileParser` to resolve a declaration annotation's field-access
+value whose scope is itself a field access (e.g. `DefinedBy.Api.COMPILER`,
+whose scope is `DefinedBy.Api`), not just a plain name (`Api.COMPILER`). This
+had silently dropped such annotations, including
+`com.sun.tools.javac.file.JavacFileManager.setPathFactory(..)`'s
+`@DefinedBy(DefinedBy.Api.COMPILER)` in the annotated JDK, the one place that
+writes this form instead of the more common `Api.COMPILER`.
+
 Enabled the Gradle configuration cache, speeding up build times.
 
 Added the `-AinferenceWorkBudget=N` command-line option to bound Java
