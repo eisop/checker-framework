@@ -3239,7 +3239,20 @@ public class AnnotationFileParser {
         if (findVariableElementFieldCache.containsKey(faexpr)) {
             return findVariableElementFieldCache.get(faexpr);
         }
-        TypeElement rcvElt = elements.getTypeElement(faexpr.getScope().toString());
+        String scopeName = faexpr.getScope().toString();
+        TypeElement rcvElt = elements.getTypeElement(scopeName);
+        if (rcvElt == null) {
+            // A type imported via a wildcard import (e.g. `import java.lang.annotation.*;`)
+            // is recorded in importedTypes (see addEnclosedTypesToImportedTypes), but never in
+            // importedConstants, so the loop below cannot find it. Without this check, a
+            // wildcard-imported enum used as the scope of a field access -- e.g.
+            // `RetentionPolicy.SOURCE` in `@Retention(RetentionPolicy.SOURCE)`, with only
+            // `import java.lang.annotation.*;` in scope -- silently fails to resolve, dropping
+            // the enclosing annotation. This mirrors the importedTypes lookup that
+            // getValueOfExpressionInAnnotation's ClassExpr case already performs for class
+            // literals.
+            rcvElt = importedTypes.get(scopeName);
+        }
         if (rcvElt == null) {
             // Search importedConstants for full annotation name.
             for (String imp : importedConstants) {

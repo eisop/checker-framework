@@ -1,0 +1,17 @@
+import java.lang.annotation.*;
+
+// @Retention's value is RetentionPolicy.RUNTIME, a FieldAccessExpr whose scope
+// ("RetentionPolicy") is reachable only through the wildcard import above -- there is no
+// explicit "import java.lang.annotation.RetentionPolicy;" and no static import of its
+// constants. AnnotationFileParser.findVariableElement(FieldAccessExpr) used to resolve a
+// FieldAccessExpr's scope only via Elements.getTypeElement (which requires a fully-qualified
+// or unqualified-in-the-default-package name, so it fails on the bare "RetentionPolicy") or
+// importedConstants (populated only by static imports and single, non-wildcard type imports),
+// never via importedTypes (populated by wildcard type imports). That silently dropped the
+// annotation -- with -AstubWarnIfNotFound, "unknown annotation @Retention(...)" -- even though
+// the wildcard import unambiguously supplies RetentionPolicy. This is the same construct as
+// java.lang.Override/Deprecated/SuppressWarnings's own @Retention/@Target in the real annotated
+// JDK, which only import java.lang.annotation.* and reach RetentionPolicy/ElementType this way.
+@Retention(RetentionPolicy.RUNTIME)
+class WildcardImportScope {
+}

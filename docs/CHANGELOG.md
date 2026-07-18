@@ -87,6 +87,14 @@ Fixed a `NullPointerException` in `AnnotationFileParser`'s handling of
 unbounded wildcards (e.g. `Class<?>`) under `--release 8`, which had silently
 aborted parsing of the remaining methods in the enclosing stub file.
 
+Fixed `AnnotationFileParser` to resolve a declaration annotation's field-access
+value (e.g. `RetentionPolicy.RUNTIME`) when its receiver type is reachable only
+through a wildcard type import (`import java.lang.annotation.*;`), matching
+the binary stub writer. This had silently dropped such annotations, including
+the `@Retention`/`@Target` meta-annotations that the annotated JDK's own
+`java.lang.Override`, `Deprecated`, and `SuppressWarnings` declarations write
+on themselves.
+
 Enabled the Gradle configuration cache, speeding up build times.
 
 Added the `-AinferenceWorkBudget=N` command-line option to bound Java
