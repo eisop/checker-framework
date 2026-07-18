@@ -148,10 +148,14 @@ Other improvements and bug fixes:
   recover Java type variables inferred by javac.
 - Fixed a latent aliasing bug in `AnnotatedTypeCopier` for executable types.
 - Fixed an `IndexOutOfBoundsException` for lambdas in varargs.
+- Fixed `BinaryOperation.hashCode()` to agree with `equals()` for commutative
+  operators (e.g. `a + b` and `b + a`), so such dataflow expressions no longer
+  violate the `hashCode`/`equals` contract when used as map or set keys.
 
 **Closed issues:**
 
-eisop#433, eisop#792, eisop#863, eisop#1015, eisop#1074, eisop#1801, eisop#1819.
+eisop#433, eisop#792, eisop#863, eisop#1015, eisop#1074, eisop#1653,
+eisop#1801, eisop#1819.
 
 
 Version 3.49.5-eisop1 (April 26, 2026)
