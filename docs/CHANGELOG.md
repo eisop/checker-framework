@@ -66,6 +66,16 @@ not been processed yet), permanently poisoning that element's type for the
 rest of the compilation. The cache write is now skipped while parsing is in
 progress, matching the guard `fromElement` already had.
 
+Fixed a fake override's parameter types, receiver type, and declaration
+annotations going stale when the overridden method's own declaring class is
+processed later in the same stub file or JDK class group (e.g., a fake
+override in `TreeMap.NavigableSubMap` targeting a `java.util.Map` default
+method declared later). The stored snapshot is now refreshed against a
+complete `getAnnotatedType(overridden)` the first time it is used, which is
+always after parsing has finished; the return type, which a fake override
+always determines from its own declaration, is unaffected. Both the text and
+binary stub paths shared this hazard and are both fixed by this change.
+
 Fixed a typo (`@SafeEFfect`) in the Guieffect Checker's `org-eclipse.astub` that
 made `CompareEditorInput.getMessage()` inherit the enclosing `@UIType`'s
 `@UIEffect` default rather than being `@SafeEffect`.

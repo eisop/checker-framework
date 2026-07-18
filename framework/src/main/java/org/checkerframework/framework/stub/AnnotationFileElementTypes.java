@@ -1304,7 +1304,7 @@ public class AnnotationFileElementTypes {
             TypeMirror fakeLocation = candidatePair.first;
             AnnotatedExecutableType candidate = (AnnotatedExecutableType) candidatePair.second;
             if (atypeFactory.types.isSameType(receiverTypeMirror, fakeLocation)) {
-                return candidate;
+                return refreshFakeOverride(method, candidate);
             } else if (atypeFactory.types.isSubtype(receiverTypeMirror, fakeLocation)) {
                 TypeElement fakeElement = TypesUtils.getTypeElement(fakeLocation);
                 switch (fakeElement.getKind()) {
@@ -1350,13 +1350,49 @@ public class AnnotationFileElementTypes {
         for (IPair<TypeMirror, AnnotatedTypeMirror> candidatePair : candidates) {
             TypeMirror candidateReceiverType = candidatePair.first;
             if (atypeFactory.types.isSameType(fakeReceiverType, candidateReceiverType)) {
-                return (AnnotatedExecutableType) candidatePair.second;
+                return refreshFakeOverride(method, (AnnotatedExecutableType) candidatePair.second);
             }
         }
 
         throw new BugInCF(
                 "No match for %s in %s %s %s",
                 fakeReceiverType, candidates, applicableClasses, applicableInterfaces);
+    }
+
+    /**
+     * Returns a fresh {@code getAnnotatedType(overridden)} with {@code storedCandidate}'s
+     * return-type annotations overlaid on top.
+     *
+     * <p>{@code storedCandidate} was computed once, during parsing (see {@code
+     * AnnotationFileParser#processFakeOverride}, {@code BinaryStubReader#applyFakeOverride}), by
+     * calling {@code getAnnotatedType(overridden)} and then unconditionally resetting the return
+     * type's annotations to exactly what the fake-override declaration itself writes there -- which
+     * is empty for a presence-only fake override; a fake override deliberately resets the return
+     * type to the checker's default at that subtype rather than inheriting {@code overridden}'s,
+     * even when it writes no explicit annotation (see the {@code NoExplicitAnnotations} test in
+     * {@code checker/tests/stubparser-nullness}). That base call can run before {@code
+     * overridden}'s own declaring class has been fully processed -- e.g., when the class is
+     * declared later in the same stub file, or is a not-yet-loaded binary JDK class -- in which
+     * case everything in {@code storedCandidate} other than the return type (parameter types,
+     * receiver type, declaration annotations) may be stale (see
+     * https://github.com/eisop/checker-framework/issues/1862). Recomputing the base type here is
+     * always safe: {@link #getFakeOverride}, this method's only caller, runs only once parsing has
+     * finished (see its {@code isParsing()} check), so {@code overridden}'s own type is guaranteed
+     * complete by now. The return type is deliberately re-applied from {@code storedCandidate}
+     * verbatim (clear-then-add, not merge) rather than left alone, to preserve that
+     * reset-to-default behavior exactly.
+     *
+     * @param overridden the overridden method the fake override targets
+     * @param storedCandidate the fake override's stored snapshot; only its return-type annotations
+     *     are trusted
+     * @return a fresh, non-stale fake override method type
+     */
+    private AnnotatedExecutableType refreshFakeOverride(
+            ExecutableElement overridden, AnnotatedExecutableType storedCandidate) {
+        AnnotatedExecutableType fresh = atypeFactory.getAnnotatedType(overridden);
+        fresh.getReturnType().clearAnnotations();
+        fresh.getReturnType().addAnnotations(storedCandidate.getReturnType().getAnnotations());
+        return fresh;
     }
 
     //
