@@ -71,6 +71,14 @@ side-effecting array expression, avoiding unsound behavior. It now also issues
 a warning message explaining why `copyOf` used a `@Nullable` return type,
 making errors with `copyOf` easier to fix.
 
+A checker may now override `BaseTypeVisitor.shouldStripInvalidLocationQualifiers`
+(default `false`) to make a qualifier that appears on a type-variable or wildcard
+bound not permitted by its `@TargetLocations` inert: after the
+`type.invalid.annotations.on.location` error is issued, the qualifier is removed
+from the bound and the bound is re-defaulted, so the meaningless qualifier no
+longer produces a `bound.type.incompatible` cascade. Behavior is unchanged for
+checkers that do not opt in.
+
 **Implementation details:**
 
 `SourceChecker.reportError` and `SourceChecker.reportWarning` now accept a null
