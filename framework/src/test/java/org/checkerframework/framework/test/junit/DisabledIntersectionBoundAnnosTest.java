@@ -23,7 +23,7 @@ import java.util.List;
  * bounds) changes intersection-bound defaulting and subtyping semantics that the standard Nullness
  * Checker tests deliberately rely on (see {@code checker/tests/nullness/Issue868.java} and {@code
  * Issue3349.java}), so it is out of scope for a contained bug fix. See {@code
- * cf-tasks/task-2-findings.md} for the full diagnosis and proposed patch.
+ * cf-tasks2/task-2-findings.md} for the full diagnosis and migration analysis.
  */
 @Ignore("Fix changes intersection-bound semantics relied on by the Nullness Checker; see findings.")
 public class DisabledIntersectionBoundAnnosTest extends CheckerFrameworkPerDirectoryTest {

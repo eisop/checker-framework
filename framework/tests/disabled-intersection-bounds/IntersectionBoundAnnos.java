@@ -3,7 +3,7 @@ import org.checkerframework.framework.testchecker.util.Odd;
 // DISABLED regression test: run by DisabledIntersectionBoundAnnosTest, which is
 // @Ignore'd. The fix it verifies changes intersection-bound defaulting/subtyping
 // semantics that the standard Nullness Checker tests deliberately rely on, so it
-// is out of scope for a contained bug fix. See cf-tasks/task-2-findings.md.
+// is out of scope for a contained bug fix. See cf-tasks2/task-2-findings.md.
 //
 // Regression test for per-bound annotation preservation on intersection-type
 // upper bounds. The unannotated bound must retain its default (top) qualifier
