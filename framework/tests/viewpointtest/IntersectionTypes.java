@@ -80,7 +80,8 @@ public class IntersectionTypes {
 
     // Documents the current decision for https://github.com/eisop/checker-framework/issues/1735:
     // when multiple bounds in an intersection type have explicit qualifiers in the same hierarchy,
-    // the later qualifier is ignored.
+    // the intersection uses the greatest lower bound of the qualifiers and every qualifier that
+    // differs from it is ignored (and flagged).
     // :: warning: (explicit.annotation.ignored)
     <T extends @A Foo & @B Bar> void callAnnotatedBounds(T p) {}
 }

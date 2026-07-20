@@ -24,6 +24,10 @@ public class IntersectionTypes {
     }
 
     void foo3(@LubglbB Baz baz3) {
+        // The primary annotation of the intersection bound is the greatest lower bound of the
+        // bound annotations, @LubglbD, independent of the source order of the bounds. So both
+        // calls fail in the same way.
+        // :: error: (type.arguments.not.inferred)
         call1(baz3);
         // :: error: (type.arguments.not.inferred)
         call2(baz3);
