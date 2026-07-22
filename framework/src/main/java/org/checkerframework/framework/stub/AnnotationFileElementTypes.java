@@ -15,6 +15,7 @@ import org.checkerframework.framework.stub.AnnotationFileUtil.AnnotationFileType
 import org.checkerframework.framework.type.AnnotatedTypeFactory;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedExecutableType;
+import org.checkerframework.framework.type.AnnotatedTypeReplacer;
 import org.checkerframework.javacutil.AnnotationBuilder;
 import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.BugInCF;
@@ -1379,8 +1380,17 @@ public class AnnotationFileElementTypes {
      * always safe: {@link #getFakeOverride}, this method's only caller, runs only once parsing has
      * finished (see its {@code isParsing()} check), so {@code overridden}'s own type is guaranteed
      * complete by now. The return type is deliberately re-applied from {@code storedCandidate}
-     * verbatim (clear-then-add, not merge) rather than left alone, to preserve that
-     * reset-to-default behavior exactly.
+     * verbatim (replace, not merge) rather than left alone, to preserve that reset-to-default
+     * behavior exactly -- structurally, at every position in the return type (including type
+     * arguments, array component types, and wildcard/type-variable bounds), not just the primary
+     * annotation, since {@code AnnotationFileParser#annotate} recurses into and resets every such
+     * position while parsing (this used to be a bug: only the primary annotation was propagated, so
+     * an explicit annotation on a fake override's return-type argument, e.g. {@code List<@Foo
+     * String>}, was silently dropped). {@link AnnotatedTypeReplacer} performs that structural
+     * replacement; using it here is equivalent to a structural clear-then-add because {@code
+     * storedCandidate}'s return type already carries a fully resolved (explicit-or-default)
+     * annotation at every position, so there is no position where "replace" and "clear-then-add"
+     * could disagree.
      *
      * @param overridden the overridden method the fake override targets
      * @param storedCandidate the fake override's stored snapshot; only its return-type annotations
@@ -1390,8 +1400,15 @@ public class AnnotationFileElementTypes {
     private AnnotatedExecutableType refreshFakeOverride(
             ExecutableElement overridden, AnnotatedExecutableType storedCandidate) {
         AnnotatedExecutableType fresh = atypeFactory.getAnnotatedType(overridden);
-        fresh.getReturnType().clearAnnotations();
-        fresh.getReturnType().addAnnotations(storedCandidate.getReturnType().getAnnotations());
+        // Use visit(from, to), not from.accept(replacer, to): AnnotatedTypeReplacer's annotation
+        // replacement happens in defaultAction, which DoubleAnnotatedTypeScanner#scan calls before
+        // dispatching; accept() dispatches directly to the type-kind-specific visit method and
+        // skips that call for kinds (primitive, null, no-type) that do not override it, silently
+        // leaving the top-level annotation unchanged. visit() (called on the AnnotatedTypeReplacer
+        // instance, not on the visited type) goes through scan() and is the pattern every other
+        // caller in this codebase uses (see AnnotatedTypeFactory#replaceAnnotations,
+        // DependentTypesHelper).
+        new AnnotatedTypeReplacer().visit(storedCandidate.getReturnType(), fresh.getReturnType());
         return fresh;
     }
 
