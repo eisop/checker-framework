@@ -4244,6 +4244,13 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             checkHasQualifierParameterAsTypeArgument(typeArg, paramUpperBound, toptree);
             Object paramName = paramNames.get(i);
 
+            Tree typeArgTree =
+                    (typeargTrees == null || typeargTrees.isEmpty()) ? null : typeargTrees.get(i);
+            if (!shouldCheckTypeArgument(
+                    toptree, bounds, typeArg, typeArgTree, typeOrMethodName, paramName)) {
+                continue;
+            }
+
             commonAssignmentCheck(
                     paramUpperBound,
                     typeArg,
@@ -4268,6 +4275,37 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                         });
             }
         }
+    }
+
+    /**
+     * Returns true if the given type argument should be checked against its type parameter's
+     * bounds. The default implementation always returns true.
+     *
+     * <p>A checker may override this method to skip both the upper-bound and the lower-bound check
+     * for a given type argument, for example when its bound conformance is guaranteed by
+     * construction under the checker's type system (for example, captures of source-written
+     * wildcards under nonstandard subtyping). This method does not affect {@link
+     * #checkHasQualifierParameterAsTypeArgument}, which always runs regardless of the result of
+     * this method.
+     *
+     * @param toptree the tree for error reporting, only used for inferred type arguments
+     * @param bounds the bounds of the type parameter corresponding to {@code typeArg}
+     * @param typeArg the type argument from the type or method invocation
+     * @param typeArgTree the type argument as a tree, used for error reporting; null if the type
+     *     argument was inferred (that is, if the enclosing call's type argument trees were null or
+     *     empty)
+     * @param typeOrMethodName the name of the type or method being invoked
+     * @param paramName the name of the type parameter corresponding to {@code typeArg}
+     * @return true if {@code typeArg} should be checked against {@code bounds}
+     */
+    protected boolean shouldCheckTypeArgument(
+            Tree toptree,
+            AnnotatedTypeParameterBounds bounds,
+            AnnotatedTypeMirror typeArg,
+            @Nullable Tree typeArgTree,
+            CharSequence typeOrMethodName,
+            Object paramName) {
+        return true;
     }
 
     /**
