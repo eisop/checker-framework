@@ -44,6 +44,12 @@ import java.util.Optional;
  *   <li>all initializer blocks,
  *   <li>attributes to the {@code Deprecated} annotation (to be Java 8 compatible).
  * </ol>
+ *
+ * <p>Usage: {@code JavaStubifier [--skipUnloadableAnnotations] <directory> [<directory> ...]}. By
+ * default, an annotation whose {@code @Target} cannot be read (because its class is missing from
+ * the stubifier's own build classpath) aborts the run with a message naming the annotation and the
+ * source file being processed; see {@link #SKIP_UNLOADABLE_ANNOTATIONS_FLAG} for the opt-in flag
+ * that trades that safety for being able to finish the run anyway.
  */
 public class JavaStubifier {
     /**
@@ -58,17 +64,49 @@ public class JavaStubifier {
     public static final LanguageLevel DEFAULT_LANGUAGE_LEVEL = LanguageLevel.JAVA_21;
 
     /**
+     * Command-line flag that makes an unloadable annotation a dropped-and-warned event rather than
+     * a fatal error. When passed, {@link BinaryStubWriter} omits, from the binary stub output, any
+     * annotation whose {@code @Target} it cannot read -- printing one warning line to stderr naming
+     * the annotation and its source file -- and processing continues with the rest of the
+     * directory. Without the flag (the default), the same condition aborts the whole run; see
+     * {@link BinaryStubWriter#annotationTargets}.
+     *
+     * <p><b>Trade-off:</b> dropping such an annotation is not always safe. It could be a real type
+     * qualifier that a checker's own (wider) classpath would have resolved, in which case dropping
+     * it here silently removes it from the annotated JDK with no way for a later checker run to
+     * detect the omission. Pass this flag only when the unloadable annotation is known to be
+     * irrelevant to type-checking (e.g. a JUnit annotation on a stray test source file that ended
+     * up in the JDK source tree being stubified), not as a default way to push through classpath
+     * problems.
+     */
+    public static final String SKIP_UNLOADABLE_ANNOTATIONS_FLAG = "--skipUnloadableAnnotations";
+
+    /**
      * Processes each provided command-line argument; see class documentation for details.
      *
-     * @param args command-line arguments: directories to process
+     * @param args command-line arguments: an optional {@link #SKIP_UNLOADABLE_ANNOTATIONS_FLAG},
+     *     followed by one or more directories to process
      */
     public static void main(String[] args) {
-        if (args.length < 1) {
-            System.err.println("Usage: provide one or more directory names to process");
+        boolean skipUnloadableAnnotations = false;
+        int dirCount = 0;
+        for (String arg : args) {
+            if (arg.equals(SKIP_UNLOADABLE_ANNOTATIONS_FLAG)) {
+                skipUnloadableAnnotations = true;
+            } else {
+                dirCount++;
+            }
+        }
+        if (dirCount < 1) {
+            System.err.printf(
+                    "Usage: JavaStubifier [%s] <directory> [<directory> ...]%n",
+                    SKIP_UNLOADABLE_ANNOTATIONS_FLAG);
             System.exit(1);
         }
         for (String arg : args) {
-            process(arg);
+            if (!arg.equals(SKIP_UNLOADABLE_ANNOTATIONS_FLAG)) {
+                process(arg, skipUnloadableAnnotations);
+            }
         }
     }
 
@@ -76,8 +114,10 @@ public class JavaStubifier {
      * Process each file in the given directory; see class documentation for details.
      *
      * @param dir directory to process
+     * @param skipUnloadableAnnotations whether to drop, rather than fail on, an annotation whose
+     *     {@code @Target} cannot be read; see {@link #SKIP_UNLOADABLE_ANNOTATIONS_FLAG}
      */
-    private static void process(String dir) {
+    private static void process(String dir, boolean skipUnloadableAnnotations) {
         // Scoped to this call, not a shared/static field: main() may process several
         // directories, and a BinaryStubWriter accumulates classes/pool state across every
         // process(CompilationUnit) call with no reset, so reusing one across directories would
@@ -88,7 +128,7 @@ public class JavaStubifier {
         // effect and is not worth writing. BinaryStubFileGenerator, which produces the built-in
         // stub files' binaries, must not pass this.
         BinaryStubWriter binaryStubWriter =
-                new BinaryStubWriter(/* omitUnannotatedMembers= */ true);
+                new BinaryStubWriter(/* omitUnannotatedMembers= */ true, skipUnloadableAnnotations);
         Path root = dirnameToPath(dir);
         MinimizerCallback mc = new MinimizerCallback(binaryStubWriter);
         CollectionStrategy strategy = new ParserCollectionStrategy();
@@ -197,7 +237,19 @@ public class JavaStubifier {
                     new File(absolutePath.toUri()).delete();
                     res = Result.DONT_SAVE;
                 } else {
-                    binaryStubWriter.process(cu);
+                    try {
+                        binaryStubWriter.process(cu);
+                    } catch (RuntimeException e) {
+                        // BinaryStubWriter's own failure messages (e.g. "cannot load annotation
+                        // ...") do not know which file was being processed -- it operates on a
+                        // CompilationUnit, and process(CompilationUnit) is also called directly by
+                        // tests with no file behind it at all. This layer is the first one that
+                        // does know the file for certain (it is a callback parameter), so it is
+                        // the simplest place to add that context to every failure that can escape
+                        // process(cu), not just the annotation-loading one.
+                        throw new RuntimeException(
+                                "Failed to process " + absolutePath + ": " + e.getMessage(), e);
+                    }
                 }
             }
             return res;
