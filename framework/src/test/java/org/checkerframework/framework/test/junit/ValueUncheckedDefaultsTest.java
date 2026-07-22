@@ -20,7 +20,8 @@ public class ValueUncheckedDefaultsTest extends CheckerFrameworkPerDirectoryTest
                 "value",
                 // Ignore the test suite's usage of qualifiers in illegal locations.
                 "-AignoreTargetLocations",
-                "-AuseConservativeDefaultsForUncheckedCode=btyecode",
+                "-Astubs=tests/value/unchecked-bytecode.astub",
+                "-AuseConservativeDefaultsForUncheckedCode=bytecode",
                 "-A" + ValueChecker.REPORT_EVAL_WARNS);
     }
 
