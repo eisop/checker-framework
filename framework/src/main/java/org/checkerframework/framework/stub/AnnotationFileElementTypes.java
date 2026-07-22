@@ -15,7 +15,7 @@ import org.checkerframework.framework.stub.AnnotationFileUtil.AnnotationFileType
 import org.checkerframework.framework.type.AnnotatedTypeFactory;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedExecutableType;
-import org.checkerframework.framework.type.AnnotatedTypeReplacer;
+import org.checkerframework.framework.type.visitor.DoubleAnnotatedTypeScanner;
 import org.checkerframework.javacutil.AnnotationBuilder;
 import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.BugInCF;
@@ -1380,17 +1380,22 @@ public class AnnotationFileElementTypes {
      * always safe: {@link #getFakeOverride}, this method's only caller, runs only once parsing has
      * finished (see its {@code isParsing()} check), so {@code overridden}'s own type is guaranteed
      * complete by now. The return type is deliberately re-applied from {@code storedCandidate}
-     * verbatim (replace, not merge) rather than left alone, to preserve that reset-to-default
-     * behavior exactly -- structurally, at every position in the return type (including type
-     * arguments, array component types, and wildcard/type-variable bounds), not just the primary
-     * annotation, since {@code AnnotationFileParser#annotate} recurses into and resets every such
-     * position while parsing (this used to be a bug: only the primary annotation was propagated, so
-     * an explicit annotation on a fake override's return-type argument, e.g. {@code List<@Foo
-     * String>}, was silently dropped). {@link AnnotatedTypeReplacer} performs that structural
-     * replacement; using it here is equivalent to a structural clear-then-add because {@code
-     * storedCandidate}'s return type already carries a fully resolved (explicit-or-default)
-     * annotation at every position, so there is no position where "replace" and "clear-then-add"
-     * could disagree.
+     * verbatim (clear-then-add, not merge) rather than left alone, to preserve that
+     * reset-to-default behavior exactly -- structurally, at every position in the return type
+     * (including type arguments, array component types, and wildcard/type-variable bounds), not
+     * just the primary annotation (this used to be a bug: only the primary annotation was
+     * propagated, so an explicit annotation on a fake override's return-type argument, e.g. {@code
+     * List<@Foo String>}, was silently dropped). {@link #RETURN_TYPE_RESETTER} performs that
+     * structural clear-then-add. A plain structural <em>replace</em> (only overwriting a position
+     * where {@code storedCandidate} has an annotation, e.g. {@link
+     * org.checkerframework.framework.type.AnnotatedTypeReplacer}) is not equivalent here and must
+     * not be used: {@code storedCandidate}'s return type is <em>not</em> defaulted at parse time
+     * (see {@code AnnotationFileParser#annotate}'s {@code clearAnnotations} call and this method's
+     * own Javadoc above -- a presence-only fake override's stored return type is empty, not
+     * defaulted), so a position {@code storedCandidate} leaves bare must become bare on {@code
+     * fresh} too, relying on the checker's normal defaulting once the type is read, rather than
+     * keeping whatever {@code fresh} (i.e. {@code overridden}'s own declared type) already had
+     * there.
      *
      * @param overridden the overridden method the fake override targets
      * @param storedCandidate the fake override's stored snapshot; only its return-type annotations
@@ -1400,17 +1405,33 @@ public class AnnotationFileElementTypes {
     private AnnotatedExecutableType refreshFakeOverride(
             ExecutableElement overridden, AnnotatedExecutableType storedCandidate) {
         AnnotatedExecutableType fresh = atypeFactory.getAnnotatedType(overridden);
-        // Use visit(from, to), not from.accept(replacer, to): AnnotatedTypeReplacer's annotation
-        // replacement happens in defaultAction, which DoubleAnnotatedTypeScanner#scan calls before
-        // dispatching; accept() dispatches directly to the type-kind-specific visit method and
-        // skips that call for kinds (primitive, null, no-type) that do not override it, silently
-        // leaving the top-level annotation unchanged. visit() (called on the AnnotatedTypeReplacer
-        // instance, not on the visited type) goes through scan() and is the pattern every other
-        // caller in this codebase uses (see AnnotatedTypeFactory#replaceAnnotations,
-        // DependentTypesHelper).
-        new AnnotatedTypeReplacer().visit(storedCandidate.getReturnType(), fresh.getReturnType());
+        RETURN_TYPE_RESETTER.visit(storedCandidate.getReturnType(), fresh.getReturnType());
         return fresh;
     }
+
+    /**
+     * Structurally resets every annotation position in the second ({@code to}) argument passed to
+     * {@code visit(from, to)} to exactly what the first ({@code from}) argument has at the same
+     * position: clearing {@code to}'s annotations there, then adding {@code from}'s. Unlike {@link
+     * org.checkerframework.framework.type.AnnotatedTypeReplacer}, which leaves a position in {@code
+     * to} unchanged wherever {@code from} has no annotation there, this always clears first, so a
+     * position where {@code from} has nothing becomes bare on {@code to} too. Used by {@link
+     * #refreshFakeOverride} to reset a fake override's return type to exactly what the fake
+     * override declaration wrote, at every position, including positions the declaration left
+     * unannotated (which must become bare, not retain {@code to}'s own prior annotation, so that
+     * the checker's normal defaulting fills them in when the type is read).
+     */
+    private static final DoubleAnnotatedTypeScanner<Void> RETURN_TYPE_RESETTER =
+            new DoubleAnnotatedTypeScanner<Void>() {
+                @Override
+                protected Void defaultAction(AnnotatedTypeMirror from, AnnotatedTypeMirror to) {
+                    if (from != null && to != null) {
+                        to.clearAnnotations();
+                        to.addAnnotations(from.getAnnotations());
+                    }
+                    return null;
+                }
+            };
 
     //
     // End of public methods, private helper methods follow

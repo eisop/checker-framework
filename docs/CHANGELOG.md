@@ -76,11 +76,14 @@ always after parsing has finished; the return type, which a fake override
 always determines from its own declaration, is unaffected. Both the text and
 binary stub paths shared this hazard and are both fixed by this change.
 
-Fixed a fake override's return type losing any explicit annotation on a type
-argument, array component type, or type-variable/wildcard bound (e.g. a
-declared return type `List<@Foo String>`) -- only the outermost (primary)
-annotation was applied to the refreshed return type; a nested annotation
-silently fell back to the checker's default at that position instead.
+Fixed a fake override's return type being applied incorrectly at any
+position other than the outermost (primary) one -- a type argument, array
+component type, or type-variable/wildcard bound. An explicit annotation
+there (e.g. a declared return type `List<@Foo String>`) was silently
+dropped, and an unannotated position there incorrectly inherited whatever
+annotation the overridden method itself declared, instead of resetting to
+the checker's default the way a fake override's primary annotation already
+correctly did.
 
 Fixed a typo (`@SafeEFfect`) in the Guieffect Checker's `org-eclipse.astub` that
 made `CompareEditorInput.getMessage()` inherit the enclosing `@UIType`'s
