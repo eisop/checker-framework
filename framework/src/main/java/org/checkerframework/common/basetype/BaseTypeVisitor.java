@@ -2397,12 +2397,51 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                     args == null ? "" : args.getErrorMsg());
             return false;
         }
+        reportTypeArgumentInferenceFailure(tree, methodType, args);
+        return false;
+    }
+
+    /**
+     * Reports that type argument inference failed because the annotation constraint system had no
+     * satisfying solution -- as opposed to {@link InferenceResult#inferenceBudgetExceeded()} or
+     * {@link InferenceResult#inferenceCrashed()}, which are reported separately by {@link
+     * #checkTypeArgumentInference} and never reach this method. This can happen even when javac's
+     * own (unannotated) type argument inference succeeds for the same invocation, for example when
+     * a type system's qualifier encoding makes some constraint sets unsatisfiable that are not
+     * actually errors.
+     *
+     * <p>Regardless of how this method reports the failure (or whether it reports anything at all),
+     * the caller treats type argument inference as failed for {@code tree}: it skips this
+     * invocation's structural checks (argument and type-argument-bound compatibility), exactly as
+     * it does for the budget-exceeded and crashed cases. This does not change the type computed for
+     * the invocation expression itself, which {@link
+     * org.checkerframework.framework.util.AnnotatedTypes#findTypeArguments} produces independently
+     * of this method, using the same best-effort type arguments that {@code inferenceResult}
+     * already carries.
+     *
+     * <p>The default implementation reports a hard error. A checker whose qualifier encoding makes
+     * this failure mode common and usually spurious (for example, one with a nonstandard qualifier
+     * order) may override this method to report a warning instead, via {@link
+     * org.checkerframework.framework.source.SourceChecker#reportWarning} with the same {@code
+     * "type.arguments.not.inferred"} message key, or to suppress the diagnostic entirely.
+     *
+     * @param tree a tree that requires type argument inference
+     * @param methodType the type of the method before type argument substitution
+     * @param inferenceResult the failed result of type argument inference; never null at this call
+     *     site, because {@link #checkTypeArgumentInference} already dereferences it (via {@link
+     *     InferenceResult#inferenceBudgetExceeded()} and {@link
+     *     InferenceResult#inferenceCrashed()}) before reaching this method, so a null value there
+     *     would already have thrown a {@link NullPointerException}
+     */
+    protected void reportTypeArgumentInferenceFailure(
+            ExpressionTree tree,
+            AnnotatedExecutableType methodType,
+            InferenceResult inferenceResult) {
         checker.reportError(
                 tree,
                 "type.arguments.not.inferred",
                 ElementUtils.getSimpleDescription(methodType.getElement()),
-                args == null ? "" : args.getErrorMsg());
-        return false;
+                inferenceResult.getErrorMsg());
     }
 
     /**
