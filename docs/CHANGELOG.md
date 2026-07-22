@@ -148,6 +148,12 @@ Other improvements and bug fixes:
   recover Java type variables inferred by javac.
 - Fixed a latent aliasing bug in `AnnotatedTypeCopier` for executable types.
 - Fixed an `IndexOutOfBoundsException` for lambdas in varargs.
+- `JavaStubifier`'s "cannot load annotation" failure now names the source
+  file being processed, not just the annotation, making the offending file
+  easy to find in a large tree. Added a `--skipUnloadableAnnotations`
+  command-line flag that drops such an annotation from the binary stub
+  output (with a warning naming the annotation and file) instead of
+  aborting the run.
 
 **Closed issues:**
 
