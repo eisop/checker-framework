@@ -97,6 +97,11 @@ machine-generated) invocations. Defaults to 10000; raises a
 `BaseTypeValidator.visitParameterizedType`'s captured-wildcard bound recheck
 is extracted into an overridable `checkCapturedWildcardBounds` method.
 
+`BaseTypeVisitor.checkTypeArguments`'s per-argument upper-bound and
+lower-bound checks are now gated by an overridable `shouldCheckTypeArgument`
+method, so a checker can skip both checks for a given type argument without
+overriding the whole loop.
+
 `BaseTypeVisitor`'s type-argument-inference failure report is extracted into
 an overridable `reportTypeArgumentInferenceFailure` method, so a checker
 whose qualifier encoding makes this failure mode common and usually spurious
