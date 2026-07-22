@@ -115,6 +115,11 @@ machine-generated) invocations. Defaults to 10000; raises a
 `BaseTypeValidator.visitParameterizedType`'s captured-wildcard bound recheck
 is extracted into an overridable `checkCapturedWildcardBounds` method.
 
+`BaseTypeVisitor.checkTypeArguments`'s per-argument upper-bound and
+lower-bound checks are now gated by an overridable `shouldCheckTypeArgument`
+method, so a checker can skip both checks for a given type argument without
+overriding the whole loop.
+
 `BaseTypeVisitor`'s type-argument-inference failure report is extracted into
 an overridable `reportTypeArgumentInferenceFailure` method, so a checker
 whose qualifier encoding makes this failure mode common and usually spurious
@@ -166,6 +171,10 @@ Other improvements and bug fixes:
   recover Java type variables inferred by javac.
 - Fixed a latent aliasing bug in `AnnotatedTypeCopier` for executable types.
 - Fixed an `IndexOutOfBoundsException` for lambdas in varargs.
+- Clarified `OptionalImplVisitor.handleConditionalStatementIsPresentGet`'s
+  `else`-branch check (rule #3, `prefer.ifpresent`/`prefer.map.and.orelse`)
+  and removed a stale TODO; the underlying logic already matched the
+  documented rule, but a misleading comment suggested otherwise.
 - `JavaStubifier`'s "cannot load annotation" failure now names the source
   file being processed, not just the annotation, making the offending file
   easy to find in a large tree. Added a `--skipUnloadableAnnotations`
@@ -175,7 +184,7 @@ Other improvements and bug fixes:
 
 **Closed issues:**
 
-eisop#433, eisop#792, eisop#863, eisop#1015, eisop#1074, eisop#1801, eisop#1819.
+eisop#433, eisop#792, eisop#863, eisop#1015, eisop#1074, eisop#1315, eisop#1801, eisop#1819.
 
 
 Version 3.49.5-eisop1 (April 26, 2026)
