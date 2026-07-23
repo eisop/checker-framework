@@ -78,6 +78,12 @@ whichever annotated bound is written first. The result no longer depends on
 the source order of the bounds; every explicit bound annotation that differs
 from the greatest lower bound gets an `explicit.annotation.ignored` warning.
 
+Fixed a crash (`MissingFormatArgumentException` wrapped in `BugInCF`) in the
+Optional Checker's `prefer.map.and.orelse` warning for `if (VAR.isPresent())
+{ TYPE x = METHOD(VAR.get()); }` with no `else` branch, which supplied only 2
+of the message's 3 arguments. `-Anomsgtext`, which every JUnit test uses, had
+masked the bug by skipping message formatting entirely.
+
 **Implementation details:**
 
 `SourceChecker.reportError` and `SourceChecker.reportWarning` now accept a null
@@ -160,6 +166,9 @@ Other improvements and bug fixes:
   recover Java type variables inferred by javac.
 - Fixed a latent aliasing bug in `AnnotatedTypeCopier` for executable types.
 - Fixed an `IndexOutOfBoundsException` for lambdas in varargs.
+- Fixed `BinaryOperation.hashCode()` to agree with `equals()` for commutative
+  operators (e.g. `a + b` and `b + a`), so such dataflow expressions no longer
+  violate the `hashCode`/`equals` contract when used as map or set keys.
 - Clarified `OptionalImplVisitor.handleConditionalStatementIsPresentGet`'s
   `else`-branch check (rule #3, `prefer.ifpresent`/`prefer.map.and.orelse`)
   and removed a stale TODO; the underlying logic already matched the
@@ -173,7 +182,8 @@ Other improvements and bug fixes:
 
 **Closed issues:**
 
-eisop#433, eisop#792, eisop#863, eisop#1015, eisop#1074, eisop#1315, eisop#1801, eisop#1819.
+eisop#433, eisop#792, eisop#863, eisop#1015, eisop#1074, eisop#1315,
+eisop#1653, eisop#1801, eisop#1819.
 
 
 Version 3.49.5-eisop1 (April 26, 2026)
