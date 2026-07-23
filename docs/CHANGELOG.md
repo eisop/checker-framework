@@ -58,6 +58,33 @@ to none at all, silently changing or dropping the annotations it provides:
   simple name, so the fake override was dropped; such a name is now matched as
   a suffix of the fully-qualified name.
 
+Fixed a bug where `AnnotatedTypeFactory.getAnnotatedType(Element)` could cache
+an incomplete type for an element visited reentrantly while an annotation file
+was still being parsed (e.g., via a fake override's `getAnnotatedType`
+lookup on the overridden method, when that method's own declaring class had
+not been processed yet), permanently poisoning that element's type for the
+rest of the compilation. The cache write is now skipped while parsing is in
+progress, matching the guard `fromElement` already had.
+
+Fixed a fake override's parameter types, receiver type, and declaration
+annotations going stale when the overridden method's own declaring class is
+processed later in the same stub file or JDK class group (e.g., a fake
+override in `TreeMap.NavigableSubMap` targeting a `java.util.Map` default
+method declared later). The stored snapshot is now refreshed against a
+complete `getAnnotatedType(overridden)` the first time it is used, which is
+always after parsing has finished; the return type, which a fake override
+always determines from its own declaration, is unaffected. Both the text and
+binary stub paths shared this hazard and are both fixed by this change.
+
+Fixed a fake override's return type being applied incorrectly at any
+position other than the outermost (primary) one -- a type argument, array
+component type, or type-variable/wildcard bound. An explicit annotation
+there (e.g. a declared return type `List<@Foo String>`) was silently
+dropped, and an unannotated position there incorrectly inherited whatever
+annotation the overridden method itself declared, instead of resetting to
+the checker's default the way a fake override's primary annotation already
+correctly did.
+
 Fixed a typo (`@SafeEFfect`) in the Guieffect Checker's `org-eclipse.astub` that
 made `CompareEditorInput.getMessage()` inherit the enclosing `@UIType`'s
 `@UIEffect` default rather than being `@SafeEffect`.

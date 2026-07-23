@@ -1,0 +1,18 @@
+// See https://github.com/eisop/checker-framework/issues/1862 .
+import java.util.List;
+import org.checkerframework.checker.tainting.qual.Untainted;
+
+class FOGenericReturnMid {
+    // fake override: presence-only on the primary annotation (List stays at the checker's
+    // default, @Tainted), but the return type's type argument is explicitly @Untainted.
+    // Applying this fake override must produce BOTH: the primary annotation (reset to the
+    // checker's default here, since this declaration does not write one) and the
+    // type-argument annotation.
+    List<@Untainted String> m();
+
+    // fake override: entirely presence-only (no annotation anywhere), even though
+    // FOGenericReturnSuper.m2() -- the method this fake-overrides -- explicitly declares its
+    // type argument @Untainted. Every position, including the type argument, must reset to
+    // the checker's default (@Tainted), not inherit m2()'s @Untainted.
+    List<String> m2();
+}
