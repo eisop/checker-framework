@@ -2972,20 +2972,37 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
         }
 
         /**
-         * Copy the first annotation (in each hierarchy) on a bound to the primary annotation
-         * location of the intersection type.
+         * Copy the greatest lower bound of the annotations (in each hierarchy) on the bounds to the
+         * primary annotation location of the intersection type.
          *
          * <p>For example, in the type {@code @NonNull Object & @Initialized @Nullable
-         * Serializable}, {@code @Nullable} and {@code @Initialized} are copied to the primary
+         * Serializable}, {@code @NonNull} and {@code @Initialized} are copied to the primary
          * annotation location.
+         *
+         * <p>Using the greatest lower bound makes the result independent of the source order of the
+         * bounds: an intersection is a subtype of each of its bounds, so its primary annotation
+         * must be below each bound's annotation. (Note that adding a primary annotation to an
+         * intersection type replaces the annotations on all bounds, so bounds whose explicit
+         * annotation differs from the greatest lower bound do not keep it; {@code
+         * BaseTypeVisitor.checkExplicitAnnotationsOnIntersectionBounds} warns about such
+         * annotations.)
          */
         public void copyIntersectionBoundAnnotations() {
             AnnotationMirrorSet annos = new AnnotationMirrorSet();
+            QualifierHierarchy qualHierarchy = atypeFactory.getQualifierHierarchy();
             for (AnnotatedTypeMirror bound : getBounds()) {
                 for (AnnotationMirror a : bound.getAnnotationsField()) {
-                    if (atypeFactory.getQualifierHierarchy().findAnnotationInSameHierarchy(annos, a)
-                            == null) {
+                    AnnotationMirror existing =
+                            qualHierarchy.findAnnotationInSameHierarchy(annos, a);
+                    if (existing == null) {
                         annos.add(a);
+                    } else if (!AnnotationUtils.areSame(existing, a)) {
+                        AnnotationMirror glb =
+                                qualHierarchy.greatestLowerBoundQualifiersOnly(existing, a);
+                        if (glb != null && !AnnotationUtils.areSame(glb, existing)) {
+                            annos.remove(existing);
+                            annos.add(glb);
+                        }
                     }
                 }
             }

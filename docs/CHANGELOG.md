@@ -71,6 +71,13 @@ side-effecting array expression, avoiding unsound behavior. It now also issues
 a warning message explaining why `copyOf` used a `@Nullable` return type,
 making errors with `copyOf` easier to fix.
 
+The qualifier of an intersection type (for example, the bound
+`<T extends @NonNull Object & @Nullable Serializable>`) is now the greatest
+lower bound of the annotations on its bounds, instead of the annotation on
+whichever annotated bound is written first. The result no longer depends on
+the source order of the bounds; every explicit bound annotation that differs
+from the greatest lower bound gets an `explicit.annotation.ignored` warning.
+
 Fixed a crash (`MissingFormatArgumentException` wrapped in `BugInCF`) in the
 Optional Checker's `prefer.map.and.orelse` warning for `if (VAR.isPresent())
 { TYPE x = METHOD(VAR.get()); }` with no `else` branch, which supplied only 2
