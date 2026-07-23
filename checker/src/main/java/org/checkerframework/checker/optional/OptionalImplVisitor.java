@@ -126,6 +126,21 @@ public class OptionalImplVisitor
     private final Map<String, Set<String>> calleesToCallers = new HashMap<>();
 
     /**
+     * The message key for suggesting {@code map} and {@code orElse} in place of {@code isPresent}
+     * and {@code get}. Its message format takes 3 arguments: the receiver of {@code
+     * isPresent}/{@code get}, the method to pass to {@code map}, and the value to pass to {@code
+     * orElse}.
+     */
+    private static final @CompilerMessageKey String PREFER_MAP_AND_ORELSE = "prefer.map.and.orelse";
+
+    /**
+     * The message key for suggesting {@code ifPresent} in place of {@code isPresent} and {@code
+     * get}. Its message format takes 2 arguments: the receiver of {@code isPresent}/{@code get} and
+     * the method to pass to {@code ifPresent}.
+     */
+    private static final @CompilerMessageKey String PREFER_IFPRESENT = "prefer.ifpresent";
+
+    /**
      * Create an OptionalImplVisitor.
      *
      * @param checker the associated instance of {@link
@@ -301,7 +316,7 @@ public class OptionalImplVisitor
 
             checker.reportWarning(
                     tree,
-                    "prefer.map.and.orelse",
+                    PREFER_MAP_AND_ORELSE,
                     receiver,
                     // The literal "ENCLOSINGCLASS::" is gross.
                     // TODO: add this to the error message.
@@ -428,7 +443,7 @@ public class OptionalImplVisitor
                         tree,
                         (MethodInvocationTree) initializer,
                         isPresentCall,
-                        "prefer.map.and.orelse");
+                        PREFER_MAP_AND_ORELSE);
                 return;
             }
         }
@@ -441,7 +456,7 @@ public class OptionalImplVisitor
             return;
         }
         checkConditionalStatementIsPresentGetCall(
-                tree, (MethodInvocationTree) thenExpr, isPresentCall, "prefer.ifpresent");
+                tree, (MethodInvocationTree) thenExpr, isPresentCall, PREFER_IFPRESENT);
     }
 
     /**
@@ -481,7 +496,7 @@ public class OptionalImplVisitor
                                 (MethodInvocationTree) trueAssignment.getExpression());
                 checker.reportWarning(
                         tree,
-                        "prefer.map.and.orelse",
+                        PREFER_MAP_AND_ORELSE,
                         trueAssignment.getVariable(),
                         // The literal "ENCLOSINGCLASS::" is gross.
                         // TODO: add this to the error message.
@@ -509,7 +524,8 @@ public class OptionalImplVisitor
      * @param invok the entire method invocation statement or the initializer of an assignment
      * @param isPresentCall the pair comprising a boolean (indicating whether the expression is a
      *     call to {@code Optional.isPresent} or to {@code Optional.isEmpty}) and its receiver
-     * @param messageKey the message key, either "prefer.ifPresent" or "prefer.map.and.orelse"
+     * @param messageKey the message key, either {@link #PREFER_IFPRESENT} or {@link
+     *     #PREFER_MAP_AND_ORELSE}
      */
     private void checkConditionalStatementIsPresentGetCall(
             IfTree tree,
@@ -538,7 +554,16 @@ public class OptionalImplVisitor
                     methodString.substring(0, dotPos) + "::" + methodString.substring(dotPos + 1);
         }
 
-        checker.reportWarning(tree, messageKey, isPresentReceiver, methodString);
+        if (messageKey.equals(PREFER_MAP_AND_ORELSE)) {
+            // This call site is reached only when there is no corresponding "else" value (the
+            // caller guarantees the else branch is absent or empty), so there is no source
+            // expression to suggest as the argument to `orElse`.  Suggest `null`, which is what a
+            // declaration such as `TYPE x = VAR.get().METHOD();` (with no else branch) becomes
+            // when hoisted out of the `if`: `TYPE x = VAR.map(METHOD).orElse(null);`.
+            checker.reportWarning(tree, messageKey, isPresentReceiver, methodString, "null");
+        } else {
+            checker.reportWarning(tree, messageKey, isPresentReceiver, methodString);
+        }
     }
 
     @Override
