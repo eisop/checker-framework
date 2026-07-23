@@ -4845,7 +4845,17 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             return cached;
         }
         boolean result = !isFromStubFile(element) && !ElementUtils.isElementFromSourceCode(element);
-        isFromByteCodeCache.put(element, result);
+        // Do not cache a result computed while an annotation file is being parsed: isFromStubFile
+        // depends on the element's @FromStubFile declaration annotation, which cacheDeclAnnos
+        // (backing getDeclAnnotations) itself does not cache while parsing, for the same reason --
+        // a fake override or other reentrant lookup can query this element before its own
+        // declaring class's stub info has been fully attached. See getDeclAnnotations's identical
+        // guard and GenericAnnotatedTypeFactory#parsePhasePrimaryDefaultsCache's Javadoc ("Standard
+        // factory caches are disabled during parsing to prevent caching partially loaded stub
+        // annotations").
+        if (!isParsingAnnotationFile()) {
+            isFromByteCodeCache.put(element, result);
+        }
         return result;
     }
 

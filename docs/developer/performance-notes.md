@@ -1701,15 +1701,65 @@ within a compile). This covers the dominant call site (`isFromByteCode`); the ha
 `InitializationFieldAccessTreeAnnotator` check) are outside `applyConservativeDefaults`'s hot loop
 and were not targeted.
 
-**Verification.** Re-traced `checknullness` after the fix: samples under `isElementFromSourceCodeImpl`
-dropped from 93/1735 (5.36%) to 33/1909 (1.73%); `sun.nio.fs.UnixUriUtils.match` fell out of the
-top-30 self-time leaves entirely. Wall-clock A/B (warm daemon, `./gradlew checknullness`, all ~10
-subprojects, `shadowJar` rebuilt each side, 3 reps/side after a discarded warm-up rep): master
-103–104 s (104, 103, 104), patched 92 s (101 cold, 92, 92) — **≈11% faster** on the full build. Ran
-`:framework:test :javacutil:test :dataflow:test` and `:checker:NullnessTest`,
-`:checker:NullnessSafeDefaultsBytecodeTest`, `:checker:NullnessSafeDefaultsSourceCodeTest`,
-`:checker:AnnotatedForNullnessTest` (all pass); `:checker:AinferTestCheckerJaifsGenerationTest`
-fails identically on unmodified master (pre-existing, unrelated).
+**Correctness follow-up (July 2026): the initial cache was missing a parsing guard.** The first
+version above cached unconditionally, unlike `cacheDeclAnnos` (its own stated model), which skips
+writing its cache while `isParsingAnnotationFile()` is true — a guard `AnnotatedTypeFactory.
+getAnnotatedType(Element)`'s `elementTypeCache` also has, and that `GenericAnnotatedTypeFactory
+.parsePhasePrimaryDefaultsCache`'s Javadoc states as an explicit codebase convention: "Standard
+factory caches are disabled during parsing to prevent caching partially loaded stub annotations."
+`isFromByteCode`'s result depends on `isFromStubFile(element)`, i.e. on whether `element` carries a
+`@FromStubFile` declaration annotation — attached only once the relevant annotation file has been
+(possibly lazily, reentrantly, e.g. via a fake override's `getAnnotatedType(overridden)` call
+during `AnnotationFileParser#processFakeOverride`) parsed. Caching an answer computed before that
+attachment would lock in a wrong value permanently, the same bug class fixed for `elementTypeCache`
+and for the fake-override snapshot in "Fake-override snapshot order-dependence" below/eisop#1862.
+Confirmed reachable, not just theoretical: instrumenting `isFromByteCode` and running
+`:checker:checkNullness` (dogfooding this repo's own source) showed 15–19 reentrant calls with
+`isParsingAnnotationFile()` true per compile, for `java.lang.Object`, `java.util.Collection`,
+`java.lang.Iterable`, and two JDK methods. A companion snapshot-vs-recompute comparison did not
+catch an actual value flip for those specific elements.
+
+An independent review (July 2026) reproduced the reachability (five distinct parse-time elements:
+`java.lang.Object`, `java.util.Collection`, `java.lang.Iterable`, `Collection.isEmpty()`, and a JDK
+`valuesToArray(T[])`) and pinned down *why* none of them can flip, which is structural rather than a
+matter of timing: all of them are supplied by the **annotated JDK**, and the annotated JDK is never
+`@FromStubFile`-marked — `AnnotationFileParser#markAsFromStubFile` returns early for
+`AnnotationFileType.JDK_STUB`, and `BinaryStubReader#applyClassRecord` is called with a `null`
+`fromStubFileAnno` for the JDK case. So `isFromStubFile` is permanently `false` for every element
+reachable via this dogfooding workload's reentrant calls, and the cached-during-parse answer equals
+the post-parse answer no matter when it is computed. A genuine flip therefore requires a
+*non-JDK-stub* bytecode element (from a built-in checker stub or a user `-Astubs` file, which
+`markAsFromStubFile` *does* mark) to be queried reentrantly before its own declaration is processed
+— reachable in principle via `processFakeOverride`'s `getAnnotatedType(overridden)` call when
+conservative defaults are enabled, but not produced by any workload exercised here (the required
+checker JUnit suites — including `NullnessSafeDefaultsBytecodeTest` — triggered no parse-time
+`isFromByteCode` call at all). The guard is thus reachable-but-unobserved for this call site: adopted
+on the exact match to the documented `cacheDeclAnnos`/`elementTypeCache` convention plus confirmed
+reachability, not on an observed misdiagnosis. Fixed by adding the same `!isParsingAnnotationFile()`
+guard `cacheDeclAnnos` uses, before the cache write only (the computation itself is unconditional, so
+the return value is unaffected either way).
+
+**Verification (updated, July 2026, after the parsing-guard fix).** Full-build JFR captures
+(`./checker/bin-devel/record-jfr.sh` + unqualified `./gradlew --no-daemon checknullness`, the
+skill-recommended all-~10-subprojects workload, not the `:checker:checkNullness` slice the original
+measurement above used) confirm the win survives the guard: `sun.nio.fs.UnixUriUtils.match` is
+1.93% self-time (34/1763 samples) with no cache at all, and does not appear in the top-30 leaves at
+all with the guarded cache (1903 samples). Wall-clock A/B (warm daemon, `./gradlew checknullness`,
+`assemble` rebuilt each side, 3 reps/side after a discarded warm-up rep, same host as the original
+measurement): no cache 109.9/110.3/116.1 s (avg 112.1 s); unconditional cache (pre-guard) 96.4/95.9/
+97.1 s (avg 96.5 s); guarded cache (this fix) 98.7/97.5/95.8 s (avg 97.3 s). The guard costs
+~0.8 s/~0.8% versus the unconditional version — noise, not a measurable regression — while the
+cache overall remains **~13% faster** than no caching at all, consistent with (slightly exceeding)
+the original ~11% claim. An independent re-run of just the guarded-vs-unconditional A/B (warm
+daemon, `./gradlew checknullness`, 3 reps/side after a discarded warm-up) reproduced the noise-level
+overhead on a differently-loaded host: unconditional 90.3/92.1/91.8 s (avg 91.4 s), guarded
+91.8/93.5/90.9 s (avg 92.1 s) — a ~0.7 s/~0.7% difference, again within run-to-run variance. Re-ran
+`:framework:test :javacutil:test :dataflow:test`,
+`:checker:NullnessTest`, `NullnessSafeDefaultsBytecodeTest`, `NullnessSafeDefaultsSourceCodeTest`,
+`AnnotatedForNullnessTest`, `StubparserNullnessTest`, `StubparserTaintingTest`,
+`NullnessBinaryStubDiffTest`, and `alltests` (`:checker:jtregTests`' `nullness/Issue1438{,b,c}`
+timeouts under full-suite parallel contention are the documented environmental flake — 94/94 pass
+run standalone) — all pass with the guard in place.
 
 ---
 
