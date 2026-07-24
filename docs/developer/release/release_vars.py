@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# encoding: utf-8
 """
 release_vars.py
 
@@ -14,8 +13,13 @@ Copyright (c) 2014 University of Washington. All rights reserved.
 
 import os
 import pwd
-import subprocess
 import shlex
+import subprocess
+
+
+class ReleaseError(Exception):
+    """Raised for any failure in the release scripts (release_vars.py,
+    release_utils.py, release_build.py, release_push.py, sanity_checks.py)."""
 
 
 # ---------------------------------------------------------------------------------
@@ -42,9 +46,9 @@ def execute(command_args, halt_if_fail=True, capture_output=False, working_dir=N
     """
 
     if working_dir is not None:
-        print("Executing in %s: %s" % (working_dir, command_args))
+        print(f"Executing in {working_dir}: {command_args}")
     else:
-        print("Executing: %s" % (command_args))
+        print(f"Executing: {command_args}")
     args = shlex.split(command_args) if isinstance(command_args, str) else command_args
 
     if capture_output:
@@ -56,8 +60,8 @@ def execute(command_args, halt_if_fail=True, capture_output=False, working_dir=N
     else:
         result = subprocess.call(args, cwd=working_dir)
         if halt_if_fail and result:
-            raise Exception(
-                "Error %s while executing %s in %s" % (result, args, working_dir)
+            raise ReleaseError(
+                f"Error {result} while executing {args} in {working_dir}"
             )
         return result
 
