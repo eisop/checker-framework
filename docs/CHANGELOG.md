@@ -83,7 +83,10 @@ A checker can now opt out of this homogenization by overriding
 keeping each bound's own distinct qualifier instead of writing the
 intersection's summary annotation onto every bound. This supports type
 systems, such as JSpecify's, that give each bound of an intersection type its
-own qualifier.
+own qualifier. A bound that the source annotates in only some hierarchies is
+now defaulted in the remaining hierarchies to the implicit-upper-bound default
+(the hierarchy's top), rather than being left without an annotation, so every
+bound still carries exactly one qualifier per hierarchy.
 
 Fixed a crash (`MissingFormatArgumentException` wrapped in `BugInCF`) in the
 Optional Checker's `prefer.map.and.orelse` warning for `if (VAR.isPresent())

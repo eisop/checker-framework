@@ -3024,6 +3024,25 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
                 for (AnnotationMirror a : annos) {
                     super.addAnnotation(a);
                 }
+                // Keeping each bound's own qualifiers can leave a bound with no annotation in some
+                // hierarchy, because the source annotates it in one hierarchy but not another. For
+                // example, the "@A1 Number" bound of "@A1 Number & @B1 CharSequence" has no
+                // explicit qualifier in the hierarchy of @B1. Homogenization used to hide this by
+                // force-writing the intersection's primary annotation onto every bound in every
+                // hierarchy. A bound with no explicit annotation in a hierarchy is an implicit
+                // upper bound, so default it to the qualifier the framework uses for an unannotated
+                // upper bound: the hierarchy's top. See QualifierDefaults.addClimbStandardDefaults,
+                // which maps TypeUseLocation.IMPLICIT_UPPER_BOUND to the top qualifier. This
+                // restores the one-annotation-per-hierarchy invariant every AnnotatedTypeMirror
+                // must satisfy.
+                AnnotationMirrorSet tops = qualHierarchy.getTopAnnotations();
+                for (AnnotatedTypeMirror bound : getBounds()) {
+                    for (AnnotationMirror top : tops) {
+                        if (bound.getAnnotationInHierarchy(top) == null) {
+                            bound.addAnnotation(top);
+                        }
+                    }
+                }
             }
         }
     }
