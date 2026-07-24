@@ -3019,21 +3019,53 @@ public final class TreeUtils {
     }
 
     /**
+     * Returns true if the given invocation tree is an invocation of a method or constructor with a
+     * vararg parameter, and the invocation has zero vararg actuals.
+     *
+     * @param tree a method invocation or constructor invocation tree
+     * @return true if the given invocation has zero vararg actuals
+     */
+    public static boolean isCallToVarargsMethodWithZeroVarargsActuals(Tree tree) {
+        switch (tree.getKind()) {
+            case METHOD_INVOCATION:
+                return isCallToVarargsMethodWithZeroVarargsActuals((MethodInvocationTree) tree);
+            case NEW_CLASS:
+                return isCallToVarargsMethodWithZeroVarargsActuals((NewClassTree) tree);
+            default:
+                return false;
+        }
+    }
+
+    /**
      * Returns true if the given method invocation is an invocation of a method with a vararg
      * parameter, and the invocation has zero vararg actuals.
      *
      * @param invok the method invocation
      * @return true if the given method invocation is an invocation of a method with a vararg
-     *     parameter, and the invocation has with zero vararg actuals
+     *     parameter, and the invocation has zero vararg actuals
      */
     public static boolean isCallToVarargsMethodWithZeroVarargsActuals(MethodInvocationTree invok) {
-        if (!TreeUtils.isVarArgs(invok)) {
+        if (!isVarargsCall(invok)) {
             return false;
         }
         int numParams = elementFromUse(invok).getParameters().size();
-        // The comparison of the number of arguments to the number of formals (minus one) checks
-        // whether there are no varargs actuals.
         return invok.getArguments().size() == numParams - 1;
+    }
+
+    /**
+     * Returns true if the given constructor invocation is an invocation of a constructor with a
+     * vararg parameter, and the invocation has zero vararg actuals.
+     *
+     * @param newClassTree the constructor invocation
+     * @return true if the given constructor invocation is an invocation of a constructor with a
+     *     vararg parameter, and the invocation has zero vararg actuals
+     */
+    public static boolean isCallToVarargsMethodWithZeroVarargsActuals(NewClassTree newClassTree) {
+        if (!isVarargsCall(newClassTree)) {
+            return false;
+        }
+        int numParams = elementFromUse(newClassTree).getParameters().size();
+        return newClassTree.getArguments().size() == numParams - 1;
     }
 
     /**
