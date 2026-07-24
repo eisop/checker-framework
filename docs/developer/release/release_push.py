@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# encoding: utf-8
 """
 release_push.py
 
@@ -11,47 +10,49 @@ Copyright (c) 2013-2016 University of Washington. All rights reserved.
 # See README-release-process.html for more information
 
 import os
+import sys
 from os.path import expanduser
 
-from release_vars import AFU_LIVE_RELEASES_DIR
-from release_vars import ANNO_FILE_UTILITIES
-from release_vars import CF_VERSION
-from release_vars import CHECKER_FRAMEWORK
-from release_vars import CHECKER_LIVE_RELEASES_DIR
-from release_vars import CHECKER_LIVE_API_DIR
-from release_vars import CHECKLINK
-from release_vars import DEV_SITE_DIR
-from release_vars import DEV_SITE_URL
-from release_vars import INTERM_ANNO_REPO
-from release_vars import INTERM_CHECKER_REPO
-from release_vars import LIVE_SITE_DIR
-from release_vars import LIVE_SITE_URL
-from release_vars import RELEASE_BUILD_COMPLETED_FLAG_FILE
-from release_vars import SANITY_DIR
-from release_vars import SCRIPTS_DIR
-from release_vars import TMP_DIR
-
-from release_vars import execute
-
-from release_utils import continue_or_exit
-from release_utils import current_distribution_by_website
-from release_utils import delete_if_exists
-from release_utils import delete_path
-from release_utils import delete_path_if_exists
-from release_utils import ensure_group_access
-from release_utils import get_announcement_email
-from release_utils import print_step
-from release_utils import prompt_to_continue
-from release_utils import prompt_yes_no
-from release_utils import push_changes_prompt_if_fail
-from release_utils import has_command_line_option
-from release_utils import read_first_line
-from release_utils import set_umask
-from release_utils import subprocess
-from release_utils import version_number_to_array
+from release_utils import (
+    continue_or_exit,
+    current_distribution_by_website,
+    delete_if_exists,
+    delete_path,
+    delete_path_if_exists,
+    ensure_group_access,
+    get_announcement_email,
+    has_command_line_option,
+    print_step,
+    prompt_to_continue,
+    prompt_yes_no,
+    push_changes_prompt_if_fail,
+    read_first_line,
+    set_umask,
+    subprocess,
+    version_number_to_array,
+)
+from release_vars import (
+    AFU_LIVE_RELEASES_DIR,
+    ANNO_FILE_UTILITIES,
+    CF_VERSION,
+    CHECKER_FRAMEWORK,
+    CHECKER_LIVE_API_DIR,
+    CHECKER_LIVE_RELEASES_DIR,
+    CHECKLINK,
+    DEV_SITE_DIR,
+    DEV_SITE_URL,
+    INTERM_ANNO_REPO,
+    INTERM_CHECKER_REPO,
+    LIVE_SITE_DIR,
+    LIVE_SITE_URL,
+    RELEASE_BUILD_COMPLETED_FLAG_FILE,
+    SANITY_DIR,
+    SCRIPTS_DIR,
+    TMP_DIR,
+    ReleaseError,
+    execute,
+)
 from sanity_checks import javac_sanity_check, maven_sanity_check
-
-import sys
 
 
 def check_release_version(previous_release, new_release):
@@ -60,7 +61,7 @@ def check_release_version(previous_release, new_release):
     if version_number_to_array(previous_release) >= version_number_to_array(
         new_release
     ):
-        raise Exception(
+        raise ReleaseError(
             "Previous release version ("
             + previous_release
             + ") should be less than "
@@ -82,15 +83,12 @@ def copy_release_dir(path_to_dev_releases, path_to_live_releases, release_versio
         delete_path(dest_location)
 
     if os.path.exists(dest_location):
-        raise Exception("Destination location exists: " + dest_location)
+        raise ReleaseError("Destination location exists: " + dest_location)
 
     # The / at the end of the source location is necessary so that
     # rsync copies the files in the source directory to the destination directory
     # rather than a subdirectory of the destination directory.
-    cmd = "rsync --no-group --omit-dir-times --recursive --links --quiet %s/ %s" % (
-        source_location,
-        dest_location,
-    )
+    cmd = f"rsync --no-group --omit-dir-times --recursive --links --quiet {source_location}/ {dest_location}"
     execute(cmd)
 
     return dest_location
@@ -103,7 +101,7 @@ def promote_release(path_to_releases, release_version):
     from_dir = os.path.join(path_to_releases, release_version)
     to_dir = os.path.join(path_to_releases, "..")
     # Trailing slash is crucial.
-    cmd = "rsync -aJ --no-group --omit-dir-times %s/ %s" % (from_dir, to_dir)
+    cmd = f"rsync -aJ --no-group --omit-dir-times {from_dir}/ {to_dir}"
     execute(cmd)
 
 
@@ -111,7 +109,9 @@ def copy_htaccess():
     "Copy the .htaccess file from the dev site to the live site."
     LIVE_HTACCESS = os.path.join(LIVE_SITE_DIR, ".htaccess")
     execute(
-        "rsync --times %s %s" % (os.path.join(DEV_SITE_DIR, ".htaccess"), LIVE_HTACCESS)
+        "rsync --times {} {}".format(
+            os.path.join(DEV_SITE_DIR, ".htaccess"), LIVE_HTACCESS
+        )
     )
     ensure_group_access(LIVE_HTACCESS)
 
@@ -149,8 +149,7 @@ def stage_maven_artifacts_in_maven_central(new_cf_version):
         "/projects/swlab1/checker-framework/hosting-info/release-private.password"
     )
     execute(
-        "./gradlew publish -Prelease=true --no-parallel -Psigning.gnupg.keyName=checker-framework-dev@googlegroups.com -Psigning.gnupg.passphrase=%s"
-        % gnupgPassphrase,
+        f"./gradlew publish -Prelease=true --no-parallel -Psigning.gnupg.keyName=checker-framework-dev@googlegroups.com -Psigning.gnupg.passphrase={gnupgPassphrase}",
         working_dir=CHECKER_FRAMEWORK,
     )
 
@@ -172,30 +171,22 @@ def run_link_checker(site, output, additional_param=""):
         cmd = ["sh", check_links_script, additional_param, site]
     env = {"CHECKLINK": CHECKLINK}
 
-    out_file = open(output, "w+")
-
     print(
-        (
-            "Executing: "
-            + " ".join("%s=%r" % (key2, val2) for (key2, val2) in list(env.items()))
-            + " "
-            + " ".join(cmd)
-        )
+        "Executing: "
+        + " ".join(f"{key2}={val2!r}" for (key2, val2) in list(env.items()))
+        + " "
+        + " ".join(cmd)
     )
-    process = subprocess.Popen(cmd, env=env, stdout=out_file, stderr=out_file)
-    process.communicate()
-    process.wait()
-    out_file.close()
+    with open(output, "w+") as out_file:
+        process = subprocess.Popen(cmd, env=env, stdout=out_file, stderr=out_file)
+        process.communicate()
+        process.wait()
 
     if process.returncode != 0:
-        msg = "Non-zero return code (%s; see output in %s) while executing %s" % (
-            process.returncode,
-            output,
-            cmd,
-        )
+        msg = f"Non-zero return code ({process.returncode}; see output in {output}) while executing {cmd}"
         print(msg + "\n")
         if not prompt_yes_no("Continue despite link checker results?", True):
-            raise Exception(msg)
+            raise ReleaseError(msg)
 
     return output
 
@@ -239,20 +230,21 @@ def check_all_links(
         print("\t" + afuCheck + "\n")
     if not is_checkerCheck_empty:
         print("\t" + checkerCheck + "\n")
-    if errors_reported:
-        if not prompt_yes_no("Continue despite link checker results?", True):
-            release_option = ""
-            if not test_mode:
-                release_option = " release"
-            raise Exception(
-                "The link checker reported errors.  Please fix them by committing changes to the mainline\n"
-                + "repository and pushing them to GitHub, then updating the development and live sites by\n"
-                + "running\n"
-                + "  python3 release_build.py all\n"
-                + "  python3 release_push"
-                + release_option
-                + "\n"
-            )
+    if errors_reported and not prompt_yes_no(
+        "Continue despite link checker results?", True
+    ):
+        release_option = ""
+        if not test_mode:
+            release_option = " release"
+        raise ReleaseError(
+            "The link checker reported errors.  Please fix them by committing changes to the mainline\n"
+            + "repository and pushing them to GitHub, then updating the development and live sites by\n"
+            + "running\n"
+            + "  python3 release_build.py all\n"
+            + "  python3 release_push"
+            + release_option
+            + "\n"
+        )
 
 
 def push_interm_to_release_repos():
@@ -268,23 +260,21 @@ def validate_args(argv):
     criteria issued in print_usage."""
     if len(argv) > 3:
         print_usage()
-        raise Exception("Invalid arguments. " + ",".join(argv))
+        raise ReleaseError("Invalid arguments. " + ",".join(argv))
     for i in range(1, len(argv)):
         if argv[i] != "release":
             print_usage()
-            raise Exception("Invalid arguments. " + ",".join(argv))
+            raise ReleaseError("Invalid arguments. " + ",".join(argv))
 
 
 def print_usage():
     """Print instructions on how to use this script, and in particular how to
     set test or release mode."""
     print(
-        (
-            "Usage: python3 release_build.py [release]\n"
-            + 'If the "release" argument is '
-            + "NOT specified then the script will execute all steps that checking and prompting "
-            + "steps but will NOT actually perform a release.  This is for testing the script."
-        )
+        "Usage: python3 release_build.py [release]\n"
+        + 'If the "release" argument is '
+        + "NOT specified then the script will execute all steps that checking and prompting "
+        + "steps but will NOT actually perform a release.  This is for testing the script."
     )
 
 
@@ -306,7 +296,7 @@ def main(argv):
 
     m2_settings = expanduser("~") + "/.m2/settings.xml"
     if not os.path.exists(m2_settings):
-        raise Exception("File does not exist: " + m2_settings)
+        raise ReleaseError("File does not exist: " + m2_settings)
 
     if test_mode:
         msg = (
@@ -346,8 +336,7 @@ def main(argv):
     check_release_version(current_cf_version, new_cf_version)
 
     print(
-        "Checker Framework and AFU:  current-version=%s    new-version=%s"
-        % (current_cf_version, new_cf_version)
+        f"Checker Framework and AFU:  current-version={current_cf_version}    new-version={new_cf_version}"
     )
 
     # Runs the link the checker on all websites at:

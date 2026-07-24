@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# encoding: utf-8
 """
 releaseutils.py
 
@@ -12,21 +11,24 @@ Copyright (c) 2012 University of Washington
 
 import zipfile
 
-from release_vars import CHECKER_FRAMEWORK
-from release_vars import CHECKER_FRAMEWORK_RELEASE
-from release_vars import SANITY_DIR
-
-from release_vars import execute
-
-from release_utils import are_in_file
-from release_utils import delete
-from release_utils import delete_path
-from release_utils import download_binary
-from release_utils import ensure_user_access
-from release_utils import execute_write_to_file
-from release_utils import insert_before_line
-from release_utils import os
-from release_utils import wget_file
+from release_utils import (
+    are_in_file,
+    delete,
+    delete_path,
+    download_binary,
+    ensure_user_access,
+    execute_write_to_file,
+    insert_before_line,
+    os,
+    wget_file,
+)
+from release_vars import (
+    CHECKER_FRAMEWORK,
+    CHECKER_FRAMEWORK_RELEASE,
+    SANITY_DIR,
+    ReleaseError,
+    execute,
+)
 
 
 def javac_sanity_check(checker_framework_website, release_version):
@@ -51,12 +53,10 @@ def javac_sanity_check(checker_framework_website, release_version):
     execute("mkdir -p " + javac_sanity_dir)
 
     javac_sanity_zip = os.path.join(
-        javac_sanity_dir, "checker-framework-%s.zip" % release_version
+        javac_sanity_dir, f"checker-framework-{release_version}.zip"
     )
 
-    print(
-        "Attempting to download %s to %s" % (new_checkers_release_zip, javac_sanity_zip)
-    )
+    print(f"Attempting to download {new_checkers_release_zip} to {javac_sanity_zip}")
     download_binary(new_checkers_release_zip, javac_sanity_zip)
 
     nullness_example_url = "https://raw.githubusercontent.com/eisop/checker-framework/master/docs/examples/NullnessExampleWithWarnings.java"
@@ -135,10 +135,7 @@ def maven_sanity_check(sub_sanity_dir_name, repo_url, release_version):
     output_log = os.path.join(maven_example_dir, "output.log")
 
     ant_release_script = os.path.join(CHECKER_FRAMEWORK_RELEASE, "release.xml")
-    get_example_dir_cmd = (
-        "ant -f %s update-and-copy-maven-example -Dchecker=%s -Dversion=%s -Ddest.dir=%s"
-        % (ant_release_script, checker_dir, release_version, maven_sanity_dir)
-    )
+    get_example_dir_cmd = f"ant -f {ant_release_script} update-and-copy-maven-example -Dchecker={checker_dir} -Dversion={release_version} -Ddest.dir={maven_sanity_dir}"
 
     execute(get_example_dir_cmd)
     path_to_artifacts = os.path.join(
@@ -146,12 +143,10 @@ def maven_sanity_check(sub_sanity_dir_name, repo_url, release_version):
     )
     if repo_url != "":
         print(
-            (
-                "This script will now delete your Maven Checker Framework artifacts.\n"
-                + "See README-release-process.html#Maven-Plugin dependencies.  These artifacts "
-                + "will need to be re-downloaded the next time you need them.  This will be "
-                + "done automatically by Maven next time you use the plugin."
-            )
+            "This script will now delete your Maven Checker Framework artifacts.\n"
+            + "See README-release-process.html#Maven-Plugin dependencies.  These artifacts "
+            + "will need to be re-downloaded the next time you need them.  This will be "
+            + "done automatically by Maven next time you use the plugin."
         )
 
         if os.path.isdir(path_to_artifacts):
@@ -174,7 +169,7 @@ def check_results(title, output_log, expected_errors):
     found_errors = are_in_file(output_log, expected_errors)
 
     if not found_errors:
-        raise Exception(
+        raise ReleaseError(
             title
             + " did not work!\n"
             + "File: "
@@ -184,32 +179,29 @@ def check_results(title, output_log, expected_errors):
             + ", ".join(expected_errors)
         )
     else:
-        print("%s check: passed!\n" % title)
+        print(f"{title} check: passed!\n")
 
 
 def add_repo_information(pom, repo_url):
     """Adds development maven repo to pom file so that the artifacts used are
     the development artifacts"""
-    to_insert = """
+    to_insert = f"""
         <repositories>
               <repository>
                   <id>checker-framework-repo</id>
-                  <url>%s</url>
+                  <url>{repo_url}</url>
               </repository>
         </repositories>
 
         <pluginRepositories>
               <pluginRepository>
                     <id>checker-framework-repo</id>
-                    <url>%s</url>
+                    <url>{repo_url}</url>
               </pluginRepository>
         </pluginRepositories>
-        """ % (
-        repo_url,
-        repo_url,
-    )
+        """
 
-    result_str = execute('grep -nm 1 "<build>" %s' % pom, True, True).decode()
+    result_str = execute(f'grep -nm 1 "<build>" {pom}', True, True).decode()
     line_no_str = result_str.split(":")[0]
     line_no = int(line_no_str)
     print(" LINE_NO: " + line_no_str)
