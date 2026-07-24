@@ -16,11 +16,7 @@ import pwd
 import shlex
 import subprocess
 
-
-class ReleaseError(Exception):
-    """Raised for any failure in the release scripts (release_vars.py,
-    release_utils.py, release_build.py, release_push.py, sanity_checks.py)."""
-
+from release_errors import ReleaseError
 
 # ---------------------------------------------------------------------------------
 # The only methods that should go here are methods that help define global release

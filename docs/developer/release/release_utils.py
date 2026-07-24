@@ -18,7 +18,8 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
-from release_vars import ReleaseError, execute
+from release_errors import ReleaseError
+from release_vars import execute
 
 # =========================================================================================
 # Parse Args Utils # TODO: Perhaps use argparse module

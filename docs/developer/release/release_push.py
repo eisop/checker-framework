@@ -13,6 +13,7 @@ import os
 import sys
 from os.path import expanduser
 
+from release_errors import ReleaseError
 from release_utils import (
     continue_or_exit,
     current_distribution_by_website,
@@ -49,7 +50,6 @@ from release_vars import (
     SANITY_DIR,
     SCRIPTS_DIR,
     TMP_DIR,
-    ReleaseError,
     execute,
 )
 from sanity_checks import javac_sanity_check, maven_sanity_check

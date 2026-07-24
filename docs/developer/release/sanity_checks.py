@@ -11,6 +11,7 @@ Copyright (c) 2012 University of Washington
 
 import zipfile
 
+from release_errors import ReleaseError
 from release_utils import (
     are_in_file,
     delete,
@@ -26,7 +27,6 @@ from release_vars import (
     CHECKER_FRAMEWORK,
     CHECKER_FRAMEWORK_RELEASE,
     SANITY_DIR,
-    ReleaseError,
     execute,
 )
 
