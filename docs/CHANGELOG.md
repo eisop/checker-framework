@@ -78,6 +78,13 @@ whichever annotated bound is written first. The result no longer depends on
 the source order of the bounds; every explicit bound annotation that differs
 from the greatest lower bound gets an `explicit.annotation.ignored` warning.
 
+A checker can now opt out of this homogenization by overriding
+`AnnotatedTypeFactory#shouldHomogenizeIntersectionBounds()` to return `false`,
+keeping each bound's own distinct qualifier instead of writing the
+intersection's summary annotation onto every bound. This supports type
+systems, such as JSpecify's, that give each bound of an intersection type its
+own qualifier.
+
 Fixed a crash (`MissingFormatArgumentException` wrapped in `BugInCF`) in the
 Optional Checker's `prefer.map.and.orelse` warning for `if (VAR.isPresent())
 { TYPE x = METHOD(VAR.get()); }` with no `else` branch, which supplied only 2

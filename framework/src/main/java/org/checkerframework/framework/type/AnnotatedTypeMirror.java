@@ -2986,6 +2986,13 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
          * annotation differs from the greatest lower bound do not keep it; {@code
          * BaseTypeVisitor.checkExplicitAnnotationsOnIntersectionBounds} warns about such
          * annotations.)
+         *
+         * <p>By default the computed summary is then written back onto every bound, homogenizing
+         * them, as described above. A checker whose {@link
+         * AnnotatedTypeFactory#shouldHomogenizeIntersectionBounds()} returns false instead keeps
+         * each bound's own qualifier: the summary is still stored as the intersection's primary
+         * annotation, but the bounds are left as constructed. See {@link
+         * AnnotatedTypeFactory#shouldHomogenizeIntersectionBounds()}.
          */
         public void copyIntersectionBoundAnnotations() {
             AnnotationMirrorSet annos = new AnnotationMirrorSet();
@@ -3006,7 +3013,18 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
                     }
                 }
             }
-            addAnnotations(annos);
+            if (atypeFactory.shouldHomogenizeIntersectionBounds()) {
+                // addAnnotations dispatches to the overridden addAnnotation, whose
+                // fixupBoundAnnotations copies the primary annotation onto every bound.
+                addAnnotations(annos);
+            } else {
+                // Set the summary as the primary annotation without writing it back onto the
+                // bounds: super.addAnnotation bypasses the fixupBoundAnnotations override, so each
+                // bound keeps its own qualifier.
+                for (AnnotationMirror a : annos) {
+                    super.addAnnotation(a);
+                }
+            }
         }
     }
 
