@@ -31,7 +31,7 @@ public class VarargsConstructor {
         @ReceiverDependentQual Inner(@ReceiverDependentQual Object... args) {}
 
         void foo() {
-            // :: error: (new.class.type.invalid) :: error: (varargs.type.incompatible)
+            // :: error: (new.class.type.invalid)
             Inner a = new Inner();
             // :: warning: (cast.unsafe.constructor.invocation)
             Inner b = new @A Inner(new @A Object());

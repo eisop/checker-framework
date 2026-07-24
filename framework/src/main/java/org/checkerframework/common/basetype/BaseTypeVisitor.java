@@ -2555,6 +2555,11 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             return;
         }
 
+        if (TreeUtils.isCallToVarargsMethodWithZeroVarargsActuals(tree)) {
+            // An empty varargs call creates an empty array, so no elements are passed.
+            return;
+        }
+
         // This is the varags type, an array.
         AnnotatedArrayType lastParamAnnotatedType = invokedMethod.getVarargType();
 
