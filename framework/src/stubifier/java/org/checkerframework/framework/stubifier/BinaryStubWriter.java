@@ -93,6 +93,10 @@ import java.util.zip.GZIPOutputStream;
  * presence-only signature entries (see {@link ClassRecord#presenceOnlyMethodSigs}); that is correct
  * only for the annotated JDK. See that field's documentation. Equivalence is enforced by {@code
  * BinaryStubDiffChecker}; run {@code NullnessBinaryStubDiffTest} after changing this class.
+ *
+ * <p>A writer constructed with {@link #BinaryStubWriter(boolean, boolean)
+ * skipUnloadableAnnotations} drops, rather than fails on, an annotation whose {@code @Target}
+ * cannot be read; see that field's documentation for the trade-off this accepts.
  */
 public class BinaryStubWriter {
     /**
@@ -267,9 +271,37 @@ public class BinaryStubWriter {
      */
     private final boolean omitUnannotatedMembers;
 
+    /**
+     * Whether an annotation whose {@code @Target} cannot be read is dropped from the binary stub
+     * output -- with a warning to stderr naming the annotation and its source file -- instead of
+     * aborting the writer with the {@link #annotationTargets} failure. False by default, so the
+     * writer fails fast unless a caller opts in. Set from {@code JavaStubifier}'s {@code
+     * --skipUnloadableAnnotations} command-line flag; see that flag's Javadoc for the intended use.
+     *
+     * <p><b>Trade-off:</b> dropping such an annotation is not always safe. The annotation could be
+     * a real type qualifier that a checker's own (wider) classpath would have resolved; dropping it
+     * here silently removes it from the annotated JDK, and no checker run afterward has any way to
+     * tell that it is missing. This field exists so that trade-off is opt-in and always paired with
+     * a warning, rather than a hard-coded default -- it must never be set true except in response
+     * to an explicit user request to keep going past an unloadable annotation.
+     */
+    private final boolean skipUnloadableAnnotations;
+
     /** Creates a writer for a built-in stub file, which keeps every member record. */
     public BinaryStubWriter() {
-        this(false);
+        this(false, false);
+    }
+
+    /**
+     * Creates a writer that fails on an unloadable annotation; see {@link
+     * #BinaryStubWriter(boolean, boolean)}.
+     *
+     * @param omitUnannotatedMembers whether to omit unannotated field records and demote
+     *     unannotated method records to presence-only signature entries; see {@link
+     *     #omitUnannotatedMembers}. Pass true only for the annotated JDK.
+     */
+    public BinaryStubWriter(boolean omitUnannotatedMembers) {
+        this(omitUnannotatedMembers, false);
     }
 
     /**
@@ -278,9 +310,13 @@ public class BinaryStubWriter {
      * @param omitUnannotatedMembers whether to omit unannotated field records and demote
      *     unannotated method records to presence-only signature entries; see {@link
      *     #omitUnannotatedMembers}. Pass true only for the annotated JDK.
+     * @param skipUnloadableAnnotations whether to drop an annotation whose {@code @Target} cannot
+     *     be read, with a warning, instead of aborting the writer; see {@link
+     *     #skipUnloadableAnnotations} for the trade-off this accepts.
      */
-    public BinaryStubWriter(boolean omitUnannotatedMembers) {
+    public BinaryStubWriter(boolean omitUnannotatedMembers, boolean skipUnloadableAnnotations) {
         this.omitUnannotatedMembers = omitUnannotatedMembers;
+        this.skipUnloadableAnnotations = skipUnloadableAnnotations;
     }
 
     /** Constant pool for strings to minimize binary size. */
@@ -928,6 +964,46 @@ public class BinaryStubWriter {
     }
 
     /**
+     * Annotation-and-file pairs already reported by {@link #dropUnloadableAnnotation}, so that an
+     * annotation used repeatedly in the same file (e.g. {@code @Test} on every method) produces one
+     * warning line rather than one per occurrence.
+     */
+    private final Set<String> reportedSkippedAnnotations = new HashSet<>();
+
+    /**
+     * If {@link #skipUnloadableAnnotations} is set, checks whether {@code anno}'s {@code @Target}
+     * can be read and, if not, prints a warning naming the annotation and its source file and
+     * reports that it must be dropped from routing. Otherwise -- including when {@link
+     * #skipUnloadableAnnotations} is false -- always returns false, leaving {@link
+     * #annotationTargets} to fail normally for a caller that goes on to route the annotation.
+     *
+     * @param anno the annotation expression to check
+     * @return true if {@code anno}'s {@code @Target} could not be read and {@link
+     *     #skipUnloadableAnnotations} requests dropping it instead of failing
+     */
+    private boolean dropUnloadableAnnotation(AnnotationExpr anno) {
+        if (!skipUnloadableAnnotations) {
+            return false;
+        }
+        try {
+            annotationTargets(anno);
+            return false;
+        } catch (IOException e) {
+            String location = sourceDescription(anno);
+            if (reportedSkippedAnnotations.add(anno.getNameAsString() + "@" + location)) {
+                System.err.println(
+                        "BinaryStubWriter: dropping @"
+                                + anno.getNameAsString()
+                                + " in "
+                                + location
+                                + " from the binary stub file: "
+                                + e.getMessage());
+            }
+            return true;
+        }
+    }
+
+    /**
      * Returns the {@code @Target} element types of {@code anno}, for {@link #hasTypeUse} and {@link
      * #isTypeUseOnly} to route the annotation with.
      *
@@ -1497,7 +1573,10 @@ public class BinaryStubWriter {
      *     #isTypeUseOnly}; if false, all valid annotations are added to the provided list(s)
      *     unconditionally.
      * @param cu the compilation unit
-     * @throws IOException if writing to the annotation pool fails
+     * @throws IOException if writing to the annotation pool fails, or an annotation's
+     *     {@code @Target} cannot be read and neither {@link #isUnloadablePlatformAnnotation} nor
+     *     {@link #dropUnloadableAnnotation} (i.e. {@link #skipUnloadableAnnotations} is not set)
+     *     applies
      */
     private void routeAnnotations(
             List<AnnotationExpr> annotations,
@@ -1512,12 +1591,14 @@ public class BinaryStubWriter {
             if (idx == IGNORED) {
                 continue;
             }
-            if (filterByTarget && isUnloadablePlatformAnnotation(anno.getNameAsString())) {
+            if (filterByTarget
+                    && (isUnloadablePlatformAnnotation(anno.getNameAsString())
+                            || dropUnloadableAnnotation(anno))) {
                 // Routing needs the annotation's @Target, which cannot be read here; see
-                // isUnloadablePlatformAnnotation. Leave it out of both lists rather than fail.
-                // Only the routing path is affected: a caller that does not route by @Target (a
-                // class declaration's annotations, say) never needs to load the annotation at all,
-                // and still writes it.
+                // isUnloadablePlatformAnnotation and dropUnloadableAnnotation. Leave it out of both
+                // lists rather than fail. Only the routing path is affected: a caller that does not
+                // route by @Target (a class declaration's annotations, say) never needs to load the
+                // annotation at all, and still writes it.
                 continue;
             }
             if (typeAnnos != null && (!filterByTarget || hasTypeUse(anno))) {

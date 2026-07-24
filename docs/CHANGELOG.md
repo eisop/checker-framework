@@ -71,6 +71,12 @@ side-effecting array expression, avoiding unsound behavior. It now also issues
 a warning message explaining why `copyOf` used a `@Nullable` return type,
 making errors with `copyOf` easier to fix.
 
+Fixed a crash (`MissingFormatArgumentException` wrapped in `BugInCF`) in the
+Optional Checker's `prefer.map.and.orelse` warning for `if (VAR.isPresent())
+{ TYPE x = METHOD(VAR.get()); }` with no `else` branch, which supplied only 2
+of the message's 3 arguments. `-Anomsgtext`, which every JUnit test uses, had
+masked the bug by skipping message formatting entirely.
+
 **Implementation details:**
 
 `SourceChecker.reportError` and `SourceChecker.reportWarning` now accept a null
@@ -93,6 +99,20 @@ Added the `-AinferenceWorkBudget=N` command-line option to bound Java
 type-argument-inference work, averting hangs on deeply nested (e.g.,
 machine-generated) invocations. Defaults to 10000; raises a
 `type.argument.inference.budget` error if exceeded.
+
+`BaseTypeValidator.visitParameterizedType`'s captured-wildcard bound recheck
+is extracted into an overridable `checkCapturedWildcardBounds` method.
+
+`BaseTypeVisitor.checkTypeArguments`'s per-argument upper-bound and
+lower-bound checks are now gated by an overridable `shouldCheckTypeArgument`
+method, so a checker can skip both checks for a given type argument without
+overriding the whole loop.
+
+`BaseTypeVisitor`'s type-argument-inference failure report is extracted into
+an overridable `reportTypeArgumentInferenceFailure` method, so a checker
+whose qualifier encoding makes this failure mode common and usually spurious
+can report a warning (or suppress the diagnostic) instead of the default
+hard error.
 
 Performance optimizations:
 - Capped Java type argument inference bound-incorporation work and optimized
@@ -139,10 +159,24 @@ Other improvements and bug fixes:
   recover Java type variables inferred by javac.
 - Fixed a latent aliasing bug in `AnnotatedTypeCopier` for executable types.
 - Fixed an `IndexOutOfBoundsException` for lambdas in varargs.
+- Fixed `BinaryOperation.hashCode()` to agree with `equals()` for commutative
+  operators (e.g. `a + b` and `b + a`), so such dataflow expressions no longer
+  violate the `hashCode`/`equals` contract when used as map or set keys.
+- Clarified `OptionalImplVisitor.handleConditionalStatementIsPresentGet`'s
+  `else`-branch check (rule #3, `prefer.ifpresent`/`prefer.map.and.orelse`)
+  and removed a stale TODO; the underlying logic already matched the
+  documented rule, but a misleading comment suggested otherwise.
+- `JavaStubifier`'s "cannot load annotation" failure now names the source
+  file being processed, not just the annotation, making the offending file
+  easy to find in a large tree. Added a `--skipUnloadableAnnotations`
+  command-line flag that drops such an annotation from the binary stub
+  output (with a warning naming the annotation and file) instead of
+  aborting the run.
 
 **Closed issues:**
 
-eisop#386, eisop#433, eisop#792, eisop#863, eisop#1015, eisop#1074, eisop#1801, eisop#1819.
+eisop#386, eisop#433, eisop#792, eisop#863, eisop#1015, eisop#1074, eisop#1315,
+eisop#1653, eisop#1801, eisop#1819.
 
 
 Version 3.49.5-eisop1 (April 26, 2026)
