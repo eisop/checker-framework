@@ -278,7 +278,9 @@ The nullness hierarchy contains these qualifiers:
 
   Use of \<@MonotonicNonNull> on a \emph{static} field is a code smell:  it may
   indicate poor design.  You should consider whether it is possible to make
-  the field a member field that is set in the constructor.
+  the field a member field that is set in the constructor.  The Nullness Checker
+  issues a warning for a \<static> field annotated \<@MonotonicNonNull>; suppress
+  it with \<@SuppressWarnings("monotonic.on.static")>.
 
   In the type system, \<@MonotonicNonNull> is a supertype of \<@NonNull>
   and a subtype of \<@Nullable>.

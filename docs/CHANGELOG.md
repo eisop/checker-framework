@@ -71,6 +71,10 @@ side-effecting array expression, avoiding unsound behavior. It now also issues
 a warning message explaining why `copyOf` used a `@Nullable` return type,
 making errors with `copyOf` easier to fix.
 
+The Nullness Checker now issues a `monotonic.on.static` warning when
+`@MonotonicNonNull` is written on a `static` field, which the manual documents
+as a code smell.  Suppress it with `@SuppressWarnings("monotonic.on.static")`.
+
 Fixed a crash (`MissingFormatArgumentException` wrapped in `BugInCF`) in the
 Optional Checker's `prefer.map.and.orelse` warning for `if (VAR.isPresent())
 { TYPE x = METHOD(VAR.get()); }` with no `else` branch, which supplied only 2

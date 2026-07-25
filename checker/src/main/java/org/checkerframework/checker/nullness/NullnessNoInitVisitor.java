@@ -292,6 +292,22 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
         return super.commonAssignmentCheck(varType, valueType, valueTree, errorKey, extraArgs);
     }
 
+    @Override
+    public Void visitVariable(VariableTree tree, Void p) {
+        // Warn about @MonotonicNonNull on a static field, which the manual documents as a code
+        // smell that may indicate poor design.
+        Element elt = TreeUtils.elementFromDeclaration(tree);
+        if (elt != null
+                && elt.getKind() == ElementKind.FIELD
+                && ElementUtils.isStatic(elt)
+                && atypeFactory
+                        .getAnnotatedTypeLhs(tree)
+                        .hasEffectiveAnnotation(MONOTONIC_NONNULL)) {
+            checker.reportWarning(tree, "monotonic.on.static");
+        }
+        return super.visitVariable(tree, p);
+    }
+
     /** Case 1: Check for null dereferencing. */
     @Override
     public Void visitMemberSelect(MemberSelectTree tree, Void p) {
