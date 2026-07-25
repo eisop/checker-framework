@@ -133,6 +133,8 @@ target/
 
 checker/tests/command-line/issue618/TwoCheckers.class
 checker/tests/command-line/issue618/out.txt
+checker/tests/command-line/issue1015/*.class
+checker/tests/command-line/issue1015/out.txt
 checker/tests/nullness-extra/*.class
 checker/tests/nullness-extra/cfgviz-nodevalues/*.class
 checker/tests/nullness-extra/cfgviz-nodevalues/Out.txt

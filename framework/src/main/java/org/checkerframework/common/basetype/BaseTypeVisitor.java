@@ -978,7 +978,11 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         TypeMirror boundTM = boundType.getUnderlyingType();
         for (AnnotationMirror classAnno : classBounds) {
             AnnotationMirror boundAnno = boundType.getAnnotationInHierarchy(classAnno);
-            if (!qualHierarchy.isSubtypeShallow(classAnno, classType, boundAnno, boundTM)) {
+            checkExtendsOrImplementsStartDiagnostic(
+                    boundClause, classAnno, classType, boundAnno, boundTM, isExtends);
+            boolean success =
+                    qualHierarchy.isSubtypeShallow(classAnno, classType, boundAnno, boundTM);
+            if (!success) {
                 checker.reportError(
                         boundClause,
                         (isExtends
@@ -987,6 +991,81 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                         classAnno,
                         boundAnno);
             }
+            checkExtendsOrImplementsEndDiagnostic(
+                    success, boundClause, classAnno, classType, boundAnno, boundTM, isExtends);
+        }
+    }
+
+    /**
+     * Prints a diagnostic before checking an extends or implements clause, if the {@code
+     * -Ashowchecks} command-line option is provided.
+     *
+     * @param boundClause an extends or implements clause
+     * @param classAnno the annotation on the class declaration
+     * @param classType the type being declared
+     * @param boundAnno the annotation on the extends or implements clause
+     * @param boundTM the type of the extends or implements clause
+     * @param isExtends true for an extends clause, false for an implements clause
+     */
+    protected final void checkExtendsOrImplementsStartDiagnostic(
+            Tree boundClause,
+            AnnotationMirror classAnno,
+            TypeMirror classType,
+            AnnotationMirror boundAnno,
+            TypeMirror boundTM,
+            boolean isExtends) {
+        if (showchecks) {
+            String clause = isExtends ? "extends" : "implements";
+            System.out.printf(
+                    "%s about to test whether the class declaration annotation is a subtype of the %s clause annotation (at %s): %s tree = %s %s%n     actual: %s %s%n   expected: %s %s%n",
+                    this.getClass().getSimpleName(),
+                    clause,
+                    fileAndLineNumber(boundClause),
+                    clause,
+                    boundClause.getKind(),
+                    boundClause,
+                    classAnno,
+                    classType,
+                    boundAnno,
+                    boundTM);
+        }
+    }
+
+    /**
+     * Prints a diagnostic after checking an extends or implements clause, if the {@code
+     * -Ashowchecks} command-line option is provided.
+     *
+     * @param success whether the check succeeded or failed
+     * @param boundClause an extends or implements clause
+     * @param classAnno the annotation on the class declaration
+     * @param classType the type being declared
+     * @param boundAnno the annotation on the extends or implements clause
+     * @param boundTM the type of the extends or implements clause
+     * @param isExtends true for an extends clause, false for an implements clause
+     */
+    protected final void checkExtendsOrImplementsEndDiagnostic(
+            boolean success,
+            Tree boundClause,
+            AnnotationMirror classAnno,
+            TypeMirror classType,
+            AnnotationMirror boundAnno,
+            TypeMirror boundTM,
+            boolean isExtends) {
+        if (showchecks) {
+            String clause = isExtends ? "extends" : "implements";
+            System.out.printf(
+                    " %s: class declaration annotation %s subtype of %s clause annotation  (at %s): %s tree = %s %s%n     actual: %s %s%n   expected: %s %s%n",
+                    success ? "success" : "FAILURE",
+                    success ? "is" : "is not",
+                    clause,
+                    fileAndLineNumber(boundClause),
+                    clause,
+                    boundClause.getKind(),
+                    boundClause,
+                    classAnno,
+                    classType,
+                    boundAnno,
+                    boundTM);
         }
     }
 
@@ -2318,12 +2397,51 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                     args == null ? "" : args.getErrorMsg());
             return false;
         }
+        reportTypeArgumentInferenceFailure(tree, methodType, args);
+        return false;
+    }
+
+    /**
+     * Reports that type argument inference failed because the annotation constraint system had no
+     * satisfying solution -- as opposed to {@link InferenceResult#inferenceBudgetExceeded()} or
+     * {@link InferenceResult#inferenceCrashed()}, which are reported separately by {@link
+     * #checkTypeArgumentInference} and never reach this method. This can happen even when javac's
+     * own (unannotated) type argument inference succeeds for the same invocation, for example when
+     * a type system's qualifier encoding makes some constraint sets unsatisfiable that are not
+     * actually errors.
+     *
+     * <p>Regardless of how this method reports the failure (or whether it reports anything at all),
+     * the caller treats type argument inference as failed for {@code tree}: it skips this
+     * invocation's structural checks (argument and type-argument-bound compatibility), exactly as
+     * it does for the budget-exceeded and crashed cases. This does not change the type computed for
+     * the invocation expression itself, which {@link
+     * org.checkerframework.framework.util.AnnotatedTypes#findTypeArguments} produces independently
+     * of this method, using the same best-effort type arguments that {@code inferenceResult}
+     * already carries.
+     *
+     * <p>The default implementation reports a hard error. A checker whose qualifier encoding makes
+     * this failure mode common and usually spurious (for example, one with a nonstandard qualifier
+     * order) may override this method to report a warning instead, via {@link
+     * org.checkerframework.framework.source.SourceChecker#reportWarning} with the same {@code
+     * "type.arguments.not.inferred"} message key, or to suppress the diagnostic entirely.
+     *
+     * @param tree a tree that requires type argument inference
+     * @param methodType the type of the method before type argument substitution
+     * @param inferenceResult the failed result of type argument inference; never null at this call
+     *     site, because {@link #checkTypeArgumentInference} already dereferences it (via {@link
+     *     InferenceResult#inferenceBudgetExceeded()} and {@link
+     *     InferenceResult#inferenceCrashed()}) before reaching this method, so a null value there
+     *     would already have thrown a {@link NullPointerException}
+     */
+    protected void reportTypeArgumentInferenceFailure(
+            ExpressionTree tree,
+            AnnotatedExecutableType methodType,
+            InferenceResult inferenceResult) {
         checker.reportError(
                 tree,
                 "type.arguments.not.inferred",
                 ElementUtils.getSimpleDescription(methodType.getElement()),
-                args == null ? "" : args.getErrorMsg());
-        return false;
+                inferenceResult.getErrorMsg());
     }
 
     /**
@@ -4126,6 +4244,13 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             checkHasQualifierParameterAsTypeArgument(typeArg, paramUpperBound, toptree);
             Object paramName = paramNames.get(i);
 
+            Tree typeArgTree =
+                    (typeargTrees == null || typeargTrees.isEmpty()) ? null : typeargTrees.get(i);
+            if (!shouldCheckTypeArgument(
+                    toptree, bounds, typeArg, typeArgTree, typeOrMethodName, paramName)) {
+                continue;
+            }
+
             commonAssignmentCheck(
                     paramUpperBound,
                     typeArg,
@@ -4150,6 +4275,37 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                         });
             }
         }
+    }
+
+    /**
+     * Returns true if the given type argument should be checked against its type parameter's
+     * bounds. The default implementation always returns true.
+     *
+     * <p>A checker may override this method to skip both the upper-bound and the lower-bound check
+     * for a given type argument, for example when its bound conformance is guaranteed by
+     * construction under the checker's type system (for example, captures of source-written
+     * wildcards under nonstandard subtyping). This method does not affect {@link
+     * #checkHasQualifierParameterAsTypeArgument}, which always runs regardless of the result of
+     * this method.
+     *
+     * @param toptree the tree for error reporting, only used for inferred type arguments
+     * @param bounds the bounds of the type parameter corresponding to {@code typeArg}
+     * @param typeArg the type argument from the type or method invocation
+     * @param typeArgTree the type argument as a tree, used for error reporting; null if the type
+     *     argument was inferred (that is, if the enclosing call's type argument trees were null or
+     *     empty)
+     * @param typeOrMethodName the name of the type or method being invoked
+     * @param paramName the name of the type parameter corresponding to {@code typeArg}
+     * @return true if {@code typeArg} should be checked against {@code bounds}
+     */
+    protected boolean shouldCheckTypeArgument(
+            Tree toptree,
+            AnnotatedTypeParameterBounds bounds,
+            AnnotatedTypeMirror typeArg,
+            @Nullable Tree typeArgTree,
+            CharSequence typeOrMethodName,
+            Object paramName) {
+        return true;
     }
 
     /**
