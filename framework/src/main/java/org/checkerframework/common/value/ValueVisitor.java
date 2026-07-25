@@ -50,9 +50,8 @@ public class ValueVisitor extends BaseTypeVisitor<ValueAnnotatedTypeFactory> {
 
     @Override
     protected boolean shouldCheckVarargs(Tree tree) {
-        // The Value Checker enforces container array annotations (such as @MinLen) on implicit
-        // empty
-        // arrays created for zero-argument varargs calls.
+        // The Value Checker enforces container array annotations (such as @MinLen) on
+        // implicit empty arrays created for zero-argument varargs calls.
         return true;
     }
 
