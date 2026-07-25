@@ -71,20 +71,26 @@ side-effecting array expression, avoiding unsound behavior. It now also issues
 a warning message explaining why `copyOf` used a `@Nullable` return type,
 making errors with `copyOf` easier to fix.
 
-The qualifier of an intersection type (for example, the bound
-`<T extends @NonNull Object & @Nullable Serializable>`) is now the greatest
-lower bound of the annotations on its bounds, instead of the annotation on
-whichever annotated bound is written first. The result no longer depends on
-the source order of the bounds; every explicit bound annotation that differs
-from the greatest lower bound gets an `explicit.annotation.ignored` warning.
+When the bounds of an intersection type (for example, the bound
+`<T extends @NonNull Object & @Nullable Serializable>`) carry conflicting
+qualifiers in the same hierarchy, the intersection's qualifier for that
+hierarchy is the qualifier of the first annotated bound in source order, and
+every other explicit bound qualifier gets an `explicit.annotation.ignored`
+warning. This result is deterministic for a given compilation, but it depends
+on the source order of the bounds. Two new extension points let a checker
+change this: `AnnotatedTypeFactory#combineIntersectionBoundAnnotationsInHierarchy`
+selects the per-hierarchy summary (a checker can override it to return, for
+example, the order-independent greatest lower bound), and
+`AnnotatedTypeFactory#shouldHomogenizeIntersectionBounds()` selects whether that
+summary is written back onto every bound.
 
-A checker can now opt out of this homogenization by overriding
+A checker can opt out of the homogenization by overriding
 `AnnotatedTypeFactory#shouldHomogenizeIntersectionBounds()` to return `false`,
 keeping each bound's own distinct qualifier instead of writing the
 intersection's summary annotation onto every bound. This supports type
 systems, such as JSpecify's, that give each bound of an intersection type its
 own qualifier. A bound that the source annotates in only some hierarchies is
-now defaulted in the remaining hierarchies to the implicit-upper-bound default
+then defaulted in the remaining hierarchies to the implicit-upper-bound default
 (the hierarchy's top), rather than being left without an annotation, so every
 bound still carries exactly one qualifier per hierarchy.
 

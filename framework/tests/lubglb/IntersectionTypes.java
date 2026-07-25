@@ -24,10 +24,12 @@ public class IntersectionTypes {
     }
 
     void foo3(@LubglbB Baz baz3) {
-        // The primary annotation of the intersection bound is the greatest lower bound of the
-        // bound annotations, @LubglbD, independent of the source order of the bounds. So both
-        // calls fail in the same way.
-        // :: error: (type.arguments.not.inferred)
+        // When two bounds carry conflicting qualifiers, the intersection's primary annotation is
+        // the qualifier of the first bound in source order (first-bound-wins). call1's first bound
+        // is @LubglbB and call2's is @LubglbC, so the same argument is accepted by call1 but not by
+        // call2. This source-order dependence is accepted, expected behavior; a checker wanting an
+        // order-independent rule overrides
+        // AnnotatedTypeFactory.combineIntersectionBoundAnnotationsInHierarchy.
         call1(baz3);
         // :: error: (type.arguments.not.inferred)
         call2(baz3);

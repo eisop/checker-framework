@@ -31,10 +31,9 @@ public class Issue868 {
         e.toString();
     }
 
-    // The intersection's qualifier is the greatest lower bound of the bound annotations,
-    // @NonNull, so e is dereferenceable.
     // :: warning: (explicit.annotation.ignored)
     <E extends @Nullable Object & @NonNull MyList> void test6(E e) {
+        // :: error: (dereference.of.nullable)
         e.toString();
     }
 
@@ -46,7 +45,6 @@ public class Issue868 {
         this.<@Nullable MyList>test4(null);
         // :: error: (type.argument.type.incompatible)
         this.<@Nullable MyList>test5(null);
-        // :: error: (type.argument.type.incompatible)
         this.<@Nullable MyList>test6(null);
     }
 

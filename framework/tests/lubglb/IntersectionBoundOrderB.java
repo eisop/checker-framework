@@ -1,9 +1,9 @@
 import org.checkerframework.framework.testchecker.lubglb.quals.*;
 
-// Order-invariance regression test for intersection-type bounds: this file and
+// Order-dependence documentation for intersection-type bounds: this file and
 // IntersectionBoundOrderA.java contain the same declarations, but with the
-// intersection bounds and the class members in the opposite order. Both files
-// must produce identical diagnostics. See IntersectionBoundOrderA.java.
+// intersection bounds and the class members in the opposite order, and they
+// intentionally produce different diagnostics. See IntersectionBoundOrderA.java.
 public class IntersectionBoundOrderB {
 
     interface OrderIfaceA {}
@@ -13,7 +13,6 @@ public class IntersectionBoundOrderB {
     static class OrderImpl implements OrderIfaceA, OrderIfaceB {}
 
     void useC(@LubglbC OrderImpl c) {
-        // :: error: (type.arguments.not.inferred)
         call(c);
     }
 
@@ -26,8 +25,8 @@ public class IntersectionBoundOrderB {
         call(d);
     }
 
-    // The intersection's qualifier is glb(@LubglbC, @LubglbB) = @LubglbD; both
-    // explicit annotations differ from it and are flagged.
+    // The intersection's qualifier is that of the first bound, @LubglbC; the
+    // second bound's @LubglbB differs from it and is flagged.
     // :: warning: (explicit.annotation.ignored)
     <S extends @LubglbC OrderIfaceB & @LubglbB OrderIfaceA> void call(S p) {}
 }

@@ -1626,11 +1626,11 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      *
      * <p>When true (the default), {@link
      * AnnotatedTypeMirror.AnnotatedIntersectionType#copyIntersectionBoundAnnotations()} summarizes
-     * the bounds into one primary annotation per hierarchy (the greatest lower bound of the bounds'
-     * annotations in that hierarchy) and writes that summary onto every bound, so all bounds of the
-     * intersection carry the same qualifier. This is the long-standing Checker Framework behavior;
-     * the standard Nullness Checker relies on it (see {@code checker/tests/nullness/Issue868.java}
-     * and {@code Issue3349.java}).
+     * the bounds into one primary annotation per hierarchy (see {@link
+     * #combineIntersectionBoundAnnotationsInHierarchy}) and writes that summary onto every bound,
+     * so all bounds of the intersection carry the same qualifier. This is the long-standing Checker
+     * Framework behavior; the standard Nullness Checker relies on it (see {@code
+     * checker/tests/nullness/Issue868.java} and {@code Issue3349.java}).
      *
      * <p>A checker that wants per-element intersection semantics&mdash;each bound keeping its own
      * distinct qualifier, as specified for intersection types by JSpecify&mdash;may override this
@@ -1646,6 +1646,42 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      */
     protected boolean shouldHomogenizeIntersectionBounds() {
         return true;
+    }
+
+    /**
+     * Combines two conflicting bound annotations of an intersection type, in the same qualifier
+     * hierarchy, into the single annotation that {@link
+     * AnnotatedTypeMirror.AnnotatedIntersectionType#copyIntersectionBoundAnnotations()} uses to
+     * summarize that hierarchy. This method is called only when two bounds carry different
+     * annotations in one hierarchy.
+     *
+     * <p>By default the annotation of the bound encountered first, in source order, wins
+     * (first-bound-wins): the returned summary equals {@code existingAnnotation} and {@code
+     * newAnnotation} is ignored. The summary is therefore source-order dependent, but deterministic
+     * for a given compilation. It is still a sound upper bound of the intersection, because it
+     * equals one of the bounds' own annotations and the intersection is a subtype of each of its
+     * bounds.
+     *
+     * <p>A checker that wants an order-independent, more precise summary&mdash;for example a
+     * JSpecify-style integration&mdash;may override this to return {@code
+     * qualifierHierarchy.greatestLowerBoundQualifiersOnly(existingAnnotation, newAnnotation)}. This
+     * is orthogonal to {@link #shouldHomogenizeIntersectionBounds()}: this method decides how the
+     * per-hierarchy summary is computed, while that method decides whether the summary is written
+     * back onto every bound.
+     *
+     * @param existingAnnotation the annotation already chosen for this hierarchy, from an earlier
+     *     bound in source order
+     * @param newAnnotation a conflicting annotation from a later bound in the same hierarchy
+     * @param qualifierHierarchy the qualifier hierarchy that both annotations belong to
+     * @return the annotation to use as the intersection's summary for this hierarchy
+     */
+    protected AnnotationMirror combineIntersectionBoundAnnotationsInHierarchy(
+            AnnotationMirror existingAnnotation,
+            AnnotationMirror newAnnotation,
+            QualifierHierarchy qualifierHierarchy) {
+        // Default: first-bound-wins. Keep whichever annotation was found first and ignore the
+        // conflicting one.
+        return existingAnnotation;
     }
 
     /**
