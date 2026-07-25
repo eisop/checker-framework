@@ -221,6 +221,12 @@ class TypeFromTypeTreeVisitor extends TypeFromTreeVisitor {
 
         switch (bounds.size()) {
             case 0:
+                // There is no explicit upper bound, so the implicit upper bound is `Object`.
+                // A primary annotation on the type parameter (e.g. `<@NonNull T>`) is equivalent
+                // to annotating that implicit bound (e.g. `<@NonNull T extends @NonNull Object>`),
+                // so copy the primary annotations onto the upper bound.  Hierarchies without a
+                // primary annotation are left for the defaulting mechanism to fill in.
+                result.getUpperBound().addAnnotations(annotations);
                 break;
             case 1:
                 result.setUpperBound(bounds.get(0));

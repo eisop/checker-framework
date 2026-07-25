@@ -77,6 +77,13 @@ Optional Checker's `prefer.map.and.orelse` warning for `if (VAR.isPresent())
 of the message's 3 arguments. `-Anomsgtext`, which every JUnit test uses, had
 masked the bug by skipping message formatting entirely.
 
+A primary annotation on a type parameter with no explicit `extends` clause, such
+as `<@NonNull T>`, now constrains the implicit `Object` upper bound, so it means
+the same as `<@NonNull T extends @NonNull Object>` as documented in the manual.
+Previously the implicit upper bound was left at its default, so a type argument
+that violated the primary annotation (for example instantiating `<@NonNull T>`
+with `@Nullable String`) was accepted without error.
+
 **Implementation details:**
 
 `SourceChecker.reportError` and `SourceChecker.reportWarning` now accept a null
@@ -176,7 +183,7 @@ Other improvements and bug fixes:
 **Closed issues:**
 
 eisop#433, eisop#792, eisop#863, eisop#1015, eisop#1074, eisop#1315,
-eisop#1653, eisop#1801, eisop#1819.
+eisop#1653, eisop#1801, eisop#1819, eisop#1887.
 
 
 Version 3.49.5-eisop1 (April 26, 2026)
