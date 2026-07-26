@@ -2,7 +2,6 @@ import org.checkerframework.checker.nullness.qual.*;
 
 public final class MonotonicNonNullTest {
 
-    // :: warning: (monotonic.on.static)
     public static @MonotonicNonNull Boolean new_decl_format = null;
 
     static final class SerialFormat {

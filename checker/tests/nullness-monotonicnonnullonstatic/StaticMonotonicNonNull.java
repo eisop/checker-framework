@@ -1,6 +1,7 @@
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 
-// Test for issue #949: warn when @MonotonicNonNull is written on a static field.
+// Test for issue #949: under -Alint=monotonicNonNullOnStatic, warn when @MonotonicNonNull is
+// written on a static field.
 public class StaticMonotonicNonNull {
 
     // A static @MonotonicNonNull field is a code smell and triggers a warning.

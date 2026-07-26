@@ -87,7 +87,6 @@ public class NNOEStaticFields {
     static class ChicoryPremain1 {
 
         // Non-null if doPurity == true
-        // :: warning: (monotonic.on.static)
         private static @MonotonicNonNull Set<String> pureMethods = null;
 
         private static boolean doPurity = false;
