@@ -1,8 +1,5 @@
 package org.checkerframework.framework.util.element;
 
-import com.sun.source.tree.Tree;
-import com.sun.source.tree.TypeParameterTree;
-import com.sun.source.util.TreePath;
 import com.sun.tools.javac.code.Attribute.TypeCompound;
 import com.sun.tools.javac.code.TargetType;
 
@@ -13,7 +10,6 @@ import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedIntersec
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedTypeVariable;
 import org.checkerframework.framework.util.element.ElementAnnotationUtil.UnexpectedAnnotationLocationException;
 import org.checkerframework.javacutil.BugInCF;
-import org.checkerframework.javacutil.TypesUtils;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -22,9 +18,7 @@ import java.util.List;
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
-import javax.lang.model.element.TypeParameterElement;
 import javax.lang.model.type.TypeKind;
-import javax.lang.model.type.TypeMirror;
 
 /**
  * Applies Element annotations to a single AnnotatedTypeVariable representing a type parameter.
@@ -145,41 +139,6 @@ abstract class TypeParamElementAnnotationApplier extends IndexedElementAnnotatio
 
         applyLowerBounds(lowerBoundAnnos);
         applyUpperBounds(upperBoundAnnos);
-
-        // A primary annotation on a type parameter that has no explicit `extends` clause (e.g.
-        // `<@NonNull T>`) is equivalent to annotating the implicit `Object` upper bound (e.g.
-        // `<@NonNull T extends @NonNull Object>`); see the "Examples of qualifiers on a type
-        // parameter" section of the manual.  The primary annotation is applied to the lower bound
-        // above; also copy it onto the implicit upper bound so that the two forms behave
-        // identically.  Hierarchies without a primary annotation are left for the defaulting
-        // mechanism to fill in.  This is only done for unbounded type parameters: an explicit
-        // bound (even the unannotated `extends Object`) is governed by the explicit-upper-bound
-        // defaults instead.
-        if (upperBoundAnnos.isEmpty() && !lowerBoundAnnos.isEmpty() && isUnboundedTypeVariable()) {
-            typeParam.getUpperBound().addAnnotations(lowerBoundAnnos);
-        }
-    }
-
-    /**
-     * Returns true if this type parameter has no explicit {@code extends} clause, as in {@code
-     * <@NonNull T>}. Mirrors {@code QualifierDefaults.getTypeVarBoundType}.
-     *
-     * @return true if this type parameter has no explicit {@code extends} clause
-     */
-    private boolean isUnboundedTypeVariable() {
-        TreePath path = atypeFactory.getTreeUtils().getPath(element);
-        Tree leaf = path == null ? null : path.getLeaf();
-        if (leaf instanceof TypeParameterTree) {
-            List<? extends Tree> bounds = ((TypeParameterTree) leaf).getBounds();
-            return bounds == null || bounds.isEmpty();
-        }
-        // No source tree is available (e.g. the type parameter comes from a class file). If the
-        // sole bound is Object, assume it was not written explicitly.
-        if (element instanceof TypeParameterElement) {
-            List<? extends TypeMirror> bounds = ((TypeParameterElement) element).getBounds();
-            return bounds.size() == 1 && TypesUtils.isObject(bounds.get(0));
-        }
-        return false;
     }
 
     /**
