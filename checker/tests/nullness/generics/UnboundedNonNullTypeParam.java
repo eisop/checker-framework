@@ -15,14 +15,16 @@ import org.checkerframework.checker.nullness.qual.*;
 // (e.g. Collection's `<@KeyForBottom T> @Nullable T[] toArray(@PolyNull T[] a)`), which depends on
 // the upper bound staying at top.  This test locks down the intended, restored behavior.
 public class UnboundedNonNullTypeParam {
-    // Bare primary annotation: lower bound @NonNull, upper bound defaults to top (@Nullable Object).
+    // Bare primary annotation: lower bound @NonNull, upper bound defaults to top (@Nullable
+    // Object).
     static class MyList1<@NonNull T> {}
 
     // Explicit upper bound: the type argument must be @NonNull.
     static class MyList2<@NonNull T extends @NonNull Object> {}
 
     void testUnbounded() {
-        // Accepted: the upper bound defaulted to @Nullable Object, so a @Nullable argument is legal.
+        // Accepted: the upper bound defaulted to @Nullable Object, so a @Nullable argument is
+        // legal.
         MyList1<@Nullable String> x1 = null;
         MyList1<@NonNull String> y1 = null;
     }

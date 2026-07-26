@@ -1553,12 +1553,13 @@ public class QualifierDefaults {
          * {@code IMPLICIT_TYPE_PARAMETER_UPPER_BOUND} cases in {@code applyOneAtNode}). The primary
          * annotation must <em>not</em> be copied onto the upper bound: {@code <@NonNull T>} is not
          * equivalent to {@code <@NonNull T extends @NonNull Object>}, but to {@code <@NonNull T
-         * extends @TopQual Object>}. This is the CLIMB-to-top rule documented in the manual sections
-         * "Syntax for upper and lower bounds" and "Defaults" (labels {@code generics-bounds-syntax}
-         * and {@code generics-defaults}). The Map Key Checker's {@code <@KeyForBottom E>}
-         * lower-bound idiom, and the {@code <@KeyForBottom T> @Nullable T[] toArray(@PolyNull T[])}
-         * override in {@code Collection}, depend on the upper bound staying at top; copying the
-         * primary annotation up would make such overrides fail compatibility checks.
+         * extends @TopQual Object>}. This is the CLIMB-to-top rule documented in the manual
+         * sections "Syntax for upper and lower bounds" and "Defaults" (labels {@code
+         * generics-bounds-syntax} and {@code generics-defaults}). The Map Key Checker's {@code
+         * <@KeyForBottom E>} lower-bound idiom, and the {@code <@KeyForBottom T> @Nullable T[]
+         * toArray(@PolyNull T[])} override in {@code Collection}, depend on the upper bound staying
+         * at top; copying the primary annotation up would make such overrides fail compatibility
+         * checks.
          */
         TYPEVAR_UNBOUNDED,
 
