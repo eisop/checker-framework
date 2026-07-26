@@ -14,6 +14,8 @@ import java.util.List;
 public class NullnessMonotonicNonNullOnStaticTest extends CheckerFrameworkPerDirectoryTest {
 
     /**
+     * Create a NullnessMonotonicNonNullOnStaticTest.
+     *
      * @param testFiles the files containing test code, which will be type-checked
      */
     public NullnessMonotonicNonNullOnStaticTest(List<File> testFiles) {
@@ -24,6 +26,11 @@ public class NullnessMonotonicNonNullOnStaticTest extends CheckerFrameworkPerDir
                 "-Alint=monotonicNonNullOnStatic");
     }
 
+    /**
+     * Returns the test directories.
+     *
+     * @return the test directories
+     */
     @Parameters
     public static String[] getTestDirs() {
         return new String[] {"nullness-monotonicnonnullonstatic"};
