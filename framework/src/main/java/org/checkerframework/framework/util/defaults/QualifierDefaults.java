@@ -1546,6 +1546,19 @@ public class QualifierDefaults {
          * Neither bound is specified, BOTH are implicit. (If a type variable is declared in
          * bytecode and the type of the upper bound is Object, then the checker assumes that the
          * bound was not explicitly written in source code.)
+         *
+         * <p>A primary annotation written directly on such a type variable, as in {@code <@NonNull
+         * T>}, sets only the <em>lower</em> bound. The implicit {@code Object} upper bound is
+         * defaulted independently to the top qualifier (see the {@code IMPLICIT_UPPER_BOUND} and
+         * {@code IMPLICIT_TYPE_PARAMETER_UPPER_BOUND} cases in {@code applyOneAtNode}). The primary
+         * annotation must <em>not</em> be copied onto the upper bound: {@code <@NonNull T>} is not
+         * equivalent to {@code <@NonNull T extends @NonNull Object>}, but to {@code <@NonNull T
+         * extends @TopQual Object>}. This is the CLIMB-to-top rule documented in the manual sections
+         * "Syntax for upper and lower bounds" and "Defaults" (labels {@code generics-bounds-syntax}
+         * and {@code generics-defaults}). The Map Key Checker's {@code <@KeyForBottom E>}
+         * lower-bound idiom, and the {@code <@KeyForBottom T> @Nullable T[] toArray(@PolyNull T[])}
+         * override in {@code Collection}, depend on the upper bound staying at top; copying the
+         * primary annotation up would make such overrides fail compatibility checks.
          */
         TYPEVAR_UNBOUNDED,
 
