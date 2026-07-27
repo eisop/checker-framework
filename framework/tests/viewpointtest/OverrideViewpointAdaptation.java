@@ -6,7 +6,6 @@ import viewpointtest.quals.*;
 
 public class OverrideViewpointAdaptation {
 
-    // spotless:off
     interface Accessor {
         // Return type test methods
         @ReceiverDependentQual Object getReturnExact(@ReceiverDependentQual Accessor this);
@@ -147,5 +146,4 @@ public class OverrideViewpointAdaptation {
         // :: error: (override.param.invalid)
         void setParamOther(@ReceiverDependentQual SubReceiverDependent this, @A Object o);
     }
-    // spotless:on
 }
