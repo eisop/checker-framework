@@ -9,13 +9,14 @@ public class IntersectionTypes {
 
     interface Bar {}
 
-    interface Accessor {
+    @ReceiverDependentQual interface Accessor {
         @ReceiverDependentQual Object get();
 
         void set(@ReceiverDependentQual Object o);
     }
 
-    class Baz implements Foo, Bar, Accessor {
+    @SuppressWarnings({"super.invocation.invalid", "inconsistent.constructor.type"})
+    @ReceiverDependentQual class Baz implements Foo, Bar, Accessor {
         @Override
         public @ReceiverDependentQual Object get() {
             return null;
@@ -27,6 +28,7 @@ public class IntersectionTypes {
 
     <T extends Foo & Bar> void call(T p) {}
 
+    @SuppressWarnings("type.invalid.annotations.on.use")
     <T extends Foo & Accessor> void callAccessor(T p) {}
 
     class ViewpointAdaptedIntersectionBound<T extends @ReceiverDependentQual Accessor & Foo> {
@@ -42,7 +44,6 @@ public class IntersectionTypes {
     }
 
     void foo(@A Object aObj, @B Object bObj) {
-        // :: warning: (cast.unsafe.constructor.invocation)
         Baz baz = new @A Baz();
         call(baz);
         callAccessor(baz);
@@ -56,6 +57,7 @@ public class IntersectionTypes {
         baz.set(bObj);
     }
 
+    @SuppressWarnings("type.invalid.annotations.on.use")
     void intersectionCasts(Object obj) {
         Foo fooAndBar = (Foo & Bar) obj;
         Accessor fooAndAccessor = (Foo & Accessor) obj;

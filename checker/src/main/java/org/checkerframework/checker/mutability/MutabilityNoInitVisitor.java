@@ -36,7 +36,6 @@ import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TypesUtils;
 
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
 import javax.lang.model.element.AnnotationMirror;
@@ -220,59 +219,7 @@ public class MutabilityNoInitVisitor extends BaseTypeVisitor<MutabilityNoInitAnn
             }
         }
 
-        flexibleOverrideChecker(tree);
-
         super.processMethodTree(className, tree);
-    }
-
-    /**
-     * Checks flexible overriding. Mutability permits an override when the overriding return type is
-     * a subtype of the viewpoint-adapted overridden return type.
-     *
-     * @param node the method node
-     */
-    private void flexibleOverrideChecker(MethodTree node) {
-        // TODO: This duplicates BaseTypeVisitor's override loop because mutability checker needs
-        // the overridden
-        // ExecutableElement for viewpoint adaptation.
-        ExecutableElement methodElement = TreeUtils.elementFromDeclaration(node);
-        AnnotatedDeclaredType enclosingType =
-                (AnnotatedDeclaredType)
-                        atypeFactory.getAnnotatedType(methodElement.getEnclosingElement());
-
-        Map<AnnotatedDeclaredType, ExecutableElement> overriddenMethods =
-                AnnotatedTypes.overriddenMethods(elements, atypeFactory, methodElement);
-        for (Map.Entry<AnnotatedDeclaredType, ExecutableElement> pair :
-                overriddenMethods.entrySet()) {
-            AnnotatedDeclaredType overriddenType = pair.getKey();
-            AnnotatedExecutableType overriddenMethod =
-                    AnnotatedTypes.asMemberOf(types, atypeFactory, enclosingType, pair.getValue());
-            // Viewpoint adapt the overridden method to the current enclosing type.
-            atypeFactory
-                    .getViewpointAdapter()
-                    .viewpointAdaptMethod(enclosingType, pair.getValue(), overriddenMethod);
-            AnnotatedExecutableType overrider = atypeFactory.getAnnotatedType(node);
-            if (!super.checkOverride(
-                    node, overrider, enclosingType, overriddenMethod, overriddenType)) {
-                // Stop at the first mismatch; this makes a difference only if
-                // -Awarns is passed, in which case multiple warnings might be raised on
-                // the same method, not adding any value. See Issue 373.
-                break;
-            }
-        }
-    }
-
-    /**
-     * Disables method overriding checks in BaseTypeVisitor. The override check is implemented in
-     * {@link #flexibleOverrideChecker(MethodTree)} method.
-     */
-    @Override
-    protected boolean checkOverride(
-            MethodTree overriderTree,
-            AnnotatedDeclaredType overridingType,
-            AnnotatedExecutableType overridden,
-            AnnotatedDeclaredType overriddenType) {
-        return true;
     }
 
     @Override
