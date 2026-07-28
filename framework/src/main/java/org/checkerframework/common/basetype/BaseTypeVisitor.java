@@ -2236,7 +2236,8 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         List<AnnotatedTypeMirror> typeargs = mType.typeArgs;
 
         List<AnnotatedTypeParameterBounds> paramBounds =
-                atypeFactory.methodTypeVariableBoundsFromUse(tree, invokedMethod);
+                CollectionsPlume.mapList(
+                        AnnotatedTypeVariable::getBounds, invokedMethod.getTypeVariables());
 
         ExecutableElement method = invokedMethod.getElement();
         CharSequence methodName = ElementUtils.getSimpleDescription(method);
@@ -2637,7 +2638,8 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         checkVarargs(constructorType, tree);
 
         List<AnnotatedTypeParameterBounds> paramBounds =
-                atypeFactory.constructorTypeVariableBoundsFromUse(tree, constructorType);
+                CollectionsPlume.mapList(
+                        AnnotatedTypeVariable::getBounds, constructorType.getTypeVariables());
 
         checkTypeArguments(
                 tree,
@@ -4217,7 +4219,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
 
         AnnotatedTypeMirror erasedMethodReceiver = methodReceiver.getErased();
         AnnotatedTypeMirror erasedTreeReceiver = erasedMethodReceiver.shallowCopy(false);
-        AnnotatedTypeMirror treeReceiver = atypeFactory.getReceiverType(tree);
+        AnnotatedTypeMirror treeReceiver = atypeFactory.getMethodReceiverType(tree);
 
         erasedTreeReceiver.addAnnotations(treeReceiver.getEffectiveAnnotations());
 

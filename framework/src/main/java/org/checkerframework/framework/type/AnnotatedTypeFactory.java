@@ -2447,47 +2447,6 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     }
 
     /**
-     * Returns the method type-variable bounds adapted to the viewpoint of a method invocation.
-     *
-     * @param tree a method invocation
-     * @param invokedMethod the type of the invoked method
-     * @return the adapted method type parameter bounds
-     */
-    public List<AnnotatedTypeParameterBounds> methodTypeVariableBoundsFromUse(
-            MethodInvocationTree tree, AnnotatedExecutableType invokedMethod) {
-        List<AnnotatedTypeParameterBounds> bounds =
-                CollectionsPlume.mapList(
-                        AnnotatedTypeVariable::getBounds, invokedMethod.getTypeVariables());
-
-        AnnotatedTypeMirror receiverType = getMethodReceiverType(tree);
-        if (viewpointAdapter != null && receiverType != null) {
-            viewpointAdapter.viewpointAdaptTypeParameterBounds(receiverType, bounds);
-        }
-        return bounds;
-    }
-
-    /**
-     * Returns the constructor type-variable bounds adapted to the viewpoint of a constructor
-     * invocation.
-     *
-     * @param tree a constructor invocation
-     * @param invokedConstructor the type of the invoked constructor
-     * @return the adapted constructor type parameter bounds
-     */
-    public List<AnnotatedTypeParameterBounds> constructorTypeVariableBoundsFromUse(
-            NewClassTree tree, AnnotatedExecutableType invokedConstructor) {
-        List<AnnotatedTypeParameterBounds> bounds =
-                CollectionsPlume.mapList(
-                        AnnotatedTypeVariable::getBounds, invokedConstructor.getTypeVariables());
-
-        if (viewpointAdapter != null) {
-            AnnotatedTypeMirror receiverType = getConstructorReceiverType(tree);
-            viewpointAdapter.viewpointAdaptTypeParameterBounds(receiverType, bounds);
-        }
-        return bounds;
-    }
-
-    /**
      * Returns the receiver type used to viewpoint-adapt a constructor invocation.
      *
      * @param tree a constructor invocation tree
