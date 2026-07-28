@@ -2975,47 +2975,53 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
          * Summarize the annotations (in each hierarchy) on the bounds into the primary annotation
          * location of the intersection type.
          *
-         * <p>The summary is computed per hierarchy, from the annotations that are actually present
-         * on the bounds when this method runs. Those are the explicitly written qualifiers: a
-         * bound's per-hierarchy <em>default</em> is filled in only afterward (for a homogenizing
-         * checker by writing the summary back onto every bound, see below; for a non-homogenizing
-         * checker by the defaulting-to-top step at the end of this method). Two cases arise for a
-         * given hierarchy:
+         * <p>The policy is simple: <b>the first bound wins, in every hierarchy</b>. The summary in
+         * a hierarchy is the first bound's qualifier there&mdash;whether the first bound is
+         * annotated explicitly or by defaulting&mdash;and later bounds never override it. This
+         * holds uniformly for explicit and defaulted qualifiers:
          *
          * <ul>
-         *   <li><b>Exactly one bound is explicitly annotated in the hierarchy.</b> That bound's
-         *       qualifier becomes the summary&mdash;<em>even if it is a later bound</em> and an
-         *       earlier bound left the hierarchy to defaulting. For example, in {@code @NonNull
-         *       Object & @Nullable @Initialized Serializable} only {@code Serializable} is
-         *       explicitly annotated in the initialization hierarchy, so the summary there is
-         *       {@code @Initialized} (taken from the second bound); {@code Object}'s would-be
-         *       initialization default does not compete. This is the sound choice: the intersection
-         *       is a subtype of {@code @Initialized Serializable}, so its initialization qualifier
-         *       must be a subtype of {@code @Initialized}, whereas the first bound's implicit
-         *       default is the hierarchy's top and would be an unsound (too-weak) summary. See
-         *       {@code framework/tests/lubglb/IntersectionBoundDefaulting.java}.
-         *   <li><b>Several bounds are explicitly annotated in the hierarchy with differing
-         *       qualifiers.</b> The summary is chosen by {@link
+         *   <li><b>The first bound is explicitly annotated in the hierarchy.</b> Its qualifier is
+         *       the summary. If a later bound is explicitly annotated differently in the same
+         *       hierarchy, the two are reconciled by {@link
          *       AnnotatedTypeFactory#combineIntersectionBoundAnnotationsInHierarchy(AnnotationMirror,
-         *       AnnotationMirror, QualifierHierarchy)}. By default that hook keeps the annotation
-         *       of the first bound in source order (first-bound-wins), so the summary is
-         *       source-order dependent but deterministic for a given compilation; a checker may
-         *       override the hook to compute, for example, the greatest lower bound. In
-         *       {@code @NonNull Object & @Nullable @Initialized Serializable} both bounds constrain
-         *       the nullness hierarchy, so first-bound-wins yields {@code @NonNull}. See {@code
-         *       framework/tests/lubglb/IntersectionBoundOrderA.java}.
+         *       AnnotationMirror, QualifierHierarchy)}, whose default keeps the first bound's
+         *       qualifier (first-bound-wins); a checker may override the hook to compute, for
+         *       example, the greatest lower bound. In {@code @NonNull Object & @Nullable
+         *       Serializable} both bounds constrain the nullness hierarchy, so the summary is
+         *       {@code @NonNull}. See {@code framework/tests/lubglb/IntersectionBoundOrderA.java}.
+         *   <li><b>The first bound is not explicitly annotated in the hierarchy.</b> Its qualifier
+         *       there is its default. This method runs before defaulting, so rather than summarize
+         *       a later bound's explicit qualifier it leaves the hierarchy out of the summary; the
+         *       normal defaulting pass then fills the intersection's primary annotation in that
+         *       hierarchy. Because the first bound and the whole intersection occupy the same
+         *       defaulting location (the type variable's upper bound), that default is exactly the
+         *       first bound's own default. For example, in {@code Object & @Nullable Serializable}
+         *       the first bound {@code Object} has no explicit nullness qualifier; its default is
+         *       {@code @NonNull} (explicit-upper-bound defaulting, because the {@code extends}
+         *       clause is written), so the summary is {@code @NonNull} and the later bound's
+         *       {@code @Nullable} is ignored&mdash;exactly as if the first bound had been written
+         *       {@code @NonNull Object}. See {@code
+         *       framework/tests/lubglb/IntersectionBoundDefaulting.java}.
          * </ul>
          *
-         * <p>In both cases the summary is a sound upper bound of the intersection: for each
-         * hierarchy it equals (or is a subtype of) the qualifier of every bound that explicitly
-         * constrains that hierarchy, and the intersection is a subtype of each of its bounds. Note
-         * that first-bound-wins governs only the second case: it never promotes a first bound's
-         * would-be default over a later bound's explicit annotation, which would be unsound.
+         * <p>The summary is a sound upper bound of the intersection: it is the qualifier of the
+         * intersection's first bound, and the intersection is a subtype of that bound. Like any
+         * first-bound-wins choice it is source-order dependent but deterministic for a given
+         * compilation, and it can be less precise than a later bound's conflicting explicit
+         * qualifier&mdash;that imprecision is the accepted trade-off of the policy, and it applies
+         * equally whether the ignored later qualifier conflicts with the first bound's explicit or
+         * defaulted qualifier.
          *
          * <p>(Note that adding a primary annotation to an intersection type replaces the
          * annotations on all bounds, so bounds whose explicit annotation differs from the summary
          * do not keep it; {@code BaseTypeVisitor.checkExplicitAnnotationsOnIntersectionBounds}
-         * warns about such annotations.)
+         * warns about such annotations. This first-bound-wins restriction applies only to a
+         * homogenizing checker; a checker that keeps each bound's own qualifier records every
+         * bound's hierarchy in the summary, since there the summary is only a derived upper bound.
+         * It also applies only where a defaulting pass follows: an intersection cast, whose target
+         * type is not defaulted afterward, summarizes every bound instead. See {@link
+         * #copyIntersectionBoundAnnotations(boolean)}.)
          *
          * <p>By default the computed summary is then written back onto every bound, homogenizing
          * them, as described above. A checker whose {@link
@@ -3025,14 +3031,51 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
          * AnnotatedTypeFactory#shouldHomogenizeIntersectionBounds()}.
          */
         public void copyIntersectionBoundAnnotations() {
+            copyIntersectionBoundAnnotations(true);
+        }
+
+        /**
+         * Implementation of {@link #copyIntersectionBoundAnnotations()}.
+         *
+         * @param deferFirstBoundDefault whether a hierarchy that only a later bound constrains may
+         *     be left out of the summary so that a subsequent defaulting pass fills it with the
+         *     first bound's default (see the class-level discussion of first-bound-wins). Pass true
+         *     for a type variable's upper bound, whose intersection type is defaulted afterward.
+         *     Pass false when no such pass follows&mdash;most importantly for an intersection cast,
+         *     whose target type is not subsequently defaulted; leaving a hierarchy empty there
+         *     would let the cast operand, not the first bound's default, decide the summary.
+         */
+        void copyIntersectionBoundAnnotations(boolean deferFirstBoundDefault) {
             AnnotationMirrorSet annos = new AnnotationMirrorSet();
             QualifierHierarchy qualHierarchy = atypeFactory.getQualifierHierarchy();
+            boolean homogenize = atypeFactory.shouldHomogenizeIntersectionBounds();
+            // First-bound-wins is delivered by deferral, which needs both a homogenizing checker
+            // and
+            // a following defaulting pass. Otherwise summarize every bound's hierarchy as before.
+            boolean firstBoundWins = homogenize && deferFirstBoundDefault;
+            boolean firstBound = true;
             for (AnnotatedTypeMirror bound : getBounds()) {
                 for (AnnotationMirror a : bound.getAnnotationsField()) {
                     AnnotationMirror existing =
                             qualHierarchy.findAnnotationInSameHierarchy(annos, a);
                     if (existing == null) {
-                        annos.add(a);
+                        // Under first-bound-wins, only the first bound may introduce a hierarchy
+                        // into
+                        // the summary. If a later bound is the only one that explicitly constrains
+                        // a
+                        // hierarchy, do not summarize its qualifier: leave the hierarchy out so
+                        // that
+                        // the following defaulting pass fills it with the first bound's own
+                        // default.
+                        // The first bound and the whole intersection are at the same defaulting
+                        // location (the type variable's upper bound), so that default is exactly
+                        // the
+                        // first bound's value in the hierarchy. This makes first-bound-wins hold
+                        // uniformly, whether the first bound is annotated explicitly or by
+                        // defaulting.
+                        if (firstBound || !firstBoundWins) {
+                            annos.add(a);
+                        }
                     } else if (!AnnotationUtils.areSame(existing, a)) {
                         AnnotationMirror combined =
                                 atypeFactory.combineIntersectionBoundAnnotationsInHierarchy(
@@ -3043,8 +3086,9 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
                         }
                     }
                 }
+                firstBound = false;
             }
-            if (atypeFactory.shouldHomogenizeIntersectionBounds()) {
+            if (homogenize) {
                 // addAnnotations dispatches to the overridden addAnnotation, whose
                 // fixupBoundAnnotations copies the primary annotation onto every bound.
                 addAnnotations(annos);

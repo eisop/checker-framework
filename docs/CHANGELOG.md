@@ -101,13 +101,18 @@ making errors with `copyOf` easier to fix.
 When the bounds of an intersection type (for example, the bound
 `<T extends @NonNull Object & @Nullable Serializable>`) carry conflicting
 qualifiers in the same hierarchy, the intersection's qualifier for that
-hierarchy is the qualifier of the first annotated bound in source order, and
-every other explicit bound qualifier gets an `explicit.annotation.ignored`
-warning. This result is deterministic for a given compilation, but it depends
-on the source order of the bounds. Two new extension points let a checker
-change this: `AnnotatedTypeFactory#combineIntersectionBoundAnnotationsInHierarchy`
-selects the per-hierarchy summary (a checker can override it to return, for
-example, the order-independent greatest lower bound), and
+hierarchy is the qualifier of the first bound in source order, and every other
+explicit bound qualifier gets an `explicit.annotation.ignored` warning.
+First-bound-wins holds uniformly whether the first bound is annotated explicitly
+or by defaulting: for `<T extends Object & @Nullable Serializable>` the first
+bound `Object` defaults to `@NonNull` (because the `extends` clause is written),
+so the summary is `@NonNull` and the second bound's `@Nullable` is ignored,
+exactly as if the first bound had been written `@NonNull Object`. This result is
+deterministic for a given compilation, but it depends on the source order of the
+bounds. Two new extension points let a checker change this:
+`AnnotatedTypeFactory#combineIntersectionBoundAnnotationsInHierarchy` selects the
+per-hierarchy summary (a checker can override it to return, for example, the
+order-independent greatest lower bound), and
 `AnnotatedTypeFactory#shouldHomogenizeIntersectionBounds()` selects whether that
 summary is written back onto every bound.
 
