@@ -272,13 +272,6 @@ public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
      */
     protected AnnotatedTypeMirror combineAnnotationWithType(
             AnnotationMirror receiverAnnotation, AnnotatedTypeMirror declared) {
-        boolean shouldStoreType = isRecursiveType(declared);
-        if (shouldStoreType && visitedTypes.contains(declared)) {
-            return declared;
-        }
-        if (shouldStoreType) {
-            visitedTypes.add(declared);
-        }
         if (declared.getKind().isPrimitive()) {
             AnnotatedPrimitiveType apt = (AnnotatedPrimitiveType) declared.shallowCopy();
 
@@ -307,12 +300,18 @@ public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
                         AnnotatedTypeCopierWithReplacement.replace(atv, mappings);
 
                 isTypeVarExtends = false;
-                visitedTypes.remove(declared);
                 return result;
             }
-            visitedTypes.remove(declared);
             return declared;
         } else if (declared.getKind() == TypeKind.DECLARED) {
+            AnnotatedDeclaredType declaredType = (AnnotatedDeclaredType) declared;
+            boolean shouldStoreType = !declaredType.getTypeArguments().isEmpty();
+            if (shouldStoreType && visitedTypes.contains(declared)) {
+                return declared;
+            }
+            if (shouldStoreType) {
+                visitedTypes.add(declared);
+            }
             AnnotatedDeclaredType adt = (AnnotatedDeclaredType) declared.shallowCopy();
 
             // Mapping between declared type argument to combined type argument
@@ -335,7 +334,9 @@ public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
             AnnotatedTypeMirror result = AnnotatedTypeCopierWithReplacement.replace(adt, mappings);
             result.replaceAnnotation(resultAnnotation);
 
-            visitedTypes.remove(declared);
+            if (shouldStoreType) {
+                visitedTypes.remove(declared);
+            }
             return result;
         } else if (declared.getKind() == TypeKind.ARRAY) {
             AnnotatedArrayType aat = (AnnotatedArrayType) declared.shallowCopy();
@@ -356,38 +357,30 @@ public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
             return aat;
         } else if (declared.getKind() == TypeKind.WILDCARD) {
             AnnotatedWildcardType awt = (AnnotatedWildcardType) declared;
+            IdentityHashMap<AnnotatedTypeMirror, AnnotatedTypeMirror> mappings =
+                    new IdentityHashMap<>();
 
             // There is no main qualifier for a wildcard
 
             // Adapt extend
             AnnotatedTypeMirror extend = awt.getExtendsBound();
-            AnnotatedTypeMirror combinedExtend = null;
             if (extend != null) {
                 // Recursively adapt the extends bound of this awt
-                combinedExtend = combineAnnotationWithType(receiverAnnotation, extend);
+                AnnotatedTypeMirror combinedExtend =
+                        combineAnnotationWithType(receiverAnnotation, extend);
+                mappings.put(extend, combinedExtend);
             }
 
             // Adapt super
             AnnotatedTypeMirror zuper = awt.getSuperBound();
-            AnnotatedTypeMirror combinedZuper = null;
             if (zuper != null) {
                 // Recursively adapt the lower bound of this awt
-                combinedZuper = combineAnnotationWithType(receiverAnnotation, zuper);
+                AnnotatedTypeMirror combinedZuper =
+                        combineAnnotationWithType(receiverAnnotation, zuper);
+                mappings.put(zuper, combinedZuper);
             }
 
-            awt = awt.shallowCopy();
-            IdentityHashMap<AnnotatedTypeMirror, AnnotatedTypeMirror> mappings =
-                    new IdentityHashMap<>();
-            if (combinedExtend != null) {
-                mappings.put(awt.getExtendsBound(), combinedExtend);
-            }
-            if (combinedZuper != null) {
-                mappings.put(awt.getSuperBound(), combinedZuper);
-            }
-
-            AnnotatedTypeMirror result = AnnotatedTypeCopierWithReplacement.replace(awt, mappings);
-            visitedTypes.remove(declared);
-            return result;
+            return AnnotatedTypeCopierWithReplacement.replace(awt, mappings);
         } else if (declared.getKind() == TypeKind.NULL) {
             AnnotatedNullType ant = (AnnotatedNullType) declared.shallowCopy(true);
             AnnotationMirror resultAnnotation =
@@ -461,27 +454,19 @@ public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
             rhs = AnnotatedTypeCopierWithReplacement.replace(adt, mappings);
         } else if (rhs.getKind() == TypeKind.WILDCARD) {
             AnnotatedWildcardType awt = (AnnotatedWildcardType) rhs;
+            IdentityHashMap<AnnotatedTypeMirror, AnnotatedTypeMirror> mappings =
+                    new IdentityHashMap<>();
 
             AnnotatedTypeMirror extend = awt.getExtendsBound();
-            AnnotatedTypeMirror substExtend = null;
             if (extend != null) {
-                substExtend = substituteTVars(lhs, extend);
+                AnnotatedTypeMirror substExtend = substituteTVars(lhs, extend);
+                mappings.put(extend, substExtend);
             }
 
             AnnotatedTypeMirror zuper = awt.getSuperBound();
-            AnnotatedTypeMirror substZuper = null;
             if (zuper != null) {
-                substZuper = substituteTVars(lhs, zuper);
-            }
-
-            awt = awt.shallowCopy();
-            IdentityHashMap<AnnotatedTypeMirror, AnnotatedTypeMirror> mappings =
-                    new IdentityHashMap<>();
-            if (substExtend != null) {
-                mappings.put(awt.getExtendsBound(), substExtend);
-            }
-            if (substZuper != null) {
-                mappings.put(awt.getSuperBound(), substZuper);
+                AnnotatedTypeMirror substZuper = substituteTVars(lhs, zuper);
+                mappings.put(zuper, substZuper);
             }
 
             rhs = AnnotatedTypeCopierWithReplacement.replace(awt, mappings);
@@ -527,17 +512,6 @@ public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
         return type.getKind() == TypeKind.TYPEVAR
                 || (type.getKind() == TypeKind.DECLARED
                         && !((AnnotatedDeclaredType) type).getTypeArguments().isEmpty());
-    }
-
-    /**
-     * Returns whether {@code type} can re-appear while recursively viewpoint-adapting type
-     * structure.
-     *
-     * @param type the type to test
-     * @return true if {@code type} should be recorded in {@link #visitedTypes}
-     */
-    private boolean isRecursiveType(AnnotatedTypeMirror type) {
-        return isRecursiveSubstitutionCandidate(type) || type.getKind() == TypeKind.WILDCARD;
     }
 
     /**
