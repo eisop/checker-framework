@@ -485,6 +485,17 @@ explicit method type arguments, for which the syntax is as follows:
 \noindent
 This uses Java's existing syntax for specifying a method call's type arguments.
 
+Type argument inference for a single method invocation can be expensive: it is
+roughly cubic in the nesting depth of the invocation, so a deeply nested, often
+machine-generated, invocation could make the checker run for many seconds.  To
+bound this, the checker abandons the type argument inference of an invocation
+once it exceeds a work budget, issuing a \code{type.argument.inference.budget}
+error that asks you to supply explicit type arguments as shown above.  The
+default budget has about an order of magnitude of headroom over the most complex
+hand-written code, so it does not affect realistic programs.  If legitimate
+(typically machine-generated) code triggers the error, raise the budget using
+the \code{-AinferenceWorkBudget=}\emph{N} command-line option.
+
 
 \subsectionAndLabel{The Bottom type}{bottom-type}
 

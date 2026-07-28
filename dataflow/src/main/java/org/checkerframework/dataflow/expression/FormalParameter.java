@@ -7,8 +7,6 @@ import org.checkerframework.javacutil.AnnotationProvider;
 import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.TypeAnnotationUtils;
 
-import java.util.Objects;
-
 import javax.lang.model.element.VariableElement;
 
 /**
@@ -74,12 +72,12 @@ public class FormalParameter extends JavaExpression {
     public int hashCode() {
         if (hashCodeCache == 0) {
             VarSymbol vs = (VarSymbol) element;
-            hashCodeCache =
-                    Objects.hash(
-                            index,
-                            vs.name.toString(),
-                            TypeAnnotationUtils.unannotatedType(vs.type).toString(),
-                            vs.owner.toString());
+            int h = 1;
+            h = 31 * h + Integer.hashCode(index);
+            h = 31 * h + vs.name.toString().hashCode();
+            h = 31 * h + TypeAnnotationUtils.unannotatedType(vs.type).toString().hashCode();
+            h = 31 * h + vs.owner.toString().hashCode();
+            hashCodeCache = h == 0 ? 1 : h;
         }
         return hashCodeCache;
     }

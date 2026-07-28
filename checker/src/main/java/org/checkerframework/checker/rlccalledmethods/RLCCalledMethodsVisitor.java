@@ -643,7 +643,7 @@ public class RLCCalledMethodsVisitor extends CalledMethodsVisitor {
      * @param mustCallVal the list of must-call strings
      * @return a formatted string
      */
-    /*package-private*/ static String formatMissingMustCallMethodPostconditions(
+    private static String formatMissingMustCallMethodPostconditions(
             Element field, Set<DestructorObligation> mustCallVal) {
         int size = mustCallVal.size();
         if (size == 0) {
@@ -675,8 +675,7 @@ public class RLCCalledMethodsVisitor extends CalledMethodsVisitor {
                 return "@EnsuresCalledMethods";
             case EXCEPTIONAL_EXIT:
                 return "@EnsuresCalledMethodsOnException";
-            default:
-                throw new UnsupportedOperationException(exitKind.toString());
         }
+        throw new UnsupportedOperationException(exitKind.toString());
     }
 }

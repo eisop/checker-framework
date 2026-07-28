@@ -9,10 +9,12 @@ import org.checkerframework.framework.util.typeinference8.util.FalseBoundExcepti
 import org.checkerframework.framework.util.typeinference8.util.Java8InferenceContext;
 import org.checkerframework.javacutil.BugInCF;
 
+import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashSet;
+import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -59,7 +61,10 @@ public class ConstraintSet implements ReductionResult {
      * to be kept in the order created, which should be lexically left to right. This is so the
      * {@link #getClosedSubset(ConstraintSet, Dependencies)} is computed correctly.
      */
-    private final List<Constraint> list;
+    private ArrayDeque<Constraint> list;
+
+    /** Fast O(1) lookup set to accompany the list. */
+    private HashSet<Constraint> fastLookup;
 
     /** Whether inference failed because the qualifiers where not in the correct relationship. */
     private boolean annotationFailure = false;
@@ -82,10 +87,16 @@ public class ConstraintSet implements ReductionResult {
      */
     public ConstraintSet(Constraint... constraints) {
         if (constraints != null) {
-            list = new ArrayList<>(constraints.length);
-            list.addAll(Arrays.asList(constraints));
+            list = new ArrayDeque<>(constraints.length);
+            fastLookup = new HashSet<>(constraints.length);
+            for (Constraint c : constraints) {
+                if (c != null && fastLookup.add(c)) {
+                    list.addLast(c);
+                }
+            }
         } else {
-            list = new ArrayList<>();
+            list = new ArrayDeque<>();
+            fastLookup = new HashSet<>();
         }
     }
 
@@ -95,8 +106,8 @@ public class ConstraintSet implements ReductionResult {
      * @param c a constraint to add to this set
      */
     public void add(Constraint c) {
-        if (c != null && !list.contains(c)) {
-            list.add(c);
+        if (c != null && fastLookup.add(c)) {
+            list.addLast(c);
         }
     }
 
@@ -118,7 +129,9 @@ public class ConstraintSet implements ReductionResult {
      * @param constraintSet a collection of constraints to add to this set
      */
     public void addAll(Collection<? extends Constraint> constraintSet) {
-        list.addAll(constraintSet);
+        for (Constraint c : constraintSet) {
+            add(c);
+        }
     }
 
     /**
@@ -137,7 +150,9 @@ public class ConstraintSet implements ReductionResult {
      */
     public Constraint pop() {
         assert !isEmpty();
-        return list.remove(0);
+        Constraint c = list.removeFirst();
+        fastLookup.remove(c);
+        return c;
     }
 
     /**
@@ -146,8 +161,8 @@ public class ConstraintSet implements ReductionResult {
      * @param constraint a constraint
      */
     public void push(Constraint constraint) {
-        if (constraint != null && !list.contains(constraint)) {
-            list.add(0, constraint);
+        if (constraint != null && fastLookup.add(constraint)) {
+            list.addFirst(constraint);
         }
     }
 
@@ -157,8 +172,9 @@ public class ConstraintSet implements ReductionResult {
      * @param constraints constraints
      */
     public void pushAll(ConstraintSet constraints) {
-        for (int i = constraints.list.size() - 1; i > -1; i--) {
-            this.push(constraints.list.get(i));
+        Iterator<Constraint> it = constraints.list.descendingIterator();
+        while (it.hasNext()) {
+            this.push(it.next());
         }
     }
 
@@ -170,9 +186,12 @@ public class ConstraintSet implements ReductionResult {
     @SuppressWarnings("interning:not.interned")
     public void remove(ConstraintSet subset) {
         if (this == subset) {
-            list.clear();
+            list = new ArrayDeque<>();
+            fastLookup = new HashSet<>();
+        } else {
+            list.removeAll(subset.fastLookup);
+            fastLookup.removeAll(subset.fastLookup);
         }
-        list.removeAll(subset.list);
     }
 
     /**
@@ -251,7 +270,7 @@ public class ConstraintSet implements ReductionResult {
                 }
             }
 
-            return new ConstraintSet(subset.list.get(0));
+            return new ConstraintSet(subset.list.getFirst());
         }
 
         // TODO: double check that this code is correct.
@@ -383,7 +402,7 @@ public class ConstraintSet implements ReductionResult {
             if (this.list.size() > BoundSet.MAX_INCORPORATION_STEPS) {
                 throw new BugInCF("TOO MANY CONSTRAINTS: %s", context.pathToExpression.getLeaf());
             }
-            boolean foundAA = this.list.get(0).getKind() == Kind.ADDITIONAL_ARG;
+            boolean foundAA = this.list.getFirst().getKind() == Kind.ADDITIONAL_ARG;
             BoundSet result = reduceOneStep(context);
             if (foundAA) {
                 return boundSet;

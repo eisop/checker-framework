@@ -77,9 +77,7 @@ public class IrrelevantTypeAnnotator extends TypeAnnotator {
             case UNION:
             case VOID:
                 return false;
-
-            default:
-                throw new BugInCF("Unknown type kind %s for %s", tm.getKind(), tm);
         }
+        throw new BugInCF("Unknown type kind %s for %s", tm.getKind(), tm);
     }
 }

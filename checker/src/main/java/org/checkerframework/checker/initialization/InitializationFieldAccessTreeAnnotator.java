@@ -3,13 +3,13 @@ package org.checkerframework.checker.initialization;
 import com.sun.source.tree.ExpressionTree;
 import com.sun.source.tree.IdentifierTree;
 import com.sun.source.tree.MemberSelectTree;
-import com.sun.source.tree.Tree;
 
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.GenericAnnotatedTypeFactory;
 import org.checkerframework.framework.type.treeannotator.TreeAnnotator;
 import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.BugInCF;
+import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.InternalUtils;
 import org.checkerframework.javacutil.TreeUtils;
 
@@ -129,15 +129,14 @@ public class InitializationFieldAccessTreeAnnotator extends TreeAnnotator {
         // Here, we will get an error for the first assignment, but we won't get another
         // error for the second assignment.
         // See the AssignmentDuringInitialization test case.
-        Tree fieldDeclarationTree = initFactory.declarationFromElement(element);
         InitializationStore store = initFactory.getStoreBefore(tree);
-        // If the field declaration is null (because the field is declared in bytecode),
+        // If the field is not from source code (e.g. because the field is declared in bytecode),
         // or the store is null (because flow-sensitive refinement is turned off),
         // the field is considered uninitialized.
         // Fields of objects other than this are not tracked and thus also considered uninitialized.
         // Otherwise, check if the field is initialized in the given store.
         boolean isFieldInitialized =
-                fieldDeclarationTree != null
+                ElementUtils.isElementFromSourceCode(element)
                         && store != null
                         && TreeUtils.isSelfAccess(tree)
                         && store.isFieldInitialized(element);

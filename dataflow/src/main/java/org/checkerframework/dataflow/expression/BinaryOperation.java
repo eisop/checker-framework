@@ -8,8 +8,6 @@ import org.checkerframework.dataflow.cfg.node.BinaryOperationNode;
 import org.checkerframework.javacutil.AnnotationProvider;
 import org.checkerframework.javacutil.BugInCF;
 
-import java.util.Objects;
-
 import javax.lang.model.type.TypeMirror;
 
 /** JavaExpression for binary operations. */
@@ -136,14 +134,18 @@ public class BinaryOperation extends JavaExpression {
     @Override
     public int hashCode() {
         if (hashCodeCache == 0) {
+            int h = 1;
+            h = 31 * h + (operationKind != null ? operationKind.hashCode() : 0);
             if (isCommutative()) {
                 // equals() ignores operand order for commutative operations, so the hash code
                 // must not depend on operand order either.  Use a symmetric combination of the
                 // operand hash codes (addition) so that "a OP b" and "b OP a" hash identically.
-                hashCodeCache = Objects.hash(operationKind, left.hashCode() + right.hashCode());
+                h = 31 * h + (left.hashCode() + right.hashCode());
             } else {
-                hashCodeCache = Objects.hash(operationKind, left, right);
+                h = 31 * h + (left != null ? left.hashCode() : 0);
+                h = 31 * h + (right != null ? right.hashCode() : 0);
             }
+            hashCodeCache = h == 0 ? 1 : h;
         }
         return hashCodeCache;
     }

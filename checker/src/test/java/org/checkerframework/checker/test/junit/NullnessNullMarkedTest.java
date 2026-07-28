@@ -27,6 +27,7 @@ public class NullnessNullMarkedTest extends CheckerFrameworkPerDirectoryTest {
 
     @Override
     @Test
+    @SuppressWarnings("JUnitMethodInvoked")
     public void run() {
         /*
          * Skip under JDK8: checker/bin-devel/build.sh doesn't build JSpecify under that version

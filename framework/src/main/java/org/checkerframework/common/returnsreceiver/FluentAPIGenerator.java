@@ -48,7 +48,7 @@ public class FluentAPIGenerator {
          */
         AUTO_VALUE {
 
-            /**
+            /*
              * The qualified name of the AutoValue Builder annotation. This needs to be constructed
              * dynamically due to a side effect of the shadow plugin. See {@link
              * #getAutoValueBuilderCanonicalName()} for more information.
@@ -88,7 +88,7 @@ public class FluentAPIGenerator {
                 return false;
             }
 
-            /**
+            /*
              * Get the qualified name of the AutoValue Builder annotation. This method constructs
              * the String dynamically, to ensure it does not get rewritten due to relocation of the
              * {@code "com.google"} package during the build process.

@@ -52,6 +52,32 @@ public class VariableBounds {
      */
     private boolean allBoundsProper = true;
 
+    // Incorporation worklist: the BoundSet incorporation fixed point re-scans only the variables
+    // whose bounds can have changed -- a variable is re-scanned only after a variable it depends on
+    // is instantiated -- instead of scanning every variable every round. This is a finer-grained
+    // version of allBoundsProper that also skips constraints.applyInstantiations() for an unchanged
+    // variable. The worklist is an optimization only: incorporateToFixedPoint confirms each fixed
+    // point with a full un-gated rescan that self-corrects any variable the worklist wrongly
+    // skipped, so the result is always identical to scanning every variable every round.
+
+    /**
+     * Whether this variable might have changed under {@code applyInstantiations} since its last
+     * clean scan -- true initially, set true whenever a bound is added to it or a variable it
+     * depends on is (re-)instantiated, cleared after a scan.
+     */
+    private boolean dirty = true;
+
+    /**
+     * Over-approximate, append-only reverse-dependency edges: the variables whose bounds mention
+     * this variable, recorded in {@link #addBound}. When this variable is instantiated, every
+     * dependent's bounds may change, so each is marked {@link #dirty}. Over-approximation is safe
+     * by construction: a stale edge causes only a harmless extra re-scan; a *missing* edge would
+     * let the worklist skip needed work, which the self-correcting full rescan in {@link
+     * org.checkerframework.framework.util.typeinference8.bound.BoundSet#incorporateToFixedPoint}
+     * catches and applies.
+     */
+    private final Set<Variable> dependents = new LinkedHashSet<>();
+
     /**
      * Bounds on this variable. Stored as a map from kind of bound (upper, lower, equal) to a set of
      * {@link AbstractType}s.
@@ -124,6 +150,10 @@ public class VariableBounds {
         bounds.put(BoundKind.UPPER, new LinkedHashSet<>(savedBounds.get(BoundKind.UPPER)));
         bounds.put(BoundKind.LOWER, new LinkedHashSet<>(savedBounds.get(BoundKind.LOWER)));
         allBoundsProper = computeAllBoundsProper();
+        // Rollback changed this variable's bounds and un-instantiated it; force a re-scan of it and
+        // of everything that depended on its previous instantiation.
+        dirty = true;
+        markDependentsDirty();
         for (AbstractType t : bounds.get(BoundKind.EQUAL)) {
             if (t.isProper()) {
                 instantiation = (ProperType) t;
@@ -170,10 +200,18 @@ public class VariableBounds {
         }
         if (kind == BoundKind.EQUAL && otherType.isProper()) {
             instantiation = ((ProperType) otherType).boxType();
+            markDependentsDirty();
         }
         if (bounds.get(kind).add(otherType)) {
+            // This variable's own bounds just changed, so it must be (re-)scanned.
+            dirty = true;
             if (!otherType.isProper()) {
                 allBoundsProper = false;
+                // Record reverse edges: when any variable beta mentioned in this new bound is
+                // instantiated, this variable's bounds may change and must be re-scanned.
+                for (Variable beta : otherType.getInferenceVariables()) {
+                    beta.getBounds().dependents.add(variable);
+                }
             }
             addConstraintsFromComplementaryBounds(parent, kind, otherType);
             if (!otherType.ignoreAnnotations) {
@@ -192,9 +230,21 @@ public class VariableBounds {
      * @param qualifiers the qualifiers
      */
     public void addQualifierBound(BoundKind kind, Set<? extends AbstractQualifier> qualifiers) {
-        addConstraintsFromComplementaryQualifierBounds(kind, qualifiers);
-        addConstraintsFromComplementaryBounds(kind, qualifiers);
-        qualifierBounds.get(kind).addAll(qualifiers);
+        // Pre-filter qualifiers to avoid triggering expensive complementary constraints
+        // when the qualifier bounds are already present. This avoids redundant recursive work.
+        Set<AbstractQualifier> newQualifiers = new LinkedHashSet<>();
+        Set<AbstractQualifier> existing = qualifierBounds.get(kind);
+        for (AbstractQualifier q : qualifiers) {
+            if (!existing.contains(q)) {
+                newQualifiers.add(q);
+            }
+        }
+        if (newQualifiers.isEmpty()) {
+            return;
+        }
+        addConstraintsFromComplementaryQualifierBounds(kind, newQualifiers);
+        addConstraintsFromComplementaryBounds(kind, newQualifiers);
+        existing.addAll(newQualifiers);
     }
 
     /**
@@ -485,8 +535,30 @@ public class VariableBounds {
      *
      * @return whether any of the bounds changed
      */
-    @SuppressWarnings("interning:not.interned") // Checking for exact object.
     public boolean applyInstantiationsToBounds() {
+        // Incorporation worklist: a clean variable's bounds and constraints cannot have changed
+        // since its last scan (no variable it depends on was instantiated in between), so applying
+        // instantiations to either is a no-op. The skip also avoids this variable's
+        // constraints.applyInstantiations() (called inside the body) by the same dirty flag.
+        if (!dirty) {
+            return false;
+        }
+        boolean changed = doApplyInstantiationsToBounds();
+        dirty = false;
+        return changed;
+    }
+
+    /**
+     * The body of {@link #applyInstantiationsToBounds}, ignoring the worklist {@link #dirty} flag.
+     * Also called directly by the self-correcting full rescan in {@link
+     * org.checkerframework.framework.util.typeinference8.bound.BoundSet#incorporateToFixedPoint} --
+     * which re-applies instantiations to every variable regardless of {@link #dirty}, catching and
+     * applying any change the worklist wrongly skipped.
+     *
+     * @return whether any of the bounds changed
+     */
+    @SuppressWarnings("interning:not.interned") // Checking for exact object.
+    public boolean doApplyInstantiationsToBounds() {
         if (allBoundsProper) {
             // Every bound is a proper type, so applying instantiations to them is a no-op
             // (ProperType.applyInstantiations() is the identity) and the changed-gated
@@ -544,10 +616,31 @@ public class VariableBounds {
             for (AbstractType bound : bounds.get(BoundKind.EQUAL)) {
                 if (bound.isProper()) {
                     instantiation = ((ProperType) bound).boxType();
+                    markDependentsDirty();
                 }
             }
         }
         return changed;
+    }
+
+    /**
+     * Marks every variable that depends on this one (see {@link #dependents}) as {@link #dirty}, so
+     * the incorporation worklist re-scans them now that this variable is instantiated.
+     */
+    private void markDependentsDirty() {
+        for (Variable dependent : dependents) {
+            dependent.getBounds().dirty = true;
+        }
+    }
+
+    /**
+     * Marks this variable {@link #dirty} so the next incorporation round re-scans it. Used by the
+     * self-correcting full rescan in {@link
+     * org.checkerframework.framework.util.typeinference8.bound.BoundSet#incorporateToFixedPoint} to
+     * re-propagate after it has caught and applied a change the worklist wrongly skipped.
+     */
+    public void markDirty() {
+        dirty = true;
     }
 
     /**

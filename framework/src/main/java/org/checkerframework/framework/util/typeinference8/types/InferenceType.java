@@ -254,11 +254,17 @@ public class InferenceType extends AbstractType {
         return context.modelTypes.isSameType(typeMirror, variable.typeMirror);
     }
 
+    /** Cached hash code to prevent repeated recomputation of complex deep-hashes. */
+    private int cachedHashCode = 0;
+
     @Override
     public int hashCode() {
-        int result = type.hashCode();
-        result = 31 * result + Kind.INFERENCE_TYPE.hashCode();
-        return result;
+        if (cachedHashCode == 0) {
+            int result = type.hashCode();
+            result = 31 * result + Kind.INFERENCE_TYPE.hashCode();
+            cachedHashCode = result == 0 ? 1 : result;
+        }
+        return cachedHashCode;
     }
 
     @Override
