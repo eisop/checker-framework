@@ -202,8 +202,9 @@ Other improvements and bug fixes:
 
 **Closed issues:**
 
-eisop#433, eisop#778, eisop#792, eisop#863, eisop#1015, eisop#1074, eisop#1315,
-eisop#1653, eisop#1801, eisop#1819.
+eisop#433, eisop#792, eisop#863, eisop#1015, eisop#1074, eisop#1315,
+eisop#1653, eisop#1801, eisop#1819, eisop#778.
+
 
 Version 3.49.5-eisop1 (April 26, 2026)
 --------------------------------------
