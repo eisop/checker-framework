@@ -13,8 +13,9 @@ import org.checkerframework.framework.type.visitor.SimpleAnnotatedTypeScanner;
  * the lambda dispatch through {@code reduceFunction}, which together accounted for roughly 2.5% of
  * total CPU in profiling.
  *
- * @see org.checkerframework.framework.type.EqualityAtmComparer for more details.
- *     <p>This is used by AnnotatedTypeMirror.hashCode.
+ * <p>This is used by AnnotatedTypeMirror.hashCode.
+ *
+ * @see org.checkerframework.framework.type.EqualityAtmComparer
  */
 public class HashcodeAtmVisitor extends SimpleAnnotatedTypeScanner<Void, Void> {
 

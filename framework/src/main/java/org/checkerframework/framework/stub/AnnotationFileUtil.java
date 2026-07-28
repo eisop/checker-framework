@@ -74,9 +74,8 @@ public class AnnotationFileUtil {
                     return true;
                 case AJAVA:
                     return false;
-                default:
-                    throw new BugInCF("unhandled case " + this);
             }
+            throw new BugInCF("unhandled case " + this);
         }
 
         /**
@@ -93,9 +92,8 @@ public class AnnotationFileUtil {
                 case AJAVA_AS_STUB:
                 case AJAVA:
                     return false;
-                default:
-                    throw new BugInCF("unhandled case " + this);
             }
+            throw new BugInCF("unhandled case " + this);
         }
 
         /**
@@ -112,9 +110,8 @@ public class AnnotationFileUtil {
                 case AJAVA_AS_STUB:
                 case AJAVA:
                     return true;
-                default:
-                    throw new BugInCF("unhandled case " + this);
             }
+            throw new BugInCF("unhandled case " + this);
         }
     }
 
@@ -333,31 +330,30 @@ public class AnnotationFileUtil {
             switch (n.getType()) {
                 case BOOLEAN:
                     sb.append("boolean");
-                    break;
+                    return;
                 case BYTE:
                     sb.append("byte");
-                    break;
+                    return;
                 case CHAR:
                     sb.append("char");
-                    break;
+                    return;
                 case DOUBLE:
                     sb.append("double");
-                    break;
+                    return;
                 case FLOAT:
                     sb.append("float");
-                    break;
+                    return;
                 case INT:
                     sb.append("int");
-                    break;
+                    return;
                 case LONG:
                     sb.append("long");
-                    break;
+                    return;
                 case SHORT:
                     sb.append("short");
-                    break;
-                default:
-                    throw new BugInCF("AnnotationFileUtil: unknown type: " + n.getType());
+                    return;
             }
+            throw new BugInCF("AnnotationFileUtil: unknown type: " + n.getType());
         }
 
         @Override

@@ -202,7 +202,8 @@ public class GuiEffectVisitor extends BaseTypeVisitor<GuiEffectTypeFactory> {
 
     @Override
     protected AnnotationMirrorSet getExceptionParameterLowerBoundAnnotations() {
-        return new AnnotationMirrorSet(AnnotationBuilder.fromClass(elements, AlwaysSafe.class));
+        return AnnotationMirrorSet.singleton(
+                AnnotationBuilder.fromClass(elements, AlwaysSafe.class));
     }
 
     @Override

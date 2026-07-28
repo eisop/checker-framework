@@ -445,6 +445,10 @@ public class ElementUtils {
      * <p>By contrast, {@link ElementUtils#isElementFromByteCode(Element)} returns true if there is
      * a classfile for the given element, even if there is also a source file.
      *
+     * <p>An element with no enclosing type element is not from a source file that is being
+     * compiled, so this returns false for it: a package, or the type variable of a captured
+     * wildcard, which javac synthesizes and which no source file declares.
+     *
      * @param element the element to check, or null
      * @return true if a source file containing the element is being compiled
      */
@@ -454,7 +458,7 @@ public class ElementUtils {
         }
         TypeElement enclosingTypeElement = enclosingTypeElement(element);
         if (enclosingTypeElement == null) {
-            throw new BugInCF("enclosingTypeElement(%s) is null", element);
+            return false;
         }
         return isElementFromSourceCodeImpl((Symbol.ClassSymbol) enclosingTypeElement);
     }
@@ -482,7 +486,13 @@ public class ElementUtils {
      *
      * @param elt some element
      * @return true if the element is declared in ByteCode
+     * @deprecated Use {@code !isElementFromSourceCode(elt)} to check if an element is not being
+     *     compiled from source. If you also need to account for stub files, use {@link
+     *     org.checkerframework.framework.type.AnnotatedTypeFactory#isFromByteCode(Element)}. This
+     *     method is deprecated because its semantics are rarely what is desired: it returns true if
+     *     a classfile exists for the given element, even if it is also being compiled from source.
      */
+    @Deprecated // 2026-07-15
     public static boolean isElementFromByteCode(@Nullable Element elt) {
         if (elt == null) {
             return false;
@@ -970,7 +980,11 @@ public class ElementUtils {
                 // simple name.
                 goalName = parameters[i].getSimpleName();
             }
-            if (!params.get(i).asType().toString().equals(goalName)) {
+            // Class.getCanonicalName() returns the source-form name that TypeMirror.toString()
+            // also produces; string-level matching is intentional here.
+            @SuppressWarnings("TypeToString")
+            boolean typeMismatch = !params.get(i).asType().toString().equals(goalName);
+            if (typeMismatch) {
                 return false;
             }
         }
@@ -1142,7 +1156,45 @@ public class ElementUtils {
             return (@NonNull List<? extends Element>)
                     TYPEELEMENT_GETRECORDCOMPONENTS.invoke(element);
         } catch (IllegalAccessException | IllegalArgumentException | InvocationTargetException e) {
-            throw new Error("Cannot call TypeElement.getRecordComponents()", e);
+            throw new BugInCF("Cannot call TypeElement.getRecordComponents()", e);
+        }
+    }
+
+    /** The {@code Elements.getModuleElement(CharSequence)} method. */
+    private static final @Nullable Method ELEMENTS_GETMODULEELEMENT;
+
+    static {
+        if (SystemUtil.jreVersion >= 9) {
+            try {
+                ELEMENTS_GETMODULEELEMENT =
+                        Elements.class.getMethod("getModuleElement", CharSequence.class);
+            } catch (NoSuchMethodException e) {
+                throw new BugInCF("Cannot access Elements.getModuleElement(CharSequence)", e);
+            }
+        } else {
+            ELEMENTS_GETMODULEELEMENT = null;
+        }
+    }
+
+    /**
+     * Calls {@code getModuleElement(name)} on the given {@code Elements}. Uses reflection because
+     * this method is not available before JDK 9 (the module system's introduction). On earlier
+     * JDKs, which don't support modules anyway, returns {@code null}.
+     *
+     * @param elements the {@code Elements} instance to call {@code getModuleElement} on
+     * @param name the fully-qualified module name
+     * @return the module element for the given name, or {@code null} if not found or if {@code
+     *     getModuleElement} is not available on this JDK
+     */
+    @SuppressWarnings("nullness") // because of cast from reflection
+    public static @Nullable Element getModuleElement(Elements elements, CharSequence name) {
+        if (ELEMENTS_GETMODULEELEMENT == null) {
+            return null;
+        }
+        try {
+            return (@Nullable Element) ELEMENTS_GETMODULEELEMENT.invoke(elements, name);
+        } catch (IllegalAccessException | IllegalArgumentException | InvocationTargetException e) {
+            throw new BugInCF("Cannot call Elements.getModuleElement(CharSequence)", e);
         }
     }
 
