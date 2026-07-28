@@ -4384,6 +4384,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             List<AnnotatedTypeMirror> callingTypeArgs = treeReceiverDeclared.getTypeArguments();
 
             if (!declaredTypeArgs.isEmpty() && callingTypeArgs.size() == declaredTypeArgs.size()) {
+                boolean needsSubstitution = false;
                 for (int i = 0; i < callingTypeArgs.size(); ++i) {
                     AnnotatedTypeMirror callingArg = callingTypeArgs.get(i);
                     AnnotatedTypeMirror declaredArg = declaredTypeArgs.get(i);
@@ -4393,8 +4394,9 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                         for (AnnotationMirror methodPoly :
                                 qualHierarchy.getPolymorphicAnnotations()) {
                             if (declaredArg.hasAnnotation(methodPoly)) {
-                                if (receiverToCheck == methodReceiver) {
+                                if (!needsSubstitution) {
                                     receiverToCheck = methodReceiver.deepCopy(true);
+                                    needsSubstitution = true;
                                 }
                                 // Relax only the polymorphic qualifier hierarchy. Replacing the
                                 // whole type argument would also skip checks in other hierarchies.
