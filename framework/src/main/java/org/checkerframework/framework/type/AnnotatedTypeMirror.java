@@ -3019,9 +3019,27 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
          * warns about such annotations. This first-bound-wins restriction applies only to a
          * homogenizing checker; a checker that keeps each bound's own qualifier records every
          * bound's hierarchy in the summary, since there the summary is only a derived upper bound.
-         * It also applies only where a defaulting pass follows: an intersection cast, whose target
-         * type is not defaulted afterward, summarizes every bound instead. See {@link
-         * #copyIntersectionBoundAnnotations(boolean)}.)
+         * It also applies only to an intersection that is a type variable's upper bound, not to an
+         * intersection cast target. The difference is not accidental: a type variable's upper bound
+         * and a cast target fill an unannotated position by two different, pre-existing rules, and
+         * only the former reproduces first-bound-wins when a hierarchy is deferred. A type
+         * variable's upper bound has no operand; a hierarchy left out of the summary is filled by
+         * ordinary upper-bound defaulting, and because the first bound and the whole intersection
+         * share that defaulting location the value is exactly the first bound's own default. A cast
+         * target, by contrast, is post-processed by {@code PropagationTreeAnnotator.visitTypeCast},
+         * which fills every hierarchy the target still lacks from the <em>cast operand's</em>
+         * effective qualifier (capped at the type-declaration bound) &mdash; the general rule,
+         * applied to every cast, that lets {@code (Object) x} adopt {@code x}'s qualifier. So
+         * deferring a hierarchy at a cast would let the operand, not the first bound's default,
+         * decide the summary (verified empirically: with deferral on, {@code (Object & @Untainted
+         * MyInterface) taintedValue} adopts the operand's {@code @Tainted} and reports a spurious
+         * {@code assignment.type.incompatible}). The cast path therefore summarizes every
+         * explicitly annotated bound instead of deferring, so the written bound annotations decide
+         * the summary independent of the operand. Unifying the two would require suppressing the
+         * operand-adoption rule for intersection casts specifically, which would make an
+         * intersection cast inconsistent with a plain cast to the same erased type; that is a worse
+         * divergence than the bound-vs-cast one, so the two paths are kept distinct deliberately.
+         * See {@link #copyIntersectionBoundAnnotations(boolean)}.)
          *
          * <p>By default the computed summary is then written back onto every bound, homogenizing
          * them, as described above. A checker whose {@link
@@ -3038,12 +3056,17 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
          * Implementation of {@link #copyIntersectionBoundAnnotations()}.
          *
          * @param deferFirstBoundDefault whether a hierarchy that only a later bound constrains may
-         *     be left out of the summary so that a subsequent defaulting pass fills it with the
-         *     first bound's default (see the class-level discussion of first-bound-wins). Pass true
-         *     for a type variable's upper bound, whose intersection type is defaulted afterward.
-         *     Pass false when no such pass follows&mdash;most importantly for an intersection cast,
-         *     whose target type is not subsequently defaulted; leaving a hierarchy empty there
-         *     would let the cast operand, not the first bound's default, decide the summary.
+         *     be left out of the summary so that a later annotation pass fills it with the first
+         *     bound's default (see the class-level discussion of first-bound-wins). Pass true for a
+         *     type variable's upper bound: it has no operand, so the deferred hierarchy is filled
+         *     by upper-bound defaulting with the first bound's own default (the first bound and the
+         *     whole intersection share that defaulting location). Pass false for an intersection
+         *     cast: the target type is post-processed by {@code
+         *     PropagationTreeAnnotator.visitTypeCast}, which fills any hierarchy the target still
+         *     lacks from the cast <em>operand's</em> qualifier, so deferring there would let the
+         *     operand&mdash;not the first bound's default&mdash;decide the summary. The cast path
+         *     instead summarizes every explicitly annotated bound, keeping the summary
+         *     operand-independent.
          */
         void copyIntersectionBoundAnnotations(boolean deferFirstBoundDefault) {
             AnnotationMirrorSet annos = new AnnotationMirrorSet();
