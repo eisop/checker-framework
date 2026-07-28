@@ -516,8 +516,9 @@ public class AnnotationUtils {
         }
 
         if ((val1 instanceof Type.ClassType) && (val2 instanceof Type.ClassType)) {
-            // Type.ClassType does not override equals
-            if (TypesUtils.areSameDeclaredTypes((Type.ClassType) val1, (Type.ClassType) val2)) {
+            // Type.ClassType does not override equals. Annotation element values of type
+            // Class<?> cannot carry type arguments, so raw type identity is sufficient.
+            if (TypesUtils.areSameRawDeclaredType((Type.ClassType) val1, (Type.ClassType) val2)) {
                 return 0;
             }
         }

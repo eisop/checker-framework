@@ -4,8 +4,6 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.framework.qual.TypeUseLocation;
 import org.checkerframework.javacutil.AnnotationUtils;
 
-import java.util.Objects;
-
 import javax.lang.model.element.AnnotationMirror;
 
 /**
@@ -72,7 +70,11 @@ public class Default implements Comparable<Default> {
         // guaranteed to be consistent with compareAnnotationMirrors (the same annotation can be
         // represented by different implementing classes with different hashCode()s), so hash via
         // AnnotationUtils.hashCode, which is documented to be consistent with areSame.
-        return Objects.hash(AnnotationUtils.hashCode(anno), location, applyToSubpackages);
+        int h = 1;
+        h = 31 * h + AnnotationUtils.hashCode(anno);
+        h = 31 * h + (location != null ? location.hashCode() : 0);
+        h = 31 * h + Boolean.hashCode(applyToSubpackages);
+        return h;
     }
 
     @Override

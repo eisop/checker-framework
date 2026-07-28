@@ -1,0 +1,31 @@
+// Standalone project: simulates an external consumer of the published
+// `checker` artifact, the way https://github.com/eisop/checker-framework/pull/1822
+// described one failing. `checkerVersion` is passed in by
+// test-publish-smoketest.sh, which publishes that exact version to an
+// isolated mavenLocal() right before invoking this build.
+plugins {
+    id 'java'
+}
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
+}
+
+repositories {
+    // The checker, checker-qual, and checker-util artifacts published by
+    // test-publish-smoketest.sh just before this build runs. checker-qual
+    // and checker-util are regular (non-bundled) dependencies of the
+    // published `checker` artifact, so they must be resolvable here too;
+    // neither of them needs anything beyond mavenLocal().
+    mavenLocal()
+}
+
+dependencies {
+    def checkerVersion = project.findProperty('checkerVersion')
+    if (checkerVersion == null) {
+        throw new GradleException(
+        "checkerVersion project property not set; run via test-publish-smoketest.sh")
+    }
+    implementation "io.github.eisop:checker:${checkerVersion}"
+}

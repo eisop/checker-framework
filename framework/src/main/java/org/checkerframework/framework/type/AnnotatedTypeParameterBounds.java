@@ -2,8 +2,6 @@ package org.checkerframework.framework.type;
 
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-import java.util.Objects;
-
 /** Represents upper and lower bounds, each an AnnotatedTypeMirror. */
 public class AnnotatedTypeParameterBounds {
     private final AnnotatedTypeMirror upper;
@@ -39,7 +37,10 @@ public class AnnotatedTypeParameterBounds {
 
     @Override
     public int hashCode() {
-        return Objects.hash(upper, lower);
+        int h = 1;
+        h = 31 * h + (upper != null ? upper.hashCode() : 0);
+        h = 31 * h + (lower != null ? lower.hashCode() : 0);
+        return h;
     }
 
     @Override

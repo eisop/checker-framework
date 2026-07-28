@@ -128,7 +128,10 @@ public class Pair<V1, V2> {
     @Override
     public int hashCode() {
         if (hashCode == -1) {
-            hashCode = Objects.hash(first, second);
+            int h = 1;
+            h = 31 * h + (first != null ? first.hashCode() : 0);
+            h = 31 * h + (second != null ? second.hashCode() : 0);
+            hashCode = h;
         }
         return hashCode;
     }

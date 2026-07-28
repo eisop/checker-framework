@@ -1,6 +1,7 @@
 package org.checkerframework.checker.initialization;
 
 import org.checkerframework.checker.compilermsgs.qual.CompilerMessageKey;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.checker.signature.qual.FullyQualifiedName;
 import org.checkerframework.common.basetype.BaseTypeChecker;
 
@@ -42,13 +43,14 @@ public class InitializationFieldAccessSubchecker extends BaseTypeChecker {
     // Suppress all errors and warnings, since they are also reported by the InitializationChecker
 
     @Override
-    public void reportError(Object source, @CompilerMessageKey String messageKey, Object... args) {
+    public void reportError(
+            @Nullable Object source, @CompilerMessageKey String messageKey, Object... args) {
         // do nothing
     }
 
     @Override
     public void reportWarning(
-            Object source, @CompilerMessageKey String messageKey, Object... args) {
+            @Nullable Object source, @CompilerMessageKey String messageKey, Object... args) {
         // do nothing
     }
 }

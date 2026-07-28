@@ -580,6 +580,7 @@ public class InsertAjavaAnnotations {
      * @param args command line arguments: the first element should be a path to ajava files and the
      *     second should be the directory containing Java files to insert into
      */
+    @SuppressWarnings("SystemExitOutsideMain") // main() and all helpers called only from main()
     public static void main(String[] args) {
         if (args.length != 2) {
             System.out.println(

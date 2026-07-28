@@ -409,6 +409,12 @@ import javax.tools.Diagnostic;
     // org.checkerframework.framework.stub.AnnotationFileParser.debugAnnotationFileParser
     "stubDebug",
 
+    // Test-only: compare the binary JDK stub path against the text parser for every class in
+    // the binary stub and report any disagreement as an error. Requires
+    // org.checkerframework.framework.stub.BinaryStubDiffChecker, which ships in the framework-test
+    // artifact rather than in checker.jar.
+    "binaryStubDiffCheck",
+
     // Progress tracing
 
     // Output file names before checking
@@ -486,7 +492,14 @@ import javax.tools.Diagnostic;
     // Converts type argument inference crashes into errors. By default, this option is true.
     // Use "-AconvertTypeArgInferenceCrashToWarning=false" to turn this option off and allow type
     // argument inference crashes to crash the type checker.
-    "convertTypeArgInferenceCrashToWarning"
+    "convertTypeArgInferenceCrashToWarning",
+
+    // The Java 8 type-argument-inference bound-incorporation work budget: a deeply nested generic
+    // invocation whose incorporation exceeds this many units is abandoned with a
+    // type.argument.inference.budget error. Defaults to
+    // Java8InferenceContext.MAX_INCORPORATION_WORK. Raise it for legitimate machine-generated code
+    // that hits the budget; lower it (e.g. in tests) to trigger the budget on a shallow invocation.
+    "inferenceWorkBudget"
 })
 public abstract class SourceChecker extends AbstractTypeProcessor implements OptionConfiguration {
 
@@ -1469,23 +1482,31 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     /**
      * Reports an error. By default, prints it to the screen via the compiler's internal messager.
      *
-     * @param source the source position information; may be an Element or a Tree
+     * @param source the source position information; may be an Element or a Tree. Null means the
+     *     error has no source position -- for example, it is issued while the checker is
+     *     initializing, before any source file is processed -- and is reported against the
+     *     compilation as a whole.
      * @param messageKey the message key
      * @param args arguments for interpolation in the string corresponding to the given message key
      */
-    public void reportError(Object source, @CompilerMessageKey String messageKey, Object... args) {
+    public void reportError(
+            @Nullable Object source, @CompilerMessageKey String messageKey, Object... args) {
         report(source, Diagnostic.Kind.ERROR, messageKey, args);
     }
 
     /**
      * Reports a warning. By default, prints it to the screen via the compiler's internal messager.
      *
-     * @param source the source position information; may be an Element or a Tree
+     * @param source the source position information; may be an Element or a Tree. Null means the
+     *     warning has no source position -- for example, it is issued while the checker is
+     *     initializing, before any source file is processed. Such a warning cannot be suppressed by
+     *     a {@code @SuppressWarnings} annotation, because there is no declaration to write one on;
+     *     only the {@code -AsuppressWarnings} command-line option suppresses it.
      * @param messageKey the message key
      * @param args arguments for interpolation in the string corresponding to the given message key
      */
     public void reportWarning(
-            Object source, @CompilerMessageKey String messageKey, Object... args) {
+            @Nullable Object source, @CompilerMessageKey String messageKey, Object... args) {
         report(source, Diagnostic.Kind.MANDATORY_WARNING, messageKey, args);
     }
 
@@ -1496,10 +1517,13 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      * <p>It is rare to use this method. Most clients should use {@link #reportError} or {@link
      * #reportWarning}.
      *
-     * @param source the source position information; may be an Element or a Tree
+     * @param source the source position information; may be an Element or a Tree. Null means the
+     *     message has no source position -- for example, it is issued while the checker is
+     *     initializing, before any source file is processed -- and is reported against the
+     *     compilation as a whole.
      * @param d the diagnostic message
      */
-    public void report(Object source, DiagMessage d) {
+    public void report(@Nullable Object source, DiagMessage d) {
         report(source, d.getKind(), d.getMessageKey(), d.getArgs());
     }
 
@@ -1507,7 +1531,12 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      * Reports a diagnostic message. By default, it prints it to the screen via the compiler's
      * internal messager; however, it might also store it for later output.
      *
-     * @param source the source position information; may be an Element or a Tree
+     * @param source the source position information; may be an Element or a Tree. Null means the
+     *     message has no source position -- for example, it is issued while the checker is
+     *     initializing, before any source file is processed. Such a message is reported against the
+     *     compilation as a whole, and only the {@code -AsuppressWarnings} command-line option can
+     *     suppress it: a {@code @SuppressWarnings} annotation cannot, because there is no
+     *     declaration to write one on.
      * @param kind the type of message
      * @param messageKey the message key
      * @param args arguments for interpolation in the string corresponding to the given message key
@@ -1517,7 +1546,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     // @FormatMethod
     @SuppressWarnings("formatter:format.string.invalid") // arg is a format string or a property key
     private void report(
-            Object source,
+            @Nullable Object source,
             Diagnostic.Kind kind,
             @CompilerMessageKey String messageKey,
             Object... args) {
@@ -1526,7 +1555,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
         if (shouldSuppressWarnings(source, messageKey)) {
             return;
         }
-        Object preciseSource = getSourceWithPrecisePosition(source);
+        Object preciseSource = source == null ? null : getSourceWithPrecisePosition(source);
 
         for (int i = 0; i < args.length; ++i) {
             args[i] = processErrorMessageArg(args[i]);
@@ -1567,7 +1596,10 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
             kind = Diagnostic.Kind.MANDATORY_WARNING;
         }
 
-        if (preciseSource instanceof Element) {
+        if (preciseSource == null) {
+            // The message has no source position; report it against the compilation as a whole.
+            messager.printMessage(kind, messageText);
+        } else if (preciseSource instanceof Element) {
             messager.printMessage(kind, messageText, (Element) preciseSource);
         } else if (preciseSource instanceof Tree) {
             printOrStoreMessage(kind, messageText, (Tree) preciseSource, currentRoot);
@@ -2266,7 +2298,10 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
             String key = opt.getKey();
             String value = opt.getValue();
 
-            String[] split = key.split(OPTION_SEPARATOR);
+            // Use limit -1 so a trailing separator (e.g. "CheckerName_") produces an empty
+            // token; we explicitly check for this rather than silently using "" as an
+            // option key.
+            String[] split = key.split(OPTION_SEPARATOR, -1);
 
             switch (split.length) {
                 case 1:
@@ -2274,6 +2309,13 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
                     activeOpts.put(key, value);
                     break;
                 case 2:
+                    if (split[1].isEmpty()) {
+                        // Trailing separator. Option might be for another processor. Add option
+                        // anyways. javac will warn if no processor supports the option.
+                        activeOpts.put(key, value);
+                        break;
+                    }
+
                     Class<?> clazz = this.getClass();
 
                     do {
@@ -2705,14 +2747,19 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      * implementation just delegates to an overloaded, more specific version of {@code
      * shouldSuppressWarnings()}.
      *
-     * @param src the position object to test; may be an Element, a Tree, or a TreePath
+     * @param src the position object to test; may be an Element, a Tree, or a TreePath. Null means
+     *     the message has no source position, so no {@code @SuppressWarnings} annotation can apply
+     *     to it and only {@code -AsuppressWarnings} can suppress it.
      * @param errKey the error key the checker is emitting
      * @return true if all warnings pertaining to the given source should be suppressed
      * @see #shouldSuppressWarnings(Element, String)
      * @see #shouldSuppressWarnings(Tree, String)
      */
-    private boolean shouldSuppressWarnings(Object src, String errKey) {
-        if (src instanceof Element) {
+    private boolean shouldSuppressWarnings(@Nullable Object src, String errKey) {
+        if (src == null) {
+            // There is no declaration on which a @SuppressWarnings annotation could be written.
+            return shouldSuppress(getSuppressWarningsStringsFromOption(), errKey);
+        } else if (src instanceof Element) {
             return shouldSuppressWarnings((Element) src, errKey);
         } else if (src instanceof Tree) {
             return shouldSuppressWarnings((Tree) src, errKey);

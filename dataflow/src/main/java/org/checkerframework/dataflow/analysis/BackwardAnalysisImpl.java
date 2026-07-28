@@ -40,14 +40,22 @@ public class BackwardAnalysisImpl<
 
     // TODO: Add widening support like what the forward analysis does.
 
-    /** Out stores after every basic block (assumed to be 'no information' if not present). */
-    protected final IdentityHashMap<Block, S> outStores = new IdentityHashMap<>();
+    /**
+     * Out stores after every basic block (assumed to be 'no information' if not present).
+     *
+     * <p>This field is intentionally not final; it should only be re-assigned by {@link
+     * #initFields}.
+     */
+    protected IdentityHashMap<Block, S> outStores = new IdentityHashMap<>();
 
     /**
      * Exception store of an exception block, propagated by exceptional successors of its exception
      * block, and merged with the normal {@link TransferResult}.
+     *
+     * <p>This field is intentionally not final; it should only be re-assigned by {@link
+     * #initFields}.
      */
-    protected final IdentityHashMap<ExceptionBlock, S> exceptionStores = new IdentityHashMap<>();
+    protected IdentityHashMap<ExceptionBlock, S> exceptionStores = new IdentityHashMap<>();
 
     /** The store right before the entry block. */
     protected @Nullable S storeAtEntry = null;
@@ -125,7 +133,7 @@ public class BackwardAnalysisImpl<
                                 FlowRule.EACH_TO_EACH,
                                 addToWorklistAgain);
                     }
-                    break;
+                    return;
                 }
             case EXCEPTION_BLOCK:
                 {
@@ -147,7 +155,7 @@ public class BackwardAnalysisImpl<
                     for (Block pred : eb.getPredecessors()) {
                         addStoreAfter(pred, node, mergedStore, addToWorklistAgain);
                     }
-                    break;
+                    return;
                 }
             case CONDITIONAL_BLOCK:
                 {
@@ -158,7 +166,7 @@ public class BackwardAnalysisImpl<
                     for (Block pred : cb.getPredecessors()) {
                         propagateStoresTo(pred, null, input, FlowRule.EACH_TO_EACH, false);
                     }
-                    break;
+                    return;
                 }
             case SPECIAL_BLOCK:
                 {
@@ -178,11 +186,12 @@ public class BackwardAnalysisImpl<
                             propagateStoresTo(pred, null, input, FlowRule.EACH_TO_EACH, false);
                         }
                     }
-                    break;
+                    return;
                 }
-            default:
-                throw new BugInCF("Unexpected block type: " + b.getType());
+                // No default: if a new BlockType is added, EP's MissingCasesInEnumSwitch fires
+                // and the build breaks under -Werror, forcing the developer to handle the new case.
         }
+        throw new BugInCF("Unexpected block type: " + b.getType());
     }
 
     @Override
@@ -198,8 +207,8 @@ public class BackwardAnalysisImpl<
     @Override
     protected void initFields(ControlFlowGraph cfg) {
         super.initFields(cfg);
-        outStores.clear();
-        exceptionStores.clear();
+        outStores = new IdentityHashMap<>();
+        exceptionStores = new IdentityHashMap<>();
         // storeAtEntry is null before analysis begin
         storeAtEntry = null;
     }
