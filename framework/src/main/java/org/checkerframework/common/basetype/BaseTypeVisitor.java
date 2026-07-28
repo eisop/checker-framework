@@ -4379,43 +4379,32 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         AnnotatedTypeMirror asSuper =
                 AnnotatedTypes.asSuper(atypeFactory, treeReceiver, methodReceiver);
         if (asSuper instanceof AnnotatedDeclaredType) {
-            AnnotatedDeclaredType treeReceiverDeclared = (AnnotatedDeclaredType) asSuper;
+            AnnotatedDeclaredType treeReceiverDeclared =
+                    (AnnotatedDeclaredType) atypeFactory.applyCaptureConversion(asSuper);
             List<AnnotatedTypeMirror> callingTypeArgs = treeReceiverDeclared.getTypeArguments();
 
             if (!declaredTypeArgs.isEmpty() && callingTypeArgs.size() == declaredTypeArgs.size()) {
-                boolean needsSubstitution = false;
-                List<AnnotatedTypeMirror> newMethodTypeArgs =
-                        new java.util.ArrayList<>(methodReceiver.getTypeArguments());
-
                 for (int i = 0; i < callingTypeArgs.size(); ++i) {
                     AnnotatedTypeMirror callingArg = callingTypeArgs.get(i);
                     AnnotatedTypeMirror declaredArg = declaredTypeArgs.get(i);
 
                     if (callingArg.getKind() == TypeKind.WILDCARD
                             || callingArg.getKind() == TypeKind.TYPEVAR) {
-
-                        boolean hasPoly = false;
                         for (AnnotationMirror methodPoly :
                                 qualHierarchy.getPolymorphicAnnotations()) {
                             if (declaredArg.hasAnnotation(methodPoly)) {
-                                hasPoly = true;
-                                break;
+                                if (receiverToCheck == methodReceiver) {
+                                    receiverToCheck = methodReceiver.deepCopy(true);
+                                }
+                                // Relax only the polymorphic qualifier hierarchy. Replacing the
+                                // whole type argument would also skip checks in other hierarchies.
+                                atypeFactory.replaceAnnotations(
+                                        callingArg,
+                                        receiverToCheck.getTypeArguments().get(i),
+                                        qualHierarchy.getTopAnnotation(methodPoly));
                             }
                         }
-
-                        if (hasPoly) {
-                            // Relax the receiver check for this type argument by replacing it
-                            // with the calling type argument. This avoids unsoundly skipping
-                            // the entire receiver check.
-                            newMethodTypeArgs.set(i, callingArg);
-                            needsSubstitution = true;
-                        }
                     }
-                }
-
-                if (needsSubstitution) {
-                    receiverToCheck = methodReceiver.deepCopy(true);
-                    receiverToCheck.setTypeArguments(newMethodTypeArgs);
                 }
             }
         }

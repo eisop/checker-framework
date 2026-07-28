@@ -110,4 +110,25 @@ public class PolyMethodReceiver<T, U> {
         // Both are polymorphic -> both substituted -> both pass!
         wBoth.methodH1PolyH2Poly();
     }
+
+    static class BoxDualSameArg<T> {
+        void methodH1PolyH2Bot(@H1Poly @H2Top BoxDualSameArg<@H1Poly @H2Bot T> this) {}
+
+        void methodH1BotH2Poly(@H1Top @H2Poly BoxDualSameArg<@H1Bot @H2Poly T> this) {}
+
+        void methodH1PolyH2Poly(@H1Poly @H2Poly BoxDualSameArg<@H1Poly @H2Poly T> this) {}
+    }
+
+    void testH1H2SameTypeArgument(BoxDualSameArg<?> box) {
+        // Relaxing H1 must not also skip the non-polymorphic H2 check.
+        // :: error: (method.invocation.invalid)
+        box.methodH1PolyH2Bot();
+
+        // Relaxing H2 must not also skip the non-polymorphic H1 check.
+        // :: error: (method.invocation.invalid)
+        box.methodH1BotH2Poly();
+
+        // Both hierarchies are polymorphic, so both can be relaxed.
+        box.methodH1PolyH2Poly();
+    }
 }
