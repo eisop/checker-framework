@@ -5,9 +5,9 @@ import org.checkerframework.checker.nullness.qual.*;
 // A primary annotation on a type parameter with no explicit `extends` clause, such as `<@NonNull
 // T>`, sets ONLY the type variable's lower bound.  The implicit `Object` upper bound is defaulted
 // independently to the top qualifier (`@Nullable Object` for the Nullness Checker), regardless of
-// the primary annotation.  This is the CLIMB-to-top rule; see the manual sections
-// "Syntax for upper and lower bounds" (generics-bounds-syntax) and "Defaults" (generics-defaults),
-// and the FAQ entry "Why are explicit and implicit bounds defaulted differently?".
+// the primary annotation.  This is the CLIMB-to-top rule; see the manual sections "Syntax for upper
+// and lower bounds" (generics-bounds-syntax) and "Defaults" (generics-defaults), and the FAQ entry
+// "Why are explicit and implicit bounds defaulted differently?".
 //
 // Therefore `<@NonNull T>` is NOT equivalent to `<@NonNull T extends @NonNull Object>`: the former
 // still accepts a `@Nullable` type argument, while the latter rejects it.  Issue #1887 proposed
