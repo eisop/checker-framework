@@ -3073,8 +3073,8 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
             QualifierHierarchy qualHierarchy = atypeFactory.getQualifierHierarchy();
             boolean homogenize = atypeFactory.shouldHomogenizeIntersectionBounds();
             // First-bound-wins is delivered by deferral, which needs both a homogenizing checker
-            // and
-            // a following defaulting pass. Otherwise summarize every bound's hierarchy as before.
+            // and a following defaulting pass. Otherwise summarize every bound's hierarchy as
+            // before.
             boolean firstBoundWins = homogenize && deferFirstBoundDefault;
             boolean firstBound = true;
             for (AnnotatedTypeMirror bound : getBounds()) {
@@ -3083,19 +3083,14 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
                             qualHierarchy.findAnnotationInSameHierarchy(annos, a);
                     if (existing == null) {
                         // Under first-bound-wins, only the first bound may introduce a hierarchy
-                        // into
-                        // the summary. If a later bound is the only one that explicitly constrains
-                        // a
-                        // hierarchy, do not summarize its qualifier: leave the hierarchy out so
-                        // that
-                        // the following defaulting pass fills it with the first bound's own
-                        // default.
-                        // The first bound and the whole intersection are at the same defaulting
-                        // location (the type variable's upper bound), so that default is exactly
-                        // the
-                        // first bound's value in the hierarchy. This makes first-bound-wins hold
-                        // uniformly, whether the first bound is annotated explicitly or by
-                        // defaulting.
+                        // into the summary. If a later bound is the only one that explicitly
+                        // constrains a hierarchy, do not summarize its qualifier: leave the
+                        // hierarchy out so that the following defaulting pass fills it with the
+                        // first bound's own default. The first bound and the whole intersection are
+                        // at the same defaulting location (the type variable's upper bound), so
+                        // that default is exactly the first bound's value in the hierarchy. This
+                        // makes first-bound-wins hold uniformly, whether the first bound is
+                        // annotated explicitly or by defaulting.
                         if (firstBound || !firstBoundWins) {
                             annos.add(a);
                         }

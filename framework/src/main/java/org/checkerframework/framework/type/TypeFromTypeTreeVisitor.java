@@ -381,9 +381,9 @@ class TypeFromTypeTreeVisitor extends TypeFromTreeVisitor {
         List<AnnotatedTypeMirror> bounds =
                 CollectionsPlume.mapList((Tree boundTree) -> visit(boundTree, f), tree.getBounds());
         type.setBounds(bounds);
-        // A cast target type is not defaulted afterward, so do not defer a later bound's hierarchy
-        // to
-        // defaulting; summarize every bound (see copyIntersectionBoundAnnotations(boolean)).
+        // A cast target's unannotated hierarchies are filled from the cast operand, not from
+        // defaulting, so do not defer a later bound's hierarchy to it; summarize every bound
+        // instead (see copyIntersectionBoundAnnotations(boolean)).
         type.copyIntersectionBoundAnnotations(false);
         return type;
     }
