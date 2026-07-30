@@ -27,7 +27,6 @@ import java.lang.annotation.Target;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -910,105 +909,31 @@ public class BinaryStubReader {
     }
 
     /**
-     * Searches the supertypes of {@code typeElt} (superclasses and interfaces, recursively) for a
-     * method with the given simple signature, mirroring {@code
-     * AnnotationFileParser.fakeOverriddenMethod}.
+     * Searches {@code typeElt} and its supertypes for a method with the given simple signature that
+     * a fake override declared on {@code typeElt} overrides or implements, or {@code null} if none
+     * matches. Delegates the hierarchy traversal to {@link FakeOverrideResolver}, the same search
+     * the text parser uses; only the per-class leaf comparison ({@link #declaredMethod}) is binary
+     * specific.
      *
-     * @param typeElt the class whose supertypes to search; its own declared methods have already
-     *     been checked by the caller
+     * <p>The caller has already established that {@code typeElt} does not declare {@code sig}
+     * exactly (that is what makes this a fake override rather than a real method), so the shared
+     * search's exact pass over {@code typeElt}'s own methods is a no-op here; its lenient pass over
+     * {@code typeElt}'s own methods still matters, because a type variable renamed between the stub
+     * and the JDK being compiled against means the class does declare the method under a different
+     * spelling (e.g. the stub declares {@code ConcurrentSkipListMap.KeySet<K,V>.ceiling(K)}, while
+     * JDK 8's {@code KeySet<E>} declares {@code ceiling(E)}).
+     *
+     * @param typeElt the class the fake override is declared on
      * @param sig the method's simple signature
      * @param elementTypes per-factory state, providing the per-class signature indexes
-     * @return the overridden method, or {@code null} if no supertype declares one
+     * @return the overridden method, or {@code null} if none matches
      */
     static @Nullable ExecutableElement findFakeOverriddenMethod(
             TypeElement typeElt, String sig, AnnotationFileElementTypes elementTypes) {
-        ExecutableElement exact =
-                findFakeOverriddenMethod(
-                        typeElt,
-                        sig,
-                        elementTypes,
-                        Collections.newSetFromMap(new IdentityHashMap<>()),
-                        /* typevarLenient= */ false);
-        if (exact != null) {
-            return exact;
-        }
-        // The lenient pass starts at typeElt's own methods, as the text parser's does
-        // (AnnotationFileParser.fakeOverriddenMethod scans getEnclosedElements() before recurring
-        // to supertypes, in both passes). The caller has already looked typeElt up exactly, and
-        // failed, but a type variable renamed between the stub and the JDK being compiled against
-        // means the class does declare the method under a different spelling: the stub declares
-        // ConcurrentSkipListMap.KeySet<K,V>.ceiling(K), while JDK 8's KeySet<E> declares
-        // ceiling(E). Without this, the two loaders key the entry by different overridden
-        // methods -- this class's own, or the one it inherits from NavigableSet.
-        ExecutableElement ownLenient =
-                declaredMethod(typeElt, sig, elementTypes, /* typevarLenient= */ true);
-        if (ownLenient != null) {
-            return ownLenient;
-        }
-        return findFakeOverriddenMethod(
+        return FakeOverrideResolver.findFakeOverridden(
                 typeElt,
-                sig,
-                elementTypes,
-                Collections.newSetFromMap(new IdentityHashMap<>()),
-                /* typevarLenient= */ true);
-    }
-
-    /**
-     * Worker for {@link #findFakeOverriddenMethod(TypeElement, String,
-     * AnnotationFileElementTypes)}.
-     *
-     * @param typeElt the class whose supertypes to search
-     * @param sig the method's simple signature
-     * @param elementTypes per-factory state, providing the per-class signature indexes
-     * @param visited interfaces already searched, to avoid re-traversing a shared ancestor
-     *     interface reachable through more than one path (diamond inheritance)
-     * @param typevarLenient whether a type-variable parameter of a candidate method matches any
-     *     type the signature spells in that position
-     * @return the overridden method, or {@code null} if no supertype declares one
-     */
-    private static @Nullable ExecutableElement findFakeOverriddenMethod(
-            TypeElement typeElt,
-            String sig,
-            AnnotationFileElementTypes elementTypes,
-            Set<TypeElement> visited,
-            boolean typevarLenient) {
-        TypeElement superClass = ElementUtils.getSuperClass(typeElt);
-        if (superClass != null) {
-            ExecutableElement found = declaredMethod(superClass, sig, elementTypes, typevarLenient);
-            if (found == null) {
-                found =
-                        findFakeOverriddenMethod(
-                                superClass, sig, elementTypes, visited, typevarLenient);
-            }
-            if (found != null) {
-                return found;
-            }
-        }
-        for (TypeMirror interfaceType : typeElt.getInterfaces()) {
-            if (interfaceType.getKind() != TypeKind.DECLARED) {
-                continue;
-            }
-            Element interfaceElt = ((javax.lang.model.type.DeclaredType) interfaceType).asElement();
-            if (!(interfaceElt instanceof TypeElement)
-                    || !visited.add((TypeElement) interfaceElt)) {
-                continue;
-            }
-            ExecutableElement found =
-                    declaredMethod((TypeElement) interfaceElt, sig, elementTypes, typevarLenient);
-            if (found == null) {
-                found =
-                        findFakeOverriddenMethod(
-                                (TypeElement) interfaceElt,
-                                sig,
-                                elementTypes,
-                                visited,
-                                typevarLenient);
-            }
-            if (found != null) {
-                return found;
-            }
-        }
-        return null;
+                (candidate, typevarLenient) ->
+                        declaredMethod(candidate, sig, elementTypes, typevarLenient));
     }
 
     /**
