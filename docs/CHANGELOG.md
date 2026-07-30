@@ -102,29 +102,21 @@ When the bounds of an intersection type (for example, the bound
 `<T extends @NonNull Object & @Nullable Serializable>`) carry conflicting
 qualifiers in the same hierarchy, the intersection's qualifier for that
 hierarchy is the qualifier of the first bound in source order, and every other
-explicit bound qualifier gets an `explicit.annotation.ignored` warning.
+explicit bound qualifier gets an `explicit.annotation.ignored` warning. That
+summary is then written back onto every bound (homogenization), so all bounds of
+the intersection carry the same qualifier per hierarchy. Homogenization is sound
+for value-property qualifiers and can be strictly more precise than keeping each
+bound's own qualifier, because a hierarchy that only one bound constrains is
+propagated to the others rather than defaulted away.
 First-bound-wins holds uniformly whether the first bound is annotated explicitly
 or by defaulting: for `<T extends Object & @Nullable Serializable>` the first
 bound `Object` defaults to `@NonNull` (because the `extends` clause is written),
 so the summary is `@NonNull` and the second bound's `@Nullable` is ignored,
 exactly as if the first bound had been written `@NonNull Object`. This result is
 deterministic for a given compilation, but it depends on the source order of the
-bounds. Two new extension points let a checker change this:
-`AnnotatedTypeFactory#combineIntersectionBoundAnnotationsInHierarchy` selects the
-per-hierarchy summary (a checker can override it to return, for example, the
-order-independent greatest lower bound), and
-`AnnotatedTypeFactory#shouldHomogenizeIntersectionBounds()` selects whether that
-summary is written back onto every bound.
-
-A checker can opt out of the homogenization by overriding
-`AnnotatedTypeFactory#shouldHomogenizeIntersectionBounds()` to return `false`,
-keeping each bound's own distinct qualifier instead of writing the
-intersection's summary annotation onto every bound. This supports type
-systems, such as JSpecify's, that give each bound of an intersection type its
-own qualifier. A bound that the source annotates in only some hierarchies is
-then defaulted in the remaining hierarchies to the implicit-upper-bound default
-(the hierarchy's top), rather than being left without an annotation, so every
-bound still carries exactly one qualifier per hierarchy.
+bounds. A checker that wants an order-independent summary can override
+`AnnotatedTypeFactory#combineIntersectionBoundAnnotationsInHierarchy` to return,
+for example, the greatest lower bound.
 
 Fixed a crash (`MissingFormatArgumentException` wrapped in `BugInCF`) in the
 Optional Checker's `prefer.map.and.orelse` warning for `if (VAR.isPresent())

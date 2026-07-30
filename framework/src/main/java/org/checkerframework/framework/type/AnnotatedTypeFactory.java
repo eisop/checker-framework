@@ -1629,34 +1629,6 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     }
 
     /**
-     * Whether the primary annotation of an intersection type is copied back onto every one of its
-     * bounds, homogenizing them. Returns true by default.
-     *
-     * <p>When true (the default), {@link
-     * AnnotatedTypeMirror.AnnotatedIntersectionType#copyIntersectionBoundAnnotations()} summarizes
-     * the bounds into one primary annotation per hierarchy (see {@link
-     * #combineIntersectionBoundAnnotationsInHierarchy}) and writes that summary onto every bound,
-     * so all bounds of the intersection carry the same qualifier. This is the long-standing Checker
-     * Framework behavior; the standard Nullness Checker relies on it (see {@code
-     * checker/tests/nullness/Issue868.java} and {@code Issue3349.java}).
-     *
-     * <p>A checker that wants per-element intersection semantics&mdash;each bound keeping its own
-     * distinct qualifier, as specified for intersection types by JSpecify&mdash;may override this
-     * to return false. The intersection's primary annotation is still set to the summary (a sound
-     * upper bound of the whole intersection), but the individual bounds returned by {@link
-     * AnnotatedTypeMirror.AnnotatedIntersectionType#getBounds()} keep the qualifiers written on
-     * them at construction. Subtyping already consults the per-bound annotations, so the
-     * un-homogenized bounds are usable downstream. A checker overriding this method typically also
-     * overrides {@code BaseTypeVisitor.checkExplicitAnnotationsOnIntersectionBounds}, whose {@code
-     * explicit.annotation.ignored} warning assumes homogenization.
-     *
-     * @return true if an intersection type's bounds are homogenized to its primary annotation
-     */
-    protected boolean shouldHomogenizeIntersectionBounds() {
-        return true;
-    }
-
-    /**
      * Combines two conflicting bound annotations of an intersection type, in the same qualifier
      * hierarchy, into the single annotation that {@link
      * AnnotatedTypeMirror.AnnotatedIntersectionType#copyIntersectionBoundAnnotations()} uses to
@@ -1673,9 +1645,8 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * <p>A checker that wants an order-independent, more precise summary&mdash;for example a
      * JSpecify-style integration&mdash;may override this to return {@code
      * qualifierHierarchy.greatestLowerBoundQualifiersOnly(existingAnnotation, newAnnotation)}. This
-     * is orthogonal to {@link #shouldHomogenizeIntersectionBounds()}: this method decides how the
-     * per-hierarchy summary is computed, while that method decides whether the summary is written
-     * back onto every bound.
+     * method decides only how the per-hierarchy summary is computed; that summary is always written
+     * back onto every bound (homogenization).
      *
      * @param existingAnnotation the annotation already chosen for this hierarchy, from an earlier
      *     bound in source order
