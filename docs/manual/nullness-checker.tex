@@ -171,6 +171,15 @@ command-line option.)
   unnecessary and might indicate a programmer error or misunderstanding.
   The lint option is disabled by default because sometimes such checks are
   part of ordinary defensive programming.
+
+\item
+  \label{nullness-lint-monotonic}%
+  If you supply the \code{-Alint=monotonicNonNullOnStatic} command-line option,
+  then the checker warns when \<@MonotonicNonNull> is written on a \<static>
+  field.  Such a field is a code smell that may indicate poor design; consider
+  whether the field could instead be a member field that is set in the
+  constructor.  The lint option is disabled by default because such a field
+  functions correctly.
 \end{itemize}
 
 \item

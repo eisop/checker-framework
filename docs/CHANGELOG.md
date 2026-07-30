@@ -118,10 +118,10 @@ bounds. A checker that wants an order-independent summary can override
 `AnnotatedTypeFactory#combineIntersectionBoundAnnotationsInHierarchy` to return,
 for example, the greatest lower bound.
 
-Under `-Alint=monotonicNonNullOnStatic`, the Nullness Checker issues a
-`monotonic.on.static` warning when `@MonotonicNonNull` is written on a `static`
-field, which the manual documents as a code smell.  The warning is off by
-default because such a field functions correctly.
+Added a new lint option, `-Alint=monotonicNonNullOnStatic`, under which the
+Nullness Checker issues a `monotonic.on.static` warning when `@MonotonicNonNull`
+is written on a `static` field, which the manual documents as a code smell.  The
+option is off by default because such a field functions correctly.
 
 Fixed a crash (`MissingFormatArgumentException` wrapped in `BugInCF`) in the
 Optional Checker's `prefer.map.and.orelse` warning for `if (VAR.isPresent())
