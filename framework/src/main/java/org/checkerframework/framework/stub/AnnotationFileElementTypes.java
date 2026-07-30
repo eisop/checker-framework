@@ -15,6 +15,7 @@ import org.checkerframework.framework.stub.AnnotationFileUtil.AnnotationFileType
 import org.checkerframework.framework.type.AnnotatedTypeFactory;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedExecutableType;
+import org.checkerframework.framework.type.visitor.DoubleAnnotatedTypeScanner;
 import org.checkerframework.javacutil.AnnotationBuilder;
 import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.BugInCF;
@@ -1304,7 +1305,7 @@ public class AnnotationFileElementTypes {
             TypeMirror fakeLocation = candidatePair.first;
             AnnotatedExecutableType candidate = (AnnotatedExecutableType) candidatePair.second;
             if (atypeFactory.types.isSameType(receiverTypeMirror, fakeLocation)) {
-                return candidate;
+                return refreshFakeOverride(method, candidate);
             } else if (atypeFactory.types.isSubtype(receiverTypeMirror, fakeLocation)) {
                 TypeElement fakeElement = TypesUtils.getTypeElement(fakeLocation);
                 switch (fakeElement.getKind()) {
@@ -1350,7 +1351,7 @@ public class AnnotationFileElementTypes {
         for (IPair<TypeMirror, AnnotatedTypeMirror> candidatePair : candidates) {
             TypeMirror candidateReceiverType = candidatePair.first;
             if (atypeFactory.types.isSameType(fakeReceiverType, candidateReceiverType)) {
-                return (AnnotatedExecutableType) candidatePair.second;
+                return refreshFakeOverride(method, (AnnotatedExecutableType) candidatePair.second);
             }
         }
 
@@ -1358,6 +1359,79 @@ public class AnnotationFileElementTypes {
                 "No match for %s in %s %s %s",
                 fakeReceiverType, candidates, applicableClasses, applicableInterfaces);
     }
+
+    /**
+     * Returns a fresh {@code getAnnotatedType(overridden)} with {@code storedCandidate}'s
+     * return-type annotations overlaid on top.
+     *
+     * <p>{@code storedCandidate} was computed once, during parsing (see {@code
+     * AnnotationFileParser#processFakeOverride}, {@code BinaryStubReader#applyFakeOverride}), by
+     * calling {@code getAnnotatedType(overridden)} and then unconditionally resetting the return
+     * type's annotations to exactly what the fake-override declaration itself writes there -- which
+     * is empty for a presence-only fake override; a fake override deliberately resets the return
+     * type to the checker's default at that subtype rather than inheriting {@code overridden}'s,
+     * even when it writes no explicit annotation (see the {@code NoExplicitAnnotations} test in
+     * {@code checker/tests/stubparser-nullness}). That base call can run before {@code
+     * overridden}'s own declaring class has been fully processed -- e.g., when the class is
+     * declared later in the same stub file, or is a not-yet-loaded binary JDK class -- in which
+     * case everything in {@code storedCandidate} other than the return type (parameter types,
+     * receiver type, declaration annotations) may be stale (see
+     * https://github.com/eisop/checker-framework/issues/1862). Recomputing the base type here is
+     * always safe: {@link #getFakeOverride}, this method's only caller, runs only once parsing has
+     * finished (see its {@code isParsing()} check), so {@code overridden}'s own type is guaranteed
+     * complete by now. The return type is deliberately re-applied from {@code storedCandidate}
+     * verbatim (clear-then-add, not merge) rather than left alone, to preserve that
+     * reset-to-default behavior exactly -- structurally, at every position in the return type
+     * (including type arguments, array component types, and wildcard/type-variable bounds), not
+     * just the primary annotation (this used to be a bug: only the primary annotation was
+     * propagated, so an explicit annotation on a fake override's return-type argument, e.g. {@code
+     * List<@Foo String>}, was silently dropped). {@link #RETURN_TYPE_RESETTER} performs that
+     * structural clear-then-add. A plain structural <em>replace</em> (only overwriting a position
+     * where {@code storedCandidate} has an annotation, e.g. {@link
+     * org.checkerframework.framework.type.AnnotatedTypeReplacer}) is not equivalent here and must
+     * not be used: {@code storedCandidate}'s return type is <em>not</em> defaulted at parse time
+     * (see {@code AnnotationFileParser#annotate}'s {@code clearAnnotations} call and this method's
+     * own Javadoc above -- a presence-only fake override's stored return type is empty, not
+     * defaulted), so a position {@code storedCandidate} leaves bare must become bare on {@code
+     * fresh} too, relying on the checker's normal defaulting once the type is read, rather than
+     * keeping whatever {@code fresh} (i.e. {@code overridden}'s own declared type) already had
+     * there.
+     *
+     * @param overridden the overridden method the fake override targets
+     * @param storedCandidate the fake override's stored snapshot; only its return-type annotations
+     *     are trusted
+     * @return a fresh, non-stale fake override method type
+     */
+    private AnnotatedExecutableType refreshFakeOverride(
+            ExecutableElement overridden, AnnotatedExecutableType storedCandidate) {
+        AnnotatedExecutableType fresh = atypeFactory.getAnnotatedType(overridden);
+        RETURN_TYPE_RESETTER.visit(storedCandidate.getReturnType(), fresh.getReturnType());
+        return fresh;
+    }
+
+    /**
+     * Structurally resets every annotation position in the second ({@code to}) argument passed to
+     * {@code visit(from, to)} to exactly what the first ({@code from}) argument has at the same
+     * position: clearing {@code to}'s annotations there, then adding {@code from}'s. Unlike {@link
+     * org.checkerframework.framework.type.AnnotatedTypeReplacer}, which leaves a position in {@code
+     * to} unchanged wherever {@code from} has no annotation there, this always clears first, so a
+     * position where {@code from} has nothing becomes bare on {@code to} too. Used by {@link
+     * #refreshFakeOverride} to reset a fake override's return type to exactly what the fake
+     * override declaration wrote, at every position, including positions the declaration left
+     * unannotated (which must become bare, not retain {@code to}'s own prior annotation, so that
+     * the checker's normal defaulting fills them in when the type is read).
+     */
+    private static final DoubleAnnotatedTypeScanner<Void> RETURN_TYPE_RESETTER =
+            new DoubleAnnotatedTypeScanner<Void>() {
+                @Override
+                protected Void defaultAction(AnnotatedTypeMirror from, AnnotatedTypeMirror to) {
+                    if (from != null && to != null) {
+                        to.clearAnnotations();
+                        to.addAnnotations(from.getAnnotations());
+                    }
+                    return null;
+                }
+            };
 
     //
     // End of public methods, private helper methods follow
