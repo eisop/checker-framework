@@ -1,5 +1,17 @@
-// Outer.astub adds a declaration annotation to the nested annotation type Outer.Nested's own
-// declaration -- see that file for the construct this pins.
+// Outer.astub gives the parameter of Outer.Nested.Helper.m a @Nullable type. Applying that
+// requires AnnotationFileParser to process the nested annotation type declaration Outer.Nested and
+// then its member class Helper -- the construct this test pins. See Outer.astub.
 public class Outer {
-    public @interface Nested {}
+    public @interface Nested {
+        class Helper {
+            void m(Object p) {}
+        }
+    }
+
+    void use(Outer.Nested.Helper h) {
+        // With the nested annotation type processed, m's parameter is @Nullable, so passing null
+        // is allowed. Without that processing the parameter stays @NonNull and this is an
+        // argument.type.incompatible error.
+        h.m(null);
+    }
 }

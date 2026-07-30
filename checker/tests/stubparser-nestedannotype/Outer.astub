@@ -1,15 +1,15 @@
-import java.lang.annotation.*;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
-// AnnotationFileParser's member-processing switch (in processTypeDecl) had no case for
-// ElementKind.ANNOTATION_TYPE, so a nested annotation type declaration -- like this one, or
-// the real annotated JDK's com.sun.tools.javac.api.ClientCodeWrapper.Trusted and
-// java.lang.invoke.LambdaForm.Compiled -- fell through to the default case, which only handles
-// records. The whole nested declaration, including its own @Retention/@Target
-// meta-annotations, was silently ignored, with only a "AnnotationFileParser ignoring: ..."
-// diagnostic (suppressed for the JDK; visible here via -AstubWarnIfNotFound).
+// This nested annotation type declaration -- like the real annotated JDK's
+// com.sun.tools.javac.api.ClientCodeWrapper.Trusted and java.lang.invoke.LambdaForm.Compiled --
+// carries annotations that only the stub supplies. AnnotationFileParser's member-processing switch
+// (in processTypeDecl) handles ElementKind.ANNOTATION_TYPE so the nested declaration and its own
+// members are processed; without that case the nested declaration is ignored and the @Nullable
+// parameter type on Outer.Nested.Helper.m below is never applied.
 class Outer {
-    @Retention(RetentionPolicy.RUNTIME)
-    @Target(ElementType.TYPE)
     @interface Nested {
+        class Helper {
+            void m(@Nullable Object p);
+        }
     }
 }
