@@ -98,6 +98,26 @@ side-effecting array expression, avoiding unsound behavior. It now also issues
 a warning message explaining why `copyOf` used a `@Nullable` return type,
 making errors with `copyOf` easier to fix.
 
+When the bounds of an intersection type (for example, the bound
+`<T extends @NonNull Object & @Nullable Serializable>`) carry conflicting
+qualifiers in the same hierarchy, the intersection's qualifier for that
+hierarchy is the qualifier of the first bound in source order, and every other
+explicit bound qualifier gets an `explicit.annotation.ignored` warning. That
+summary is then written back onto every bound (homogenization), so all bounds of
+the intersection carry the same qualifier per hierarchy. Homogenization is sound
+for value-property qualifiers and can be strictly more precise than keeping each
+bound's own qualifier, because a hierarchy that only one bound constrains is
+propagated to the others rather than defaulted away.
+First-bound-wins holds uniformly whether the first bound is annotated explicitly
+or by defaulting: for `<T extends Object & @Nullable Serializable>` the first
+bound `Object` defaults to `@NonNull` (because the `extends` clause is written),
+so the summary is `@NonNull` and the second bound's `@Nullable` is ignored,
+exactly as if the first bound had been written `@NonNull Object`. This result is
+deterministic for a given compilation, but it depends on the source order of the
+bounds. A checker that wants an order-independent summary can override
+`AnnotatedTypeFactory#combineIntersectionBoundAnnotationsInHierarchy` to return,
+for example, the greatest lower bound.
+
 Under `-Alint=monotonicNonNullOnStatic`, the Nullness Checker issues a
 `monotonic.on.static` warning when `@MonotonicNonNull` is written on a `static`
 field, which the manual documents as a code smell.  The warning is off by
