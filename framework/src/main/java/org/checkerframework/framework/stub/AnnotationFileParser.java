@@ -117,7 +117,6 @@ import javax.lang.model.element.PackageElement;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.ArrayType;
-import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.ElementFilter;
@@ -2274,34 +2273,26 @@ public class AnnotationFileParser {
      */
     private @Nullable ExecutableElement fakeOverriddenMethod(
             TypeElement typeElt, MethodDeclaration methodDecl) {
-        // Two passes: first look for a candidate whose every parameter matches exactly; only if
-        // none does, retry accepting any candidate parameter whose type is a type variable.  The
-        // lenient pass is needed because a type-variable parameter's javac type has no textual
-        // form that reliably matches the stub's spelling (see the comment in sameTypes).  But
-        // running only the lenient pass would let a stub parameter such as "String" match a
-        // type-variable parameter "T" -- and "<T> void f(T)" and "void f(String)" legally coexist
-        // as overloads (erasures f(Object) and f(String)), so a fake override "f(String)" could
-        // bind to whichever overload happens to be visited first.  The exact pass binds it to
-        // f(String).
-        ExecutableElement exactMatch =
-                fakeOverriddenMethod(typeElt, methodDecl, /* typevarLenient= */ false);
-        if (exactMatch != null) {
-            return exactMatch;
-        }
-        return fakeOverriddenMethod(typeElt, methodDecl, /* typevarLenient= */ true);
+        return FakeOverrideResolver.findFakeOverridden(
+                typeElt,
+                (candidate, typevarLenient) ->
+                        declaredMethodMatching(candidate, methodDecl, typevarLenient));
     }
 
     /**
-     * Implementation of {@link #fakeOverriddenMethod(TypeElement, MethodDeclaration)} for one
-     * matching mode.
+     * Returns the method that {@code typeElt} itself declares that matches {@code methodDecl} in
+     * the given mode, or null if it declares none. Inspects only {@code typeElt}'s own declared
+     * methods; {@link FakeOverrideResolver} walks the class hierarchy. This is the text parser's
+     * leaf comparison for {@link FakeOverrideResolver.FakeOverrideMatcher}.
      *
-     * @param typeElt the type in which the method appears
+     * @param typeElt the type whose own declared methods to search
      * @param methodDecl the method declaration that does not correspond to an element
      * @param typevarLenient if true, a candidate parameter whose type is a type variable matches
      *     any declared parameter type in the same position; see {@link #sameTypes}
-     * @return the methods that the given method declaration would override, or null if none
+     * @return the method {@code typeElt} declares that {@code methodDecl} would override, or null
+     *     if none does or the match is ambiguous
      */
-    private @Nullable ExecutableElement fakeOverriddenMethod(
+    private @Nullable ExecutableElement declaredMethodMatching(
             TypeElement typeElt, MethodDeclaration methodDecl, boolean typevarLenient) {
         ExecutableElement match = null;
         for (Element elt : typeElt.getEnclosedElements()) {
@@ -2333,29 +2324,7 @@ public class AnnotationFileParser {
                 match = candidate;
             }
         }
-        if (match != null) {
-            return match;
-        }
-
-        TypeElement superType = ElementUtils.getSuperClass(typeElt);
-        if (superType != null) {
-            ExecutableElement result = fakeOverriddenMethod(superType, methodDecl, typevarLenient);
-            if (result != null) {
-                return result;
-            }
-        }
-
-        for (TypeMirror interfaceTypeMirror : typeElt.getInterfaces()) {
-            TypeElement interfaceElement =
-                    (TypeElement) ((DeclaredType) interfaceTypeMirror).asElement();
-            ExecutableElement result =
-                    fakeOverriddenMethod(interfaceElement, methodDecl, typevarLenient);
-            if (result != null) {
-                return result;
-            }
-        }
-
-        return null;
+        return match;
     }
 
     /**

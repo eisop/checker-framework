@@ -41,6 +41,13 @@
       "depNameTemplate": "openjdk/jdk",
       "versioningTemplate": "loose",
       "extractVersionTemplate": "^jdk-{{{major}}}\\+(?<version>\\d+)$"
+    },
+    {
+      "description": "Update the pinned ruff version in the misc job's GitHub Actions setup",
+      "fileMatch": ["^\\.github/actions/setup-misc/action\\.yml$"],
+      "matchStrings": ["ruff==(?<currentValue>[\\d.]+)"],
+      "datasourceTemplate": "pypi",
+      "depNameTemplate": "ruff"
     }
   ]
 }

@@ -58,6 +58,33 @@ to none at all, silently changing or dropping the annotations it provides:
   simple name, so the fake override was dropped; such a name is now matched as
   a suffix of the fully-qualified name.
 
+Fixed a bug where `AnnotatedTypeFactory.getAnnotatedType(Element)` could cache
+an incomplete type for an element visited reentrantly while an annotation file
+was still being parsed (e.g., via a fake override's `getAnnotatedType`
+lookup on the overridden method, when that method's own declaring class had
+not been processed yet), permanently poisoning that element's type for the
+rest of the compilation. The cache write is now skipped while parsing is in
+progress, matching the guard `fromElement` already had.
+
+Fixed a fake override's parameter types, receiver type, and declaration
+annotations going stale when the overridden method's own declaring class is
+processed later in the same stub file or JDK class group (e.g., a fake
+override in `TreeMap.NavigableSubMap` targeting a `java.util.Map` default
+method declared later). The stored snapshot is now refreshed against a
+complete `getAnnotatedType(overridden)` the first time it is used, which is
+always after parsing has finished; the return type, which a fake override
+always determines from its own declaration, is unaffected. Both the text and
+binary stub paths shared this hazard and are both fixed by this change.
+
+Fixed a fake override's return type being applied incorrectly at any
+position other than the outermost (primary) one -- a type argument, array
+component type, or type-variable/wildcard bound. An explicit annotation
+there (e.g. a declared return type `List<@Foo String>`) was silently
+dropped, and an unannotated position there incorrectly inherited whatever
+annotation the overridden method itself declared, instead of resetting to
+the checker's default the way a fake override's primary annotation already
+correctly did.
+
 Fixed a typo (`@SafeEFfect`) in the Guieffect Checker's `org-eclipse.astub` that
 made `CompareEditorInput.getMessage()` inherit the enclosing `@UIType`'s
 `@UIEffect` default rather than being `@SafeEffect`.
@@ -70,6 +97,26 @@ The Nullness Checker now checks if `Arrays.copyOf` is called with a
 side-effecting array expression, avoiding unsound behavior. It now also issues
 a warning message explaining why `copyOf` used a `@Nullable` return type,
 making errors with `copyOf` easier to fix.
+
+When the bounds of an intersection type (for example, the bound
+`<T extends @NonNull Object & @Nullable Serializable>`) carry conflicting
+qualifiers in the same hierarchy, the intersection's qualifier for that
+hierarchy is the qualifier of the first bound in source order, and every other
+explicit bound qualifier gets an `explicit.annotation.ignored` warning. That
+summary is then written back onto every bound (homogenization), so all bounds of
+the intersection carry the same qualifier per hierarchy. Homogenization is sound
+for value-property qualifiers and can be strictly more precise than keeping each
+bound's own qualifier, because a hierarchy that only one bound constrains is
+propagated to the others rather than defaulted away.
+First-bound-wins holds uniformly whether the first bound is annotated explicitly
+or by defaulting: for `<T extends Object & @Nullable Serializable>` the first
+bound `Object` defaults to `@NonNull` (because the `extends` clause is written),
+so the summary is `@NonNull` and the second bound's `@Nullable` is ignored,
+exactly as if the first bound had been written `@NonNull Object`. This result is
+deterministic for a given compilation, but it depends on the source order of the
+bounds. A checker that wants an order-independent summary can override
+`AnnotatedTypeFactory#combineIntersectionBoundAnnotationsInHierarchy` to return,
+for example, the greatest lower bound.
 
 Fixed a crash (`MissingFormatArgumentException` wrapped in `BugInCF`) in the
 Optional Checker's `prefer.map.and.orelse` warning for `if (VAR.isPresent())
