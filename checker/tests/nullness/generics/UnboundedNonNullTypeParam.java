@@ -13,7 +13,7 @@ import org.checkerframework.checker.nullness.qual.*;
 // still accepts a `@Nullable` type argument, while the latter rejects it.  Issue #1887 proposed
 // making them equivalent, but that would break the `@KeyForBottom`-on-lower-bound override idiom
 // (e.g. Collection's `<@KeyForBottom T> @Nullable T[] toArray(@PolyNull T[] a)`), which depends on
-// the upper bound staying at top.  This test locks down the intended, restored behavior.
+// the upper bound staying at top.  This test locks down the intended behavior.
 public class UnboundedNonNullTypeParam {
     // Bare primary annotation: lower bound @NonNull, upper bound defaults to top (@Nullable
     // Object).
