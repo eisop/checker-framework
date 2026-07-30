@@ -3028,16 +3028,16 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
          * hierarchy the target still lacks from the <em>cast operand's</em> effective qualifier
          * (capped at the type-declaration bound) &mdash; the general rule, applied to every cast,
          * that lets {@code (Object) x} adopt {@code x}'s qualifier. So deferring a hierarchy at a
-         * cast would let the operand, not the first bound's default, decide the summary (verified
-         * empirically: with deferral on, {@code (Object & @Untainted MyInterface) taintedValue}
-         * adopts the operand's {@code @Tainted} and reports a spurious {@code
-         * assignment.type.incompatible}). The cast path therefore summarizes every explicitly
-         * annotated bound instead of deferring, so the written bound annotations decide the summary
-         * independent of the operand. Unifying the two would require suppressing the
-         * operand-adoption rule for intersection casts specifically, which would make an
-         * intersection cast inconsistent with a plain cast to the same erased type; that is a worse
-         * divergence than the bound-vs-cast one, so the two paths are kept distinct deliberately.
-         * See {@link #copyIntersectionBoundAnnotations(boolean)}.)
+         * cast would let the operand, not the first bound's default, decide the summary: with
+         * deferral, {@code (Object & @Untainted MyInterface) taintedValue} would adopt the
+         * operand's {@code @Tainted} and a spurious {@code assignment.type.incompatible} would be
+         * reported. The cast path therefore summarizes every explicitly annotated bound instead of
+         * deferring, so the written bound annotations decide the summary independent of the
+         * operand. Unifying the two would require suppressing the operand-adoption rule for
+         * intersection casts specifically, which would make an intersection cast inconsistent with
+         * a plain cast to the same erased type; that is a worse divergence than the bound-vs-cast
+         * one, so the two paths are kept distinct deliberately. See {@link
+         * #copyIntersectionBoundAnnotations(boolean)}.)
          *
          * <p>The computed summary is then written back onto every bound, homogenizing them, so all
          * bounds carry the same qualifier per hierarchy. Homogenization is sound for value-property
@@ -3060,16 +3060,9 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
          *
          * @param deferFirstBoundDefault whether a hierarchy that only a later bound constrains may
          *     be left out of the summary so that a later annotation pass fills it with the first
-         *     bound's default (see the class-level discussion of first-bound-wins). Pass true for a
-         *     type variable's upper bound: it has no operand, so the deferred hierarchy is filled
-         *     by upper-bound defaulting with the first bound's own default (the first bound and the
-         *     whole intersection share that defaulting location). Pass false for an intersection
-         *     cast: the target type is post-processed by {@code
-         *     PropagationTreeAnnotator.visitTypeCast}, which fills any hierarchy the target still
-         *     lacks from the cast <em>operand's</em> qualifier, so deferring there would let the
-         *     operand&mdash;not the first bound's default&mdash;decide the summary. The cast path
-         *     instead summarizes every explicitly annotated bound, keeping the summary
-         *     operand-independent.
+         *     bound's default. Pass true for a type variable's upper bound and false for an
+         *     intersection cast target; the class-level discussion of first-bound-wins on {@link
+         *     #copyIntersectionBoundAnnotations()} explains why the two positions differ.
          */
         void copyIntersectionBoundAnnotations(boolean deferFirstBoundDefault) {
             AnnotationMirrorSet annos = new AnnotationMirrorSet();
@@ -3080,18 +3073,14 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
                     AnnotationMirror existing =
                             qualHierarchy.findAnnotationInSameHierarchy(annos, a);
                     if (existing == null) {
-                        // First-bound-wins: only the first bound may introduce a hierarchy into the
-                        // summary. If a later bound is the only one that explicitly constrains a
-                        // hierarchy, do not summarize its qualifier: leave the hierarchy out so
-                        // that the following defaulting pass fills it with the first bound's own
-                        // default. The first bound and the whole intersection are at the same
-                        // defaulting location (the type variable's upper bound), so that default is
-                        // exactly the first bound's value in the hierarchy. This makes
-                        // first-bound-wins hold uniformly, whether the first bound is annotated
-                        // explicitly or by defaulting. A hierarchy is deferred only for a type
-                        // variable's upper bound (deferFirstBoundDefault); an intersection cast
+                        // First-bound-wins: in defer mode only the first bound may introduce a
+                        // hierarchy into the summary. A hierarchy that only a later bound
+                        // constrains is left out, so the following defaulting pass fills it with
+                        // the first bound's own default (the first bound and the whole
+                        // intersection share that defaulting location, the type variable's upper
+                        // bound). An intersection cast passes deferFirstBoundDefault false and
                         // summarizes every bound instead, because its unannotated hierarchies are
-                        // filled from the cast operand rather than by first-bound defaulting.
+                        // filled from the cast operand. See the method Javadoc.
                         if (firstBound || !deferFirstBoundDefault) {
                             annos.add(a);
                         }
