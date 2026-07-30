@@ -7,10 +7,10 @@ import stubparsernestedscope.DefinedByExample;
 // shape as `@DefinedBy(DefinedBy.Api.COMPILER)` in
 // com.sun.tools.javac.file.JavacFileManager.setPathFactory(..), where the more common
 // `Api.COMPILER` form (used everywhere else `@DefinedBy` appears) is not used.
-// AnnotationFileParser.findVariableElement(FieldAccessExpr) resolved a scope only as a whole --
-// via Elements.getTypeElement, importedTypes, or a full match against importedConstants -- so
-// "DefinedByExample.Api" never matched anything, even though "DefinedByExample" alone (the
-// annotation actually imported) does. This silently dropped the annotation.
+// AnnotationFileParser.findVariableElement(FieldAccessExpr) resolves such a compound scope by
+// splitting at its first dot: it resolves the outer segment ("DefinedByExample", the annotation
+// actually imported) the way a plain scope is resolved, then looks up the remaining suffix
+// ("Api") as one of its nested types. This test pins that resolution.
 class UsesDefinedBy {
     @DefinedByExample(DefinedByExample.Api.COMPILER)
     void bar();

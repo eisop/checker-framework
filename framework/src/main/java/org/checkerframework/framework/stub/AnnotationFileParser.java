@@ -1217,11 +1217,11 @@ public class AnnotationFileParser {
                     processTypeDecl((EnumDeclaration) decl, innerName, null);
                     break;
                 case ANNOTATION_TYPE:
-                    // Without this case, a nested annotation type declaration (e.g. the JDK's
-                    // own ClientCodeWrapper.Trusted or LambdaForm.Compiled) fell through to
-                    // `default`, so any declaration annotations written on the nested
-                    // declaration itself (its own @Retention/@Target) were silently dropped:
-                    // `default` only calls processTypeDecl for a record.
+                    // Process a nested annotation type declaration (e.g. the JDK's own
+                    // ClientCodeWrapper.Trusted or LambdaForm.Compiled) so that declaration
+                    // annotations written on the nested declaration itself (its own
+                    // @Retention/@Target) are applied; the `default` case below handles only
+                    // records.
                     // Not processing an ajava file, so ignore the return value.
                     processTypeDecl((AnnotationDeclaration) decl, innerName, null);
                     break;
