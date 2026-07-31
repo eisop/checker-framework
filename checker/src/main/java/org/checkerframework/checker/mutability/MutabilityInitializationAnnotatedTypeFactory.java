@@ -52,8 +52,29 @@ public class MutabilityInitializationAnnotatedTypeFactory
     /**
      * {@inheritDoc}
      *
-     * <p>In @Immutable and @ReceiverDependentMutable class, all fields should be initialized in the
-     * constructor except for fields explicitly annotated with @Assignable and static fields.
+     * <p>This method applies the Mutability Checker's initialization policy after obtaining the
+     * fields that the Initialization Checker considers uninitialized:
+     *
+     * <ul>
+     *   <li>Fields of {@code @Mutable} classes are not subject to the Mutability Checker's
+     *       initialization requirement. Java's definite-assignment rules already require every
+     *       blank {@code final} field to be initialized.
+     *   <li>{@code @Assignable} fields are excluded because their semantics explicitly permit
+     *       assignment after initialization.
+     *   <li>Static fields are excluded because they belong to the class rather than to an instance
+     *       whose initialization state is being checked.
+     * </ul>
+     *
+     * <p>Therefore, only non-static, non-{@code @Assignable} fields of {@code @Immutable} and
+     * {@code @ReceiverDependentMutable} classes are required to be initialized by a constructor.
+     *
+     * <p>This method intentionally ignores {@code targetStore}. The target store is useful for a
+     * type system such as Nullness, where flow information can prove that an otherwise unassigned
+     * field satisfies its declared invariant. Mutability qualifiers do not establish that a field
+     * was assigned: for example, the default value {@code null} may satisfy {@code @Immutable}, but
+     * that does not initialize an immutable object's abstract state. Therefore, this method starts
+     * with the assignment-only result from the Initialization Checker and then applies the
+     * Mutability-specific exclusions above.
      */
     @Override
     public List<VariableTree> getUninitializedFields(
@@ -62,6 +83,9 @@ public class MutabilityInitializationAnnotatedTypeFactory
             TreePath path,
             boolean isStatic,
             Collection<? extends AnnotationMirror> receiverAnnotations) {
+        // Intentionally call the assignment-only overload. A qualifier in targetStore may describe
+        // the mutability of a field's default value, but it does not prove that the field was
+        // assigned.
         List<VariableTree> uninitializedFields =
                 super.getUninitializedFields(initStore, path, isStatic, receiverAnnotations);
 
@@ -87,12 +111,14 @@ public class MutabilityInitializationAnnotatedTypeFactory
                     TypeElement typeElement = TreeUtils.elementFromDeclaration(enclosingClass);
                     AnnotatedTypeMirror bound = factory.getAnnotatedType(typeElement);
                     if (bound.hasAnnotation(MUTABLE)) {
-                        // Mutable classes do not require definite assignment of all fields.
+                        // Java already enforces definite assignment for blank final fields. Other
+                        // fields of mutable classes are not subject to the Mutability Checker's
+                        // initialization requirement.
                         return true;
                     } else {
                         Element varElement = TreeUtils.elementFromDeclaration(var);
-                        // Assignable and static fields are not part of the required initialized
-                        // state.
+                        // Assignable fields permit post-initialization assignment. Static fields
+                        // belong to the class, not to the instance whose state is being checked.
                         return ((MutabilityNoInitAnnotatedTypeFactory) factory)
                                         .isAssignableField(varElement)
                                 || ElementUtils.isStatic(varElement);

@@ -248,31 +248,36 @@ public class MutabilityNoInitVisitor extends BaseTypeVisitor<MutabilityNoInitAnn
     }
 
     /**
-     * Checks whether a field or array assignment is allowed. Assignments in constructors and
-     * initializer blocks are permitted.
+     * Checks whether a field or array assignment is allowed. A constructor, a method whose receiver
+     * is under initialization, or an initializer block may assign a field of its current receiver.
+     * These contexts do not permit writes through other readonly receivers or writes to array
+     * elements.
      *
      * @param tree the assignment node
      * @param variable the variable in the assignment
      */
     private void checkAssignment(Tree tree, ExpressionTree variable) {
         AnnotatedTypeMirror receiverType = atypeFactory.getReceiverType(variable);
+        boolean isCurrentReceiverField = isFieldOfCurrentReceiver(variable);
         MethodTree enclosingMethod = TreePathUtil.enclosingMethod(getCurrentPath());
         if (enclosingMethod != null) {
             List<? extends AnnotationMirror> receiverAnnotations =
                     getAllReceiverAnnotation(enclosingMethod);
             for (AnnotationMirror anno : receiverAnnotations) {
-                if (AnnotationUtils.areSame(anno, atypeFactory.UNDER_INITALIZATION)) {
-                    // Receiver under initialization permits assignment.
+                if (isCurrentReceiverField
+                        && AnnotationUtils.areSame(anno, atypeFactory.UNDER_INITALIZATION)) {
+                    // A receiver under initialization may initialize its own fields.
                     return;
                 }
             }
-            if (TreeUtils.isConstructor(enclosingMethod)) {
-                // Constructors may initialize fields.
+            if (isCurrentReceiverField && TreeUtils.isConstructor(enclosingMethod)) {
+                // Constructors may initialize fields of the object being constructed.
                 return;
             }
         }
-        if (TreePathUtil.isTopLevelAssignmentInInitializerBlock(getCurrentPath())) {
-            // Initializer blocks may initialize fields.
+        if (isCurrentReceiverField
+                && TreePathUtil.isTopLevelAssignmentInInitializerBlock(getCurrentPath())) {
+            // Initializer blocks may initialize fields of their current receiver.
             return;
         }
         // Implicit-this field assignments have no receiver tree, but they still have a receiver
@@ -280,6 +285,35 @@ public class MutabilityNoInitVisitor extends BaseTypeVisitor<MutabilityNoInitAnn
         if (receiverType != null && !allowWrite(receiverType, variable)) {
             reportFieldOrArrayWriteError(tree, variable, receiverType);
         }
+    }
+
+    /**
+     * Returns whether {@code variable} is a non-static field accessed through the current receiver.
+     * This includes implicit field accesses and explicit {@code this.field} accesses, but excludes
+     * fields accessed through aliases or enclosing instances.
+     *
+     * @param variable an assignment target
+     * @return whether {@code variable} is a field of the current receiver
+     */
+    private boolean isFieldOfCurrentReceiver(ExpressionTree variable) {
+        VariableElement field = TreeUtils.asFieldAccess(variable);
+        if (field == null || ElementUtils.isStatic(field)) {
+            return false;
+        }
+
+        if (variable instanceof MemberSelectTree) {
+            ExpressionTree receiver = ((MemberSelectTree) variable).getExpression();
+            return receiver instanceof IdentifierTree
+                    && TreeUtils.isExplicitThisDereference(receiver);
+        }
+
+        // An implicit access uses the current receiver only when the field belongs to its type.
+        // This excludes implicit accesses to fields of an enclosing instance.
+        ClassTree currentClass = TreePathUtil.enclosingClass(getCurrentPath());
+        TypeElement currentClassElement = TreeUtils.elementFromDeclaration(currentClass);
+        TypeElement fieldOwner = ElementUtils.enclosingTypeElement(field);
+        return fieldOwner != null
+                && types.isSubtype(currentClassElement.asType(), fieldOwner.asType());
     }
 
     /**
