@@ -57,6 +57,7 @@ import javax.annotation.processing.SupportedOptions;
     "forbidnonnullarraycomponents",
     NullnessChecker.LINT_TRUSTARRAYLENZERO,
     NullnessChecker.LINT_PERMITCLEARPROPERTY,
+    NullnessChecker.LINT_MONOTONICNONNULLONSTATIC,
 })
 @SupportedOptions({
     "assumeKeyFor",
@@ -99,6 +100,15 @@ public class NullnessChecker extends InitializationChecker {
 
     /** Default for {@link #LINT_PERMITCLEARPROPERTY}. */
     public static final boolean LINT_DEFAULT_PERMITCLEARPROPERTY = false;
+
+    /**
+     * Warn when {@code @MonotonicNonNull} is written on a {@code static} field, which the manual
+     * documents as a code smell that may indicate poor design.
+     */
+    public static final String LINT_MONOTONICNONNULLONSTATIC = "monotonicNonNullOnStatic";
+
+    /** Default for {@link #LINT_MONOTONICNONNULLONSTATIC}. */
+    public static final boolean LINT_DEFAULT_MONOTONICNONNULLONSTATIC = false;
 
     /** Default constructor for NullnessChecker. */
     public NullnessChecker() {}

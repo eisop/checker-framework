@@ -43,7 +43,7 @@ jobs:
       - uses: actions/checkout@v7
 
       - name: Set up JDK ${{ matrix.java_version }}
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v5.6.0
         with:
           java-version: ${{ matrix.java_version }}
           distribution: 'zulu'
@@ -103,7 +103,7 @@ jobs:
           fetch-depth: 1
 
       - name: Set up JDK ${{ matrix.java_version }}
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v5.6.0
         with:
           java-version: ${{ matrix.java_version }}
           distribution: 'zulu'
@@ -158,7 +158,7 @@ jobs:
           fetch-depth: 1
 
       - name: Set up JDK ${{ env.PRIMARY_JDK }} for Gradle to run on
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v5.6.0
         with:
           # Install the primary JDK first, to make it available to Gradle via gradle.properties below.
           java-version: ${{ env.PRIMARY_JDK }}
@@ -166,7 +166,7 @@ jobs:
 
       - name: Set up stable JDK ${{ matrix.java.version }}
         if: ${{ matrix.java.version != env.JDK_EA_MAJOR }}
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v5.6.0
         with:
           # Install the requested JDK second, to make it the default on which tests run.
           java-version: ${{ matrix.java.version }}
@@ -249,13 +249,13 @@ jobs:
           fetch-depth: 1
 
       - name: Set up JDK ${{ env.PRIMARY_JDK }} for Gradle to run on
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v5.6.0
         with:
           java-version: ${{ env.PRIMARY_JDK }}
           distribution: 'zulu'
 
       - name: Set up stable JDK ${{ matrix.java.version }}
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v5.6.0
         with:
           java-version: ${{ matrix.java.version }}
           distribution: 'zulu'
@@ -300,7 +300,7 @@ jobs:
       - uses: actions/checkout@v7
 
       - name: Set up JDK ${{ matrix.java_version }}
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v5.6.0
         with:
           java-version: ${{ matrix.java_version }}
           distribution: 'zulu'
