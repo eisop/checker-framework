@@ -256,6 +256,28 @@ commit while the working tree still shows your edit, so "it's already
 fixed" reads true from the tree but false from `HEAD`. One `git show HEAD:`
 check before claiming a change landed avoids a wrong status report.
 
+## `gh pr edit --body-file` fails on this repo — use the REST API to update a body
+
+This repo still has Projects (classic) enabled, so `gh pr edit`'s GraphQL
+query hits the sunset error and refuses to update anything:
+
+```
+GraphQL: Projects (classic) is being deprecated ... (repository.pullRequest.projectCards)
+```
+
+Verified (gh 2.54.0): `gh pr edit <n> --body-file body.md` fails this way,
+while `gh pr create --body-file body.md` succeeds (creation does not query
+`projectCards`). To **edit** an existing PR body, go around gh with the REST
+API, which works:
+
+```
+gh api -X PATCH repos/eisop/checker-framework/pulls/<n> -F body=@body.md
+```
+
+(`-F body=@file` reads the file as the field value; `-f body="..."` for an
+inline string.) Use `gh pr create` for creation as normal; only the edit path
+needs the workaround.
+
 ## What good output to a human reviewer looks like
 
 - A branch with N small commits, each compiling.
