@@ -33,7 +33,7 @@ import org.checkerframework.checker.mutability.qual.Readonly;
     }
 
     void initialize(
-            @UnderInitialization(Object.class) InitializationFieldWrites this,
+            @UnderInitialization(InitializationFieldWrites.class) InitializationFieldWrites this,
             @Readonly InitializationFieldWrites other) {
         this.field = 8;
 

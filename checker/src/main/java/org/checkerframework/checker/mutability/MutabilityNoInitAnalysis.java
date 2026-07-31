@@ -1,5 +1,6 @@
 package org.checkerframework.checker.mutability;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.framework.flow.CFAbstractAnalysis;
 import org.checkerframework.framework.flow.CFAbstractValue;
@@ -36,7 +37,7 @@ public class MutabilityNoInitAnalysis
     }
 
     @Override
-    public MutabilityNoInitValue createAbstractValue(
+    public @Nullable MutabilityNoInitValue createAbstractValue(
             AnnotationMirrorSet annotations, TypeMirror underlyingType) {
         if (!CFAbstractValue.validateSet(annotations, underlyingType, atypeFactory)) {
             return null;

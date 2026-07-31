@@ -16,6 +16,7 @@ import com.sun.source.tree.UnaryTree;
 import com.sun.source.tree.VariableTree;
 
 import org.checkerframework.checker.compilermsgs.qual.CompilerMessageKey;
+import org.checkerframework.checker.initialization.qual.UnderInitialization;
 import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.common.basetype.BaseTypeVisitor;
 import org.checkerframework.common.basetype.TypeValidator;
@@ -265,7 +266,7 @@ public class MutabilityNoInitVisitor extends BaseTypeVisitor<MutabilityNoInitAnn
                     getAllReceiverAnnotation(enclosingMethod);
             for (AnnotationMirror anno : receiverAnnotations) {
                 if (isCurrentReceiverField
-                        && AnnotationUtils.areSame(anno, atypeFactory.UNDER_INITALIZATION)) {
+                        && atypeFactory.areSameByClass(anno, UnderInitialization.class)) {
                     // A receiver under initialization may initialize its own fields.
                     return;
                 }

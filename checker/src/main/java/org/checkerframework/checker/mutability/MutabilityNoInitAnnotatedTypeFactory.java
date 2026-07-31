@@ -429,34 +429,6 @@ public class MutabilityNoInitAnnotatedTypeFactory
     }
 
     /**
-     * Determines whether {@code annotatedTypeMirror} represents an enum declaration or enum
-     * constant.
-     *
-     * @param annotatedTypeMirror the type to check
-     * @return true if the type is enum-related
-     */
-    private boolean isEnumOrEnumConstant(AnnotatedTypeMirror annotatedTypeMirror) {
-        Element element =
-                ((AnnotatedTypeMirror.AnnotatedDeclaredType) annotatedTypeMirror)
-                        .getUnderlyingType()
-                        .asElement();
-        return element != null
-                && (element.getKind() == ElementKind.ENUM_CONSTANT
-                        || element.getKind() == ElementKind.ENUM);
-    }
-
-    /**
-     * Determines whether {@code variableElement} is final.
-     *
-     * @param variableElement the field element
-     * @return true if the field is final
-     */
-    private boolean isFinalField(Element variableElement) {
-        assert variableElement instanceof VariableElement;
-        return ElementUtils.isFinal(variableElement);
-    }
-
-    /**
      * Determines whether {@code variableElement} is assignable. Static non-final fields and fields
      * explicitly annotated with {@link Assignable} are assignable.
      *
@@ -472,7 +444,7 @@ public class MutabilityNoInitAnnotatedTypeFactory
         if (!ElementUtils.isStatic(variableElement)) {
             return hasExplicitAssignableAnnotation;
         }
-        return hasExplicitAssignableAnnotation || !isFinalField(variableElement);
+        return hasExplicitAssignableAnnotation || !ElementUtils.isFinal(variableElement);
     }
 
     /**
@@ -486,7 +458,7 @@ public class MutabilityNoInitAnnotatedTypeFactory
         if (ElementUtils.isStatic(variableElement)) {
             return false;
         }
-        return !isAssignableField(variableElement) && !isFinalField(variableElement);
+        return !isAssignableField(variableElement) && !ElementUtils.isFinal(variableElement);
     }
 
     /**
@@ -498,15 +470,15 @@ public class MutabilityNoInitAnnotatedTypeFactory
      */
     boolean hasOneAndOnlyOneAssignabilityQualifier(VariableElement field) {
         if (isAssignableField(field)
-                && !isFinalField(field)
+                && !ElementUtils.isFinal(field)
                 && !isReceiverDependentAssignable(field)) {
             return true;
         } else if (!isAssignableField(field)
-                && isFinalField(field)
+                && ElementUtils.isFinal(field)
                 && !isReceiverDependentAssignable(field)) {
             return true;
         } else if (!isAssignableField(field)
-                && !isFinalField(field)
+                && !ElementUtils.isFinal(field)
                 && isReceiverDependentAssignable(field)) {
             assert !ElementUtils.isStatic(field);
             return true;
@@ -876,7 +848,8 @@ public class MutabilityNoInitAnnotatedTypeFactory
 
         @Override
         public Void visitDeclared(AnnotatedTypeMirror.AnnotatedDeclaredType type, Void aVoid) {
-            if (mutabilityTypeFactory.isEnumOrEnumConstant(type)) {
+            TypeElement typeElement = (TypeElement) type.getUnderlyingType().asElement();
+            if (typeElement.getKind() == ElementKind.ENUM) {
                 type.addMissingAnnotations(Collections.singleton(mutabilityTypeFactory.IMMUTABLE));
             }
             return super.visitDeclared(type, aVoid);
