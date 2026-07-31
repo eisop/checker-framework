@@ -3589,6 +3589,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     protected ParameterizedExecutableType constructorFromUse(
             NewClassTree tree, boolean inferTypeArgs) {
         AnnotatedDeclaredType type = getConstructorReceiverType(tree);
+        AnnotatedDeclaredType enclosingType = type.getEnclosingType();
 
         ExecutableElement ctor = TreeUtils.elementFromUse(tree);
         AnnotatedExecutableType con = getAnnotatedType(ctor); // get unsubstituted type
@@ -3687,9 +3688,9 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             addDefaultAnnotations(returnType);
             con.setReturnType(returnType);
         }
-        if (type.getEnclosingType() != null) {
+        if (enclosingType != null) {
             // Reset the enclosing type because it can be substituted incorrectly.
-            ((AnnotatedDeclaredType) con.getReturnType()).setEnclosingType(type.getEnclosingType());
+            ((AnnotatedDeclaredType) con.getReturnType()).setEnclosingType(enclosingType);
         }
         if (type.isUnderlyingTypeRaw() || TypesUtils.isRaw(TreeUtils.typeOf(tree))) {
             ((AnnotatedDeclaredType) con.getReturnType()).setIsUnderlyingTypeRaw();

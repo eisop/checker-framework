@@ -4375,7 +4375,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
 
         AnnotatedTypeMirror erasedMethodReceiver = methodReceiver.getErased();
         AnnotatedTypeMirror erasedTreeReceiver = erasedMethodReceiver.shallowCopy(false);
-        AnnotatedTypeMirror treeReceiver = atypeFactory.getMethodReceiverType(tree);
+        AnnotatedTypeMirror treeReceiver = atypeFactory.getReceiverType(tree);
 
         erasedTreeReceiver.addAnnotations(treeReceiver.getEffectiveAnnotations());
 
