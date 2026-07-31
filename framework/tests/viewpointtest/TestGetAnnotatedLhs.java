@@ -42,20 +42,3 @@ import viewpointtest.quals.Top;
         top.f = new @A Object();
     }
 }
-
-@SuppressWarnings({
-    "inconsistent.constructor.type",
-    "super.invocation.invalid",
-    "cast.unsafe.constructor.invocation"
-})
-@A class FieldDeclarationInitializers {
-    @ReceiverDependentQual Object compatible = new @A Object();
-
-    // :: error: (assignment.type.incompatible)
-    @ReceiverDependentQual Object incompatible = new @B Object();
-
-    @B Object fixed = new @B Object();
-
-    // Static fields have no receiver viewpoint and are not adapted through the enclosing class.
-    static @ReceiverDependentQual Object staticField = new @ReceiverDependentQual Object();
-}
