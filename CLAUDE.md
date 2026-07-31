@@ -63,6 +63,17 @@ reproducing a CI failure locally usually means running the matching
 script with the same `useJdkVersion`. CI workflow is
 [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
 
+**Adding a test — jtreg vs. JUnit.** For a narrow single-scenario check
+(e.g. one lint flag's on/off behavior) the lightest option is a jtreg test
+with a `@compile/ref=<name>.out` directive — one self-contained `.java` file
+plus its expected-diagnostics `.out`, no runner class (see
+`checker/jtreg/lintoption/`). For anything needing multiple related inputs or
+a shared stub file, use the JUnit `CheckerFrameworkPerDirectoryTest` pattern:
+a small runner class pointing at a `checker/tests/<dir>/` directory (see the
+`Stubparser*Test` classes, which pass `-Astubs=`). Prefer jtreg for a
+one-file scenario; reach for the JUnit runner only when a whole directory of
+inputs earns it.
+
 ## Commit and PR conventions
 
 - **User review.** Always ask for a review *before* committing.
@@ -133,6 +144,14 @@ Read that skill before proposing any perf change. The short version:
   allocations" (it doesn't, in the relevant call site); proposing
   `getEffectiveAnnotations()` as a hotspot (it was 0.05% of samples).
   If the reasoning is shaky, label it as a hypothesis, not a finding.
+- **Don't add speculative extension points.** This framework is built on
+  overridable hooks (ATF/visitor/annotator methods), so a plausible-sounding
+  "future extension point" is an easy — and recurring — thing to add. Do not
+  introduce an overridable hook, `protected` seam, or extra parameter "for
+  future use" without a real current caller or override. Verify by grepping
+  for an actual consumer; if the only implementation is the default you just
+  wrote, inline it instead. (This is the design-decision analogue of "verify
+  before claiming": don't assume a use case, demonstrate one.)
 - **`git format-patch` output is preferred** for non-trivial work, with
   each patch standalone and committable.
 
