@@ -2539,11 +2539,6 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * @see #getConstructorReceiverType(NewClassTree)
      */
     public @Nullable AnnotatedTypeMirror getMethodReceiverType(MethodInvocationTree tree) {
-        ExecutableElement methodElt = TreeUtils.elementFromUse(tree);
-        if (ElementUtils.isStatic(methodElt)) {
-            return null;
-        }
-
         AnnotatedTypeMirror receiverType = getReceiverType(tree);
         if (receiverType == null
                 && (TreeUtils.isSuperConstructorCall(tree)
