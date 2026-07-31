@@ -1996,6 +1996,21 @@ public abstract class GenericAnnotatedTypeFactory<
                                     + lhsTree.getKind());
                 }
         }
+
+        // A field declaration initializer assigns to an implicit this.field. Viewpoint-adapt the
+        // field's declared type to the enclosing class just as for an explicit member access.
+        if (viewpointAdapter != null && lhsTree instanceof VariableTree) {
+            VariableElement field = TreeUtils.elementFromDeclaration((VariableTree) lhsTree);
+            if (field.getKind().isField() && !ElementUtils.isStatic(field)) {
+                TypeElement enclosingType = ElementUtils.enclosingTypeElement(field);
+                assert enclosingType != null;
+                AnnotatedTypeMirror enclosingTypeMirror = getAnnotatedType(enclosingType);
+                AnnotatedTypeMirror adapted = res.shallowCopy(true);
+                viewpointAdapter.viewpointAdaptMember(enclosingTypeMirror, field, adapted);
+                res = adapted;
+            }
+        }
+
         useFlow = oldUseFlow;
         shouldCache = oldShouldCache;
         computingAnnotatedTypeMirrorOfLhs = oldComputingAnnotatedTypeMirrorOfLhs;
