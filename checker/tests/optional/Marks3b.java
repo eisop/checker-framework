@@ -15,9 +15,29 @@ public class Marks3b {
     Executor executor = new Executor();
 
     void bad(Optional<Task> oTask) {
+        // Missing `else`: the pattern applies.
         // :: warning: (prefer.ifpresent)
         if (oTask.isPresent()) {
             executor.runTask(oTask.get());
+        }
+    }
+
+    void badEmptyElse(Optional<Task> oTask) {
+        // Empty `else` block: equivalent to a missing `else`, so the pattern still applies.
+        // :: warning: (prefer.ifpresent)
+        if (oTask.isPresent()) {
+            executor.runTask(oTask.get());
+        } else {
+        }
+    }
+
+    void okNonEmptyElse(Optional<Task> oTask) {
+        // Non-empty `else` block: `ifPresent` cannot express the `else` branch's behavior, so no
+        // warning is issued.
+        if (oTask.isPresent()) {
+            executor.runTask(oTask.get());
+        } else {
+            System.out.println("no task");
         }
     }
 
