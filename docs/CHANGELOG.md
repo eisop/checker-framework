@@ -118,6 +118,11 @@ bounds. A checker that wants an order-independent summary can override
 `AnnotatedTypeFactory#combineIntersectionBoundAnnotationsInHierarchy` to return,
 for example, the greatest lower bound.
 
+Added a new lint option, `-Alint=monotonicNonNullOnStatic`, under which the
+Nullness Checker issues a `monotonic.on.static` warning when `@MonotonicNonNull`
+is written on a `static` field, which the manual documents as a code smell.  The
+option is off by default because such a field functions correctly.
+
 Fixed a crash (`MissingFormatArgumentException` wrapped in `BugInCF`) in the
 Optional Checker's `prefer.map.and.orelse` warning for `if (VAR.isPresent())
 { TYPE x = METHOD(VAR.get()); }` with no `else` branch, which supplied only 2
@@ -224,6 +229,9 @@ Performance optimizations:
   methods per class); `ValueQualifierHierarchy` uses cached `value()` elements.
   Wall clock on constant-heavy 1500-method classes improved ~18%.
 - `TreeUtils.sameTree()`: use a visitor instead of an expensive `toString()`.
+- `AnnotatedTypeFactory.isFromByteCode(Element)` now caches its result per
+  element, avoiding a repeated `Path.toUri()` call (URI construction and
+  parsing) on every conservative-defaults check.
 
 Other improvements and bug fixes:
 - `TreeUtils` has a new `inferredTypeArguments(ExpressionTree)` method to
