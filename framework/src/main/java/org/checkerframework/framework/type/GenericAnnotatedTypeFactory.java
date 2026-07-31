@@ -2002,11 +2002,10 @@ public abstract class GenericAnnotatedTypeFactory<
         if (viewpointAdapter != null && lhsTree instanceof VariableTree) {
             VariableElement field = TreeUtils.elementFromDeclaration((VariableTree) lhsTree);
             if (field.getKind().isField() && !ElementUtils.isStatic(field)) {
-                TypeElement enclosingType = ElementUtils.enclosingTypeElement(field);
-                assert enclosingType != null;
-                AnnotatedTypeMirror enclosingTypeMirror = getAnnotatedType(enclosingType);
-                AnnotatedTypeMirror adapted = res.shallowCopy(true);
-                viewpointAdapter.viewpointAdaptMember(enclosingTypeMirror, field, adapted);
+                TypeElement enclosingType = (TypeElement) field.getEnclosingElement();
+                AnnotatedTypeMirror adapted = res.shallowCopy();
+                viewpointAdapter.viewpointAdaptMember(
+                        getAnnotatedType(enclosingType), field, adapted);
                 res = adapted;
             }
         }
