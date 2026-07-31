@@ -1,0 +1,162 @@
+package java.lang;
+
+import org.checkerframework.common.value.qual.UnknownVal;
+
+class StringBuilder {
+    StringBuilder append(@UnknownVal char c);
+
+    StringBuilder append(@UnknownVal String str);
+}
+
+package java.io;
+
+import org.checkerframework.common.value.qual.UnknownVal;
+
+class PrintStream {
+    void print(@UnknownVal String s);
+
+    void print(@UnknownVal char c);
+
+    void println(@UnknownVal Object x);
+
+    void println(@UnknownVal String x);
+
+    void println(@UnknownVal int x);
+}
+
+class IOException {
+    IOException(@UnknownVal String message);
+}
+
+package java.lang;
+
+import org.checkerframework.common.value.qual.UnknownVal;
+
+class ClassLoader {
+    Class<?> loadClass(@UnknownVal String name) throws ClassNotFoundException;
+}
+
+class Class<T> {
+    <U> Class<? extends U> asSubclass(@UnknownVal Class<U> clazz);
+}
+
+class Object {
+    boolean equals(@UnknownVal Object obj);
+}
+
+class IllegalArgumentException {
+    IllegalArgumentException(@UnknownVal String s);
+}
+
+class UnsupportedOperationException {
+    UnsupportedOperationException(@UnknownVal String message);
+}
+
+class RuntimeException {
+    RuntimeException(@UnknownVal String message, @UnknownVal Throwable cause);
+}
+
+class AssertionError {
+    AssertionError(@UnknownVal Object detailMessage);
+}
+
+class Error {
+    Error(@UnknownVal String message);
+}
+
+package org.checkerframework.framework.testchecker.lib;
+
+import org.checkerframework.common.value.qual.StaticallyExecutable;
+import org.checkerframework.common.value.qual.UnknownVal;
+
+class VarargsMethods {
+    @StaticallyExecutable
+    static int test0(@UnknownVal Object... objects);
+
+    @StaticallyExecutable
+    static int test1(@UnknownVal String s, @UnknownVal Object... objects);
+
+    @StaticallyExecutable
+    static int test2(@UnknownVal String s, @UnknownVal String s2, @UnknownVal Object... objects);
+}
+
+package java.util;
+
+import org.checkerframework.common.value.qual.UnknownVal;
+
+class ArrayList<E> {
+    ArrayList(@UnknownVal Collection<? extends E> c);
+}
+
+class HashSet<E> {
+    HashSet(@UnknownVal Collection<? extends E> c);
+
+    boolean contains(@UnknownVal Object o);
+}
+
+interface Set<E> {
+    boolean retainAll(@UnknownVal Collection<?> c);
+}
+
+package java.nio.file;
+
+import org.checkerframework.common.value.qual.UnknownVal;
+
+class Paths {
+    static Path get(@UnknownVal String first, @UnknownVal String... more);
+}
+
+class Files {
+    static java.io.BufferedWriter newBufferedWriter(
+            @UnknownVal Path path,
+            @UnknownVal java.nio.charset.Charset cs,
+            @UnknownVal OpenOption... options);
+
+    static boolean isRegularFile(@UnknownVal Path path, @UnknownVal LinkOption... options);
+}
+
+package java.lang.invoke;
+
+import org.checkerframework.common.value.qual.UnknownVal;
+
+class MethodHandle {
+    Object invoke(@UnknownVal Object... args) throws Throwable;
+}
+
+package java.util.stream;
+
+import org.checkerframework.common.value.qual.UnknownVal;
+
+interface Stream<T> {
+    static <T> Stream<T> of(@UnknownVal T... values);
+
+    <R, A> R collect(@UnknownVal Collector<? super T, A, R> collector);
+
+    Stream<T> skip(@UnknownVal long n);
+
+    Stream<T> sorted(@UnknownVal java.util.Comparator<? super T> comparator);
+
+    java.util.Optional<T> max(@UnknownVal java.util.Comparator<? super T> comparator);
+}
+
+interface IntStream {
+    static IntStream range(@UnknownVal int startInclusive, @UnknownVal int endExclusive);
+}
+
+class Collectors {
+    static Collector<CharSequence, ?, String> joining(@UnknownVal CharSequence delimiter);
+
+    static <T, K, U> Collector<T, ?, java.util.Map<K, U>> toMap(
+            @UnknownVal java.util.function.Function<? super T, ? extends K> keyMapper,
+            @UnknownVal java.util.function.Function<? super T, ? extends U> valueMapper);
+
+    static <T, K, U, M extends java.util.Map<K, U>> Collector<T, ?, M> toMap(
+            @UnknownVal java.util.function.Function<? super T, ? extends K> keyMapper,
+            @UnknownVal java.util.function.Function<? super T, ? extends U> valueMapper,
+            @UnknownVal java.util.function.BinaryOperator<U> mergeFunction,
+            @UnknownVal java.util.function.Supplier<M> mapSupplier);
+
+    static <T, A, R, RR> Collector<T, A, RR> collectingAndThen(
+            @UnknownVal Collector<T, A, R> downstream,
+            @UnknownVal java.util.function.Function<R, RR> finisher);
+}
