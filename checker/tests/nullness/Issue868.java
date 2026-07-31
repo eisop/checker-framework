@@ -12,8 +12,12 @@ public class Issue868 {
         e.toString();
     }
 
+    // The first bound (Object) has no explicit qualifier; its nullness default is @NonNull
+    // (EXPLICIT_UPPER_BOUND defaulting, because the extends clause is written). First-bound-wins
+    // makes the summary @NonNull, so the explicit @Nullable on the second bound is ignored (exactly
+    // as in test5, where the first bound's @NonNull is written explicitly).
+    // :: warning: (explicit.annotation.ignored)
     <E extends Object & @Nullable MyList> void test2(E e) {
-        // :: error: (dereference.of.nullable)
         e.toString();
     }
 
@@ -39,6 +43,9 @@ public class Issue868 {
 
     void use() {
         this.<@Nullable MyList>test1(null);
+        // test2's bound summary is @NonNull (first bound wins), so @Nullable is not a valid
+        // argument.
+        // :: error: (type.argument.type.incompatible)
         this.<@Nullable MyList>test2(null);
         this.<@Nullable MyList>test3(null);
         // :: error: (type.argument.type.incompatible)
