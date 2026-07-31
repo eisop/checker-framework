@@ -205,6 +205,9 @@ Performance optimizations:
   methods per class); `ValueQualifierHierarchy` uses cached `value()` elements.
   Wall clock on constant-heavy 1500-method classes improved ~18%.
 - `TreeUtils.sameTree()`: use a visitor instead of an expensive `toString()`.
+- `AnnotatedTypeFactory.isFromByteCode(Element)` now caches its result per
+  element, avoiding a repeated `Path.toUri()` call (URI construction and
+  parsing) on every conservative-defaults check.
 
 Other improvements and bug fixes:
 - `TreeUtils` has a new `inferredTypeArguments(ExpressionTree)` method to
