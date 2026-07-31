@@ -67,4 +67,11 @@ runs:
       shell: bash
       # PEP 668: Ubuntu 24.04's system Python is externally-managed.
       # `--break-system-packages` is the documented escape hatch for CI.
-      run: pip install --break-system-packages black flake8 html5validator
+      #
+      # ruff is pinned: the Makefile's `install-ruff` target (`if ! command -v
+      # ruff; then pipx install ruff; fi`) only installs its own (unpinned,
+      # always-latest) copy when ruff isn't already on PATH, so installing a
+      # fixed version here makes that fallback a no-op and keeps `make
+      # style-check` results reproducible across CI runs. Bump this pin
+      # deliberately, not as a side effect of an unrelated PR.
+      run: pip install --break-system-packages black flake8 html5validator ruff==0.16.1

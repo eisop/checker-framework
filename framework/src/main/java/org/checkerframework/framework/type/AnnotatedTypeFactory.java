@@ -344,6 +344,9 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      */
     private final IdentityHashMap<Element, AnnotationMirrorSet> cacheDeclAnnos;
 
+    /** A cache for the result of {@link #isFromByteCode(Element)}, keyed by element. */
+    private final IdentityHashMap<Element, Boolean> isFromByteCodeCache;
+
     /**
      * A set containing declaration annotations that should be inherited. A declaration annotation
      * will be inherited if it is in this set, or if it has the
@@ -663,6 +666,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         this.currentFileAjavaTypes = null;
 
         this.cacheDeclAnnos = new IdentityHashMap<>();
+        this.isFromByteCodeCache = new IdentityHashMap<>();
         this.methodDeclaresPolyCache = new IdentityHashMap<>();
 
         // get the shared instance from the checker
@@ -1120,6 +1124,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             // elementCache.clear();
             // elementTypeCache.clear();
             // cacheDeclAnnos.clear();
+            // isFromByteCodeCache.clear();
             // methodDeclaresPolyCache.clear();
         }
 
@@ -1601,7 +1606,15 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         // or obtained from bytecode.
         AnnotatedTypeMirror type = fromElement(elt);
         addComputedTypeAnnotations(elt, type);
-        if (useCache) {
+        // Do not cache a result computed while an annotation file is being parsed: a fake
+        // override (AnnotationFileParser#processFakeOverride, BinaryStubReader#applyFakeOverride)
+        // reentrantly calls this method on the overridden method while that method's own
+        // declaring class may not have been processed yet, e.g. when it appears later in the same
+        // stub file. `elementTypeCache` is intentionally never cleared between compilation units
+        // (see the comment in setRoot), so caching such an incomplete result here would freeze it
+        // for the rest of the compilation. `fromElement`'s `elementCache` already applies this
+        // same guard, for the same reason; see `isParsingAnnotationFile`'s Javadoc.
+        if (useCache && !isParsingAnnotationFile()) {
             elementTypeCache.put(elt, frozenDeepCopy(type));
         }
         return type;
@@ -1618,6 +1631,41 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      */
     protected boolean shouldCacheElementType() {
         return true;
+    }
+
+    /**
+     * Combines two conflicting bound annotations of an intersection type, in the same qualifier
+     * hierarchy, into the single annotation that {@link
+     * AnnotatedTypeMirror.AnnotatedIntersectionType#copyIntersectionBoundAnnotations()} uses to
+     * summarize that hierarchy. This method is called only when two bounds carry different
+     * annotations in one hierarchy.
+     *
+     * <p>By default the annotation of the bound encountered first, in source order, wins
+     * (first-bound-wins): the returned summary equals {@code existingAnnotation} and {@code
+     * newAnnotation} is ignored. The summary is therefore source-order dependent, but deterministic
+     * for a given compilation. It is still a sound upper bound of the intersection, because it
+     * equals one of the bounds' own annotations and the intersection is a subtype of each of its
+     * bounds.
+     *
+     * <p>A checker that wants an order-independent, more precise summary&mdash;for example a
+     * JSpecify-style integration&mdash;may override this to return {@code
+     * qualifierHierarchy.greatestLowerBoundQualifiersOnly(existingAnnotation, newAnnotation)}. This
+     * method decides only how the per-hierarchy summary is computed; that summary is always written
+     * back onto every bound (homogenization).
+     *
+     * @param existingAnnotation the annotation already chosen for this hierarchy, from an earlier
+     *     bound in source order
+     * @param newAnnotation a conflicting annotation from a later bound in the same hierarchy
+     * @param qualifierHierarchy the qualifier hierarchy that both annotations belong to
+     * @return the annotation to use as the intersection's summary for this hierarchy
+     */
+    protected AnnotationMirror combineIntersectionBoundAnnotationsInHierarchy(
+            AnnotationMirror existingAnnotation,
+            AnnotationMirror newAnnotation,
+            QualifierHierarchy qualifierHierarchy) {
+        // Default: first-bound-wins. Keep whichever annotation was found first and ignore the
+        // conflicting one.
+        return existingAnnotation;
     }
 
     /**
@@ -4835,10 +4883,23 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * @return true if the element is from bytecode and did not appear in a stub file
      */
     public boolean isFromByteCode(Element element) {
-        if (isFromStubFile(element)) {
-            return false;
+        Boolean cached = isFromByteCodeCache.get(element);
+        if (cached != null) {
+            return cached;
         }
-        return !ElementUtils.isElementFromSourceCode(element);
+        boolean result = !isFromStubFile(element) && !ElementUtils.isElementFromSourceCode(element);
+        // Do not cache a result computed while an annotation file is being parsed: isFromStubFile
+        // depends on the element's @FromStubFile declaration annotation, which cacheDeclAnnos
+        // (backing getDeclAnnotations) itself does not cache while parsing, for the same reason --
+        // a fake override or other reentrant lookup can query this element before its own
+        // declaring class's stub info has been fully attached. See getDeclAnnotations's identical
+        // guard and GenericAnnotatedTypeFactory#parsePhasePrimaryDefaultsCache's Javadoc ("Standard
+        // factory caches are disabled during parsing to prevent caching partially loaded stub
+        // annotations").
+        if (!isParsingAnnotationFile()) {
+            isFromByteCodeCache.put(element, result);
+        }
+        return result;
     }
 
     /**
