@@ -96,7 +96,9 @@ not by itself a reason to prefer it over jtreg.
   language ("dramatically", "blazingly").
 - **Changelog:** every user-visible or perf-relevant change gets one
   bullet in [`docs/CHANGELOG.md`](docs/CHANGELOG.md) under the next
-  release.
+  release. If the PR closes a GitHub issue, add its number (as `eisop#NNNN`,
+  in ascending numeric order) to that release's **Closed issues:** list in
+  the same PR — don't leave it for a later backfill.
 - **Branch naming for perf/correctness audits:**
   `review-<package>` or `perf-<package>` matches recent practice
   (e.g., `Review of common/basetype package (#1721)`).
