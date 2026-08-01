@@ -20,7 +20,7 @@ public class BinarySearchTree {
     }
 
     // @immutable violation
-    @SuppressWarnings("pico:method.invocation.invalid")
+    @SuppressWarnings("mutability:method.invocation.invalid")
     public int insert(@Readonly BinarySearchTree this, int value) {
         if (this.root == -1) {
             int newNode = this.nodes;

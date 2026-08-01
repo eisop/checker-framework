@@ -29,7 +29,7 @@ public class UnionFind {
     }
 
     // @viewmethod
-    @SuppressWarnings("pico:illegal.array.write")
+    @SuppressWarnings("mutability:illegal.array.write")
     public int find(@Readonly UnionFind this, int a) {
         if (this.pointsTo[a] == -1) {
             return a;

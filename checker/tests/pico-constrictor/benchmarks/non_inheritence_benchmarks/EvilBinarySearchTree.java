@@ -19,7 +19,7 @@ public class EvilBinarySearchTree {
     }
 
     // @viewmethod
-    @SuppressWarnings({"pico:method.invocation.invalid", "pico:illegal.field.write"})
+    @SuppressWarnings({"mutability:method.invocation.invalid", "mutability:illegal.field.write"})
     public int insert(@Readonly EvilBinarySearchTree this, int value) {
         if (this.root == -1) {
             int newNode = this.nodes;
