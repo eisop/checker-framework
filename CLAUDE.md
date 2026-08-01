@@ -64,15 +64,21 @@ script with the same `useJdkVersion`. CI workflow is
 [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
 
 **Adding a test — jtreg vs. JUnit.** For a narrow single-scenario check
-(e.g. one lint flag's on/off behavior) the lightest option is a jtreg test
-with a `@compile/ref=<name>.out` directive — one self-contained `.java` file
-plus its expected-diagnostics `.out`, no runner class (see
-`checker/jtreg/lintoption/`). For anything needing multiple related inputs or
-a shared stub file, use the JUnit `CheckerFrameworkPerDirectoryTest` pattern:
-a small runner class pointing at a `checker/tests/<dir>/` directory (see the
-`Stubparser*Test` classes, which pass `-Astubs=`). Prefer jtreg for a
-one-file scenario; reach for the JUnit runner only when a whole directory of
-inputs earns it.
+(e.g. one lint flag's on/off behavior, or a stub-file parser regression) the
+lightest option is a jtreg test: one self-contained `.java` file, or a
+`.java` plus its `.astub`, with the `@compile`/`@compile/ref=<name>.out`
+directive(s) inline — no runner class (see `checker/jtreg/lintoption/` for
+the plain case, and `checker/jtreg/stubs/` for stub-file scenarios,
+including multi-file ones: `framework/jtreg/StubParserEnum` for a single
+`.astub` plus `.java`, `checker/jtreg/stubs/fakeoverrides` for a test that
+also needs a small helper class, compiled first via its own `@compile`
+directive in the same file). Reach for the JUnit
+`CheckerFrameworkPerDirectoryTest` pattern — a small runner class pointing
+at a `checker/tests/<dir>/` directory — only when a test genuinely needs a
+whole directory of related inputs checked together (many source files as
+one compilation unit) or the inline `// :: error:`-style diagnostic-comment
+convention that pattern supports; needing a stub file alongside the test is
+not by itself a reason to prefer it over jtreg.
 
 ## Commit and PR conventions
 
