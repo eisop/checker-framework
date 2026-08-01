@@ -322,6 +322,10 @@ final class SupertypeFinder {
                     adt.setIsUnderlyingTypeRaw();
                 }
             }
+
+            for (AnnotatedDeclaredType adt : supertypes) {
+                atypeFactory.addComputedTypeAnnotations(adt.getUnderlyingType().asElement(), adt);
+            }
             return supertypes;
         }
 
@@ -351,7 +355,14 @@ final class SupertypeFinder {
 
             TypeElement elem = TreeUtils.elementFromDeclaration(classTree);
             if (elem.getKind() == ElementKind.ENUM) {
-                supertypes.add(createEnumSuperType(type, elem));
+                // Unlike the extends/implements supertypes above (which come from
+                // getAnnotatedTypeFromTypeTree already defaulted), the enum super type is built
+                // via toAnnotatedType(..., false) and is undefaulted. The element path defaults
+                // every supertype in a trailing loop; the tree path has none, so default it here.
+                AnnotatedDeclaredType enumSuperType = createEnumSuperType(type, elem);
+                atypeFactory.addComputedTypeAnnotations(
+                        enumSuperType.getUnderlyingType().asElement(), enumSuperType);
+                supertypes.add(enumSuperType);
             }
             if (type.isUnderlyingTypeRaw()) {
                 for (AnnotatedDeclaredType adt : supertypes) {
