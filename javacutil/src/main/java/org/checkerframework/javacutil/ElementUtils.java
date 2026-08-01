@@ -1186,7 +1186,6 @@ public class ElementUtils {
      * @return the module element for the given name, or {@code null} if not found or if {@code
      *     getModuleElement} is not available on this JDK
      */
-    @SuppressWarnings("nullness") // because of cast from reflection
     public static @Nullable Element getModuleElement(Elements elements, CharSequence name) {
         if (ELEMENTS_GETMODULEELEMENT == null) {
             return null;

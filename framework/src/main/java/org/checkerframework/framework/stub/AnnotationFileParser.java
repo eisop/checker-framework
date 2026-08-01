@@ -2828,7 +2828,6 @@ public class AnnotationFileParser {
                     allAnnotations,
                     createNameToAnnotationMap(Collections.singletonList(annoTypeElt)));
         }
-        @SuppressWarnings("signature") // not anonymous, so name is not empty
         @CanonicalName String annoName = ElementUtils.getQualifiedName(annoTypeElt);
 
         if (annotation instanceof MarkerAnnotationExpr) {
