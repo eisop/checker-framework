@@ -35,6 +35,7 @@ import org.checkerframework.javacutil.TreePathUtil;
 import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TypesUtils;
 
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Set;
 
@@ -50,7 +51,7 @@ import javax.lang.model.type.TypeMirror;
 public class MutabilityNoInitVisitor extends BaseTypeVisitor<MutabilityNoInitAnnotatedTypeFactory> {
     /** Unary operators that mutate their operand. */
     private static final Set<Tree.Kind> SIDE_EFFECTING_UNARY_OPERATORS =
-            Set.of(
+            EnumSet.of(
                     Tree.Kind.POSTFIX_INCREMENT,
                     Tree.Kind.PREFIX_INCREMENT,
                     Tree.Kind.POSTFIX_DECREMENT,
