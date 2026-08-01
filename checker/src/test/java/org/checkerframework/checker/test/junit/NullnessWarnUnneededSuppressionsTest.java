@@ -22,6 +22,11 @@ public class NullnessWarnUnneededSuppressionsTest extends CheckerFrameworkPerDir
                 "-AwarnUnneededSuppressions");
     }
 
+    /**
+     * Returns the test directories.
+     *
+     * @return the test directories
+     */
     @Parameters
     public static String[] getTestDirs() {
         return new String[] {"nullness-warnunneededsuppressions"};
