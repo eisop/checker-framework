@@ -50,6 +50,14 @@ import java.util.Optional;
  * the stubifier's own build classpath) aborts the run with a message naming the annotation and the
  * source file being processed; see {@link #SKIP_UNLOADABLE_ANNOTATIONS_FLAG} for the opt-in flag
  * that trades that safety for being able to finish the run anyway.
+ *
+ * <p>Each directory is processed by its own {@link BinaryStubWriter} into its own output file (see
+ * {@link #process}). An interface and its implementer being in different directories does not
+ * weaken fake-override handling: a writer records every unannotated method it sees as a
+ * presence-only signature unconditionally ({@code BinaryStubWriter.addMethodRecord}), with no
+ * dependence on the interfaces that writer happened to see, and the fake-override match runs at
+ * read time over the real class hierarchy ({@code BinaryStubReader.applyFakeOverride}, {@code
+ * FakeOverrideResolver}).
  */
 public class JavaStubifier {
     /**
