@@ -41,6 +41,14 @@ stub), `-AsuppressWarnings=text.parsing.jdk.class` (a JDK class is missing from
 the binary stub), or `-AsuppressWarnings=text.parsing.stub` (a checker's stub
 file has no binary stub).
 
+Fixed `-AwarnUnneededSuppressions` failing to report an unneeded
+`@SuppressWarnings` whose value is exactly a checker prefix (such as
+`"nullness"`, `"allcheckers"`, or `"all"`). Such a suppression suppresses every
+warning of the checker, and it was incorrectly suppressing the
+`unneeded.suppression` warning about itself. To suppress that warning
+deliberately, write the message key explicitly, as in
+`@SuppressWarnings("nullness:unneeded.suppression")`.
+
 Fixed four bugs in how `AnnotationFileParser` matches a fake override to the
 method it overrides. Each made a stub declaration bind to the wrong method, or
 to none at all, silently changing or dropping the annotations it provides:
