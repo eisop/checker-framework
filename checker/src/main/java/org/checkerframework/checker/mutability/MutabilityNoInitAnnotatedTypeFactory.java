@@ -13,7 +13,6 @@ import com.sun.source.tree.VariableTree;
 import com.sun.tools.javac.code.Symbol;
 
 import org.checkerframework.checker.initialization.InitializationFieldAccessTreeAnnotator;
-import org.checkerframework.checker.initialization.qual.UnderInitialization;
 import org.checkerframework.checker.mutability.qual.Assignable;
 import org.checkerframework.checker.mutability.qual.Immutable;
 import org.checkerframework.checker.mutability.qual.MutabilityBottom;
@@ -32,13 +31,11 @@ import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedExecutab
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedTypeVariable;
 import org.checkerframework.framework.type.AnnotatedTypeParameterBounds;
 import org.checkerframework.framework.type.GenericAnnotatedTypeFactory;
-import org.checkerframework.framework.type.QualifierHierarchy;
 import org.checkerframework.framework.type.ViewpointAdapter;
 import org.checkerframework.framework.type.treeannotator.ListTreeAnnotator;
 import org.checkerframework.framework.type.treeannotator.LiteralTreeAnnotator;
 import org.checkerframework.framework.type.treeannotator.PropagationTreeAnnotator;
 import org.checkerframework.framework.type.treeannotator.TreeAnnotator;
-import org.checkerframework.framework.type.typeannotator.DefaultForTypeAnnotator;
 import org.checkerframework.framework.type.typeannotator.DefaultQualifierForUseTypeAnnotator;
 import org.checkerframework.framework.type.typeannotator.ListTypeAnnotator;
 import org.checkerframework.framework.type.typeannotator.TypeAnnotator;
@@ -61,7 +58,6 @@ import java.util.Set;
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
-import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.DeclaredType;
@@ -101,14 +97,6 @@ public class MutabilityNoInitAnnotatedTypeFactory
     /** The {@link MutabilityBottom} annotation. */
     protected final AnnotationMirror BOTTOM =
             AnnotationBuilder.fromClass(elements, MutabilityBottom.class);
-
-    /** The {@link UnderInitialization} annotation. */
-    protected final AnnotationMirror UNDER_INITALIZATION =
-            AnnotationBuilder.fromClass(elements, UnderInitialization.class);
-
-    /** The {@code value} element of {@link UnderInitialization}. */
-    protected final ExecutableElement underInitializationValueElement =
-            TreeUtils.getMethod(UnderInitialization.class, "value", 0, processingEnv);
 
     /**
      * Create a new MutabilityNoInitAnnotatedTypeFactory.
@@ -159,13 +147,7 @@ public class MutabilityNoInitAnnotatedTypeFactory
         return new ListTypeAnnotator(
                 super.createTypeAnnotator(),
                 new MutabilityTypeAnnotator(this),
-                new MutabilityDefaultForTypeAnnotator(this),
                 new MutabilityEnumDefaultAnnotator(this));
-    }
-
-    @Override
-    public QualifierHierarchy createQualifierHierarchy() {
-        return new MutabilityQualifierHierarchy(getSupportedTypeQualifiers(), elements, this);
     }
 
     @Override
@@ -233,9 +215,12 @@ public class MutabilityNoInitAnnotatedTypeFactory
     }
 
     /**
-     * Returns the method type parameter bounds adapted to the viewpoint of a method invocation.
+     * Returns the method type parameter bounds adapted to the viewpoint of a method invocation. The
+     * executable type returned by {@link #methodFromUseWithoutTypeArgInference} does not expose the
+     * adapted bounds needed to detect lost mutability, so adapt those bounds explicitly.
      *
-     * <p>TODO: Move this to the framework so other viewpoint-adaptation checkers can reuse it.
+     * <p>After <a href="https://github.com/eisop/checker-framework/pull/1850">pull request
+     * #1850</a>, remove this specialized adaptation and use the bounds from the executable type.
      *
      * @param tree a method invocation
      * @return the adapted method type parameter bounds
@@ -428,42 +413,16 @@ public class MutabilityNoInitAnnotatedTypeFactory
     }
 
     /**
-     * Determines whether {@code variableElement} is receiver-dependent assignable.
-     *
-     * @param variableElement the field element
-     * @return true if the field is receiver-dependent assignable
-     */
-    private boolean isReceiverDependentAssignable(Element variableElement) {
-        assert variableElement instanceof VariableElement;
-        if (ElementUtils.isStatic(variableElement)) {
-            return false;
-        }
-        return !isAssignableField(variableElement) && !ElementUtils.isFinal(variableElement);
-    }
-
-    /**
-     * Checks that {@code field} has exactly one assignability status: explicitly assignable, final,
-     * or receiver-dependent assignable.
+     * Returns whether {@code field} has a valid assignability status. Every non-final field has
+     * exactly one status by default: a static field is assignable and an instance field is
+     * receiver-dependent assignable. Therefore, the only invalid combination is a final field that
+     * is also explicitly {@link Assignable}.
      *
      * @param field the field element
-     * @return true if the field has exactly one assignability status
+     * @return whether the field has a valid assignability status
      */
-    boolean hasOneAndOnlyOneAssignabilityQualifier(VariableElement field) {
-        if (isAssignableField(field)
-                && !ElementUtils.isFinal(field)
-                && !isReceiverDependentAssignable(field)) {
-            return true;
-        } else if (!isAssignableField(field)
-                && ElementUtils.isFinal(field)
-                && !isReceiverDependentAssignable(field)) {
-            return true;
-        } else if (!isAssignableField(field)
-                && !ElementUtils.isFinal(field)
-                && isReceiverDependentAssignable(field)) {
-            assert !ElementUtils.isStatic(field);
-            return true;
-        }
-        return false;
+    boolean hasValidAssignability(VariableElement field) {
+        return !ElementUtils.isFinal(field) || !isAssignableField(field);
     }
 
     /**
@@ -782,30 +741,6 @@ public class MutabilityNoInitAnnotatedTypeFactory
             }
             r = scanAndReduce(type.getTypeArguments(), null, r);
             return r;
-        }
-    }
-
-    /** Applies Mutability defaults derived from {@link DefaultFor}. */
-    private static class MutabilityDefaultForTypeAnnotator extends DefaultForTypeAnnotator {
-
-        /**
-         * Create a new MutabilityDefaultForTypeAnnotator.
-         *
-         * @param typeFactory the type factory
-         */
-        private MutabilityDefaultForTypeAnnotator(AnnotatedTypeFactory typeFactory) {
-            super(typeFactory);
-        }
-
-        /** Also applies implicit defaults to method receivers. */
-        @Override
-        public Void visitExecutable(AnnotatedExecutableType t, Void p) {
-            super.visitExecutable(t, p);
-            // Also scan the receiver to apply implicit annotation
-            if (t.getReceiverType() != null) {
-                return scanAndReduce(t.getReceiverType(), p, null);
-            }
-            return null;
         }
     }
 

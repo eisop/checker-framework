@@ -188,7 +188,7 @@ public class MutabilityValidator extends BaseTypeValidator {
         if (field == null) {
             return;
         }
-        if (!mutabilityTypeFactory.hasOneAndOnlyOneAssignabilityQualifier(field)) {
+        if (!mutabilityTypeFactory.hasValidAssignability(field)) {
             checker.reportError(field, "assignability.declaration.invalid", field);
             isValid = false;
         }
