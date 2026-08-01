@@ -1,6 +1,6 @@
-package stubparsernestedscope;
+package nestedscope;
 
-import stubparsernestedscope.DefinedByExample;
+import nestedscope.DefinedByExample;
 
 // DefinedByExample.Api.COMPILER's scope ("DefinedByExample.Api") is itself a FieldAccessExpr
 // (scope "DefinedByExample", name "Api"), not a plain name: real JDK sources write this same
