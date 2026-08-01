@@ -30,7 +30,7 @@ import org.checkerframework.checker.mutability.qual.ReceiverDependentMutable;
         // :: error: (type.invalid.annotations.on.location) :: error: (constructor.return.invalid)
         @PolyMutable MutabilityTypeUseLocationFail() {}
 
-        // :: error: (super.invocation.invalid) :: error: (constructor.return.invalid)
+        // :: error: (constructor.return.invalid)
         @Readonly MutabilityTypeUseLocationFail(int a) {}
     }
 }

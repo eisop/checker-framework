@@ -36,6 +36,7 @@ import org.checkerframework.framework.type.treeannotator.ListTreeAnnotator;
 import org.checkerframework.framework.type.treeannotator.LiteralTreeAnnotator;
 import org.checkerframework.framework.type.treeannotator.PropagationTreeAnnotator;
 import org.checkerframework.framework.type.treeannotator.TreeAnnotator;
+import org.checkerframework.framework.type.typeannotator.DefaultForTypeAnnotator;
 import org.checkerframework.framework.type.typeannotator.DefaultQualifierForUseTypeAnnotator;
 import org.checkerframework.framework.type.typeannotator.ListTypeAnnotator;
 import org.checkerframework.framework.type.typeannotator.TypeAnnotator;
@@ -147,6 +148,10 @@ public class MutabilityNoInitAnnotatedTypeFactory
         return new ListTypeAnnotator(
                 super.createTypeAnnotator(),
                 new MutabilityTypeAnnotator(this),
+                // The framework skips @DefaultFor on the primary type of local variables. Apply
+                // it here so implicitly immutable local types override the @Readonly location
+                // default.
+                new DefaultForTypeAnnotator(this),
                 new MutabilityEnumDefaultAnnotator(this));
     }
 
@@ -179,16 +184,17 @@ public class MutabilityNoInitAnnotatedTypeFactory
     }
 
     @Override
-    public ParameterizedExecutableType constructorFromUse(NewClassTree tree) {
-        ParameterizedExecutableType cType = super.constructorFromUse(tree);
-        AnnotatedExecutableType constructor = cType.executableType;
+    protected ParameterizedExecutableType constructorFromUse(
+            NewClassTree tree, boolean inferTypeArgs) {
+        ParameterizedExecutableType constructorType = super.constructorFromUse(tree, inferTypeArgs);
+        AnnotatedExecutableType constructor = constructorType.executableType;
         // For object creation, if the constructor return type is @RDM and there is no explicit
         // annotation on the new expression, use the default concrete creation qualifier.
         if (getExplicitNewClassAnnos(tree).isEmpty()
                 && constructor.getReturnType().hasAnnotation(RECEIVER_DEPENDENT_MUTABLE)) {
             constructor.getReturnType().replaceAnnotation(MUTABLE);
         }
-        return cType;
+        return constructorType;
     }
 
     /**
