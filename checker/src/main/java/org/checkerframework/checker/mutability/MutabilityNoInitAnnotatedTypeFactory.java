@@ -488,38 +488,30 @@ public class MutabilityNoInitAnnotatedTypeFactory
      * @param element the element to add default annotation
      */
     private void addDefaultForField(AnnotatedTypeMirror annotatedTypeMirror, Element element) {
-        if (element != null && element.getKind() == ElementKind.FIELD) {
-            // If the field is static, apply the default concrete qualifier if there is no explicit
-            // annotation and the field type declaration bound is @RDM.
-            if (ElementUtils.isStatic(element)) {
-                AnnotatedTypeMirror explicitATM = fromElement(element);
-                AnnotationMirrorSet declBound = getTypeDeclarationBounds(element.asType());
-                if (!explicitATM.hasAnnotationInHierarchy(READONLY)
-                        && AnnotationUtils.containsSameByName(
-                                declBound, RECEIVER_DEPENDENT_MUTABLE)) {
-                    annotatedTypeMirror.replaceAnnotation(MUTABLE);
-                }
-            } else {
-                // Apply default annotation to instance fields if there is no explicit annotation
-                AnnotatedTypeMirror explicitATM = fromElement(element);
-                if (!explicitATM.hasAnnotationInHierarchy(READONLY)) {
-                    if (explicitATM instanceof AnnotatedTypeMirror.AnnotatedDeclaredType) {
-                        AnnotatedTypeMirror.AnnotatedDeclaredType adt =
-                                (AnnotatedTypeMirror.AnnotatedDeclaredType) explicitATM;
-                        Element typeElement = adt.getUnderlyingType().asElement();
-                        // If the declaration bound is RDM, replace the annotation as RDM
-                        if (typeElement instanceof TypeElement) {
-                            AnnotatedTypeMirror bound = getAnnotatedType(typeElement);
-                            if (bound.hasAnnotation(RECEIVER_DEPENDENT_MUTABLE)) {
-                                annotatedTypeMirror.replaceAnnotation(RECEIVER_DEPENDENT_MUTABLE);
-                            }
-                        }
-                    } else if (explicitATM instanceof AnnotatedTypeMirror.AnnotatedArrayType) {
-                        // If the ATM is array type, replace array type with @RDM.
-                        annotatedTypeMirror.replaceAnnotation(RECEIVER_DEPENDENT_MUTABLE);
-                    }
-                }
-            }
+        if (element == null || element.getKind() != ElementKind.FIELD) {
+            return;
+        }
+
+        AnnotatedTypeMirror explicitType = fromElement(element);
+        if (explicitType.hasAnnotationInHierarchy(READONLY)) {
+            return;
+        }
+
+        AnnotationMirror declarationBound;
+        if (explicitType instanceof AnnotatedTypeVariable) {
+            // A type variable's effective qualifier comes from its annotated upper bound.
+            declarationBound = explicitType.getEffectiveAnnotationInHierarchy(READONLY);
+        } else {
+            declarationBound =
+                    getQualifierHierarchy()
+                            .findAnnotationInHierarchy(
+                                    getTypeDeclarationBounds(element.asType()), READONLY);
+        }
+        if (declarationBound != null
+                && AnnotationUtils.areSame(declarationBound, RECEIVER_DEPENDENT_MUTABLE)) {
+            // Static fields have no receiver through which to adapt an RDM qualifier.
+            annotatedTypeMirror.replaceAnnotation(
+                    ElementUtils.isStatic(element) ? MUTABLE : RECEIVER_DEPENDENT_MUTABLE);
         }
     }
 
@@ -728,29 +720,13 @@ public class MutabilityNoInitAnnotatedTypeFactory
         }
 
         @Override
-        public Void visitDeclared(AnnotatedTypeMirror.AnnotatedDeclaredType type, Void aVoid) {
-
-            Element element = type.getUnderlyingType().asElement();
-            AnnotationMirrorSet annosToApply = getDefaultAnnosForUses(element);
-
-            if (annosToApply.contains(mutabilityTypeFactory.MUTABLE)
-                    || annosToApply.contains(mutabilityTypeFactory.IMMUTABLE)) {
-                type.addMissingAnnotations(annosToApply);
+        protected AnnotationMirrorSet getDefaultAnnosForUses(Element element) {
+            AnnotationMirrorSet defaults = super.getDefaultAnnosForUses(element);
+            if (defaults.contains(mutabilityTypeFactory.MUTABLE)
+                    || defaults.contains(mutabilityTypeFactory.IMMUTABLE)) {
+                return defaults;
             }
-
-            if (!type.getTypeArguments().isEmpty()) {
-                // Only declared types with type arguments might be recursive.
-                if (hasVisited(type)) {
-                    return getVisited(type);
-                }
-                markVisited(type, null);
-            }
-            Void r = null;
-            if (type.getEnclosingType() != null) {
-                scan(type.getEnclosingType(), null);
-            }
-            r = scanAndReduce(type.getTypeArguments(), null, r);
-            return r;
+            return AnnotationMirrorSet.emptySet();
         }
     }
 
