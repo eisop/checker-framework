@@ -10,7 +10,6 @@ import com.sun.source.tree.NewClassTree;
 import com.sun.source.tree.Tree;
 import com.sun.source.tree.TypeCastTree;
 import com.sun.source.tree.VariableTree;
-import com.sun.tools.javac.code.Symbol;
 
 import org.checkerframework.checker.initialization.InitializationFieldAccessTreeAnnotator;
 import org.checkerframework.checker.mutability.qual.Assignable;
@@ -31,6 +30,7 @@ import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedExecutab
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedTypeVariable;
 import org.checkerframework.framework.type.AnnotatedTypeParameterBounds;
 import org.checkerframework.framework.type.GenericAnnotatedTypeFactory;
+import org.checkerframework.framework.type.SyntheticArrays;
 import org.checkerframework.framework.type.ViewpointAdapter;
 import org.checkerframework.framework.type.treeannotator.ListTreeAnnotator;
 import org.checkerframework.framework.type.treeannotator.LiteralTreeAnnotator;
@@ -147,7 +147,6 @@ public class MutabilityNoInitAnnotatedTypeFactory
         // others won't apply twice at the same location
         return new ListTypeAnnotator(
                 super.createTypeAnnotator(),
-                new MutabilityTypeAnnotator(this),
                 // The framework skips @DefaultFor on the primary type of local variables. Apply
                 // it here so implicitly immutable local types override the @Readonly location
                 // default.
@@ -218,6 +217,20 @@ public class MutabilityNoInitAnnotatedTypeFactory
             defaultMethodReceiverToClassBound(elt, type);
         }
         super.addComputedTypeAnnotations(elt, type);
+    }
+
+    @Override
+    public void postAsMemberOf(
+            AnnotatedTypeMirror type, AnnotatedTypeMirror owner, Element element) {
+        super.postAsMemberOf(type, owner, element);
+        if (type instanceof AnnotatedExecutableType
+                && SyntheticArrays.isArrayClone(owner, element)) {
+            AnnotatedExecutableType cloneType = (AnnotatedExecutableType) type;
+            assert cloneType.getReceiverType() != null;
+            // clone() does not mutate its source array, so it is invocable through every
+            // mutability viewpoint.
+            cloneType.getReceiverType().replaceAnnotation(READONLY);
+        }
     }
 
     /**
@@ -452,23 +465,6 @@ public class MutabilityNoInitAnnotatedTypeFactory
         return fieldElement != null && isAssignableField(fieldElement);
     }
 
-    /**
-     * Determines whether {@code type} is javac's synthetic array class.
-     *
-     * @param type the declared type to check
-     * @return true if {@code type} is the synthetic array class
-     */
-    private boolean isArrayType(AnnotatedTypeMirror.AnnotatedDeclaredType type) {
-        Element ele = getProcessingEnv().getTypeUtils().asElement(type.getUnderlyingType());
-
-        // If it is a user-declared "Array" class without package, a class / source file should be
-        // there. Otherwise, it is the java inner type.
-        return ele instanceof Symbol.ClassSymbol
-                && ElementUtils.getQualifiedName(ele).contentEquals("Array")
-                && ((Symbol.ClassSymbol) ele).classfile == null
-                && ((Symbol.ClassSymbol) ele).sourcefile == null;
-    }
-
     @Override
     public AnnotatedTypeMirror getTypeOfExtendsImplements(Tree clause) {
         // Allow concrete class bounds to satisfy @RDM extends/implements clauses by adapting the
@@ -652,48 +648,6 @@ public class MutabilityNoInitAnnotatedTypeFactory
         @Override
         public Void visitBinary(BinaryTree tree, AnnotatedTypeMirror type) {
             type.replaceAnnotation(mutabilityTypeFactory.IMMUTABLE);
-            return null;
-        }
-    }
-
-    /** Type annotators for mutability-specific defaults. */
-    private static class MutabilityTypeAnnotator extends TypeAnnotator {
-        /** The mutability type factory. */
-        private final MutabilityNoInitAnnotatedTypeFactory mutabilityTypeFactory;
-
-        /**
-         * Create a new MutabilityTypeAnnotator.
-         *
-         * @param typeFactory the type factory
-         */
-        private MutabilityTypeAnnotator(AnnotatedTypeFactory typeFactory) {
-            super(typeFactory);
-            mutabilityTypeFactory = (MutabilityNoInitAnnotatedTypeFactory) typeFactory;
-        }
-
-        /** {@inheritDoc} Applies mutability-specific defaults. */
-        @Override
-        public Void visitExecutable(AnnotatedExecutableType t, Void p) {
-            super.visitExecutable(t, p);
-
-            // Array decl methods
-            // Array methods are implemented as JVM native method, so we cannot add that to stubs.
-            // for now: default array in receiver, parameter and return type to RDM
-            if (t.getReceiverType() != null) {
-                if (mutabilityTypeFactory.isArrayType(t.getReceiverType())) {
-                    if (t.toString().equals("Object clone(Array this)")) {
-                        // Receiver type will not be viewpoint adapted:
-                        // SyntheticArrays.replaceReturnType() will rollback the viewpoint adapt
-                        // result.
-                        // Use readonly to allow all invocations.
-                        if (!t.getReceiverType()
-                                .hasAnnotationInHierarchy(mutabilityTypeFactory.READONLY))
-                            t.getReceiverType().replaceAnnotation(mutabilityTypeFactory.READONLY);
-                        // The return type will be fixed by SyntheticArrays anyway.
-                        // Qualifiers added here will not have effect.
-                    }
-                }
-            }
             return null;
         }
     }
