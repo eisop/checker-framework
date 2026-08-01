@@ -2555,6 +2555,10 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             return;
         }
 
+        if (!shouldCheckVarargs(tree)) {
+            return;
+        }
+
         // This is the varags type, an array.
         AnnotatedArrayType lastParamAnnotatedType = invokedMethod.getVarargType();
 
@@ -2578,6 +2582,23 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
 
         commonAssignmentCheck(
                 lastParamAnnotatedType, wrappedVarargsType, tree, "varargs.type.incompatible");
+    }
+
+    /**
+     * Returns true if the varargs array created for the given varargs invocation should be checked
+     * against the formal varargs parameter type.
+     *
+     * <p>The default implementation returns false if zero varargs actual arguments were passed at
+     * the call site, because no user arguments were passed to populate the varargs array. Checkers
+     * that enforce container array annotations on implicit empty arrays (such as the Value Checker
+     * enforcing {@code @MinLen}) may override this method to return true even when zero varargs
+     * actual arguments were passed.
+     *
+     * @param tree the invocation tree
+     * @return true if the varargs array should be checked
+     */
+    protected boolean shouldCheckVarargs(Tree tree) {
+        return !TreeUtils.isCallToVarargsMethodWithZeroVarargsActuals(tree);
     }
 
     /**
