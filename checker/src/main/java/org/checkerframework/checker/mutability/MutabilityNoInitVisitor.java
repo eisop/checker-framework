@@ -17,16 +17,15 @@ import com.sun.source.tree.VariableTree;
 
 import org.checkerframework.checker.compilermsgs.qual.CompilerMessageKey;
 import org.checkerframework.checker.initialization.qual.UnderInitialization;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.common.basetype.BaseTypeVisitor;
 import org.checkerframework.common.basetype.TypeValidator;
-import org.checkerframework.framework.type.AnnotatedTypeFactory.ParameterizedExecutableType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedArrayType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedDeclaredType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedExecutableType;
 import org.checkerframework.framework.type.AnnotatedTypeParameterBounds;
-import org.checkerframework.framework.type.QualifierHierarchy;
 import org.checkerframework.framework.util.AnnotatedTypes;
 import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.AnnotationUtils;
@@ -40,7 +39,6 @@ import java.util.List;
 import java.util.Set;
 
 import javax.lang.model.element.AnnotationMirror;
-import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.TypeElement;
@@ -67,6 +65,10 @@ public class MutabilityNoInitVisitor extends BaseTypeVisitor<MutabilityNoInitAnn
     /** Error key for {@code @MutabilityLost} in adapted type parameter bounds. */
     private static final @CompilerMessageKey String LOST_IN_BOUNDS = "mutability.lost.in.bounds";
 
+    /** Error key for {@code @MutabilityLost} in a type argument. */
+    private static final @CompilerMessageKey String LOST_TYPE_ARGUMENT =
+            "mutability.lost.type.argument";
+
     /**
      * Create a new MutabilityNoInitVisitor.
      *
@@ -83,7 +85,10 @@ public class MutabilityNoInitVisitor extends BaseTypeVisitor<MutabilityNoInitAnn
 
     @Override
     protected void checkConstructorResult(
-            AnnotatedExecutableType constructorType, ExecutableElement constructorElement) {}
+            AnnotatedExecutableType constructorType, ExecutableElement constructorElement) {
+        // Mutability constructor results use the enclosing class bound rather than the hierarchy
+        // top. processMethodTree validates the permitted constructor return qualifiers.
+    }
 
     /**
      * {@inheritDoc}
@@ -108,10 +113,28 @@ public class MutabilityNoInitVisitor extends BaseTypeVisitor<MutabilityNoInitAnn
 
     @Override
     public boolean isValidUse(AnnotatedArrayType type, Tree tree) {
-        // Array declaration bounds are receiver-dependent, so every explicit array qualifier is
-        // valid except bottom.
-        AnnotationMirror used = type.getAnnotationInHierarchy(atypeFactory.READONLY);
-        return !AnnotationUtils.areSame(used, atypeFactory.BOTTOM);
+        // An array may be declared with any mutability qualifier.
+        return true;
+    }
+
+    /**
+     * Rejects {@code @MutabilityLost} in explicit or inferred type arguments. A lost qualifier
+     * represents imprecision introduced by viewpoint adaptation, not a mutability with which a
+     * generic type may be instantiated.
+     */
+    @Override
+    protected boolean shouldCheckTypeArgument(
+            Tree toptree,
+            AnnotatedTypeParameterBounds bounds,
+            AnnotatedTypeMirror typeArg,
+            @Nullable Tree typeArgTree,
+            CharSequence typeOrMethodName,
+            Object paramName) {
+        if (AnnotatedTypes.containsModifier(typeArg, atypeFactory.LOST)) {
+            checker.reportError(typeArgTree == null ? toptree : typeArgTree, LOST_TYPE_ARGUMENT);
+        }
+        return super.shouldCheckTypeArgument(
+                toptree, bounds, typeArg, typeArgTree, typeOrMethodName, paramName);
     }
 
     @Override
@@ -125,21 +148,6 @@ public class MutabilityNoInitVisitor extends BaseTypeVisitor<MutabilityNoInitAnn
 
         if (!validateType(varTree, var)) {
             return false;
-        }
-
-        if (varTree instanceof VariableTree) {
-            VariableElement element = TreeUtils.elementFromDeclaration((VariableTree) varTree);
-            if (element.getKind() == ElementKind.FIELD && !ElementUtils.isStatic(element)) {
-                AnnotatedTypeMirror bound =
-                        atypeFactory.getBoundTypeOfEnclosingTypeDeclaration(varTree);
-                // var is shared by the element, so do not mutate it directly.
-                AnnotatedTypeMirror varAdapted = var.shallowCopy(true);
-                // Viewpoint adaptation mutates varAdapted to the enclosing declaration bound.
-                atypeFactory.getViewpointAdapter().viewpointAdaptMember(bound, element, varAdapted);
-                // Pass the adapted copy as the lhs type.
-                boolean result = commonAssignmentCheck(varAdapted, valueExp, errorKey, extraArgs);
-                return checkLostLhs(varAdapted, valueExp, result);
-            }
         }
 
         boolean result = commonAssignmentCheck(var, valueExp, errorKey, extraArgs);
@@ -190,8 +198,10 @@ public class MutabilityNoInitVisitor extends BaseTypeVisitor<MutabilityNoInitAnn
             AnnotatedDeclaredType invocation,
             AnnotatedExecutableType constructor,
             NewClassTree newClassTree) {
-        // Forbid creation of @Readonly Object
-        if (invocation.hasAnnotation(atypeFactory.READONLY)) {
+        // @Readonly and @MutabilityLost describe an existing object without granting a concrete
+        // creation mutability, so neither is valid on an object creation expression.
+        if (invocation.hasAnnotation(atypeFactory.READONLY)
+                || invocation.hasAnnotation(atypeFactory.LOST)) {
             checker.reportError(
                     newClassTree,
                     "constructor.invocation.invalid",
@@ -380,37 +390,16 @@ public class MutabilityNoInitVisitor extends BaseTypeVisitor<MutabilityNoInitAnn
 
     @Override
     public Void visitNewArray(NewArrayTree tree, Void p) {
-        checkNewArrayCreation(tree);
-        return super.visitNewArray(tree, p);
-    }
-
-    /**
-     * Checks that a new array has an allowed mutability qualifier.
-     *
-     * @param tree the tree to check
-     */
-    private void checkNewArrayCreation(Tree tree) {
         AnnotatedTypeMirror type = atypeFactory.getAnnotatedType(tree);
-        if (!(type.hasAnnotation(atypeFactory.IMMUTABLE)
-                || type.hasAnnotation(atypeFactory.MUTABLE)
-                || type.hasAnnotation(atypeFactory.RECEIVER_DEPENDENT_MUTABLE)
-                || type.hasAnnotation(atypeFactory.POLY_MUTABLE))) {
+        if (type.hasAnnotation(atypeFactory.READONLY) || type.hasAnnotation(atypeFactory.LOST)) {
             checker.reportError(tree, "array.new.invalid", type);
         }
+        return super.visitNewArray(tree, p);
     }
 
     @Override
     public Void visitMethodInvocation(MethodInvocationTree node, Void p) {
         Void result = super.visitMethodInvocation(node, p);
-        ParameterizedExecutableType mfuPair = atypeFactory.methodFromUse(node);
-        AnnotatedExecutableType invokedMethod = mfuPair.executableType;
-        ExecutableElement invokedMethodElement = invokedMethod.getElement();
-        // Non-super invocations are already checked by BaseTypeVisitor. Super constructor calls
-        // need this explicit invocability check.
-        if (!ElementUtils.isStatic(invokedMethodElement)
-                && TreeUtils.isSuperConstructorCall(node)) {
-            checkMethodInvocability(invokedMethod, node);
-        }
         checkLostMethodTypeParameterBounds(node);
         return result;
     }
@@ -435,18 +424,26 @@ public class MutabilityNoInitVisitor extends BaseTypeVisitor<MutabilityNoInitAnn
         }
     }
 
+    /**
+     * Permits any mutability qualifier on an exception parameter by using the hierarchy bottom as
+     * its lower bound.
+     *
+     * @return the mutability hierarchy bottom
+     */
     @Override
     protected AnnotationMirrorSet getExceptionParameterLowerBoundAnnotations() {
-        AnnotationMirrorSet result = new AnnotationMirrorSet();
-        result.add(atypeFactory.getQualifierHierarchy().getBottomAnnotation(atypeFactory.BOTTOM));
-        return result;
+        return AnnotationMirrorSet.singleton(atypeFactory.BOTTOM);
     }
 
+    /**
+     * Permits an expression with any mutability qualifier to be thrown. This must be overridden
+     * separately because the framework otherwise uses the exception-parameter lower bound.
+     *
+     * @return the mutability hierarchy top
+     */
     @Override
     protected AnnotationMirrorSet getThrowUpperBoundAnnotations() {
-        AnnotationMirrorSet result = new AnnotationMirrorSet();
-        result.add(atypeFactory.getQualifierHierarchy().getTopAnnotation(atypeFactory.READONLY));
-        return result;
+        return AnnotationMirrorSet.singleton(atypeFactory.READONLY);
     }
 
     @Override
@@ -471,77 +468,31 @@ public class MutabilityNoInitVisitor extends BaseTypeVisitor<MutabilityNoInitAnn
         if (bound.hasAnnotation(atypeFactory.IMMUTABLE)
                 || bound.hasAnnotation(atypeFactory.RECEIVER_DEPENDENT_MUTABLE)) {
             for (Tree member : tree.getMembers()) {
-                if (member instanceof VariableTree) {
-                    Element ele = TreeUtils.elementFromTree(member);
-                    assert ele != null;
-                    // fromElement does not apply defaults, so it exposes whether the source had an
-                    // explicit mutability qualifier.
-                    AnnotatedTypeMirror noDefaultMirror = atypeFactory.fromElement(ele);
-                    TypeMirror ty = ele.asType();
-                    if (ty.getKind() == TypeKind.TYPEVAR) {
-                        ty = TypesUtils.upperBound(ty);
-                    }
-                    if (AnnotationUtils.containsSameByName(
-                                    atypeFactory.getTypeDeclarationBounds(ty), atypeFactory.MUTABLE)
-                            && !noDefaultMirror.hasAnnotationInHierarchy(atypeFactory.READONLY)) {
-                        checker.reportError(member, "implicit.shallow.immutable");
-                    }
+                if (!(member instanceof VariableTree)) {
+                    continue;
+                }
+                VariableElement field = TreeUtils.elementFromDeclaration((VariableTree) member);
+                if (ElementUtils.isStatic(field)) {
+                    continue;
+                }
+
+                TypeMirror fieldType = field.asType();
+                if (fieldType.getKind() == TypeKind.TYPEVAR) {
+                    fieldType = TypesUtils.upperBound(fieldType);
+                }
+                if (!AnnotationUtils.containsSameByName(
+                        atypeFactory.getTypeDeclarationBounds(fieldType), atypeFactory.MUTABLE)) {
+                    continue;
+                }
+
+                // fromElement does not apply defaults, so it exposes whether the source had an
+                // explicit mutability qualifier.
+                AnnotatedTypeMirror explicitFieldType = atypeFactory.fromElement(field);
+                if (!explicitFieldType.hasAnnotationInHierarchy(atypeFactory.READONLY)) {
+                    checker.reportError(member, "implicit.shallow.immutable");
                 }
             }
         }
         super.processClassTree(tree);
-    }
-
-    /**
-     * Checks that a this/super constructor call is valid in the mutability hierarchy. The invoked
-     * constructor return type, adapted to the invoking constructor return type, must be a supertype
-     * of the invoking constructor return type.
-     *
-     * @param superCall the super invocation, e.g., "super()"
-     * @param errorKey the error key, e.g., "super.invocation.invalid"
-     */
-    @Override
-    protected void checkThisOrSuperConstructorCall(
-            MethodInvocationTree superCall, @CompilerMessageKey String errorKey) {
-        MethodTree enclosingMethod = methodTree;
-        AnnotatedTypeMirror superType = atypeFactory.getAnnotatedType(superCall);
-        AnnotatedExecutableType constructorType = atypeFactory.getAnnotatedType(enclosingMethod);
-        AnnotationMirror superTypeMirror =
-                superType.getAnnotationInHierarchy(atypeFactory.READONLY);
-        AnnotationMirror constructorTypeMirror =
-                constructorType.getReturnType().getAnnotationInHierarchy(atypeFactory.READONLY);
-        if (!atypeFactory
-                .getQualifierHierarchy()
-                .isSubtypeQualifiersOnly(constructorTypeMirror, superTypeMirror)) {
-            checker.reportError(
-                    superCall, errorKey, constructorTypeMirror, superCall, superTypeMirror);
-        }
-        super.checkThisOrSuperConstructorCall(superCall, errorKey);
-    }
-
-    @Override
-    protected boolean isTypeCastSafe(AnnotatedTypeMirror castType, AnnotatedTypeMirror exprType) {
-        QualifierHierarchy qualifierHierarchy = atypeFactory.getQualifierHierarchy();
-
-        final TypeKind castTypeKind = castType.getKind();
-        if (castTypeKind == TypeKind.DECLARED) {
-            // Don't issue an error if the mutability annotations are equivalent to the qualifier
-            // upper bound of the type.
-            // The mutability checker only needs the mutability hierarchy for this cast-safety
-            // check.
-            AnnotatedDeclaredType castDeclared = (AnnotatedDeclaredType) castType;
-            AnnotationMirror bound =
-                    qualifierHierarchy.findAnnotationInHierarchy(
-                            atypeFactory.getTypeDeclarationBounds(castDeclared.getUnderlyingType()),
-                            atypeFactory.READONLY);
-            assert bound != null;
-
-            if (AnnotationUtils.areSame(
-                    castDeclared.getAnnotationInHierarchy(atypeFactory.READONLY), bound)) {
-                return true;
-            }
-        }
-
-        return super.isTypeCastSafe(castType, exprType);
     }
 }

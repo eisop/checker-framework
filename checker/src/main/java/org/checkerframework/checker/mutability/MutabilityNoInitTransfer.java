@@ -21,7 +21,6 @@ import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.TreeUtils;
 
 import javax.lang.model.element.AnnotationMirror;
-import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.TypeMirror;
 
@@ -62,6 +61,11 @@ public class MutabilityNoInitTransfer
         return super.visitAssignment(n, in);
     }
 
+    /**
+     * Refines the receiver of {@code getClass()} to the mutability bound of the compared class
+     * literal. See {@code testFlow} and {@code testFlowNotEqual} in {@code
+     * checker/tests/pico-mutable-default/MutabilityFlowTest.java}.
+     */
     @Override
     protected TransferResult<MutabilityNoInitValue, MutabilityNoInitStore>
             strengthenAnnotationOfEqualTo(
@@ -76,10 +80,10 @@ public class MutabilityNoInitTransfer
                         res, firstNode, secondNode, firstValue, secondValue, notEqualTo);
 
         AnnotationMirror classBound = getClassBoundFromClassLiteral(firstNode);
-        Node getClassReceiver = getGetClassReceiver(secondNode);
-        if (classBound == null || getClassReceiver == null) {
+        if (classBound == null || !mutabilityTypeFactory.isObjectGetClassInvocation(secondNode)) {
             return res;
         }
+        Node getClassReceiver = ((MethodInvocationNode) secondNode).getTarget().getReceiver();
 
         MutabilityNoInitStore thenStore = res.getThenStore();
         MutabilityNoInitStore elseStore = res.getElseStore();
@@ -122,24 +126,5 @@ public class MutabilityNoInitTransfer
         return mutabilityTypeFactory
                 .getQualifierHierarchy()
                 .findAnnotationInHierarchy(bounds, mutabilityTypeFactory.READONLY);
-    }
-
-    /**
-     * Returns the receiver of a {@code getClass()} invocation, or null if {@code node} is not such
-     * an invocation.
-     *
-     * @param node a node to inspect
-     * @return the {@code getClass()} receiver
-     */
-    private @Nullable Node getGetClassReceiver(Node node) {
-        if (!(node instanceof MethodInvocationNode)) {
-            return null;
-        }
-        MethodInvocationNode methodInvocation = (MethodInvocationNode) node;
-        ExecutableElement method = methodInvocation.getTarget().getMethod();
-        if (method.getSimpleName().contentEquals("getClass") && method.getParameters().isEmpty()) {
-            return methodInvocation.getTarget().getReceiver();
-        }
-        return null;
     }
 }

@@ -4,6 +4,9 @@ import org.checkerframework.checker.mutability.qual.Mutable;
 import org.checkerframework.checker.mutability.qual.Readonly;
 import org.checkerframework.checker.mutability.qual.ReceiverDependentMutable;
 
+// This test deliberately writes @MutabilityLost type arguments to construct and exercise internal
+// viewpoint-adaptation states.
+@SuppressWarnings("mutability.lost.type.argument")
 public class ViewpointAdaptationBounds {
     @ReceiverDependentMutable class Generic<T extends @ReceiverDependentMutable Object> {}
 

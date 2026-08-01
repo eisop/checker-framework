@@ -1,4 +1,5 @@
 import org.checkerframework.checker.mutability.qual.Immutable;
+import org.checkerframework.checker.mutability.qual.MutabilityLost;
 import org.checkerframework.checker.mutability.qual.Mutable;
 import org.checkerframework.checker.mutability.qual.PolyMutable;
 import org.checkerframework.checker.mutability.qual.Readonly;
@@ -120,6 +121,10 @@ import org.checkerframework.checker.mutability.qual.ReceiverDependentMutable;
 
     @ReceiverDependentMutable static class RDMStaticClass {}
 
+    @ReceiverDependentMutable static class ReadonlyBounded<T extends @Readonly Object> {}
+
+    <T extends @Readonly Object> void genericMethod() {}
+
     // :: error: class.bound.invalid
     @Readonly class ReadonlyClass {}
 
@@ -178,6 +183,18 @@ import org.checkerframework.checker.mutability.qual.ReceiverDependentMutable;
         new @PolyMutable RDMClass();
         // :: error: constructor.invocation.invalid
         new @Readonly RDMClass();
+        // :: error: constructor.invocation.invalid
+        new @MutabilityLost RDMClass();
+
+        // The @Readonly bound accepts @MutabilityLost by subtyping, but @MutabilityLost cannot be
+        // supplied as a type argument.
+        // :: error: (mutability.lost.type.argument)
+        new @Mutable ReadonlyBounded<@MutabilityLost Object>();
+    }
+
+    void testMethodTypeArgument() {
+        // :: error: (mutability.lost.type.argument)
+        this.<@MutabilityLost Object>genericMethod();
     }
 
     // Subclassing check

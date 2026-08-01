@@ -23,6 +23,8 @@ import org.checkerframework.checker.mutability.qual.PolyMutable;
 import org.checkerframework.checker.mutability.qual.Readonly;
 import org.checkerframework.checker.mutability.qual.ReceiverDependentMutable;
 import org.checkerframework.common.basetype.BaseTypeChecker;
+import org.checkerframework.dataflow.cfg.node.Node;
+import org.checkerframework.dataflow.util.NodeUtils;
 import org.checkerframework.framework.qual.DefaultFor;
 import org.checkerframework.framework.type.AnnotatedTypeFactory;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
@@ -221,12 +223,13 @@ public class MutabilityNoInitAnnotatedTypeFactory
     }
 
     /**
-     * Get the mutability viewpoint adapter.
+     * Returns whether {@code node} is an invocation of {@link Object#getClass()}.
      *
-     * @return MutabilityViewpointAdapter
+     * @param node a CFG node
+     * @return whether {@code node} invokes {@code Object.getClass()}
      */
-    public MutabilityViewpointAdapter getViewpointAdapter() {
-        return (MutabilityViewpointAdapter) viewpointAdapter;
+    boolean isObjectGetClassInvocation(Node node) {
+        return NodeUtils.isMethodInvocation(node, objectGetClass, processingEnv);
     }
 
     /**
@@ -387,29 +390,6 @@ public class MutabilityNoInitAnnotatedTypeFactory
                     return IMMUTABLE;
                 }
             }
-        }
-        return null;
-    }
-
-    /**
-     * Returns the class bound of the type declaration enclosing {@code node}.
-     *
-     * @param node tree whose enclosing type declaration bound is needed
-     * @return the enclosing type declaration bound, or null if no enclosing type was found
-     */
-    AnnotatedTypeMirror getBoundTypeOfEnclosingTypeDeclaration(Tree node) {
-        TypeElement typeElement = null;
-        if (node instanceof MethodTree) {
-            ExecutableElement element = TreeUtils.elementFromDeclaration((MethodTree) node);
-            typeElement = ElementUtils.enclosingTypeElement(element);
-        } else if (node instanceof VariableTree) {
-            VariableElement variableElement = TreeUtils.elementFromDeclaration((VariableTree) node);
-            assert variableElement != null && variableElement.getKind().isField();
-            typeElement = ElementUtils.enclosingTypeElement(variableElement);
-        }
-
-        if (typeElement != null) {
-            return getAnnotatedType(typeElement);
         }
         return null;
     }

@@ -1,4 +1,5 @@
 import org.checkerframework.checker.mutability.qual.Immutable;
+import org.checkerframework.checker.mutability.qual.MutabilityLost;
 import org.checkerframework.checker.mutability.qual.Mutable;
 import org.checkerframework.checker.mutability.qual.Readonly;
 import org.checkerframework.checker.mutability.qual.ReceiverDependentMutable;
@@ -61,6 +62,9 @@ public class Arrays {
     void test2() {
         // :: error: (array.new.invalid)
         int[] a = new int @Readonly [] {1, 2};
+
+        // :: error: (array.new.invalid)
+        int[] lost = new int @MutabilityLost [] {1, 2};
     }
 
     void test3(String @Immutable [] array) {
