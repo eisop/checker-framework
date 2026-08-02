@@ -1782,6 +1782,17 @@ public final class TreeUtils {
     }
 
     /**
+     * Returns true if the given tree declares an anonymous class.
+     *
+     * @param classTree a class declaration
+     * @return whether {@code classTree} declares an anonymous class
+     */
+    public static boolean isAnonymousClass(ClassTree classTree) {
+        TypeElement typeElement = elementFromDeclaration(classTree);
+        return typeElement.getNestingKind() == NestingKind.ANONYMOUS;
+    }
+
+    /**
      * Returns true if the given {@link MethodTree} is an anonymous constructor (the constructor for
      * an anonymous class).
      *
