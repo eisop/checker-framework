@@ -144,8 +144,8 @@ Run the targeted task for the code you touched (`:framework:test`, the
 specific `--tests` class, `checknullness`). Push and let CI cover the matrix.
 Known local red herring, before you debug a "failure": `Issue1438*` jtreg
 tests time out under `alltests` parallelism — **master fails identically**.
-Compare against master before chasing it. (See `cf-performance`'s
-verification section for the `JAVA_HOME`/jtreg red herring.)
+Compare against master before chasing it. (See `cf-patch-style`'s "Test
+requirements" for the `JAVA_HOME`/jtreg red herring.)
 
 But the inverse trap is real too: **a companion-repo CI job can go red for a
 legitimate reason, not a flake.** The `plume-lib`, `daikon-part1`, and

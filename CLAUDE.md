@@ -82,6 +82,10 @@ not by itself a reason to prefer it over jtreg.
 
 ## Commit and PR conventions
 
+The full procedure is in [`.claude/skills/cf-patch-style/SKILL.md`](.claude/skills/cf-patch-style/SKILL.md)
+— push discipline, amend/rebase safety, and CI gates that `assemble`/`alltests`
+don't run are only covered there. The short version:
+
 - **User review.** Always ask for a review *before* committing.
 - **One logical change per commit.** Patches that bundle perf + style +
   refactor get rejected.
@@ -177,4 +181,4 @@ Read that skill before proposing any perf change. The short version:
 - [`docs/developer/performance-notes.md`](docs/developer/performance-notes.md)
   — what's been profiled, optimized, tried-and-rejected.
 - [`.claude/skills/`](.claude/skills/) — task-specific skills for
-  performance work and patch authoring.
+  performance work, patch authoring, and code review.
