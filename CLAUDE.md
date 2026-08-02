@@ -63,6 +63,23 @@ reproducing a CI failure locally usually means running the matching
 script with the same `useJdkVersion`. CI workflow is
 [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
 
+**Adding a test — jtreg vs. JUnit.** For a narrow single-scenario check
+(e.g. one lint flag's on/off behavior, or a stub-file parser regression) the
+lightest option is a jtreg test: one self-contained `.java` file, or a
+`.java` plus its `.astub`, with the `@compile`/`@compile/ref=<name>.out`
+directive(s) inline — no runner class (see `checker/jtreg/lintoption/` for
+the plain case, and `checker/jtreg/stubs/` for stub-file scenarios,
+including multi-file ones: `framework/jtreg/StubParserEnum` for a single
+`.astub` plus `.java`, `checker/jtreg/stubs/fakeoverrides` for a test that
+also needs a small helper class, compiled first via its own `@compile`
+directive in the same file). Reach for the JUnit
+`CheckerFrameworkPerDirectoryTest` pattern — a small runner class pointing
+at a `checker/tests/<dir>/` directory — only when a test genuinely needs a
+whole directory of related inputs checked together (many source files as
+one compilation unit) or the inline `// :: error:`-style diagnostic-comment
+convention that pattern supports; needing a stub file alongside the test is
+not by itself a reason to prefer it over jtreg.
+
 ## Commit and PR conventions
 
 - **User review.** Always ask for a review *before* committing.
@@ -79,7 +96,9 @@ script with the same `useJdkVersion`. CI workflow is
   language ("dramatically", "blazingly").
 - **Changelog:** every user-visible or perf-relevant change gets one
   bullet in [`docs/CHANGELOG.md`](docs/CHANGELOG.md) under the next
-  release.
+  release. If the PR closes a GitHub issue, add its number (as `eisop#NNNN`,
+  in ascending numeric order) to that release's **Closed issues:** list in
+  the same PR — don't leave it for a later backfill.
 - **Branch naming for perf/correctness audits:**
   `review-<package>` or `perf-<package>` matches recent practice
   (e.g., `Review of common/basetype package (#1721)`).
@@ -133,6 +152,14 @@ Read that skill before proposing any perf change. The short version:
   allocations" (it doesn't, in the relevant call site); proposing
   `getEffectiveAnnotations()` as a hotspot (it was 0.05% of samples).
   If the reasoning is shaky, label it as a hypothesis, not a finding.
+- **Don't add speculative extension points.** This framework is built on
+  overridable hooks (ATF/visitor/annotator methods), so a plausible-sounding
+  "future extension point" is an easy — and recurring — thing to add. Do not
+  introduce an overridable hook, `protected` seam, or extra parameter "for
+  future use" without a real current caller or override. Verify by grepping
+  for an actual consumer; if the only implementation is the default you just
+  wrote, inline it instead. (This is the design-decision analogue of "verify
+  before claiming": don't assume a use case, demonstrate one.)
 - **`git format-patch` output is preferred** for non-trivial work, with
   each patch standalone and committable.
 

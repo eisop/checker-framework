@@ -187,6 +187,15 @@ green but still fail CI:
   `spotlessJavaCheck` (a pre-commit hook then blocks the commit). Re-run
   `./gradlew spotlessApply` after **any** edit, including comment-only ones,
   not just code edits.
+- **`spotlessApply` on `//` comments is non-idempotent: it splits over-long
+  ones but never rejoins short ones.** google-java-format wraps a `//` line
+  comment that exceeds the column limit onto a second line, but it leaves an
+  already-short comment alone — so a hand-wrapped or incrementally-edited `//`
+  comment can keep a bad mid-sentence break indefinitely and `spotlessCheck`
+  will still pass (verified: two short `//` lines survived both
+  `spotlessApply` and `spotlessCheck` untouched). Collapse a `//` comment to a
+  single line yourself and let spotless re-wrap it; never hand-wrap `//`
+  comments.
 - **`shell-style-check` / `python-style-check` cover shell and Python, which
   Spotless does NOT.** `shell-style-check` runs **three** tools on every
   bash/`*.sh` script — `shfmt -i 2 -ci -bn -sr` (format), `shellcheck -x`
