@@ -344,6 +344,9 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      */
     private final IdentityHashMap<Element, AnnotationMirrorSet> cacheDeclAnnos;
 
+    /** A cache for the result of {@link #isFromByteCode(Element)}, keyed by element. */
+    private final IdentityHashMap<Element, Boolean> isFromByteCodeCache;
+
     /**
      * A set containing declaration annotations that should be inherited. A declaration annotation
      * will be inherited if it is in this set, or if it has the
@@ -663,6 +666,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         this.currentFileAjavaTypes = null;
 
         this.cacheDeclAnnos = new IdentityHashMap<>();
+        this.isFromByteCodeCache = new IdentityHashMap<>();
         this.methodDeclaresPolyCache = new IdentityHashMap<>();
 
         // get the shared instance from the checker
@@ -1120,6 +1124,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             // elementCache.clear();
             // elementTypeCache.clear();
             // cacheDeclAnnos.clear();
+            // isFromByteCodeCache.clear();
             // methodDeclaresPolyCache.clear();
         }
 
@@ -4878,10 +4883,23 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * @return true if the element is from bytecode and did not appear in a stub file
      */
     public boolean isFromByteCode(Element element) {
-        if (isFromStubFile(element)) {
-            return false;
+        Boolean cached = isFromByteCodeCache.get(element);
+        if (cached != null) {
+            return cached;
         }
-        return !ElementUtils.isElementFromSourceCode(element);
+        boolean result = !isFromStubFile(element) && !ElementUtils.isElementFromSourceCode(element);
+        // Do not cache a result computed while an annotation file is being parsed: isFromStubFile
+        // depends on the element's @FromStubFile declaration annotation, which cacheDeclAnnos
+        // (backing getDeclAnnotations) itself does not cache while parsing, for the same reason --
+        // a fake override or other reentrant lookup can query this element before its own
+        // declaring class's stub info has been fully attached. See getDeclAnnotations's identical
+        // guard and GenericAnnotatedTypeFactory#parsePhasePrimaryDefaultsCache's Javadoc ("Standard
+        // factory caches are disabled during parsing to prevent caching partially loaded stub
+        // annotations").
+        if (!isParsingAnnotationFile()) {
+            isFromByteCodeCache.put(element, result);
+        }
+        return result;
     }
 
     /**

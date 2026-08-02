@@ -405,14 +405,24 @@ public class NullnessNoInitAnnotatedTypeFactory
                 MONOTONIC_NONNULL);
 
         if (checker.getUltimateParentChecker().getBooleanOption("jspecifyNullMarkedAlias", true)) {
-            AnnotationMirror nullMarkedDefaultQual =
+            AnnotationBuilder nullMarkedDefaultQualBuilder =
                     new AnnotationBuilder(processingEnv, DefaultQualifier.class)
                             .setValue("value", NonNull.class)
                             .setValue(
                                     "locations",
-                                    new TypeUseLocation[] {TypeUseLocation.UPPER_BOUND})
-                            .setValue("applyToSubpackages", false)
-                            .build();
+                                    new TypeUseLocation[] {TypeUseLocation.UPPER_BOUND});
+            // The applyToSubpackages element is an EISOP-specific addition to @DefaultQualifier;
+            // it is absent if the classpath resolves @DefaultQualifier from upstream typetools
+            // checker-qual instead of EISOP's fork. QualifierDefaults's constructor already warns
+            // about that mismatch once per checker run, so this site degrades silently: the built
+            // annotation simply carries no applyToSubpackages value, matching how any other
+            // @DefaultQualifier built or written without that element behaves.
+            if (TreeUtils.getMethodOrNull(
+                            DefaultQualifier.class, "applyToSubpackages", 0, processingEnv)
+                    != null) {
+                nullMarkedDefaultQualBuilder.setValue("applyToSubpackages", false);
+            }
+            AnnotationMirror nullMarkedDefaultQual = nullMarkedDefaultQualBuilder.build();
             addAliasedDeclAnnotation(
                     "org.jspecify.annotations.NullMarked",
                     DefaultQualifier.class.getCanonicalName(),
