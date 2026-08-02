@@ -128,16 +128,12 @@ flag these rather than preserving them.
 
 ## Javadoc is a CI gate — treat it as part of the change
 
-`requireJavadoc` and `javadocDoclintAll` fail the misc CI job on a missing
-`@param`. This bit twice.
-
-- Every new or changed method signature needs complete Javadoc, including
-  `@param` for each parameter.
-- Making a parameter `@Nullable` means updating that method's Javadoc: "In
-  `SourceChecker`, make sure to update the javadoc for all methods where you
-  make a parameter `@Nullable`."
-- Run `./gradlew spotlessApply` before committing; check Javadoc lint on
-  changed files rather than discovering it in CI.
+See [`cf-patch-style`](../cf-patch-style/SKILL.md)'s "Javadoc on every method
+you touch (and its neighbors)" — `requireJavadoc`/`javadocDoclintAll` fail
+the misc CI job on a missing `@param`, and this has bitten review fixes
+specifically: making a parameter `@Nullable` means updating that method's
+Javadoc too ("In `SourceChecker`, make sure to update the javadoc for all
+methods where you make a parameter `@Nullable`.").
 
 ## Don't reproduce the whole CI matrix locally
 
@@ -146,12 +142,10 @@ flag these rather than preserving them.
 
 Run the targeted task for the code you touched (`:framework:test`, the
 specific `--tests` class, `checknullness`). Push and let CI cover the matrix.
-Known local red herrings, before you debug a "failure":
-
-- `jtreg`'s "No java executable at java" means **`JAVA_HOME` is unset**, not a
-  regression.
-- `Issue1438*` jtreg tests time out under `alltests` parallelism — **master
-  fails identically**. Compare against master before chasing it.
+Known local red herring, before you debug a "failure": `Issue1438*` jtreg
+tests time out under `alltests` parallelism — **master fails identically**.
+Compare against master before chasing it. (See `cf-performance`'s
+verification section for the `JAVA_HOME`/jtreg red herring.)
 
 But the inverse trap is real too: **a companion-repo CI job can go red for a
 legitimate reason, not a flake.** The `plume-lib`, `daikon-part1`, and
