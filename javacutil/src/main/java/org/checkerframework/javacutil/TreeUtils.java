@@ -1316,6 +1316,25 @@ public final class TreeUtils {
     }
 
     /**
+     * Returns the ExecutableElement for a method declaration. Returns null if there is no matching
+     * method. Errs if there is more than one matching method.
+     *
+     * @param type the class that contains the method
+     * @param methodName the name of the method
+     * @param params the number of formal parameters
+     * @param env the processing environment
+     * @return the ExecutableElement for the specified method, or null
+     */
+    public static @Nullable ExecutableElement getMethodOrNull(
+            Class<?> type, String methodName, int params, ProcessingEnvironment env) {
+        String typeName = type.getCanonicalName();
+        if (typeName == null) {
+            throw new BugInCF("TreeUtils.getMethodOrNull: class %s has no canonical name", type);
+        }
+        return getMethodOrNull(typeName, methodName, params, env);
+    }
+
+    /**
      * Returns the ExecutableElement for a method declaration. Errs if there is not exactly one
      * matching method. If more than one method takes the same number of formal parameters, then use
      * {@link #getMethod(String, String, ProcessingEnvironment, String...)}.
