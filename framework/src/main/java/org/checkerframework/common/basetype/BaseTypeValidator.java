@@ -919,7 +919,11 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
         }
 
         boolean strip = visitor.shouldStripInvalidLocationQualifiers();
-        AnnotationMirrorSet superToStrip = new AnnotationMirrorSet();
+        // Annotations found at a location their @TargetLocations does not permit; removed after the
+        // loops (not during iteration) when the checker opts in to stripping.
+        AnnotationMirrorSet superToStrip = strip ? new AnnotationMirrorSet() : null;
+        AnnotationMirrorSet extendsToStrip = strip ? new AnnotationMirrorSet() : null;
+
         for (AnnotationMirror am :
                 annotationsDisallowedAtWildcardBound(
                         type.getSuperBound(), WILDCARD_SUPER_BOUND_LOCATIONS)) {
@@ -938,7 +942,6 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
                             type, tree, type.getSuperBound(), WILDCARD_SUPER_BOUND_LOCATIONS));
         }
 
-        AnnotationMirrorSet extendsToStrip = new AnnotationMirrorSet();
         for (AnnotationMirror am :
                 annotationsDisallowedAtWildcardBound(
                         type.getExtendsBound(), WILDCARD_EXTENDS_BOUND_LOCATIONS)) {
