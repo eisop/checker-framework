@@ -1,4 +1,5 @@
 import org.checkerframework.framework.testchecker.striplocation.quals.StripBottom;
+import org.checkerframework.framework.testchecker.striplocation.quals.StripTop;
 import org.checkerframework.framework.testchecker.striplocation.quals.StripUpperOnly;
 
 import java.util.List;
@@ -25,25 +26,42 @@ public class StripLocation {
         return null;
     }
 
-    // @StripBottom has no @TargetLocations, so the @TargetLocations-based mechanism never reports
-    // or strips it here; StripLocationValidator's own tree-based rule (not derivable from
+    // @StripTop has no @TargetLocations, so the @TargetLocations-based mechanism never reports or
+    // strips it here; StripLocationValidator's own tree-based rule (not derivable from
     // @TargetLocations) additionally forbids writing it explicitly at a lower-bound location, and
-    // is only consulted when the opt-in is on.
-    // :: error: (explicit.stripbottom.on.lowerbound)
-    static class ExplicitBottomParam<@StripBottom T extends Object> {}
+    // is
+    // only consulted when the opt-in is on. Stripping it here has an observable effect: without it,
+    // an explicit @StripTop lower bound is incompatible with the @StripBottom upper bound (see the
+    // striplocation-off fixture); after stripping and re-defaulting to @StripBottom here, no
+    // cascade
+    // is reported.
+    // :: error: (explicit.striptop.on.lowerbound)
+    static class ExplicitTopParam<@StripTop T extends @StripBottom Object> {}
 
     // Relying on defaulting for the same lower-bound position is indistinguishable from the
     // @TargetLocations-based mechanism's perspective, but StripLocationValidator's tree-based check
-    // (declTree has no explicit @StripBottom here) correctly does not report it.
-    static class DefaultedBottomParam<T extends Object> {}
+    // (declTree has no explicit @StripTop here) correctly does not report it.
+    static class DefaultedTopParam<T extends @StripBottom Object> {}
 
     // Same two cases for a wildcard's super (lower) bound.
-    // :: error: (explicit.stripbottom.on.lowerbound)
-    List<@StripBottom ? extends Object> explicitBottomWildcard() {
+    // :: error: (explicit.striptop.on.lowerbound)
+    List<@StripTop ? extends @StripBottom Object> explicitTopWildcard() {
         return null;
     }
 
-    List<? extends Object> defaultedBottomWildcard() {
+    List<? extends @StripBottom Object> defaultedTopWildcard() {
+        return null;
+    }
+
+    // The ? super form: the explicit lower bound is written after "super" rather than as a primary
+    // annotation on "?".  StripLocationValidator finds it via the bound tree instead, exercising
+    // the
+    // ? super tree shape.  No cascade is possible either way here (an explicit @StripTop super
+    // bound
+    // is always compatible with the implicit, defaulted-to-top extends bound), so only the report
+    // differs from the (untested) unguarded case.
+    // :: error: (explicit.striptop.on.lowerbound)
+    List<? super @StripTop Object> explicitTopSuperWildcard() {
         return null;
     }
 }

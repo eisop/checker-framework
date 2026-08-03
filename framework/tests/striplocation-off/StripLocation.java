@@ -1,4 +1,5 @@
 import org.checkerframework.framework.testchecker.striplocation.quals.StripBottom;
+import org.checkerframework.framework.testchecker.striplocation.quals.StripTop;
 import org.checkerframework.framework.testchecker.striplocation.quals.StripUpperOnly;
 
 import java.util.List;
@@ -25,21 +26,32 @@ public class StripLocation {
         return null;
     }
 
-    // @StripBottom has no @TargetLocations of its own, so writing it explicitly on a lower-bound
+    // @StripTop has no @TargetLocations of its own, so writing it explicitly on a lower-bound
     // location is not something this checker's @TargetLocations-based mechanism can flag; only the
-    // opt-in checker's own additional, tree-based rule (see StripLocationValidator) reports it, so
-    // with the opt-in off there is no error here.
-    static class ExplicitBottomParam<@StripBottom T extends Object> {}
+    // opt-in checker's own additional, tree-based rule (see StripLocationValidator) reports it. But
+    // an explicit @StripTop lower bound is incompatible with the @StripBottom upper bound
+    // regardless, so with the opt-in off this default behavior still reports a cascade.
+    // :: error: (bound.type.incompatible)
+    static class ExplicitTopParam<@StripTop T extends @StripBottom Object> {}
 
     // Relying on defaulting for the same lower-bound position; never an error either way.
-    static class DefaultedBottomParam<T extends Object> {}
+    static class DefaultedTopParam<T extends @StripBottom Object> {}
 
     // Same two cases for a wildcard's super (lower) bound.
-    List<@StripBottom ? extends Object> explicitBottomWildcard() {
+    // :: error: (bound.type.incompatible)
+    List<@StripTop ? extends @StripBottom Object> explicitTopWildcard() {
         return null;
     }
 
-    List<? extends Object> defaultedBottomWildcard() {
+    List<? extends @StripBottom Object> defaultedTopWildcard() {
+        return null;
+    }
+
+    // The ? super form: the explicit lower bound is written after "super" rather than as a primary
+    // annotation on "?". No incompatible-bound scenario is expressible here (an explicit @StripTop
+    // super bound is always compatible with the implicit, defaulted-to-top extends bound), so this
+    // exercises only the ? super tree shape, not the cascade.
+    List<? super @StripTop Object> explicitTopSuperWildcard() {
         return null;
     }
 }
