@@ -2078,7 +2078,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      */
     protected List<AnnotationMirror> annotationsDisallowedAtLocation(
             AnnotatedTypeMirror type, TypeUseLocation required) {
-        List<AnnotationMirror> result = new ArrayList<>();
+        List<AnnotationMirror> result = Collections.emptyList();
         for (AnnotationMirror am : type.getAnnotations()) {
             List<TypeUseLocation> locations =
                     qualAllowedLocations.get(AnnotationUtils.annotationName(am));
@@ -2086,6 +2086,9 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                 continue;
             }
             if (!locations.contains(required)) {
+                if (result.isEmpty()) {
+                    result = new ArrayList<>(1);
+                }
                 result.add(am);
             }
         }

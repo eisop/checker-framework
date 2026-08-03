@@ -833,14 +833,11 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
      *
      * <p>{@code declTree} is the type-parameter declaration's own tree (as received by {@link
      * #visitTypeVariable}). The default implementation does not consult it -- {@code
-     * annotationsDisallowedAtLocation}'s {@code @TargetLocations}-based check is derived-type-only
-     * -- but it is available for a checker whose own "is this annotation valid here" detection is
-     * tree-based rather than {@code @TargetLocations}-based (for example, one that must distinguish
-     * an annotation a user explicitly wrote in this position from the same qualifier arriving at
-     * the identical bound through ordinary defaulting, which {@code @TargetLocations} cannot
-     * express when the qualifier is not a narrow bottom type but the checker's entire type system).
-     * Such a checker can override this method directly, inspect {@code declTree}, and decide
-     * independently of {@code annotationsDisallowedAtLocation} whether to strip.
+     * annotationsDisallowedAtLocation}'s {@code @TargetLocations}-based check looks only at the
+     * derived {@code AnnotatedTypeMirror} -- but a checker whose validity check is tree-based
+     * instead (e.g., it must tell an explicitly written annotation apart from the same qualifier
+     * arriving through defaulting, which {@code @TargetLocations} cannot express) can override this
+     * method, inspect {@code declTree}, and decide independently what to strip.
      *
      * @param type the type-variable declaration whose bounds to fix up and re-default
      * @param upperBound {@code type}'s upper bound
@@ -989,7 +986,7 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
      */
     protected List<AnnotationMirror> annotationsDisallowedAtWildcardBound(
             AnnotatedTypeMirror bound, Set<TypeUseLocation> allowedLocations) {
-        List<AnnotationMirror> result = new ArrayList<>();
+        List<AnnotationMirror> result = Collections.emptyList();
         for (AnnotationMirror am : bound.getAnnotations()) {
             List<TypeUseLocation> locations =
                     visitor.qualAllowedLocations.get(AnnotationUtils.annotationName(am));
@@ -999,6 +996,9 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
             // type-use locations in the @TargetLocations meta-annotation.
             if (locations == null || containsAny(locations, allowedLocations)) {
                 continue;
+            }
+            if (result.isEmpty()) {
+                result = new ArrayList<>(1);
             }
             result.add(am);
         }
@@ -1014,14 +1014,12 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
      * annotationsDisallowedAtWildcardBound} already covers their case, for both reporting and
      * stripping).
      *
-     * <p>{@code type} and {@code tree} let a checker whose own "is this annotation valid here"
-     * detection is tree-based rather than {@code @TargetLocations}-based (for example, one that
-     * must distinguish an annotation a user explicitly wrote on the wildcard's own identity from
-     * the same qualifier arriving at the identical bound through ordinary defaulting, which
-     * {@code @TargetLocations} cannot express when the qualifier is not a narrow bottom type but
-     * the checker's entire type system) decide independently what to strip, without also triggering
-     * {@code annotationsDisallowedAtWildcardBound}'s {@code type.invalid.annotations.on.location}
-     * report for annotations the checker already reports through its own, more specific mechanism.
+     * <p>{@code type} and {@code tree} let a checker whose validity check is tree-based instead
+     * (e.g., it must tell an explicitly written annotation apart from the same qualifier arriving
+     * through defaulting, which {@code @TargetLocations} cannot express) decide independently what
+     * to strip, without also triggering {@code annotationsDisallowedAtWildcardBound}'s {@code
+     * type.invalid.annotations.on.location} report for annotations the checker already reports
+     * through its own, more specific mechanism.
      *
      * @param type the wildcard type being validated
      * @param tree the tree for {@code type}
