@@ -151,7 +151,11 @@ git checkout - && git branch -D verify
 - The relevant focused test(s) — e.g., `:checker:NullnessTest`.
 - `./gradlew alltests` — strongly preferred for any framework or
   javacutil change. Subtle visitor and dataflow semantics often fail
-  only in obscure checkers.
+  only in obscure checkers. If it fails *only* on `:checker:jtregTests` /
+  `:checker:jtregJdk11Tests` with `No java executable at java`, that is an
+  environment issue, **not a regression**: `JAVA_HOME` is unset. Set it
+  (`JAVA_HOME=$(dirname $(dirname $(readlink -f $(which java))))`) and
+  re-run those two tasks; the JUnit suites are unaffected.
 - Run `./gradlew spotlessApply` before committing to fix **Java and Gradle**
   formatting — Spotless covers `*.java` *and* `*.gradle` files, so a build-script
   edit needs it too.

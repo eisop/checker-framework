@@ -185,6 +185,13 @@ ignored, including any declaration annotations written on it, such as the
 `com.sun.tools.javac.api.ClientCodeWrapper.Trusted` and
 `java.lang.invoke.LambdaForm.Compiled` write on themselves.
 
+Fixed `AnnotationFileParser` to report a type-parameter-count mismatch on a
+class, interface, enum, or record declaration using just its name, instead of
+pretty-printing the declaration's entire body (every member) into the warning
+message. The full-body dump was both hard to read and expensive to construct
+for a large class; a method or constructor declaration, which has no body in
+an annotation file, is unaffected.
+
 Enabled the Gradle configuration cache, speeding up build times.
 
 Added the `-AinferenceWorkBudget=N` command-line option to bound Java
