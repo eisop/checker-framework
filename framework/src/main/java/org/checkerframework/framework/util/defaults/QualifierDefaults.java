@@ -41,6 +41,7 @@ import org.plumelib.util.StringsPlume;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.EnumSet;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Set;
@@ -789,8 +790,22 @@ public class QualifierDefaults {
         if (qualifiers == null || qualifiers.isEmpty()) {
             qualifiers = parentDefaults;
         } else {
-            // TODO(cpovirk): What should happen with conflicts?
-            qualifiers.addAll(parentDefaults);
+            // A default for a given location at a nearer scope shadows a default for the same
+            // location at an enclosing scope: only inherit an enclosing-scope default whose
+            // location the nearer scope does not itself set. Without this, both defaults would
+            // coexist in the (location, annotation)-ordered TreeSet and the winner between them
+            // would be decided by annotation ordering rather than by scope distance -- so an
+            // enclosing scope could override a nearer one (e.g. a nested @NullUnmarked failing to
+            // override an enclosing @NullMarked for a wildcard's implicit upper bound).
+            Set<TypeUseLocation> nearerLocations = EnumSet.noneOf(TypeUseLocation.class);
+            for (Default d : qualifiers) {
+                nearerLocations.add(d.location);
+            }
+            for (Default d : parentDefaults) {
+                if (!nearerLocations.contains(d.location)) {
+                    qualifiers.add(d);
+                }
+            }
         }
 
         if (!qualifiers.isEmpty()) {
