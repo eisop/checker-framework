@@ -112,7 +112,12 @@ bound not permitted by its `@TargetLocations` inert: after the
 `type.invalid.annotations.on.location` error is issued, the qualifier is removed
 from the bound and the bound is re-defaulted, so the meaningless qualifier no
 longer produces a `bound.type.incompatible` cascade. Behavior is unchanged for
-checkers that do not opt in.
+checkers that do not opt in. For a wildcard bound, a checker whose own validity
+check is tree-based rather than `@TargetLocations`-based (for example, one that
+must distinguish an annotation a user explicitly wrote from the same qualifier
+arriving through ordinary defaulting) can additionally override
+`BaseTypeValidator.additionalAnnotationsToStripFromWildcardBound` to strip
+further annotations of its own choosing.
 
 When the bounds of an intersection type (for example, the bound
 `<T extends @NonNull Object & @Nullable Serializable>`) carry conflicting
