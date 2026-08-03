@@ -24,4 +24,22 @@ public class StripLocation {
     List<@StripUpperOnly ? extends @StripBottom Object> badWildcard() {
         return null;
     }
+
+    // @StripBottom has no @TargetLocations of its own, so writing it explicitly on a lower-bound
+    // location is not something this checker's @TargetLocations-based mechanism can flag; only the
+    // opt-in checker's own additional, tree-based rule (see StripLocationValidator) reports it, so
+    // with the opt-in off there is no error here.
+    static class ExplicitBottomParam<@StripBottom T extends Object> {}
+
+    // Relying on defaulting for the same lower-bound position; never an error either way.
+    static class DefaultedBottomParam<T extends Object> {}
+
+    // Same two cases for a wildcard's super (lower) bound.
+    List<@StripBottom ? extends Object> explicitBottomWildcard() {
+        return null;
+    }
+
+    List<? extends Object> defaultedBottomWildcard() {
+        return null;
+    }
 }

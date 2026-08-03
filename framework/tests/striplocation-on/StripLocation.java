@@ -24,4 +24,26 @@ public class StripLocation {
     List<@StripUpperOnly ? extends @StripBottom Object> badWildcard() {
         return null;
     }
+
+    // @StripBottom has no @TargetLocations, so the @TargetLocations-based mechanism never reports
+    // or strips it here; StripLocationValidator's own tree-based rule (not derivable from
+    // @TargetLocations) additionally forbids writing it explicitly at a lower-bound location, and
+    // is only consulted when the opt-in is on.
+    // :: error: (explicit.stripbottom.on.lowerbound)
+    static class ExplicitBottomParam<@StripBottom T extends Object> {}
+
+    // Relying on defaulting for the same lower-bound position is indistinguishable from the
+    // @TargetLocations-based mechanism's perspective, but StripLocationValidator's tree-based check
+    // (declTree has no explicit @StripBottom here) correctly does not report it.
+    static class DefaultedBottomParam<T extends Object> {}
+
+    // Same two cases for a wildcard's super (lower) bound.
+    // :: error: (explicit.stripbottom.on.lowerbound)
+    List<@StripBottom ? extends Object> explicitBottomWildcard() {
+        return null;
+    }
+
+    List<? extends Object> defaultedBottomWildcard() {
+        return null;
+    }
 }

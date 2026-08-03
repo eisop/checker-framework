@@ -1,6 +1,7 @@
 package org.checkerframework.framework.testchecker.striplocation;
 
 import org.checkerframework.common.basetype.BaseTypeChecker;
+import org.checkerframework.common.basetype.BaseTypeValidator;
 import org.checkerframework.common.basetype.BaseTypeVisitor;
 
 /**
@@ -22,5 +23,10 @@ public class StripLocationVisitor extends BaseTypeVisitor<StripLocationAnnotated
     @Override
     protected boolean shouldStripInvalidLocationQualifiers() {
         return checker.hasOption("stripInvalidLocationQualifiers");
+    }
+
+    @Override
+    protected BaseTypeValidator createTypeValidator() {
+        return new StripLocationValidator(checker, this, atypeFactory);
     }
 }
