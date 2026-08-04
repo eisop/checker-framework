@@ -41,9 +41,28 @@ import org.checkerframework.checker.mutability.qual.ReceiverDependentMutable;
         T2;
     }
 
-    @Mutable // TODO Should we issue error here? Do we allow mutable enum?
+    // Java enums can have mutable fields, so @Mutable on enum declarations is allowed.
+    // The enum defaulter (MutabilityEnumDefaultAnnotator) only applies @Immutable when no
+    // explicit mutability annotation is present, so @Mutable properly overrides the default.
+    @Mutable
     private static enum MutableEnum {
         M1,
         M2;
+    }
+
+    // A realistic mutable enum: enum instances with mutable state.
+    @Mutable
+    private static enum Counter {
+        INSTANCE;
+
+        private int count = 0;
+
+        void increment(@Mutable Counter this) {
+            count++;
+        }
+
+        int getCount(@Readonly Counter this) {
+            return count;
+        }
     }
 }
