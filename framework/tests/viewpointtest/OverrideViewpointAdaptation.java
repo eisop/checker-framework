@@ -186,6 +186,7 @@ public class OverrideViewpointAdaptation {
     // 5. Class Inheritance (SuperClass -> SubClass)
     // =========================================================================
 
+    @SuppressWarnings({"super.invocation.invalid", "inconsistent.constructor.type"})
     static class SuperClass {
         @ReceiverDependentQual Object getReturnExact(@ReceiverDependentQual SuperClass this) {
             return null;
@@ -216,6 +217,7 @@ public class OverrideViewpointAdaptation {
                 @ReceiverDependentQual SuperClass this, @ReceiverDependentQual Object o) {}
     }
 
+    @SuppressWarnings({"super.invocation.invalid", "inconsistent.constructor.type"})
     @A static class SubClassA extends SuperClass {
 
         @Override
@@ -259,7 +261,7 @@ public class OverrideViewpointAdaptation {
     // 6. Transitive / Multi-Level Inheritance
     // =========================================================================
 
-    @ReceiverDependentQual interface MiddleRD extends Accessor {}
+    interface MiddleRD extends Accessor {}
 
     @A interface LeafA extends MiddleRD {
 
