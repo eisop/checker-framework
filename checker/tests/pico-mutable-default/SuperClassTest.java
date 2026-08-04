@@ -120,11 +120,9 @@ public class SuperClassTest {
     @Immutable class Subclass extends SuperMethodInvocation {
 
         @Immutable Subclass() {
-            // TODO Still need to investigate if it's proper to allow such reassignment
-            // We may as well say "f is alreayd initializaed" so f can't be reassigned.
-            // The way to implement it is to check @UnderInitialization(SuperMethodInvocation.class)
-            // and f is within the class hierarchy range Object.class ~ SuperMethodInvocation.class,
-            // so forbid reassigning it.
+            // Reassigning inherited fields in a subclass constructor is forbidden because
+            // super() has already completed and the superclass state should not be mutated.
+            // :: error: (illegal.field.write)
             this.f = new @Immutable Object();
         }
 

@@ -283,8 +283,16 @@ public class MutabilityNoInitVisitor extends BaseTypeVisitor<MutabilityNoInitAnn
                 }
             }
             if (isCurrentReceiverField && TreeUtils.isConstructor(enclosingMethod)) {
-                // Constructors may initialize fields of the object being constructed.
-                return;
+                // Constructors may initialize fields of the object being constructed,
+                // but ONLY if the field is declared in the same class. Reassigning inherited
+                // fields is forbidden because the superclass constructor has already completed.
+                VariableElement field = TreeUtils.asFieldAccess(variable);
+                TypeElement fieldEnclosingClass = ElementUtils.enclosingTypeElement(field);
+                TypeElement constructorEnclosingClass =
+                        TreeUtils.elementFromDeclaration(TreePathUtil.enclosingClass(getCurrentPath()));
+                if (fieldEnclosingClass != null && fieldEnclosingClass.equals(constructorEnclosingClass)) {
+                    return;
+                }
             }
         }
         if (isCurrentReceiverField
