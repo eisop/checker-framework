@@ -2,8 +2,13 @@ import org.checkerframework.checker.mutability.qual.Immutable;
 import org.checkerframework.checker.mutability.qual.Mutable;
 
 // Example taken from https://webagam.com/pages/2020/05/27/immutable-objects-with-builder-pattern/
-// TODO this seems to be a good example for fix the behaviour for the interaction between PICO and
-// initialization checker
+// This test exercises three builder patterns with @Immutable classes:
+//  1. NoBuilderEmployee — all fields set in constructor (works).
+//  2. InnerClassBuilderEmployee — separate @Mutable builder passes values to a private
+//     constructor (works).
+//  3. ModernBuilderEmployee — builder mutates the target object via setters after construction.
+//     This correctly reports illegal.field.write because the object is @Immutable. Supporting
+//     this pattern would require uniqueness/ownership tracking, which is outside PICO's scope.
 public class Builder {
     @Immutable public static class NoBuilderEmployee {
         private String id;
