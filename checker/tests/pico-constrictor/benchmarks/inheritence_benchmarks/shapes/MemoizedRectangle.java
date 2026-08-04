@@ -14,8 +14,9 @@ public class MemoizedRectangle extends SizedShape {
         this.memoSize = -1;
     }
 
-    // TODO: override error
-    public int size() {
+    // No override error is expected here: size() retains the @Readonly receiver from
+    // the superclass, and mutating memoSize is allowed because it is marked @Assignable.
+    public int size(@Readonly MemoizedRectangle this) {
         if (this.memoSize == -1) {
             this.memoSize = this.h * this.w;
         }
