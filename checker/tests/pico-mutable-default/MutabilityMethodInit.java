@@ -1,5 +1,8 @@
 // @skip-test
-// TODO: implement ensuresAssigned for PICO
+// Missing Feature: The PICO initialization checker does not yet support postcondition
+// qualifiers (like @EnsuresAssigned or @EnsuresNonNull). Because of this, it cannot
+// verify that helper methods (like initA) initialize fields, resulting in a false
+// positive (initialization.fields.uninitialized) in the constructor.
 import org.checkerframework.checker.initialization.qual.UnderInitialization;
 import org.checkerframework.checker.mutability.qual.Immutable;
 
@@ -7,8 +10,6 @@ import org.checkerframework.checker.mutability.qual.Immutable;
     Object a;
     Object b;
     Object c;
-
-    // TODO: Add postcondition qualifier for PICO, see EnsuresNonNull.java
     // :: error: (initialization.fields.uninitialized)
     MutabilityMethodInit() {
         initA();
