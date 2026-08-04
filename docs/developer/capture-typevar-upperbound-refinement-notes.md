@@ -101,7 +101,7 @@ rather than defaulting it. There is no intermediate "expose X" that helps: any
 CF helper that returned a *corrected* bound would itself have to detect the
 #737 corruption, which is exactly the unsolved problem.
 
-So the honest shape of a "nice CF solution" is two-part and CF-led:
+So the honest shape of a "nice CF solution" seemed to be two-part and CF-led:
 
 1. **CF:** fix #737 — make `SupertypeFinder` / the enclosing-type annotation
    path carry the type parameter's declared bound into the computed supertype's
@@ -111,6 +111,11 @@ So the honest shape of a "nice CF solution" is two-part and CF-led:
    re-derivation in `getUpperBounds` and use the instance
    `AnnotatedTypeVariable.getUpperBound()`, which now carries both the correct
    declared bound (from #737 being fixed) and the capture refinement.
+
+**This two-part shape was tested directly after the #737 fix below was
+implemented, and does not hold** — see "Does the #737 fix unblock the
+reference-checker?" at the end of this document. Left here for the historical
+reasoning trail; do not treat it as the conclusion.
 
 ## Why no CF change is attempted here — [decision]
 
@@ -142,3 +147,110 @@ re-derivation can be retired.
 regression lock-in: it demonstrates CF retains the capture refinement on a
 standard lattice and must keep passing. If a future #737 fix touches capture or
 supertype bound propagation, this test guards the standard-lattice behavior.
+
+## #737 fix attempt — findings — [verified]
+
+A follow-up pass attempted the #737 fix directly. Reproduced on the current
+branch with the issue's own `Min`/`Sub` example and a print in
+`SupertypeFinder.supertypesFromTree`:
+
+- Both the **qualified** form (`class Sub extends Min<XXX>.Super`) and the
+  **identifier** form (`class Sub extends Super`) produce the same pre-
+  substitution corruption: the computed supertype's enclosing `Min` shows
+  `XXX extends @NonNull Object` (defaulted top) instead of the declared
+  `XXX extends @Nullable Object`.
+- **The final supertype returned by `directSupertypes` is already correct for
+  both forms** — the `TypeVariableSubstitutor` step in
+  `SupertypeFinder.visitDeclared` maps `XXX` to the instance's (correct) type
+  argument and overwrites the enclosing bound. The corruption is purely in the
+  intermediate pre-substitution value.
+- The only place the raw (non-substituted) tree-derived type leaks is
+  `AnnotatedTypeFactory.getTypeOfExtendsImplements` (used by
+  `BaseTypeVisitor.processClassTree` to validate extends/implements clauses).
+
+### The extends/implements "invalid not rejected" concern is a *separate* gap
+
+The issue's worry that an invalid supertype clause
+(`class Sub extends Outer<@NonNull String>.Super` where the argument violates
+`XXX`'s bound) is not rejected is **not caused by the #737 bound corruption**.
+`BaseTypeValidator.visitDeclared` scans only the *top-level* type's direct type
+arguments; it never scans an enclosing type's type arguments (verified: an
+out-of-bound enclosing argument is not rejected in extends **or** field
+position, whereas the same argument on a direct, non-enclosing parameterized
+type *is* rejected). Fixing the bound corruption therefore does not — and did
+not — change that behavior. Rejecting invalid enclosing-type arguments would
+require extending `BaseTypeValidator` to recurse into enclosing types, which is
+an independent change.
+
+### Fix that was applied
+
+Rather than the issue's `visitMemberSelect` sketch (which re-derives the
+enclosing type from `tree.getExpression()` and so cannot handle the identifier
+form, which has no such expression), a single helper
+`TypeFromTypeTreeVisitor.refineEnclosingTypeVariableBounds` refines, for any
+tree-derived declared type, the bounds of type-variable arguments in its
+enclosing types via the existing `getTypeVariableFromDeclaration`. It is called
+from both `visitIdentifier` and `visitMemberSelect`, so it fixes **both** forms
+uniformly. Concrete (non-type-variable) enclosing arguments are left untouched
+(they are already correct), so the qualified form's `Outer<@Nullable String>.…`
+case is unaffected.
+
+Verified: the intermediate supertype is now faithful for both forms;
+`./gradlew :framework:test` and `./gradlew :checker:test` pass with zero
+failures and **zero diagnostic changes** across the whole corpus.
+
+### Caveat — no behavioral regression test is possible
+
+Because the final supertype was already correct (substitution) and the
+extends/implements validator never observes enclosing-type arguments, the fix
+has **no observable diagnostic effect on the built-in lattices** — which is
+exactly why the full test corpus is unchanged, and why no `// :: error:`-style
+regression test can capture it. The fix is a fidelity improvement whose
+beneficiary is a type system with stricter substitution (the
+jspecify-reference-checker `getUpperBounds` re-derivation this note began with);
+that repo's samples are the meaningful end-to-end check and were not run here.
+
+## Does the #737 fix unblock the reference-checker? — [verified]: no
+
+The design section above assumed that once #737 is fixed,
+`getAnnotatedType(typeParameterElement)` — the call `getUpperBounds` uses to
+re-derive a non-captured type variable's bound from its declaration — would
+return the refined instance bound instead of the plain declared one, letting
+the reference-checker delete that re-derivation. This was tested directly,
+after the #737 fix, and does **not** hold.
+
+Instrumented `AnnotatedTypeFactory.annotateCapturedTypeVar` (temporary print,
+reverted) to call `getAnnotatedType(elt)` on the capture's upper-bound type
+variable's element — exactly what `getUpperBounds` does — and compared it to
+the instance bound, on the existing `Outer<T>`/`Inner<U extends T>` lock-in
+test, **with the #737 fix applied**:
+
+```
+capture upperBound(instance)=T extends @Bottom Object
+rederived-getAnnotatedType(elt)=T extends @Top Object
+```
+
+`getAnnotatedType(elt)` still returns `T`'s plain declared bound (`@Top`), not
+the refined instance bound (`@Bottom`) — unchanged by the #737 fix. This is, in
+fact, correct behavior for that call: `getAnnotatedType(TypeParameterElement)`
+answers "what is `T` declared as," and `T` is declared `extends @Top Object`
+regardless of any particular capture. It was never wrong, and #737 never
+touched it: #737's corruption is specifically in computing a **nested class's
+supertype through an enclosing parameterized type** (`SupertypeFinder`
+resolving an `extends`/`implements` clause via `TypeFromTypeTreeVisitor`), an
+entirely different operation from an element-based declaration lookup on a
+type parameter.
+
+**Conclusion:** the #737 fix above is a real, independently valid fix — it
+corrects genuine corruption in enclosing-type supertype computation, verified
+on both the qualified and identifier forms, with zero regressions. But it does
+**not** provide a path to retiring the reference-checker's `getUpperBounds`
+re-derivation, because that re-derivation's actual problem (discarding a
+capture's correctly refined instance bound in favor of the type variable's own
+never-corrupted declaration) is not something #737 causes or #737's fix
+touches. The "two-part solution" hypothesized above is disproven; resolving
+the reference-checker's capture false positive needs a different, more
+targeted discriminator — most plausibly one that recognizes when the type
+variable being re-derived is itself the upper bound of a captured type
+variable, so the instance bound should be trusted instead of re-derived — and
+that discriminator lives in the reference-checker, not in CF.
