@@ -451,7 +451,7 @@ public class MutabilityNoInitVisitor extends BaseTypeVisitor<MutabilityNoInitAnn
     public void processClassTree(ClassTree tree) {
         TypeElement typeElement = TreeUtils.elementFromDeclaration(tree);
         // Anonymous classes are validated through their creation expressions.
-        if (TypesUtils.isAnonymous(TreeUtils.typeOf(tree))) {
+        if (TreeUtils.isAnonymousClass(tree)) {
             super.processClassTree(tree);
             return;
         }

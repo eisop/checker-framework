@@ -17,7 +17,6 @@ import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.TreePathUtil;
 import org.checkerframework.javacutil.TreeUtils;
-import org.checkerframework.javacutil.TypesUtils;
 
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.TypeElement;
@@ -166,7 +165,7 @@ public class MutabilityValidator extends BaseTypeValidator {
     private void checkClassBound(AnnotatedDeclaredType type, Tree tree) {
         if (!type.isDeclaration()
                 || !(tree instanceof ClassTree)
-                || TypesUtils.isAnonymous(TreeUtils.typeOf((ClassTree) tree))) {
+                || TreeUtils.isAnonymousClass((ClassTree) tree)) {
             return;
         }
 
