@@ -1,5 +1,6 @@
 package org.checkerframework.javacutil;
 
+import com.sun.source.tree.ClassTree;
 import com.sun.tools.javac.code.BoundKind;
 import com.sun.tools.javac.code.Symbol;
 import com.sun.tools.javac.code.Symtab;
@@ -32,7 +33,6 @@ import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Name;
-import javax.lang.model.element.NestingKind;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.TypeParameterElement;
 import javax.lang.model.type.ArrayType;
@@ -469,11 +469,12 @@ public final class TypesUtils {
      *
      * @param type the type to check
      * @return whether the argument is an anonymous type
+     * @see ElementUtils#isAnonymous(Element)
+     * @see TreeUtils#isAnonymousClass(ClassTree)
      */
     public static boolean isAnonymous(TypeMirror type) {
         return (type instanceof DeclaredType)
-                && ((TypeElement) ((DeclaredType) type).asElement()).getNestingKind()
-                        == NestingKind.ANONYMOUS;
+                && ElementUtils.isAnonymous(((DeclaredType) type).asElement());
     }
 
     /**
