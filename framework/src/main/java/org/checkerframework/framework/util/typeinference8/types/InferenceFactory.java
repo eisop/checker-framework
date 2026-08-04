@@ -558,7 +558,7 @@ public class InferenceFactory {
             Element classEle =
                     ElementUtils.enclosingTypeElement(
                             TreeUtils.elementFromUse((NewClassTree) invocation));
-            if (classEle.getSimpleName().contentEquals("")) {
+            if (ElementUtils.isAnonymous(classEle)) {
                 classEle =
                         ((DeclaredType)
                                         TreeUtils.typeOf(

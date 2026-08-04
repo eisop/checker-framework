@@ -1,5 +1,8 @@
 package org.checkerframework.javacutil;
 
+import com.sun.source.tree.ClassTree;
+import com.sun.source.tree.MethodTree;
+import com.sun.source.tree.NewClassTree;
 import com.sun.tools.javac.code.Flags;
 import com.sun.tools.javac.code.Symbol;
 import com.sun.tools.javac.code.Symbol.ClassSymbol;
@@ -39,6 +42,7 @@ import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Modifier;
 import javax.lang.model.element.Name;
+import javax.lang.model.element.NestingKind;
 import javax.lang.model.element.PackageElement;
 import javax.lang.model.element.QualifiedNameable;
 import javax.lang.model.element.TypeElement;
@@ -864,6 +868,35 @@ public class ElementUtils {
      */
     public static boolean isTypeElement(Element element) {
         return typeElementKinds().contains(element.getKind());
+    }
+
+    /**
+     * Return true if the element is an anonymous class.
+     *
+     * @param element the element to test
+     * @return true if the element is an anonymous class
+     * @see #isAnonymousConstructor(Element)
+     * @see TreeUtils#isAnonymousClass(ClassTree)
+     * @see TypesUtils#isAnonymous(TypeMirror)
+     */
+    public static boolean isAnonymous(Element element) {
+        return element instanceof TypeElement
+                && ((TypeElement) element).getNestingKind() == NestingKind.ANONYMOUS;
+    }
+
+    /**
+     * Return true if the element is a constructor of an anonymous class.
+     *
+     * @param element the element to test
+     * @return true if the element is a constructor of an anonymous class
+     * @see #isAnonymous(Element)
+     * @see TreeUtils#isAnonymousConstructor(MethodTree)
+     * @see TreeUtils#isAnonymousConstructorWithExplicitEnclosingExpression(ExecutableElement,
+     *     NewClassTree)
+     */
+    public static boolean isAnonymousConstructor(Element element) {
+        return element.getKind() == ElementKind.CONSTRUCTOR
+                && isAnonymous(element.getEnclosingElement());
     }
 
     /**

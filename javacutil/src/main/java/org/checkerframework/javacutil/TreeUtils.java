@@ -108,7 +108,6 @@ import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Name;
-import javax.lang.model.element.NestingKind;
 import javax.lang.model.element.PackageElement;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
@@ -1805,10 +1804,11 @@ public final class TreeUtils {
      *
      * @param classTree a class declaration
      * @return whether {@code classTree} declares an anonymous class
+     * @see ElementUtils#isAnonymous(Element)
+     * @see TypesUtils#isAnonymous(TypeMirror)
      */
     public static boolean isAnonymousClass(ClassTree classTree) {
-        TypeElement typeElement = elementFromDeclaration(classTree);
-        return typeElement.getNestingKind() == NestingKind.ANONYMOUS;
+        return ElementUtils.isAnonymous(elementFromDeclaration(classTree));
     }
 
     /**
@@ -1817,14 +1817,12 @@ public final class TreeUtils {
      *
      * @param method a method tree that may be an anonymous constructor
      * @return true if the given path points to an anonymous constructor, false if it does not
+     * @see ElementUtils#isAnonymousConstructor(Element)
+     * @see #isAnonymousConstructorWithExplicitEnclosingExpression(ExecutableElement, NewClassTree)
      */
     public static boolean isAnonymousConstructor(MethodTree method) {
         Element e = elementFromTree(method);
-        if (e == null || e.getKind() != ElementKind.CONSTRUCTOR) {
-            return false;
-        }
-        TypeElement typeElement = (TypeElement) e.getEnclosingElement();
-        return typeElement.getNestingKind() == NestingKind.ANONYMOUS;
+        return e != null && ElementUtils.isAnonymousConstructor(e);
     }
 
     /**
@@ -1833,14 +1831,12 @@ public final class TreeUtils {
      * @param con an ExecutableElement of a constructor declaration
      * @param tree the NewClassTree of a constructor declaration
      * @return true if there is an extra enclosing expression
+     * @see ElementUtils#isAnonymousConstructor(Element)
+     * @see #isAnonymousConstructor(MethodTree)
      */
     public static boolean isAnonymousConstructorWithExplicitEnclosingExpression(
             ExecutableElement con, NewClassTree tree) {
-
-        return (tree.getEnclosingExpression() != null)
-                && con.getKind() == ElementKind.CONSTRUCTOR
-                && ((TypeElement) con.getEnclosingElement()).getNestingKind()
-                        == NestingKind.ANONYMOUS;
+        return tree.getEnclosingExpression() != null && ElementUtils.isAnonymousConstructor(con);
     }
 
     /**
