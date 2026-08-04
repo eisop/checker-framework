@@ -130,6 +130,9 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
     /** True if -Alint=redundantNullComparison was passed on the command line. */
     private final boolean redundantNullComparison;
 
+    /** True if -Alint=monotonicNonNullOnStatic was passed on the command line. */
+    private final boolean monotonicNonNullOnStatic;
+
     /** True if -Alint=noInitForMonotonicNonNull was passed on the command line. */
     private final boolean noInitForMonotonicNonNull;
 
@@ -167,6 +170,10 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
                 checker.getLintOption(
                         NullnessChecker.LINT_NOINITFORMONOTONICNONNULL,
                         NullnessChecker.LINT_DEFAULT_NOINITFORMONOTONICNONNULL);
+        monotonicNonNullOnStatic =
+                checker.getLintOption(
+                        NullnessChecker.LINT_MONOTONICNONNULLONSTATIC,
+                        NullnessChecker.LINT_DEFAULT_MONOTONICNONNULLONSTATIC);
     }
 
     @Override
@@ -290,6 +297,26 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
             }
         }
         return super.commonAssignmentCheck(varType, valueType, valueTree, errorKey, extraArgs);
+    }
+
+    @Override
+    public Void visitVariable(VariableTree tree, Void p) {
+        // Under -Alint=monotonicNonNullOnStatic, warn about @MonotonicNonNull on a static field,
+        // which the manual documents as a code smell that may indicate poor design. This is an
+        // opt-in style warning rather than default-on, because such a field functions correctly:
+        // the pattern is discouraged, not erroneous.
+        if (monotonicNonNullOnStatic) {
+            Element elt = TreeUtils.elementFromDeclaration(tree);
+            if (elt != null
+                    && elt.getKind() == ElementKind.FIELD
+                    && ElementUtils.isStatic(elt)
+                    && atypeFactory
+                            .getAnnotatedTypeLhs(tree)
+                            .hasEffectiveAnnotation(MONOTONIC_NONNULL)) {
+                checker.reportWarning(tree, "monotonic.on.static");
+            }
+        }
+        return super.visitVariable(tree, p);
     }
 
     /** Case 1: Check for null dereferencing. */

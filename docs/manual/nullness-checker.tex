@@ -171,6 +171,15 @@ command-line option.)
   unnecessary and might indicate a programmer error or misunderstanding.
   The lint option is disabled by default because sometimes such checks are
   part of ordinary defensive programming.
+
+\item
+  \label{nullness-lint-monotonic}%
+  If you supply the \code{-Alint=monotonicNonNullOnStatic} command-line option,
+  then the checker warns when \<@MonotonicNonNull> is written on a \<static>
+  field.  Such a field is a code smell that may indicate poor design; consider
+  whether the field could instead be a member field that is set in the
+  constructor.  The lint option is disabled by default because such a field
+  functions correctly.
 \end{itemize}
 
 \item
@@ -278,7 +287,12 @@ The nullness hierarchy contains these qualifiers:
 
   Use of \<@MonotonicNonNull> on a \emph{static} field is a code smell:  it may
   indicate poor design.  You should consider whether it is possible to make
-  the field a member field that is set in the constructor.
+  the field a member field that is set in the constructor.  If you supply the
+  \<monotonicNonNullOnStatic> lint flag (for example, supply
+  \<-Alint=monotonicNonNullOnStatic> on the command line), then the Nullness
+  Checker issues a \<monotonic.on.static> warning for each \<static> field
+  annotated \<@MonotonicNonNull>.  The warning is off by default because such a
+  field functions correctly; the pattern is discouraged, not erroneous.
 
   In the type system, \<@MonotonicNonNull> is a supertype of \<@NonNull>
   and a subtype of \<@Nullable>.

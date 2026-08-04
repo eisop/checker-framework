@@ -41,6 +41,14 @@ stub), `-AsuppressWarnings=text.parsing.jdk.class` (a JDK class is missing from
 the binary stub), or `-AsuppressWarnings=text.parsing.stub` (a checker's stub
 file has no binary stub).
 
+Fixed `-AwarnUnneededSuppressions` failing to report an unneeded
+`@SuppressWarnings` whose value is exactly a checker prefix (such as
+`"nullness"`, `"allcheckers"`, or `"all"`). Such a suppression suppresses every
+warning of the checker, and it was incorrectly suppressing the
+`unneeded.suppression` warning about itself. To suppress that warning
+deliberately, write the message key explicitly, as in
+`@SuppressWarnings("nullness:unneeded.suppression")`.
+
 Fixed four bugs in how `AnnotationFileParser` matches a fake override to the
 method it overrides. Each made a stub declaration bind to the wrong method, or
 to none at all, silently changing or dropping the annotations it provides:
@@ -118,6 +126,11 @@ bounds. A checker that wants an order-independent summary can override
 `AnnotatedTypeFactory#combineIntersectionBoundAnnotationsInHierarchy` to return,
 for example, the greatest lower bound.
 
+Added a new lint option, `-Alint=monotonicNonNullOnStatic`, under which the
+Nullness Checker issues a `monotonic.on.static` warning when `@MonotonicNonNull`
+is written on a `static` field, which the manual documents as a code smell.  The
+option is off by default because such a field functions correctly.
+
 Fixed a crash (`MissingFormatArgumentException` wrapped in `BugInCF`) in the
 Optional Checker's `prefer.map.and.orelse` warning for `if (VAR.isPresent())
 { TYPE x = METHOD(VAR.get()); }` with no `else` branch, which supplied only 2
@@ -139,6 +152,37 @@ annotations for every JDK class and every built-in stub file.
 Fixed a `NullPointerException` in `AnnotationFileParser`'s handling of
 unbounded wildcards (e.g. `Class<?>`) under `--release 8`, which had silently
 aborted parsing of the remaining methods in the enclosing stub file.
+
+Fixed `AnnotationFileParser` to resolve a declaration annotation's field-access
+value (e.g. `RetentionPolicy.RUNTIME`) when its receiver type is reachable only
+through a wildcard type import (`import java.lang.annotation.*;`), matching
+the binary stub writer. This had silently dropped such annotations, including
+the `@Retention`/`@Target` meta-annotations that the annotated JDK's own
+`java.lang.Override`, `Deprecated`, and `SuppressWarnings` declarations write
+on themselves.
+
+Fixed `AnnotationFileParser` to resolve a declaration annotation's field-access
+value whose scope is itself a field access (e.g. `DefinedBy.Api.COMPILER`,
+whose scope is `DefinedBy.Api`), not just a plain name (`Api.COMPILER`). This
+had silently dropped such annotations, including
+`com.sun.tools.javac.file.JavacFileManager.setPathFactory(..)`'s
+`@DefinedBy(DefinedBy.Api.COMPILER)` in the annotated JDK, the one place that
+writes this form instead of the more common `Api.COMPILER`.
+
+Fixed `AnnotationFileParser` to process a nested annotation type declaration
+(e.g. `Outer.Nested`) the same way it already processed a nested class,
+interface, enum, or record. Previously, the whole declaration was silently
+ignored, including any declaration annotations written on it, such as the
+`@Retention`/`@Target` meta-annotations that the annotated JDK's own
+`com.sun.tools.javac.api.ClientCodeWrapper.Trusted` and
+`java.lang.invoke.LambdaForm.Compiled` write on themselves.
+
+Fixed `AnnotationFileParser` to report a type-parameter-count mismatch on a
+class, interface, enum, or record declaration using just its name, instead of
+pretty-printing the declaration's entire body (every member) into the warning
+message. The full-body dump was both hard to read and expensive to construct
+for a large class; a method or constructor declaration, which has no body in
+an annotation file, is unaffected.
 
 Enabled the Gradle configuration cache, speeding up build times.
 
@@ -200,6 +244,9 @@ Performance optimizations:
   methods per class); `ValueQualifierHierarchy` uses cached `value()` elements.
   Wall clock on constant-heavy 1500-method classes improved ~18%.
 - `TreeUtils.sameTree()`: use a visitor instead of an expensive `toString()`.
+- `AnnotatedTypeFactory.isFromByteCode(Element)` now caches its result per
+  element, avoiding a repeated `Path.toUri()` call (URI construction and
+  parsing) on every conservative-defaults check.
 
 Other improvements and bug fixes:
 - `TreeUtils` has a new `inferredTypeArguments(ExpressionTree)` method to
@@ -222,8 +269,10 @@ Other improvements and bug fixes:
 
 **Closed issues:**
 
-eisop#433, eisop#792, eisop#863, eisop#1015, eisop#1074, eisop#1315,
-eisop#1653, eisop#1801, eisop#1819.
+eisop#433, eisop#792, eisop#863, eisop#949, eisop#1015, eisop#1074,
+eisop#1244, eisop#1315, eisop#1564, eisop#1592, eisop#1642, eisop#1653,
+eisop#1735, eisop#1801, eisop#1818, eisop#1819, eisop#1861, eisop#1862,
+eisop#1863, eisop#1865, eisop#1887.
 
 
 Version 3.49.5-eisop1 (April 26, 2026)
