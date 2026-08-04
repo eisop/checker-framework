@@ -8,7 +8,7 @@ import org.checkerframework.checker.mutability.qual.ReceiverDependentMutable;
 public class ImplicitMutable {
     @Mutable static class MutableClass {}
 
-    @Immutable class ExplicitImmutableClass {
+    @Immutable static class ExplicitImmutableClass {
         // :: error: (implicit.shallow.immutable)
         MutableClass implicitMutableField;
         @Mutable MutableClass explicitMutableField;
@@ -20,7 +20,7 @@ public class ImplicitMutable {
         }
     }
 
-    @Immutable class ImplicitImmutableClass {
+    @Immutable static class ImplicitImmutableClass {
         // :: error: (implicit.shallow.immutable)
         MutableClass implicitMutableField;
         @Mutable MutableClass explicitMutableField;
@@ -31,7 +31,7 @@ public class ImplicitMutable {
         }
     }
 
-    @ReceiverDependentMutable class RDMClass {
+    @ReceiverDependentMutable static class RDMClass {
         // :: error: (implicit.shallow.immutable)
         MutableClass implicitMutableField;
         @Mutable MutableClass explicitMutableField;
