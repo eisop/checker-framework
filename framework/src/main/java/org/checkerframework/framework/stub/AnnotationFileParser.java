@@ -2014,6 +2014,21 @@ public class AnnotationFileParser {
                 AnnotationMirrorSet.singleton(fromStubFileAnno));
     }
 
+    /**
+     * Annotates each type variable in {@code typeArguments} with the annotations written on the
+     * corresponding {@code typeParameters} declaration in the annotation file, including its
+     * bound(s). If {@code typeParameters} and {@code typeArguments} have different sizes, issues a
+     * warning (mentioning {@code decl} and {@code elt} for context) and returns without annotating
+     * anything.
+     *
+     * @param decl the type or callable declaration, as read from the annotation file, that owns
+     *     {@code typeParameters}; used only for diagnostics
+     * @param elt the type or executable element corresponding to {@code decl}; used only for
+     *     diagnostics
+     * @param typeArguments the type variables to be annotated
+     * @param typeParameters the type parameter declarations read from the annotation file, or null
+     *     if {@code decl} has none
+     */
     private void annotateTypeParameters(
             BodyDeclaration<?> decl, // for debugging
             Object elt, // for debugging; TypeElement or ExecutableElement
@@ -2024,6 +2039,15 @@ public class AnnotationFileParser {
         }
 
         if (typeParameters.size() != typeArguments.size()) {
+            // For a type declaration, `decl.toString()` pretty-prints the entire body
+            // (every member, recursively), which is unbounded in size and can be very
+            // expensive for a large class; only its name is useful for debugging here.
+            // A method/constructor declaration in an annotation file has no body, so
+            // `decl.toString()` is already just its (cheap) signature.
+            String declString =
+                    decl instanceof TypeDeclaration
+                            ? ((TypeDeclaration<?>) decl).getNameAsString()
+                            : decl.toString().replace(LINE_SEPARATOR, " ");
             String msg =
                     String.format(
                             "annotateTypeParameters: mismatched sizes:"
@@ -2034,7 +2058,7 @@ public class AnnotationFileParser {
                             typeParameters,
                             typeArguments.size(),
                             typeArguments,
-                            decl.toString().replace(LINE_SEPARATOR, " "),
+                            declString,
                             elt.toString().replace(LINE_SEPARATOR, " "),
                             elt.getClass());
             if (!debugAnnotationFileParser) {
@@ -2868,7 +2892,6 @@ public class AnnotationFileParser {
                     allAnnotations,
                     createNameToAnnotationMap(Collections.singletonList(annoTypeElt)));
         }
-        @SuppressWarnings("signature") // not anonymous, so name is not empty
         @CanonicalName String annoName = ElementUtils.getQualifiedName(annoTypeElt);
 
         if (annotation instanceof MarkerAnnotationExpr) {

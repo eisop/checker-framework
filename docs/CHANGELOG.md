@@ -41,6 +41,14 @@ stub), `-AsuppressWarnings=text.parsing.jdk.class` (a JDK class is missing from
 the binary stub), or `-AsuppressWarnings=text.parsing.stub` (a checker's stub
 file has no binary stub).
 
+Fixed `-AwarnUnneededSuppressions` failing to report an unneeded
+`@SuppressWarnings` whose value is exactly a checker prefix (such as
+`"nullness"`, `"allcheckers"`, or `"all"`). Such a suppression suppresses every
+warning of the checker, and it was incorrectly suppressing the
+`unneeded.suppression` warning about itself. To suppress that warning
+deliberately, write the message key explicitly, as in
+`@SuppressWarnings("nullness:unneeded.suppression")`.
+
 Fixed four bugs in how `AnnotationFileParser` matches a fake override to the
 method it overrides. Each made a stub declaration bind to the wrong method, or
 to none at all, silently changing or dropping the annotations it provides:
@@ -169,6 +177,13 @@ ignored, including any declaration annotations written on it, such as the
 `com.sun.tools.javac.api.ClientCodeWrapper.Trusted` and
 `java.lang.invoke.LambdaForm.Compiled` write on themselves.
 
+Fixed `AnnotationFileParser` to report a type-parameter-count mismatch on a
+class, interface, enum, or record declaration using just its name, instead of
+pretty-printing the declaration's entire body (every member) into the warning
+message. The full-body dump was both hard to read and expensive to construct
+for a large class; a method or constructor declaration, which has no body in
+an annotation file, is unaffected.
+
 Enabled the Gradle configuration cache, speeding up build times.
 
 Added the `-AinferenceWorkBudget=N` command-line option to bound Java
@@ -254,8 +269,10 @@ Other improvements and bug fixes:
 
 **Closed issues:**
 
-eisop#433, eisop#792, eisop#863, eisop#1015, eisop#1074, eisop#1315,
-eisop#1653, eisop#1801, eisop#1819.
+eisop#433, eisop#792, eisop#863, eisop#949, eisop#1015, eisop#1074,
+eisop#1244, eisop#1315, eisop#1564, eisop#1592, eisop#1642, eisop#1653,
+eisop#1735, eisop#1801, eisop#1818, eisop#1819, eisop#1861, eisop#1862,
+eisop#1863, eisop#1865, eisop#1887.
 
 
 Version 3.49.5-eisop1 (April 26, 2026)
