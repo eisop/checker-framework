@@ -1270,8 +1270,8 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                 AnnotatedDeclaredType overriddenType = pair.getKey();
                 ExecutableElement overriddenMethodElt = pair.getValue();
                 AnnotatedExecutableType overriddenMethodType =
-                        AnnotatedTypes.asMemberOf(
-                                types, atypeFactory, overriddenType, overriddenMethodElt);
+                        atypeFactory.overriddenMethodType(
+                                overriddenType, overriddenMethodElt, enclosingType);
                 if (!checkOverride(tree, enclosingType, overriddenMethodType, overriddenType)) {
                     // Stop at the first mismatch; this makes a difference only if
                     // -Awarns is passed, in which case multiple warnings might be raised on
@@ -4673,11 +4673,6 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                 && !overriddenMethodType.getTypeVariables().isEmpty()) {
             overriddenMethodType = overriddenMethodType.getErased();
         }
-
-        // Viewpoint-adapt the overridden method type to the overriding class.
-        overriddenMethodType =
-                atypeFactory.postAsOverride(
-                        overriddenMethodType, overriderType, overriddenMethodType.getElement());
 
         OverrideChecker overrideChecker =
                 createOverrideChecker(

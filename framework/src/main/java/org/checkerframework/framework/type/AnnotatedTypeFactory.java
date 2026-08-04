@@ -1283,27 +1283,25 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     }
 
     /**
-     * Viewpoint-adapts an overridden method type to the class that declares the overriding method
-     * before performing an override check.
+     * Returns the type of an overridden method as it should be seen for an override check against
+     * the given overriding class. This computes the overridden method type via {@link
+     * AnnotatedTypes#asMemberOf} and then viewpoint-adapts it to the overriding class.
      *
-     * <p>This method does not modify {@code methodType}; it returns a copy containing the adapted
-     * type.
-     *
-     * @param methodType the type of the overridden method
+     * @param overriddenType the supertype that contains the overridden method
+     * @param overriddenMethodElt the element of the overridden method
      * @param overriderType the type of the class declaring the overriding method
-     * @param methodElt the element of the overridden method
-     * @return the viewpoint-adapted method type to use in the override check
+     * @return the overridden method type, with type variables substituted and viewpoint-adapted to
+     *     the overriding class
      */
-    public AnnotatedExecutableType postAsOverride(
-            AnnotatedExecutableType methodType,
-            AnnotatedDeclaredType overriderType,
-            ExecutableElement methodElt) {
-        if (viewpointAdapter == null) {
-            return methodType;
+    public AnnotatedExecutableType overriddenMethodType(
+            AnnotatedDeclaredType overriddenType,
+            ExecutableElement overriddenMethodElt,
+            AnnotatedDeclaredType overriderType) {
+        AnnotatedExecutableType result =
+                AnnotatedTypes.asMemberOf(types, this, overriddenType, overriddenMethodElt);
+        if (viewpointAdapter != null) {
+            viewpointAdapter.viewpointAdaptMethod(overriderType, overriddenMethodElt, result);
         }
-        // Adaptation mutates its argument, and methodType may be shared, so work on a copy.
-        AnnotatedExecutableType result = methodType.deepCopy();
-        viewpointAdapter.viewpointAdaptMethod(overriderType, methodElt, result);
         return result;
     }
 
