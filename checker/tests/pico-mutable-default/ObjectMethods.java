@@ -41,10 +41,10 @@ public @Mutable class ObjectMethods {
         return super.equals(o);
     }
 
-    @SuppressWarnings("mutability:return.type.incompatible") // TODO: how to annotate clone
     @Override
     // :: error: (override.return.invalid)
-    protected Object clone(ObjectMethods2 this) throws CloneNotSupportedException {
+    protected @Immutable Object clone(@Immutable ObjectMethods2 this)
+            throws CloneNotSupportedException {
         return super.clone();
     }
 
