@@ -171,6 +171,16 @@ the final supertype on the built-in lattices (later substitution already
 corrected it), but the intermediate type is now faithful, which matters for
 type systems with stricter substitution.
 
+`BaseTypeValidator` now checks the type arguments of an explicitly-written
+enclosing type against the enclosing type parameters' declared bounds, so
+`Outer<@NonNull String>.Inner` is rejected when `@NonNull String` violates
+`Outer`'s type-parameter bound, matching the existing behavior for the
+non-enclosing `Outer<@NonNull String>` (further work on eisop#737).
+Previously an enclosing type's arguments were never validated. The extends and
+implements clauses are not yet covered, because their type computation drops
+the written enclosing-argument qualifier before validation; that is a separate,
+still-open part of eisop#737.
+
 `SourceChecker.reportError` and `SourceChecker.reportWarning` now accept a null
 source, for a message that has no source position. Such a message is reported
 against the compilation as a whole, and is suppressed only by

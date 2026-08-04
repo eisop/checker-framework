@@ -4,6 +4,7 @@ import com.sun.source.tree.AnnotatedTypeTree;
 import com.sun.source.tree.ClassTree;
 import com.sun.source.tree.ExpressionTree;
 import com.sun.source.tree.IdentifierTree;
+import com.sun.source.tree.MemberSelectTree;
 import com.sun.source.tree.MethodTree;
 import com.sun.source.tree.NewClassTree;
 import com.sun.source.tree.ParameterizedTypeTree;
@@ -430,6 +431,12 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
         ParameterizedTypeTree typeArgTree = p.first;
         type = p.second;
 
+        // Validate the type arguments of any explicitly-written enclosing types, e.g. the
+        // `Outer<...>` in `Outer<...>.Inner`. The scan below (and super.visitDeclared) only
+        // reaches a type's own direct type arguments; an enclosing type's arguments are buried
+        // in a MemberSelectTree and would otherwise never be checked against their bounds.
+        validateEnclosingTypeArgs(type, tree);
+
         if (typeArgTree == null) {
             return super.visitDeclared(type, tree);
         } // else
@@ -629,6 +636,65 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
         }
 
         return super.visitArray(type, tree);
+    }
+
+    /**
+     * Validates the type arguments of the explicitly-written enclosing types of a declared type,
+     * for example the {@code Outer<...>} part of a qualified type {@code Outer<...>.Inner}.
+     *
+     * <p>{@link #visitDeclared} and {@link AnnotatedTypeScanner#visitDeclared} only reach a
+     * declared type's own direct type arguments. An enclosing type's type arguments live inside a
+     * {@link MemberSelectTree} and, without this method, are never checked against the enclosing
+     * type parameters' bounds: {@code Outer<@NonNull String>.Inner} would be accepted even when
+     * {@code @NonNull String} violates the bound of {@code Outer}'s type parameter, whereas the
+     * same argument in the non-enclosing position {@code Outer<@NonNull String>} is rejected.
+     *
+     * <p>This method walks the enclosing-type/qualifier chain outward and runs {@link
+     * #visitParameterizedType} on each enclosing type that is written with explicit type arguments
+     * (a {@link ParameterizedTypeTree}). Enclosing types written without type arguments (raw types,
+     * or an inner type named by a simple identifier with the enclosing arguments left implicit)
+     * have no argument tree to check and are skipped, matching the direct-position behavior.
+     *
+     * @param type the declared type whose enclosing types should be validated
+     * @param tree the tree for {@code type}
+     */
+    protected void validateEnclosingTypeArgs(AnnotatedDeclaredType type, Tree tree) {
+        AnnotatedDeclaredType enclosing = type.getEnclosingType();
+        if (enclosing == null) {
+            return;
+        }
+
+        // Unwrap the type tree down to the tree that actually names the type: strip a surrounding
+        // VariableTree or AnnotatedTypeTree, then drop a top-level ParameterizedTypeTree's own type
+        // arguments to reach the (possibly qualified) name.
+        Tree nameTree = tree;
+        while (true) {
+            if (nameTree instanceof VariableTree) {
+                nameTree = ((VariableTree) nameTree).getType();
+            } else if (nameTree instanceof AnnotatedTypeTree) {
+                nameTree = ((AnnotatedTypeTree) nameTree).getUnderlyingType();
+            } else {
+                break;
+            }
+        }
+        if (nameTree instanceof ParameterizedTypeTree) {
+            nameTree = ((ParameterizedTypeTree) nameTree).getType();
+        }
+
+        // Walk outward through the qualifier chain, validating each enclosing type that is written
+        // with explicit type arguments.
+        while (nameTree instanceof MemberSelectTree && enclosing != null) {
+            ExpressionTree enclosingTree = ((MemberSelectTree) nameTree).getExpression();
+            if (enclosingTree instanceof ParameterizedTypeTree) {
+                ParameterizedTypeTree enclosingParamTree = (ParameterizedTypeTree) enclosingTree;
+                visitParameterizedType(enclosing, enclosingParamTree);
+                nameTree = enclosingParamTree.getType();
+            } else {
+                // A raw or simple-name enclosing type has no argument tree to validate.
+                nameTree = enclosingTree;
+            }
+            enclosing = enclosing.getEnclosingType();
+        }
     }
 
     /**
