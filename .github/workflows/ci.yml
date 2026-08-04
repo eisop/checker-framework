@@ -22,7 +22,7 @@ env:
   USE_BAZEL_VERSION: "9.2.0"
   # JDK 27 early-access build; bump when a new EA build is published.
   JDK_EA_MAJOR: "27"
-  JDK_EA_BUILD: "32"
+  JDK_EA_BUILD: "33"
 
 jobs:
   # Basic sanity tests on the primary JDK.
@@ -43,14 +43,14 @@ jobs:
       - uses: actions/checkout@v7
 
       - name: Set up JDK ${{ matrix.java_version }}
-        uses: actions/setup-java@v5.6.0
+        uses: actions/setup-java@v5.7.0
         with:
           java-version: ${{ matrix.java_version }}
           distribution: 'zulu'
           # Caching handled by gradle/actions/setup-gradle below.
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v6.2.0
+        uses: gradle/actions/setup-gradle@v6.3.0
         with:
           # Allow cache writes on PR runs so subsequent reruns on the same PR
           # restore the previous run's Gradle home instead of rebuilding from
@@ -103,13 +103,13 @@ jobs:
           fetch-depth: 1
 
       - name: Set up JDK ${{ matrix.java_version }}
-        uses: actions/setup-java@v5.6.0
+        uses: actions/setup-java@v5.7.0
         with:
           java-version: ${{ matrix.java_version }}
           distribution: 'zulu'
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v6.2.0
+        uses: gradle/actions/setup-gradle@v6.3.0
         with:
           cache-read-only: false
 
@@ -158,7 +158,7 @@ jobs:
           fetch-depth: 1
 
       - name: Set up JDK ${{ env.PRIMARY_JDK }} for Gradle to run on
-        uses: actions/setup-java@v5.6.0
+        uses: actions/setup-java@v5.7.0
         with:
           # Install the primary JDK first, to make it available to Gradle via gradle.properties below.
           java-version: ${{ env.PRIMARY_JDK }}
@@ -166,7 +166,7 @@ jobs:
 
       - name: Set up stable JDK ${{ matrix.java.version }}
         if: ${{ matrix.java.version != env.JDK_EA_MAJOR }}
-        uses: actions/setup-java@v5.6.0
+        uses: actions/setup-java@v5.7.0
         with:
           # Install the requested JDK second, to make it the default on which tests run.
           java-version: ${{ matrix.java.version }}
@@ -188,7 +188,7 @@ jobs:
           echo "org.gradle.java.home=$JAVA_HOME_${{ env.PRIMARY_JDK }}_X64" >> ~/.gradle/gradle.properties
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v6.2.0
+        uses: gradle/actions/setup-gradle@v6.3.0
         with:
           cache-read-only: false
 
@@ -249,13 +249,13 @@ jobs:
           fetch-depth: 1
 
       - name: Set up JDK ${{ env.PRIMARY_JDK }} for Gradle to run on
-        uses: actions/setup-java@v5.6.0
+        uses: actions/setup-java@v5.7.0
         with:
           java-version: ${{ env.PRIMARY_JDK }}
           distribution: 'zulu'
 
       - name: Set up stable JDK ${{ matrix.java.version }}
-        uses: actions/setup-java@v5.6.0
+        uses: actions/setup-java@v5.7.0
         with:
           java-version: ${{ matrix.java.version }}
           distribution: 'zulu'
@@ -266,7 +266,7 @@ jobs:
           echo "org.gradle.java.home=$JAVA_HOME_${{ env.PRIMARY_JDK }}_X64" >> ~/.gradle/gradle.properties
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v6.2.0
+        uses: gradle/actions/setup-gradle@v6.3.0
         with:
           cache-read-only: false
 
@@ -300,13 +300,13 @@ jobs:
       - uses: actions/checkout@v7
 
       - name: Set up JDK ${{ matrix.java_version }}
-        uses: actions/setup-java@v5.6.0
+        uses: actions/setup-java@v5.7.0
         with:
           java-version: ${{ matrix.java_version }}
           distribution: 'zulu'
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v6.2.0
+        uses: gradle/actions/setup-gradle@v6.3.0
         with:
           cache-read-only: false
 
