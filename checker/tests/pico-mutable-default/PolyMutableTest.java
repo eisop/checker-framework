@@ -96,13 +96,13 @@ public class PolyMutableTest {
 
         void test2(@Mutable B mb) {
             @Mutable Object l = mb.getSecondObject();
-            // TODO Should be poly.invocation.error something...
+            // Poly return is constrained by the @Mutable receiver, so result is @Mutable.
             // :: error: (assignment.type.incompatible)
             @Immutable Object r = mb.getSecondObject();
         }
 
         void test3(@Immutable B imb) {
-            // TODO Should be poly.invocation.error something...
+            // Poly return is constrained by the @Immutable receiver, so result is @Immutable.
             // :: error: (assignment.type.incompatible)
             @Mutable Object l = imb.getSecondObject();
             @Immutable Object r = imb.getSecondObject();
@@ -113,9 +113,9 @@ public class PolyMutableTest {
             @Immutable Object r = b.getObject().getThirdObject();
         }
 
-        // TODO Poly return type used on poly receiver. This is not yet implemented yet in CF
+        // Chained poly: b.getSecondObject() on @Mutable B resolves poly to @Mutable,
+        // so the second .getSecondObject() also returns @Mutable. Correctly errors.
         void test5(@Mutable B b) {
-            // TODO Should typecheck.
             // :: error: (assignment.type.incompatible)
             @Immutable Object r = b.getSecondObject().getSecondObject();
         }
