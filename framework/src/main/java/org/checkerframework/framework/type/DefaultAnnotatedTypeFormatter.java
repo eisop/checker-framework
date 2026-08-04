@@ -16,6 +16,7 @@ import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedWildcard
 import org.checkerframework.framework.type.visitor.AnnotatedTypeVisitor;
 import org.checkerframework.framework.util.AnnotationFormatter;
 import org.checkerframework.framework.util.DefaultAnnotationFormatter;
+import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.TypeAnnotationUtils;
 import org.checkerframework.javacutil.TypesUtils;
 import org.plumelib.util.WeakIdentityHashMap;
@@ -244,12 +245,10 @@ public class DefaultAnnotatedTypeFormatter implements AnnotatedTypeFormatter {
                 sb.append('.');
             }
             Element typeElt = type.getUnderlyingType().asElement();
-            String smpl = typeElt.getSimpleName().toString();
-            if (smpl.isEmpty()) {
-                // For anonymous classes smpl is empty - toString
-                // of the element is more useful.
-                smpl = typeElt.toString();
-            }
+            String smpl =
+                    ElementUtils.isAnonymous(typeElt)
+                            ? typeElt.toString()
+                            : typeElt.getSimpleName().toString();
             sb.append(
                     annoFormatter.formatAnnotationString(
                             type.getAnnotationsField(), currentPrintInvisibleSetting));
