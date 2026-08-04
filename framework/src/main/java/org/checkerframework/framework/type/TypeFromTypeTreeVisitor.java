@@ -345,6 +345,7 @@ class TypeFromTypeTreeVisitor extends TypeFromTreeVisitor {
         if (type.getKind() == TypeKind.TYPEVAR) {
             return getTypeVariableFromDeclaration((AnnotatedTypeVariable) type, f);
         }
+        refineEnclosingTypeVariableBounds(type, f);
 
         return type;
     }
@@ -356,8 +357,51 @@ class TypeFromTypeTreeVisitor extends TypeFromTreeVisitor {
         if (type.getKind() == TypeKind.TYPEVAR) {
             return getTypeVariableFromDeclaration((AnnotatedTypeVariable) type, f);
         }
+        refineEnclosingTypeVariableBounds(type, f);
 
         return type;
+    }
+
+    /**
+     * Refines the bounds of type-variable type arguments in the enclosing types of {@code type} to
+     * the bounds written on their declaration.
+     *
+     * <p>The type produced by {@link AnnotatedTypeFactory#type(Tree)} for a nested type derives its
+     * enclosing types from the underlying javac type, whose type-variable type arguments carry
+     * defaulted bounds rather than the bounds written on the type-variable declaration (see <a
+     * href="https://github.com/eisop/checker-framework/issues/737">issue #737</a>). For a type
+     * variable written directly (e.g., as a top-level type argument in a {@link
+     * ParameterizedTypeTree}), {@link #getTypeVariableFromDeclaration} already restores the
+     * declared bounds; this method does the same for type variables that appear only in an
+     * enclosing type, which has no corresponding subtree to visit (e.g., the implicit {@code
+     * Outer<XXX>} enclosing {@code Inner} in {@code class Sub extends Inner}).
+     *
+     * @param type a type whose enclosing types' type-variable arguments are refined in place
+     * @param f the annotated type factory
+     */
+    private void refineEnclosingTypeVariableBounds(
+            AnnotatedTypeMirror type, AnnotatedTypeFactory f) {
+        if (type.getKind() != TypeKind.DECLARED) {
+            return;
+        }
+        AnnotatedDeclaredType enclosing = ((AnnotatedDeclaredType) type).getEnclosingType();
+        while (enclosing != null) {
+            List<AnnotatedTypeMirror> typeArgs = enclosing.getTypeArguments();
+            boolean changed = false;
+            List<AnnotatedTypeMirror> refinedArgs = new ArrayList<>(typeArgs.size());
+            for (AnnotatedTypeMirror arg : typeArgs) {
+                if (arg.getKind() == TypeKind.TYPEVAR) {
+                    refinedArgs.add(getTypeVariableFromDeclaration((AnnotatedTypeVariable) arg, f));
+                    changed = true;
+                } else {
+                    refinedArgs.add(arg);
+                }
+            }
+            if (changed) {
+                enclosing.setTypeArguments(refinedArgs);
+            }
+            enclosing = enclosing.getEnclosingType();
+        }
     }
 
     @Override
