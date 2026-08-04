@@ -29,9 +29,17 @@ public class LocalVariableRefinement {
         Acceptor.accept2(lo);
     }
 
-    // TODO revisit this method
     void foo() {
         @Readonly Object o = new @Immutable Object();
+        // o is refined to @Immutable
+        // :: error: (argument.type.incompatible)
+        Acceptor.accept1(o); // takes @Mutable
+        Acceptor.accept2(o); // takes @Immutable, OK
+
         o = new @Mutable Object();
+        // o is refined to @Mutable
+        Acceptor.accept1(o); // takes @Mutable, OK
+        // :: error: (argument.type.incompatible)
+        Acceptor.accept2(o); // takes @Immutable
     }
 }
