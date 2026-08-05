@@ -1032,7 +1032,7 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
      * @see #stripInvalidLocationQualifiersFromTypeVariableBounds
      * @see #shouldStripInvalidLocationQualifiers
      */
-    public List<AnnotationMirror> annotationsDisallowedAtLocation(
+    protected List<AnnotationMirror> annotationsDisallowedAtLocation(
             AnnotatedTypeMirror type, TypeUseLocation required) {
         List<AnnotationMirror> result = Collections.emptyList();
         for (AnnotationMirror am : type.getAnnotations()) {
@@ -1064,7 +1064,7 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
      * @see #annotationsDisallowedAtLocation(AnnotatedTypeMirror, TypeUseLocation)
      * @see #additionalAnnotationsToStripFromWildcardBound
      */
-    public List<AnnotationMirror> annotationsDisallowedAtLocation(
+    protected List<AnnotationMirror> annotationsDisallowedAtLocation(
             AnnotatedTypeMirror type, Set<TypeUseLocation> allowedLocations) {
         List<AnnotationMirror> result = Collections.emptyList();
         for (AnnotationMirror am : type.getAnnotations()) {
@@ -1090,7 +1090,8 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
      * @return true if the effective annotations on the upperBound are above (or equal to) those on
      *     the lowerBound
      */
-    public boolean areBoundsValid(AnnotatedTypeMirror upperBound, AnnotatedTypeMirror lowerBound) {
+    protected boolean areBoundsValid(
+            AnnotatedTypeMirror upperBound, AnnotatedTypeMirror lowerBound) {
         AnnotationMirrorSet upperBoundAnnos =
                 AnnotatedTypes.findEffectiveAnnotations(qualHierarchy, upperBound);
         AnnotationMirrorSet lowerBoundAnnos =
