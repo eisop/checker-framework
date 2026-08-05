@@ -1247,7 +1247,8 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
         // noQualHasTargetLocations is a pure optimization for the common case (skip a check that
         // can never find anything). It must not also skip a checker that has opted in to
         // stripping via shouldStripInvalidLocationQualifiers: such a checker may override
-        // annotationsDisallowedAtLocation with its own tree-based detection, independent of
+        // additionalAnnotationsToStripFromWildcardBound with its own tree-based detection,
+        // independent of
         // @TargetLocations, in which case no qualifier having @TargetLocations says nothing about
         // whether there is something to detect and strip.
         if (ignoreTargetLocations
