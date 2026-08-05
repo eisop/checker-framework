@@ -230,13 +230,12 @@ hard error.
 Target-location validation and bound-stripping logic has been consolidated into
 `BaseTypeValidator`:
 - Methods relocated from `BaseTypeVisitor` to `BaseTypeValidator`:
-  - `validateVariableTargetLocation(Tree, AnnotatedTypeMirror)`
-  - `validateTargetLocation(Tree, AnnotatedTypeMirror, TypeUseLocation)`
+  - `validateVariableTargetLocation(AnnotatedTypeMirror, Tree)`
+    (was `validateVariablesTargetLocation`)
+  - `validateTargetLocation(AnnotatedTypeMirror, Tree, TypeUseLocation)`
   - `annotationsDisallowedAtLocation(AnnotatedTypeMirror, TypeUseLocation)`
   - `createQualAllowedLocations(AnnotatedTypeFactory)`
   - `shouldStripInvalidLocationQualifiers()`
-- Wrapper methods for `validateVariableTargetLocation` and `validateTargetLocation`
-  were removed from `BaseTypeVisitor` (it now calls `TypeValidator` methods directly).
 - Protected fields relocated from `BaseTypeVisitor` to `BaseTypeValidator`:
   - `qualAllowedLocations`, `noQualHasTargetLocations`, `ignoreTargetLocations`
 - Renamed and extracted methods within `BaseTypeValidator` for consistency:

@@ -1870,7 +1870,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             // so only validate if commonAssignmentCheck wasn't called
             validateTypeOf(tree);
         }
-        typeValidator.validateVariableTargetLocation(tree, variableType);
+        typeValidator.validateVariableTargetLocation(variableType, tree);
         warnRedundantAnnotations(tree, variableType);
         Void result = super.visitVariable(tree, p);
 
@@ -5530,12 +5530,12 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             case TYPE_PARAMETER:
                 type = atypeFactory.getAnnotatedTypeFromTypeTree(tree);
                 typeValidator.validateTargetLocation(
-                        tree,
                         ((AnnotatedTypeVariable) type).getUpperBound(),
+                        tree,
                         TypeUseLocation.UPPER_BOUND);
                 typeValidator.validateTargetLocation(
-                        tree,
                         ((AnnotatedTypeVariable) type).getLowerBound(),
+                        tree,
                         TypeUseLocation.LOWER_BOUND);
                 break;
             case METHOD:
@@ -5548,9 +5548,9 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                 }
                 if (TreeUtils.isConstructor((MethodTree) tree)) {
                     typeValidator.validateTargetLocation(
-                            tree, type, TypeUseLocation.CONSTRUCTOR_RESULT);
+                            type, tree, TypeUseLocation.CONSTRUCTOR_RESULT);
                 } else {
-                    typeValidator.validateTargetLocation(tree, type, TypeUseLocation.RETURN);
+                    typeValidator.validateTargetLocation(type, tree, TypeUseLocation.RETURN);
                 }
                 break;
             default:

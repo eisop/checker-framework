@@ -53,6 +53,11 @@ public class StripLocationValidator extends BaseTypeValidator {
     }
 
     @Override
+    protected boolean shouldStripInvalidLocationQualifiers() {
+        return checker.hasOption("stripInvalidLocationQualifiers");
+    }
+
+    @Override
     protected List<AnnotationMirror> additionalAnnotationsToStripFromTypeVariableBound(
             AnnotatedTypeVariable type,
             Tree tree,

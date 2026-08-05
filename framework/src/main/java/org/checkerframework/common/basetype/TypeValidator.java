@@ -26,19 +26,19 @@ public interface TypeValidator {
      * as specified by the meta-annotation {@link
      * org.checkerframework.framework.qual.TargetLocations}.
      *
-     * @param tree the variable tree
      * @param type the annotated type of the variable
+     * @param tree the variable tree
      */
-    public void validateVariableTargetLocation(Tree tree, AnnotatedTypeMirror type);
+    public void validateVariableTargetLocation(AnnotatedTypeMirror type, Tree tree);
 
     /**
      * Validates whether the qualifiers on the tree are at the correct type-use locations, as
      * specified by the meta-annotation {@link org.checkerframework.framework.qual.TargetLocations}.
      *
-     * @param tree the tree whose qualifiers are to be validated
      * @param type the type of the tree
+     * @param tree the tree whose qualifiers are to be validated
      * @param required the required TypeUseLocation
      */
     public void validateTargetLocation(
-            Tree tree, AnnotatedTypeMirror type, TypeUseLocation required);
+            AnnotatedTypeMirror type, Tree tree, TypeUseLocation required);
 }

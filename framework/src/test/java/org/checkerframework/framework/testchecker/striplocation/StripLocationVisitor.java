@@ -21,11 +21,6 @@ public class StripLocationVisitor extends BaseTypeVisitor<StripLocationAnnotated
     }
 
     @Override
-    protected boolean shouldStripInvalidLocationQualifiers() {
-        return checker.hasOption("stripInvalidLocationQualifiers");
-    }
-
-    @Override
     protected BaseTypeValidator createTypeValidator() {
         return new StripLocationValidator(checker, this, atypeFactory);
     }

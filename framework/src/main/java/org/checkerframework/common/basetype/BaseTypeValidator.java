@@ -106,6 +106,13 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
      */
     protected final boolean noQualHasTargetLocations;
 
+    /**
+     * Creates a new BaseTypeValidator.
+     *
+     * @param checker the checker
+     * @param visitor the visitor
+     * @param atypeFactory the type factory
+     */
     // TODO: clean up coupling between components
     public BaseTypeValidator(
             BaseTypeChecker checker,
@@ -857,16 +864,16 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
      * infer their type-use location from their {@link javax.lang.model.element.ElementKind}. By
      * contrast, other constructs (like method returns or type bounds) have context-dependent
      * locations that must be explicitly provided by the caller, and wildcards do not have an
-     * element. See {@link #validateTargetLocation(Tree, AnnotatedTypeMirror, TypeUseLocation)} and
+     * element. See {@link #validateTargetLocation(AnnotatedTypeMirror, Tree, TypeUseLocation)} and
      * {@link #validateWildcardTargetLocations(AnnotatedWildcardType, Tree)}.
      *
-     * @param tree the tree whose qualifiers are to be validated
      * @param type the type of the tree
-     * @see #validateTargetLocation(Tree, AnnotatedTypeMirror, TypeUseLocation)
+     * @param tree the tree whose qualifiers are to be validated
+     * @see #validateTargetLocation(AnnotatedTypeMirror, Tree, TypeUseLocation)
      * @see #validateWildcardTargetLocations(AnnotatedWildcardType, Tree)
      */
     @Override
-    public void validateVariableTargetLocation(Tree tree, AnnotatedTypeMirror type) {
+    public void validateVariableTargetLocation(AnnotatedTypeMirror type, Tree tree) {
         if (ignoreTargetLocations || noQualHasTargetLocations) {
             return;
         }
@@ -945,8 +952,8 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
      * @param type the type variable declaration whose bounds are to be validated
      * @param tree the tree of this type parameter
      * @see #validateWildcardTargetLocations(AnnotatedWildcardType, Tree)
-     * @see #validateVariableTargetLocation(Tree, AnnotatedTypeMirror)
-     * @see #validateTargetLocation(Tree, AnnotatedTypeMirror, TypeUseLocation)
+     * @see #validateVariableTargetLocation(AnnotatedTypeMirror, Tree)
+     * @see #validateTargetLocation(AnnotatedTypeMirror, Tree, TypeUseLocation)
      * @see #stripInvalidLocationQualifiersFromTypeVariableBounds
      * @see #shouldStripInvalidLocationQualifiers
      */
@@ -991,22 +998,23 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
      * other caller-specified locations.
      *
      * <p>The other validate methods achieve the same goal but perform checks on specific trees and
-     * their associated type-use locations: {@link #validateVariableTargetLocation(Tree,
-     * AnnotatedTypeMirror)}, {@link #validateWildcardTargetLocations(AnnotatedWildcardType, Tree)},
-     * and {@link #validateTypeParameterTargetLocations(AnnotatedTypeVariable, Tree)}.
+     * their associated type-use locations: {@link
+     * #validateVariableTargetLocation(AnnotatedTypeMirror, Tree)}, {@link
+     * #validateWildcardTargetLocations(AnnotatedWildcardType, Tree)}, and {@link
+     * #validateTypeParameterTargetLocations(AnnotatedTypeVariable, Tree)}.
      *
-     * @param tree the tree whose qualifiers are to be validated
      * @param type the type of the tree
+     * @param tree the tree whose qualifiers are to be validated
      * @param required the required TypeUseLocation. If it is not present in the specification of
      *     the meta-annotation ({@link org.checkerframework.framework.qual.TargetLocations}), issue
      *     an error.
-     * @see #validateVariableTargetLocation(Tree, AnnotatedTypeMirror)
+     * @see #validateVariableTargetLocation(AnnotatedTypeMirror, Tree)
      * @see #validateWildcardTargetLocations(AnnotatedWildcardType, Tree)
      * @see #validateTypeParameterTargetLocations(AnnotatedTypeVariable, Tree)
      */
     @Override
     public void validateTargetLocation(
-            Tree tree, AnnotatedTypeMirror type, TypeUseLocation required) {
+            AnnotatedTypeMirror type, Tree tree, TypeUseLocation required) {
         if (ignoreTargetLocations || noQualHasTargetLocations) {
             return;
         }
@@ -1224,13 +1232,13 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
      * element and determine their locations based on their bounds. By contrast, variables can
      * automatically infer their type-use location from their ElementKind, and other constructs have
      * context-dependent locations that must be explicitly provided by the caller. See {@link
-     * #validateVariableTargetLocation(Tree, AnnotatedTypeMirror)} and {@link
-     * #validateTargetLocation(Tree, AnnotatedTypeMirror, TypeUseLocation)}.
+     * #validateVariableTargetLocation(AnnotatedTypeMirror, Tree)} and {@link
+     * #validateTargetLocation(AnnotatedTypeMirror, Tree, TypeUseLocation)}.
      *
      * @param type the type to check
      * @param tree the tree of this type
-     * @see #validateVariableTargetLocation(Tree, AnnotatedTypeMirror)
-     * @see #validateTargetLocation(Tree, AnnotatedTypeMirror, TypeUseLocation)
+     * @see #validateVariableTargetLocation(AnnotatedTypeMirror, Tree)
+     * @see #validateTargetLocation(AnnotatedTypeMirror, Tree, TypeUseLocation)
      * @see #stripInvalidLocationQualifiersFromTypeVariableBounds
      * @see #additionalAnnotationsToStripFromWildcardBound
      * @see #shouldStripInvalidLocationQualifiers
@@ -1308,6 +1316,14 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
                 type, tree, superDisallowed, extendsDisallowed);
     }
 
+    /**
+     * Strips the specified disallowed annotations from the bounds of a wildcard type.
+     *
+     * @param type the wildcard type
+     * @param tree the tree for the wildcard type
+     * @param superDisallowed annotations to remove from the super bound
+     * @param extendsDisallowed annotations to remove from the extends bound
+     */
     private void stripInvalidLocationQualifiersFromWildcardBounds(
             AnnotatedWildcardType type,
             Tree tree,
