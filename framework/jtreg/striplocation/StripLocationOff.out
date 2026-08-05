@@ -1,8 +1,8 @@
+StripLocationTest.java:21:27: compiler.err.proc.messager: [type.invalid.annotations.on.location] annotation @org.checkerframework.framework.testchecker.striplocation.quals.StripUpperOnly used on prohibited locations LOWER_BOUND
 StripLocationTest.java:21:27: compiler.err.proc.messager: [bound.type.incompatible] incompatible bounds in type parameter
 type: T extends @StripBottom Object
 upper bound: @StripBottom Object
 lower bound: @StripUpperOnly NullType
-StripLocationTest.java:21:27: compiler.err.proc.messager: [type.invalid.annotations.on.location] annotation @org.checkerframework.framework.testchecker.striplocation.quals.StripUpperOnly used on prohibited locations LOWER_BOUND
 StripLocationTest.java:24:10: compiler.err.proc.messager: [type.invalid.annotations.on.location] annotation @org.checkerframework.framework.testchecker.striplocation.quals.StripUpperOnly used on prohibited locations SUPER_WILDCARD
 StripLocationTest.java:24:10: compiler.err.proc.messager: [bound.type.incompatible] incompatible bounds in wildcard
 type: ? extends @StripBottom Object
