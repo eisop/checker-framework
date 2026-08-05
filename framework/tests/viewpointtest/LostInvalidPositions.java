@@ -2,26 +2,26 @@ import java.util.List;
 
 import viewpointtest.quals.*;
 
-public class LostNonReflexive {
+public class LostInvalidPositions {
     @ReceiverDependentQual Object f;
-    @ReceiverDependentQual LostNonReflexive f2;
+    @ReceiverDependentQual LostInvalidPositions f2;
     @ReceiverDependentQual int i;
     @A List<@ReceiverDependentQual Object> nested;
 
     @SuppressWarnings({"inconsistent.constructor.type", "super.invocation.invalid"})
-    @ReceiverDependentQual LostNonReflexive(@ReceiverDependentQual Object args) {}
+    @ReceiverDependentQual LostInvalidPositions(@ReceiverDependentQual Object args) {}
 
     @ReceiverDependentQual Object get() {
         return null;
     }
 
-    @PolyVP LostNonReflexive identity(@PolyVP LostNonReflexive this) {
+    @PolyVP LostInvalidPositions identity(@PolyVP LostInvalidPositions this) {
         return this;
     }
 
     void set(@ReceiverDependentQual Object o) {}
 
-    void test(@Top LostNonReflexive obj, @Bottom Object bottomObj) {
+    void test(@Top LostInvalidPositions obj, @Bottom Object bottomObj) {
         // :: error: (viewpointtest.lost.lhs)
         this.f = obj.f;
         // :: error: (viewpointtest.lost.lhs)
@@ -35,9 +35,9 @@ public class LostNonReflexive {
         @Bottom Object botObj = obj.get();
 
         // :: error: (new.class.type.invalid) :: error: (viewpointtest.lost.parameter)
-        new LostNonReflexive(obj.f);
+        new LostInvalidPositions(obj.f);
         // :: error: (new.class.type.invalid) :: error: (viewpointtest.lost.parameter)
-        new LostNonReflexive(bottomObj);
+        new LostInvalidPositions(bottomObj);
 
         // :: error: (viewpointtest.lost.parameter)
         this.set(obj.f);
