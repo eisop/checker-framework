@@ -3,7 +3,6 @@ package viewpointtest;
 import org.checkerframework.common.basetype.BaseAnnotatedTypeFactory;
 import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.framework.type.AbstractViewpointAdapter;
-import org.checkerframework.framework.type.QualifierHierarchy;
 import org.checkerframework.javacutil.AnnotationBuilder;
 
 import java.lang.annotation.Annotation;
@@ -54,11 +53,5 @@ public class ViewpointTestAnnotatedTypeFactory extends BaseAnnotatedTypeFactory 
     @Override
     protected AbstractViewpointAdapter createViewpointAdapter() {
         return new ViewpointTestViewpointAdapter(this);
-    }
-
-    @Override
-    public QualifierHierarchy createQualifierHierarchy() {
-        return new ViewpointTestQualifierHierarchy(
-                this.getSupportedTypeQualifiers(), elements, this);
     }
 }
