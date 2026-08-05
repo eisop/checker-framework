@@ -655,24 +655,52 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
      * or an inner type named by a simple identifier with the enclosing arguments left implicit)
      * have no argument tree to check and are skipped, matching the direct-position behavior.
      *
+     * <p>For most tree shapes, each enclosing type checked is read off {@code type}'s own
+     * enclosing-type chain ({@link AnnotatedDeclaredType#getEnclosingType()}), matching the
+     * qualifier chain in the tree level for level. The exception is an unqualified class instance
+     * creation (e.g. {@code new Outer<...>.Inner()}): there, {@code type}'s enclosing type is the
+     * *receiver* used to viewpoint-adapt the constructor invocation (see {@link
+     * AnnotatedTypeFactory#getConstructorReceiverType}), which need not be, and need not carry the
+     * annotations of, the type actually written in the {@code new} expression. In that case, every
+     * enclosing type checked is instead derived directly from its own written tree via {@link
+     * AnnotatedTypeFactory#getAnnotatedTypeFromTypeTree}.
+     *
      * @param type the declared type whose enclosing types should be validated
-     * @param tree the tree for {@code type}
+     * @param tree the tree for {@code type}; besides a type-use tree, this may also be a {@link
+     *     MethodTree} (return type validation, see {@link BaseTypeVisitor#validateTypeOf}) or a
+     *     {@link NewClassTree} (the instantiated type), matching what {@link
+     *     #extractParameterizedTypeTree} accepts
      */
     protected void validateEnclosingTypeArgs(AnnotatedDeclaredType type, Tree tree) {
-        AnnotatedDeclaredType enclosing = type.getEnclosingType();
-        if (enclosing == null) {
+        if (type.getEnclosingType() == null) {
             return;
         }
 
+        // An unqualified `new Outer<...>.Inner()` has no enclosing expression to supply a receiver
+        // for viewpoint adaptation; `type`'s enclosing type is then some other applicable receiver
+        // (e.g. the type of an enclosing `this`), not the type written in the `new` expression.
+        boolean unqualifiedNewClass =
+                tree instanceof NewClassTree
+                        && ((NewClassTree) tree).getEnclosingExpression() == null;
+
         // Unwrap the type tree down to the tree that actually names the type: strip a surrounding
-        // VariableTree or AnnotatedTypeTree, then drop a top-level ParameterizedTypeTree's own type
-        // arguments to reach the (possibly qualified) name.
+        // VariableTree or AnnotatedTypeTree, unwrap a MethodTree to its return type or a
+        // NewClassTree to its instantiated type, then drop a top-level ParameterizedTypeTree's own
+        // type arguments to reach the (possibly qualified) name.
         Tree nameTree = tree;
         while (true) {
             if (nameTree instanceof VariableTree) {
                 nameTree = ((VariableTree) nameTree).getType();
             } else if (nameTree instanceof AnnotatedTypeTree) {
                 nameTree = ((AnnotatedTypeTree) nameTree).getUnderlyingType();
+            } else if (nameTree instanceof MethodTree) {
+                // A constructor has no written return type to unwrap further.
+                nameTree = ((MethodTree) nameTree).getReturnType();
+                if (nameTree == null) {
+                    return;
+                }
+            } else if (nameTree instanceof NewClassTree) {
+                nameTree = ((NewClassTree) nameTree).getIdentifier();
             } else {
                 break;
             }
@@ -683,17 +711,28 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
 
         // Walk outward through the qualifier chain, validating each enclosing type that is written
         // with explicit type arguments.
-        while (nameTree instanceof MemberSelectTree && enclosing != null) {
+        AnnotatedDeclaredType enclosing = unqualifiedNewClass ? null : type.getEnclosingType();
+        while (nameTree instanceof MemberSelectTree) {
             ExpressionTree enclosingTree = ((MemberSelectTree) nameTree).getExpression();
             if (enclosingTree instanceof ParameterizedTypeTree) {
                 ParameterizedTypeTree enclosingParamTree = (ParameterizedTypeTree) enclosingTree;
-                visitParameterizedType(enclosing, enclosingParamTree);
+                AnnotatedDeclaredType enclosingType =
+                        unqualifiedNewClass
+                                ? (AnnotatedDeclaredType)
+                                        atypeFactory.getAnnotatedTypeFromTypeTree(
+                                                enclosingParamTree)
+                                : enclosing;
+                if (enclosingType != null) {
+                    visitParameterizedType(enclosingType, enclosingParamTree);
+                }
                 nameTree = enclosingParamTree.getType();
             } else {
                 // A raw or simple-name enclosing type has no argument tree to validate.
                 nameTree = enclosingTree;
             }
-            enclosing = enclosing.getEnclosingType();
+            if (!unqualifiedNewClass) {
+                enclosing = enclosing == null ? null : enclosing.getEnclosingType();
+            }
         }
     }
 
