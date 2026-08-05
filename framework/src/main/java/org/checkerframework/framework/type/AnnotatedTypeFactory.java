@@ -1283,6 +1283,29 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     }
 
     /**
+     * Returns the type of an overridden method as it should be seen for an override check against
+     * the given overriding class. This computes the overridden method type via {@link
+     * AnnotatedTypes#asMemberOf} and then viewpoint-adapts it to the overriding class.
+     *
+     * @param overriddenType the supertype that contains the overridden method
+     * @param overriddenMethodElt the element of the overridden method
+     * @param overriderType the type of the class declaring the overriding method
+     * @return the overridden method type, with type variables substituted and viewpoint-adapted to
+     *     the overriding class
+     */
+    public AnnotatedExecutableType overriddenMethodType(
+            AnnotatedDeclaredType overriddenType,
+            ExecutableElement overriddenMethodElt,
+            AnnotatedDeclaredType overriderType) {
+        AnnotatedExecutableType result =
+                AnnotatedTypes.asMemberOf(types, this, overriddenType, overriddenMethodElt);
+        if (viewpointAdapter != null) {
+            viewpointAdapter.viewpointAdaptMethod(overriderType, overriddenMethodElt, result);
+        }
+        return result;
+    }
+
+    /**
      * TypeVariableSubstitutor provides a method to replace type parameters with their arguments.
      */
     protected TypeVariableSubstitutor createTypeVariableSubstitutor() {
@@ -6281,8 +6304,14 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             AnnotatedWildcardType wildcard,
             AnnotatedTypeVariable typeVariable,
             AnnotatedTypeVariable capturedTypeVar) {
+        // Per JLS 5.1.10, the captured type variable's upper bound is glb(B, S theta), where S is
+        // the type parameter's declared upper bound.  Use the copying substitution so that when S
+        // is itself a type-variable use carrying a primary annotation (as in the declaration
+        // `U extends @Q A`), that primary annotation is applied to the substitute rather than
+        // dropped.  The no-copy substitution returns the raw argument for A and loses @Q, which
+        // would corrupt the glb below.  The deep copy also avoids mutating the shared argument.
         AnnotatedTypeMirror typeVarUpperBound =
-                typeVarSubstitutor.substituteWithoutCopyingTypeArguments(
+                typeVarSubstitutor.substitute(
                         typeVarToAnnotatedTypeArg, typeVariable.getUpperBound());
         AnnotatedTypeMirror upperBound =
                 AnnotatedTypes.annotatedGLB(this, typeVarUpperBound, wildcard.getExtendsBound());
