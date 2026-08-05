@@ -19,7 +19,7 @@ public interface TypeValidator {
      *     validate its return type. If the tree is a variable tree, then validate its field type.
      * @return true, iff the type is valid
      */
-    public boolean isValid(AnnotatedTypeMirror type, Tree tree);
+    boolean isValid(AnnotatedTypeMirror type, Tree tree);
 
     /**
      * Validates whether the qualifiers on the variable tree are at the correct type-use locations,
@@ -29,7 +29,7 @@ public interface TypeValidator {
      * @param type the annotated type of the variable
      * @param tree the variable tree
      */
-    public void validateVariableTargetLocation(AnnotatedTypeMirror type, Tree tree);
+    void validateVariableTargetLocation(AnnotatedTypeMirror type, Tree tree);
 
     /**
      * Validates whether the qualifiers on the tree are at the correct type-use locations, as
@@ -39,6 +39,5 @@ public interface TypeValidator {
      * @param tree the tree whose qualifiers are to be validated
      * @param required the required TypeUseLocation
      */
-    public void validateTargetLocation(
-            AnnotatedTypeMirror type, Tree tree, TypeUseLocation required);
+    void validateTargetLocation(AnnotatedTypeMirror type, Tree tree, TypeUseLocation required);
 }
