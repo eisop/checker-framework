@@ -106,6 +106,20 @@ side-effecting array expression, avoiding unsound behavior. It now also issues
 a warning message explaining why `copyOf` used a `@Nullable` return type,
 making errors with `copyOf` easier to fix.
 
+A checker may now override `BaseTypeVisitor.shouldStripInvalidLocationQualifiers`
+(default `false`) to make a qualifier that appears on a type-variable or wildcard
+bound not permitted by its `@TargetLocations` inert: after the
+`type.invalid.annotations.on.location` error is issued, the qualifier is removed
+from the bound and the bound is re-defaulted, so the meaningless qualifier no
+longer produces a `bound.type.incompatible` cascade. Behavior is unchanged for
+checkers that do not opt in. For type-variable or wildcard bounds, a checker whose
+own validity check is tree-based rather than `@TargetLocations`-based (for
+example, one that must distinguish an annotation a user explicitly wrote from
+the same qualifier arriving through ordinary defaulting) can additionally
+override `BaseTypeValidator.additionalAnnotationsToStripFromTypeVariableBound` or
+`BaseTypeValidator.additionalAnnotationsToStripFromWildcardBound` to strip
+further annotations of its own choosing.
+
 When the bounds of an intersection type (for example, the bound
 `<T extends @NonNull Object & @Nullable Serializable>`) carry conflicting
 qualifiers in the same hierarchy, the intersection's qualifier for that
@@ -136,6 +150,14 @@ Optional Checker's `prefer.map.and.orelse` warning for `if (VAR.isPresent())
 { TYPE x = METHOD(VAR.get()); }` with no `else` branch, which supplied only 2
 of the message's 3 arguments. `-Anomsgtext`, which every JUnit test uses, had
 masked the bug by skipping message formatting entirely.
+
+Fixed capture conversion dropping a primary qualifier from a type-parameter
+bound that is itself a type-variable use. For a parameter declared
+`<A, U extends @Q A>`, capturing a wildcard argument for `U` now applies `@Q`
+to the substituted bound `A theta` (per JLS 5.1.10) instead of discarding it,
+so the captured type variable's upper bound is no longer computed too low.
+Previously the missing qualifier could silently suppress an
+`assignment.type.incompatible` error.
 
 **Implementation details:**
 
@@ -214,6 +236,31 @@ an overridable `reportTypeArgumentInferenceFailure` method, so a checker
 whose qualifier encoding makes this failure mode common and usually spurious
 can report a warning (or suppress the diagnostic) instead of the default
 hard error.
+
+Target-location validation and bound-stripping logic has been consolidated into
+`BaseTypeValidator`:
+- Methods relocated from `BaseTypeVisitor` to `BaseTypeValidator`:
+  - `validateVariableTargetLocation(AnnotatedTypeMirror, Tree)`
+    (was `validateVariablesTargetLocation`)
+  - `validateTargetLocation(AnnotatedTypeMirror, Tree, TypeUseLocation)`
+  - `annotationsDisallowedAtLocation(AnnotatedTypeMirror, TypeUseLocation)`
+  - `createQualAllowedLocations(AnnotatedTypeFactory)`
+  - `shouldStripInvalidLocationQualifiers()`
+- Protected fields relocated from `BaseTypeVisitor` to `BaseTypeValidator`:
+  - `qualAllowedLocations`, `noQualHasTargetLocations`, `ignoreTargetLocations`
+- Renamed and extracted methods within `BaseTypeValidator` for consistency:
+  - `validateWildcardTargetLocations` (was `validateWildCardTargetLocation`)
+  - `annotationsDisallowedAtLocation(AnnotatedTypeMirror, Set<TypeUseLocation>)`
+    (was `annotationsDisallowedAtWildcardBound`)
+  - `validateTypeParameterTargetLocations` (extracted from `visitTypeVariable`)
+  - `stripInvalidLocationQualifiersFromWildcardBounds` (extracted from
+    `validateWildcardTargetLocations`)
+- `TypeValidator` interface now declares `validateVariableTargetLocation`
+  and `validateTargetLocation`.
+- As a result of this pass reordering, `type.invalid.annotations.on.location`
+  diagnostics now appear before `bound.type.incompatible` diagnostics for the
+  same tree.
+
 
 Performance optimizations:
 - Capped Java type argument inference bound-incorporation work and optimized
