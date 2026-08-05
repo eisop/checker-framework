@@ -1662,15 +1662,9 @@ your code initializes (some) fields in a helper method, you will need to
 annotate the helper method with an annotation such as
 \refqualclass{checker/nullness/qual}{EnsuresNonNull}\code{(\{"field1", "field2"\})}
 for all the fields that the helper method assigns.
-
-% TODO:
-% We need an
-%   @EnsuresInitialized("b")
-% that is analogous to
-%   @EnsuresNonNull("b")
-% when we are dealing with a field of primitive type.
-% But, for now just use the same annotation, @EnsuresNonNull, for both purposes.
-
+(For fields of primitive type, use the
+\refqualclass{checker/initialization/qual}{EnsuresInitialized}\code{(\{"field1", "field2"\})}
+annotation instead.)
 
 \subsectionAndLabel{\code{@UnderInitialization} examples}{underinitialization-examples}
 
