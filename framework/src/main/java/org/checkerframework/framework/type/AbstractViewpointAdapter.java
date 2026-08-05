@@ -125,16 +125,13 @@ public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
 
         // 2b. Adapt upper and lower bounds of constructor type variables.
         for (AnnotatedTypeVariable typeVariable : typeVariables) {
-            if (typeVariable.getUpperBoundField() != null) {
-                AnnotatedTypeMirror adaptedUpper =
-                        combineTypeWithType(receiverType, typeVariable.getUpperBound());
-                mappings.put(typeVariable.getUpperBoundField(), adaptedUpper);
-            }
-            if (typeVariable.getLowerBoundField() != null) {
-                AnnotatedTypeMirror adaptedLower =
-                        combineTypeWithType(receiverType, typeVariable.getLowerBound());
-                mappings.put(typeVariable.getLowerBoundField(), adaptedLower);
-            }
+            AnnotatedTypeMirror adaptedUpper =
+                    combineTypeWithType(receiverType, typeVariable.getUpperBound());
+            mappings.put(typeVariable.getUpperBound(), adaptedUpper);
+
+            AnnotatedTypeMirror adaptedLower =
+                    combineTypeWithType(receiverType, typeVariable.getLowerBound());
+            mappings.put(typeVariable.getLowerBound(), adaptedLower);
         }
 
         // 2c. Adapt constructor return type.
@@ -183,16 +180,13 @@ public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
 
         // 3b. Adapt upper and lower bounds of method type variables.
         for (AnnotatedTypeVariable typeVariable : typeVariables) {
-            if (typeVariable.getUpperBoundField() != null) {
-                AnnotatedTypeMirror adaptedUpper =
-                        combineTypeWithType(receiverType, typeVariable.getUpperBound());
-                mappings.put(typeVariable.getUpperBoundField(), adaptedUpper);
-            }
-            if (typeVariable.getLowerBoundField() != null) {
-                AnnotatedTypeMirror adaptedLower =
-                        combineTypeWithType(receiverType, typeVariable.getLowerBound());
-                mappings.put(typeVariable.getLowerBoundField(), adaptedLower);
-            }
+            AnnotatedTypeMirror adaptedUpper =
+                    combineTypeWithType(receiverType, typeVariable.getUpperBound());
+            mappings.put(typeVariable.getUpperBound(), adaptedUpper);
+
+            AnnotatedTypeMirror adaptedLower =
+                    combineTypeWithType(receiverType, typeVariable.getLowerBound());
+            mappings.put(typeVariable.getLowerBound(), adaptedLower);
         }
 
         // 3c. Adapt non-void return type.
