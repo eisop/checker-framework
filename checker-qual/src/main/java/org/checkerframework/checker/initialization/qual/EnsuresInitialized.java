@@ -31,6 +31,7 @@ public @interface EnsuresInitialized {
      * The Java expressions that are initialized upon successful method termination.
      *
      * @return the Java expressions that are initialized
+     * @checker_framework.manual #java-expressions-as-arguments Syntax of Java expressions
      */
     String[] value();
 
