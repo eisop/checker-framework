@@ -1283,6 +1283,29 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     }
 
     /**
+     * Returns the type of an overridden method as it should be seen for an override check against
+     * the given overriding class. This computes the overridden method type via {@link
+     * AnnotatedTypes#asMemberOf} and then viewpoint-adapts it to the overriding class.
+     *
+     * @param overriddenType the supertype that contains the overridden method
+     * @param overriddenMethodElt the element of the overridden method
+     * @param overriderType the type of the class declaring the overriding method
+     * @return the overridden method type, with type variables substituted and viewpoint-adapted to
+     *     the overriding class
+     */
+    public AnnotatedExecutableType overriddenMethodType(
+            AnnotatedDeclaredType overriddenType,
+            ExecutableElement overriddenMethodElt,
+            AnnotatedDeclaredType overriderType) {
+        AnnotatedExecutableType result =
+                AnnotatedTypes.asMemberOf(types, this, overriddenType, overriddenMethodElt);
+        if (viewpointAdapter != null) {
+            viewpointAdapter.viewpointAdaptMethod(overriderType, overriddenMethodElt, result);
+        }
+        return result;
+    }
+
+    /**
      * TypeVariableSubstitutor provides a method to replace type parameters with their arguments.
      */
     protected TypeVariableSubstitutor createTypeVariableSubstitutor() {
