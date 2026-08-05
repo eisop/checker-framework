@@ -1918,9 +1918,10 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      * TargetLocations} do not allow, the qualifier is removed from the annotated type
      * <em>after</em> the {@code type.invalid.annotations.on.location} error is issued, and the
      * now-bare bound is re-defaulted (see {@link
-     * BaseTypeValidator#stripInvalidLocationQualifiersFromBounds} for type variables and {@link
-     * BaseTypeValidator#validateWildCardTargetLocation} for wildcards). This suppresses the {@code
-     * bound.type.incompatible} cascade that the meaningless qualifier would otherwise produce.
+     * BaseTypeValidator#stripInvalidLocationQualifiersFromTypeVariableBounds} for type variables
+     * and {@link BaseTypeValidator#validateWildCardTargetLocation} for wildcards). This suppresses
+     * the {@code bound.type.incompatible} cascade that the meaningless qualifier would otherwise
+     * produce.
      *
      * <p>This method returns {@code false} by default, so existing checkers are unaffected: a
      * qualifier in an invalid location is still reported and still takes effect. A checker opts in
@@ -2075,6 +2076,9 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      * @param type the type whose primary annotations to check
      * @param required the type-use location at which {@code type} appears
      * @return the primary annotations on {@code type} that {@code required} does not permit
+     * @see BaseTypeValidator#annotationsDisallowedAtWildcardBound
+     * @see BaseTypeValidator#stripInvalidLocationQualifiersFromTypeVariableBounds
+     * @see #shouldStripInvalidLocationQualifiers
      */
     protected List<AnnotationMirror> annotationsDisallowedAtLocation(
             AnnotatedTypeMirror type, TypeUseLocation required) {

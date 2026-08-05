@@ -753,7 +753,7 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
             // produce a bound.type.incompatible cascade.  The location error itself is issued
             // separately by BaseTypeVisitor#validateTypeOf (via visitTypeParameter).
             if (visitor.shouldStripInvalidLocationQualifiers()) {
-                stripInvalidLocationQualifiersFromBounds(
+                stripInvalidLocationQualifiersFromTypeVariableBounds(
                         type, type.getUpperBound(), type.getLowerBound(), tree);
             }
             if (!areBoundsValid(type.getUpperBound(), type.getLowerBound())) {
@@ -823,7 +823,8 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
 
     /**
      * Removes from the bounds of a type-variable declaration any primary annotation that its {@link
-     * org.checkerframework.framework.qual.TargetLocations} does not permit at that bound, then
+     * org.checkerframework.framework.qual.TargetLocations} does not permit at that bound (or that
+     * {@link #additionalAnnotationsToStripFromTypeVariableBound} specifies to strip), then
      * re-defaults the now-bare positions. Called only when the checker opts in via {@link
      * BaseTypeVisitor#shouldStripInvalidLocationQualifiers}.
      *
@@ -831,27 +832,29 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
      * re-defaults exactly the stripped bound(s) with the correct bound context and leaves every
      * other qualifier untouched.
      *
-     * <p>{@code declTree} is the type-parameter declaration's own tree (as received by {@link
-     * #visitTypeVariable}). The default implementation does not consult it -- {@code
-     * annotationsDisallowedAtLocation}'s {@code @TargetLocations}-based check looks only at the
-     * derived {@code AnnotatedTypeMirror} -- but a checker whose validity check is tree-based
-     * instead (e.g., it must tell an explicitly written annotation apart from the same qualifier
-     * arriving through defaulting, which {@code @TargetLocations} cannot express) can override this
-     * method, inspect {@code declTree}, and decide independently what to strip.
-     *
      * @param type the type-variable declaration whose bounds to fix up and re-default
      * @param upperBound {@code type}'s upper bound
      * @param lowerBound {@code type}'s lower bound
-     * @param declTree the tree for {@code type}'s declaration
+     * @param tree the tree for {@code type}'s declaration
+     * @see #additionalAnnotationsToStripFromTypeVariableBound
+     * @see #validateWildCardTargetLocation
+     * @see #additionalAnnotationsToStripFromWildcardBound
+     * @see BaseTypeVisitor#shouldStripInvalidLocationQualifiers
      */
-    protected void stripInvalidLocationQualifiersFromBounds(
+    protected void stripInvalidLocationQualifiersFromTypeVariableBounds(
             AnnotatedTypeVariable type,
             AnnotatedTypeMirror upperBound,
             AnnotatedTypeMirror lowerBound,
-            Tree declTree) {
+            Tree tree) {
         boolean stripped = false;
         for (AnnotationMirror am :
                 visitor.annotationsDisallowedAtLocation(upperBound, TypeUseLocation.UPPER_BOUND)) {
+            upperBound.removeAnnotation(am);
+            stripped = true;
+        }
+        for (AnnotationMirror am :
+                additionalAnnotationsToStripFromTypeVariableBound(
+                        type, tree, upperBound, TypeUseLocation.UPPER_BOUND)) {
             upperBound.removeAnnotation(am);
             stripped = true;
         }
@@ -860,9 +863,47 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
             lowerBound.removeAnnotation(am);
             stripped = true;
         }
+        for (AnnotationMirror am :
+                additionalAnnotationsToStripFromTypeVariableBound(
+                        type, tree, lowerBound, TypeUseLocation.LOWER_BOUND)) {
+            lowerBound.removeAnnotation(am);
+            stripped = true;
+        }
         if (stripped) {
             atypeFactory.addDefaultAnnotations(type);
         }
+    }
+
+    /**
+     * Returns additional annotations to strip from {@code bound} (one of {@code type}'s upper or
+     * lower bound), beyond whatever {@link BaseTypeVisitor#annotationsDisallowedAtLocation} already
+     * found. Called only when the checker opts in via {@link
+     * BaseTypeVisitor#shouldStripInvalidLocationQualifiers}. The default returns an empty list, so
+     * opted-in checkers whose qualifiers use {@code @TargetLocations} are unaffected ({@code
+     * annotationsDisallowedAtLocation} already covers their case).
+     *
+     * <p>{@code tree} is the type-parameter declaration's own tree (as received by {@link
+     * #visitTypeVariable}). A checker whose validity check is tree-based instead (e.g., it must
+     * tell an explicitly written annotation apart from the same qualifier arriving through
+     * defaulting, which {@code @TargetLocations} cannot express) can override this method, inspect
+     * {@code tree}, and return additional annotations on {@code bound} to strip.
+     *
+     * @param type the type-variable declaration whose bounds are being validated
+     * @param tree the tree for {@code type}'s declaration
+     * @param bound {@code type}'s upper or lower bound
+     * @param location {@link TypeUseLocation#UPPER_BOUND} or {@link TypeUseLocation#LOWER_BOUND}
+     * @return additional annotations on {@code bound} to strip
+     * @see #stripInvalidLocationQualifiersFromTypeVariableBounds
+     * @see #additionalAnnotationsToStripFromWildcardBound
+     * @see BaseTypeVisitor#annotationsDisallowedAtLocation
+     * @see BaseTypeVisitor#shouldStripInvalidLocationQualifiers
+     */
+    protected List<AnnotationMirror> additionalAnnotationsToStripFromTypeVariableBound(
+            AnnotatedTypeVariable type,
+            Tree tree,
+            AnnotatedTypeMirror bound,
+            TypeUseLocation location) {
+        return Collections.emptyList();
     }
 
     /** The type-use locations permissible for wildcard super bounds. */
@@ -901,6 +942,9 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
      * @param tree the tree of this type
      * @see BaseTypeVisitor#validateVariablesTargetLocation(Tree, AnnotatedTypeMirror)
      * @see BaseTypeVisitor#validateTargetLocation(Tree, AnnotatedTypeMirror, TypeUseLocation)
+     * @see #stripInvalidLocationQualifiersFromTypeVariableBounds
+     * @see #additionalAnnotationsToStripFromWildcardBound
+     * @see BaseTypeVisitor#shouldStripInvalidLocationQualifiers
      */
     protected void validateWildCardTargetLocation(AnnotatedWildcardType type, Tree tree) {
         // noQualHasTargetLocations is a pure optimization for the common case (skip a check that
@@ -916,60 +960,56 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
         }
 
         boolean strip = visitor.shouldStripInvalidLocationQualifiers();
-        // Annotations found at a location their @TargetLocations does not permit; removed after the
-        // loops (not during iteration) when the checker opts in to stripping.
-        AnnotationMirrorSet superToStrip = strip ? new AnnotationMirrorSet() : null;
-        AnnotationMirrorSet extendsToStrip = strip ? new AnnotationMirrorSet() : null;
 
-        for (AnnotationMirror am :
+        List<AnnotationMirror> superDisallowed =
                 annotationsDisallowedAtWildcardBound(
-                        type.getSuperBound(), WILDCARD_SUPER_BOUND_LOCATIONS)) {
+                        type.getSuperBound(), WILDCARD_SUPER_BOUND_LOCATIONS);
+        for (AnnotationMirror am : superDisallowed) {
+            checker.reportError(
+                    tree, "type.invalid.annotations.on.location", am.toString(), "SUPER_WILDCARD");
+        }
+
+        List<AnnotationMirror> extendsDisallowed =
+                annotationsDisallowedAtWildcardBound(
+                        type.getExtendsBound(), WILDCARD_EXTENDS_BOUND_LOCATIONS);
+        for (AnnotationMirror am : extendsDisallowed) {
             checker.reportError(
                     tree,
                     "type.invalid.annotations.on.location",
-                    type.getSuperBound().getAnnotations().toString(),
-                    "SUPER_WILDCARD");
-            if (strip) {
-                superToStrip.add(am);
-            }
-        }
-        if (strip) {
-            superToStrip.addAll(
-                    additionalAnnotationsToStripFromWildcardBound(
-                            type, tree, type.getSuperBound(), WILDCARD_SUPER_BOUND_LOCATIONS));
-        }
-
-        for (AnnotationMirror am :
-                annotationsDisallowedAtWildcardBound(
-                        type.getExtendsBound(), WILDCARD_EXTENDS_BOUND_LOCATIONS)) {
-            checker.reportError(
-                    tree,
-                    "type.invalid.annotations.on.location",
-                    type.getExtendsBound().getAnnotations().toString(),
+                    am.toString(),
                     "EXTENDS_WILDCARD");
-            if (strip) {
-                extendsToStrip.add(am);
-            }
-        }
-        if (strip) {
-            extendsToStrip.addAll(
-                    additionalAnnotationsToStripFromWildcardBound(
-                            type, tree, type.getExtendsBound(), WILDCARD_EXTENDS_BOUND_LOCATIONS));
         }
 
-        if (strip && !(superToStrip.isEmpty() && extendsToStrip.isEmpty())) {
+        if (strip) {
             // Make the location-invalid qualifiers inert: remove them and re-default the now-bare
-            // bounds.  addDefaultAnnotations only fills positions missing an annotation, so it
+            // bounds. addDefaultAnnotations only fills positions missing an annotation, so it
             // re-defaults exactly the stripped bound(s) and leaves every other qualifier untouched.
             // visitWildcard runs this before areBoundsValid, so no bound.type.incompatible cascade
             // is reported for the stripped qualifier.
-            for (AnnotationMirror am : superToStrip) {
+            boolean stripped = false;
+            for (AnnotationMirror am : superDisallowed) {
                 type.getSuperBound().removeAnnotation(am);
+                stripped = true;
             }
-            for (AnnotationMirror am : extendsToStrip) {
+            for (AnnotationMirror am :
+                    additionalAnnotationsToStripFromWildcardBound(
+                            type, tree, type.getSuperBound(), WILDCARD_SUPER_BOUND_LOCATIONS)) {
+                type.getSuperBound().removeAnnotation(am);
+                stripped = true;
+            }
+            for (AnnotationMirror am : extendsDisallowed) {
                 type.getExtendsBound().removeAnnotation(am);
+                stripped = true;
             }
-            atypeFactory.addDefaultAnnotations(type);
+            for (AnnotationMirror am :
+                    additionalAnnotationsToStripFromWildcardBound(
+                            type, tree, type.getExtendsBound(), WILDCARD_EXTENDS_BOUND_LOCATIONS)) {
+                type.getExtendsBound().removeAnnotation(am);
+                stripped = true;
+            }
+            if (stripped) {
+                atypeFactory.addDefaultAnnotations(type);
+            }
         }
     }
 
@@ -983,6 +1023,8 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
      * @param bound a wildcard's super or extends bound
      * @param allowedLocations the type-use locations {@code bound} may be annotated at
      * @return the annotations on {@code bound} that {@code allowedLocations} does not permit
+     * @see BaseTypeVisitor#annotationsDisallowedAtLocation
+     * @see #additionalAnnotationsToStripFromWildcardBound
      */
     protected List<AnnotationMirror> annotationsDisallowedAtWildcardBound(
             AnnotatedTypeMirror bound, Set<TypeUseLocation> allowedLocations) {
@@ -1026,6 +1068,11 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
      * @param bound {@code type}'s super or extends bound
      * @param allowedLocations the type-use locations {@code bound} may be annotated at
      * @return additional annotations on {@code bound} to strip
+     * @see #stripInvalidLocationQualifiersFromTypeVariableBounds
+     * @see #additionalAnnotationsToStripFromTypeVariableBound
+     * @see #validateWildCardTargetLocation
+     * @see #annotationsDisallowedAtWildcardBound
+     * @see BaseTypeVisitor#shouldStripInvalidLocationQualifiers
      */
     protected List<AnnotationMirror> additionalAnnotationsToStripFromWildcardBound(
             AnnotatedWildcardType type,

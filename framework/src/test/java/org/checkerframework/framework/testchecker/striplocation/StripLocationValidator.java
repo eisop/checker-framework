@@ -29,8 +29,8 @@ import javax.lang.model.element.AnnotationMirror;
  * #annotationsDisallowedAtWildcardBound} never flag or strip it, no matter where it appears. This
  * validator additionally forbids writing it explicitly at a lower-bound location -- it may only
  * arrive there through defaulting -- by inspecting the declaration/bound tree directly, exercising
- * the {@code declTree} parameter of {@link #stripInvalidLocationQualifiersFromBounds} and the
- * {@link #additionalAnnotationsToStripFromWildcardBound} hook.
+ * the {@link #additionalAnnotationsToStripFromTypeVariableBound} and {@link
+ * #additionalAnnotationsToStripFromWildcardBound} hooks.
  *
  * <p>Because an explicit {@code @StripTop} lower bound is incompatible with an explicit non-top
  * upper bound, stripping it (rather than merely reporting it) has an observable effect: it avoids a
@@ -54,21 +54,19 @@ public class StripLocationValidator extends BaseTypeValidator {
     }
 
     @Override
-    protected void stripInvalidLocationQualifiersFromBounds(
+    protected List<AnnotationMirror> additionalAnnotationsToStripFromTypeVariableBound(
             AnnotatedTypeVariable type,
-            AnnotatedTypeMirror upperBound,
-            AnnotatedTypeMirror lowerBound,
-            Tree declTree) {
-        super.stripInvalidLocationQualifiersFromBounds(type, upperBound, lowerBound, declTree);
-        if (!(declTree instanceof TypeParameterTree)
+            Tree tree,
+            AnnotatedTypeMirror bound,
+            TypeUseLocation location) {
+        if (location != TypeUseLocation.LOWER_BOUND
+                || !(tree instanceof TypeParameterTree)
                 || !atypeFactory.containsSameByClass(
-                        TreeUtils.annotationsFromTree((TypeParameterTree) declTree),
-                        StripTop.class)) {
-            return;
+                        TreeUtils.annotationsFromTree((TypeParameterTree) tree), StripTop.class)) {
+            return Collections.emptyList();
         }
-        checker.reportError(declTree, "explicit.striptop.on.lowerbound");
-        lowerBound.removeAnnotation(lowerBound.getAnnotation(StripTop.class));
-        atypeFactory.addDefaultAnnotations(type);
+        checker.reportError(tree, "explicit.striptop.on.lowerbound");
+        return Collections.singletonList(bound.getAnnotation(StripTop.class));
     }
 
     @Override
