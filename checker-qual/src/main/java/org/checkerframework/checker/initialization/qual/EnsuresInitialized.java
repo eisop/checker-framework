@@ -11,8 +11,8 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * A method postcondition annotation that guarantees that a field is initialized (assigned a value)
- * after the method terminates successfully.
+ * A method postcondition annotation that guarantees that the given Java expressions are {@link
+ * Initialized} after the method terminates successfully.
  *
  * <p>Note: This is an initialization checker postcondition, distinct from {@link
  * org.checkerframework.common.initializedfields.qual.EnsuresInitializedFields} which is used by the
