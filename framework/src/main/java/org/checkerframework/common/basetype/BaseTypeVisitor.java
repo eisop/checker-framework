@@ -5525,18 +5525,8 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             case EXTENDS_WILDCARD:
             case SUPER_WILDCARD:
             case ANNOTATED_TYPE:
-                type = atypeFactory.getAnnotatedTypeFromTypeTree(tree);
-                break;
             case TYPE_PARAMETER:
                 type = atypeFactory.getAnnotatedTypeFromTypeTree(tree);
-                typeValidator.validateTargetLocation(
-                        ((AnnotatedTypeVariable) type).getUpperBound(),
-                        tree,
-                        TypeUseLocation.UPPER_BOUND);
-                typeValidator.validateTargetLocation(
-                        ((AnnotatedTypeVariable) type).getLowerBound(),
-                        tree,
-                        TypeUseLocation.LOWER_BOUND);
                 break;
             case METHOD:
                 type = atypeFactory.getMethodReturnType((MethodTree) tree);
