@@ -780,7 +780,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      * @param classTree the class to check
      */
     protected void warnInvalidPolymorphicQualifier(ClassTree classTree) {
-        if (TypesUtils.isAnonymous(TreeUtils.typeOf(classTree))) {
+        if (TreeUtils.isAnonymousClass(classTree)) {
             // Anonymous class can have polymorphic annotations, so don't check them.
             return;
         }
@@ -935,7 +935,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      * @param classTree class tree to check
      */
     protected void checkExtendsAndImplements(ClassTree classTree) {
-        if (TypesUtils.isAnonymous(TreeUtils.typeOf(classTree))) {
+        if (TreeUtils.isAnonymousClass(classTree)) {
             // Don't check extends clause on anonymous classes.
             return;
         }
@@ -1270,8 +1270,8 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                 AnnotatedDeclaredType overriddenType = pair.getKey();
                 ExecutableElement overriddenMethodElt = pair.getValue();
                 AnnotatedExecutableType overriddenMethodType =
-                        AnnotatedTypes.asMemberOf(
-                                types, atypeFactory, overriddenType, overriddenMethodElt);
+                        atypeFactory.overriddenMethodType(
+                                overriddenType, overriddenMethodElt, enclosingType);
                 if (!checkOverride(tree, enclosingType, overriddenMethodType, overriddenType)) {
                     // Stop at the first mismatch; this makes a difference only if
                     // -Awarns is passed, in which case multiple warnings might be raised on

@@ -150,6 +150,14 @@ Optional Checker's `prefer.map.and.orelse` warning for `if (VAR.isPresent())
 of the message's 3 arguments. `-Anomsgtext`, which every JUnit test uses, had
 masked the bug by skipping message formatting entirely.
 
+Fixed capture conversion dropping a primary qualifier from a type-parameter
+bound that is itself a type-variable use. For a parameter declared
+`<A, U extends @Q A>`, capturing a wildcard argument for `U` now applies `@Q`
+to the substituted bound `A theta` (per JLS 5.1.10) instead of discarding it,
+so the captured type variable's upper bound is no longer computed too low.
+Previously the missing qualifier could silently suppress an
+`assignment.type.incompatible` error.
+
 **Implementation details:**
 
 `SourceChecker.reportError` and `SourceChecker.reportWarning` now accept a null
