@@ -9,11 +9,11 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * The Lost qualifier indicates that a relationship cannot be expressed. It is the result of
+ * The {@code Lost} qualifier indicates that a relationship cannot be expressed. It results from
  * viewpoint adaptation that combines {@link Top} and {@link ReceiverDependentQual}.
  *
- * <p>It is not reflexive in the subtyping relationship and the only subtype for Lost is {@link
- * Bottom}.
+ * <p>It is a valid viewpoint-adaptation result but is invalid as an assignment target, including in
+ * compound assignments, increments, and decrements.
  */
 @Documented
 @Retention(RetentionPolicy.RUNTIME)

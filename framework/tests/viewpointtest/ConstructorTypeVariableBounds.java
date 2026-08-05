@@ -32,90 +32,106 @@ public class ConstructorTypeVariableBounds {
     void topViewpoint(@Top Object top, @A Object a, @B Object b, @Bottom Object bottom) {
         // Constructed type @Top adapts @ReceiverDependentQual to @Lost. Creating @Top is also
         // forbidden by the viewpoint test checker.
-        // :: error: (new.class.type.invalid) :: error: (type.argument.type.incompatible)
+        // :: error: (new.class.type.invalid) :: error: (viewpointtest.lost.in.bounds)
         new @Top C();
 
         // :: error: (new.class.type.invalid) :: error: (type.argument.type.incompatible)
+        // :: error: (viewpointtest.lost.in.bounds)
         new <@Top Object>@Top C(top);
 
         // :: error: (new.class.type.invalid) :: error: (type.argument.type.incompatible)
+        // :: error: (viewpointtest.lost.in.bounds)
         new <@A Object>@Top C(a);
 
         // :: error: (new.class.type.invalid) :: error: (type.argument.type.incompatible)
+        // :: error: (viewpointtest.lost.in.bounds)
         new <@B Object>@Top C(b);
 
-        // :: error: (new.class.type.invalid)
+        // :: error: (new.class.type.invalid) :: error: (viewpointtest.lost.in.bounds)
         new <@Bottom Object>@Top C(bottom);
 
         // :: error: (new.class.type.invalid) :: error: (type.arguments.not.inferred)
+        // :: error: (viewpointtest.lost.in.bounds)
         new @Top C(top);
 
         // :: error: (new.class.type.invalid) :: error: (type.arguments.not.inferred)
+        // :: error: (viewpointtest.lost.in.bounds)
         new @Top C(a);
 
         // :: error: (new.class.type.invalid) :: error: (type.arguments.not.inferred)
+        // :: error: (viewpointtest.lost.in.bounds)
         new @Top C(b);
 
-        // :: error: (new.class.type.invalid)
+        // :: error: (new.class.type.invalid) :: error: (viewpointtest.lost.in.bounds)
         new @Top C(bottom);
 
         // The lower bound @ReceiverDependentQual viewpoint-adapts to @Lost. Explicit type
         // arguments must be supertypes of that lower bound, so only @Top is valid.
-        // :: error: (new.class.type.invalid)
+        // :: error: (new.class.type.invalid) :: error: (viewpointtest.lost.in.bounds)
         new @Top LowerBoundC();
 
-        // :: error: (new.class.type.invalid)
+        // :: error: (new.class.type.invalid) :: error: (viewpointtest.lost.in.bounds)
         new <@Top Object>@Top LowerBoundC(top);
 
         // :: error: (new.class.type.invalid) :: error: (type.argument.type.incompatible)
+        // :: error: (viewpointtest.lost.in.bounds)
         new <@A Object>@Top LowerBoundC(a);
 
         // :: error: (new.class.type.invalid) :: error: (type.argument.type.incompatible)
+        // :: error: (viewpointtest.lost.in.bounds)
         new <@B Object>@Top LowerBoundC(b);
 
         // :: error: (new.class.type.invalid) :: error: (type.argument.type.incompatible)
+        // :: error: (viewpointtest.lost.in.bounds)
         new <@Bottom Object>@Top LowerBoundC(bottom);
 
         // Inference can choose @Top, which is above both the adapted lower bound and the argument.
-        // :: error: (new.class.type.invalid)
+        // :: error: (new.class.type.invalid) :: error: (viewpointtest.lost.in.bounds)
         new @Top LowerBoundC(top);
 
-        // :: error: (new.class.type.invalid)
+        // :: error: (new.class.type.invalid) :: error: (viewpointtest.lost.in.bounds)
         new @Top LowerBoundC(a);
 
-        // :: error: (new.class.type.invalid)
+        // :: error: (new.class.type.invalid) :: error: (viewpointtest.lost.in.bounds)
         new @Top LowerBoundC(b);
 
-        // :: error: (new.class.type.invalid) :: error: (type.arguments.not.inferred)
+        // :: error: (new.class.type.invalid) :: error: (viewpointtest.lost.parameter)
+        // :: error: (viewpointtest.lost.in.bounds)
         new @Top LowerBoundC(bottom);
 
-        // Both bounds viewpoint-adapt to @Lost. Because @Lost is non-reflexive, no type argument
-        // can be both above the lower bound and below the upper bound.
-        // :: error: (new.class.type.invalid) :: error: (type.arguments.not.inferred)
+        // :: error: (new.class.type.invalid) :: error: (viewpointtest.lost.in.bounds)
         new @Top LowerAndUpperBoundC();
 
-        // :: error: (new.class.type.invalid) :: error: (type.arguments.not.inferred)
+        // :: error: (new.class.type.invalid) :: error: (type.argument.type.incompatible)
+        // :: error: (viewpointtest.lost.in.bounds)
         new <@Top Object>@Top LowerAndUpperBoundC(top);
 
-        // :: error: (new.class.type.invalid) :: error: (type.arguments.not.inferred)
+        // :: error: (new.class.type.invalid) :: error: (type.argument.type.incompatible)
+        // :: error: (viewpointtest.lost.in.bounds)
         new <@A Object>@Top LowerAndUpperBoundC(a);
 
-        // :: error: (new.class.type.invalid) :: error: (type.arguments.not.inferred)
+        // :: error: (new.class.type.invalid) :: error: (type.argument.type.incompatible)
+        // :: error: (viewpointtest.lost.in.bounds)
         new <@B Object>@Top LowerAndUpperBoundC(b);
 
-        // :: error: (new.class.type.invalid) :: error: (type.arguments.not.inferred)
+        // :: error: (new.class.type.invalid) :: error: (type.argument.type.incompatible)
+        // :: error: (viewpointtest.lost.in.bounds)
         new <@Bottom Object>@Top LowerAndUpperBoundC(bottom);
 
         // :: error: (new.class.type.invalid) :: error: (type.arguments.not.inferred)
+        // :: error: (viewpointtest.lost.in.bounds)
         new @Top LowerAndUpperBoundC(top);
 
         // :: error: (new.class.type.invalid) :: error: (type.arguments.not.inferred)
+        // :: error: (viewpointtest.lost.in.bounds)
         new @Top LowerAndUpperBoundC(a);
 
         // :: error: (new.class.type.invalid) :: error: (type.arguments.not.inferred)
+        // :: error: (viewpointtest.lost.in.bounds)
         new @Top LowerAndUpperBoundC(b);
 
-        // :: error: (new.class.type.invalid) :: error: (type.arguments.not.inferred)
+        // :: error: (new.class.type.invalid) :: error: (viewpointtest.lost.parameter)
+        // :: error: (viewpointtest.lost.in.bounds)
         new @Top LowerAndUpperBoundC(bottom);
     }
 
