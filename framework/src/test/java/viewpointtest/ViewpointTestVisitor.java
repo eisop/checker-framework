@@ -8,10 +8,11 @@ import com.sun.source.tree.Tree;
 import org.checkerframework.checker.compilermsgs.qual.CompilerMessageKey;
 import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.common.basetype.BaseTypeVisitor;
+import org.checkerframework.framework.type.AbstractViewpointAdapter;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
-import org.checkerframework.framework.type.AnnotatedTypeParameterBounds;
+import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedExecutableType;
+import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedTypeVariable;
 import org.checkerframework.framework.util.AnnotatedTypes;
-import org.checkerframework.javacutil.TreeUtils;
 
 /** The visitor for the Viewpoint Test Checker. */
 public class ViewpointTestVisitor extends BaseTypeVisitor<ViewpointTestAnnotatedTypeFactory> {
@@ -40,13 +41,15 @@ public class ViewpointTestVisitor extends BaseTypeVisitor<ViewpointTestAnnotated
         if (type.hasAnnotation(atypeFactory.TOP) || type.hasAnnotation(atypeFactory.LOST)) {
             checker.reportError(tree, "new.class.type.invalid", type.getAnnotations());
         }
-        return super.visitNewClass(tree, p);
+        Void result = super.visitNewClass(tree, p);
+        checkLostTypeParameterBounds(atypeFactory.constructorFromUse(tree).executableType, tree);
+        return result;
     }
 
     @Override
     public Void visitMethodInvocation(MethodInvocationTree tree, Void p) {
         Void result = super.visitMethodInvocation(tree, p);
-        checkLostMethodTypeParameterBounds(tree);
+        checkLostTypeParameterBounds(atypeFactory.methodFromUse(tree).executableType, tree);
         return result;
     }
 
@@ -88,19 +91,19 @@ public class ViewpointTestVisitor extends BaseTypeVisitor<ViewpointTestAnnotated
     }
 
     /**
-     * Report an error if a method invocation viewpoint-adapts a method type parameter bound to
-     * {@code @Lost}.
+     * Report an error if an invocation viewpoint-adapts a type parameter bound to {@code @Lost}.
      *
-     * @param tree the method invocation to check
+     * <p>The bounds are already viewpoint-adapted to the receiver by {@link
+     * AbstractViewpointAdapter#viewpointAdaptMethod} and {@link
+     * AbstractViewpointAdapter#viewpointAdaptConstructor}.
+     *
+     * @param invokedExecutable the type of the invoked method or constructor
+     * @param tree the invocation to report an error on
      */
-    private void checkLostMethodTypeParameterBounds(MethodInvocationTree tree) {
-        if (TreeUtils.elementFromUse(tree) == null || shouldSkipUses(tree)) {
-            return;
-        }
-
-        for (AnnotatedTypeParameterBounds bounds : atypeFactory.methodTypeVariablesFromUse(tree)) {
-            if (AnnotatedTypes.containsModifier(bounds.getUpperBound(), atypeFactory.LOST)
-                    || AnnotatedTypes.containsModifier(bounds.getLowerBound(), atypeFactory.LOST)) {
+    private void checkLostTypeParameterBounds(
+            AnnotatedExecutableType invokedExecutable, ExpressionTree tree) {
+        for (AnnotatedTypeVariable typeVariable : invokedExecutable.getTypeVariables()) {
+            if (AnnotatedTypes.containsModifier(typeVariable, atypeFactory.LOST)) {
                 checker.reportError(tree, LOST_IN_BOUNDS);
                 return;
             }
