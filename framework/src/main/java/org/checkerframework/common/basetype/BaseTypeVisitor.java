@@ -1909,6 +1909,33 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
     }
 
     /**
+     * Returns whether this checker makes a qualifier that appears at a type-use location not
+     * permitted by its {@link org.checkerframework.framework.qual.TargetLocations} meta-annotation
+     * inert, rather than letting it keep influencing type checking.
+     *
+     * <p>When this method returns {@code true} and a qualifier is found at a bound location (a type
+     * variable's upper or lower bound, or a wildcard's extends or super bound) that its {@code
+     * TargetLocations} do not allow, the qualifier is removed from the annotated type
+     * <em>after</em> the {@code type.invalid.annotations.on.location} error is issued, and the
+     * now-bare bound is re-defaulted (see {@link
+     * BaseTypeValidator#stripInvalidLocationQualifiersFromTypeVariableBounds} for type variables
+     * and {@link BaseTypeValidator#validateWildCardTargetLocation} for wildcards). This suppresses
+     * the {@code bound.type.incompatible} cascade that the meaningless qualifier would otherwise
+     * produce.
+     *
+     * <p>This method returns {@code false} by default, so existing checkers are unaffected: a
+     * qualifier in an invalid location is still reported and still takes effect. A checker opts in
+     * by overriding this method to return {@code true} (typically only for qualifiers whose spec
+     * says they "have no meaning" outside their recognized locations, such as JSpecify's nullness
+     * qualifiers).
+     *
+     * @return true if location-invalid qualifiers on bounds should be stripped and re-defaulted
+     */
+    protected boolean shouldStripInvalidLocationQualifiers() {
+        return false;
+    }
+
+    /**
      * Validates whether the qualifiers on the tree are at the correct type-use locations, as
      * specified by the meta-annotation {@link org.checkerframework.framework.qual.TargetLocations}.
      *
@@ -2031,22 +2058,45 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         if (ignoreTargetLocations || noQualHasTargetLocations) {
             return;
         }
+        for (AnnotationMirror am : annotationsDisallowedAtLocation(type, required)) {
+            checker.reportError(
+                    tree,
+                    "type.invalid.annotations.on.location",
+                    am.toString(),
+                    required.toString());
+        }
+    }
+
+    /**
+     * Returns the primary annotations on {@code type} that are not permitted at the given type-use
+     * location, according to their {@link org.checkerframework.framework.qual.TargetLocations}
+     * meta-annotation. A qualifier without a {@code TargetLocations} meta-annotation, or one that
+     * lists {@link TypeUseLocation#ALL}, is permitted everywhere and is never returned.
+     *
+     * @param type the type whose primary annotations to check
+     * @param required the type-use location at which {@code type} appears
+     * @return the primary annotations on {@code type} that {@code required} does not permit
+     * @see BaseTypeValidator#annotationsDisallowedAtWildcardBound
+     * @see BaseTypeValidator#stripInvalidLocationQualifiersFromTypeVariableBounds
+     * @see #shouldStripInvalidLocationQualifiers
+     */
+    protected List<AnnotationMirror> annotationsDisallowedAtLocation(
+            AnnotatedTypeMirror type, TypeUseLocation required) {
+        List<AnnotationMirror> result = Collections.emptyList();
         for (AnnotationMirror am : type.getAnnotations()) {
             List<TypeUseLocation> locations =
                     qualAllowedLocations.get(AnnotationUtils.annotationName(am));
             if (locations == null || locations.contains(TypeUseLocation.ALL)) {
                 continue;
             }
-            boolean issueError = !locations.contains(required);
-
-            if (issueError) {
-                checker.reportError(
-                        tree,
-                        "type.invalid.annotations.on.location",
-                        am.toString(),
-                        required.toString());
+            if (!locations.contains(required)) {
+                if (result.isEmpty()) {
+                    result = new ArrayList<>(1);
+                }
+                result.add(am);
             }
         }
+        return result;
     }
 
     /**

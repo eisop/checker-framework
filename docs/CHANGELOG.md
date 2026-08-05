@@ -106,6 +106,20 @@ side-effecting array expression, avoiding unsound behavior. It now also issues
 a warning message explaining why `copyOf` used a `@Nullable` return type,
 making errors with `copyOf` easier to fix.
 
+A checker may now override `BaseTypeVisitor.shouldStripInvalidLocationQualifiers`
+(default `false`) to make a qualifier that appears on a type-variable or wildcard
+bound not permitted by its `@TargetLocations` inert: after the
+`type.invalid.annotations.on.location` error is issued, the qualifier is removed
+from the bound and the bound is re-defaulted, so the meaningless qualifier no
+longer produces a `bound.type.incompatible` cascade. Behavior is unchanged for
+checkers that do not opt in. For type-variable or wildcard bounds, a checker whose
+own validity check is tree-based rather than `@TargetLocations`-based (for
+example, one that must distinguish an annotation a user explicitly wrote from
+the same qualifier arriving through ordinary defaulting) can additionally
+override `BaseTypeValidator.additionalAnnotationsToStripFromTypeVariableBound` or
+`BaseTypeValidator.additionalAnnotationsToStripFromWildcardBound` to strip
+further annotations of its own choosing.
+
 When the bounds of an intersection type (for example, the bound
 `<T extends @NonNull Object & @Nullable Serializable>`) carry conflicting
 qualifiers in the same hierarchy, the intersection's qualifier for that
