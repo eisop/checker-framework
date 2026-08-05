@@ -13,6 +13,8 @@ import com.sun.source.tree.VariableTree;
 
 import org.checkerframework.checker.compilermsgs.qual.CompilerMessageKey;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.checker.signature.qual.CanonicalName;
+import org.checkerframework.framework.qual.TargetLocations;
 import org.checkerframework.framework.qual.TypeUseLocation;
 import org.checkerframework.framework.source.DiagMessage;
 import org.checkerframework.framework.type.AnnotatedTypeFactory;
@@ -31,6 +33,7 @@ import org.checkerframework.framework.util.AnnotatedTypes;
 import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.BugInCF;
+import org.checkerframework.javacutil.InternalUtils;
 import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TypeAnnotationUtils;
 import org.checkerframework.javacutil.TypesUtils;
@@ -38,13 +41,17 @@ import org.plumelib.util.ArrayMap;
 import org.plumelib.util.IPair;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.EnumSet;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
 import javax.lang.model.element.AnnotationMirror;
+import javax.lang.model.element.Element;
+import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
@@ -83,6 +90,22 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
     /** The qualifer hierarchy. */
     protected final QualifierHierarchy qualHierarchy;
 
+    /** True if "-AignoreTargetLocations" was passed on the command line. */
+    protected final boolean ignoreTargetLocations;
+
+    /**
+     * Mapping from qualifier canonical names to their declared type-use locations, as specified by
+     * the {@link org.checkerframework.framework.qual.TargetLocations} meta-annotation.
+     */
+    protected final Map<@CanonicalName String, List<TypeUseLocation>> qualAllowedLocations;
+
+    /**
+     * True if no supported qualifier in this type system declares {@link
+     * org.checkerframework.framework.qual.TargetLocations}. Used to short-circuit target-location
+     * checks.
+     */
+    protected final boolean noQualHasTargetLocations;
+
     // TODO: clean up coupling between components
     public BaseTypeValidator(
             BaseTypeChecker checker,
@@ -92,6 +115,41 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
         this.visitor = visitor;
         this.atypeFactory = atypeFactory;
         this.qualHierarchy = atypeFactory.getQualifierHierarchy();
+        this.ignoreTargetLocations = checker.hasOption("ignoreTargetLocations");
+        this.qualAllowedLocations = createQualAllowedLocations(atypeFactory);
+        boolean anyHas = false;
+        for (List<TypeUseLocation> locs : qualAllowedLocations.values()) {
+            if (locs != null) {
+                anyHas = true;
+                break;
+            }
+        }
+        this.noQualHasTargetLocations = !anyHas;
+    }
+
+    /**
+     * Create a new map, which is used for declared type-use locations lookup.
+     *
+     * @param atypeFactory the annotated type factory
+     * @return a new mapping from strings of qualifier names to their declared type-use locations
+     */
+    protected static Map<@CanonicalName String, List<TypeUseLocation>> createQualAllowedLocations(
+            AnnotatedTypeFactory atypeFactory) {
+        HashMap<@CanonicalName String, List<TypeUseLocation>> qualAllowedLocations =
+                new HashMap<>();
+        for (String qual : atypeFactory.getSupportedTypeQualifierNames()) {
+            Element elem = atypeFactory.getElementUtils().getTypeElement(qual);
+            TargetLocations tls = elem.getAnnotation(TargetLocations.class);
+            // @Target({ElementType.TYPE_USE})} together with no @TargetLocations(...) means that
+            // the qualifier can be written on any type use.
+            if (tls == null) {
+                qualAllowedLocations.put(qual, null);
+                continue;
+            }
+            List<TypeUseLocation> locations = Arrays.asList(tls.value());
+            qualAllowedLocations.put(qual, locations);
+        }
+        return qualAllowedLocations;
     }
 
     /**
@@ -777,11 +835,199 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
             return getVisited(type);
         }
 
-        validateWildCardTargetLocation(type, tree);
+        validateWildcardTargetLocations(type, tree);
         if (!areBoundsValid(type.getExtendsBound(), type.getSuperBound())) {
             reportInvalidBounds(type, tree);
         }
         return super.visitWildcard(type, tree);
+    }
+
+    /**
+     * Validates whether the qualifiers on the tree are at the correct type-use locations, as
+     * specified by the meta-annotation {@link org.checkerframework.framework.qual.TargetLocations}.
+     *
+     * <p>More specifically, this method only checks qualifiers on a VariableTree and thus checks
+     * for the following type-use locations: FIELD, LOCAL_VARIABLE, RESOURCE_VARIABLE,
+     * EXCEPTION_PARAMETER, PARAMETER, RECEIVER and CONSTRUCTOR_RESULT.
+     *
+     * <p>The other two validate methods achieve the same goal but perform checks on different trees
+     * and different type-use locations. This separation exists because variables can automatically
+     * infer their type-use location from their {@link javax.lang.model.element.ElementKind}. By
+     * contrast, other constructs (like method returns or type bounds) have context-dependent
+     * locations that must be explicitly provided by the caller, and wildcards do not have an
+     * element. See {@link #validateTargetLocation(Tree, AnnotatedTypeMirror, TypeUseLocation)} and
+     * {@link #validateWildcardTargetLocations(AnnotatedWildcardType, Tree)}.
+     *
+     * @param tree the tree whose qualifiers are to be validated
+     * @param type the type of the tree
+     * @see #validateTargetLocation(Tree, AnnotatedTypeMirror, TypeUseLocation)
+     * @see #validateWildcardTargetLocations(AnnotatedWildcardType, Tree)
+     */
+    @Override
+    public void validateVariableTargetLocation(Tree tree, AnnotatedTypeMirror type) {
+        if (ignoreTargetLocations || noQualHasTargetLocations) {
+            return;
+        }
+        Element element = TreeUtils.elementFromTree(tree);
+
+        if (element != null) {
+            ElementKind elemKind = element.getKind();
+            // TypeUseLocation.java doesn't have ENUM type use location right now.
+            for (AnnotationMirror am : type.getAnnotations()) {
+                List<TypeUseLocation> locations =
+                        qualAllowedLocations.get(AnnotationUtils.annotationName(am));
+                if (locations == null || locations.contains(TypeUseLocation.ALL)) {
+                    continue;
+                }
+                boolean issueError = true;
+                switch (elemKind) {
+                    case LOCAL_VARIABLE:
+                        if (locations.contains(TypeUseLocation.LOCAL_VARIABLE)) issueError = false;
+                        break;
+                    case EXCEPTION_PARAMETER:
+                        if (locations.contains(TypeUseLocation.EXCEPTION_PARAMETER))
+                            issueError = false;
+                        break;
+                    case PARAMETER:
+                        if (InternalUtils.isThisName(((VariableTree) tree).getName())) {
+                            if (locations.contains(TypeUseLocation.RECEIVER)) {
+                                issueError = false;
+                            }
+                        } else {
+                            if (locations.contains(TypeUseLocation.PARAMETER)) {
+                                issueError = false;
+                            }
+                        }
+                        break;
+                    case RESOURCE_VARIABLE:
+                        if (locations.contains(TypeUseLocation.RESOURCE_VARIABLE)) {
+                            issueError = false;
+                        }
+                        break;
+                    case FIELD:
+                        if (locations.contains(TypeUseLocation.FIELD)) {
+                            issueError = false;
+                        }
+                        break;
+                    case ENUM_CONSTANT:
+                        if (locations.contains(TypeUseLocation.FIELD)
+                                || locations.contains(TypeUseLocation.CONSTRUCTOR_RESULT)) {
+                            issueError = false;
+                        }
+                        break;
+                    default:
+                        throw new BugInCF("Location not matched");
+                }
+                if (issueError) {
+                    checker.reportError(
+                            tree,
+                            "type.invalid.annotations.on.location",
+                            am.toString(),
+                            element.getKind().name());
+                }
+            }
+        }
+    }
+
+    /**
+     * Validates whether the qualifiers on the tree are at the correct type-use locations, as
+     * specified by the meta-annotation {@link org.checkerframework.framework.qual.TargetLocations}.
+     *
+     * <p>More specifically, this method only checks qualifiers on a TypeParameter or Method tree
+     * and thus checks for the following type-use locations: LOWER_BOUND, UPPER_BOUND,
+     * CONSTRUCTOR_RESULT and RETURN.
+     *
+     * <p>The other two validate methods achieve the same goal but perform checks on different trees
+     * and different type-use locations. This separation exists because constructs handled by this
+     * method have context-dependent locations that must be explicitly provided by the caller. By
+     * contrast, variables can automatically infer their type-use location from their ElementKind,
+     * and wildcards do not have an element. See {@link #validateVariableTargetLocation(Tree,
+     * AnnotatedTypeMirror)} and {@link #validateWildcardTargetLocations(AnnotatedWildcardType,
+     * Tree)}.
+     *
+     * @param tree the tree whose qualifiers are to be validated
+     * @param type the type of the tree
+     * @param required the required TypeUseLocation. If it is not present in the specification of
+     *     the meta-annotation ({@link org.checkerframework.framework.qual.TargetLocations}), issue
+     *     an error.
+     * @see #validateVariableTargetLocation(Tree, AnnotatedTypeMirror)
+     * @see #validateWildcardTargetLocations(AnnotatedWildcardType, Tree)
+     */
+    @Override
+    public void validateTargetLocation(
+            Tree tree, AnnotatedTypeMirror type, TypeUseLocation required) {
+        if (ignoreTargetLocations || noQualHasTargetLocations) {
+            return;
+        }
+        for (AnnotationMirror am : annotationsDisallowedAtLocation(type, required)) {
+            checker.reportError(
+                    tree,
+                    "type.invalid.annotations.on.location",
+                    am.toString(),
+                    required.toString());
+        }
+    }
+
+    /**
+     * Returns the primary annotations on {@code type} that are not permitted at the given type-use
+     * location, according to their {@link org.checkerframework.framework.qual.TargetLocations}
+     * meta-annotation. A qualifier without a {@code TargetLocations} meta-annotation, or one that
+     * lists {@link TypeUseLocation#ALL}, is permitted everywhere and is never returned.
+     *
+     * @param type the type whose primary annotations to check
+     * @param required the type-use location at which {@code type} appears
+     * @return the primary annotations on {@code type} that {@code required} does not permit
+     * @see #annotationsDisallowedAtLocation(AnnotatedTypeMirror, Set)
+     * @see #stripInvalidLocationQualifiersFromTypeVariableBounds
+     * @see BaseTypeVisitor#shouldStripInvalidLocationQualifiers
+     */
+    public List<AnnotationMirror> annotationsDisallowedAtLocation(
+            AnnotatedTypeMirror type, TypeUseLocation required) {
+        List<AnnotationMirror> result = Collections.emptyList();
+        for (AnnotationMirror am : type.getAnnotations()) {
+            List<TypeUseLocation> locations =
+                    qualAllowedLocations.get(AnnotationUtils.annotationName(am));
+            if (locations == null || locations.contains(TypeUseLocation.ALL)) {
+                continue;
+            }
+            if (!locations.contains(required)) {
+                if (result.isEmpty()) {
+                    result = new ArrayList<>(1);
+                }
+                result.add(am);
+            }
+        }
+        return result;
+    }
+
+    /**
+     * Returns the primary annotations on {@code type} that are not permitted at any of the given
+     * type-use locations, according to their {@link
+     * org.checkerframework.framework.qual.TargetLocations} meta-annotation. A qualifier without a
+     * {@code TargetLocations} meta-annotation, or one that lists {@link TypeUseLocation#ALL}, is
+     * permitted everywhere and is never returned.
+     *
+     * @param type the type whose primary annotations to check
+     * @param allowedLocations the type-use locations {@code type} may be annotated at
+     * @return the primary annotations on {@code type} that {@code allowedLocations} does not permit
+     * @see #annotationsDisallowedAtLocation(AnnotatedTypeMirror, TypeUseLocation)
+     * @see #additionalAnnotationsToStripFromWildcardBound
+     */
+    public List<AnnotationMirror> annotationsDisallowedAtLocation(
+            AnnotatedTypeMirror type, Set<TypeUseLocation> allowedLocations) {
+        List<AnnotationMirror> result = Collections.emptyList();
+        for (AnnotationMirror am : type.getAnnotations()) {
+            List<TypeUseLocation> locations =
+                    qualAllowedLocations.get(AnnotationUtils.annotationName(am));
+            if (locations == null || containsAny(locations, allowedLocations)) {
+                continue;
+            }
+            if (result.isEmpty()) {
+                result = new ArrayList<>(1);
+            }
+            result.add(am);
+        }
+        return result;
     }
 
     /**
@@ -827,7 +1073,7 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
      * @param lowerBound {@code type}'s lower bound
      * @param tree the tree for {@code type}'s declaration
      * @see #additionalAnnotationsToStripFromTypeVariableBound
-     * @see #validateWildCardTargetLocation
+     * @see #validateWildcardTargetLocations
      * @see #additionalAnnotationsToStripFromWildcardBound
      * @see BaseTypeVisitor#shouldStripInvalidLocationQualifiers
      */
@@ -838,7 +1084,7 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
             Tree tree) {
         boolean stripped = false;
         for (AnnotationMirror am :
-                visitor.annotationsDisallowedAtLocation(upperBound, TypeUseLocation.UPPER_BOUND)) {
+                annotationsDisallowedAtLocation(upperBound, TypeUseLocation.UPPER_BOUND)) {
             upperBound.removeAnnotation(am);
             stripped = true;
         }
@@ -849,7 +1095,7 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
             stripped = true;
         }
         for (AnnotationMirror am :
-                visitor.annotationsDisallowedAtLocation(lowerBound, TypeUseLocation.LOWER_BOUND)) {
+                annotationsDisallowedAtLocation(lowerBound, TypeUseLocation.LOWER_BOUND)) {
             lowerBound.removeAnnotation(am);
             stripped = true;
         }
@@ -866,8 +1112,8 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
 
     /**
      * Returns additional annotations to strip from {@code bound} (one of {@code type}'s upper or
-     * lower bound), beyond whatever {@link BaseTypeVisitor#annotationsDisallowedAtLocation} already
-     * found. Called only when the checker opts in via {@link
+     * lower bound), beyond whatever {@link #annotationsDisallowedAtLocation(AnnotatedTypeMirror,
+     * TypeUseLocation)} already found. Called only when the checker opts in via {@link
      * BaseTypeVisitor#shouldStripInvalidLocationQualifiers}. The default returns an empty list, so
      * opted-in checkers whose qualifiers use {@code @TargetLocations} are unaffected ({@code
      * annotationsDisallowedAtLocation} already covers their case).
@@ -885,7 +1131,7 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
      * @return additional annotations on {@code bound} to strip
      * @see #stripInvalidLocationQualifiersFromTypeVariableBounds
      * @see #additionalAnnotationsToStripFromWildcardBound
-     * @see BaseTypeVisitor#annotationsDisallowedAtLocation
+     * @see #annotationsDisallowedAtLocation(AnnotatedTypeMirror, TypeUseLocation)
      * @see BaseTypeVisitor#shouldStripInvalidLocationQualifiers
      */
     protected List<AnnotationMirror> additionalAnnotationsToStripFromTypeVariableBound(
@@ -913,8 +1159,9 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
                     TypeUseLocation.EXPLICIT_UPPER_BOUND);
 
     /**
-     * Validates whether the qualifiers on the tree are at the correct type-use locations, as
-     * specified by the meta-annotation {@link org.checkerframework.framework.qual.TargetLocations}.
+     * Validates whether the qualifiers on the wildcard tree are at the correct type-use locations,
+     * as specified by the meta-annotation {@link
+     * org.checkerframework.framework.qual.TargetLocations}.
      *
      * <p>More specifically, this method only checks qualifiers on a WildcardTree and thus checks
      * for the following type-use locations: (EXPLICIT/IMPLICIT) LOWER_BOUND and (EXPLICIT/IMPLICIT)
@@ -925,34 +1172,33 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
      * element and determine their locations based on their bounds. By contrast, variables can
      * automatically infer their type-use location from their ElementKind, and other constructs have
      * context-dependent locations that must be explicitly provided by the caller. See {@link
-     * BaseTypeVisitor#validateVariablesTargetLocation(Tree, AnnotatedTypeMirror)} and {@link
-     * BaseTypeVisitor#validateTargetLocation(Tree, AnnotatedTypeMirror, TypeUseLocation)}.
+     * #validateVariableTargetLocation(Tree, AnnotatedTypeMirror)} and {@link
+     * #validateTargetLocation(Tree, AnnotatedTypeMirror, TypeUseLocation)}.
      *
      * @param type the type to check
      * @param tree the tree of this type
-     * @see BaseTypeVisitor#validateVariablesTargetLocation(Tree, AnnotatedTypeMirror)
-     * @see BaseTypeVisitor#validateTargetLocation(Tree, AnnotatedTypeMirror, TypeUseLocation)
+     * @see #validateVariableTargetLocation(Tree, AnnotatedTypeMirror)
+     * @see #validateTargetLocation(Tree, AnnotatedTypeMirror, TypeUseLocation)
      * @see #stripInvalidLocationQualifiersFromTypeVariableBounds
      * @see #additionalAnnotationsToStripFromWildcardBound
      * @see BaseTypeVisitor#shouldStripInvalidLocationQualifiers
      */
-    protected void validateWildCardTargetLocation(AnnotatedWildcardType type, Tree tree) {
+    public void validateWildcardTargetLocations(AnnotatedWildcardType type, Tree tree) {
         // noQualHasTargetLocations is a pure optimization for the common case (skip a check that
         // can never find anything). It must not also skip a checker that has opted in to
         // stripping via shouldStripInvalidLocationQualifiers: such a checker may override
-        // annotationsDisallowedAtWildcardBound with its own tree-based detection, independent of
+        // annotationsDisallowedAtLocation with its own tree-based detection, independent of
         // @TargetLocations, in which case no qualifier having @TargetLocations says nothing about
         // whether there is something to detect and strip.
-        if (visitor.ignoreTargetLocations
-                || (visitor.noQualHasTargetLocations
-                        && !visitor.shouldStripInvalidLocationQualifiers())) {
+        if (ignoreTargetLocations
+                || (noQualHasTargetLocations && !visitor.shouldStripInvalidLocationQualifiers())) {
             return;
         }
 
         boolean strip = visitor.shouldStripInvalidLocationQualifiers();
 
         List<AnnotationMirror> superDisallowed =
-                annotationsDisallowedAtWildcardBound(
+                annotationsDisallowedAtLocation(
                         type.getSuperBound(), WILDCARD_SUPER_BOUND_LOCATIONS);
         for (AnnotationMirror am : superDisallowed) {
             checker.reportError(
@@ -960,7 +1206,7 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
         }
 
         List<AnnotationMirror> extendsDisallowed =
-                annotationsDisallowedAtWildcardBound(
+                annotationsDisallowedAtLocation(
                         type.getExtendsBound(), WILDCARD_EXTENDS_BOUND_LOCATIONS);
         for (AnnotationMirror am : extendsDisallowed) {
             checker.reportError(
@@ -976,80 +1222,84 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
             // re-defaults exactly the stripped bound(s) and leaves every other qualifier untouched.
             // visitWildcard runs this before areBoundsValid, so no bound.type.incompatible cascade
             // is reported for the stripped qualifier.
-            boolean stripped = false;
-            for (AnnotationMirror am : superDisallowed) {
-                type.getSuperBound().removeAnnotation(am);
-                stripped = true;
-            }
-            for (AnnotationMirror am :
-                    additionalAnnotationsToStripFromWildcardBound(
-                            type, tree, type.getSuperBound(), WILDCARD_SUPER_BOUND_LOCATIONS)) {
-                type.getSuperBound().removeAnnotation(am);
-                stripped = true;
-            }
-            for (AnnotationMirror am : extendsDisallowed) {
-                type.getExtendsBound().removeAnnotation(am);
-                stripped = true;
-            }
-            for (AnnotationMirror am :
-                    additionalAnnotationsToStripFromWildcardBound(
-                            type, tree, type.getExtendsBound(), WILDCARD_EXTENDS_BOUND_LOCATIONS)) {
-                type.getExtendsBound().removeAnnotation(am);
-                stripped = true;
-            }
-            if (stripped) {
-                atypeFactory.addDefaultAnnotations(type);
-            }
+            stripInvalidLocationQualifiersFromWildcardBounds(
+                    type, tree, superDisallowed, extendsDisallowed);
         }
     }
 
     /**
-     * Returns the annotations on {@code bound} (one of a wildcard's super or extends bound) that
-     * {@code allowedLocations} does not permit, according to the {@link
-     * org.checkerframework.framework.qual.TargetLocations} meta-annotation. Used to report {@code
-     * type.invalid.annotations.on.location}; see {@link
-     * #additionalAnnotationsToStripFromWildcardBound} for the corresponding stripping hook.
+     * Removes from the bounds of a wildcard type any primary annotation that its {@link
+     * org.checkerframework.framework.qual.TargetLocations} does not permit at that bound (or that
+     * {@link #additionalAnnotationsToStripFromWildcardBound} specifies to strip), then re-defaults
+     * the now-bare positions. Called only when the checker opts in via {@link
+     * BaseTypeVisitor#shouldStripInvalidLocationQualifiers}.
      *
-     * @param bound a wildcard's super or extends bound
-     * @param allowedLocations the type-use locations {@code bound} may be annotated at
-     * @return the annotations on {@code bound} that {@code allowedLocations} does not permit
-     * @see BaseTypeVisitor#annotationsDisallowedAtLocation
+     * <p>{@code addDefaultAnnotations} fills only positions that are missing an annotation, so it
+     * re-defaults exactly the stripped bound(s) with the correct bound context and leaves every
+     * other qualifier untouched.
+     *
+     * @param type the wildcard type whose bounds to fix up and re-default
+     * @param tree the tree for {@code type}
+     * @see #stripInvalidLocationQualifiersFromTypeVariableBounds
      * @see #additionalAnnotationsToStripFromWildcardBound
+     * @see BaseTypeVisitor#shouldStripInvalidLocationQualifiers
      */
-    protected List<AnnotationMirror> annotationsDisallowedAtWildcardBound(
-            AnnotatedTypeMirror bound, Set<TypeUseLocation> allowedLocations) {
-        List<AnnotationMirror> result = Collections.emptyList();
-        for (AnnotationMirror am : bound.getAnnotations()) {
-            List<TypeUseLocation> locations =
-                    visitor.qualAllowedLocations.get(AnnotationUtils.annotationName(am));
-            // @Target({ElementType.TYPE_USE})} together with no @TargetLocations(...) means
-            // that the qualifier can be written on any type use. Otherwise, for a valid use of
-            // qualifier on this bound, that qualifier must declare one of the permitted
-            // type-use locations in the @TargetLocations meta-annotation.
-            if (locations == null || containsAny(locations, allowedLocations)) {
-                continue;
-            }
-            if (result.isEmpty()) {
-                result = new ArrayList<>(1);
-            }
-            result.add(am);
+    protected void stripInvalidLocationQualifiersFromWildcardBounds(
+            AnnotatedWildcardType type, Tree tree) {
+        List<AnnotationMirror> superDisallowed =
+                annotationsDisallowedAtLocation(
+                        type.getSuperBound(), WILDCARD_SUPER_BOUND_LOCATIONS);
+        List<AnnotationMirror> extendsDisallowed =
+                annotationsDisallowedAtLocation(
+                        type.getExtendsBound(), WILDCARD_EXTENDS_BOUND_LOCATIONS);
+        stripInvalidLocationQualifiersFromWildcardBounds(
+                type, tree, superDisallowed, extendsDisallowed);
+    }
+
+    private void stripInvalidLocationQualifiersFromWildcardBounds(
+            AnnotatedWildcardType type,
+            Tree tree,
+            List<AnnotationMirror> superDisallowed,
+            List<AnnotationMirror> extendsDisallowed) {
+        boolean stripped = false;
+        for (AnnotationMirror am : superDisallowed) {
+            type.getSuperBound().removeAnnotation(am);
+            stripped = true;
         }
-        return result;
+        for (AnnotationMirror am :
+                additionalAnnotationsToStripFromWildcardBound(
+                        type, tree, type.getSuperBound(), WILDCARD_SUPER_BOUND_LOCATIONS)) {
+            type.getSuperBound().removeAnnotation(am);
+            stripped = true;
+        }
+        for (AnnotationMirror am : extendsDisallowed) {
+            type.getExtendsBound().removeAnnotation(am);
+            stripped = true;
+        }
+        for (AnnotationMirror am :
+                additionalAnnotationsToStripFromWildcardBound(
+                        type, tree, type.getExtendsBound(), WILDCARD_EXTENDS_BOUND_LOCATIONS)) {
+            type.getExtendsBound().removeAnnotation(am);
+            stripped = true;
+        }
+        if (stripped) {
+            atypeFactory.addDefaultAnnotations(type);
+        }
     }
 
     /**
      * Returns additional annotations to strip from {@code bound} (one of {@code type}'s super or
-     * extends bound), beyond whatever {@link #annotationsDisallowedAtWildcardBound} already found.
-     * Called only when the checker opts in via {@link
+     * extends bound), beyond whatever {@link #annotationsDisallowedAtLocation(AnnotatedTypeMirror,
+     * Set)} already found. Called only when the checker opts in via {@link
      * BaseTypeVisitor#shouldStripInvalidLocationQualifiers}. The default returns an empty list, so
      * opted-in checkers whose qualifiers use {@code @TargetLocations} are unaffected ({@code
-     * annotationsDisallowedAtWildcardBound} already covers their case, for both reporting and
+     * annotationsDisallowedAtLocation} already covers their case, for both reporting and
      * stripping).
      *
      * <p>{@code type} and {@code tree} let a checker whose validity check is tree-based instead
      * (e.g., it must tell an explicitly written annotation apart from the same qualifier arriving
      * through defaulting, which {@code @TargetLocations} cannot express) decide independently what
-     * to strip, without also triggering {@code annotationsDisallowedAtWildcardBound}'s {@code
+     * to strip, without also triggering {@code annotationsDisallowedAtLocation}'s {@code
      * type.invalid.annotations.on.location} report for annotations the checker already reports
      * through its own, more specific mechanism.
      *
@@ -1060,8 +1310,8 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
      * @return additional annotations on {@code bound} to strip
      * @see #stripInvalidLocationQualifiersFromTypeVariableBounds
      * @see #additionalAnnotationsToStripFromTypeVariableBound
-     * @see #validateWildCardTargetLocation
-     * @see #annotationsDisallowedAtWildcardBound
+     * @see #validateWildcardTargetLocations
+     * @see #annotationsDisallowedAtLocation(AnnotatedTypeMirror, Set)
      * @see BaseTypeVisitor#shouldStripInvalidLocationQualifiers
      */
     protected List<AnnotationMirror> additionalAnnotationsToStripFromWildcardBound(

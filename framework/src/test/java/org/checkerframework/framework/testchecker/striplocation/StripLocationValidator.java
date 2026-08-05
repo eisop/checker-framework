@@ -7,7 +7,6 @@ import com.sun.source.tree.WildcardTree;
 
 import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.common.basetype.BaseTypeValidator;
-import org.checkerframework.common.basetype.BaseTypeVisitor;
 import org.checkerframework.framework.qual.TypeUseLocation;
 import org.checkerframework.framework.testchecker.striplocation.quals.StripTop;
 import org.checkerframework.framework.type.AnnotatedTypeFactory;
@@ -25,12 +24,12 @@ import javax.lang.model.element.AnnotationMirror;
 /**
  * A validator that additionally enforces a rule {@code @TargetLocations} cannot express: {@link
  * StripTop}, the checker's whole-system top qualifier, carries no {@code @TargetLocations} of its
- * own, so {@link BaseTypeVisitor#annotationsDisallowedAtLocation} and {@link
- * #annotationsDisallowedAtWildcardBound} never flag or strip it, no matter where it appears. This
- * validator additionally forbids writing it explicitly at a lower-bound location -- it may only
- * arrive there through defaulting -- by inspecting the declaration/bound tree directly, exercising
- * the {@link #additionalAnnotationsToStripFromTypeVariableBound} and {@link
- * #additionalAnnotationsToStripFromWildcardBound} hooks.
+ * own, so {@link #annotationsDisallowedAtLocation(AnnotatedTypeMirror, TypeUseLocation)} and {@link
+ * #annotationsDisallowedAtLocation(AnnotatedTypeMirror, Set)} never flag or strip it, no matter
+ * where it appears. This validator additionally forbids writing it explicitly at a lower-bound
+ * location -- it may only arrive there through defaulting -- by inspecting the declaration/bound
+ * tree directly, exercising the {@link #additionalAnnotationsToStripFromTypeVariableBound} and
+ * {@link #additionalAnnotationsToStripFromWildcardBound} hooks.
  *
  * <p>Because an explicit {@code @StripTop} lower bound is incompatible with an explicit non-top
  * upper bound, stripping it (rather than merely reporting it) has an observable effect: it avoids a
