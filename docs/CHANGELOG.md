@@ -247,6 +247,10 @@ Target-location validation and bound-stripping logic has been consolidated into
     `validateWildcardTargetLocations`)
 - `TypeValidator` interface now declares `validateVariableTargetLocation`
   and `validateTargetLocation`.
+- As a result of this pass reordering, `type.invalid.annotations.on.location`
+  diagnostics now appear before `bound.type.incompatible` diagnostics for the
+  same tree.
+
 
 Performance optimizations:
 - Capped Java type argument inference bound-incorporation work and optimized
