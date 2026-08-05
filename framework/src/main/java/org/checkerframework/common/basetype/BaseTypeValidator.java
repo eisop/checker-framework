@@ -884,11 +884,14 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
                 boolean issueError = true;
                 switch (elemKind) {
                     case LOCAL_VARIABLE:
-                        if (locations.contains(TypeUseLocation.LOCAL_VARIABLE)) issueError = false;
+                        if (locations.contains(TypeUseLocation.LOCAL_VARIABLE)) {
+                            issueError = false;
+                        }
                         break;
                     case EXCEPTION_PARAMETER:
-                        if (locations.contains(TypeUseLocation.EXCEPTION_PARAMETER))
+                        if (locations.contains(TypeUseLocation.EXCEPTION_PARAMETER)) {
                             issueError = false;
+                        }
                         break;
                     case PARAMETER:
                         if (InternalUtils.isThisName(((VariableTree) tree).getName())) {
