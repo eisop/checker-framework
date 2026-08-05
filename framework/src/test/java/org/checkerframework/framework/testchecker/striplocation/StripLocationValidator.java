@@ -38,6 +38,9 @@ import javax.lang.model.element.AnnotationMirror;
  */
 public class StripLocationValidator extends BaseTypeValidator {
 
+    /** Whether to strip invalid location qualifiers. */
+    private final boolean stripInvalidLocationQualifiers;
+
     /**
      * Creates a new StripLocationValidator.
      *
@@ -50,11 +53,12 @@ public class StripLocationValidator extends BaseTypeValidator {
             StripLocationVisitor visitor,
             AnnotatedTypeFactory atypeFactory) {
         super(checker, visitor, atypeFactory);
+        this.stripInvalidLocationQualifiers = checker.hasOption("stripInvalidLocationQualifiers");
     }
 
     @Override
     protected boolean shouldStripInvalidLocationQualifiers() {
-        return checker.hasOption("stripInvalidLocationQualifiers");
+        return stripInvalidLocationQualifiers;
     }
 
     @Override
