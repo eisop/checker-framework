@@ -289,8 +289,10 @@ public class MutabilityNoInitVisitor extends BaseTypeVisitor<MutabilityNoInitAnn
                 VariableElement field = TreeUtils.asFieldAccess(variable);
                 TypeElement fieldEnclosingClass = ElementUtils.enclosingTypeElement(field);
                 TypeElement constructorEnclosingClass =
-                        TreeUtils.elementFromDeclaration(TreePathUtil.enclosingClass(getCurrentPath()));
-                if (fieldEnclosingClass != null && fieldEnclosingClass.equals(constructorEnclosingClass)) {
+                        TreeUtils.elementFromDeclaration(
+                                TreePathUtil.enclosingClass(getCurrentPath()));
+                if (fieldEnclosingClass != null
+                        && fieldEnclosingClass.equals(constructorEnclosingClass)) {
                     return;
                 }
             }

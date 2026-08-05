@@ -44,15 +44,13 @@ import org.checkerframework.checker.mutability.qual.ReceiverDependentMutable;
     // Java enums can have mutable fields, so @Mutable on enum declarations is allowed.
     // The enum defaulter (MutabilityEnumDefaultAnnotator) only applies @Immutable when no
     // explicit mutability annotation is present, so @Mutable properly overrides the default.
-    @Mutable
-    private static enum MutableEnum {
+    @Mutable private static enum MutableEnum {
         M1,
         M2;
     }
 
     // A realistic mutable enum: enum instances with mutable state.
-    @Mutable
-    private static enum Counter {
+    @Mutable private static enum Counter {
         INSTANCE;
 
         private int count = 0;

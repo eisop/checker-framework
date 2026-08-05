@@ -10,6 +10,7 @@ import org.checkerframework.checker.mutability.qual.Immutable;
     Object a;
     Object b;
     Object c;
+
     // :: error: (initialization.fields.uninitialized)
     MutabilityMethodInit() {
         initA();

@@ -30,7 +30,6 @@ import java.util.List;
         list = new @Immutable ArrayList<String>(Arrays.asList("hi"));
     }
 
-
     @SuppressWarnings("varargs.type.incompatible")
     @Immutable ImmutableList(Object o1, Object o2) {
         // Another way is to use Arrays.asList()
