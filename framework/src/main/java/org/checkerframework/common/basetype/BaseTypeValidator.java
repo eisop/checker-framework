@@ -777,19 +777,9 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
             return getVisited(type);
         }
 
-        // When the checker opts in to stripping location-invalid qualifiers, check the bound
-        // locations first, so that a stripped bound is re-defaulted before areBoundsValid runs and
-        // thus does not produce a bound.type.incompatible cascade.  Otherwise preserve the
-        // historical order (bounds check first) so that non-opted-in checkers are byte-identical.
-        boolean strip = visitor.shouldStripInvalidLocationQualifiers();
-        if (strip) {
-            validateWildCardTargetLocation(type, tree);
-        }
+        validateWildCardTargetLocation(type, tree);
         if (!areBoundsValid(type.getExtendsBound(), type.getSuperBound())) {
             reportInvalidBounds(type, tree);
-        }
-        if (!strip) {
-            validateWildCardTargetLocation(type, tree);
         }
         return super.visitWildcard(type, tree);
     }
