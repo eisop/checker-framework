@@ -161,6 +161,16 @@ Previously the missing qualifier could silently suppress an
 
 **Implementation details:**
 
+`TypeFromTypeTreeVisitor` now restores the declared bounds of type-variable
+type arguments that appear in the enclosing type of a nested type (e.g. the
+implicit `Outer<XXX>` enclosing `Super` in `class Sub extends Super`, or the
+explicit one in `class Sub extends Outer<XXX>.Super`). Previously such
+enclosing type variables carried defaulted bounds rather than the bounds
+written on their declaration (partial fix for eisop#737). This has no effect on
+the final supertype on the built-in lattices (later substitution already
+corrected it), but the intermediate type is now faithful, which matters for
+type systems with stricter substitution.
+
 `SourceChecker.reportError` and `SourceChecker.reportWarning` now accept a null
 source, for a message that has no source position. Such a message is reported
 against the compilation as a whole, and is suppressed only by
