@@ -1880,33 +1880,6 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
     }
 
     /**
-     * Returns whether this checker makes a qualifier that appears at a type-use location not
-     * permitted by its {@link org.checkerframework.framework.qual.TargetLocations} meta-annotation
-     * inert, rather than letting it keep influencing type checking.
-     *
-     * <p>When this method returns {@code true} and a qualifier is found at a bound location (a type
-     * variable's upper or lower bound, or a wildcard's extends or super bound) that its {@code
-     * TargetLocations} do not allow, the qualifier is removed from the annotated type
-     * <em>after</em> the {@code type.invalid.annotations.on.location} error is issued, and the
-     * now-bare bound is re-defaulted (see {@link
-     * BaseTypeValidator#stripInvalidLocationQualifiersFromTypeVariableBounds} for type variables
-     * and {@link BaseTypeValidator#validateWildcardTargetLocations} for wildcards). This suppresses
-     * the {@code bound.type.incompatible} cascade that the meaningless qualifier would otherwise
-     * produce.
-     *
-     * <p>This method returns {@code false} by default, so existing checkers are unaffected: a
-     * qualifier in an invalid location is still reported and still takes effect. A checker opts in
-     * by overriding this method to return {@code true} (typically only for qualifiers whose spec
-     * says they "have no meaning" outside their recognized locations, such as JSpecify's nullness
-     * qualifiers).
-     *
-     * @return true if location-invalid qualifiers on bounds should be stripped and re-defaulted
-     */
-    protected boolean shouldStripInvalidLocationQualifiers() {
-        return false;
-    }
-
-    /**
      * Issues a "redundant.anno" warning if the annotation written on the type is the same as the
      * default annotation for this type and location.
      *

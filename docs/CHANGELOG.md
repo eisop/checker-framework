@@ -227,6 +227,28 @@ whose qualifier encoding makes this failure mode common and usually spurious
 can report a warning (or suppress the diagnostic) instead of the default
 hard error.
 
+Target-location validation and bound-stripping logic has been consolidated into
+`BaseTypeValidator`:
+- Methods relocated from `BaseTypeVisitor` to `BaseTypeValidator`:
+  - `validateVariableTargetLocation(Tree, AnnotatedTypeMirror)`
+  - `validateTargetLocation(Tree, AnnotatedTypeMirror, TypeUseLocation)`
+  - `annotationsDisallowedAtLocation(AnnotatedTypeMirror, TypeUseLocation)`
+  - `createQualAllowedLocations(AnnotatedTypeFactory)`
+  - `shouldStripInvalidLocationQualifiers()`
+- Wrapper methods for `validateVariableTargetLocation` and `validateTargetLocation`
+  were removed from `BaseTypeVisitor` (it now calls `TypeValidator` methods directly).
+- Protected fields relocated from `BaseTypeVisitor` to `BaseTypeValidator`:
+  - `qualAllowedLocations`, `noQualHasTargetLocations`, `ignoreTargetLocations`
+- Renamed and extracted methods within `BaseTypeValidator` for consistency:
+  - `validateWildcardTargetLocations` (was `validateWildCardTargetLocation`)
+  - `annotationsDisallowedAtLocation(AnnotatedTypeMirror, Set<TypeUseLocation>)`
+    (was `annotationsDisallowedAtWildcardBound`)
+  - `validateTypeParameterTargetLocations` (extracted from `visitTypeVariable`)
+  - `stripInvalidLocationQualifiersFromWildcardBounds` (extracted from
+    `validateWildcardTargetLocations`)
+- `TypeValidator` interface now declares `validateVariableTargetLocation`
+  and `validateTargetLocation`.
+
 Performance optimizations:
 - Capped Java type argument inference bound-incorporation work and optimized
   the fixpoint algorithm to short-circuit and re-scan fewer variables.
