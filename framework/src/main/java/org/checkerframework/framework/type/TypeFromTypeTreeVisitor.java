@@ -387,17 +387,18 @@ class TypeFromTypeTreeVisitor extends TypeFromTreeVisitor {
         AnnotatedDeclaredType enclosing = ((AnnotatedDeclaredType) type).getEnclosingType();
         while (enclosing != null) {
             List<AnnotatedTypeMirror> typeArgs = enclosing.getTypeArguments();
-            boolean changed = false;
-            List<AnnotatedTypeMirror> refinedArgs = new ArrayList<>(typeArgs.size());
-            for (AnnotatedTypeMirror arg : typeArgs) {
+            List<AnnotatedTypeMirror> refinedArgs = null;
+            for (int i = 0; i < typeArgs.size(); i++) {
+                AnnotatedTypeMirror arg = typeArgs.get(i);
                 if (arg.getKind() == TypeKind.TYPEVAR) {
-                    refinedArgs.add(getTypeVariableFromDeclaration((AnnotatedTypeVariable) arg, f));
-                    changed = true;
-                } else {
-                    refinedArgs.add(arg);
+                    if (refinedArgs == null) {
+                        refinedArgs = new ArrayList<>(typeArgs);
+                    }
+                    refinedArgs.set(
+                            i, getTypeVariableFromDeclaration((AnnotatedTypeVariable) arg, f));
                 }
             }
-            if (changed) {
+            if (refinedArgs != null) {
                 enclosing.setTypeArguments(refinedArgs);
             }
             enclosing = enclosing.getEnclosingType();
