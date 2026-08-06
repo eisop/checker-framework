@@ -47,4 +47,26 @@ abstract class EnclosingTypeArgs {
             Min<@NonNull String>.Inner x = new Min<@NonNull String>.Inner();
         }
     }
+
+    // Local variable, enclosing position: the written enclosing argument must reach the
+    // validator and be rejected, just like the field/parameter positions above.
+    void localVars() {
+        // :: error: (type.argument.type.incompatible)
+        Min<@Nullable String>.Inner bad = null;
+        Min<@NonNull String>.Inner ok = null;
+        // Direct (non-enclosing) local for contrast.
+        // :: error: (type.argument.type.incompatible)
+        Min<@Nullable String> directBad = null;
+    }
+}
+
+// Extends clause, enclosing position: the written enclosing argument must reach the validator and
+// be rejected.  Sub/SubOk are nested so that an enclosing instance of Outer exists.
+class Outer<XXX extends @NonNull Object> {
+    class Sup {}
+
+    // :: error: (type.argument.type.incompatible)
+    class Sub extends Outer<@Nullable String>.Sup {}
+
+    class SubOk extends Outer<@NonNull String>.Sup {}
 }
