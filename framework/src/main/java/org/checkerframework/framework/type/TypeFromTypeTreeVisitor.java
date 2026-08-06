@@ -345,6 +345,7 @@ class TypeFromTypeTreeVisitor extends TypeFromTreeVisitor {
         if (type.getKind() == TypeKind.TYPEVAR) {
             return getTypeVariableFromDeclaration((AnnotatedTypeVariable) type, f);
         }
+        refineEnclosingTypeVariableBounds(type, f);
 
         return type;
     }
@@ -356,8 +357,97 @@ class TypeFromTypeTreeVisitor extends TypeFromTreeVisitor {
         if (type.getKind() == TypeKind.TYPEVAR) {
             return getTypeVariableFromDeclaration((AnnotatedTypeVariable) type, f);
         }
+        restoreWrittenEnclosingType(type, tree, f);
+        refineEnclosingTypeVariableBounds(type, f);
 
         return type;
+    }
+
+    /**
+     * Restores the annotations written on the type arguments of an explicitly-written enclosing
+     * type of a qualified type, for example the {@code Outer<@Anno String>} part of {@code
+     * Outer<@Anno String>.Inner}.
+     *
+     * <p>{@link AnnotatedTypeFactory#type(Tree)} derives the enclosing type from the underlying
+     * javac type, whose enclosing type arguments carry defaulted annotations rather than the ones
+     * written in the source (see <a
+     * href="https://github.com/eisop/checker-framework/issues/737">issue #737</a>). For a field or
+     * method parameter, {@code ElementAnnotationApplier} later recovers the written annotations
+     * from the element, but a local-variable element does not retain them and an extends/implements
+     * clause has no element at all, so for those positions the written enclosing-argument
+     * annotation would otherwise be lost. This method rebuilds the enclosing type from its own
+     * subtree (a {@link ParameterizedTypeTree} or a nested {@link MemberSelectTree}), which visits
+     * the written type-argument trees and so preserves their annotations, and transplants it onto
+     * {@code type}.
+     *
+     * @param type the type produced for {@code tree}, side-effected in place
+     * @param tree the member-select tree that {@code type} was produced from
+     * @param f the annotated type factory
+     */
+    private void restoreWrittenEnclosingType(
+            AnnotatedTypeMirror type, MemberSelectTree tree, AnnotatedTypeFactory f) {
+        if (type.getKind() != TypeKind.DECLARED) {
+            return;
+        }
+        AnnotatedDeclaredType declaredType = (AnnotatedDeclaredType) type;
+        if (declaredType.getEnclosingType() == null) {
+            return;
+        }
+        // Only an enclosing type written with explicit type arguments (a ParameterizedTypeTree), or
+        // a further-qualified name that may contain one (a MemberSelectTree), can carry written
+        // annotations to restore. A simple-name enclosing type (IdentifierTree) has none.
+        ExpressionTree enclosingTree = tree.getExpression();
+        if (!(enclosingTree instanceof ParameterizedTypeTree
+                || enclosingTree instanceof MemberSelectTree)) {
+            return;
+        }
+        AnnotatedTypeMirror enclosing = visit(enclosingTree, f);
+        if (enclosing != null && enclosing.getKind() == TypeKind.DECLARED) {
+            declaredType.setEnclosingType((AnnotatedDeclaredType) enclosing);
+        }
+    }
+
+    /**
+     * Refines the bounds of type-variable type arguments in the enclosing types of {@code type} to
+     * the bounds written on their declaration.
+     *
+     * <p>The type produced by {@link AnnotatedTypeFactory#type(Tree)} for a nested type derives its
+     * enclosing types from the underlying javac type, whose type-variable type arguments carry
+     * defaulted bounds rather than the bounds written on the type-variable declaration (see <a
+     * href="https://github.com/eisop/checker-framework/issues/737">issue #737</a>). For a type
+     * variable written directly (e.g., as a top-level type argument in a {@link
+     * ParameterizedTypeTree}), {@link #getTypeVariableFromDeclaration} already restores the
+     * declared bounds; this method does the same for type variables that appear only in an
+     * enclosing type, which has no corresponding subtree to visit (e.g., the implicit {@code
+     * Outer<XXX>} enclosing {@code Inner} in {@code class Sub extends Inner}).
+     *
+     * @param type a type whose enclosing types' type-variable arguments are refined in place
+     * @param f the annotated type factory
+     */
+    private void refineEnclosingTypeVariableBounds(
+            AnnotatedTypeMirror type, AnnotatedTypeFactory f) {
+        if (type.getKind() != TypeKind.DECLARED) {
+            return;
+        }
+        AnnotatedDeclaredType enclosing = ((AnnotatedDeclaredType) type).getEnclosingType();
+        while (enclosing != null) {
+            List<AnnotatedTypeMirror> typeArgs = enclosing.getTypeArguments();
+            List<AnnotatedTypeMirror> refinedArgs = null;
+            for (int i = 0; i < typeArgs.size(); i++) {
+                AnnotatedTypeMirror arg = typeArgs.get(i);
+                if (arg.getKind() == TypeKind.TYPEVAR) {
+                    if (refinedArgs == null) {
+                        refinedArgs = new ArrayList<>(typeArgs);
+                    }
+                    refinedArgs.set(
+                            i, getTypeVariableFromDeclaration((AnnotatedTypeVariable) arg, f));
+                }
+            }
+            if (refinedArgs != null) {
+                enclosing.setTypeArguments(refinedArgs);
+            }
+            enclosing = enclosing.getEnclosingType();
+        }
     }
 
     @Override

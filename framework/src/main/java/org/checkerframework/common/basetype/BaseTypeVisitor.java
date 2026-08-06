@@ -49,7 +49,6 @@ import org.checkerframework.checker.compilermsgs.qual.CompilerMessageKey;
 import org.checkerframework.checker.interning.qual.FindDistinct;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.checker.signature.qual.CanonicalName;
 import org.checkerframework.dataflow.analysis.TransferResult;
 import org.checkerframework.dataflow.cfg.node.BooleanLiteralNode;
 import org.checkerframework.dataflow.cfg.node.Node;
@@ -72,7 +71,6 @@ import org.checkerframework.framework.flow.CFAbstractStore;
 import org.checkerframework.framework.flow.CFAbstractValue;
 import org.checkerframework.framework.qual.DefaultQualifier;
 import org.checkerframework.framework.qual.HasQualifierParameter;
-import org.checkerframework.framework.qual.TargetLocations;
 import org.checkerframework.framework.qual.TypeUseLocation;
 import org.checkerframework.framework.qual.Unused;
 import org.checkerframework.framework.source.DiagMessage;
@@ -284,9 +282,6 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
     /** True if "-AwarnRedundantAnnotations" was passed on the command line. */
     protected final boolean warnRedundantAnnotations;
 
-    /** True if "-AignoreTargetLocations" was passed on the command line. */
-    protected final boolean ignoreTargetLocations;
-
     /** True if "-AcheckEnclosingExpr" was passed on the command line. */
     private final boolean checkEnclosingExpr;
 
@@ -301,20 +296,6 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
 
     /** The tree of the enclosing method that is currently being visited, if any. */
     protected @Nullable MethodTree methodTree = null;
-
-    /**
-     * Map from String (canonical name of the qualifier) to its type-use locations declared in
-     * {@link org.checkerframework.framework.qual.TargetLocations}.
-     */
-    protected final Map<@CanonicalName String, List<TypeUseLocation>> qualAllowedLocations;
-
-    /**
-     * True iff no supported qualifier is meta-annotated with {@link
-     * org.checkerframework.framework.qual.TargetLocations}. When true, target-location validation
-     * has nothing to do for any annotation and can be skipped entirely. Set in the constructor
-     * after {@link #createQualAllowedLocations()} is called.
-     */
-    protected final boolean noQualHasTargetLocations;
 
     /**
      * The number of seconds that typechecking must take for a single tree, to issue a "slow
@@ -368,16 +349,6 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         suggestPureMethods = checker.hasOption("suggestPureMethods"); // NO-AFU || infer;
         checkPurityAnnotations = checker.hasOption("checkPurityAnnotations") || suggestPureMethods;
         warnRedundantAnnotations = checker.hasOption("warnRedundantAnnotations");
-        ignoreTargetLocations = checker.hasOption("ignoreTargetLocations");
-        qualAllowedLocations = createQualAllowedLocations();
-        boolean anyHas = false;
-        for (List<TypeUseLocation> locs : qualAllowedLocations.values()) {
-            if (locs != null) {
-                anyHas = true;
-                break;
-            }
-        }
-        noQualHasTargetLocations = !anyHas;
         checkEnclosingExpr = checker.hasOption("checkEnclosingExpr");
 
         boolean ajavaChecksOptions = checker.hasOption("ajavaChecks");
@@ -780,7 +751,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      * @param classTree the class to check
      */
     protected void warnInvalidPolymorphicQualifier(ClassTree classTree) {
-        if (TypesUtils.isAnonymous(TreeUtils.typeOf(classTree))) {
+        if (TreeUtils.isAnonymousClass(classTree)) {
             // Anonymous class can have polymorphic annotations, so don't check them.
             return;
         }
@@ -935,7 +906,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      * @param classTree class tree to check
      */
     protected void checkExtendsAndImplements(ClassTree classTree) {
-        if (TypesUtils.isAnonymous(TreeUtils.typeOf(classTree))) {
+        if (TreeUtils.isAnonymousClass(classTree)) {
             // Don't check extends clause on anonymous classes.
             return;
         }
@@ -1270,8 +1241,8 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                 AnnotatedDeclaredType overriddenType = pair.getKey();
                 ExecutableElement overriddenMethodElt = pair.getValue();
                 AnnotatedExecutableType overriddenMethodType =
-                        AnnotatedTypes.asMemberOf(
-                                types, atypeFactory, overriddenType, overriddenMethodElt);
+                        atypeFactory.overriddenMethodType(
+                                overriddenType, overriddenMethodElt, enclosingType);
                 if (!checkOverride(tree, enclosingType, overriddenMethodType, overriddenType)) {
                     // Stop at the first mismatch; this makes a difference only if
                     // -Awarns is passed, in which case multiple warnings might be raised on
@@ -1899,177 +1870,13 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             // so only validate if commonAssignmentCheck wasn't called
             validateTypeOf(tree);
         }
-        validateVariablesTargetLocation(tree, variableType);
+        typeValidator.validateVariableTargetLocation(variableType, tree);
         warnRedundantAnnotations(tree, variableType);
         Void result = super.visitVariable(tree, p);
 
         checkSlowTypechecking(tree, startSlowTypeCheckingTree, startMillis);
 
         return result;
-    }
-
-    /**
-     * Validates whether the qualifiers on the tree are at the correct type-use locations, as
-     * specified by the meta-annotation {@link org.checkerframework.framework.qual.TargetLocations}.
-     *
-     * <p>More specifically, this method only checks qualifiers on a VariableTree and thus checks
-     * for the following type-use locations: FIELD, LOCAL_VARIABLE, RESOURCE_VARIABLE,
-     * EXCEPTION_PARAMETER, PARAMETER, RECEIVER and CONSTRUCTOR_RESULT.
-     *
-     * <p>The other two validate methods achieve the same goal but perform checks on different trees
-     * and different type-use locations. This separation exists because variables can automatically
-     * infer their type-use location from their {@link javax.lang.model.element.ElementKind}. By
-     * contrast, other constructs (like method returns or type bounds) have context-dependent
-     * locations that must be explicitly provided by the caller, and wildcards do not have an
-     * element. See {@link BaseTypeVisitor#validateTargetLocation(Tree, AnnotatedTypeMirror,
-     * TypeUseLocation)} and {@link
-     * BaseTypeValidator#validateWildCardTargetLocation(AnnotatedTypeMirror.AnnotatedWildcardType,
-     * Tree)}.
-     *
-     * @param tree the tree whose qualifiers are to be validated
-     * @param type the type of the tree
-     * @see BaseTypeVisitor#validateTargetLocation(Tree, AnnotatedTypeMirror, TypeUseLocation)
-     * @see
-     *     BaseTypeValidator#validateWildCardTargetLocation(AnnotatedTypeMirror.AnnotatedWildcardType,
-     *     Tree)
-     */
-    // TODO: rename to validateVariableTargetLocation
-    protected void validateVariablesTargetLocation(Tree tree, AnnotatedTypeMirror type) {
-        if (ignoreTargetLocations || noQualHasTargetLocations) {
-            return;
-        }
-        Element element = TreeUtils.elementFromTree(tree);
-
-        if (element != null) {
-            ElementKind elemKind = element.getKind();
-            // TypeUseLocation.java doesn't have ENUM type use location right now.
-            for (AnnotationMirror am : type.getAnnotations()) {
-                List<TypeUseLocation> locations =
-                        qualAllowedLocations.get(AnnotationUtils.annotationName(am));
-                if (locations == null || locations.contains(TypeUseLocation.ALL)) {
-                    continue;
-                }
-                boolean issueError = true;
-                switch (elemKind) {
-                    case LOCAL_VARIABLE:
-                        if (locations.contains(TypeUseLocation.LOCAL_VARIABLE)) issueError = false;
-                        break;
-                    case EXCEPTION_PARAMETER:
-                        if (locations.contains(TypeUseLocation.EXCEPTION_PARAMETER))
-                            issueError = false;
-                        break;
-                    case PARAMETER:
-                        if (InternalUtils.isThisName(((VariableTree) tree).getName())) {
-                            if (locations.contains(TypeUseLocation.RECEIVER)) {
-                                issueError = false;
-                            }
-                        } else {
-                            if (locations.contains(TypeUseLocation.PARAMETER)) {
-                                issueError = false;
-                            }
-                        }
-                        break;
-                    case RESOURCE_VARIABLE:
-                        if (locations.contains(TypeUseLocation.RESOURCE_VARIABLE)) {
-                            issueError = false;
-                        }
-                        break;
-                    case FIELD:
-                        if (locations.contains(TypeUseLocation.FIELD)) {
-                            issueError = false;
-                        }
-                        break;
-                    case ENUM_CONSTANT:
-                        if (locations.contains(TypeUseLocation.FIELD)
-                                || locations.contains(TypeUseLocation.CONSTRUCTOR_RESULT)) {
-                            issueError = false;
-                        }
-                        break;
-                    default:
-                        throw new BugInCF("Location not matched");
-                }
-                if (issueError) {
-                    checker.reportError(
-                            tree,
-                            "type.invalid.annotations.on.location",
-                            am.toString(),
-                            element.getKind().name());
-                }
-            }
-        }
-    }
-
-    /**
-     * Validates whether the qualifiers on the tree are at the correct type-use locations, as
-     * specified by the meta-annotation {@link org.checkerframework.framework.qual.TargetLocations}.
-     *
-     * <p>More specifically, this method only checks qualifiers on a TypeParameter or Method tree
-     * and thus checks for the following type-use locations: LOWER_BOUND, UPPER_BOUND,
-     * CONSTRUCTOR_RESULT and RETURN.
-     *
-     * <p>The other two validate methods achieve the same goal but perform checks on different trees
-     * and different type-use locations. This separation exists because constructs handled by this
-     * method have context-dependent locations that must be explicitly provided by the caller. By
-     * contrast, variables can automatically infer their type-use location from their ElementKind,
-     * and wildcards do not have an element. See {@link
-     * BaseTypeVisitor#validateVariablesTargetLocation(Tree, AnnotatedTypeMirror)} and {@link
-     * BaseTypeValidator#validateWildCardTargetLocation(AnnotatedTypeMirror.AnnotatedWildcardType,
-     * Tree)}.
-     *
-     * @param tree the tree whose qualifiers are to be validated
-     * @param type the type of the tree
-     * @param required the required TypeUseLocation. If it is not present in the specification of
-     *     the meta-annotation ({@link org.checkerframework.framework.qual.TargetLocations}), issue
-     *     an error.
-     * @see BaseTypeVisitor#validateVariablesTargetLocation(Tree, AnnotatedTypeMirror)
-     * @see
-     *     BaseTypeValidator#validateWildCardTargetLocation(AnnotatedTypeMirror.AnnotatedWildcardType,
-     *     Tree)
-     */
-    protected void validateTargetLocation(
-            Tree tree, AnnotatedTypeMirror type, TypeUseLocation required) {
-        if (ignoreTargetLocations || noQualHasTargetLocations) {
-            return;
-        }
-        for (AnnotationMirror am : type.getAnnotations()) {
-            List<TypeUseLocation> locations =
-                    qualAllowedLocations.get(AnnotationUtils.annotationName(am));
-            if (locations == null || locations.contains(TypeUseLocation.ALL)) {
-                continue;
-            }
-            boolean issueError = !locations.contains(required);
-
-            if (issueError) {
-                checker.reportError(
-                        tree,
-                        "type.invalid.annotations.on.location",
-                        am.toString(),
-                        required.toString());
-            }
-        }
-    }
-
-    /**
-     * Create a new map, which is used for declared type-use locations lookup.
-     *
-     * @return a new mapping from strings of qualifier names to their declared type-use locations.
-     */
-    protected Map<@CanonicalName String, List<TypeUseLocation>> createQualAllowedLocations() {
-        HashMap<@CanonicalName String, List<TypeUseLocation>> qualAllowedLocations =
-                new HashMap<>();
-        for (String qual : atypeFactory.getSupportedTypeQualifierNames()) {
-            Element elem = elements.getTypeElement(qual);
-            TargetLocations tls = elem.getAnnotation(TargetLocations.class);
-            // @Target({ElementType.TYPE_USE})} together with no @TargetLocations(...) means that
-            // the qualifier can be written on any type use.
-            if (tls == null) {
-                qualAllowedLocations.put(qual, null);
-                continue;
-            }
-            List<TypeUseLocation> locations = Arrays.asList(tls.value());
-            qualAllowedLocations.put(qual, locations);
-        }
-        return qualAllowedLocations;
     }
 
     /**
@@ -5718,18 +5525,8 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             case EXTENDS_WILDCARD:
             case SUPER_WILDCARD:
             case ANNOTATED_TYPE:
-                type = atypeFactory.getAnnotatedTypeFromTypeTree(tree);
-                break;
             case TYPE_PARAMETER:
                 type = atypeFactory.getAnnotatedTypeFromTypeTree(tree);
-                validateTargetLocation(
-                        tree,
-                        ((AnnotatedTypeVariable) type).getUpperBound(),
-                        TypeUseLocation.UPPER_BOUND);
-                validateTargetLocation(
-                        tree,
-                        ((AnnotatedTypeVariable) type).getLowerBound(),
-                        TypeUseLocation.LOWER_BOUND);
                 break;
             case METHOD:
                 type = atypeFactory.getMethodReturnType((MethodTree) tree);
@@ -5740,9 +5537,10 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                     return true;
                 }
                 if (TreeUtils.isConstructor((MethodTree) tree)) {
-                    validateTargetLocation(tree, type, TypeUseLocation.CONSTRUCTOR_RESULT);
+                    typeValidator.validateTargetLocation(
+                            type, tree, TypeUseLocation.CONSTRUCTOR_RESULT);
                 } else {
-                    validateTargetLocation(tree, type, TypeUseLocation.RETURN);
+                    typeValidator.validateTargetLocation(type, tree, TypeUseLocation.RETURN);
                 }
                 break;
             default:
