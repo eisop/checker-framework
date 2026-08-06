@@ -14,7 +14,7 @@ import java.lang.annotation.Target;
  * A method postcondition annotation that guarantees that the given Java expressions are {@link
  * Initialized} after the method terminates successfully.
  *
- * <p>Note: This is an initialization checker postcondition, distinct from {@link
+ * <p>Note: This is an Initialization Checker postcondition, distinct from {@link
  * org.checkerframework.common.initializedfields.qual.EnsuresInitializedFields} which is used by the
  * standalone Initialized Fields Checker.
  *
