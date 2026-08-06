@@ -119,9 +119,9 @@ dependencies {
 
     // Required for checker/tests/index-initializedfields/RequireJavadoc.java
     if (isJava8) {
-        testImplementation 'org.plumelib:options:1.0.6'
+        testImplementation 'org.plumelib:options:3.0.0'
     } else {
-        testImplementation 'org.plumelib:options:2.0.3'
+        testImplementation 'org.plumelib:options:3.0.0'
     }
 
     testImplementation "junit:junit:${versions.junit}"
