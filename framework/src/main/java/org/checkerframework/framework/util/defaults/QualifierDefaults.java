@@ -790,14 +790,11 @@ public class QualifierDefaults {
             qualifiers = parentDefaults;
         } else {
             // A default for a given (location, hierarchy) at a nearer scope shadows a default for
-            // the
-            // same (location, hierarchy) at an enclosing scope: only inherit an enclosing-scope
-            // default
-            // whose (location, hierarchy) the nearer scope does not itself set. Without this, both
-            // defaults
-            // would coexist in the (location, annotation)-ordered TreeSet and the winner between
-            // them
-            // would be decided by annotation ordering rather than by scope distance.
+            // the same (location, hierarchy) at an enclosing scope: only inherit an enclosing-scope
+            // default whose (location, hierarchy) the nearer scope does not itself set. Without
+            // this, both defaults would coexist in the (location, annotation)-ordered TreeSet and
+            // the winner between them would be decided by annotation ordering rather than by scope
+            // distance.
             QualifierHierarchy qualHierarchy = atypeFactory.getQualifierHierarchy();
             List<Default> nearerDefaults = new ArrayList<>(qualifiers);
             for (Default d : parentDefaults) {
