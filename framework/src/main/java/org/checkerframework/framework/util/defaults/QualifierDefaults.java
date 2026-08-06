@@ -41,7 +41,6 @@ import org.plumelib.util.StringsPlume;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.EnumSet;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Set;
@@ -790,19 +789,30 @@ public class QualifierDefaults {
         if (qualifiers == null || qualifiers.isEmpty()) {
             qualifiers = parentDefaults;
         } else {
-            // A default for a given location at a nearer scope shadows a default for the same
-            // location at an enclosing scope: only inherit an enclosing-scope default whose
-            // location the nearer scope does not itself set. Without this, both defaults would
-            // coexist in the (location, annotation)-ordered TreeSet and the winner between them
-            // would be decided by annotation ordering rather than by scope distance -- so an
-            // enclosing scope could override a nearer one (e.g. a nested @NullUnmarked failing to
-            // override an enclosing @NullMarked for a wildcard's implicit upper bound).
-            Set<TypeUseLocation> nearerLocations = EnumSet.noneOf(TypeUseLocation.class);
-            for (Default d : qualifiers) {
-                nearerLocations.add(d.location);
-            }
+            // A default for a given (location, hierarchy) at a nearer scope shadows a default for
+            // the
+            // same (location, hierarchy) at an enclosing scope: only inherit an enclosing-scope
+            // default
+            // whose (location, hierarchy) the nearer scope does not itself set. Without this, both
+            // defaults
+            // would coexist in the (location, annotation)-ordered TreeSet and the winner between
+            // them
+            // would be decided by annotation ordering rather than by scope distance.
+            QualifierHierarchy qualHierarchy = atypeFactory.getQualifierHierarchy();
+            List<Default> nearerDefaults = new ArrayList<>(qualifiers);
             for (Default d : parentDefaults) {
-                if (!nearerLocations.contains(d.location)) {
+                boolean shadowed = false;
+                AnnotationMirror parentTop = qualHierarchy.getTopAnnotation(d.anno);
+                for (Default nearer : nearerDefaults) {
+                    if (nearer.location == d.location) {
+                        AnnotationMirror nearerTop = qualHierarchy.getTopAnnotation(nearer.anno);
+                        if (AnnotationUtils.areSame(parentTop, nearerTop)) {
+                            shadowed = true;
+                            break;
+                        }
+                    }
+                }
+                if (!shadowed) {
                     qualifiers.add(d);
                 }
             }
