@@ -796,11 +796,10 @@ public class QualifierDefaults {
             // the winner between them would be decided by annotation ordering rather than by scope
             // distance.
             QualifierHierarchy qualHierarchy = atypeFactory.getQualifierHierarchy();
-            Default[] nearerDefaults = qualifiers.toArray(new Default[qualifiers.size()]);
             for (Default d : parentDefaults) {
                 boolean shadowed = false;
                 AnnotationMirror parentTop = qualHierarchy.getTopAnnotation(d.anno);
-                for (Default nearer : nearerDefaults) {
+                for (Default nearer : qualifiers) {
                     if (nearer.location == d.location) {
                         AnnotationMirror nearerTop = qualHierarchy.getTopAnnotation(nearer.anno);
                         if (AnnotationUtils.areSame(parentTop, nearerTop)) {
