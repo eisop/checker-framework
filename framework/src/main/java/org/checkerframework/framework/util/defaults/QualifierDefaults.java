@@ -38,7 +38,6 @@ import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TypesUtils;
 import org.plumelib.util.StringsPlume;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.IdentityHashMap;
@@ -796,7 +795,7 @@ public class QualifierDefaults {
             // the winner between them would be decided by annotation ordering rather than by scope
             // distance.
             QualifierHierarchy qualHierarchy = atypeFactory.getQualifierHierarchy();
-            List<Default> nearerDefaults = new ArrayList<>(qualifiers);
+            Default[] nearerDefaults = qualifiers.toArray(new Default[qualifiers.size()]);
             for (Default d : parentDefaults) {
                 boolean shadowed = false;
                 AnnotationMirror parentTop = qualHierarchy.getTopAnnotation(d.anno);
