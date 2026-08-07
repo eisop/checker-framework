@@ -1,0 +1,7 @@
+Use.java:13:33: compiler.err.proc.messager: [type.argument.type.incompatible] incompatible type argument for type parameter E of Iterator.
+found   : @S1 String
+required: @Bottom Object
+Use.java:17:22: compiler.err.proc.messager: [type.argument.type.incompatible] incompatible type argument for type parameter T extends @Bottom Object of Collections.emptyList.
+found   : @S1 String
+required: @Bottom Object
+2 errors

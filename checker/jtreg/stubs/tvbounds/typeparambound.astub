@@ -5,3 +5,7 @@ package java.util;
 interface Iterator<E extends @Bottom Object> {
     @Bottom E next();
 }
+
+class Collections {
+    static <T extends @Bottom Object> List<T> emptyList();
+}
