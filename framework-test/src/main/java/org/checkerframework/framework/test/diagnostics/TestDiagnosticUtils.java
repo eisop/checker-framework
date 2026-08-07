@@ -221,14 +221,18 @@ public class TestDiagnosticUtils {
 
             // (3) the diagnostic position, given by the format (startPosition, endPosition);
             String pairParens = diagnosticStrings[lastAdditionalToken];
-            // remove the leading and trailing parentheses and spaces
-            String pair = pairParens.substring(2, pairParens.length() - 2);
-            // Splitting on the fixed two-character literal ", "; Pattern.quote prevents regex
-            // interpretation. Trailing empty strings cannot occur in "(start, end)" format.
-            @SuppressWarnings("StringSplitter")
-            String[] diagPositionString = pair.split(Pattern.quote(", "));
-            long startPosition = Long.parseLong(diagPositionString[0]);
-            long endPosition = Long.parseLong(diagPositionString[1]);
+            long startPosition = -1;
+            long endPosition = -1;
+            if (!pairParens.isEmpty() && pairParens.length() >= 4) {
+                // remove the leading and trailing parentheses and spaces
+                String pair = pairParens.substring(2, pairParens.length() - 2);
+                // Splitting on the fixed two-character literal ", "; Pattern.quote prevents regex
+                // interpretation. Trailing empty strings cannot occur in "(start, end)" format.
+                @SuppressWarnings("StringSplitter")
+                String[] diagPositionString = pair.split(Pattern.quote(", "));
+                startPosition = Long.parseLong(diagPositionString[0]);
+                endPosition = Long.parseLong(diagPositionString[1]);
+            }
 
             // (4) the human-readable diagnostic message.
             String readableMessage = diagnosticStrings[lastAdditionalToken + 1];
