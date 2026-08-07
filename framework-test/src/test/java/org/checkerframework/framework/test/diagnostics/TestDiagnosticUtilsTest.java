@@ -1,8 +1,6 @@
 package org.checkerframework.framework.test.diagnostics;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-
+import org.junit.Assert;
 import org.junit.Test;
 
 /** Tests for {@link TestDiagnosticUtils}. */
@@ -15,7 +13,7 @@ public class TestDiagnosticUtilsTest {
 
         TestDiagnostic diagnostic = TestDiagnosticUtils.fromDiagnosticFileString(diagnosticString);
 
-        assertNotNull(diagnostic);
-        assertEquals("messageKey", diagnostic.getMessageKey());
+        Assert.assertNotNull(diagnostic);
+        Assert.assertEquals("messageKey", diagnostic.getMessageKey());
     }
 }
