@@ -2,6 +2,6 @@ import org.checkerframework.framework.testchecker.typedeclbounds.quals.*;
 
 package java.util;
 
-class Iterator<E extends @Bottom Object> {
+interface Iterator<E extends @Bottom Object> {
     @Bottom E next();
 }
