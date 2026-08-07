@@ -1052,6 +1052,13 @@ public class AnnotatedTypes {
                     // the type variable is below `superAnno`.
                     ((AnnotatedTypeVariable) glb).getUpperBound().replaceAnnotation(superAnno);
                 }
+            } else if (superAnno == null) {
+                if (supertype.getKind() != TypeKind.TYPEVAR) {
+                    throw new BugInCF("Missing primary annotations: supertype: %s", supertype);
+                }
+                AnnotationMirror ubAnno = supertype.getEffectiveAnnotationInHierarchy(top);
+                glb.addAnnotation(
+                        qualHierarchy.greatestLowerBoundShallow(subAnno, subTM, ubAnno, superTM));
             } else {
                 throw new BugInCF("GLB: subtype: %s, supertype: %s", subtype, supertype);
             }

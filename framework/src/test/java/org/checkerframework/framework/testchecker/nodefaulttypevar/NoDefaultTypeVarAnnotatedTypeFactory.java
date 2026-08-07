@@ -1,0 +1,29 @@
+package org.checkerframework.framework.testchecker.nodefaulttypevar;
+
+import org.checkerframework.common.basetype.BaseAnnotatedTypeFactory;
+import org.checkerframework.common.basetype.BaseTypeChecker;
+import org.checkerframework.framework.type.AnnotatedTypeMirror;
+
+public class NoDefaultTypeVarAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
+    @SuppressWarnings("this-escape")
+    public NoDefaultTypeVarAnnotatedTypeFactory(BaseTypeChecker checker) {
+        super(checker);
+        this.postInit();
+    }
+
+    @Override
+    public void addDefaultAnnotations(AnnotatedTypeMirror type) {
+        // Disable defaulting for this test checker so bare type variables reach GLB computation
+        // without a primary annotation.
+    }
+
+    @Override
+    protected java.util.Set<Class<? extends java.lang.annotation.Annotation>>
+            createSupportedTypeQualifiers() {
+        return new java.util.LinkedHashSet<>(
+                java.util.Arrays.asList(
+                        org.checkerframework.framework.testchecker.nodefaulttypevar.quals.Top.class,
+                        org.checkerframework.framework.testchecker.nodefaulttypevar.quals.Bottom
+                                .class));
+    }
+}
