@@ -2,7 +2,14 @@ package org.checkerframework.framework.testchecker.nodefaulttypevar;
 
 import org.checkerframework.common.basetype.BaseAnnotatedTypeFactory;
 import org.checkerframework.common.basetype.BaseTypeChecker;
+import org.checkerframework.framework.testchecker.nodefaulttypevar.quals.Bottom;
+import org.checkerframework.framework.testchecker.nodefaulttypevar.quals.Top;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
+
+import java.lang.annotation.Annotation;
+import java.util.Arrays;
+import java.util.LinkedHashSet;
+import java.util.Set;
 
 /**
  * AnnotatedTypeFactory for NoDefaultTypeVarChecker. Disables default annotations to reproduce the
@@ -27,12 +34,7 @@ public class NoDefaultTypeVarAnnotatedTypeFactory extends BaseAnnotatedTypeFacto
     }
 
     @Override
-    protected java.util.Set<Class<? extends java.lang.annotation.Annotation>>
-            createSupportedTypeQualifiers() {
-        return new java.util.LinkedHashSet<>(
-                java.util.Arrays.asList(
-                        org.checkerframework.framework.testchecker.nodefaulttypevar.quals.Top.class,
-                        org.checkerframework.framework.testchecker.nodefaulttypevar.quals.Bottom
-                                .class));
+    protected Set<Class<? extends Annotation>> createSupportedTypeQualifiers() {
+        return new LinkedHashSet<>(Arrays.asList(Top.class, Bottom.class));
     }
 }

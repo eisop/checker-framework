@@ -1,6 +1,7 @@
 package org.checkerframework.framework.test.junit;
 
 import org.checkerframework.framework.test.CheckerFrameworkPerDirectoryTest;
+import org.checkerframework.framework.testchecker.nodefaulttypevar.NoDefaultTypeVarChecker;
 import org.junit.runners.Parameterized.Parameters;
 
 import java.io.File;
@@ -18,12 +19,7 @@ public class NoDefaultTypeVarTest extends CheckerFrameworkPerDirectoryTest {
      * @param testFiles the test files
      */
     public NoDefaultTypeVarTest(List<File> testFiles) {
-        super(
-                testFiles,
-                org.checkerframework.framework.testchecker.nodefaulttypevar.NoDefaultTypeVarChecker
-                        .class,
-                "nodefaulttypevar",
-                "-nowarn");
+        super(testFiles, NoDefaultTypeVarChecker.class, "nodefaulttypevar", "-nowarn");
     }
 
     /**
