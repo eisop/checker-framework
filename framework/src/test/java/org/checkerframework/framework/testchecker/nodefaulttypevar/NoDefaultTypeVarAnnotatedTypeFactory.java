@@ -4,7 +4,16 @@ import org.checkerframework.common.basetype.BaseAnnotatedTypeFactory;
 import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
 
+/**
+ * AnnotatedTypeFactory for NoDefaultTypeVarChecker. Disables default annotations to reproduce the
+ * missing annotation scenario.
+ */
 public class NoDefaultTypeVarAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
+    /**
+     * Creates a new NoDefaultTypeVarAnnotatedTypeFactory.
+     *
+     * @param checker the checker
+     */
     @SuppressWarnings("this-escape")
     public NoDefaultTypeVarAnnotatedTypeFactory(BaseTypeChecker checker) {
         super(checker);

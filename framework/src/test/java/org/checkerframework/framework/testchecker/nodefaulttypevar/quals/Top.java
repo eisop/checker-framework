@@ -6,6 +6,7 @@ import org.checkerframework.framework.qual.SubtypeOf;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Target;
 
+/** The top type qualifier for the NoDefaultTypeVarChecker type system. */
 @Target({ElementType.TYPE_USE, ElementType.TYPE_PARAMETER})
 @SubtypeOf({})
 @DefaultQualifierInHierarchy
