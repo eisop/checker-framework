@@ -223,7 +223,7 @@ public class TestDiagnosticUtils {
             String pairParens = diagnosticStrings[lastAdditionalToken];
             long startPosition = -1;
             long endPosition = -1;
-            if (!pairParens.isEmpty() && pairParens.length() >= 4) {
+            if (pairParens.length() >= 4) {
                 // remove the leading and trailing parentheses and spaces
                 String pair = pairParens.substring(2, pairParens.length() - 2);
                 // Splitting on the fixed two-character literal ", "; Pattern.quote prevents regex
