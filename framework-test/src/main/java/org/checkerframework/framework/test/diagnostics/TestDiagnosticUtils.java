@@ -230,8 +230,14 @@ public class TestDiagnosticUtils {
                 // interpretation. Trailing empty strings cannot occur in "(start, end)" format.
                 @SuppressWarnings("StringSplitter")
                 String[] diagPositionString = pair.split(Pattern.quote(", "));
-                startPosition = Long.parseLong(diagPositionString[0]);
-                endPosition = Long.parseLong(diagPositionString[1]);
+                if (diagPositionString.length == 2) {
+                    try {
+                        startPosition = Long.parseLong(diagPositionString[0]);
+                        endPosition = Long.parseLong(diagPositionString[1]);
+                    } catch (NumberFormatException e) {
+                        // If parsing fails, leave positions at -1
+                    }
+                }
             }
 
             // (4) the human-readable diagnostic message.
