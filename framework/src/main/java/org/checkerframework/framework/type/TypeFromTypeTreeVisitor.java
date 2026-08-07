@@ -105,6 +105,9 @@ class TypeFromTypeTreeVisitor extends TypeFromTreeVisitor {
             }
         } else {
             type.addAnnotations(annos);
+            if (type.getKind() == TypeKind.TYPEVAR && !annos.isEmpty()) {
+                ((AnnotatedTypeVariable) type).markAsConcreteTypeVariableUse(annos);
+            }
         }
 
         return type;

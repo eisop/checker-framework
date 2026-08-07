@@ -1,6 +1,8 @@
 package org.checkerframework.framework.type;
 
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedTypeVariable;
+import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedTypeVariable.TypeVariableUseKind;
+import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.TypesUtils;
 
 import java.util.ArrayList;
@@ -59,8 +61,9 @@ public class TypeVariableSubstitutor {
      * correct annotations.
      *
      * <p>To determine what primary annotations are correct for the substitute the following rules
-     * are used: If the type variable use has a primary annotation then apply that primary
-     * annotation to the substitute. Otherwise, use the annotations of the argument.
+     * are used: if the type variable use represents {@code @Sub E}, use the annotations of the
+     * argument. If it represents {@code @Concrete q E}, apply the type variable use's primary
+     * annotations to the substitute.
      *
      * @param argument the argument to declaration (this will be a value in typeParamToArg)
      * @param use the use that is being replaced
@@ -69,8 +72,11 @@ public class TypeVariableSubstitutor {
     protected AnnotatedTypeMirror substituteTypeVariable(
             AnnotatedTypeMirror argument, AnnotatedTypeVariable use) {
         AnnotatedTypeMirror substitute = argument.deepCopy(true);
-        if (!use.getAnnotationsField().isEmpty()) {
-            substitute.replaceAnnotations(use.getAnnotationsField());
+        if (use.getTypeVariableUseKind() == TypeVariableUseKind.CONCRETE) {
+            AnnotationMirrorSet concreteAnnotations = use.getConcreteTypeVariableUseAnnotations();
+            if (!concreteAnnotations.isEmpty()) {
+                substitute.replaceAnnotations(concreteAnnotations);
+            }
         }
         return substitute;
     }
