@@ -789,8 +789,29 @@ public class QualifierDefaults {
         if (qualifiers == null || qualifiers.isEmpty()) {
             qualifiers = parentDefaults;
         } else {
-            // TODO(cpovirk): What should happen with conflicts?
-            qualifiers.addAll(parentDefaults);
+            // A default for a given (location, hierarchy) at a nearer scope shadows a default for
+            // the same (location, hierarchy) at an enclosing scope: only inherit an enclosing-scope
+            // default whose (location, hierarchy) the nearer scope does not itself set. Without
+            // this, both defaults would coexist in the (location, annotation)-ordered TreeSet and
+            // the winner between them would be decided by annotation ordering rather than by scope
+            // distance.
+            QualifierHierarchy qualHierarchy = atypeFactory.getQualifierHierarchy();
+            for (Default d : parentDefaults) {
+                boolean shadowed = false;
+                AnnotationMirror parentTop = qualHierarchy.getTopAnnotation(d.anno);
+                for (Default nearer : qualifiers) {
+                    if (nearer.location == d.location) {
+                        AnnotationMirror nearerTop = qualHierarchy.getTopAnnotation(nearer.anno);
+                        if (AnnotationUtils.areSame(parentTop, nearerTop)) {
+                            shadowed = true;
+                            break;
+                        }
+                    }
+                }
+                if (!shadowed) {
+                    qualifiers.add(d);
+                }
+            }
         }
 
         if (!qualifiers.isEmpty()) {
