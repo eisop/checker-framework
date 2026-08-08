@@ -2324,6 +2324,12 @@ public class AnnotationFileParser {
                 continue;
             }
             ExecutableElement candidate = (ExecutableElement) elt;
+            // Skip private methods: they cannot be overridden, so they cannot be fake override
+            // targets. This mirrors BinaryStubWriter.processCallable, which never writes private
+            // methods.
+            if (candidate.getModifiers().contains(javax.lang.model.element.Modifier.PRIVATE)) {
+                continue;
+            }
             if (!InternalUtils.sameName(
                     candidate.getSimpleName(), methodDecl.getName().getIdentifier())) {
                 continue;
