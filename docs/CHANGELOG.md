@@ -159,6 +159,18 @@ so the captured type variable's upper bound is no longer computed too low.
 Previously the missing qualifier could silently suppress an
 `assignment.type.incompatible` error.
 
+Type-argument inference now resolves the polymorphic qualifiers of a method
+reference's compile-time declaration against the parameter types of the target
+function type, before it builds the inference constraints. Previously a
+polymorphic qualifier reached the solver as if it were a concrete qualifier, so
+a call whose type argument is inferred, such as `s.map(obj::polyMethod)`,
+reported a spurious `type.arguments.not.inferred` ("unsatisfiable constraint:
+`@PolyNull Lib <: @NonNull Lib`"), even though the same call written as a lambda
+(`s.map(o -> obj.polyMethod(o))`) or with an explicit type argument
+(`s.<Lib>map(obj::polyMethod)`) was accepted. This is the resolution that the
+method reference's override check already performed, but only after inference
+had finished.
+
 **Implementation details:**
 
 `TypeFromTypeTreeVisitor` now restores the declared bounds of type-variable
