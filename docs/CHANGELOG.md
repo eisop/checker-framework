@@ -161,6 +161,17 @@ Previously the missing qualifier could silently suppress an
 
 **Implementation details:**
 
+`BaseTypeVisitor.OverrideChecker.checkParameters` now delegates its per-parameter
+override compatibility check to a new overridable `isParameterOverrideValid` method,
+instead of inlining the subtype test and type-variable containment fallback. That
+default check is contravariant (the overridden parameter must be a subtype of the
+overriding parameter, the standard override rule in CF's type systems). A checker
+whose type rules require parameter <em>invariance</em> for overrides (both directions
+must be subtypes, as in JSpecify's override rules) can now override just this method
+to change the directionality, rather than duplicating the entire ~35-line
+`checkParameters` and `checkParametersMsg` loop-and-error-reporting logic. No
+behavior change for CF's own (contravariant) checkers.
+
 `TypeFromTypeTreeVisitor` now restores the declared bounds of type-variable
 type arguments that appear in the enclosing type of a nested type (e.g. the
 implicit `Outer<XXX>` enclosing `Super` in `class Sub extends Super`, or the
