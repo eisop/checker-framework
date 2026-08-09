@@ -330,6 +330,16 @@ Performance optimizations:
 Other improvements and bug fixes:
 - `TreeUtils` has a new `inferredTypeArguments(ExpressionTree)` method to
   recover Java type variables inferred by javac.
+- `TypeVariableSubstitutor` has a new `substitute(Map, AnnotatedTypeMirror,
+  boolean)` overload and a corresponding new `substituteTypeVariable(argument,
+  use, boolean)` overload that also indicate whether the type argument being
+  substituted was inferred by the type checker, as opposed to written
+  explicitly by the programmer at the call site. The existing two-argument
+  overloads are unchanged and continue to default to `false`. This lets a
+  checker distinguish inferred from written type arguments during
+  substitution without a hand-rolled instance field that must be manually
+  saved and restored around reentrant `methodFromUse`/`constructorFromUse`
+  calls, as the JSpecify reference checker previously had to do.
 - Fixed a latent aliasing bug in `AnnotatedTypeCopier` for executable types.
 - Fixed an `IndexOutOfBoundsException` for lambdas in varargs.
 - Fixed `BinaryOperation.hashCode()` to agree with `equals()` for commutative

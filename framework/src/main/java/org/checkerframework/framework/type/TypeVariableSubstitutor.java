@@ -34,7 +34,27 @@ public class TypeVariableSubstitutor {
     public AnnotatedTypeMirror substitute(
             Map<TypeVariable, AnnotatedTypeMirror> typeVarToTypeArgument,
             AnnotatedTypeMirror type) {
-        return new Visitor(typeVarToTypeArgument, true).visit(type);
+        return substitute(typeVarToTypeArgument, type, false);
+    }
+
+    /**
+     * Given a mapping from type variable to its type argument, replace each instance of a type
+     * variable with a copy of type argument.
+     *
+     * @see #substituteTypeVariable(AnnotatedTypeMirror,
+     *     org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedTypeVariable, boolean)
+     * @param typeVarToTypeArgument a mapping from type variable to its type argument
+     * @param type the type to substitute
+     * @param typeArgumentsInferred whether the type arguments in {@code typeVarToTypeArgument} were
+     *     inferred by the type checker, as opposed to written explicitly by the programmer at the
+     *     call site
+     * @return a copy of type with its type variables substituted
+     */
+    public AnnotatedTypeMirror substitute(
+            Map<TypeVariable, AnnotatedTypeMirror> typeVarToTypeArgument,
+            AnnotatedTypeMirror type,
+            boolean typeArgumentsInferred) {
+        return new Visitor(typeVarToTypeArgument, true, typeArgumentsInferred).visit(type);
     }
 
     /**
@@ -76,6 +96,27 @@ public class TypeVariableSubstitutor {
     }
 
     /**
+     * As {@link #substituteTypeVariable(AnnotatedTypeMirror, AnnotatedTypeVariable)}, but also
+     * indicates whether {@code argument} is a type argument that the type checker inferred (true),
+     * as opposed to one the programmer wrote explicitly at the call site (false).
+     *
+     * <p>The default implementation ignores {@code argumentIsInferred} and delegates to {@link
+     * #substituteTypeVariable(AnnotatedTypeMirror, AnnotatedTypeVariable)}, so existing overrides
+     * of that method are unaffected. A checker that needs to treat inferred and written type
+     * arguments differently during substitution should override this method instead.
+     *
+     * @param argument the argument to declaration (this will be a value in typeParamToArg)
+     * @param use the use that is being replaced
+     * @param argumentIsInferred whether {@code argument} was inferred by the type checker rather
+     *     than written explicitly by the programmer
+     * @return a deep copy of argument with the appropriate annotations applied
+     */
+    protected AnnotatedTypeMirror substituteTypeVariable(
+            AnnotatedTypeMirror argument, AnnotatedTypeVariable use, boolean argumentIsInferred) {
+        return substituteTypeVariable(argument, use);
+    }
+
+    /**
      * Visitor that makes the substitution. This is an inner class so that its methods cannot be
      * called by clients of {@link TypeVariableSubstitutor}.
      */
@@ -103,6 +144,12 @@ public class TypeVariableSubstitutor {
         private final boolean copyArgument;
 
         /**
+         * Whether the type arguments in {@code elementToArgMap} were inferred by the type checker,
+         * as opposed to written explicitly by the programmer at the call site.
+         */
+        private final boolean typeArgumentsInferred;
+
+        /**
          * Creates the Visitor.
          *
          * @param typeParamToArg mapping from TypeVariable to the AnnotatedTypeMirror that will
@@ -111,6 +158,23 @@ public class TypeVariableSubstitutor {
          */
         public Visitor(
                 Map<TypeVariable, AnnotatedTypeMirror> typeParamToArg, boolean copyArgument) {
+            this(typeParamToArg, copyArgument, false);
+        }
+
+        /**
+         * Creates the Visitor.
+         *
+         * @param typeParamToArg mapping from TypeVariable to the AnnotatedTypeMirror that will
+         *     replace it
+         * @param copyArgument whether or not a copy of type argument should be substituted
+         * @param typeArgumentsInferred whether the type arguments in {@code typeParamToArg} were
+         *     inferred by the type checker, as opposed to written explicitly by the programmer at
+         *     the call site
+         */
+        public Visitor(
+                Map<TypeVariable, AnnotatedTypeMirror> typeParamToArg,
+                boolean copyArgument,
+                boolean typeArgumentsInferred) {
             int size = typeParamToArg.size();
             elementToArgMap = new HashMap<>(size);
             typeVars = new ArrayList<>(size);
@@ -125,6 +189,7 @@ public class TypeVariableSubstitutor {
                 typeMirrors.add(paramToArg.getValue().getUnderlyingType());
             }
             this.copyArgument = copyArgument;
+            this.typeArgumentsInferred = typeArgumentsInferred;
         }
 
         @Override
@@ -168,7 +233,7 @@ public class TypeVariableSubstitutor {
                 AnnotatedTypeMirror argument = elementToArgMap.get(typeVarElem);
                 if (argument != null) {
                     if (copyArgument) {
-                        return substituteTypeVariable(argument, original);
+                        return substituteTypeVariable(argument, original, typeArgumentsInferred);
                     } else {
                         return argument;
                     }
