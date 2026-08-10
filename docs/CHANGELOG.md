@@ -161,6 +161,38 @@ Previously the missing qualifier could silently suppress an
 
 **Implementation details:**
 
+`TypeFromTypeTreeVisitor` now restores the declared bounds of type-variable
+type arguments that appear in the enclosing type of a nested type (e.g. the
+implicit `Outer<XXX>` enclosing `Super` in `class Sub extends Super`, or the
+explicit one in `class Sub extends Outer<XXX>.Super`). Previously such
+enclosing type variables carried defaulted bounds rather than the bounds
+written on their declaration (partial fix for eisop#737). This has no effect on
+the final supertype on the built-in lattices (later substitution already
+corrected it), but the intermediate type is now faithful, which matters for
+type systems with stricter substitution.
+
+`BaseTypeValidator` now checks the type arguments of an explicitly-written
+enclosing type against the enclosing type parameters' declared bounds, so
+`Outer<@NonNull String>.Inner` is rejected when `@NonNull String` violates
+`Outer`'s type-parameter bound, matching the existing behavior for the
+non-enclosing `Outer<@NonNull String>` (further work on eisop#737).
+Previously an enclosing type's arguments were never validated. This covers a
+method's return type (e.g. `Outer<@NonNull String>.Inner returnType()`) and a
+`new` expression's instantiated type (e.g. `new Outer<@NonNull String>.Inner()`)
+in addition to fields, parameters, and other ordinary type-use positions.
+
+`TypeFromTypeTreeVisitor` now restores the annotations written on the type
+arguments of an explicitly-written enclosing type of a qualified type, so a
+qualified type used in an extends/implements clause (`class Sub extends
+Outer<@Nullable String>.Sup`) or a local-variable declaration
+(`Outer<@Nullable String>.Inner x`) now carries the written enclosing-argument
+qualifier, and an out-of-bound argument in those positions is rejected. This
+completes the fix for eisop#737. Previously the written qualifier was dropped
+during tree-to-type conversion, so the validator never saw it: for a field or
+method parameter the element-based annotation recovery restored it, but a
+local-variable element does not retain it and an extends/implements clause has
+no element, so those two positions were silently accepted.
+
 `SourceChecker.reportError` and `SourceChecker.reportWarning` now accept a null
 source, for a message that has no source position. Such a message is reported
 against the compilation as a whole, and is suppressed only by
@@ -316,7 +348,7 @@ Other improvements and bug fixes:
 
 **Closed issues:**
 
-eisop#433, eisop#792, eisop#863, eisop#949, eisop#1015, eisop#1074,
+eisop#433, eisop#737, eisop#792, eisop#863, eisop#949, eisop#1015, eisop#1074,
 eisop#1244, eisop#1315, eisop#1564, eisop#1592, eisop#1642, eisop#1653,
 eisop#1735, eisop#1801, eisop#1818, eisop#1819, eisop#1861, eisop#1862,
 eisop#1863, eisop#1865, eisop#1887.

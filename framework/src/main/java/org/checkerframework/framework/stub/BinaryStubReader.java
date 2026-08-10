@@ -38,6 +38,7 @@ import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
+import javax.lang.model.element.Modifier;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.TypeParameterElement;
 import javax.lang.model.element.VariableElement;
@@ -966,7 +967,14 @@ public class BinaryStubReader {
             AnnotationFileElementTypes elementTypes,
             boolean typevarLenient) {
         if (!typevarLenient) {
-            return elementTypes.methodSigIndex(typeElt).get(sig);
+            ExecutableElement ee = elementTypes.methodSigIndex(typeElt).get(sig);
+            // Skip private methods: they cannot be overridden, so they cannot be fake override
+            // targets. This mirrors AnnotationFileParser.declaredMethodMatching and
+            // BinaryStubWriter.processCallable, which never writes private methods.
+            if (ee != null && ee.getModifiers().contains(Modifier.PRIVATE)) {
+                return null;
+            }
+            return ee;
         }
         int paren = sig.indexOf('(');
         if (paren == -1 || !sig.endsWith(")")) {
@@ -977,6 +985,11 @@ public class BinaryStubReader {
         String[] sigParams = paramList.isEmpty() ? new String[0] : paramList.split(",", -1);
         ExecutableElement match = null;
         for (ExecutableElement candidate : ElementFilter.methodsIn(typeElt.getEnclosedElements())) {
+            // Skip private methods: they cannot be overridden, so they cannot be fake override
+            // targets.
+            if (candidate.getModifiers().contains(Modifier.PRIVATE)) {
+                continue;
+            }
             if (!InternalUtils.sameName(candidate.getSimpleName(), name)) {
                 continue;
             }
