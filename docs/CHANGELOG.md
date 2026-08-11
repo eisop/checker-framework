@@ -335,14 +335,15 @@ Other improvements and bug fixes:
   substituted were inferred by the type checker, as opposed to written
   explicitly by the programmer at the call site. The existing two-argument
   `substitute(Map, AnnotatedTypeMirror)` is unchanged and continues to default
-  to `false`. The corresponding extension point,
-  `substituteTypeVariable(AnnotatedTypeMirror, AnnotatedTypeVariable)`, now
-  always takes this flag as a third parameter; the two-argument overload has
-  been removed rather than kept alongside it, so a checker cannot accidentally
-  override one and not the other and be surprised that only one of its
-  overrides ever runs. This lets a checker distinguish inferred from written
-  type arguments during substitution without a hand-rolled instance field
-  that must be manually saved and restored around reentrant
+  to `false`; both `substitute(...)` overloads are now `final`, since they are
+  convenience entry points, not extension points. The corresponding extension
+  point, `substituteTypeVariable(AnnotatedTypeMirror, AnnotatedTypeVariable)`,
+  now always takes this flag as a third parameter; the two-argument overload
+  has been removed rather than kept alongside it, so a checker cannot
+  accidentally override one and not the other and be surprised that only one
+  of its overrides ever runs. This lets a checker distinguish inferred from
+  written type arguments during substitution without a hand-rolled instance
+  field that must be manually saved and restored around reentrant
   `methodFromUse`/`constructorFromUse` calls, as the JSpecify reference
   checker previously had to do.
 - Fixed a latent aliasing bug in `AnnotatedTypeCopier` for executable types.

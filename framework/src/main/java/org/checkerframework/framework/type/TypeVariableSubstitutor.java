@@ -25,13 +25,19 @@ public class TypeVariableSubstitutor {
      * Given a mapping from type variable to its type argument, replace each instance of a type
      * variable with a copy of type argument.
      *
+     * <p>This method is {@code final}: it is a convenience entry point, not an extension point. A
+     * checker that wants to customize substitution should override {@link
+     * #substituteTypeVariable(AnnotatedTypeMirror, AnnotatedTypeVariable, boolean)} instead
+     * (installed via {@code AnnotatedTypeFactory#createTypeVariableSubstitutor}), so there is
+     * exactly one override point rather than two arities that could be overridden inconsistently.
+     *
      * @see #substituteTypeVariable(AnnotatedTypeMirror,
      *     org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedTypeVariable, boolean)
      * @param typeVarToTypeArgument a mapping from type variable to its type argument
      * @param type the type to substitute
      * @return a copy of type with its type variables substituted
      */
-    public AnnotatedTypeMirror substitute(
+    public final AnnotatedTypeMirror substitute(
             Map<TypeVariable, AnnotatedTypeMirror> typeVarToTypeArgument,
             AnnotatedTypeMirror type) {
         return substitute(typeVarToTypeArgument, type, false);
@@ -40,6 +46,8 @@ public class TypeVariableSubstitutor {
     /**
      * Given a mapping from type variable to its type argument, replace each instance of a type
      * variable with a copy of type argument.
+     *
+     * <p>This method is {@code final}; see {@link #substitute(Map, AnnotatedTypeMirror)}.
      *
      * @see #substituteTypeVariable(AnnotatedTypeMirror,
      *     org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedTypeVariable, boolean)
@@ -50,7 +58,7 @@ public class TypeVariableSubstitutor {
      *     call site
      * @return a copy of type with its type variables substituted
      */
-    public AnnotatedTypeMirror substitute(
+    public final AnnotatedTypeMirror substitute(
             Map<TypeVariable, AnnotatedTypeMirror> typeVarToTypeArgument,
             AnnotatedTypeMirror type,
             boolean typeArgumentsInferred) {
