@@ -1,3 +1,4 @@
+import org.checkerframework.checker.tainting.qual.PolyTainted;
 import org.checkerframework.checker.tainting.qual.Tainted;
 import org.checkerframework.checker.tainting.qual.Untainted;
 
@@ -32,5 +33,30 @@ public class MemberReferenceInference {
             MyClass<? extends String> clazz,
             Map<MyClass<? extends String>, String> annotationClassNames) {
         String canonicalName = annotationClassNames.computeIfAbsent(clazz, MyClass::getName);
+    }
+
+    interface PolyClass<Q> {
+        @PolyTainted String getName(@PolyTainted PolyClass<Q> this);
+    }
+
+    // The unbound method reference PolyClass::getName is, like MyClass::getName above, the
+    // top-level poly expression for which type-argument inference runs (not a nested argument to
+    // an enclosing generic call), so this exercises
+    // InvocationTypeInference.infer(MemberReferenceTree)
+    // rather than Expression.reduceMethodRef. @PolyTainted resolves against clazz's @Untainted
+    // receiver type to @Untainted, matching the map's @Untainted value type.
+    void polyMethod(
+            @Untainted PolyClass<? extends String> clazz,
+            Map<@Untainted PolyClass<? extends String>, @Untainted String> annotationClassNames) {
+        String canonicalName = annotationClassNames.computeIfAbsent(clazz, PolyClass::getName);
+    }
+
+    // Same shape, but the receiver's declared type carries no qualifier, so @PolyTainted resolves
+    // to the default, @Tainted, which does not satisfy the map's @Untainted value type.
+    void polyMethodMismatch(
+            PolyClass<? extends String> clazz,
+            Map<PolyClass<? extends String>, @Untainted String> annotationClassNames) {
+        // :: error: (type.arguments.not.inferred)
+        String canonicalName = annotationClassNames.computeIfAbsent(clazz, PolyClass::getName);
     }
 }

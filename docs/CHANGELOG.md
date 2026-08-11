@@ -169,7 +169,10 @@ reported a spurious `type.arguments.not.inferred` ("unsatisfiable constraint:
 (`s.map(o -> obj.polyMethod(o))`) or with an explicit type argument
 (`s.<Lib>map(obj::polyMethod)`) was accepted. This is the resolution that the
 method reference's override check already performed, but only after inference
-had finished.
+had finished. The same resolution now also applies when the method reference
+itself, rather than an enclosing invocation, is the expression whose type
+arguments are being inferred, such as an unbound reference passed to
+`Map.computeIfAbsent`.
 
 **Implementation details:**
 
