@@ -78,7 +78,7 @@ public class TypeVariableSubstitutor {
     public AnnotatedTypeMirror substituteWithoutCopyingTypeArguments(
             Map<TypeVariable, AnnotatedTypeMirror> typeVarToTypeArgument,
             AnnotatedTypeMirror type) {
-        return new Visitor(typeVarToTypeArgument, false).visit(type);
+        return new Visitor(typeVarToTypeArgument, false, false).visit(type);
     }
 
     /**
@@ -138,18 +138,6 @@ public class TypeVariableSubstitutor {
          * as opposed to written explicitly by the programmer at the call site.
          */
         private final boolean typeArgumentsInferred;
-
-        /**
-         * Creates the Visitor.
-         *
-         * @param typeParamToArg mapping from TypeVariable to the AnnotatedTypeMirror that will
-         *     replace it
-         * @param copyArgument whether or not a copy of type argument should be substituted
-         */
-        public Visitor(
-                Map<TypeVariable, AnnotatedTypeMirror> typeParamToArg, boolean copyArgument) {
-            this(typeParamToArg, copyArgument, false);
-        }
 
         /**
          * Creates the Visitor.
