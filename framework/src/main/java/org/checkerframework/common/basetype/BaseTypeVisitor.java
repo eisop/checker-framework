@@ -5025,6 +5025,17 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             return testTypevarContainment(overriddenParam, overriderParam);
         }
 
+        /**
+         * Prints a debugging message (if {@code showchecks} is set) and, if {@code success} is
+         * false, reports an {@code override.param.invalid} or {@code methodref.param.invalid} error
+         * for the parameter at {@code index}.
+         *
+         * @param success whether the parameter at {@code index} is a valid override
+         * @param index the index, into {@code overriderParams} and {@code overriddenParams}, of the
+         *     parameter to report on
+         * @param overriderParams the parameter types of the overriding method
+         * @param overriddenParams the parameter types of the overridden method
+         */
         private void checkParametersMsg(
                 boolean success,
                 int index,
