@@ -828,8 +828,8 @@ public class AnnotatedTypes {
         /** Whether unchecked conversion was needed for inference. */
         public final boolean uncheckedConversion;
 
-        /** Whether type argument inference crashed. */
-        public final boolean inferenceCrash;
+        /** Whether type argument inference needs a defaulted return type. */
+        public final boolean needsDefaultedReturnType;
 
         /**
          * Whether {@link #typeArguments} were inferred by the type checker, as opposed to written
@@ -842,18 +842,19 @@ public class AnnotatedTypes {
          *
          * @param typeArguments a mapping from {@link TypeVariable} to its annotated type argument
          * @param uncheckedConversion whether unchecked conversion was needed for inference
-         * @param inferenceCrash whether type argument inference crashed
+         * @param needsDefaultedReturnType whether type argument inference needs a defaulted return
+         *     type
          * @param typeArgumentsInferred whether {@code typeArguments} were inferred by the type
          *     checker, as opposed to written explicitly by the programmer at the call site
          */
         public TypeArguments(
                 Map<TypeVariable, AnnotatedTypeMirror> typeArguments,
                 boolean uncheckedConversion,
-                boolean inferenceCrash,
+                boolean needsDefaultedReturnType,
                 boolean typeArgumentsInferred) {
             this.typeArguments = typeArguments;
             this.uncheckedConversion = uncheckedConversion;
-            this.inferenceCrash = inferenceCrash;
+            this.needsDefaultedReturnType = needsDefaultedReturnType;
             this.typeArgumentsInferred = typeArgumentsInferred;
         }
     }
