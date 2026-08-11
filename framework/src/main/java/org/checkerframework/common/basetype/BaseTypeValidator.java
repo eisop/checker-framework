@@ -28,6 +28,7 @@ import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedTypeVari
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedWildcardType;
 import org.checkerframework.framework.type.AnnotatedTypeParameterBounds;
 import org.checkerframework.framework.type.QualifierHierarchy;
+import org.checkerframework.framework.type.TypeHierarchy;
 import org.checkerframework.framework.type.visitor.AnnotatedTypeScanner;
 import org.checkerframework.framework.type.visitor.SimpleAnnotatedTypeScanner;
 import org.checkerframework.framework.util.AnnotatedTypes;
@@ -937,10 +938,9 @@ public class BaseTypeValidator extends AnnotatedTypeScanner<Void, Tree> implemen
      */
     protected boolean areCollapsedWildcardBoundsEqual(
             AnnotatedTypeMirror extendsBound, AnnotatedTypeMirror superBound) {
-        return atypeFactory.getTypeHierarchy().isSubtypeShallowEffective(superBound, extendsBound)
-                && atypeFactory
-                        .getTypeHierarchy()
-                        .isSubtypeShallowEffective(extendsBound, superBound);
+        TypeHierarchy typeHierarchy = atypeFactory.getTypeHierarchy();
+        return typeHierarchy.isSubtypeShallowEffective(superBound, extendsBound)
+                && typeHierarchy.isSubtypeShallowEffective(extendsBound, superBound);
     }
 
     @Override
