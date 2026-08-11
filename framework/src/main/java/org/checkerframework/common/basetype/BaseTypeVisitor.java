@@ -5004,10 +5004,16 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
          * {@code overriddenParam}, has been computed).
          *
          * <p>The default implementation requires contravariance: {@code capturedOverriddenParam}
-         * must be a subtype of {@code overriderParam} (or pass the type-variable containment
-         * fallback). A checker that requires parameter <em>invariance</em> for overrides (both
-         * directions must be subtypes) should override this method to also require {@code
-         * typeHierarchy.isSubtype(overriderParam, capturedOverriddenParam)}.
+         * must be a subtype of {@code overriderParam}, or -- as a fallback for corresponding type
+         * variables declared by the overriding and overridden methods themselves, where a direct
+         * subtype check can fail even though the override is valid -- {@code overriddenParam} must
+         * be {@linkplain #testTypevarContainment(AnnotatedTypeMirror, AnnotatedTypeMirror)
+         * contained by} {@code overriderParam}. A checker that requires parameter
+         * <em>invariance</em> for overrides (both directions must be subtypes) should override this
+         * method to also require the reverse: {@code typeHierarchy.isSubtype(overriderParam,
+         * capturedOverriddenParam)}, falling back to {@code testTypevarContainment(overriderParam,
+         * overriddenParam)} for the same reason the default implementation does in the forward
+         * direction.
          *
          * @param capturedOverriddenParam the capture-converted overridden parameter type
          * @param overriddenParam the (uncaptured) overridden parameter type, used by the
