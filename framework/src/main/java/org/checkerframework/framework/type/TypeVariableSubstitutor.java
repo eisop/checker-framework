@@ -26,7 +26,7 @@ public class TypeVariableSubstitutor {
      * variable with a copy of type argument.
      *
      * @see #substituteTypeVariable(AnnotatedTypeMirror,
-     *     org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedTypeVariable)
+     *     org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedTypeVariable, boolean)
      * @param typeVarToTypeArgument a mapping from type variable to its type argument
      * @param type the type to substitute
      * @return a copy of type with its type variables substituted
@@ -62,7 +62,7 @@ public class TypeVariableSubstitutor {
      * variable with the given type argument.
      *
      * @see #substituteTypeVariable(AnnotatedTypeMirror,
-     *     org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedTypeVariable)
+     *     org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedTypeVariable, boolean)
      * @param typeVarToTypeArgument a mapping from type variable to its type argument
      * @param type the type to substitute
      * @return a copy of type with its type variables substituted
@@ -84,36 +84,18 @@ public class TypeVariableSubstitutor {
      *
      * @param argument the argument to declaration (this will be a value in typeParamToArg)
      * @param use the use that is being replaced
+     * @param argumentIsInferred whether {@code argument} is a type argument that the type checker
+     *     inferred (true), as opposed to one the programmer wrote explicitly at the call site
+     *     (false)
      * @return a deep copy of argument with the appropriate annotations applied
      */
     protected AnnotatedTypeMirror substituteTypeVariable(
-            AnnotatedTypeMirror argument, AnnotatedTypeVariable use) {
+            AnnotatedTypeMirror argument, AnnotatedTypeVariable use, boolean argumentIsInferred) {
         AnnotatedTypeMirror substitute = argument.deepCopy(true);
         if (!use.getAnnotationsField().isEmpty()) {
             substitute.replaceAnnotations(use.getAnnotationsField());
         }
         return substitute;
-    }
-
-    /**
-     * As {@link #substituteTypeVariable(AnnotatedTypeMirror, AnnotatedTypeVariable)}, but also
-     * indicates whether {@code argument} is a type argument that the type checker inferred (true),
-     * as opposed to one the programmer wrote explicitly at the call site (false).
-     *
-     * <p>The default implementation ignores {@code argumentIsInferred} and delegates to {@link
-     * #substituteTypeVariable(AnnotatedTypeMirror, AnnotatedTypeVariable)}, so existing overrides
-     * of that method are unaffected. A checker that needs to treat inferred and written type
-     * arguments differently during substitution should override this method instead.
-     *
-     * @param argument the argument to declaration (this will be a value in typeParamToArg)
-     * @param use the use that is being replaced
-     * @param argumentIsInferred whether {@code argument} was inferred by the type checker rather
-     *     than written explicitly by the programmer
-     * @return a deep copy of argument with the appropriate annotations applied
-     */
-    protected AnnotatedTypeMirror substituteTypeVariable(
-            AnnotatedTypeMirror argument, AnnotatedTypeVariable use, boolean argumentIsInferred) {
-        return substituteTypeVariable(argument, use);
     }
 
     /**
