@@ -178,6 +178,16 @@ functional interface whose method declares a generic `throws` clause.
 
 **Implementation details:**
 
+`BaseTypeValidator.checkExplicitSuperBoundWildcards` now delegates its
+JDK-8054309 collapsed-wildcard-bound comparison to a new overridable
+`areCollapsedWildcardBoundsEqual` method, instead of inlining a bidirectional
+`isSubtypeShallowEffective` check. That bidirectional check only means "same
+qualifier" in an antisymmetric qualifier hierarchy; a checker whose hierarchy
+is not antisymmetric (e.g. an "unspecified" qualifier that is deliberately a
+mutual subtype of everything) needs a different equality test and previously
+had to override the entire ~40-line method to get one. No behavior change for
+CF's own (antisymmetric) checkers.
+
 `BaseTypeVisitor.OverrideChecker.checkParameters` now delegates its per-parameter
 override compatibility check to a new overridable `isParameterOverrideValid` method,
 instead of inlining the subtype test and type-variable containment fallback. That
