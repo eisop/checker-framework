@@ -733,7 +733,7 @@ public class AnnotatedTypes {
      * @param inferTypeArgs whether the type argument should be inferred
      * @return the mapping of type variables to type arguments for this method or constructor
      *     invocation, and whether unchecked conversion was required to infer the type arguments,
-     *     and whether type argument inference crashed
+     *     and whether type argument inference needs a defaulted return type
      */
     public static TypeArguments findTypeArguments(
             AnnotatedTypeFactory atypeFactory,
