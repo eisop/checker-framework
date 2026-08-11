@@ -59,4 +59,41 @@ public class MemberReferenceInference {
         // :: error: (type.arguments.not.inferred)
         String canonicalName = annotationClassNames.computeIfAbsent(clazz, PolyClass::getName);
     }
+
+    static class PolyException extends Exception {}
+
+    @FunctionalInterface
+    interface UntaintedThrowingConsumer<E extends Throwable> {
+        void accept(@Untainted String s) throws E;
+    }
+
+    @FunctionalInterface
+    interface TaintedThrowingConsumer<E extends Throwable> {
+        void accept(@Tainted String s) throws E;
+    }
+
+    static void consume(@PolyTainted String s) throws @PolyTainted PolyException {}
+
+    static <E extends Throwable> E runUntainted(UntaintedThrowingConsumer<E> job) throws E {
+        throw new AssertionError();
+    }
+
+    static <E extends Throwable> E runTainted(TaintedThrowingConsumer<E> job) throws E {
+        throw new AssertionError();
+    }
+
+    // The exception type variable E is inferred from a checked-exception constraint, which is
+    // built from the thrown types of the method reference's compile-time declaration. @PolyTainted
+    // on that thrown type resolves against the function type's @Untainted parameter to @Untainted,
+    // so E is @Untainted PolyException.
+    void polyThrows() throws PolyException {
+        @Untainted PolyException e = runUntainted(MemberReferenceInference::consume);
+    }
+
+    // Same shape, but the function type's parameter is @Tainted, so @PolyTainted resolves to
+    // @Tainted, which does not satisfy the @Untainted target of the assignment.
+    void polyThrowsMismatch() throws PolyException {
+        // :: error: (assignment.type.incompatible) :: error: (type.arguments.not.inferred)
+        @Untainted PolyException e = runTainted(MemberReferenceInference::consume);
+    }
 }

@@ -172,7 +172,9 @@ method reference's override check already performed, but only after inference
 had finished. The same resolution now also applies when the method reference
 itself, rather than an enclosing invocation, is the expression whose type
 arguments are being inferred, such as an unbound reference passed to
-`Map.computeIfAbsent`.
+`Map.computeIfAbsent`, and when the compile-time declaration is used to build a
+checked-exception constraint, which infers the exception type argument of a
+functional interface whose method declares a generic `throws` clause.
 
 **Implementation details:**
 

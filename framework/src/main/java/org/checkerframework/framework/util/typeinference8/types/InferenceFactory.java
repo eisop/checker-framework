@@ -1125,7 +1125,7 @@ public class InferenceFactory {
                     TypesUtils.findFunctionType(TreeUtils.typeOf(expression), context.env)
                             .getThrownTypes();
             thrownTypes =
-                    compileTimeDeclarationType((MemberReferenceTree) expression)
+                    compileTimeDeclarationType((MemberReferenceTree) expression, targetType)
                             .getAnnotatedType()
                             .getThrownTypes();
             if (thrownTypes.size() != thrownTypeMirrors.size()) {
