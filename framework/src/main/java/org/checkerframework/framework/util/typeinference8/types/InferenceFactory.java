@@ -783,7 +783,7 @@ public class InferenceFactory {
      * @param memRef method reference tree
      * @return the compile-time declaration of the method reference
      */
-    public InvocationType compileTimeDeclarationType(MemberReferenceTree memRef) {
+    public final InvocationType compileTimeDeclarationType(MemberReferenceTree memRef) {
         return compileTimeDeclarationType(memRef, null);
     }
 
@@ -796,7 +796,7 @@ public class InferenceFactory {
      * @param target the target type of {@code memRef}, or null if it is not known
      * @return the compile-time declaration of the method reference
      */
-    public InvocationType compileTimeDeclarationType(
+    public final InvocationType compileTimeDeclarationType(
             MemberReferenceTree memRef, @Nullable AbstractType target) {
         // The tree before :: is an expression or type use.
         final ExpressionTree preColonTree = memRef.getQualifierExpression();
