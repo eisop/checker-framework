@@ -3076,6 +3076,13 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
          * that view to top. Same-hierarchy conflicts remain an accepted, deterministic trade-off:
          * the first bound wins and later explicit qualifiers draw an {@code
          * explicit.annotation.ignored} warning.
+         *
+         * <p>Homogenization is not just a precision optimization: writing the summary only onto the
+         * intersection type's own primary annotation location, and leaving the bounds untouched,
+         * would not be enough. {@link DefaultTypeHierarchy}'s intersection subtyping methods (for
+         * example {@code visitIntersection_Type}) read only {@link #getBounds()}; they never
+         * consult the intersection type's own primary annotation. A hierarchy left un-homogenized
+         * on a bound would therefore not be seen by ordinary subtype checks at all.
          */
         public void copyIntersectionBoundAnnotations() {
             copyIntersectionBoundAnnotations(true, null);

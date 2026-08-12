@@ -138,9 +138,11 @@ exactly as if the first bound had been written `@NonNull Object`. This result is
 deterministic for a given compilation, but it depends on the source order of the
 bounds. A checker that wants an order-independent summary can override
 `AnnotatedTypeFactory#combineIntersectionBoundAnnotationsInHierarchy` to return,
-for example, the greatest lower bound. That hook is consulted in every hierarchy
-that some bound constrains explicitly, whether the other bounds' qualifiers in
-that hierarchy are written on them or are their own defaults.
+for example, the greatest lower bound (see #1943 for a correction to this
+paragraph: at this point the hook was consulted only when two bounds were both
+explicitly annotated in a hierarchy, not when one side's qualifier came from
+defaulting, so overriding it did not yet give an order-independent summary for
+the `<T extends Object & @Nullable Serializable>` example above).
 
 Added a new lint option, `-Alint=monotonicNonNullOnStatic`, under which the
 Nullness Checker issues a `monotonic.on.static` warning when `@MonotonicNonNull`
@@ -192,6 +194,15 @@ bound's default whatever the hook returned, and the hook was not called at
 all. Under the default (first-bound-wins) hook nothing changes, because a
 hierarchy whose summary is still the first bound's own default is deferred to
 the defaulting pass exactly as before.
+
+This corrects an inaccuracy in #1875, which introduced the hook and claimed
+that first-bound-wins "holds uniformly whether the first bound is annotated
+explicitly or by defaulting" and that overriding the hook gives an
+order-independent summary. Both claims held only for two explicitly annotated
+bounds in conflict; whenever one side's qualifier came from defaulting, the
+hook was structurally unreachable, so overriding it had no effect on that
+case, including #1875's own `<T extends Object & @Nullable Serializable>`
+motivating example.
 
 A checker whose qualifier semantics are per-component (e.g. JSpecify, where
 `@Nullable Object & Lib` is null-exclusive because it IS-A the non-null
