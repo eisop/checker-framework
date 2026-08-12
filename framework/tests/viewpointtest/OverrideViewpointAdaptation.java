@@ -146,4 +146,168 @@ public class OverrideViewpointAdaptation {
         // :: error: (override.param.invalid)
         void setParamOther(@ReceiverDependentQual SubReceiverDependent this, @A Object o);
     }
+
+    // =========================================================================
+    // 4. Implicit Receiver Parameter (default receiver type from class bound)
+    // =========================================================================
+
+    @A interface SubAImplicitReceiver extends Accessor {
+
+        @Override
+        @A Object getReturnExact();
+
+        @Override
+        @Bottom Object getReturnNarrowedBottom();
+
+        @Override
+        // :: error: (override.return.invalid)
+        @Top Object getReturnWidenedTop();
+
+        @Override
+        // :: error: (override.return.invalid)
+        @B Object getReturnOther();
+
+        @Override
+        void setParamExact(@A Object o);
+
+        @Override
+        void setParamWidenedTop(@Top Object o);
+
+        @Override
+        // :: error: (override.param.invalid)
+        void setParamNarrowedBottom(@Bottom Object o);
+
+        @Override
+        // :: error: (override.param.invalid)
+        void setParamOther(@B Object o);
+    }
+
+    // =========================================================================
+    // 5. Class Inheritance (SuperClass -> SubClass)
+    // =========================================================================
+
+    @SuppressWarnings({"super.invocation.invalid", "inconsistent.constructor.type"})
+    static class SuperClass {
+        @ReceiverDependentQual Object getReturnExact(@ReceiverDependentQual SuperClass this) {
+            return null;
+        }
+
+        @ReceiverDependentQual Object getReturnNarrowedBottom(@ReceiverDependentQual SuperClass this) {
+            return null;
+        }
+
+        @ReceiverDependentQual Object getReturnWidenedTop(@ReceiverDependentQual SuperClass this) {
+            return null;
+        }
+
+        @ReceiverDependentQual Object getReturnOther(@ReceiverDependentQual SuperClass this) {
+            return null;
+        }
+
+        void setParamExact(
+                @ReceiverDependentQual SuperClass this, @ReceiverDependentQual Object o) {}
+
+        void setParamWidenedTop(
+                @ReceiverDependentQual SuperClass this, @ReceiverDependentQual Object o) {}
+
+        void setParamNarrowedBottom(
+                @ReceiverDependentQual SuperClass this, @ReceiverDependentQual Object o) {}
+
+        void setParamOther(
+                @ReceiverDependentQual SuperClass this, @ReceiverDependentQual Object o) {}
+    }
+
+    @SuppressWarnings({"super.invocation.invalid", "inconsistent.constructor.type"})
+    @A static class SubClassA extends SuperClass {
+
+        @Override
+        @A Object getReturnExact() {
+            return null;
+        }
+
+        @Override
+        @Bottom Object getReturnNarrowedBottom() {
+            return null;
+        }
+
+        @Override
+        // :: error: (override.return.invalid)
+        @Top Object getReturnWidenedTop() {
+            return null;
+        }
+
+        @Override
+        // :: error: (override.return.invalid)
+        @B Object getReturnOther() {
+            return null;
+        }
+
+        @Override
+        void setParamExact(@A Object o) {}
+
+        @Override
+        void setParamWidenedTop(@Top Object o) {}
+
+        @Override
+        // :: error: (override.param.invalid)
+        void setParamNarrowedBottom(@Bottom Object o) {}
+
+        @Override
+        // :: error: (override.param.invalid)
+        void setParamOther(@B Object o) {}
+    }
+
+    // =========================================================================
+    // 6. Transitive / Multi-Level Inheritance
+    // =========================================================================
+
+    interface MiddleRD extends Accessor {}
+
+    @A interface LeafA extends MiddleRD {
+
+        @Override
+        @A Object getReturnExact();
+
+        @Override
+        // :: error: (override.return.invalid)
+        @Top Object getReturnWidenedTop();
+
+        @Override
+        void setParamExact(@A Object o);
+
+        @Override
+        // :: error: (override.param.invalid)
+        void setParamNarrowedBottom(@Bottom Object o);
+    }
+
+    // =========================================================================
+    // 7. Non-Receiver-Dependent Fixed Qualifier in Supertype
+    // =========================================================================
+
+    interface FixedAccessor {
+        @A Object getFixedAExact();
+
+        @A Object getFixedAOther();
+
+        void setFixedAExact(@A Object o);
+
+        void setFixedANarrowed(@A Object o);
+    }
+
+    @B interface SubBFixed extends FixedAccessor {
+
+        @Override
+        @A Object getFixedAExact();
+
+        @Override
+        // :: error: (override.return.invalid)
+        @B Object getFixedAOther();
+
+        @Override
+        void setFixedAExact(@A Object o);
+
+        @Override
+        // :: error: (override.param.invalid)
+        void setFixedANarrowed(@Bottom Object o);
+    }
 }

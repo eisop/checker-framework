@@ -106,6 +106,20 @@ side-effecting array expression, avoiding unsound behavior. It now also issues
 a warning message explaining why `copyOf` used a `@Nullable` return type,
 making errors with `copyOf` easier to fix.
 
+A checker may now override `BaseTypeVisitor.shouldStripInvalidLocationQualifiers`
+(default `false`) to make a qualifier that appears on a type-variable or wildcard
+bound not permitted by its `@TargetLocations` inert: after the
+`type.invalid.annotations.on.location` error is issued, the qualifier is removed
+from the bound and the bound is re-defaulted, so the meaningless qualifier no
+longer produces a `bound.type.incompatible` cascade. Behavior is unchanged for
+checkers that do not opt in. For type-variable or wildcard bounds, a checker whose
+own validity check is tree-based rather than `@TargetLocations`-based (for
+example, one that must distinguish an annotation a user explicitly wrote from
+the same qualifier arriving through ordinary defaulting) can additionally
+override `BaseTypeValidator.additionalAnnotationsToStripFromTypeVariableBound` or
+`BaseTypeValidator.additionalAnnotationsToStripFromWildcardBound` to strip
+further annotations of its own choosing.
+
 When the bounds of an intersection type (for example, the bound
 `<T extends @NonNull Object & @Nullable Serializable>`) carry conflicting
 qualifiers in the same hierarchy, the intersection's qualifier for that
@@ -137,7 +151,85 @@ Optional Checker's `prefer.map.and.orelse` warning for `if (VAR.isPresent())
 of the message's 3 arguments. `-Anomsgtext`, which every JUnit test uses, had
 masked the bug by skipping message formatting entirely.
 
+Fixed capture conversion dropping a primary qualifier from a type-parameter
+bound that is itself a type-variable use. For a parameter declared
+`<A, U extends @Q A>`, capturing a wildcard argument for `U` now applies `@Q`
+to the substituted bound `A theta` (per JLS 5.1.10) instead of discarding it,
+so the captured type variable's upper bound is no longer computed too low.
+Previously the missing qualifier could silently suppress an
+`assignment.type.incompatible` error.
+
+Type-argument inference now resolves the polymorphic qualifiers of a method
+reference's compile-time declaration against the parameter types of the target
+function type, before it builds the inference constraints. Previously a
+polymorphic qualifier reached the solver as if it were a concrete qualifier, so
+a call whose type argument is inferred, such as `s.map(obj::polyMethod)`,
+reported a spurious `type.arguments.not.inferred` ("unsatisfiable constraint:
+`@PolyNull Lib <: @NonNull Lib`"), even though the same call written as a lambda
+(`s.map(o -> obj.polyMethod(o))`) or with an explicit type argument
+(`s.<Lib>map(obj::polyMethod)`) was accepted. This is the resolution that the
+method reference's override check already performed, but only after inference
+had finished. The same resolution now also applies when the method reference
+itself, rather than an enclosing invocation, is the expression whose type
+arguments are being inferred, such as an unbound reference passed to
+`Map.computeIfAbsent`, and when the compile-time declaration is used to build a
+checked-exception constraint, which infers the exception type argument of a
+functional interface whose method declares a generic `throws` clause.
+
 **Implementation details:**
+
+`BaseTypeValidator.checkExplicitSuperBoundWildcards` now delegates its
+JDK-8054309 collapsed-wildcard-bound comparison to a new overridable
+`areCollapsedWildcardBoundsEqual` method, instead of inlining a bidirectional
+`isSubtypeShallowEffective` check. That bidirectional check only means "same
+qualifier" in an antisymmetric qualifier hierarchy; a checker whose hierarchy
+is not antisymmetric (e.g. an "unspecified" qualifier that is deliberately a
+mutual subtype of everything) needs a different equality test and previously
+had to override the entire ~40-line method to get one. No behavior change for
+CF's own (antisymmetric) checkers.
+
+`BaseTypeVisitor.OverrideChecker.checkParameters` now delegates its per-parameter
+override compatibility check to a new overridable `isParameterOverrideValid` method,
+instead of inlining the subtype test and type-variable containment fallback. That
+default check is contravariant (the overridden parameter must be a subtype of the
+overriding parameter, the standard override rule in CF's type systems). A checker
+whose type rules require parameter <em>invariance</em> for overrides (both directions
+must be subtypes, as in JSpecify's override rules) can now override just this method
+to change the directionality, rather than duplicating the entire ~35-line
+`checkParameters` and `checkParametersMsg` loop-and-error-reporting logic. No
+behavior change for CF's own (contravariant) checkers.
+
+`TypeFromTypeTreeVisitor` now restores the declared bounds of type-variable
+type arguments that appear in the enclosing type of a nested type (e.g. the
+implicit `Outer<XXX>` enclosing `Super` in `class Sub extends Super`, or the
+explicit one in `class Sub extends Outer<XXX>.Super`). Previously such
+enclosing type variables carried defaulted bounds rather than the bounds
+written on their declaration (partial fix for eisop#737). This has no effect on
+the final supertype on the built-in lattices (later substitution already
+corrected it), but the intermediate type is now faithful, which matters for
+type systems with stricter substitution.
+
+`BaseTypeValidator` now checks the type arguments of an explicitly-written
+enclosing type against the enclosing type parameters' declared bounds, so
+`Outer<@NonNull String>.Inner` is rejected when `@NonNull String` violates
+`Outer`'s type-parameter bound, matching the existing behavior for the
+non-enclosing `Outer<@NonNull String>` (further work on eisop#737).
+Previously an enclosing type's arguments were never validated. This covers a
+method's return type (e.g. `Outer<@NonNull String>.Inner returnType()`) and a
+`new` expression's instantiated type (e.g. `new Outer<@NonNull String>.Inner()`)
+in addition to fields, parameters, and other ordinary type-use positions.
+
+`TypeFromTypeTreeVisitor` now restores the annotations written on the type
+arguments of an explicitly-written enclosing type of a qualified type, so a
+qualified type used in an extends/implements clause (`class Sub extends
+Outer<@Nullable String>.Sup`) or a local-variable declaration
+(`Outer<@Nullable String>.Inner x`) now carries the written enclosing-argument
+qualifier, and an out-of-bound argument in those positions is rejected. This
+completes the fix for eisop#737. Previously the written qualifier was dropped
+during tree-to-type conversion, so the validator never saw it: for a field or
+method parameter the element-based annotation recovery restored it, but a
+local-variable element does not retain it and an extends/implements clause has
+no element, so those two positions were silently accepted.
 
 `SourceChecker.reportError` and `SourceChecker.reportWarning` now accept a null
 source, for a message that has no source position. Such a message is reported
@@ -205,6 +297,31 @@ whose qualifier encoding makes this failure mode common and usually spurious
 can report a warning (or suppress the diagnostic) instead of the default
 hard error.
 
+Target-location validation and bound-stripping logic has been consolidated into
+`BaseTypeValidator`:
+- Methods relocated from `BaseTypeVisitor` to `BaseTypeValidator`:
+  - `validateVariableTargetLocation(AnnotatedTypeMirror, Tree)`
+    (was `validateVariablesTargetLocation`)
+  - `validateTargetLocation(AnnotatedTypeMirror, Tree, TypeUseLocation)`
+  - `annotationsDisallowedAtLocation(AnnotatedTypeMirror, TypeUseLocation)`
+  - `createQualAllowedLocations(AnnotatedTypeFactory)`
+  - `shouldStripInvalidLocationQualifiers()`
+- Protected fields relocated from `BaseTypeVisitor` to `BaseTypeValidator`:
+  - `qualAllowedLocations`, `noQualHasTargetLocations`, `ignoreTargetLocations`
+- Renamed and extracted methods within `BaseTypeValidator` for consistency:
+  - `validateWildcardTargetLocations` (was `validateWildCardTargetLocation`)
+  - `annotationsDisallowedAtLocation(AnnotatedTypeMirror, Set<TypeUseLocation>)`
+    (was `annotationsDisallowedAtWildcardBound`)
+  - `validateTypeParameterTargetLocations` (extracted from `visitTypeVariable`)
+  - `stripInvalidLocationQualifiersFromWildcardBounds` (extracted from
+    `validateWildcardTargetLocations`)
+- `TypeValidator` interface now declares `validateVariableTargetLocation`
+  and `validateTargetLocation`.
+- As a result of this pass reordering, `type.invalid.annotations.on.location`
+  diagnostics now appear before `bound.type.incompatible` diagnostics for the
+  same tree.
+
+
 Performance optimizations:
 - Capped Java type argument inference bound-incorporation work and optimized
   the fixpoint algorithm to short-circuit and re-scan fewer variables.
@@ -251,6 +368,22 @@ Performance optimizations:
 Other improvements and bug fixes:
 - `TreeUtils` has a new `inferredTypeArguments(ExpressionTree)` method to
   recover Java type variables inferred by javac.
+- `TypeVariableSubstitutor` has a new `substitute(Map, AnnotatedTypeMirror,
+  boolean)` overload that also indicates whether the type arguments being
+  substituted were inferred by the type checker, as opposed to written
+  explicitly by the programmer at the call site. The existing two-argument
+  `substitute(Map, AnnotatedTypeMirror)` is unchanged and continues to default
+  to `false`; both `substitute(...)` overloads are now `final`, since they are
+  convenience entry points, not extension points. The corresponding extension
+  point, `substituteTypeVariable(AnnotatedTypeMirror, AnnotatedTypeVariable)`,
+  now always takes this flag as a third parameter; the two-argument overload
+  has been removed rather than kept alongside it, so a checker cannot
+  accidentally override one and not the other and be surprised that only one
+  of its overrides ever runs. This lets a checker distinguish inferred from
+  written type arguments during substitution without a hand-rolled instance
+  field that must be manually saved and restored around reentrant
+  `methodFromUse`/`constructorFromUse` calls, as the JSpecify reference
+  checker previously had to do.
 - Fixed a latent aliasing bug in `AnnotatedTypeCopier` for executable types.
 - Fixed an `IndexOutOfBoundsException` for lambdas in varargs.
 - Fixed `BinaryOperation.hashCode()` to agree with `equals()` for commutative
@@ -269,7 +402,7 @@ Other improvements and bug fixes:
 
 **Closed issues:**
 
-eisop#433, eisop#792, eisop#863, eisop#949, eisop#1015, eisop#1074,
+eisop#433, eisop#737, eisop#792, eisop#863, eisop#949, eisop#1015, eisop#1074,
 eisop#1244, eisop#1315, eisop#1564, eisop#1592, eisop#1642, eisop#1653,
 eisop#1735, eisop#1801, eisop#1818, eisop#1819, eisop#1861, eisop#1862,
 eisop#1863, eisop#1865, eisop#1887.
