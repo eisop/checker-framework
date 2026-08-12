@@ -2941,6 +2941,19 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
          *
          * <p>This returns the same types as {@link #directSupertypes()}.
          *
+         * <p>The returned bounds are homogenized: {@link #copyIntersectionBoundAnnotations()}
+         * summarizes the bounds' qualifiers into one qualifier per hierarchy and writes that
+         * summary onto every bound, so a later bound's own qualifier &mdash; explicit or defaulted
+         * &mdash; is not recoverable from this method, only from the summary. The default summary
+         * policy is first-bound-wins; a checker whose qualifier semantics are per-component (for
+         * example JSpecify, where {@code @Nullable Object & Lib} is null-exclusive because it IS-A
+         * the non-null {@code Lib}) overrides {@link
+         * AnnotatedTypeFactory#combineIntersectionBoundAnnotationsInHierarchy} to compute the
+         * greatest lower bound instead: for any target, if some bound is a subtype of it, the
+         * greatest lower bound of all the bounds' qualifiers is too, so a GLB summary is at least
+         * as precise as checking each bound's own qualifier individually, and does not need a
+         * separate per-bound view. See {@code framework/tests/intersectionglb}.
+         *
          * @return the bounds of this, which are also the direct super types of this
          */
         public List<AnnotatedTypeMirror> getBounds() {
@@ -3005,6 +3018,19 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
          *       framework/tests/lubglb/IntersectionBoundDefaulting.java}.
          * </ul>
          *
+         * <p>The two cases differ only in <em>when</em> the first bound's qualifier is known, not
+         * in which bound wins. That distinction does matter to a checker that overrides the
+         * combining hook, though: the hook decides the first case but, if the hierarchy is simply
+         * deferred, is never consulted about the second. So a bound written bare in a hierarchy
+         * that another bound constrains explicitly contributes its own default to the summary, and
+         * that default is passed to the hook exactly like a written qualifier&mdash;every bound has
+         * a say in every hierarchy some bound constrains. This needs an element to default the bare
+         * bound in; {@link #copyIntersectionBoundAnnotations(Element)} takes one and {@link
+         * #copyIntersectionBoundAnnotations()} does not. Under the default hook nothing changes: it
+         * keeps the first bound's qualifier, so a hierarchy whose summary is still the first
+         * bound's own default is deferred after all, exactly as if the default had never been
+         * computed.
+         *
          * <p>The summary is a sound upper bound of the intersection: it is the qualifier of the
          * intersection's first bound, and the intersection is a subtype of that bound. Like any
          * first-bound-wins choice it is source-order dependent but deterministic for a given
@@ -3037,7 +3063,7 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
          * intersection casts specifically, which would make an intersection cast inconsistent with
          * a plain cast to the same erased type; that is a worse divergence than the bound-vs-cast
          * one, so the two paths are kept distinct deliberately. See {@link
-         * #copyIntersectionBoundAnnotations(boolean)}.)
+         * #copyIntersectionBoundAnnotations(boolean, Element)}.)
          *
          * <p>The computed summary is then written back onto every bound, homogenizing them, so all
          * bounds carry the same qualifier per hierarchy. Homogenization is sound for value-property
@@ -3052,7 +3078,25 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
          * explicit.annotation.ignored} warning.
          */
         public void copyIntersectionBoundAnnotations() {
-            copyIntersectionBoundAnnotations(true);
+            copyIntersectionBoundAnnotations(true, null);
+        }
+
+        /**
+         * Like {@link #copyIntersectionBoundAnnotations()}, but a bound written bare in a hierarchy
+         * that another bound constrains explicitly contributes its own default, computed in {@code
+         * scope}, to the summary. Its default is passed to {@link
+         * AnnotatedTypeFactory#combineIntersectionBoundAnnotationsInHierarchy} exactly like a
+         * qualifier written on that bound, so a checker that overrides the hook has a say in every
+         * hierarchy some bound constrains, not only in one that two bounds constrain explicitly.
+         *
+         * <p>This changes nothing for a checker that uses the default (first-bound-wins) hook: see
+         * {@link #copyIntersectionBoundAnnotations()}.
+         *
+         * @param scope the element in whose scope a bare bound is defaulted, typically the type
+         *     parameter element whose upper bound this is
+         */
+        public void copyIntersectionBoundAnnotations(Element scope) {
+            copyIntersectionBoundAnnotations(true, scope);
         }
 
         /**
@@ -3063,13 +3107,53 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
          *     bound's default. Pass true for a type variable's upper bound and false for an
          *     intersection cast target; the class-level discussion of first-bound-wins on {@link
          *     #copyIntersectionBoundAnnotations()} explains why the two positions differ.
+         * @param scope the element in whose scope a bare bound is defaulted so that its default can
+         *     take part in combining, or null not to compute bounds' defaults at all
          */
-        void copyIntersectionBoundAnnotations(boolean deferFirstBoundDefault) {
-            AnnotationMirrorSet annos = new AnnotationMirrorSet();
+        void copyIntersectionBoundAnnotations(
+                boolean deferFirstBoundDefault, @Nullable Element scope) {
+            List<AnnotatedTypeMirror> theBounds = getBounds();
             QualifierHierarchy qualHierarchy = atypeFactory.getQualifierHierarchy();
+
+            // The hierarchies that at least one bound constrains explicitly, each represented by
+            // the first qualifier found in it. Only in these hierarchies is a bare bound's own
+            // default computed: a hierarchy that no bound constrains has nothing to combine that
+            // default with, and computing defaults for it would call the defaulting pass on every
+            // bound of every intersection type.
+            AnnotationMirrorSet explicitlyConstrained = new AnnotationMirrorSet();
+            if (scope != null) {
+                for (AnnotatedTypeMirror bound : theBounds) {
+                    for (AnnotationMirror a : bound.getAnnotationsField()) {
+                        if (qualHierarchy.findAnnotationInSameHierarchy(explicitlyConstrained, a)
+                                == null) {
+                            explicitlyConstrained.add(a);
+                        }
+                    }
+                }
+            }
+
+            // The first bound's own defaults, in the hierarchies it does not constrain explicitly.
+            // A hierarchy in here is one that would be deferred without this method's scope; the
+            // summary computed for it is committed only if combining moved it off this default,
+            // see below.
+            AnnotationMirrorSet firstBoundDefaults = new AnnotationMirrorSet();
+
+            AnnotationMirrorSet annos = new AnnotationMirrorSet();
             boolean firstBound = true;
-            for (AnnotatedTypeMirror bound : getBounds()) {
-                for (AnnotationMirror a : bound.getAnnotationsField()) {
+            for (AnnotatedTypeMirror bound : theBounds) {
+                AnnotationMirrorSet contributions = bound.getAnnotationsField();
+                if (!explicitlyConstrained.isEmpty()) {
+                    AnnotationMirrorSet defaults =
+                            ownDefaultsInBareHierarchies(bound, explicitlyConstrained, scope);
+                    if (!defaults.isEmpty()) {
+                        contributions = new AnnotationMirrorSet(contributions);
+                        contributions.addAll(defaults);
+                        if (firstBound) {
+                            firstBoundDefaults.addAll(defaults);
+                        }
+                    }
+                }
+                for (AnnotationMirror a : contributions) {
                     AnnotationMirror existing =
                             qualHierarchy.findAnnotationInSameHierarchy(annos, a);
                     if (existing == null) {
@@ -3096,10 +3180,62 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
                 }
                 firstBound = false;
             }
+
+            // In a hierarchy the first bound does not constrain explicitly, keep the summary only
+            // if combining moved it off the first bound's own default. If it did not, remove it
+            // and defer to the following defaulting pass exactly as if the default had never been
+            // computed, so that the behavior of a checker that does not override the combining
+            // hook is unchanged.
+            for (AnnotationMirror aDefault : firstBoundDefaults) {
+                AnnotationMirror summary =
+                        qualHierarchy.findAnnotationInSameHierarchy(annos, aDefault);
+                if (summary != null && AnnotationUtils.areSame(summary, aDefault)) {
+                    annos.remove(summary);
+                }
+            }
+
             // addAnnotations dispatches to the overridden addAnnotation, whose
             // fixupBoundAnnotations copies the primary annotation onto every bound, homogenizing
             // them.
             addAnnotations(annos);
+        }
+
+        /**
+         * Returns {@code bound}'s own default qualifier in each hierarchy that {@code bound} does
+         * not constrain explicitly, out of the given hierarchies. The bound is defaulted on its
+         * own, independently of the other bounds' qualifiers.
+         *
+         * @param bound a bound of this intersection type
+         * @param hierarchies the hierarchies to compute a default in, each represented by an
+         *     annotation in it
+         * @param scope the element in whose scope {@code bound} is defaulted
+         * @return {@code bound}'s own default in each of {@code hierarchies} it does not constrain
+         *     explicitly; empty if it constrains all of them
+         */
+        private AnnotationMirrorSet ownDefaultsInBareHierarchies(
+                AnnotatedTypeMirror bound, AnnotationMirrorSet hierarchies, Element scope) {
+            AnnotationMirrorSet bare = new AnnotationMirrorSet();
+            QualifierHierarchy qualHierarchy = atypeFactory.getQualifierHierarchy();
+            AnnotationMirrorSet written = bound.getAnnotationsField();
+            for (AnnotationMirror a : hierarchies) {
+                if (qualHierarchy.findAnnotationInSameHierarchy(written, a) == null) {
+                    bare.add(a);
+                }
+            }
+            if (bare.isEmpty()) {
+                return bare;
+            }
+            AnnotatedTypeMirror defaulted =
+                    createType(bound.getUnderlyingType(), atypeFactory, false);
+            atypeFactory.addComputedTypeAnnotations(scope, defaulted);
+            AnnotationMirrorSet result = new AnnotationMirrorSet();
+            for (AnnotationMirror a : bare) {
+                AnnotationMirror ownDefault = defaulted.getAnnotationInHierarchy(a);
+                if (ownDefault != null) {
+                    result.add(ownDefault);
+                }
+            }
+            return result;
         }
     }
 

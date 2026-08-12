@@ -229,7 +229,10 @@ class TypeFromTypeTreeVisitor extends TypeFromTreeVisitor {
                 AnnotatedIntersectionType intersection =
                         (AnnotatedIntersectionType) result.getUpperBound();
                 intersection.setBounds(bounds);
-                intersection.copyIntersectionBoundAnnotations();
+                // Pass the type parameter element so that a bound written bare in a hierarchy that
+                // another bound constrains can contribute its own default to the summary.
+                intersection.copyIntersectionBoundAnnotations(
+                        result.getUnderlyingType().asElement());
         }
 
         return result;
@@ -473,8 +476,8 @@ class TypeFromTypeTreeVisitor extends TypeFromTreeVisitor {
         type.setBounds(bounds);
         // A cast target's unannotated hierarchies are filled from the cast operand, not from
         // defaulting, so do not defer a later bound's hierarchy to it; summarize every bound
-        // instead (see copyIntersectionBoundAnnotations(boolean)).
-        type.copyIntersectionBoundAnnotations(false);
+        // instead (see copyIntersectionBoundAnnotations(boolean, Element)).
+        type.copyIntersectionBoundAnnotations(false, null);
         return type;
     }
 }

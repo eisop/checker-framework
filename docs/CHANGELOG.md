@@ -138,7 +138,9 @@ exactly as if the first bound had been written `@NonNull Object`. This result is
 deterministic for a given compilation, but it depends on the source order of the
 bounds. A checker that wants an order-independent summary can override
 `AnnotatedTypeFactory#combineIntersectionBoundAnnotationsInHierarchy` to return,
-for example, the greatest lower bound.
+for example, the greatest lower bound. That hook is consulted in every hierarchy
+that some bound constrains explicitly, whether the other bounds' qualifiers in
+that hierarchy are written on them or are their own defaults.
 
 Added a new lint option, `-Alint=monotonicNonNullOnStatic`, under which the
 Nullness Checker issues a `monotonic.on.static` warning when `@MonotonicNonNull`
@@ -177,6 +179,30 @@ checked-exception constraint, which infers the exception type argument of a
 functional interface whose method declares a generic `throws` clause.
 
 **Implementation details:**
+
+`AnnotatedIntersectionType.copyIntersectionBoundAnnotations` now lets a bound
+left bare in a hierarchy that another bound constrains explicitly contribute
+its own default to the summary, passing that default to
+`AnnotatedTypeFactory.combineIntersectionBoundAnnotationsInHierarchy` exactly
+like a qualifier written on the bound. Previously that hook was called only
+when two bounds were both explicitly annotated in one hierarchy, so a checker
+overriding it had no say wherever one side's qualifier was a bound's default:
+for `<T extends Object & @Nullable Cloneable>` the summary was the first
+bound's default whatever the hook returned, and the hook was not called at
+all. Under the default (first-bound-wins) hook nothing changes, because a
+hierarchy whose summary is still the first bound's own default is deferred to
+the defaulting pass exactly as before.
+
+A checker whose qualifier semantics are per-component (e.g. JSpecify, where
+`@Nullable Object & Lib` is null-exclusive because it IS-A the non-null
+`Lib`) should override `combineIntersectionBoundAnnotationsInHierarchy` to
+compute the greatest lower bound of the two qualifiers, now that a bound's
+own default takes part in combining too. A GLB summary is sound and at least
+as precise as checking each bound's own qualifier individually: for any
+target, if some bound's own qualifier is a subtype of it, the greatest lower
+bound of all the bounds' qualifiers is a subtype of it as well, so
+`getBounds()` alone answers the per-component question; no separate
+per-bound view is needed. See `framework/tests/intersectionglb`.
 
 `BaseTypeValidator.checkExplicitSuperBoundWildcards` now delegates its
 JDK-8054309 collapsed-wildcard-bound comparison to a new overridable

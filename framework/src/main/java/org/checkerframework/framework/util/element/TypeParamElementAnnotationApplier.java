@@ -175,7 +175,11 @@ abstract class TypeParamElementAnnotationApplier extends IndexedElementAnnotatio
 
                     bounds.get(boundIndex).replaceAnnotation(anno); // TODO: WHY NOT ADD?
                 }
-                ((AnnotatedIntersectionType) upperBoundType).copyIntersectionBoundAnnotations();
+                // Pass the type parameter element so that a bound left bare in a hierarchy that
+                // another bound constrains can contribute its own default to the summary.
+                ((AnnotatedIntersectionType) upperBoundType)
+                        .copyIntersectionBoundAnnotations(
+                                typeParam.getUnderlyingType().asElement());
 
             } else {
                 upperBoundType.addAnnotations(upperBounds);
