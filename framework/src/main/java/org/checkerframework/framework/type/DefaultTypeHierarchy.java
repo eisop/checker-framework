@@ -1161,6 +1161,11 @@ public class DefaultTypeHierarchy extends AbstractAtmComboVisitor<Boolean, Void>
     /**
      * An intersection is a supertype if all of its bounds are a supertype of subtype.
      *
+     * <p>See {@link #visitIntersection_Type} for why this iterates over the bounds individually
+     * rather than checking a single homogenized qualifier: each bound is a structurally distinct
+     * Java type, and the recursive subtype check needs a specific bound's full type structure to
+     * recurse into, not just its (already homogenized) primary annotation.
+     *
      * @param subtype the possible subtype
      * @param supertype the possible supertype
      * @return true {@code subtype} is a subtype of {@code supertype}
@@ -1188,6 +1193,16 @@ public class DefaultTypeHierarchy extends AbstractAtmComboVisitor<Boolean, Void>
 
     /**
      * An intersection is a subtype if one of its bounds is a subtype of {@code supertype}.
+     *
+     * <p>This still iterates over every bound even though {@link
+     * AnnotatedIntersectionType#getBounds()} has already homogenized their primary annotations to
+     * the same qualifier per hierarchy: homogenization makes the <em>qualifier</em> the same no
+     * matter which bound is consulted, but the bounds remain structurally distinct Java types (for
+     * example, {@code Object} and {@code Cloneable} in {@code Object & Cloneable}), and only one of
+     * them may be erased-subtype-comparable to {@code supertype} at all. That bound also carries
+     * the full type structure the recursive subtype check needs to recurse into &mdash; type
+     * arguments of a generic bound, for instance &mdash; which the intersection type's own primary
+     * annotation, a flat per-hierarchy qualifier with no such structure, cannot supply.
      *
      * @param subtype an intersection type
      * @param supertype an annotated type
