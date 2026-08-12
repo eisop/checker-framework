@@ -1938,8 +1938,8 @@ public abstract class GenericAnnotatedTypeFactory<
         AnnotatedTypeMirror res;
         switch (lhsTree.getKind()) {
             case VARIABLE:
-                boolean isVarTree =
-                        TreeUtils.isVariableTreeDeclaredUsingVar((VariableTree) lhsTree);
+                VariableTree varTree = (VariableTree) lhsTree;
+                boolean isVarTree = TreeUtils.isVariableTreeDeclaredUsingVar(varTree);
                 if (isVarTree) {
                     // If this variable is declared using `var`, re-enable caching to avoid
                     // re-computing the initializer expression type.
@@ -1947,6 +1947,20 @@ public abstract class GenericAnnotatedTypeFactory<
                 }
                 res = getAnnotatedType(lhsTree);
                 // Value of shouldCache no longer used below, so no need to reset.
+
+                // A field declaration initializer assigns to an implicit this.field.
+                // Viewpoint-adapt the field's declared type to the enclosing class just as
+                // for an explicit member access.
+                if (viewpointAdapter != null) {
+                    VariableElement field = TreeUtils.elementFromDeclaration(varTree);
+                    if (field.getKind().isField() && !ElementUtils.isStatic(field)) {
+                        TypeElement enclosingType = (TypeElement) field.getEnclosingElement();
+                        AnnotatedTypeMirror adapted = res.shallowCopy();
+                        viewpointAdapter.viewpointAdaptMember(
+                                getAnnotatedType(enclosingType), field, adapted);
+                        res = adapted;
+                    }
+                }
                 break;
             case IDENTIFIER:
                 Element elt = TreeUtils.elementFromTree(lhsTree);
@@ -1983,6 +1997,7 @@ public abstract class GenericAnnotatedTypeFactory<
                                     + lhsTree.getKind());
                 }
         }
+
         useFlow = oldUseFlow;
         shouldCache = oldShouldCache;
         computingAnnotatedTypeMirrorOfLhs = oldComputingAnnotatedTypeMirrorOfLhs;
