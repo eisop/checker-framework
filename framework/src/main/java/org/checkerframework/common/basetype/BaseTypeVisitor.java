@@ -4989,18 +4989,59 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             for (int i = 0; i < overriderParams.size(); ++i) {
                 AnnotatedTypeMirror capturedParam =
                         atypeFactory.applyCaptureConversion(overriddenParams.get(i));
-                boolean success = typeHierarchy.isSubtype(capturedParam, overriderParams.get(i));
-                if (!success) {
-                    success =
-                            testTypevarContainment(overriddenParams.get(i), overriderParams.get(i));
-                }
-
+                boolean success =
+                        isParameterOverrideValid(
+                                capturedParam, overriddenParams.get(i), overriderParams.get(i));
                 checkParametersMsg(success, i, overriderParams, overriddenParams);
                 result &= success;
             }
             return result;
         }
 
+        /**
+         * Returns true if {@code overriderParam} is an acceptable override of {@code
+         * overriddenParam} (after {@code capturedOverriddenParam}, the capture-converted form of
+         * {@code overriddenParam}, has been computed).
+         *
+         * <p>The default implementation requires contravariance: {@code capturedOverriddenParam}
+         * must be a subtype of {@code overriderParam}, or -- as a fallback for corresponding type
+         * variables declared by the overriding and overridden methods themselves, where a direct
+         * subtype check can fail even though the override is valid -- {@code overriddenParam} must
+         * be {@linkplain #testTypevarContainment(AnnotatedTypeMirror, AnnotatedTypeMirror)
+         * contained by} {@code overriderParam}. A checker that requires parameter
+         * <em>invariance</em> for overrides (both directions must be subtypes) should override this
+         * method to also require the reverse: {@code typeHierarchy.isSubtype(overriderParam,
+         * capturedOverriddenParam)}, falling back to {@code testTypevarContainment(overriderParam,
+         * overriddenParam)} for the same reason the default implementation does in the forward
+         * direction.
+         *
+         * @param capturedOverriddenParam the capture-converted overridden parameter type
+         * @param overriddenParam the (uncaptured) overridden parameter type, used by the
+         *     type-variable containment fallback
+         * @param overriderParam the overriding parameter type
+         * @return true if the override is compatible for this parameter
+         */
+        protected boolean isParameterOverrideValid(
+                AnnotatedTypeMirror capturedOverriddenParam,
+                AnnotatedTypeMirror overriddenParam,
+                AnnotatedTypeMirror overriderParam) {
+            if (typeHierarchy.isSubtype(capturedOverriddenParam, overriderParam)) {
+                return true;
+            }
+            return testTypevarContainment(overriddenParam, overriderParam);
+        }
+
+        /**
+         * Prints a debugging message (if {@code showchecks} is set) and, if {@code success} is
+         * false, reports an {@code override.param.invalid} or {@code methodref.param.invalid} error
+         * for the parameter at {@code index}.
+         *
+         * @param success whether the parameter at {@code index} is a valid override
+         * @param index the index, into {@code overriderParams} and {@code overriddenParams}, of the
+         *     parameter to report on
+         * @param overriderParams the parameter types of the overriding method
+         * @param overriddenParams the parameter types of the overridden method
+         */
         private void checkParametersMsg(
                 boolean success,
                 int index,

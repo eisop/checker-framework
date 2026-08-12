@@ -74,4 +74,4 @@ runs:
       # fixed version here makes that fallback a no-op and keeps `make
       # style-check` results reproducible across CI runs. Bump this pin
       # deliberately, not as a side effect of an unrelated PR.
-      run: pip install --break-system-packages black flake8 html5validator ruff==0.16.1
+      run: pip install --break-system-packages black flake8 html5validator ruff==0.16.2
