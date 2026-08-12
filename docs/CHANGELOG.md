@@ -138,11 +138,14 @@ exactly as if the first bound had been written `@NonNull Object`. This result is
 deterministic for a given compilation, but it depends on the source order of the
 bounds. A checker that wants an order-independent summary can override
 `AnnotatedTypeFactory#combineIntersectionBoundAnnotationsInHierarchy` to return,
-for example, the greatest lower bound (see #1943 for a correction to this
-paragraph: at this point the hook was consulted only when two bounds were both
-explicitly annotated in a hierarchy, not when one side's qualifier came from
-defaulting, so overriding it did not yet give an order-independent summary for
-the `<T extends Object & @Nullable Serializable>` example above).
+for example, the greatest lower bound. Correction: the hook is consulted only
+when two bounds are both explicitly annotated in a hierarchy, not when one
+side's qualifier comes from defaulting, so overriding it does not give an
+order-independent summary for the `<T extends Object & @Nullable Serializable>`
+example above &mdash; that case still defers the hierarchy to the ordinary
+defaulting pass, regardless of what the hook returns. This is a known,
+currently open limitation; see
+`AnnotatedIntersectionType#copyIntersectionBoundAnnotations`.
 
 Added a new lint option, `-Alint=monotonicNonNullOnStatic`, under which the
 Nullness Checker issues a `monotonic.on.static` warning when `@MonotonicNonNull`
@@ -182,38 +185,45 @@ functional interface whose method declares a generic `throws` clause.
 
 **Implementation details:**
 
-`AnnotatedIntersectionType.copyIntersectionBoundAnnotations` now lets a bound
-left bare in a hierarchy that another bound constrains explicitly contribute
-its own default to the summary, passing that default to
-`AnnotatedTypeFactory.combineIntersectionBoundAnnotationsInHierarchy` exactly
-like a qualifier written on the bound. Previously that hook was called only
-when two bounds were both explicitly annotated in one hierarchy, so a checker
-overriding it had no say wherever one side's qualifier was a bound's default:
-for `<T extends Object & @Nullable Cloneable>` the summary was the first
-bound's default whatever the hook returned, and the hook was not called at
-all. Under the default (first-bound-wins) hook nothing changes, because a
-hierarchy whose summary is still the first bound's own default is deferred to
-the defaulting pass exactly as before.
-
-This corrects an inaccuracy in #1875, which introduced the hook and claimed
-that first-bound-wins "holds uniformly whether the first bound is annotated
-explicitly or by defaulting" and that overriding the hook gives an
-order-independent summary. Both claims held only for two explicitly annotated
-bounds in conflict; whenever one side's qualifier came from defaulting, the
-hook was structurally unreachable, so overriding it had no effect on that
+Corrects an inaccuracy in #1875, which introduced
+`AnnotatedTypeFactory.combineIntersectionBoundAnnotationsInHierarchy` and
+claimed that first-bound-wins "holds uniformly whether the first bound is
+annotated explicitly or by defaulting" and that overriding the hook gives an
+order-independent summary. Both claims hold only for two explicitly annotated
+bounds in conflict; whenever one side's qualifier comes from defaulting, the
+hook is not called at all, so overriding it currently has no effect on that
 case, including #1875's own `<T extends Object & @Nullable Serializable>`
-motivating example.
+motivating example. Making a bare bound's own default take part in combining
+was attempted and reverted (see below); the gap remains open.
 
-A checker whose qualifier semantics are per-component (e.g. JSpecify, where
-`@Nullable Object & Lib` is null-exclusive because it IS-A the non-null
-`Lib`) should override `combineIntersectionBoundAnnotationsInHierarchy` to
-compute the greatest lower bound of the two qualifiers, now that a bound's
-own default takes part in combining too. A GLB summary is sound and at least
-as precise as checking each bound's own qualifier individually: for any
-target, if some bound's own qualifier is a subtype of it, the greatest lower
-bound of all the bounds' qualifiers is a subtype of it as well, so
-`getBounds()` alone answers the per-component question; no separate
-per-bound view is needed. See `framework/tests/intersectionglb`.
+Added `IntersectionGlbChecker`/`IntersectionGlbAnnotatedTypeFactory`, a test
+checker that overrides `combineIntersectionBoundAnnotationsInHierarchy` to
+compute the greatest lower bound of two explicitly conflicting bounds, and
+`framework/tests/intersectionglb/IntersectionBoundCombining.java` to test it.
+This demonstrates that a checker whose qualifier semantics are per-component
+(e.g. JSpecify, where `@Nullable Object & Lib` is null-exclusive because it
+IS-A the non-null `Lib`) should reach for a GLB-combine override rather than a
+separate per-bound API: for any target, if some bound's own qualifier is a
+subtype of it, the greatest lower bound of the bounds' qualifiers is a
+subtype of it too, so `getBounds()` with a GLB-combine override already
+answers the per-component question, at least for bounds that are explicitly
+annotated.
+
+An earlier version of this change made
+`AnnotatedIntersectionType.copyIntersectionBoundAnnotations` compute a bare
+bound's own default and feed it into the combining hook, so that a checker
+overriding the hook would have a say even when one side's qualifier came from
+defaulting rather than being written. That version is **reverted**: computing
+the default required a synthetic, standalone defaulting call from inside type
+construction, which (a) can re-enter type construction for the same element
+and crash with `StackOverflowError` on an F-bounded type parameter such as
+`<T extends Recursive<T> & @Q Cloneable>`, for every checker, not just one
+overriding the hook, and (b) is not issued at the bound's real location
+(`UPPER_BOUND`), so it can compute the wrong default. Closing this gap
+correctly needs the summary to be computed from the bounds' real qualifiers
+after the ordinary defaulting pass has run on them, which is a larger,
+separately-scoped change to the type-construction/defaulting pipeline
+ordering, not attempted here.
 
 `BaseTypeValidator.checkExplicitSuperBoundWildcards` now delegates its
 JDK-8054309 collapsed-wildcard-bound comparison to a new overridable
