@@ -159,7 +159,45 @@ so the captured type variable's upper bound is no longer computed too low.
 Previously the missing qualifier could silently suppress an
 `assignment.type.incompatible` error.
 
+Type-argument inference now resolves the polymorphic qualifiers of a method
+reference's compile-time declaration against the parameter types of the target
+function type, before it builds the inference constraints. Previously a
+polymorphic qualifier reached the solver as if it were a concrete qualifier, so
+a call whose type argument is inferred, such as `s.map(obj::polyMethod)`,
+reported a spurious `type.arguments.not.inferred` ("unsatisfiable constraint:
+`@PolyNull Lib <: @NonNull Lib`"), even though the same call written as a lambda
+(`s.map(o -> obj.polyMethod(o))`) or with an explicit type argument
+(`s.<Lib>map(obj::polyMethod)`) was accepted. This is the resolution that the
+method reference's override check already performed, but only after inference
+had finished. The same resolution now also applies when the method reference
+itself, rather than an enclosing invocation, is the expression whose type
+arguments are being inferred, such as an unbound reference passed to
+`Map.computeIfAbsent`, and when the compile-time declaration is used to build a
+checked-exception constraint, which infers the exception type argument of a
+functional interface whose method declares a generic `throws` clause.
+
 **Implementation details:**
+
+`BaseTypeValidator.checkExplicitSuperBoundWildcards` now delegates its
+JDK-8054309 collapsed-wildcard-bound comparison to a new overridable
+`areCollapsedWildcardBoundsEqual` method, instead of inlining a bidirectional
+`isSubtypeShallowEffective` check. That bidirectional check only means "same
+qualifier" in an antisymmetric qualifier hierarchy; a checker whose hierarchy
+is not antisymmetric (e.g. an "unspecified" qualifier that is deliberately a
+mutual subtype of everything) needs a different equality test and previously
+had to override the entire ~40-line method to get one. No behavior change for
+CF's own (antisymmetric) checkers.
+
+`BaseTypeVisitor.OverrideChecker.checkParameters` now delegates its per-parameter
+override compatibility check to a new overridable `isParameterOverrideValid` method,
+instead of inlining the subtype test and type-variable containment fallback. That
+default check is contravariant (the overridden parameter must be a subtype of the
+overriding parameter, the standard override rule in CF's type systems). A checker
+whose type rules require parameter <em>invariance</em> for overrides (both directions
+must be subtypes, as in JSpecify's override rules) can now override just this method
+to change the directionality, rather than duplicating the entire ~35-line
+`checkParameters` and `checkParametersMsg` loop-and-error-reporting logic. No
+behavior change for CF's own (contravariant) checkers.
 
 `TypeFromTypeTreeVisitor` now restores the declared bounds of type-variable
 type arguments that appear in the enclosing type of a nested type (e.g. the
@@ -330,6 +368,22 @@ Performance optimizations:
 Other improvements and bug fixes:
 - `TreeUtils` has a new `inferredTypeArguments(ExpressionTree)` method to
   recover Java type variables inferred by javac.
+- `TypeVariableSubstitutor` has a new `substitute(Map, AnnotatedTypeMirror,
+  boolean)` overload that also indicates whether the type arguments being
+  substituted were inferred by the type checker, as opposed to written
+  explicitly by the programmer at the call site. The existing two-argument
+  `substitute(Map, AnnotatedTypeMirror)` is unchanged and continues to default
+  to `false`; both `substitute(...)` overloads are now `final`, since they are
+  convenience entry points, not extension points. The corresponding extension
+  point, `substituteTypeVariable(AnnotatedTypeMirror, AnnotatedTypeVariable)`,
+  now always takes this flag as a third parameter; the two-argument overload
+  has been removed rather than kept alongside it, so a checker cannot
+  accidentally override one and not the other and be surprised that only one
+  of its overrides ever runs. This lets a checker distinguish inferred from
+  written type arguments during substitution without a hand-rolled instance
+  field that must be manually saved and restored around reentrant
+  `methodFromUse`/`constructorFromUse` calls, as the JSpecify reference
+  checker previously had to do.
 - Fixed a latent aliasing bug in `AnnotatedTypeCopier` for executable types.
 - Fixed an `IndexOutOfBoundsException` for lambdas in varargs.
 - Fixed `BinaryOperation.hashCode()` to agree with `equals()` for commutative
