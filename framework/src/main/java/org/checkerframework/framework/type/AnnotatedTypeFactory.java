@@ -344,6 +344,9 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      */
     private final IdentityHashMap<Element, AnnotationMirrorSet> cacheDeclAnnos;
 
+    /** A cache for the result of {@link #isFromByteCode(Element)}, keyed by element. */
+    private final IdentityHashMap<Element, Boolean> isFromByteCodeCache;
+
     /**
      * A set containing declaration annotations that should be inherited. A declaration annotation
      * will be inherited if it is in this set, or if it has the
@@ -663,6 +666,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         this.currentFileAjavaTypes = null;
 
         this.cacheDeclAnnos = new IdentityHashMap<>();
+        this.isFromByteCodeCache = new IdentityHashMap<>();
         this.methodDeclaresPolyCache = new IdentityHashMap<>();
 
         // get the shared instance from the checker
@@ -1120,6 +1124,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             // elementCache.clear();
             // elementTypeCache.clear();
             // cacheDeclAnnos.clear();
+            // isFromByteCodeCache.clear();
             // methodDeclaresPolyCache.clear();
         }
 
@@ -1275,6 +1280,29 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      */
     protected @Nullable ViewpointAdapter createViewpointAdapter() {
         return null;
+    }
+
+    /**
+     * Returns the type of an overridden method as it should be seen for an override check against
+     * the given overriding class. This computes the overridden method type via {@link
+     * AnnotatedTypes#asMemberOf} and then viewpoint-adapts it to the overriding class.
+     *
+     * @param overriddenType the supertype that contains the overridden method
+     * @param overriddenMethodElt the element of the overridden method
+     * @param overriderType the type of the class declaring the overriding method
+     * @return the overridden method type, with type variables substituted and viewpoint-adapted to
+     *     the overriding class
+     */
+    public AnnotatedExecutableType overriddenMethodType(
+            AnnotatedDeclaredType overriddenType,
+            ExecutableElement overriddenMethodElt,
+            AnnotatedDeclaredType overriderType) {
+        AnnotatedExecutableType result =
+                AnnotatedTypes.asMemberOf(types, this, overriddenType, overriddenMethodElt);
+        if (viewpointAdapter != null) {
+            viewpointAdapter.viewpointAdaptMethod(overriderType, overriddenMethodElt, result);
+        }
+        return result;
     }
 
     /**
@@ -1601,7 +1629,15 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         // or obtained from bytecode.
         AnnotatedTypeMirror type = fromElement(elt);
         addComputedTypeAnnotations(elt, type);
-        if (useCache) {
+        // Do not cache a result computed while an annotation file is being parsed: a fake
+        // override (AnnotationFileParser#processFakeOverride, BinaryStubReader#applyFakeOverride)
+        // reentrantly calls this method on the overridden method while that method's own
+        // declaring class may not have been processed yet, e.g. when it appears later in the same
+        // stub file. `elementTypeCache` is intentionally never cleared between compilation units
+        // (see the comment in setRoot), so caching such an incomplete result here would freeze it
+        // for the rest of the compilation. `fromElement`'s `elementCache` already applies this
+        // same guard, for the same reason; see `isParsingAnnotationFile`'s Javadoc.
+        if (useCache && !isParsingAnnotationFile()) {
             elementTypeCache.put(elt, frozenDeepCopy(type));
         }
         return type;
@@ -1618,6 +1654,41 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      */
     protected boolean shouldCacheElementType() {
         return true;
+    }
+
+    /**
+     * Combines two conflicting bound annotations of an intersection type, in the same qualifier
+     * hierarchy, into the single annotation that {@link
+     * AnnotatedTypeMirror.AnnotatedIntersectionType#copyIntersectionBoundAnnotations()} uses to
+     * summarize that hierarchy. This method is called only when two bounds carry different
+     * annotations in one hierarchy.
+     *
+     * <p>By default the annotation of the bound encountered first, in source order, wins
+     * (first-bound-wins): the returned summary equals {@code existingAnnotation} and {@code
+     * newAnnotation} is ignored. The summary is therefore source-order dependent, but deterministic
+     * for a given compilation. It is still a sound upper bound of the intersection, because it
+     * equals one of the bounds' own annotations and the intersection is a subtype of each of its
+     * bounds.
+     *
+     * <p>A checker that wants an order-independent, more precise summary&mdash;for example a
+     * JSpecify-style integration&mdash;may override this to return {@code
+     * qualifierHierarchy.greatestLowerBoundQualifiersOnly(existingAnnotation, newAnnotation)}. This
+     * method decides only how the per-hierarchy summary is computed; that summary is always written
+     * back onto every bound (homogenization).
+     *
+     * @param existingAnnotation the annotation already chosen for this hierarchy, from an earlier
+     *     bound in source order
+     * @param newAnnotation a conflicting annotation from a later bound in the same hierarchy
+     * @param qualifierHierarchy the qualifier hierarchy that both annotations belong to
+     * @return the annotation to use as the intersection's summary for this hierarchy
+     */
+    protected AnnotationMirror combineIntersectionBoundAnnotationsInHierarchy(
+            AnnotationMirror existingAnnotation,
+            AnnotationMirror newAnnotation,
+            QualifierHierarchy qualifierHierarchy) {
+        // Default: first-bound-wins. Keep whichever annotation was found first and ignore the
+        // conflicting one.
+        return existingAnnotation;
     }
 
     /**
@@ -2447,6 +2518,70 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     }
 
     /**
+     * Returns the receiver type used to viewpoint-adapt a constructor invocation.
+     *
+     * @param tree a constructor invocation tree
+     * @return the receiver type
+     * @see #getReceiverType(ExpressionTree)
+     * @see #getMethodReceiverType(MethodInvocationTree)
+     */
+    public AnnotatedDeclaredType getConstructorReceiverType(NewClassTree tree) {
+        // Get the annotations written on the new class tree.
+        AnnotatedDeclaredType type =
+                (AnnotatedDeclaredType) toAnnotatedType(TreeUtils.typeOf(tree), false);
+        if (!TreeUtils.isDiamondTree(tree)) {
+            if (tree.getClassBody() == null) {
+                type.setTypeArguments(getExplicitNewClassClassTypeArgs(tree));
+            }
+        } else {
+            type = getAnnotatedType(TypesUtils.getTypeElement(type.underlyingType));
+            // Add explicit annotations below.
+            type.clearAnnotations();
+        }
+
+        AnnotationMirrorSet explicitAnnos = getExplicitNewClassAnnos(tree);
+        type.addAnnotations(explicitAnnos);
+
+        // Get the enclosing type of the constructor, if one exists.
+        // this.new InnerClass()
+        AnnotatedDeclaredType enclosingType = (AnnotatedDeclaredType) getReceiverType(tree);
+        if (enclosingType != null && enclosingType.isFrozen()) {
+            // getReceiverType may return a shared frozen cache value; it is embedded in `type` and
+            // mutated by addComputedTypeAnnotations below, so copy it first.
+            enclosingType = enclosingType.deepCopy();
+        }
+        type.setEnclosingType(enclosingType);
+
+        // Add computed annotations to the type.
+        addComputedTypeAnnotations(tree, type);
+
+        return type;
+    }
+
+    /**
+     * Returns the receiver type used to viewpoint-adapt a method invocation.
+     *
+     * @param tree a method invocation tree
+     * @return the receiver type, or null if the invocation has no receiver
+     * @see #getReceiverType(ExpressionTree)
+     * @see #getConstructorReceiverType(NewClassTree)
+     */
+    public @Nullable AnnotatedTypeMirror getMethodReceiverType(MethodInvocationTree tree) {
+        AnnotatedTypeMirror receiverType = getReceiverType(tree);
+        if (receiverType == null
+                && (TreeUtils.isSuperConstructorCall(tree)
+                        || TreeUtils.isThisConstructorCall(tree))) {
+            // super() and this() calls don't have a receiver, but they should be view-point adapted
+            // as if "this" is the receiver.
+            receiverType = getSelfType(tree);
+        }
+        if (receiverType != null && receiverType.getKind() == TypeKind.DECLARED) {
+            receiverType = applyCaptureConversion(receiverType);
+        }
+        return receiverType;
+    }
+
+    /**
      * Creates and returns an AnnotatedNullType qualified with {@code annotations}.
      *
      * @param annotations the set of AnnotationMirrors to qualify the returned type with
@@ -2660,6 +2795,8 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      *
      * @param expression the expression for which to determine the receiver type
      * @return the type of the receiver of expression
+     * @see #getMethodReceiverType(MethodInvocationTree)
+     * @see #getConstructorReceiverType(NewClassTree)
      */
     public final @Nullable AnnotatedTypeMirror getReceiverType(ExpressionTree expression) {
         AnnotatedTypeMirror receiverType;
@@ -2781,17 +2918,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     protected ParameterizedExecutableType methodFromUse(
             MethodInvocationTree tree, boolean inferTypeArgs) {
         ExecutableElement methodElt = TreeUtils.elementFromUse(tree);
-        AnnotatedTypeMirror receiverType = getReceiverType(tree);
-        if (receiverType == null
-                && (TreeUtils.isSuperConstructorCall(tree)
-                        || TreeUtils.isThisConstructorCall(tree))) {
-            // super() and this() calls don't have a receiver, but they should be view-point adapted
-            // as if "this" is the receiver.
-            receiverType = getSelfType(tree);
-        }
-        if (receiverType != null && receiverType.getKind() == TypeKind.DECLARED) {
-            receiverType = applyCaptureConversion(receiverType);
-        }
+        AnnotatedTypeMirror receiverType = getMethodReceiverType(tree);
 
         ParameterizedExecutableType result =
                 methodFromUse(tree, methodElt, receiverType, inferTypeArgs);
@@ -2916,14 +3043,17 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             }
             methodType =
                     (AnnotatedExecutableType)
-                            typeVarSubstitutor.substitute(typeParamToTypeArg, methodType);
+                            typeVarSubstitutor.substitute(
+                                    typeParamToTypeArg,
+                                    methodType,
+                                    typeArguments.typeArgumentsInferred);
         }
 
-        if (typeArguments.inferenceCrash && tree instanceof MethodInvocationTree) {
-            // If inference crashed, then the return type will not be the correct Java type.  This
-            // can cause crashes elsewhere in the framework.  To avoid those crashes, create an ATM
-            // with the correct Java type and default annotations.  (If inference crashes an error
-            // will be issued in the BaseTypeVisitor.)
+        if (typeArguments.needsDefaultedReturnType && tree instanceof MethodInvocationTree) {
+            // If inference did not compute a reliable return type, then the return type will not be
+            // the correct Java type. To avoid crashes elsewhere in the framework, create an ATM
+            // with the correct Java type and default annotations. (An error will be issued in the
+            // BaseTypeVisitor.)
             TypeMirror type = TreeUtils.typeOf(tree);
             AnnotatedTypeMirror returnType = AnnotatedTypeMirror.createType(type, this, false);
             addDefaultAnnotations(returnType);
@@ -3519,34 +3649,8 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      */
     protected ParameterizedExecutableType constructorFromUse(
             NewClassTree tree, boolean inferTypeArgs) {
-        // Get the annotations written on the new class tree.
-        AnnotatedDeclaredType type =
-                (AnnotatedDeclaredType) toAnnotatedType(TreeUtils.typeOf(tree), false);
-        if (!TreeUtils.isDiamondTree(tree)) {
-            if (tree.getClassBody() == null) {
-                type.setTypeArguments(getExplicitNewClassClassTypeArgs(tree));
-            }
-        } else {
-            type = getAnnotatedType(TypesUtils.getTypeElement(type.underlyingType));
-            // Add explicit annotations below.
-            type.clearAnnotations();
-        }
-
-        AnnotationMirrorSet explicitAnnos = getExplicitNewClassAnnos(tree);
-        type.addAnnotations(explicitAnnos);
-
-        // Get the enclosing type of the constructor, if one exists.
-        // this.new InnerClass()
-        AnnotatedDeclaredType enclosingType = (AnnotatedDeclaredType) getReceiverType(tree);
-        if (enclosingType != null && enclosingType.isFrozen()) {
-            // getReceiverType may return a shared frozen cache value; it is embedded in `type` and
-            // mutated by addComputedTypeAnnotations below, so copy it first.
-            enclosingType = enclosingType.deepCopy();
-        }
-        type.setEnclosingType(enclosingType);
-
-        // Add computed annotations to the type.
-        addComputedTypeAnnotations(tree, type);
+        AnnotatedDeclaredType type = getConstructorReceiverType(tree);
+        AnnotatedDeclaredType enclosingType = type.getEnclosingType();
 
         ExecutableElement ctor = TreeUtils.elementFromUse(tree);
         AnnotatedExecutableType con = getAnnotatedType(ctor); // get unsubstituted type
@@ -3631,15 +3735,18 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
                             con.getTypeVariables());
         }
 
-        con = (AnnotatedExecutableType) typeVarSubstitutor.substitute(typeParamToTypeArg, con);
+        con =
+                (AnnotatedExecutableType)
+                        typeVarSubstitutor.substitute(
+                                typeParamToTypeArg, con, typeArguments.typeArgumentsInferred);
 
         stubTypes.injectRecordComponentType(types, ctor, con);
 
-        if (typeArguments.inferenceCrash) {
-            // If inference crashed, then the return type will not be the correct Java type.  This
-            // can cause crashes elsewhere in the framework.  To avoid those crashes, create an ATM
-            // with the correct Java type and default annotations.  (If inference crashes an error
-            // will be issued in the BaseTypeVisitor.)
+        if (typeArguments.needsDefaultedReturnType) {
+            // If inference did not compute a reliable return type, then the return type will not be
+            // the correct Java type. To avoid crashes elsewhere in the framework, create an ATM
+            // with the correct Java type and default annotations. (An error will be issued in the
+            // BaseTypeVisitor.)
             TypeMirror typeTM = TreeUtils.typeOf(tree);
             AnnotatedTypeMirror returnType = AnnotatedTypeMirror.createType(typeTM, this, false);
             addDefaultAnnotations(returnType);
@@ -4835,10 +4942,23 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * @return true if the element is from bytecode and did not appear in a stub file
      */
     public boolean isFromByteCode(Element element) {
-        if (isFromStubFile(element)) {
-            return false;
+        Boolean cached = isFromByteCodeCache.get(element);
+        if (cached != null) {
+            return cached;
         }
-        return !ElementUtils.isElementFromSourceCode(element);
+        boolean result = !isFromStubFile(element) && !ElementUtils.isElementFromSourceCode(element);
+        // Do not cache a result computed while an annotation file is being parsed: isFromStubFile
+        // depends on the element's @FromStubFile declaration annotation, which cacheDeclAnnos
+        // (backing getDeclAnnotations) itself does not cache while parsing, for the same reason --
+        // a fake override or other reentrant lookup can query this element before its own
+        // declaring class's stub info has been fully attached. See getDeclAnnotations's identical
+        // guard and GenericAnnotatedTypeFactory#parsePhasePrimaryDefaultsCache's Javadoc ("Standard
+        // factory caches are disabled during parsing to prevent caching partially loaded stub
+        // annotations").
+        if (!isParsingAnnotationFile()) {
+            isFromByteCodeCache.put(element, result);
+        }
+        return result;
     }
 
     /**
@@ -6190,8 +6310,14 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             AnnotatedWildcardType wildcard,
             AnnotatedTypeVariable typeVariable,
             AnnotatedTypeVariable capturedTypeVar) {
+        // Per JLS 5.1.10, the captured type variable's upper bound is glb(B, S theta), where S is
+        // the type parameter's declared upper bound.  Use the copying substitution so that when S
+        // is itself a type-variable use carrying a primary annotation (as in the declaration
+        // `U extends @Q A`), that primary annotation is applied to the substitute rather than
+        // dropped.  The no-copy substitution returns the raw argument for A and loses @Q, which
+        // would corrupt the glb below.  The deep copy also avoids mutating the shared argument.
         AnnotatedTypeMirror typeVarUpperBound =
-                typeVarSubstitutor.substituteWithoutCopyingTypeArguments(
+                typeVarSubstitutor.substitute(
                         typeVarToAnnotatedTypeArg, typeVariable.getUpperBound());
         AnnotatedTypeMirror upperBound =
                 AnnotatedTypes.annotatedGLB(this, typeVarUpperBound, wildcard.getExtendsBound());

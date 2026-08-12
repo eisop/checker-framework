@@ -3061,8 +3061,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
                 if (prefixes.contains(currentSuppressWarningsInEffect)) {
                     // The value in the @SuppressWarnings is exactly a prefix.
                     // Suppress the warning unless its message key is "unneeded.suppression".
-                    boolean result =
-                            !currentSuppressWarningsInEffect.equals(UNNEEDED_SUPPRESSION_KEY);
+                    boolean result = !messageKey.equals(UNNEEDED_SUPPRESSION_KEY);
                     return result;
                 } else if (requirePrefixInWarningSuppressions) {
                     // A prefix is required, but this SuppressWarnings string does not have a
@@ -3071,8 +3070,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
                 } else if (currentSuppressWarningsInEffect.equals(SUPPRESS_ALL_MESSAGE_KEY)) {
                     // Prefixes aren't required and the SuppressWarnings string is "all".
                     // Suppress the warning unless its message key is "unneeded.suppression".
-                    boolean result =
-                            !currentSuppressWarningsInEffect.equals(UNNEEDED_SUPPRESSION_KEY);
+                    boolean result = !messageKey.equals(UNNEEDED_SUPPRESSION_KEY);
                     return result;
                 }
                 // The currentSuppressWarningsInEffect is not a prefix or a prefix:message-key, so

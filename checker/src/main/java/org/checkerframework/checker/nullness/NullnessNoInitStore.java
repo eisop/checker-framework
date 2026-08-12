@@ -27,18 +27,19 @@ public class NullnessNoInitStore extends CFAbstractStore<NullnessNoInitValue, Nu
     private boolean isPolyNullNull;
 
     /**
-     * Initialized fields and their values.
+     * Maps each field that is known to be initialized along the current flow path to the value it
+     * takes on after a non-pure method call, namely its declared type. Used by {@link
+     * #newFieldValueAfterMethodCall(FieldAccess, GenericAnnotatedTypeFactory, NullnessNoInitValue)}
+     * to avoid re-evaluating the expensive {@link
+     * InitializationAnnotatedTypeFactory#isInitialized(org.checkerframework.framework.type.GenericAnnotatedTypeFactory,
+     * org.checkerframework.framework.flow.CFAbstractValue,
+     * javax.lang.model.element.VariableElement)} check once a field is known to be initialized.
      *
-     * <p>This is used by {@link #newFieldValueAfterMethodCall(FieldAccess,
-     * GenericAnnotatedTypeFactory, NullnessNoInitValue)} as cache to avoid performance issue in
-     * #1438.
-     *
-     * @see
-     *     InitializationAnnotatedTypeFactory#isInitialized(org.checkerframework.framework.type.GenericAnnotatedTypeFactory,
-     *     org.checkerframework.framework.flow.CFAbstractValue,
-     *     javax.lang.model.element.VariableElement)
+     * <p>This is a path-local memoization cache, not part of the store's abstract state, so it is
+     * deliberately excluded from {@link #leastUpperBound}, {@link #equals}, and {@link #hashCode}.
+     * See those methods for why the exclusion is sound.
      */
-    protected Map<FieldAccess, NullnessNoInitValue> initializedFields;
+    private @Nullable Map<FieldAccess, NullnessNoInitValue> initializedFieldValueCache;
 
     /**
      * Create a NullnessStore.
@@ -64,8 +65,8 @@ public class NullnessNoInitStore extends CFAbstractStore<NullnessNoInitValue, Nu
         super(s);
         isPolyNullNonNull = s.isPolyNullNonNull;
         isPolyNullNull = s.isPolyNullNull;
-        if (s.initializedFields != null) {
-            initializedFields = s.initializedFields;
+        if (s.initializedFieldValueCache != null) {
+            initializedFieldValueCache = s.initializedFieldValueCache;
         }
     }
 
@@ -75,24 +76,21 @@ public class NullnessNoInitStore extends CFAbstractStore<NullnessNoInitValue, Nu
             GenericAnnotatedTypeFactory<NullnessNoInitValue, NullnessNoInitStore, ?, ?>
                     atypeFactory,
             NullnessNoInitValue value) {
-        // If the field is unassignable, it cannot change; thus we keep
-        // its current value.
-        // Unassignable fields must be handled before initialized fields
-        // because in the case of a field that is both unassignable and
-        // initialized, the initializedFields cache may contain an older,
-        // less refined value.
+        // If the field is unassignable, it cannot change, so keep its current value. Unassignable
+        // fields are handled before initialized ones because a field that is both unassignable and
+        // initialized may have a stale, less-refined value in the cache.
         if (!fieldAccess.isAssignableByOtherCode()) {
             return value;
         }
 
-        if (initializedFields == null) {
-            initializedFields = new HashMap<>(4);
+        if (initializedFieldValueCache == null) {
+            initializedFieldValueCache = new HashMap<>(4);
         }
 
-        // If the field is initialized, it can change, but cannot be uninitialized.
-        // We thus keep a new value based on its declared type.
-        if (initializedFields.containsKey(fieldAccess)) {
-            return initializedFields.get(fieldAccess);
+        // An initialized field can change but cannot become uninitialized, so after the call it
+        // takes on a value based on its declared type.
+        if (initializedFieldValueCache.containsKey(fieldAccess)) {
+            return initializedFieldValueCache.get(fieldAccess);
         } else if (InitializationAnnotatedTypeFactory.isInitialized(
                         atypeFactory, value, fieldAccess.getField())
                 && atypeFactory
@@ -103,7 +101,7 @@ public class NullnessNoInitStore extends CFAbstractStore<NullnessNoInitValue, Nu
                     analysis.createAbstractValue(
                             atypeFactory.getAnnotatedType(fieldAccess.getField()).getAnnotations(),
                             value.getUnderlyingType());
-            initializedFields.put(fieldAccess, newValue);
+            initializedFieldValueCache.put(fieldAccess, newValue);
             return newValue;
         }
 
@@ -120,6 +118,10 @@ public class NullnessNoInitStore extends CFAbstractStore<NullnessNoInitValue, Nu
         NullnessNoInitStore lub = super.leastUpperBound(other);
         lub.isPolyNullNonNull = isPolyNullNonNull && other.isPolyNullNonNull;
         lub.isPolyNullNull = isPolyNullNull && other.isPolyNullNull;
+        // initializedFieldValueCache is intentionally not merged into lub. It is a path-local memo,
+        // and a field known to be initialized along one branch need not be initialized in the
+        // merged store, so dropping it is required for soundness; lub starts as an empty store, so
+        // its cache is null and gets repopulated on demand.
         return lub;
     }
 
@@ -198,7 +200,10 @@ public class NullnessNoInitStore extends CFAbstractStore<NullnessNoInitValue, Nu
             return false;
         }
         NullnessNoInitStore other = (NullnessNoInitStore) o;
-        // TODO: what about initializedFields?
+        // initializedFieldValueCache is not compared: it is a path-local memo, not part of the
+        // store's abstract state. Two stores that are otherwise equal denote the same abstract
+        // value regardless of what either has cached, and each cache entry is recomputable from the
+        // field's declaration, so ignoring it here (and in hashCode) is sound.
         return isPolyNullNonNull == other.isPolyNullNonNull
                 && isPolyNullNull == other.isPolyNullNull;
     }

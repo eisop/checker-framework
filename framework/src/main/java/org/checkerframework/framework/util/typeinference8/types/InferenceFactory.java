@@ -32,6 +32,7 @@ import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedTypeVari
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedWildcardType;
 import org.checkerframework.framework.type.GenericAnnotatedTypeFactory;
 import org.checkerframework.framework.type.TypeVariableSubstitutor;
+import org.checkerframework.framework.type.poly.QualifierPolymorphism;
 import org.checkerframework.framework.util.AnnotatedTypes;
 import org.checkerframework.framework.util.typeinference8.constraint.ConstraintSet;
 import org.checkerframework.framework.util.typeinference8.constraint.TypeConstraint;
@@ -558,7 +559,7 @@ public class InferenceFactory {
             Element classEle =
                     ElementUtils.enclosingTypeElement(
                             TreeUtils.elementFromUse((NewClassTree) invocation));
-            if (classEle.getSimpleName().contentEquals("")) {
+            if (ElementUtils.isAnonymous(classEle)) {
                 classEle =
                         ((DeclaredType)
                                         TreeUtils.typeOf(
@@ -782,7 +783,21 @@ public class InferenceFactory {
      * @param memRef method reference tree
      * @return the compile-time declaration of the method reference
      */
-    public InvocationType compileTimeDeclarationType(MemberReferenceTree memRef) {
+    public final InvocationType compileTimeDeclarationType(MemberReferenceTree memRef) {
+        return compileTimeDeclarationType(memRef, null);
+    }
+
+    /**
+     * Same as {@link #compileTimeDeclarationType(MemberReferenceTree)}, but the polymorphic
+     * qualifiers of the compile-time declaration are resolved against the function type of {@code
+     * target}, the target type of the method reference.
+     *
+     * @param memRef method reference tree
+     * @param target the target type of {@code memRef}, or null if it is not known
+     * @return the compile-time declaration of the method reference
+     */
+    public final InvocationType compileTimeDeclarationType(
+            MemberReferenceTree memRef, @Nullable AbstractType target) {
         // The tree before :: is an expression or type use.
         final ExpressionTree preColonTree = memRef.getQualifierExpression();
         final MemberReferenceKind memRefKind = MemberReferenceKind.getMemberReferenceKind(memRef);
@@ -827,8 +842,53 @@ public class InferenceFactory {
                                 memRef, compileTimeDeclaration, enclosingType)
                         .executableType;
 
+        if (target != null) {
+            resolvePolyQualifiers(compileTimeType, target);
+        }
+
         return new InvocationType(
                 compileTimeType, compileTimeType.getUnderlyingType(), memRef, context);
+    }
+
+    /**
+     * Resolves the polymorphic qualifiers of {@code compileTimeType}, the type of the compile-time
+     * declaration of a method reference, using the parameter types of the function type of {@code
+     * target}, the target type of that method reference. {@code compileTimeType} is side-effected.
+     *
+     * <p>This is the same resolution that {@code BaseTypeVisitor.checkMethodReferenceAsOverride}
+     * performs on the method reference after inference. Performing it before the inference
+     * constraints are built keeps a polymorphic qualifier from reaching the solver as a concrete
+     * qualifier, which would make an otherwise-satisfiable inference problem unsatisfiable.
+     *
+     * <p>Resolution is skipped unless every parameter type of the function type is a proper type:
+     * an inference variable does not yet have a qualifier with which to instantiate a polymorphic
+     * qualifier.
+     *
+     * @param compileTimeType the type of the compile-time declaration of a method reference; it is
+     *     side-effected
+     * @param target the target type of the method reference
+     */
+    private void resolvePolyQualifiers(
+            AnnotatedExecutableType compileTimeType, AbstractType target) {
+        if (!(typeFactory instanceof GenericAnnotatedTypeFactory)) {
+            return;
+        }
+        QualifierPolymorphism poly =
+                ((GenericAnnotatedTypeFactory<?, ?, ?, ?>) typeFactory).getQualifierPolymorphism();
+        if (!poly.hasPolymorphicQualifiers(compileTimeType)) {
+            return;
+        }
+        List<AbstractType> functionTypeParams = target.getFunctionTypeParameterTypes();
+        if (functionTypeParams == null) {
+            // The target type is not a functional interface type.
+            return;
+        }
+        for (AbstractType param : functionTypeParams) {
+            if (!param.isProper()) {
+                return;
+            }
+        }
+        poly.resolve(target.getFunctionType().first, compileTimeType);
     }
 
     /**
@@ -1065,7 +1125,7 @@ public class InferenceFactory {
                     TypesUtils.findFunctionType(TreeUtils.typeOf(expression), context.env)
                             .getThrownTypes();
             thrownTypes =
-                    compileTimeDeclarationType((MemberReferenceTree) expression)
+                    compileTimeDeclarationType((MemberReferenceTree) expression, targetType)
                             .getAnnotatedType()
                             .getThrownTypes();
             if (thrownTypes.size() != thrownTypeMirrors.size()) {

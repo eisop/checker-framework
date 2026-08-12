@@ -55,6 +55,7 @@ import javax.lang.model.element.PackageElement;
 import javax.lang.model.element.TypeParameterElement;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.util.Elements;
+import javax.tools.Diagnostic;
 
 /**
  * Determines the default qualifiers on a type. Default qualifiers are specified via the {@link
@@ -91,8 +92,11 @@ public class QualifierDefaults {
     /** The locations() element/field of a @DefaultQualifier annotation. */
     protected final ExecutableElement defaultQualifierLocationsElement;
 
-    /** The applyToSubpackages() element/field of a @DefaultQualifier annotation. */
-    protected final ExecutableElement defaultQualifierApplyToSubpackagesElement;
+    /**
+     * The applyToSubpackages() element/field of a @DefaultQualifier annotation. Null if the version
+     * of {@code @DefaultQualifier} on the classpath predates this element.
+     */
+    protected final @Nullable ExecutableElement defaultQualifierApplyToSubpackagesElement;
 
     /** The value() element/field of a @DefaultQualifier.List annotation. */
     protected final ExecutableElement defaultQualifierListValueElement;
@@ -185,6 +189,15 @@ public class QualifierDefaults {
     // Fields are defaulted to top so that warnings are issued at field reads, which we believe are
     // more common than field writes. Future work is to specify different defaults for field reads
     // and field writes.  (When a field is written to, its type should be bottom.)
+    // This is the root cause of https://github.com/eisop/checker-framework/issues/1358 : because
+    // TypeUseLocation.FIELD does not distinguish reads from writes, a field write under
+    // conservative defaults is unsoundly checked against the same (read-oriented) top default as a
+    // field read, instead of requiring the bottom qualifier.
+    // GenericAnnotatedTypeFactory#isComputingAnnotatedTypeMirrorOfLhs() is reachable while
+    // defaulting a field write (getAnnotatedTypeLhs disables caching, so defaults are reapplied),
+    // but a sound fix needs a separate write-variant of the unchecked FIELD default rather than
+    // flipping any top FIELD default to bottom: an explicit @DefaultQualifier(locations=FIELD) must
+    // still apply to writes. See the issue for discussion.
     public static final List<TypeUseLocation> STANDARD_UNCHECKED_DEFAULTS_TOP =
             Collections.unmodifiableList(
                     Arrays.asList(
@@ -229,7 +242,18 @@ public class QualifierDefaults {
         this.defaultQualifierLocationsElement =
                 TreeUtils.getMethod(DefaultQualifier.class, "locations", 0, processingEnv);
         this.defaultQualifierApplyToSubpackagesElement =
-                TreeUtils.getMethod(DefaultQualifier.class, "applyToSubpackages", 0, processingEnv);
+                TreeUtils.getMethodOrNull(
+                        DefaultQualifier.class, "applyToSubpackages", 0, processingEnv);
+        if (this.defaultQualifierApplyToSubpackagesElement == null) {
+            atypeFactory
+                    .getChecker()
+                    .message(
+                            Diagnostic.Kind.NOTE,
+                            "The @DefaultQualifier annotation on the classpath does not define the"
+                                    + " applyToSubpackages element; package defaults will apply to"
+                                    + " subpackages. Use the EISOP checker-qual artifact to control this"
+                                    + " behavior.");
+        }
         this.defaultQualifierListValueElement =
                 TreeUtils.getMethod(DefaultQualifier.List.class, "value", 0, processingEnv);
     }
@@ -665,8 +689,12 @@ public class QualifierDefaults {
                             TypeUseLocation.class,
                             defaultQualifierValueDefault);
             boolean applyToSubpackages =
-                    AnnotationUtils.getElementValue(
-                            dq, defaultQualifierApplyToSubpackagesElement, Boolean.class, true);
+                    defaultQualifierApplyToSubpackagesElement == null
+                            || AnnotationUtils.getElementValue(
+                                    dq,
+                                    defaultQualifierApplyToSubpackagesElement,
+                                    Boolean.class,
+                                    true);
 
             DefaultSet ret = new DefaultSet();
             for (TypeUseLocation loc : locations) {
@@ -761,8 +789,29 @@ public class QualifierDefaults {
         if (qualifiers == null || qualifiers.isEmpty()) {
             qualifiers = parentDefaults;
         } else {
-            // TODO(cpovirk): What should happen with conflicts?
-            qualifiers.addAll(parentDefaults);
+            // A default for a given (location, hierarchy) at a nearer scope shadows a default for
+            // the same (location, hierarchy) at an enclosing scope: only inherit an enclosing-scope
+            // default whose (location, hierarchy) the nearer scope does not itself set. Without
+            // this, both defaults would coexist in the (location, annotation)-ordered TreeSet and
+            // the winner between them would be decided by annotation ordering rather than by scope
+            // distance.
+            QualifierHierarchy qualHierarchy = atypeFactory.getQualifierHierarchy();
+            for (Default d : parentDefaults) {
+                boolean shadowed = false;
+                AnnotationMirror parentTop = qualHierarchy.getTopAnnotation(d.anno);
+                for (Default nearer : qualifiers) {
+                    if (nearer.location == d.location) {
+                        AnnotationMirror nearerTop = qualHierarchy.getTopAnnotation(nearer.anno);
+                        if (AnnotationUtils.areSame(parentTop, nearerTop)) {
+                            shadowed = true;
+                            break;
+                        }
+                    }
+                }
+                if (!shadowed) {
+                    qualifiers.add(d);
+                }
+            }
         }
 
         if (!qualifiers.isEmpty()) {
@@ -1546,6 +1595,20 @@ public class QualifierDefaults {
          * Neither bound is specified, BOTH are implicit. (If a type variable is declared in
          * bytecode and the type of the upper bound is Object, then the checker assumes that the
          * bound was not explicitly written in source code.)
+         *
+         * <p>A primary annotation written directly on such a type variable, as in {@code <@NonNull
+         * T>}, sets only the <em>lower</em> bound. The implicit {@code Object} upper bound is
+         * defaulted independently to the top qualifier (see the {@code IMPLICIT_UPPER_BOUND} and
+         * {@code IMPLICIT_TYPE_PARAMETER_UPPER_BOUND} cases in {@code applyOneAtNode}). The primary
+         * annotation must <em>not</em> be copied onto the upper bound: {@code <@NonNull T>} is not
+         * equivalent to {@code <@NonNull T extends @NonNull Object>}, but to {@code <@NonNull T
+         * extends @TopQual Object>}. This is the CLIMB-to-top rule documented in the manual
+         * sections "Syntax for upper and lower bounds" and "Defaults" (labels {@code
+         * generics-bounds-syntax} and {@code generics-defaults}). The Map Key Checker's {@code
+         * <@KeyForBottom E>} lower-bound idiom, and the {@code <@KeyForBottom T> @Nullable T[]
+         * toArray(@PolyNull T[])} override in {@code Collection}, depend on the upper bound staying
+         * at top; copying the primary annotation up would make such overrides fail compatibility
+         * checks.
          */
         TYPEVAR_UNBOUNDED,
 
