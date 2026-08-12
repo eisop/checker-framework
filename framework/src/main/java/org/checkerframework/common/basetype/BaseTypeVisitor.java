@@ -4481,11 +4481,6 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             overriddenMethodType = overriddenMethodType.getErased();
         }
 
-        // Viewpoint-adapt the overridden method type to the overriding class.
-        overriddenMethodType =
-                atypeFactory.postAsOverride(
-                        overriddenMethodType, overriderType, overriddenMethodType.getElement());
-
         OverrideChecker overrideChecker =
                 createOverrideChecker(
                         overriderTree,
