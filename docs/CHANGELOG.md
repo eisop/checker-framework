@@ -177,6 +177,28 @@ arguments are being inferred, such as an unbound reference passed to
 checked-exception constraint, which infers the exception type argument of a
 functional interface whose method declares a generic `throws` clause.
 
+Fixed two related defects in how a captured type variable's dataflow-refined
+primary annotation is removed when dataflow determines it does not refine the
+type further (e.g., the loop variable of `for (T x : someIterableOfCaptures)`,
+or a `var` local initialized by reading from a captured wildcard type).
+`DefaultInferredTypesApplier` reconstructed the bounds to restore from the
+type variable's *declaration*, which is wrong for a captured type variable:
+its bounds come from capture conversion (JLS 5.1.10) rather than being
+declared, and a synthetic capture element has no declaration-shaped
+annotations to re-read at all. Separately, `QualifierDefaults` applied a type
+variable's own primary default (such as the `LOCAL_VARIABLE` default) before
+defaulting its bounds, so a bound's own default annotation could be
+overwritten by the primary default before it was ever computed, leaving
+nothing correct available to restore later. `QualifierDefaults` now always
+defaults a type variable's bounds before applying its own primary annotation,
+and `DefaultInferredTypesApplier` reconstructs a captured type variable's
+bounds from the capture's own underlying type instead of the type parameter's
+(in general unrelated) declaration. Both defects were latent for the built-in
+checkers -- no diagnostic in this repository's own test suite depends on
+them -- but are user-visible for a checker whose per-position defaulting
+differs from a synthetic capture element's, such as one distinguishing
+`@NullMarked` from unannotated code.
+
 **Implementation details:**
 
 `AnnotatedIntersectionType.summarizeBounds` computes the summary described
