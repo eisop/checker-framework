@@ -177,11 +177,14 @@ public class DefaultInferredTypesApplier {
         }
     }
 
-    /*
-     * If typeVar is a captured type variable whose captured wildcard's own bound (the side of
-     * "? extends" or "? super" that was written) is itself a plain type-variable use, returns
-     * that type variable's element. Otherwise, including when typeVar is not a captured type
-     * variable at all, returns null.
+    /**
+     * If {@code typeVar} is a captured type variable whose captured wildcard's own bound (the
+     * {@code ? extends} side that was written) is itself a plain type-variable use, returns that
+     * type variable's element. Otherwise, including when {@code typeVar} is not a captured type
+     * variable at all, returns {@code null}.
+     *
+     * @param typeVar the type variable to inspect
+     * @return the element of the bare type-variable bound, or {@code null}
      */
     private static @Nullable Element bareCapturedTypeParameterElement(TypeVariable typeVar) {
         WildcardType wildcard = TypesUtils.getCapturedWildcard(typeVar);
