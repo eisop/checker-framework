@@ -133,8 +133,15 @@ public class DefaultInferredTypesApplier {
         }
         TypeVariable typeVar = (TypeVariable) inferredTypeMirror;
         AnnotatedTypeVariable typeVariableDecl;
-        Element bareCapturedTypeParameter = bareCapturedTypeParameterElement(typeVar);
-        if (bareCapturedTypeParameter != null) {
+        // Whether typeVariableDecl below represents the captured wildcard's own bare
+        // type-variable bound directly (true), rather than a reconstruction of the capture
+        // itself (false, the general case). This matters below: in the general case,
+        // typeVariableDecl mirrors annotatedTypeVariable one-for-one, so its own upper/lower
+        // bounds correspond to annotatedTypeVariable's; here, typeVariableDecl itself
+        // corresponds to annotatedTypeVariable's upper bound, one level shallower.
+        boolean bareCapturedTypeParameter;
+        Element bareElement = bareCapturedTypeParameterElement(typeVar);
+        if (bareElement != null) {
             // The captured wildcard's own bound is just a type-variable use, with no annotation
             // of its own to lose, so the capture's upper bound is exactly that type variable's
             // own bound (JLS 5.1.10's glb is a no-op here). Read that type variable's own,
@@ -142,15 +149,16 @@ public class DefaultInferredTypesApplier {
             // capture's synthetic element below: that element has no source, so re-defaulting
             // against it applies whatever this checker defaults "no source" code to, which need
             // not match a bare capture's own qualifier.
-            typeVariableDecl =
-                    (AnnotatedTypeVariable)
-                            atypeFactory.getAnnotatedType(bareCapturedTypeParameter);
+            bareCapturedTypeParameter = true;
+            typeVariableDecl = (AnnotatedTypeVariable) atypeFactory.getAnnotatedType(bareElement);
         } else if (TypesUtils.isCapturedTypeVariable(typeVar)) {
+            bareCapturedTypeParameter = false;
             typeVariableDecl =
                     (AnnotatedTypeVariable)
                             AnnotatedTypeMirror.createType(typeVar, atypeFactory, true);
             atypeFactory.addComputedTypeAnnotations(typeVar.asElement(), typeVariableDecl);
         } else {
+            bareCapturedTypeParameter = false;
             typeVariableDecl =
                     (AnnotatedTypeVariable) atypeFactory.getAnnotatedType(typeVar.asElement());
         }
@@ -162,7 +170,15 @@ public class DefaultInferredTypesApplier {
                         previousAnnotation,
                         annotatedTypeVariable.getUnderlyingType())) {
             // TODO: clean up this method and whole class.
-            AnnotationMirror ub = typeVariableDecl.getUpperBound().getAnnotationInHierarchy(top);
+            AnnotationMirror ub =
+                    bareCapturedTypeParameter
+                            // typeVariableDecl is the bound itself here, so its own annotation
+                            // (possibly none, for a bare, unannotated type-variable use) is what
+                            // belongs on the capture's upper bound -- not the annotation on ITS
+                            // upper bound, which would read one level too deep (e.g. Object's
+                            // nullability instead of the type variable's own).
+                            ? typeVariableDecl.getAnnotationInHierarchy(top)
+                            : typeVariableDecl.getUpperBound().getAnnotationInHierarchy(top);
             AnnotationMirror lb = typeVariableDecl.getLowerBound().getAnnotationInHierarchy(top);
             AnnotatedTypeMirror atvUB = annotatedTypeVariable.getUpperBound();
             AnnotatedTypeMirror atvLB = annotatedTypeVariable.getLowerBound();
