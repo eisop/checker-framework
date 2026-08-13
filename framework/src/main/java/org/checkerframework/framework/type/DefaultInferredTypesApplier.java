@@ -1,5 +1,6 @@
 package org.checkerframework.framework.type;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedTypeVariable;
 import org.checkerframework.framework.util.AnnotatedTypes;
 import org.checkerframework.javacutil.AnnotationMirrorSet;
@@ -7,6 +8,7 @@ import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.TypesUtils;
 
 import javax.lang.model.element.AnnotationMirror;
+import javax.lang.model.element.Element;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.type.TypeVariable;
@@ -131,7 +133,19 @@ public class DefaultInferredTypesApplier {
         }
         TypeVariable typeVar = (TypeVariable) inferredTypeMirror;
         AnnotatedTypeVariable typeVariableDecl;
-        if (TypesUtils.isCapturedTypeVariable(typeVar)) {
+        Element bareCapturedTypeParameter = bareCapturedTypeParameterElement(typeVar);
+        if (bareCapturedTypeParameter != null) {
+            // The captured wildcard's own bound is just a type-variable use, with no annotation
+            // of its own to lose, so the capture's upper bound is exactly that type variable's
+            // own bound (JLS 5.1.10's glb is a no-op here). Read that type variable's own,
+            // already-fully-defaulted declaration directly, instead of re-defaulting against the
+            // capture's synthetic element below: that element has no source, so re-defaulting
+            // against it applies whatever this checker defaults "no source" code to, which need
+            // not match a bare capture's own qualifier.
+            typeVariableDecl =
+                    (AnnotatedTypeVariable)
+                            atypeFactory.getAnnotatedType(bareCapturedTypeParameter);
+        } else if (TypesUtils.isCapturedTypeVariable(typeVar)) {
             typeVariableDecl =
                     (AnnotatedTypeVariable)
                             AnnotatedTypeMirror.createType(typeVar, atypeFactory, true);
@@ -161,5 +175,34 @@ public class DefaultInferredTypesApplier {
             apply(atvUB, ub, typeVar.getUpperBound(), top);
             apply(atvLB, lb, typeVar.getLowerBound(), top);
         }
+    }
+
+    /**
+     * If {@code typeVar} is a captured type variable whose captured wildcard is {@code ? extends V}
+     * for some unannotated, bare type-variable use {@code V} (so the captured upper bound is
+     * exactly {@code V}'s own upper bound, per JLS 5.1.10's glb), returns {@code V}'s element.
+     * Otherwise -- including for {@code ? super}, an annotated bound, a bound that isn't a bare
+     * type-variable use, or a {@code typeVar} that isn't a captured type variable at all -- returns
+     * {@code null}. A {@code ? super V} wildcard's captured upper bound is not {@code V}'s own
+     * bound, so it must not take this fast path; an annotated bound such as {@code ? extends @A V}
+     * must not either, since reading {@code V}'s own declaration would silently drop the explicit
+     * {@code @A}.
+     *
+     * @param typeVar the type variable to inspect
+     * @return the element of the bare, unannotated {@code ? extends} type-variable bound, or {@code
+     *     null}
+     */
+    private static @Nullable Element bareCapturedTypeParameterElement(TypeVariable typeVar) {
+        WildcardType wildcard = TypesUtils.getCapturedWildcard(typeVar);
+        if (wildcard == null) {
+            return null;
+        }
+        TypeMirror extendsBound = wildcard.getExtendsBound();
+        if (extendsBound == null
+                || extendsBound.getKind() != TypeKind.TYPEVAR
+                || !extendsBound.getAnnotationMirrors().isEmpty()) {
+            return null;
+        }
+        return ((TypeVariable) extendsBound).asElement();
     }
 }
