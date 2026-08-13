@@ -124,21 +124,22 @@ When the bounds of an intersection type (for example, the bound
 `<T extends @NonNull Object & @Nullable Serializable>`) carry conflicting
 qualifiers in the same hierarchy, the intersection's qualifier for that
 hierarchy is the qualifier of the first bound in source order, and every other
-explicit bound qualifier gets an `explicit.annotation.ignored` warning. That
-summary is then written back onto every bound (homogenization), so all bounds of
-the intersection carry the same qualifier per hierarchy. Homogenization is sound
-for value-property qualifiers and can be strictly more precise than keeping each
-bound's own qualifier, because a hierarchy that only one bound constrains is
-propagated to the others rather than defaulted away.
-First-bound-wins holds uniformly whether the first bound is annotated explicitly
-or by defaulting: for `<T extends Object & @Nullable Serializable>` the first
-bound `Object` defaults to `@NonNull` (because the `extends` clause is written),
-so the summary is `@NonNull` and the second bound's `@Nullable` is ignored,
-exactly as if the first bound had been written `@NonNull Object`. This result is
-deterministic for a given compilation, but it depends on the source order of the
-bounds. A checker that wants an order-independent summary can override
-`AnnotatedTypeFactory#combineIntersectionBoundAnnotationsInHierarchy` to return,
-for example, the greatest lower bound.
+bound's differing qualifier gets an `explicit.annotation.ignored` warning if
+it was written explicitly. That summary is then written back onto every bound
+(homogenization), so all bounds of the intersection carry the same qualifier
+per hierarchy. Homogenization is sound for value-property qualifiers and can
+be strictly more precise than keeping each bound's own qualifier, because a
+hierarchy that only one bound constrains is propagated to the others rather
+than defaulted away. First-bound-wins holds uniformly no matter how the first
+bound's qualifier arose: written explicitly, filled by an ordinary location
+default, or filled by a type-based default such as `@DefaultQualifierForUse`.
+This result is deterministic for a given compilation, but it depends on the
+source order of the bounds. A checker that wants an order-independent
+summary can override
+`AnnotatedTypeFactory#combineIntersectionBoundAnnotationsInHierarchy` to
+return, for example, the greatest lower bound; the hook is consulted whenever
+any two bounds' qualifiers conflict in a hierarchy, whether either qualifier
+is written or defaulted.
 
 Added a new lint option, `-Alint=monotonicNonNullOnStatic`, under which the
 Nullness Checker issues a `monotonic.on.static` warning when `@MonotonicNonNull`
@@ -177,6 +178,33 @@ checked-exception constraint, which infers the exception type argument of a
 functional interface whose method declares a generic `throws` clause.
 
 **Implementation details:**
+
+`AnnotatedIntersectionType.summarizeBounds` computes the summary described
+above, reading each bound's qualifier, explicit or defaulted, uniformly,
+and folding
+`AnnotatedTypeFactory#combineIntersectionBoundAnnotationsInHierarchy` over
+conflicts. For a type variable's own intersection upper bound,
+`QualifierDefaults` lets each bound be defaulted independently before
+calling it, so the combining hook sees every bound's real qualifier
+regardless of whether it came from a location default or a type-based one
+such as `@DefaultQualifierForUse`. For an intersection cast target, whose
+remaining hierarchies are instead filled from the cast operand by
+`PropagationTreeAnnotator#visitTypeCast`, it is called before defaulting and
+sees only explicit annotations.
+
+Added `IntersectionGlbChecker`/`IntersectionGlbAnnotatedTypeFactory`, a test
+checker that overrides the combining hook to compute the greatest lower
+bound, and extended two test files to test it, with bare bounds under
+location-based and type-based defaults, order independence across 3+
+bounds, and F-bounded self-reference:
+`framework/tests/intersectionglb/IntersectionBoundCombining.java` and
+`framework/tests/lubglb/IntersectionBoundDefaulting.java`. A checker whose
+qualifier semantics are per-component (e.g.
+JSpecify, where `@Nullable Object & Lib` is null-exclusive because it IS-A
+the non-null `Lib`) can reach for a GLB-combine override rather than a
+separate per-bound API: for any target, if some bound's own qualifier is a
+subtype of it, the greatest lower bound of the bounds' qualifiers is a
+subtype of it too.
 
 `AnnotatedIntersectionType.clearAnnotations()` now also clears every bound's
 annotations, matching `addAnnotation`/`removeAnnotation`, which already

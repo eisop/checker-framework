@@ -1658,10 +1658,12 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
 
     /**
      * Combines two conflicting bound annotations of an intersection type, in the same qualifier
-     * hierarchy, into the single annotation that {@link
-     * AnnotatedTypeMirror.AnnotatedIntersectionType#copyIntersectionBoundAnnotations()} uses to
-     * summarize that hierarchy. This method is called only when two bounds carry different
-     * annotations in one hierarchy.
+     * hierarchy, into the single annotation used to summarize that hierarchy. Called by {@link
+     * AnnotatedTypeMirror.AnnotatedIntersectionType#summarizeBounds()}: for a type variable's own
+     * intersection upper bound, after each bound has been independently defaulted, so a bound's
+     * annotation may be explicit or defaulted; for an intersection cast target, before defaulting,
+     * so only explicit annotations are seen. Either way, this method is called only when two bounds
+     * carry different annotations in one hierarchy.
      *
      * <p>By default the annotation of the bound encountered first, in source order, wins
      * (first-bound-wins): the returned summary equals {@code existingAnnotation} and {@code
