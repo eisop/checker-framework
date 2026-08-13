@@ -1,7 +1,8 @@
-import java.util.List;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-public class CapRepro2 {
+import java.util.List;
+
+public class IssueCaptureBoundSmear {
 
     <T extends @Nullable Object> T viaVar(List<? extends T> l) {
         var x = l.get(0);

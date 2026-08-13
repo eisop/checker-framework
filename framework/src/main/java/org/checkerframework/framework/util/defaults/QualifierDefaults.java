@@ -1516,6 +1516,10 @@ public class QualifierDefaults {
                 return null;
             }
 
+            // Always descend into the bounds FIRST so the bound/OTHERWISE defaults apply there
+            // before any primary defaults (e.g., LOCAL_VARIABLE) can be smeared onto them.
+            visitBounds(type, type.getUpperBound(), type.getLowerBound(), true);
+
             boolean isTopLevelType = type == outer.type;
             boolean isLocalVariable =
                     outer.scope != null && ElementUtils.isLocalVariable(outer.scope);
@@ -1540,9 +1544,6 @@ public class QualifierDefaults {
                     outer.addAnnotation(type, def.anno);
                 }
             }
-            // Always descend into the bounds so the bound/OTHERWISE defaults apply there; the
-            // use-only defaults applied above are no-ops at bound nodes.
-            visitBounds(type, type.getUpperBound(), type.getLowerBound(), true);
             return null;
         }
 
