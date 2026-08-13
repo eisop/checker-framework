@@ -1,4 +1,6 @@
+import org.checkerframework.framework.qual.DefaultQualifier;
 import org.checkerframework.framework.qual.DefaultQualifierForUse;
+import org.checkerframework.framework.qual.TypeUseLocation;
 import org.checkerframework.framework.testchecker.lubglb.quals.LubglbA;
 import org.checkerframework.framework.testchecker.lubglb.quals.LubglbB;
 import org.checkerframework.framework.testchecker.lubglb.quals.LubglbC;
@@ -87,4 +89,47 @@ public class IntersectionBoundCombining {
     // hook -- but is included here too since this checker exercises the summarizing code path
     // most thoroughly.
     static class Recursive<T extends Recursive<T> & @LubglbB IfaceA> {}
+
+    // Regression test: self-reference in the SECOND bound position, not just the first. The
+    // enclosing type must be an interface here, since only a first bound may be a class.
+    interface RecursiveSecond<T extends @LubglbB IfaceA & RecursiveSecond<T>> {}
+
+    // Regression test: mutually recursive F-bounds across two classes (P's own bound mentions Q,
+    // and vice versa), not just a single self-referential class.
+    static class MutuallyRecursiveP<
+            T extends MutuallyRecursiveP<T, U> & IfaceA,
+            U extends MutuallyRecursiveQ<T, U> & @LubglbB IfaceB> {}
+
+    static class MutuallyRecursiveQ<
+            T extends MutuallyRecursiveP<T, U> & IfaceA,
+            U extends MutuallyRecursiveQ<T, U> & @LubglbB IfaceB> {}
+
+    // A bare bound's own default can come from a location default, not just a type-based one
+    // (@DefaultQualifierForUse, as bareLaterBound above uses). Here IfaceA's own default in this
+    // scope is @LubglbB (not the checker's usual top default @LubglbA), so the summary is
+    // glb(@LubglbB, @LubglbC) = @LubglbD.
+    @DefaultQualifier(value = LubglbB.class, locations = TypeUseLocation.UPPER_BOUND)
+    static class LocationDefault {
+        // :: warning: (explicit.annotation.ignored)
+        <T extends IfaceA & @LubglbC IfaceB> void m(T t) {
+            @LubglbD Object accepted = t;
+            // :: error: (assignment.type.incompatible)
+            @LubglbE Object rejected = t;
+        }
+    }
+
+    interface IfaceThird {}
+
+    // Order independence across 3+ bounds: the same three qualifiers (the default @LubglbA, an
+    // explicit @LubglbB, an explicit @LubglbC) reach the same summary glb(@LubglbB, @LubglbC) =
+    // @LubglbD regardless of which bound each is written on.
+    // :: warning: (explicit.annotation.ignored) :: warning: (explicit.annotation.ignored)
+    <T extends IfaceA & @LubglbB IfaceB & @LubglbC IfaceThird> void threeBoundForward(T t) {
+        @LubglbD Object accepted = t;
+    }
+
+    // :: warning: (explicit.annotation.ignored) :: warning: (explicit.annotation.ignored)
+    <T extends @LubglbC IfaceA & @LubglbB IfaceB & IfaceThird> void threeBoundReordered(T t) {
+        @LubglbD Object accepted = t;
+    }
 }

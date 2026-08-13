@@ -76,4 +76,22 @@ public class IntersectionBoundDefaulting {
     // @LubglbC.
     // :: warning: (explicit.annotation.ignored)
     static class Recursive<T extends Recursive<T> & @LubglbC OrderIfaceA> {}
+
+    // Regression test: self-reference in the SECOND bound position, not just the first. The
+    // enclosing type must be an interface here, since only a first bound may be a class.
+    interface RecursiveSecond<T extends @LubglbC OrderIfaceA & RecursiveSecond<T>> {}
+
+    // Regression test: mutually recursive F-bounds across two classes (P's own bound mentions Q,
+    // and vice versa), not just a single self-referential class. The first bound (the
+    // self/mutually-referential one) is bare, defaulting to the top @LubglbA, so the second
+    // bound's explicit @LubglbC is ignored, as in Recursive above.
+    static class MutuallyRecursiveP<
+            T extends MutuallyRecursiveP<T, U> & OrderIfaceA,
+            // :: warning: (explicit.annotation.ignored)
+            U extends MutuallyRecursiveQ<T, U> & @LubglbC OrderIfaceB> {}
+
+    static class MutuallyRecursiveQ<
+            T extends MutuallyRecursiveP<T, U> & OrderIfaceA,
+            // :: warning: (explicit.annotation.ignored)
+            U extends MutuallyRecursiveQ<T, U> & @LubglbC OrderIfaceB> {}
 }
