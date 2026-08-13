@@ -199,6 +199,15 @@ them -- but are user-visible for a checker whose per-position defaulting
 differs from a synthetic capture element's, such as one distinguishing
 `@NullMarked` from unannotated code.
 
+That reconstruction still re-defaulted against the capture's own synthetic
+element in one case where it need not have: a captured type variable whose
+captured wildcard's own bound is itself a bare type-variable use (e.g. `?
+extends V` with no further constraint on `V`). There, the capture's upper
+bound is exactly `V`'s own bound, so `DefaultInferredTypesApplier` now reads
+`V`'s own, already-fully-defaulted declaration directly instead of
+re-defaulting against the synthetic element, avoiding the same "no source"
+defaulting mismatch for this position too.
+
 **Implementation details:**
 
 `AnnotatedIntersectionType.summarizeBounds` computes the summary described
