@@ -206,6 +206,17 @@ separate per-bound API: for any target, if some bound's own qualifier is a
 subtype of it, the greatest lower bound of the bounds' qualifiers is a
 subtype of it too.
 
+`AnnotatedIntersectionType.clearAnnotations()` now also clears every bound's
+annotations, matching `addAnnotation`/`removeAnnotation`, which already
+propagate to bounds. Previously, clearing only the intersection's own
+primary annotation while leaving a bound's annotations in place could let a
+bound keep a qualifier a caller was trying to discard, with no way to tell
+that the two had gone out of sync. `AbstractViewpointAdapter` no longer
+clears an adapted intersection copy's annotations before recomputing its
+summary from the adapted bounds: that call was already a no-op (the copy's
+own primary annotation starts empty), and clearing there now would discard
+the adapted bounds' qualifiers before they are read.
+
 `BaseTypeValidator.checkExplicitSuperBoundWildcards` now delegates its
 JDK-8054309 collapsed-wildcard-bound comparison to a new overridable
 `areCollapsedWildcardBoundsEqual` method, instead of inlining a bidirectional
