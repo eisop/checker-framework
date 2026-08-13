@@ -2872,6 +2872,25 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
         }
 
         /**
+         * {@inheritDoc}
+         *
+         * <p>Also clears every bound's annotations, for the same reason {@link
+         * #removeAnnotation(AnnotationMirror)} does: leaving a bound's annotations in place while
+         * clearing only the intersection's own primary annotation would let a bound keep a stale
+         * qualifier that a caller clearing this type is trying to discard, with no local signal
+         * that the two had gone out of sync.
+         */
+        @Override
+        public void clearAnnotations() {
+            super.clearAnnotations();
+            if (bounds != null) {
+                for (AnnotatedTypeMirror bound : bounds) {
+                    bound.clearAnnotations();
+                }
+            }
+        }
+
+        /**
          * Copies {@link #primaryAnnotations} to all the bounds, replacing any existing annotations
          * in the same hierarchy.
          */
