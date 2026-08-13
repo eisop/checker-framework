@@ -201,29 +201,31 @@ That gap is now closed for a type variable's own intersection upper bound
 (not for an intersection cast target; see below).
 
 The fix is in `QualifierDefaults`, not in `AnnotatedIntersectionType`.
-Previously, the summary was computed once, early, during type construction
-(`AnnotatedIntersectionType.copyIntersectionBoundAnnotations`), from the
-bounds' explicit annotations only, since defaulting had not run yet at that
-point in the pipeline; a hierarchy no bound constrained explicitly was left
-for the ordinary defaulting pass to fill using the *intersection's own*
-defaulting location (the type variable's upper bound) &mdash; not, as #1875
-claimed, "the first bound's own default": those coincide only when the first
-bound's own default is itself a location default, not a type-based one such
-as `@DefaultQualifierForUse`. `QualifierDefaults` now handles a type
-variable's own intersection upper bound specially: it lets each bound be
-defaulted independently first (in its own right, so a type-based default
-applies correctly), then summarizes the bounds' real qualifiers &mdash;
-explicit or defaulted, uniformly &mdash; via the new
-`AnnotatedIntersectionType.summarizeDefaultedBounds`, which folds the
-combining hook over them the same way `copyIntersectionBoundAnnotations`
-already did for explicit annotations.
-`AnnotatedIntersectionType.copyIntersectionBoundAnnotations` is accordingly no
-longer called for a type variable's own upper bound (its early,
-explicit-only summary would otherwise homogenize prematurely and pre-empt a
-bare bound's own default, including a location-based one on a later bound
-that a naive fix might not consider); it is still called, unchanged, for an
-intersection cast target and for `AbstractViewpointAdapter`'s already-defaulted
-bound copies, two positions this change does not affect.
+`AnnotatedIntersectionType` now has a single summarizing method,
+`summarizeBounds`, which reads each bound's qualifier via
+`getAnnotationInHierarchy` and folds the combining hook over them &mdash;
+uniformly, whether a bound's qualifier is explicit or defaulted, since this
+method does not care which. What differs between its callers is only *when*
+in the pipeline they call it, which determines what `getAnnotationInHierarchy`
+finds: `QualifierDefaults` now handles a type variable's own intersection
+upper bound specially, letting each bound be defaulted independently first
+(in its own right, so a type-based default such as `@DefaultQualifierForUse`
+applies correctly) and only then calling `summarizeBounds`, so the combining
+hook sees every bound's real qualifier. `AbstractViewpointAdapter` calls it
+on already fully-defaulted bound copies, for the same reason. An intersection
+cast target's construction calls it before any defaulting has run, so only
+bounds' explicit annotations are found; a hierarchy no bound constrains
+explicitly is simply left out of the summary, because a cast target's
+remaining hierarchies are instead filled from the cast operand by
+`PropagationTreeAnnotator#visitTypeCast`, a mechanism `QualifierDefaults`
+does not participate in.
+(There used to be two methods here, `copyIntersectionBoundAnnotations` and
+`summarizeDefaultedBounds`, differing only in which of `getAnnotationsField`
+or `getAnnotationInHierarchy` they read bounds through &mdash; a distinction
+that stopped mattering once every caller either ran after defaulting or
+plainly needed the explicit-only behavior on its own terms, not because the
+two methods computed anything different. They are merged into the one
+method described above.)
 
 This also fixes a latent inaccuracy in #1875 that was independent of the
 combining hook: even under the default (first-bound-wins) hook, an

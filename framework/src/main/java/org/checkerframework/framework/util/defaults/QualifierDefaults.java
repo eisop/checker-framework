@@ -1253,10 +1253,9 @@ public class QualifierDefaults {
                 // that bound on its own. Recurse into the bounds first -- scanning a bound
                 // applies its own defaults normally, since a bound is not itself an intersection
                 // -- then summarize the individually defaulted bounds into the intersection's
-                // primary annotation. See
-                // AnnotatedIntersectionType#copyIntersectionBoundAnnotations.
+                // primary annotation. See AnnotatedIntersectionType#summarizeBounds.
                 Void result = super.scan(t, null);
-                ((AnnotatedIntersectionType) t).summarizeDefaultedBounds();
+                ((AnnotatedIntersectionType) t).summarizeBounds();
                 return result;
             }
 

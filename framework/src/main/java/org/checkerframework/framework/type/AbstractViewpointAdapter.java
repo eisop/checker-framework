@@ -518,9 +518,11 @@ public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
         }
         // First replace the bounds copied by shallowCopy with the adapted bounds. Then clear the
         // shallow copy's stale primary annotations and recompute them from the adapted bounds.
+        // The adapted bounds are already fully annotated (source's bounds have already been
+        // through construction and defaulting, and adaptBound preserves that).
         intersection.setBounds(adaptedBounds);
         intersection.clearAnnotations();
-        intersection.copyIntersectionBoundAnnotations();
+        intersection.summarizeBounds();
         return intersection;
     }
 
