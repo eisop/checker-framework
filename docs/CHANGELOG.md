@@ -206,7 +206,10 @@ captured wildcard's own bound is itself a bare type-variable use
 upper bound is exactly `V`'s own bound, so `DefaultInferredTypesApplier` now
 reads `V`'s own, already-fully-defaulted declaration directly instead of
 re-defaulting against the synthetic element, avoiding the same "no source"
-defaulting mismatch for this position too.
+defaulting mismatch for this position too. That fix initially installed the
+annotation from `V`'s own upper bound (e.g. `Object`'s) onto the capture,
+one level too deep; it now installs `V`'s own annotation, which is typically
+absent for a bare, unannotated type-variable use.
 
 **Implementation details:**
 
