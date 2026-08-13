@@ -229,7 +229,12 @@ class TypeFromTypeTreeVisitor extends TypeFromTreeVisitor {
                 AnnotatedIntersectionType intersection =
                         (AnnotatedIntersectionType) result.getUpperBound();
                 intersection.setBounds(bounds);
-                intersection.copyIntersectionBoundAnnotations();
+                // Do not summarize the bounds here: doing so now, from only their explicit
+                // annotations, would homogenize an explicitly annotated bound onto the others
+                // before defaulting has run, pre-empting a bare bound's own default (e.g.
+                // @DefaultQualifierForUse) even in a hierarchy that bound doesn't conflict in.
+                // QualifierDefaults#summarizeDefaultedBounds does the summarizing instead, after
+                // each bound has been defaulted on its own.
         }
 
         return result;
