@@ -194,11 +194,12 @@ sees only explicit annotations.
 
 Added `IntersectionGlbChecker`/`IntersectionGlbAnnotatedTypeFactory`, a test
 checker that overrides the combining hook to compute the greatest lower
-bound, and extended `IntersectionBoundCombining.java` and
-`IntersectionBoundDefaulting.java` (in `framework/tests/intersectionglb/`
-and `framework/tests/lubglb/`) to test it: bare bounds with location-based
-and type-based defaults, order independence across 3+ bounds, and F-bounded
-self-reference. A checker whose qualifier semantics are per-component (e.g.
+bound, and extended two test files to test it &mdash;
+`framework/tests/intersectionglb/IntersectionBoundCombining.java` and
+`framework/tests/lubglb/IntersectionBoundDefaulting.java` &mdash; with bare
+bounds under location-based and type-based defaults, order independence
+across 3+ bounds, and F-bounded self-reference. A checker whose qualifier
+semantics are per-component (e.g.
 JSpecify, where `@Nullable Object & Lib` is null-exclusive because it IS-A
 the non-null `Lib`) can reach for a GLB-combine override rather than a
 separate per-bound API: for any target, if some bound's own qualifier is a

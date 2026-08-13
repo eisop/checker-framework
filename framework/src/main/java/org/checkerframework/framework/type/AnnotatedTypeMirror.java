@@ -3005,9 +3005,10 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
         public void summarizeBounds() {
             QualifierHierarchy qualHierarchy = atypeFactory.getQualifierHierarchy();
             AnnotationMirrorSet annos = new AnnotationMirrorSet();
+            List<AnnotatedTypeMirror> theBounds = getBounds();
             for (AnnotationMirror top : qualHierarchy.getTopAnnotations()) {
                 AnnotationMirror summary = null;
-                for (AnnotatedTypeMirror bound : getBounds()) {
+                for (AnnotatedTypeMirror bound : theBounds) {
                     AnnotationMirror qual = bound.getAnnotationInHierarchy(top);
                     if (qual == null) {
                         continue;
