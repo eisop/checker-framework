@@ -1681,8 +1681,8 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * QualifierHierarchy#greatestLowerBoundQualifiers} being consistent with {@link
      * QualifierHierarchy#isSubtypeQualifiers} for the qualifier hierarchy in use (see that method's
      * documentation): if a qualifier hierarchy's true subtyping relation depends on something a
-     * static declarative lattice cannot express, such as a checker option, and its greatest-lower-
-     * bound computation was not updated to match, the summary this method returns can be a
+     * static declarative lattice cannot express, such as a checker option, and its computation of
+     * the greatest lower bound was not updated to match, the summary this method returns can be a
      * qualifier the qualifier hierarchy's own subtype check would not itself have derived,
      * producing a spurious type error where none existed before the summary was combined -- not a
      * fault of this method or of homogenization, but of that inconsistency.

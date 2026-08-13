@@ -176,17 +176,18 @@ public abstract class QualifierHierarchy {
      * <p>An override must stay consistent with {@link #leastUpperBoundQualifiers} and {@link
      * #greatestLowerBoundQualifiers}: for any two qualifiers {@code a} and {@code b} in the same
      * hierarchy, {@code leastUpperBoundQualifiers(a, b)} must be a supertype of both {@code a} and
-     * {@code b} under this method, {@code greatestLowerBoundQualifiers(a, b)} must be a subtype of
-     * both, and each must be the <em>greatest</em> or <em>least</em> such qualifier -- not merely
-     * any upper or lower bound. This matters even for a qualifier hierarchy whose true subtyping
-     * relation is not fully expressible as a static, declarative lattice (for example, one that
-     * depends on a checker option such as a strict/lenient mode): if this method special-cases such
-     * a situation but {@link #leastUpperBoundQualifiers}/{@link #greatestLowerBoundQualifiers} do
-     * not, a caller that combines qualifiers with one and later checks the result with the other --
-     * as {@link AnnotatedTypeFactory#combineIntersectionBoundAnnotationsInHierarchy} does when
-     * overridden to return a greatest lower bound -- can derive a summary that this method would
-     * not itself have accepted, producing a spurious type error where none existed before the
-     * summary was combined.
+     * {@code b} under this method and a subtype of every other common supertype of the two (i.e.,
+     * the <em>least</em> such supertype, not merely some upper bound); {@code
+     * greatestLowerBoundQualifiers(a, b)} must be a subtype of both and a supertype of every other
+     * common subtype of the two (i.e., the <em>greatest</em> such subtype). This matters even for a
+     * qualifier hierarchy whose true subtyping relation is not fully expressible as a static,
+     * declarative lattice (for example, one that depends on a checker option such as a
+     * strict/lenient mode): if this method special-cases such a situation but {@link
+     * #leastUpperBoundQualifiers}/{@link #greatestLowerBoundQualifiers} do not, a caller that
+     * combines qualifiers with one and later checks the result with the other -- as {@link
+     * AnnotatedTypeFactory#combineIntersectionBoundAnnotationsInHierarchy} does when overridden to
+     * return a greatest lower bound -- can derive a summary that this method would not itself have
+     * accepted, producing a spurious type error where none existed before the summary was combined.
      *
      * @param subQualifier possible subqualifier
      * @param superQualifier possible superqualifier
@@ -376,10 +377,10 @@ public abstract class QualifierHierarchy {
      * </ul>
      *
      * <p>Must stay consistent with {@link #isSubtypeQualifiers}: the result must be a supertype of
-     * both {@code qualifier1} and {@code qualifier2}, and no other common supertype may be its
-     * supertype. See {@link #isSubtypeQualifiers}'s documentation for why this matters even for a
-     * qualifier hierarchy whose true subtyping relation is not fully expressible as a static,
-     * declarative lattice.
+     * both {@code qualifier1} and {@code qualifier2}, and a subtype of every other common supertype
+     * of the two (i.e., the least such supertype). See {@link #isSubtypeQualifiers}'s documentation
+     * for why this matters even for a qualifier hierarchy whose true subtyping relation is not
+     * fully expressible as a static, declarative lattice.
      *
      * @param qualifier1 the first qualifier; may not be in the same hierarchy as {@code qualifier2}
      * @param qualifier2 the second qualifier; may not be in the same hierarchy as {@code
@@ -591,10 +592,10 @@ public abstract class QualifierHierarchy {
      * if the qualifiers are not from the same qualifier hierarchy.
      *
      * <p>Must stay consistent with {@link #isSubtypeQualifiers}: the result must be a subtype of
-     * both {@code qualifier1} and {@code qualifier2}, and no other common subtype may be its
-     * subtype. See {@link #isSubtypeQualifiers}'s documentation for why this matters even for a
-     * qualifier hierarchy whose true subtyping relation is not fully expressible as a static,
-     * declarative lattice.
+     * both {@code qualifier1} and {@code qualifier2}, and a supertype of every other common subtype
+     * of the two (i.e., the greatest such subtype). See {@link #isSubtypeQualifiers}'s
+     * documentation for why this matters even for a qualifier hierarchy whose true subtyping
+     * relation is not fully expressible as a static, declarative lattice.
      *
      * @param qualifier1 first qualifier
      * @param qualifier2 second qualifier
