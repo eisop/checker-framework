@@ -178,26 +178,31 @@ public class DefaultInferredTypesApplier {
     }
 
     /**
-     * If {@code typeVar} is a captured type variable whose captured wildcard's own bound (the
-     * {@code ? extends} side that was written) is itself a plain type-variable use, returns that
-     * type variable's element. Otherwise, including when {@code typeVar} is not a captured type
-     * variable at all, returns {@code null}.
+     * If {@code typeVar} is a captured type variable whose captured wildcard is {@code ? extends V}
+     * for some unannotated, bare type-variable use {@code V} (so the captured upper bound is
+     * exactly {@code V}'s own upper bound, per JLS 5.1.10's glb), returns {@code V}'s element.
+     * Otherwise -- including for {@code ? super}, an annotated bound, a bound that isn't a bare
+     * type-variable use, or a {@code typeVar} that isn't a captured type variable at all -- returns
+     * {@code null}. A {@code ? super V} wildcard's captured upper bound is not {@code V}'s own
+     * bound, so it must not take this fast path; an annotated bound such as {@code ? extends @A V}
+     * must not either, since reading {@code V}'s own declaration would silently drop the explicit
+     * {@code @A}.
      *
      * @param typeVar the type variable to inspect
-     * @return the element of the bare type-variable bound, or {@code null}
+     * @return the element of the bare, unannotated {@code ? extends} type-variable bound, or {@code
+     *     null}
      */
     private static @Nullable Element bareCapturedTypeParameterElement(TypeVariable typeVar) {
         WildcardType wildcard = TypesUtils.getCapturedWildcard(typeVar);
         if (wildcard == null) {
             return null;
         }
-        TypeMirror writtenBound =
-                wildcard.getExtendsBound() != null
-                        ? wildcard.getExtendsBound()
-                        : wildcard.getSuperBound();
-        if (writtenBound == null || writtenBound.getKind() != TypeKind.TYPEVAR) {
+        TypeMirror extendsBound = wildcard.getExtendsBound();
+        if (extendsBound == null
+                || extendsBound.getKind() != TypeKind.TYPEVAR
+                || !extendsBound.getAnnotationMirrors().isEmpty()) {
             return null;
         }
-        return ((TypeVariable) writtenBound).asElement();
+        return ((TypeVariable) extendsBound).asElement();
     }
 }
