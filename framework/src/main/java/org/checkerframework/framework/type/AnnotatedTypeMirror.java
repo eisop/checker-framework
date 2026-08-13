@@ -3050,11 +3050,8 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
             // Clear first, then replaceAnnotations rather than addAnnotations: summarizeBounds is a
             // full recomputation, so a hierarchy with no contributing bound must be dropped from
             // both the intersection and its homogenized bound copies, not preserved from an earlier
-            // summary.
+            // summary. clearAnnotations() also clears every bound (see the override above).
             clearAnnotations();
-            for (AnnotatedTypeMirror bound : theBounds) {
-                bound.clearAnnotations();
-            }
             replaceAnnotations(annos);
         }
 
