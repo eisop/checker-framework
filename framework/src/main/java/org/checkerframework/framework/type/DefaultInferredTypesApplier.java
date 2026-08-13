@@ -130,8 +130,16 @@ public class DefaultInferredTypesApplier {
             throw new BugInCF("Missing annos");
         }
         TypeVariable typeVar = (TypeVariable) inferredTypeMirror;
-        AnnotatedTypeVariable typeVariableDecl =
-                (AnnotatedTypeVariable) atypeFactory.getAnnotatedType(typeVar.asElement());
+        AnnotatedTypeVariable typeVariableDecl;
+        if (TypesUtils.isCapturedTypeVariable(typeVar)) {
+            typeVariableDecl =
+                    (AnnotatedTypeVariable)
+                            AnnotatedTypeMirror.createType(typeVar, atypeFactory, true);
+            atypeFactory.addComputedTypeAnnotations(typeVar.asElement(), typeVariableDecl);
+        } else {
+            typeVariableDecl =
+                    (AnnotatedTypeVariable) atypeFactory.getAnnotatedType(typeVar.asElement());
+        }
         AnnotationMirror upperBound = typeVariableDecl.getEffectiveAnnotationInHierarchy(top);
         if (omitSubtypingCheck
                 || hierarchy.isSubtypeShallow(
