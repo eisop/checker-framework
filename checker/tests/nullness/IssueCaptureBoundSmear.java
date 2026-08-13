@@ -1,3 +1,5 @@
+// @below-java10-jdk-skip-test
+
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 import java.util.List;
