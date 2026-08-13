@@ -206,6 +206,17 @@ separate per-bound API: for any target, if some bound's own qualifier is a
 subtype of it, the greatest lower bound of the bounds' qualifiers is a
 subtype of it too.
 
+`QualifierHierarchy.isSubtypeQualifiers`, `leastUpperBoundQualifiers`, and
+`greatestLowerBoundQualifiers` now document that an override of any one of
+them must stay consistent with the others: a qualifier hierarchy whose true
+subtyping relation depends on something a static, declarative lattice
+cannot express (for example, a checker option) needs its LUB/GLB
+computation updated to match, not just `isSubtypeQualifiers`, or a caller
+that combines qualifiers with one and later checks the result with the
+other, such as `combineIntersectionBoundAnnotationsInHierarchy`'s suggested
+`greatestLowerBoundQualifiersOnly` override, can derive a summary the
+qualifier hierarchy's own subtype check would not itself have accepted.
+
 `AnnotatedIntersectionType.clearAnnotations()` now also clears every bound's
 annotations, matching `addAnnotation`/`removeAnnotation`, which already
 propagate to bounds. Previously, clearing only the intersection's own
