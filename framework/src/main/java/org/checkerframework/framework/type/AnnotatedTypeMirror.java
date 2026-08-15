@@ -2194,6 +2194,26 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
         }
 
         /**
+         * {@inheritDoc}
+         *
+         * <p>Also clears both bounds' annotations, for the same reason {@link
+         * #removeAnnotation(AnnotationMirror)} does: leaving a bound's annotations in place while
+         * clearing only this type variable's own primary annotation would let a bound keep a stale
+         * qualifier that a caller clearing this type is trying to discard, with no local signal
+         * that the two had gone out of sync.
+         */
+        @Override
+        public void clearAnnotations() {
+            super.clearAnnotations();
+            if (lowerBound != null) {
+                lowerBound.clearAnnotations();
+            }
+            if (upperBound != null) {
+                upperBound.clearAnnotations();
+            }
+        }
+
+        /**
          * Change whether this {@code AnnotatedTypeVariable} is considered a use or a declaration
          * (use this method with caution).
          *

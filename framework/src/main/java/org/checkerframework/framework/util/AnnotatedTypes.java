@@ -1032,7 +1032,26 @@ public class AnnotatedTypes {
             AnnotatedTypeMirror subtype,
             AnnotatedTypeMirror supertype) {
         AnnotatedTypeMirror glb = subtype.deepCopy();
+        // clearAnnotations() also clears a type variable's bounds (recursively, at every nested
+        // level), but this method's loop below only overwrites a bound when a hierarchy
+        // specifically needs restricting; every other hierarchy, at every nesting depth, is meant
+        // to keep subtype's own (deep-copied) bound annotation, as it did before the clear.
+        // Snapshot glb's bounds (a full structural deep copy of subtype's own bounds) before
+        // clearing, and restore that snapshot afterward as the starting point the loop below
+        // selectively overrides.
+        AnnotatedTypeMirror preClearUpperBound = null;
+        AnnotatedTypeMirror preClearLowerBound = null;
+        if (glb.getKind() == TypeKind.TYPEVAR) {
+            AnnotatedTypeVariable glbVar = (AnnotatedTypeVariable) glb;
+            preClearUpperBound = glbVar.getUpperBound().deepCopy();
+            preClearLowerBound = glbVar.getLowerBound().deepCopy();
+        }
         glb.clearAnnotations();
+        if (glb.getKind() == TypeKind.TYPEVAR) {
+            AnnotatedTypeVariable glbVar = (AnnotatedTypeVariable) glb;
+            glbVar.setUpperBound(preClearUpperBound);
+            glbVar.setLowerBound(preClearLowerBound);
+        }
 
         TypeMirror subTM = subtype.getUnderlyingType();
         TypeMirror superTM = supertype.getUnderlyingType();
