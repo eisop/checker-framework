@@ -1031,8 +1031,20 @@ public class AnnotatedTypes {
             QualifierHierarchy qualHierarchy,
             AnnotatedTypeMirror subtype,
             AnnotatedTypeMirror supertype) {
-        AnnotatedTypeMirror glb = subtype.deepCopy();
-        glb.clearAnnotations();
+        // glb's own primary annotations are recomputed per hierarchy below, so start from a copy
+        // of subtype that has none. For a type variable or wildcard, use shallowCopy(false): a
+        // deep copy (they can't be shallow-copied; see their shallowCopy Javadoc) whose primary
+        // annotation set alone is cleared. Plain clearAnnotations() would clear the bounds too
+        // (recursively, at any nesting depth), but the loop below overwrites a bound only in a
+        // hierarchy that needs restricting; every other hierarchy is meant to keep subtype's own
+        // bound annotations exactly as they were, which shallowCopy(false) preserves for free.
+        AnnotatedTypeMirror glb;
+        if (subtype.getKind() == TypeKind.TYPEVAR || subtype.getKind() == TypeKind.WILDCARD) {
+            glb = subtype.shallowCopy(false);
+        } else {
+            glb = subtype.deepCopy();
+            glb.clearAnnotations();
+        }
 
         TypeMirror subTM = subtype.getUnderlyingType();
         TypeMirror superTM = supertype.getUnderlyingType();

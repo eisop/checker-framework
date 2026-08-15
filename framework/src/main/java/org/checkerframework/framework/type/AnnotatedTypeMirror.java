@@ -888,7 +888,12 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
         return changed;
     }
 
-    /** Removes all primary annotations on this type. */
+    /**
+     * Removes all primary annotations on this type and, in the case of {@link
+     * AnnotatedTypeVariable}s, {@link AnnotatedWildcardType}s, and {@link
+     * AnnotatedIntersectionType}s, clears all bounds too, matching {@link #addAnnotation} and
+     * {@link #removeAnnotation}, which already propagate to bounds for those three kinds.
+     */
     // typetools: clearPrimaryAnnotations
     public void clearAnnotations() {
         checkMutable();
@@ -2194,6 +2199,26 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
         }
 
         /**
+         * {@inheritDoc}
+         *
+         * <p>Also clears both bounds' annotations, for the same reason {@link
+         * #removeAnnotation(AnnotationMirror)} does: leaving a bound's annotations in place while
+         * clearing only this type variable's own primary annotation would let a bound keep a stale
+         * qualifier that a caller clearing this type is trying to discard, with no local signal
+         * that the two had gone out of sync.
+         */
+        @Override
+        public void clearAnnotations() {
+            super.clearAnnotations();
+            if (lowerBound != null) {
+                lowerBound.clearAnnotations();
+            }
+            if (upperBound != null) {
+                upperBound.clearAnnotations();
+            }
+        }
+
+        /**
          * Change whether this {@code AnnotatedTypeVariable} is considered a use or a declaration
          * (use this method with caution).
          *
@@ -2627,6 +2652,26 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
                 ret |= extendsBound.removeAnnotation(a);
             }
             return ret;
+        }
+
+        /**
+         * {@inheritDoc}
+         *
+         * <p>Also clears both bounds' annotations, for the same reason {@link
+         * #removeAnnotation(AnnotationMirror)} does: leaving a bound's annotations in place while
+         * clearing only this wildcard's own primary annotation would let a bound keep a stale
+         * qualifier that a caller clearing this type is trying to discard, with no local signal
+         * that the two had gone out of sync.
+         */
+        @Override
+        public void clearAnnotations() {
+            super.clearAnnotations();
+            if (superBound != null) {
+                superBound.clearAnnotations();
+            }
+            if (extendsBound != null) {
+                extendsBound.clearAnnotations();
+            }
         }
 
         /**
@@ -3070,6 +3115,36 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
         }
     }
 
+    /**
+     * Represents a union type, the type of a multi-catch parameter (for example, {@code catch
+     * (IOException | SQLException e)}).
+     *
+     * <p>Unlike {@link AnnotatedIntersectionType}, {@link AnnotatedTypeVariable}, and {@link
+     * AnnotatedWildcardType}, this class does not override {@code addAnnotation}, {@code
+     * removeAnnotation}, or {@code clearAnnotations} to propagate to its components ({@link
+     * #getAlternatives()}), and must not: those three types' bounds are meant to be homogenized
+     * (every bound shares the same qualifier per hierarchy, since the type IS-A each of its bounds
+     * simultaneously), but a union's alternatives are meant to stay heterogeneous -- the example
+     * above can legitimately have a different qualifier on {@code IOException} than on {@code
+     * SQLException}. {@link
+     * org.checkerframework.common.basetype.BaseTypeVisitor#checkExceptionParameter} and {@link
+     * org.checkerframework.common.basetype.BaseTypeVisitor#checkThrownExpression} both validate
+     * this type's own primary annotation and each alternative independently rather than assuming
+     * they agree. Propagating like the other three types would forcibly overwrite (on {@code
+     * addAnnotation}) or erase (on {@code removeAnnotation}/{@code clearAnnotations}) that
+     * per-alternative information instead of preserving it.
+     *
+     * <p>This type's own primary annotation is instead a <em>derived</em> summary of the
+     * alternatives -- the least upper bound of their qualifiers, not a value that gets pushed down
+     * onto them -- computed by {@code AsSuperVisitor.ensurePrimaryIsCorrectForUnions}, since every
+     * alternative must be assignable to a catch parameter of this union type. A caller that does
+     * need to push one qualifier onto every alternative -- for example, applying the same default
+     * to an entirely unannotated {@code catch} parameter -- does so with {@code
+     * addMissingAnnotation(s)}, which only fills a hierarchy an alternative doesn't already have an
+     * opinion on, rather than {@code addAnnotation}, which would overwrite one it does. See {@code
+     * AsSuperVisitor#copyPrimaryAnnos}'s union case and {@code QualifierDefaults}'s {@code
+     * EXCEPTION_PARAMETER} case.
+     */
     // TODO: Ensure union types are handled everywhere.
     // TODO: Should field "annotations" contain anything?
     public static class AnnotatedUnionType extends AnnotatedTypeMirror {

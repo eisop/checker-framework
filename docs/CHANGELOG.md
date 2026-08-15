@@ -262,6 +262,26 @@ summary from the adapted bounds: that call was already a no-op (the copy's
 own primary annotation starts empty), and clearing there now would discard
 the adapted bounds' qualifiers before they are read.
 
+`AnnotatedWildcardType.clearAnnotations()` and
+`AnnotatedTypeVariable.clearAnnotations()` now likewise also clear their
+bounds' annotations, for the same reason and matching their own
+`addAnnotation`/`removeAnnotation`, which already propagated. Making
+`AnnotatedTypeVariable` consistent this way surfaced a latent bug in
+`AnnotatedTypes.glbSubtype` (used during capture conversion): it copies a
+type variable or wildcard, clears the copy's annotations to recompute its
+own primary per hierarchy, and previously relied on the copy's bounds
+keeping their original annotations for any hierarchy it did not go on to
+explicitly restrict -- a safe assumption when clearing was primary-only,
+but not once clearing reached the bounds too. `glbSubtype` now builds that
+copy with `shallowCopy(false)` instead of `deepCopy()` plus
+`clearAnnotations()`: for a type variable or wildcard, `shallowCopy(false)`
+already means exactly that (see its own Javadoc), so the bounds keep their
+original annotations for free, at any nesting depth, without a separate
+snapshot-and-restore step. The other composite subclasses
+(`AnnotatedArrayType`, `AnnotatedDeclaredType`, `AnnotatedUnionType`) do not
+smear a primary onto their components at all, so they have no equivalent
+gap.
+
 `BaseTypeValidator.checkExplicitSuperBoundWildcards` now delegates its
 JDK-8054309 collapsed-wildcard-bound comparison to a new overridable
 `areCollapsedWildcardBoundsEqual` method, instead of inlining a bidirectional
