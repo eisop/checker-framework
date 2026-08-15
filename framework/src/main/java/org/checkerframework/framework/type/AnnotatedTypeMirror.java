@@ -3112,6 +3112,36 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
 
     // TODO: Ensure union types are handled everywhere.
     // TODO: Should field "annotations" contain anything?
+    /**
+     * Represents a union type, the type of a multi-catch parameter (for example, {@code catch
+     * (IOException | SQLException e)}).
+     *
+     * <p>Unlike {@link AnnotatedIntersectionType}, {@link AnnotatedTypeVariable}, and {@link
+     * AnnotatedWildcardType}, this class does not override {@code addAnnotation}, {@code
+     * removeAnnotation}, or {@code clearAnnotations} to propagate to its components ({@link
+     * #getAlternatives()}), and must not: those three types' bounds are meant to be homogenized
+     * (every bound shares the same qualifier per hierarchy, since the type IS-A each of its bounds
+     * simultaneously), but a union's alternatives are meant to stay heterogeneous. {@code catch
+     * (IOException | SQLException e)} can legitimately have a different qualifier on {@code
+     * IOException} than on {@code SQLException}; {@link
+     * org.checkerframework.common.basetype.BaseTypeVisitor#checkExceptionParameter} and {@link
+     * org.checkerframework.common.basetype.BaseTypeVisitor#checkThrownExpression} both validate
+     * this type's own primary annotation and each alternative independently rather than assuming
+     * they agree. Propagating like the other three types would forcibly overwrite (on {@code
+     * addAnnotation}) or erase (on {@code removeAnnotation}/{@code clearAnnotations}) that
+     * per-alternative information instead of preserving it.
+     *
+     * <p>This type's own primary annotation is instead a <em>derived</em> summary of the
+     * alternatives -- the least upper bound of their qualifiers, not a value that gets pushed down
+     * onto them -- computed by {@code AsSuperVisitor.ensurePrimaryIsCorrectForUnions}, since every
+     * alternative must be assignable to a catch parameter of this union type. A caller that does
+     * need to push one qualifier onto every alternative -- for example, applying the same default
+     * to an entirely unannotated {@code catch} parameter -- does so with {@code
+     * addMissingAnnotation(s)}, which only fills a hierarchy an alternative doesn't already have an
+     * opinion on, rather than {@code addAnnotation}, which would overwrite one it does. See {@code
+     * AsSuperVisitor#copyPrimaryAnnos}'s union case and {@code QualifierDefaults}'s {@code
+     * EXCEPTION_PARAMETER} case.
+     */
     public static class AnnotatedUnionType extends AnnotatedTypeMirror {
 
         /**
