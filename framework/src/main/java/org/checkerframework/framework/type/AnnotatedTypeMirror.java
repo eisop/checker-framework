@@ -3115,8 +3115,6 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
         }
     }
 
-    // TODO: Ensure union types are handled everywhere.
-    // TODO: Should field "annotations" contain anything?
     /**
      * Represents a union type, the type of a multi-catch parameter (for example, {@code catch
      * (IOException | SQLException e)}).
@@ -3126,9 +3124,9 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
      * removeAnnotation}, or {@code clearAnnotations} to propagate to its components ({@link
      * #getAlternatives()}), and must not: those three types' bounds are meant to be homogenized
      * (every bound shares the same qualifier per hierarchy, since the type IS-A each of its bounds
-     * simultaneously), but a union's alternatives are meant to stay heterogeneous. {@code catch
-     * (IOException | SQLException e)} can legitimately have a different qualifier on {@code
-     * IOException} than on {@code SQLException}; {@link
+     * simultaneously), but a union's alternatives are meant to stay heterogeneous -- the example
+     * above can legitimately have a different qualifier on {@code IOException} than on {@code
+     * SQLException}. {@link
      * org.checkerframework.common.basetype.BaseTypeVisitor#checkExceptionParameter} and {@link
      * org.checkerframework.common.basetype.BaseTypeVisitor#checkThrownExpression} both validate
      * this type's own primary annotation and each alternative independently rather than assuming
@@ -3147,6 +3145,8 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
      * AsSuperVisitor#copyPrimaryAnnos}'s union case and {@code QualifierDefaults}'s {@code
      * EXCEPTION_PARAMETER} case.
      */
+    // TODO: Ensure union types are handled everywhere.
+    // TODO: Should field "annotations" contain anything?
     public static class AnnotatedUnionType extends AnnotatedTypeMirror {
 
         /**
