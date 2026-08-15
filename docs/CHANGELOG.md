@@ -262,6 +262,19 @@ summary from the adapted bounds: that call was already a no-op (the copy's
 own primary annotation starts empty), and clearing there now would discard
 the adapted bounds' qualifiers before they are read.
 
+`AnnotatedWildcardType.clearAnnotations()` now likewise also clears both
+bounds' annotations, for the same reason and matching its own
+`addAnnotation`/`removeAnnotation`, which already propagated. Auditing
+every other `AnnotatedTypeMirror` subclass for the same gap found one more
+candidate, `AnnotatedTypeVariable`, but its bounds are not made to
+propagate: at least one caller (`AsSuperVisitor.visitTypevar_Typevar`)
+relies on the current, primary-only behavior to avoid disturbing a bound's
+existing annotations while it computes a fresh replacement separately, and
+making it propagate there causes a real crash. The other subclasses that
+could smear a primary onto a component (`AnnotatedArrayType`,
+`AnnotatedDeclaredType`, `AnnotatedUnionType`) do not do so in the first
+place, so they have no equivalent gap.
+
 `BaseTypeValidator.checkExplicitSuperBoundWildcards` now delegates its
 JDK-8054309 collapsed-wildcard-bound comparison to a new overridable
 `areCollapsedWildcardBoundsEqual` method, instead of inlining a bidirectional
