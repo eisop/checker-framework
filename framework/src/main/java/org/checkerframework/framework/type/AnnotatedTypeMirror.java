@@ -888,7 +888,12 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
         return changed;
     }
 
-    /** Removes all primary annotations on this type. */
+    /**
+     * Removes all primary annotations on this type and, in the case of {@link
+     * AnnotatedTypeVariable}s, {@link AnnotatedWildcardType}s, and {@link
+     * AnnotatedIntersectionType}s, clears all bounds too, matching {@link #addAnnotation} and
+     * {@link #removeAnnotation}, which already propagate to bounds for those three kinds.
+     */
     // typetools: clearPrimaryAnnotations
     public void clearAnnotations() {
         checkMutable();
