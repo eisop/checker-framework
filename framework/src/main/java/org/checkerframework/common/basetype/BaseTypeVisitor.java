@@ -2975,7 +2975,34 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             }
             TypeMirror newExprTM = newExprType.getUnderlyingType();
 
-            if (!typeHierarchy.isSubtype(newExprType, newCastType)) {
+            // TypeHierarchy#isSubtype may only be called if the underlying Java type of its first
+            // argument is a subtype of the underlying Java type of its second argument.  That
+            // holds for an upcast, but not for a downcast such as "(ArrayList<String>) list", nor
+            // for a cross-cast between unrelated types such as two interfaces.
+            if (TypesUtils.isErasedSubtype(newExprTM, newCastTM, types)) {
+                if (!typeHierarchy.isSubtype(newExprType, newCastType)) {
+                    return false;
+                }
+            } else if (TypesUtils.isErasedSubtype(newCastTM, newExprTM, types)) {
+                // This is a downcast.  View the cast type as the expression's type; this
+                // substitutes the cast type's type arguments into the expression's type.  Compare
+                // that with the expression's type, which checks the type arguments that the two
+                // types have in common.  (A downcast guarantees nothing about type arguments that
+                // only the cast type has; the check of the number of type arguments below warns
+                // about those.)
+                AnnotatedTypeMirror castTypeAsExprType =
+                        AnnotatedTypes.asSuper(atypeFactory, newCastType, newExprType);
+                if (!typeHierarchy.isSubtype(newExprType, castTypeAsExprType)) {
+                    return false;
+                }
+            } else if (newCastType.getKind() == TypeKind.DECLARED
+                    && newExprType.getKind() == TypeKind.DECLARED
+                    && !((AnnotatedDeclaredType) newCastType).isUnderlyingTypeRaw()
+                    && !((AnnotatedDeclaredType) newCastType).getTypeArguments().isEmpty()) {
+                // The Java types are unrelated, as in a cast between two interfaces.  The
+                // expression's type says nothing about the cast type's type arguments, so warn,
+                // as is done below for a cast to a type with a different number of type
+                // arguments.
                 return false;
             }
             if (newCastType.getKind() == TypeKind.ARRAY
