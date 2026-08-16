@@ -223,6 +223,14 @@ about the cast type's type arguments, so the cast is reported as not statically
 verifiable, as a cast to a type with a different number of type arguments
 already was.
 
+A cast whose types the type hierarchy cannot compare no longer crashes
+`-AcheckCastElementType` either; it is reported as not statically verifiable.
+For example, `(List<Number>) list`, where `list` has type `List<T>`, makes the
+type hierarchy compare the type argument `Number` with the type variable `T`,
+a combination for which `StructuralEqualityComparer` has no case. A cast is the
+only place where the type hierarchy is asked about types that Java's own
+subtyping does not relate.
+
 **Implementation details:**
 
 `AnnotatedIntersectionType.summarizeBounds` computes the summary described

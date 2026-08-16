@@ -49,6 +49,18 @@ public class Downcast {
         Unrelated<String> cast = (Unrelated<String>) supplier;
     }
 
+    <T extends @Nullable Object> void castToOtherTypeArgument(List<T> list) {
+        // The type hierarchy cannot compare the type arguments T and Number.
+        // :: warning: (cast.unsafe)
+        List<Number> cast = (List<Number>) list;
+    }
+
+    <T extends @Nullable Object> void downcastToOtherTypeArgument(List<T> list) {
+        // The type hierarchy cannot compare the type arguments T and Number.
+        // :: warning: (cast.unsafe)
+        ArrayList<Number> cast = (ArrayList<Number>) list;
+    }
+
     void crossCastNoTypeArgs(Supplier<String> supplier) {
         // The warning is issued because the cast type and the expression's type have a different
         // number of type arguments.
