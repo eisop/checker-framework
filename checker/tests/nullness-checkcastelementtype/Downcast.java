@@ -11,6 +11,9 @@ public class Downcast {
 
     interface SubSupplier<T extends @Nullable Object> extends Supplier<T> {}
 
+    interface SubSupplierExtra<T extends @Nullable Object, U extends @Nullable Object>
+            extends Supplier<T> {}
+
     interface Unrelated<T extends @Nullable Object> {}
 
     interface UnrelatedNoTypeArgs {}
@@ -66,5 +69,18 @@ public class Downcast {
         // number of type arguments.
         // :: warning: (cast.unsafe)
         UnrelatedNoTypeArgs cast = (UnrelatedNoTypeArgs) supplier;
+    }
+
+    void downcastFromWildcard(Supplier<?> supplier) {
+        // The source's type argument is an unbounded wildcard, so there is nothing more specific
+        // to compare against the cast type's type argument.
+        SubSupplier<@Nullable String> cast = (SubSupplier<@Nullable String>) supplier;
+    }
+
+    void downcastToExtraTypeArgument(Supplier<@Nullable String> supplier) {
+        // The cast type declares a type argument, U, that Supplier does not have.
+        SubSupplierExtra<@Nullable String, @Nullable String> cast =
+                // :: warning: (cast.unsafe)
+                (SubSupplierExtra<@Nullable String, @Nullable String>) supplier;
     }
 }
