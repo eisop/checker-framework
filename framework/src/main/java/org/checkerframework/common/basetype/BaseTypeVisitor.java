@@ -2955,8 +2955,14 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         AnnotationMirrorSet castAnnos;
         AnnotatedTypeMirror newCastType;
         TypeMirror newCastTM;
-        if (!checkCastElementType) {
-            // checkCastElementType option wasn't specified, so only check effective annotations.
+        if (!checkCastElementType
+                || (castTypeKind.isPrimitive() && exprType.getKind().isPrimitive())) {
+            // Either the checkCastElementType option wasn't specified, or the cast is between two
+            // primitive types, which have neither type arguments nor array elements to check.  A
+            // primitive conversion is handled by the getWidenedType call below; the element-type
+            // checks would instead treat it as a reference upcast or downcast, because a widening
+            // primitive conversion is a subtype relationship for javax.lang.model.util.Types.
+            // Only check effective annotations.
             castAnnos = castType.getEffectiveAnnotations();
             newCastType = castType;
             newCastTM = newCastType.getUnderlyingType();

@@ -245,6 +245,13 @@ arguments are checked whether or not the two types declare the same number of
 them. A downcast or a cross-cast to a type with a different number of type
 arguments is reported as before.
 
+`-AcheckCastElementType` no longer changes the result for a cast between two
+primitive types, which have neither type arguments nor array elements. Such a
+cast is a widening or narrowing primitive conversion, which the option's
+element-type checks treated as a reference upcast or downcast; the Signedness
+Checker reported `(char) x`, where `x` has type `@Signed int`, as not
+statically verifiable.
+
 **Implementation details:**
 
 `AnnotatedIntersectionType.summarizeBounds` computes the summary described
