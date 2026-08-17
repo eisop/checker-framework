@@ -231,6 +231,10 @@ a combination for which `StructuralEqualityComparer` has no case. A cast is the
 only place where the type hierarchy is asked about types that Java's own
 subtyping does not relate.
 
+`-AcheckCastElementType` no longer reports a cast of the null literal to an
+array type, such as `(Object[]) null`, as not statically verifiable. The null
+literal has no elements to check, and the cast cannot fail at run time.
+
 **Implementation details:**
 
 `AnnotatedIntersectionType.summarizeBounds` computes the summary described

@@ -3019,9 +3019,13 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             }
             if (newCastType.getKind() == TypeKind.ARRAY
                     && newExprType.getKind() != TypeKind.ARRAY) {
-                // Always warn if the cast contains an array, but the expression
-                // doesn't, as in "(Object[]) o" where o is of type Object
-                return false;
+                if (newExprType.getKind() != TypeKind.NULL) {
+                    // Always warn if the cast contains an array, but the expression
+                    // doesn't, as in "(Object[]) o" where o is of type Object.  The null literal
+                    // is an exception: it has no elements, so there is nothing to check, and the
+                    // cast cannot fail at run time.
+                    return false;
+                }
             } else if (newCastType.getKind() == TypeKind.DECLARED
                     && newExprType.getKind() == TypeKind.DECLARED) {
                 int castSize = ((AnnotatedDeclaredType) newCastType).getTypeArguments().size();
