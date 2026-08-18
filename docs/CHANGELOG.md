@@ -231,6 +231,27 @@ a combination for which `StructuralEqualityComparer` has no case. A cast is the
 only place where the type hierarchy is asked about types that Java's own
 subtyping does not relate.
 
+`-AcheckCastElementType` no longer reports a cast of the null literal to an
+array type, such as `(Object[]) null`, as not statically verifiable. The null
+literal has no elements to check, and the cast cannot fail at run time.
+
+`-AcheckCastElementType` no longer reports an upcast to a type with a different
+number of type arguments as not statically verifiable. For example,
+`(Iterable<String>) list`, where `list` has a type that extends
+`ArrayList<String>` and declares no type parameter of its own, was reported
+unconditionally. The type hierarchy views the expression's type as the cast
+type's class and compares all of the type arguments, so an upcast's type
+arguments are checked whether or not the two types declare the same number of
+them. A downcast or a cross-cast to a type with a different number of type
+arguments is reported as before.
+
+`-AcheckCastElementType` no longer changes the result for a cast between two
+primitive types, which have neither type arguments nor array elements. Such a
+cast is a widening or narrowing primitive conversion, which the option's
+element-type checks treated as a reference upcast or downcast; the Signedness
+Checker reported `(char) x`, where `x` has type `@Signed int`, as not
+statically verifiable.
+
 **Implementation details:**
 
 `AnnotatedIntersectionType.summarizeBounds` computes the summary described

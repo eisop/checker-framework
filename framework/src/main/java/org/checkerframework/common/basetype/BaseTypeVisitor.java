@@ -2955,8 +2955,14 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         AnnotationMirrorSet castAnnos;
         AnnotatedTypeMirror newCastType;
         TypeMirror newCastTM;
-        if (!checkCastElementType) {
-            // checkCastElementType option wasn't specified, so only check effective annotations.
+        if (!checkCastElementType
+                || (castTypeKind.isPrimitive() && exprType.getKind().isPrimitive())) {
+            // Either the checkCastElementType option wasn't specified, or the cast is between two
+            // primitive types, which have neither type arguments nor array elements to check.  A
+            // primitive conversion is handled by the getWidenedType call below; the element-type
+            // checks would instead treat it as a reference upcast or downcast, because a widening
+            // primitive conversion is a subtype relationship for javax.lang.model.util.Types.
+            // Only check effective annotations.
             castAnnos = castType.getEffectiveAnnotations();
             newCastType = castType;
             newCastTM = newCastType.getUnderlyingType();
@@ -2975,6 +2981,9 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             }
             TypeMirror newExprTM = newExprType.getUnderlyingType();
 
+            // Whether the cast is an upcast, whose type arguments the type hierarchy checked in
+            // full below.
+            boolean isUpcast = false;
             // TypeHierarchy#isSubtype may only be called if the underlying Java type of its first
             // argument is a subtype of the underlying Java type of its second argument.  That
             // holds for an upcast, but not for a downcast such as "(ArrayList<String>) list", nor
@@ -2984,6 +2993,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                     if (!typeHierarchy.isSubtype(newExprType, newCastType)) {
                         return false;
                     }
+                    isUpcast = true;
                 } else if (TypesUtils.isErasedSubtype(newCastTM, newExprTM, types)) {
                     // This is a downcast.  View the cast type as the expression's type; this
                     // substitutes the cast type's type arguments into the expression's type.
@@ -3019,17 +3029,27 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             }
             if (newCastType.getKind() == TypeKind.ARRAY
                     && newExprType.getKind() != TypeKind.ARRAY) {
-                // Always warn if the cast contains an array, but the expression
-                // doesn't, as in "(Object[]) o" where o is of type Object
-                return false;
+                if (newExprType.getKind() != TypeKind.NULL) {
+                    // Always warn if the cast contains an array, but the expression
+                    // doesn't, as in "(Object[]) o" where o is of type Object.  The null literal
+                    // is an exception: it has no elements, so there is nothing to check, and the
+                    // cast cannot fail at run time.
+                    return false;
+                }
             } else if (newCastType.getKind() == TypeKind.DECLARED
                     && newExprType.getKind() == TypeKind.DECLARED) {
                 int castSize = ((AnnotatedDeclaredType) newCastType).getTypeArguments().size();
                 int exprSize = ((AnnotatedDeclaredType) newExprType).getTypeArguments().size();
 
-                if (castSize != exprSize) {
-                    // Always warn if the cast and expression contain a different number of type
+                if (castSize != exprSize && !isUpcast) {
+                    // Warn if the cast and expression contain a different number of type
                     // arguments, e.g. to catch a cast from "Object" to "List<@NonNull Object>".
+                    // A downcast or a cross-cast guarantees nothing about type arguments that
+                    // only the cast type has.  For an upcast, the type hierarchy above viewed the
+                    // expression's type as the cast type's class and compared all of the type
+                    // arguments, so a different number of them is not by itself a problem, as in
+                    // "(Iterable<String>) list" where list has a type that extends
+                    // ArrayList<String> and declares no type parameter of its own.
                     // TODO: the same number of arguments actually doesn't guarantee anything.
                     return false;
                 }
