@@ -211,6 +211,26 @@ annotation from `V`'s own upper bound (e.g. `Object`'s) onto the capture,
 one level too deep; it now installs `V`'s own annotation, which is typically
 absent for a bare, unannotated type-variable use.
 
+Fixed a crash (`AsSuperVisitor: type is not an erased subtype of supertype`)
+when `-AcheckCastElementType` checked a cast whose cast type is not a supertype
+of the type of the cast expression: a downcast such as `(ArrayList<String>)
+list`, or a cast between unrelated types such as two interfaces. The check
+asked the type hierarchy whether the expression's type is a subtype of the cast
+type, which only holds for an upcast. For a downcast, the cast type is now
+viewed as the expression's type, so that the type arguments the two types have
+in common are compared. For a cast between unrelated types, nothing is known
+about the cast type's type arguments, so the cast is reported as not statically
+verifiable, as a cast to a type with a different number of type arguments
+already was.
+
+A cast whose types the type hierarchy cannot compare no longer crashes
+`-AcheckCastElementType` either; it is reported as not statically verifiable.
+For example, `(List<Number>) list`, where `list` has type `List<T>`, makes the
+type hierarchy compare the type argument `Number` with the type variable `T`,
+a combination for which `StructuralEqualityComparer` has no case. A cast is the
+only place where the type hierarchy is asked about types that Java's own
+subtyping does not relate.
+
 **Implementation details:**
 
 `AnnotatedIntersectionType.summarizeBounds` computes the summary described
