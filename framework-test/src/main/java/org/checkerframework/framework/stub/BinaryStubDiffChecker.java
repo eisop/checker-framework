@@ -55,10 +55,11 @@ import javax.tools.Diagnostic;
  *
  * <ul>
  *   <li>Declaration annotations ({@link AnnotationFileAnnotations#declAnnos}) must have the same
- *       keys and, per key, the same set of Checker Framework annotation class names. Non-checker
- *       annotations (an unimported {@code @Override}, a {@code @DefinedBy} reachable only through a
- *       static import, {@code @CFComment}) are kept or dropped differently by well-understood
- *       text-parser name-resolution quirks, are consumed by no checker, and are excluded.
+ *       keys and, per key, the same set of annotation class names that some checker could act on.
+ *       Java platform annotations no checker consumes ({@code @IntrinsicCandidate} and other {@code
+ *       jdk.internal.*} annotations the text parser resolves but the binary writer never keeps by
+ *       design, {@code java.lang.annotation.Retention}/{@code Target}, {@code @CFComment}) are
+ *       excluded; see {@link #comparedAnnotationNames} for the full rationale.
  *   <li>Annotated types ({@link AnnotationFileAnnotations#atypes}) are compared per element key by
  *       a parallel, cycle-safe structural walk that compares the set of annotation names at every
  *       source-annotatable type component (see {@link #compareAtm} for the derived positions that
@@ -1032,28 +1033,22 @@ public class BinaryStubDiffChecker {
      * {@code org.jspecify.annotations.Nullable}, say, which is what the annotated JDK of the
      * JSpecify reference checker is written in.
      *
-     * <p>The Java platform's own annotations ({@code java.}, {@code jdk.}, {@code sun.}, {@code
-     * com.sun.}) are excluded because the two sides legitimately disagree about them, in ways that
-     * are text-parser name-resolution quirks rather than binary-reader bugs (observed comparing the
-     * JDK 21 annotated JDK, under {@code NullnessBinaryStubDiffTest}):
-     *
-     * <ul>
-     *   <li>{@code java.lang.Override}/{@code java.lang.Deprecated}/{@code
-     *       java.lang.SuppressWarnings}: the binary reader resolves the
-     *       {@code @Retention}/{@code @Target} meta-annotations written on these annotation-type
-     *       declarations themselves; the text parser does not import or resolve them there and
-     *       drops them.
-     *   <li>{@code com.sun.tools.javac.file.JavacFileManager.setPathFactory(..)}: a
-     *       {@code @DefinedBy} annotation reachable only via a static import; the text parser's
-     *       {@code AnnotationFileParser.findVariableElement(NameExpr)} resolution does not cover
-     *       this position, so it drops the annotation while the binary writer's build-time
-     *       classpath resolution keeps it.
-     *   <li>{@code com.sun.tools.javac.api.ClientCodeWrapper.Trusted}, {@code
-     *       java.lang.invoke.LambdaForm.Compiled}, {@code Tree.Kind.DEFAULT_CASE_LABEL}:
-     *       JDK-internal meta-annotations on JDK-internal declarations that the text parser never
-     *       resolves (they are not imported by the stub source), but that the binary writer,
-     *       running against the full JDK classpath at build time, resolves and keeps.
-     * </ul>
+     * <p>The Java platform's own annotations ({@code java.}, {@code javax.}, {@code jdk.}, {@code
+     * sun.}, {@code com.sun.}) are excluded as a category primarily because of {@code
+     * jdk.internal.*} annotations ({@code @IntrinsicCandidate}, {@code @CallerSensitive},
+     * {@code @ValueBased}, {@code @Hidden}, {@code @ForceInline}, {@code @PreviewFeature}, ...):
+     * the text parser resolves them wherever the annotated JDK's own source references them, but
+     * the binary writer never keeps them, by design -- see {@code
+     * org.checkerframework.framework.stubifier.BinaryStubWriter}'s {@code JDK_INTERNAL_PREFIX}
+     * Javadoc for why (no JDK module exports {@code jdk.internal}, so such an annotation can be
+     * neither a type qualifier user code writes nor one a checker resolves by name as an alias).
+     * Confirmed by disabling this exclusion and running {@code NullnessBinaryStubDiffTest} against
+     * the JDK 21 annotated JDK: every resulting mismatch has this same shape (present on the text
+     * side, absent from the binary side). The rest of the excluded packages ({@code
+     * java.lang.annotation.Retention}/{@code Target} and the like) are caught by the same
+     * package-prefix exclusion for a simpler reason: none of them is a qualifier any checker
+     * supports or aliases, so whether the two sides happen to agree about them is never something a
+     * checker would notice.
      *
      * <p>A platform annotation that this checker <em>can</em> act on is compared even so: one it
      * supports as a qualifier, or aliases to one ({@code jdk.jfr.Unsigned} for the Signedness

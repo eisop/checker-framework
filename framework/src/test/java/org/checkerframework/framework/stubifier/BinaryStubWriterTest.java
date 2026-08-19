@@ -43,6 +43,26 @@ public class BinaryStubWriterTest {
         }
     }
 
+    /**
+     * Writes an already-populated writer to a temporary file and reads the result back.
+     *
+     * @param writer a writer that has already processed its compilation units
+     * @return the binary stub data the writer produced
+     * @throws IOException if the temporary file cannot be written or read
+     */
+    private static BinaryStubData writeAndRead(BinaryStubWriter writer) throws IOException {
+        File tmp = File.createTempFile("binarystubwritertest", ".bin.gz");
+        tmp.deleteOnExit();
+        try {
+            writer.writeTo(tmp);
+            try (InputStream in = Files.newInputStream(tmp.toPath())) {
+                return new BinaryStubData(in);
+            }
+        } finally {
+            tmp.delete();
+        }
+    }
+
     /** Source declaring one annotated and one unannotated method, field, and enum constant. */
     private static final String MIXED_MEMBERS =
             "import org.checkerframework.checker.nullness.qual.Nullable;\n"
@@ -134,6 +154,53 @@ public class BinaryStubWriterTest {
                 1,
                 cr.presenceOnlyMethodSigs.length);
         Assert.assertEquals("m()", data.stringPool[cr.presenceOnlyMethodSigs[0]]);
+    }
+
+    /**
+     * A multi-directory {@link JavaStubifier} run creates a fresh {@link BinaryStubWriter} per
+     * directory (see {@code JavaStubifier.process}), so an interface in one directory and its
+     * implementer in another are processed by different writers. This pins that the split does not
+     * change the implementer's binary output: whether an unannotated method is retained as a
+     * presence-only fake-override signature ({@code ClassRecord.presenceOnlyMethodSigs}) depends
+     * only on the implementer's own declaration, never on whether the interface it overrides was
+     * processed by the same writer. Both writers below record {@code describe()} identically.
+     *
+     * <p>The retention is unconditional (see {@code BinaryStubWriter.addMethodRecord}) precisely so
+     * that no cross-writer -- hence no cross-directory -- interface knowledge is needed: the
+     * fake-override match itself is a read-time search over the real class hierarchy ({@code
+     * BinaryStubReader.applyFakeOverride}, {@code FakeOverrideResolver}), which no writer-side
+     * state feeds. A future change that made omission depend on the interfaces a writer happens to
+     * have seen would be unsafe across directories and would fail this test.
+     */
+    @Test
+    public void implementerOutputDoesNotDependOnTheInterfaceBeingInTheSameWriter()
+            throws IOException {
+        String iface = "public interface Service { String describe(); }\n";
+        String impl =
+                "public class ServiceImpl implements Service {\n"
+                        + "  public String describe() { return null; }\n"
+                        + "}\n";
+
+        // "Directory B" processed alone: a writer that never saw the interface.
+        BinaryStubWriter writerImplOnly = new BinaryStubWriter(/* omitUnannotatedMembers= */ true);
+        writerImplOnly.process(StaticJavaParser.parse(impl));
+
+        // The interface and implementer in one directory, the single-writer case.
+        BinaryStubWriter writerBoth = new BinaryStubWriter(/* omitUnannotatedMembers= */ true);
+        writerBoth.process(StaticJavaParser.parse(iface));
+        writerBoth.process(StaticJavaParser.parse(impl));
+
+        for (BinaryStubData data :
+                new BinaryStubData[] {writeAndRead(writerImplOnly), writeAndRead(writerBoth)}) {
+            BinaryStubData.ClassRecord cr = data.classes.get("ServiceImpl");
+            Assert.assertNotNull("ServiceImpl must be recorded", cr);
+            Assert.assertEquals(
+                    "describe() must be retained as a presence-only fake-override signature,"
+                            + " independent of whether the interface was in the same writer",
+                    1,
+                    cr.presenceOnlyMethodSigs.length);
+            Assert.assertEquals("describe()", data.stringPool[cr.presenceOnlyMethodSigs[0]]);
+        }
     }
 
     /**

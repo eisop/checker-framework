@@ -117,7 +117,6 @@ import javax.lang.model.element.PackageElement;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.ArrayType;
-import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.ElementFilter;
@@ -1217,6 +1216,15 @@ public class AnnotationFileParser {
                     // Not processing an ajava file, so ignore the return value.
                     processTypeDecl((EnumDeclaration) decl, innerName, null);
                     break;
+                case ANNOTATION_TYPE:
+                    // Process a nested annotation type declaration (e.g. the JDK's own
+                    // ClientCodeWrapper.Trusted or LambdaForm.Compiled) so that declaration
+                    // annotations written on the nested declaration itself (its own
+                    // @Retention/@Target) are applied; the `default` case below handles only
+                    // records.
+                    // Not processing an ajava file, so ignore the return value.
+                    processTypeDecl((AnnotationDeclaration) decl, innerName, null);
+                    break;
                 default:
                     // A nested record is handled here rather than in a "case RECORD:" label,
                     // because ElementKind.RECORD does not exist before JDK 16 and this code must
@@ -2006,6 +2014,21 @@ public class AnnotationFileParser {
                 AnnotationMirrorSet.singleton(fromStubFileAnno));
     }
 
+    /**
+     * Annotates each type variable in {@code typeArguments} with the annotations written on the
+     * corresponding {@code typeParameters} declaration in the annotation file, including its
+     * bound(s). If {@code typeParameters} and {@code typeArguments} have different sizes, issues a
+     * warning (mentioning {@code decl} and {@code elt} for context) and returns without annotating
+     * anything.
+     *
+     * @param decl the type or callable declaration, as read from the annotation file, that owns
+     *     {@code typeParameters}; used only for diagnostics
+     * @param elt the type or executable element corresponding to {@code decl}; used only for
+     *     diagnostics
+     * @param typeArguments the type variables to be annotated
+     * @param typeParameters the type parameter declarations read from the annotation file, or null
+     *     if {@code decl} has none
+     */
     private void annotateTypeParameters(
             BodyDeclaration<?> decl, // for debugging
             Object elt, // for debugging; TypeElement or ExecutableElement
@@ -2016,6 +2039,15 @@ public class AnnotationFileParser {
         }
 
         if (typeParameters.size() != typeArguments.size()) {
+            // For a type declaration, `decl.toString()` pretty-prints the entire body
+            // (every member, recursively), which is unbounded in size and can be very
+            // expensive for a large class; only its name is useful for debugging here.
+            // A method/constructor declaration in an annotation file has no body, so
+            // `decl.toString()` is already just its (cheap) signature.
+            String declString =
+                    decl instanceof TypeDeclaration
+                            ? ((TypeDeclaration<?>) decl).getNameAsString()
+                            : decl.toString().replace(LINE_SEPARATOR, " ");
             String msg =
                     String.format(
                             "annotateTypeParameters: mismatched sizes:"
@@ -2026,7 +2058,7 @@ public class AnnotationFileParser {
                             typeParameters,
                             typeArguments.size(),
                             typeArguments,
-                            decl.toString().replace(LINE_SEPARATOR, " "),
+                            declString,
                             elt.toString().replace(LINE_SEPARATOR, " "),
                             elt.getClass());
             if (!debugAnnotationFileParser) {
@@ -2241,6 +2273,11 @@ public class AnnotationFileParser {
             if (elt != null) {
                 putIfAbsent(elementsToDecl, elt, member);
             }
+        } else if (member instanceof AnnotationDeclaration) {
+            Element elt = findElement(typeElt, (AnnotationDeclaration) member);
+            if (elt != null) {
+                putIfAbsent(elementsToDecl, elt, member);
+            }
         } else {
             stubDebug("ignoring element of type %s in %s", member.getClass(), typeDeclName);
         }
@@ -2260,34 +2297,26 @@ public class AnnotationFileParser {
      */
     private @Nullable ExecutableElement fakeOverriddenMethod(
             TypeElement typeElt, MethodDeclaration methodDecl) {
-        // Two passes: first look for a candidate whose every parameter matches exactly; only if
-        // none does, retry accepting any candidate parameter whose type is a type variable.  The
-        // lenient pass is needed because a type-variable parameter's javac type has no textual
-        // form that reliably matches the stub's spelling (see the comment in sameTypes).  But
-        // running only the lenient pass would let a stub parameter such as "String" match a
-        // type-variable parameter "T" -- and "<T> void f(T)" and "void f(String)" legally coexist
-        // as overloads (erasures f(Object) and f(String)), so a fake override "f(String)" could
-        // bind to whichever overload happens to be visited first.  The exact pass binds it to
-        // f(String).
-        ExecutableElement exactMatch =
-                fakeOverriddenMethod(typeElt, methodDecl, /* typevarLenient= */ false);
-        if (exactMatch != null) {
-            return exactMatch;
-        }
-        return fakeOverriddenMethod(typeElt, methodDecl, /* typevarLenient= */ true);
+        return FakeOverrideResolver.findFakeOverridden(
+                typeElt,
+                (candidate, typevarLenient) ->
+                        declaredMethodMatching(candidate, methodDecl, typevarLenient));
     }
 
     /**
-     * Implementation of {@link #fakeOverriddenMethod(TypeElement, MethodDeclaration)} for one
-     * matching mode.
+     * Returns the method that {@code typeElt} itself declares that matches {@code methodDecl} in
+     * the given mode, or null if it declares none. Inspects only {@code typeElt}'s own declared
+     * methods; {@link FakeOverrideResolver} walks the class hierarchy. This is the text parser's
+     * leaf comparison for {@link FakeOverrideResolver.FakeOverrideMatcher}.
      *
-     * @param typeElt the type in which the method appears
+     * @param typeElt the type whose own declared methods to search
      * @param methodDecl the method declaration that does not correspond to an element
      * @param typevarLenient if true, a candidate parameter whose type is a type variable matches
      *     any declared parameter type in the same position; see {@link #sameTypes}
-     * @return the methods that the given method declaration would override, or null if none
+     * @return the method {@code typeElt} declares that {@code methodDecl} would override, or null
+     *     if none does or the match is ambiguous
      */
-    private @Nullable ExecutableElement fakeOverriddenMethod(
+    private @Nullable ExecutableElement declaredMethodMatching(
             TypeElement typeElt, MethodDeclaration methodDecl, boolean typevarLenient) {
         ExecutableElement match = null;
         for (Element elt : typeElt.getEnclosedElements()) {
@@ -2295,6 +2324,12 @@ public class AnnotationFileParser {
                 continue;
             }
             ExecutableElement candidate = (ExecutableElement) elt;
+            // Skip private methods: they cannot be overridden, so they cannot be fake override
+            // targets. This mirrors BinaryStubWriter.processCallable, which never writes private
+            // methods.
+            if (candidate.getModifiers().contains(javax.lang.model.element.Modifier.PRIVATE)) {
+                continue;
+            }
             if (!InternalUtils.sameName(
                     candidate.getSimpleName(), methodDecl.getName().getIdentifier())) {
                 continue;
@@ -2319,29 +2354,7 @@ public class AnnotationFileParser {
                 match = candidate;
             }
         }
-        if (match != null) {
-            return match;
-        }
-
-        TypeElement superType = ElementUtils.getSuperClass(typeElt);
-        if (superType != null) {
-            ExecutableElement result = fakeOverriddenMethod(superType, methodDecl, typevarLenient);
-            if (result != null) {
-                return result;
-            }
-        }
-
-        for (TypeMirror interfaceTypeMirror : typeElt.getInterfaces()) {
-            TypeElement interfaceElement =
-                    (TypeElement) ((DeclaredType) interfaceTypeMirror).asElement();
-            ExecutableElement result =
-                    fakeOverriddenMethod(interfaceElement, methodDecl, typevarLenient);
-            if (result != null) {
-                return result;
-            }
-        }
-
-        return null;
+        return match;
     }
 
     /**
@@ -2612,6 +2625,32 @@ public class AnnotationFileParser {
     }
 
     /**
+     * Looks for the nested annotation type element in the typeElt and returns it if the element has
+     * the same name as the provided annotation declaration. If the nested element is not found,
+     * returns null.
+     *
+     * @param typeElt an element where the nested annotation type element should be looked for
+     * @param annotationDecl annotation type declaration whose name should be found among the nested
+     *     elements of typeElt
+     * @return the annotation type element nested in typeElt with the name of the provided
+     *     annotation type declaration, or null if it is not found
+     */
+    private @Nullable Element findElement(
+            TypeElement typeElt, AnnotationDeclaration annotationDecl) {
+        String wantedAnnotationName = annotationDecl.getNameAsString();
+        for (TypeElement typeElement : ElementUtils.getAllTypeElementsIn(typeElt)) {
+            if (InternalUtils.sameName(typeElement.getSimpleName(), wantedAnnotationName)) {
+                return typeElement;
+            }
+        }
+
+        stubWarnNotFound(
+                annotationDecl,
+                "annotation type " + wantedAnnotationName + " not found in type " + typeElt);
+        return null;
+    }
+
+    /**
      * Looks for an enum constant element in the typeElt and returns it if the element has the same
      * name as provided. In case enum constant element is not found it returns null.
      *
@@ -2859,7 +2898,6 @@ public class AnnotationFileParser {
                     allAnnotations,
                     createNameToAnnotationMap(Collections.singletonList(annoTypeElt)));
         }
-        @SuppressWarnings("signature") // not anonymous, so name is not empty
         @CanonicalName String annoName = ElementUtils.getQualifiedName(annoTypeElt);
 
         if (annotation instanceof MarkerAnnotationExpr) {
@@ -3239,7 +3277,20 @@ public class AnnotationFileParser {
         if (findVariableElementFieldCache.containsKey(faexpr)) {
             return findVariableElementFieldCache.get(faexpr);
         }
-        TypeElement rcvElt = elements.getTypeElement(faexpr.getScope().toString());
+        String scopeName = faexpr.getScope().toString();
+        TypeElement rcvElt = elements.getTypeElement(scopeName);
+        if (rcvElt == null) {
+            // A type imported via a wildcard import (e.g. `import java.lang.annotation.*;`)
+            // is recorded in importedTypes (see addEnclosedTypesToImportedTypes), but never in
+            // importedConstants, so the loop below cannot find it. Without this check, a
+            // wildcard-imported enum used as the scope of a field access -- e.g.
+            // `RetentionPolicy.SOURCE` in `@Retention(RetentionPolicy.SOURCE)`, with only
+            // `import java.lang.annotation.*;` in scope -- silently fails to resolve, dropping
+            // the enclosing annotation. This mirrors the importedTypes lookup that
+            // getValueOfExpressionInAnnotation's ClassExpr case already performs for class
+            // literals.
+            rcvElt = importedTypes.get(scopeName);
+        }
         if (rcvElt == null) {
             // Search importedConstants for full annotation name.
             for (String imp : importedConstants) {
@@ -3257,6 +3308,28 @@ public class AnnotationFileParser {
                     fullAnnotation.append(faexpr.getScope().toString());
                     rcvElt = elements.getTypeElement(fullAnnotation);
                     break;
+                }
+            }
+
+            if (rcvElt == null && scopeName.indexOf('.') != -1) {
+                // The scope is itself a (possibly multi-level) field access, e.g. "DefinedBy.Api"
+                // in `@DefinedBy(DefinedBy.Api.COMPILER)` -- unlike the common `Api.COMPILER`
+                // form, where "Api" is imported directly, this scope's own scope ("DefinedBy") is
+                // an imported top-level type and "Api" is one of its nested types. Resolve the
+                // outermost segment the same way a simple scope is resolved above, then look up
+                // the remaining dotted suffix as a nested type of it. This handles exactly one
+                // extra level of nesting beyond what the loop above and the checks above handle;
+                // deeper chains still fall through to the warning below.
+                String outerName = scopeName.substring(0, scopeName.indexOf('.'));
+                String innerSuffix = scopeName.substring(scopeName.indexOf('.') + 1);
+                TypeElement outerElt = elements.getTypeElement(outerName);
+                if (outerElt == null) {
+                    outerElt = importedTypes.get(outerName);
+                }
+                if (outerElt != null) {
+                    rcvElt =
+                            elements.getTypeElement(
+                                    outerElt.getQualifiedName() + "." + innerSuffix);
                 }
             }
 
