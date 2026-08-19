@@ -357,17 +357,45 @@ Section~\ref{inherited-wildcard-annotations}).
 
 \subsectionAndLabel{Examples of qualifiers on a type parameter}{type-parameter-qualifier-examples}
 
+These examples illustrate the general rules of
+Section~\ref{generics-bounds-syntax} and Section~\ref{generics-defaults},
+which are the authoritative specification.  Recall the two rules that those
+sections state:  a primary annotation written directly on the type variable
+(as in \<@Nullable T>) sets only the \emph{lower} bound; and if the
+\<extends> clause is omitted, then the \emph{upper} bound defaults
+independently to \<@\emph{TopType} Object>, regardless of the primary
+annotation.
+
 Recall that \<@Nullable \emph{X}> is a supertype of \<@NonNull \emph{X}>,
 for any \emph{X}\@.
 Most of the following types mean different things:
 
 \begin{Verbatim}
   class MyList1<@Nullable T> { ... }
-  class MyList1a<@Nullable T extends @Nullable Object> { ... } // same as MyList1
+  class MyList1a<@Nullable T extends @Nullable Object> { ... } // same as MyList1 (see below)
   class MyList2<@NonNull T extends @NonNull Object> { ... }
-  class MyList2a<T extends @NonNull Object> { ... } // same as MyList2
+  class MyList2a<T extends @NonNull Object> { ... }            // same as MyList2
   class MyList3<T extends @Nullable Object> { ... }
+  class MyList4<@NonNull T> { ... }                            // same as MyList3, NOT MyList2 (see below)
 \end{Verbatim}
+
+\<MyList1> and \<MyList1a> mean the same thing, but only because
+\<@Nullable> is the \emph{top} qualifier of the Nullness type hierarchy.
+\<MyList1> omits the \<extends> clause, so its upper bound defaults to the
+top qualifier \<@Nullable Object>; \<MyList1a> writes that same bound
+explicitly.  Do not over-generalize this coincidence into a rule that a
+primary annotation is copied onto the upper bound --- it is not.  This is
+shown by \<MyList4>:  \<@NonNull> is not the top qualifier, so
+\<MyList4>'s omitted \<extends> clause still defaults the upper bound to the
+top qualifier \<@Nullable Object>.  The primary \<@NonNull> sets only the
+lower bound (which for a type variable already defaults to the bottom
+qualifier \<@NonNull>).  Therefore \<MyList4> means the same as \<MyList3>,
+and is emphatically \emph{not} the same as \<MyList2>:  \<MyList4> may be
+instantiated with a \<@Nullable> type, whereas \<MyList2> may not.  The Map
+Key Checker relies on exactly this rule when it writes a bare lower-bound
+annotation such as \<class Set<@KeyForBottom E>> to widen a type
+parameter's lower bound without constraining its upper bound; see
+Section~\ref{map-key-defaults-lowerbound}.
 
 \<MyList1> and \<MyList1a> must be instantiated with a nullable type.
 The implementation of \<MyList1> must be able to consume (store) a null

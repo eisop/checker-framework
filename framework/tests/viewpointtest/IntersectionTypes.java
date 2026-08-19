@@ -9,13 +9,14 @@ public class IntersectionTypes {
 
     interface Bar {}
 
-    interface Accessor {
+    @ReceiverDependentQual interface Accessor {
         @ReceiverDependentQual Object get();
 
         void set(@ReceiverDependentQual Object o);
     }
 
-    class Baz implements Foo, Bar, Accessor {
+    @SuppressWarnings({"super.invocation.invalid", "inconsistent.constructor.type"})
+    @ReceiverDependentQual class Baz implements Foo, Bar, Accessor {
         @Override
         public @ReceiverDependentQual Object get() {
             return null;
@@ -27,6 +28,7 @@ public class IntersectionTypes {
 
     <T extends Foo & Bar> void call(T p) {}
 
+    @SuppressWarnings("type.invalid.annotations.on.use")
     <T extends Foo & Accessor> void callAccessor(T p) {}
 
     class ViewpointAdaptedIntersectionBound<T extends @ReceiverDependentQual Accessor & Foo> {
@@ -42,7 +44,6 @@ public class IntersectionTypes {
     }
 
     void foo(@A Object aObj, @B Object bObj) {
-        // :: warning: (cast.unsafe.constructor.invocation)
         Baz baz = new @A Baz();
         call(baz);
         callAccessor(baz);
@@ -56,6 +57,7 @@ public class IntersectionTypes {
         baz.set(bObj);
     }
 
+    @SuppressWarnings("type.invalid.annotations.on.use")
     void intersectionCasts(Object obj) {
         Foo fooAndBar = (Foo & Bar) obj;
         Accessor fooAndAccessor = (Foo & Accessor) obj;
@@ -80,7 +82,7 @@ public class IntersectionTypes {
 
     // Documents the current decision for https://github.com/eisop/checker-framework/issues/1735:
     // when multiple bounds in an intersection type have explicit qualifiers in the same hierarchy,
-    // the later qualifier is ignored.
+    // the later qualifier is ignored (and flagged).
     // :: warning: (explicit.annotation.ignored)
     <T extends @A Foo & @B Bar> void callAnnotatedBounds(T p) {}
 }

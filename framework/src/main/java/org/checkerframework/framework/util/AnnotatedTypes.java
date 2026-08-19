@@ -714,7 +714,7 @@ public class AnnotatedTypes {
      * ExpressionTree, ExecutableElement, AnnotatedExecutableType, boolean)}.
      */
     private static final TypeArguments emptyFalsePair =
-            new TypeArguments(Collections.emptyMap(), false, false);
+            new TypeArguments(Collections.emptyMap(), false, false, false);
 
     /**
      * Given a method or constructor invocation, return a mapping of the type variables to their
@@ -733,7 +733,7 @@ public class AnnotatedTypes {
      * @param inferTypeArgs whether the type argument should be inferred
      * @return the mapping of type variables to type arguments for this method or constructor
      *     invocation, and whether unchecked conversion was required to infer the type arguments,
-     *     and whether type argument inference crashed
+     *     and whether type argument inference needs a defaulted return type
      */
     public static TypeArguments findTypeArguments(
             AnnotatedTypeFactory atypeFactory,
@@ -762,7 +762,8 @@ public class AnnotatedTypes {
                 return new TypeArguments(
                         inferenceResult.getTypeArgumentsForExpression(expr),
                         inferenceResult.isUncheckedConversion(),
-                        inferenceResult.needsDefaultedReturnType());
+                        inferenceResult.needsDefaultedReturnType(),
+                        true);
             }
             targs = memRef.getTypeArguments();
             if (memRef.getTypeArguments() == null) {
@@ -798,7 +799,7 @@ public class AnnotatedTypes {
                 // already should be a declaration.
                 typeArguments.put(typeVar.getUnderlyingType(), typeArg);
             }
-            return new TypeArguments(typeArguments, false, false);
+            return new TypeArguments(typeArguments, false, false, false);
         } else {
             if (inferTypeArgs) {
                 InferenceResult inferenceResult =
@@ -808,7 +809,8 @@ public class AnnotatedTypes {
                 return new TypeArguments(
                         inferenceResult.getTypeArgumentsForExpression(expr),
                         inferenceResult.isUncheckedConversion(),
-                        inferenceResult.needsDefaultedReturnType());
+                        inferenceResult.needsDefaultedReturnType(),
+                        true);
             } else {
                 return emptyFalsePair;
             }
@@ -826,23 +828,34 @@ public class AnnotatedTypes {
         /** Whether unchecked conversion was needed for inference. */
         public final boolean uncheckedConversion;
 
-        /** Whether type argument inference crashed. */
-        public final boolean inferenceCrash;
+        /** Whether type argument inference needs a defaulted return type. */
+        public final boolean needsDefaultedReturnType;
+
+        /**
+         * Whether {@link #typeArguments} were inferred by the type checker, as opposed to written
+         * explicitly by the programmer at the call site.
+         */
+        public final boolean typeArgumentsInferred;
 
         /**
          * Creates a {@link TypeArguments} object.
          *
          * @param typeArguments a mapping from {@link TypeVariable} to its annotated type argument
          * @param uncheckedConversion whether unchecked conversion was needed for inference
-         * @param inferenceCrash whether type argument inference crashed
+         * @param needsDefaultedReturnType whether type argument inference needs a defaulted return
+         *     type
+         * @param typeArgumentsInferred whether {@code typeArguments} were inferred by the type
+         *     checker, as opposed to written explicitly by the programmer at the call site
          */
         public TypeArguments(
                 Map<TypeVariable, AnnotatedTypeMirror> typeArguments,
                 boolean uncheckedConversion,
-                boolean inferenceCrash) {
+                boolean needsDefaultedReturnType,
+                boolean typeArgumentsInferred) {
             this.typeArguments = typeArguments;
             this.uncheckedConversion = uncheckedConversion;
-            this.inferenceCrash = inferenceCrash;
+            this.needsDefaultedReturnType = needsDefaultedReturnType;
+            this.typeArgumentsInferred = typeArgumentsInferred;
         }
     }
 
@@ -1018,8 +1031,20 @@ public class AnnotatedTypes {
             QualifierHierarchy qualHierarchy,
             AnnotatedTypeMirror subtype,
             AnnotatedTypeMirror supertype) {
-        AnnotatedTypeMirror glb = subtype.deepCopy();
-        glb.clearAnnotations();
+        // glb's own primary annotations are recomputed per hierarchy below, so start from a copy
+        // of subtype that has none. For a type variable or wildcard, use shallowCopy(false): a
+        // deep copy (they can't be shallow-copied; see their shallowCopy Javadoc) whose primary
+        // annotation set alone is cleared. Plain clearAnnotations() would clear the bounds too
+        // (recursively, at any nesting depth), but the loop below overwrites a bound only in a
+        // hierarchy that needs restricting; every other hierarchy is meant to keep subtype's own
+        // bound annotations exactly as they were, which shallowCopy(false) preserves for free.
+        AnnotatedTypeMirror glb;
+        if (subtype.getKind() == TypeKind.TYPEVAR || subtype.getKind() == TypeKind.WILDCARD) {
+            glb = subtype.shallowCopy(false);
+        } else {
+            glb = subtype.deepCopy();
+            glb.clearAnnotations();
+        }
 
         TypeMirror subTM = subtype.getUnderlyingType();
         TypeMirror superTM = supertype.getUnderlyingType();
@@ -1042,6 +1067,9 @@ public class AnnotatedTypes {
                     throw new BugInCF("Missing primary annotations: subtype: %s", subtype);
                 }
                 AnnotationMirror ubAnno = subtype.getEffectiveAnnotationInHierarchy(top);
+                if (ubAnno == null) {
+                    ubAnno = top;
+                }
                 if (!qualHierarchy.isSubtypeQualifiersOnly(ubAnno, superAnno)) {
                     // Instead of superAnno <: ubAnno check for ubAnno <!: superAnno to exclude the
                     // case where ubAnno == superAnno.
@@ -1052,6 +1080,16 @@ public class AnnotatedTypes {
                     // the type variable is below `superAnno`.
                     ((AnnotatedTypeVariable) glb).getUpperBound().replaceAnnotation(superAnno);
                 }
+            } else if (superAnno == null) {
+                if (supertype.getKind() != TypeKind.TYPEVAR) {
+                    throw new BugInCF("Missing primary annotations: supertype: %s", supertype);
+                }
+                AnnotationMirror ubAnno = supertype.getEffectiveAnnotationInHierarchy(top);
+                if (ubAnno == null) {
+                    ubAnno = top;
+                }
+                glb.addAnnotation(
+                        qualHierarchy.greatestLowerBoundShallow(subAnno, subTM, ubAnno, superTM));
             } else {
                 throw new BugInCF("GLB: subtype: %s, supertype: %s", subtype, supertype);
             }
