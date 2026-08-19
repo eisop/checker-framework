@@ -21,6 +21,7 @@ import org.checkerframework.framework.type.AnnotatedTypeFactory;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedDeclaredType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedExecutableType;
+import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedIntersectionType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedTypeVariable;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedUnionType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedWildcardType;
@@ -1242,6 +1243,22 @@ public class QualifierDefaults {
                 return super.scan(t, null);
             }
 
+            if (t.getKind() == TypeKind.INTERSECTION
+                    && isUpperBound
+                    && boundType == BoundType.TYPEVAR_UPPER) {
+                // A type variable's own intersection upper bound is also handled specially:
+                // applying a default directly to the intersection here would homogenize it onto
+                // every bound (see AnnotatedIntersectionType#addAnnotation) before a
+                // bound-specific default (e.g. @DefaultQualifierForUse) got a chance to apply to
+                // that bound on its own. Recurse into the bounds first -- scanning a bound
+                // applies its own defaults normally, since a bound is not itself an intersection
+                // -- then summarize the individually defaulted bounds into the intersection's
+                // primary annotation. See AnnotatedIntersectionType#summarizeBounds.
+                Void result = super.scan(t, null);
+                ((AnnotatedIntersectionType) t).summarizeBounds();
+                return result;
+            }
+
             boolean isTopLevelType = t == outer.type;
             // Fused defaulting: apply every default in one traversal instead of one scan per
             // default. addMissingAnnotation only adds an annotation when the type's hierarchy is
@@ -1499,6 +1516,10 @@ public class QualifierDefaults {
                 return null;
             }
 
+            // Always descend into the bounds FIRST so the bound/OTHERWISE defaults apply there
+            // before any primary defaults (e.g., LOCAL_VARIABLE) can be smeared onto them.
+            visitBounds(type, type.getUpperBound(), type.getLowerBound(), true);
+
             boolean isTopLevelType = type == outer.type;
             boolean isLocalVariable =
                     outer.scope != null && ElementUtils.isLocalVariable(outer.scope);
@@ -1523,9 +1544,6 @@ public class QualifierDefaults {
                     outer.addAnnotation(type, def.anno);
                 }
             }
-            // Always descend into the bounds so the bound/OTHERWISE defaults apply there; the
-            // use-only defaults applied above are no-ops at bound nodes.
-            visitBounds(type, type.getUpperBound(), type.getLowerBound(), true);
             return null;
         }
 
