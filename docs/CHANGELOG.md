@@ -376,8 +376,14 @@ diagnostic and mode handling, instead of maintaining a separate, standalone chec
 outside `OverrideChecker` entirely -- and, combined with overriding
 `isTypevarUpperBoundContained` above to defer to it, without needing to
 deduplicate two checks that would otherwise both report the same narrowed or
-widened bound. No behavior change for CF's own checkers, none of which override
-either new hook.
+widened bound. `isTypeParameterBoundOverrideValid` is passed the full type
+variables, not just their upper bounds, since the Checker Framework (unlike
+ordinary Java) lets a checker attach meaning to a type parameter's lower
+bound too, via the annotation written directly on the type variable (see the
+manual's "Syntax for upper and lower bounds" section); the
+`override.typaram.invalid` diagnostic reports both bounds accordingly. No
+behavior change for CF's own checkers, none of which override either new
+hook.
 
 `TypeFromTypeTreeVisitor` now restores the declared bounds of type-variable
 type arguments that appear in the enclosing type of a nested type (e.g. the

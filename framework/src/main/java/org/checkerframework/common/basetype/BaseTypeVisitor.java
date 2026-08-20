@@ -3868,6 +3868,23 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         }
 
         /**
+         * Lazily computes and memoizes whether the string representation should be verbose.
+         *
+         * @param foundBounds the found bounds
+         * @param requiredBounds the required bounds
+         * @return true if verbose toString should be used
+         */
+        private boolean isVerbose(
+                AnnotatedTypeParameterBounds foundBounds,
+                AnnotatedTypeParameterBounds requiredBounds) {
+            if (!verboseComputed) {
+                verbose = shouldPrintVerbose(foundBounds, requiredBounds);
+                verboseComputed = true;
+            }
+            return verbose;
+        }
+
+        /**
          * An object whose {@code toString()} method returns the found type's string representation.
          * Evaluated lazily to improve performance.
          */
@@ -3934,6 +3951,36 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         }
 
         /**
+         * Create a FoundRequired for two bounds, e.g. a type parameter's own declared upper and
+         * lower bounds (see {@link OverrideChecker#isTypeParameterBoundOverrideValid}), as opposed
+         * to a single type checked against a range.
+         *
+         * @param found the found bounds
+         * @param required the required bounds
+         */
+        private FoundRequired(
+                AnnotatedTypeParameterBounds found, AnnotatedTypeParameterBounds required) {
+            this.found =
+                    new Object() {
+                        @Override
+                        public String toString() {
+                            return isVerbose(found, required)
+                                    ? found.toString(true)
+                                    : found.toString();
+                        }
+                    };
+            this.required =
+                    new Object() {
+                        @Override
+                        public String toString() {
+                            return isVerbose(found, required)
+                                    ? required.toString(true)
+                                    : required.toString();
+                        }
+                    };
+        }
+
+        /**
          * Creates string representations of {@link AnnotatedTypeMirror}s which are only verbose if
          * required to differentiate the two types.
          *
@@ -3956,6 +4003,19 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
          */
         public static FoundRequired of(
                 AnnotatedTypeMirror found, AnnotatedTypeParameterBounds required) {
+            return new FoundRequired(found, required);
+        }
+
+        /**
+         * Creates string representations of two {@link AnnotatedTypeParameterBounds}, which are
+         * only verbose if required to differentiate the two.
+         *
+         * @param found the found bounds
+         * @param required the required bounds
+         * @return a string representation of the two bounds
+         */
+        public static FoundRequired of(
+                AnnotatedTypeParameterBounds found, AnnotatedTypeParameterBounds required) {
             return new FoundRequired(found, required);
         }
     }
@@ -3991,6 +4051,26 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             return true;
         }
         return containsSameToString(atm, bounds.getUpperBound(), bounds.getLowerBound());
+    }
+
+    /**
+     * Return whether or not the verbose toString should be used when printing two bounds.
+     *
+     * @param bounds1 the first bounds
+     * @param bounds2 the second bounds
+     * @return true iff neither argument contains "@", or there are two annotated types (in either
+     *     argument) such that their toStrings are the same but their verbose toStrings differ
+     */
+    private static boolean shouldPrintVerbose(
+            AnnotatedTypeParameterBounds bounds1, AnnotatedTypeParameterBounds bounds2) {
+        if (!bounds1.toString().contains("@") && !bounds2.toString().contains("@")) {
+            return true;
+        }
+        return containsSameToString(
+                bounds1.getUpperBound(),
+                bounds1.getLowerBound(),
+                bounds2.getUpperBound(),
+                bounds2.getLowerBound());
     }
 
     /**
@@ -5218,8 +5298,18 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         }
 
         /**
-         * Returns true if {@code overriderTypeVar}'s upper bound is an acceptable override of
-         * {@code overriddenTypeVar}'s upper bound.
+         * Returns true if {@code overriderTypeVar}'s declared bound is an acceptable override of
+         * {@code overriddenTypeVar}'s declared bound.
+         *
+         * <p>"Declared bound" means both {@link AnnotatedTypeVariable#getUpperBound()} and {@link
+         * AnnotatedTypeVariable#getLowerBound()}: ordinary Java syntax only lets a type parameter
+         * declaration write an upper bound (the {@code extends} clause), but the Checker Framework
+         * additionally lets a checker's type system give meaning to the annotation written directly
+         * on the type variable itself (as in {@code <@A T extends @B Object>}), which applies to
+         * the lower bound -- see the manual section "Syntax for upper and lower bounds". An
+         * override of this method should compare whichever of the two bounds its type system
+         * attaches enforceable meaning to; the default implementation below does not need either,
+         * since it imposes no constraint at all.
          *
          * <p>The default implementation imposes no constraint (always returns true): ordinary Java
          * override rules do not constrain a generic method's own type-parameter bounds beyond
@@ -5227,11 +5317,11 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
          * valid override relationship with unrelated type-parameter bounds (e.g. overriding {@code
          * <T extends Number> void f(T t)} with {@code <T> void f(T t)} is ordinary, legal Java).
          * This exists purely as an extension point for a checker whose type system attaches
-         * enforceable meaning to that bound -- e.g. one where the bound is a nullness qualifier, so
-         * that a narrower override bound would let a caller of the overridden signature pass a
-         * value the override cannot accept, even though nothing about the parameter or return types
-         * where the type variable happens to be used would catch it (it might not be used in
-         * either).
+         * enforceable meaning to a type parameter's bound -- e.g. one where the bound is a nullness
+         * qualifier, so that a narrower override upper bound would let a caller of the overridden
+         * signature pass a value the override cannot accept, even though nothing about the
+         * parameter or return types where the type variable happens to be used would catch it (it
+         * might not be used in either).
          *
          * <p>Called by {@link #checkTypeParameterBounds}, itself called by {@link #checkOverride}
          * strictly after {@link #checkReturn} and {@link #checkParameters} have already run for
@@ -5267,8 +5357,16 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             if (success && !showchecks) {
                 return;
             }
-            AnnotatedTypeMirror overriderBound = overriderTypeVars.get(index).getUpperBound();
-            AnnotatedTypeMirror overriddenBound = overriddenTypeVars.get(index).getUpperBound();
+            AnnotatedTypeVariable overriderTypeVar = overriderTypeVars.get(index);
+            AnnotatedTypeVariable overriddenTypeVar = overriddenTypeVars.get(index);
+            // isTypeParameterBoundOverrideValid may have compared the upper bound, the lower
+            // bound, or both -- report both here so the message is accurate either way.
+            AnnotatedTypeParameterBounds overriderBounds =
+                    new AnnotatedTypeParameterBounds(
+                            overriderTypeVar.getUpperBound(), overriderTypeVar.getLowerBound());
+            AnnotatedTypeParameterBounds overriddenBounds =
+                    new AnnotatedTypeParameterBounds(
+                            overriddenTypeVar.getUpperBound(), overriddenTypeVar.getLowerBound());
             Tree posTree =
                     overriderTree instanceof MethodTree
                             ? ((MethodTree) overriderTree).getTypeParameters().get(index)
@@ -5288,14 +5386,14 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                         overrider,
                         overriderType,
                         index,
-                        overriderBound.toString(),
+                        overriderBounds,
                         overridden,
                         overriddenType,
                         index,
-                        overriddenBound.toString());
+                        overriddenBounds);
             }
             if (!success) {
-                FoundRequired pair = FoundRequired.of(overriderBound, overriddenBound);
+                FoundRequired pair = FoundRequired.of(overriderBounds, overriddenBounds);
                 checker.reportError(
                         posTree,
                         "override.typaram.invalid",
