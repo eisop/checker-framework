@@ -344,46 +344,30 @@ to change the directionality, rather than duplicating the entire ~35-line
 `checkParameters` and `checkParametersMsg` loop-and-error-reporting logic. No
 behavior change for CF's own (contravariant) checkers.
 
-`BaseTypeVisitor.OverrideChecker.checkReturn` now delegates its return-type
-override compatibility check to a new overridable `isReturnOverrideValid` method,
-the return-type analogue of `isParameterOverrideValid` above (covariant by
-default, mirroring the same shape). Pure refactor; no behavior change for CF's
+`BaseTypeVisitor.OverrideChecker.checkReturn` now delegates its comparison to
+a new overridable `isReturnOverrideValid` method, the return-type analogue of
+`isParameterOverrideValid` above. Pure refactor; no behavior change for CF's
 own checkers.
 
-`BaseTypeVisitor.testTypevarContainment`'s upper-bound comparison, for two
-corresponding type variables declared by the overriding and overridden methods
-themselves, now delegates to a new overridable `isTypevarUpperBoundContained`
-method instead of inlining the subtype check. A checker that separately
-validates a method's own type-parameter bounds elsewhere (see
-`isTypeParameterBoundOverrideValid` below) can override this to unconditionally
-return `true`, deferring the question entirely to that other, more complete
-check -- so that `isParameterOverrideValid`/`isReturnOverrideValid` never
-independently reject an override on account of a type-parameter bound mismatch,
-and there is nothing to reconcile between two checks that would otherwise answer
-the same question. Pure refactor; no behavior change for CF's own checkers.
+`BaseTypeVisitor.testTypevarContainment`'s upper-bound comparison now
+delegates to a new overridable `isTypevarUpperBoundContained` method. A
+checker that separately validates a type parameter's own bound (see
+`isTypeParameterBoundOverrideValid` below) can override this to
+unconditionally return `true`, so `isParameterOverrideValid` and
+`isReturnOverrideValid` never also report the same bound mismatch. Pure
+refactor; no behavior change for CF's own checkers.
 
-`BaseTypeVisitor.OverrideChecker.checkOverride` now also runs a new
-`checkTypeParameterBounds`, comparing each of the overriding method's own type
-parameters against the corresponding type parameter of the overridden method via
-a new `isTypeParameterBoundOverrideValid` hook (default: always valid, since
-ordinary Java override rules place no constraint on a generic method's own
-type-parameter bounds beyond erasure compatibility, which javac already
-enforces). A checker whose type system attaches enforceable meaning to that bound
-(e.g. a nullness qualifier, where a narrower override bound would let a caller of
-the overridden signature pass a value the override cannot accept) can override
-just this method to enforce it, through CF's own `override.typaram.invalid`
-diagnostic and mode handling, instead of maintaining a separate, standalone check
-outside `OverrideChecker` entirely -- and, combined with overriding
-`isTypevarUpperBoundContained` above to defer to it, without needing to
-deduplicate two checks that would otherwise both report the same narrowed or
-widened bound. `isTypeParameterBoundOverrideValid` is passed the full type
-variables, not just their upper bounds, since the Checker Framework (unlike
-ordinary Java) lets a checker attach meaning to a type parameter's lower
-bound too, via the annotation written directly on the type variable (see the
-manual's "Syntax for upper and lower bounds" section); the
-`override.typaram.invalid` diagnostic reports both bounds accordingly. No
-behavior change for CF's own checkers, none of which override either new
-hook.
+`BaseTypeVisitor.OverrideChecker.checkOverride` now also runs
+`checkTypeParameterBounds`, comparing each of the overriding method's own
+type parameters against the corresponding type parameter of the overridden
+method via a new `isTypeParameterBoundOverrideValid` hook (default: always
+valid). A mismatch is reported through a new `override.typaram.invalid`
+diagnostic, showing each side's full declared bound (upper and lower, since
+-- unlike ordinary Java -- a Checker Framework type parameter can declare a
+meaningful lower bound too, via the annotation written directly on the type
+variable). Unlike the parameter/return checks, this also covers a type
+parameter that occurs only nested in the signature, or not at all. No
+behavior change for CF's own checkers, which do not override the hook.
 
 `TypeFromTypeTreeVisitor` now restores the declared bounds of type-variable
 type arguments that appear in the enclosing type of a nested type (e.g. the
