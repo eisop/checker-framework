@@ -344,6 +344,12 @@ to change the directionality, rather than duplicating the entire ~35-line
 `checkParameters` and `checkParametersMsg` loop-and-error-reporting logic. No
 behavior change for CF's own (contravariant) checkers.
 
+`BaseTypeVisitor.OverrideChecker.checkReturn` now delegates its return-type
+override compatibility check to a new overridable `isReturnOverrideValid` method,
+the return-type analogue of `isParameterOverrideValid` above (covariant by
+default, mirroring the same shape). Pure refactor; no behavior change for CF's
+own checkers.
+
 `TypeFromTypeTreeVisitor` now restores the declared bounds of type-variable
 type arguments that appear in the enclosing type of a nested type (e.g. the
 implicit `Outer<XXX>` enclosing `Super` in `class Sub extends Super`, or the

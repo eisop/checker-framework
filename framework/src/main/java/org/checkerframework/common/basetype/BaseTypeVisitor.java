@@ -5163,13 +5163,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                 // Nothing to check.
                 return true;
             }
-            boolean success = typeHierarchy.isSubtype(overriderReturnType, overriddenReturnType);
-            if (!success) {
-                // If both the overridden method have type variables as return types and both
-                // types were defined in their respective methods then, they can be covariant or
-                // invariant use super/subtypes for the overrides locations
-                success = testTypevarContainment(overriderReturnType, overriddenReturnType);
-            }
+            boolean success = isReturnOverrideValid(overriddenReturnType, overriderReturnType);
 
             // Sometimes the overridden return type of a method reference becomes a captured
             // type variable.  This leads to defaulting that often makes the overriding return type
@@ -5189,6 +5183,38 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
 
             checkReturnMsg(success);
             return success;
+        }
+
+        /**
+         * Returns true if {@code actualReturnType} is an acceptable override of {@code
+         * requiredReturnType}.
+         *
+         * <p>The default implementation requires covariance: {@code actualReturnType} must be a
+         * subtype of {@code requiredReturnType}, or -- as a fallback for corresponding type
+         * variables declared by the overriding and overridden methods themselves, where a direct
+         * subtype check can fail even though the override is valid -- {@code actualReturnType} must
+         * be {@linkplain #testTypevarContainment(AnnotatedTypeMirror, AnnotatedTypeMirror)
+         * contained by} {@code requiredReturnType}. Mirrors {@link
+         * #isParameterOverrideValid(AnnotatedTypeMirror, AnnotatedTypeMirror,
+         * AnnotatedTypeMirror)}'s contravariant analogue for parameter types.
+         *
+         * <p>Named {@code requiredReturnType}/{@code actualReturnType} rather than {@code
+         * overriddenReturnType}/{@code overriderReturnType} (the names {@link #checkReturn} itself
+         * uses for the arguments it passes here) specifically so they don't shadow this class's own
+         * {@link #overriddenReturnType}/{@link #overriderReturnType} fields, which happen to hold
+         * the same values for the call {@link #checkReturn} makes but need not for an override that
+         * calls this method with something else.
+         *
+         * @param requiredReturnType the return type of the overridden method
+         * @param actualReturnType the return type of the overriding method
+         * @return true if the override is compatible for the return type
+         */
+        protected boolean isReturnOverrideValid(
+                AnnotatedTypeMirror requiredReturnType, AnnotatedTypeMirror actualReturnType) {
+            if (typeHierarchy.isSubtype(actualReturnType, requiredReturnType)) {
+                return true;
+            }
+            return testTypevarContainment(actualReturnType, requiredReturnType);
         }
 
         /**
