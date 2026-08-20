@@ -4435,13 +4435,36 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             AnnotatedTypeVariable outerAtv = (AnnotatedTypeVariable) outer;
 
             if (AnnotatedTypes.areCorrespondingTypeVariables(elements, innerAtv, outerAtv)) {
-                return typeHierarchy.isSubtype(innerAtv.getUpperBound(), outerAtv.getUpperBound())
+                return isTypevarUpperBoundContained(innerAtv, outerAtv)
                         && typeHierarchy.isSubtype(
                                 outerAtv.getLowerBound(), innerAtv.getLowerBound());
             }
         }
 
         return false;
+    }
+
+    /**
+     * Returns true if {@code inner}'s upper bound is acceptable given {@code outer}'s, for two
+     * corresponding type variables declared by the overriding and overridden methods themselves
+     * (the case {@link #testTypevarContainment} exists to handle).
+     *
+     * <p>The default implementation requires {@code inner}'s upper bound to be a subtype of {@code
+     * outer}'s. A checker that separately validates a method's own type-parameter bounds --
+     * elsewhere, e.g. via {@code OverrideChecker#isTypeParameterBoundOverrideValid} -- may override
+     * this to unconditionally return {@code true}, deferring the question entirely to that other
+     * check, which (unlike this one) also covers a type parameter that appears nested inside a
+     * parameter or return type rather than directly, or does not appear in either at all -- so it
+     * is usually the more complete place for a checker with that need to answer this question once,
+     * rather than answering it here too and needing to reconcile the two answers.
+     *
+     * @param inner the type variable checked for being contained in {@code outer}
+     * @param outer the type variable checked for containing {@code inner}
+     * @return true if {@code inner}'s upper bound is acceptable given {@code outer}'s
+     */
+    protected boolean isTypevarUpperBoundContained(
+            AnnotatedTypeVariable inner, AnnotatedTypeVariable outer) {
+        return typeHierarchy.isSubtype(inner.getUpperBound(), outer.getUpperBound());
     }
 
     /**

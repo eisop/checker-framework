@@ -350,6 +350,18 @@ the return-type analogue of `isParameterOverrideValid` above (covariant by
 default, mirroring the same shape). Pure refactor; no behavior change for CF's
 own checkers.
 
+`BaseTypeVisitor.testTypevarContainment`'s upper-bound comparison, for two
+corresponding type variables declared by the overriding and overridden methods
+themselves, now delegates to a new overridable `isTypevarUpperBoundContained`
+method instead of inlining the subtype check. A checker that separately
+validates a method's own type-parameter bounds elsewhere (see
+`isTypeParameterBoundOverrideValid` below) can override this to unconditionally
+return `true`, deferring the question entirely to that other, more complete
+check -- so that `isParameterOverrideValid`/`isReturnOverrideValid` never
+independently reject an override on account of a type-parameter bound mismatch,
+and there is nothing to reconcile between two checks that would otherwise answer
+the same question. Pure refactor; no behavior change for CF's own checkers.
+
 `TypeFromTypeTreeVisitor` now restores the declared bounds of type-variable
 type arguments that appear in the enclosing type of a nested type (e.g. the
 implicit `Outer<XXX>` enclosing `Super` in `class Sub extends Super`, or the
