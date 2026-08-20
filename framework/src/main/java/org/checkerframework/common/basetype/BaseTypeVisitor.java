@@ -4516,9 +4516,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             AnnotatedTypeVariable outerAtv = (AnnotatedTypeVariable) outer;
 
             if (AnnotatedTypes.areCorrespondingTypeVariables(elements, innerAtv, outerAtv)) {
-                return isTypevarUpperBoundContained(innerAtv, outerAtv)
-                        && typeHierarchy.isSubtype(
-                                outerAtv.getLowerBound(), innerAtv.getLowerBound());
+                return isTypevarContained(innerAtv, outerAtv);
             }
         }
 
@@ -4526,26 +4524,27 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
     }
 
     /**
-     * Returns true if {@code inner}'s upper bound is acceptable given {@code outer}'s, for two
-     * corresponding type variables declared by the overriding and overridden methods themselves
-     * (the case {@link #testTypevarContainment} exists to handle).
+     * Returns true if {@code outer} contains {@code inner}, for two corresponding type variables
+     * declared by the overriding and overridden methods themselves (the case {@link
+     * #testTypevarContainment} exists to handle).
      *
      * <p>The default implementation requires {@code inner}'s upper bound to be a subtype of {@code
-     * outer}'s. A checker that separately validates a method's own type-parameter bounds --
-     * elsewhere, e.g. via {@link OverrideChecker#isTypeParameterBoundOverrideValid} -- may override
-     * this to unconditionally return {@code true}, deferring the question entirely to that other
-     * check, which (unlike this one) also covers a type parameter that appears nested inside a
-     * parameter or return type rather than directly, or does not appear in either at all -- so it
-     * is usually the more complete place for a checker with that need to answer this question once,
-     * rather than answering it here too and needing to reconcile the two answers.
+     * outer}'s, and {@code outer}'s lower bound to be a subtype of {@code inner}'s. A checker that
+     * separately validates a method's own type-parameter bounds elsewhere -- e.g. via {@link
+     * OverrideChecker#isTypeParameterBoundOverrideValid} -- may override this to unconditionally
+     * return {@code true}, deferring the question entirely to that other check, which (unlike this
+     * one) also covers a type parameter that appears nested inside a parameter or return type
+     * rather than directly, or does not appear in either at all -- so it is usually the more
+     * complete place for a checker with that need to answer this question once, rather than
+     * answering it here too and needing to reconcile the two answers.
      *
      * @param inner the type variable checked for being contained in {@code outer}
      * @param outer the type variable checked for containing {@code inner}
-     * @return true if {@code inner}'s upper bound is acceptable given {@code outer}'s
+     * @return true if {@code outer} contains {@code inner}
      */
-    protected boolean isTypevarUpperBoundContained(
-            AnnotatedTypeVariable inner, AnnotatedTypeVariable outer) {
-        return typeHierarchy.isSubtype(inner.getUpperBound(), outer.getUpperBound());
+    protected boolean isTypevarContained(AnnotatedTypeVariable inner, AnnotatedTypeVariable outer) {
+        return typeHierarchy.isSubtype(inner.getUpperBound(), outer.getUpperBound())
+                && typeHierarchy.isSubtype(outer.getLowerBound(), inner.getLowerBound());
     }
 
     /**

@@ -349,13 +349,12 @@ a new overridable `isReturnOverrideValid` method, the return-type analogue of
 `isParameterOverrideValid` above. Pure refactor; no behavior change for CF's
 own checkers.
 
-`BaseTypeVisitor.testTypevarContainment`'s upper-bound comparison now
-delegates to a new overridable `isTypevarUpperBoundContained` method. A
-checker that separately validates a type parameter's own bound (see
-`isTypeParameterBoundOverrideValid` below) can override this to
-unconditionally return `true`, so `isParameterOverrideValid` and
-`isReturnOverrideValid` never also report the same bound mismatch. Pure
-refactor; no behavior change for CF's own checkers.
+`BaseTypeVisitor.testTypevarContainment` now delegates its containment check
+to a new overridable `isTypevarContained` method. A checker that separately
+validates a type parameter's own bound (see `isTypeParameterBoundOverrideValid`
+below) can override this to unconditionally return `true`, so
+`isParameterOverrideValid` and `isReturnOverrideValid` never also report the
+same bound mismatch. Pure refactor; no behavior change for CF's own checkers.
 
 `BaseTypeVisitor.OverrideChecker.checkOverride` now also runs
 `checkTypeParameterBounds`, comparing each of the overriding method's own
