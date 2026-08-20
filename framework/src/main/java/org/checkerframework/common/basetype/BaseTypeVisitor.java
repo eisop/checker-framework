@@ -3952,8 +3952,9 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
 
         /**
          * Create a FoundRequired for two bounds, e.g. a type parameter's own declared upper and
-         * lower bounds (see {@link OverrideChecker#isTypeParameterBoundOverrideValid}), as opposed
-         * to a single type checked against a range.
+         * lower bounds (see {@link
+         * BaseTypeVisitor.OverrideChecker#isTypeParameterBoundOverrideValid}), as opposed to a
+         * single type checked against a range.
          *
          * @param found the found bounds
          * @param required the required bounds
