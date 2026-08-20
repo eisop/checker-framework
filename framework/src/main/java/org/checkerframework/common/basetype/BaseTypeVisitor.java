@@ -4451,7 +4451,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      *
      * <p>The default implementation requires {@code inner}'s upper bound to be a subtype of {@code
      * outer}'s. A checker that separately validates a method's own type-parameter bounds --
-     * elsewhere, e.g. via {@code OverrideChecker#isTypeParameterBoundOverrideValid} -- may override
+     * elsewhere, e.g. via {@link OverrideChecker#isTypeParameterBoundOverrideValid} -- may override
      * this to unconditionally return {@code true}, deferring the question entirely to that other
      * check, which (unlike this one) also covers a type parameter that appears nested inside a
      * parameter or return type rather than directly, or does not appear in either at all -- so it
@@ -4781,6 +4781,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
 
             boolean result = checkReturn();
             result &= checkParameters();
+            result &= checkTypeParameterBounds();
             if (isMethodReference) {
                 result &= checkMemberReferenceReceivers();
             } else {
@@ -5166,6 +5167,143 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                         posTree,
                         msgKey,
                         overrider.getElement().getParameters().get(index).toString(),
+                        pair.found,
+                        pair.required,
+                        overriderType,
+                        overrider,
+                        overriddenType,
+                        overridden);
+            }
+        }
+
+        /**
+         * Checks that each of the overriding method's own type parameters is an acceptable override
+         * of the corresponding type parameter of the overridden method, per {@link
+         * #isTypeParameterBoundOverrideValid}, and issues an error for each one that is not.
+         *
+         * <p>Corresponds positionally, like {@link #checkParameters}: the type parameter at index
+         * {@code i} of the overrider is compared against the type parameter at index {@code i} of
+         * the overridden method, for as many indices as both declare. A method reference has no
+         * type parameters of its own to compare, so this is a no-op for one -- {@code
+         * overrider.getTypeVariables()} is always empty for a method reference, which already makes
+         * this a no-op via {@code count}, but the check below is explicit about it rather than
+         * relying on that incidentally, since a subclass overriding {@link
+         * #isTypeParameterBoundOverrideValid} should not have to also verify that invariant itself.
+         *
+         * <p>Called by {@link #checkOverride} strictly after {@link #checkReturn} and {@link
+         * #checkParameters}, which is part of this method's contract, not an incidental
+         * implementation detail: a subclass overriding {@link #isTypeParameterBoundOverrideValid}
+         * may rely on {@link #isParameterOverrideValid} having already run for this
+         * overridden-method pairing by the time it is invoked, for example to avoid reporting a
+         * redundant diagnostic for a type variable it already rejected an occurrence of.
+         *
+         * @return true if every type-parameter bound is compatible
+         */
+        private boolean checkTypeParameterBounds() {
+            if (isMethodReference) {
+                return true;
+            }
+            List<AnnotatedTypeVariable> overriderTypeVars = overrider.getTypeVariables();
+            List<AnnotatedTypeVariable> overriddenTypeVars = overridden.getTypeVariables();
+            int count = Math.min(overriderTypeVars.size(), overriddenTypeVars.size());
+            boolean result = true;
+            for (int i = 0; i < count; i++) {
+                boolean success =
+                        isTypeParameterBoundOverrideValid(
+                                overriddenTypeVars.get(i), overriderTypeVars.get(i));
+                checkTypeParameterBoundsMsg(success, i, overriderTypeVars, overriddenTypeVars);
+                result &= success;
+            }
+            return result;
+        }
+
+        /**
+         * Returns true if {@code overriderTypeVar}'s upper bound is an acceptable override of
+         * {@code overriddenTypeVar}'s upper bound.
+         *
+         * <p>The default implementation imposes no constraint (always returns true): ordinary Java
+         * override rules do not constrain a generic method's own type-parameter bounds beyond
+         * erasure compatibility, which javac itself already enforces, so two methods can be in a
+         * valid override relationship with unrelated type-parameter bounds (e.g. overriding {@code
+         * <T extends Number> void f(T t)} with {@code <T> void f(T t)} is ordinary, legal Java).
+         * This exists purely as an extension point for a checker whose type system attaches
+         * enforceable meaning to that bound -- e.g. one where the bound is a nullness qualifier, so
+         * that a narrower override bound would let a caller of the overridden signature pass a
+         * value the override cannot accept, even though nothing about the parameter or return types
+         * where the type variable happens to be used would catch it (it might not be used in
+         * either).
+         *
+         * <p>Called by {@link #checkTypeParameterBounds}, itself called by {@link #checkOverride}
+         * strictly after {@link #checkReturn} and {@link #checkParameters} have already run for
+         * this overridden-method pairing -- see {@link #checkTypeParameterBounds}'s own javadoc. An
+         * override of this method may rely on that ordering, e.g. to check whether {@link
+         * #isParameterOverrideValid} already rejected an occurrence of {@code overriderTypeVar} and
+         * avoid a redundant second diagnostic for it.
+         *
+         * @param overriddenTypeVar the corresponding type parameter of the overridden method
+         * @param overriderTypeVar the type parameter of the overriding method
+         * @return true if the override is compatible for this type parameter's bound
+         */
+        protected boolean isTypeParameterBoundOverrideValid(
+                AnnotatedTypeVariable overriddenTypeVar, AnnotatedTypeVariable overriderTypeVar) {
+            return true;
+        }
+
+        /**
+         * Issues an {@code override.typaram.invalid} error for the type parameter at {@code index}
+         * if {@code success} is false.
+         *
+         * @param success whether the type parameter at {@code index} is a valid override
+         * @param index the index, into {@code overriderTypeVars} and {@code overriddenTypeVars}, of
+         *     the type parameter to report on
+         * @param overriderTypeVars the type parameters of the overriding method
+         * @param overriddenTypeVars the type parameters of the overridden method
+         */
+        private void checkTypeParameterBoundsMsg(
+                boolean success,
+                int index,
+                List<AnnotatedTypeVariable> overriderTypeVars,
+                List<AnnotatedTypeVariable> overriddenTypeVars) {
+            if (success && !showchecks) {
+                return;
+            }
+            AnnotatedTypeMirror overriderBound = overriderTypeVars.get(index).getUpperBound();
+            AnnotatedTypeMirror overriddenBound = overriddenTypeVars.get(index).getUpperBound();
+            Tree posTree =
+                    overriderTree instanceof MethodTree
+                            ? ((MethodTree) overriderTree).getTypeParameters().get(index)
+                            : overriderTree;
+
+            if (showchecks) {
+                System.out.printf(
+                        " %s (at %s):%n"
+                                + "     overrider: %s %s (type parameter %d bound %s)%n"
+                                + "    overridden: %s %s"
+                                + " (type parameter %d bound %s)%n",
+                        (success
+                                ? "success: overriding type parameter bound is compatible with overridden"
+                                : "FAILURE: overriding type parameter bound is not compatible with"
+                                        + " overridden"),
+                        fileAndLineNumber(posTree),
+                        overrider,
+                        overriderType,
+                        index,
+                        overriderBound.toString(),
+                        overridden,
+                        overriddenType,
+                        index,
+                        overriddenBound.toString());
+            }
+            if (!success) {
+                FoundRequired pair = FoundRequired.of(overriderBound, overriddenBound);
+                checker.reportError(
+                        posTree,
+                        "override.typaram.invalid",
+                        overriderTypeVars
+                                .get(index)
+                                .getUnderlyingType()
+                                .asElement()
+                                .getSimpleName(),
                         pair.found,
                         pair.required,
                         overriderType,

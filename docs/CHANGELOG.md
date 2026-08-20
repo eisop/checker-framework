@@ -362,6 +362,23 @@ independently reject an override on account of a type-parameter bound mismatch,
 and there is nothing to reconcile between two checks that would otherwise answer
 the same question. Pure refactor; no behavior change for CF's own checkers.
 
+`BaseTypeVisitor.OverrideChecker.checkOverride` now also runs a new
+`checkTypeParameterBounds`, comparing each of the overriding method's own type
+parameters against the corresponding type parameter of the overridden method via
+a new `isTypeParameterBoundOverrideValid` hook (default: always valid, since
+ordinary Java override rules place no constraint on a generic method's own
+type-parameter bounds beyond erasure compatibility, which javac already
+enforces). A checker whose type system attaches enforceable meaning to that bound
+(e.g. a nullness qualifier, where a narrower override bound would let a caller of
+the overridden signature pass a value the override cannot accept) can override
+just this method to enforce it, through CF's own `override.typaram.invalid`
+diagnostic and mode handling, instead of maintaining a separate, standalone check
+outside `OverrideChecker` entirely -- and, combined with overriding
+`isTypevarUpperBoundContained` above to defer to it, without needing to
+deduplicate two checks that would otherwise both report the same narrowed or
+widened bound. No behavior change for CF's own checkers, none of which override
+either new hook.
+
 `TypeFromTypeTreeVisitor` now restores the declared bounds of type-variable
 type arguments that appear in the enclosing type of a nested type (e.g. the
 implicit `Outer<XXX>` enclosing `Super` in `class Sub extends Super`, or the
