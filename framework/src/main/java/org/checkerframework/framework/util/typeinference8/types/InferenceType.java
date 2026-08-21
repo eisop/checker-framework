@@ -299,6 +299,15 @@ public class InferenceType extends AbstractType {
 
     @Override
     public AbstractType applyInstantiations() {
+        // Charge this against the inference problem's budget. The substitution below deep-copies
+        // and re-substitutes into `type`'s full structure via TypeVarSubstitutor -- unlike the
+        // per-bound-list count VariableBounds#doApplyInstantiationsToBounds charges, this cost
+        // scales with the SIZE of the type structure being substituted into, not just the number
+        // of bounds. For deeply mutually-dependent inference variables (e.g. many mutually
+        // F-bounded type parameters), repeated substitution can build an exponentially larger
+        // structure each time with no work otherwise counted against the budget.
+        context.recordIncorporationWork(map.size());
+
         List<TypeVariable> typeVariables = new ArrayList<>();
         List<TypeMirror> arguments = new ArrayList<>();
         List<Variable> instantiations = new ArrayList<>();

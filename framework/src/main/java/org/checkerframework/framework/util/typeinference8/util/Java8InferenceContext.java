@@ -85,13 +85,25 @@ public class Java8InferenceContext {
             Collections.newSetFromMap(new IdentityHashMap<>());
 
     /**
-     * Maximum amount of bound-incorporation work (sum of bound-list sizes visited by {@link
-     * org.checkerframework.framework.util.typeinference8.types.VariableBounds#applyInstantiationsToBounds})
-     * permitted for a single inference problem before inference is abandoned.
+     * Maximum amount of work permitted for a single inference problem before inference is
+     * abandoned. This totals work from all three phases of JLS 18 that {@link
+     * #recordIncorporationWork} is charged against: bound incorporation to a fixed point (JLS 18.3,
+     * the sum of bound-list sizes visited by {@link
+     * org.checkerframework.framework.util.typeinference8.types.VariableBounds#applyInstantiationsToBounds},
+     * including its already-resolved fast path, which still applies constraints and so is charged
+     * for the size of the constraint set), variable resolution (JLS 18.4, charged per attempt in
+     * {@link org.checkerframework.framework.util.typeinference8.util.Resolution#resolveSmallestSet}
+     * for the size of the variable set being resolved), and substitution of a resolved
+     * instantiation back into a type's structure ({@link
+     * org.checkerframework.framework.util.typeinference8.types.InferenceType#applyInstantiations}).
      *
-     * <p>Incorporating bounds to a fixed point (JLS 18.3) is roughly cubic in the nesting depth of
-     * a generic invocation, so a single deeply nested (often machine-generated) invocation can take
-     * many seconds. This bound caps that work: when it is exceeded an {@link
+     * <p>Incorporating bounds to a fixed point is roughly cubic in the nesting depth of a generic
+     * invocation, and resolving many mutually dependent inference variables together (e.g. many
+     * mutually F-bounded type parameters resolved by one wildcarded generic invocation) is worse,
+     * so a single pathological (often machine-generated, but see {@code fbound} in {@code
+     * .claude/skills/cf-performance/gen-shapes.py} for a hand-written shape that reaches it) can
+     * otherwise take many seconds or effectively hang the compiler. This bound caps that work: when
+     * it is exceeded an {@link
      * org.checkerframework.framework.util.typeinference8.util.InferenceBudgetExceededError} is
      * thrown and inference falls back to a sound, conservative result. The largest work measured on
      * hand-written code is 994 units (Guava, with the Nullness Checker); this value keeps roughly

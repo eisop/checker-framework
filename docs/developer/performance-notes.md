@@ -1672,6 +1672,55 @@ triggered without deep nesting.
   two regression tests; `checker/tests/nullness/Java8InferenceWorklistStress.java` exercises the
   worklist's dependency tracking across interacting inference features under strict mode.
 
+### Java 8 type-argument inference: resolution and substitution work untracked (August 2026)
+
+Found via a new `gen-shapes.py` shape, `fbound`: `D` mutually F-bounded interfaces `I1..ID` (`Ii`'s
+own bound mentions `T1..Ti`, generalizing Guava's `MapMakerInternalMap<K, V, E extends
+InternalEntry<K, V, E>, S extends Segment<K, V, E, S>>` to more than two mutually dependent
+type parameters) resolved by one generic factory call with no explicit type witness, returning
+`ID<?,...,?>`. Size-swept: allocation 694 MB → 11.8 GB → 200 GB at `D` = 4/8/12 (`sweep.sh fbound
+40 4 8 12`); `D` = 16 ran 40+ minutes without finishing (killed) — none of it tripped
+`-AinferenceWorkBudget`'s abort. Live JFR at `D` = 16 (`jcmd JFR.dump` mid-run) found the dominant
+cost had shifted away from `typeinference8`'s own frames entirely, into
+`AnnotatedTypeScanner`/`IdentityHashMap` churn (`IdentityHashMap.resize`/`put`/`get` ~40% combined)
+under `InferenceType#applyInstantiations`'s substitution — none of which was charged against
+`recordIncorporationWork`.
+
+Real Guava (`MapMakerInternalMap`'s actual `E`/`S` pair, `D` = 2 in this shape's terms) shows **0**
+`typeinference8` self-time samples over 7800 `ExecutionSample`s on the full 625-file module — this
+is not a real-code regression, it took a deliberately adversarial `D` to reach.
+
+**Fix: three additional `recordIncorporationWork` charges**, closing gaps `git blame` traces back to
+#1829's original instrumentation (which only charged `VariableBounds#doApplyInstantiationsToBounds`'s
+main path):
+1. That method's already-resolved (`allBoundsProper`) fast path still calls
+   `constraints.applyInstantiations()` but returned before the charge — now charges
+   `constraints.size()`.
+2. `Resolution#resolveSmallestSet` (JLS 18.4 resolution — a distinct phase from JLS 18.3
+   incorporation) had no charge of its own, despite copying the whole `BoundSet`
+   (`saveBounds`/`restore`) on every attempt — now charges `as.size()` (the variable set being
+   resolved) per attempt.
+3. `InferenceType#applyInstantiations`'s substitution back into a type's structure (the
+   `AnnotatedTypeScanner`-heavy cost above) had no charge — now charges `map.size()`.
+
+**Verified working, not just plausible:** `checker/tests/inference-budget/InferenceWorkBudgetFBound.java`
+(`D` = 10, same directory's `-AinferenceWorkBudget=2000`) throws `type.argument.inference.budget` in
+~2 s; confirmed via `git stash` that the identical file does *not* trip the budget (exits 0) on the
+pre-fix code. Guava re-check: unchanged wall clock (~7-8 s), zero new budget-exceeded errors, same 20
+pre-existing unrelated classpath errors.
+
+**Still open, for a future session:** `D` ≳ 13 still does not trip the budget in a reasonable time
+even with all three charges (confirmed no `recordIncorporationWork` calls occur within the first 20 s
+at `D` = 15/16/18 — the true dominant cost at that scale is further upstream than any of the three
+sites above, plausibly in constraint-set construction/reduction before incorporation or resolution
+ever starts). The three fixes above catch real, previously-silent cases (verified up to `D` ≈ 10-13)
+but do not close the gap completely at the most extreme synthetic end. Also open: a `-AinferenceWorkBudget`-unlimited
+peak-work measurement on the same Guava/Nullness workload this session found **0** (vs. #1829's
+documented 994) — not yet reconciled; may be a difference between this session's raw `-proc:only`
+`javac` invocation (missing two unrelated Guava source files, 20 classpath errors) and whatever
+harness #1829 used, or may indicate the peak-work figure needs re-measuring on today's code before
+being cited again (see "re-trace before planning" above).
+
 ### `AnnotatedTypeFactory.isFromByteCode` caching (July 2026)
 
 PR #1868 (three days prior, `Use ElementUtils.isElementFromSourceCode and deprecate
