@@ -104,6 +104,6 @@ public class InferenceWorkBudgetFBound {
 
     void tooManyMutuallyFBoundedTypeParameters() {
         // :: error: (type.argument.inference.budget)
-        var s = Factory.create();
+        Factory.create();
     }
 }
