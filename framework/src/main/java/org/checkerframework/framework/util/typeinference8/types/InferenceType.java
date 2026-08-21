@@ -328,15 +328,29 @@ public class InferenceType extends AbstractType {
 
         Map<TypeVariable, AnnotatedTypeMirror> mapping = new LinkedHashMap<>();
 
+        // The substitution below replaces every use of an instantiated variable by a deep copy of
+        // that variable's instantiation, so its cost is proportional to the SIZE of those
+        // instantiations, not to how many there are. That distinction matters: with mutually
+        // F-bounded type parameters, the instantiation of the i'th variable embeds a copy of the
+        // instantiation of each earlier one, so the structures double in size with each variable
+        // resolved and the substitution's cost is exponential in the length of the F-bound chain
+        // while `map.size()` -- charged above and by the other call sites -- stays linear in it.
+        // Charging the instantiation sizes here is what lets the budget abandon such a chain; see
+        // fbound in .claude/skills/cf-performance/gen-shapes.py.
+        int substitutionWork = 0;
         for (Variable alpha : instantiations) {
             AnnotatedTypeMirror instantiation =
                     alpha.getBounds().getInstantiation().getAnnotatedType();
             context.typeFactory.initializeAtm(instantiation);
             mapping.put(alpha.getJavaType(), instantiation);
+            substitutionWork += context.typeSize(instantiation);
         }
         if (map.isEmpty()) {
             return this;
         }
+        // Charge before substituting, so that a substitution over an already-huge structure is
+        // abandoned rather than merely detected after the fact.
+        context.recordIncorporationWork(substitutionWork);
 
         AnnotatedTypeMirror newType = typeFactory.getTypeVarSubstitutor().substitute(mapping, type);
         return createIgnoreInstantiated(

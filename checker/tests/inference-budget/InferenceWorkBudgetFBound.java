@@ -106,4 +106,28 @@ public class InferenceWorkBudgetFBound {
         // :: error: (type.argument.inference.budget)
         Factory.create();
     }
+
+    // The same shape with a chain of only 6.  The counts that scale with the *number* of inference
+    // variables (the charges in Resolution#resolveSmallestSet and
+    // VariableBounds#doApplyInstantiationsToBounds) stay under this directory's small budget at
+    // this length; it exceeds the budget only because InferenceType#applyInstantiations also
+    // charges the SIZE of the instantiations it substitutes, which doubles with each variable
+    // resolved.  Keep this method: without that charge the chain below is not abandoned.
+    static class ShorterFactory {
+        static <
+                        T1 extends I1<T1>,
+                        T2 extends I2<T1, T2>,
+                        T3 extends I3<T1, T2, T3>,
+                        T4 extends I4<T1, T2, T3, T4>,
+                        T5 extends I5<T1, T2, T3, T4, T5>,
+                        T6 extends I6<T1, T2, T3, T4, T5, T6>>
+                I6<?, ?, ?, ?, ?, ?> create() {
+            return null;
+        }
+    }
+
+    void sixMutuallyFBoundedTypeParameters() {
+        // :: error: (type.argument.inference.budget)
+        ShorterFactory.create();
+    }
 }
