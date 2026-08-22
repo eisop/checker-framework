@@ -21,8 +21,34 @@ The built-in checker stub files (`jdk.astub`, `jdkN.astub`, and `@StubFiles`
 resources) are likewise pre-parsed into sibling `.astub.bin.gz` resources at
 build time and loaded from the binary form at checker startup, removing
 JavaParser from checker initialization entirely. A stub file that cannot be
-represented in binary form falls back to text parsing; user-supplied `-Astubs`
-files are always text-parsed.
+represented in binary form falls back to text parsing.
+
+A stub file supplied with `-Astubs` may now also have a binary form, read
+instead of text-parsing it. Generate one with
+`org.checkerframework.framework.stubifier.BinaryStubFileGenerator`, the same
+tool used for a checker's built-in stub files: point it at a single `.astub`
+file or a directory of them to write a sibling `.astub.bin.gz` for each, or
+pass `--bundle` to combine a whole directory into one binary file written
+beside it. A `.jar` file is supported too (`-Astubs` already treats a `.jar`
+as equivalent to every `.astub` file it contains): running the generator on
+it adds a sibling `.astub.bin.gz` entry beside each `.astub` entry, inside
+the same `.jar`, in place; there is no bundle mode for a `.jar`, since it is
+already one file regardless of how many entries it has. The binary form
+embeds a fingerprint of the source file (or entry) it was generated from; if
+the content no longer matches, it is text-parsed instead and a
+`stale.binary.stub` warning says so. Certain command-line options
+(`-AmergeStubsWithSource`, the `-AstubWarnIfNotFound` family, `-AstubDebug`)
+disable the binary path for `-Astubs` files entirely, since each changes what
+text parsing itself does or reports in a way the binary form cannot
+reproduce. See the manual's "Using a binary (pre-parsed) stub file" section
+for details.
+
+`AnnotationFileUtil.allAnnotationFiles(String, AnnotationFileType)` (public
+API in `framework`) was replaced by `resolveAnnotationFileLocation(String)`
+plus `allAnnotationFiles(File, AnnotationFileType)`, needed to look for a
+binary form beside a `-Astubs` location before falling back to a text-file
+walk. A third-party checker that called the old overload directly must
+switch to the two new methods.
 
 A checker that ships its own annotated JDK (as the JSpecify reference checker
 does) no longer also loads `checker.jar`'s binary annotated JDK on top of it.
@@ -31,15 +57,23 @@ The Checker Framework now warns when it text-parses the annotated JDK, or a
 stub file that a checker ships, instead of reading that file's binary stub.
 Generate a missing binary stub by running `JavaStubifier` on the annotated
 JDK's `annotated-jdk` directory, or `BinaryStubFileGenerator` on a checker's
-`.astub` files. Stub files supplied with `-Astubs` and `.ajava` files are
-text-parsed as before, without a warning.
+`.astub` files. `.ajava` files are text-parsed as before, without a warning.
+A `-Astubs` directory or `.jar` with an incomplete binary stub setup (some,
+but not all, of its `.astub` files or entries read from a binary form) is
+also warned about, suppressible with
+`-AsuppressWarnings=text.parsing.command.line.stub`; a `-Astubs` location
+with no binary form at all is not, since that is the ordinary case.
 
 These warnings have no source position, so `@SuppressWarnings` cannot suppress
 them. Suppress them with `-AsuppressWarnings=text.parsing`, or individually
 with `-AsuppressWarnings=text.parsing.jdk` (the annotated JDK has no binary
 stub), `-AsuppressWarnings=text.parsing.jdk.class` (a JDK class is missing from
-the binary stub), or `-AsuppressWarnings=text.parsing.stub` (a checker's stub
-file has no binary stub).
+the binary stub), `-AsuppressWarnings=text.parsing.stub` (a checker's stub
+file has no binary stub), or
+`-AsuppressWarnings=text.parsing.command.line.stub` (a `-Astubs` directory's
+or `.jar`'s binary stub setup is incomplete). A stale `-Astubs` binary stub
+is a separate warning, also with no source position:
+`-AsuppressWarnings=stale.binary.stub`.
 
 Fixed `-AwarnUnneededSuppressions` failing to report an unneeded
 `@SuppressWarnings` whose value is exactly a checker prefix (such as
