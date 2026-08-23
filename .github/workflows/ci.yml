@@ -86,6 +86,7 @@ jobs:
           - 'daikon-part2'
           - 'jspecify-conformance'
           - 'jspecify-reference-checker'
+          - 'templatefora-checker'
           - 'misc'
         # Keep in sync with env.PRIMARY_JDK.
         java_version: [21]
@@ -233,6 +234,7 @@ jobs:
           - {script: 'misc',            java: {version: '26'}}
           - {script: 'jspecify-conformance', java: {version: '26'}}
           - {script: 'jspecify-reference-checker', java: {version: '26'}}
+          - {script: 'templatefora-checker', java: {version: '26'}}
           # Daikon produces 'this-escape' warnings in JDK 22+. Only JDK 17.
           - {script: 'daikon-part1',    java: {version: '17'}}
           - {script: 'daikon-part2',    java: {version: '17'}}
