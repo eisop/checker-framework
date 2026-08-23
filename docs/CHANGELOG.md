@@ -340,33 +340,36 @@ default check is contravariant (the overridden parameter must be a subtype of th
 overriding parameter, the standard override rule in CF's type systems). A checker
 whose type rules require parameter <em>invariance</em> for overrides (both directions
 must be subtypes, as in JSpecify's override rules) can now override just this method
-to change the directionality, rather than duplicating the entire ~35-line
-`checkParameters` and `checkParametersMsg` loop-and-error-reporting logic. No
-behavior change for CF's own (contravariant) checkers.
+to change the directionality, rather than duplicating the entire `checkParameters`
+and `checkParametersMsg` loop-and-error-reporting logic.
 
 `BaseTypeVisitor.OverrideChecker.checkReturn` now delegates its comparison to
 a new overridable `isReturnOverrideValid` method, the return-type analogue of
-`isParameterOverrideValid` above. Pure refactor; no behavior change for CF's
-own checkers.
-
-`BaseTypeVisitor.testTypevarContainment` now delegates its containment check
-to a new overridable `isTypevarContained` method. A checker that separately
-validates a type parameter's own bound (see `isTypeParameterBoundOverrideValid`
-below) can override this to unconditionally return `true`, so
-`isParameterOverrideValid` and `isReturnOverrideValid` never also report the
-same bound mismatch. Pure refactor; no behavior change for CF's own checkers.
+`isParameterOverrideValid` above.
 
 `BaseTypeVisitor.OverrideChecker.checkOverride` now also runs
 `checkTypeParameterBounds`, comparing each of the overriding method's own
 type parameters against the corresponding type parameter of the overridden
-method via a new `isTypeParameterBoundOverrideValid` hook (default: always
-valid). A mismatch is reported through a new `override.typaram.invalid`
-diagnostic, showing each side's full declared bound (upper and lower, since
--- unlike ordinary Java -- a Checker Framework type parameter can declare a
-meaningful lower bound too, via the annotation written directly on the type
-variable). Unlike the parameter/return checks, this also covers a type
-parameter that occurs only nested in the signature, or not at all. No
-behavior change for CF's own checkers, which do not override the hook.
+method via a new `isTypeParameterBoundOverrideValid` hook. A mismatch is
+reported through a new `override.typaram.invalid` diagnostic, showing each
+side's full declared bound (upper and lower, since -- unlike ordinary Java --
+a Checker Framework type parameter can declare a meaningful lower bound too,
+via the annotation written directly on the type variable).
+
+The default `isTypeParameterBoundOverrideValid` requires the overriding type
+parameter's bound range to contain the overridden one's: the overridden upper
+bound must be a subtype of the overriding upper bound, and the overriding
+lower bound must be a subtype of the overridden lower bound. This holds
+regardless of whether, or where, the type parameter is used in the method's
+parameter or return types -- including a type parameter that occurs only
+nested in the signature, or not at all, neither of which the parameter/return
+checks above ever see. This is a real soundness fix: a checker whose qualifier
+hierarchy attaches enforceable meaning to a type-parameter bound (e.g.
+Nullness) now rejects an override whose bound no longer contains the
+overridden one, closing a gap where a caller of the overridden method's
+declared signature could instantiate the type parameter with a value the
+override's own body, type-checked against its own (looser) bound, does not
+actually handle correctly (eisop#1965).
 
 `TypeFromTypeTreeVisitor` now restores the declared bounds of type-variable
 type arguments that appear in the enclosing type of a nested type (e.g. the
@@ -574,7 +577,7 @@ Other improvements and bug fixes:
 eisop#433, eisop#737, eisop#792, eisop#863, eisop#949, eisop#1015, eisop#1074,
 eisop#1244, eisop#1315, eisop#1564, eisop#1592, eisop#1642, eisop#1653,
 eisop#1735, eisop#1801, eisop#1818, eisop#1819, eisop#1861, eisop#1862,
-eisop#1863, eisop#1865, eisop#1887.
+eisop#1863, eisop#1865, eisop#1887, eisop#1965.
 
 
 Version 3.49.5-eisop1 (April 26, 2026)
