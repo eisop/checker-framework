@@ -3951,10 +3951,8 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         }
 
         /**
-         * Create a FoundRequired for two bounds, e.g. a type parameter's own declared upper and
-         * lower bounds (see {@link
-         * BaseTypeVisitor.OverrideChecker#isTypeParameterBoundOverrideValid}), as opposed to a
-         * single type checked against a range.
+         * Create a FoundRequired for a type parameter's own declared upper and lower bounds (see
+         * {@link BaseTypeVisitor.OverrideChecker#isTypeParameterBoundOverrideValid}).
          *
          * @param found the found bounds
          * @param required the required bounds
@@ -4504,47 +4502,20 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
     }
 
     /**
-     * Returns true if both types are type variables and outer contains inner. Outer contains inner
-     * implies: {@literal inner.upperBound <: outer.upperBound outer.lowerBound <:
-     * inner.lowerBound}.
+     * Returns true if {@code inner} and {@code outer} are corresponding type variables declared by
+     * an overriding and an overridden method. Such a pair imposes no constraint of its own here:
+     * the two declarations' bounds are compared once per type parameter, position-independently, by
+     * {@link OverrideChecker#isTypeParameterBoundOverrideValid}.
      *
-     * @return true if both types are type variables and outer contains inner
+     * @param inner the possibly-contained type
+     * @param outer the possibly-containing type
+     * @return true if {@code inner} and {@code outer} are corresponding method type variables
      */
     protected boolean testTypevarContainment(AnnotatedTypeMirror inner, AnnotatedTypeMirror outer) {
-        if (inner.getKind() == TypeKind.TYPEVAR && outer.getKind() == TypeKind.TYPEVAR) {
-            AnnotatedTypeVariable innerAtv = (AnnotatedTypeVariable) inner;
-            AnnotatedTypeVariable outerAtv = (AnnotatedTypeVariable) outer;
-
-            if (AnnotatedTypes.areCorrespondingTypeVariables(elements, innerAtv, outerAtv)) {
-                return isTypevarContained(innerAtv, outerAtv);
-            }
-        }
-
-        return false;
-    }
-
-    /**
-     * Returns true if {@code outer} contains {@code inner}, for two corresponding type variables
-     * declared by the overriding and overridden methods themselves (the case {@link
-     * #testTypevarContainment} exists to handle).
-     *
-     * <p>The default implementation requires {@code inner}'s upper bound to be a subtype of {@code
-     * outer}'s, and {@code outer}'s lower bound to be a subtype of {@code inner}'s. A checker that
-     * separately validates a method's own type-parameter bounds elsewhere -- e.g. via {@link
-     * OverrideChecker#isTypeParameterBoundOverrideValid} -- may override this to unconditionally
-     * return {@code true}, deferring the question entirely to that other check, which (unlike this
-     * one) also covers a type parameter that appears nested inside a parameter or return type
-     * rather than directly, or does not appear in either at all -- so it is usually the more
-     * complete place for a checker with that need to answer this question once, rather than
-     * answering it here too and needing to reconcile the two answers.
-     *
-     * @param inner the type variable checked for being contained in {@code outer}
-     * @param outer the type variable checked for containing {@code inner}
-     * @return true if {@code outer} contains {@code inner}
-     */
-    protected boolean isTypevarContained(AnnotatedTypeVariable inner, AnnotatedTypeVariable outer) {
-        return typeHierarchy.isSubtype(inner.getUpperBound(), outer.getUpperBound())
-                && typeHierarchy.isSubtype(outer.getLowerBound(), inner.getLowerBound());
+        return inner.getKind() == TypeKind.TYPEVAR
+                && outer.getKind() == TypeKind.TYPEVAR
+                && AnnotatedTypes.areCorrespondingTypeVariables(
+                        elements, (AnnotatedTypeVariable) inner, (AnnotatedTypeVariable) outer);
     }
 
     /**
@@ -5270,13 +5241,6 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
          * relying on that incidentally, since a subclass overriding {@link
          * #isTypeParameterBoundOverrideValid} should not have to also verify that invariant itself.
          *
-         * <p>Called by {@link #checkOverride} strictly after {@link #checkReturn} and {@link
-         * #checkParameters}, which is part of this method's contract, not an incidental
-         * implementation detail: a subclass overriding {@link #isTypeParameterBoundOverrideValid}
-         * may rely on {@link #isParameterOverrideValid} having already run for this
-         * overridden-method pairing by the time it is invoked, for example to avoid reporting a
-         * redundant diagnostic for a type variable it already rejected an occurrence of.
-         *
          * @return true if every type-parameter bound is compatible
          */
         private boolean checkTypeParameterBounds() {
@@ -5308,27 +5272,23 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
          * on the type variable itself (as in {@code <@A T extends @B Object>}), which applies to
          * the lower bound -- see the manual section "Syntax for upper and lower bounds". An
          * override of this method should compare whichever of the two bounds its type system
-         * attaches enforceable meaning to; the default implementation below does not need either,
-         * since it imposes no constraint at all.
+         * attaches enforceable meaning to.
          *
-         * <p>The default implementation imposes no constraint (always returns true): ordinary Java
-         * override rules do not constrain a generic method's own type-parameter bounds beyond
-         * erasure compatibility, which javac itself already enforces, so two methods can be in a
-         * valid override relationship with unrelated type-parameter bounds (e.g. overriding {@code
-         * <T extends Number> void f(T t)} with {@code <T> void f(T t)} is ordinary, legal Java).
-         * This exists purely as an extension point for a checker whose type system attaches
-         * enforceable meaning to a type parameter's bound -- e.g. one where the bound is a nullness
-         * qualifier, so that a narrower override upper bound would let a caller of the overridden
-         * signature pass a value the override cannot accept, even though nothing about the
-         * parameter or return types where the type variable happens to be used would catch it (it
-         * might not be used in either).
+         * <p>The overriding method's body is type-checked once, generically, against its own
+         * declared bounds: it may consume a value of the type parameter as its upper bound, and
+         * produce one from its lower bound. Both must remain valid for every instantiation the
+         * overridden declaration permits, so the default implementation requires {@code
+         * overriderTypeVar}'s bound range to contain {@code overriddenTypeVar}'s: {@code
+         * overriddenTypeVar}'s upper bound must be a subtype of {@code overriderTypeVar}'s (per
+         * {@link #typeHierarchy}), and {@code overriderTypeVar}'s lower bound must be a subtype of
+         * {@code overriddenTypeVar}'s. This holds regardless of whether, or where, the type
+         * parameter is used in the method's parameter or return types.
          *
-         * <p>Called by {@link #checkTypeParameterBounds}, itself called by {@link #checkOverride}
-         * strictly after {@link #checkReturn} and {@link #checkParameters} have already run for
-         * this overridden-method pairing -- see {@link #checkTypeParameterBounds}'s own javadoc. An
-         * override of this method may rely on that ordering, e.g. to check whether {@link
-         * #isParameterOverrideValid} already rejected an occurrence of {@code overriderTypeVar} and
-         * avoid a redundant second diagnostic for it.
+         * <p>Ordinary Java places no constraint here beyond erasure compatibility, which javac
+         * itself already enforces (in particular, javac requires two overriding declarations'
+         * bounds to be identical up to erasure); this default only rejects an override when a
+         * checker's type system attaches enforceable meaning to a qualifier that differs between
+         * the two bounds.
          *
          * @param overriddenTypeVar the corresponding type parameter of the overridden method
          * @param overriderTypeVar the type parameter of the overriding method
@@ -5336,7 +5296,10 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
          */
         protected boolean isTypeParameterBoundOverrideValid(
                 AnnotatedTypeVariable overriddenTypeVar, AnnotatedTypeVariable overriderTypeVar) {
-            return true;
+            return typeHierarchy.isSubtype(
+                            overriddenTypeVar.getUpperBound(), overriderTypeVar.getUpperBound())
+                    && typeHierarchy.isSubtype(
+                            overriderTypeVar.getLowerBound(), overriddenTypeVar.getLowerBound());
         }
 
         /**
@@ -5367,10 +5330,9 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             AnnotatedTypeParameterBounds overriddenBounds =
                     new AnnotatedTypeParameterBounds(
                             overriddenTypeVar.getUpperBound(), overriddenTypeVar.getLowerBound());
-            Tree posTree =
-                    overriderTree instanceof MethodTree
-                            ? ((MethodTree) overriderTree).getTypeParameters().get(index)
-                            : overriderTree;
+            // checkTypeParameterBounds returns early for a method reference, so overriderTree is
+            // always a MethodTree here.
+            Tree posTree = ((MethodTree) overriderTree).getTypeParameters().get(index);
 
             if (showchecks) {
                 System.out.printf(
@@ -5456,13 +5418,6 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
          * contained by} {@code requiredReturnType}. Mirrors {@link
          * #isParameterOverrideValid(AnnotatedTypeMirror, AnnotatedTypeMirror,
          * AnnotatedTypeMirror)}'s contravariant analogue for parameter types.
-         *
-         * <p>Named {@code requiredReturnType}/{@code actualReturnType} rather than {@code
-         * overriddenReturnType}/{@code overriderReturnType} (the names {@link #checkReturn} itself
-         * uses for the arguments it passes here) specifically so they don't shadow this class's own
-         * {@link #overriddenReturnType}/{@link #overriderReturnType} fields, which happen to hold
-         * the same values for the call {@link #checkReturn} makes but need not for an override that
-         * calls this method with something else.
          *
          * @param requiredReturnType the return type of the overridden method
          * @param actualReturnType the return type of the overriding method
