@@ -128,7 +128,15 @@ switch (JavaVersion.current()) {
 // Provider<String> whose value becomes a configuration-cache input, and feeding the derived
 // Provider into 'into' lets the destination resolve lazily without mutating shared project state
 // at execution time.
+//
+// workingDir is set explicitly, not left to default to the process's own CWD: when this project
+// is used as an --include-build (e.g. templatefora-checker's or jspecify-reference-checker's own
+// CI, testing against this checkout), the process CWD is the *including* build's directory, not
+// this one -- without it, `git worktree list` here listed the including build's worktree instead,
+// installing these hooks into that unrelated repository's .git/hooks (confirmed by reproducing it
+// with a real --include-build run).
 def gitHooksDir = providers.exec {
+    workingDir(layout.projectDirectory)
     commandLine 'git', 'worktree', 'list'
 }.standardOutput.asText.map { String worktreeList ->
     worktreeList.substring(0, worktreeList.indexOf(' ')) + '/.git/hooks'
