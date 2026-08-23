@@ -862,6 +862,22 @@ directory to search for \<.astub> files; passing the same directory for both
 writes each binary form as a sibling of its \<.astub> file, which is where
 \<-Astubs=project-stubs> looks for it.
 
+\<BinaryStubFileGenerator> reflectively loads every annotation type your stub
+file uses, to read its \<@Target> and route the annotation to the type or the
+declaration it applies to.  If your stub file uses only qualifiers that ship
+in \<checker.jar> (as is typical when annotating the JDK or a class a
+built-in checker already covers), the classpath above is enough.  A
+\<-Astubs> file commonly does not: \<-Astubs> is how you extend a checker's
+coverage from your own project, often with that checker's own custom
+qualifiers, defined in your project rather than in \<checker.jar>.  In that
+case, also put those qualifier classes on the classpath, for example \<-cp
+\$CHECKERFRAMEWORK/checker/dist/checker.jar:build/classes/java/main>; running
+without them fails with an error naming the missing qualifier and suggesting
+this same fix.  Only the qualifier annotations need to resolve this way --
+not the classes your stub file annotates, since (as the tool's own output
+reminds you) it does not check a stub file's declarations against your
+library's real classes.
+
 If your stub directory has many files, you can instead pre-parse all of them
 into a single binary file, using \<--bundle> mode:
 

@@ -64,6 +64,15 @@ import java.util.stream.Stream;
  * <p>A file is skipped -- no binary is emitted for it, so the checker text-parses it -- if it
  * cannot be parsed, or fails to serialize. Skipping is always safe; it only forgoes the speedup for
  * that file.
+ *
+ * <p>This tool reflectively loads every annotation type a stub file uses, so those classes must be
+ * on its own classpath, not just the classpath of the checker or project the stub file is written
+ * for. This is usually already true for a checker's own built-in stub files, whose qualifiers ship
+ * in {@code checker.jar} alongside this tool; it commonly is not for a {@code -Astubs} file using a
+ * checker's own custom qualifiers, since those are defined in the downstream project the {@code
+ * -Astubs} file belongs to, not in {@code checker.jar}. A missing one fails with an error naming it
+ * and suggesting this same fix (see {@code BinaryStubWriter}'s "put it on the stubifier classpath"
+ * message).
  */
 public class BinaryStubFileGenerator {
 
