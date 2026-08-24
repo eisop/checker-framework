@@ -5,6 +5,12 @@
 // nested class below isolates one combination of which bound differs, in which direction, and how
 // the type parameter is used; several combinations are sound and expect no diagnostic, since
 // containment (not equality) is position-independent already.
+//
+// The final section below (Super9 through Super12) instead keeps both sides' type-parameter
+// declarations identical and requalifies a single parameter or return occurrence with its own
+// explicit annotation -- a containment mismatch entirely invisible to
+// isTypeParameterBoundOverrideValid, caught only by isParameterOverrideValid/
+// isReturnOverrideValid's own type-variable fallback (PR #1961 review, comment 5396576208).
 
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -56,7 +62,9 @@ public class OverrideTypeParamBound {
     // caller of the overridden signature may instantiate T as @NonNull, per Super's (narrower)
     // lower bound -- an NPE the checker is supposed to prevent. Containment requires the
     // override's lower bound to be a subtype of (i.e. at least as restrictive as) the overridden
-    // one, so widening it is still rejected.
+    // one, so widening it is still rejected. This return type occurrence is bare (no explicit
+    // annotation of its own), so isReturnOverrideValid's own type-variable fallback independently
+    // reaches the same, now-widened, declared lower bound and reports a second diagnostic.
 
     static class Super {
         <T extends @Nullable Object> T pick(T p) {
@@ -67,6 +75,7 @@ public class OverrideTypeParamBound {
     static class SubWidenLowerReturn extends Super {
         @Override
         // :: error: (override.typaram.invalid)
+        // :: error: (override.return.invalid)
         <@Nullable T extends @Nullable Object> T pick(T p) {
             T t = null;
             return t;
@@ -85,7 +94,9 @@ public class OverrideTypeParamBound {
     // ---- Upper bound narrowed, type parameter used as a parameter. ----
     // A caller of Super2's declared signature may pass an @Nullable value; SubNarrowUpperParam's
     // own upper bound only accepts @NonNull. Containment requires the overridden upper bound to
-    // be a subtype of the override's, so narrowing is rejected.
+    // be a subtype of the override's, so narrowing is rejected. The parameter occurrence is bare,
+    // so isParameterOverrideValid's own type-variable fallback independently reaches the same
+    // declared-bound mismatch and reports a second diagnostic.
 
     static class Super2 {
         <T extends @Nullable Object> void consume(T p) {}
@@ -94,6 +105,7 @@ public class OverrideTypeParamBound {
     static class SubNarrowUpperParam extends Super2 {
         @Override
         // :: error: (override.typaram.invalid)
+        // :: error: (override.param.invalid)
         <T extends @NonNull Object> void consume(T p) {}
     }
 
@@ -182,9 +194,11 @@ public class OverrideTypeParamBound {
     }
 
     // ---- Multiple type parameters: only the second one's bound differs. ----
-    // Confirms checkTypeParameterBounds compares type parameters positionally -- one diagnostic
+    // Confirms checkTypeParameterBounds compares type parameters positionally -- diagnostics only
     // for the mismatched index, none for the matching one -- not one verdict for the whole
-    // method.
+    // method. U's parameter occurrence is bare, so it draws a second diagnostic the same way the
+    // single-type-parameter cases above do; T's occurrence draws none, since T's own bound did
+    // not change.
 
     static class Super8 {
         <T extends @Nullable Object, U extends @Nullable Object> void consumeTwo(T p1, U p2) {}
@@ -196,6 +210,85 @@ public class OverrideTypeParamBound {
                         T extends @Nullable Object,
                         // :: error: (override.typaram.invalid)
                         U extends @NonNull Object>
+                // :: error: (override.param.invalid)
                 void consumeTwo(T p1, U p2) {}
+    }
+
+    // ---- Requalified occurrences: an explicit annotation on a parameter or return type, not on
+    // the type parameter's own declaration. Both type parameters below declare the identical bound
+    // <T extends @Nullable Object>, so checkTypeParameterBounds sees no mismatch; the unsoundness
+    // (eisop#1961 review, comment 5396576208) is entirely in the requalified occurrence, which only
+    // isParameterOverrideValid/isReturnOverrideValid's own type-variable fallback can see.
+
+    // Parameter requalified narrower than the shared declared bound: a caller of Super9's declared
+    // signature may pass an @Nullable value; SubRequalifiedParamNarrower's own parameter only
+    // accepts @NonNull, then dereferences it unconditionally.
+    static class Super9 {
+        <T extends @Nullable Object> void m(T p) {}
+    }
+
+    static class SubRequalifiedParamNarrower extends Super9 {
+        @Override
+        // :: error: (override.param.invalid)
+        <T extends @Nullable Object> void m(@NonNull T p) {
+            p.toString();
+        }
+    }
+
+    private static void triggerRequalifiedParamNarrower(Super9 s) {
+        s.<@Nullable String>m(null);
+    }
+
+    // Positive control: parameter requalified wider than the shared declared bound. Super10's own
+    // parameter already only accepts @NonNull; SubRequalifiedParamWider accepts the full
+    // (unrestricted, @Nullable) range T allows, a strictly weaker requirement -- sound, since every
+    // value a caller of Super10's declared signature could pass is also accepted here.
+    static class Super10 {
+        <T extends @Nullable Object> void m(@NonNull T p) {}
+    }
+
+    static class SubRequalifiedParamWider extends Super10 {
+        @Override
+        <T extends @Nullable Object> void m(T p) {}
+    }
+
+    // Return requalified wider than the shared declared bound: a caller of Super11's declared
+    // signature (via an explicit type witness) expects a @NonNull result; SubRequalifiedReturnWider
+    // always returns @Nullable, regardless of the type argument the caller chose.
+    static class Super11 {
+        <T extends @Nullable Object> T get(T p) {
+            return p;
+        }
+    }
+
+    static class SubRequalifiedReturnWider extends Super11 {
+        @Override
+        // :: error: (override.return.invalid)
+        <T extends @Nullable Object> @Nullable T get(T p) {
+            return null;
+        }
+    }
+
+    private static void triggerRequalifiedReturnWider(Super11 s) {
+        @NonNull String r = s.<@NonNull String>get("x");
+        System.out.println(r.length());
+    }
+
+    // Positive control: return requalified narrower than the shared declared bound. Super12's own
+    // return is already the full (unrestricted, @Nullable) range T allows;
+    // SubRequalifiedReturnNarrower always returns @NonNull, a strictly stronger guarantee -- sound,
+    // since a @NonNull value always satisfies whatever @Nullable result a caller of Super12's
+    // declared signature expects.
+    static class Super12 {
+        <T extends @Nullable Object> @Nullable T get() {
+            throw new RuntimeException();
+        }
+    }
+
+    static class SubRequalifiedReturnNarrower extends Super12 {
+        @Override
+        <T extends @Nullable Object> @NonNull T get() {
+            throw new RuntimeException();
+        }
     }
 }

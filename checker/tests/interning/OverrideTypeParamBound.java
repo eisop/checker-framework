@@ -20,7 +20,9 @@ class OverrideTypeParamBound {
     // Upper bound narrowed, type parameter used as a parameter. A caller going through the
     // overridden method's declared bound may instantiate the type parameter with an
     // @UnknownInterned value; if the override's own bound requires @Interned, it wrongly gets
-    // exercised with a value it cannot safely treat as interned.
+    // exercised with a value it cannot safely treat as interned. The parameter occurrence is
+    // bare, so isParameterOverrideValid's own type-variable fallback independently reaches the
+    // same declared-bound mismatch and reports a second diagnostic.
     static class Super {
         <T extends @UnknownInterned Object> void consume(T p) {}
     }
@@ -28,6 +30,7 @@ class OverrideTypeParamBound {
     static class SubNarrowUpperParam extends Super {
         @Override
         // :: error: (override.typaram.invalid)
+        // :: error: (override.param.invalid)
         <T extends @Interned Object> void consume(T p) {}
     }
 

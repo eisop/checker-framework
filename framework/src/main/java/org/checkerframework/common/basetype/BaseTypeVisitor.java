@@ -4502,20 +4502,25 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
     }
 
     /**
-     * Returns true if {@code inner} and {@code outer} are corresponding type variables declared by
-     * an overriding and an overridden method. Such a pair imposes no constraint of its own here:
-     * the two declarations' bounds are compared once per type parameter, position-independently, by
-     * {@link OverrideChecker#isTypeParameterBoundOverrideValid}.
+     * Returns true if both types are type variables and outer contains inner. Outer contains inner
+     * implies: {@literal inner.upperBound <: outer.upperBound outer.lowerBound <:
+     * inner.lowerBound}.
      *
-     * @param inner the possibly-contained type
-     * @param outer the possibly-containing type
-     * @return true if {@code inner} and {@code outer} are corresponding method type variables
+     * @return true if both types are type variables and outer contains inner
      */
     protected boolean testTypevarContainment(AnnotatedTypeMirror inner, AnnotatedTypeMirror outer) {
-        return inner.getKind() == TypeKind.TYPEVAR
-                && outer.getKind() == TypeKind.TYPEVAR
-                && AnnotatedTypes.areCorrespondingTypeVariables(
-                        elements, (AnnotatedTypeVariable) inner, (AnnotatedTypeVariable) outer);
+        if (inner.getKind() == TypeKind.TYPEVAR && outer.getKind() == TypeKind.TYPEVAR) {
+            AnnotatedTypeVariable innerAtv = (AnnotatedTypeVariable) inner;
+            AnnotatedTypeVariable outerAtv = (AnnotatedTypeVariable) outer;
+
+            if (AnnotatedTypes.areCorrespondingTypeVariables(elements, innerAtv, outerAtv)) {
+                return typeHierarchy.isSubtype(innerAtv.getUpperBound(), outerAtv.getUpperBound())
+                        && typeHierarchy.isSubtype(
+                                outerAtv.getLowerBound(), innerAtv.getLowerBound());
+            }
+        }
+
+        return false;
     }
 
     /**
@@ -5414,10 +5419,13 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
          * subtype of {@code requiredReturnType}, or -- as a fallback for corresponding type
          * variables declared by the overriding and overridden methods themselves, where a direct
          * subtype check can fail even though the override is valid -- {@code actualReturnType} must
-         * be {@linkplain #testTypevarContainment(AnnotatedTypeMirror, AnnotatedTypeMirror)
-         * contained by} {@code requiredReturnType}. Mirrors {@link
-         * #isParameterOverrideValid(AnnotatedTypeMirror, AnnotatedTypeMirror,
-         * AnnotatedTypeMirror)}'s contravariant analogue for parameter types.
+         * {@linkplain #testTypevarContainment(AnnotatedTypeMirror, AnnotatedTypeMirror) contain}
+         * {@code requiredReturnType}: the overriding occurrence's bound range must contain the
+         * overridden one's, the same direction {@link
+         * OverrideChecker#isTypeParameterBoundOverrideValid} requires for the type parameter's own
+         * declared bound, and for the same reason -- an override may widen a return occurrence's
+         * upper bound, since its own body cannot manufacture a value outside that wider bound
+         * either.
          *
          * @param requiredReturnType the return type of the overridden method
          * @param actualReturnType the return type of the overriding method
@@ -5428,7 +5436,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             if (typeHierarchy.isSubtype(actualReturnType, requiredReturnType)) {
                 return true;
             }
-            return testTypevarContainment(actualReturnType, requiredReturnType);
+            return testTypevarContainment(requiredReturnType, actualReturnType);
         }
 
         /**
