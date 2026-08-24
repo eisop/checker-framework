@@ -252,6 +252,15 @@ element-type checks treated as a reference upcast or downcast; the Signedness
 Checker reported `(char) x`, where `x` has type `@Signed int`, as not
 statically verifiable.
 
+`AnnotatedTypeMirror.toString(false)` returns the same string as
+`AnnotatedTypeMirror.toString()`. Verbose printing now only adds detail: it
+never suppresses a detail that the type factory's `AnnotatedTypeFormatter` is
+configured to print. Previously, `toString(false)` forced invisible qualifiers
+and verbose generics off, overriding `-AprintAllQualifiers`,
+`-AprintVerboseGenerics`, and a checker-supplied formatter default; for
+instance, a Units Checker type printed through `toString(false)` lost its
+`@UnknownUnits` qualifier, which `toString()` prints.
+
 **Implementation details:**
 
 `AnnotatedIntersectionType.summarizeBounds` computes the summary described

@@ -986,12 +986,28 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
         }
     }
 
+    /**
+     * Returns a string representation of this type, using the type factory's {@link
+     * AnnotatedTypeFormatter}. Whether details such as invisible qualifiers appear depends on that
+     * formatter's configuration.
+     *
+     * @return a string representation of this type
+     */
     @SideEffectFree
     @Override
     public final String toString() {
         return atypeFactory.getAnnotatedTypeFormatter().format(this);
     }
 
+    /**
+     * Returns a possibly-verbose string representation of this type. Verbose printing shows details
+     * that {@link #toString()} might omit, such as invisible qualifiers and the bounds of type
+     * variables and wildcards; it never omits a detail that {@link #toString()} shows. Therefore,
+     * {@code toString(false)} returns the same string as {@code toString()}.
+     *
+     * @param verbose if true, print details that {@link #toString()} might omit
+     * @return a possibly-verbose string representation of this type
+     */
     @SideEffectFree
     public final String toString(boolean verbose) {
         return atypeFactory.getAnnotatedTypeFormatter().format(this, verbose);

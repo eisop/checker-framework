@@ -20,7 +20,10 @@ public interface AnnotatedTypeFormatter {
     public String format(AnnotatedTypeMirror type);
 
     /**
-     * Formats type into a String.
+     * Formats type into a String. Verbose printing shows details, such as invisible annotations,
+     * that an implementation's default might omit; it never hides a detail that {@link
+     * #format(AnnotatedTypeMirror)} shows. Therefore, {@code format(type, false)} returns the same
+     * string as {@code format(type)}.
      *
      * @param type the type to be converted
      * @param printVerbose whether or not to print verbosely
