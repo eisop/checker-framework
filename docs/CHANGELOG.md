@@ -547,9 +547,9 @@ Other improvements and bug fixes:
 
 **Closed issues:**
 
-eisop#386, eisop#433, eisop#737, eisop#792, eisop#863, eisop#949, eisop#1015, 
-eisop#1074, eisop#1244, eisop#1315, eisop#1564, eisop#1592, eisop#1642, 
-eisop#1653, eisop#1735, eisop#1801, eisop#1818, eisop#1819, eisop#1861, 
+eisop#386, eisop#433, eisop#737, eisop#792, eisop#863, eisop#949, eisop#1015,
+eisop#1074, eisop#1244, eisop#1315, eisop#1564, eisop#1592, eisop#1642,
+eisop#1653, eisop#1735, eisop#1801, eisop#1818, eisop#1819, eisop#1861,
 eisop#1862, eisop#1863, eisop#1865, eisop#1887.
 
 
