@@ -1003,7 +1003,10 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
      * Returns a possibly-verbose string representation of this type. Verbose printing shows details
      * that {@link #toString()} might omit, such as invisible qualifiers and the bounds of type
      * variables and wildcards; it never omits a detail that {@link #toString()} shows. Therefore,
-     * {@code toString(false)} returns the same string as {@code toString()}.
+     * {@code toString(false)} returns the same string as {@code toString()}: {@code verbose} asks
+     * for optional extra detail on top of {@link #toString()}'s output, not for a specific level of
+     * detail in its own right, so there is no argument that requests less detail than {@link
+     * #toString()} already provides.
      *
      * @param verbose if true, print details that {@link #toString()} might omit
      * @return a possibly-verbose string representation of this type
