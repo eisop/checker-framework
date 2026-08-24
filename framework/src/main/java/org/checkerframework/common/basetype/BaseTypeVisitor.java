@@ -3832,18 +3832,22 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
     protected static class FoundRequired {
 
         /**
-         * Something with a possibly-verbose string representation: an {@link AnnotatedTypeMirror}
-         * or an {@link AnnotatedTypeParameterBounds}, neither of which shares a supertype declaring
-         * {@code toString(boolean)}.
+         * Renders a found or required type or bounds as a string, given whether the rendering
+         * should be verbose. A factory below must implement this as {@code v -> v ?
+         * x.toString(true) : x.toString()}, not {@code x::toString} bound to the {@code
+         * toString(boolean)} overload: for {@link AnnotatedTypeMirror}, the no-argument {@code
+         * toString()} overload additionally resets otherwise-sticky formatter state (such as
+         * whether the current checker's invisible qualifiers print) that {@code toString(false)}
+         * leaves alone, so the two are not interchangeable when not verbose.
          */
-        private interface VerboseToString {
+        private interface VerboseRenderer {
             /**
-             * Returns this object's string representation.
+             * Renders the string representation.
              *
              * @param verbose if true, the returned representation is verbose
-             * @return this object's string representation
+             * @return the string representation
              */
-            String toString(boolean verbose);
+            String render(boolean verbose);
         }
 
         /** Computes {@link #verbose}; null once {@link #verbose} has been computed. */
@@ -3885,20 +3889,20 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
          * @param verboseComputer computes whether the two representations must be verbose to differ
          */
         private FoundRequired(
-                VerboseToString found, VerboseToString required, BooleanSupplier verboseComputer) {
+                VerboseRenderer found, VerboseRenderer required, BooleanSupplier verboseComputer) {
             this.verboseComputer = verboseComputer;
             this.found =
                     new Object() {
                         @Override
                         public String toString() {
-                            return found.toString(isVerbose());
+                            return found.render(isVerbose());
                         }
                     };
             this.required =
                     new Object() {
                         @Override
                         public String toString() {
-                            return required.toString(isVerbose());
+                            return required.render(isVerbose());
                         }
                     };
         }
@@ -3913,7 +3917,9 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
          */
         public static FoundRequired of(AnnotatedTypeMirror found, AnnotatedTypeMirror required) {
             return new FoundRequired(
-                    found::toString, required::toString, () -> shouldPrintVerbose(found, required));
+                    v -> v ? found.toString(true) : found.toString(),
+                    v -> v ? required.toString(true) : required.toString(),
+                    () -> shouldPrintVerbose(found, required));
         }
 
         /**
@@ -3928,7 +3934,9 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         public static FoundRequired of(
                 AnnotatedTypeMirror found, AnnotatedTypeParameterBounds required) {
             return new FoundRequired(
-                    found::toString, required::toString, () -> shouldPrintVerbose(found, required));
+                    v -> v ? found.toString(true) : found.toString(),
+                    v -> v ? required.toString(true) : required.toString(),
+                    () -> shouldPrintVerbose(found, required));
         }
 
         /**
@@ -3944,7 +3952,9 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         public static FoundRequired of(
                 AnnotatedTypeParameterBounds found, AnnotatedTypeParameterBounds required) {
             return new FoundRequired(
-                    found::toString, required::toString, () -> shouldPrintVerbose(found, required));
+                    v -> v ? found.toString(true) : found.toString(),
+                    v -> v ? required.toString(true) : required.toString(),
+                    () -> shouldPrintVerbose(found, required));
         }
     }
 
