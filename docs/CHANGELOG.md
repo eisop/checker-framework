@@ -371,25 +371,28 @@ declared signature could instantiate the type parameter with a value the
 override's own body, type-checked against its own (looser) bound, does not
 actually handle correctly (eisop#1965).
 
-`isParameterOverrideValid`'s and `isReturnOverrideValid`'s own type-variable
-containment fallback (`BaseTypeVisitor.testTypevarContainment`) now once
-again compares the two occurrences' actual bounds, instead of unconditionally
-treating any two corresponding type variables as compatible. The type
-parameter's own declared bound (checked above) and a single parameter or
-return occurrence's bound are different things: an occurrence can be
-requalified with its own explicit annotation, independent of the type
-parameter's declaration, and `isTypeParameterBoundOverrideValid` cannot see
-that requalification at all, since it only ever looks at the declaration.
-For example, overriding `<T extends @Nullable Object> void m(T p)` with
-`<T extends @Nullable Object> void m(@NonNull T p)` has identical
-type-parameter bounds on both sides, so `isTypeParameterBoundOverrideValid`
-finds no mismatch, but the override's own parameter is stricter than the
-overridden one's -- an unsound narrowing this fallback is responsible for
-catching. `isReturnOverrideValid`'s fallback direction is also corrected to
-match `isTypeParameterBoundOverrideValid`'s containment direction (an
-overriding return occurrence may widen its bound, not only narrow it), since
-the two must agree for a bare, unannotated occurrence to be judged
-consistently by both checks.
+Because the rule is position-independent, it can also newly reject an
+override that is sound only by virtue of where the type parameter is used:
+narrowing the upper bound of a type parameter that occurs only in the return
+type, as in overriding `<T extends @Nullable Object> T produce()` with
+`<T extends @NonNull Object> T produce()`, is now an
+`override.typaram.invalid` error. Give the overriding declaration the
+overridden bound, or suppress the warning.
+
+`isReturnOverrideValid`'s type-variable containment fallback
+(`BaseTypeVisitor.testTypevarContainment`) now uses the same containment
+direction as `isParameterOverrideValid` and
+`isTypeParameterBoundOverrideValid`: the overriding occurrence's bound range
+must contain the overridden one's. Previously the return-position fallback
+required the reverse. That was unsound for an occurrence requalified with a
+looser qualifier -- overriding `<T extends @Nullable Object> T get(T p)` with
+`<T extends @Nullable Object> @Nullable T get(T p)` was accepted, so a caller
+writing `s.<@NonNull String>get("x")` could receive null -- and it was a false
+positive for a bare occurrence whose type parameter soundly widens its upper
+bound. This occurrence-level fallback stays necessary even given the
+declaration-level check above, because an occurrence can be requalified with
+its own explicit annotation, which `isTypeParameterBoundOverrideValid`, which
+only ever looks at the type parameter's declaration, never sees.
 
 `TypeFromTypeTreeVisitor` now restores the declared bounds of type-variable
 type arguments that appear in the enclosing type of a nested type (e.g. the

@@ -5168,12 +5168,17 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
          *
          * <p>Corresponds positionally, like {@link #checkParameters}: the type parameter at index
          * {@code i} of the overrider is compared against the type parameter at index {@code i} of
-         * the overridden method, for as many indices as both declare. A method reference has no
-         * type parameters of its own to compare, so this is a no-op for one -- {@code
-         * overrider.getTypeVariables()} is always empty for a method reference, which already makes
-         * this a no-op via {@code count}, but the check below is explicit about it rather than
-         * relying on that incidentally, since a subclass overriding {@link
-         * #isTypeParameterBoundOverrideValid} should not have to also verify that invariant itself.
+         * the overridden method, for as many indices as both declare.
+         *
+         * <p>Method references are exempt. Both sides can have non-empty type-parameter lists there
+         * -- a method reference to a generic method, bound to a generic functional interface
+         * method, has them on both sides (see {@code
+         * checker/tests/nullness/java8/methodref/TestGenFunc.java}) -- so the early return below is
+         * load-bearing, not merely defensive. Those two lists are not two declarations of one
+         * overridable method: the referenced method's type parameters are instantiated at the
+         * method reference, so the position-independent containment rule this check applies does
+         * not carry over. There is also no type-parameter tree to report on, which is why {@link
+         * #checkTypeParameterBoundsMsg} can cast {@code overriderTree} to a {@code MethodTree}.
          *
          * @return true if every type-parameter bound is compatible
          */
@@ -5293,11 +5298,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                 checker.reportError(
                         posTree,
                         "override.typaram.invalid",
-                        overriderTypeVars
-                                .get(index)
-                                .getUnderlyingType()
-                                .asElement()
-                                .getSimpleName(),
+                        overriderTypeVar.getUnderlyingType().asElement().getSimpleName(),
                         pair.found,
                         pair.required,
                         overriderType,

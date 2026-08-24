@@ -10,7 +10,7 @@
 // declarations identical and requalifies a single parameter or return occurrence with its own
 // explicit annotation -- a containment mismatch entirely invisible to
 // isTypeParameterBoundOverrideValid, caught only by isParameterOverrideValid/
-// isReturnOverrideValid's own type-variable fallback (PR #1961 review, comment 5396576208).
+// isReturnOverrideValid's own type-variable fallback.
 
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -85,10 +85,6 @@ public class OverrideTypeParamBound {
     private static void triggerWidenLowerReturn(Super s) {
         @NonNull String r = s.<@NonNull String>pick("x");
         System.out.println(r.length());
-    }
-
-    public static void main(String[] args) {
-        triggerWidenLowerReturn(new SubWidenLowerReturn());
     }
 
     // ---- Upper bound narrowed, type parameter used as a parameter. ----
@@ -214,11 +210,34 @@ public class OverrideTypeParamBound {
                 void consumeTwo(T p1, U p2) {}
     }
 
+    // ---- Accepted imprecision: upper bound narrowed, type parameter used only as a return type.
+    // ----
+    // Sound in principle -- T occurs only in the return type, so the body can never be handed a
+    // value outside its own narrower bound -- but checkTypeParameterBounds is deliberately
+    // position-independent (it cannot know, from the declaration alone, whether T is used as a
+    // parameter, a return type, both, or neither) and rejects this anyway. The converse,
+    // SubWidenUpperReturn above, is the direction position-independence costs nothing for; this is
+    // the direction it costs precision.
+
+    static class Super13 {
+        <T extends @Nullable Object> T produce() {
+            throw new RuntimeException();
+        }
+    }
+
+    static class SubNarrowUpperReturn extends Super13 {
+        @Override
+        // :: error: (override.typaram.invalid)
+        <T extends @NonNull Object> T produce() {
+            throw new RuntimeException();
+        }
+    }
+
     // ---- Requalified occurrences: an explicit annotation on a parameter or return type, not on
     // the type parameter's own declaration. Both type parameters below declare the identical bound
     // <T extends @Nullable Object>, so checkTypeParameterBounds sees no mismatch; the unsoundness
-    // (eisop#1961 review, comment 5396576208) is entirely in the requalified occurrence, which only
-    // isParameterOverrideValid/isReturnOverrideValid's own type-variable fallback can see.
+    // is entirely in the requalified occurrence, which only isParameterOverrideValid/
+    // isReturnOverrideValid's own type-variable fallback can see.
 
     // Parameter requalified narrower than the shared declared bound: a caller of Super9's declared
     // signature may pass an @Nullable value; SubRequalifiedParamNarrower's own parameter only
