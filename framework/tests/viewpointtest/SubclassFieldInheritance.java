@@ -29,6 +29,7 @@ public class SubclassFieldInheritance {
         }
     }
 
+    // :: error: (annotation.on.supertype)
     @A static class SubA extends @A SuperClass {
         @ReceiverDependentQual Object subFieldInit = new @A Object();
 
@@ -36,6 +37,7 @@ public class SubclassFieldInheritance {
         @ReceiverDependentQual Object badSubFieldInit = new @B Object();
     }
 
+    // :: error: (annotation.on.supertype)
     @B static class SubB extends @B SuperClass {
         @ReceiverDependentQual Object subFieldInit = new @B Object();
 
