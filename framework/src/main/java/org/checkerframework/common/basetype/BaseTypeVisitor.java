@@ -139,6 +139,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.StringJoiner;
 import java.util.Vector;
+import java.util.function.BooleanSupplier;
 
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.AnnotationMirror;
@@ -3830,56 +3831,36 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      */
     protected static class FoundRequired {
 
-        /** Whether the {@link #verbose} flag has been computed. */
-        private boolean verboseComputed = false;
+        /**
+         * Something with a possibly-verbose string representation: an {@link AnnotatedTypeMirror}
+         * or an {@link AnnotatedTypeParameterBounds}, neither of which shares a supertype declaring
+         * {@code toString(boolean)}.
+         */
+        private interface VerboseToString {
+            /**
+             * Returns this object's string representation.
+             *
+             * @param verbose if true, the returned representation is verbose
+             * @return this object's string representation
+             */
+            String toString(boolean verbose);
+        }
 
-        /** Whether the string representation should be verbose. */
+        /** Computes {@link #verbose}; null once {@link #verbose} has been computed. */
+        private @Nullable BooleanSupplier verboseComputer;
+
+        /** Whether the string representations should be verbose. */
         private boolean verbose = false;
 
         /**
-         * Lazily computes and memoizes whether the string representation should be verbose.
+         * Lazily computes and memoizes whether the string representations should be verbose.
          *
-         * @param foundType the found type
-         * @param requiredType the required type
          * @return true if verbose toString should be used
          */
-        private boolean isVerbose(AnnotatedTypeMirror foundType, AnnotatedTypeMirror requiredType) {
-            if (!verboseComputed) {
-                verbose = shouldPrintVerbose(foundType, requiredType);
-                verboseComputed = true;
-            }
-            return verbose;
-        }
-
-        /**
-         * Lazily computes and memoizes whether the string representation should be verbose.
-         *
-         * @param foundType the found type
-         * @param requiredBounds the required bounds
-         * @return true if verbose toString should be used
-         */
-        private boolean isVerbose(
-                AnnotatedTypeMirror foundType, AnnotatedTypeParameterBounds requiredBounds) {
-            if (!verboseComputed) {
-                verbose = shouldPrintVerbose(foundType, requiredBounds);
-                verboseComputed = true;
-            }
-            return verbose;
-        }
-
-        /**
-         * Lazily computes and memoizes whether the string representation should be verbose.
-         *
-         * @param foundBounds the found bounds
-         * @param requiredBounds the required bounds
-         * @return true if verbose toString should be used
-         */
-        private boolean isVerbose(
-                AnnotatedTypeParameterBounds foundBounds,
-                AnnotatedTypeParameterBounds requiredBounds) {
-            if (!verboseComputed) {
-                verbose = shouldPrintVerbose(foundBounds, requiredBounds);
-                verboseComputed = true;
+        private boolean isVerbose() {
+            if (verboseComputer != null) {
+                verbose = verboseComputer.getAsBoolean();
+                verboseComputer = null;
             }
             return verbose;
         }
@@ -3897,84 +3878,27 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         public final Object required;
 
         /**
-         * Create a FoundRequired for two types.
+         * Create a FoundRequired.
          *
-         * @param found the found type
-         * @param required the required type
-         */
-        private FoundRequired(AnnotatedTypeMirror found, AnnotatedTypeMirror required) {
-            this.found =
-                    new Object() {
-                        @Override
-                        public String toString() {
-                            return isVerbose(found, required)
-                                    ? found.toString(true)
-                                    : found.toString();
-                        }
-                    };
-            this.required =
-                    new Object() {
-                        @Override
-                        public String toString() {
-                            return isVerbose(found, required)
-                                    ? required.toString(true)
-                                    : required.toString();
-                        }
-                    };
-        }
-
-        /**
-         * Create a FoundRequired for a type and bounds.
-         *
-         * @param found the found type
-         * @param required the required bounds
-         */
-        private FoundRequired(AnnotatedTypeMirror found, AnnotatedTypeParameterBounds required) {
-            this.found =
-                    new Object() {
-                        @Override
-                        public String toString() {
-                            return isVerbose(found, required)
-                                    ? found.toString(true)
-                                    : found.toString();
-                        }
-                    };
-            this.required =
-                    new Object() {
-                        @Override
-                        public String toString() {
-                            return isVerbose(found, required)
-                                    ? required.toString(true)
-                                    : required.toString();
-                        }
-                    };
-        }
-
-        /**
-         * Create a FoundRequired for a type parameter's own declared upper and lower bounds (see
-         * {@link BaseTypeVisitor.OverrideChecker#isTypeParameterBoundOverrideValid}).
-         *
-         * @param found the found bounds
-         * @param required the required bounds
+         * @param found the found type or bounds
+         * @param required the required type or bounds
+         * @param verboseComputer computes whether the two representations must be verbose to differ
          */
         private FoundRequired(
-                AnnotatedTypeParameterBounds found, AnnotatedTypeParameterBounds required) {
+                VerboseToString found, VerboseToString required, BooleanSupplier verboseComputer) {
+            this.verboseComputer = verboseComputer;
             this.found =
                     new Object() {
                         @Override
                         public String toString() {
-                            return isVerbose(found, required)
-                                    ? found.toString(true)
-                                    : found.toString();
+                            return found.toString(isVerbose());
                         }
                     };
             this.required =
                     new Object() {
                         @Override
                         public String toString() {
-                            return isVerbose(found, required)
-                                    ? required.toString(true)
-                                    : required.toString();
+                            return required.toString(isVerbose());
                         }
                     };
         }
@@ -3988,7 +3912,8 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
          * @return a string representation of the two annotations
          */
         public static FoundRequired of(AnnotatedTypeMirror found, AnnotatedTypeMirror required) {
-            return new FoundRequired(found, required);
+            return new FoundRequired(
+                    found::toString, required::toString, () -> shouldPrintVerbose(found, required));
         }
 
         /**
@@ -4002,12 +3927,15 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
          */
         public static FoundRequired of(
                 AnnotatedTypeMirror found, AnnotatedTypeParameterBounds required) {
-            return new FoundRequired(found, required);
+            return new FoundRequired(
+                    found::toString, required::toString, () -> shouldPrintVerbose(found, required));
         }
 
         /**
          * Creates string representations of two {@link AnnotatedTypeParameterBounds}, which are
-         * only verbose if required to differentiate the two.
+         * only verbose if required to differentiate the two. Used for a type parameter's own
+         * declared upper and lower bounds; see {@link
+         * BaseTypeVisitor.OverrideChecker#isTypeParameterBoundOverrideValid}.
          *
          * @param found the found bounds
          * @param required the required bounds
@@ -4015,7 +3943,8 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
          */
         public static FoundRequired of(
                 AnnotatedTypeParameterBounds found, AnnotatedTypeParameterBounds required) {
-            return new FoundRequired(found, required);
+            return new FoundRequired(
+                    found::toString, required::toString, () -> shouldPrintVerbose(found, required));
         }
     }
 
