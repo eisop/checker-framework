@@ -310,4 +310,13 @@ public class OverrideTypeParamBound {
             throw new RuntimeException();
         }
     }
+
+    // Runs every trigger*() method above, each demonstrating -- if the preceding class's own
+    // override were accepted rather than rejected -- the NullPointerException a caller relying on
+    // the overridden (wider) signature would hit.
+    public static void main(String[] args) {
+        triggerWidenLowerReturn(new SubWidenLowerReturn());
+        triggerRequalifiedParamNarrower(new SubRequalifiedParamNarrower());
+        triggerRequalifiedReturnWider(new SubRequalifiedReturnWider());
+    }
 }
