@@ -3,7 +3,9 @@ package org.checkerframework.framework.stubifier;
 import org.checkerframework.framework.stub.BinaryStubBundle;
 import org.checkerframework.framework.stub.BinaryStubData;
 import org.junit.Assert;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -30,6 +32,13 @@ import java.util.jar.JarOutputStream;
  * would terminate the test JVM, and are intentionally not exercised here.
  */
 public class BinaryStubFileGeneratorTest {
+
+    /**
+     * A fresh directory per test, deleted afterwards along with everything under it -- including a
+     * bundle file, which {@code --bundle} writes as a sibling of the directory it covers rather
+     * than inside it.
+     */
+    @Rule public final TemporaryFolder tempFolder = new TemporaryFolder();
 
     /**
      * A minimal, unannotated stub file body; annotations are irrelevant to what these tests check.
@@ -62,29 +71,25 @@ public class BinaryStubFileGeneratorTest {
      */
     @Test
     public void perFileModeWritesReadableSibling() throws Exception {
-        Path dir = Files.createTempDirectory("binarystubfilegeneratortest");
-        try {
-            Path stub = writeStub(dir, "Foo.astub", stubSource("Foo"));
-            BinaryStubFileGenerator.main(new String[] {dir.toString(), dir.toString()});
+        Path dir = tempFolder.newFolder().toPath();
+        Path stub = writeStub(dir, "Foo.astub", stubSource("Foo"));
+        BinaryStubFileGenerator.main(new String[] {dir.toString(), dir.toString()});
 
-            Path sibling = dir.resolve("Foo.astub" + BinaryStubWriter.BIN_SUFFIX);
-            Assert.assertTrue("sibling binary must be written", Files.isRegularFile(sibling));
+        Path sibling = dir.resolve("Foo.astub" + BinaryStubWriter.BIN_SUFFIX);
+        Assert.assertTrue("sibling binary must be written", Files.isRegularFile(sibling));
 
-            BinaryStubData data;
-            try (InputStream in = Files.newInputStream(sibling)) {
-                data = new BinaryStubData(in);
-            }
-            Assert.assertTrue(data.classes.containsKey("Foo"));
-            Assert.assertTrue(
-                    "the sibling's fingerprint must match the source it was generated from",
-                    data.matchesSource(Files.readAllBytes(stub)));
-            Assert.assertFalse(
-                    "an edited source must no longer match the old fingerprint",
-                    data.matchesSource(
-                            (stubSource("Foo") + "// edited\n").getBytes(StandardCharsets.UTF_8)));
-        } finally {
-            deleteRecursively(dir.toFile());
+        BinaryStubData data;
+        try (InputStream in = Files.newInputStream(sibling)) {
+            data = new BinaryStubData(in);
         }
+        Assert.assertTrue(data.classes.containsKey("Foo"));
+        Assert.assertTrue(
+                "the sibling's fingerprint must match the source it was generated from",
+                data.matchesSource(Files.readAllBytes(stub)));
+        Assert.assertFalse(
+                "an edited source must no longer match the old fingerprint",
+                data.matchesSource(
+                        (stubSource("Foo") + "// edited\n").getBytes(StandardCharsets.UTF_8)));
     }
 
     /**
@@ -94,40 +99,32 @@ public class BinaryStubFileGeneratorTest {
      */
     @Test
     public void bundleModeCombinesEveryFile() throws Exception {
-        Path dir = Files.createTempDirectory("binarystubfilegeneratortest");
-        Path bundleFile = null;
-        try {
-            writeStub(dir, "Foo.astub", stubSource("Foo"));
-            Path barStub = writeStub(dir, "sub/Bar.astub", stubSource("Bar"));
+        Path dir = tempFolder.newFolder().toPath();
+        writeStub(dir, "Foo.astub", stubSource("Foo"));
+        Path barStub = writeStub(dir, "sub/Bar.astub", stubSource("Bar"));
 
-            BinaryStubFileGenerator.main(new String[] {"--bundle", dir.toString()});
+        BinaryStubFileGenerator.main(new String[] {"--bundle", dir.toString()});
 
-            bundleFile = dir.resolveSibling(dir.getFileName() + BinaryStubWriter.BUNDLE_SUFFIX);
-            Assert.assertTrue("bundle file must be written", Files.isRegularFile(bundleFile));
+        Path bundleFile = dir.resolveSibling(dir.getFileName() + BinaryStubWriter.BUNDLE_SUFFIX);
+        Assert.assertTrue("bundle file must be written", Files.isRegularFile(bundleFile));
 
-            BinaryStubBundle bundle;
-            try (InputStream in = Files.newInputStream(bundleFile)) {
-                bundle = new BinaryStubBundle(in);
-            }
-
-            BinaryStubData fooData = bundle.get("Foo.astub");
-            Assert.assertNotNull("the bundle must have an entry for the top-level file", fooData);
-            Assert.assertTrue(fooData.classes.containsKey("Foo"));
-
-            BinaryStubData barData = bundle.get("sub/Bar.astub");
-            Assert.assertNotNull("the bundle must have an entry for the nested file", barData);
-            Assert.assertTrue(barData.classes.containsKey("Bar"));
-            Assert.assertTrue(barData.matchesSource(Files.readAllBytes(barStub)));
-
-            Assert.assertNull(
-                    "the bundle must have no entry for a file that was never in the directory",
-                    bundle.get("NoSuchFile.astub"));
-        } finally {
-            deleteRecursively(dir.toFile());
-            if (bundleFile != null) {
-                Files.deleteIfExists(bundleFile);
-            }
+        BinaryStubBundle bundle;
+        try (InputStream in = Files.newInputStream(bundleFile)) {
+            bundle = new BinaryStubBundle(in);
         }
+
+        BinaryStubData fooData = bundle.get("Foo.astub");
+        Assert.assertNotNull("the bundle must have an entry for the top-level file", fooData);
+        Assert.assertTrue(fooData.classes.containsKey("Foo"));
+
+        BinaryStubData barData = bundle.get("sub/Bar.astub");
+        Assert.assertNotNull("the bundle must have an entry for the nested file", barData);
+        Assert.assertTrue(barData.classes.containsKey("Bar"));
+        Assert.assertTrue(barData.matchesSource(Files.readAllBytes(barStub)));
+
+        Assert.assertNull(
+                "the bundle must have no entry for a file that was never in the directory",
+                bundle.get("NoSuchFile.astub"));
     }
 
     /**
@@ -138,36 +135,30 @@ public class BinaryStubFileGeneratorTest {
      */
     @Test
     public void jarModeWritesEntriesInPlace() throws Exception {
-        Path dir = Files.createTempDirectory("binarystubfilegeneratortest");
-        try {
-            Path jarPath = dir.resolve("stubs.jar");
-            byte[] fooSource = stubSource("Foo").getBytes(StandardCharsets.UTF_8);
-            writeJar(jarPath, "pkg/Foo.astub", fooSource);
+        Path dir = tempFolder.newFolder().toPath();
+        Path jarPath = dir.resolve("stubs.jar");
+        byte[] fooSource = stubSource("Foo").getBytes(StandardCharsets.UTF_8);
+        writeJar(jarPath, "pkg/Foo.astub", fooSource);
 
-            // The output directory is irrelevant for a JAR input root, but is still a required
-            // positional argument.
-            BinaryStubFileGenerator.main(
-                    new String[] {dir.resolve("unused-output").toString(), jarPath.toString()});
+        // The output directory is irrelevant for a JAR input root, but is still a required
+        // positional argument.
+        BinaryStubFileGenerator.main(
+                new String[] {dir.resolve("unused-output").toString(), jarPath.toString()});
 
-            try (JarFile jarFile = new JarFile(jarPath.toFile())) {
-                Assert.assertNotNull(
-                        "the original entry must be untouched",
-                        jarFile.getJarEntry("pkg/Foo.astub"));
-                JarEntry binEntry =
-                        jarFile.getJarEntry("pkg/Foo.astub" + BinaryStubWriter.BIN_SUFFIX);
-                Assert.assertNotNull("a sibling binary entry must have been added", binEntry);
+        try (JarFile jarFile = new JarFile(jarPath.toFile())) {
+            Assert.assertNotNull(
+                    "the original entry must be untouched", jarFile.getJarEntry("pkg/Foo.astub"));
+            JarEntry binEntry = jarFile.getJarEntry("pkg/Foo.astub" + BinaryStubWriter.BIN_SUFFIX);
+            Assert.assertNotNull("a sibling binary entry must have been added", binEntry);
 
-                BinaryStubData data;
-                try (InputStream in = jarFile.getInputStream(binEntry)) {
-                    data = new BinaryStubData(in);
-                }
-                Assert.assertTrue(data.classes.containsKey("Foo"));
-                Assert.assertTrue(
-                        "the entry's fingerprint must match the source it was generated from",
-                        data.matchesSource(fooSource));
+            BinaryStubData data;
+            try (InputStream in = jarFile.getInputStream(binEntry)) {
+                data = new BinaryStubData(in);
             }
-        } finally {
-            deleteRecursively(dir.toFile());
+            Assert.assertTrue(data.classes.containsKey("Foo"));
+            Assert.assertTrue(
+                    "the entry's fingerprint must match the source it was generated from",
+                    data.matchesSource(fooSource));
         }
     }
 
@@ -177,53 +168,48 @@ public class BinaryStubFileGeneratorTest {
      */
     @Test
     public void jarModeReplacesStaleEntry() throws Exception {
-        Path dir = Files.createTempDirectory("binarystubfilegeneratortest");
-        try {
-            Path jarPath = dir.resolve("stubs.jar");
-            writeJar(jarPath, "Foo.astub", stubSource("Foo").getBytes(StandardCharsets.UTF_8));
-            BinaryStubFileGenerator.main(
-                    new String[] {dir.resolve("unused-output").toString(), jarPath.toString()});
+        Path dir = tempFolder.newFolder().toPath();
+        Path jarPath = dir.resolve("stubs.jar");
+        writeJar(jarPath, "Foo.astub", stubSource("Foo").getBytes(StandardCharsets.UTF_8));
+        BinaryStubFileGenerator.main(
+                new String[] {dir.resolve("unused-output").toString(), jarPath.toString()});
 
-            // Edit the entry (by rewriting the whole JAR, since JarOutputStream cannot append to
-            // an existing one) and regenerate: the sibling entry from the first run must be
-            // replaced, not duplicated or left stale.
-            byte[] editedSource =
-                    (stubSource("Foo") + "// edited\n").getBytes(StandardCharsets.UTF_8);
-            try (JarFile oldJar = new JarFile(jarPath.toFile())) {
-                JarEntry binEntry = oldJar.getJarEntry("Foo.astub" + BinaryStubWriter.BIN_SUFFIX);
-                Assert.assertNotNull(binEntry);
+        // Edit the entry (by rewriting the whole JAR, since JarOutputStream cannot append to
+        // an existing one) and regenerate: the sibling entry from the first run must be
+        // replaced, not duplicated or left stale.
+        byte[] editedSource = (stubSource("Foo") + "// edited\n").getBytes(StandardCharsets.UTF_8);
+        try (JarFile oldJar = new JarFile(jarPath.toFile())) {
+            JarEntry binEntry = oldJar.getJarEntry("Foo.astub" + BinaryStubWriter.BIN_SUFFIX);
+            Assert.assertNotNull(binEntry);
+        }
+        writeJar(jarPath, "Foo.astub", editedSource);
+        BinaryStubFileGenerator.main(
+                new String[] {dir.resolve("unused-output").toString(), jarPath.toString()});
+
+        try (JarFile jarFile = new JarFile(jarPath.toFile())) {
+            JarEntry binEntry = jarFile.getJarEntry("Foo.astub" + BinaryStubWriter.BIN_SUFFIX);
+            Assert.assertNotNull(binEntry);
+            BinaryStubData data;
+            try (InputStream in = jarFile.getInputStream(binEntry)) {
+                data = new BinaryStubData(in);
             }
-            writeJar(jarPath, "Foo.astub", editedSource);
-            BinaryStubFileGenerator.main(
-                    new String[] {dir.resolve("unused-output").toString(), jarPath.toString()});
+            Assert.assertTrue(
+                    "the replaced entry's fingerprint must match the edited source",
+                    data.matchesSource(editedSource));
 
-            try (JarFile jarFile = new JarFile(jarPath.toFile())) {
-                JarEntry binEntry = jarFile.getJarEntry("Foo.astub" + BinaryStubWriter.BIN_SUFFIX);
-                Assert.assertNotNull(binEntry);
-                BinaryStubData data;
-                try (InputStream in = jarFile.getInputStream(binEntry)) {
-                    data = new BinaryStubData(in);
+            int matchingEntries = 0;
+            Enumeration<JarEntry> entries = jarFile.entries();
+            while (entries.hasMoreElements()) {
+                if (entries.nextElement()
+                        .getName()
+                        .equals("Foo.astub" + BinaryStubWriter.BIN_SUFFIX)) {
+                    matchingEntries++;
                 }
-                Assert.assertTrue(
-                        "the replaced entry's fingerprint must match the edited source",
-                        data.matchesSource(editedSource));
-
-                int matchingEntries = 0;
-                Enumeration<JarEntry> entries = jarFile.entries();
-                while (entries.hasMoreElements()) {
-                    if (entries.nextElement()
-                            .getName()
-                            .equals("Foo.astub" + BinaryStubWriter.BIN_SUFFIX)) {
-                        matchingEntries++;
-                    }
-                }
-                Assert.assertEquals(
-                        "the JAR must have exactly one entry with this name, not a stale duplicate",
-                        1,
-                        matchingEntries);
             }
-        } finally {
-            deleteRecursively(dir.toFile());
+            Assert.assertEquals(
+                    "the JAR must have exactly one entry with this name, not a stale duplicate",
+                    1,
+                    matchingEntries);
         }
     }
 
@@ -238,37 +224,31 @@ public class BinaryStubFileGeneratorTest {
      */
     @Test
     public void jarModeRemovesEntryThatNoLongerParses() throws Exception {
-        Path dir = Files.createTempDirectory("binarystubfilegeneratortest");
-        try {
-            Path jarPath = dir.resolve("stubs.jar");
-            writeJar(jarPath, "Foo.astub", stubSource("Foo").getBytes(StandardCharsets.UTF_8));
-            BinaryStubFileGenerator.main(
-                    new String[] {dir.resolve("unused-output").toString(), jarPath.toString()});
-            try (JarFile jarFile = new JarFile(jarPath.toFile())) {
-                Assert.assertNotNull(
-                        "sibling must exist after the first, successful run",
-                        jarFile.getJarEntry("Foo.astub" + BinaryStubWriter.BIN_SUFFIX));
-            }
+        Path dir = tempFolder.newFolder().toPath();
+        Path jarPath = dir.resolve("stubs.jar");
+        writeJar(jarPath, "Foo.astub", stubSource("Foo").getBytes(StandardCharsets.UTF_8));
+        BinaryStubFileGenerator.main(
+                new String[] {dir.resolve("unused-output").toString(), jarPath.toString()});
+        try (JarFile jarFile = new JarFile(jarPath.toFile())) {
+            Assert.assertNotNull(
+                    "sibling must exist after the first, successful run",
+                    jarFile.getJarEntry("Foo.astub" + BinaryStubWriter.BIN_SUFFIX));
+        }
 
-            // Rewrite the JAR with an unparseable entry (JarOutputStream cannot edit a single
-            // entry in place) and regenerate.
-            writeJar(
-                    jarPath,
-                    "Foo.astub",
-                    "not valid java at all {{{".getBytes(StandardCharsets.UTF_8));
-            BinaryStubFileGenerator.main(
-                    new String[] {dir.resolve("unused-output").toString(), jarPath.toString()});
+        // Rewrite the JAR with an unparseable entry (JarOutputStream cannot edit a single
+        // entry in place) and regenerate.
+        writeJar(
+                jarPath, "Foo.astub", "not valid java at all {{{".getBytes(StandardCharsets.UTF_8));
+        BinaryStubFileGenerator.main(
+                new String[] {dir.resolve("unused-output").toString(), jarPath.toString()});
 
-            try (JarFile jarFile = new JarFile(jarPath.toFile())) {
-                Assert.assertNull(
-                        "the now-stale sibling must have been removed, not left behind",
-                        jarFile.getJarEntry("Foo.astub" + BinaryStubWriter.BIN_SUFFIX));
-                Assert.assertNotNull(
-                        "the (unparseable) source entry itself must be untouched",
-                        jarFile.getJarEntry("Foo.astub"));
-            }
-        } finally {
-            deleteRecursively(dir.toFile());
+        try (JarFile jarFile = new JarFile(jarPath.toFile())) {
+            Assert.assertNull(
+                    "the now-stale sibling must have been removed, not left behind",
+                    jarFile.getJarEntry("Foo.astub" + BinaryStubWriter.BIN_SUFFIX));
+            Assert.assertNotNull(
+                    "the (unparseable) source entry itself must be untouched",
+                    jarFile.getJarEntry("Foo.astub"));
         }
     }
 
@@ -282,25 +262,21 @@ public class BinaryStubFileGeneratorTest {
      */
     @Test
     public void directoryModeRecursesIntoNestedJar() throws Exception {
-        Path dir = Files.createTempDirectory("binarystubfilegeneratortest");
-        try {
-            writeStub(dir, "Foo.astub", stubSource("Foo"));
-            Path nestedJar = dir.resolve("sub/nested.jar");
-            Files.createDirectories(nestedJar.getParent());
-            writeJar(nestedJar, "Bar.astub", stubSource("Bar").getBytes(StandardCharsets.UTF_8));
+        Path dir = tempFolder.newFolder().toPath();
+        writeStub(dir, "Foo.astub", stubSource("Foo"));
+        Path nestedJar = dir.resolve("sub/nested.jar");
+        Files.createDirectories(nestedJar.getParent());
+        writeJar(nestedJar, "Bar.astub", stubSource("Bar").getBytes(StandardCharsets.UTF_8));
 
-            BinaryStubFileGenerator.main(new String[] {dir.toString(), dir.toString()});
+        BinaryStubFileGenerator.main(new String[] {dir.toString(), dir.toString()});
 
-            Assert.assertTrue(
-                    "the loose file's sibling must still be written",
-                    Files.isRegularFile(dir.resolve("Foo.astub" + BinaryStubWriter.BIN_SUFFIX)));
-            try (JarFile jarFile = new JarFile(nestedJar.toFile())) {
-                Assert.assertNotNull(
-                        "the nested jar's entry must have gotten a sibling too",
-                        jarFile.getJarEntry("Bar.astub" + BinaryStubWriter.BIN_SUFFIX));
-            }
-        } finally {
-            deleteRecursively(dir.toFile());
+        Assert.assertTrue(
+                "the loose file's sibling must still be written",
+                Files.isRegularFile(dir.resolve("Foo.astub" + BinaryStubWriter.BIN_SUFFIX)));
+        try (JarFile jarFile = new JarFile(nestedJar.toFile())) {
+            Assert.assertNotNull(
+                    "the nested jar's entry must have gotten a sibling too",
+                    jarFile.getJarEntry("Bar.astub" + BinaryStubWriter.BIN_SUFFIX));
         }
     }
 
@@ -335,20 +311,16 @@ public class BinaryStubFileGeneratorTest {
      */
     @Test
     public void bareRelativeBundleRootDoesNotCrash() throws Exception {
-        Path dir = Files.createTempDirectory("binarystubfilegeneratortest");
-        try {
-            Path stubDir = dir.resolve("project-stubs");
-            writeStub(stubDir, "Foo.astub", stubSource("Foo"));
+        Path dir = tempFolder.newFolder().toPath();
+        Path stubDir = dir.resolve("project-stubs");
+        writeStub(stubDir, "Foo.astub", stubSource("Foo"));
 
-            runGeneratorInSubprocess(dir, "--bundle", "project-stubs");
+        runGeneratorInSubprocess(dir, "--bundle", "project-stubs");
 
-            Path bundleFile = dir.resolve("project-stubs" + BinaryStubWriter.BUNDLE_SUFFIX);
-            Assert.assertTrue(
-                    "bundle file must be written despite the bare relative argument",
-                    Files.isRegularFile(bundleFile));
-        } finally {
-            deleteRecursively(dir.toFile());
-        }
+        Path bundleFile = dir.resolve("project-stubs" + BinaryStubWriter.BUNDLE_SUFFIX);
+        Assert.assertTrue(
+                "bundle file must be written despite the bare relative argument",
+                Files.isRegularFile(bundleFile));
     }
 
     /**
@@ -358,23 +330,19 @@ public class BinaryStubFileGeneratorTest {
      */
     @Test
     public void bareRelativeJarRootDoesNotCrash() throws Exception {
-        Path dir = Files.createTempDirectory("binarystubfilegeneratortest");
-        try {
-            writeJar(
-                    dir.resolve("project-stubs.jar"),
-                    "Foo.astub",
-                    stubSource("Foo").getBytes(StandardCharsets.UTF_8));
+        Path dir = tempFolder.newFolder().toPath();
+        writeJar(
+                dir.resolve("project-stubs.jar"),
+                "Foo.astub",
+                stubSource("Foo").getBytes(StandardCharsets.UTF_8));
 
-            runGeneratorInSubprocess(dir, "project-stubs.jar", "project-stubs.jar");
+        runGeneratorInSubprocess(dir, "project-stubs.jar", "project-stubs.jar");
 
-            try (JarFile jarFile = new JarFile(dir.resolve("project-stubs.jar").toFile())) {
-                Assert.assertNotNull(
-                        "a sibling binary entry must have been added despite the bare relative"
-                                + " argument",
-                        jarFile.getJarEntry("Foo.astub" + BinaryStubWriter.BIN_SUFFIX));
-            }
-        } finally {
-            deleteRecursively(dir.toFile());
+        try (JarFile jarFile = new JarFile(dir.resolve("project-stubs.jar").toFile())) {
+            Assert.assertNotNull(
+                    "a sibling binary entry must have been added despite the bare relative"
+                            + " argument",
+                    jarFile.getJarEntry("Foo.astub" + BinaryStubWriter.BIN_SUFFIX));
         }
     }
 
@@ -424,20 +392,5 @@ public class BinaryStubFileGeneratorTest {
             out.write(buffer, 0, n);
         }
         return out.toByteArray();
-    }
-
-    /**
-     * Recursively deletes {@code file} (which may be a plain file or a directory).
-     *
-     * @param file the file or directory to delete
-     */
-    private static void deleteRecursively(File file) {
-        File[] children = file.listFiles();
-        if (children != null) {
-            for (File child : children) {
-                deleteRecursively(child);
-            }
-        }
-        file.delete();
     }
 }

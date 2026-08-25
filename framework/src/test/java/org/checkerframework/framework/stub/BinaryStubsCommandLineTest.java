@@ -5,10 +5,11 @@ import org.checkerframework.framework.test.TestConfiguration;
 import org.checkerframework.framework.test.TestConfigurationBuilder;
 import org.checkerframework.framework.test.TypecheckExecutor;
 import org.checkerframework.framework.test.TypecheckResult;
-import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
 import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
@@ -97,28 +98,20 @@ public class BinaryStubsCommandLineTest {
     /** Message key for a {@code -Astubs} directory with an incomplete binary stub setup. */
     private static final String INCOMPLETE_SETUP_KEY = "text.parsing.command.line.stub";
 
-    /** A fresh temporary directory, created before and deleted after each test. */
+    /**
+     * A fresh directory per test, deleted afterwards along with everything under it -- including a
+     * bundle file, which {@code --bundle} writes as a sibling of the directory it covers rather
+     * than inside it.
+     */
+    @Rule public final TemporaryFolder tempFolder = new TemporaryFolder();
+
+    /** {@link #tempFolder}'s root, the directory each test writes its fixture into. */
     private Path tempDir;
 
-    /**
-     * Creates {@link #tempDir}.
-     *
-     * @throws IOException if the directory cannot be created
-     */
+    /** Sets {@link #tempDir} to this test's fresh directory. */
     @Before
-    public void createTempDir() throws IOException {
-        tempDir = Files.createTempDirectory("binarystubscommandlinetest");
-    }
-
-    /**
-     * Deletes {@link #tempDir} and everything under it.
-     *
-     * @throws IOException never (failures are reported to stderr, not thrown), so a cleanup failure
-     *     does not mask a test's own assertion failure
-     */
-    @After
-    public void deleteTempDir() throws IOException {
-        deleteRecursively(tempDir.toFile());
+    public void createTempDir() {
+        tempDir = tempFolder.getRoot().toPath();
     }
 
     /**
@@ -677,20 +670,5 @@ public class BinaryStubsCommandLineTest {
                 return out.toByteArray();
             }
         }
-    }
-
-    /**
-     * Recursively deletes {@code file} (which may be a plain file or a directory).
-     *
-     * @param file the file or directory to delete
-     */
-    private static void deleteRecursively(File file) {
-        File[] children = file.listFiles();
-        if (children != null) {
-            for (File child : children) {
-                deleteRecursively(child);
-            }
-        }
-        file.delete();
     }
 }
