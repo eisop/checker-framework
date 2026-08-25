@@ -428,10 +428,9 @@ public class BinaryStubFileGenerator {
             entries.put(relativePath, blob);
         }
 
-        // Write to a temporary file in the same directory, then move it into place atomically, so
-        // a crash or a full disk mid-write cannot leave a truncated file at bundlePath that still
-        // starts with BUNDLE_MAGIC (which looksLikeBundle, and the reader, would otherwise accept
-        // as a real, if damaged, bundle).
+        // Write to a temporary file then move atomically. This prevents a crash or full disk
+        // from leaving a truncated bundle file that begins with BUNDLE_MAGIC (which the reader
+        // would otherwise accept as a real, if damaged, bundle).
         Path tmp =
                 Files.createTempFile(
                         bundlePath.getParent(), bundlePath.getFileName() + ".", ".tmp");
@@ -493,12 +492,8 @@ public class BinaryStubFileGenerator {
             // Mirror JavaParserUtil.parseStubUnit: a stub file may contain several `package`
             // sections, which the stub parser represents as several compilation units.
             ParserConfiguration configuration = new ParserConfiguration();
-            // Same language level as JavaStubifier.DEFAULT_LANGUAGE_LEVEL, which is in this same
-            // source set. That constant in turn matches JavaParserUtil.DEFAULT_LANGUAGE_LEVEL,
-            // which the text parser uses; that duplication can't be unified further here because
-            // JavaParserUtil is not on the stubifier classpath (framework main depends on the
-            // stubifier source set's output, not the other way around, and framework.jar ships no
-            // stubifier classes), so enum constants can't compile-time-fold across that boundary.
+            // Same language level as JavaStubifier and JavaParserUtil. The constant duplication
+            // can't be unified because JavaParserUtil is not on the stubifier classpath.
             configuration.setLanguageLevel(JavaStubifier.DEFAULT_LANGUAGE_LEVEL);
             configuration.setStoreTokens(false);
             configuration.setLexicalPreservationEnabled(false);
