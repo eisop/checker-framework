@@ -1112,11 +1112,11 @@ public class BinaryStubWriter {
      *       failed for all of them. That only shows the package is missing from the stubifier's own
      *       narrow build classpath (stubparser plus checker-qual) -- not that a checker's {@code
      *       Elements}, resolving against whatever classpath its invocation supplies, would also
-     *       fail. Silently falling through here used to route the annotation as a bare, unqualified
-     *       name that {@code BinaryStubReader} then also cannot resolve ({@code AnnotationBuilder}
-     *       throws a {@code UserError} that is swallowed to {@code null}) -- dropping an annotation
-     *       the text parser could have resolved, with no diagnostic on either side. Fail instead,
-     *       the same way as the dotted {@code NOT_LOADABLE} case below.
+     *       fail. Fail here too, the same way as the dotted {@code NOT_LOADABLE} case below, rather
+     *       than silently falling through to route the annotation as a bare, unqualified name:
+     *       {@code BinaryStubReader} would then also fail to resolve it ({@code AnnotationBuilder}
+     *       throws a {@code UserError} that is swallowed to {@code null}), dropping an annotation
+     *       the text parser could have resolved, with no diagnostic on either side.
      * </ul>
      *
      * @param anno the annotation expression

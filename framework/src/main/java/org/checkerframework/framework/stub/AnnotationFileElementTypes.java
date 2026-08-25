@@ -2140,19 +2140,18 @@ public class AnnotationFileElementTypes {
      * verbatim (clear-then-add, not merge) rather than left alone, to preserve that
      * reset-to-default behavior exactly -- structurally, at every position in the return type
      * (including type arguments, array component types, and wildcard/type-variable bounds), not
-     * just the primary annotation (this used to be a bug: only the primary annotation was
-     * propagated, so an explicit annotation on a fake override's return-type argument, e.g. {@code
-     * List<@Foo String>}, was silently dropped). {@link #RETURN_TYPE_RESETTER} performs that
-     * structural clear-then-add. A plain structural <em>replace</em> (only overwriting a position
-     * where {@code storedCandidate} has an annotation, e.g. {@link
-     * org.checkerframework.framework.type.AnnotatedTypeReplacer}) is not equivalent here and must
-     * not be used: {@code storedCandidate}'s return type is <em>not</em> defaulted at parse time
-     * (see {@code AnnotationFileParser#annotate}'s {@code clearAnnotations} call and this method's
-     * own Javadoc above -- a presence-only fake override's stored return type is empty, not
-     * defaulted), so a position {@code storedCandidate} leaves bare must become bare on {@code
-     * fresh} too, relying on the checker's normal defaulting once the type is read, rather than
-     * keeping whatever {@code fresh} (i.e. {@code overridden}'s own declared type) already had
-     * there.
+     * just the primary annotation: propagating only the primary annotation would silently drop an
+     * explicit annotation on a fake override's return-type argument, e.g. {@code List<@Foo
+     * String>}. {@link #RETURN_TYPE_RESETTER} performs that structural clear-then-add. A plain
+     * structural <em>replace</em> (only overwriting a position where {@code storedCandidate} has an
+     * annotation, e.g. {@link org.checkerframework.framework.type.AnnotatedTypeReplacer}) is not
+     * equivalent here and must not be used: {@code storedCandidate}'s return type is <em>not</em>
+     * defaulted at parse time (see {@code AnnotationFileParser#annotate}'s {@code clearAnnotations}
+     * call and this method's own Javadoc above -- a presence-only fake override's stored return
+     * type is empty, not defaulted), so a position {@code storedCandidate} leaves bare must become
+     * bare on {@code fresh} too, relying on the checker's normal defaulting once the type is read,
+     * rather than keeping whatever {@code fresh} (i.e. {@code overridden}'s own declared type)
+     * already had there.
      *
      * @param overridden the overridden method the fake override targets
      * @param storedCandidate the fake override's stored snapshot; only its return-type annotations
