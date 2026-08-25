@@ -1,12 +1,7 @@
 package org.checkerframework.framework.stub;
 
-// WARNING: framework.jar must work standalone, but stubifier classes are not bundled into it
-// (they ship only inside checker.jar's minimized shadow jar; see framework/build.gradle's
-// `implementation sourceSets.stubifier.output` dependency). Only reference compile-time
-// constants of BinaryStubWriter from here (static final primitive/String fields with a constant
-// initializer) -- javac inlines those into this class's own bytecode, so no runtime dependency
-// on the stubifier is created. Never call a BinaryStubWriter method or read a non-constant field
-// from this class; doing so would break framework.jar used on its own.
+// WARNING: only reference compile-time constants of BinaryStubWriter from here; never call a
+// method or read a non-constant field. See the warning at the top of BinaryStubData.
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.framework.stubifier.BinaryStubWriter;
 
@@ -24,13 +19,10 @@ import java.util.Map;
  * BinaryStubFileGenerator}'s {@code --bundle} mode. Conventionally named with the {@link #SUFFIX}
  * suffix, as a sibling of the directory it covers.
  *
- * <p>A bundle is a container, not a merged {@link BinaryStubData}: each entry is the exact same
- * bytes a per-file {@code .astub.bin.gz} would contain for that source file, generated
- * independently (so each retains its own file's import resolution and class records; see {@link
- * BinaryStubData}). This constructor reads every entry's raw bytes into memory eagerly (a bundle
- * covers one {@code -Astubs} directory, which a command-line stub invocation processes in full
- * anyway); {@link #get} defers the more expensive step, parsing an individual entry into a {@link
- * BinaryStubData}, until requested.
+ * <p>A bundle is a container, not a merged {@link BinaryStubData}: each entry holds the exact bytes
+ * a per-file {@code .astub.bin.gz} would, generated independently, so each entry has its own
+ * constant and annotation pools whose indices are meaningful only within that entry. Entry bytes
+ * are read eagerly; {@link #get} parses an entry into a {@link BinaryStubData} only when requested.
  *
  * <p>The binary format consists of:
  *
@@ -48,23 +40,16 @@ import java.util.Map;
  */
 public class BinaryStubBundle {
 
-    /**
-     * Magic number identifying a binary stub bundle. The value is defined once in {@link
-     * BinaryStubWriter#BUNDLE_MAGIC} and referenced here (the constant is inlined at compile time,
-     * so there is no runtime dependency on the stubifier).
-     */
+    /** Magic number identifying a binary stub bundle. */
     public static final int MAGIC = BinaryStubWriter.BUNDLE_MAGIC;
 
-    /**
-     * Format version of the bundle container. Defined once in {@link
-     * BinaryStubWriter#BUNDLE_VERSION}.
-     */
+    /** Format version of the bundle container. */
     public static final short VERSION = BinaryStubWriter.BUNDLE_VERSION;
 
     /**
      * File-name suffix appended to a source stub directory's name to name the bundle covering it
      * (e.g. a {@code -Astubs} directory named {@code mystubs} → sibling file {@code
-     * mystubs.astub.bin.gz}). Defined once in {@link BinaryStubWriter#BUNDLE_SUFFIX}.
+     * mystubs.astub.bin.gz}).
      */
     public static final String SUFFIX = BinaryStubWriter.BUNDLE_SUFFIX;
 
@@ -89,8 +74,8 @@ public class BinaryStubBundle {
                 throw new IOException("Unsupported binary stub bundle version: " + version);
             }
             int count = BinaryStubData.readCount(dataIn, "binary stub bundle entry count");
-            // Not pre-sized from `count`: it comes from the file itself, so a few bytes of
-            // malformed input could otherwise request an arbitrarily large initial table.
+            // Not pre-sized from `count`: it is file-supplied, so malformed input could otherwise
+            // request an arbitrarily large initial table.
             entries = new HashMap<>();
             for (int i = 0; i < count; i++) {
                 String path = dataIn.readUTF();
@@ -103,9 +88,8 @@ public class BinaryStubBundle {
     }
 
     /**
-     * Returns the binary stub data for the entry at {@code relativePath}, parsing it on this call
-     * (not cached: each entry is normally requested at most once per compilation, while a directory
-     * passed to {@code -Astubs} is walked).
+     * Returns the binary stub data for the entry at {@code relativePath}, parsing it on this call.
+     * The result is not cached.
      *
      * @param relativePath the entry's path, relative to the bundled directory, with {@code '/'} as
      *     separator
@@ -126,9 +110,8 @@ public class BinaryStubBundle {
     }
 
     /**
-     * Returns true if the bundle has an entry for {@code relativePath}, without parsing it. Lets a
-     * caller decide whether to do more expensive work (such as reading and hashing the
-     * corresponding source file) before calling {@link #get}, which does parse.
+     * Returns true if the bundle has an entry for {@code relativePath}, without parsing it, unlike
+     * {@link #get}.
      *
      * @param relativePath the entry's path, relative to the bundled directory, with {@code '/'} as
      *     separator

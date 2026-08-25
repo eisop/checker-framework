@@ -660,13 +660,10 @@ public class BinaryStubData {
 
     /**
      * Reads binary stub data from the given stream, reporting a damaged file as an {@link
-     * IOException} regardless of how the damage surfaces.
-     *
-     * <p>A damaged file can hold an index that points outside a pool, which surfaces as {@code
-     * ArrayIndexOutOfBoundsException} rather than as an {@code IOException}: this class validates
-     * what it can (see {@link #readCount}), but not every index. Reporting any such failure as what
-     * it is -- a file that cannot be read -- lets the caller fall back to text parsing rather than
-     * crashing the compilation and asking the user to report a Checker Framework bug.
+     * IOException} regardless of how the damage surfaces. A damaged file can hold an index that
+     * points outside a pool, which this class does not validate (unlike a count; see {@link
+     * #readCount}) and which surfaces as {@code ArrayIndexOutOfBoundsException}; converting it lets
+     * the caller fall back to text parsing instead of crashing the compilation.
      *
      * @param in the input stream to read from; the stream is closed when this method returns
      * @return the binary stub data read from {@code in}
@@ -834,9 +831,7 @@ public class BinaryStubData {
 
     /**
      * Returns true if this binary was generated from source bytes identical to {@code sourceBytes}.
-     * Always false if no fingerprint was recorded (see {@link #sourceLength}), which is the
-     * correct, safe answer: a caller that only ever proceeds on {@code true} then always falls back
-     * to text parsing for a binary with no fingerprint, rather than trusting it blindly.
+     * Always false if no fingerprint was recorded (see {@link #sourceLength}).
      *
      * @param sourceBytes the current raw bytes of the {@code .astub} file this binary is claimed to
      *     correspond to
@@ -849,11 +844,8 @@ public class BinaryStubData {
     }
 
     /**
-     * Computes the SHA-256 digest of {@code bytes}.
-     *
-     * <p>Duplicated in {@code BinaryStubWriter#sha256}, which cannot be called from here: this
-     * class must not create a runtime dependency on the stubifier source set (see the warning at
-     * the top of this file).
+     * Computes the SHA-256 digest of {@code bytes}. Duplicated in {@code BinaryStubWriter#sha256},
+     * which cannot be called from here (see the warning at the top of this file).
      *
      * @param bytes the bytes to digest
      * @return the 32-byte SHA-256 digest of {@code bytes}
@@ -888,8 +880,7 @@ public class BinaryStubData {
      * @return the count
      * @throws IOException if the stream cannot be read, or the count is not a plausible one
      */
-    // Package-private, not private: BinaryStubBundle reads the same kind of file-supplied counts
-    // (its own entry count, and each entry's byte length) and reuses this validation.
+    // Package-private, not private: BinaryStubBundle reuses this for its own file-supplied counts.
     static int readCount(DataInputStream dataIn, String what) throws IOException {
         int count = dataIn.readInt();
         if (count < 0 || count > MAX_COUNT) {

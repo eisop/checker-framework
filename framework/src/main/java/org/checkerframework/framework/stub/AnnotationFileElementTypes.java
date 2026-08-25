@@ -310,11 +310,9 @@ public class AnnotationFileElementTypes {
     /**
      * The key used to store and retrieve, from the compilation context, the cache of resolved
      * {@code -Astubs} binary-stub state; see {@link #getCommandLineStubLocationCache}. Lives in the
-     * context for the same reason {@link #TEXT_PARSING_WARNINGS_KEY} does: a compound checker has
-     * several sub-checker factories, each with its own {@code AnnotationFileElementTypes}, but
-     * {@code -Astubs} is a single, compilation-wide option, so every factory processes exactly the
-     * same files and would otherwise each redo the same directory walk, bundle parse, and per-file
-     * read-and-digest.
+     * context, like {@link #TEXT_PARSING_WARNINGS_KEY}, because {@code -Astubs} is a single,
+     * compilation-wide option: every sub-checker factory processes exactly the same files and would
+     * otherwise each redo the same directory walk, bundle parse, and per-file read-and-digest.
      */
     private static final com.sun.tools.javac.util.Context.Key<
                     Map<String, CommandLineStubLocationCache>>
@@ -639,13 +637,11 @@ public class AnnotationFileElementTypes {
     }
 
     /**
-     * Fully-qualified name of the differential checker, which lives in the {@code framework-test}
-     * artifact rather than here: it is a verification tool, roughly a thousand lines, and there is
-     * no reason to ship it in {@code checker.jar}. {@code framework-test} is published, so a
-     * checker that ships its own annotated JDK -- the JSpecify reference checker, say -- can put it
-     * on its annotation-processor classpath and check its own JDK with {@code
-     * -AbinaryStubDiffCheck}. It stays in this package so it can keep reading this class's
-     * package-private state.
+     * Fully-qualified name of the differential checker, which lives in the published {@code
+     * framework-test} artifact rather than in {@code checker.jar}: it is a verification tool, and a
+     * checker that ships its own annotated JDK can put {@code framework-test} on its
+     * annotation-processor classpath to check that JDK with {@code -AbinaryStubDiffCheck}. It stays
+     * in this package so it can keep reading this class's package-private state.
      */
     private static final String DIFF_CHECKER_CLASS =
             "org.checkerframework.framework.stub.BinaryStubDiffChecker";
@@ -653,11 +649,8 @@ public class AnnotationFileElementTypes {
     /**
      * Invokes a static method of {@code BinaryStubDiffChecker} reflectively.
      *
-     * <p>Only ever reached when the user passes {@code -AbinaryStubDiffCheck}. If the class is
-     * absent -- the ordinary case, since it is not on a released {@code checker.jar} -- report a
-     * {@code UserError} rather than failing obscurely: the option is real (it is listed in {@code
-     * SourceChecker}'s supported options) but it needs a build that puts {@code framework-test} on
-     * the annotation-processor classpath.
+     * <p>If the class is absent -- the ordinary case, since it is not on a released {@code
+     * checker.jar} -- reports a {@code UserError} rather than failing obscurely.
      *
      * @param methodName the static method to invoke
      * @param parameterTypes the method's parameter types
@@ -731,24 +724,20 @@ public class AnnotationFileElementTypes {
 
     /**
      * Applies a binary stub's data eagerly, and runs the differential check against its text form
-     * if {@code -AbinaryStubDiffCheck} is set. Shared by builtin stub files (loaded from the
-     * classpath by {@link #loadBuiltinBinaryStub}) and user-supplied {@code -Astubs} binary stubs
-     * (loaded from the file system, per-file or from a bundle entry, by {@link
-     * #commandLineBinaryStub}; or from a JAR entry, by {@link #commandLineBinaryStubFromJarEntry}):
-     * all are read eagerly and in full, unlike the annotated JDK's lazy, per-class binary loading.
+     * if {@code -AbinaryStubDiffCheck} is set. Shared by builtin stub files ({@link
+     * #loadBuiltinBinaryStub}) and user-supplied {@code -Astubs} binary stubs ({@link
+     * #commandLineBinaryStub}, {@link #commandLineBinaryStubFromJarEntry}): all are read eagerly
+     * and in full, unlike the annotated JDK's lazy, per-class binary loading.
      *
      * <p>Applying the data is not guarded: a failure here is a bug in this framework's own reader
-     * or in a binary stub that this framework's own writer produced, not a recoverable property of
-     * the input, and falling back to text parsing would merge the text annotations on top of a
-     * partially applied binary stub.
+     * or writer, not a recoverable property of the input, and falling back to text parsing would
+     * merge the text annotations on top of a partially applied binary stub.
      *
-     * <p>The differential check always compares against a {@code BUILTIN_STUB} text parse (see the
-     * fixed {@code "diffBuiltinStub"} method name below), even for a command-line stub, which is
-     * ordinarily parsed as {@code COMMAND_LINE_STUB}. The two file types diverge only in {@code
-     * AnnotationFileParser#skipNode}, and only when {@code -AmergeStubsWithSource} is given -- and
-     * {@link #useBinaryForCommandLineStubs} excludes that option from the binary path entirely, so
-     * this method is never reached for a command-line stub under that option. If a future file-type
-     * distinction is added elsewhere, this coupling would need to be revisited.
+     * <p>The differential check always compares against a {@code BUILTIN_STUB} text parse, even for
+     * a command-line stub, which is ordinarily parsed as {@code COMMAND_LINE_STUB}. The two file
+     * types diverge only in {@code AnnotationFileParser#skipNode} under {@code
+     * -AmergeStubsWithSource}, which {@link #useBinaryForCommandLineStubs} excludes from the binary
+     * path entirely; a future file-type distinction elsewhere would need this revisited.
      *
      * @param data the binary stub data to apply
      * @param textResourceURL the URL of the corresponding {@code .astub} resource, used by the
@@ -786,7 +775,7 @@ public class AnnotationFileElementTypes {
      *       declarations in this mode; {@code BinaryStubWriter} always omits them.
      *   <li>{@code -AstubWarnIfNotFound}, {@code -AstubWarnIfNotFoundIgnoresClasses}, {@code
      *       -AstubWarnIfOverwritesBytecode}, {@code -AstubWarnIfRedundantWithBytecode}: the text
-     *       parser can issue these diagnostics; the binary reader never does (it applies only
+     *       parser can issue these diagnostics; the binary reader never does (it only applies
      *       records the writer already resolved).
      *   <li>{@code -AstubDebug}: debugging traces the text parser emits, with no binary-reader
      *       equivalent.
@@ -794,11 +783,8 @@ public class AnnotationFileElementTypes {
      *
      * <p>{@code -AstubWarnIfNotFound}'s absence from the command line does not itself mean that
      * diagnostic is off: {@code AnnotationFileParser} defaults it on for command-line stubs unless
-     * {@code -AstubNoWarnIfNotFound} is also given. That default is accepted as a documented
-     * trade-off of using a binary {@code -Astubs} file, rather than gated on here -- gating on the
-     * default would disable the binary path for nearly every {@code -Astubs} invocation. A user who
-     * wants "not found" checking should run it once, in text mode, before generating the binary;
-     * see the manual.
+     * {@code -AstubNoWarnIfNotFound} is also given. That default is not gated on here, since doing
+     * so would disable the binary path for nearly every {@code -Astubs} invocation; see the manual.
      *
      * @return true if binary {@code -Astubs} files may be used for this compilation
      */
@@ -817,11 +803,10 @@ public class AnnotationFileElementTypes {
      * BinaryStubBundle#SUFFIX} appended.
      *
      * @param dir a directory passed to {@code -Astubs}
-     * @return the bundle, or {@code null} if there is none beside {@code dir}: either no such file
-     *     exists (the ordinary case), or one exists but is not actually a bundle (a name collision
-     *     with an unrelated per-file binary stub; see {@code BinaryStubWriter#BUNDLE_SUFFIX} --
-     *     silent either way, since neither is damage), or one exists, looks like a bundle, but
-     *     cannot be read (a NOTE is issued for that case)
+     * @return the bundle, or {@code null} if there is none beside {@code dir}: no such file exists
+     *     (the ordinary case), or one exists but is not a bundle (a name collision with a per-file
+     *     binary stub; see {@code BinaryStubWriter#BUNDLE_SUFFIX}) -- silent either way, since
+     *     neither is damage -- or one looks like a bundle but cannot be read, which issues a NOTE
      */
     private @Nullable BinaryStubBundle binaryStubBundleFor(File dir) {
         File bundleFile = new File(dir.getPath() + BinaryStubBundle.SUFFIX);
@@ -837,10 +822,9 @@ public class AnnotationFileElementTypes {
     }
 
     /**
-     * Issues a NOTE that a binary stub could not be read, so something else is used instead. Unlike
-     * {@link #warnStaleBinaryStub}, this reports damage rather than staleness, and is not
-     * deduplicated: each unreadable file is named once, by the single factory that resolves it (see
-     * {@link CommandLineStubLocationCache}).
+     * Issues a NOTE that a binary stub could not be read, so something else is used instead. Not
+     * deduplicated, unlike {@link #warnStaleBinaryStub}: each unreadable file is resolved by a
+     * single factory (see {@link CommandLineStubLocationCache}), so it is named once anyway.
      *
      * @param what the binary that could not be read, as a file path or {@code jar!entry} pair
      * @param fallback what is used instead, e.g. {@code "text parsing"}
@@ -874,12 +858,11 @@ public class AnnotationFileElementTypes {
     }
 
     /**
-     * Returns true if {@code file}'s first four bytes are {@link BinaryStubBundle#MAGIC}. Used to
-     * detect a name collision between a bundle and a per-file binary stub in either direction (see
-     * {@code BinaryStubWriter#BUNDLE_SUFFIX}): a bundle's own magic sits at the start of its raw
-     * bytes (the container itself is not gzip-compressed, unlike a per-file binary stub, whose raw
-     * bytes are instead a GZIP header), so this check distinguishes the two without attempting to
-     * parse either.
+     * Returns true if {@code file}'s first four bytes are {@link BinaryStubBundle#MAGIC}. A
+     * bundle's magic sits at the start of its raw bytes -- the container itself is not
+     * gzip-compressed, unlike a per-file binary stub, whose raw bytes start with a GZIP header --
+     * so this distinguishes the two, in either direction, without parsing either. Their names can
+     * collide; see {@code BinaryStubWriter#BUNDLE_SUFFIX}.
      *
      * @param file the file to check
      * @return true if {@code file} looks like a binary stub bundle
@@ -909,8 +892,7 @@ public class AnnotationFileElementTypes {
 
     /**
      * Returns {@code entry}'s {@code jar:} URL within {@code jarFile}, or {@code null} if it cannot
-     * be constructed (which does not happen in practice, for the same reason {@link #fileToURL}
-     * does not fail).
+     * be constructed, which does not happen in practice; see {@link #fileToURL}.
      *
      * @param jarFile a JAR file
      * @param entry an entry within {@code jarFile}
@@ -922,13 +904,11 @@ public class AnnotationFileElementTypes {
             return null;
         }
         try {
-            // fileURL is already validly percent-encoded; only the entry name -- which can
-            // contain characters like a space that are illegal in a URI -- needs encoding here.
-            // (The URI(scheme, schemeSpecificPart, fragment) constructor looks like the obvious
-            // way to do this, since it quotes illegal characters automatically, but it does so
-            // for the *whole* scheme-specific part, re-quoting fileURL's own already-valid "%"
-            // escapes into "%25..." and corrupting the file path -- confirmed by hand before
-            // settling on this segment-by-segment encoding instead, which leaves fileURL alone.)
+            // fileURL is already validly percent-encoded; only the entry name -- which can contain
+            // characters like a space that are illegal in a URI -- needs encoding here. Not the
+            // URI(scheme, schemeSpecificPart, fragment) constructor, which quotes the *whole*
+            // scheme-specific part, re-quoting fileURL's own valid "%" escapes into "%25..." and
+            // corrupting the file path.
             return new URI("jar:" + fileURL + "!/" + encodeJarEntryPath(entry.getName())).toURL();
         } catch (URISyntaxException | MalformedURLException e) {
             return null;
@@ -965,12 +945,10 @@ public class AnnotationFileElementTypes {
     }
 
     /**
-     * Reads all of {@code in}'s remaining bytes.
-     *
-     * <p>Equivalent to {@code InputStream.readAllBytes()} (Java 9+), avoided because this project
-     * is meant to run under a Java 8 runtime. Duplicated in {@code
-     * org.checkerframework.framework.stubifier.BinaryStubFileGenerator}, which cannot be called
-     * from here (see the warning at the top of {@link BinaryStubData}).
+     * Reads all of {@code in}'s remaining bytes. Equivalent to {@code InputStream.readAllBytes()}
+     * (Java 9+), avoided because this project is meant to run under a Java 8 runtime. Duplicated in
+     * {@code org.checkerframework.framework.stubifier.BinaryStubFileGenerator}, which cannot be
+     * called from here (see the warning at the top of {@link BinaryStubData}).
      *
      * @param in the stream to read
      * @return the bytes read
@@ -988,18 +966,16 @@ public class AnnotationFileElementTypes {
 
     /**
      * Per-compilation cache of everything {@link #parseCommandLineStubLocation} computes for one
-     * top-level {@code -Astubs} location, keyed by that location's resolved absolute path in {@link
-     * #getCommandLineStubLocationCache}: its bundle (if any), the resources found under it, its
-     * root, and each file's resolved binary-or-text decision. Populated once, by whichever
-     * sub-checker factory reaches a given location first; every later factory reuses it instead of
-     * repeating the directory walk, the bundle read, or any per-file read-and-digest. Each {@code
-     * -Astubs} entry is cached under its own resolved path, so two entries that overlap (a
-     * directory and something under it) each get their own entry and do not share work.
+     * top-level {@code -Astubs} location: its bundle (if any), the resources found under it, its
+     * root, and each file's resolved binary-or-text decision. Keyed by the location's resolved
+     * absolute path in {@link #getCommandLineStubLocationCache}, so two {@code -Astubs} entries
+     * that overlap each get their own entry. Populated once, by whichever sub-checker factory
+     * reaches a given location first; every later factory reuses it.
      *
-     * <p>Deliberately holds only javac-independent state (bytes, parsed {@link BinaryStubData},
-     * {@link File}s) -- never an {@code AnnotationMirror} or other object tied to a specific
-     * factory's {@code Elements}/qualifier hierarchy, which {@link #applyBinaryStub} still produces
-     * once per factory from this shared, already-resolved data.
+     * <p>Holds only javac-independent state (bytes, parsed {@link BinaryStubData}, {@link File}s)
+     * -- never an {@code AnnotationMirror} or other object tied to a specific factory's {@code
+     * Elements}/qualifier hierarchy, which {@link #applyBinaryStub} still produces once per
+     * factory.
      */
     private static class CommandLineStubLocationCache {
         /** The location's bundle, or {@code null} if it is a single file or has none. */
@@ -1018,8 +994,7 @@ public class AnnotationFileElementTypes {
         /**
          * Each resource's resolved binary-or-text decision, keyed by its file's absolute path or,
          * for a resource inside a {@code .jar}, by {@code jarPath + "!" + entryName}. Populated
-         * lazily, one entry per resource actually requested; a resource with no binary candidate at
-         * all is never added here (see {@link #parseCommandLineStubResource}), since deciding that
+         * lazily; a resource with no binary candidate at all is never added, since deciding that
          * costs only a map lookup and a {@code File#isFile}.
          */
         final Map<String, FileBinaryDecision> decisions = new HashMap<>();
@@ -1048,19 +1023,17 @@ public class AnnotationFileElementTypes {
      */
     private static class FileBinaryDecision {
         /**
-         * The file's raw content, read once regardless of how many factories ask about it, kept
-         * only long enough to text-parse it from -- {@code null} once {@link #data} is non-null,
-         * since a binary form makes the bytes unnecessary for the rest of the compilation (they
-         * were needed only to verify freshness) and this cache is reachable from the compilation
-         * context for the whole compilation, not just one call.
+         * The file's raw content, read once regardless of how many factories ask about it, and
+         * {@code null} once {@link #data} is non-null: the bytes were needed only to verify
+         * freshness, and this cache is reachable from the compilation context for the whole
+         * compilation, not just one call.
          */
         final byte @Nullable [] sourceBytes;
 
         /**
          * The file's binary stub data, or {@code null} if no candidate turned out to be fresh (a
-         * warning has already been issued in that case; see {@link #commandLineBinaryStub}). Either
-         * way, {@link #sourceBytes} is the correct content to text-parse from when this is {@code
-         * null}.
+         * warning has already been issued in that case; see {@link #commandLineBinaryStub}), in
+         * which case {@link #sourceBytes} is the content to text-parse from.
          */
         final @Nullable BinaryStubData data;
 
@@ -1098,42 +1071,35 @@ public class AnnotationFileElementTypes {
     }
 
     /**
-     * Parses one {@code -Astubs} location -- a single {@code .astub} file, a {@code .jar} file (a
-     * jar entry is checked for a binary sibling entry, the same way a file is checked for a sibling
-     * file; see {@link #parseCommandLineStubJarResource}), or (recursively) a directory of either
-     * -- preferring pre-parsed binary forms over text parsing wherever a fresh one is available.
-     * Only called when {@link #useBinaryForCommandLineStubs} is true.
+     * Parses one {@code -Astubs} location -- a single {@code .astub} file, a {@code .jar} file, or
+     * (recursively) a directory of either -- preferring pre-parsed binary forms over text parsing
+     * wherever a fresh one is available. Only called when {@link #useBinaryForCommandLineStubs} is
+     * true.
      *
      * <p>For a directory, looks first for a whole-directory bundle beside {@code location} (see
      * {@link #binaryStubBundleFor}; there is no bundle equivalent for a {@code .jar}), then falls
      * back, file by file, to a per-file {@code .astub.bin.gz} sibling, and finally to text parsing.
      * Warns once, for the whole location, if some but not all of its files ended up read from a
      * binary form -- an incomplete binary stub setup -- but never merely because no binary form
-     * exists at all, which is the ordinary case for the vast majority of existing {@code -Astubs}
-     * uses.
+     * exists at all, which is the ordinary case.
      *
      * @param location the resolved file, jar, or directory a {@code -Astubs} entry names
      * @param description the original, unresolved {@code -Astubs} entry, for diagnostics
      */
     private void parseCommandLineStubLocation(File location, String description) {
-        // Absolute, so that a bare relative filename (e.g. "Foo.astub", with no directory
-        // component) has a non-null parent below, and so every resource this recurses into (via
-        // File#listFiles) is consistently absolute too -- Path#relativize requires both paths it
-        // relates to be absolute, or both relative, and root and each resource's file must be
-        // relativize-able against each other below. Also the cache key: every sub-checker
-        // factory's -Astubs entries resolve identically (it is one compilation-wide option), so
-        // this deterministically names the same cache entry for all of them.
+        // Absolute for two reasons. Path#relativize below requires both paths to be absolute or
+        // both relative, and a bare relative filename (e.g. "Foo.astub") would have a null parent.
+        // And this is the cache key: every sub-checker factory's -Astubs entries resolve
+        // identically (it is one compilation-wide option), naming the same entry for all of them.
         File absLocation = location.getAbsoluteFile();
         Map<String, CommandLineStubLocationCache> cacheMap = getCommandLineStubLocationCache();
         CommandLineStubLocationCache locationCache = cacheMap.get(absLocation.getPath());
         if (locationCache == null) {
             boolean isDirectory = absLocation.isDirectory();
             BinaryStubBundle bundle = isDirectory ? binaryStubBundleFor(absLocation) : null;
-            // getParentFile() is @Nullable in general (null for a filesystem root), but
-            // absLocation is an absolute path to a real file or directory this method is
-            // currently processing, so it cannot itself be a filesystem root; the assertion
-            // documents that invariant for a reader (this class carries no
-            // @AnnotatedFor("nullness"), so nothing else would).
+            // getParentFile() is null only for a filesystem root, which absLocation -- an absolute
+            // path to a real file or directory being processed -- cannot be. This class carries no
+            // @AnnotatedFor("nullness"), so the assertion is what documents that invariant.
             File root = isDirectory ? absLocation : absLocation.getParentFile();
             assert root != null
                     : "@AssumeAssertion(nullness): absLocation is not a filesystem root";
@@ -1161,9 +1127,8 @@ public class AnnotationFileElementTypes {
     /**
      * Parses one resource found under a binary-eligible {@code -Astubs} location: applies its
      * pre-parsed binary form if a fresh one is available, otherwise text-parses it. Called once per
-     * sub-checker factory (each has its own {@code AnnotationFileAnnotations} to populate), but the
-     * expensive part -- reading a file and verifying its freshness -- happens at most once per
-     * compilation, via {@code locationCache}.
+     * sub-checker factory, but reads and verifies each file at most once, via {@code
+     * locationCache}.
      *
      * @param resource the resource to process: a {@link FileAnnotationFileResource} (a plain file
      *     on disk) or a {@link JarEntryAnnotationFileResource} (an entry inside a {@code .jar}
@@ -1212,12 +1177,10 @@ public class AnnotationFileElementTypes {
             BinaryStubBundle bundle = locationCache.bundle;
             File sibling = binaryStubSibling(astubFile);
             if (sibling == null && (bundle == null || !bundle.contains(relativePath))) {
-                // No binary form exists for this file at all -- the ordinary case for the vast
-                // majority of -Astubs files -- so skip straight to text parsing without reading
-                // the file into memory here: AnnotationFileParser streams it instead, exactly as
-                // it did before binary -Astubs support existed. Not cached: the check itself is
-                // already cheap (a hash-map lookup and/or a single File#isFile), so there is
-                // nothing worth saving a second factory from redoing.
+                // No binary form exists for this file at all -- the ordinary case -- so skip
+                // straight to text parsing without reading the file into memory here:
+                // AnnotationFileParser streams it instead. Not cached: the check itself is only a
+                // hash-map lookup and/or a single File#isFile.
                 parseCommandLineStubAsText(resource, null);
                 return false;
             }
@@ -1251,10 +1214,9 @@ public class AnnotationFileElementTypes {
     @SuppressWarnings(
             "resourceleak:required.method.not.called" // `jarFile` is never closed here: it is the
     // same JarFile every other resource of this JAR was built from (see AnnotationFileUtil#
-    // addAnnotationFilesToList's suppression, `builder:required.method.not.called`, for the same
-    // rationale under a different checker's key), so closing it would invalidate every other
-    // JarEntryAnnotationFileResource sharing it, both those already processed and those still to
-    // come (e.g. another sub-checker factory's, via CommandLineStubLocationCache).
+    // addAnnotationFilesToList's suppression for the same rationale under a different checker's
+    // key), so closing it would invalidate every other JarEntryAnnotationFileResource sharing it,
+    // including those a later sub-checker factory will process via CommandLineStubLocationCache.
     )
     private boolean parseCommandLineStubJarResource(
             JarEntryAnnotationFileResource resource, CommandLineStubLocationCache locationCache) {
@@ -1269,8 +1231,7 @@ public class AnnotationFileElementTypes {
             if (binEntry == null || binEntry.isDirectory()) {
                 // Absent, or (JarFile#getEntry falls back to name + "/") a directory entry that
                 // coincidentally has this exact name -- not a binary form either way, so skip
-                // straight to text parsing without reading the entry into memory here. Not
-                // cached, for the same reason as the file case above.
+                // straight to text parsing. Not cached, for the same reason as the file case.
                 parseCommandLineStubAsText(resource, null);
                 return false;
             }
@@ -1316,8 +1277,7 @@ public class AnnotationFileElementTypes {
     /**
      * Returns {@code astubFile}'s per-file {@code .astub.bin.gz} sibling, if it has one. Existence
      * only: whether that sibling is <em>fresh</em> is decided later, by {@link
-     * #commandLineBinaryStub}, once the more expensive work of reading and hashing {@code
-     * astubFile}'s content has been done.
+     * #commandLineBinaryStub}, after {@code astubFile}'s content has been read and hashed.
      *
      * @param astubFile the source {@code .astub} file on disk
      * @return the sibling binary stub file beside {@code astubFile}, or {@code null} if there is
@@ -1326,9 +1286,8 @@ public class AnnotationFileElementTypes {
     private static @Nullable File binaryStubSibling(File astubFile) {
         File sibling = new File(astubFile.getPath() + BinaryStubData.BIN_SUFFIX);
         // A sibling that is actually a directory-level bundle, which can share this file's sibling
-        // name (see BinaryStubWriter#BUNDLE_SUFFIX), is not a per-file binary at all, and not
-        // damage. Report it as absent, the same tolerance binaryStubBundleFor gives the reverse
-        // collision.
+        // name (see BinaryStubWriter#BUNDLE_SUFFIX), is not a per-file binary and is not damage.
+        // Report it as absent, as binaryStubBundleFor does for the reverse collision.
         return sibling.isFile() && !looksLikeBundle(sibling) ? sibling : null;
     }
 
@@ -1336,11 +1295,9 @@ public class AnnotationFileElementTypes {
      * Returns the binary stub data for {@code astubFile}, if a fresh one is available: an entry in
      * {@code bundle} if it has one for {@code relativePath}, otherwise a per-file {@code
      * astubFile.astub.bin.gz} sibling on disk. "Fresh" means its recorded source fingerprint
-     * matches {@code sourceBytes}, exactly (see {@link BinaryStubData#matchesSource}); mtimes are
-     * never consulted, since this binary is produced by hand (there is no build to guarantee it was
-     * regenerated together with its source) and mtime comparison fails silently -- in the unsafe
-     * direction -- under common operations like a fresh checkout, an archive extraction, or a CI
-     * cache restore.
+     * matches {@code sourceBytes} exactly (see {@link BinaryStubData#matchesSource}); mtimes are
+     * never consulted, since a fresh checkout, an archive extraction, or a CI cache restore all
+     * defeat mtime comparison silently, in the unsafe direction.
      *
      * @param astubFile the source {@code .astub} file on disk
      * @param sourceBytes {@code astubFile}'s current raw content, already read by the caller
@@ -1364,9 +1321,8 @@ public class AnnotationFileElementTypes {
                 BinaryStubData data = bundle.get(relativePath);
                 if (data != null) {
                     // A stale bundle entry is warned about either way -- the bundle needs
-                    // regenerating -- but a fresher per-file sibling is still tried below before
-                    // giving up on a binary form entirely: e.g. the user regenerated just this
-                    // file with per-file mode, without regenerating or deleting the stale bundle.
+                    // regenerating -- but a per-file sibling is still tried below, in case the
+                    // user regenerated just this file without regenerating the bundle.
                     BinaryStubData fresh =
                             freshBinaryStub(
                                     data,
@@ -1399,9 +1355,8 @@ public class AnnotationFileElementTypes {
     /**
      * Returns the binary stub data from {@code binEntry}, a JAR entry beside {@code astubEntry}
      * named {@code astubEntry.getName() + BinaryStubData.BIN_SUFFIX}, if it is fresh. The JAR-entry
-     * analogue of {@link #commandLineBinaryStub}'s per-file sibling case; there is no
-     * bundle-collision check to make here, since there is no bundle format for a JAR (see {@code
-     * BinaryStubFileGenerator}'s class documentation).
+     * analogue of {@link #commandLineBinaryStub}'s per-file sibling case, with no bundle-collision
+     * check to make, since there is no bundle format for a JAR.
      *
      * @param jarFile the JAR file {@code binEntry} and {@code astubEntry} both belong to
      * @param binEntry the candidate binary entry
@@ -1461,13 +1416,11 @@ public class AnnotationFileElementTypes {
      */
     @SuppressWarnings(
             "resourceleak:required.method.not.called" // `annotationFileStream` is never closed, for
-    // the same reason `parseAnnotationFiles` does not close the equivalent stream it builds (see
-    // its `builder:required.method.not.called` suppression, the same rationale under a different
-    // checker's key): `resource` may be a `JarEntryAnnotationFileResource`, whose stream shares
-    // one `ZipFile` with every other entry of the same jar, so closing it would invalidate them
-    // all -- both those already processed and those a later sub-checker factory will process, via
-    // `CommandLineStubLocationCache`. When `sourceBytes` is non-null, the stream is an in-memory
-    // `ByteArrayInputStream`, for which not calling `close()` has no effect.
+    // the same reason `parseAnnotationFiles` does not close the equivalent stream it builds: a
+    // `JarEntryAnnotationFileResource`'s stream shares one `ZipFile` with every other entry of the
+    // same jar, so closing it would invalidate them all, including those a later sub-checker
+    // factory will process. When `sourceBytes` is non-null the stream is a `ByteArrayInputStream`,
+    // for which not calling `close()` has no effect.
     )
     private void parseCommandLineStubAsText(
             AnnotationFileResource resource, byte @Nullable [] sourceBytes) {
@@ -1756,8 +1709,7 @@ public class AnnotationFileElementTypes {
                     processingEnv, "AFET.parseAnnotationFiles(%s, %s)", annotationFiles, fileType);
         }
         // Computed once per call, not per entry below: the options it reads do not change during
-        // a single parseAnnotationFiles call, and it is irrelevant whenever fileType is not
-        // COMMAND_LINE_STUB, which is most calls (BUILTIN_STUB, AJAVA, AJAVA_AS_STUB).
+        // a single parseAnnotationFiles call.
         boolean useBinaryForCommandLineStubs =
                 fileType == AnnotationFileType.COMMAND_LINE_STUB && useBinaryForCommandLineStubs();
         for (String path : annotationFiles) {
@@ -2395,16 +2347,12 @@ public class AnnotationFileElementTypes {
 
     /**
      * Issues the warning that {@code messageKey} names, unless the same warning was already issued
-     * in this compilation. This is the shared implementation of every {@code warnTextParsing...}
-     * method and of {@link #warnStaleBinaryStub}: every warning that an annotation file is being
-     * text-parsed rather than read from a binary stub, or that a binary stub does not match its
-     * source, goes through here.
+     * in this compilation. The shared implementation of the {@code warn...} methods below.
      *
      * <p>The warning is reported with a null source, because it is issued while the checker is
      * initializing, before any source file is processed: it has no source position, so there is no
      * declaration on which a {@code @SuppressWarnings} annotation could be written, and only {@code
-     * -AsuppressWarnings} can suppress it. {@link SourceChecker#reportWarning} handles that (and
-     * the suppression) like any other keyed message.
+     * -AsuppressWarnings} can suppress it.
      *
      * @param messageKey the message key, defined in {@code framework/source/messages.properties}
      * @param dedupKey distinguishes warnings that share a message key; the pair (messageKey,
