@@ -991,9 +991,10 @@ public class AnnotationFileElementTypes {
      * top-level {@code -Astubs} location, keyed by that location's resolved absolute path in {@link
      * #getCommandLineStubLocationCache}: its bundle (if any), the resources found under it, its
      * root, and each file's resolved binary-or-text decision. Populated once, by whichever
-     * sub-checker factory reaches a given location first; every later factory (including later
-     * factories at nested locations sharing the same top-level directory) reuses it instead of
-     * repeating the directory walk, the bundle read, or any per-file read-and-digest.
+     * sub-checker factory reaches a given location first; every later factory reuses it instead of
+     * repeating the directory walk, the bundle read, or any per-file read-and-digest. Each {@code
+     * -Astubs} entry is cached under its own resolved path, so two entries that overlap (a
+     * directory and something under it) each get their own entry and do not share work.
      *
      * <p>Deliberately holds only javac-independent state (bytes, parsed {@link BinaryStubData},
      * {@link File}s) -- never an {@code AnnotationMirror} or other object tied to a specific
@@ -1015,10 +1016,11 @@ public class AnnotationFileElementTypes {
         final File root;
 
         /**
-         * Each {@link FileAnnotationFileResource}'s resolved binary-or-text decision, keyed by its
-         * file's absolute path. Populated lazily, one entry per file actually requested (a file
-         * with no binary candidate at all is never added here; see {@link
-         * #parseCommandLineStubResource}).
+         * Each resource's resolved binary-or-text decision, keyed by its file's absolute path or,
+         * for a resource inside a {@code .jar}, by {@code jarPath + "!" + entryName}. Populated
+         * lazily, one entry per resource actually requested; a resource with no binary candidate at
+         * all is never added here (see {@link #parseCommandLineStubResource}), since deciding that
+         * costs only a map lookup and a {@code File#isFile}.
          */
         final Map<String, FileBinaryDecision> decisions = new HashMap<>();
 
