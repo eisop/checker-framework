@@ -436,9 +436,8 @@ public class BinaryStubsCommandLineTest {
      * -AbinaryStubDiffCheck}, from {@code BinaryStubDiffChecker} in {@code framework-test}), which
      * independently text-parses the same {@code .astub} file and compares every annotation it
      * applies against what the binary form applied. This is a second, more exhaustive layer of
-     * verification than this test's own {@link #has} assertions: it would have caught the earlier
-     * (rejected) bundle design that merged multiple files' compilation units into one write call,
-     * which silently corrupted annotation resolution.
+     * verification than this test's own {@link #has} assertions: it catches a binary whose
+     * annotation resolution is silently wrong, not merely absent.
      */
     @Test
     public void freshPerFileBinaryPassesDiffCheck() throws IOException {
@@ -572,9 +571,8 @@ public class BinaryStubsCommandLineTest {
      * A {@code .jar} with a binary sibling entry for only some of its {@code .astub} entries still
      * applies the covered entry's binary form, text-parses the uncovered one, and warns about the
      * incomplete setup -- the JAR-entry analogue of {@link #incompleteBundleSetupWarns}. Also
-     * confirms that a {@link JarEntryAnnotationFileResource} participates in this accounting now
-     * that jar entries can have a binary form (earlier, only a {@link FileAnnotationFileResource}
-     * did).
+     * confirms that a {@link JarEntryAnnotationFileResource}, not just a {@link
+     * FileAnnotationFileResource}, participates in that accounting.
      */
     @Test
     public void incompleteJarSetupWarns() throws IOException {
