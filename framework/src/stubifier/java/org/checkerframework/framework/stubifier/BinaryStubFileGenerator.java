@@ -52,10 +52,9 @@ import java.util.stream.Stream;
  *       combines the binary form of every {@code .astub} file under it into one <em>bundle</em>
  *       file, written beside the root itself (not under any output directory) as {@code
  *       org.checkerframework.framework.stub.BinaryStubBundle#SUFFIX} names it. This is the mode a
- *       user runs by hand to pre-parse a whole {@code -Astubs} directory into a single file; see
- *       {@code org.checkerframework.framework.stub.AnnotationFileElementTypes}, which looks for
- *       this bundle beside a directory passed to {@code -Astubs} before falling back to per-file
- *       siblings or text parsing.
+ *       user runs by hand to pre-parse a whole {@code -Astubs} directory into a single file, which
+ *       {@code org.checkerframework.framework.stub.AnnotationFileElementTypes} looks for before
+ *       falling back to per-file siblings or text parsing.
  * </ul>
  *
  * At checker startup, {@code AnnotationFileElementTypes} loads the binary form of a stub file if
@@ -66,13 +65,10 @@ import java.util.stream.Stream;
  * that file.
  *
  * <p>This tool reflectively loads every annotation type a stub file uses, so those classes must be
- * on its own classpath, not just the classpath of the checker or project the stub file is written
- * for. This is usually already true for a checker's own built-in stub files, whose qualifiers ship
- * in {@code checker.jar} alongside this tool; it commonly is not for a {@code -Astubs} file using a
- * checker's own custom qualifiers, since those are defined in the downstream project the {@code
- * -Astubs} file belongs to, not in {@code checker.jar}. A missing one fails with an error naming it
- * and suggesting this same fix (see {@code BinaryStubWriter}'s "put it on the stubifier classpath"
- * message).
+ * on its own classpath, not just on the classpath of the checker or project the stub file is
+ * written for. That already holds for a checker's built-in stub files, whose qualifiers ship in
+ * {@code checker.jar} alongside this tool, but commonly not for a {@code -Astubs} file using custom
+ * qualifiers defined in the downstream project. A missing one fails with an error naming it.
  */
 public class BinaryStubFileGenerator {
 
@@ -125,11 +121,10 @@ public class BinaryStubFileGenerator {
                         skipped++;
                     }
                 }
-                // A -Astubs directory is searched recursively for .astub entries inside a
-                // nested .jar too (AnnotationFileUtil#addAnnotationFilesToList), so this must
-                // reach those the same way, or a nested jar's entries could never get a binary
-                // form through this directory root and would permanently trigger the
-                // "incomplete binary stub setup" warning with no way to clear it.
+                // A -Astubs directory is searched recursively for .astub entries inside a nested
+                // .jar too (AnnotationFileUtil#addAnnotationFilesToList), so this must reach those
+                // the same way; otherwise a nested jar's entries could never get a binary form
+                // through this directory root.
                 for (Path nestedJar : findJars(inRoot)) {
                     int[] counts = generateForJar(nestedJar);
                     written += counts[0];
@@ -149,12 +144,10 @@ public class BinaryStubFileGenerator {
                 written += counts[0];
                 skipped += counts[1];
             } else if (Files.exists(inRoot)) {
-                // Only for a root that exists but is not one of the recognized kinds (e.g. a
-                // typo'd path that happens to hit an unrelated file): a root that does not exist
-                // at all is not worth a message, since this tool's callers (including the build's
-                // own generateBinaryStubFiles task) routinely pass an optional root, such as a
-                // resources directory a given subproject may not have, that is fine to skip
-                // silently.
+                // Only for a root that exists but is not a recognized kind. A root that does not
+                // exist at all is skipped silently: callers (including the build's own
+                // generateBinaryStubFiles task) routinely pass an optional root, such as a
+                // resources directory a given subproject may not have.
                 System.err.println(
                         "BinaryStubFileGenerator: not a directory, .astub file, or .jar file,"
                                 + " skipping: "
@@ -168,9 +161,8 @@ public class BinaryStubFileGenerator {
     }
 
     /**
-     * Prints a reminder that this tool does not validate a stub file's content -- it only checks
-     * that it parses -- so a binary form silently carries forward any "declared method does not
-     * exist" or similar problem that a real checker run would otherwise report.
+     * Prints a reminder that this tool checks only that a stub file parses, not that its
+     * declarations resolve against the library it annotates.
      */
     private static void printValidationNote() {
         System.out.println(
@@ -208,10 +200,8 @@ public class BinaryStubFileGenerator {
      * the same "write new siblings, touch nothing else" operation the directory case performs on a
      * filesystem tree. An existing sibling entry from a previous run is replaced, not duplicated.
      *
-     * <p>There is no bundle mode for a JAR (see the class documentation's {@code --bundle}
-     * paragraph): a JAR is already one file regardless of how many internal entries it has, so the
-     * filesystem-clutter problem a bundle solves for a directory of many loose files does not
-     * apply.
+     * <p>There is no bundle mode for a JAR: it is already one file regardless of how many entries
+     * it has, so the clutter a bundle solves for a directory of loose files does not arise.
      *
      * @param jarPath the JAR file to process
      * @return the number of binaries written and the number of files skipped, as {@code {written,
@@ -219,16 +209,14 @@ public class BinaryStubFileGenerator {
      * @throws IOException if the JAR file cannot be read or written
      */
     private static int[] generateForJar(Path jarPath) throws IOException {
-        // Absolute, so writeEntriesIntoJar's use of jarPath.getParent() is never null: a bare
-        // relative name with no directory component (e.g. "project-stubs.jar") has a null
-        // getParent() otherwise, which Files.createTempFile rejects with a
-        // NullPointerException.
+        // Absolute, so writeEntriesIntoJar's jarPath.getParent() is never null: a bare relative
+        // name (e.g. "project-stubs.jar") otherwise has a null parent, which Files.createTempFile
+        // rejects with a NullPointerException.
         jarPath = jarPath.toAbsolutePath();
         Map<String, byte[]> newEntries = new LinkedHashMap<>();
         // Sibling entries (from a previous run) to delete, for a file that no longer parses --
-        // otherwise a fixed-then-broken-again .astub entry would keep its last-good binary
-        // sibling forever, with no way to clear it (unlike the directory case's
-        // deleteStaleOutput, or a bundle's regeneration, which both drop such an entry).
+        // otherwise a fixed-then-broken-again .astub entry would keep its last-good binary sibling
+        // forever, unlike the directory case's deleteStaleOutput or a bundle's regeneration.
         List<String> staleEntries = new ArrayList<>();
         int skipped = 0;
         List<String> astubEntryNames = new ArrayList<>();
@@ -277,10 +265,8 @@ public class BinaryStubFileGenerator {
             Path jarPath, Map<String, byte[]> newEntries, List<String> staleEntries)
             throws IOException {
         // Modify a temporary copy, then move it into place atomically, so a crash or a full disk
-        // mid-write cannot leave jarPath as a corrupt ZIP -- the same rationale as
-        // generateBundle's identical pattern. A copy is used, rather than modifying jarPath's own
-        // ZIP structure directly, because the ZIP filesystem provider offers no way to stage its
-        // changes to a separate file and commit them atomically at the end.
+        // mid-write cannot leave jarPath a corrupt ZIP. A copy, rather than modifying jarPath's own
+        // ZIP structure, because the ZIP filesystem provider cannot stage changes and commit them.
         Path tmp = Files.createTempFile(jarPath.getParent(), jarPath.getFileName() + ".", ".tmp");
         try {
             Files.copy(jarPath, tmp, StandardCopyOption.REPLACE_EXISTING);
@@ -401,10 +387,9 @@ public class BinaryStubFileGenerator {
             System.err.println("BinaryStubFileGenerator: not a directory, skipping: " + inRoot);
             return true;
         }
-        // Absolute, so bundlePath.getParent() below is never null: a bare relative name with no
-        // directory component (e.g. "project-stubs", exactly as the manual's own example
-        // invokes this) has a null getParent() otherwise, which Files.createTempFile rejects
-        // with a NullPointerException.
+        // Absolute, so bundlePath.getParent() below is never null: a bare relative name (e.g.
+        // "project-stubs", as the manual's own example invokes this) otherwise has a null parent,
+        // which Files.createTempFile rejects with a NullPointerException.
         inRoot = inRoot.toAbsolutePath();
         Path fileName = inRoot.getFileName();
         Path bundlePath =
@@ -549,14 +534,11 @@ public class BinaryStubFileGenerator {
     }
 
     /**
-     * Reads all of {@code in}'s remaining bytes.
-     *
-     * <p>Equivalent to {@code InputStream.readAllBytes()} (Java 9+), avoided because this project
-     * is meant to run under a Java 8 runtime. Duplicated in {@code
-     * org.checkerframework.framework.stub.AnnotationFileElementTypes}, which cannot call this
-     * class's methods (see the warning at the top of {@code
-     * org.checkerframework.framework.stub.BinaryStubData}: {@code framework} main code must not
-     * create a runtime dependency on the {@code stubifier} source set).
+     * Reads all of {@code in}'s remaining bytes. Equivalent to {@code InputStream.readAllBytes()}
+     * (Java 9+), avoided because this project is meant to run under a Java 8 runtime. Duplicated in
+     * {@code org.checkerframework.framework.stub.AnnotationFileElementTypes}, which cannot call
+     * this class's methods (see the warning at the top of {@code
+     * org.checkerframework.framework.stub.BinaryStubData}).
      *
      * @param in the stream to read
      * @return the bytes read

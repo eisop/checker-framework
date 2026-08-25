@@ -121,10 +121,9 @@ public class BinaryStubWriter {
      * Magic number identifying a binary stub <em>bundle</em>: a container of several per-file
      * binary stubs for a whole {@code -Astubs} directory, written by {@code
      * BinaryStubFileGenerator}'s {@code --bundle} mode and read by {@code
-     * org.checkerframework.framework.stub.BinaryStubBundle}. Distinct from {@link #MAGIC} so a
-     * reader that finds a file at a bundle's expected path, but that is actually an unrelated
-     * per-file binary stub (see {@link #BUNDLE_SUFFIX}), can tell the two apart and ignore it
-     * rather than fail.
+     * org.checkerframework.framework.stub.BinaryStubBundle}. Distinct from {@link #MAGIC} so that a
+     * reader can tell a bundle from a per-file binary stub whose name collides with it (see {@link
+     * #BUNDLE_SUFFIX}) and ignore it rather than fail.
      */
     public static final int BUNDLE_MAGIC = 0xCF4A4442;
 
@@ -322,8 +321,7 @@ public class BinaryStubWriter {
      * Length in bytes of the source {@code .astub} file this writer's output is generated from, or
      * {@code -1} (the default) to write no fingerprint. See {@link
      * org.checkerframework.framework.stub.BinaryStubData#sourceLength}. Set together with {@link
-     * #sourceDigest} by {@link #setSourceFingerprint}, which keeps the two consistent with each
-     * other.
+     * #sourceDigest} by {@link #setSourceFingerprint}.
      */
     private int sourceLength = -1;
 
@@ -369,9 +367,7 @@ public class BinaryStubWriter {
      * Records the source {@code .astub} file this writer's output is generated from, so {@link
      * #writeTo} embeds a fingerprint that a reader can use to detect a stale binary. Only {@code
      * BinaryStubFileGenerator} calls this: the annotated JDK and other output of {@code
-     * JavaStubifier} are never checked for staleness this way, and leave it unset. Takes the raw
-     * source bytes themselves, rather than a length and a digest as two separate arguments, so that
-     * {@link #sourceLength} and {@link #sourceDigest} cannot end up describing different inputs.
+     * JavaStubifier} are never checked for staleness this way, and leave it unset.
      *
      * @param sourceBytes the source file's raw content
      */
@@ -381,15 +377,9 @@ public class BinaryStubWriter {
     }
 
     /**
-     * Computes the SHA-256 digest of {@code bytes}.
-     *
-     * <p>Duplicated in {@code org.checkerframework.framework.stub.BinaryStubData#sha256}, which
-     * cannot be called from this source set (see {@code framework/build.gradle}'s {@code stubifier}
-     * source set: framework main code may not link against stubifier classes, but that restriction
-     * runs one way -- nothing stops the stubifier source set from depending on framework main, yet
-     * duplicating this tiny routine keeps the two binary-format readers/writers (this class, and
-     * {@code BinaryStubData}/{@code BinaryStubBundle}) free of a dependency on each other's source
-     * set in either direction).
+     * Computes the SHA-256 digest of {@code bytes}. Duplicated in {@code
+     * org.checkerframework.framework.stub.BinaryStubData#sha256}, so that the reader and the writer
+     * of the binary format do not depend on each other's source set in either direction.
      *
      * @param bytes the bytes to digest
      * @return the 32-byte SHA-256 digest of {@code bytes}
