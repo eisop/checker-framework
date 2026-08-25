@@ -252,6 +252,27 @@ element-type checks treated as a reference upcast or downcast; the Signedness
 Checker reported `(char) x`, where `x` has type `@Signed int`, as not
 statically verifiable.
 
+The `-AinferenceWorkBudget` work budget now also counts JLS 18.4 variable
+resolution and substitution back into a type's structure, not just JLS 18.3
+bound incorporation. A generic invocation resolving many mutually dependent
+inference variables together -- for example, many mutually F-bounded type
+parameters resolved by one wildcarded generic invocation, the shape of
+Guava's `MapMakerInternalMap<K, V, E extends InternalEntry<K, V, E>, S
+extends Segment<K, V, E, S>>` -- could take many seconds or effectively hang
+the compiler with none of that work counted against the budget, so the
+budget never aborted it.
+
+Substituting a resolved instantiation back into a type's structure is now
+charged against `-AinferenceWorkBudget` for the *size* of the instantiations
+substituted, not only for how many there are. With mutually F-bounded type
+parameters each instantiation embeds a copy of every earlier one, so the
+instantiations double in size with each variable resolved while their number
+grows only linearly; counting only the number let such a chain run for
+minutes before the budget noticed. On a chain of 12 mutually F-bounded type
+parameters this cuts a 40-repetition compile from 200 GB of allocation to
+9.8 GB; the largest charge measured on real code is 1941 units (Guava, with
+the Nullness Checker), against the default budget of 10000.
+
 `AnnotatedTypeMirror.toString(false)` returns the same string as
 `AnnotatedTypeMirror.toString()`. Verbose printing now only adds detail: it
 never suppresses a detail that the type factory's `AnnotatedTypeFormatter` is
