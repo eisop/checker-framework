@@ -388,6 +388,16 @@ return type, as in overriding `<T extends @Nullable Object> T produce()` with
 `override.typaram.invalid` error. Give the overriding declaration the
 overridden bound, or suppress the warning.
 
+A second, unrelated source of false positives is a bound that mentions a
+type variable of the same method -- an F-bound such as
+`<T extends Comparable<T>>`, or one type parameter's bound naming another.
+The two declarations' bounds are compared structurally, without first
+adapting the overridden method's bound to the overriding method's type
+variables (as JLS 8.4.2 does), so the comparison pits one method's type
+variable against the other's in an invariant type-argument position and
+fails whichever direction the qualifier moved. Identical bounds on both
+sides are unaffected; the same workaround applies.
+
 `isReturnOverrideValid`'s type-variable containment fallback
 (`BaseTypeVisitor.testTypevarContainment`) now uses the same containment
 direction as `isParameterOverrideValid` and

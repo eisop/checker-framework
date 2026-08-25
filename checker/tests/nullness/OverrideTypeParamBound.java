@@ -344,6 +344,45 @@ public class OverrideTypeParamBound {
         }
     }
 
+    // ---- Known imprecision: a bound that mentions a type variable of the same method. ----
+    // isTypeParameterBoundOverrideValid compares the two declarations' bounds structurally,
+    // without first adapting the overridden method's bound to the overriding method's type
+    // variables the way JLS 8.4.2 does. When a bound mentions a type variable -- an F-bound such
+    // as <T extends Comparable<T>>, or one type parameter's bound naming another -- the
+    // comparison therefore pits the overridden method's type variable against the overriding
+    // method's distinct one, in an invariant type-argument position, and fails no matter which
+    // direction the qualifier moved.
+    //
+    // Super17/SubFBoundWiden below is the SOUND direction (the F-bound's qualifier is widened,
+    // and at any instantiation T := C both declarations reduce to the same C), yet it is
+    // rejected. Adapting the overridden bound by substituting the overriding method's type
+    // variables for the overridden method's before comparing would fix this; until then the
+    // workaround is the one the manual gives for override.typaram.invalid generally: give the
+    // overriding declaration the overridden bound, or suppress the warning. Note that identical
+    // bounds on both sides are unaffected -- the mismatch only surfaces when a qualifier actually
+    // differs -- so the common case of simply repeating <T extends Comparable<T>> is fine.
+
+    static class Super17 {
+        <T extends @NonNull Comparable<T>> void use(T p) {}
+    }
+
+    static class SubFBoundWiden extends Super17 {
+        @Override
+        // :: error: (override.typaram.invalid)
+        <T extends @Nullable Comparable<T>> void use(T p) {}
+    }
+
+    // Control for the above: identical F-bounds compare cleanly and terminate despite the
+    // self-reference, so the imprecision really is confined to a differing qualifier.
+    static class Super18 {
+        <T extends @NonNull Comparable<T>> void use(T p) {}
+    }
+
+    static class SubFBoundSame extends Super18 {
+        @Override
+        <T extends @NonNull Comparable<T>> void use(T p) {}
+    }
+
     // ---- Requalified occurrences: an explicit annotation on a parameter or return type, not on
     // the type parameter's own declaration. Both type parameters below declare the identical bound
     // <T extends @Nullable Object>, so checkTypeParameterBounds sees no mismatch; the unsoundness
