@@ -382,8 +382,8 @@ actually handle correctly (eisop#1965).
 
 Because the rule is position-independent, it can also newly reject an
 override that is sound only by virtue of where the type parameter is used:
-narrowing the upper bound of a type parameter that occurs only in the return
-type, as in overriding `<T extends @Nullable Object> T produce()` with
+narrowing the upper bound of a type parameter that occurs only as a bare
+return type, as in overriding `<T extends @Nullable Object> T produce()` with
 `<T extends @NonNull Object> T produce()`, is now an
 `override.typaram.invalid` error. Give the overriding declaration the
 overridden bound, or suppress the warning.

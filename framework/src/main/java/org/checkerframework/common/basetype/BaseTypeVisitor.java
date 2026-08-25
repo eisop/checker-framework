@@ -5354,8 +5354,10 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
          * overridden one's, the same direction {@link
          * OverrideChecker#isTypeParameterBoundOverrideValid} requires for the type parameter's own
          * declared bound, and for the same reason -- an override may widen a return occurrence's
-         * upper bound, since its own body cannot manufacture a value outside that wider bound
-         * either.
+         * upper bound, because what a body can manufacture as a fresh value of the type variable is
+         * governed by the occurrence's <em>lower</em> bound, which containment does not let the
+         * override widen. Widening the upper bound only makes the body more conservative about
+         * values it was handed.
          *
          * @param requiredReturnType the return type of the overridden method
          * @param actualReturnType the return type of the overriding method

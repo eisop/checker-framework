@@ -6,6 +6,25 @@
 // the type parameter is used; several combinations are sound and expect no diagnostic, since
 // containment (not equality) is position-independent already.
 //
+// The core matrix is 2 (which bound: upper/lower) x 2 (direction: widened/narrowed) x 2 (position:
+// parameter-only/return-only):
+//
+//   upper  widened, parameter-only: SubImplicitBound      sound, accepted
+//   upper  widened, return-only:    SubWidenUpperReturn   sound, accepted
+//   upper narrowed, parameter-only: SubNarrowUpperParam   unsound, rejected
+//   upper narrowed, return-only:    SubNarrowUpperReturn  sound for this shape, rejected
+//   lower  widened, parameter-only: SubWidenLowerParam    unsound, rejected
+//   lower  widened, return-only:    SubWidenLowerReturn   unsound, rejected
+//   lower narrowed, parameter-only: SubNarrowLowerParam   sound, accepted
+//   lower narrowed, return-only:    SubNarrowLowerReturn  sound, accepted
+//
+// Throughout, the operative asymmetry is that a type parameter's UPPER bound governs what the
+// overriding body may CONSUME (dereference, pass on) and its LOWER bound governs what that body
+// may PRODUCE (manufacture as a fresh value of the type parameter). That is why widening the
+// upper bound is always safe -- it only makes the body more conservative about what it received
+// -- while widening the lower bound is not: it lets the body conjure a value that a caller going
+// through the overridden, narrower declaration never agreed to receive.
+//
 // The final section below (Super9 through Super12) instead keeps both sides' type-parameter
 // declarations identical and requalifies a single parameter or return occurrence with its own
 // explicit annotation -- a containment mismatch entirely invisible to
@@ -58,7 +77,9 @@ public class OverrideTypeParamBound {
     }
 
     // ---- The original eisop#1965 case: lower bound widened, type parameter used as return. ----
-    // The override's own body relies on its (wider) lower bound to justify "T t = null;", but a
+    // The override's own body relies on its (wider) lower bound to justify returning the null it
+    // put in "t" -- the declaration "T t = null;" alone is accepted either way, since dataflow
+    // refines the local; it is "return t;" that the narrower lower bound would reject. But a
     // caller of the overridden signature may instantiate T as @NonNull, per Super's (narrower)
     // lower bound -- an NPE the checker is supposed to prevent. Containment requires the
     // override's lower bound to be a subtype of (i.e. at least as restrictive as) the overridden
@@ -106,10 +127,16 @@ public class OverrideTypeParamBound {
     }
 
     // ---- Positive control: upper bound widened, type parameter used as a return type. ----
-    // SubWidenUpperReturn's body is checked once against its own (wider) upper bound; it cannot
-    // manufacture a value outside what that bound allows, so every value it returns is still a
-    // genuine instance of Super3's narrower upper bound. Widening the upper bound is sound
-    // containment regardless of the type parameter's position.
+    // What makes this sound is the LOWER bound, not the upper one: a body cannot manufacture a
+    // fresh value of T except from T's lower bound, and containment leaves that bound unchanged
+    // here (both sides default to @NonNull). Widening the upper bound only makes the body more
+    // conservative about values it was handed; it grants no new ability to produce one. Note that
+    // "the body cannot manufacture a value outside its own (wider) upper bound" would NOT justify
+    // this: such a value is exactly what the wider bound does allow, yet returning it is still
+    // rejected -- writing "@Nullable T t = someNullableT(); return t;" here fails with
+    // return.type.incompatible, whose printed types differ only in the lower bound
+    // ("super @Nullable NullType" vs "super @NonNull NullType"), the upper bounds being identical.
+    // Widening the upper bound is sound containment regardless of the type parameter's position.
 
     static class Super3 {
         <T extends @NonNull Object> T produce() {
@@ -128,9 +155,11 @@ public class OverrideTypeParamBound {
     }
 
     // ---- Positive control: lower bound narrowed, type parameter used as a parameter. ----
-    // SubNarrowLowerParam's own lower bound is more restrictive than Super4's; every value a
-    // caller can supply under Super4's declared signature also satisfies the narrower bound, so
-    // narrowing the lower bound is sound containment.
+    // The lower bound governs what the body may PRODUCE, not what a caller may supply (that is
+    // the upper bound's job). SubNarrowLowerParam's own lower bound is more restrictive than
+    // Super4's, so its body can manufacture strictly fewer values of T than Super4's body could
+    // -- every one of them still acceptable to a caller of Super4's declared signature. Narrowing
+    // the lower bound is therefore sound containment.
 
     static class Super4 {
         <@Nullable T extends @Nullable Object> void consume(T p) {}
@@ -139,6 +168,81 @@ public class OverrideTypeParamBound {
     static class SubNarrowLowerParam extends Super4 {
         @Override
         <T extends @Nullable Object> void consume(T p) {}
+    }
+
+    // ---- Positive control: lower bound narrowed, type parameter used only as a return type. ----
+    // The mirror image of SubNarrowLowerParam, completing the lower-bound half of the matrix.
+    // Narrowing the lower bound restricts what SubNarrowLowerReturn's body may produce, and the
+    // return type is precisely where that production becomes visible to a caller: a caller of
+    // Super14's declared signature is promised a T within Super14's (wider) lower bound, and any
+    // value satisfying the override's narrower one satisfies that promise too. Sound containment.
+
+    static class Super14 {
+        <@Nullable T extends @Nullable Object> T produce() {
+            throw new RuntimeException();
+        }
+    }
+
+    static class SubNarrowLowerReturn extends Super14 {
+        @Override
+        <T extends @Nullable Object> T produce() {
+            throw new RuntimeException();
+        }
+    }
+
+    // ---- Lower bound widened, type parameter used only as a parameter. ----
+    // Completing the matrix's last cell. It is tempting to expect the mirror image of
+    // SubNarrowUpperReturn below -- "the lower bound only matters for what the body produces, and
+    // a parameter-only type parameter produces nothing, so this is sound in principle and merely
+    // rejected by position-independence." That reasoning is wrong, and Super16 below shows why:
+    // "parameter-only" does not mean "produces nothing", because a parameter can itself be a
+    // mutable SINK for T. So this cell is genuinely unsound in general, not accepted imprecision.
+    //
+    // For this bare shape alone, nothing the body manufactures can escape, so this particular
+    // rejection is imprecise; the check cannot distinguish it from Super16's shape, and rejects
+    // both. Note that only checkTypeParameterBounds catches this: unlike every upper-bound
+    // mismatch above, the bare parameter occurrence draws no second diagnostic, because the
+    // occurrence-level subtype check on two corresponding type variables compares their effective
+    // upper bounds and never reaches the differing lower bound.
+
+    static class Super15 {
+        <T extends @Nullable Object> void consume(T p) {}
+    }
+
+    static class SubWidenLowerParam extends Super15 {
+        @Override
+        // :: error: (override.typaram.invalid)
+        <@Nullable T extends @Nullable Object> void consume(T p) {}
+    }
+
+    // The escape that makes the cell above genuinely unsound rather than merely imprecise. T
+    // occurs only in parameter position here too, but one of those parameters is a List<T> the
+    // caller still holds. The widened lower bound lets the body manufacture a null T and store it
+    // there, so a caller of Super16's declared signature -- which promised a List<@NonNull String>
+    // would only ever gain @NonNull String elements -- reads back a null. Note the body's
+    // "sink.add(manufactured)" is itself accepted: the override checks are the only thing standing
+    // between this declaration and the NPE in triggerWidenLowerParamSink.
+
+    static class Super16 {
+        <T extends @Nullable Object> void consume(T p, List<T> sink) {}
+    }
+
+    static class SubWidenLowerParamSink extends Super16 {
+        @Override
+        // :: error: (override.typaram.invalid)
+        // :: error: (override.param.invalid)
+        <@Nullable T extends @Nullable Object> void consume(T p, List<T> sink) {
+            T manufactured = null;
+            sink.add(manufactured);
+        }
+    }
+
+    private static void triggerWidenLowerParamSink(Super16 s) {
+        List<@NonNull String> l = new java.util.ArrayList<>();
+        s.<@NonNull String>consume("x", l);
+        for (@NonNull String e : l) {
+            System.out.println(e.length());
+        }
     }
 
     // ---- Both bounds differ at once: still exactly one diagnostic, for the one type parameter.
@@ -212,12 +316,19 @@ public class OverrideTypeParamBound {
 
     // ---- Accepted imprecision: upper bound narrowed, type parameter used only as a return type.
     // ----
-    // Sound in principle -- T occurs only in the return type, so the body can never be handed a
-    // value outside its own narrower bound -- but checkTypeParameterBounds is deliberately
-    // position-independent (it cannot know, from the declaration alone, whether T is used as a
-    // parameter, a return type, both, or neither) and rejects this anyway. The converse,
+    // Sound for this particular shape -- T occurs only as a bare return type, so the body can
+    // never be handed a value outside its own narrower bound -- but checkTypeParameterBounds is
+    // deliberately position-independent (it cannot know, from the declaration alone, whether T is
+    // used as a parameter, a return type, both, or neither) and rejects this anyway. The converse,
     // SubWidenUpperReturn above, is the direction position-independence costs nothing for; this is
     // the direction it costs precision.
+    //
+    // "Return-only" is not by itself enough to make narrowing the upper bound safe, though, just
+    // as "parameter-only" was not enough to make widening the lower bound safe in
+    // SubWidenLowerParam above. Had Super13 declared "List<T> produce()", the override would hand
+    // the caller a container it still believes has @NonNull elements while the caller may add
+    // null to it -- genuinely unsound, and rejected by the nested return-type check as well as by
+    // this one. So the imprecision here is narrower than "any return-only narrowing is fine".
 
     static class Super13 {
         <T extends @Nullable Object> T produce() {
@@ -316,6 +427,7 @@ public class OverrideTypeParamBound {
     // the overridden (wider) signature would hit.
     public static void main(String[] args) {
         triggerWidenLowerReturn(new SubWidenLowerReturn());
+        triggerWidenLowerParamSink(new SubWidenLowerParamSink());
         triggerRequalifiedParamNarrower(new SubRequalifiedParamNarrower());
         triggerRequalifiedReturnWider(new SubRequalifiedReturnWider());
     }

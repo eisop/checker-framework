@@ -39,10 +39,12 @@ class OverrideTypeParamBound {
         s.<Object>consume(new Object());
     }
 
-    // Positive control: upper bound widened, type parameter used as a return type. The override's
-    // body is checked once against its own (wider) upper bound and cannot manufacture a value
-    // outside it, so every value it returns still satisfies Super2's narrower upper bound --
-    // sound containment, regardless of the type parameter's position.
+    // Positive control: upper bound widened, type parameter used as a return type. What makes
+    // this sound is the LOWER bound, not the upper one: the override's body can only manufacture a
+    // fresh T from T's lower bound, which containment leaves unchanged (here it defaults to the
+    // Interning hierarchy's bottom, @InternedDistinct). Widening the upper bound merely makes the
+    // body more conservative about values it was handed; it grants no new ability to produce one.
+    // Sound containment, regardless of the type parameter's position.
     static class Super2 {
         <T extends @Interned Object> T produce() {
             throw new RuntimeException();
