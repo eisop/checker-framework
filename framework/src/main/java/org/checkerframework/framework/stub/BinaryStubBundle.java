@@ -89,7 +89,9 @@ public class BinaryStubBundle {
                 throw new IOException("Unsupported binary stub bundle version: " + version);
             }
             int count = BinaryStubData.readCount(dataIn, "binary stub bundle entry count");
-            entries = new HashMap<>((int) (count / 0.75f) + 1);
+            // Not pre-sized from `count`: it comes from the file itself, so a few bytes of
+            // malformed input could otherwise request an arbitrarily large initial table.
+            entries = new HashMap<>();
             for (int i = 0; i < count; i++) {
                 String path = dataIn.readUTF();
                 int length = BinaryStubData.readCount(dataIn, "binary stub bundle entry length");
