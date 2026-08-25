@@ -36,6 +36,7 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
+import java.io.UnsupportedEncodingException;
 import java.lang.ProcessBuilder.Redirect;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -942,10 +943,17 @@ public class AnnotationFileElementTypes {
             if (i > 0) {
                 result.append('/');
             }
-            // application/x-www-form-urlencoded encodes a space as "+", not "%20"; a URI path
-            // needs the latter.
-            result.append(
-                    URLEncoder.encode(segments[i], StandardCharsets.UTF_8).replace("+", "%20"));
+            try {
+                // application/x-www-form-urlencoded encodes a space as "+", not "%20"; a URI
+                // path needs the latter.
+                @SuppressWarnings("JdkObsolete")
+                String encoded =
+                        URLEncoder.encode(segments[i], StandardCharsets.UTF_8.name())
+                                .replace("+", "%20");
+                result.append(encoded);
+            } catch (UnsupportedEncodingException e) {
+                throw new BugInCF("UTF-8 is not supported. Your VM is borked.", e);
+            }
         }
         return result.toString();
     }
