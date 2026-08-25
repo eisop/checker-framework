@@ -659,8 +659,31 @@ public class BinaryStubData {
     public final byte @Nullable [] sourceDigest;
 
     /**
+     * Reads binary stub data from the given stream, reporting a damaged file as an {@link
+     * IOException} regardless of how the damage surfaces.
+     *
+     * <p>A damaged file can hold an index that points outside a pool, which surfaces as {@code
+     * ArrayIndexOutOfBoundsException} rather than as an {@code IOException}: this class validates
+     * what it can (see {@link #readCount}), but not every index. Reporting any such failure as what
+     * it is -- a file that cannot be read -- lets the caller fall back to text parsing rather than
+     * crashing the compilation and asking the user to report a Checker Framework bug.
+     *
+     * @param in the input stream to read from; the stream is closed when this method returns
+     * @return the binary stub data read from {@code in}
+     * @throws IOException if the stream cannot be read or contains an invalid/unsupported format
+     */
+    public static BinaryStubData read(InputStream in) throws IOException {
+        try {
+            return new BinaryStubData(in);
+        } catch (RuntimeException e) {
+            throw new IOException("Malformed binary stub file: " + e, e);
+        }
+    }
+
+    /**
      * Reads binary stub data from the given stream. The stream must supply the GZIP-compressed
-     * binary format written by {@code BinaryStubWriter}.
+     * binary format written by {@code BinaryStubWriter}. Prefer {@link #read}, which additionally
+     * reports a damaged file's out-of-range pool index as an {@code IOException}.
      *
      * @param in the input stream to read from; the stream is closed when this constructor returns
      * @throws IOException if the stream cannot be read or contains an invalid/unsupported format

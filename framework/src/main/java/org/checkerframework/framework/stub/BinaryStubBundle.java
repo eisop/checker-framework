@@ -116,12 +116,8 @@ public class BinaryStubBundle {
             return null;
         }
         try {
-            return new BinaryStubData(new ByteArrayInputStream(bytes));
-        } catch (RuntimeException e) {
-            // A damaged entry can hold an index that points outside a pool, which surfaces as
-            // ArrayIndexOutOfBoundsException rather than as an IOException; see the identical
-            // guard in AnnotationFileElementTypes#readBinaryStubData, which this duplicates
-            // because that method is private to that class.
+            return BinaryStubData.read(new ByteArrayInputStream(bytes));
+        } catch (IOException e) {
             throw new IOException(
                     "Malformed binary stub bundle entry " + relativePath + ": " + e, e);
         }

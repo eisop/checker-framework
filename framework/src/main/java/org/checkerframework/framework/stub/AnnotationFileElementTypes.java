@@ -628,36 +628,13 @@ public class AnnotationFileElementTypes {
                     binURL.toString(),
                     key -> {
                         try (InputStream in = binURL.openStream()) {
-                            return readBinaryStubData(in);
+                            return BinaryStubData.read(in);
                         } catch (IOException e) {
                             throw new UncheckedIOException(e);
                         }
                     });
         } catch (UncheckedIOException e) {
             throw e.getCause();
-        }
-    }
-
-    /**
-     * Reads binary stub data from {@code in}, translating a damaged file into an {@link
-     * IOException} regardless of how the damage surfaces.
-     *
-     * @param in the stream to read from; closed by this method (via {@link BinaryStubData}'s
-     *     constructor)
-     * @return the parsed binary stub data
-     * @throws IOException if the stream cannot be read or contains an invalid/unsupported format
-     */
-    private static BinaryStubData readBinaryStubData(InputStream in) throws IOException {
-        try {
-            return new BinaryStubData(in);
-        } catch (RuntimeException e) {
-            // A damaged file can hold an index that points outside a pool, which surfaces as
-            // ArrayIndexOutOfBoundsException rather than as an IOException. BinaryStubData
-            // validates what it can (see its readCount), but not every index. Report any such
-            // failure as what it is -- a file that cannot be read -- so that the caller falls back
-            // to text parsing rather than crashing the compilation and asking the user to report a
-            // Checker Framework bug.
-            throw new IOException("Malformed binary stub file: " + e, e);
         }
     }
 
@@ -854,17 +831,46 @@ public class AnnotationFileElementTypes {
         try (InputStream in = new FileInputStream(bundleFile)) {
             return new BinaryStubBundle(in);
         } catch (IOException e) {
-            atypeFactory
-                    .getChecker()
-                    .message(
-                            Diagnostic.Kind.NOTE,
-                            "Could not read "
-                                    + bundleFile
-                                    + ", falling back to per-file binary stubs or text parsing."
-                                    + " Error: "
-                                    + e.getMessage());
+            noteCouldNotRead(bundleFile.toString(), "per-file binary stubs or text parsing", e);
             return null;
         }
+    }
+
+    /**
+     * Issues a NOTE that a binary stub could not be read, so something else is used instead. Unlike
+     * {@link #warnStaleBinaryStub}, this reports damage rather than staleness, and is not
+     * deduplicated: each unreadable file is named once, by the single factory that resolves it (see
+     * {@link CommandLineStubLocationCache}).
+     *
+     * @param what the binary that could not be read, as a file path or {@code jar!entry} pair
+     * @param fallback what is used instead, e.g. {@code "text parsing"}
+     * @param e the failure
+     */
+    private void noteCouldNotRead(String what, String fallback, IOException e) {
+        atypeFactory
+                .getChecker()
+                .message(
+                        Diagnostic.Kind.NOTE,
+                        "Could not read "
+                                + what
+                                + ", falling back to "
+                                + fallback
+                                + ". Error: "
+                                + e.getMessage());
+    }
+
+    /**
+     * Issues a NOTE that an annotation file's own content could not be read, so it is skipped
+     * entirely. Reports the same message the text-only path in {@link #parseAnnotationFiles} does.
+     *
+     * @param resource the resource that could not be read
+     */
+    private void noteCouldNotReadResource(AnnotationFileResource resource) {
+        atypeFactory
+                .getChecker()
+                .message(
+                        Diagnostic.Kind.NOTE,
+                        "Could not read annotation resource: " + resource.getDescription());
     }
 
     /**
@@ -1201,7 +1207,9 @@ public class AnnotationFileElementTypes {
 
         FileBinaryDecision decision = locationCache.decisions.get(astubFile.getPath());
         if (decision == null) {
-            if (!hasCommandLineBinaryCandidate(locationCache.bundle, relativePath, astubFile)) {
+            BinaryStubBundle bundle = locationCache.bundle;
+            File sibling = binaryStubSibling(astubFile);
+            if (sibling == null && (bundle == null || !bundle.contains(relativePath))) {
                 // No binary form exists for this file at all -- the ordinary case for the vast
                 // majority of -Astubs files -- so skip straight to text parsing without reading
                 // the file into memory here: AnnotationFileParser streams it instead, exactly as
@@ -1215,18 +1223,13 @@ public class AnnotationFileElementTypes {
             try {
                 sourceBytes = Files.readAllBytes(astubFile.toPath());
             } catch (IOException e) {
-                atypeFactory
-                        .getChecker()
-                        .message(
-                                Diagnostic.Kind.NOTE,
-                                "Could not read annotation resource: " + resource.getDescription());
+                noteCouldNotReadResource(resource);
                 // Not cached: a transient read failure (e.g. a concurrent edit) might not recur
                 // for a later factory, and there is nothing expensive to save by remembering it.
                 return false;
             }
             BinaryStubData data =
-                    commandLineBinaryStub(
-                            astubFile, sourceBytes, locationCache.bundle, relativePath);
+                    commandLineBinaryStub(astubFile, sourceBytes, bundle, relativePath, sibling);
             decision = new FileBinaryDecision(sourceBytes, data);
             locationCache.decisions.put(astubFile.getPath(), decision);
         }
@@ -1273,11 +1276,7 @@ public class AnnotationFileElementTypes {
             try (InputStream in = jarFile.getInputStream(astubEntry)) {
                 sourceBytes = readAllBytes(in);
             } catch (IOException e) {
-                atypeFactory
-                        .getChecker()
-                        .message(
-                                Diagnostic.Kind.NOTE,
-                                "Could not read annotation resource: " + resource.getDescription());
+                noteCouldNotReadResource(resource);
                 return false;
             }
             BinaryStubData data =
@@ -1313,25 +1312,22 @@ public class AnnotationFileElementTypes {
     }
 
     /**
-     * Returns true if a binary form might be available for {@code astubFile}: a cheap existence
-     * check only, done before the more expensive work of reading and hashing the file's content
-     * (see {@link #commandLineBinaryStub}, which does that work and actually verifies freshness).
+     * Returns {@code astubFile}'s per-file {@code .astub.bin.gz} sibling, if it has one. Existence
+     * only: whether that sibling is <em>fresh</em> is decided later, by {@link
+     * #commandLineBinaryStub}, once the more expensive work of reading and hashing {@code
+     * astubFile}'s content has been done.
      *
-     * @param bundle {@code astubFile}'s enclosing directory's bundle, or {@code null} if there is
-     *     none
-     * @param relativePath {@code astubFile}'s path relative to the enclosing {@code -Astubs}
-     *     location, with {@code '/'} as separator -- {@code bundle}'s key for this file
      * @param astubFile the source {@code .astub} file on disk
-     * @return true if {@code bundle} has an entry for {@code relativePath}, or a per-file sibling
-     *     exists beside {@code astubFile}
+     * @return the sibling binary stub file beside {@code astubFile}, or {@code null} if there is
+     *     none
      */
-    private boolean hasCommandLineBinaryCandidate(
-            @Nullable BinaryStubBundle bundle, String relativePath, File astubFile) {
-        if (bundle != null && bundle.contains(relativePath)) {
-            return true;
-        }
+    private static @Nullable File binaryStubSibling(File astubFile) {
         File sibling = new File(astubFile.getPath() + BinaryStubData.BIN_SUFFIX);
-        return sibling.isFile() && !looksLikeBundle(sibling);
+        // A sibling that is actually a directory-level bundle, which can share this file's sibling
+        // name (see BinaryStubWriter#BUNDLE_SUFFIX), is not a per-file binary at all, and not
+        // damage. Report it as absent, the same tolerance binaryStubBundleFor gives the reverse
+        // collision.
+        return sibling.isFile() && !looksLikeBundle(sibling) ? sibling : null;
     }
 
     /**
@@ -1350,6 +1346,8 @@ public class AnnotationFileElementTypes {
      *     none
      * @param relativePath {@code astubFile}'s path, relative to the enclosing {@code -Astubs}
      *     location, with {@code '/'} as separator -- {@code bundle}'s key for this file
+     * @param sibling {@code astubFile}'s per-file binary stub sibling, or {@code null} if it has
+     *     none; already located by {@link #binaryStubSibling}
      * @return the binary stub data, or {@code null} if none is available or fresh (in the latter
      *     case, a warning has already been issued)
      */
@@ -1357,85 +1355,51 @@ public class AnnotationFileElementTypes {
             File astubFile,
             byte[] sourceBytes,
             @Nullable BinaryStubBundle bundle,
-            String relativePath) {
+            String relativePath,
+            @Nullable File sibling) {
         if (bundle != null) {
-            BinaryStubData data;
             try {
-                data = bundle.get(relativePath);
+                BinaryStubData data = bundle.get(relativePath);
+                if (data != null) {
+                    // A stale bundle entry is warned about either way -- the bundle needs
+                    // regenerating -- but a fresher per-file sibling is still tried below before
+                    // giving up on a binary form entirely: e.g. the user regenerated just this
+                    // file with per-file mode, without regenerating or deleting the stale bundle.
+                    BinaryStubData fresh =
+                            freshBinaryStub(
+                                    data,
+                                    sourceBytes,
+                                    "bundle entry " + relativePath,
+                                    astubFile.getPath());
+                    if (fresh != null) {
+                        return fresh;
+                    }
+                }
+                // No entry for this file (e.g. it was added to the directory after the bundle was
+                // generated), or a stale one: fall back to a per-file sibling, if any.
             } catch (IOException e) {
-                atypeFactory
-                        .getChecker()
-                        .message(
-                                Diagnostic.Kind.NOTE,
-                                "Could not read binary stub for "
-                                        + astubFile
-                                        + ", falling back to text parsing. Error: "
-                                        + e.getMessage());
+                noteCouldNotRead("binary stub for " + astubFile, "text parsing", e);
                 return null;
             }
-            if (data != null) {
-                if (data.matchesSource(sourceBytes)) {
-                    return data;
-                }
-                // The bundle's entry for this file is stale (e.g. the file was edited after the
-                // bundle was generated). Warn about it either way -- the bundle needs
-                // regenerating -- but still check for a fresher per-file sibling below before
-                // giving up on a binary form entirely: e.g. the user regenerated just this file
-                // with per-file mode, without regenerating or deleting the stale bundle.
-                warnStaleBinaryStub("bundle entry " + relativePath, astubFile.getPath());
-            }
-            // No entry for this file (e.g. it was added to the directory after the bundle was
-            // generated), or a stale one: fall back to a per-file sibling, if any.
         }
-        return commandLineBinaryStubFromSibling(astubFile, sourceBytes);
-    }
-
-    /**
-     * Returns the binary stub data from {@code astubFile}'s per-file {@code .astub.bin.gz} sibling,
-     * if one exists and is fresh.
-     *
-     * @param astubFile the source {@code .astub} file on disk
-     * @param sourceBytes {@code astubFile}'s current raw content
-     * @return the sibling's binary stub data, or {@code null} if there is no sibling or it is stale
-     *     (in the latter case, a warning has already been issued)
-     */
-    private @Nullable BinaryStubData commandLineBinaryStubFromSibling(
-            File astubFile, byte[] sourceBytes) {
-        File sibling = new File(astubFile.getPath() + BinaryStubData.BIN_SUFFIX);
-        if (!sibling.isFile() || looksLikeBundle(sibling)) {
-            // Absent, or a name collision with a directory-level bundle that happens to share
-            // this file's sibling name (see BinaryStubWriter#BUNDLE_SUFFIX) -- not a per-file
-            // binary at all, and not damage. Silently proceed as if there were no sibling, the
-            // same tolerance binaryStubBundleFor gives the reverse collision.
+        if (sibling == null) {
             return null;
         }
-        BinaryStubData data;
         try (InputStream in = new FileInputStream(sibling)) {
-            data = readBinaryStubData(in);
+            return freshBinaryStub(
+                    BinaryStubData.read(in), sourceBytes, sibling.getPath(), astubFile.getPath());
         } catch (IOException e) {
-            atypeFactory
-                    .getChecker()
-                    .message(
-                            Diagnostic.Kind.NOTE,
-                            "Could not read "
-                                    + sibling
-                                    + ", falling back to text parsing. Error: "
-                                    + e.getMessage());
+            noteCouldNotRead(sibling.toString(), "text parsing", e);
             return null;
         }
-        if (!data.matchesSource(sourceBytes)) {
-            warnStaleBinaryStub(sibling.getPath(), astubFile.getPath());
-            return null;
-        }
-        return data;
     }
 
     /**
      * Returns the binary stub data from {@code binEntry}, a JAR entry beside {@code astubEntry}
      * named {@code astubEntry.getName() + BinaryStubData.BIN_SUFFIX}, if it is fresh. The JAR-entry
-     * analogue of {@link #commandLineBinaryStubFromSibling}; there is no bundle-collision check to
-     * make here, since there is no bundle format for a JAR (see {@code BinaryStubFileGenerator}'s
-     * class documentation).
+     * analogue of {@link #commandLineBinaryStub}'s per-file sibling case; there is no
+     * bundle-collision check to make here, since there is no bundle format for a JAR (see {@code
+     * BinaryStubFileGenerator}'s class documentation).
      *
      * @param jarFile the JAR file {@code binEntry} and {@code astubEntry} both belong to
      * @param binEntry the candidate binary entry
@@ -1447,29 +1411,42 @@ public class AnnotationFileElementTypes {
      */
     private @Nullable BinaryStubData commandLineBinaryStubFromJarEntry(
             JarFile jarFile, JarEntry binEntry, JarEntry astubEntry, byte[] sourceBytes) {
-        BinaryStubData data;
         try (InputStream in = jarFile.getInputStream(binEntry)) {
-            data = readBinaryStubData(in);
-        } catch (IOException e) {
-            atypeFactory
-                    .getChecker()
-                    .message(
-                            Diagnostic.Kind.NOTE,
-                            "Could not read "
-                                    + jarFile.getName()
-                                    + "!"
-                                    + binEntry.getName()
-                                    + ", falling back to text parsing. Error: "
-                                    + e.getMessage());
-            return null;
-        }
-        if (!data.matchesSource(sourceBytes)) {
-            warnStaleBinaryStub(
+            return freshBinaryStub(
+                    BinaryStubData.read(in),
+                    sourceBytes,
                     jarFile.getName() + "!" + binEntry.getName(),
                     jarFile.getName() + "!" + astubEntry.getName());
+        } catch (IOException e) {
+            noteCouldNotRead(jarFile.getName() + "!" + binEntry.getName(), "text parsing", e);
             return null;
         }
-        return data;
+    }
+
+    /**
+     * Returns {@code data} if it was generated from source bytes identical to {@code sourceBytes},
+     * and otherwise {@code null}, having warned that the binary is stale. The one place a {@code
+     * -Astubs} binary's freshness is decided, whichever of the three forms -- bundle entry,
+     * per-file sibling, or JAR entry -- it came from.
+     *
+     * @param data the candidate binary stub data
+     * @param sourceBytes the current raw content of the {@code .astub} file {@code data} is claimed
+     *     to correspond to
+     * @param binaryDescription description of the binary, for the staleness warning
+     * @param astubDescription description of the source {@code .astub} file, for the staleness
+     *     warning
+     * @return {@code data} if it is fresh, otherwise {@code null}
+     */
+    private @Nullable BinaryStubData freshBinaryStub(
+            BinaryStubData data,
+            byte[] sourceBytes,
+            String binaryDescription,
+            String astubDescription) {
+        if (data.matchesSource(sourceBytes)) {
+            return data;
+        }
+        warnStaleBinaryStub(binaryDescription, astubDescription);
+        return null;
     }
 
     /**
@@ -1481,16 +1458,14 @@ public class AnnotationFileElementTypes {
      *     {@code null}, the content is read via {@code resource.getInputStream()}
      */
     @SuppressWarnings(
-            "resourceleak:required.method.not.called" // `annotationFileStream` is never closed:
-    // when `sourceBytes` is null, `resource` is a `JarEntryAnnotationFileResource` (its only
-    // callers, `parseCommandLineStubFileResource` and `parseCommandLineStubJarResource`, pass
-    // `null` exactly when there is no already-read byte array to reuse, which for a jar entry
-    // means the "no binary candidate" case), and closing its stream would close the `ZipFile` it
-    // shares with every other entry of the same jar, invalidating them -- the same rationale as
-    // `parseAnnotationFiles`'s suppression, `builder:required.method.not.called`, for the same
-    // reason under a different checker's key. When `sourceBytes` is non-null, the stream is an
-    // in-memory `ByteArrayInputStream`, for which not calling `close()` has no effect; the
-    // checker cannot tell the two branches of the ternary below apart.
+            "resourceleak:required.method.not.called" // `annotationFileStream` is never closed, for
+    // the same reason `parseAnnotationFiles` does not close the equivalent stream it builds (see
+    // its `builder:required.method.not.called` suppression, the same rationale under a different
+    // checker's key): `resource` may be a `JarEntryAnnotationFileResource`, whose stream shares
+    // one `ZipFile` with every other entry of the same jar, so closing it would invalidate them
+    // all -- both those already processed and those a later sub-checker factory will process, via
+    // `CommandLineStubLocationCache`. When `sourceBytes` is non-null, the stream is an in-memory
+    // `ByteArrayInputStream`, for which not calling `close()` has no effect.
     )
     private void parseCommandLineStubAsText(
             AnnotationFileResource resource, byte @Nullable [] sourceBytes) {
@@ -1502,11 +1477,7 @@ public class AnnotationFileElementTypes {
                                     ? new ByteArrayInputStream(sourceBytes)
                                     : resource.getInputStream());
         } catch (IOException e) {
-            atypeFactory
-                    .getChecker()
-                    .message(
-                            Diagnostic.Kind.NOTE,
-                            "Could not read annotation resource: " + resource.getDescription());
+            noteCouldNotReadResource(resource);
             return;
         }
         AnnotationFileParser.parseStubFile(
