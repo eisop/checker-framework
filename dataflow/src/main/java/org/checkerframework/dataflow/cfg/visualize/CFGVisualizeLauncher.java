@@ -260,7 +260,11 @@ public final class CFGVisualizeLauncher {
             System.setErr(new PrintStream(nullOS));
             javac.compile(List.of(l), List.of(clas), List.of(cfgProcessor), List.nil());
         } catch (Throwable e) {
-            // ok
+            // Report to the original stderr, not the one just nulled out above: silently
+            // discarding this exception is what made eisop#849 undiagnosable for two years.
+            err.println("=== CFGVisualizeLauncher: swallowed Throwable from javac.compile ===");
+            e.printStackTrace(err);
+            err.flush();
         } finally {
             System.setErr(err);
         }
