@@ -1393,6 +1393,22 @@ subprojects {
                 jvmArgs += compilerArgsForRunningCF
             }
 
+            // Type-checking the test inputs compiles an unusual amount of code -- over 35
+            // checker JUnit suites in one forked test JVM, -XX:+CITime reports 417759
+            // compiled methods and 1132 s of JIT time on Java 8 (36712 methods / 252 s on
+            // Java 11) -- and each forked test JVM sizes its compiler pool from the machine's
+            // CPU count, unaware of the sibling forks.  maxParallelForks below is the CPU
+            // count, so the JIT threads alone oversubscribe the machine several times over
+            // and crowd out the test threads they are compiling for.  Cap the pool at the
+            // tiered-compilation minimum of 2.
+            //
+            // Measured on the NullnessTest/IndexTest/OptionalTest/AnnotatedForNullnessTest/
+            // StubparserNullnessTest subset, medians over >= 2 trials per side, sum of
+            // per-suite times: Java 8 417.6 s -> 268.2 s (-35.8%), Java 11 367.4 s -> 244.4 s
+            // (-33.5%).  With a single fork the effect is smaller but still positive: 35
+            // suites in one Java 8 test JVM on 4 cores, 616.8 s -> 567.2 s (-8.0%).
+            jvmArgs "-XX:CICompilerCount=2"
+
             // maxParallelForks controls the parallelism of a single Test
             // task. --parallel controls parallelism for the entire build.
 

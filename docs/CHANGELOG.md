@@ -12,6 +12,15 @@ Further performance improvements relative to the 3.49.5-eisop1 release:
 Several optimizations also reduce GC pressure and remove superlinear behavior,
 improving performance for large (e.g. auto-generated) files.
 
+Each forked test JVM (`./gradlew test`) used to size its JIT compiler thread
+pool from the whole machine's CPU count, regardless of how many other test
+JVMs Gradle was already running concurrently; on typical hardware this
+oversubscribes the machine several times over once more than one fork is
+active. Capping the pool (`-XX:CICompilerCount=2`) cut wall-clock time by
+about a third on a representative subset of checker JUnit suites with
+multiple concurrent forks, and by about 8% even with test execution
+serialized to a single fork.
+
 The annotated JDK is now distributed additionally as a pre-parsed binary file
 (`annotated-jdk.bin.gz`), so checker startup no longer text-parses the JDK
 stubs. The text stubs remain in `checker.jar` as a fallback; they are expected
