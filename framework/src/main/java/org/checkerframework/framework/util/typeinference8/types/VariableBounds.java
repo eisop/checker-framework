@@ -564,7 +564,11 @@ public class VariableBounds {
             // (ProperType.applyInstantiations() is the identity) and the changed-gated
             // instantiation detection below cannot fire. Skip re-scanning the bounds of this
             // fully-resolved variable -- the dominant cost of the incorporation fixpoint on large
-            // problems. Constraints are still applied.
+            // problems. Constraints are still applied, so charge for that: this fast path bypasses
+            // the recordIncorporationWork call below, so without a charge here a bound set with a
+            // large constraint set and many already-proper variables could apply those constraints
+            // an unbounded number of times with no work ever counted against the budget.
+            context.recordIncorporationWork(constraints.size());
             constraints.applyInstantiations();
             return false;
         }

@@ -229,7 +229,12 @@ class TypeFromTypeTreeVisitor extends TypeFromTreeVisitor {
                 AnnotatedIntersectionType intersection =
                         (AnnotatedIntersectionType) result.getUpperBound();
                 intersection.setBounds(bounds);
-                intersection.copyIntersectionBoundAnnotations();
+                // Do not summarize the bounds here: doing so now, from only their explicit
+                // annotations, would homogenize an explicitly annotated bound onto the others
+                // before defaulting has run, pre-empting a bare bound's own default (e.g.
+                // @DefaultQualifierForUse) even in a hierarchy that bound doesn't conflict in.
+                // QualifierDefaults calls AnnotatedIntersectionType#summarizeBounds instead, after
+                // each bound has been defaulted on its own.
         }
 
         return result;
@@ -472,9 +477,8 @@ class TypeFromTypeTreeVisitor extends TypeFromTreeVisitor {
                 CollectionsPlume.mapList((Tree boundTree) -> visit(boundTree, f), tree.getBounds());
         type.setBounds(bounds);
         // A cast target's unannotated hierarchies are filled from the cast operand, not from
-        // defaulting, so do not defer a later bound's hierarchy to it; summarize every bound
-        // instead (see copyIntersectionBoundAnnotations(boolean)).
-        type.copyIntersectionBoundAnnotations(false);
+        // defaulting; see summarizeBounds's Javadoc.
+        type.summarizeBounds();
         return type;
     }
 }
