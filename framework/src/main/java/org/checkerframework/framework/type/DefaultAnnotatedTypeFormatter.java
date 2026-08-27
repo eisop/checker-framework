@@ -141,13 +141,13 @@ public class DefaultAnnotatedTypeFormatter implements AnnotatedTypeFormatter {
         protected final boolean defaultInvisiblesSetting;
 
         /**
-         * For a given call to format, this setting specifies whether or not to printInvisibles. If
-         * a user did not specify a printInvisible parameter in the call to format then this value
-         * will equal DefaultAnnotatedTypeFormatter.defaultInvisibleSettings for this object
+         * For a given call to format, this setting specifies whether or not to printInvisibles.
+         * Unless the call to format requested verbose printing, this value equals {@link
+         * #defaultInvisiblesSetting} for this object.
          */
         protected boolean currentPrintInvisibleSetting;
 
-        /** Default value of currentPrintVerboseGenerics. */
+        /** Default value of {@link #currentPrintVerboseGenerics}. */
         protected final boolean defaultPrintVerboseGenerics;
 
         /**
@@ -174,14 +174,21 @@ public class DefaultAnnotatedTypeFormatter implements AnnotatedTypeFormatter {
             this.defaultPrintVerboseGenerics = printVerboseGenerics;
             this.currentPrintVerboseGenerics = printVerboseGenerics;
             this.defaultInvisiblesSetting = defaultInvisiblesSetting;
-            this.currentPrintInvisibleSetting = false;
+            this.currentPrintInvisibleSetting = defaultInvisiblesSetting;
             this.currentlyPrintingRaw = false;
         }
 
-        /** Set the current verbose settings to use while printing. */
+        /**
+         * Sets the current verbose settings to use while printing. The settings are never less
+         * verbose than this visitor's defaults, so passing false is equivalent to {@link
+         * #resetPrintVerboseSettings()}.
+         *
+         * @param printVerbose if true, print invisible qualifiers and verbose generics regardless
+         *     of this visitor's defaults
+         */
         protected void setVerboseSettings(boolean printVerbose) {
-            this.currentPrintInvisibleSetting = printVerbose;
-            this.currentPrintVerboseGenerics = printVerbose;
+            this.currentPrintInvisibleSetting = printVerbose || defaultInvisiblesSetting;
+            this.currentPrintVerboseGenerics = printVerbose || defaultPrintVerboseGenerics;
         }
 
         /** Set verbose settings to the default. */

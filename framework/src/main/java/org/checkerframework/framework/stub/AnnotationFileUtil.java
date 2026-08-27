@@ -376,34 +376,43 @@ public class AnnotationFileUtil {
     }
 
     /**
-     * Return annotation files found at a given file system location (does not look on classpath).
+     * Resolves a {@code -Astubs}-style location string to a file system {@link File}, trying it
+     * both as given and relative to the current working directory. Does not look on the classpath.
      *
      * @param location an annotation file (stub file or ajava file), a jarfile, or a directory. Look
      *     for it as an absolute file and relative to the current directory.
-     * @param fileType file type of files to collect
-     * @return annotation files with the given file type found in the file system (does not look on
-     *     classpath). Returns null if the file system location does not exist; the caller may wish
-     *     to issue a warning in that case.
+     * @return the resolved file, or null if neither location exists; the caller may wish to issue a
+     *     warning in that case
      */
-    public static @Nullable List<AnnotationFileResource> allAnnotationFiles(
-            String location, AnnotationFileType fileType) {
+    public static @Nullable File resolveAnnotationFileLocation(String location) {
         File file = new File(location);
         if (file.exists()) {
-            List<AnnotationFileResource> resources = new ArrayList<>();
-            addAnnotationFilesToList(file, resources, fileType);
-            return resources;
+            return file;
         }
 
         // The file doesn't exist.  Maybe it is relative to the current working directory, so try
         // that.
         file = new File(System.getProperty("user.dir"), location);
         if (file.exists()) {
-            List<AnnotationFileResource> resources = new ArrayList<>();
-            addAnnotationFilesToList(file, resources, fileType);
-            return resources;
+            return file;
         }
 
         return null;
+    }
+
+    /**
+     * Return annotation files found at a given file system location.
+     *
+     * @param location an annotation file (stub file or ajava file), a jarfile, or a directory, as
+     *     resolved by {@link #resolveAnnotationFileLocation}
+     * @param fileType file type of files to collect
+     * @return annotation files with the given file type found under {@code location}
+     */
+    public static List<AnnotationFileResource> allAnnotationFiles(
+            File location, AnnotationFileType fileType) {
+        List<AnnotationFileResource> resources = new ArrayList<>();
+        addAnnotationFilesToList(location, resources, fileType);
+        return resources;
     }
 
     /**

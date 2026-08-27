@@ -184,6 +184,16 @@ public class Resolution {
      */
     private BoundSet resolveSmallestSet(Set<Variable> as, BoundSet boundSet) {
         assert !boundSet.containsFalse();
+        // Charge this attempt against the inference problem's budget. resolveSmallestSet is JLS
+        // 18.4 resolution, a distinct phase from the bound-incorporation fixed point (JLS 18.3)
+        // that recordIncorporationWork's other call site
+        // (VariableBounds#doApplyInstantiationsToBounds)
+        // tracks; resolution has its own cost (the BoundSet copy/save/restore below, plus
+        // resolveWithoutCapture/resolveWithCapture) that is not otherwise charged, so a bound set
+        // with many mutually dependent variables (e.g. deeply mutually F-bounded type parameters)
+        // could otherwise resolve the same, or a growing, smallest-dependency set repeatedly with
+        // no work ever counted against the budget.
+        context.recordIncorporationWork(as.size());
 
         if (boundSet.containsCapture(as)) {
             BoundSet resolvedBounds = resolveWithoutCapture(as, boundSet);

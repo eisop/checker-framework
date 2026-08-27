@@ -57,8 +57,11 @@ import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Target;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -112,7 +115,34 @@ public class BinaryStubWriter {
      * org.checkerframework.framework.stub.BinaryStubData#VERSION} references it. Increment whenever
      * the binary format changes.
      */
-    public static final short VERSION = 1;
+    public static final short VERSION = 2;
+
+    /**
+     * Magic number identifying a binary stub <em>bundle</em>: a container of several per-file
+     * binary stubs for a whole {@code -Astubs} directory, written by {@code
+     * BinaryStubFileGenerator}'s {@code --bundle} mode and read by {@code
+     * org.checkerframework.framework.stub.BinaryStubBundle}. Distinct from {@link #MAGIC} so that a
+     * reader can tell a bundle from a per-file binary stub whose name collides with it (see {@link
+     * #BUNDLE_SUFFIX}) and ignore it rather than fail.
+     */
+    public static final int BUNDLE_MAGIC = 0xCF4A4442;
+
+    /**
+     * Format version of the binary stub bundle container. Independent of {@link #VERSION}: a bundle
+     * entry is itself a complete, ordinarily-versioned binary stub blob, so this version covers
+     * only the container (entry count and the path/length framing around each entry).
+     */
+    public static final short BUNDLE_VERSION = 1;
+
+    /**
+     * File-name suffix appended to a source stub <em>directory</em>'s name to name the bundle
+     * covering it (e.g. a {@code -Astubs} directory named {@code mystubs} → sibling file {@code
+     * mystubs.astub.bin.gz}). Unlike {@link #BIN_SUFFIX}, which is appended to a file that already
+     * ends in {@code .astub}, a directory name has no such extension to begin with, so this suffix
+     * spells it out. This is the canonical definition; {@code
+     * org.checkerframework.framework.stub.BinaryStubBundle#SUFFIX} references it.
+     */
+    public static final String BUNDLE_SUFFIX = ".astub.bin.gz";
 
     /**
      * File name of the binary stub output file. This is the canonical definition; {@code
@@ -287,6 +317,20 @@ public class BinaryStubWriter {
      */
     private final boolean skipUnloadableAnnotations;
 
+    /**
+     * Length in bytes of the source {@code .astub} file this writer's output is generated from, or
+     * {@code -1} (the default) to write no fingerprint. See {@link
+     * org.checkerframework.framework.stub.BinaryStubData#sourceLength}. Set together with {@link
+     * #sourceDigest} by {@link #setSourceFingerprint}.
+     */
+    private int sourceLength = -1;
+
+    /**
+     * SHA-256 digest of the source file's raw bytes, or {@code null} iff {@link #sourceLength} is
+     * {@code -1}.
+     */
+    private byte @Nullable [] sourceDigest = null;
+
     /** Creates a writer for a built-in stub file, which keeps every member record. */
     public BinaryStubWriter() {
         this(false, false);
@@ -317,6 +361,37 @@ public class BinaryStubWriter {
     public BinaryStubWriter(boolean omitUnannotatedMembers, boolean skipUnloadableAnnotations) {
         this.omitUnannotatedMembers = omitUnannotatedMembers;
         this.skipUnloadableAnnotations = skipUnloadableAnnotations;
+    }
+
+    /**
+     * Records the source {@code .astub} file this writer's output is generated from, so {@link
+     * #writeTo} embeds a fingerprint that a reader can use to detect a stale binary. Only {@code
+     * BinaryStubFileGenerator} calls this: the annotated JDK and other output of {@code
+     * JavaStubifier} are never checked for staleness this way, and leave it unset.
+     *
+     * @param sourceBytes the source file's raw content
+     */
+    public void setSourceFingerprint(byte[] sourceBytes) {
+        this.sourceLength = sourceBytes.length;
+        this.sourceDigest = sha256(sourceBytes);
+    }
+
+    /**
+     * Computes the SHA-256 digest of {@code bytes}. Duplicated in {@code
+     * org.checkerframework.framework.stub.BinaryStubData#sha256}, so that the reader and the writer
+     * of the binary format do not depend on each other's source set in either direction.
+     *
+     * @param bytes the bytes to digest
+     * @return the 32-byte SHA-256 digest of {@code bytes}
+     */
+    static byte[] sha256(byte[] bytes) {
+        try {
+            return MessageDigest.getInstance("SHA-256").digest(bytes);
+        } catch (NoSuchAlgorithmException e) {
+            // Every JDK implementation is required to support SHA-256; see the java.security.
+            // MessageDigest class specification.
+            throw new AssertionError(e);
+        }
     }
 
     /** Constant pool for strings to minimize binary size. */
@@ -1037,11 +1112,11 @@ public class BinaryStubWriter {
      *       failed for all of them. That only shows the package is missing from the stubifier's own
      *       narrow build classpath (stubparser plus checker-qual) -- not that a checker's {@code
      *       Elements}, resolving against whatever classpath its invocation supplies, would also
-     *       fail. Silently falling through here used to route the annotation as a bare, unqualified
-     *       name that {@code BinaryStubReader} then also cannot resolve ({@code AnnotationBuilder}
-     *       throws a {@code UserError} that is swallowed to {@code null}) -- dropping an annotation
-     *       the text parser could have resolved, with no diagnostic on either side. Fail instead,
-     *       the same way as the dotted {@code NOT_LOADABLE} case below.
+     *       fail. Fail here too, the same way as the dotted {@code NOT_LOADABLE} case below, rather
+     *       than silently falling through to route the annotation as a bare, unqualified name:
+     *       {@code BinaryStubReader} would then also fail to resolve it ({@code AnnotationBuilder}
+     *       throws a {@code UserError} that is swallowed to {@code null}), dropping an annotation
+     *       the text parser could have resolved, with no diagnostic on either side.
      * </ul>
      *
      * @param anno the annotation expression
@@ -2376,70 +2451,90 @@ public class BinaryStubWriter {
      * @throws IOException if writing to the file fails
      */
     public void writeTo(File file) throws IOException {
-        try (DataOutputStream out =
-                new DataOutputStream(new GZIPOutputStream(new FileOutputStream(file)))) {
-            out.writeInt(MAGIC);
-            out.writeShort(VERSION);
-            pool.write(out);
-            annosPool.write(out);
+        try (OutputStream fileOut = new FileOutputStream(file)) {
+            writeTo(fileOut);
+        }
+    }
 
-            out.writeInt(classes.size());
+    /**
+     * Writes the accumulated class records and constant pool to the given stream in a compressed
+     * binary format, exactly as {@link #writeTo(File)} does. Lets a caller assemble several
+     * writers' output in memory (see {@code BinaryStubFileGenerator}'s {@code --bundle} mode)
+     * instead of writing each one to its own file.
+     *
+     * @param out the stream to write to; closed by this method
+     * @throws IOException if writing to the stream fails
+     */
+    public void writeTo(OutputStream out) throws IOException {
+        try (DataOutputStream dataOut = new DataOutputStream(new GZIPOutputStream(out))) {
+            dataOut.writeInt(MAGIC);
+            dataOut.writeShort(VERSION);
+            dataOut.writeInt(sourceLength);
+            if (sourceLength >= 0) {
+                dataOut.write(sourceDigest);
+            }
+            pool.write(dataOut);
+            annosPool.write(dataOut);
+
+            dataOut.writeInt(classes.size());
             for (ClassRecord cr : classes) {
-                out.writeInt(cr.nameIndex);
-                out.writeInt(cr.outerNameIndex);
-                out.writeByte(cr.kind);
-                writeAnnoIndices(out, cr.declAnnos);
+                dataOut.writeInt(cr.nameIndex);
+                dataOut.writeInt(cr.outerNameIndex);
+                dataOut.writeByte(cr.kind);
+                writeAnnoIndices(dataOut, cr.declAnnos);
 
-                writeCount(out, cr.fields.size(), "fields");
+                writeCount(dataOut, cr.fields.size(), "fields");
                 for (FieldRecord fr : cr.fields) {
-                    out.writeInt(fr.nameIndex);
-                    writeAnnoIndices(out, fr.declAnnos);
-                    writeTypeAnnos(out, fr.typeAnnos);
+                    dataOut.writeInt(fr.nameIndex);
+                    writeAnnoIndices(dataOut, fr.declAnnos);
+                    writeTypeAnnos(dataOut, fr.typeAnnos);
                 }
 
-                writeCount(out, cr.methods.size(), "methods");
+                writeCount(dataOut, cr.methods.size(), "methods");
                 for (MethodRecord mr : cr.methods) {
-                    out.writeInt(mr.sigIndex);
-                    writeAnnoIndices(out, mr.declAnnos);
-                    writeTypeAnnos(out, mr.returnTypeAnnos);
-                    writeTypeAnnos(out, mr.receiverAnnos);
+                    dataOut.writeInt(mr.sigIndex);
+                    writeAnnoIndices(dataOut, mr.declAnnos);
+                    writeTypeAnnos(dataOut, mr.returnTypeAnnos);
+                    writeTypeAnnos(dataOut, mr.receiverAnnos);
 
-                    writeCount(out, mr.paramAnnos.size(), "method parameters");
+                    writeCount(dataOut, mr.paramAnnos.size(), "method parameters");
                     for (int p = 0; p < mr.paramAnnos.size(); p++) {
-                        writeTypeAnnos(out, mr.paramAnnos.get(p));
-                        writeAnnoIndices(out, mr.paramDeclAnnos.get(p));
+                        writeTypeAnnos(dataOut, mr.paramAnnos.get(p));
+                        writeAnnoIndices(dataOut, mr.paramDeclAnnos.get(p));
                     }
-                    writeTypeParams(out, mr.typeParams);
+                    writeTypeParams(dataOut, mr.typeParams);
                 }
                 writeCount(
-                        out, cr.presenceOnlyMethodSigs.size(), "presence-only method signatures");
+                        dataOut,
+                        cr.presenceOnlyMethodSigs.size(),
+                        "presence-only method signatures");
                 for (int sigIdx : cr.presenceOnlyMethodSigs) {
-                    out.writeInt(sigIdx);
+                    dataOut.writeInt(sigIdx);
                 }
-                writeTypeParams(out, cr.typeParams);
+                writeTypeParams(dataOut, cr.typeParams);
                 if (cr.kind == KIND_RECORD) {
-                    writeCount(out, cr.components.size(), "record components");
+                    writeCount(dataOut, cr.components.size(), "record components");
                     for (ComponentRecord comp : cr.components) {
-                        out.writeInt(comp.nameIndex);
-                        writeAnnoIndices(out, comp.declAnnos);
-                        writeTypeAnnos(out, comp.typeAnnos);
-                        out.writeBoolean(comp.hasAccessor);
+                        dataOut.writeInt(comp.nameIndex);
+                        writeAnnoIndices(dataOut, comp.declAnnos);
+                        writeTypeAnnos(dataOut, comp.typeAnnos);
+                        dataOut.writeBoolean(comp.hasAccessor);
                     }
-                    out.writeBoolean(cr.canonicalConstructorParamAnnos != null);
+                    dataOut.writeBoolean(cr.canonicalConstructorParamAnnos != null);
                     if (cr.canonicalConstructorParamAnnos != null) {
                         writeCount(
-                                out,
+                                dataOut,
                                 cr.canonicalConstructorParamAnnos.size(),
                                 "canonical constructor parameters");
                         for (List<TypeAnno> paramAnnos : cr.canonicalConstructorParamAnnos) {
-                            writeTypeAnnos(out, paramAnnos);
+                            writeTypeAnnos(dataOut, paramAnnos);
                         }
                     }
                 }
             }
 
-            writeAnnotatedNames(out, packages);
-            writeAnnotatedNames(out, modules);
+            writeAnnotatedNames(dataOut, packages);
+            writeAnnotatedNames(dataOut, modules);
         }
     }
 
