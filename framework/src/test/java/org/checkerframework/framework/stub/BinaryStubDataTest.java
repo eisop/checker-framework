@@ -39,6 +39,7 @@ public class BinaryStubDataTest {
                 out -> {
                     out.writeInt(BinaryStubData.MAGIC);
                     out.writeShort(BinaryStubData.VERSION);
+                    out.writeInt(-1); // no source fingerprint
                     body.write(out);
                 });
     }

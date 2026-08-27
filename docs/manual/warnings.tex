@@ -579,12 +579,22 @@ than read from a binary stub file, which is slower
 \item
   \<-AsuppressWarnings=text.parsing.stub>:  a stub file that a checker
   distributes has no binary stub file.
+\item
+  \<-AsuppressWarnings=text.parsing.command.line.stub>:  a \<-Astubs> location has
+  an incomplete binary stub setup -- some, but not all, of its \<.astub> files
+  were read from a pre-parsed binary form (Section~\ref{stub-using-binary}).
+\item
+  \<-AsuppressWarnings=stale.binary.stub>:  a \<-Astubs> file's binary stub does
+  not match the file's current content, so the file was text-parsed instead
+  (Section~\ref{stub-using-binary}).
 \end{itemize}
 
 \noindent
-\<-AsuppressWarnings=text.parsing> suppresses all three.  Rather than suppressing
-these warnings, it is usually better to generate the missing binary stub file, as
-described in Sections~\ref{annotating-jdk} and~\ref{stub-distributing}.
+\<-AsuppressWarnings=text.parsing> suppresses the first four, but not
+\<stale.binary.stub>, whose key does not share that prefix.  Rather than
+suppressing these warnings, it is usually better to generate the missing or
+stale binary stub file, as described in Sections~\ref{annotating-jdk},
+\ref{stub-distributing}, and~\ref{stub-using-binary}.
 
 
 \sectionAndLabel{\code{-AskipUses} and \code{-AonlyUses} command-line options}{askipuses}

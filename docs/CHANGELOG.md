@@ -21,8 +21,34 @@ The built-in checker stub files (`jdk.astub`, `jdkN.astub`, and `@StubFiles`
 resources) are likewise pre-parsed into sibling `.astub.bin.gz` resources at
 build time and loaded from the binary form at checker startup, removing
 JavaParser from checker initialization entirely. A stub file that cannot be
-represented in binary form falls back to text parsing; user-supplied `-Astubs`
-files are always text-parsed.
+represented in binary form falls back to text parsing.
+
+A stub file supplied with `-Astubs` may now also have a binary form, read
+instead of text-parsing it. Generate one with
+`org.checkerframework.framework.stubifier.BinaryStubFileGenerator`, the same
+tool used for a checker's built-in stub files: point it at a single `.astub`
+file or a directory of them to write a sibling `.astub.bin.gz` for each, or
+pass `--bundle` to combine a whole directory into one binary file written
+beside it. A `.jar` file is supported too (`-Astubs` already treats a `.jar`
+as equivalent to every `.astub` file it contains): running the generator on
+it adds a sibling `.astub.bin.gz` entry beside each `.astub` entry, inside
+the same `.jar`, in place; there is no bundle mode for a `.jar`, since it is
+already one file regardless of how many entries it has. The binary form
+embeds a fingerprint of the source file (or entry) it was generated from; if
+the content no longer matches, it is text-parsed instead and a
+`stale.binary.stub` warning says so. Certain command-line options
+(`-AmergeStubsWithSource`, the `-AstubWarnIfNotFound` family, `-AstubDebug`)
+disable the binary path for `-Astubs` files entirely, since each changes what
+text parsing itself does or reports in a way the binary form cannot
+reproduce. See the manual's "Using a binary (pre-parsed) stub file" section
+for details.
+
+`AnnotationFileUtil.allAnnotationFiles(String, AnnotationFileType)` (public
+API in `framework`) was replaced by `resolveAnnotationFileLocation(String)`
+plus `allAnnotationFiles(File, AnnotationFileType)`, needed to look for a
+binary form beside a `-Astubs` location before falling back to a text-file
+walk. A third-party checker that called the old overload directly must
+switch to the two new methods.
 
 A checker that ships its own annotated JDK (as the JSpecify reference checker
 does) no longer also loads `checker.jar`'s binary annotated JDK on top of it.
@@ -31,15 +57,23 @@ The Checker Framework now warns when it text-parses the annotated JDK, or a
 stub file that a checker ships, instead of reading that file's binary stub.
 Generate a missing binary stub by running `JavaStubifier` on the annotated
 JDK's `annotated-jdk` directory, or `BinaryStubFileGenerator` on a checker's
-`.astub` files. Stub files supplied with `-Astubs` and `.ajava` files are
-text-parsed as before, without a warning.
+`.astub` files. `.ajava` files are text-parsed as before, without a warning.
+A `-Astubs` directory or `.jar` with an incomplete binary stub setup (some,
+but not all, of its `.astub` files or entries read from a binary form) is
+also warned about, suppressible with
+`-AsuppressWarnings=text.parsing.command.line.stub`; a `-Astubs` location
+with no binary form at all is not, since that is the ordinary case.
 
 These warnings have no source position, so `@SuppressWarnings` cannot suppress
 them. Suppress them with `-AsuppressWarnings=text.parsing`, or individually
 with `-AsuppressWarnings=text.parsing.jdk` (the annotated JDK has no binary
 stub), `-AsuppressWarnings=text.parsing.jdk.class` (a JDK class is missing from
-the binary stub), or `-AsuppressWarnings=text.parsing.stub` (a checker's stub
-file has no binary stub).
+the binary stub), `-AsuppressWarnings=text.parsing.stub` (a checker's stub
+file has no binary stub), or
+`-AsuppressWarnings=text.parsing.command.line.stub` (a `-Astubs` directory's
+or `.jar`'s binary stub setup is incomplete). A stale `-Astubs` binary stub
+is a separate warning, also with no source position:
+`-AsuppressWarnings=stale.binary.stub`.
 
 Fixed `-AwarnUnneededSuppressions` failing to report an unneeded
 `@SuppressWarnings` whose value is exactly a checker prefix (such as
@@ -124,21 +158,22 @@ When the bounds of an intersection type (for example, the bound
 `<T extends @NonNull Object & @Nullable Serializable>`) carry conflicting
 qualifiers in the same hierarchy, the intersection's qualifier for that
 hierarchy is the qualifier of the first bound in source order, and every other
-explicit bound qualifier gets an `explicit.annotation.ignored` warning. That
-summary is then written back onto every bound (homogenization), so all bounds of
-the intersection carry the same qualifier per hierarchy. Homogenization is sound
-for value-property qualifiers and can be strictly more precise than keeping each
-bound's own qualifier, because a hierarchy that only one bound constrains is
-propagated to the others rather than defaulted away.
-First-bound-wins holds uniformly whether the first bound is annotated explicitly
-or by defaulting: for `<T extends Object & @Nullable Serializable>` the first
-bound `Object` defaults to `@NonNull` (because the `extends` clause is written),
-so the summary is `@NonNull` and the second bound's `@Nullable` is ignored,
-exactly as if the first bound had been written `@NonNull Object`. This result is
-deterministic for a given compilation, but it depends on the source order of the
-bounds. A checker that wants an order-independent summary can override
-`AnnotatedTypeFactory#combineIntersectionBoundAnnotationsInHierarchy` to return,
-for example, the greatest lower bound.
+bound's differing qualifier gets an `explicit.annotation.ignored` warning if
+it was written explicitly. That summary is then written back onto every bound
+(homogenization), so all bounds of the intersection carry the same qualifier
+per hierarchy. Homogenization is sound for value-property qualifiers and can
+be strictly more precise than keeping each bound's own qualifier, because a
+hierarchy that only one bound constrains is propagated to the others rather
+than defaulted away. First-bound-wins holds uniformly no matter how the first
+bound's qualifier arose: written explicitly, filled by an ordinary location
+default, or filled by a type-based default such as `@DefaultQualifierForUse`.
+This result is deterministic for a given compilation, but it depends on the
+source order of the bounds. A checker that wants an order-independent
+summary can override
+`AnnotatedTypeFactory#combineIntersectionBoundAnnotationsInHierarchy` to
+return, for example, the greatest lower bound; the hook is consulted whenever
+any two bounds' qualifiers conflict in a hierarchy, whether either qualifier
+is written or defaulted.
 
 Added a new lint option, `-Alint=monotonicNonNullOnStatic`, under which the
 Nullness Checker issues a `monotonic.on.static` warning when `@MonotonicNonNull`
@@ -176,7 +211,181 @@ arguments are being inferred, such as an unbound reference passed to
 checked-exception constraint, which infers the exception type argument of a
 functional interface whose method declares a generic `throws` clause.
 
+Fixed two related defects in how a captured type variable's dataflow-refined
+primary annotation is removed when dataflow determines it does not refine the
+type further (e.g., the loop variable of `for (T x : someIterableOfCaptures)`,
+or a `var` local initialized by reading from a captured wildcard type).
+`DefaultInferredTypesApplier` reconstructed the bounds to restore from the
+type variable's *declaration*, which is wrong for a captured type variable:
+its bounds come from capture conversion (JLS 5.1.10) rather than being
+declared, and a synthetic capture element has no declaration-shaped
+annotations to re-read at all. Separately, `QualifierDefaults` applied a type
+variable's own primary default (such as the `LOCAL_VARIABLE` default) before
+defaulting its bounds, so a bound's own default annotation could be
+overwritten by the primary default before it was ever computed, leaving
+nothing correct available to restore later. `QualifierDefaults` now always
+defaults a type variable's bounds before applying its own primary annotation,
+and `DefaultInferredTypesApplier` reconstructs a captured type variable's
+bounds from the capture's own underlying type instead of the type parameter's
+(in general unrelated) declaration. Both defects were latent for the built-in
+checkers -- no diagnostic in this repository's own test suite depends on
+them -- but are user-visible for a checker whose per-position defaulting
+differs from a synthetic capture element's, such as one distinguishing
+`@NullMarked` from unannotated code.
+
+That reconstruction still re-defaulted against the capture's own synthetic
+element in one case where it need not have: a captured type variable whose
+captured wildcard's own bound is itself a bare type-variable use
+(e.g. `? extends V` with no further constraint on `V`). There, the capture's
+upper bound is exactly `V`'s own bound, so `DefaultInferredTypesApplier` now
+reads `V`'s own, already-fully-defaulted declaration directly instead of
+re-defaulting against the synthetic element, avoiding the same "no source"
+defaulting mismatch for this position too. That fix initially installed the
+annotation from `V`'s own upper bound (e.g. `Object`'s) onto the capture,
+one level too deep; it now installs `V`'s own annotation, which is typically
+absent for a bare, unannotated type-variable use.
+
+Fixed a crash (`AsSuperVisitor: type is not an erased subtype of supertype`)
+when `-AcheckCastElementType` checked a cast whose cast type is not a supertype
+of the type of the cast expression: a downcast such as `(ArrayList<String>)
+list`, or a cast between unrelated types such as two interfaces. The check
+asked the type hierarchy whether the expression's type is a subtype of the cast
+type, which only holds for an upcast. For a downcast, the cast type is now
+viewed as the expression's type, so that the type arguments the two types have
+in common are compared. For a cast between unrelated types, nothing is known
+about the cast type's type arguments, so the cast is reported as not statically
+verifiable, as a cast to a type with a different number of type arguments
+already was.
+
+A cast whose types the type hierarchy cannot compare no longer crashes
+`-AcheckCastElementType` either; it is reported as not statically verifiable.
+For example, `(List<Number>) list`, where `list` has type `List<T>`, makes the
+type hierarchy compare the type argument `Number` with the type variable `T`,
+a combination for which `StructuralEqualityComparer` has no case. A cast is the
+only place where the type hierarchy is asked about types that Java's own
+subtyping does not relate.
+
+`-AcheckCastElementType` no longer reports a cast of the null literal to an
+array type, such as `(Object[]) null`, as not statically verifiable. The null
+literal has no elements to check, and the cast cannot fail at run time.
+
+`-AcheckCastElementType` no longer reports an upcast to a type with a different
+number of type arguments as not statically verifiable. For example,
+`(Iterable<String>) list`, where `list` has a type that extends
+`ArrayList<String>` and declares no type parameter of its own, was reported
+unconditionally. The type hierarchy views the expression's type as the cast
+type's class and compares all of the type arguments, so an upcast's type
+arguments are checked whether or not the two types declare the same number of
+them. A downcast or a cross-cast to a type with a different number of type
+arguments is reported as before.
+
+`-AcheckCastElementType` no longer changes the result for a cast between two
+primitive types, which have neither type arguments nor array elements. Such a
+cast is a widening or narrowing primitive conversion, which the option's
+element-type checks treated as a reference upcast or downcast; the Signedness
+Checker reported `(char) x`, where `x` has type `@Signed int`, as not
+statically verifiable.
+
+The `-AinferenceWorkBudget` work budget now also counts JLS 18.4 variable
+resolution and substitution back into a type's structure, not just JLS 18.3
+bound incorporation. A generic invocation resolving many mutually dependent
+inference variables together -- for example, many mutually F-bounded type
+parameters resolved by one wildcarded generic invocation, the shape of
+Guava's `MapMakerInternalMap<K, V, E extends InternalEntry<K, V, E>, S
+extends Segment<K, V, E, S>>` -- could take many seconds or effectively hang
+the compiler with none of that work counted against the budget, so the
+budget never aborted it.
+
+Substituting a resolved instantiation back into a type's structure is now
+charged against `-AinferenceWorkBudget` for the *size* of the instantiations
+substituted, not only for how many there are. With mutually F-bounded type
+parameters each instantiation embeds a copy of every earlier one, so the
+instantiations double in size with each variable resolved while their number
+grows only linearly; counting only the number let such a chain run for
+minutes before the budget noticed. On a chain of 12 mutually F-bounded type
+parameters this cuts a 40-repetition compile from 200 GB of allocation to
+9.8 GB; the largest charge measured on real code is 1941 units (Guava, with
+the Nullness Checker), against the default budget of 10000.
+
+`AnnotatedTypeMirror.toString(false)` returns the same string as
+`AnnotatedTypeMirror.toString()`. Verbose printing now only adds detail: it
+never suppresses a detail that the type factory's `AnnotatedTypeFormatter` is
+configured to print. Previously, `toString(false)` forced invisible qualifiers
+and verbose generics off, overriding `-AprintAllQualifiers`,
+`-AprintVerboseGenerics`, and a checker-supplied formatter default; for
+instance, a Units Checker type printed through `toString(false)` lost its
+`@UnknownUnits` qualifier, which `toString()` prints.
+
 **Implementation details:**
+
+`AnnotatedIntersectionType.summarizeBounds` computes the summary described
+above, reading each bound's qualifier, explicit or defaulted, uniformly,
+and folding
+`AnnotatedTypeFactory#combineIntersectionBoundAnnotationsInHierarchy` over
+conflicts. For a type variable's own intersection upper bound,
+`QualifierDefaults` lets each bound be defaulted independently before
+calling it, so the combining hook sees every bound's real qualifier
+regardless of whether it came from a location default or a type-based one
+such as `@DefaultQualifierForUse`. For an intersection cast target, whose
+remaining hierarchies are instead filled from the cast operand by
+`PropagationTreeAnnotator#visitTypeCast`, it is called before defaulting and
+sees only explicit annotations.
+
+Added `IntersectionGlbChecker`/`IntersectionGlbAnnotatedTypeFactory`, a test
+checker that overrides the combining hook to compute the greatest lower
+bound, and extended two test files to test it, with bare bounds under
+location-based and type-based defaults, order independence across 3+
+bounds, and F-bounded self-reference:
+`framework/tests/intersectionglb/IntersectionBoundCombining.java` and
+`framework/tests/lubglb/IntersectionBoundDefaulting.java`. A checker whose
+qualifier semantics are per-component (e.g.
+JSpecify, where `@Nullable Object & Lib` is null-exclusive because it IS-A
+the non-null `Lib`) can reach for a GLB-combine override rather than a
+separate per-bound API: for any target, if some bound's own qualifier is a
+subtype of it, the greatest lower bound of the bounds' qualifiers is a
+subtype of it too.
+
+`QualifierHierarchy.isSubtypeQualifiers`, `leastUpperBoundQualifiers`, and
+`greatestLowerBoundQualifiers` now document that an override of any one of
+them must stay consistent with the others: a qualifier hierarchy whose true
+subtyping relation depends on something a static, declarative lattice
+cannot express (for example, a checker option) needs its LUB/GLB
+computation updated to match, not just `isSubtypeQualifiers`, or a caller
+that combines qualifiers with one and later checks the result with the
+other, such as `combineIntersectionBoundAnnotationsInHierarchy`'s suggested
+`greatestLowerBoundQualifiersOnly` override, can derive a summary the
+qualifier hierarchy's own subtype check would not itself have accepted.
+
+`AnnotatedIntersectionType.clearAnnotations()` now also clears every bound's
+annotations, matching `addAnnotation`/`removeAnnotation`, which already
+propagate to bounds. Previously, clearing only the intersection's own
+primary annotation while leaving a bound's annotations in place could let a
+bound keep a qualifier a caller was trying to discard, with no way to tell
+that the two had gone out of sync. `AbstractViewpointAdapter` no longer
+clears an adapted intersection copy's annotations before recomputing its
+summary from the adapted bounds: that call was already a no-op (the copy's
+own primary annotation starts empty), and clearing there now would discard
+the adapted bounds' qualifiers before they are read.
+
+`AnnotatedWildcardType.clearAnnotations()` and
+`AnnotatedTypeVariable.clearAnnotations()` now likewise also clear their
+bounds' annotations, for the same reason and matching their own
+`addAnnotation`/`removeAnnotation`, which already propagated. Making
+`AnnotatedTypeVariable` consistent this way surfaced a latent bug in
+`AnnotatedTypes.glbSubtype` (used during capture conversion): it copies a
+type variable or wildcard, clears the copy's annotations to recompute its
+own primary per hierarchy, and previously relied on the copy's bounds
+keeping their original annotations for any hierarchy it did not go on to
+explicitly restrict -- a safe assumption when clearing was primary-only,
+but not once clearing reached the bounds too. `glbSubtype` now builds that
+copy with `shallowCopy(false)` instead of `deepCopy()` plus
+`clearAnnotations()`: for a type variable or wildcard, `shallowCopy(false)`
+already means exactly that (see its own Javadoc), so the bounds keep their
+original annotations for free, at any nesting depth, without a separate
+snapshot-and-restore step. The other composite subclasses
+(`AnnotatedArrayType`, `AnnotatedDeclaredType`, `AnnotatedUnionType`) do not
+smear a primary onto their components at all, so they have no equivalent
+gap.
 
 `BaseTypeValidator.checkExplicitSuperBoundWildcards` now delegates its
 JDK-8054309 collapsed-wildcard-bound comparison to a new overridable
@@ -195,9 +404,69 @@ default check is contravariant (the overridden parameter must be a subtype of th
 overriding parameter, the standard override rule in CF's type systems). A checker
 whose type rules require parameter <em>invariance</em> for overrides (both directions
 must be subtypes, as in JSpecify's override rules) can now override just this method
-to change the directionality, rather than duplicating the entire ~35-line
-`checkParameters` and `checkParametersMsg` loop-and-error-reporting logic. No
-behavior change for CF's own (contravariant) checkers.
+to change the directionality, rather than duplicating the entire `checkParameters`
+and `checkParametersMsg` loop-and-error-reporting logic.
+
+`BaseTypeVisitor.OverrideChecker.checkReturn` now delegates its comparison to
+a new overridable `isReturnOverrideValid` method, the return-type analogue of
+`isParameterOverrideValid` above.
+
+`BaseTypeVisitor.OverrideChecker.checkOverride` now also runs
+`checkTypeParameterBounds`, comparing each of the overriding method's own
+type parameters against the corresponding type parameter of the overridden
+method via a new `isTypeParameterBoundOverrideValid` hook. A mismatch is
+reported through a new `override.typaram.invalid` diagnostic, showing each
+side's full declared bound (upper and lower, since -- unlike ordinary Java --
+a Checker Framework type parameter can declare a meaningful lower bound too,
+via the annotation written directly on the type variable).
+
+The default `isTypeParameterBoundOverrideValid` requires the overriding type
+parameter's bound range to contain the overridden one's: the overridden upper
+bound must be a subtype of the overriding upper bound, and the overriding
+lower bound must be a subtype of the overridden lower bound. This holds
+regardless of whether, or where, the type parameter is used in the method's
+parameter or return types -- including a type parameter that occurs only
+nested in the signature, or not at all, neither of which the parameter/return
+checks above ever see. This is a real soundness fix: a checker whose qualifier
+hierarchy attaches enforceable meaning to a type-parameter bound (e.g.
+Nullness) now rejects an override whose bound no longer contains the
+overridden one, closing a gap where a caller of the overridden method's
+declared signature could instantiate the type parameter with a value the
+override's own body, type-checked against its own (looser) bound, does not
+actually handle correctly (eisop#1965).
+
+Because the rule is position-independent, it can also newly reject an
+override that is sound only by virtue of where the type parameter is used:
+narrowing the upper bound of a type parameter that occurs only as a bare
+return type, as in overriding `<T extends @Nullable Object> T produce()` with
+`<T extends @NonNull Object> T produce()`, is now an
+`override.typaram.invalid` error. Give the overriding declaration the
+overridden bound, or suppress the warning.
+
+A second, unrelated source of false positives is a bound that mentions a
+type variable of the same method -- an F-bound such as
+`<T extends Comparable<T>>`, or one type parameter's bound naming another.
+The two declarations' bounds are compared structurally, without first
+adapting the overridden method's bound to the overriding method's type
+variables (as JLS 8.4.2 does), so the comparison pits one method's type
+variable against the other's in an invariant type-argument position and
+fails whichever direction the qualifier moved. Identical bounds on both
+sides are unaffected; the same workaround applies.
+
+`isReturnOverrideValid`'s type-variable containment fallback
+(`BaseTypeVisitor.testTypevarContainment`) now uses the same containment
+direction as `isParameterOverrideValid` and
+`isTypeParameterBoundOverrideValid`: the overriding occurrence's bound range
+must contain the overridden one's. Previously the return-position fallback
+required the reverse. That was unsound for an occurrence requalified with a
+looser qualifier -- overriding `<T extends @Nullable Object> T get(T p)` with
+`<T extends @Nullable Object> @Nullable T get(T p)` was accepted, so a caller
+writing `s.<@NonNull String>get("x")` could receive null -- and it was a false
+positive for a bare occurrence whose type parameter soundly widens its upper
+bound. This occurrence-level fallback stays necessary even given the
+declaration-level check above, because an occurrence can be requalified with
+its own explicit annotation, which `isTypeParameterBoundOverrideValid`, which
+only ever looks at the type parameter's declaration, never sees.
 
 `TypeFromTypeTreeVisitor` now restores the declared bounds of type-variable
 type arguments that appear in the enclosing type of a nested type (e.g. the
@@ -402,10 +671,10 @@ Other improvements and bug fixes:
 
 **Closed issues:**
 
-eisop#433, eisop#737, eisop#792, eisop#863, eisop#949, eisop#1015, eisop#1074,
-eisop#1244, eisop#1315, eisop#1564, eisop#1592, eisop#1642, eisop#1653,
-eisop#1735, eisop#1801, eisop#1818, eisop#1819, eisop#1861, eisop#1862,
-eisop#1863, eisop#1865, eisop#1887.
+eisop#433, eisop#737, eisop#786, eisop#792, eisop#863, eisop#949, eisop#1015,
+eisop#1074, eisop#1244, eisop#1315, eisop#1564, eisop#1592, eisop#1642,
+eisop#1653, eisop#1735, eisop#1801, eisop#1818, eisop#1819, eisop#1861,
+eisop#1862, eisop#1863, eisop#1865, eisop#1887, eisop#1965.
 
 
 Version 3.49.5-eisop1 (April 26, 2026)

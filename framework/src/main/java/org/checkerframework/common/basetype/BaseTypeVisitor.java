@@ -139,6 +139,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.StringJoiner;
 import java.util.Vector;
+import java.util.function.BooleanSupplier;
 
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.AnnotationMirror;
@@ -2955,8 +2956,14 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         AnnotationMirrorSet castAnnos;
         AnnotatedTypeMirror newCastType;
         TypeMirror newCastTM;
-        if (!checkCastElementType) {
-            // checkCastElementType option wasn't specified, so only check effective annotations.
+        if (!checkCastElementType
+                || (castTypeKind.isPrimitive() && exprType.getKind().isPrimitive())) {
+            // Either the checkCastElementType option wasn't specified, or the cast is between two
+            // primitive types, which have neither type arguments nor array elements to check.  A
+            // primitive conversion is handled by the getWidenedType call below; the element-type
+            // checks would instead treat it as a reference upcast or downcast, because a widening
+            // primitive conversion is a subtype relationship for javax.lang.model.util.Types.
+            // Only check effective annotations.
             castAnnos = castType.getEffectiveAnnotations();
             newCastType = castType;
             newCastTM = newCastType.getUnderlyingType();
@@ -2975,22 +2982,75 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             }
             TypeMirror newExprTM = newExprType.getUnderlyingType();
 
-            if (!typeHierarchy.isSubtype(newExprType, newCastType)) {
+            // Whether the cast is an upcast, whose type arguments the type hierarchy checked in
+            // full below.
+            boolean isUpcast = false;
+            // TypeHierarchy#isSubtype may only be called if the underlying Java type of its first
+            // argument is a subtype of the underlying Java type of its second argument.  That
+            // holds for an upcast, but not for a downcast such as "(ArrayList<String>) list", nor
+            // for a cross-cast between unrelated types such as two interfaces.
+            try {
+                if (TypesUtils.isErasedSubtype(newExprTM, newCastTM, types)) {
+                    if (!typeHierarchy.isSubtype(newExprType, newCastType)) {
+                        return false;
+                    }
+                    isUpcast = true;
+                } else if (TypesUtils.isErasedSubtype(newCastTM, newExprTM, types)) {
+                    // This is a downcast.  View the cast type as the expression's type; this
+                    // substitutes the cast type's type arguments into the expression's type.
+                    // Compare that with the expression's type, which checks the type arguments
+                    // that the two types have in common.  (A downcast guarantees nothing about
+                    // type arguments that only the cast type has; the check of the number of type
+                    // arguments below warns about those.)
+                    AnnotatedTypeMirror castTypeAsExprType =
+                            AnnotatedTypes.asSuper(atypeFactory, newCastType, newExprType);
+                    if (!typeHierarchy.isSubtype(newExprType, castTypeAsExprType)) {
+                        return false;
+                    }
+                } else if (newCastType.getKind() == TypeKind.DECLARED
+                        && newExprType.getKind() == TypeKind.DECLARED
+                        && !((AnnotatedDeclaredType) newCastType).isUnderlyingTypeRaw()
+                        && !((AnnotatedDeclaredType) newCastType).getTypeArguments().isEmpty()) {
+                    // The Java types are unrelated, as in a cast between two interfaces.  The
+                    // expression's type says nothing about the cast type's type arguments, so
+                    // warn, as is done below for a cast to a type with a different number of type
+                    // arguments.
+                    return false;
+                }
+            } catch (BugInCF e) {
+                // A cast may relate types that the type hierarchy cannot compare, even when their
+                // erasures are in a subtype relationship.  For example, for the cast
+                // "(List<Number>) list" where list has type "List<T>", the type hierarchy compares
+                // the type arguments Number and T, and StructuralEqualityComparer has no case for
+                // a declared type and a type variable.  Report the cast as not statically
+                // verifiable rather than aborting the compilation.  DefaultTypeHierarchy#isSubtype
+                // clears its visit histories in a finally block, so a thrown exception leaves no
+                // stale state behind.
                 return false;
             }
             if (newCastType.getKind() == TypeKind.ARRAY
                     && newExprType.getKind() != TypeKind.ARRAY) {
-                // Always warn if the cast contains an array, but the expression
-                // doesn't, as in "(Object[]) o" where o is of type Object
-                return false;
+                if (newExprType.getKind() != TypeKind.NULL) {
+                    // Always warn if the cast contains an array, but the expression
+                    // doesn't, as in "(Object[]) o" where o is of type Object.  The null literal
+                    // is an exception: it has no elements, so there is nothing to check, and the
+                    // cast cannot fail at run time.
+                    return false;
+                }
             } else if (newCastType.getKind() == TypeKind.DECLARED
                     && newExprType.getKind() == TypeKind.DECLARED) {
                 int castSize = ((AnnotatedDeclaredType) newCastType).getTypeArguments().size();
                 int exprSize = ((AnnotatedDeclaredType) newExprType).getTypeArguments().size();
 
-                if (castSize != exprSize) {
-                    // Always warn if the cast and expression contain a different number of type
+                if (castSize != exprSize && !isUpcast) {
+                    // Warn if the cast and expression contain a different number of type
                     // arguments, e.g. to catch a cast from "Object" to "List<@NonNull Object>".
+                    // A downcast or a cross-cast guarantees nothing about type arguments that
+                    // only the cast type has.  For an upcast, the type hierarchy above viewed the
+                    // expression's type as the cast type's class and compared all of the type
+                    // arguments, so a different number of them is not by itself a problem, as in
+                    // "(Iterable<String>) list" where list has a type that extends
+                    // ArrayList<String> and declares no type parameter of its own.
                     // TODO: the same number of arguments actually doesn't guarantee anything.
                     return false;
                 }
@@ -3771,39 +3831,36 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      */
     protected static class FoundRequired {
 
-        /** Whether the {@link #verbose} flag has been computed. */
-        private boolean verboseComputed = false;
+        /**
+         * Something with a possibly-verbose string representation: an {@link AnnotatedTypeMirror}
+         * or an {@link AnnotatedTypeParameterBounds}, neither of which shares a supertype declaring
+         * {@code toString(boolean)}.
+         */
+        private interface VerboseToString {
+            /**
+             * Returns this object's string representation.
+             *
+             * @param verbose if true, the returned representation is verbose
+             * @return this object's string representation
+             */
+            String toString(boolean verbose);
+        }
 
-        /** Whether the string representation should be verbose. */
+        /** Computes {@link #verbose}; null once {@link #verbose} has been computed. */
+        private @Nullable BooleanSupplier verboseComputer;
+
+        /** Whether the string representations should be verbose. */
         private boolean verbose = false;
 
         /**
-         * Lazily computes and memoizes whether the string representation should be verbose.
+         * Lazily computes and memoizes whether the string representations should be verbose.
          *
-         * @param foundType the found type
-         * @param requiredType the required type
          * @return true if verbose toString should be used
          */
-        private boolean isVerbose(AnnotatedTypeMirror foundType, AnnotatedTypeMirror requiredType) {
-            if (!verboseComputed) {
-                verbose = shouldPrintVerbose(foundType, requiredType);
-                verboseComputed = true;
-            }
-            return verbose;
-        }
-
-        /**
-         * Lazily computes and memoizes whether the string representation should be verbose.
-         *
-         * @param foundType the found type
-         * @param requiredBounds the required bounds
-         * @return true if verbose toString should be used
-         */
-        private boolean isVerbose(
-                AnnotatedTypeMirror foundType, AnnotatedTypeParameterBounds requiredBounds) {
-            if (!verboseComputed) {
-                verbose = shouldPrintVerbose(foundType, requiredBounds);
-                verboseComputed = true;
+        private boolean isVerbose() {
+            if (verboseComputer != null) {
+                verbose = verboseComputer.getAsBoolean();
+                verboseComputer = null;
             }
             return verbose;
         }
@@ -3821,55 +3878,27 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         public final Object required;
 
         /**
-         * Create a FoundRequired for two types.
+         * Create a FoundRequired.
          *
-         * @param found the found type
-         * @param required the required type
+         * @param found the found type or bounds
+         * @param required the required type or bounds
+         * @param verboseComputer computes whether the two representations must be verbose to differ
          */
-        private FoundRequired(AnnotatedTypeMirror found, AnnotatedTypeMirror required) {
+        private FoundRequired(
+                VerboseToString found, VerboseToString required, BooleanSupplier verboseComputer) {
+            this.verboseComputer = verboseComputer;
             this.found =
                     new Object() {
                         @Override
                         public String toString() {
-                            return isVerbose(found, required)
-                                    ? found.toString(true)
-                                    : found.toString();
+                            return found.toString(isVerbose());
                         }
                     };
             this.required =
                     new Object() {
                         @Override
                         public String toString() {
-                            return isVerbose(found, required)
-                                    ? required.toString(true)
-                                    : required.toString();
-                        }
-                    };
-        }
-
-        /**
-         * Create a FoundRequired for a type and bounds.
-         *
-         * @param found the found type
-         * @param required the required bounds
-         */
-        private FoundRequired(AnnotatedTypeMirror found, AnnotatedTypeParameterBounds required) {
-            this.found =
-                    new Object() {
-                        @Override
-                        public String toString() {
-                            return isVerbose(found, required)
-                                    ? found.toString(true)
-                                    : found.toString();
-                        }
-                    };
-            this.required =
-                    new Object() {
-                        @Override
-                        public String toString() {
-                            return isVerbose(found, required)
-                                    ? required.toString(true)
-                                    : required.toString();
+                            return required.toString(isVerbose());
                         }
                     };
         }
@@ -3883,7 +3912,8 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
          * @return a string representation of the two annotations
          */
         public static FoundRequired of(AnnotatedTypeMirror found, AnnotatedTypeMirror required) {
-            return new FoundRequired(found, required);
+            return new FoundRequired(
+                    found::toString, required::toString, () -> shouldPrintVerbose(found, required));
         }
 
         /**
@@ -3897,7 +3927,24 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
          */
         public static FoundRequired of(
                 AnnotatedTypeMirror found, AnnotatedTypeParameterBounds required) {
-            return new FoundRequired(found, required);
+            return new FoundRequired(
+                    found::toString, required::toString, () -> shouldPrintVerbose(found, required));
+        }
+
+        /**
+         * Creates string representations of two {@link AnnotatedTypeParameterBounds}, which are
+         * only verbose if required to differentiate the two. Used for a type parameter's own
+         * declared upper and lower bounds; see {@link
+         * BaseTypeVisitor.OverrideChecker#isTypeParameterBoundOverrideValid}.
+         *
+         * @param found the found bounds
+         * @param required the required bounds
+         * @return a string representation of the two bounds
+         */
+        public static FoundRequired of(
+                AnnotatedTypeParameterBounds found, AnnotatedTypeParameterBounds required) {
+            return new FoundRequired(
+                    found::toString, required::toString, () -> shouldPrintVerbose(found, required));
         }
     }
 
@@ -3932,6 +3979,26 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             return true;
         }
         return containsSameToString(atm, bounds.getUpperBound(), bounds.getLowerBound());
+    }
+
+    /**
+     * Return whether or not the verbose toString should be used when printing two bounds.
+     *
+     * @param bounds1 the first bounds
+     * @param bounds2 the second bounds
+     * @return true iff neither argument contains "@", or there are two annotated types (in either
+     *     argument) such that their toStrings are the same but their verbose toStrings differ
+     */
+    private static boolean shouldPrintVerbose(
+            AnnotatedTypeParameterBounds bounds1, AnnotatedTypeParameterBounds bounds2) {
+        if (!bounds1.toString().contains("@") && !bounds2.toString().contains("@")) {
+            return true;
+        }
+        return containsSameToString(
+                bounds1.getUpperBound(),
+                bounds1.getLowerBound(),
+                bounds2.getUpperBound(),
+                bounds2.getLowerBound());
     }
 
     /**
@@ -4699,6 +4766,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
 
             boolean result = checkReturn();
             result &= checkParameters();
+            result &= checkTypeParameterBounds();
             if (isMethodReference) {
                 result &= checkMemberReferenceReceivers();
             } else {
@@ -5094,6 +5162,153 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         }
 
         /**
+         * Checks that each of the overriding method's own type parameters is an acceptable override
+         * of the corresponding type parameter of the overridden method, per {@link
+         * #isTypeParameterBoundOverrideValid}, and issues an error for each one that is not.
+         *
+         * <p>Corresponds positionally, like {@link #checkParameters}: the type parameter at index
+         * {@code i} of the overrider is compared against the type parameter at index {@code i} of
+         * the overridden method, for as many indices as both declare.
+         *
+         * <p>Method references are exempt. Both sides can have non-empty type-parameter lists there
+         * -- a method reference to a generic method, bound to a generic functional interface
+         * method, has them on both sides (see {@code
+         * checker/tests/nullness/java8/methodref/TestGenFunc.java}) -- so the early return below is
+         * load-bearing, not merely defensive. Those two lists are not two declarations of one
+         * overridable method: the referenced method's type parameters are instantiated at the
+         * method reference, so the position-independent containment rule this check applies does
+         * not carry over. There is also no type-parameter tree to report on, which is why {@link
+         * #checkTypeParameterBoundsMsg} can cast {@code overriderTree} to a {@code MethodTree}.
+         *
+         * @return true if every type-parameter bound is compatible
+         */
+        private boolean checkTypeParameterBounds() {
+            if (isMethodReference) {
+                return true;
+            }
+            List<AnnotatedTypeVariable> overriderTypeVars = overrider.getTypeVariables();
+            List<AnnotatedTypeVariable> overriddenTypeVars = overridden.getTypeVariables();
+            int count = Math.min(overriderTypeVars.size(), overriddenTypeVars.size());
+            boolean result = true;
+            for (int i = 0; i < count; i++) {
+                boolean success =
+                        isTypeParameterBoundOverrideValid(
+                                overriddenTypeVars.get(i), overriderTypeVars.get(i));
+                checkTypeParameterBoundsMsg(success, i, overriderTypeVars, overriddenTypeVars);
+                result &= success;
+            }
+            return result;
+        }
+
+        /**
+         * Returns true if {@code overriderTypeVar}'s declared bound is an acceptable override of
+         * {@code overriddenTypeVar}'s declared bound.
+         *
+         * <p>"Declared bound" means both {@link AnnotatedTypeVariable#getUpperBound()} and {@link
+         * AnnotatedTypeVariable#getLowerBound()}: ordinary Java syntax only lets a type parameter
+         * declaration write an upper bound (the {@code extends} clause), but the Checker Framework
+         * additionally lets a checker's type system give meaning to the annotation written directly
+         * on the type variable itself (as in {@code <@A T extends @B Object>}), which applies to
+         * the lower bound -- see the manual section "Syntax for upper and lower bounds". An
+         * override of this method should compare whichever of the two bounds its type system
+         * attaches enforceable meaning to.
+         *
+         * <p>The overriding method's body is type-checked once, generically, against its own
+         * declared bounds: it may consume a value of the type parameter as its upper bound, and
+         * produce one from its lower bound. Both must remain valid for every instantiation the
+         * overridden declaration permits, so the default implementation requires {@code
+         * overriderTypeVar}'s bound range to contain {@code overriddenTypeVar}'s: {@code
+         * overriddenTypeVar}'s upper bound must be a subtype of {@code overriderTypeVar}'s (per
+         * {@link #typeHierarchy}), and {@code overriderTypeVar}'s lower bound must be a subtype of
+         * {@code overriddenTypeVar}'s. This holds regardless of whether, or where, the type
+         * parameter is used in the method's parameter or return types.
+         *
+         * <p>Ordinary Java places no constraint here beyond erasure compatibility, which javac
+         * itself already enforces (in particular, javac requires two overriding declarations'
+         * bounds to be identical up to erasure); this default only rejects an override when a
+         * checker's type system attaches enforceable meaning to a qualifier that differs between
+         * the two bounds.
+         *
+         * @param overriddenTypeVar the corresponding type parameter of the overridden method
+         * @param overriderTypeVar the type parameter of the overriding method
+         * @return true if the override is compatible for this type parameter's bound
+         */
+        protected boolean isTypeParameterBoundOverrideValid(
+                AnnotatedTypeVariable overriddenTypeVar, AnnotatedTypeVariable overriderTypeVar) {
+            return typeHierarchy.isSubtype(
+                            overriddenTypeVar.getUpperBound(), overriderTypeVar.getUpperBound())
+                    && typeHierarchy.isSubtype(
+                            overriderTypeVar.getLowerBound(), overriddenTypeVar.getLowerBound());
+        }
+
+        /**
+         * Issues an {@code override.typaram.invalid} error for the type parameter at {@code index}
+         * if {@code success} is false.
+         *
+         * @param success whether the type parameter at {@code index} is a valid override
+         * @param index the index, into {@code overriderTypeVars} and {@code overriddenTypeVars}, of
+         *     the type parameter to report on
+         * @param overriderTypeVars the type parameters of the overriding method
+         * @param overriddenTypeVars the type parameters of the overridden method
+         */
+        private void checkTypeParameterBoundsMsg(
+                boolean success,
+                int index,
+                List<AnnotatedTypeVariable> overriderTypeVars,
+                List<AnnotatedTypeVariable> overriddenTypeVars) {
+            if (success && !showchecks) {
+                return;
+            }
+            AnnotatedTypeVariable overriderTypeVar = overriderTypeVars.get(index);
+            AnnotatedTypeVariable overriddenTypeVar = overriddenTypeVars.get(index);
+            // isTypeParameterBoundOverrideValid may have compared the upper bound, the lower
+            // bound, or both -- report both here so the message is accurate either way.
+            AnnotatedTypeParameterBounds overriderBounds =
+                    new AnnotatedTypeParameterBounds(
+                            overriderTypeVar.getUpperBound(), overriderTypeVar.getLowerBound());
+            AnnotatedTypeParameterBounds overriddenBounds =
+                    new AnnotatedTypeParameterBounds(
+                            overriddenTypeVar.getUpperBound(), overriddenTypeVar.getLowerBound());
+            // checkTypeParameterBounds returns early for a method reference, so overriderTree is
+            // always a MethodTree here.
+            Tree posTree = ((MethodTree) overriderTree).getTypeParameters().get(index);
+
+            if (showchecks) {
+                System.out.printf(
+                        " %s (at %s):%n"
+                                + "     overrider: %s %s (type parameter %d bound %s)%n"
+                                + "    overridden: %s %s"
+                                + " (type parameter %d bound %s)%n",
+                        (success
+                                ? "success: overriding type parameter bound is compatible with overridden"
+                                : "FAILURE: overriding type parameter bound is not compatible with"
+                                        + " overridden"),
+                        fileAndLineNumber(posTree),
+                        overrider,
+                        overriderType,
+                        index,
+                        overriderBounds,
+                        overridden,
+                        overriddenType,
+                        index,
+                        overriddenBounds);
+            }
+            if (!success) {
+                FoundRequired pair = FoundRequired.of(overriderBounds, overriddenBounds);
+                checker.reportError(
+                        posTree,
+                        "override.typaram.invalid",
+                        overriderTypeVar.getUnderlyingType().asElement().getSimpleName(),
+                        pair.found,
+                        pair.required,
+                        overriderType,
+                        overrider,
+                        overriddenType,
+                        overridden);
+            }
+        }
+
+        /**
          * Returns true if the return type of the overridden method is a subtype of the return type
          * of the overriding method.
          *
@@ -5104,13 +5319,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                 // Nothing to check.
                 return true;
             }
-            boolean success = typeHierarchy.isSubtype(overriderReturnType, overriddenReturnType);
-            if (!success) {
-                // If both the overridden method have type variables as return types and both
-                // types were defined in their respective methods then, they can be covariant or
-                // invariant use super/subtypes for the overrides locations
-                success = testTypevarContainment(overriderReturnType, overriddenReturnType);
-            }
+            boolean success = isReturnOverrideValid(overriddenReturnType, overriderReturnType);
 
             // Sometimes the overridden return type of a method reference becomes a captured
             // type variable.  This leads to defaulting that often makes the overriding return type
@@ -5130,6 +5339,36 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
 
             checkReturnMsg(success);
             return success;
+        }
+
+        /**
+         * Returns true if {@code actualReturnType} is an acceptable override of {@code
+         * requiredReturnType}.
+         *
+         * <p>The default implementation requires covariance: {@code actualReturnType} must be a
+         * subtype of {@code requiredReturnType}, or -- as a fallback for corresponding type
+         * variables declared by the overriding and overridden methods themselves, where a direct
+         * subtype check can fail even though the override is valid -- {@code actualReturnType} must
+         * {@linkplain #testTypevarContainment(AnnotatedTypeMirror, AnnotatedTypeMirror) contain}
+         * {@code requiredReturnType}: the overriding occurrence's bound range must contain the
+         * overridden one's, the same direction {@link
+         * OverrideChecker#isTypeParameterBoundOverrideValid} requires for the type parameter's own
+         * declared bound, and for the same reason -- an override may widen a return occurrence's
+         * upper bound, because what a body can manufacture as a fresh value of the type variable is
+         * governed by the occurrence's <em>lower</em> bound, which containment does not let the
+         * override widen. Widening the upper bound only makes the body more conservative about
+         * values it was handed.
+         *
+         * @param requiredReturnType the return type of the overridden method
+         * @param actualReturnType the return type of the overriding method
+         * @return true if the override is compatible for the return type
+         */
+        protected boolean isReturnOverrideValid(
+                AnnotatedTypeMirror requiredReturnType, AnnotatedTypeMirror actualReturnType) {
+            if (typeHierarchy.isSubtype(actualReturnType, requiredReturnType)) {
+                return true;
+            }
+            return testTypevarContainment(requiredReturnType, actualReturnType);
         }
 
         /**
