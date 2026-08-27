@@ -14,6 +14,16 @@ import java.lang.annotation.Target;
  * A method postcondition annotation that guarantees that the given Java expressions are {@link
  * Initialized} after the method terminates successfully.
  *
+ * <p>This annotation is useful when a method initializes a field of an object that is currently
+ * {@link UnderInitialization} (or {@link UnknownInitialization}). It tells the Initialization
+ * Checker that the field has been assigned a value.
+ *
+ * <p>If the receiver is already fully {@link Initialized}, this annotation provides no new
+ * information and is trivially true. If you also want to guarantee that a reference field is not
+ * null (for the Nullness Checker), use {@link
+ * org.checkerframework.checker.nullness.qual.EnsuresNonNull} instead, which implies initialization
+ * but also provides a nullness guarantee.
+ *
  * <p>Note: This is an Initialization Checker postcondition, distinct from {@link
  * org.checkerframework.common.initializedfields.qual.EnsuresInitializedFields} which is used by the
  * standalone Initialized Fields Checker.

@@ -1662,12 +1662,13 @@ All \code{@NonNull} fields must either have a
 default in the field declaration, or be assigned in the constructor or in a
 helper method that the constructor calls.  If
 your code initializes (some) fields in a helper method, you will need to
-annotate the helper method with an annotation such as
+annotate the helper method with a postcondition annotation.
+If the field is a reference type, you should use
 \refqualclass{checker/nullness/qual}{EnsuresNonNull}\code{(\{"field1", "field2"\})}
-for all the fields that the helper method assigns.
-(For fields of primitive type, use the
+to inform both the Nullness and Initialization checkers that the field is non-null and therefore initialized.
+If the field is a primitive type (or if you only wish to guarantee initialization and not non-nullness), use
 \refqualclass{checker/initialization/qual}{EnsuresInitialized}\code{(\{"field1", "field2"\})}
-annotation instead.)
+instead.
 
 \subsectionAndLabel{\code{@UnderInitialization} examples}{underinitialization-examples}
 
