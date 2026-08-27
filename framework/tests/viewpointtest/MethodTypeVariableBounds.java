@@ -27,80 +27,85 @@ public class MethodTypeVariableBounds {
             @Bottom Object bottom) {
         // @Top viewpoint-adapts @ReceiverDependentQual to @Lost, so only @Bottom is within the
         // adapted method type parameter bound.
-        // :: error: (type.argument.type.incompatible)
+        // :: error: (viewpointtest.lost.in.bounds)
         methods.noArg();
 
-        // :: error: (type.argument.type.incompatible)
+        // :: error: (type.argument.type.incompatible) :: error: (viewpointtest.lost.in.bounds)
         methods.<@Top Object>withArg(top);
 
-        // :: error: (type.argument.type.incompatible)
+        // :: error: (type.argument.type.incompatible) :: error: (viewpointtest.lost.in.bounds)
         methods.<@A Object>withArg(a);
 
-        // :: error: (type.argument.type.incompatible)
+        // :: error: (type.argument.type.incompatible) :: error: (viewpointtest.lost.in.bounds)
         methods.<@B Object>withArg(b);
 
+        // :: error: (viewpointtest.lost.in.bounds)
         methods.<@Bottom Object>withArg(bottom);
 
-        // :: error: (type.arguments.not.inferred)
+        // :: error: (type.arguments.not.inferred) :: error: (viewpointtest.lost.in.bounds)
         methods.withArg(top);
 
-        // :: error: (type.arguments.not.inferred)
+        // :: error: (type.arguments.not.inferred) :: error: (viewpointtest.lost.in.bounds)
         methods.withArg(a);
 
-        // :: error: (type.arguments.not.inferred)
+        // :: error: (type.arguments.not.inferred) :: error: (viewpointtest.lost.in.bounds)
         methods.withArg(b);
 
+        // :: error: (viewpointtest.lost.in.bounds)
         methods.withArg(bottom);
 
         // The lower bound @ReceiverDependentQual viewpoint-adapts to @Lost. Explicit type
         // arguments must be supertypes of that lower bound, so only @Top is valid.
+        // :: error: (viewpointtest.lost.in.bounds)
         methods.lowerNoArg();
+        // :: error: (viewpointtest.lost.in.bounds)
         methods.<@Top Object>lowerWithArg(top);
 
-        // :: error: (type.argument.type.incompatible)
+        // :: error: (type.argument.type.incompatible) :: error: (viewpointtest.lost.in.bounds)
         methods.<@A Object>lowerWithArg(a);
 
-        // :: error: (type.argument.type.incompatible)
+        // :: error: (type.argument.type.incompatible) :: error: (viewpointtest.lost.in.bounds)
         methods.<@B Object>lowerWithArg(b);
 
-        // :: error: (type.argument.type.incompatible)
+        // :: error: (type.argument.type.incompatible) :: error: (viewpointtest.lost.in.bounds)
         methods.<@Bottom Object>lowerWithArg(bottom);
 
         // Inference can choose @Top, which is above both the adapted lower bound and the argument.
+        // :: error: (viewpointtest.lost.in.bounds)
         methods.lowerWithArg(top);
+        // :: error: (viewpointtest.lost.in.bounds)
         methods.lowerWithArg(a);
+        // :: error: (viewpointtest.lost.in.bounds)
         methods.lowerWithArg(b);
 
-        // :: error: (type.arguments.not.inferred)
+        // :: error: (viewpointtest.lost.parameter) :: error: (viewpointtest.lost.in.bounds)
         methods.lowerWithArg(bottom);
 
-        // Both bounds viewpoint-adapt to @Lost. Because @Lost is non-reflexive, no type argument
-        // can be both above the lower bound and below the upper bound.
-        // :: error: (type.arguments.not.inferred)
+        // :: error: (viewpointtest.lost.in.bounds)
         methods.lowerAndUpperNoArg();
 
-        // :: error: (type.argument.type.incompatible)
+        // :: error: (type.argument.type.incompatible) :: error: (viewpointtest.lost.in.bounds)
         methods.<@Top Object>lowerAndUpperWithArg(top);
 
-        // :: error: (type.argument.type.incompatible)
+        // :: error: (type.argument.type.incompatible) :: error: (viewpointtest.lost.in.bounds)
         methods.<@A Object>lowerAndUpperWithArg(a);
 
-        // :: error: (type.argument.type.incompatible)
+        // :: error: (type.argument.type.incompatible) :: error: (viewpointtest.lost.in.bounds)
         methods.<@B Object>lowerAndUpperWithArg(b);
 
-        // :: error: (type.argument.type.incompatible)
+        // :: error: (type.argument.type.incompatible) :: error: (viewpointtest.lost.in.bounds)
         methods.<@Bottom Object>lowerAndUpperWithArg(bottom);
 
-        // :: error: (type.arguments.not.inferred)
+        // :: error: (type.arguments.not.inferred) :: error: (viewpointtest.lost.in.bounds)
         methods.lowerAndUpperWithArg(top);
 
-        // :: error: (type.arguments.not.inferred)
+        // :: error: (type.arguments.not.inferred) :: error: (viewpointtest.lost.in.bounds)
         methods.lowerAndUpperWithArg(a);
 
-        // :: error: (type.arguments.not.inferred)
+        // :: error: (type.arguments.not.inferred) :: error: (viewpointtest.lost.in.bounds)
         methods.lowerAndUpperWithArg(b);
 
-        // :: error: (type.arguments.not.inferred)
+        // :: error: (viewpointtest.lost.parameter) :: error: (viewpointtest.lost.in.bounds)
         methods.lowerAndUpperWithArg(bottom);
     }
 
