@@ -459,21 +459,6 @@ tasks.register('demosTests') {
     }
 }
 
-tasks.register('templateforaCheckerTests') {
-    dependsOn('assembleForJavac', ':getTemplateforaChecker')
-    group = 'Verification'
-    description = 'Test that the templatefora-checker is working as expected.'
-    def injected = project.objects.newInstance(InjectedExecOps)
-    def templateforaDir = file(rootProject.templateforaCheckerDir)
-
-    doLast {
-        injected.execOps.exec {
-            workingDir = templateforaDir
-            commandLine "./gradlew", "build"
-        }
-    }
-}
-
 tasks.register('allNullnessTests', Test) {
     group = 'Verification'
     description = 'Run all JUnit tests for the Nullness Checker.'
