@@ -278,6 +278,7 @@ final class SupertypeFinder {
         private List<AnnotatedDeclaredType> supertypesFromElement(
                 AnnotatedDeclaredType type, TypeElement typeElement) {
             List<AnnotatedDeclaredType> supertypes = new ArrayList<>();
+            boolean skipFirst = false;
             // Find the super types: Start with enums and superclass
             if (typeElement.getKind() == ElementKind.ENUM) {
                 supertypes.add(createEnumSuperType(type, typeElement));
@@ -289,7 +290,9 @@ final class SupertypeFinder {
                 supertypes.add(dt);
 
             } else if (!ElementUtils.isObject(typeElement)) {
+                // createTypeOfObject uses fromElement, which already fully defaults the type.
                 supertypes.add(AnnotatedTypeMirror.createTypeOfObject(atypeFactory));
+                skipFirst = true;
             }
 
             for (TypeMirror st : typeElement.getInterfaces()) {
@@ -323,7 +326,11 @@ final class SupertypeFinder {
                 }
             }
 
-            for (AnnotatedDeclaredType adt : supertypes) {
+            for (int i = 0; i < supertypes.size(); i++) {
+                if (i == 0 && skipFirst) {
+                    continue;
+                }
+                AnnotatedDeclaredType adt = supertypes.get(i);
                 atypeFactory.addComputedTypeAnnotations(adt.getUnderlyingType().asElement(), adt);
             }
             return supertypes;
