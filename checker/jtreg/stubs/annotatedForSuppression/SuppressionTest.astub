@@ -1,7 +1,0 @@
-package annotatedforsuppression;
-
-import org.checkerframework.framework.qual.AnnotatedFor;
-
-@AnnotatedFor("nullness")
-public class SuppressionTest {
-}
