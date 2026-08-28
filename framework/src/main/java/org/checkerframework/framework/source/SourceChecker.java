@@ -3117,7 +3117,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     }
 
     /**
-     * Returns true if the element has an {@code @AnnotatedFor} annotation, for this checker or an
+     * Returns true if the element has an {@code @AnnotatedFor} annotation for this checker or an
      * upstream checker that called this one.
      *
      * <p>This implementation always returns false, which is correct for a checker that does not

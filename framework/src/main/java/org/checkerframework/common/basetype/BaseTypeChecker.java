@@ -333,8 +333,9 @@ public abstract class BaseTypeChecker extends SourceChecker {
             return false;
         }
 
-        if (elementAnnotatedForThisCheckerOrUpstreamCache.containsKey(elt)) {
-            return elementAnnotatedForThisCheckerOrUpstreamCache.get(elt);
+        Boolean cached = elementAnnotatedForThisCheckerOrUpstreamCache.get(elt);
+        if (cached != null) {
+            return cached;
         }
 
         AnnotatedTypeFactory atypeFactory = getTypeFactory();
