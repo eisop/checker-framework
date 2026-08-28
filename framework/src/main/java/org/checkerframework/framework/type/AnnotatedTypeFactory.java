@@ -5111,7 +5111,9 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         }
 
         // Add annotations from annotation files.
-        results.addAll(stubTypes.getDeclAnnotations(elt));
+        if (mergeStubsWithSource || !ElementUtils.isElementFromSourceCode(elt)) {
+            results.addAll(stubTypes.getDeclAnnotations(elt));
+        }
         results.addAll(ajavaTypes.getDeclAnnotations(elt));
         if (currentFileAjavaTypes != null) {
             results.addAll(currentFileAjavaTypes.getDeclAnnotations(elt));
