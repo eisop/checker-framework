@@ -13,6 +13,7 @@ import org.checkerframework.framework.type.QualifierHierarchy;
 import org.checkerframework.framework.type.TypeHierarchy;
 import org.checkerframework.javacutil.AbstractTypeProcessor;
 import org.checkerframework.javacutil.AnnotationProvider;
+import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.TypeSystemError;
@@ -339,7 +340,13 @@ public abstract class BaseTypeChecker extends SourceChecker {
         }
 
         AnnotatedTypeFactory atypeFactory = getTypeFactory();
-        AnnotationMirror annotatedFor = atypeFactory.getDeclAnnotation(elt, AnnotatedFor.class);
+        // Workaround for eisop#1987: getDeclAnnotations applies a stub to a class that is being
+        // compiled, which should require -AmergeStubsWithSource.  Delete once that is fixed.
+        AnnotationMirror annotatedFor =
+                ElementUtils.isElementFromSourceCode(elt) && !hasOption("mergeStubsWithSource")
+                        ? AnnotationUtils.getAnnotationByClass(
+                                elt.getAnnotationMirrors(), AnnotatedFor.class)
+                        : atypeFactory.getDeclAnnotation(elt, AnnotatedFor.class);
         boolean elementAnnotatedForThisChecker =
                 annotatedFor != null
                         && atypeFactory.doesAnnotatedForApplyToThisChecker(annotatedFor);
