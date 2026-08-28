@@ -2,6 +2,7 @@
  * @test
  * @summary Test that record stubs are ignored for source records unless -AmergeStubsWithSource is passed
  *
+ * @requires jdk.version >= 17
  * @compile -processor org.checkerframework.checker.nullness.NullnessChecker -Anomsgtext -Werror Use.java Rec.java
  * @compile/ref=WithStub.out -XDrawDiagnostics -processor org.checkerframework.checker.nullness.NullnessChecker -Anomsgtext -Astubs=Rec.astub Use.java Rec.java
  * @compile/fail/ref=WithStubAndMerge.out -XDrawDiagnostics -processor org.checkerframework.checker.nullness.NullnessChecker -Anomsgtext -Astubs=Rec.astub -AmergeStubsWithSource Use.java Rec.java
