@@ -99,6 +99,20 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
     // Caution: Assumes that a type can have at most one AnnotationMirror for any Annotation type.
     protected final AnnotationMirrorSet primaryAnnotations = new AnnotationMirrorSet();
 
+    /**
+     * True once this type has been frozen by {@link #freeze()}. A frozen type is effectively
+     * immutable: its primary annotations (and those of every type reachable from it) can no longer
+     * be changed. This lets the framework share a single frozen instance (for example, a type
+     * stored in a cache) without defensively copying it. Mutating a frozen type is a bug; the
+     * annotation mutators throw {@link BugInCF} when it is attempted.
+     *
+     * <p>Lazy initialization of structural components (type-variable and wildcard bounds, type
+     * arguments, array component types, executable-type parts) is still permitted on a frozen type;
+     * the freshly created components are frozen as they are produced, so the immutability of the
+     * whole reachable graph is preserved.
+     */
+    private boolean frozen = false;
+
     // /** The explicitly written annotations on this type. */
     // TODO: use this to cache the result once computed? For generic types?
     // protected final AnnotationMirrorSet explicitannotations =
@@ -226,6 +240,13 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
     /**
      * Returns the {@code kind} of this type.
      *
+     * <p>Subclasses whose kind is constant (e.g. {@link AnnotatedDeclaredType}, {@link
+     * AnnotatedArrayType}) override this to return the constant directly; this is meaningful for
+     * performance because the underlying javac {@code Type#getKind()} on declared types runs {@code
+     * Symbol#apiComplete}. Only {@link AnnotatedPrimitiveType} and {@link AnnotatedNoType} fall
+     * through to this base implementation; for both, the underlying type's {@code getKind()} is
+     * cheap and does not force symbol completion.
+     *
      * @return the kind of this type
      */
     public TypeKind getKind() {
@@ -304,23 +325,18 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
         if (primaryAnnotations.isEmpty()) {
             return null;
         }
-        AnnotationMirror canonical = annotation;
-        if (!atypeFactory.isSupportedQualifier(canonical)) {
+        AnnotationMirror canonical;
+        if (atypeFactory.isSupportedQualifier(annotation)) {
+            canonical = annotation;
+        } else {
             canonical = atypeFactory.canonicalAnnotation(annotation);
-            if (canonical == null) {
+            if (canonical == null || !atypeFactory.isSupportedQualifier(canonical)) {
                 // This can happen if annotation is unrelated to this AnnotatedTypeMirror.
                 return null;
             }
         }
-        if (atypeFactory.isSupportedQualifier(canonical)) {
-            QualifierHierarchy qualHierarchy = atypeFactory.getQualifierHierarchy();
-            AnnotationMirror anno =
-                    qualHierarchy.findAnnotationInSameHierarchy(primaryAnnotations, canonical);
-            if (anno != null) {
-                return anno;
-            }
-        }
-        return null;
+        QualifierHierarchy qualHierarchy = atypeFactory.getQualifierHierarchy();
+        return qualHierarchy.findAnnotationInSameHierarchy(primaryAnnotations, canonical);
     }
 
     /**
@@ -335,20 +351,17 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
      */
     public @Nullable AnnotationMirror getEffectiveAnnotationInHierarchy(
             AnnotationMirror annotation) {
-        AnnotationMirror canonical = annotation;
-        if (!atypeFactory.isSupportedQualifier(canonical)) {
+        AnnotationMirror canonical;
+        if (atypeFactory.isSupportedQualifier(annotation)) {
+            canonical = annotation;
+        } else {
             canonical = atypeFactory.canonicalAnnotation(annotation);
-        }
-        if (atypeFactory.isSupportedQualifier(canonical)) {
-            QualifierHierarchy qualHierarchy = this.atypeFactory.getQualifierHierarchy();
-            AnnotationMirror anno =
-                    qualHierarchy.findAnnotationInSameHierarchy(
-                            getEffectiveAnnotations(), canonical);
-            if (anno != null) {
-                return anno;
+            if (canonical == null || !atypeFactory.isSupportedQualifier(canonical)) {
+                return null;
             }
         }
-        return null;
+        QualifierHierarchy qualHierarchy = this.atypeFactory.getQualifierHierarchy();
+        return qualHierarchy.findAnnotationInSameHierarchy(getEffectiveAnnotations(), canonical);
     }
 
     /**
@@ -366,6 +379,9 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
     // typetools: getPrimaryAnnotations
     // typetools: removed method getPrimaryAnnotation
     public final AnnotationMirrorSet getAnnotations() {
+        if (primaryAnnotations.isEmpty()) {
+            return AnnotationMirrorSet.emptySet();
+        }
         return AnnotationMirrorSet.unmodifiableSet(primaryAnnotations);
     }
 
@@ -647,6 +663,7 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
         if (annotation == null) {
             throw new BugInCF("AnnotatedTypeMirror.addAnnotation: null argument.");
         }
+        checkMutable();
         if (atypeFactory.isSupportedQualifier(annotation)) {
             this.primaryAnnotations.add(annotation);
         } else {
@@ -700,6 +717,22 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
     }
 
     /**
+     * Adds multiple annotations to this type. An {@link AnnotationMirrorSet}-typed overload of
+     * {@link #addAnnotations(Iterable)}: overload resolution prefers it for the many callers that
+     * pass {@link #getAnnotationsField()} or {@link #getAnnotations()}, letting them iterate by
+     * index rather than allocating an {@code Iterator}. Iterating an {@code AnnotationMirrorSet}
+     * was the single largest source of {@code ArrayList$Itr} allocations in nullness-checking JFR
+     * traces, and this method was its largest caller.
+     *
+     * @param annotations the annotations to add
+     */
+    public void addAnnotations(AnnotationMirrorSet annotations) {
+        for (int i = 0, n = annotations.size(); i < n; ++i) {
+            this.addAnnotation(annotations.get(i));
+        }
+    }
+
+    /**
      * Adds only the annotations in {@code annotations} that the type does not already have a
      * primary annotation in the same hierarchy.
      *
@@ -714,6 +747,20 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
     public void addMissingAnnotations(Iterable<? extends AnnotationMirror> annotations) {
         for (AnnotationMirror a : annotations) {
             addMissingAnnotation(a);
+        }
+    }
+
+    /**
+     * Adds only the annotations in {@code annotations} for which the type does not already have a
+     * primary annotation in the same hierarchy. An {@link AnnotationMirrorSet}-typed overload of
+     * {@link #addMissingAnnotations(Iterable)} that iterates by index instead of allocating an
+     * {@code Iterator}.
+     *
+     * @param annotations the annotations to add
+     */
+    public void addMissingAnnotations(AnnotationMirrorSet annotations) {
+        for (int i = 0, n = annotations.size(); i < n; ++i) {
+            addMissingAnnotation(annotations.get(i));
         }
     }
 
@@ -748,6 +795,20 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
     }
 
     /**
+     * Adds multiple annotations to this type, removing any existing primary annotations from the
+     * same qualifier hierarchy first. An {@link AnnotationMirrorSet}-typed overload of {@link
+     * #replaceAnnotations(Iterable)} that iterates by index instead of allocating an {@code
+     * Iterator}.
+     *
+     * @param replAnnos the annotations to replace
+     */
+    public void replaceAnnotations(AnnotationMirrorSet replAnnos) {
+        for (int i = 0, n = replAnnos.size(); i < n; ++i) {
+            this.replaceAnnotation(replAnnos.get(i));
+        }
+    }
+
+    /**
      * Removes a primary annotation from the type.
      *
      * @param a the annotation to remove
@@ -755,6 +816,7 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
      */
     // typetools removePrimaryAnnotation
     public boolean removeAnnotation(AnnotationMirror a) {
+        checkMutable();
         AnnotationMirror anno = AnnotationUtils.getSame(primaryAnnotations, a);
         if (anno != null) {
             return primaryAnnotations.remove(anno);
@@ -826,18 +888,129 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
         return changed;
     }
 
-    /** Removes all primary annotations on this type. */
+    /**
+     * Removes all primary annotations on this type and, in the case of {@link
+     * AnnotatedTypeVariable}s, {@link AnnotatedWildcardType}s, and {@link
+     * AnnotatedIntersectionType}s, clears all bounds too, matching {@link #addAnnotation} and
+     * {@link #removeAnnotation}, which already propagate to bounds for those three kinds.
+     */
     // typetools: clearPrimaryAnnotations
     public void clearAnnotations() {
+        checkMutable();
         primaryAnnotations.clear();
     }
 
+    /**
+     * Throws {@link BugInCF} if this type is {@linkplain #freeze() frozen}. Called by the primary
+     * annotation mutators before they change anything, so that a frozen (shared) type cannot be
+     * corrupted in place. Callers that need to change a frozen type must {@link #deepCopy()} it
+     * first and mutate the copy.
+     */
+    protected final void checkMutable() {
+        if (frozen) {
+            throw new BugInCF(
+                    "Attempted to mutate a frozen AnnotatedTypeMirror with underlying type %s."
+                            + " Call deepCopy() before mutating a type obtained from a cache.",
+                    underlyingType);
+        }
+    }
+
+    /**
+     * Returns true if this type has been {@linkplain #freeze() frozen}.
+     *
+     * @return true if this type is frozen
+     */
+    public final boolean isFrozen() {
+        return frozen;
+    }
+
+    /**
+     * Freezes this type and every type reachable from it that has already been initialized, making
+     * them effectively immutable: subsequent attempts to change their primary annotations throw
+     * {@link BugInCF}. Idempotent.
+     *
+     * <p>This does <em>not</em> force lazy initialization of uninitialized components
+     * (type-variable and wildcard bounds, type arguments, etc.); doing so would be expensive and is
+     * unnecessary. Instead, the lazy getters freeze any component they create while this type is
+     * frozen, so the reachable graph stays fully frozen without eagerly materializing it.
+     *
+     * <p>Cycles (for example a recursive type variable whose bound refers back to itself) terminate
+     * because {@link #frozen} is set before {@link #freezeComponents()} recurses: a re-entry on a
+     * type already being frozen returns immediately.
+     */
+    public final void freeze() {
+        if (frozen) {
+            return;
+        }
+        frozen = true;
+        // Reject any further direct mutation of the annotation set, including via
+        // getAnnotationsField() and the AnnotatedDeclaredTypeNoHierarchy.addAnnotation bypass.
+        primaryAnnotations.makeUnmodifiable();
+        freezeComponents();
+    }
+
+    /**
+     * Freezes the already-initialized structural components of this type (bounds, type arguments,
+     * component types, etc.). Overridden by each composite subclass; the base implementation has no
+     * components to freeze. Only components that have already been initialized are frozen; lazy
+     * getters take care of components created later (see {@link #freeze()}).
+     */
+    void freezeComponents() {
+        // No components in the base class.
+    }
+
+    /**
+     * If this type is frozen, freezes {@code component} (when non-null). Used by lazy getters to
+     * keep the reachable graph frozen when a component is materialized after this type was frozen.
+     *
+     * @param component a structural component of this type, or null
+     */
+    final void freezeLazyComponent(@Nullable AnnotatedTypeMirror component) {
+        if (frozen && component != null) {
+            component.freeze();
+        }
+    }
+
+    /**
+     * If this type is frozen, freezes each element of {@code components} (when non-null). Used by
+     * lazy getters to keep the reachable graph frozen when components are materialized after this
+     * type was frozen.
+     *
+     * @param components structural components of this type, or null
+     */
+    final void freezeLazyComponents(@Nullable List<? extends AnnotatedTypeMirror> components) {
+        if (frozen && components != null) {
+            for (int i = 0, n = components.size(); i < n; ++i) {
+                components.get(i).freeze();
+            }
+        }
+    }
+
+    /**
+     * Returns a string representation of this type, using the type factory's {@link
+     * AnnotatedTypeFormatter}. Whether details such as invisible qualifiers appear depends on that
+     * formatter's configuration.
+     *
+     * @return a string representation of this type
+     */
     @SideEffectFree
     @Override
     public final String toString() {
         return atypeFactory.getAnnotatedTypeFormatter().format(this);
     }
 
+    /**
+     * Returns a possibly-verbose string representation of this type. Verbose printing shows details
+     * that {@link #toString()} might omit, such as invisible qualifiers and the bounds of type
+     * variables and wildcards; it never omits a detail that {@link #toString()} shows. Therefore,
+     * {@code toString(false)} returns the same string as {@code toString()}: {@code verbose} asks
+     * for optional extra detail on top of {@link #toString()}'s output, not for a specific level of
+     * detail in its own right, so there is no argument that requests less detail than {@link
+     * #toString()} already provides.
+     *
+     * @param verbose if true, print details that {@link #toString()} might omit
+     * @return a possibly-verbose string representation of this type
+     */
     @SideEffectFree
     public final String toString(boolean verbose) {
         return atypeFactory.getAnnotatedTypeFormatter().format(this, verbose);
@@ -1051,6 +1224,11 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
         }
 
         @Override
+        public TypeKind getKind() {
+            return TypeKind.DECLARED;
+        }
+
+        @Override
         public boolean isDeclaration() {
             return declaration;
         }
@@ -1084,12 +1262,13 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
             // is converted to a use, then both type variables are uses and should be the same
             // object.
             // The code below does this.
-            Map<TypeVariable, AnnotatedTypeMirror> mapping = new HashMap<>(typeArgs.size());
-            for (AnnotatedTypeMirror typeArg : result.getTypeArguments()) {
+            List<AnnotatedTypeMirror> resultTypeArgs = result.getTypeArguments();
+            Map<TypeVariable, AnnotatedTypeMirror> mapping = new HashMap<>(resultTypeArgs.size());
+            for (AnnotatedTypeMirror typeArg : resultTypeArgs) {
                 AnnotatedTypeVariable typeVar = (AnnotatedTypeVariable) typeArg;
                 mapping.put(typeVar.getUnderlyingType(), typeVar);
             }
-            for (AnnotatedTypeMirror typeArg : result.getTypeArguments()) {
+            for (AnnotatedTypeMirror typeArg : resultTypeArgs) {
                 AnnotatedTypeVariable typeVar = (AnnotatedTypeVariable) typeArg;
                 AnnotatedTypeMirror upperBound =
                         atypeFactory
@@ -1147,7 +1326,8 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
             }
 
             DeclaredType t = getUnderlyingType();
-            typeArgs = new ArrayList<>(t.getTypeArguments().size());
+            List<? extends TypeMirror> javaTypeArgs = t.getTypeArguments();
+            typeArgs = new ArrayList<>(javaTypeArgs.size());
             // TODO: make typeArgs immutable. Optimize for empty set.
             if (isUnderlyingTypeRaw()) {
                 TypeElement typeElement = (TypeElement) atypeFactory.types.asElement(t);
@@ -1173,27 +1353,48 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
                                     typeParameterToWildcard, wildcardType.getExtendsBound()));
                 }
             } else if (isDeclaration()) {
-                for (TypeMirror javaTypeArg : t.getTypeArguments()) {
+                for (TypeMirror javaTypeArg : javaTypeArgs) {
                     AnnotatedTypeVariable tv =
                             (AnnotatedTypeVariable)
                                     AnnotatedTypeMirror.createType(javaTypeArg, atypeFactory, true);
                     typeArgs.add(tv);
                 }
             } else {
-                for (TypeMirror javaTypeArg : t.getTypeArguments()) {
+                // Lazily resolve typeParameters; only needed if a wildcard type argument is
+                // encountered. Avoids unnecessary asElement/getTypeParameters calls for the common
+                // case of non-wildcard type arguments.
+                List<? extends TypeParameterElement> typeParameters = null;
+                int i = 0;
+                for (TypeMirror javaTypeArg : javaTypeArgs) {
                     AnnotatedTypeMirror typeArg =
                             AnnotatedTypeMirror.createType(javaTypeArg, atypeFactory, false);
                     if (typeArg.getKind() == TypeKind.WILDCARD) {
+                        if (typeParameters == null) {
+                            typeParameters =
+                                    ((TypeElement) atypeFactory.types.asElement(t))
+                                            .getTypeParameters();
+                        }
                         AnnotatedWildcardType wildcardType = (AnnotatedWildcardType) typeArg;
-                        wildcardType.setTypeVariable(
-                                ((TypeElement) atypeFactory.types.asElement(t))
-                                        .getTypeParameters()
-                                        .get(typeArgs.size()));
+                        wildcardType.setTypeVariable(typeParameters.get(i));
                     }
                     typeArgs.add(typeArg);
+                    ++i;
                 }
             }
+            freezeLazyComponents(typeArgs);
             return typeArgs;
+        }
+
+        @Override
+        void freezeComponents() {
+            if (enclosingType != null) {
+                enclosingType.freeze();
+            }
+            if (typeArgs != null) {
+                for (int i = 0, n = typeArgs.size(); i < n; ++i) {
+                    typeArgs.get(i).freeze();
+                }
+            }
         }
 
         /**
@@ -1221,7 +1422,7 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
 
         @Override
         public List<AnnotatedDeclaredType> directSupertypes() {
-            return Collections.unmodifiableList(SupertypeFinder.directSupertypes(this));
+            return atypeFactory.getDirectSupertypes(this);
         }
 
         @Override
@@ -1347,6 +1548,11 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
             super(type, factory);
         }
 
+        @Override
+        public TypeKind getKind() {
+            return TypeKind.EXECUTABLE;
+        }
+
         /** The parameter types; an unmodifiable list. */
         /*package-private*/ @MonotonicNonNull List<AnnotatedTypeMirror> paramTypes = null;
 
@@ -1467,6 +1673,7 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
                     }
                     setParameterTypes(Collections.unmodifiableList(newParamTypes));
                 }
+                freezeLazyComponents(paramTypes);
             }
             // No need to copy or wrap; it is an unmodifiable list.
             return paramTypes;
@@ -1576,6 +1783,7 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
                     returnType = createType(aret, atypeFactory, false);
                 }
                 returnTypeComputed = true;
+                freezeLazyComponent(returnType);
             }
             return returnType;
         }
@@ -1625,6 +1833,7 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
                     receiverType = (AnnotatedDeclaredType) type;
                 }
                 receiverTypeComputed = true;
+                freezeLazyComponent(receiverType);
             }
             return receiverType;
         }
@@ -1670,6 +1879,7 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
                     }
                     setThrownTypes(Collections.unmodifiableList(newThrownTypes));
                 }
+                freezeLazyComponents(thrownTypes);
             }
             // No need to copy or wrap; it is an unmodifiable list.
             return thrownTypes;
@@ -1718,9 +1928,33 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
                     }
                     setTypeVariables(Collections.unmodifiableList(newTypeVarTypes));
                 }
+                freezeLazyComponents(typeVarTypes);
             }
             // No need to copy or wrap; it is an unmodifiable list.
             return typeVarTypes;
+        }
+
+        @Override
+        void freezeComponents() {
+            // Freeze only already-computed components; do not force lazy initialization.
+            if (paramTypesComputed) {
+                freezeLazyComponents(paramTypes);
+            }
+            if (varargType != null) {
+                varargType.freeze();
+            }
+            if (receiverTypeComputed && receiverType != null) {
+                receiverType.freeze();
+            }
+            if (returnTypeComputed && returnType != null) {
+                returnType.freeze();
+            }
+            if (thrownTypesComputed) {
+                freezeLazyComponents(thrownTypes);
+            }
+            if (typeVarTypesComputed) {
+                freezeLazyComponents(typeVarTypes);
+            }
         }
 
         @Override
@@ -1826,6 +2060,11 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
             super(type, factory);
         }
 
+        @Override
+        public TypeKind getKind() {
+            return TypeKind.ARRAY;
+        }
+
         /** The component type of this array type. */
         /*package-private*/ @MonotonicNonNull AnnotatedTypeMirror componentType;
 
@@ -1860,8 +2099,16 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
                                 ((ArrayType) underlyingType).getComponentType(),
                                 atypeFactory,
                                 false));
+                freezeLazyComponent(componentType);
             }
             return componentType;
+        }
+
+        @Override
+        void freezeComponents() {
+            if (componentType != null) {
+                componentType.freeze();
+            }
         }
 
         @Override
@@ -1934,6 +2181,11 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
             this.declaration = declaration;
         }
 
+        @Override
+        public TypeKind getKind() {
+            return TypeKind.TYPEVAR;
+        }
+
         /** The lower bound of the type variable. */
         private AnnotatedTypeMirror lowerBound;
 
@@ -1963,6 +2215,26 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
                 ret |= upperBound.removeAnnotation(a);
             }
             return ret;
+        }
+
+        /**
+         * {@inheritDoc}
+         *
+         * <p>Also clears both bounds' annotations, for the same reason {@link
+         * #removeAnnotation(AnnotationMirror)} does: leaving a bound's annotations in place while
+         * clearing only this type variable's own primary annotation would let a bound keep a stale
+         * qualifier that a caller clearing this type is trying to discard, with no local signal
+         * that the two had gone out of sync.
+         */
+        @Override
+        public void clearAnnotations() {
+            super.clearAnnotations();
+            if (lowerBound != null) {
+                lowerBound.clearAnnotations();
+            }
+            if (upperBound != null) {
+                upperBound.clearAnnotations();
+            }
         }
 
         /**
@@ -2041,6 +2313,8 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
             if (lowerBound == null) { // lazy init
                 BoundsInitializer.initializeBounds(this);
                 fixupBoundAnnotations();
+                freezeLazyComponent(lowerBound);
+                freezeLazyComponent(upperBound);
             }
             return lowerBound;
         }
@@ -2112,14 +2386,38 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
             if (upperBound == null) { // lazy init
                 BoundsInitializer.initializeBounds(this);
                 fixupBoundAnnotations();
+                freezeLazyComponent(upperBound);
+                freezeLazyComponent(lowerBound);
             }
             return upperBound;
         }
 
+        @Override
+        void freezeComponents() {
+            if (upperBound != null) {
+                upperBound.freeze();
+            }
+            if (lowerBound != null) {
+                lowerBound.freeze();
+            }
+        }
+
+        /**
+         * Returns the upper and lower bounds of this type variable, forcing their lazy
+         * initialization if necessary.
+         *
+         * @return the bounds of this type variable
+         */
         public AnnotatedTypeParameterBounds getBounds() {
             return new AnnotatedTypeParameterBounds(getUpperBound(), getLowerBound());
         }
 
+        /**
+         * Returns the upper and lower bound fields of this type variable directly, without forcing
+         * lazy initialization (the fields may be null).
+         *
+         * @return the bound fields of this type variable
+         */
         public AnnotatedTypeParameterBounds getBoundFields() {
             return new AnnotatedTypeParameterBounds(getUpperBoundField(), getLowerBoundField());
         }
@@ -2231,6 +2529,11 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
 
         private AnnotatedNullType(NullType type, AnnotatedTypeFactory factory) {
             super(type, factory);
+        }
+
+        @Override
+        public TypeKind getKind() {
+            return TypeKind.NULL;
         }
 
         @Override
@@ -2348,6 +2651,11 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
         }
 
         @Override
+        public TypeKind getKind() {
+            return TypeKind.WILDCARD;
+        }
+
+        @Override
         public void addAnnotation(AnnotationMirror annotation) {
             super.addAnnotation(annotation);
             fixupBoundAnnotations();
@@ -2363,6 +2671,26 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
                 ret |= extendsBound.removeAnnotation(a);
             }
             return ret;
+        }
+
+        /**
+         * {@inheritDoc}
+         *
+         * <p>Also clears both bounds' annotations, for the same reason {@link
+         * #removeAnnotation(AnnotationMirror)} does: leaving a bound's annotations in place while
+         * clearing only this wildcard's own primary annotation would let a bound keep a stale
+         * qualifier that a caller clearing this type is trying to discard, with no local signal
+         * that the two had gone out of sync.
+         */
+        @Override
+        public void clearAnnotations() {
+            super.clearAnnotations();
+            if (superBound != null) {
+                superBound.clearAnnotations();
+            }
+            if (extendsBound != null) {
+                extendsBound.clearAnnotations();
+            }
         }
 
         /**
@@ -2393,6 +2721,8 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
             if (superBound == null) {
                 BoundsInitializer.initializeBounds(this);
                 fixupBoundAnnotations();
+                freezeLazyComponent(superBound);
+                freezeLazyComponent(extendsBound);
             }
             return this.superBound;
         }
@@ -2425,10 +2755,27 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
             if (extendsBound == null) {
                 BoundsInitializer.initializeBounds(this);
                 fixupBoundAnnotations();
+                freezeLazyComponent(extendsBound);
+                freezeLazyComponent(superBound);
             }
             return this.extendsBound;
         }
 
+        @Override
+        void freezeComponents() {
+            if (extendsBound != null) {
+                extendsBound.freeze();
+            }
+            if (superBound != null) {
+                superBound.freeze();
+            }
+        }
+
+        /**
+         * Copies this wildcard's primary annotations onto its extends and super bounds, replacing
+         * any existing annotations in the same hierarchy. Has no effect if this wildcard has no
+         * primary annotations or the bounds are not yet initialized.
+         */
         private void fixupBoundAnnotations() {
             if (!this.getAnnotationsField().isEmpty()) {
                 if (superBound != null) {
@@ -2559,6 +2906,11 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
             super(type, atypeFactory);
         }
 
+        @Override
+        public TypeKind getKind() {
+            return TypeKind.INTERSECTION;
+        }
+
         /**
          * {@inheritDoc}
          *
@@ -2581,6 +2933,25 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
                 }
             }
             return ret;
+        }
+
+        /**
+         * {@inheritDoc}
+         *
+         * <p>Also clears every bound's annotations, for the same reason {@link
+         * #removeAnnotation(AnnotationMirror)} does: leaving a bound's annotations in place while
+         * clearing only the intersection's own primary annotation would let a bound keep a stale
+         * qualifier that a caller clearing this type is trying to discard, with no local signal
+         * that the two had gone out of sync.
+         */
+        @Override
+        public void clearAnnotations() {
+            super.clearAnnotations();
+            if (bounds != null) {
+                for (AnnotatedTypeMirror bound : bounds) {
+                    bound.clearAnnotations();
+                }
+            }
         }
 
         /**
@@ -2653,6 +3024,20 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
          *
          * <p>This returns the same types as {@link #directSupertypes()}.
          *
+         * <p>The returned bounds are homogenized: {@link #summarizeBounds()} summarized the bounds'
+         * qualifiers into one qualifier per hierarchy and wrote that summary onto every bound (see
+         * {@link #addAnnotation}), so a bound's own qualifier is not recoverable from this method,
+         * only from the summary. This is not just a precision optimization: {@link
+         * DefaultTypeHierarchy}'s intersection subtyping methods (for example {@code
+         * visitIntersection_Type}) read only this method, never this intersection's own primary
+         * annotation directly, so a hierarchy left un-homogenized on a bound would not be seen by
+         * ordinary subtype checks at all. Homogenizing can also be strictly more precise than
+         * keeping each bound's own qualifier: a hierarchy that only one bound constrains is
+         * propagated to the others rather than defaulted away. For example, in {@code @Odd Number &
+         * Cloneable} the {@code @Odd} summary is written onto the {@code Cloneable} bound, so a
+         * value of the intersection is {@code @Odd} when viewed as {@code Cloneable}; per-bound
+         * qualifiers would instead default that view to top.
+         *
          * @return the bounds of this, which are also the direct super types of this
          */
         public List<AnnotatedTypeMirror> getBounds() {
@@ -2664,8 +3049,79 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
                                 (TypeMirror bnd) -> createType(bnd, atypeFactory, false), ubounds);
                 bounds = Collections.unmodifiableList(res);
                 fixupBoundAnnotations();
+                freezeLazyComponents(bounds);
             }
             return bounds;
+        }
+
+        /**
+         * Summarizes this intersection's bounds into its own primary annotation, one hierarchy at a
+         * time: the first bound's qualifier there, or, if a later bound's qualifier conflicts,
+         * whatever {@link
+         * AnnotatedTypeFactory#combineIntersectionBoundAnnotationsInHierarchy(AnnotationMirror,
+         * AnnotationMirror, QualifierHierarchy)} returns. Adding the result as this intersection's
+         * own primary annotation homogenizes it onto every bound (see {@link #addAnnotation}); a
+         * bound whose own annotation differs from the summary does not keep it, so {@code
+         * BaseTypeVisitor.checkExplicitAnnotationsOnIntersectionBounds} warns when that annotation
+         * was explicit. See {@code framework/tests/lubglb/IntersectionBoundOrderA.java}.
+         *
+         * <p>This reads each bound's qualifier via {@link #getAnnotationInHierarchy}, so it
+         * reflects whatever is on a bound when this method runs, uniformly whether that came from
+         * an explicit annotation or from defaulting &mdash; there is no separate explicit-only
+         * variant of this method. Which of those two a given caller sees depends only on when in
+         * the pipeline it calls this method: {@code QualifierDefaults} calls it, for a type
+         * variable's own intersection upper bound, only after each bound has already been
+         * independently defaulted, so the combining hook sees every bound's real qualifier; calling
+         * it any earlier for that position would see only bounds' explicit annotations, since
+         * defaulting has not run yet, exactly like the intersection cast target case below. A type
+         * variable's own intersection upper bound is summarized only when the enclosing {@code
+         * AnnotatedTypeFactory} runs {@code QualifierDefaults}; one that does not (there is one in
+         * this repository, used only for debugging output) leaves it unsummarized.
+         *
+         * <p>An intersection cast target's construction also calls this method, but before
+         * defaulting, so only explicit annotations are seen there; a hierarchy no bound constrains
+         * explicitly is simply left out of the summary, because a cast target's remaining
+         * hierarchies are instead filled from the cast operand by {@code
+         * PropagationTreeAnnotator#visitTypeCast}, not by {@code QualifierDefaults}. See {@code
+         * framework/tests/lubglb/IntersectionBoundDefaulting.java}.
+         */
+        public void summarizeBounds() {
+            QualifierHierarchy qualHierarchy = atypeFactory.getQualifierHierarchy();
+            AnnotationMirrorSet annos = new AnnotationMirrorSet();
+            List<AnnotatedTypeMirror> theBounds = getBounds();
+            for (AnnotationMirror top : qualHierarchy.getTopAnnotations()) {
+                AnnotationMirror summary = null;
+                for (AnnotatedTypeMirror bound : theBounds) {
+                    AnnotationMirror qual = bound.getAnnotationInHierarchy(top);
+                    if (qual == null) {
+                        continue;
+                    }
+                    if (summary == null) {
+                        summary = qual;
+                    } else if (!AnnotationUtils.areSame(summary, qual)) {
+                        AnnotationMirror combined =
+                                atypeFactory.combineIntersectionBoundAnnotationsInHierarchy(
+                                        summary, qual, qualHierarchy);
+                        if (combined != null) {
+                            summary = combined;
+                        }
+                    }
+                }
+                if (summary != null) {
+                    annos.add(summary);
+                }
+            }
+            // Clear first, then replaceAnnotations rather than addAnnotations: summarizeBounds is a
+            // full recomputation, so a hierarchy with no contributing bound must be dropped from
+            // both the intersection and its homogenized bound copies, not preserved from an earlier
+            // summary. clearAnnotations() also clears every bound (see the override above).
+            clearAnnotations();
+            replaceAnnotations(annos);
+        }
+
+        @Override
+        void freezeComponents() {
+            freezeLazyComponents(bounds);
         }
 
         /**
@@ -2676,29 +3132,38 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
         public void setBounds(List<AnnotatedTypeMirror> bounds) {
             this.bounds = bounds;
         }
-
-        /**
-         * Copy the first annotation (in each hierarchy) on a bound to the primary annotation
-         * location of the intersection type.
-         *
-         * <p>For example, in the type {@code @NonNull Object & @Initialized @Nullable
-         * Serializable}, {@code @Nullable} and {@code @Initialized} are copied to the primary
-         * annotation location.
-         */
-        public void copyIntersectionBoundAnnotations() {
-            AnnotationMirrorSet annos = new AnnotationMirrorSet();
-            for (AnnotatedTypeMirror bound : getBounds()) {
-                for (AnnotationMirror a : bound.getAnnotationsField()) {
-                    if (atypeFactory.getQualifierHierarchy().findAnnotationInSameHierarchy(annos, a)
-                            == null) {
-                        annos.add(a);
-                    }
-                }
-            }
-            addAnnotations(annos);
-        }
     }
 
+    /**
+     * Represents a union type, the type of a multi-catch parameter (for example, {@code catch
+     * (IOException | SQLException e)}).
+     *
+     * <p>Unlike {@link AnnotatedIntersectionType}, {@link AnnotatedTypeVariable}, and {@link
+     * AnnotatedWildcardType}, this class does not override {@code addAnnotation}, {@code
+     * removeAnnotation}, or {@code clearAnnotations} to propagate to its components ({@link
+     * #getAlternatives()}), and must not: those three types' bounds are meant to be homogenized
+     * (every bound shares the same qualifier per hierarchy, since the type IS-A each of its bounds
+     * simultaneously), but a union's alternatives are meant to stay heterogeneous -- the example
+     * above can legitimately have a different qualifier on {@code IOException} than on {@code
+     * SQLException}. {@link
+     * org.checkerframework.common.basetype.BaseTypeVisitor#checkExceptionParameter} and {@link
+     * org.checkerframework.common.basetype.BaseTypeVisitor#checkThrownExpression} both validate
+     * this type's own primary annotation and each alternative independently rather than assuming
+     * they agree. Propagating like the other three types would forcibly overwrite (on {@code
+     * addAnnotation}) or erase (on {@code removeAnnotation}/{@code clearAnnotations}) that
+     * per-alternative information instead of preserving it.
+     *
+     * <p>This type's own primary annotation is instead a <em>derived</em> summary of the
+     * alternatives -- the least upper bound of their qualifiers, not a value that gets pushed down
+     * onto them -- computed by {@code AsSuperVisitor.ensurePrimaryIsCorrectForUnions}, since every
+     * alternative must be assignable to a catch parameter of this union type. A caller that does
+     * need to push one qualifier onto every alternative -- for example, applying the same default
+     * to an entirely unannotated {@code catch} parameter -- does so with {@code
+     * addMissingAnnotation(s)}, which only fills a hierarchy an alternative doesn't already have an
+     * opinion on, rather than {@code addAnnotation}, which would overwrite one it does. See {@code
+     * AsSuperVisitor#copyPrimaryAnnos}'s union case and {@code QualifierDefaults}'s {@code
+     * EXCEPTION_PARAMETER} case.
+     */
     // TODO: Ensure union types are handled everywhere.
     // TODO: Should field "annotations" contain anything?
     public static class AnnotatedUnionType extends AnnotatedTypeMirror {
@@ -2711,6 +3176,11 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
          */
         private AnnotatedUnionType(UnionType type, AnnotatedTypeFactory atypeFactory) {
             super(type, atypeFactory);
+        }
+
+        @Override
+        public TypeKind getKind() {
+            return TypeKind.UNION;
         }
 
         @Override
@@ -2766,8 +3236,14 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
                                                 createType(alt, atypeFactory, false),
                                 ualts);
                 alternatives = Collections.unmodifiableList(res);
+                freezeLazyComponents(alternatives);
             }
             return alternatives;
+        }
+
+        @Override
+        void freezeComponents() {
+            freezeLazyComponents(alternatives);
         }
     }
 

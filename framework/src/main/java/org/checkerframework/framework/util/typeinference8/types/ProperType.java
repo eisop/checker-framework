@@ -13,7 +13,6 @@ import org.checkerframework.javacutil.AnnotationMirrorMap;
 import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TypesUtils;
 
-import java.util.Collection;
 import java.util.Collections;
 import java.util.Set;
 
@@ -35,6 +34,14 @@ public class ProperType extends AbstractType {
 
     /** Compute the hash code only once. */
     private final int hashCode;
+
+    /**
+     * Cached result of {@link #getErased()}. A proper type is immutable, so its erasure is stable;
+     * caching it avoids recomputing the erasure (a new annotated type plus a javac erasure call) on
+     * every {@link #isSubType} check, which runs repeatedly during bound incorporation. {@code
+     * null} until first computed.
+     */
+    private AbstractType erased = null;
 
     /**
      * Creates a proper type.
@@ -249,7 +256,8 @@ public class ProperType extends AbstractType {
         }
     }
 
-    @SuppressWarnings("interning:not.interned") // Checking for exact object.
+    // Checking for exact object.
+    @SuppressWarnings({"interning:not.interned", "TypeEquals"})
     @Override
     public boolean equals(Object o) {
         if (this == o) {
@@ -283,7 +291,16 @@ public class ProperType extends AbstractType {
      * @return the hash code
      */
     private int computeHashCode() {
-        int hc = properType.toString().hashCode();
+        int hc = properType.getKind().hashCode();
+        javax.lang.model.element.Element elt = null;
+        if (properType instanceof javax.lang.model.type.DeclaredType) {
+            elt = ((javax.lang.model.type.DeclaredType) properType).asElement();
+        } else if (properType instanceof javax.lang.model.type.TypeVariable) {
+            elt = ((javax.lang.model.type.TypeVariable) properType).asElement();
+        }
+        if (elt != null) {
+            hc = 31 * hc + elt.getSimpleName().hashCode();
+        }
         hc = 31 * hc + Kind.PROPER.hashCode();
         return hc;
     }
@@ -308,14 +325,27 @@ public class ProperType extends AbstractType {
         return TypesUtils.isObject(properType);
     }
 
+    /**
+     * Returns an unmodifiable empty set because proper types contain no inference variables.
+     *
+     * @return an unmodifiable empty set
+     */
     @Override
-    public Collection<Variable> getInferenceVariables() {
-        return Collections.emptyList();
+    public Set<Variable> getInferenceVariables() {
+        return Collections.emptySet();
     }
 
     @Override
     public AbstractType applyInstantiations() {
         return this;
+    }
+
+    @Override
+    public AbstractType getErased() {
+        if (erased == null) {
+            erased = super.getErased();
+        }
+        return erased;
     }
 
     @Override

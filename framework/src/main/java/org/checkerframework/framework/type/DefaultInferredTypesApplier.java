@@ -1,5 +1,6 @@
 package org.checkerframework.framework.type;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedTypeVariable;
 import org.checkerframework.framework.util.AnnotatedTypes;
 import org.checkerframework.javacutil.AnnotationMirrorSet;
@@ -7,6 +8,7 @@ import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.TypesUtils;
 
 import javax.lang.model.element.AnnotationMirror;
+import javax.lang.model.element.Element;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.type.TypeVariable;
@@ -130,8 +132,36 @@ public class DefaultInferredTypesApplier {
             throw new BugInCF("Missing annos");
         }
         TypeVariable typeVar = (TypeVariable) inferredTypeMirror;
-        AnnotatedTypeVariable typeVariableDecl =
-                (AnnotatedTypeVariable) atypeFactory.getAnnotatedType(typeVar.asElement());
+        AnnotatedTypeVariable typeVariableDecl;
+        // Whether typeVariableDecl below represents the captured wildcard's own bare
+        // type-variable bound directly (true), rather than a reconstruction of the capture
+        // itself (false, the general case). This matters below: in the general case,
+        // typeVariableDecl mirrors annotatedTypeVariable one-for-one, so its own upper/lower
+        // bounds correspond to annotatedTypeVariable's; here, typeVariableDecl itself
+        // corresponds to annotatedTypeVariable's upper bound, one level shallower.
+        boolean bareCapturedTypeParameter;
+        Element bareElement = bareCapturedTypeParameterElement(typeVar);
+        if (bareElement != null) {
+            // The captured wildcard's own bound is just a type-variable use, with no annotation
+            // of its own to lose, so the capture's upper bound is exactly that type variable's
+            // own bound (JLS 5.1.10's glb is a no-op here). Read that type variable's own,
+            // already-fully-defaulted declaration directly, instead of re-defaulting against the
+            // capture's synthetic element below: that element has no source, so re-defaulting
+            // against it applies whatever this checker defaults "no source" code to, which need
+            // not match a bare capture's own qualifier.
+            bareCapturedTypeParameter = true;
+            typeVariableDecl = (AnnotatedTypeVariable) atypeFactory.getAnnotatedType(bareElement);
+        } else if (TypesUtils.isCapturedTypeVariable(typeVar)) {
+            bareCapturedTypeParameter = false;
+            typeVariableDecl =
+                    (AnnotatedTypeVariable)
+                            AnnotatedTypeMirror.createType(typeVar, atypeFactory, true);
+            atypeFactory.addComputedTypeAnnotations(typeVar.asElement(), typeVariableDecl);
+        } else {
+            bareCapturedTypeParameter = false;
+            typeVariableDecl =
+                    (AnnotatedTypeVariable) atypeFactory.getAnnotatedType(typeVar.asElement());
+        }
         AnnotationMirror upperBound = typeVariableDecl.getEffectiveAnnotationInHierarchy(top);
         if (omitSubtypingCheck
                 || hierarchy.isSubtypeShallow(
@@ -140,7 +170,15 @@ public class DefaultInferredTypesApplier {
                         previousAnnotation,
                         annotatedTypeVariable.getUnderlyingType())) {
             // TODO: clean up this method and whole class.
-            AnnotationMirror ub = typeVariableDecl.getUpperBound().getAnnotationInHierarchy(top);
+            AnnotationMirror ub =
+                    bareCapturedTypeParameter
+                            // typeVariableDecl is the bound itself here, so its own annotation
+                            // (possibly none, for a bare, unannotated type-variable use) is what
+                            // belongs on the capture's upper bound -- not the annotation on ITS
+                            // upper bound, which would read one level too deep (e.g. Object's
+                            // nullability instead of the type variable's own).
+                            ? typeVariableDecl.getAnnotationInHierarchy(top)
+                            : typeVariableDecl.getUpperBound().getAnnotationInHierarchy(top);
             AnnotationMirror lb = typeVariableDecl.getLowerBound().getAnnotationInHierarchy(top);
             AnnotatedTypeMirror atvUB = annotatedTypeVariable.getUpperBound();
             AnnotatedTypeMirror atvLB = annotatedTypeVariable.getLowerBound();
@@ -153,5 +191,34 @@ public class DefaultInferredTypesApplier {
             apply(atvUB, ub, typeVar.getUpperBound(), top);
             apply(atvLB, lb, typeVar.getLowerBound(), top);
         }
+    }
+
+    /**
+     * If {@code typeVar} is a captured type variable whose captured wildcard is {@code ? extends V}
+     * for some unannotated, bare type-variable use {@code V} (so the captured upper bound is
+     * exactly {@code V}'s own upper bound, per JLS 5.1.10's glb), returns {@code V}'s element.
+     * Otherwise -- including for {@code ? super}, an annotated bound, a bound that isn't a bare
+     * type-variable use, or a {@code typeVar} that isn't a captured type variable at all -- returns
+     * {@code null}. A {@code ? super V} wildcard's captured upper bound is not {@code V}'s own
+     * bound, so it must not take this fast path; an annotated bound such as {@code ? extends @A V}
+     * must not either, since reading {@code V}'s own declaration would silently drop the explicit
+     * {@code @A}.
+     *
+     * @param typeVar the type variable to inspect
+     * @return the element of the bare, unannotated {@code ? extends} type-variable bound, or {@code
+     *     null}
+     */
+    private static @Nullable Element bareCapturedTypeParameterElement(TypeVariable typeVar) {
+        WildcardType wildcard = TypesUtils.getCapturedWildcard(typeVar);
+        if (wildcard == null) {
+            return null;
+        }
+        TypeMirror extendsBound = wildcard.getExtendsBound();
+        if (extendsBound == null
+                || extendsBound.getKind() != TypeKind.TYPEVAR
+                || !extendsBound.getAnnotationMirrors().isEmpty()) {
+            return null;
+        }
+        return ((TypeVariable) extendsBound).asElement();
     }
 }

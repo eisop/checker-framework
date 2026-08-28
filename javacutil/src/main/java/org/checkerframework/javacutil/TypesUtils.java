@@ -1,5 +1,6 @@
 package org.checkerframework.javacutil;
 
+import com.sun.source.tree.ClassTree;
 import com.sun.tools.javac.code.BoundKind;
 import com.sun.tools.javac.code.Symbol;
 import com.sun.tools.javac.code.Symtab;
@@ -32,7 +33,6 @@ import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Name;
-import javax.lang.model.element.NestingKind;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.TypeParameterElement;
 import javax.lang.model.type.ArrayType;
@@ -271,20 +271,59 @@ public final class TypesUtils {
     // Equality
 
     /**
-     * Returns true iff the arguments are both the same declared types.
+     * Returns true iff the two arguments represent the same declared type, including type
+     * arguments.
      *
-     * <p>This is needed because class {@code Type.ClassType} does not override equals.
+     * <p>This method compares the canonical string representations of the types (via {@code
+     * toString()}), which includes type arguments. For example, {@code List<String>} and {@code
+     * List<Integer>} are considered different types by this method.
+     *
+     * <p>{@link javax.lang.model.util.Types#isSameType} would be more correct but requires a {@code
+     * Types} object that is not available in all call sites. The {@code toString()} format is
+     * implementation-defined, but is stable within a single javac version and sufficient for the
+     * intended use.
+     *
+     * <p>This method exists because {@code Type.ClassType} does not override {@code equals}.
      *
      * @param t1 the first type to test
      * @param t2 the second type to test
-     * @return whether the arguments are the same declared types
+     * @return whether the arguments are the same declared type, including type arguments
      */
     public static boolean areSameDeclaredTypes(Type.ClassType t1, Type.ClassType t2) {
         // Do a cheaper test first
         if (t1.tsym.name != t2.tsym.name) {
             return false;
         }
-        return t1.toString().equals(t2.toString());
+        // Type.ClassType.toString() includes type arguments and produces a canonical source-form
+        // name. Types#isSameType would be more correct but is not available at all call sites.
+        @SuppressWarnings("TypeToString")
+        boolean sameType = t1.toString().equals(t2.toString());
+        return sameType;
+    }
+
+    /**
+     * Returns true iff the two arguments have the same raw declared type, ignoring type arguments.
+     *
+     * <p>This is an optimized form of {@link #areSameDeclaredTypes} for callers that have already
+     * established that type arguments are absent or irrelevant (for example, annotation element
+     * values of type {@code Class<?>}, which cannot carry type parameters in Java). It compares
+     * types by {@code tsym} identity — a single pointer comparison — rather than building and
+     * comparing strings.
+     *
+     * <p>Do not use this method when type arguments matter: {@code List<String>} and {@code
+     * List<Integer>} have the same {@code tsym} and this method returns {@code true} for them.
+     *
+     * @param t1 the first type to test
+     * @param t2 the second type to test
+     * @return whether the arguments have the same raw declared type, ignoring type arguments
+     */
+    public static boolean areSameRawDeclaredType(Type.ClassType t1, Type.ClassType t2) {
+        // tsym is the unique TypeSymbol for the raw declared type, shared across all
+        // parameterizations. Symbol objects are unique per type within a javac compilation
+        // context but are not annotated @Interned, hence the suppression.
+        @SuppressWarnings("interning:not.interned")
+        boolean sameSymbol = t1.tsym == t2.tsym;
+        return sameSymbol;
     }
 
     /**
@@ -417,7 +456,7 @@ public final class TypesUtils {
             DeclaredType dt = (DeclaredType) type;
             TypeElement elem = (TypeElement) dt.asElement();
             Name name = elem.getQualifiedName();
-            if ("java.lang.Throwable".contentEquals(name)) {
+            if (InternalUtils.sameName(name, "java.lang.Throwable")) {
                 return true;
             }
             type = elem.getSuperclass();
@@ -430,11 +469,12 @@ public final class TypesUtils {
      *
      * @param type the type to check
      * @return whether the argument is an anonymous type
+     * @see ElementUtils#isAnonymous(Element)
+     * @see TreeUtils#isAnonymousClass(ClassTree)
      */
     public static boolean isAnonymous(TypeMirror type) {
         return (type instanceof DeclaredType)
-                && ((TypeElement) ((DeclaredType) type).asElement()).getNestingKind()
-                        == NestingKind.ANONYMOUS;
+                && ElementUtils.isAnonymous(((DeclaredType) type).asElement());
     }
 
     /**
@@ -1289,7 +1329,8 @@ public final class TypesUtils {
      * @return the first TypeVariable in {@code collection} that does not contain any other type in
      *     the collection, but maybe itsself
      */
-    @SuppressWarnings("interning:not.interned") // must be the same object from collection
+    // must be the same object from collection
+    @SuppressWarnings({"interning:not.interned", "TypeEquals"})
     private static TypeVariable doesNotContainOthers(
             Collection<? extends TypeVariable> collection, Types types) {
         for (TypeVariable candidate : collection) {
@@ -1461,6 +1502,7 @@ public final class TypesUtils {
      * @return if the two type variables are the same type variable
      */
     @EqualsMethod
+    @SuppressWarnings("TypeEquals")
     public static boolean areSame(TypeVariable typeVariable1, TypeVariable typeVariable2) {
         if (typeVariable1 == typeVariable2) {
             return true;
@@ -1468,7 +1510,7 @@ public final class TypesUtils {
         Name otherName = typeVariable2.asElement().getSimpleName();
         Element otherEnclosingElement = typeVariable2.asElement().getEnclosingElement();
 
-        return typeVariable1.asElement().getSimpleName().contentEquals(otherName)
+        return InternalUtils.sameName(typeVariable1.asElement().getSimpleName(), otherName)
                 && otherEnclosingElement.equals(typeVariable1.asElement().getEnclosingElement());
     }
 }

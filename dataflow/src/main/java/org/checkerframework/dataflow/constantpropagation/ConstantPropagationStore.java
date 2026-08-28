@@ -29,19 +29,13 @@ public class ConstantPropagationStore implements Store<ConstantPropagationStore>
     }
 
     public Constant getInformation(Node n) {
-        if (contents.containsKey(n)) {
-            return contents.get(n);
-        }
-        return new Constant(Constant.Type.TOP);
+        Constant c = contents.get(n);
+        return c != null ? c : new Constant(Constant.Type.TOP);
     }
 
     public void mergeInformation(Node n, Constant val) {
-        Constant value;
-        if (contents.containsKey(n)) {
-            value = val.leastUpperBound(contents.get(n));
-        } else {
-            value = val;
-        }
+        Constant existing = contents.get(n);
+        Constant value = existing != null ? val.leastUpperBound(existing) : val;
         // TODO: remove (only two nodes supported atm)
         assert n instanceof IntegerLiteralNode || n instanceof LocalVariableNode;
         contents.put(n, value);
@@ -67,9 +61,10 @@ public class ConstantPropagationStore implements Store<ConstantPropagationStore>
         for (Map.Entry<Node, Constant> e : other.contents.entrySet()) {
             Node n = e.getKey();
             Constant otherVal = e.getValue();
-            if (contents.containsKey(n)) {
+            Constant thisVal = contents.get(n);
+            if (thisVal != null) {
                 // merge if both contain information about a variable
-                newContents.put(n, otherVal.leastUpperBound(contents.get(n)));
+                newContents.put(n, otherVal.leastUpperBound(thisVal));
             } else {
                 // add new information
                 newContents.put(n, otherVal);
@@ -109,11 +104,8 @@ public class ConstantPropagationStore implements Store<ConstantPropagationStore>
             if (otherVal.isBottom()) {
                 continue; // no information
             }
-            if (contents.containsKey(n)) {
-                if (!otherVal.equals(contents.get(n))) {
-                    return false;
-                }
-            } else {
+            Constant thisVal = contents.get(n);
+            if (thisVal == null || !otherVal.equals(thisVal)) {
                 return false;
             }
         }

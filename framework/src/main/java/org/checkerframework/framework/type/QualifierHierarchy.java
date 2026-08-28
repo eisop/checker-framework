@@ -1,7 +1,6 @@
 package org.checkerframework.framework.type;
 
 import org.checkerframework.checker.mustcall.qual.MustCallUnknown;
-import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.framework.qual.AnnotatedFor;
 import org.checkerframework.javacutil.AnnotationMirrorSet;
@@ -173,6 +172,22 @@ public abstract class QualifierHierarchy {
      * and it has {@code protected} access to prevent use by clients outside the framework. This
      * makes it easy to find places where code outside the framework is ignoring Java basetypes --
      * at calls to {@link #isSubtypeQualifiersOnly}.
+     *
+     * <p>An override must stay consistent with {@link #leastUpperBoundQualifiers} and {@link
+     * #greatestLowerBoundQualifiers}: for any two qualifiers {@code a} and {@code b} in the same
+     * hierarchy, {@code leastUpperBoundQualifiers(a, b)} must be a supertype of both {@code a} and
+     * {@code b} under this method and a subtype of every other common supertype of the two (i.e.,
+     * the <em>least</em> such supertype, not merely some upper bound); {@code
+     * greatestLowerBoundQualifiers(a, b)} must be a subtype of both and a supertype of every other
+     * common subtype of the two (i.e., the <em>greatest</em> such subtype). This matters even for a
+     * qualifier hierarchy whose true subtyping relation is not fully expressible as a static,
+     * declarative lattice (for example, one that depends on a checker option such as a
+     * strict/lenient mode): if this method special-cases such a situation but {@link
+     * #leastUpperBoundQualifiers}/{@link #greatestLowerBoundQualifiers} do not, a caller that
+     * combines qualifiers with one and later checks the result with the other -- as {@link
+     * AnnotatedTypeFactory#combineIntersectionBoundAnnotationsInHierarchy} does when overridden to
+     * return a greatest lower bound -- can derive a summary that this method would not itself have
+     * accepted, producing a spurious type error where none existed before the summary was combined.
      *
      * @param subQualifier possible subqualifier
      * @param superQualifier possible superqualifier
@@ -360,6 +375,12 @@ public abstract class QualifierHierarchy {
      * <ul>
      *   <li>For NonNull, leastUpperBound('Nullable', 'NonNull') &rArr; Nullable
      * </ul>
+     *
+     * <p>Must stay consistent with {@link #isSubtypeQualifiers}: the result must be a supertype of
+     * both {@code qualifier1} and {@code qualifier2}, and a subtype of every other common supertype
+     * of the two (i.e., the least such supertype). See {@link #isSubtypeQualifiers}'s documentation
+     * for why this matters even for a qualifier hierarchy whose true subtyping relation is not
+     * fully expressible as a static, declarative lattice.
      *
      * @param qualifier1 the first qualifier; may not be in the same hierarchy as {@code qualifier2}
      * @param qualifier2 the second qualifier; may not be in the same hierarchy as {@code
@@ -570,6 +591,12 @@ public abstract class QualifierHierarchy {
      * Returns the greatest lower bound for the qualifiers qualifier1 and qualifier2. Returns null
      * if the qualifiers are not from the same qualifier hierarchy.
      *
+     * <p>Must stay consistent with {@link #isSubtypeQualifiers}: the result must be a subtype of
+     * both {@code qualifier1} and {@code qualifier2}, and a supertype of every other common subtype
+     * of the two (i.e., the greatest such subtype). See {@link #isSubtypeQualifiers}'s
+     * documentation for why this matters even for a qualifier hierarchy whose true subtyping
+     * relation is not fully expressible as a static, declarative lattice.
+     *
      * @param qualifier1 first qualifier
      * @param qualifier2 second qualifier
      * @return greatest lower bound of the two annotations, or null if the two annotations are not
@@ -583,6 +610,13 @@ public abstract class QualifierHierarchy {
     /**
      * Returns the greatest lower bound for the qualifiers qualifier1 and qualifier2. Returns null
      * if the qualifiers are not from the same qualifier hierarchy.
+     *
+     * <p>Delegates to {@link #greatestLowerBoundQualifiers}; see that method's documentation for
+     * the consistency this result is required to have with {@link #isSubtypeQualifiers}. A caller
+     * that combines qualifiers with this method and later has them checked by a subtype query --
+     * such as {@link AnnotatedTypeFactory#combineIntersectionBoundAnnotationsInHierarchy}'s
+     * suggested use of this method to compute an intersection's per-hierarchy summary -- relies on
+     * that consistency holding for the qualifier hierarchy in use.
      *
      * @param qualifier1 first qualifier
      * @param qualifier2 second qualifier
@@ -599,6 +633,10 @@ public abstract class QualifierHierarchy {
     /**
      * Returns the greatest lower bound for the qualifiers qualifier1 and qualifier2. Returns null
      * if the qualifiers are not from the same qualifier hierarchy.
+     *
+     * <p>When both types are relevant, delegates to {@link #greatestLowerBoundQualifiers}; see that
+     * method's documentation for the consistency this result is required to have with {@link
+     * #isSubtypeQualifiers}.
      *
      * @param qualifier1 first qualifier
      * @param tm1 the type that is annotated by qualifier1
@@ -783,16 +821,15 @@ public abstract class QualifierHierarchy {
             Map<T, AnnotationMirrorSet> map, T key, AnnotationMirror qualifier) {
         // https://github.com/typetools/checker-framework/issues/2000
         @SuppressWarnings("nullness:argument.type.incompatible")
-        boolean mapContainsKey = map.containsKey(key);
-        if (mapContainsKey) {
-            @SuppressWarnings("nullness:assignment.type.incompatible") // key is a key for map.
-            @NonNull AnnotationMirrorSet prevs = map.get(key);
+        AnnotationMirrorSet prevs = map.get(key);
+        if (prevs != null) {
             AnnotationMirror old = findAnnotationInSameHierarchy(prevs, qualifier);
             if (old != null) {
                 return false;
             }
+            // prevs is the value already stored at key, so mutating it in place is enough; no
+            // need to re-put.
             prevs.add(qualifier);
-            map.put(key, prevs);
         } else {
             AnnotationMirrorSet set = new AnnotationMirrorSet();
             set.add(qualifier);

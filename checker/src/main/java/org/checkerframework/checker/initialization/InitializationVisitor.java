@@ -217,11 +217,12 @@ public class InitializationVisitor extends BaseTypeVisitor<InitializationAnnotat
             Collection<? extends AnnotationMirror> returnTypeAnnotations =
                     AnnotationUtils.getExplicitAnnotationsOnConstructorResult(tree);
             // check for invalid constructor return type
-            for (Class<? extends Annotation> c : atypeFactory.getSupportedTypeQualifiers()) {
-                for (AnnotationMirror a : returnTypeAnnotations) {
+            outer:
+            for (AnnotationMirror a : returnTypeAnnotations) {
+                for (Class<? extends Annotation> c : atypeFactory.getSupportedTypeQualifiers()) {
                     if (atypeFactory.areSameByClass(a, c)) {
                         checker.reportError(tree, COMMITMENT_INVALID_CONSTRUCTOR_RETURN_TYPE, tree);
-                        break;
+                        break outer;
                     }
                 }
             }
@@ -254,15 +255,18 @@ public class InitializationVisitor extends BaseTypeVisitor<InitializationAnnotat
         if (TreeUtils.elementFromDeclaration(tree).getKind().isField()) {
             AnnotationMirrorSet annotationMirrors =
                     atypeFactory.getAnnotatedType(tree).getExplicitAnnotations();
-            // Fields cannot have commitment annotations.
-            for (Class<? extends Annotation> c : atypeFactory.getSupportedTypeQualifiers()) {
-                for (AnnotationMirror a : annotationMirrors) {
-                    if (atypeFactory.isUnknownInitialization(a)) {
-                        continue; // unknown initialization is allowed
-                    }
+            // Fields cannot have commitment annotations.  Iterate the (typically tiny)
+            // explicit-annotation set in the outer loop and short-circuit on the first match,
+            // rather than scanning all supported qualifiers and only breaking the inner loop.
+            outer:
+            for (AnnotationMirror a : annotationMirrors) {
+                if (atypeFactory.isUnknownInitialization(a)) {
+                    continue; // unknown initialization is allowed
+                }
+                for (Class<? extends Annotation> c : atypeFactory.getSupportedTypeQualifiers()) {
                     if (atypeFactory.areSameByClass(a, c)) {
                         checker.reportError(tree, COMMITMENT_INVALID_FIELD_TYPE, tree);
-                        break;
+                        break outer;
                     }
                 }
             }

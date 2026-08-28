@@ -67,8 +67,10 @@ public class AnnotationConverter {
         // Now, we handle the values of those types below
         Map<? extends ExecutableElement, ? extends AnnotationValue> values = am.getElementValues();
         Map<String, Object> newValues = new HashMap<>(values.size());
-        for (ExecutableElement ee : values.keySet()) {
-            Object value = values.get(ee).getValue();
+        for (Map.Entry<? extends ExecutableElement, ? extends AnnotationValue> entry :
+                values.entrySet()) {
+            ExecutableElement ee = entry.getKey();
+            Object value = entry.getValue().getValue();
             if (value instanceof List) {
                 // If we have a List here, then it is a List of AnnotationValue.
                 // Convert each AnnotationValue to its respective Java type.

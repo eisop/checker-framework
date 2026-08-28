@@ -26,7 +26,9 @@ import org.plumelib.util.IPair;
 
 import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 
 import javax.lang.model.type.TypeKind;
 
@@ -70,14 +72,14 @@ public class Expression extends TypeConstraint {
     }
 
     @Override
-    public List<Variable> getInputVariables() {
+    public Set<Variable> getInputVariables() {
         return getInputVariablesForExpression(expression, getT());
     }
 
     @Override
-    public List<Variable> getOutputVariables() {
-        List<Variable> input = getInputVariables();
-        List<Variable> output = new ArrayList<>(getT().getInferenceVariables());
+    public Set<Variable> getOutputVariables() {
+        Set<Variable> output = new LinkedHashSet<>(getT().getInferenceVariables());
+        Set<Variable> input = getInputVariables();
         output.removeAll(input);
         return output;
     }
@@ -194,7 +196,7 @@ public class Expression extends TypeConstraint {
         MemberReferenceTree memRef = (MemberReferenceTree) expression;
         if (TreeUtils.isExactMethodReference(memRef)) {
             InvocationType typeOfPoAppMethod =
-                    context.inferenceTypeFactory.compileTimeDeclarationType(memRef);
+                    context.inferenceTypeFactory.compileTimeDeclarationType(memRef, T);
 
             ConstraintSet constraintSet = new ConstraintSet();
             List<AbstractType> ps = T.getFunctionTypeParameterTypes();
@@ -236,7 +238,7 @@ public class Expression extends TypeConstraint {
 
         // Compile-time declaration of the member reference expression
         InvocationType compileTimeDecl =
-                context.inferenceTypeFactory.compileTimeDeclarationType(memRef);
+                context.inferenceTypeFactory.compileTimeDeclarationType(memRef, T);
         if (compileTimeDecl.isVoid()) {
             return ConstraintSet.TRUE;
         }
@@ -489,10 +491,16 @@ public class Expression extends TypeConstraint {
         return expression.equals(that.expression);
     }
 
+    /** Cached hash code to prevent repeated recomputation of complex deep-hashes. */
+    private int cachedHashCode = 0;
+
     @Override
     public int hashCode() {
-        int result = super.hashCode();
-        result = 31 * result + expression.hashCode();
-        return result;
+        if (cachedHashCode == 0) {
+            int result = super.hashCode();
+            result = 31 * result + expression.hashCode();
+            cachedHashCode = result == 0 ? 1 : result;
+        }
+        return cachedHashCode;
     }
 }

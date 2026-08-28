@@ -78,7 +78,7 @@ public class AnnotatedTypeReplacer extends DoubleAnnotatedTypeScanner<Void> {
         } else {
             AnnotationMirror replacement = from.getAnnotationInHierarchy(top);
             if (replacement != null) {
-                to.replaceAnnotation(from.getAnnotationInHierarchy(top));
+                to.replaceAnnotation(replacement);
             }
         }
     }
