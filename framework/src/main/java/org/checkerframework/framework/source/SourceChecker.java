@@ -3117,14 +3117,19 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     }
 
     /**
-     * Return true if the element has an {@code @AnnotatedFor} annotation, for this checker or an
+     * Returns true if the element has an {@code @AnnotatedFor} annotation, for this checker or an
      * upstream checker that called this one.
+     *
+     * <p>This implementation always returns false, which is correct for a checker that does not
+     * type-check, such as an aggregate checker or one of the counting checkers. {@link
+     * org.checkerframework.common.basetype.BaseTypeChecker} overrides it.
      *
      * @param elt the source code element to check, or null
      * @return true if the element is annotated for this checker or an upstream checker
      */
-    public abstract boolean isElementAnnotatedForThisCheckerOrUpstreamChecker(
-            @Nullable Element elt);
+    public boolean isElementAnnotatedForThisCheckerOrUpstreamChecker(@Nullable Element elt) {
+        return false;
+    }
 
     /**
      * Returns a modifiable set of lower-case strings that are prefixes for SuppressWarnings

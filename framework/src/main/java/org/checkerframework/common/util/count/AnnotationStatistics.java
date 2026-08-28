@@ -31,7 +31,6 @@ import java.util.TreeSet;
 
 import javax.annotation.processing.SupportedSourceVersion;
 import javax.lang.model.SourceVersion;
-import javax.lang.model.element.Element;
 import javax.lang.model.element.Name;
 import javax.tools.Diagnostic;
 
@@ -326,12 +325,5 @@ public class AnnotationStatistics extends SourceChecker {
     public AnnotationProvider getAnnotationProvider() {
         throw new UnsupportedOperationException(
                 "getAnnotationProvider is not implemented for this class.");
-    }
-
-    @Override
-    public boolean isElementAnnotatedForThisCheckerOrUpstreamChecker(Element elt) {
-        // This checker only counts annotations; it does not perform any type-checking. Returning
-        // false keeps callers (e.g., QualifierDefaults) on safe defaults rather than crashing.
-        return false;
     }
 }
