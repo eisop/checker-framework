@@ -1065,7 +1065,11 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      * org.checkerframework.checker.tainting.TaintingVisitor}) should override this method to do
      * nothing.
      *
+     * <p>This method is called from {@link #checkExtendsOrImplements(Tree, AnnotationMirrorSet,
+     * TypeMirror, boolean)} for each extends and implements clause in a class declaration.
+     *
      * @param boundClause an extends or implements clause
+     * @see #checkExtendsOrImplements(Tree, AnnotationMirrorSet, TypeMirror, boolean)
      */
     protected void checkAnnotationOnSupertype(Tree boundClause) {
         if (!(boundClause instanceof AnnotatedTypeTree)) {
