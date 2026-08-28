@@ -49,10 +49,11 @@ text parsing itself does or reports in a way the binary form cannot
 reproduce. See the manual's "Using a binary (pre-parsed) stub file" section
 for details.
 
-Declaration annotations in stub files are no longer merged into classes being
-compiled from source unless `-AmergeStubsWithSource` is supplied, matching the
-behavior for type annotations. The stub parser now warns when a stub file
-provides annotations for a class compiled from source without `-AmergeStubsWithSource`.
+Declaration annotations and record component types in stub files are no longer
+merged into classes being compiled from source unless `-AmergeStubsWithSource`
+is supplied, matching the behavior for other type annotations. The stub parser
+now warns when a stub file provides annotations for a class compiled from source
+without `-AmergeStubsWithSource`.
 
 `AnnotationFileUtil.allAnnotationFiles(String, AnnotationFileType)` (public
 API in `framework`) was replaced by `resolveAnnotationFileLocation(String)`
