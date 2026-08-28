@@ -316,6 +316,12 @@ and verbose generics off, overriding `-AprintAllQualifiers`,
 instance, a Units Checker type printed through `toString(false)` lost its
 `@UnknownUnits` qualifier, which `toString()` prints.
 
+An `@AnnotatedFor` annotation supplied by a stub file now affects warning
+suppression, not just conservative defaults. Previously, `-AonlyAnnotatedFor`
+and `-AuseConservativeDefaultsForUncheckedCode=source` ignored a stub-supplied
+`@AnnotatedFor` and suppressed the class's warnings, even though the same
+annotation already disabled conservative defaults for it.
+
 **Implementation details:**
 
 `AnnotatedIntersectionType.summarizeBounds` computes the summary described
@@ -674,7 +680,7 @@ Other improvements and bug fixes:
 eisop#433, eisop#737, eisop#786, eisop#792, eisop#863, eisop#949, eisop#1015,
 eisop#1074, eisop#1244, eisop#1315, eisop#1564, eisop#1592, eisop#1642,
 eisop#1653, eisop#1735, eisop#1801, eisop#1818, eisop#1819, eisop#1861,
-eisop#1862, eisop#1863, eisop#1865, eisop#1887, eisop#1965.
+eisop#1862, eisop#1863, eisop#1865, eisop#1887, eisop#1965, eisop#1983.
 
 
 Version 3.49.5-eisop1 (April 26, 2026)
