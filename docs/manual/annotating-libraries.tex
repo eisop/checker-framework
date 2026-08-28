@@ -409,8 +409,12 @@ annotation.  For classes without \<@AnnotatedFor>, the checker uses
 conservative defaults
 (see Section~\ref{defaults-classfile}) for any type use with no explicit
 user-written annotation, \emph{and} the checker issues no warnings.
-The command-line argument \code{-AonlyAnnotatedFor} can be used to  suppress errors and warnings outside of the scope of an \<@AnnotatedFor> annotation,
-but does not change the default qualifiers for source code (See Section~\ref{aonlyannotatedfor}).
+The command-line argument \code{-AonlyAnnotatedFor} can be used to suppress
+errors and warnings outside of the scope of an \<@AnnotatedFor> annotation,
+but does not change the default qualifiers for source code (see
+Section~\ref{aonlyannotatedfor}).
+In code with a relevant \<@AnnotatedFor> annotation, warnings can be suppressed
+by an explicit \<@SuppressWarnings> annotation.
 \end{sloppypar}
 
 The \refqualclass{framework/qual}{AnnotatedFor} annotation, written on a
@@ -496,6 +500,9 @@ Section~\ref{creating-a-checker-annotated-jdk}.
 
 User-supplied stub files override a checker's built-in stub files and the
 annotated JDK\@.
+
+A \<-Astubs> file can be parsed faster, using a pre-parsed binary form
+instead of its text; see Section~\ref{stub-using-binary}.
 
 
 \subsectionAndLabel{Multiple specifications for a method}{stub-multiple-specifications}
@@ -827,6 +834,141 @@ For a field, this is the type, field name, and ``\<;>'', without an initializer.
 % \end{enumerate}
 
 
+\subsectionAndLabel{Using a binary (pre-parsed) stub file}{stub-using-binary}
+
+Parsing a \<.astub> file as text takes time on every run of the Checker
+Framework.  You can pre-parse a stub file, once, into a binary form that the
+Checker Framework reads much faster than the text form.  This works the same
+way as the binary form of the annotated JDK and of a checker's built-in stub
+files (Section~\ref{annotating-jdk}), but for a stub file you pass via
+\<-Astubs>.
+
+You do not change how you invoke \<-Astubs>: keep passing the path to your
+\<.astub> file, directory, or \<.jar> file exactly as before.  If the Checker
+Framework finds a binary form beside it (or, for a \<.jar>, inside it -- see
+below), it silently reads that instead of the text; otherwise it text-parses
+the \<.astub> file, exactly as it always did.
+
+To pre-parse a single \<.astub> file, or every \<.astub> file under a
+directory, into a sibling \<.astub.bin.gz> file each (the same command the
+build itself uses for a checker's built-in stub files; \<checker.jar> must be
+on your classpath):
+
+\begin{Verbatim}
+  java -cp $CHECKERFRAMEWORK/checker/dist/checker.jar \
+    org.checkerframework.framework.stubifier.BinaryStubFileGenerator \
+    project-stubs project-stubs
+\end{Verbatim}
+
+\noindent
+The first \<project-stubs> is the output directory, the second is the
+directory to search for \<.astub> files; passing the same directory for both
+writes each binary form as a sibling of its \<.astub> file, which is where
+\<-Astubs=project-stubs> looks for it.
+
+\<BinaryStubFileGenerator> reflectively loads every annotation type your stub
+file uses, to read its \<@Target> and route the annotation to the type or the
+declaration it applies to.  If your stub file uses only qualifiers that ship
+in \<checker.jar> (as is typical when annotating the JDK or a class a
+built-in checker already covers), the classpath above is enough.  A
+\<-Astubs> file commonly does not: \<-Astubs> is how you extend a checker's
+coverage from your own project, often with that checker's own custom
+qualifiers, defined in your project rather than in \<checker.jar>.  In that
+case, also put those qualifier classes on the classpath, for example \<-cp
+\$CHECKERFRAMEWORK/checker/dist/checker.jar:build/classes/java/main>; running
+without them fails with an error naming the missing qualifier and suggesting
+this same fix.  Only the qualifier annotations need to resolve this way --
+not the classes your stub file annotates, since (as the tool's own output
+reminds you) it does not check a stub file's declarations against your
+library's real classes.
+
+If your stub directory has many files, you can instead pre-parse all of them
+into a single binary file, using \<--bundle> mode:
+
+\begin{Verbatim}
+  java -cp $CHECKERFRAMEWORK/checker/dist/checker.jar \
+    org.checkerframework.framework.stubifier.BinaryStubFileGenerator \
+    --bundle project-stubs
+\end{Verbatim}
+
+\noindent
+This writes \<project-stubs.astub.bin.gz> beside the \<project-stubs>
+directory.  \<-Astubs=project-stubs> looks for this bundle first, before
+falling back to per-file siblings or text parsing.
+
+If your \<-Astubs> entry is a \<.jar> file instead of a directory (a \<.jar>
+is equivalent to every \<.astub> file it contains; Section~\ref{stub-using}),
+each \<.astub> entry gets a new sibling entry written into the same \<.jar>
+file, in place:
+
+\begin{Verbatim}
+  java -cp $CHECKERFRAMEWORK/checker/dist/checker.jar \
+    org.checkerframework.framework.stubifier.BinaryStubFileGenerator \
+    project-stubs.jar project-stubs.jar
+\end{Verbatim}
+
+\noindent
+The output directory argument (the first \<project-stubs.jar> above) is
+still required, but is ignored for a \<.jar> input: there is nowhere else a
+\<.jar>'s own entries could sensibly be written, so pass any placeholder
+value, or the same \<.jar> again as shown above.  This modifies
+\<project-stubs.jar> in place -- your original \<.astub> entries are never
+touched; only their \<.astub.bin.gz> siblings are added, replaced, or (if an
+entry no longer parses) removed -- so re-run it and re-distribute the
+\<.jar> whenever you change a \<.astub> entry inside it.  A \<.jar> nested
+inside a \<-Astubs> directory is covered too: running
+\<BinaryStubFileGenerator> on that directory also finds and updates every
+\<.jar> under it, the same way \<-Astubs> itself does.  There is no bundle
+mode for a \<.jar>: a \<.jar> is already one file regardless of how many
+\<.astub> entries it contains, so the many-loose-files problem a bundle
+solves for a directory does not apply.
+
+Whichever mode you use, re-run \<BinaryStubFileGenerator> whenever you edit a
+\<.astub> file.  The binary form records a fingerprint of the \<.astub>
+file's content it was generated from, and the Checker Framework checks it on
+every run: if the \<.astub> file's content no longer matches, that file is
+text-parsed instead, and a \<stale.binary.stub> warning says so
+(Section~\ref{suppresswarnings-command-line}).  A stale binary is never
+applied silently.
+
+A binary stub file does not reproduce every text-parsing diagnostic.  Text
+parsing can report a problem it discovers while resolving your stub file's
+declarations against the classes on the classpath -- for example, a
+declaration that does not match anything in the class it annotates, an
+ambiguous fake override (Section~\ref{stub-fake-override}), or a member that
+no longer exists in the version of the library you are compiling against.
+None of these are checked when a file is read from its binary form: the
+binary was already resolved once, when it was generated, against whatever
+classpath was present then, and a content-only fingerprint cannot detect that
+today's classpath differs.  This does not affect the type-checking results
+themselves, only whether such a problem is reported.
+
+By default, \<-Astubs> already enables the ``type not found'' family of these
+diagnostics, unless you pass \<-AstubNoWarnIfNotFound>
+(Section~\ref{stub-troubleshooting-type-checking-results}); reading a binary
+form silently drops them, by default, along with the rest.  The Checker
+Framework text-parses a \<-Astubs> file instead of reading an available
+binary form -- restoring every diagnostic -- whenever one of these
+command-line options is supplied, because each changes what text parsing
+itself does or reports in a way a binary form cannot:
+\<-AmergeStubsWithSource>, \<-AstubWarnIfNotFound>,
+\<-AstubWarnIfNotFoundIgnoresClasses>, \<-AstubWarnIfOverwritesBytecode>,
+\<-AstubWarnIfRedundantWithBytecode>, and \<-AstubDebug>.  A convenient
+workflow is: check your stub file with \<-AstubWarnIfNotFound> until it is
+clean, then generate its binary form for day-to-day use, where these
+diagnostics are no longer produced.
+
+If a directory or \<.jar> passed to \<-Astubs> has a binary form for only
+some of its \<.astub> files or entries (for example, you added one after
+generating the binary form, or one went stale), the Checker Framework reads
+each one from whichever form -- binary or text -- is available and issues a
+single \<text.parsing.command.line.stub> warning for the whole location
+(Section~\ref{suppresswarnings-command-line}), rather than one warning per
+file or entry.  This warning is not issued for a \<-Astubs> file, directory,
+or \<.jar> that has no binary form at all: that is the ordinary case, so this
+does not create duplicate warnings for the normal usage.
+
+
 \subsectionAndLabel{Distributing stub files}{stub-distributing}
 
 If you are writing stub files but are not writing a checker, you can place
@@ -850,9 +992,10 @@ file.  Generate it at build time by running
 output directory and the directories that contain the \<.astub> files.  If a
 checker's stub file has no binary stub file, the Checker Framework text-parses
 it and issues a warning; Section~\ref{suppresswarnings-command-line} tells how to
-suppress that warning.  A stub file that a user supplies with \<-Astubs>, and an
-\<.ajava> file, are text-parsed without a warning: they are not expected to have
-a binary stub file.
+suppress that warning.  A stub file that a user supplies with \<-Astubs> may
+also have a binary form, which is read the same way; see
+Section~\ref{stub-using-binary}.  An \<.ajava> file is always text-parsed: it
+is not expected to have a binary form.
 
 If you are distributing stub files with a checker implementation, you must
 configure your build system to copy the stub files into the distributed jar for
