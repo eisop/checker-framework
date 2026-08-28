@@ -49,6 +49,12 @@ text parsing itself does or reports in a way the binary form cannot
 reproduce. See the manual's "Using a binary (pre-parsed) stub file" section
 for details.
 
+Declaration annotations and record component types in stub files are no longer
+merged into classes being compiled from source unless `-AmergeStubsWithSource`
+is supplied, matching the behavior for other type annotations. The stub parser
+now warns when a stub file provides annotations for a class compiled from source
+without `-AmergeStubsWithSource`.
+
 `AnnotationFileUtil.allAnnotationFiles(String, AnnotationFileType)` (public
 API in `framework`) was replaced by `resolveAnnotationFileLocation(String)`
 plus `allAnnotationFiles(File, AnnotationFileType)`, needed to look for a
@@ -191,6 +197,11 @@ Optional Checker's `prefer.map.and.orelse` warning for `if (VAR.isPresent())
 { TYPE x = METHOD(VAR.get()); }` with no `else` branch, which supplied only 2
 of the message's 3 arguments. `-Anomsgtext`, which every JUnit test uses, had
 masked the bug by skipping message formatting entirely.
+
+The EISOP Checker Framework checks subtyping for a receiver's type arguments when
+invoking a method. The annotations on the type arguments of a method receiver
+(e.g., `void test(Box<@NonNull T> this)`) were previously ignored during
+type-checking.
 
 Fixed capture conversion dropping a primary qualifier from a type-parameter
 bound that is itself a type-variable use. For a parameter declared
@@ -683,10 +694,11 @@ Other improvements and bug fixes:
 
 **Closed issues:**
 
-eisop#386, eisop#433, eisop#737, eisop#786, eisop#792, eisop#863, eisop#949, eisop#1015,
-eisop#1059, eisop#1074, eisop#1244, eisop#1315, eisop#1564, eisop#1592, eisop#1642,
-eisop#1653, eisop#1735, eisop#1801, eisop#1818, eisop#1819, eisop#1861,
-eisop#1862, eisop#1863, eisop#1865, eisop#1887, eisop#1965.
+eisop#104, eisop#386, eisop#433, eisop#737, eisop#786, eisop#792, eisop#863,
+eisop#949, eisop#1015, eisop#1059, eisop#1074, eisop#1244, eisop#1315,
+eisop#1564, eisop#1592, eisop#1642, eisop#1653, eisop#1735, eisop#1801,
+eisop#1818, eisop#1819, eisop#1861, eisop#1862, eisop#1863, eisop#1865,
+eisop#1887, eisop#1965, eisop#1987, typetools#3203.
 
 
 Version 3.49.5-eisop1 (April 26, 2026)
