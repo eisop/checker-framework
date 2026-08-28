@@ -4233,49 +4233,10 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             return;
         }
 
-        ParameterizedExecutableType methodDefPreSubstitution =
-                atypeFactory.methodFromUseWithoutTypeArgInference(tree);
-        List<AnnotatedTypeMirror> declaredTypeArgs =
-                methodDefPreSubstitution.executableType.getReceiverType().getTypeArguments();
-
         AnnotatedDeclaredType methodReceiver = method.getReceiverType();
         AnnotatedTypeMirror treeReceiver = atypeFactory.getReceiverType(tree);
-        AnnotatedDeclaredType receiverToCheck = methodReceiver;
-
-        AnnotatedTypeMirror asSuper =
-                AnnotatedTypes.asSuper(atypeFactory, treeReceiver, methodReceiver);
-        if (asSuper instanceof AnnotatedDeclaredType) {
-            AnnotatedDeclaredType treeReceiverDeclared =
-                    (AnnotatedDeclaredType) atypeFactory.applyCaptureConversion(asSuper);
-            List<AnnotatedTypeMirror> callingTypeArgs = treeReceiverDeclared.getTypeArguments();
-
-            if (!declaredTypeArgs.isEmpty() && callingTypeArgs.size() == declaredTypeArgs.size()) {
-                boolean needsSubstitution = false;
-                for (int i = 0; i < callingTypeArgs.size(); ++i) {
-                    AnnotatedTypeMirror callingArg = callingTypeArgs.get(i);
-                    AnnotatedTypeMirror declaredArg = declaredTypeArgs.get(i);
-
-                    if (callingArg.getKind() == TypeKind.WILDCARD
-                            || callingArg.getKind() == TypeKind.TYPEVAR) {
-                        for (AnnotationMirror methodPoly :
-                                qualHierarchy.getPolymorphicAnnotations()) {
-                            if (declaredArg.hasAnnotation(methodPoly)) {
-                                if (!needsSubstitution) {
-                                    receiverToCheck = methodReceiver.deepCopy(true);
-                                    needsSubstitution = true;
-                                }
-                                // Relax only the polymorphic qualifier hierarchy. Replacing the
-                                // whole type argument would also skip checks in other hierarchies.
-                                atypeFactory.replaceAnnotations(
-                                        callingArg,
-                                        receiverToCheck.getTypeArguments().get(i),
-                                        qualHierarchy.getTopAnnotation(methodPoly));
-                            }
-                        }
-                    }
-                }
-            }
-        }
+        AnnotatedDeclaredType receiverToCheck =
+                adjustMethodReceiver(tree, methodReceiver, treeReceiver);
 
         if (!skipReceiverSubtypeCheck(tree, receiverToCheck, treeReceiver)) {
             // The diagnostic can be a bit misleading because the check is of the receiver but
@@ -4292,9 +4253,9 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
     /**
      * Report a method invocability error. Allows checkers to change how the message is output.
      *
-     * @param tree the AST node at which to report the error
-     * @param found the actual type of the receiver
-     * @param expected the expected type of the receiver
+     * @param tree the method invocation
+     * @param found the receiver type
+     * @param expected the expected receiver type
      */
     protected void reportMethodInvocabilityError(
             MethodInvocationTree tree, AnnotatedTypeMirror found, AnnotatedTypeMirror expected) {
@@ -4304,6 +4265,74 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                 TreeUtils.elementFromUse(tree),
                 found.toString(),
                 expected.toString());
+    }
+
+    /**
+     * Adjusts the method receiver type. The default implementation replaces the polymorphic
+     * annotations on the receiver type arguments with the annotations from the actual receiver type
+     * arguments, to relax subtyping checks.
+     *
+     * @param tree the method invocation tree
+     * @param methodReceiver the declared receiver type of the method
+     * @param treeReceiver the type of the receiver expression in the tree
+     * @return a copy of methodReceiver with adjustments made, or the original methodReceiver if no
+     *     changes were made
+     */
+    protected AnnotatedDeclaredType adjustMethodReceiver(
+            MethodInvocationTree tree,
+            AnnotatedDeclaredType methodReceiver,
+            AnnotatedTypeMirror treeReceiver) {
+
+        if (methodReceiver.getTypeArguments().isEmpty()) {
+            return methodReceiver;
+        }
+
+        ParameterizedExecutableType methodDefPreSubstitution =
+                atypeFactory.methodFromUseWithoutTypeArgInference(tree);
+        List<AnnotatedTypeMirror> declaredTypeArgs =
+                methodDefPreSubstitution.executableType.getReceiverType().getTypeArguments();
+
+        AnnotatedTypeMirror asSuper =
+                AnnotatedTypes.asSuper(atypeFactory, treeReceiver, methodReceiver);
+        if (!(asSuper instanceof AnnotatedDeclaredType)) {
+            return methodReceiver;
+        }
+
+        AnnotatedDeclaredType treeReceiverDeclared =
+                (AnnotatedDeclaredType) atypeFactory.applyCaptureConversion(asSuper);
+        List<AnnotatedTypeMirror> callingTypeArgs = treeReceiverDeclared.getTypeArguments();
+
+        if (declaredTypeArgs.isEmpty() || callingTypeArgs.size() != declaredTypeArgs.size()) {
+            return methodReceiver;
+        }
+
+        AnnotatedDeclaredType receiverToCheck = methodReceiver;
+        boolean needsSubstitution = false;
+
+        for (int i = 0; i < callingTypeArgs.size(); ++i) {
+            AnnotatedTypeMirror callingArg = callingTypeArgs.get(i);
+            AnnotatedTypeMirror declaredArg = declaredTypeArgs.get(i);
+
+            if (callingArg.getKind() == TypeKind.WILDCARD
+                    || callingArg.getKind() == TypeKind.TYPEVAR) {
+                for (AnnotationMirror methodPoly : qualHierarchy.getPolymorphicAnnotations()) {
+                    if (declaredArg.hasAnnotation(methodPoly)) {
+                        if (!needsSubstitution) {
+                            receiverToCheck = methodReceiver.deepCopy(true);
+                            needsSubstitution = true;
+                        }
+                        // Relax only the polymorphic qualifier hierarchy. Replacing the
+                        // whole type argument would also skip checks in other hierarchies.
+                        atypeFactory.replaceAnnotations(
+                                callingArg,
+                                receiverToCheck.getTypeArguments().get(i),
+                                qualHierarchy.getTopAnnotation(methodPoly));
+                    }
+                }
+            }
+        }
+
+        return receiverToCheck;
     }
 
     /**
