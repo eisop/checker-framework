@@ -1672,6 +1672,144 @@ triggered without deep nesting.
   two regression tests; `checker/tests/nullness/Java8InferenceWorklistStress.java` exercises the
   worklist's dependency tracking across interacting inference features under strict mode.
 
+### Java 8 type-argument inference: resolution and substitution work untracked (August 2026)
+
+Found via a new `gen-shapes.py` shape, `fbound`: `D` mutually F-bounded interfaces `I1..ID` (`Ii`'s
+own bound mentions `T1..Ti`, generalizing Guava's `MapMakerInternalMap<K, V, E extends
+InternalEntry<K, V, E>, S extends Segment<K, V, E, S>>` to more than two mutually dependent
+type parameters) resolved by one generic factory call with no explicit type witness, returning
+`ID<?,...,?>`. Size-swept: allocation 694 MB → 11.8 GB → 200 GB at `D` = 4/8/12 (`sweep.sh fbound
+40 4 8 12`); `D` = 16 ran 40+ minutes without finishing (killed) — none of it tripped
+`-AinferenceWorkBudget`'s abort. Live JFR at `D` = 16 (`jcmd JFR.dump` mid-run) found the dominant
+cost had shifted away from `typeinference8`'s own frames entirely, into
+`AnnotatedTypeScanner`/`IdentityHashMap` churn (`IdentityHashMap.resize`/`put`/`get` ~40% combined)
+under `InferenceType#applyInstantiations`'s substitution — none of which was charged against
+`recordIncorporationWork`.
+
+Real Guava (`MapMakerInternalMap`'s actual `E`/`S` pair, `D` = 2 in this shape's terms) shows **0**
+`typeinference8` self-time samples over 7800 `ExecutionSample`s on the full 625-file module — this
+is not a real-code regression, it took a deliberately adversarial `D` to reach.
+
+**Fix: three additional `recordIncorporationWork` charges**, closing gaps `git blame` traces back to
+#1829's original instrumentation (which only charged `VariableBounds#doApplyInstantiationsToBounds`'s
+main path):
+1. That method's already-resolved (`allBoundsProper`) fast path still calls
+   `constraints.applyInstantiations()` but returned before the charge — now charges
+   `constraints.size()`.
+2. `Resolution#resolveSmallestSet` (JLS 18.4 resolution — a distinct phase from JLS 18.3
+   incorporation) had no charge of its own, despite copying the whole `BoundSet`
+   (`saveBounds`/`restore`) on every attempt — now charges `as.size()` (the variable set being
+   resolved) per attempt.
+3. `InferenceType#applyInstantiations`'s substitution back into a type's structure (the
+   `AnnotatedTypeScanner`-heavy cost above) had no charge — now charges `map.size()`.
+
+**Verified working, not just plausible:** `checker/tests/inference-budget/InferenceWorkBudgetFBound.java`
+(`D` = 10, same directory's `-AinferenceWorkBudget=2000`) throws `type.argument.inference.budget` in
+~2 s; confirmed via `git stash` that the identical file does *not* trip the budget (exits 0) on the
+pre-fix code. Guava re-check: unchanged wall clock (~7-8 s), zero new budget-exceeded errors, same 20
+pre-existing unrelated classpath errors.
+
+**Still open at the time of that entry:** `D` ≳ 13 still did not trip the budget in a reasonable time
+even with all three charges. The hypothesis recorded here — that the true dominant cost at that scale
+is in constraint-set construction/reduction before incorporation or resolution ever starts — was
+**refuted**; see the next entry for what it actually is. Also open: a `-AinferenceWorkBudget`-unlimited
+peak-work measurement on the same Guava/Nullness workload this session found **0** (vs. #1829's
+documented 994) — not yet reconciled; may be a difference between this session's raw `-proc:only`
+`javac` invocation (missing two unrelated Guava source files, 20 classpath errors) and whatever
+harness #1829 used, or may indicate the peak-work figure needs re-measuring on today's code before
+being cited again (see "re-trace before planning" above). *(Resolved by the next entry's
+instrumentation: with all three charges above in place the peak on Guava/Nullness is 1196 units, in
+line with #1829's 994; the "0" was a measurement artifact.)*
+
+### Mutually F-bounded generics: the exponential is an ATM-representation cost, not an inference cost (August 2026)
+
+Follow-up to the entry above, which left "why doesn't the budget trip at `D` ≳ 13" open and guessed
+constraint-set construction/reduction. **That guess is wrong.** Measured, on today's code:
+
+**1. The cost is exponential, not high-degree polynomial.** One `fbound` problem (`gen-shapes.py D
+--shape fbound --reps 1`, Nullness, `-proc:only`) takes 2.2 / 4.4 / 11.0 / 20.3 / 40.1 / 88.3 s at
+`D` = 8/10/12/13/14/15 — a clean factor of ~2 per `+1` in `D`. Plain `javac` on the same files:
+0.5 / 0.6 / 1.0 / 2.2 s at `D` = 12/15/18/20.
+
+**2. The reason: the Checker Framework materializes javac's *shared* type graph as an exponentially
+large `AnnotatedTypeMirror` tree.** Instrumenting the resolved instantiations (identity-memoized node
+counts of both the `AnnotatedTypeMirror` and its underlying javac `TypeMirror`) gives, per `D`:
+
+| `D` | ATM tree nodes | ATM *distinct* nodes | javac tree nodes | javac *distinct* nodes |
+| --- | --- | --- | --- | --- |
+| 6  | 96   | 96   | 368   | 24 |
+| 8  | 384  | 384  | 1792  | 32 |
+| 10 | 768  | 768  | 3904  | 36 |
+| 12 | 6144 | 6144 | 38912 | 48 |
+
+javac's own `Type` graph stays **linear** in `D` (its capture variables' bounds reference each other
+by identity, so it is a DAG); the ATM mirror of it has `tree == distinct`, i.e. it is a fully
+expanded tree of `3·2^(D-1)` distinct objects. `TypeVariableSubstitutor.substituteTypeVariable`
+deep-copies the argument at *every* use, so each round of resolution replaces a shared node by a
+private copy: the probe shows a bound go from `tree=190/distinct=94` to `tree=190/distinct=142`
+across one `InferenceType#applyInstantiations`, and to `190/190` after the next. That is where the
+doubling comes from, and it is why *everything downstream* (validation, subtyping, `deepCopy`,
+`hashCode`) is exponential too: at `D` = 14 a JFR profile attributes 91.7% of samples to
+`AnnotatedTypeVariable/AnnotatedDeclaredType.accept` and only **9.07%** to
+`DefaultTypeArgumentInference.inferTypeArgs`; `ConstraintSet`/`Typing` reduction — the hypothesized
+culprit — is under **0.6%** inclusive.
+
+**3. Most of the `fbound` cost is not inference at all; it is the *declarations*.** Generating the
+same file with `--reps 0` (the `I1..ID` interface declarations and the factory method, but **no**
+call, hence no type-argument inference whatsoever) costs 2.5 / 4.8 / 14.3 / **63.0** s at
+`D` = 10/12/14/16 — versus 64.0 s for the full file. Type-checking a chain of mutually F-bounded
+type *parameter bounds* is by itself exponential in the chain length, because `BaseTypeValidator`
+and `AnnotatedTypeCopier` walk the same expanded ATM tree. No inference work budget can bound that,
+because no inference happens.
+
+**Fix shipped for the part a budget *can* bound:** `InferenceType#applyInstantiations` now charges
+the **size** of each instantiation it substitutes (`Java8InferenceContext#typeSize`, a linear
+identity-memoized component count), not only `map.size()`. That is the one quantity that tracks the
+doubling; the other charge sites all scale with the *number* of inference variables, which grows only
+linearly in `D`. Effect (`sweep.sh fbound 40 4 8 12`, deterministic allocation):
+
+| `D` | before | after |
+| --- | --- | --- |
+| 4  |    673 MB |   684 MB |
+| 8  |  11772 MB |  4831 MB |
+| 12 | 200165 MB |  9776 MB |
+
+The marginal Δalloc/Δ`D` goes from 2.84 M → 48.2 M KB/unit (exponential) to 1.06 M → 1.27 M KB/unit
+(flat). Single-problem wall clock at `D` = 14 drops 40.1 s → 16.3 s and at `D` = 16 189.4 s → 64.0 s,
+and inference falls to **0.34%** inclusive at `D` = 16 — i.e. the residual is entirely item 3 above.
+The budget now aborts the chain from `D` = 8 up (charge 13032 at `D` = 8, 50814 at `D` = 10, against
+the 10000 default).
+
+**Sizing the charge (the addressable-fraction check).** Over 63,396 substitutions on Guava's 625-file
+module the largest instantiation is **34** ATM nodes, and over ~75,000 substitutions in the whole
+`:checker:test` corpus it is **54**. Worst *per-problem* total charge: **1941** (Guava) and **2086**
+(`:checker:test`, excluding the two tests that deliberately exceed the budget), against the 10000
+default — about 5× headroom, down from ~8× before. Guava re-checked on both sides: identical 1228
+errors / 89 warnings / **zero** budget-exceeded errors, wall clock 77.7 s → 77.1 s (median of 3).
+
+**What a real fix would need, and why it was not attempted.** The exponential is a representation
+choice: an `AnnotatedTypeMirror` graph could mirror javac's DAG (the framework already builds
+*cyclic* ATMs — `InferenceFactory#createFreshTypeVariable` self-substitutes a captured type variable
+into its own bound, and `AnnotatedTypeScanner`/`AnnotatedTypeCopier` already carry `visitedNodes` /
+`originalToCopy` identity maps precisely so cycles and sharing survive). Making substitution share
+instead of copy would collapse `3·2^(D-1)` nodes to `O(D)`. But `substituteTypeVariable`'s copy is
+load-bearing: two occurrences of the same type variable (`Map<T,T>`) must be independently
+annotatable, and every consumer of an inferred type — defaulting, flow refinement, viewpoint
+adaptation, the annotators — mutates ATMs in place. Sharing them is the exact aliasing hazard PR
+#1798 spent a program on (see "Removing a defensive copy"). Any real fix has to make the *shared*
+subterm immutable (or copy-on-write) first, and it has to fix ATM *construction*
+(`AnnotatedDeclaredType#getTypeArguments` builds a fresh ATM per javac type argument, with no
+identity memo — that is what expands the declaration-side DAG in item 3), not just substitution.
+That is a framework-wide representation change, not a `typeinference8` change.
+
+**Is it worth doing?** On the evidence above, not for this shape: the deepest mutually F-bounded
+chain in real code is `D` = 2 (`MapMakerInternalMap`), the largest instantiation actually built by
+Guava or by the whole checker test corpus is 34-54 nodes (`D` ≈ 5 equivalent), and the exponential
+only becomes visible at `D` ≥ 10. The budget now aborts the inference half from `D` = 8, and the
+declaration half is bounded by how deep a chain a human or generator would write. Re-open this only
+if a real project shows a deep mutually F-bounded chain, or if the ATM immutability work makes
+sharing cheap for other reasons.
+
 ### `AnnotatedTypeFactory.isFromByteCode` caching (July 2026)
 
 PR #1868 (three days prior, `Use ElementUtils.isElementFromSourceCode and deprecate
@@ -2574,9 +2712,10 @@ is why the campaign left it:
 
 - **The lazy JDK-stub cascade runs the full type-annotation pipeline during
   parsing, uncached — APPLIED in PR #1842 (June 2026).**
-  **Problem:** When `stubTypes.isParsing()` is true, `addComputedTypeAnnotations` and defaults run uncached to avoid persisting incomplete annotations on partial stubs. However, `GenericAnnotatedTypeFactory.postDirectSuperTypes` calls `addComputedTypeAnnotations` for each supertype returned by `SupertypeFinder.directSupertypes`. Because `directSupertypes` calls `toAnnotatedType` to create a fresh ATM each time, the standard `elementCache` and `directSupertypesCache` are not warm enough to prevent redundant computation. Specifically, `java.lang.Object` triggers `addComputedTypeAnnotations` ~58 times per active factory on a minimal input file.
+  **Problem:** When `stubTypes.isParsing()` is true, `addComputedTypeAnnotations` and defaults run uncached to avoid persisting incomplete annotations on partial stubs. Historically, `GenericAnnotatedTypeFactory.postDirectSuperTypes` called `addComputedTypeAnnotations` for each supertype returned by `SupertypeFinder.directSupertypes` (note: this logic was later moved directly into `SupertypeFinder` in PR #1810). Because finding direct supertypes creates a fresh ATM each time, the standard `elementCache` and `directSupertypesCache` were not warm enough to prevent redundant computation. Specifically, `java.lang.Object` triggered `addComputedTypeAnnotations` ~58 times per active factory on a minimal input file.
   **Findings:** Instrumentation on `TestNullness.java` revealed ~750 total parse-phase calls to `addComputedTypeAnnotations(Element, …)`, of which ~515 were redundant (same element seen again with a fresh ATM). Over 300 redundant calls belonged to `java.lang.Object`. The core redundancy comes from `types.directSupertypes()` substituting type parameters and generating a new `TypeMirror` each time, so every supertype traversal computes defaults for the same non-generic types (Object, Serializable, Cloneable, …) again.
   **Solution:** Introduced a parse-phase-scoped cache (`parsePhasePrimaryDefaultsCache`) in `GenericAnnotatedTypeFactory` mapping from `Element` to `AnnotationMirrorSet`. It caches the primary annotations only for parameter-less declared types (`adt.getTypeArguments().isEmpty()`), whose defaults are purely element-determined and independent of stub-loading state. On a cache hit, `addMissingAnnotations` (not `addAnnotations`, to avoid undefined behavior if the type already carries an annotation) is used to apply cached annotations and the method returns early, skipping the five annotation operations. To prevent leaking incomplete state, the cache is cleared via `clearParsePhaseCache()` whenever `parsingCount` returns to 0. This dropped redundant parse-phase calls from ~515 to ~230 and reduced `Object`'s per-compilation count from 58 to ~5.
+  **Update (August 2026):** We later removed this redundancy more fundamentally by ensuring `java.lang.Object` is always sourced from `AnnotatedTypeMirror.createTypeOfObject(atypeFactory)` (which leverages `elementCache` and is pre-defaulted) during `SupertypeFinder` traversal. By intercepting `Object` before it hits the `toAnnotatedType` and `addComputedTypeAnnotations` fallback loop, the redundant defaulting of `Object` (both in parsing and type-checking phases) is completely bypassed.
   **Wall-Clock A/B (June 2026, 3 warm runs, `--no-daemon`):** Measured on `allNullnessTests` (the right workload — JDK-stub loading is 28–32% of its total time vs ~3% in a single `checknullness` compile). With cache: **110.24 s** (avg of 110.31 s, 110.17 s). Without cache: **112.61 s** (avg of 112.53 s, 112.69 s). Delta: **2.37 s ≈ 2.1%**. The signal (2.37 s) is large relative to within-group variance (~0.07 s), so the result is statistically clean. An earlier A/B against `checknullness` only showed 0.5% (noise level) because stub work is only ~3% of that single-compile workload.
 
 - **`findElement()` O(N×M) linear scan in stub member matching — APPLIED in PR #1842 (June 2026).**

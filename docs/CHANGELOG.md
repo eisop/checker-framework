@@ -27,8 +27,34 @@ The built-in checker stub files (`jdk.astub`, `jdkN.astub`, and `@StubFiles`
 resources) are likewise pre-parsed into sibling `.astub.bin.gz` resources at
 build time and loaded from the binary form at checker startup, removing
 JavaParser from checker initialization entirely. A stub file that cannot be
-represented in binary form falls back to text parsing; user-supplied `-Astubs`
-files are always text-parsed.
+represented in binary form falls back to text parsing.
+
+A stub file supplied with `-Astubs` may now also have a binary form, read
+instead of text-parsing it. Generate one with
+`org.checkerframework.framework.stubifier.BinaryStubFileGenerator`, the same
+tool used for a checker's built-in stub files: point it at a single `.astub`
+file or a directory of them to write a sibling `.astub.bin.gz` for each, or
+pass `--bundle` to combine a whole directory into one binary file written
+beside it. A `.jar` file is supported too (`-Astubs` already treats a `.jar`
+as equivalent to every `.astub` file it contains): running the generator on
+it adds a sibling `.astub.bin.gz` entry beside each `.astub` entry, inside
+the same `.jar`, in place; there is no bundle mode for a `.jar`, since it is
+already one file regardless of how many entries it has. The binary form
+embeds a fingerprint of the source file (or entry) it was generated from; if
+the content no longer matches, it is text-parsed instead and a
+`stale.binary.stub` warning says so. Certain command-line options
+(`-AmergeStubsWithSource`, the `-AstubWarnIfNotFound` family, `-AstubDebug`)
+disable the binary path for `-Astubs` files entirely, since each changes what
+text parsing itself does or reports in a way the binary form cannot
+reproduce. See the manual's "Using a binary (pre-parsed) stub file" section
+for details.
+
+`AnnotationFileUtil.allAnnotationFiles(String, AnnotationFileType)` (public
+API in `framework`) was replaced by `resolveAnnotationFileLocation(String)`
+plus `allAnnotationFiles(File, AnnotationFileType)`, needed to look for a
+binary form beside a `-Astubs` location before falling back to a text-file
+walk. A third-party checker that called the old overload directly must
+switch to the two new methods.
 
 A checker that ships its own annotated JDK (as the JSpecify reference checker
 does) no longer also loads `checker.jar`'s binary annotated JDK on top of it.
@@ -37,15 +63,23 @@ The Checker Framework now warns when it text-parses the annotated JDK, or a
 stub file that a checker ships, instead of reading that file's binary stub.
 Generate a missing binary stub by running `JavaStubifier` on the annotated
 JDK's `annotated-jdk` directory, or `BinaryStubFileGenerator` on a checker's
-`.astub` files. Stub files supplied with `-Astubs` and `.ajava` files are
-text-parsed as before, without a warning.
+`.astub` files. `.ajava` files are text-parsed as before, without a warning.
+A `-Astubs` directory or `.jar` with an incomplete binary stub setup (some,
+but not all, of its `.astub` files or entries read from a binary form) is
+also warned about, suppressible with
+`-AsuppressWarnings=text.parsing.command.line.stub`; a `-Astubs` location
+with no binary form at all is not, since that is the ordinary case.
 
 These warnings have no source position, so `@SuppressWarnings` cannot suppress
 them. Suppress them with `-AsuppressWarnings=text.parsing`, or individually
 with `-AsuppressWarnings=text.parsing.jdk` (the annotated JDK has no binary
 stub), `-AsuppressWarnings=text.parsing.jdk.class` (a JDK class is missing from
-the binary stub), or `-AsuppressWarnings=text.parsing.stub` (a checker's stub
-file has no binary stub).
+the binary stub), `-AsuppressWarnings=text.parsing.stub` (a checker's stub
+file has no binary stub), or
+`-AsuppressWarnings=text.parsing.command.line.stub` (a `-Astubs` directory's
+or `.jar`'s binary stub setup is incomplete). A stale `-Astubs` binary stub
+is a separate warning, also with no source position:
+`-AsuppressWarnings=stale.binary.stub`.
 
 Fixed `-AwarnUnneededSuppressions` failing to report an unneeded
 `@SuppressWarnings` whose value is exactly a checker prefix (such as
@@ -258,6 +292,36 @@ element-type checks treated as a reference upcast or downcast; the Signedness
 Checker reported `(char) x`, where `x` has type `@Signed int`, as not
 statically verifiable.
 
+The `-AinferenceWorkBudget` work budget now also counts JLS 18.4 variable
+resolution and substitution back into a type's structure, not just JLS 18.3
+bound incorporation. A generic invocation resolving many mutually dependent
+inference variables together -- for example, many mutually F-bounded type
+parameters resolved by one wildcarded generic invocation, the shape of
+Guava's `MapMakerInternalMap<K, V, E extends InternalEntry<K, V, E>, S
+extends Segment<K, V, E, S>>` -- could take many seconds or effectively hang
+the compiler with none of that work counted against the budget, so the
+budget never aborted it.
+
+Substituting a resolved instantiation back into a type's structure is now
+charged against `-AinferenceWorkBudget` for the *size* of the instantiations
+substituted, not only for how many there are. With mutually F-bounded type
+parameters each instantiation embeds a copy of every earlier one, so the
+instantiations double in size with each variable resolved while their number
+grows only linearly; counting only the number let such a chain run for
+minutes before the budget noticed. On a chain of 12 mutually F-bounded type
+parameters this cuts a 40-repetition compile from 200 GB of allocation to
+9.8 GB; the largest charge measured on real code is 1941 units (Guava, with
+the Nullness Checker), against the default budget of 10000.
+
+`AnnotatedTypeMirror.toString(false)` returns the same string as
+`AnnotatedTypeMirror.toString()`. Verbose printing now only adds detail: it
+never suppresses a detail that the type factory's `AnnotatedTypeFormatter` is
+configured to print. Previously, `toString(false)` forced invisible qualifiers
+and verbose generics off, overriding `-AprintAllQualifiers`,
+`-AprintVerboseGenerics`, and a checker-supplied formatter default; for
+instance, a Units Checker type printed through `toString(false)` lost its
+`@UnknownUnits` qualifier, which `toString()` prints.
+
 **Implementation details:**
 
 `AnnotatedIntersectionType.summarizeBounds` computes the summary described
@@ -346,9 +410,69 @@ default check is contravariant (the overridden parameter must be a subtype of th
 overriding parameter, the standard override rule in CF's type systems). A checker
 whose type rules require parameter <em>invariance</em> for overrides (both directions
 must be subtypes, as in JSpecify's override rules) can now override just this method
-to change the directionality, rather than duplicating the entire ~35-line
-`checkParameters` and `checkParametersMsg` loop-and-error-reporting logic. No
-behavior change for CF's own (contravariant) checkers.
+to change the directionality, rather than duplicating the entire `checkParameters`
+and `checkParametersMsg` loop-and-error-reporting logic.
+
+`BaseTypeVisitor.OverrideChecker.checkReturn` now delegates its comparison to
+a new overridable `isReturnOverrideValid` method, the return-type analogue of
+`isParameterOverrideValid` above.
+
+`BaseTypeVisitor.OverrideChecker.checkOverride` now also runs
+`checkTypeParameterBounds`, comparing each of the overriding method's own
+type parameters against the corresponding type parameter of the overridden
+method via a new `isTypeParameterBoundOverrideValid` hook. A mismatch is
+reported through a new `override.typaram.invalid` diagnostic, showing each
+side's full declared bound (upper and lower, since -- unlike ordinary Java --
+a Checker Framework type parameter can declare a meaningful lower bound too,
+via the annotation written directly on the type variable).
+
+The default `isTypeParameterBoundOverrideValid` requires the overriding type
+parameter's bound range to contain the overridden one's: the overridden upper
+bound must be a subtype of the overriding upper bound, and the overriding
+lower bound must be a subtype of the overridden lower bound. This holds
+regardless of whether, or where, the type parameter is used in the method's
+parameter or return types -- including a type parameter that occurs only
+nested in the signature, or not at all, neither of which the parameter/return
+checks above ever see. This is a real soundness fix: a checker whose qualifier
+hierarchy attaches enforceable meaning to a type-parameter bound (e.g.
+Nullness) now rejects an override whose bound no longer contains the
+overridden one, closing a gap where a caller of the overridden method's
+declared signature could instantiate the type parameter with a value the
+override's own body, type-checked against its own (looser) bound, does not
+actually handle correctly (eisop#1965).
+
+Because the rule is position-independent, it can also newly reject an
+override that is sound only by virtue of where the type parameter is used:
+narrowing the upper bound of a type parameter that occurs only as a bare
+return type, as in overriding `<T extends @Nullable Object> T produce()` with
+`<T extends @NonNull Object> T produce()`, is now an
+`override.typaram.invalid` error. Give the overriding declaration the
+overridden bound, or suppress the warning.
+
+A second, unrelated source of false positives is a bound that mentions a
+type variable of the same method -- an F-bound such as
+`<T extends Comparable<T>>`, or one type parameter's bound naming another.
+The two declarations' bounds are compared structurally, without first
+adapting the overridden method's bound to the overriding method's type
+variables (as JLS 8.4.2 does), so the comparison pits one method's type
+variable against the other's in an invariant type-argument position and
+fails whichever direction the qualifier moved. Identical bounds on both
+sides are unaffected; the same workaround applies.
+
+`isReturnOverrideValid`'s type-variable containment fallback
+(`BaseTypeVisitor.testTypevarContainment`) now uses the same containment
+direction as `isParameterOverrideValid` and
+`isTypeParameterBoundOverrideValid`: the overriding occurrence's bound range
+must contain the overridden one's. Previously the return-position fallback
+required the reverse. That was unsound for an occurrence requalified with a
+looser qualifier -- overriding `<T extends @Nullable Object> T get(T p)` with
+`<T extends @Nullable Object> @Nullable T get(T p)` was accepted, so a caller
+writing `s.<@NonNull String>get("x")` could receive null -- and it was a false
+positive for a bare occurrence whose type parameter soundly widens its upper
+bound. This occurrence-level fallback stays necessary even given the
+declaration-level check above, because an occurrence can be requalified with
+its own explicit annotation, which `isTypeParameterBoundOverrideValid`, which
+only ever looks at the type parameter's declaration, never sees.
 
 `TypeFromTypeTreeVisitor` now restores the declared bounds of type-variable
 type arguments that appear in the enclosing type of a nested type (e.g. the
@@ -553,10 +677,10 @@ Other improvements and bug fixes:
 
 **Closed issues:**
 
-eisop#433, eisop#737, eisop#792, eisop#863, eisop#949, eisop#1015, eisop#1059,
-eisop#1074, eisop#1244, eisop#1315, eisop#1564, eisop#1592, eisop#1642,
+eisop#433, eisop#737, eisop#786, eisop#792, eisop#863, eisop#949, eisop#1015,
+eisop#1059, eisop#1074, eisop#1244, eisop#1315, eisop#1564, eisop#1592, eisop#1642,
 eisop#1653, eisop#1735, eisop#1801, eisop#1818, eisop#1819, eisop#1861,
-eisop#1862, eisop#1863, eisop#1865, eisop#1887.
+eisop#1862, eisop#1863, eisop#1865, eisop#1887, eisop#1965.
 
 
 Version 3.49.5-eisop1 (April 26, 2026)
