@@ -1284,6 +1284,13 @@ similar to Java subtype rules, but taking the type qualifiers into account.
   \code{isTypeParameterBoundOverrideValid} for how to customize this
   check.
 
+\item invalid annotation on a supertype (annotation.on.supertype)
+  when a main annotation is written on a supertype in an extends or
+  implements clause. A checker that allows annotations on supertypes
+  should override \refclass{common/basetype}{BaseTypeVisitor}'s
+  \code{checkAnnotationOnSupertype} to do nothing.
+
+
 \end{itemize}
 
 
