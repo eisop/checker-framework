@@ -1113,6 +1113,19 @@ public class AnnotationFileParser {
             return null;
         }
 
+        if (warnIfNotFound
+                && fileType.isStub()
+                && fileType != AnnotationFileType.AJAVA_AS_STUB
+                && !mergeStubsWithSource
+                && ElementUtils.isElementFromSourceCode(typeElt)) {
+            warn(
+                    typeDecl,
+                    "stub file provides annotations for source class "
+                            + fqTypeName
+                            + "; either remove the class from the stub file, remove the file from"
+                            + " -Astubs, or pass -AmergeStubsWithSource to merge them");
+        }
+
         List<AnnotatedTypeVariable> typeDeclTypeParameters = null;
         if (typeElt.getKind() == ElementKind.ENUM) {
             if (!(typeDecl instanceof EnumDeclaration)) {

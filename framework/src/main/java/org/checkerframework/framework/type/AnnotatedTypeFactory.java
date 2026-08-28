@@ -3408,7 +3408,9 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
                     "member %s has type %s of kind %s", member, memberType, memberType.getKind());
         }
 
-        stubTypes.injectRecordComponentType(types, member, memberType);
+        if (mergeStubsWithSource || !ElementUtils.isElementFromSourceCode(member)) {
+            stubTypes.injectRecordComponentType(types, member, memberType);
+        }
 
         return memberType;
     }
@@ -3751,7 +3753,9 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
                         typeVarSubstitutor.substitute(
                                 typeParamToTypeArg, con, typeArguments.typeArgumentsInferred);
 
-        stubTypes.injectRecordComponentType(types, ctor, con);
+        if (mergeStubsWithSource || !ElementUtils.isElementFromSourceCode(ctor)) {
+            stubTypes.injectRecordComponentType(types, ctor, con);
+        }
 
         if (typeArguments.needsDefaultedReturnType) {
             // If inference did not compute a reliable return type, then the return type will not be
@@ -5111,7 +5115,9 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         }
 
         // Add annotations from annotation files.
-        results.addAll(stubTypes.getDeclAnnotations(elt));
+        if (mergeStubsWithSource || !ElementUtils.isElementFromSourceCode(elt)) {
+            results.addAll(stubTypes.getDeclAnnotations(elt));
+        }
         results.addAll(ajavaTypes.getDeclAnnotations(elt));
         if (currentFileAjavaTypes != null) {
             results.addAll(currentFileAjavaTypes.getDeclAnnotations(elt));
