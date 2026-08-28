@@ -152,8 +152,8 @@ Optional Checker's `prefer.map.and.orelse` warning for `if (VAR.isPresent())
 of the message's 3 arguments. `-Anomsgtext`, which every JUnit test uses, had
 masked the bug by skipping message formatting entirely.
 
-The EISOP Checker Framework checks subtyping for receiver's type arguments when
-invoking a method.  The annotations on type arguments of a method receiver
+The EISOP Checker Framework checks subtyping for a receiver's type arguments when
+invoking a method. The annotations on the type arguments of a method receiver
 (e.g., `void test(Box<@NonNull T> this)`) were previously ignored during
 type-checking.
 

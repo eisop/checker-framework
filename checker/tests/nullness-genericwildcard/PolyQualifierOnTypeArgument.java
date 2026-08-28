@@ -12,7 +12,8 @@ public class PolyQualifierOnTypeArgument<T> {
         // the annotations on the wildcard's bounds is @Nullable. As a result, the receiver type is
         // substituted as PolyQualifierOnTypeArgument<@Nullable T>, which is not compatible with an
         // unbounded wildcard type argument.
-        // If the method receiver type argument subtyping check is enabled, the error is:
+        // If the method receiver type argument subtyping check were enabled without the special
+        // case for polymorphic annotations, the error would be:
         // found   : @NonNull PolyQualifierOnTypeArgument<? [ extends @Nullable Object super
         // @NonNull NullType ]>
         // required: @NonNull PolyQualifierOnTypeArgument<capture#01 [ extends @Nullable Object
