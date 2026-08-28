@@ -3,6 +3,12 @@ Version 3.49.5-eisop2 (June ?, 2026)
 
 **User-visible changes:**
 
+The Checker Framework now issues an `annotation.on.supertype` error when an annotation supported by
+the checker is written as a main annotation on the superclass or interface in an `extends` or
+`implements` clause. Annotations on the supertype's type arguments remain permitted. A checker
+that permits main annotations on supertypes, such as the Tainting Checker, can override
+`BaseTypeVisitor#checkAnnotationOnSupertype(Tree)`.
+
 Further performance improvements relative to the 3.49.5-eisop1 release:
 - `allNullnessTests`: 1m24s vs. 2m16s
 - `checkNullness`: 1m28s vs. 3m40s
@@ -678,7 +684,7 @@ Other improvements and bug fixes:
 **Closed issues:**
 
 eisop#386, eisop#433, eisop#737, eisop#786, eisop#792, eisop#863, eisop#949, eisop#1015,
-eisop#1074, eisop#1244, eisop#1315, eisop#1564, eisop#1592, eisop#1642,
+eisop#1059, eisop#1074, eisop#1244, eisop#1315, eisop#1564, eisop#1592, eisop#1642,
 eisop#1653, eisop#1735, eisop#1801, eisop#1818, eisop#1819, eisop#1861,
 eisop#1862, eisop#1863, eisop#1865, eisop#1887, eisop#1965, eisop#1983.
 

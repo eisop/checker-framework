@@ -6,14 +6,14 @@ import java.io.Serializable;
 public class AnnotatedSupertype {
 
     class NullableSupertype
-            // :: error: (nullness.on.supertype)
+            // :: error: (annotation.on.supertype)
             extends @Nullable Object
-            // :: error: (nullness.on.supertype)
+            // :: error: (annotation.on.supertype)
             implements @Nullable Serializable {}
 
     @NonNull class NonNullSupertype
-            // :: error: (nullness.on.supertype)
+            // :: error: (annotation.on.supertype)
             extends @NonNull Object
-            // :: error: (nullness.on.supertype)
+            // :: error: (annotation.on.supertype)
             implements @NonNull Serializable {}
 }
