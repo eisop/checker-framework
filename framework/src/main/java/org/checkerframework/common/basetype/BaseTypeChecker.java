@@ -330,8 +330,7 @@ public abstract class BaseTypeChecker extends SourceChecker {
     @Override
     public boolean isElementAnnotatedForThisCheckerOrUpstreamChecker(@Nullable Element elt) {
         if (elt == null) {
-            throw new BugInCF(
-                    "Call of BaseTypeChecker.isElementAnnotatedForThisCheckerOrUpstreamChecker with null");
+            return false;
         }
 
         if (elementAnnotatedForThisCheckerOrUpstreamCache.containsKey(elt)) {
