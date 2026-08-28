@@ -29,16 +29,16 @@ public class SubclassFieldInheritance {
         }
     }
 
-    // :: error: (annotation.on.supertype)
-    @A static class SubA extends @A SuperClass {
+    // :: error: (declaration.inconsistent.with.extends.clause)
+    @A static class SubA extends SuperClass {
         @ReceiverDependentQual Object subFieldInit = new @A Object();
 
         // :: error: (assignment.type.incompatible)
         @ReceiverDependentQual Object badSubFieldInit = new @B Object();
     }
 
-    // :: error: (annotation.on.supertype)
-    @B static class SubB extends @B SuperClass {
+    // :: error: (declaration.inconsistent.with.extends.clause)
+    @B static class SubB extends SuperClass {
         @ReceiverDependentQual Object subFieldInit = new @B Object();
 
         // :: error: (assignment.type.incompatible)
