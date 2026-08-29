@@ -5,9 +5,9 @@
 // standalone annotation processor alongside Error Prone), this example runs the Checker
 // Framework *inside* Error Prone, as the single "eisopcf" Error Prone check.
 //
-// It consumes the locally-built Checker Framework so it is runnable against the current
-// checkout (the framework-errorprone artifact is not yet published). The Makefile builds
-// the required jars first. See docs/developer/cf-errorprone.md.
+// It consumes the locally-built Checker Framework (rather than the published
+// io.github.eisop:framework-errorprone artifact) so it exercises the current checkout.
+// The Makefile builds the required jars first. See docs/developer/cf-errorprone.md.
 //
 
 plugins {

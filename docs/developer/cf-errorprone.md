@@ -57,9 +57,9 @@ JDKs), so no separate CI job is required.
 ## Runnable example
 
 `docs/examples/eisop-errorprone/` is a self-contained Gradle project that runs the Nullness
-Checker as the `eisopcf` plugin. It consumes the locally-built Checker Framework jars (the
-`framework-errorprone` artifact is not published yet), so it runs against the current
-checkout:
+Checker as the `eisopcf` plugin. It consumes the locally-built Checker Framework jars (rather
+than the published `io.github.eisop:framework-errorprone` artifact), so it exercises the
+current checkout:
 
 ```
 cd docs/examples/eisop-errorprone

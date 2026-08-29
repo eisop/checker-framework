@@ -499,8 +499,8 @@ moved into the manual to avoid duplication.)
 **Runnable example.** Added `docs/examples/eisop-errorprone/`, a standalone Gradle
 project (its own empty `settings.gradle`, mirroring the sibling `errorprone` example)
 that runs the Nullness Checker as the `eisopcf` plugin over a demo class with a
-nullness bug. Because `framework-errorprone` is not published yet, the example consumes
-the *locally-built* jars by file:
+nullness bug. To exercise the current checkout (rather than the published
+`framework-errorprone` artifact), the example consumes the *locally-built* jars by file:
 - `checker-qual-<v>.jar` (compileOnly, for `@Nullable`);
 - the plain (non-shadow) `framework-errorprone-<v>.jar` on the `errorprone` path — the
   `-all` shadow jar must NOT be used, as it bundles a copy of Error Prone's classes and
@@ -669,3 +669,34 @@ a new checker" chapter (`docs/manual/creating-a-checker.tex`), which shows
 `DiagMessage.withFixes` and `SuggestedFixData.deleteTree`/`replaceTree` and points to
 `NullnessNoInitVisitor` as a worked example. The end-user view (fixes participating in
 Error Prone's patch workflow) is in the manual's "Error Prone" section.
+
+
+---
+
+## ADR-0012: Publish `framework-errorprone` as a Maven artifact
+
+**Status:** accepted
+
+**Decision.** `framework-errorprone` is published to Maven Central as
+`io.github.eisop:framework-errorprone`, with the same version and group as the other
+Checker Framework artifacts. Its `build.gradle` applies `gradle-mvn-push.gradle` and
+declares a `frameworkErrorprone` `MavenPublication` plus signing, modeled on
+`framework-test`.
+
+**Author.** Unlike other modules, this module does NOT call
+`sharedPublicationConfiguration` (which lists all lead maintainers). Its pom lists a
+single developer, `wmdietl`, by setting the pom's `developers`/`url`/`scm`/`licenses`
+directly. It publishes the plain jar (`components.java`), not the `-all` shadow jar
+(which bundles Error Prone's classes).
+
+**Release scripts: no change needed, with one caveat.** The release publishes via a
+module-agnostic `./gradlew publish` (see `docs/developer/release/release_push.py`), which
+picks up every subproject that has a publishing block — so `framework-errorprone` is
+included automatically. Caveat: `framework-errorprone` is gated to JDK 21+ in
+`settings.gradle`, so the Maven-publish step must run on JDK 21+ or the module is silently
+excluded from the build and not published. This is documented in the release README
+(`README-release-process.html`). The current release is built on JDK 21, so this holds.
+
+**Docs.** The manual's "Error Prone" section states the plugin is published as
+`io.github.eisop:framework-errorprone`. The runnable example still consumes locally-built
+jars (to exercise the current checkout), which is independent of publication.
