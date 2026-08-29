@@ -488,12 +488,13 @@ them, so no further core or module change is required.
 
 **Status:** accepted (Task 8)
 
-**Documentation.** Added `docs/developer/cf-errorprone.md`, a user-facing guide (why
-to use the plugin, JDK 21+ requirement, dependencies, `-XepOpt:eisopcf:checkers`,
-required javac options and `--add-exports`/`--add-opens`, severity, suppression, and
-the suppression suggested-fix / patch workflow). It complements this decision log. The
-LaTeX manual was intentionally left untouched while the feature is on a branch; it can
-reference the guide once merged.
+**Documentation.** User documentation lives in the manual: the "Error Prone" section of
+the "Integration with external tools" chapter (`docs/manual/external-tools.tex`), also
+listed in `introduction.tex`'s tool list. `docs/developer/cf-errorprone.md` holds only
+developer-facing notes (module layout, how a checker supplies a fix, testing/CI, the
+example) and points to the manual for usage; it complements this decision log. (An
+earlier revision kept the full usage guide in `cf-errorprone.md`; that user content was
+moved into the manual to avoid duplication.)
 
 **Runnable example.** Added `docs/examples/eisop-errorprone/`, a standalone Gradle
 project (its own empty `settings.gradle`, mirroring the sibling `errorprone` example)
@@ -660,3 +661,11 @@ nullness `AnnotationTree`s (`TreeUtils.getExplicitAnnotationTrees` +
 - Standalone mode unchanged: full `:checker:NullnessTest` (23 tests, includes
   `UnannoPrimitives`) passes, plus `AggregateTest`/`CompoundCheckerTest` and the whole
   `framework-errorprone` suite.
+
+
+**Documentation.** How a checker attaches suggested fixes is documented for checker
+authors in the manual: the "Suggesting fixes for errors" subsection of the "How to create
+a new checker" chapter (`docs/manual/creating-a-checker.tex`), which shows
+`DiagMessage.withFixes` and `SuggestedFixData.deleteTree`/`replaceTree` and points to
+`NullnessNoInitVisitor` as a worked example. The end-user view (fixes participating in
+Error Prone's patch workflow) is in the manual's "Error Prone" section.
