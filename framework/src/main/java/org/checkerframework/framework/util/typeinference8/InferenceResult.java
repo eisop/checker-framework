@@ -37,7 +37,11 @@ public class InferenceResult {
 
     /**
      * A mapping from a tree that needs type argument inference to a map from type parameter to its
-     * inferred annotated type argument. If inference failed, this map will be empty.
+     * inferred annotated type argument. Empty when inference {@link #inferenceCrashed()} or {@link
+     * #inferenceBudgetExceeded()}. Otherwise populated with the resolved type arguments, even when
+     * {@link #inferenceFailed()} due to an annotated (qualifier) mismatch: those are the
+     * best-effort arguments Java-level resolution reached before the qualifiers were found
+     * unsatisfiable, not arguments that have been checked against the annotated bounds.
      */
     private final Map<Tree, Map<TypeVariable, AnnotatedTypeMirror>> results;
 
@@ -133,7 +137,11 @@ public class InferenceResult {
 
     /**
      * A mapping from a tree that needs type argument inference to a map from type parameter to its
-     * inferred annotated type argument. If inference failed, this map will be empty.
+     * inferred annotated type argument. Empty when inference {@link #inferenceCrashed()} or {@link
+     * #inferenceBudgetExceeded()}. Otherwise populated with the resolved type arguments, even when
+     * {@link #inferenceFailed()} due to an annotated (qualifier) mismatch: those are the
+     * best-effort arguments Java-level resolution reached before the qualifiers were found
+     * unsatisfiable, not arguments that have been checked against the annotated bounds.
      *
      * @return mapping from a tree that needs type argument inference to a map from type parameter
      *     to its inferred annotated type argument

@@ -556,11 +556,10 @@ Before submitting, always:
 1. `./gradlew assemble` — must succeed.
 2. `./gradlew :framework:test :javacutil:test :dataflow:test` — fast.
 3. The relevant checker test, e.g. `./gradlew :checker:NullnessTest`.
-4. Ideally `./gradlew alltests` — the canonical regression catch. If it fails *only*
-   on `:checker:jtregTests` / `:checker:jtregJdk11Tests` with `No java executable at
-   java`, that is an environment issue, **not a regression**: `JAVA_HOME` is unset. Set
-   it (`JAVA_HOME=$(dirname $(dirname $(readlink -f $(which java))))`) and re-run those
-   two tasks; the JUnit suites are unaffected.
+4. Ideally `./gradlew alltests` — the canonical regression catch. (See
+   `cf-patch-style`'s "Test requirements" for the `JAVA_HOME`/jtreg red
+   herring — `No java executable at java` there is an environment issue,
+   not a regression.)
 5. Re-capture JFR on the **full** workload (`./gradlew --no-daemon
    checknullness`, all subprojects — confirm `phase` shows no scope warning)
    and confirm the targeted metric moved. Report the **whole-worker sample

@@ -888,7 +888,12 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
         return changed;
     }
 
-    /** Removes all primary annotations on this type. */
+    /**
+     * Removes all primary annotations on this type and, in the case of {@link
+     * AnnotatedTypeVariable}s, {@link AnnotatedWildcardType}s, and {@link
+     * AnnotatedIntersectionType}s, clears all bounds too, matching {@link #addAnnotation} and
+     * {@link #removeAnnotation}, which already propagate to bounds for those three kinds.
+     */
     // typetools: clearPrimaryAnnotations
     public void clearAnnotations() {
         checkMutable();
@@ -981,12 +986,31 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
         }
     }
 
+    /**
+     * Returns a string representation of this type, using the type factory's {@link
+     * AnnotatedTypeFormatter}. Whether details such as invisible qualifiers appear depends on that
+     * formatter's configuration.
+     *
+     * @return a string representation of this type
+     */
     @SideEffectFree
     @Override
     public final String toString() {
         return atypeFactory.getAnnotatedTypeFormatter().format(this);
     }
 
+    /**
+     * Returns a possibly-verbose string representation of this type. Verbose printing shows details
+     * that {@link #toString()} might omit, such as invisible qualifiers and the bounds of type
+     * variables and wildcards; it never omits a detail that {@link #toString()} shows. Therefore,
+     * {@code toString(false)} returns the same string as {@code toString()}: {@code verbose} asks
+     * for optional extra detail on top of {@link #toString()}'s output, not for a specific level of
+     * detail in its own right, so there is no argument that requests less detail than {@link
+     * #toString()} already provides.
+     *
+     * @param verbose if true, print details that {@link #toString()} might omit
+     * @return a possibly-verbose string representation of this type
+     */
     @SideEffectFree
     public final String toString(boolean verbose) {
         return atypeFactory.getAnnotatedTypeFormatter().format(this, verbose);
@@ -2194,6 +2218,26 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
         }
 
         /**
+         * {@inheritDoc}
+         *
+         * <p>Also clears both bounds' annotations, for the same reason {@link
+         * #removeAnnotation(AnnotationMirror)} does: leaving a bound's annotations in place while
+         * clearing only this type variable's own primary annotation would let a bound keep a stale
+         * qualifier that a caller clearing this type is trying to discard, with no local signal
+         * that the two had gone out of sync.
+         */
+        @Override
+        public void clearAnnotations() {
+            super.clearAnnotations();
+            if (lowerBound != null) {
+                lowerBound.clearAnnotations();
+            }
+            if (upperBound != null) {
+                upperBound.clearAnnotations();
+            }
+        }
+
+        /**
          * Change whether this {@code AnnotatedTypeVariable} is considered a use or a declaration
          * (use this method with caution).
          *
@@ -2630,6 +2674,26 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
         }
 
         /**
+         * {@inheritDoc}
+         *
+         * <p>Also clears both bounds' annotations, for the same reason {@link
+         * #removeAnnotation(AnnotationMirror)} does: leaving a bound's annotations in place while
+         * clearing only this wildcard's own primary annotation would let a bound keep a stale
+         * qualifier that a caller clearing this type is trying to discard, with no local signal
+         * that the two had gone out of sync.
+         */
+        @Override
+        public void clearAnnotations() {
+            super.clearAnnotations();
+            if (superBound != null) {
+                superBound.clearAnnotations();
+            }
+            if (extendsBound != null) {
+                extendsBound.clearAnnotations();
+            }
+        }
+
+        /**
          * Sets the super bound of this wildcard.
          *
          * <p>This method is for framework usage only.
@@ -2872,6 +2936,25 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
         }
 
         /**
+         * {@inheritDoc}
+         *
+         * <p>Also clears every bound's annotations, for the same reason {@link
+         * #removeAnnotation(AnnotationMirror)} does: leaving a bound's annotations in place while
+         * clearing only the intersection's own primary annotation would let a bound keep a stale
+         * qualifier that a caller clearing this type is trying to discard, with no local signal
+         * that the two had gone out of sync.
+         */
+        @Override
+        public void clearAnnotations() {
+            super.clearAnnotations();
+            if (bounds != null) {
+                for (AnnotatedTypeMirror bound : bounds) {
+                    bound.clearAnnotations();
+                }
+            }
+        }
+
+        /**
          * Copies {@link #primaryAnnotations} to all the bounds, replacing any existing annotations
          * in the same hierarchy.
          */
@@ -2941,6 +3024,20 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
          *
          * <p>This returns the same types as {@link #directSupertypes()}.
          *
+         * <p>The returned bounds are homogenized: {@link #summarizeBounds()} summarized the bounds'
+         * qualifiers into one qualifier per hierarchy and wrote that summary onto every bound (see
+         * {@link #addAnnotation}), so a bound's own qualifier is not recoverable from this method,
+         * only from the summary. This is not just a precision optimization: {@link
+         * DefaultTypeHierarchy}'s intersection subtyping methods (for example {@code
+         * visitIntersection_Type}) read only this method, never this intersection's own primary
+         * annotation directly, so a hierarchy left un-homogenized on a bound would not be seen by
+         * ordinary subtype checks at all. Homogenizing can also be strictly more precise than
+         * keeping each bound's own qualifier: a hierarchy that only one bound constrains is
+         * propagated to the others rather than defaulted away. For example, in {@code @Odd Number &
+         * Cloneable} the {@code @Odd} summary is written onto the {@code Cloneable} bound, so a
+         * value of the intersection is {@code @Odd} when viewed as {@code Cloneable}; per-bound
+         * qualifiers would instead default that view to top.
+         *
          * @return the bounds of this, which are also the direct super types of this
          */
         public List<AnnotatedTypeMirror> getBounds() {
@@ -2957,6 +3054,71 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
             return bounds;
         }
 
+        /**
+         * Summarizes this intersection's bounds into its own primary annotation, one hierarchy at a
+         * time: the first bound's qualifier there, or, if a later bound's qualifier conflicts,
+         * whatever {@link
+         * AnnotatedTypeFactory#combineIntersectionBoundAnnotationsInHierarchy(AnnotationMirror,
+         * AnnotationMirror, QualifierHierarchy)} returns. Adding the result as this intersection's
+         * own primary annotation homogenizes it onto every bound (see {@link #addAnnotation}); a
+         * bound whose own annotation differs from the summary does not keep it, so {@code
+         * BaseTypeVisitor.checkExplicitAnnotationsOnIntersectionBounds} warns when that annotation
+         * was explicit. See {@code framework/tests/lubglb/IntersectionBoundOrderA.java}.
+         *
+         * <p>This reads each bound's qualifier via {@link #getAnnotationInHierarchy}, so it
+         * reflects whatever is on a bound when this method runs, uniformly whether that came from
+         * an explicit annotation or from defaulting &mdash; there is no separate explicit-only
+         * variant of this method. Which of those two a given caller sees depends only on when in
+         * the pipeline it calls this method: {@code QualifierDefaults} calls it, for a type
+         * variable's own intersection upper bound, only after each bound has already been
+         * independently defaulted, so the combining hook sees every bound's real qualifier; calling
+         * it any earlier for that position would see only bounds' explicit annotations, since
+         * defaulting has not run yet, exactly like the intersection cast target case below. A type
+         * variable's own intersection upper bound is summarized only when the enclosing {@code
+         * AnnotatedTypeFactory} runs {@code QualifierDefaults}; one that does not (there is one in
+         * this repository, used only for debugging output) leaves it unsummarized.
+         *
+         * <p>An intersection cast target's construction also calls this method, but before
+         * defaulting, so only explicit annotations are seen there; a hierarchy no bound constrains
+         * explicitly is simply left out of the summary, because a cast target's remaining
+         * hierarchies are instead filled from the cast operand by {@code
+         * PropagationTreeAnnotator#visitTypeCast}, not by {@code QualifierDefaults}. See {@code
+         * framework/tests/lubglb/IntersectionBoundDefaulting.java}.
+         */
+        public void summarizeBounds() {
+            QualifierHierarchy qualHierarchy = atypeFactory.getQualifierHierarchy();
+            AnnotationMirrorSet annos = new AnnotationMirrorSet();
+            List<AnnotatedTypeMirror> theBounds = getBounds();
+            for (AnnotationMirror top : qualHierarchy.getTopAnnotations()) {
+                AnnotationMirror summary = null;
+                for (AnnotatedTypeMirror bound : theBounds) {
+                    AnnotationMirror qual = bound.getAnnotationInHierarchy(top);
+                    if (qual == null) {
+                        continue;
+                    }
+                    if (summary == null) {
+                        summary = qual;
+                    } else if (!AnnotationUtils.areSame(summary, qual)) {
+                        AnnotationMirror combined =
+                                atypeFactory.combineIntersectionBoundAnnotationsInHierarchy(
+                                        summary, qual, qualHierarchy);
+                        if (combined != null) {
+                            summary = combined;
+                        }
+                    }
+                }
+                if (summary != null) {
+                    annos.add(summary);
+                }
+            }
+            // Clear first, then replaceAnnotations rather than addAnnotations: summarizeBounds is a
+            // full recomputation, so a hierarchy with no contributing bound must be dropped from
+            // both the intersection and its homogenized bound copies, not preserved from an earlier
+            // summary. clearAnnotations() also clears every bound (see the override above).
+            clearAnnotations();
+            replaceAnnotations(annos);
+        }
+
         @Override
         void freezeComponents() {
             freezeLazyComponents(bounds);
@@ -2970,29 +3132,38 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
         public void setBounds(List<AnnotatedTypeMirror> bounds) {
             this.bounds = bounds;
         }
-
-        /**
-         * Copy the first annotation (in each hierarchy) on a bound to the primary annotation
-         * location of the intersection type.
-         *
-         * <p>For example, in the type {@code @NonNull Object & @Initialized @Nullable
-         * Serializable}, {@code @Nullable} and {@code @Initialized} are copied to the primary
-         * annotation location.
-         */
-        public void copyIntersectionBoundAnnotations() {
-            AnnotationMirrorSet annos = new AnnotationMirrorSet();
-            for (AnnotatedTypeMirror bound : getBounds()) {
-                for (AnnotationMirror a : bound.getAnnotationsField()) {
-                    if (atypeFactory.getQualifierHierarchy().findAnnotationInSameHierarchy(annos, a)
-                            == null) {
-                        annos.add(a);
-                    }
-                }
-            }
-            addAnnotations(annos);
-        }
     }
 
+    /**
+     * Represents a union type, the type of a multi-catch parameter (for example, {@code catch
+     * (IOException | SQLException e)}).
+     *
+     * <p>Unlike {@link AnnotatedIntersectionType}, {@link AnnotatedTypeVariable}, and {@link
+     * AnnotatedWildcardType}, this class does not override {@code addAnnotation}, {@code
+     * removeAnnotation}, or {@code clearAnnotations} to propagate to its components ({@link
+     * #getAlternatives()}), and must not: those three types' bounds are meant to be homogenized
+     * (every bound shares the same qualifier per hierarchy, since the type IS-A each of its bounds
+     * simultaneously), but a union's alternatives are meant to stay heterogeneous -- the example
+     * above can legitimately have a different qualifier on {@code IOException} than on {@code
+     * SQLException}. {@link
+     * org.checkerframework.common.basetype.BaseTypeVisitor#checkExceptionParameter} and {@link
+     * org.checkerframework.common.basetype.BaseTypeVisitor#checkThrownExpression} both validate
+     * this type's own primary annotation and each alternative independently rather than assuming
+     * they agree. Propagating like the other three types would forcibly overwrite (on {@code
+     * addAnnotation}) or erase (on {@code removeAnnotation}/{@code clearAnnotations}) that
+     * per-alternative information instead of preserving it.
+     *
+     * <p>This type's own primary annotation is instead a <em>derived</em> summary of the
+     * alternatives -- the least upper bound of their qualifiers, not a value that gets pushed down
+     * onto them -- computed by {@code AsSuperVisitor.ensurePrimaryIsCorrectForUnions}, since every
+     * alternative must be assignable to a catch parameter of this union type. A caller that does
+     * need to push one qualifier onto every alternative -- for example, applying the same default
+     * to an entirely unannotated {@code catch} parameter -- does so with {@code
+     * addMissingAnnotation(s)}, which only fills a hierarchy an alternative doesn't already have an
+     * opinion on, rather than {@code addAnnotation}, which would overwrite one it does. See {@code
+     * AsSuperVisitor#copyPrimaryAnnos}'s union case and {@code QualifierDefaults}'s {@code
+     * EXCEPTION_PARAMETER} case.
+     */
     // TODO: Ensure union types are handled everywhere.
     // TODO: Should field "annotations" contain anything?
     public static class AnnotatedUnionType extends AnnotatedTypeMirror {

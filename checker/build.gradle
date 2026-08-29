@@ -112,7 +112,7 @@ dependencies {
     testImplementation 'org.junit.jupiter:junit-jupiter-api:5.14.4'
     testImplementation 'org.apiguardian:apiguardian-api:1.1.2'
     // For tests that use JSpecify annotations
-    testImplementation 'org.jspecify:jspecify:1.0.0'
+    testImplementation 'org.jspecify:jspecify:1.0.1'
     // To test for an obscure crash in CFG construction for try-with-resources;
     // see https://github.com/typetools/checker-framework/issues/6396
     testImplementation 'org.apache.spark:spark-sql_2.12:3.3.2'
@@ -455,21 +455,6 @@ tasks.register('demosTests') {
         injected.execOps.exec {
             workingDir = demosDirFile
             commandLine 'ant', "-Dchecker.lib=${checkerLibPath}"
-        }
-    }
-}
-
-tasks.register('templateforaCheckerTests') {
-    dependsOn('assembleForJavac', ':getTemplateforaChecker')
-    group = 'Verification'
-    description = 'Test that the templatefora-checker is working as expected.'
-    def injected = project.objects.newInstance(InjectedExecOps)
-    def templateforaDir = file(rootProject.templateforaCheckerDir)
-
-    doLast {
-        injected.execOps.exec {
-            workingDir = templateforaDir
-            commandLine "./gradlew", "build"
         }
     }
 }

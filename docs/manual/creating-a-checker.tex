@@ -1261,7 +1261,7 @@ similar to Java subtype rules, but taking the type qualifiers into account.
   method is invoked on an object whose type is incompatible with the
   method receiver type
 
-\item invalid overriding parameter type (override.parameter.invalid)
+\item invalid overriding parameter type (override.param.invalid)
   when a parameter in a method declaration is incompatible with that
   parameter in the overridden method's declaration
 
@@ -1272,6 +1272,24 @@ similar to Java subtype rules, but taking the type qualifiers into account.
 \item invalid overriding receiver type (override.receiver.invalid)
   when a receiver in a method declaration is incompatible with that
   receiver in the overridden method's declaration
+
+\item invalid overriding type-parameter bound (override.typaram.invalid)
+  when a method declaration's own generic type parameter has an upper or
+  lower bound (Section~\ref{generics-bounds-syntax}) that does not contain
+  the corresponding type parameter's bound in the overridden method's
+  declaration --- regardless of whether, or where, that type parameter is
+  used in the method's parameter or return types.  A checker whose type
+  system attaches no enforceable meaning to a type-parameter bound never
+  reports this; see \refclass{common/basetype}{BaseTypeVisitor}'s
+  \code{isTypeParameterBoundOverrideValid} for how to customize this
+  check.
+
+\item invalid annotation on a supertype (annotation.on.supertype)
+  when a main annotation is written on a supertype in an extends or
+  implements clause. A checker that allows annotations on supertypes
+  should override \refclass{common/basetype}{BaseTypeVisitor}'s
+  \code{checkAnnotationOnSupertype} to do nothing.
+
 
 \end{itemize}
 

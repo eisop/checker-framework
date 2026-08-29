@@ -108,7 +108,6 @@ import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Name;
-import javax.lang.model.element.NestingKind;
 import javax.lang.model.element.PackageElement;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
@@ -1316,6 +1315,25 @@ public final class TreeUtils {
     }
 
     /**
+     * Returns the ExecutableElement for a method declaration. Returns null if there is no matching
+     * method. Errs if there is more than one matching method.
+     *
+     * @param type the class that contains the method
+     * @param methodName the name of the method
+     * @param params the number of formal parameters
+     * @param env the processing environment
+     * @return the ExecutableElement for the specified method, or null
+     */
+    public static @Nullable ExecutableElement getMethodOrNull(
+            Class<?> type, String methodName, int params, ProcessingEnvironment env) {
+        String typeName = type.getCanonicalName();
+        if (typeName == null) {
+            throw new BugInCF("TreeUtils.getMethodOrNull: class %s has no canonical name", type);
+        }
+        return getMethodOrNull(typeName, methodName, params, env);
+    }
+
+    /**
      * Returns the ExecutableElement for a method declaration. Errs if there is not exactly one
      * matching method. If more than one method takes the same number of formal parameters, then use
      * {@link #getMethod(String, String, ProcessingEnvironment, String...)}.
@@ -1782,19 +1800,29 @@ public final class TreeUtils {
     }
 
     /**
+     * Returns true if the given tree declares an anonymous class.
+     *
+     * @param classTree a class declaration
+     * @return whether {@code classTree} declares an anonymous class
+     * @see ElementUtils#isAnonymous(Element)
+     * @see TypesUtils#isAnonymous(TypeMirror)
+     */
+    public static boolean isAnonymousClass(ClassTree classTree) {
+        return ElementUtils.isAnonymous(elementFromDeclaration(classTree));
+    }
+
+    /**
      * Returns true if the given {@link MethodTree} is an anonymous constructor (the constructor for
      * an anonymous class).
      *
      * @param method a method tree that may be an anonymous constructor
      * @return true if the given path points to an anonymous constructor, false if it does not
+     * @see ElementUtils#isAnonymousConstructor(Element)
+     * @see #isAnonymousConstructorWithExplicitEnclosingExpression(ExecutableElement, NewClassTree)
      */
     public static boolean isAnonymousConstructor(MethodTree method) {
         Element e = elementFromTree(method);
-        if (e == null || e.getKind() != ElementKind.CONSTRUCTOR) {
-            return false;
-        }
-        TypeElement typeElement = (TypeElement) e.getEnclosingElement();
-        return typeElement.getNestingKind() == NestingKind.ANONYMOUS;
+        return e != null && ElementUtils.isAnonymousConstructor(e);
     }
 
     /**
@@ -1803,14 +1831,12 @@ public final class TreeUtils {
      * @param con an ExecutableElement of a constructor declaration
      * @param tree the NewClassTree of a constructor declaration
      * @return true if there is an extra enclosing expression
+     * @see ElementUtils#isAnonymousConstructor(Element)
+     * @see #isAnonymousConstructor(MethodTree)
      */
     public static boolean isAnonymousConstructorWithExplicitEnclosingExpression(
             ExecutableElement con, NewClassTree tree) {
-
-        return (tree.getEnclosingExpression() != null)
-                && con.getKind() == ElementKind.CONSTRUCTOR
-                && ((TypeElement) con.getEnclosingElement()).getNestingKind()
-                        == NestingKind.ANONYMOUS;
+        return tree.getEnclosingExpression() != null && ElementUtils.isAnonymousConstructor(con);
     }
 
     /**
@@ -3019,21 +3045,53 @@ public final class TreeUtils {
     }
 
     /**
-     * Returns true if the given method invocation is an invocation of a method with a vararg
-     * parameter, and the invocation has zero vararg actuals.
+     * Returns true if the given invocation tree is an invocation of a method or constructor with a
+     * varargs parameter, and the invocation has zero varargs actual arguments.
+     *
+     * @param tree a method invocation or constructor invocation tree
+     * @return true if the given invocation has zero varargs actual arguments
+     * @see #isCallToVarargsMethodWithZeroVarargsActuals(MethodInvocationTree)
+     * @see #isCallToVarargsMethodWithZeroVarargsActuals(NewClassTree)
+     */
+    public static boolean isCallToVarargsMethodWithZeroVarargsActuals(Tree tree) {
+        switch (tree.getKind()) {
+            case METHOD_INVOCATION:
+                return isCallToVarargsMethodWithZeroVarargsActuals((MethodInvocationTree) tree);
+            case NEW_CLASS:
+                return isCallToVarargsMethodWithZeroVarargsActuals((NewClassTree) tree);
+            default:
+                return false;
+        }
+    }
+
+    /**
+     * Returns true if the given method invocation is an invocation of a method with a varargs
+     * parameter, and the invocation has zero varargs actual arguments.
      *
      * @param invok the method invocation
-     * @return true if the given method invocation is an invocation of a method with a vararg
-     *     parameter, and the invocation has with zero vararg actuals
+     * @return true if the given method invocation has zero varargs actual arguments
      */
     public static boolean isCallToVarargsMethodWithZeroVarargsActuals(MethodInvocationTree invok) {
-        if (!TreeUtils.isVarArgs(invok)) {
+        if (!isVarargsCall(invok)) {
             return false;
         }
         int numParams = elementFromUse(invok).getParameters().size();
-        // The comparison of the number of arguments to the number of formals (minus one) checks
-        // whether there are no varargs actuals.
         return invok.getArguments().size() == numParams - 1;
+    }
+
+    /**
+     * Returns true if the given constructor invocation is an invocation of a constructor with a
+     * varargs parameter, and the invocation has zero varargs actual arguments.
+     *
+     * @param newClassTree the constructor invocation
+     * @return true if the given constructor invocation has zero varargs actual arguments
+     */
+    public static boolean isCallToVarargsMethodWithZeroVarargsActuals(NewClassTree newClassTree) {
+        if (!isVarargsCall(newClassTree)) {
+            return false;
+        }
+        int numParams = elementFromUse(newClassTree).getParameters().size();
+        return newClassTree.getArguments().size() == numParams - 1;
     }
 
     /**
