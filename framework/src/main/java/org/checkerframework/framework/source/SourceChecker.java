@@ -744,6 +744,22 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     /** Creates a source checker. */
     protected SourceChecker() {}
 
+    /**
+     * Enables or disables externally-driven mode for this checker and (transitively) how its
+     * lifecycle is triggered. Must be called before {@link #init(ProcessingEnvironment)}.
+     *
+     * <p>In externally-driven mode this checker does not register its own compilation {@link
+     * com.sun.source.util.TaskListener}; a host (such as the Error Prone plugin bridge) invokes
+     * {@link #typeProcessExternally(javax.lang.model.element.TypeElement,
+     * com.sun.source.util.TreePath)} and {@link #typeProcessingOverExternally()} instead.
+     * Standalone annotation-processor mode leaves this disabled (the default).
+     *
+     * @param externallyDriven true if a host will drive the type-processing lifecycle
+     */
+    public void enableExternallyDrivenMode(boolean externallyDriven) {
+        setExternallyDriven(externallyDriven);
+    }
+
     // Also see initChecker().
     @Override
     public final synchronized void init(ProcessingEnvironment env) {
