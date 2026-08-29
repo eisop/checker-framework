@@ -155,6 +155,9 @@ public class AssignmentNode extends Node {
     @Override
     @Pure
     public boolean equals(@Nullable Object obj) {
+        if (this == obj) {
+            return true;
+        }
         if (!(obj instanceof AssignmentNode)) {
             return false;
         }

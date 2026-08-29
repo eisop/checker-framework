@@ -1,0 +1,439 @@
+2 -> 3 EACH_TO_EACH
+3 -> 4 EACH_TO_EACH
+4 -> 5 EACH_TO_EACH
+4 -> 1 RuntimeException
+4 -> 1 Error
+5 -> 0 EACH_TO_EACH
+
+2:
+Process order: 1
+TransferInput#0
+Before: InitializationStore#3(
+  this > CFAV{@UnderInitialization, CfgVizNodeValues}
+  initialized fields = [])
+~~~~~~~~~
+<entry>
+
+3:
+Process order: 2
+TransferInput#1
+Before: InitializationStore#3(
+  this > CFAV{@UnderInitialization, CfgVizNodeValues}
+  initialized fields = [])
+~~~~~~~~~
+(this)   [ ImplicitThis ]    > CFAV{@UnderInitialization, CfgVizNodeValues}
+(this).<init>   [ MethodAccess ]    > CFAV{@UnderInitialization(CfgVizNodeValues.class), CfgVizNodeValues}
+~~~~~~~~~
+AnalysisResult#1
+After: resultValue=CFAV{@UnderInitialization(CfgVizNodeValues.class), CfgVizNodeValues}
+InitializationStore#12(
+  this > CFAV{@UnderInitialization, CfgVizNodeValues}
+  initialized fields = [])
+
+4:
+Process order: 3
+TransferInput#5
+Before: InitializationStore#4(
+  this > CFAV{@UnderInitialization, CfgVizNodeValues}
+  initialized fields = [])
+~~~~~~~~~
+(this).<init>()   [ MethodInvocation ]    > CFAV{@UnderInitialization, Object}
+~~~~~~~~~
+AnalysisResult#1
+After: resultValue=CFAV{@UnderInitialization, Object}
+InitializationStore#14(
+  this > CFAV{@UnderInitialization, CfgVizNodeValues}
+  this.<init>() > CFAV{@UnderInitialization, Object}
+  initialized fields = [])
+
+5:
+Process order: 4
+TransferInput#8
+Before: InitializationStore#5(
+  this > CFAV{@UnderInitialization, CfgVizNodeValues}
+  this.<init>() > CFAV{@UnderInitialization, Object}
+  initialized fields = [])
+~~~~~~~~~
+expression statement super()   [ ExpressionStatement ]
+~~~~~~~~~
+AnalysisResult#1
+After: InitializationStore#16(
+  this > CFAV{@UnderInitialization, CfgVizNodeValues}
+  this.<init>() > CFAV{@UnderInitialization, Object}
+  initialized fields = [])
+
+1:
+Process order: 6
+TransferInput#9
+Before: InitializationStore#6(
+  this > CFAV{@UnderInitialization, CfgVizNodeValues}
+  initialized fields = [])
+~~~~~~~~~
+<exceptional-exit>
+
+0:
+Process order: 5
+TransferInput#12
+Before: InitializationStore#9(
+  this > CFAV{@UnderInitialization, CfgVizNodeValues}
+  this.<init>() > CFAV{@UnderInitialization, Object}
+  initialized fields = [])
+~~~~~~~~~
+<exit>
+9 -> 10 EACH_TO_EACH
+10 -> 11 EACH_TO_EACH
+11 -> 15 THEN_TO_BOTH
+11 -> 17 ELSE_TO_BOTH
+15 -> 18 EACH_TO_EACH
+17 -> 18 EACH_TO_EACH
+18 -> 7 EACH_TO_EACH
+
+9:
+Process order: 1
+TransferInput#17
+Before: InitializationStore#19(
+  cond > CFAV{@Initialized, boolean}
+  this > CFAV{@Initialized, CfgVizNodeValues}
+  initialized fields = [])
+~~~~~~~~~
+<entry>
+
+10:
+Process order: 2
+TransferInput#18
+Before: InitializationStore#19(
+  cond > CFAV{@Initialized, boolean}
+  this > CFAV{@Initialized, CfgVizNodeValues}
+  initialized fields = [])
+~~~~~~~~~
+a   [ VariableDeclaration ]
+0   [ IntegerLiteral ]    > CFAV{@Initialized, int}
+a = 0   [ Assignment ]    > CFAV{@Initialized, int}
+b   [ VariableDeclaration ]
+cond   [ LocalVariable ]    > CFAV{@Initialized, boolean}
+~~~~~~~~~
+AnalysisResult#2
+After: resultValue=CFAV{@Initialized, boolean}
+InitializationStore#29(
+  a > CFAV{@Initialized, int}
+  cond > CFAV{@Initialized, boolean}
+  this > CFAV{@Initialized, CfgVizNodeValues}
+  initialized fields = [])
+
+11:
+Process order: 3
+TransferInput#25
+Before: InitializationStore#20(
+  a > CFAV{@Initialized, int}
+  cond > CFAV{@Initialized, boolean}
+  this > CFAV{@Initialized, CfgVizNodeValues}
+  initialized fields = [])
+~~~~~~~~~
+ConditionalBlock: then: 15, else: 17
+
+15:
+Process order: 4
+TransferInput#27
+Before: InitializationStore#21(
+  a > CFAV{@Initialized, int}
+  cond > CFAV{@Initialized, boolean}
+  this > CFAV{@Initialized, CfgVizNodeValues}
+  initialized fields = [])
+~~~~~~~~~
+b   [ LocalVariable ]
+a   [ LocalVariable ]    > CFAV{@Initialized, int}
+b = a   [ Assignment ]    > CFAV{@Initialized, int}
+expression statement b = a   [ ExpressionStatement ]
+~~~~~~~~~
+AnalysisResult#2
+After: InitializationStore#32(
+  a > CFAV{@Initialized, int}
+  b > CFAV{@Initialized, int}
+  cond > CFAV{@Initialized, boolean}
+  this > CFAV{@Initialized, CfgVizNodeValues}
+  initialized fields = [])
+
+17:
+Process order: 5
+TransferInput#28
+Before: InitializationStore#22(
+  a > CFAV{@Initialized, int}
+  cond > CFAV{@Initialized, boolean}
+  this > CFAV{@Initialized, CfgVizNodeValues}
+  initialized fields = [])
+~~~~~~~~~
+b   [ LocalVariable ]
+4   [ IntegerLiteral ]    > CFAV{@Initialized, int}
+b = 4   [ Assignment ]    > CFAV{@Initialized, int}
+expression statement b = 4   [ ExpressionStatement ]
+~~~~~~~~~
+AnalysisResult#2
+After: InitializationStore#34(
+  a > CFAV{@Initialized, int}
+  b > CFAV{@Initialized, int}
+  cond > CFAV{@Initialized, boolean}
+  this > CFAV{@Initialized, CfgVizNodeValues}
+  initialized fields = [])
+
+18:
+Process order: 6
+TransferInput#34
+Before: InitializationStore#23(
+  a > CFAV{@Initialized, int}
+  b > CFAV{@Initialized, int}
+  cond > CFAV{@Initialized, boolean}
+  this > CFAV{@Initialized, CfgVizNodeValues}
+  initialized fields = [])
+~~~~~~~~~
+b   [ LocalVariable ]    > CFAV{@Initialized, int}
+return b   [ Return ]
+~~~~~~~~~
+AnalysisResult#2
+After: InitializationStore#36(
+  a > CFAV{@Initialized, int}
+  b > CFAV{@Initialized, int}
+  cond > CFAV{@Initialized, boolean}
+  this > CFAV{@Initialized, CfgVizNodeValues}
+  initialized fields = [])
+
+7:
+Process order: 7
+TransferInput#43
+Before: InitializationStore#26(
+  a > CFAV{@Initialized, int}
+  b > CFAV{@Initialized, int}
+  cond > CFAV{@Initialized, boolean}
+  this > CFAV{@Initialized, CfgVizNodeValues}
+  initialized fields = [])
+~~~~~~~~~
+<exit>
+2 -> 3 EACH_TO_EACH
+3 -> 4 EACH_TO_EACH
+4 -> 5 EACH_TO_EACH
+4 -> 1 RuntimeException
+4 -> 1 Error
+5 -> 0 EACH_TO_EACH
+
+2:
+Process order: 1
+TransferInput#59
+Before: NullnessNoInitStore#38(
+  this > NV{@NonNull, CfgVizNodeValues, poly nn/n=f/f}
+  isPolyNullNonNull = false
+  isPolyNullNull = false)
+~~~~~~~~~
+<entry>
+
+3:
+Process order: 2
+TransferInput#60
+Before: NullnessNoInitStore#38(
+  this > NV{@NonNull, CfgVizNodeValues, poly nn/n=f/f}
+  isPolyNullNonNull = false
+  isPolyNullNull = false)
+~~~~~~~~~
+(this)   [ ImplicitThis ]    > NV{@NonNull, CfgVizNodeValues, poly nn/n=f/f}
+(this).<init>   [ MethodAccess ]    > NV{@NonNull, CfgVizNodeValues, poly nn/n=f/f}
+~~~~~~~~~
+AnalysisResult#4
+After: resultValue=NV{@NonNull, CfgVizNodeValues, poly nn/n=f/f}
+NullnessNoInitStore#47(
+  this > NV{@NonNull, CfgVizNodeValues, poly nn/n=f/f}
+  isPolyNullNonNull = false
+  isPolyNullNull = false)
+
+4:
+Process order: 3
+TransferInput#64
+Before: NullnessNoInitStore#39(
+  this > NV{@NonNull, CfgVizNodeValues, poly nn/n=f/f}
+  isPolyNullNonNull = false
+  isPolyNullNull = false)
+~~~~~~~~~
+(this).<init>()   [ MethodInvocation ]    > NV{@NonNull, Object, poly nn/n=f/f}
+~~~~~~~~~
+AnalysisResult#4
+After: resultValue=NV{@NonNull, Object, poly nn/n=f/f}
+NullnessNoInitStore#49(
+  this > NV{@NonNull, CfgVizNodeValues, poly nn/n=f/f}
+  this.<init>() > NV{@NonNull, Object, poly nn/n=f/f}
+  isPolyNullNonNull = false
+  isPolyNullNull = false)
+
+5:
+Process order: 4
+TransferInput#67
+Before: NullnessNoInitStore#40(
+  this > NV{@NonNull, CfgVizNodeValues, poly nn/n=f/f}
+  this.<init>() > NV{@NonNull, Object, poly nn/n=f/f}
+  isPolyNullNonNull = false
+  isPolyNullNull = false)
+~~~~~~~~~
+expression statement super()   [ ExpressionStatement ]
+~~~~~~~~~
+AnalysisResult#4
+After: NullnessNoInitStore#51(
+  this > NV{@NonNull, CfgVizNodeValues, poly nn/n=f/f}
+  this.<init>() > NV{@NonNull, Object, poly nn/n=f/f}
+  isPolyNullNonNull = false
+  isPolyNullNull = false)
+
+1:
+Process order: 6
+TransferInput#68
+Before: NullnessNoInitStore#41(
+  this > NV{@NonNull, CfgVizNodeValues, poly nn/n=f/f}
+  isPolyNullNonNull = false
+  isPolyNullNull = false)
+~~~~~~~~~
+<exceptional-exit>
+
+0:
+Process order: 5
+TransferInput#71
+Before: NullnessNoInitStore#44(
+  this > NV{@NonNull, CfgVizNodeValues, poly nn/n=f/f}
+  this.<init>() > NV{@NonNull, Object, poly nn/n=f/f}
+  isPolyNullNonNull = false
+  isPolyNullNull = false)
+~~~~~~~~~
+<exit>
+9 -> 10 EACH_TO_EACH
+10 -> 11 EACH_TO_EACH
+11 -> 15 THEN_TO_BOTH
+11 -> 17 ELSE_TO_BOTH
+15 -> 18 EACH_TO_EACH
+17 -> 18 EACH_TO_EACH
+18 -> 7 EACH_TO_EACH
+
+9:
+Process order: 1
+TransferInput#76
+Before: NullnessNoInitStore#54(
+  cond > NV{@NonNull, boolean, poly nn/n=f/f}
+  this > NV{@NonNull, CfgVizNodeValues, poly nn/n=f/f}
+  isPolyNullNonNull = false
+  isPolyNullNull = false)
+~~~~~~~~~
+<entry>
+
+10:
+Process order: 2
+TransferInput#77
+Before: NullnessNoInitStore#54(
+  cond > NV{@NonNull, boolean, poly nn/n=f/f}
+  this > NV{@NonNull, CfgVizNodeValues, poly nn/n=f/f}
+  isPolyNullNonNull = false
+  isPolyNullNull = false)
+~~~~~~~~~
+a   [ VariableDeclaration ]
+0   [ IntegerLiteral ]    > NV{@NonNull, int, poly nn/n=f/f}
+a = 0   [ Assignment ]    > NV{@NonNull, int, poly nn/n=f/f}
+b   [ VariableDeclaration ]
+cond   [ LocalVariable ]    > NV{@NonNull, boolean, poly nn/n=f/f}
+~~~~~~~~~
+AnalysisResult#5
+After: resultValue=NV{@NonNull, boolean, poly nn/n=f/f}
+NullnessNoInitStore#64(
+  a > NV{@NonNull, int, poly nn/n=f/f}
+  cond > NV{@NonNull, boolean, poly nn/n=f/f}
+  this > NV{@NonNull, CfgVizNodeValues, poly nn/n=f/f}
+  isPolyNullNonNull = false
+  isPolyNullNull = false)
+
+11:
+Process order: 3
+TransferInput#84
+Before: NullnessNoInitStore#55(
+  a > NV{@NonNull, int, poly nn/n=f/f}
+  cond > NV{@NonNull, boolean, poly nn/n=f/f}
+  this > NV{@NonNull, CfgVizNodeValues, poly nn/n=f/f}
+  isPolyNullNonNull = false
+  isPolyNullNull = false)
+~~~~~~~~~
+ConditionalBlock: then: 15, else: 17
+
+15:
+Process order: 4
+TransferInput#86
+Before: NullnessNoInitStore#56(
+  a > NV{@NonNull, int, poly nn/n=f/f}
+  cond > NV{@NonNull, boolean, poly nn/n=f/f}
+  this > NV{@NonNull, CfgVizNodeValues, poly nn/n=f/f}
+  isPolyNullNonNull = false
+  isPolyNullNull = false)
+~~~~~~~~~
+b   [ LocalVariable ]
+a   [ LocalVariable ]    > NV{@NonNull, int, poly nn/n=f/f}
+b = a   [ Assignment ]    > NV{@NonNull, int, poly nn/n=f/f}
+expression statement b = a   [ ExpressionStatement ]
+~~~~~~~~~
+AnalysisResult#5
+After: NullnessNoInitStore#67(
+  a > NV{@NonNull, int, poly nn/n=f/f}
+  b > NV{@NonNull, int, poly nn/n=f/f}
+  cond > NV{@NonNull, boolean, poly nn/n=f/f}
+  this > NV{@NonNull, CfgVizNodeValues, poly nn/n=f/f}
+  isPolyNullNonNull = false
+  isPolyNullNull = false)
+
+17:
+Process order: 5
+TransferInput#87
+Before: NullnessNoInitStore#57(
+  a > NV{@NonNull, int, poly nn/n=f/f}
+  cond > NV{@NonNull, boolean, poly nn/n=f/f}
+  this > NV{@NonNull, CfgVizNodeValues, poly nn/n=f/f}
+  isPolyNullNonNull = false
+  isPolyNullNull = false)
+~~~~~~~~~
+b   [ LocalVariable ]
+4   [ IntegerLiteral ]    > NV{@NonNull, int, poly nn/n=f/f}
+b = 4   [ Assignment ]    > NV{@NonNull, int, poly nn/n=f/f}
+expression statement b = 4   [ ExpressionStatement ]
+~~~~~~~~~
+AnalysisResult#5
+After: NullnessNoInitStore#69(
+  a > NV{@NonNull, int, poly nn/n=f/f}
+  b > NV{@NonNull, int, poly nn/n=f/f}
+  cond > NV{@NonNull, boolean, poly nn/n=f/f}
+  this > NV{@NonNull, CfgVizNodeValues, poly nn/n=f/f}
+  isPolyNullNonNull = false
+  isPolyNullNull = false)
+
+18:
+Process order: 6
+TransferInput#93
+Before: NullnessNoInitStore#58(
+  a > NV{@NonNull, int, poly nn/n=f/f}
+  b > NV{@NonNull, int, poly nn/n=f/f}
+  cond > NV{@NonNull, boolean, poly nn/n=f/f}
+  this > NV{@NonNull, CfgVizNodeValues, poly nn/n=f/f}
+  isPolyNullNonNull = false
+  isPolyNullNull = false)
+~~~~~~~~~
+b   [ LocalVariable ]    > NV{@NonNull, int, poly nn/n=f/f}
+return b   [ Return ]    > NV{@NonNull, boolean, poly nn/n=f/f}
+~~~~~~~~~
+AnalysisResult#5
+After: resultValue=NV{@NonNull, boolean, poly nn/n=f/f}
+NullnessNoInitStore#71(
+  a > NV{@NonNull, int, poly nn/n=f/f}
+  b > NV{@NonNull, int, poly nn/n=f/f}
+  cond > NV{@NonNull, boolean, poly nn/n=f/f}
+  this > NV{@NonNull, CfgVizNodeValues, poly nn/n=f/f}
+  isPolyNullNonNull = false
+  isPolyNullNull = false)
+
+7:
+Process order: 7
+TransferInput#102
+Before: NullnessNoInitStore#61(
+  a > NV{@NonNull, int, poly nn/n=f/f}
+  b > NV{@NonNull, int, poly nn/n=f/f}
+  cond > NV{@NonNull, boolean, poly nn/n=f/f}
+  this > NV{@NonNull, CfgVizNodeValues, poly nn/n=f/f}
+  isPolyNullNonNull = false
+  isPolyNullNull = false)
+~~~~~~~~~
+<exit>

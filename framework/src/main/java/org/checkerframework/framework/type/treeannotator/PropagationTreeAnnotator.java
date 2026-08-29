@@ -137,9 +137,12 @@ public class PropagationTreeAnnotator extends TreeAnnotator {
                 useAssignmentContext = false;
                 AnnotatedExecutableType m;
                 try {
-                    if (atypeFactory.shouldCache
-                            && methodInvocationToType.containsKey(methodInvocationTree)) {
-                        m = methodInvocationToType.get(methodInvocationTree);
+                    AnnotatedExecutableType cached =
+                            atypeFactory.shouldCache
+                                    ? methodInvocationToType.get(methodInvocationTree)
+                                    : null;
+                    if (cached != null) {
+                        m = cached;
                     } else {
                         m = atypeFactory.methodFromUse(methodInvocationTree).executableType;
                         if (atypeFactory.shouldCache) {
@@ -188,13 +191,12 @@ public class PropagationTreeAnnotator extends TreeAnnotator {
             TypeMirror contextCTM = contextComponentType.getUnderlyingType();
             boolean prevIsSubtype = true;
             for (AnnotationMirror am : prev) {
-                if (contextComponentType.hasAnnotationInHierarchy(am)
+                AnnotationMirror contextAm = contextComponentType.getAnnotationInHierarchy(am);
+                if (contextAm != null
                         && !this.qualHierarchy.isSubtypeShallow(
-                                am,
-                                contextCTM,
-                                contextComponentType.getAnnotationInHierarchy(am),
-                                contextCTM)) {
+                                am, contextCTM, contextAm, contextCTM)) {
                     prevIsSubtype = false;
+                    break;
                 }
             }
             // TODO: checking conformance of component kinds is a basic sanity check
@@ -349,8 +351,9 @@ public class PropagationTreeAnnotator extends TreeAnnotator {
                                             expressionAnnos, exprKind, castKind);
                             break;
                         case NARROWING:
-                            atypeFactory.getNarrowedAnnotations(
-                                    expressionAnnos, exprKind, castKind);
+                            expressionAnnos =
+                                    atypeFactory.getNarrowedAnnotations(
+                                            expressionAnnos, exprKind, castKind);
                             break;
                         case SAME:
                             // Nothing to do
@@ -368,14 +371,19 @@ public class PropagationTreeAnnotator extends TreeAnnotator {
         return null;
     }
 
+    /**
+     * Determine whether the given type has a primary annotation in all hierarchies.
+     *
+     * @param type the type to test
+     * @return whether the given type has a primary annotation in all hierarchies
+     */
     private boolean hasPrimaryAnnotationInAllHierarchies(AnnotatedTypeMirror type) {
-        boolean annotated = true;
         for (AnnotationMirror top : qualHierarchy.getTopAnnotations()) {
             if (type.getEffectiveAnnotationInHierarchy(top) == null) {
-                annotated = false;
+                return false;
             }
         }
-        return annotated;
+        return true;
     }
 
     /**

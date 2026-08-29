@@ -176,7 +176,7 @@ public class SameLenAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
          * @param qualifierClasses classes of annotations that are the qualifiers
          * @param elements element utils
          */
-        public SameLenQualifierHierarchy(
+        SameLenQualifierHierarchy(
                 Set<Class<? extends Annotation>> qualifierClasses, Elements elements) {
             super(qualifierClasses, elements, SameLenAnnotatedTypeFactory.this);
         }

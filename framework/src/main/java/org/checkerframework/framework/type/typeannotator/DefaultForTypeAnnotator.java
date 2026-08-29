@@ -163,35 +163,37 @@ public class DefaultForTypeAnnotator extends TypeAnnotator {
 
     @Override
     protected Void scan(AnnotatedTypeMirror type, Void p) {
+        TypeKind kind = type.getKind();
+
         // If the type's fully-qualified name is in the appropriate map, annotate the type. Do this
-        // before looking at kind or class, as this information is more specific.
-
-        String qname;
-        // We have to use the type name without annotations for the lookup.
-        TypeMirror unannotatedType = TypeAnnotationUtils.unannotatedType(type.getUnderlyingType());
-        if (type.getKind() == TypeKind.DECLARED) {
-            qname = TypesUtils.getQualifiedName((DeclaredType) unannotatedType);
-        } else if (type.getKind().isPrimitive()) {
-            qname = unannotatedType.toString();
-        } else {
-            qname = null;
-        }
-
-        // Perform the lookup.
-        if (qname != null) {
-            AnnotationMirrorSet fromQname = types.get(qname);
-            if (fromQname != null) {
-                type.addMissingAnnotations(fromQname);
+        // before looking at kind or class, as this information is more specific.  Skip the
+        // relatively expensive qname computation when `types` is empty (the common case).
+        if (!types.isEmpty()) {
+            // We have to use the type name without annotations for the lookup.
+            String qname;
+            if (kind == TypeKind.DECLARED) {
+                TypeMirror unannotatedType =
+                        TypeAnnotationUtils.unannotatedType(type.getUnderlyingType());
+                qname = TypesUtils.getQualifiedName((DeclaredType) unannotatedType);
+            } else if (kind.isPrimitive()) {
+                qname = TypeAnnotationUtils.unannotatedType(type.getUnderlyingType()).toString();
+            } else {
+                qname = null;
+            }
+            if (qname != null) {
+                AnnotationMirrorSet fromQname = types.get(qname);
+                if (fromQname != null) {
+                    type.addMissingAnnotations(fromQname);
+                }
             }
         }
 
         // If the type's kind or class is in the appropriate map, annotate the type.
-        AnnotationMirrorSet fromKind = typeKinds.get(type.getKind());
+        AnnotationMirrorSet fromKind = typeKinds.get(kind);
         if (fromKind != null) {
             type.addMissingAnnotations(fromKind);
         } else if (!atmClasses.isEmpty()) {
-            Class<? extends AnnotatedTypeMirror> t = type.getClass();
-            AnnotationMirrorSet fromClass = atmClasses.get(t);
+            AnnotationMirrorSet fromClass = atmClasses.get(type.getClass());
             if (fromClass != null) {
                 type.addMissingAnnotations(fromClass);
             }
@@ -207,12 +209,12 @@ public class DefaultForTypeAnnotator extends TypeAnnotator {
      * @return this
      */
     public DefaultForTypeAnnotator addStandardDefaults() {
-        if (!types.containsKey(Void.class.getCanonicalName())) {
+        AnnotationMirrorSet annos = types.get(Void.class.getCanonicalName());
+        if (annos == null) {
             for (AnnotationMirror bottom : qualHierarchy.getBottomAnnotations()) {
                 addTypes(Void.class, bottom);
             }
         } else {
-            AnnotationMirrorSet annos = types.get(Void.class.getCanonicalName());
             for (AnnotationMirror top : qualHierarchy.getTopAnnotations()) {
                 if (qualHierarchy.findAnnotationInHierarchy(annos, top) == null) {
                     addTypes(Void.class, qualHierarchy.getBottomAnnotation(top));
@@ -245,6 +247,9 @@ public class DefaultForTypeAnnotator extends TypeAnnotator {
 
     @Override
     public Void visitExecutable(AnnotatedExecutableType type, Void aVoid) {
+        if (listOfNameRegexes.isEmpty()) {
+            return super.visitExecutable(type, aVoid);
+        }
         ExecutableElement element = type.getElement();
 
         Iterator<AnnotatedTypeMirror> paramTypes = type.getParameterTypes().iterator();
@@ -368,9 +373,23 @@ public class DefaultForTypeAnnotator extends TypeAnnotator {
          * @return true if {@link #anno} should be used as the default for a variable named {@code
          *     name}
          */
-        public boolean matches(String name) {
-            return names.stream().anyMatch(p -> p.matcher(name).matches())
-                    && namesExceptions.stream().noneMatch(p -> p.matcher(name).matches());
+        boolean matches(String name) {
+            boolean matched = false;
+            for (int i = 0, n = names.size(); i < n; ++i) {
+                if (names.get(i).matcher(name).matches()) {
+                    matched = true;
+                    break;
+                }
+            }
+            if (!matched) {
+                return false;
+            }
+            for (int i = 0, n = namesExceptions.size(); i < n; ++i) {
+                if (namesExceptions.get(i).matcher(name).matches()) {
+                    return false;
+                }
+            }
+            return true;
         }
     }
 }

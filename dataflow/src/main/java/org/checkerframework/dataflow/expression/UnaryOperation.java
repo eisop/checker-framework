@@ -8,8 +8,6 @@ import org.checkerframework.dataflow.cfg.node.UnaryOperationNode;
 import org.checkerframework.javacutil.AnnotationProvider;
 import org.checkerframework.javacutil.BugInCF;
 
-import java.util.Objects;
-
 import javax.lang.model.type.TypeMirror;
 
 /** JavaExpression for unary operations. */
@@ -105,13 +103,25 @@ public class UnaryOperation extends JavaExpression {
         return operand.containsModifiableAliasOf(store, other);
     }
 
+    /** Cache the hashCode. Recomputed if zero. */
+    private int hashCodeCache = 0;
+
     @Override
     public int hashCode() {
-        return Objects.hash(operationKind, operand);
+        if (hashCodeCache == 0) {
+            int h = 1;
+            h = 31 * h + (operationKind != null ? operationKind.hashCode() : 0);
+            h = 31 * h + (operand != null ? operand.hashCode() : 0);
+            hashCodeCache = h == 0 ? 1 : h;
+        }
+        return hashCodeCache;
     }
 
     @Override
     public boolean equals(@Nullable Object other) {
+        if (this == other) {
+            return true;
+        }
         if (!(other instanceof UnaryOperation)) {
             return false;
         }

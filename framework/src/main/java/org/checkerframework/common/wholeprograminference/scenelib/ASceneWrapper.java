@@ -217,13 +217,13 @@ public class ASceneWrapper {
                 if (existingEnumConstants.size() != enumConstants.size()) {
                     throw new BugInCF(
                             "inconsistent enum constants in WPI for class "
-                                    + classSymbol.getQualifiedName().toString());
+                                    + ElementUtils.getQualifiedName(classSymbol));
                 }
                 for (int i = 0; i < enumConstants.size(); i++) {
                     if (!existingEnumConstants.get(i).equals(enumConstants.get(i))) {
                         throw new BugInCF(
                                 "inconsistent enum constants in WPI for class "
-                                        + classSymbol.getQualifiedName().toString());
+                                        + ElementUtils.getQualifiedName(classSymbol));
                     }
                 }
             }

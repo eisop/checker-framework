@@ -315,7 +315,7 @@ public class CalledMethodsAnnotatedTypeFactory extends AccumulationAnnotatedType
          *
          * @param factory the type factory
          */
-        public CalledMethodsTreeAnnotator(AccumulationAnnotatedTypeFactory factory) {
+        CalledMethodsTreeAnnotator(AccumulationAnnotatedTypeFactory factory) {
             super(factory);
         }
 
@@ -361,7 +361,7 @@ public class CalledMethodsAnnotatedTypeFactory extends AccumulationAnnotatedType
          *
          * @param atypeFactory the type factory
          */
-        public CalledMethodsTypeAnnotator(AnnotatedTypeFactory atypeFactory) {
+        CalledMethodsTypeAnnotator(AnnotatedTypeFactory atypeFactory) {
             super(atypeFactory);
         }
 

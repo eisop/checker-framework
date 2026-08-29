@@ -84,6 +84,7 @@ public class CFGVisualizeOptions {
      * @param args command-line arguments, see {@link #printUsage()}
      * @return CFGVisualizeOptions object containing the parsed options
      */
+    @SuppressWarnings("SystemExitOutsideMain") // parseArgs is only called from CLI entry points
     public static CFGVisualizeOptions parseArgs(String[] args) {
         if (args.length == 0) {
             printUsage();

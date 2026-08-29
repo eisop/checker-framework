@@ -12,7 +12,6 @@ import com.sun.source.util.TreePath;
 import org.checkerframework.checker.nonempty.qual.NonEmpty;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.checker.optional.qual.Present;
-import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.dataflow.analysis.ConditionalTransferResult;
 import org.checkerframework.dataflow.analysis.TransferInput;
 import org.checkerframework.dataflow.analysis.TransferResult;
@@ -53,9 +52,6 @@ public class OptionalImplTransfer extends CFTransfer {
     /** The {@link OptionalImplAnnotatedTypeFactory} instance for this transfer class. */
     private final OptionalImplAnnotatedTypeFactory optionalTypeFactory;
 
-    /** True if "-AassumePure" or "-AassumeDeterministic" was passed. */
-    private final boolean assumeDeterministic;
-
     /** The @{@link Present} annotation. */
     private final AnnotationMirror PRESENT;
 
@@ -94,9 +90,6 @@ public class OptionalImplTransfer extends CFTransfer {
     public OptionalImplTransfer(CFAbstractAnalysis<CFValue, CFStore, CFTransfer> analysis) {
         super(analysis);
         optionalTypeFactory = (OptionalImplAnnotatedTypeFactory) analysis.getTypeFactory();
-        BaseTypeChecker checker = optionalTypeFactory.getChecker();
-        assumeDeterministic =
-                checker.hasOption("assumePure") || checker.hasOption("assumeDeterministic");
 
         Elements elements = optionalTypeFactory.getElementUtils();
         PRESENT = AnnotationBuilder.fromClass(elements, Present.class);

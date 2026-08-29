@@ -255,12 +255,16 @@ public final class CFGVisualizeLauncher {
                     // In JDK 11+, this can be just "OutputStream.nullOutputStream()".
                     new OutputStream() {
                         @Override
-                        public void write(int b) throws IOException {}
+                        public void write(int b) {}
                     };
             System.setErr(new PrintStream(nullOS));
             javac.compile(List.of(l), List.of(clas), List.of(cfgProcessor), List.nil());
         } catch (Throwable e) {
-            // ok
+            // Report to the original stderr, not the one just nulled out above, so a genuine
+            // compiler failure is still visible instead of only the generic error below.
+            err.println("=== CFGVisualizeLauncher: swallowed Throwable from javac.compile ===");
+            e.printStackTrace(err);
+            err.flush();
         } finally {
             System.setErr(err);
         }
@@ -318,6 +322,12 @@ public final class CFGVisualizeLauncher {
     private static void producePDF(String file) {
         try {
             String command = "dot -Tpdf \"" + file + "\" -o \"" + file + ".pdf\"";
+            // Process implements AutoCloseable in JDK 26, but we compile against older JDKs where
+            // close() is not available.
+            @SuppressWarnings({
+                "resourceleak:required.method.not.called",
+                "resourceleak:unneeded.suppression"
+            })
             Process child = Runtime.getRuntime().exec(new String[] {"/bin/sh", "-c", command});
             child.waitFor();
         } catch (InterruptedException | IOException e) {

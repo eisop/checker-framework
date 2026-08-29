@@ -202,7 +202,7 @@ public class FormatterAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
          *
          * @param atypeFactory the Format String Checker type factory
          */
-        public FormatterTreeAnnotator(AnnotatedTypeFactory atypeFactory) {
+        FormatterTreeAnnotator(AnnotatedTypeFactory atypeFactory) {
             super(atypeFactory);
         }
 
@@ -245,7 +245,7 @@ public class FormatterAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
         public FormatterQualifierHierarchy() {
             super(
                     FormatterAnnotatedTypeFactory.this.getSupportedTypeQualifiers(),
-                    elements,
+                    FormatterAnnotatedTypeFactory.this.elements,
                     FormatterAnnotatedTypeFactory.this);
             FORMAT_KIND = getQualifierKind(FORMAT_NAME);
             INVALIDFORMAT_KIND = getQualifierKind(INVALIDFORMAT_NAME);

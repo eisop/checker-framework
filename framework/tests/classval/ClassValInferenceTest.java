@@ -1,8 +1,10 @@
+// @below-java10-jdk-skip-test
 import org.checkerframework.common.reflection.qual.ClassBound;
 import org.checkerframework.common.reflection.qual.ClassVal;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Supplier;
 
 public class ClassValInferenceTest {
 
@@ -63,5 +65,33 @@ public class ClassValInferenceTest {
         } catch (NullPointerException | ArrayIndexOutOfBoundsException ex) {
             @ClassBound("java.lang.RuntimeException") Class<?> c = ex.getClass();
         }
+    }
+
+    void testAnonymous() {
+        var anon =
+                new Supplier<Class<?>>() {
+                    @Override
+                    public @ClassBound("java.util.function.Supplier") Class<?> get() {
+                        return this.getClass();
+                    }
+                };
+        @ClassBound("java.util.function.Supplier") Class<?> c1 = anon.getClass();
+        var anon2 =
+                new ClassValInferenceTest() {
+                    @ClassBound("ClassValInferenceTest") Class<?> m() {
+                        return this.getClass();
+                    }
+                };
+        @ClassBound("ClassValInferenceTest") Class<?> c2 = anon2.getClass();
+        @ClassBound("ClassValInferenceTest") Class<?> c3 = anon2.m();
+        @ClassBound("ClassValInferenceTest.MyEnum") Class<?> c4 = MyEnum.A.getClass();
+    }
+
+    enum MyEnum {
+        A {
+            public @ClassBound("ClassValInferenceTest.MyEnum") Class<?> type() {
+                return this.getClass();
+            }
+        },
     }
 }
