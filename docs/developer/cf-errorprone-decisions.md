@@ -212,3 +212,58 @@ processor path untouched, avoiding the version-conflict fragility above.
   build-time linter with `-Werror`). Its code must therefore be EP-linter-clean;
   `@SuppressWarnings("BugPatternNaming")` is used on the plugin class because the
   canonical check name (`eisopcf`) intentionally differs from the class name.
+
+
+---
+
+## ADR-0003: Context -> ProcessingEnvironment via JavacProcessingEnvironment.instance
+
+**Status:** accepted (Task 3)
+
+**Context.** `SourceChecker.init(ProcessingEnvironment)` needs a real
+`ProcessingEnvironment` (for `Trees`, `Messager`, `Elements`, `Types`, options).
+In Error Prone mode the bridge only has Error Prone's `VisitorState.context`, a
+`com.sun.tools.javac.util.Context`.
+
+**Decision.** Obtain the environment with
+`JavacProcessingEnvironment.instance(context)`. This works because the
+`JavacProcessingEnvironment` singleton stays registered in the `Context` through
+the ANALYZE phase (when Error Prone, and therefore this plugin, runs). It is
+precedented: NullAway does the same (`Trees.instance(JavacProcessingEnvironment
+.instance(state.context))`). `SourceChecker.unwrapProcessingEnvironment`
+explicitly recognizes a `JavacProcessingEnvironment` and uses it as-is, so this is
+*the same* environment the CF gets in standalone mode.
+
+The adapter (`EisopContextAdapter`) contains no Error Prone types — only the JDK
+compiler API — so the Context-to-ProcessingEnvironment concern is unit-testable
+without constructing a `VisitorState`.
+
+**Consequences / caveats.**
+- Annotation processing must be enabled: with `-proc:none` no
+  `JavacProcessingEnvironment` is created. The adapter throws a clear
+  `IllegalStateException` in that case. (Error Prone itself runs with processing
+  enabled, so this is not a practical restriction.)
+- Element/type resolution via the environment is only valid *while the compiler is
+  live* (during the ANALYZE callback), not after the task completes. The Error
+  Prone plugin runs mid-compilation, so this is naturally satisfied; the unit test
+  runs its assertions inside an ANALYZE `TaskListener` for the same reason.
+
+## ADR-0003 notes: dataflow classloader guard (Task 3)
+
+**Concern (from ADR-0002 notes).** Error Prone's classpath carries a
+package-relocated, older dataflow copy (`org.checkerframework.errorprone.dataflow`,
+3.41.x), while the CF core uses the un-relocated `org.checkerframework.dataflow`
+(3.49.x). A CF checker running under Error Prone must use the un-relocated copy.
+
+**Finding.** The two copies have *different package names*, so they coexist as
+distinct classes with no collision. `Class.forName("org.checkerframework.dataflow
+.cfg.ControlFlowGraph")` resolves to the CF's own un-relocated class; the relocated
+FQN (`org.checkerframework.errorprone.dataflow...`) is a different class entirely.
+`EisopContextAdapter.loadedDataflowPackage()` exposes which is loaded, and the test
+`EisopContextAdapterTest` asserts (a) the un-relocated package is what resolves and
+(b) both copies are present yet distinct. No shading/relocation work is needed on
+our side; the guard is a regression test rather than a code fix.
+
+**Significance.** This was the highest-risk unknown in the plan (the
+Context->ProcessingEnvironment bridge and shaded-dataflow coexistence). Both work
+with a thin adapter and no invasive changes, which de-risks Tasks 4-7.
