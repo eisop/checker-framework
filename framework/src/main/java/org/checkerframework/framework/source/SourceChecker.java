@@ -570,6 +570,14 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     protected @MonotonicNonNull TreeSet<CheckerMessage> messageStore;
 
     /**
+     * An optional destination for this checker's diagnostics. When non-null, findings are reported
+     * to this sink instead of being printed through javac's {@code Trees}. Used by hosts that embed
+     * the Checker Framework (e.g. the Error Prone plugin) to translate findings into their own
+     * diagnostic representation. See {@link #setDiagnosticSink}.
+     */
+    private @Nullable DiagnosticSink diagnosticSink = null;
+
+    /**
      * Exceptions to {@code -AwarnUnneededSuppressions} processing. No warning about unneeded
      * suppressions is issued if the SuppressWarnings string matches this pattern.
      */
@@ -758,6 +766,23 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      */
     public void enableExternallyDrivenMode(boolean externallyDriven) {
         setExternallyDriven(externallyDriven);
+    }
+
+    /**
+     * Installs a {@link DiagnosticSink} to receive this checker's findings, instead of printing
+     * them through javac's {@code Trees}. Pass {@code null} to restore the default (print to
+     * javac).
+     *
+     * <p>Intended for hosts that embed the Checker Framework (such as the Error Prone plugin) and
+     * want to translate findings into their own diagnostic representation. When several checkers
+     * run together under one parent (e.g. an {@code AggregateChecker} or subcheckers), all findings
+     * are flushed through the parent checker, so installing the sink on the checker that the host
+     * drives is sufficient.
+     *
+     * @param sink the diagnostic sink, or {@code null} to print to javac
+     */
+    public void setDiagnosticSink(@Nullable DiagnosticSink sink) {
+        this.diagnosticSink = sink;
     }
 
     // Also see initChecker().
@@ -1790,6 +1815,12 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
             Tree source,
             CompilationUnitTree root,
             StackTraceElement[] trace) {
+        if (diagnosticSink != null) {
+            // A host (e.g. the Error Prone plugin) is intercepting findings; hand off the neutral
+            // (kind, message, source, root) values instead of printing through javac's Trees.
+            diagnosticSink.report(kind, message, source, root);
+            return;
+        }
         Trees.instance(processingEnv).printMessage(kind, message, source, root);
         printStackTrace(trace);
     }
