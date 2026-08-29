@@ -4,7 +4,7 @@
  *
  * @compile/fail/ref=WithoutStub.out -XDrawDiagnostics -processor org.checkerframework.checker.nullness.NullnessChecker -Anomsgtext -AuseConservativeDefaultsForUncheckedCode=source Use.java Lib.java
  * @compile/fail/ref=WithStub.out -XDrawDiagnostics -processor org.checkerframework.checker.nullness.NullnessChecker -Anomsgtext -AuseConservativeDefaultsForUncheckedCode=source -Astubs=Lib.astub Use.java Lib.java
- * @compile/ref=WithStubAndMerge.out -XDrawDiagnostics -processor org.checkerframework.checker.nullness.NullnessChecker -Anomsgtext -AuseConservativeDefaultsForUncheckedCode=source -Astubs=Lib.astub -AmergeStubsWithSource Use.java Lib.java
+ * @compile/fail/ref=WithStubAndMerge.out -XDrawDiagnostics -processor org.checkerframework.checker.nullness.NullnessChecker -Anomsgtext -AuseConservativeDefaultsForUncheckedCode=source -Astubs=Lib.astub -AmergeStubsWithSource Use.java Lib.java
  */
 
 package issue1987;
