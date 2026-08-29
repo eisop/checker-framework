@@ -29,6 +29,7 @@ import org.checkerframework.framework.source.SuggestedFixData;
 import java.util.ArrayDeque;
 import java.util.Collections;
 import java.util.Deque;
+import java.util.List;
 
 import javax.inject.Inject;
 import javax.tools.Diagnostic;
@@ -195,7 +196,7 @@ public class EisopCheckerFrameworkPlugin extends BugChecker implements ClassTree
             @Override
             public void report(
                     Diagnostic.Kind kind, String message, Tree source, CompilationUnitTree root) {
-                reportWithFix(kind, message, source, root, null);
+                reportWithFix(kind, message, source, root, Collections.emptyList());
             }
 
             @Override
@@ -204,7 +205,7 @@ public class EisopCheckerFrameworkPlugin extends BugChecker implements ClassTree
                     String message,
                     Tree source,
                     CompilationUnitTree root,
-                    SuggestedFixData fix) {
+                    List<SuggestedFixData> fixes) {
                 VisitorState base = currentState;
                 if (base == null) {
                     // Should not happen: findings are produced only while matchClass is running.
@@ -237,17 +238,19 @@ public class EisopCheckerFrameworkPlugin extends BugChecker implements ClassTree
                 }
                 Description.Builder builder =
                         buildDescription(position).setMessage(formatMessage(kind, message));
-                // Always offer a suppression fix, mirroring how Error Prone's own checks let users
-                // add @SuppressWarnings via the patch pipeline.  Building it can fail if there is
-                // no suppressible element around the finding (e.g. some synthetic positions), so
+                // Checker-Framework-supplied fixes first (they are the meaningful fixes, e.g.
+                // "remove the annotation"); Error Prone's FixChoosers.FIRST picks the first fix.
+                for (SuggestedFixData fix : fixes) {
+                    builder.addFix(toErrorProneFix(fix));
+                }
+                // Always also offer a suppression fix, mirroring how Error Prone's own checks let
+                // users add @SuppressWarnings via the patch pipeline.  Building it can fail if
+                // there
+                // is no suppressible element around the finding (e.g. some synthetic positions), so
                 // guard it: a missing fix must never turn into a compilation-breaking error.
                 SuggestedFix suppressionFix = buildSuppressionFix(state);
                 if (suppressionFix != null) {
                     builder.addFix(suppressionFix);
-                }
-                // If the Checker Framework supplied a machine-applicable fix, translate it too.
-                if (fix != null) {
-                    builder.addFix(toErrorProneFix(fix));
                 }
                 state.reportMatch(builder.build());
             }

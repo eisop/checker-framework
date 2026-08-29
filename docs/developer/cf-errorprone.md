@@ -208,9 +208,27 @@ just as Error Prone's own checks do. Running Error Prone in patch mode inserts t
 suppression on the enclosing element. This makes the Checker Framework participate in
 Error Prone's suggested-fix / patch workflow.
 
-(The Checker Framework does not yet produce other machine-applicable fixes for its
-findings; when it does, they will flow through to Error Prone's patch pipeline
-automatically. See the decision log, ADR-0007.)
+In addition, a type system can supply its own machine-applicable fixes for specific
+findings, which are offered ahead of the suppression fix. For example, the Nullness
+Checker reports `nullness.on.primitive` for a nullness annotation on a primitive type
+(e.g. `@Nullable int x`) and attaches a fix that removes the annotation, so patch mode
+rewrites `@Nullable int x` to `int x`.
+
+Such fixes are produced by the checker itself (each type system owns its fix logic) and
+carried through a framework-agnostic channel (`SuggestedFixData`) to the plugin, which
+translates them into Error Prone `SuggestedFix`es. The Checker Framework core has no
+dependency on Error Prone. A checker attaches fixes by reporting with a `DiagMessage`
+that carries them, for example:
+
+```java
+checker.report(
+    tree,
+    DiagMessage.error("nullness.on.primitive").withFixes(fixes));
+```
+
+where each fix is built from source positions using
+`SuggestedFixData.deleteTree(...)` / `replaceTree(...)` (JDK types only). See the
+decision log, ADR-0007 and ADR-0011.
 
 ## Relationship to standalone mode
 

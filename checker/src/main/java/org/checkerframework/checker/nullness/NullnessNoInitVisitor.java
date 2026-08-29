@@ -45,6 +45,8 @@ import org.checkerframework.common.basetype.BaseTypeValidator;
 import org.checkerframework.common.basetype.BaseTypeVisitor;
 import org.checkerframework.common.basetype.TypeValidator;
 import org.checkerframework.framework.flow.CFCFGBuilder;
+import org.checkerframework.framework.source.DiagMessage;
+import org.checkerframework.framework.source.SuggestedFixData;
 import org.checkerframework.framework.type.AnnotatedTypeFactory;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedArrayType;
@@ -61,6 +63,7 @@ import org.checkerframework.javacutil.TreeUtilsAfterJava11.BindingPatternUtils;
 import org.checkerframework.javacutil.TreeUtilsAfterJava11.SwitchExpressionUtils;
 import org.checkerframework.javacutil.TypesUtils;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import javax.annotation.processing.ProcessingEnvironment;
@@ -941,7 +944,10 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
                     break;
                 case PRIMITIVE_TYPE:
                     if (atypeFactory.containsNullnessAnnotation(annoTrees, t)) {
-                        checker.reportError(t, "nullness.on.primitive");
+                        checker.report(
+                                t,
+                                DiagMessage.error("nullness.on.primitive")
+                                        .withFixes(removeNullnessAnnotationFixes(annoTrees, t)));
                     }
                     t = null;
                     break;
@@ -950,7 +956,10 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
                     Tree underlying = at.getUnderlyingType();
                     if (underlying instanceof PrimitiveTypeTree) {
                         if (atypeFactory.containsNullnessAnnotation(null, at)) {
-                            checker.reportError(t, "nullness.on.primitive");
+                            checker.report(
+                                    t,
+                                    DiagMessage.error("nullness.on.primitive")
+                                            .withFixes(removeNullnessAnnotationFixes(null, at)));
                         }
                         t = null;
                     } else {
@@ -970,6 +979,36 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
         }
 
         super.visitAnnotatedType(annoTrees, typeTree);
+    }
+
+    /**
+     * Builds suggested fixes for a {@code nullness.on.primitive} finding: for each nullness
+     * annotation applied to the primitive type, a fix that removes just that annotation (so, e.g.,
+     * {@code @Nullable int x} becomes {@code int x}).
+     *
+     * <p>The fixes are expressed in the framework-agnostic {@link SuggestedFixData} representation
+     * (source-offset edits computed with javac's {@link com.sun.source.util.SourcePositions}), so a
+     * host such as the Error Prone plugin can offer them; standalone javac ignores them. The
+     * Checker Framework owns this fix logic, keeping type-system-specific fixes out of any host.
+     *
+     * @param annoTrees extra annotation trees to consider (may be null), as passed to {@link
+     *     #visitAnnotatedType}
+     * @param typeTree the primitive (or annotated primitive) type tree
+     * @return one removal fix per offending nullness annotation (possibly empty)
+     */
+    private List<SuggestedFixData> removeNullnessAnnotationFixes(
+            @Nullable List<? extends AnnotationTree> annoTrees, Tree typeTree) {
+        List<SuggestedFixData> fixes = new ArrayList<>();
+        for (AnnotationTree annoTree : TreeUtils.getExplicitAnnotationTrees(annoTrees, typeTree)) {
+            AnnotationMirror am = TreeUtils.annotationFromAnnotationTree(annoTree);
+            if (atypeFactory.isNullnessAnnotation(am) && AnnotationUtils.isTypeUseAnnotation(am)) {
+                SuggestedFixData fix = SuggestedFixData.deleteTree(positions, root, annoTree);
+                if (fix != null) {
+                    fixes.add(fix);
+                }
+            }
+        }
+        return fixes;
     }
 
     @Override

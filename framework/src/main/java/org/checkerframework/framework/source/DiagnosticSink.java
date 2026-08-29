@@ -3,7 +3,7 @@ package org.checkerframework.framework.source;
 import com.sun.source.tree.CompilationUnitTree;
 import com.sun.source.tree.Tree;
 
-import org.checkerframework.checker.nullness.qual.Nullable;
+import java.util.List;
 
 import javax.tools.Diagnostic;
 
@@ -39,12 +39,13 @@ public interface DiagnosticSink {
     void report(Diagnostic.Kind kind, String message, Tree source, CompilationUnitTree root);
 
     /**
-     * Receives one Checker Framework finding that carries a machine-applicable suggested fix.
+     * Receives one Checker Framework finding that may carry machine-applicable suggested fixes (as
+     * alternatives).
      *
-     * <p>The default implementation ignores the fix and delegates to {@link #report}, so existing
+     * <p>The default implementation ignores the fixes and delegates to {@link #report}, so existing
      * single-method (lambda) sinks keep working. A host that supports fixes (such as the Error
-     * Prone plugin) overrides this to translate {@code fix} into its own representation and attach
-     * it to the reported finding.
+     * Prone plugin) overrides this to translate each fix into its own representation and attach it
+     * to the reported finding.
      *
      * <p>The Checker Framework does not yet produce fixes for its findings in general; this method
      * defines the neutral channel so that, once a checker does, fixes reach a host's patch pipeline
@@ -54,14 +55,14 @@ public interface DiagnosticSink {
      * @param message the fully-formatted, localized message text
      * @param source the tree at which the finding is reported; may be {@code null}
      * @param root the compilation unit containing {@code source}
-     * @param fix a suggested fix for the finding, or {@code null} if there is none
+     * @param fixes suggested fixes for the finding, as alternatives (possibly empty)
      */
     default void reportWithFix(
             Diagnostic.Kind kind,
             String message,
             Tree source,
             CompilationUnitTree root,
-            @Nullable SuggestedFixData fix) {
+            List<SuggestedFixData> fixes) {
         report(kind, message, source, root);
     }
 }

@@ -606,3 +606,57 @@ returning-null program under the Nullness Checker with `-AsuppressWarnings=nulln
 asserts no diagnostics — a `-A` option visibly changing checker behavior under `eisopcf`.
 The user guide gains a "Checker Framework options" section, and the runnable example shows
 the syntax in comments.
+
+
+---
+
+## ADR-0011: Checkers supply fixes via `DiagMessage` (the neutral channel wired up)
+
+**Status:** accepted (follow-up to ADR-0007)
+
+**Context.** ADR-0007 established the neutral `SuggestedFixData` channel but no checker
+produced fixes yet; the only fix offered in Error Prone mode was the generic
+suppression fix synthesized in the plugin. The goal now: let each type system supply its
+own fixes (fix logic must live in the checker, not be hard-coded in the central
+`framework-errorprone` module), threaded to the host through neutral types.
+
+**Decision — Option 3 (fix rides on `DiagMessage`).** Considered: (1) overloading
+`reportError`/`report` with fix params; (2) a separate "attach fix to last finding" call
+(rejected — stateful/fragile with the buffered `messageStore` and suppression); (3)
+carrying fixes on `DiagMessage`; (4) a side map keyed by (tree, key) (rejected — hidden,
+fragile keying). Chose (3): `DiagMessage` already bundles kind+key+args and is accepted
+by the public `report(Object, DiagMessage)` entry point, so it is the natural home and
+leaves the hot `reportError(source, key, args...)` path untouched. (Overloads on
+`reportError` can be added later if usage is awkward.)
+
+**Threading (all neutral types; no Error Prone in core).**
+- `SuggestedFixData` gains tree-based factories `deleteTree(SourcePositions, root, tree)`
+  and `replaceTree(..., text)`; `deleteTree` also consumes trailing whitespace so removing
+  `@Nullable` from `@Nullable int x` yields `int x`. Checkers get source offsets from
+  javac's `SourcePositions` (`BaseTypeVisitor.positions`, `SourceVisitor.root`) — no
+  Error Prone API. (Checkers must NOT use Error Prone APIs; `framework` has no such dep.)
+- `DiagMessage` gains an immutable `List<SuggestedFixData> fixes` plus `withFix`/`withFixes`
+  (copy-on-write; `equals`/`hashCode` unchanged — fixes are advisory).
+- `SourceChecker`: a new private `report(source, kind, key, fixes, args...)` (old one
+  delegates with empty fixes); `report(source, DiagMessage)` passes `d.getFixes()`; new
+  fixes-carrying overloads of both `printOrStoreMessage` methods (old ones delegate);
+  `CheckerMessage` gains a `fixes` field (buffered/aggregate path) forwarded by
+  `printStoredMessages`. All old signatures are preserved for `BaseTypeChecker` overriders.
+- `DiagnosticSink.reportWithFix` now takes `List<SuggestedFixData>` (default delegates to
+  `report`, ignoring fixes — standalone/lambda sinks unaffected).
+- The plugin adds each Checker-Framework fix as an Error Prone `SuggestedFix` alternative,
+  ordered BEFORE the suppression fix (so `FixChoosers.FIRST` / an interactive user gets
+  the meaningful fix first).
+
+**First real user.** `NullnessNoInitVisitor.visitAnnotatedType` now reports
+`nullness.on.primitive` via `checker.report(t, DiagMessage.error("nullness.on.primitive")
+.withFixes(removeNullnessAnnotationFixes(...)))`, where the helper collects the offending
+nullness `AnnotationTree`s (`TreeUtils.getExplicitAnnotationTrees` +
+`atypeFactory.isNullnessAnnotation`) and builds one `deleteTree` fix per annotation.
+
+**Verified.**
+- Error Prone mode: `EisopCheckerFrameworkPatchTest.nullnessOnPrimitiveRemoveAnnotationFixIsApplied`
+  rewrites `@Nullable int x = 0;` to `int x = 0;` through Error Prone's patch pipeline.
+- Standalone mode unchanged: full `:checker:NullnessTest` (23 tests, includes
+  `UnannoPrimitives`) passes, plus `AggregateTest`/`CompoundCheckerTest` and the whole
+  `framework-errorprone` suite.

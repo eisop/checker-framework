@@ -69,4 +69,38 @@ public class EisopCheckerFrameworkPatchTest {
                         "}")
                 .doTest();
     }
+
+    /**
+     * A Checker-Framework-supplied fix reaches Error Prone's patch pipeline. The Nullness Checker
+     * reports {@code nullness.on.primitive} for a nullness annotation on a primitive type and
+     * attaches a "remove the annotation" fix (via the framework-agnostic {@code SuggestedFixData}
+     * channel). That fix is the first alternative (ahead of the always-present suppression fix), so
+     * applying it rewrites {@code @Nullable int x} to {@code int x}.
+     */
+    @Test
+    public void nullnessOnPrimitiveRemoveAnnotationFixIsApplied() {
+        ScannerSupplier scanner =
+                ScannerSupplier.fromBugCheckerClasses(EisopCheckerFrameworkPlugin.class);
+        BugCheckerRefactoringTestHelper.newInstance(scanner, getClass())
+                .setArgs(
+                        append(BASE_ARGS, "-XepOpt:eisopcf:checkers=" + NULLNESS_CHECKER)
+                                .toArray(new String[0]))
+                // The Checker-Framework fix (remove the annotation) is the first fix.
+                .setFixChooser(FixChoosers.FIRST)
+                .addInputLines(
+                        "test/Prim.java",
+                        "package test;",
+                        "import org.checkerframework.checker.nullness.qual.Nullable;",
+                        "class Prim {",
+                        "  @Nullable int x = 0;",
+                        "}")
+                .addOutputLines(
+                        "test/Prim.java",
+                        "package test;",
+                        "import org.checkerframework.checker.nullness.qual.Nullable;",
+                        "class Prim {",
+                        "  int x = 0;",
+                        "}")
+                .doTest();
+    }
 }
