@@ -480,3 +480,38 @@ also makes reported diagnostics point at the finding rather than the class.
 **Follow-up (out of scope).** When the CF gains per-finding fixes, route them through
 `reportWithFix` with `SuggestedFixData`; the module already translates and attaches
 them, so no further core or module change is required.
+
+
+---
+
+## ADR-0008: Documentation, runnable example, and CI (Task 8)
+
+**Status:** accepted (Task 8)
+
+**Documentation.** Added `docs/developer/cf-errorprone.md`, a user-facing guide (why
+to use the plugin, JDK 21+ requirement, dependencies, `-XepOpt:eisopcf:checkers`,
+required javac options and `--add-exports`/`--add-opens`, severity, suppression, and
+the suppression suggested-fix / patch workflow). It complements this decision log. The
+LaTeX manual was intentionally left untouched while the feature is on a branch; it can
+reference the guide once merged.
+
+**Runnable example.** Added `docs/examples/eisop-errorprone/`, a standalone Gradle
+project (its own empty `settings.gradle`, mirroring the sibling `errorprone` example)
+that runs the Nullness Checker as the `eisopcf` plugin over a demo class with a
+nullness bug. Because `framework-errorprone` is not published yet, the example consumes
+the *locally-built* jars by file:
+- `checker-qual-<v>.jar` (compileOnly, for `@Nullable`);
+- the plain (non-shadow) `framework-errorprone-<v>.jar` on the `errorprone` path — the
+  `-all` shadow jar must NOT be used, as it bundles a copy of Error Prone's classes and
+  breaks the `BugChecker` service check with "not a subtype";
+- the `checker-<v>-all.jar` shadow jar (bundles the checkers) on the `errorprone` path.
+A `Makefile` builds those jars (`:checker-qual:jar :framework-errorprone:jar
+:checker:shadowJar`), runs the example, and greps for the expected
+`[eisopcf] [dereference.of.nullable]` diagnostic. It is gated on JDK 21+ (no-op below).
+`.gitignore` gained `docs/examples/eisop-errorprone/{.gradle/,Out.txt}` entries, matching
+the other examples. Verified: `make all` exits 0.
+
+**CI.** No workflow change is needed. `./gradlew test` (run by the existing
+`cftests-junit` job, whose primary JDK is 21) includes `:framework-errorprone:test`
+automatically when the module is present, and `settings.gradle` excludes the module on
+JDK <= 17. Confirmed with `gradlew test --dry-run`.

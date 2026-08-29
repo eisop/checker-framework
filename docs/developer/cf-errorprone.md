@@ -143,3 +143,21 @@ automatically. See the decision log, ADR-0007.)
 The plugin's tests run automatically as part of the Checker Framework's JUnit test
 suite (`./gradlew test`) whenever the build JDK is 21 or newer; on older JDKs the module
 is not part of the build. No separate CI job is required.
+
+## Runnable example
+
+`docs/examples/eisop-errorprone/` is a small, self-contained Gradle project that runs the
+Nullness Checker as the `eisopcf` Error Prone plugin over a source file with a nullness
+bug. It consumes the locally-built Checker Framework (so it runs against the current
+checkout, before the `framework-errorprone` artifact is published). Run it with:
+
+```
+cd docs/examples/eisop-errorprone
+make all
+```
+
+`make all` builds the required jars, compiles the demo, and checks that the expected
+`[eisopcf] [dereference.of.nullable]` diagnostic is produced. It requires JDK 21+ (on
+older JDKs it does nothing and succeeds). The project's `build.gradle` is a copyable
+template for enabling the plugin in a real Gradle build.
+
