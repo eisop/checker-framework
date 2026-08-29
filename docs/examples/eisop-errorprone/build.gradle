@@ -68,6 +68,13 @@ tasks.withType(JavaCompile).configureEach {
             'eisopcf:checkers',
             'org.checkerframework.checker.nullness.NullnessChecker')
 
+    // Checker Framework options are passed with javac -A, exactly as in standalone mode (NOT via
+    // -XepOpt).  Both common options and checker-specific options (-ACheckerName_option=...) work.
+    // Examples (commented out so this example still reports its demo error):
+    //   options.compilerArgs += ['-Astubs=/path/to/my.astub']
+    //   options.compilerArgs += ['-AsuppressWarnings=nullness']   // would suppress the demo error
+    //   options.compilerArgs += ['-ANullnessChecker_someOption=value']
+
     // javac options Error Prone (and the Checker Framework) require.
     options.compilerArgs += [
         '-XDcompilePolicy=simple',

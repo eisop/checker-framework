@@ -67,6 +67,37 @@ Each selected type system builds its own control-flow graph, exactly as standalo
 `javac -processor A,B` does. (See the decision log, ADR-0006, for why a single shared
 CFG across independent type systems is not provided.)
 
+## Checker Framework options
+
+Pass Checker Framework options **exactly as in standalone mode: with javac `-A`
+options**. They reach the checkers unchanged, because the plugin hands each checker the
+real `javac` processing environment, whose options map javac populates from `-A` on the
+command line. (Error Prone runs with annotation processing enabled, so javac records
+`-A` options even though no Checker Framework annotation processor is registered. You do
+*not* use `-XepOpt:` for Checker Framework options — `-XepOpt:eisopcf:...` is only for the
+plugin's own options, currently just `checkers`.)
+
+This covers both kinds of Checker Framework option:
+
+- **Common options** (defined on `SourceChecker`, shared by all checkers), for example:
+
+  ```
+  -Astubs=/path/to/my.astub
+  -AsuppressWarnings=nullness
+  -Alint=cast:unsafe
+  ```
+
+- **Checker-specific options**, written `-ACheckerName_option=value` (note the `_`
+  separator between the checker's simple name and the option), for example:
+
+  ```
+  -ANullnessChecker_someOption=value
+  ```
+
+For example, adding `-AsuppressWarnings=nullness` to a compilation running the Nullness
+Checker under `eisopcf` suppresses all `nullness`-prefixed findings, just as it would in
+standalone mode.
+
 ## Required javac options
 
 Error Prone imposes these javac options; the Checker Framework plugin needs them too:

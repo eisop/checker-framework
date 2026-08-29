@@ -571,3 +571,38 @@ enabled; `"nullness"`, `"interning"`, `"allcheckers"` at method level) and
 local-variable level, each with a sibling finding that still reports). The user guide's
 Suppression section documents this with a summary table.
 
+
+
+---
+
+## ADR-0010: Checker Framework options are passed with javac `-A` (follow-up)
+
+**Status:** accepted (post-Task-8 follow-up)
+
+**Question.** How are Checker-Framework options (common `SourceChecker` options like
+`-Astubs=...`, and checker-specific options) passed in an Error Prone invocation? With
+`-A`, or does the plugin need a bridge (e.g. via `-XepOpt:`)?
+
+**Finding (verified empirically).** With `-A`, exactly as in standalone mode; no bridge
+is needed. `SourceChecker` reads its options from `processingEnv.getOptions()`
+(`createActiveOptions`), and the plugin hands each checker the real
+`JavacProcessingEnvironment` (ADR-0003), whose options map javac populates from
+`-Akey=value` on the command line. A probe compiling with `-Astubs=/tmp/foo.astub` and
+`-ANullnessChecker_someOpt=bar`, with Error Prone running as a plugin and no Checker
+Framework annotation processor registered, showed `getOptions()` returned exactly
+`{stubs=..., NullnessChecker_someOpt=bar}` — and javac emitted no "unrecognized option"
+warning (unclaimed-`-A` warnings only arise when processor rounds run with processors that
+don't claim them; EP-as-plugin with no processor passes them through quietly).
+
+**Consequences.**
+- Common options: `-Astubs=...`, `-AsuppressWarnings=...`, `-Alint=...`, etc.
+- Checker-specific options keep the Checker Framework's `CheckerName_option` convention:
+  `-ANullnessChecker_someOption=value` (the `_` is `SourceChecker.OPTION_SEPARATOR`).
+- `-XepOpt:` remains only for the plugin's own options (currently just
+  `eisopcf:checkers`). Checker Framework options are NOT passed via `-XepOpt:`.
+
+**Test.** `EisopCheckerFrameworkPluginTest.checkerOptionsArePassedWithDashA` compiles a
+returning-null program under the Nullness Checker with `-AsuppressWarnings=nullness` and
+asserts no diagnostics — a `-A` option visibly changing checker behavior under `eisopcf`.
+The user guide gains a "Checker Framework options" section, and the runnable example shows
+the syntax in comments.

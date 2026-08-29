@@ -354,4 +354,41 @@ public class EisopCheckerFrameworkPluginTest {
                         "}")
                 .doTest();
     }
+
+    /**
+     * Checker Framework options are passed exactly as in standalone mode: with javac {@code -A}
+     * options, which reach the checkers through {@code processingEnv.getOptions()} (Error Prone
+     * runs with annotation processing enabled, so javac records {@code -A} options even though no
+     * Checker Framework annotation processor is registered). This covers both the common {@link
+     * org.checkerframework.framework.source.SourceChecker} options (e.g. {@code -Astubs=...}) and
+     * checker-specific options (written {@code -ACheckerName_option=...}).
+     *
+     * <p>Here the common {@code -AsuppressWarnings=nullness} option suppresses the Nullness Checker
+     * finding that {@link #nullnessCheckerReportsBadReturn()} otherwise reports, demonstrating that
+     * a {@code -A} option changes checker behavior under the {@code eisopcf} plugin.
+     */
+    @Test
+    public void checkerOptionsArePassedWithDashA() {
+        ScannerSupplier scanner =
+                ScannerSupplier.fromBugCheckerClasses(EisopCheckerFrameworkPlugin.class);
+        CompilationTestHelper optionHelper =
+                CompilationTestHelper.newInstance(scanner, getClass())
+                        .setArgs(
+                                append(
+                                        BASE_ARGS,
+                                        "-XepOpt:eisopcf:checkers=" + NULLNESS_CHECKER,
+                                        // A standard SourceChecker option, passed with -A as in
+                                        // standalone mode; suppresses all "nullness"-prefixed
+                                        // findings.
+                                        "-AsuppressWarnings=nullness"));
+        optionHelper
+                .expectNoDiagnostics()
+                .addSourceLines(
+                        "test/WithOption.java",
+                        "package test;",
+                        "class WithOption {",
+                        "  String m() { return null; }",
+                        "}")
+                .doTest();
+    }
 }
