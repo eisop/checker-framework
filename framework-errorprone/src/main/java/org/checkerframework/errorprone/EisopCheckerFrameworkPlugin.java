@@ -6,9 +6,12 @@ import com.google.errorprone.ErrorProneFlags;
 import com.google.errorprone.VisitorState;
 import com.google.errorprone.bugpatterns.BugChecker;
 import com.google.errorprone.bugpatterns.BugChecker.ClassTreeMatcher;
+import com.google.errorprone.fixes.SuggestedFix;
+import com.google.errorprone.fixes.SuggestedFixes;
 import com.google.errorprone.matchers.Description;
 import com.google.errorprone.util.ASTHelpers;
 import com.sun.source.tree.ClassTree;
+import com.sun.source.tree.CompilationUnitTree;
 import com.sun.source.tree.Tree;
 import com.sun.source.util.TaskEvent;
 import com.sun.source.util.TaskListener;
@@ -18,6 +21,7 @@ import com.sun.tools.javac.code.Symbol.ClassSymbol;
 import com.sun.tools.javac.util.Context;
 
 import org.checkerframework.framework.source.DiagnosticSink;
+import org.checkerframework.framework.source.SuggestedFixData;
 
 import javax.inject.Inject;
 import javax.tools.Diagnostic;
@@ -180,17 +184,69 @@ public class EisopCheckerFrameworkPlugin extends BugChecker implements ClassTree
      * @return the diagnostic sink
      */
     private DiagnosticSink diagnosticSink() {
-        return (kind, message, source, root) -> {
-            VisitorState state = currentState;
-            if (state == null) {
-                // Should not happen: findings are produced only while matchClass is running.
-                return;
+        return new DiagnosticSink() {
+            @Override
+            public void report(
+                    Diagnostic.Kind kind, String message, Tree source, CompilationUnitTree root) {
+                reportWithFix(kind, message, source, root, null);
             }
-            Tree position = source != null ? source : state.getPath().getLeaf();
-            Description description =
-                    buildDescription(position).setMessage(formatMessage(kind, message)).build();
-            state.reportMatch(description);
+
+            @Override
+            public void reportWithFix(
+                    Diagnostic.Kind kind,
+                    String message,
+                    Tree source,
+                    CompilationUnitTree root,
+                    SuggestedFixData fix) {
+                VisitorState base = currentState;
+                if (base == null) {
+                    // Should not happen: findings are produced only while matchClass is running.
+                    return;
+                }
+                // Anchor the finding (and its suppression fix) at the finding's own source tree,
+                // not the enclosing class that matchClass is visiting.  This makes
+                // @SuppressWarnings land on the nearest suppressible element to the finding (e.g.
+                // the enclosing method), matching how the finding is located.
+                VisitorState state = base;
+                Tree position;
+                if (source != null) {
+                    TreePath findingPath = TreePath.getPath(root, source);
+                    if (findingPath != null) {
+                        state = base.withPath(findingPath);
+                    }
+                    position = source;
+                } else {
+                    position = base.getPath().getLeaf();
+                }
+                Description.Builder builder =
+                        buildDescription(position).setMessage(formatMessage(kind, message));
+                // Always offer a suppression fix, mirroring how Error Prone's own checks let users
+                // add @SuppressWarnings via the patch pipeline.
+                builder.addFix(SuggestedFixes.addSuppressWarnings(state, canonicalName()));
+                // If the Checker Framework supplied a machine-applicable fix, translate it too.
+                if (fix != null) {
+                    builder.addFix(toErrorProneFix(fix));
+                }
+                state.reportMatch(builder.build());
+            }
         };
+    }
+
+    /**
+     * Translates a Checker-Framework-neutral {@link SuggestedFixData} into an Error Prone {@link
+     * com.google.errorprone.fixes.SuggestedFix}. This is the boundary at which the neutral
+     * source-offset replacements become an Error Prone fix; the Checker Framework core never
+     * references Error Prone types.
+     *
+     * @param fix the neutral fix data
+     * @return the equivalent Error Prone fix
+     */
+    private static SuggestedFix toErrorProneFix(SuggestedFixData fix) {
+        SuggestedFix.Builder builder = SuggestedFix.builder();
+        for (SuggestedFixData.Replacement r : fix.getReplacements()) {
+            builder.replace(r.startPosition, r.endPosition, r.text);
+        }
+        return builder.build();
     }
 
     /**

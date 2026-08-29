@@ -424,3 +424,59 @@ from driver creation).
   `eisopcf:checkers` list.
 - `unknownCheckerNameIsReported`: a bogus checker name yields a clear "Checker class
   not found" `eisopcf` diagnostic.
+
+
+---
+
+## ADR-0007: Fix seam + suppression fix through Error Prone's patch pipeline (Task 7)
+
+**Status:** accepted (Task 7)
+
+**Finding: the Checker Framework has no per-diagnostic suggested-fix mechanism.**
+CF diagnostics (`CheckerMessage`, `printOrStoreMessage`, the `message(...)` chain)
+carry only `(kind, message, source tree, trace)` — no attached machine-applicable
+edit, unlike Error Prone's `SuggestedFix`. The closest capability is whole-program
+inference (`-Ainfer`), a batch/offline pass that writes `.jaif`/`.ajava`/stub files,
+not per-finding fixes on the diagnostic path. Building general fix generation into
+the CF is a large, separate feature out of scope here.
+
+**Decision (agreed with maintainers, option a).** Two parts:
+
+1. **Plumb a neutral fix channel** so fixes reach a host's patch pipeline the moment
+   any checker produces them:
+   - `SuggestedFixData` (new, in `framework`): a list of `Replacement(startPosition,
+     endPosition, text)` using javac source offsets — JDK-neutral, no Error Prone
+     type. The core stays framework-agnostic.
+   - `DiagnosticSink` gains a `default reportWithFix(kind, message, source, root,
+     @Nullable SuggestedFixData)` that by default ignores the fix and delegates to
+     `report(...)`, so existing lambda sinks keep working. No CF code calls it with a
+     non-null fix yet (the CF produces none), but the channel is defined and unit
+     -tested (`SuggestedFixDataTest`), and the module translates it to an Error Prone
+     `SuggestedFix` (`EisopCheckerFrameworkPlugin.toErrorProneFix`, position-based
+     `SuggestedFix.Builder.replace`).
+
+2. **A real, always-available suppression fix** (mirrors Error Prone's own checks):
+   every `eisopcf` finding's `Description` carries
+   `SuggestedFixes.addSuppressWarnings(state, "eisopcf")`. Applying it via Error
+   Prone's refactoring/patch pipeline inserts `@SuppressWarnings("eisopcf")`. This is
+   what proves goal 1c end-to-end.
+
+**Important refinement: anchor findings at their own source tree.** The sink now
+computes the finding's `TreePath` (`TreePath.getPath(root, source)`) and uses
+`state.withPath(...)`, so both the reported position and the suppression fix anchor
+at the finding's location (e.g. the enclosing method), not the class that
+`matchClass` is visiting. Before this, the suppression landed on the class. This
+also makes reported diagnostics point at the finding rather than the class.
+
+**Verified.**
+- `EisopCheckerFrameworkPatchTest.suppressionFixIsApplied`: Error Prone's
+  `BugCheckerRefactoringTestHelper` applies the fix, inserting
+  `@SuppressWarnings("eisopcf")` on the enclosing method.
+- `SuggestedFixDataTest`: the neutral fix representation (factory, ordering,
+  immutability).
+- Standalone CF unaffected (`AggregateTest`, `CompoundCheckerTest` pass); existing
+  plugin tests (including class-level suppression) still pass.
+
+**Follow-up (out of scope).** When the CF gains per-finding fixes, route them through
+`reportWithFix` with `SuggestedFixData`; the module already translates and attaches
+them, so no further core or module change is required.
