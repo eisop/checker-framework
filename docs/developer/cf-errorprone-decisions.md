@@ -267,3 +267,62 @@ our side; the guard is a regression test rather than a code fix.
 **Significance.** This was the highest-risk unknown in the plan (the
 Context->ProcessingEnvironment bridge and shaded-dataflow coexistence). Both work
 with a thin adapter and no invasive changes, which de-risks Tasks 4-7.
+
+
+---
+
+## ADR-0004: Umbrella BugChecker drives the CF via reflection (Task 4)
+
+**Status:** accepted (Task 4)
+
+**Design.** `EisopCheckerFrameworkPlugin` (the `eisopcf` `ClassTreeMatcher`) reads
+the comma-separated `-XepOpt:eisopcf:checkers=<FQN>[,<...>]` option through an
+`@Inject EisopCheckerFrameworkPlugin(ErrorProneFlags)` constructor
+(`flags.getListOrEmpty("eisopcf:checkers")`). On the first `matchClass` of a
+compilation it builds a `CheckerFrameworkDriver`, which:
+1. obtains the `ProcessingEnvironment` from the `VisitorState.context` via
+   `EisopContextAdapter` (ADR-0003);
+2. instantiates each selected `SourceChecker` reflectively by name (no compile-time
+   dependency on `:checker`);
+3. calls `enableExternallyDrivenMode(true)` then `init(procEnv)` (ADR-0001);
+4. per class, calls `typeProcessExternally(classSymbol, state.getPath())`.
+
+The class symbol comes from `ASTHelpers.getSymbol(ClassTree)` and the `TreePath`
+from `VisitorState.getPath()` (leaf = the matched `ClassTree`).
+
+**End-of-compilation.** The CF's `typeProcessingOver` is a whole-compilation step
+(e.g. unneeded-suppression warnings), but `ClassTreeMatcher` has no end hook. The
+driver registers a `MultiTaskListener.instance(context).add(listener)` that calls
+`CheckerFrameworkDriver.finish()` on the `TaskEvent.Kind.COMPILATION`-finished
+event. (`MultiTaskListener` is the Context-level way to add a `TaskListener`;
+`JavacTask.instance` takes a `ProcessingEnvironment`, not a `Context`.)
+
+**Diagnostics (2b).** `matchClass` returns `Description.NO_MATCH`; the CF reports
+through its own `Messager`. Task 5 will switch to emitting EP `Description`s.
+
+**Findings worth remembering.**
+- **Checker jar variant.** A plain `testImplementation project(':checker')`
+  resolves to `:checker`'s skinny/runtime variant, which did NOT put
+  `NullnessChecker` on the test classpath (confirmed with a probe: plain
+  `Class.forName` failed, unrelated to Error Prone). The fix is to depend on the
+  shadow ("-all") jar file directly:
+  `testImplementation files(tasks.getByPath(':checker:shadowJar').archiveFile) { builtBy ':checker:shadowJar' }`.
+  A `project(path: ':checker', configuration: 'shadowRuntimeElements')` dependency
+  fails variant matching because the shadow variant is tagged Java-8 while this
+  module is Java-21. The fat jar is also what users really put on the processorpath,
+  so this is deployment-faithful.
+- **Classloader resolution.** `CheckerFrameworkDriver.loadCheckerClass` tries, in
+  order, the classloaders of `SourceChecker`, the thread context, and the driver
+  itself. In the test all three are the same app classloader; the multi-loader
+  approach is defensive for deployments where Error Prone loads the plugin through a
+  `MaskedClassLoader` from the processorpath.
+- **Error Prone required javac exports for in-process tests.** The
+  `CompilationTestHelper` runs javac in the test JVM; Error Prone's `ASTHelpers`
+  triggers a superclass access check on `com.sun.tools.javac.parser.JavaTokenizer`,
+  so `--add-exports jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED` must be a
+  Test JVM arg (in addition to the other javac-internal exports). These are JVM
+  args, not compiler args (passing `--add-opens`/`--add-exports` as compiler args
+  yields "has no effect at compile time" warnings).
+- **Test source packages.** Put test sources in a named package to avoid Error
+  Prone's own `DefaultPackage` check firing on the sample code and colliding with
+  the `// BUG:` marker lines.

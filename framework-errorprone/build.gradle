@@ -32,6 +32,22 @@ dependencies {
     // transitively depends on the published dataflow-errorprone built from this repo.
     implementation "com.google.errorprone:error_prone_check_api:${versions.errorprone}"
 
+    // Test-only: run the plugin through Error Prone end-to-end.
+    // - error_prone_test_helpers provides CompilationTestHelper (captures ALL compiler
+    //   diagnostics, so it sees the Checker Framework's Messager output in 2b passthrough mode).
+    // - error_prone_core supplies ScannerSupplier and the machinery to actually run EP in-process.
+    // - :checker provides concrete checkers (e.g. NullnessChecker) that the test selects by name.
+    //   Depend on its shadow ("-all") jar file directly: that fat jar is what users actually put on
+    //   the Error Prone processorpath, and (unlike the skinny runtime variant) it definitively
+    //   contains the checker classes. A file dependency on the shadowJar task output sidesteps
+    //   Gradle variant-attribute matching (the shadow variant is tagged Java-8, incompatible with
+    //   this Java-21 module). TEST scope only: main code resolves checkers by reflection, so the
+    //   module stays below :checker in the production dependency graph.
+    testImplementation "com.google.errorprone:error_prone_test_helpers:${versions.errorprone}"
+    testImplementation "com.google.errorprone:error_prone_core:${versions.errorprone}"
+    testImplementation files(tasks.getByPath(':checker:shadowJar').archiveFile) {
+        builtBy ':checker:shadowJar'
+    }
     testImplementation "junit:junit:${versions.junit}"
 }
 
@@ -56,7 +72,8 @@ tasks.withType(JavaCompile).configureEach {
 }
 
 // Tests launch an in-process javac against EP + CF internals, so they need the same exports at
-// run time (plus --add-opens for the CF's reflective access into com.sun.tools.javac.comp).
+// run time (plus --add-opens for the CF's reflective access into com.sun.tools.javac.comp, and
+// --add-exports of com.sun.tools.javac.parser which Error Prone's ASTHelpers requires).
 tasks.withType(Test).configureEach {
     jvmArgs += [
         '--add-exports', 'jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED',
@@ -64,6 +81,7 @@ tasks.withType(Test).configureEach {
         '--add-exports', 'jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED',
         '--add-exports', 'jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED',
         '--add-exports', 'jdk.compiler/com.sun.tools.javac.model=ALL-UNNAMED',
+        '--add-exports', 'jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED',
         '--add-exports', 'jdk.compiler/com.sun.tools.javac.processing=ALL-UNNAMED',
         '--add-exports', 'jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED',
         '--add-exports', 'jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED',
