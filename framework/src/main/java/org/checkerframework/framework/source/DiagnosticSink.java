@@ -3,6 +3,8 @@ package org.checkerframework.framework.source;
 import com.sun.source.tree.CompilationUnitTree;
 import com.sun.source.tree.Tree;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
+
 import javax.tools.Diagnostic;
 
 /**
@@ -16,10 +18,10 @@ import javax.tools.Diagnostic;
  * Framework findings become Error Prone {@code Description}s (honoring Error Prone severity,
  * suppression, and the suggested-fix / patch pipeline).
  *
- * <p>This interface intentionally uses only {@code javax.tools} and {@code com.sun.source.tree}
- * types, so the Checker Framework core has no dependency on any host framework (in particular, no
- * dependency on Error Prone). The translation from these neutral values to a host-specific
- * representation is the host's responsibility.
+ * <p>This interface intentionally uses only {@code javax.tools}, {@code com.sun.source.tree}, and
+ * Checker Framework types, so the Checker Framework core has no dependency on any host framework
+ * (in particular, no dependency on Error Prone). The translation from these neutral values to a
+ * host-specific representation is the host's responsibility.
  */
 @FunctionalInterface
 public interface DiagnosticSink {
@@ -35,4 +37,31 @@ public interface DiagnosticSink {
      * @param root the compilation unit containing {@code source}
      */
     void report(Diagnostic.Kind kind, String message, Tree source, CompilationUnitTree root);
+
+    /**
+     * Receives one Checker Framework finding that carries a machine-applicable suggested fix.
+     *
+     * <p>The default implementation ignores the fix and delegates to {@link #report}, so existing
+     * single-method (lambda) sinks keep working. A host that supports fixes (such as the Error
+     * Prone plugin) overrides this to translate {@code fix} into its own representation and attach
+     * it to the reported finding.
+     *
+     * <p>The Checker Framework does not yet produce fixes for its findings in general; this method
+     * defines the neutral channel so that, once a checker does, fixes reach a host's patch pipeline
+     * without any further core change.
+     *
+     * @param kind the diagnostic kind
+     * @param message the fully-formatted, localized message text
+     * @param source the tree at which the finding is reported; may be {@code null}
+     * @param root the compilation unit containing {@code source}
+     * @param fix a suggested fix for the finding, or {@code null} if there is none
+     */
+    default void reportWithFix(
+            Diagnostic.Kind kind,
+            String message,
+            Tree source,
+            CompilationUnitTree root,
+            @Nullable SuggestedFixData fix) {
+        report(kind, message, source, root);
+    }
 }
