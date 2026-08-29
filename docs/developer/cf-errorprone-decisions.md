@@ -515,3 +515,59 @@ the other examples. Verified: `make all` exits 0.
 `cftests-junit` job, whose primary JDK is 21) includes `:framework-errorprone:test`
 automatically when the module is present, and `settings.gradle` excludes the module on
 JDK <= 17. Confirmed with `gradlew test --dry-run`.
+
+
+---
+
+## ADR-0009: Suppression semantics — per-type-system and per-declaration (follow-up)
+
+**Status:** accepted (post-Task-8 follow-up)
+
+**Context.** A question about whether the Nullness and Interning checkers can be
+suppressed independently (vs. only the coarse `eisopcf` key) prompted a closer look at
+the two suppression layers. ADR-0005 had loosely stated that `@SuppressWarnings("eisopcf")`
+is "honored at the granularity of the enclosing class"; the precise behavior is now
+established, corrected, and locked in by tests.
+
+**Investigation (Error Prone's suppression model).** Verified against Error Prone's code
+and docs: Error Prone computes suppression as its `Scanner` descends the tree
+(`Scanner.updateSuppressions` -> `SuppressionInfo.withExtendedSuppressions(Symbol, ...)`
+for each declared symbol) and checks it in `processMatchers` at the node where a matcher
+fires (`VisitorState.reportMatch` itself does NOT consult suppression). So an ordinary
+Error Prone check honors `@SuppressWarnings` at any enclosing declaration — class, method,
+or local variable (`ASTHelpers.getDeclaredSymbol` covers `VariableTree`). This matches the
+Java `@SuppressWarnings` model (Oracle: suppressions union over containing elements).
+
+This plugin is atypical: it matches at the class (`ClassTreeMatcher`) and reports findings
+for the whole subtree via `reportMatch`, so Error Prone's per-node suppression only covers
+the class node — findings below the class would otherwise ignore method/local suppression.
+
+**Decision / behavior.**
+- **Checker Framework keys** — `@SuppressWarnings("nullness")`, `"interning"`,
+  `"allcheckers"`, and specific keys like `"nullness:dereference.of.nullable"` — suppress
+  per type system at any declaration, because `SourceChecker.message(...)` calls
+  `shouldSuppressWarnings(source, key)` and returns early: the finding never reaches the
+  `DiagnosticSink`.
+- **The Error Prone `"eisopcf"` key** now also works at any enclosing declaration (class,
+  method, field, or local variable — fields and locals are both `VariableTree`). The plugin
+  reconstructs Error Prone's descent-based suppression along each finding's path: starting
+  from `SuppressionInfo.EMPTY.forCompilationUnit(root, state)`, it walks the finding's
+  `TreePath` root-first and calls `withExtendedSuppressions` for each node with a declared
+  symbol, then `suppressedState(this, false, state)`; a `SUPPRESSED` result drops the
+  finding (`isSuppressedAt`). This reuses the exact Error Prone API the scanner uses, so
+  `"eisopcf"` behaves like any ordinary Error Prone check — including the common "extract to
+  a local variable and suppress just that declaration" pattern.
+
+**Bug found and fixed.** While writing the test, `SuggestedFixes.addSuppressWarnings` was
+observed to throw `IllegalArgumentException` ("Couldn't find a node to attach
+@SuppressWarnings") for some findings, which propagated as a compilation-breaking
+`SourceChecker.typeProcess: unexpected Throwable`. The plugin now builds the suppression
+fix through `buildSuppressionFix`, which catches that exception and omits the fix (a
+missing suggested fix must never break compilation).
+
+**Tests.** `EisopCheckerFrameworkPluginTest.perTypeSystemSuppression` (both checkers
+enabled; `"nullness"`, `"interning"`, `"allcheckers"` at method level) and
+`eisopcfKeySuppressesAtAnyDeclaration` (`"eisopcf"` at class, method, field, and
+local-variable level, each with a sibling finding that still reports). The user guide's
+Suppression section documents this with a summary table.
+

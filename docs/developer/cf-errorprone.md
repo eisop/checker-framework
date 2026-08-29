@@ -109,16 +109,66 @@ textually: warning-level findings are prefixed with `[warning]` in the message.
 
 ## Suppression
 
-Suppress `eisopcf` findings with Error Prone's mechanism:
+There are two suppression layers, giving you both per-type-system and coarse control.
+
+### Per-type-system (fine-grained), at any granularity
+
+Use the Checker Framework's own suppression keys. These work at any granularity — a
+local variable, method, class, etc. — because the Checker Framework applies its
+suppression *before* a finding is turned into an `eisopcf` Error Prone diagnostic, so a
+suppressed finding never reaches Error Prone:
+
+```java
+@SuppressWarnings("nullness")     // suppresses only Nullness Checker findings
+@SuppressWarnings("interning")    // suppresses only Interning Checker findings
+@SuppressWarnings("allcheckers")  // suppresses all Checker Framework findings
+@SuppressWarnings("nullness:dereference.of.nullable")  // a specific message key
+```
+
+So even though several type systems run under one `eisopcf` Error Prone check, you can
+still suppress them independently and per method. **This is the recommended way to
+suppress specific findings.**
+
+### The Error Prone `eisopcf` key (any declaration)
 
 ```java
 @SuppressWarnings("eisopcf")
 ```
 
-on the finding's enclosing element (for example, the method). Finer-grained Checker
-Framework suppression keys (e.g. `@SuppressWarnings("nullness")`) continue to work
-through the Checker Framework's own suppression handling, which runs before a finding
-is reported to Error Prone.
+suppresses *all* `eisopcf` findings, and works at any enclosing declaration — a local
+variable, field, method, or class — just like an ordinary Error Prone check. For example,
+the common pattern of extracting a value into a local variable and suppressing only that
+declaration works:
+
+```java
+int m(@Nullable String s, @Nullable String t) {
+  @SuppressWarnings("eisopcf")     // suppresses only the finding on this declaration
+  int lenS = s.length();
+  int lenT = t.length();           // still reported
+  return lenS + lenT;
+}
+```
+
+(Under the hood, the plugin matches at the class and reports findings for the whole
+class, so it reconstructs Error Prone's declaration-scoped suppression along each
+finding's path; the effect is that `"eisopcf"` behaves like any other Error Prone check
+key.)
+
+To turn the whole check off or change its level, use Error Prone configuration:
+
+```
+-Xep:eisopcf:OFF
+-Xep:eisopcf:ERROR
+```
+
+The following table summarizes where each key takes effect:
+
+| `@SuppressWarnings` key | Scope of effect                | Granularity                              |
+| ----------------------- | ------------------------------ | ---------------------------------------- |
+| `"nullness"`            | Nullness Checker findings      | any (local var, field, method, class, …) |
+| `"interning"`           | Interning Checker findings     | any (local var, field, method, class, …) |
+| `"allcheckers"`         | all Checker Framework findings | any (local var, field, method, class, …) |
+| `"eisopcf"`             | all Checker Framework findings | any (local var, field, method, class, …) |
 
 ## Suggested fixes and patching
 

@@ -3,6 +3,7 @@ package org.checkerframework.errorprone;
 import com.google.common.collect.ImmutableList;
 import com.google.errorprone.BugPattern;
 import com.google.errorprone.ErrorProneFlags;
+import com.google.errorprone.SuppressionInfo;
 import com.google.errorprone.VisitorState;
 import com.google.errorprone.bugpatterns.BugChecker;
 import com.google.errorprone.bugpatterns.BugChecker.ClassTreeMatcher;
@@ -17,11 +18,17 @@ import com.sun.source.util.TaskEvent;
 import com.sun.source.util.TaskListener;
 import com.sun.source.util.TreePath;
 import com.sun.tools.javac.api.MultiTaskListener;
+import com.sun.tools.javac.code.Symbol;
 import com.sun.tools.javac.code.Symbol.ClassSymbol;
 import com.sun.tools.javac.util.Context;
+import com.sun.tools.javac.util.Name;
 
 import org.checkerframework.framework.source.DiagnosticSink;
 import org.checkerframework.framework.source.SuggestedFixData;
+
+import java.util.ArrayDeque;
+import java.util.Collections;
+import java.util.Deque;
 
 import javax.inject.Inject;
 import javax.tools.Diagnostic;
@@ -206,11 +213,13 @@ public class EisopCheckerFrameworkPlugin extends BugChecker implements ClassTree
                 // Anchor the finding (and its suppression fix) at the finding's own source tree,
                 // not the enclosing class that matchClass is visiting.  This makes
                 // @SuppressWarnings land on the nearest suppressible element to the finding (e.g.
-                // the enclosing method), matching how the finding is located.
+                // the enclosing local variable, method, or class), matching how the finding is
+                // located.
                 VisitorState state = base;
                 Tree position;
+                TreePath findingPath = null;
                 if (source != null) {
-                    TreePath findingPath = TreePath.getPath(root, source);
+                    findingPath = TreePath.getPath(root, source);
                     if (findingPath != null) {
                         state = base.withPath(findingPath);
                     }
@@ -218,11 +227,24 @@ public class EisopCheckerFrameworkPlugin extends BugChecker implements ClassTree
                 } else {
                     position = base.getPath().getLeaf();
                 }
+                // Honor @SuppressWarnings("eisopcf") (and altNames / "all") at ANY enclosing
+                // declaration -- class, method, or local variable.  Error Prone's own per-node
+                // suppression is not applied here because this plugin matches at the class and
+                // reports findings for the whole subtree via reportMatch; so replicate Error
+                // Prone's descent-based suppression along the finding's path.
+                if (findingPath != null && isSuppressedAt(findingPath, root, state)) {
+                    return;
+                }
                 Description.Builder builder =
                         buildDescription(position).setMessage(formatMessage(kind, message));
                 // Always offer a suppression fix, mirroring how Error Prone's own checks let users
-                // add @SuppressWarnings via the patch pipeline.
-                builder.addFix(SuggestedFixes.addSuppressWarnings(state, canonicalName()));
+                // add @SuppressWarnings via the patch pipeline.  Building it can fail if there is
+                // no suppressible element around the finding (e.g. some synthetic positions), so
+                // guard it: a missing fix must never turn into a compilation-breaking error.
+                SuggestedFix suppressionFix = buildSuppressionFix(state);
+                if (suppressionFix != null) {
+                    builder.addFix(suppressionFix);
+                }
                 // If the Checker Framework supplied a machine-applicable fix, translate it too.
                 if (fix != null) {
                     builder.addFix(toErrorProneFix(fix));
@@ -230,6 +252,45 @@ public class EisopCheckerFrameworkPlugin extends BugChecker implements ClassTree
                 state.reportMatch(builder.build());
             }
         };
+    }
+
+    /**
+     * Returns whether this {@code eisopcf} check is suppressed at {@code findingPath} by an Error
+     * Prone {@code @SuppressWarnings} on any enclosing declaration (class, method, local variable,
+     * ...), or by {@code @SuppressWarnings("all")}.
+     *
+     * <p>Error Prone normally computes suppression as its scanner descends the tree and checks it
+     * at the node where a matcher fires. This plugin instead matches at the class and reports
+     * findings for the whole subtree, so Error Prone's per-node suppression does not cover findings
+     * below the class. This method reconstructs Error Prone's descent-based suppression along the
+     * finding's path, using the same {@link SuppressionInfo} API the scanner uses, so the {@code
+     * eisopcf} key behaves like an ordinary Error Prone check at any suppressible declaration.
+     *
+     * @param findingPath the path from the compilation unit to the finding's source tree
+     * @param root the compilation unit
+     * @param state a visitor state (used for symbol/name lookups)
+     * @return true if the finding is suppressed
+     */
+    private boolean isSuppressedAt(
+            TreePath findingPath, CompilationUnitTree root, VisitorState state) {
+        SuppressionInfo info = SuppressionInfo.EMPTY.forCompilationUnit(root, state);
+        // Accumulate suppressions from the outermost enclosing declaration inward, mirroring the
+        // scanner's descent.  Collect the path's nodes root-first, then extend for each
+        // declaration.
+        Deque<Tree> nodes = new ArrayDeque<>();
+        for (TreePath p = findingPath; p != null; p = p.getParentPath()) {
+            nodes.addFirst(p.getLeaf());
+        }
+        for (Tree node : nodes) {
+            Symbol sym = ASTHelpers.getDeclaredSymbol(node);
+            if (sym != null) {
+                // eisopcf uses only the standard @SuppressWarnings mechanism, so there are no
+                // custom suppression annotations to look for.
+                info = info.withExtendedSuppressions(sym, state, Collections.<Name>emptySet());
+            }
+        }
+        return info.suppressedState(this, /* suppressedInGeneratedCode= */ false, state)
+                == SuppressionInfo.SuppressedState.SUPPRESSED;
     }
 
     /**
@@ -247,6 +308,26 @@ public class EisopCheckerFrameworkPlugin extends BugChecker implements ClassTree
             builder.replace(r.startPosition, r.endPosition, r.text);
         }
         return builder.build();
+    }
+
+    /**
+     * Builds an "add {@code @SuppressWarnings("eisopcf")}" fix for the finding at {@code state}, or
+     * returns {@code null} if Error Prone cannot find a suppressible element to attach it to.
+     *
+     * <p>{@link SuggestedFixes#addSuppressWarnings} throws {@link IllegalArgumentException}
+     * ("Couldn't find a node to attach @SuppressWarnings") when the finding is not inside a
+     * suppressible declaration. That must not break the compilation, so it is caught and treated as
+     * "no fix".
+     *
+     * @param state the visitor state anchored at the finding
+     * @return the suppression fix, or {@code null} if none can be built
+     */
+    private SuggestedFix buildSuppressionFix(VisitorState state) {
+        try {
+            return SuggestedFixes.addSuppressWarnings(state, canonicalName());
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
     }
 
     /**

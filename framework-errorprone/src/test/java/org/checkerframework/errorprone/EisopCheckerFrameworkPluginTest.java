@@ -191,4 +191,167 @@ public class EisopCheckerFrameworkPluginTest {
                         "}")
                 .doTest();
     }
+
+    /** A {@link CompilationTestHelper} with both the Nullness and Interning checkers selected. */
+    private CompilationTestHelper twoCheckerHelper() {
+        ScannerSupplier scanner =
+                ScannerSupplier.fromBugCheckerClasses(EisopCheckerFrameworkPlugin.class);
+        return CompilationTestHelper.newInstance(scanner, getClass())
+                .setArgs(
+                        append(
+                                BASE_ARGS,
+                                "-XepOpt:eisopcf:checkers="
+                                        + NULLNESS_CHECKER
+                                        + ","
+                                        + INTERNING_CHECKER));
+    }
+
+    /**
+     * Illustrates the suppression mechanisms available when several Checker Framework type systems
+     * run under the single {@code eisopcf} Error Prone check. Both the Nullness and Interning
+     * checkers are enabled.
+     *
+     * <p><b>Per-type-system suppression works at any granularity (method, class, ...)</b> using the
+     * Checker Framework's own keys, because the Checker Framework applies its suppression
+     * <em>before</em> a finding becomes an {@code eisopcf} Error Prone {@code Description}:
+     *
+     * <ul>
+     *   <li>{@code @SuppressWarnings("nullness")} suppresses only Nullness Checker findings;
+     *   <li>{@code @SuppressWarnings("interning")} suppresses only Interning Checker findings;
+     *   <li>{@code @SuppressWarnings("allcheckers")} suppresses all Checker Framework findings.
+     * </ul>
+     *
+     * <p><b>The Error Prone {@code "eisopcf"} key suppresses all Checker Framework findings</b> and
+     * works at any enclosing declaration (class, method, local variable). Because the plugin visits
+     * each top-level class and reports the enclosed type systems' findings from there, Error
+     * Prone's per-node suppression does not automatically cover findings below the class; the
+     * plugin reconstructs that suppression along each finding's path. That is asserted separately
+     * by {@link #eisopcfKeySuppressesAtAnyDeclaration()}.
+     */
+    @Test
+    public void perTypeSystemSuppression() {
+        twoCheckerHelper()
+                .addSourceLines(
+                        "test/Suppression.java",
+                        "package test;",
+                        "import org.checkerframework.checker.nullness.qual.Nullable;",
+                        "class Suppression {",
+                        // No suppression: both findings reported.
+                        "  int none(@Nullable String s, Object a, Object b) {",
+                        "    // BUG: Diagnostic contains: dereference.of.nullable",
+                        "    int len = s.length();",
+                        "    // BUG: Diagnostic contains: not.interned",
+                        "    boolean eq = a == b;",
+                        "    return len + (eq ? 1 : 0);",
+                        "  }",
+                        // Suppress only nullness (method level): interning finding still reported.
+                        "  @SuppressWarnings(\"nullness\")",
+                        "  int onlyNullness(@Nullable String s, Object a, Object b) {",
+                        "    int len = s.length();", // nullness deref suppressed
+                        "    // BUG: Diagnostic contains: not.interned",
+                        "    boolean eq = a == b;",
+                        "    return len + (eq ? 1 : 0);",
+                        "  }",
+                        // Suppress only interning (method level): nullness finding still reported.
+                        "  @SuppressWarnings(\"interning\")",
+                        "  int onlyInterning(@Nullable String s, Object a, Object b) {",
+                        "    // BUG: Diagnostic contains: dereference.of.nullable",
+                        "    int len = s.length();",
+                        "    boolean eq = a == b;", // interning == suppressed
+                        "    return len + (eq ? 1 : 0);",
+                        "  }",
+                        // Suppress all Checker Framework findings (method level) via the CF
+                        // all-checkers key: both suppressed.
+                        "  @SuppressWarnings(\"allcheckers\")",
+                        "  int allViaAllcheckers(@Nullable String s, Object a, Object b) {",
+                        "    int len = s.length();",
+                        "    boolean eq = a == b;",
+                        "    return len + (eq ? 1 : 0);",
+                        "  }",
+                        "}")
+                .doTest();
+    }
+
+    /**
+     * The Error Prone {@code "eisopcf"} suppression key takes effect at any enclosing declaration —
+     * class, method, field, or local variable — like an ordinary Error Prone check. The plugin
+     * reconstructs Error Prone's descent-based suppression along each finding's path (it cannot
+     * rely on Error Prone's own per-node suppression, because it matches at the class and reports
+     * findings for the whole subtree).
+     */
+    @Test
+    public void eisopcfKeySuppressesAtAnyDeclaration() {
+        // Class level: whole class suppressed.
+        twoCheckerHelper()
+                .expectNoDiagnostics()
+                .addSourceLines(
+                        "test/SuppressedClass.java",
+                        "package test;",
+                        "import org.checkerframework.checker.nullness.qual.Nullable;",
+                        "@SuppressWarnings(\"eisopcf\")",
+                        "class SuppressedClass {",
+                        "  int m(@Nullable String s, Object a, Object b) {",
+                        "    int len = s.length();",
+                        "    boolean eq = a == b;",
+                        "    return len + (eq ? 1 : 0);",
+                        "  }",
+                        "}")
+                .doTest();
+
+        // Method level: the annotated method is suppressed, but a sibling method still reports.
+        twoCheckerHelper()
+                .addSourceLines(
+                        "test/MethodEisopcf.java",
+                        "package test;",
+                        "import org.checkerframework.checker.nullness.qual.Nullable;",
+                        "class MethodEisopcf {",
+                        "  @SuppressWarnings(\"eisopcf\")",
+                        "  int suppressed(@Nullable String s, Object a, Object b) {",
+                        "    int len = s.length();",
+                        "    boolean eq = a == b;",
+                        "    return len + (eq ? 1 : 0);",
+                        "  }",
+                        "  int reported(@Nullable String s) {",
+                        "    // BUG: Diagnostic contains: dereference.of.nullable",
+                        "    return s.length();",
+                        "  }",
+                        "}")
+                .doTest();
+
+        // Field level: a finding in an annotated field's initializer is suppressed, but a finding
+        // in a sibling (unannotated) field's initializer still reports.
+        twoCheckerHelper()
+                .addSourceLines(
+                        "test/FieldEisopcf.java",
+                        "package test;",
+                        "import org.checkerframework.checker.nullness.qual.Nullable;",
+                        "class FieldEisopcf {",
+                        "  static @Nullable String nullable() { return null; }",
+                        "  @SuppressWarnings(\"eisopcf\")",
+                        "  static int lenA = nullable().length();", // suppressed: field is
+                        // annotated
+                        "  // BUG: Diagnostic contains: dereference.of.nullable",
+                        "  static int lenB = nullable().length();", // still reported
+                        "}")
+                .doTest();
+
+        // Local-variable level: only the finding on the annotated declaration is suppressed; a
+        // finding in another statement of the same method still reports. This is the fine-grained
+        // "extract to a local variable and suppress just that declaration" pattern.
+        twoCheckerHelper()
+                .addSourceLines(
+                        "test/LocalVarEisopcf.java",
+                        "package test;",
+                        "import org.checkerframework.checker.nullness.qual.Nullable;",
+                        "class LocalVarEisopcf {",
+                        "  int m(@Nullable String s, @Nullable String t) {",
+                        "    @SuppressWarnings(\"eisopcf\")",
+                        "    int lenS = s.length();", // suppressed: this declaration is annotated
+                        "    // BUG: Diagnostic contains: dereference.of.nullable",
+                        "    int lenT = t.length();", // still reported
+                        "    return lenS + lenT;",
+                        "  }",
+                        "}")
+                .doTest();
+    }
 }
