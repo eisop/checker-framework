@@ -101,12 +101,6 @@ public class SignaturePrinter extends AbstractTypeProcessor {
                     new SourceChecker() {
 
                         @Override
-                        protected boolean isElementAnnotatedForThisCheckerOrUpstreamChecker(
-                                @Nullable Element elt) {
-                            return false;
-                        }
-
-                        @Override
                         protected SourceVisitor<?, ?> createSourceVisitor() {
                             return null;
                         }

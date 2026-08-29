@@ -47,9 +47,11 @@ class AtmLubVisitor extends AbstractAtmComboVisitor<Void, AnnotatedTypeMirror> {
      * visited. Reference equality is used rather than {@link #equals(Object)} because the visitor
      * may visit two types that are structurally equal but not actually the same. For example, the
      * wildcards in {@code IPair<?,?>} may be equal, but they both should be visited.
+     *
+     * <p>This set is re-instantiated in {@link #visit} instead of cleared to avoid the O(N) cost of
+     * IdentityHashMap.clear().
      */
-    private final Set<AnnotatedTypeMirror> visited =
-            Collections.newSetFromMap(new IdentityHashMap<>());
+    private Set<AnnotatedTypeMirror> visited = Collections.newSetFromMap(new IdentityHashMap<>());
 
     /**
      * Construct an AtmLubVisitor.
@@ -81,7 +83,7 @@ class AtmLubVisitor extends AbstractAtmComboVisitor<Void, AnnotatedTypeMirror> {
         AnnotatedTypeMirror type2AsLub = AnnotatedTypes.asSuper(atypeFactory, type2, lub);
 
         visit(type1AsLub, type2AsLub, lub);
-        visited.clear();
+        visited = Collections.newSetFromMap(new IdentityHashMap<>());
         return lub;
     }
 

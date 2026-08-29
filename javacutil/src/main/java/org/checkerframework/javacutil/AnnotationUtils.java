@@ -516,8 +516,9 @@ public class AnnotationUtils {
         }
 
         if ((val1 instanceof Type.ClassType) && (val2 instanceof Type.ClassType)) {
-            // Type.ClassType does not override equals
-            if (TypesUtils.areSameDeclaredTypes((Type.ClassType) val1, (Type.ClassType) val2)) {
+            // Type.ClassType does not override equals. Annotation element values of type
+            // Class<?> cannot carry type arguments, so raw type identity is sufficient.
+            if (TypesUtils.areSameRawDeclaredType((Type.ClassType) val1, (Type.ClassType) val2)) {
                 return 0;
             }
         }
@@ -639,7 +640,7 @@ public class AnnotationUtils {
         for (Map.Entry<? extends ExecutableElement, ? extends AnnotationValue> entry :
                 valmap.entrySet()) {
             ExecutableElement elem = entry.getKey();
-            if (elem.getSimpleName().contentEquals(elementName)) {
+            if (InternalUtils.sameName(elem.getSimpleName(), elementName)) {
                 AnnotationValue val = entry.getValue();
                 try {
                     return expectedType.cast(val.getValue());
@@ -726,7 +727,7 @@ public class AnnotationUtils {
         for (Map.Entry<? extends ExecutableElement, ? extends AnnotationValue> entry :
                 valmap.entrySet()) {
             ExecutableElement elem = entry.getKey();
-            if (elem.getSimpleName().contentEquals(elementName)) {
+            if (InternalUtils.sameName(elem.getSimpleName(), elementName)) {
                 AnnotationValue val = entry.getValue();
                 try {
                     return expectedType.cast(val.getValue());
@@ -1621,7 +1622,7 @@ public class AnnotationUtils {
             if (args.size() == 1) {
                 Map.Entry<ExecutableElement, AnnotationValue> first =
                         args.entrySet().iterator().next();
-                if (first.getKey().getSimpleName().contentEquals("value")) {
+                if (InternalUtils.isValueName(first.getKey().getSimpleName())) {
                     formatAnnotationMirrorArg(first.getValue(), sb);
                     oneValue = true;
                 }

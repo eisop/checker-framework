@@ -308,8 +308,11 @@ public class ElementAnnotationUtil {
     static void annotateViaTypeAnnoPosition(
             AnnotatedTypeMirror type, Collection<TypeCompound> annos)
             throws UnexpectedAnnotationLocationException {
+        // This holds one entry per annotated wildcard in the type, typically 0 to 2. Pre-size to
+        // 4 (an Object[16] table that holds 5 entries before its first resize) rather than the
+        // default Object[64].
         IdentityHashMap<AnnotatedWildcardType, WildcardBoundAnnos> wildcardToAnnos =
-                new IdentityHashMap<>();
+                new IdentityHashMap<>(4);
         for (TypeCompound anno : annos) {
             AnnotatedTypeMirror target =
                     getTypeAtLocation(type, anno.position.location, anno, false);
@@ -383,8 +386,14 @@ public class ElementAnnotationUtil {
     }
 
     /**
-     * Overload of getTypeAtLocation with default values null/false for the annotation and array
-     * component flag, to make usage easier. Default visibility to allow usage within package.
+     * Overload of {@link #getTypeAtLocation(AnnotatedTypeMirror, List, TypeCompound, boolean)} with
+     * default values {@code null} and {@code false} for the annotation and array component flag, to
+     * make usage easier.
+     *
+     * @param type a type containing the type specified by location
+     * @param location a type path into type
+     * @return the type specified by location
+     * @throws UnexpectedAnnotationLocationException if an unexpected location is found
      */
     static AnnotatedTypeMirror getTypeAtLocation(
             AnnotatedTypeMirror type, List<TypeAnnotationPosition.TypePathEntry> location)
@@ -403,6 +412,7 @@ public class ElementAnnotationUtil {
      * @param isComponentTypeOfArray indicates whether the type under analysis is a component type
      *     of some array type
      * @return the type specified by location
+     * @throws UnexpectedAnnotationLocationException if an unexpected location is found
      */
     private static AnnotatedTypeMirror getTypeAtLocation(
             AnnotatedTypeMirror type,

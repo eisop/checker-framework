@@ -1,0 +1,62 @@
+// JMH micro-benchmark suite for hot paths in the EISOP Checker Framework.
+//
+// This subproject is intentionally NOT included in `assemble` or `alltests`.
+// Benchmarks are opt-in via:
+//
+//     ./gradlew :framework-perf:jmh
+//
+// Or with arguments forwarded to JMH:
+//
+//     ./gradlew :framework-perf:jmh --args="-prof gc AnnotationMirrorSet"
+//
+// See docs/developer/performance-notes.md for the broader context. New
+// benchmarks should target methods whose self-time has been observed in a
+// JFR trace (see checker/bin-devel/record-jfr.sh), not methods that "look
+// hot" by inspection.
+
+plugins {
+    id 'java'
+    // JMH Gradle plugin. Pinned because newer JMH-plugin releases occasionally
+    // change task names; bump deliberately, not opportunistically.
+    id 'me.champeau.jmh' version '0.7.3'
+}
+
+dependencies {
+    jmh project(':javacutil')
+    jmh project(':dataflow')
+    jmh project(':framework')
+    jmh project(':checker-qual')
+    jmh "org.plumelib:plume-util:${versions.plumeUtil}"
+}
+
+jmh {
+    // Defaults that produce stable numbers without taking forever. Override
+    // any of these on the command line with the JMH-plugin's flags, e.g.
+    // `-Pjmh.fork=2`, or by passing `--args="-f 2 -wi 5 -i 5"`.
+    fork = 1
+    warmupIterations = 3
+    iterations = 5
+    timeUnit = 'us'
+    benchmarkMode = ['avgt']
+    // Include any benchmark by default; the user typically passes a regex.
+    includes = ['.*']
+    // Quieter output by default.
+    failOnError = true
+    forceGC = true
+}
+
+// JMH benchmarks need the `--add-exports` and `--add-opens` flags that the
+// rest of CF uses to reach into com.sun.tools.javac internals. Match what
+// the framework subproject does for its own test JVMs.
+tasks.named('jmh').configure {
+    if (JavaVersion.current() >= JavaVersion.VERSION_1_9) {
+        // Reuse the repo-wide javac internals access flags so this stays in sync with other CF runs.
+        jvmArgsAppend.addAll(compilerArgsForRunningCF)
+    }
+}
+
+tasks.named('jar') {
+    archiveBaseName = 'framework-perf'
+}
+
+// This subproject does not publish artifacts.

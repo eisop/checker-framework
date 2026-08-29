@@ -160,6 +160,7 @@ import com.sun.source.util.SimpleTreeVisitor;
 
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.javacutil.BugInCF;
+import org.checkerframework.javacutil.InternalUtils;
 import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TreeUtilsAfterJava11.BindingPatternUtils;
 import org.checkerframework.javacutil.TreeUtilsAfterJava11.CaseUtils;
@@ -205,7 +206,7 @@ public abstract class JointJavacJavaParserVisitor extends SimpleTreeVisitor<Void
             assert value instanceof AssignmentTree;
             AssignmentTree assignment = (AssignmentTree) value;
             assert assignment.getVariable() instanceof IdentifierTree;
-            assert ((IdentifierTree) assignment.getVariable()).getName().contentEquals("value");
+            assert InternalUtils.isValueName(((IdentifierTree) assignment.getVariable()).getName());
             assignment.getExpression().accept(this, node.getMemberValue());
         } else if (javaParserNode instanceof NormalAnnotationExpr) {
             NormalAnnotationExpr node = (NormalAnnotationExpr) javaParserNode;
@@ -399,7 +400,7 @@ public abstract class JointJavacJavaParserVisitor extends SimpleTreeVisitor<Void
             return false;
         }
 
-        if (!((IdentifierTree) invocation.getMethodSelect()).getName().contentEquals("super")) {
+        if (!InternalUtils.isSuperName(((IdentifierTree) invocation.getMethodSelect()).getName())) {
             return false;
         }
 
@@ -658,7 +659,7 @@ public abstract class JointJavacJavaParserVisitor extends SimpleTreeVisitor<Void
             Tree member = javacMembers.get(0);
             if (member instanceof MethodTree) {
                 MethodTree methodTree = (MethodTree) member;
-                if (methodTree.getName().contentEquals("<init>")) {
+                if (InternalUtils.isInitName(methodTree.getName())) {
                     javacMembers.remove(0);
                 }
             }
@@ -680,7 +681,8 @@ public abstract class JointJavacJavaParserVisitor extends SimpleTreeVisitor<Void
         }
 
         MethodTree methodTree = (MethodTree) member;
-        return methodTree.getName().contentEquals("<init>") && methodTree.getParameters().isEmpty();
+        return InternalUtils.isInitName(methodTree.getName())
+                && methodTree.getParameters().isEmpty();
     }
 
     /**
@@ -837,7 +839,7 @@ public abstract class JointJavacJavaParserVisitor extends SimpleTreeVisitor<Void
             if ((javacInvokArgs.isEmpty()
                             && javacInvokTypeArgs.isEmpty()
                             && javacInvokMethod instanceof IdentifierTree)
-                    && ((IdentifierTree) javacInvokMethod).getName().toString().equals("yield")) {
+                    && ((IdentifierTree) javacInvokMethod).getName().contentEquals("yield")) {
 
                 YieldStmt javaParserYieldStmt = (YieldStmt) javaParserNode;
                 Expression javaParserYieldExpression = javaParserYieldStmt.getExpression();

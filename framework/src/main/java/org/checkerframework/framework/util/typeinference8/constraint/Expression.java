@@ -196,7 +196,7 @@ public class Expression extends TypeConstraint {
         MemberReferenceTree memRef = (MemberReferenceTree) expression;
         if (TreeUtils.isExactMethodReference(memRef)) {
             InvocationType typeOfPoAppMethod =
-                    context.inferenceTypeFactory.compileTimeDeclarationType(memRef);
+                    context.inferenceTypeFactory.compileTimeDeclarationType(memRef, T);
 
             ConstraintSet constraintSet = new ConstraintSet();
             List<AbstractType> ps = T.getFunctionTypeParameterTypes();
@@ -238,7 +238,7 @@ public class Expression extends TypeConstraint {
 
         // Compile-time declaration of the member reference expression
         InvocationType compileTimeDecl =
-                context.inferenceTypeFactory.compileTimeDeclarationType(memRef);
+                context.inferenceTypeFactory.compileTimeDeclarationType(memRef, T);
         if (compileTimeDecl.isVoid()) {
             return ConstraintSet.TRUE;
         }
@@ -491,10 +491,16 @@ public class Expression extends TypeConstraint {
         return expression.equals(that.expression);
     }
 
+    /** Cached hash code to prevent repeated recomputation of complex deep-hashes. */
+    private int cachedHashCode = 0;
+
     @Override
     public int hashCode() {
-        int result = super.hashCode();
-        result = 31 * result + expression.hashCode();
-        return result;
+        if (cachedHashCode == 0) {
+            int result = super.hashCode();
+            result = 31 * result + expression.hashCode();
+            cachedHashCode = result == 0 ? 1 : result;
+        }
+        return cachedHashCode;
     }
 }

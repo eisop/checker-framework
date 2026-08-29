@@ -10,6 +10,7 @@ import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedExecutab
 import org.checkerframework.framework.util.AnnotatedTypes;
 import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.ElementUtils;
+import org.checkerframework.javacutil.InternalUtils;
 import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TypesUtils;
 import org.checkerframework.javacutil.UserError;
@@ -115,7 +116,7 @@ public class AutoValueSupport implements BuilderFrameworkSupport {
 
     @Override
     public boolean isToBuilderMethod(ExecutableElement candidateToBuilderElement) {
-        if (!"toBuilder".equals(candidateToBuilderElement.getSimpleName().toString())) {
+        if (!InternalUtils.sameName(candidateToBuilderElement.getSimpleName(), "toBuilder")) {
             return false;
         }
 

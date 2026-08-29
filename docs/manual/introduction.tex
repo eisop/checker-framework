@@ -396,7 +396,7 @@ option, or use auto-discovery as described in
 Section~\ref{checker-auto-discovery}.
 (If your project already uses auto-discovery for some annotation processor,
 such as AutoValue, then you should use auto-discovery.)
-Two concretes example of using \code{-processor} to run the Nullness Checker are
+Two concrete examples of using \code{-processor} to run the Nullness Checker are
 
 \begin{Verbatim}
   javac -processor nullness MyFile.java
@@ -510,7 +510,7 @@ group.  For example, in \<build.gradle>, change
 
 \begin{Verbatim}
   api group: 'org.apache.bcel', name: 'bcel', version: '6.3.1'
-  api group: 'commons-io', name: 'commans-io', version: '2.8'
+  api group: 'commons-io', name: 'commons-io', version: '2.8'
 \end{Verbatim}
 
 \noindent
@@ -1469,7 +1469,7 @@ normal behavior.)
 
 If parameter \code{element} on line 141 were to be annotated, the correct
 annotation would be \code{@NonNull}.  Suppose a client has a reference to
-same Multiset \code{ms}.  The only way the client can be sure not to throw an exception is to pass
+the same Multiset \code{ms}.  The only way the client can be sure not to throw an exception is to pass
 only non-\code{null} elements to \code{ms.add()}.  A particular class
 that implements Multiset could declare \code{add} to take a
 \code{@Nullable} parameter.  That still satisfies the original contract.
@@ -1497,6 +1497,23 @@ or, more generally, as
 
 Then, the specification is more informative, and the Checker Framework is
 able to do more precise checking, than if line 141 has an annotation.
+
+\noindent
+The annotations in \code{MyNullPermittingMultiset} and
+\code{MyNullProhibitingMultiset} are on type arguments of \code{Multiset},
+which is permitted.  By contrast, an annotation immediately before the class
+or interface name in an \code{extends} or \code{implements} clause is a main annotation
+on the supertype.  By default, the Checker Framework reports an
+\code{annotation.on.supertype} error for such an annotation.
+
+The Tainting Checker permits main annotations on supertypes because it
+tracks taintedness when a value of a subclass type is used as a value of a
+supertype.  For example, in
+\code{@Untainted class UntaintedBuffer extends @Untainted Buffer},
+the first \code{@Untainted} is a type-declaration bound of
+\code{UntaintedBuffer}, and the second is the main annotation on
+\code{Buffer}.  The Tainting Checker verifies that the former is a subtype of
+the latter.
 
 It is a pleasant feature of the Checker Framework that in many cases, no
 annotations at all are needed on type parameters such as \code{E} in \<MultiSet>.
@@ -1739,6 +1756,7 @@ or suppress warnings.
 % LocalWords:  AuseSafeDefaultsForUnannotatedSourceCode beingConstructed
 % LocalWords:  AuseConservativeDefaultsForUncheckedCode AresolveReflection Ainfer
 % LocalWords:  AconservativeUninferredTypeArguments Averbosecfg Acfgviz
+% LocalWords:  AinferenceWorkBudget
 % LocalWords:  AstubWarnIfOverwritesBytecode AprintVerboseGenerics here''
 % LocalWords:  AatfDoNotCache AatfCacheSize IntRange AwarnIfNotFound ajava
 % LocalWords:  AwarnUnneededSuppressions AshowInferenceSteps BHCJEIBB

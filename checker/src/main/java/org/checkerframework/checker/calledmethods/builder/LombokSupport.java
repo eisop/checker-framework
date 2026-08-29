@@ -8,6 +8,7 @@ import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedExecutableType;
 import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.ElementUtils;
+import org.checkerframework.javacutil.InternalUtils;
 
 import java.beans.Introspector;
 import java.util.ArrayList;
@@ -132,7 +133,7 @@ public class LombokSupport implements BuilderFrameworkSupport {
 
     @Override
     public boolean isToBuilderMethod(ExecutableElement candidateToBuilderElement) {
-        return candidateToBuilderElement.getSimpleName().contentEquals("toBuilder")
+        return InternalUtils.sameName(candidateToBuilderElement.getSimpleName(), "toBuilder")
                 && (ElementUtils.hasAnnotation(candidateToBuilderElement, "lombok.Generated")
                         || ElementUtils.hasAnnotation(
                                 candidateToBuilderElement.getEnclosingElement(),
