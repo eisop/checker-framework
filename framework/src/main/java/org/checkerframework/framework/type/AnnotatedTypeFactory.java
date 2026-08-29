@@ -6881,20 +6881,21 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     }
 
     /**
-     * Does {@code anno}, which is an {@link org.checkerframework.framework.qual.UnannotatedFor}
-     * annotation, apply to this checker?
+     * Does {@code unannotatedForAnno}, which is an {@link UnannotatedFor} annotation, apply to this
+     * checker?
      *
      * @param unannotatedForAnno an {@link UnannotatedFor} annotation
-     * @return whether {@code anno} applies to this checker
+     * @return whether {@code unannotatedForAnno} applies to this checker
      */
     public boolean doesUnannotatedForApplyToThisChecker(AnnotationMirror unannotatedForAnno) {
         List<String> unannotatedForCheckers =
                 AnnotationUtils.getElementValueArray(
                         unannotatedForAnno, unannotatedForValueElement, String.class);
+        List<@FullyQualifiedName String> upstreamCheckerNames = checker.getUpstreamCheckerNames();
         for (String unannoForChecker : unannotatedForCheckers) {
-            if (checker.getUpstreamCheckerNames().contains(unannoForChecker)
+            if (upstreamCheckerNames.contains(unannoForChecker)
                     || CheckerMain.matchesFullyQualifiedProcessor(
-                            unannoForChecker, checker.getUpstreamCheckerNames(), true)) {
+                            unannoForChecker, upstreamCheckerNames, true)) {
                 return true;
             }
         }
