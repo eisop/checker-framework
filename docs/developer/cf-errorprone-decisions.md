@@ -326,3 +326,51 @@ through its own `Messager`. Task 5 will switch to emitting EP `Description`s.
 - **Test source packages.** Put test sources in a named package to avoid Error
   Prone's own `DefaultPackage` check firing on the sample code and colliding with
   the `// BUG:` marker lines.
+
+
+---
+
+## ADR-0005: DiagnosticSink seam maps CF findings to Error Prone Descriptions (Task 5)
+
+**Status:** accepted (Task 5)
+
+**Context.** For "2a", Checker Framework findings should become Error Prone
+`Description`s so Error Prone severity, `@SuppressWarnings("eisopcf")` suppression,
+and (later) the patch pipeline apply. The core (`framework`) must not reference any
+Error Prone type.
+
+**Seam.** All CF diagnostics funnel through a single method:
+`SourceChecker.printOrStoreMessage(kind, message, source, root, trace)` — both the
+direct path (no subcheckers) and the buffered aggregate/subchecker path (which
+flushes via `printStoredMessages` -> the same method on the parent). This is the
+one choke point to intercept, and intercepting on the parent covers multi-checker
+runs (Task 6) as well.
+
+**Decision.**
+- Add `org.checkerframework.framework.source.DiagnosticSink`, a `@FunctionalInterface`
+  with `report(Diagnostic.Kind, String message, Tree source, CompilationUnitTree root)`.
+  It uses only `javax.tools` and `com.sun.source.tree` types — no Error Prone, no
+  host types — so the core stays framework-agnostic.
+- `SourceChecker` gets a nullable `diagnosticSink` field and `setDiagnosticSink(...)`.
+  When set, the 5-arg `printOrStoreMessage` calls the sink instead of
+  `Trees.printMessage`. Default null => unchanged standalone behavior (verified:
+  AggregateTest/CompoundCheckerTest/ElementSuppressionTest still pass).
+- In `framework-errorprone`, `CheckerFrameworkDriver.create(context, names, sink)`
+  installs the sink on every checker. `EisopCheckerFrameworkPlugin.diagnosticSink()`
+  builds a sink that, using the `VisitorState` active during `matchClass` (stored in
+  a transient `currentState` field for the duration of the call), does
+  `state.reportMatch(buildDescription(sourceTree).setMessage(msg).build())`.
+
+**Severity / suppression semantics (documented limitations).**
+- Error Prone severity is per-*check*, not per-finding. All `eisopcf` findings share
+  the `eisopcf` severity (default WARNING; override with `-Xep:eisopcf:ERROR`). The
+  CF diagnostic kind is preserved textually: warnings get a `[warning]` message
+  prefix. (A future refinement could split into separate checks per severity.)
+- `@SuppressWarnings("eisopcf")` is honored at the granularity of the enclosing
+  class (the tree the plugin matches, which is the `VisitorState` path when the sink
+  fires). Finer-grained CF `@SuppressWarnings` keys still work via the CF's own
+  suppression, which runs before a finding ever reaches the sink.
+
+**Verified (EisopCheckerFrameworkPluginTest).** return-null finding appears as an
+`eisopcf` diagnostic; `@SuppressWarnings("eisopcf")` suppresses it (proving it is an
+EP `Description`, not Messager output); `-Xep:eisopcf:ERROR` is accepted.

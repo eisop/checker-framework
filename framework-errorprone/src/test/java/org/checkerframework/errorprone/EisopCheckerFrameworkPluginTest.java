@@ -80,4 +80,50 @@ public class EisopCheckerFrameworkPluginTest {
                         "}")
                 .doTest();
     }
+
+    /**
+     * A finding is suppressed by {@code @SuppressWarnings("eisopcf")} on the enclosing class,
+     * confirming the finding is reported as an Error Prone {@code Description} for the {@code
+     * eisopcf} check (not merely printed through the Checker Framework's own Messager).
+     */
+    @Test
+    public void findingIsSuppressibleViaErrorProne() {
+        helper.expectNoDiagnostics()
+                .addSourceLines(
+                        "test/Suppressed.java",
+                        "package test;",
+                        "@SuppressWarnings(\"eisopcf\")",
+                        "class Suppressed {",
+                        "  String m() { return null; }",
+                        "}")
+                .doTest();
+    }
+
+    /**
+     * With the {@code eisopcf} check overridden to ERROR severity, the finding is still reported at
+     * the expected location, confirming Error Prone's per-check severity override is accepted for
+     * Checker Framework findings. ({@link CompilationTestHelper} matches the {@code // BUG:} marker
+     * regardless of the diagnostic's severity.)
+     */
+    @Test
+    public void severityOverrideIsAccepted() {
+        ScannerSupplier scanner =
+                ScannerSupplier.fromBugCheckerClasses(EisopCheckerFrameworkPlugin.class);
+        CompilationTestHelper errorHelper =
+                CompilationTestHelper.newInstance(scanner, getClass())
+                        .setArgs(
+                                append(
+                                        BASE_ARGS,
+                                        "-XepOpt:eisopcf:checkers=" + NULLNESS_CHECKER,
+                                        "-Xep:eisopcf:ERROR"));
+        errorHelper
+                .addSourceLines(
+                        "test/Err.java",
+                        "package test;",
+                        "class Err {",
+                        "  // BUG: Diagnostic contains: return.type.incompatible",
+                        "  String m() { return null; }",
+                        "}")
+                .doTest();
+    }
 }

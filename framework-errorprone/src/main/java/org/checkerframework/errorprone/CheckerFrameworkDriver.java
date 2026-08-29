@@ -3,6 +3,7 @@ package org.checkerframework.errorprone;
 import com.sun.source.util.TreePath;
 import com.sun.tools.javac.util.Context;
 
+import org.checkerframework.framework.source.DiagnosticSink;
 import org.checkerframework.framework.source.SourceChecker;
 
 import java.util.ArrayList;
@@ -29,9 +30,11 @@ import javax.lang.model.element.TypeElement;
  * <p>This class references only the Checker Framework and the JDK; it contains no Error Prone
  * types.
  *
- * <p><b>Diagnostics.</b> This task (2b) lets the Checker Framework report through its own {@code
- * Messager}/{@code Trees} machinery; Error Prone simply hosts the compilation. Mapping Checker
- * Framework findings to Error Prone {@code Description}s is a later task.
+ * <p><b>Diagnostics.</b> An optional {@link DiagnosticSink} may be supplied to {@link #create};
+ * when present, it is installed on every checker so that findings are delivered to the host (and,
+ * for the Error Prone plugin, turned into Error Prone {@code Description}s). When absent, the
+ * Checker Framework reports through its own {@code Messager}/{@code Trees} machinery ("2b"
+ * passthrough).
  */
 public final class CheckerFrameworkDriver {
 
@@ -52,11 +55,15 @@ public final class CheckerFrameworkDriver {
      *     VisitorState.context})
      * @param checkerClassNames the fully-qualified names of the {@link SourceChecker} subclasses to
      *     run
+     * @param sink an optional destination for findings; if non-null it is installed on every
+     *     checker (via {@link SourceChecker#setDiagnosticSink}), so findings go to the host instead
+     *     of javac. Pass {@code null} for Checker-Framework-native reporting.
      * @return an initialized driver
      * @throws IllegalArgumentException if {@code checkerClassNames} is empty, or a name does not
      *     resolve to an instantiable {@link SourceChecker}
      */
-    public static CheckerFrameworkDriver create(Context context, List<String> checkerClassNames) {
+    public static CheckerFrameworkDriver create(
+            Context context, List<String> checkerClassNames, DiagnosticSink sink) {
         if (checkerClassNames.isEmpty()) {
             throw new IllegalArgumentException(
                     "No Checker Framework checkers selected. Pass"
@@ -70,6 +77,9 @@ public final class CheckerFrameworkDriver {
             // not register its own AttributionTaskListener.  Must be set before init().
             checker.enableExternallyDrivenMode(true);
             checker.init(procEnv);
+            if (sink != null) {
+                checker.setDiagnosticSink(sink);
+            }
             initialized.add(checker);
         }
         return new CheckerFrameworkDriver(initialized);

@@ -9,6 +9,7 @@ import com.google.errorprone.bugpatterns.BugChecker.ClassTreeMatcher;
 import com.google.errorprone.matchers.Description;
 import com.google.errorprone.util.ASTHelpers;
 import com.sun.source.tree.ClassTree;
+import com.sun.source.tree.Tree;
 import com.sun.source.util.TaskEvent;
 import com.sun.source.util.TaskListener;
 import com.sun.source.util.TreePath;
@@ -16,7 +17,10 @@ import com.sun.tools.javac.api.MultiTaskListener;
 import com.sun.tools.javac.code.Symbol.ClassSymbol;
 import com.sun.tools.javac.util.Context;
 
+import org.checkerframework.framework.source.DiagnosticSink;
+
 import javax.inject.Inject;
+import javax.tools.Diagnostic;
 
 /**
  * Umbrella Error Prone check that runs the EISOP Checker Framework as an Error Prone plugin.
@@ -42,10 +46,11 @@ import javax.inject.Inject;
  * META-INF/services/com.google.errorprone.bugpatterns.BugChecker} (a hand-written resource rather
  * than {@code @AutoService}; see the architectural decision log for why).
  *
- * <p><b>Diagnostics (this task).</b> Findings are reported through the Checker Framework's own
- * {@code Messager}; Error Prone hosts the compilation ("2b" passthrough). Mapping findings to Error
- * Prone {@code Description}s (for Error Prone severity/suppression and the patch pipeline) is a
- * later task, which is why {@link #matchClass} returns {@link Description#NO_MATCH}.
+ * <p><b>Diagnostics.</b> Checker Framework findings are reported as Error Prone {@code
+ * Description}s for this check ({@code eisopcf}) via a {@link DiagnosticSink} installed on the
+ * driver, so Error Prone severity and {@code @SuppressWarnings("eisopcf")} suppression apply.
+ * {@link #matchClass} therefore reports through {@code state.reportMatch} and returns {@link
+ * Description#NO_MATCH}.
  */
 @BugPattern(
         name = "eisopcf",
@@ -86,6 +91,13 @@ public class EisopCheckerFrameworkPlugin extends BugChecker implements ClassTree
     private transient Context driverContext;
 
     /**
+     * The {@link VisitorState} of the in-progress {@link #matchClass} call, made available to the
+     * {@link #diagnosticSink()} (which fires re-entrantly while the driver type-checks the class).
+     * Not part of any persistent state.
+     */
+    private transient VisitorState currentState;
+
+    /**
      * Constructs the plugin with no configuration. Error Prone uses this when instantiating checks
      * without flags; no checkers will be selected, so the plugin is inert.
      */
@@ -120,7 +132,7 @@ public class EisopCheckerFrameworkPlugin extends BugChecker implements ClassTree
             return driver;
         }
         CheckerFrameworkDriver newDriver =
-                CheckerFrameworkDriver.create(context, checkerClassNames);
+                CheckerFrameworkDriver.create(context, checkerClassNames, diagnosticSink());
         this.driver = newDriver;
         this.driverContext = context;
         // Run end-of-compilation processing when javac finishes.  A CompilationUnitTree-scoped
@@ -139,6 +151,57 @@ public class EisopCheckerFrameworkPlugin extends BugChecker implements ClassTree
         return newDriver;
     }
 
+    /**
+     * Builds the {@link DiagnosticSink} that turns Checker Framework findings into Error Prone
+     * {@link Description}s and reports them through the {@link VisitorState} active during the
+     * current {@link #matchClass} call.
+     *
+     * <p>Each finding becomes a {@code Description} for this check ({@code eisopcf}), positioned at
+     * the finding's source tree and carrying the Checker Framework's formatted message. Error Prone
+     * then applies this check's configured severity and its suppression logic.
+     *
+     * <p>Severity/suppression notes:
+     *
+     * <ul>
+     *   <li>Error Prone severity is per-<em>check</em>, so all findings share the {@code eisopcf}
+     *       severity (default WARNING, overridable via {@code -Xep:eisopcf:ERROR}); the Checker
+     *       Framework diagnostic kind (error vs. warning) is preserved textually in the message.
+     *   <li>Suppression via {@code @SuppressWarnings("eisopcf")} is honored at the granularity of
+     *       the enclosing class (the tree the plugin matches). Finer-grained Checker Framework
+     *       suppression strings still work through the Checker Framework's own mechanism.
+     * </ul>
+     *
+     * @return the diagnostic sink
+     */
+    private DiagnosticSink diagnosticSink() {
+        return (kind, message, source, root) -> {
+            VisitorState state = currentState;
+            if (state == null) {
+                // Should not happen: findings are produced only while matchClass is running.
+                return;
+            }
+            Tree position = source != null ? source : state.getPath().getLeaf();
+            Description description =
+                    buildDescription(position).setMessage(formatMessage(kind, message)).build();
+            state.reportMatch(description);
+        };
+    }
+
+    /**
+     * Formats a finding's message, prefixing warnings so the Checker Framework diagnostic kind is
+     * not lost (Error Prone severity is per-check, not per-finding).
+     *
+     * @param kind the Checker Framework diagnostic kind
+     * @param message the Checker Framework message text
+     * @return the message to attach to the Error Prone {@code Description}
+     */
+    private static String formatMessage(Diagnostic.Kind kind, String message) {
+        if (kind == Diagnostic.Kind.WARNING || kind == Diagnostic.Kind.MANDATORY_WARNING) {
+            return "[warning] " + message;
+        }
+        return message;
+    }
+
     @Override
     public Description matchClass(ClassTree tree, VisitorState state) {
         CheckerFrameworkDriver currentDriver = driverFor(state.context);
@@ -151,9 +214,17 @@ public class EisopCheckerFrameworkPlugin extends BugChecker implements ClassTree
         if (classSymbol == null || path == null) {
             return Description.NO_MATCH;
         }
-        currentDriver.process(classSymbol, path);
-        // 2b passthrough: the Checker Framework reports via its own Messager, so there is no Error
-        // Prone Description to return here.  (Task 5 changes this to emit EP Descriptions.)
+        // Make the current state available to the diagnostic sink, which fires (re-entrantly) while
+        // the driver processes this class.  Restore the previous value afterward for safety.
+        VisitorState previous = currentState;
+        currentState = state;
+        try {
+            currentDriver.process(classSymbol, path);
+        } finally {
+            currentState = previous;
+        }
+        // Findings are reported via state.reportMatch through the diagnostic sink, so there is no
+        // Description to return here.
         return Description.NO_MATCH;
     }
 }
