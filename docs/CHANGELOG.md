@@ -333,6 +333,12 @@ and verbose generics off, overriding `-AprintAllQualifiers`,
 instance, a Units Checker type printed through `toString(false)` lost its
 `@UnknownUnits` qualifier, which `toString()` prints.
 
+Determining whether an element is in the scope of an `@AnnotatedFor` was
+implemented twice, once for warning suppression and once for conservative
+defaults, and only the latter was cached. Both now use the new
+`SourceChecker.isElementAnnotatedForThisCheckerOrUpstreamChecker(Element)`,
+which `BaseTypeChecker` implements with a cache.
+
 **Implementation details:**
 
 `AnnotatedIntersectionType.summarizeBounds` computes the summary described
