@@ -57,36 +57,18 @@ dependencies {
 // auto-service annotation processor is not reliable in this build.
 
 // framework-errorprone reaches into com.sun.tools.javac.* (as the rest of the CF does on JDK 9+).
+// Reuse the parent project's shared compilerArgsForCompilingCF (the --add-exports flags, without
+// the runtime-only --add-opens) rather than repeating them here.
 tasks.withType(JavaCompile).configureEach {
-    options.compilerArgs += [
-        '--add-exports', 'jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED',
-        '--add-exports', 'jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED',
-        '--add-exports', 'jdk.compiler/com.sun.tools.javac.comp=ALL-UNNAMED',
-        '--add-exports', 'jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED',
-        '--add-exports', 'jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED',
-        '--add-exports', 'jdk.compiler/com.sun.tools.javac.model=ALL-UNNAMED',
-        '--add-exports', 'jdk.compiler/com.sun.tools.javac.processing=ALL-UNNAMED',
-        '--add-exports', 'jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED',
-        '--add-exports', 'jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED',
-    ]
+    options.compilerArgs += compilerArgsForCompilingCF
 }
 
-// Tests launch an in-process javac against EP + CF internals, so they need the same exports at
-// run time (plus --add-opens for the CF's reflective access into com.sun.tools.javac.comp, and
-// --add-exports of com.sun.tools.javac.parser which Error Prone's ASTHelpers requires).
+// Tests launch an in-process javac against EP + CF internals, so they need the same module flags
+// at run time as the parent project's shared compilerArgsForRunningCF, plus one extra
+// --add-exports of com.sun.tools.javac.parser which Error Prone's ASTHelpers requires.
 tasks.withType(Test).configureEach {
-    jvmArgs += [
-        '--add-exports', 'jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED',
-        '--add-exports', 'jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED',
-        '--add-exports', 'jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED',
-        '--add-exports', 'jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED',
-        '--add-exports', 'jdk.compiler/com.sun.tools.javac.model=ALL-UNNAMED',
-        '--add-exports', 'jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED',
-        '--add-exports', 'jdk.compiler/com.sun.tools.javac.processing=ALL-UNNAMED',
-        '--add-exports', 'jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED',
-        '--add-exports', 'jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED',
-        '--add-opens', 'jdk.compiler/com.sun.tools.javac.comp=ALL-UNNAMED',
-    ]
+    jvmArgs += compilerArgsForRunningCF
+    jvmArgs += ['--add-exports', 'jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED']
 }
 
 tasks.named('jar') {
