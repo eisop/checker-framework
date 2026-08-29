@@ -374,3 +374,53 @@ runs (Task 6) as well.
 **Verified (EisopCheckerFrameworkPluginTest).** return-null finding appears as an
 `eisopcf` diagnostic; `@SuppressWarnings("eisopcf")` suppresses it (proving it is an
 EP `Description`, not Messager output); `-Xep:eisopcf:ERROR` is accepted.
+
+
+---
+
+## ADR-0006: Multiple type systems share the AST, not the CFG (Task 6)
+
+**Status:** accepted (Task 6)
+
+**Goal.** `-XepOpt:eisopcf:checkers=A,B[,...]` runs several Checker Framework type
+systems together in one Error Prone / javac invocation.
+
+**Investigation of "shared CFG."** The plan wording mentioned running type systems
+over "one shared AST/CFG." A true shared *CFG object* across independent type
+systems is not something the Checker Framework supports, and the maintainers chose
+not to pursue it (option "a"):
+- `AggregateChecker` explicitly performs no sharing ("no communication, interaction,
+  or cooperation between the component checkers").
+- `GenericAnnotatedTypeFactory.getSharedCFGForTree` / `addSharedCFGForTree` key the
+  shared CFG on the *ultimate parent* `BaseTypeChecker` and are designed for
+  genuinely cooperating subcheckers of one checker (e.g. Nullness + Initialization,
+  which share a qualifier hierarchy). `getUltimateParentChecker()` only walks up
+  through `BaseTypeChecker` parents, so subcheckers under an `AggregateChecker`
+  (a `SourceChecker`, not a `BaseTypeChecker`) are each their own CFG root.
+- Even standalone CF (`javac -processor A,B`) does **not** share a CFG across
+  independently-listed checkers: each `AbstractTypeProcessor` builds its own.
+- Forcing unrelated type systems to be subcheckers of a synthetic `BaseTypeChecker`
+  parent (to reuse the shared-CFG cache) would impose a qualifier-hierarchy/factory
+  relationship they are not designed for, with real correctness risk, and would
+  diverge from how the CF actually composes checkers.
+
+**Decision.** Adopt "shared AST, per-checker CFG": one javac / Error Prone
+invocation over one parsed-and-attributed AST, with each selected type system
+building its own CFG — exactly as standalone `javac -processor A,B` behaves. This is
+what the existing driver already does (it instantiates the selected `SourceChecker`s
+and drives each per class over the same `Context`). No new composition model is
+introduced.
+
+**Implementation.** No core (`framework`) change was needed; Task 5's `DiagnosticSink`
+already covers multiple checkers (each reports through the sink). The plugin change
+is limited to surfacing a configuration error (e.g. an unresolvable checker name)
+once, as a clean `eisopcf` diagnostic on the class, instead of an unhandled plugin
+exception (`configErrorReported` flag; `matchClass` catches `IllegalArgumentException`
+from driver creation).
+
+**Verified (EisopCheckerFrameworkPluginTest).**
+- `multipleCheckersRunTogether`: Nullness (`return.type.incompatible`) and Interning
+  (`not.interned`) findings both appear from one compilation with a comma-separated
+  `eisopcf:checkers` list.
+- `unknownCheckerNameIsReported`: a bogus checker name yields a clear "Checker class
+  not found" `eisopcf` diagnostic.

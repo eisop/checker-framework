@@ -9,13 +9,13 @@ import org.junit.Test;
 import java.util.Arrays;
 
 /**
- * End-to-end tests for {@link EisopCheckerFrameworkPlugin}: running a Checker Framework type system
- * as an Error Prone plugin over a small source file and observing its diagnostics.
+ * End-to-end tests for {@link EisopCheckerFrameworkPlugin}: running Checker Framework type
+ * system(s) as an Error Prone plugin over small source files and observing the diagnostics.
  *
- * <p>This exercises the "2b" passthrough path: the Checker Framework reports through its own {@code
- * Messager}, and Error Prone hosts the compilation. {@link CompilationTestHelper} collects
- * <em>all</em> compiler diagnostics (via a {@code DiagnosticCollector}), so it observes the Checker
- * Framework's messages even though they are not yet emitted as Error Prone {@code Description}s.
+ * <p>Findings are reported as Error Prone {@code Description}s for the {@code eisopcf} check, so
+ * they honor Error Prone severity and {@code @SuppressWarnings("eisopcf")}. {@link
+ * CompilationTestHelper} collects all compiler diagnostics, so the {@code // BUG: Diagnostic
+ * contains:} markers match against the emitted {@code eisopcf} messages.
  */
 public class EisopCheckerFrameworkPluginTest {
 
@@ -24,6 +24,12 @@ public class EisopCheckerFrameworkPluginTest {
      */
     private static final String NULLNESS_CHECKER =
             "org.checkerframework.checker.nullness.NullnessChecker";
+
+    /**
+     * Fully-qualified name of the Interning Checker (lives in the :checker module, test-only dep).
+     */
+    private static final String INTERNING_CHECKER =
+            "org.checkerframework.checker.interning.InterningChecker";
 
     /**
      * javac flags Error Prone requires. The --add-exports/--add-opens needed to run in-process are
@@ -123,6 +129,65 @@ public class EisopCheckerFrameworkPluginTest {
                         "class Err {",
                         "  // BUG: Diagnostic contains: return.type.incompatible",
                         "  String m() { return null; }",
+                        "}")
+                .doTest();
+    }
+
+    /**
+     * Two type systems selected together (comma-separated) both run over one compilation, each
+     * reporting its own findings. This is the "shared AST, per-checker CFG" model: one javac /
+     * Error Prone invocation over one attributed AST, with each type system building its own CFG
+     * (as standalone {@code javac -processor A,B} also does).
+     */
+    @Test
+    public void multipleCheckersRunTogether() {
+        ScannerSupplier scanner =
+                ScannerSupplier.fromBugCheckerClasses(EisopCheckerFrameworkPlugin.class);
+        CompilationTestHelper multiHelper =
+                CompilationTestHelper.newInstance(scanner, getClass())
+                        .setArgs(
+                                append(
+                                        BASE_ARGS,
+                                        "-XepOpt:eisopcf:checkers="
+                                                + NULLNESS_CHECKER
+                                                + ","
+                                                + INTERNING_CHECKER));
+        multiHelper
+                .addSourceLines(
+                        "test/Two.java",
+                        "package test;",
+                        "class Two {",
+                        "  // BUG: Diagnostic contains: return.type.incompatible",
+                        "  String m() { return null; }",
+                        "  boolean eq(Object a, Object b) {",
+                        "    // BUG: Diagnostic contains: not.interned",
+                        "    return a == b;",
+                        "  }",
+                        "}")
+                .doTest();
+    }
+
+    /**
+     * An unresolvable checker name produces a clear error rather than silently doing nothing,
+     * confirming the reflective checker resolution surfaces mistakes.
+     */
+    @Test
+    public void unknownCheckerNameIsReported() {
+        ScannerSupplier scanner =
+                ScannerSupplier.fromBugCheckerClasses(EisopCheckerFrameworkPlugin.class);
+        CompilationTestHelper badHelper =
+                CompilationTestHelper.newInstance(scanner, getClass())
+                        .setArgs(
+                                append(
+                                        BASE_ARGS,
+                                        "-XepOpt:eisopcf:checkers=com.example.NoSuchChecker"));
+        badHelper
+                .addSourceLines(
+                        "test/Any.java",
+                        "package test;",
+                        "// BUG: Diagnostic contains: Checker class not found",
+                        "class Any {",
+                        "  String m() { return \"x\"; }",
                         "}")
                 .doTest();
     }

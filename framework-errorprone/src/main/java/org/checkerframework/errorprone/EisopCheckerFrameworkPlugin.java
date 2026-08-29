@@ -98,6 +98,12 @@ public class EisopCheckerFrameworkPlugin extends BugChecker implements ClassTree
     private transient VisitorState currentState;
 
     /**
+     * Whether a configuration error (e.g. an unresolvable checker name) has already been reported,
+     * so it is surfaced once per compilation rather than on every class.
+     */
+    private transient boolean configErrorReported = false;
+
+    /**
      * Constructs the plugin with no configuration. Error Prone uses this when instantiating checks
      * without flags; no checkers will be selected, so the plugin is inert.
      */
@@ -204,7 +210,19 @@ public class EisopCheckerFrameworkPlugin extends BugChecker implements ClassTree
 
     @Override
     public Description matchClass(ClassTree tree, VisitorState state) {
-        CheckerFrameworkDriver currentDriver = driverFor(state.context);
+        CheckerFrameworkDriver currentDriver;
+        try {
+            currentDriver = driverFor(state.context);
+        } catch (IllegalArgumentException e) {
+            // A configuration error (e.g. an unresolvable checker name).  Report it once, as an
+            // eisopcf diagnostic, rather than throwing an unhandled plugin exception on every
+            // class.
+            if (!configErrorReported) {
+                configErrorReported = true;
+                return buildDescription(tree).setMessage(e.getMessage()).build();
+            }
+            return Description.NO_MATCH;
+        }
         if (currentDriver == null) {
             // No checkers selected: the plugin is inert.
             return Description.NO_MATCH;
