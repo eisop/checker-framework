@@ -111,3 +111,104 @@ registered its own `AttributionTaskListener`, type-checking would run twice
   externally-driven path itself is exercised end-to-end by the Error Prone
   `CompilationTestHelper` test added in Task 4, over a real compilation, rather
   than via a throwaway low-level `ProcessingEnvironment`/`TreePath` harness.
+
+
+---
+
+## ADR-0002: `framework-errorprone` is a JDK-21+-only leaf module
+
+**Status:** accepted (Task 2)
+
+**Context.** The new EP bridge module must compile and run against Error Prone
+`error_prone_check_api` 2.50.0. Error Prone requires JDK 21+ (its own build uses
+a JDK-21 toolchain; EP as a tool does not run below 21). Every existing CF module,
+however, is compiled with `sourceCompatibility = targetCompatibility = 8` so that
+the Checker Framework can run under Java 8. These two requirements cannot both hold
+for the bridge module.
+
+The repo already gates Error Prone itself on `useJdkVersionInt >= 21` (see the root
+`build.gradle` `dependencies` block that only adds `error_prone_core` when the build
+JDK is 21+).
+
+**Decision.**
+- `framework-errorprone` is included in the Gradle build **only** when the build JDK
+  is 21+ (`useJdkVersionInt >= 21`), via a conditional `include` in `settings.gradle`
+  (chosen option "a"). On Java 8/11/17 builds the module is not part of the build at
+  all, so it never configures its EP dependency and cannot affect the standalone
+  Java 8 build path.
+- Inside the module, override the global Java 8 compatibility: compile with
+  `options.release = 21` and the same `--add-exports jdk.compiler/...` flags the rest
+  of the build uses on JDK 9+ (the CF reaches into `com.sun.tools.javac.*`).
+- Consequence, stated plainly: **CF-as-an-Error-Prone-plugin requires JDK 21+.**
+  Standalone annotation-processor mode keeps its full Java 8+ support, unchanged.
+  No capability is lost, since EP already requires 21+.
+
+**Version.** Reuse the existing central `versions.errorprone` property (`2.50.0`),
+which is already the latest published `error_prone_check_api` release and the version
+the CF is otherwise built/tested against. No new version property is introduced.
+
+**Consequences / follow-ups.**
+- Release scripts will later need updating so the JDK-21+-only artifact is built and
+  published correctly. Deferred (agreed with maintainers) — not addressed in this task.
+- The module gets the shared root config automatically (spotless, the Error Prone
+  build-time linter with `-Werror`, publishing scaffolding), so its own code must be
+  EP-linter-clean.
+
+
+### ADR-0002 notes: BugChecker service registration without @AutoService
+
+**Problem.** The obvious way to register the Error Prone plugin is
+`@AutoService(BugChecker.class)`, which relies on the auto-service annotation
+processor to generate `META-INF/services/com.google.errorprone.bugpatterns.BugChecker`.
+In this repo that processor never runs reliably for a subproject:
+
+- The root `build.gradle` reassigns `options.annotationProcessorPath =
+  configurations.errorProneAnnotationProcessor` in a subprojects `afterEvaluate`,
+  and the `net.ltgt.errorprone` plugin (v5.1.1) runs Error Prone as a compiler
+  `-Xplugin` rather than a plain annotation processor.
+- Even after forcing auto-service onto the processor path, javac reported
+  "No processor claimed ... @AutoService, @BugPattern": `error_prone_core` drags
+  in conflicting transitive `auto-service` / `auto-common` versions, so the
+  auto-service processor did not claim the annotation.
+
+**Decision.** Do not use `@AutoService`. Register the plugin with a hand-written
+resource file `src/main/resources/META-INF/services/com.google.errorprone.bugpatterns.BugChecker`
+containing the fully-qualified plugin class name. This is deterministic, needs no
+annotation processor, and is exactly what Error Prone's `ServiceLoader`-based
+`ErrorPronePlugins` discovery reads. It also keeps the module's annotation
+processor path untouched, avoiding the version-conflict fragility above.
+
+
+### ADR-0002 notes: verified dependency facts (Task 2)
+
+- **No cycle.** `framework-errorprone` -> published `error_prone_check_api:2.50.0`
+  -> published `io.github.eisop:dataflow-errorprone:3.41.0-eisop1`. That last
+  artifact is a *released* jar, distinct from this reactor's `:dataflow` project
+  (currently 3.49.x). The version skew across the published-artifact boundary is
+  precisely what keeps Gradle from seeing a project-path cycle.
+- **Core stays EP-framework-free.** `:javacutil`, `:dataflow`, `:framework`
+  runtime classpaths contain no `error_prone_check_api`, `error_prone_core`, or
+  real `com.google.guava:guava`. They do reference `error_prone_annotations` (a
+  trivial annotations-only jar) and `org.checkerframework.annotatedlib:guava`
+  (the CF's annotated Guava stubs) — both pre-existing and unrelated to the EP
+  framework. The requirement is "no EP *framework* in core," which holds.
+- **Watch for Task 3:** EP bundles `dataflow-errorprone` *relocated* to
+  `org.checkerframework.errorprone.dataflow...`, and at an *older* version than
+  this repo's `:dataflow`. When the bridge runs a CF checker, the checker must use
+  the CF core's own un-relocated `org.checkerframework.dataflow` (from `:framework`
+  -> `:dataflow`), not EP's shaded/older copy. Package names differ, so they can
+  coexist, but this must be verified in Task 3.
+
+### Build wiring facts (Task 2)
+
+- `settings.gradle` computes the build JDK major version directly (settings is
+  evaluated before build.gradle) and only `include 'framework-errorprone'` when it
+  is >= 21.
+- The module sets `sourceCompatibility`/`targetCompatibility = 21` (NOT
+  `options.release`, which is incompatible with `--add-exports` of JDK system
+  packages) and passes the same `--add-exports jdk.compiler/...` the rest of the
+  build uses on JDK 9+.
+- The module inherits the shared root config (spotless; the `net.ltgt.errorprone`
+  build-time linter with `-Werror`). Its code must therefore be EP-linter-clean;
+  `@SuppressWarnings("BugPatternNaming")` is used on the plugin class because the
+  canonical check name (`eisopcf`) intentionally differs from the class name.

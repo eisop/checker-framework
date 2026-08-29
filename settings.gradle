@@ -10,6 +10,23 @@ include 'framework-perf'
 include 'framework-test'
 include 'javacutil'
 
+// The framework-errorprone module lets the Checker Framework run as an Error Prone plugin.
+// Error Prone (error_prone_check_api) requires JDK 21+, so this module is a JDK-21+-only leaf
+// module and is only part of the build when the build JDK supports it.  On Java 8/11/17 builds
+// the module is absent entirely, so it never affects the standalone (Java 8+) build path.
+// See docs/developer/cf-errorprone-decisions.md, ADR-0002.
+//
+// settings.gradle is evaluated before build.gradle, so the JDK version is computed here directly
+// (mirroring the useJdkVersion / runtime-version logic in the root build.gradle).
+def useJdkVersionProp = settings.hasProperty('useJdkVersion') ? settings.getProperty('useJdkVersion') : null
+def firstDigits = { String s -> def m = (s =~ /^(\d+)/); (m ? m[0][0] : s) as Integer }
+def buildJdkMajor = useJdkVersionProp != null
+        ? firstDigits(useJdkVersionProp)
+        : firstDigits(JavaVersion.current().getMajorVersion())
+if (buildJdkMajor >= 21) {
+    include 'framework-errorprone'
+}
+
 /* NO-AFU
  includeBuild ('../annotation-tools/annotation-file-utilities') {
  if (!file('../annotation-tools/annotation-file-utilities').exists()) {
