@@ -33,8 +33,8 @@ import javax.lang.model.element.TypeElement;
  * <p><b>Diagnostics.</b> An optional {@link DiagnosticSink} may be supplied to {@link #create};
  * when present, it is installed on every checker so that findings are delivered to the host (and,
  * for the Error Prone plugin, turned into Error Prone {@code Description}s). When absent, the
- * Checker Framework reports through its own {@code Messager}/{@code Trees} machinery ("2b"
- * passthrough).
+ * Checker Framework reports through its own {@code Messager}/{@code Trees} machinery, exactly as in
+ * standalone mode.
  */
 public final class CheckerFrameworkDriver {
 

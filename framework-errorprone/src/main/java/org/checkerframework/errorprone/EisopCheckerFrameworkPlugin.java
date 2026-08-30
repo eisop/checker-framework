@@ -51,8 +51,8 @@ import javax.tools.Diagnostic;
  *
  * <p>The Error Prone option namespace is {@code eisopcf}, chosen to keep the EISOP Checker
  * Framework distinct from the typetools Checker Framework. Multiple checkers may be given as a
- * comma-separated list (see {@link #CHECKERS_FLAG}); running several type systems over one shared
- * AST/CFG is completed in a later task.
+ * comma-separated list (see {@link #CHECKERS_FLAG}); they run as independent type systems over one
+ * shared AST, each building its own control-flow graph.
  *
  * <p>Error Prone discovers this plugin through the {@code ServiceLoader} registration in {@code
  * META-INF/services/com.google.errorprone.bugpatterns.BugChecker} (a hand-written resource rather
@@ -67,8 +67,8 @@ import javax.tools.Diagnostic;
 @BugPattern(
         name = "eisopcf",
         summary = "EISOP Checker Framework type error.",
-        // WARNING (not ERROR) as a conservative default while the bridge is under development; the
-        // effective severity can be overridden through standard Error Prone configuration.
+        // WARNING (not ERROR) as a conservative default; the effective severity can be overridden
+        // through standard Error Prone configuration (e.g. -Xep:eisopcf:ERROR).
         severity = BugPattern.SeverityLevel.WARNING)
 // The canonical check name is intentionally the short, user-facing token "eisopcf" (also the
 // -XepOpt: option prefix and the @SuppressWarnings key), deliberately different from the
@@ -184,9 +184,11 @@ public class EisopCheckerFrameworkPlugin extends BugChecker implements ClassTree
      *   <li>Error Prone severity is per-<em>check</em>, so all findings share the {@code eisopcf}
      *       severity (default WARNING, overridable via {@code -Xep:eisopcf:ERROR}); the Checker
      *       Framework diagnostic kind (error vs. warning) is preserved textually in the message.
-     *   <li>Suppression via {@code @SuppressWarnings("eisopcf")} is honored at the granularity of
-     *       the enclosing class (the tree the plugin matches). Finer-grained Checker Framework
-     *       suppression strings still work through the Checker Framework's own mechanism.
+     *   <li>Suppression via {@code @SuppressWarnings("eisopcf")} (or {@code "all"}) is honored at
+     *       any enclosing declaration -- class, method, or local variable -- by reconstructing
+     *       Error Prone's descent-based suppression along the finding's path (see {@link
+     *       #isSuppressedAt}). Finer-grained Checker Framework suppression strings additionally
+     *       work through the Checker Framework's own mechanism.
      * </ul>
      *
      * @return the diagnostic sink
@@ -245,9 +247,9 @@ public class EisopCheckerFrameworkPlugin extends BugChecker implements ClassTree
                 }
                 // Always also offer a suppression fix, mirroring how Error Prone's own checks let
                 // users add @SuppressWarnings via the patch pipeline.  Building it can fail if
-                // there
-                // is no suppressible element around the finding (e.g. some synthetic positions), so
-                // guard it: a missing fix must never turn into a compilation-breaking error.
+                // there is no suppressible element around the finding (e.g. some synthetic
+                // positions), so guard it: a missing fix must never turn into a
+                // compilation-breaking error.
                 SuggestedFix suppressionFix = buildSuppressionFix(state);
                 if (suppressionFix != null) {
                     builder.addFix(suppressionFix);

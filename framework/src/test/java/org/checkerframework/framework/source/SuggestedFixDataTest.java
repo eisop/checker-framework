@@ -13,6 +13,7 @@ import java.util.List;
  */
 public class SuggestedFixDataTest {
 
+    /** The single-replacement {@code replace} factory populates one replacement with its fields. */
     @Test
     public void singleReplacementFactory() {
         SuggestedFixData fix = SuggestedFixData.replace(3, 7, "@NonNull ");
@@ -24,6 +25,7 @@ public class SuggestedFixDataTest {
         assertEquals("@NonNull ", r.text);
     }
 
+    /** A fix built from several replacements preserves their order. */
     @Test
     public void multipleReplacementsPreserveOrder() {
         SuggestedFixData fix =
@@ -37,6 +39,7 @@ public class SuggestedFixDataTest {
         assertEquals(10, replacements.get(1).startPosition);
     }
 
+    /** The list returned by {@link SuggestedFixData#getReplacements} is unmodifiable. */
     @Test(expected = UnsupportedOperationException.class)
     public void replacementsAreUnmodifiable() {
         SuggestedFixData fix = SuggestedFixData.replace(0, 1, "x");

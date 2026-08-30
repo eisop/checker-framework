@@ -112,10 +112,11 @@ public final class SuggestedFixData {
     }
 
     /**
-     * Returns a fix that deletes {@code tree} along with any whitespace immediately following it
-     * (so that deleting, for example, an annotation from {@code @Nullable int x} yields {@code int
-     * x} rather than {@code int x}). Uses javac's {@link SourcePositions} and the compilation
-     * unit's source text; all arguments are JDK types.
+     * Returns a fix that deletes {@code tree} along with any whitespace immediately following it.
+     * Deleting the trailing whitespace avoids leaving a stray space behind: for example, deleting
+     * the {@code @Nullable} annotation from {@code @Nullable int x} leaves {@code int x} rather
+     * than a leading space before {@code int}. Uses javac's {@link SourcePositions} and the
+     * compilation unit's source text; all arguments are JDK types.
      *
      * @param sourcePositions javac source positions (e.g. from {@code trees.getSourcePositions()})
      * @param root the compilation unit containing {@code tree}

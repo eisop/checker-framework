@@ -35,6 +35,10 @@ public class DiagMessage {
      * host (such as the Error Prone plugin) may offer these through its own fix / patch pipeline;
      * standalone javac ignores them. Expressed in the framework-agnostic {@link SuggestedFixData}
      * representation, so the Checker Framework core has no dependency on any host framework.
+     *
+     * <p>Deliberately excluded from {@link #equals} and {@link #hashCode}: two diagnostics with the
+     * same kind, key, and arguments are considered equal regardless of any attached fixes, which
+     * are auxiliary metadata.
      */
     private final List<SuggestedFixData> fixes;
 
@@ -131,12 +135,13 @@ public class DiagMessage {
     }
 
     /**
-     * Returns the suggested fixes for this diagnostic (possibly empty).
+     * Returns the suggested fixes for this diagnostic (possibly empty). The returned list is
+     * unmodifiable.
      *
      * @return the suggested fixes for this diagnostic
      */
     public List<SuggestedFixData> getFixes() {
-        return this.fixes;
+        return Collections.unmodifiableList(this.fixes);
     }
 
     /**
