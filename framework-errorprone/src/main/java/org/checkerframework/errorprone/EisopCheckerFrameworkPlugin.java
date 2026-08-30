@@ -21,7 +21,6 @@ import com.sun.tools.javac.api.MultiTaskListener;
 import com.sun.tools.javac.code.Symbol;
 import com.sun.tools.javac.code.Symbol.ClassSymbol;
 import com.sun.tools.javac.util.Context;
-import com.sun.tools.javac.util.Name;
 
 import org.checkerframework.framework.source.DiagnosticSink;
 import org.checkerframework.framework.source.SuggestedFixData;
@@ -38,9 +37,9 @@ import javax.tools.Diagnostic;
 /**
  * Umbrella Error Prone check that runs the EISOP Checker Framework as an Error Prone plugin.
  *
- * <p>This is a single entry point: it builds one AST/CFG per compilation and runs the Checker
- * Framework type system(s) selected by the {@code eisopcf:checkers} Error Prone option over it,
- * rather than registering multiple independent annotation processors. Although it implements {@link
+ * <p>This is a single entry point: the Checker Framework type system(s) selected by the {@code
+ * eisopcf:checkers} Error Prone option run over the one AST that Error Prone already has, rather
+ * than being registered as several independent annotation processors. Although it implements {@link
  * ClassTreeMatcher}, it drives the Checker Framework only for top-level classes: the Checker
  * Framework recursively type-checks each top-level class's whole subtree (nested, local, and
  * anonymous classes included), mirroring how it runs in standalone mode.
@@ -58,7 +57,7 @@ import javax.tools.Diagnostic;
  *
  * <p>Error Prone discovers this plugin through the {@code ServiceLoader} registration in {@code
  * META-INF/services/com.google.errorprone.bugpatterns.BugChecker} (a hand-written resource rather
- * than {@code @AutoService}; see the architectural decision log for why).
+ * than {@code @AutoService}; see {@code docs/developer/cf-errorprone-decisions.md} for why).
  *
  * <p><b>Diagnostics.</b> Checker Framework findings are reported as Error Prone {@code
  * Description}s for this check ({@code eisopcf}) via a {@link DiagnosticSink} installed on the
@@ -78,6 +77,7 @@ import javax.tools.Diagnostic;
 @SuppressWarnings("BugPatternNaming")
 public class EisopCheckerFrameworkPlugin extends BugChecker implements ClassTreeMatcher {
 
+    /** The serial version identifier. */
     private static final long serialVersionUID = 1L;
 
     /**
@@ -112,10 +112,12 @@ public class EisopCheckerFrameworkPlugin extends BugChecker implements ClassTree
     private transient VisitorState currentState;
 
     /**
-     * Whether a configuration error (e.g. an unresolvable checker name) has already been reported,
-     * so it is surfaced once per compilation rather than on every class.
+     * The context of the compilation for which a configuration error (e.g. an unresolvable checker
+     * name) has already been reported, so it is surfaced once per compilation rather than on every
+     * class. Keyed by context, like {@link #driverContext}, so a reused plugin instance still
+     * reports the error in a later compilation.
      */
-    private transient boolean configErrorReported = false;
+    private transient Context configErrorContext;
 
     /**
      * Constructs the plugin with no configuration. Error Prone uses this when instantiating checks
@@ -155,9 +157,9 @@ public class EisopCheckerFrameworkPlugin extends BugChecker implements ClassTree
                 CheckerFrameworkDriver.create(context, checkerClassNames, diagnosticSink());
         this.driver = newDriver;
         this.driverContext = context;
-        // Run end-of-compilation processing when javac finishes.  A CompilationUnitTree-scoped
-        // event is not sufficient (the CF's typeProcessingOver is a whole-compilation step), so
-        // register a listener that fires finish() once, at the last COMPILATION-finished event.
+        // Run end-of-compilation processing when javac finishes.  A per-compilation-unit event is
+        // not sufficient (the Checker Framework's typeProcessingOver is a whole-compilation step),
+        // so register a listener that calls finish() at the COMPILATION-finished event.
         MultiTaskListener.instance(context)
                 .add(
                         new TaskListener() {
@@ -216,10 +218,8 @@ public class EisopCheckerFrameworkPlugin extends BugChecker implements ClassTree
                     return;
                 }
                 // Anchor the finding (and its suppression fix) at the finding's own source tree,
-                // not the enclosing class that matchClass is visiting.  This makes
-                // @SuppressWarnings land on the nearest suppressible element to the finding (e.g.
-                // the enclosing local variable, method, or class), matching how the finding is
-                // located.
+                // not the enclosing class that matchClass is visiting, so that a generated
+                // @SuppressWarnings lands on the nearest suppressible element to the finding.
                 VisitorState state = base;
                 Tree position;
                 TreePath findingPath = null;
@@ -232,12 +232,7 @@ public class EisopCheckerFrameworkPlugin extends BugChecker implements ClassTree
                 } else {
                     position = base.getPath().getLeaf();
                 }
-                // Honor @SuppressWarnings("eisopcf") (and altNames / "all") at ANY enclosing
-                // declaration -- class, method, or local variable.  Error Prone's own per-node
-                // suppression is not applied here because this plugin matches at the class and
-                // reports findings for the whole subtree via reportMatch; so replicate Error
-                // Prone's descent-based suppression along the finding's path.
-                if (findingPath != null && isSuppressedAt(findingPath, root, state)) {
+                if (findingPath != null && isSuppressedAt(findingPath, state)) {
                     return;
                 }
                 Description.Builder builder =
@@ -274,13 +269,12 @@ public class EisopCheckerFrameworkPlugin extends BugChecker implements ClassTree
      * eisopcf} key behaves like an ordinary Error Prone check at any suppressible declaration.
      *
      * @param findingPath the path from the compilation unit to the finding's source tree
-     * @param root the compilation unit
      * @param state a visitor state (used for symbol/name lookups)
      * @return true if the finding is suppressed
      */
-    private boolean isSuppressedAt(
-            TreePath findingPath, CompilationUnitTree root, VisitorState state) {
-        SuppressionInfo info = SuppressionInfo.EMPTY.forCompilationUnit(root, state);
+    private boolean isSuppressedAt(TreePath findingPath, VisitorState state) {
+        SuppressionInfo info =
+                SuppressionInfo.EMPTY.forCompilationUnit(findingPath.getCompilationUnit(), state);
         // Accumulate suppressions from the outermost enclosing declaration inward, mirroring the
         // scanner's descent.  Collect the path's nodes root-first, then extend for each
         // declaration.
@@ -293,7 +287,7 @@ public class EisopCheckerFrameworkPlugin extends BugChecker implements ClassTree
             if (sym != null) {
                 // eisopcf uses only the standard @SuppressWarnings mechanism, so there are no
                 // custom suppression annotations to look for.
-                info = info.withExtendedSuppressions(sym, state, Collections.<Name>emptySet());
+                info = info.withExtendedSuppressions(sym, state, Collections.emptySet());
             }
         }
         return info.suppressedState(this, /* suppressedInGeneratedCode= */ false, state)
@@ -361,8 +355,8 @@ public class EisopCheckerFrameworkPlugin extends BugChecker implements ClassTree
             // A configuration error (e.g. an unresolvable checker name).  Report it once, as an
             // eisopcf diagnostic, rather than throwing an unhandled plugin exception on every
             // class.
-            if (!configErrorReported) {
-                configErrorReported = true;
+            if (configErrorContext != state.context) {
+                configErrorContext = state.context;
                 return buildDescription(tree).setMessage(e.getMessage()).build();
             }
             return Description.NO_MATCH;
@@ -372,10 +366,6 @@ public class EisopCheckerFrameworkPlugin extends BugChecker implements ClassTree
             return Description.NO_MATCH;
         }
         ClassSymbol classSymbol = ASTHelpers.getSymbol(tree);
-        TreePath path = state.getPath();
-        if (classSymbol == null || path == null) {
-            return Description.NO_MATCH;
-        }
         // Error Prone's scanner matches every class node -- top-level, nested, local, and
         // anonymous -- but the Checker Framework's SourceVisitor.visit(TreePath) recursively scans
         // the whole subtree it is given (it expects a top-level type tree).  So a nested class is
@@ -391,7 +381,7 @@ public class EisopCheckerFrameworkPlugin extends BugChecker implements ClassTree
         VisitorState previous = currentState;
         currentState = state;
         try {
-            currentDriver.process(classSymbol, path);
+            currentDriver.process(classSymbol, state.getPath());
         } finally {
             currentState = previous;
         }

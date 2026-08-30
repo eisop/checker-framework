@@ -34,7 +34,8 @@ dependencies {
 
     // Test-only: run the plugin through Error Prone end-to-end.
     // - error_prone_test_helpers provides CompilationTestHelper (captures ALL compiler
-    //   diagnostics, so it sees the Checker Framework's Messager output in 2b passthrough mode).
+    //   diagnostics, so it also sees findings that the Checker Framework prints through its own
+    //   Messager rather than reporting as Error Prone Descriptions).
     // - error_prone_core supplies ScannerSupplier and the machinery to actually run EP in-process.
     // - :checker provides concrete checkers (e.g. NullnessChecker) that the test selects by name.
     //   Depend on its shadow ("-all") jar file directly: that fat jar is what users actually put on
@@ -75,7 +76,6 @@ tasks.named('jar') {
     archiveBaseName = 'framework-errorprone'
 }
 
-
 apply from: rootProject.file('gradle-mvn-push.gradle')
 
 /**
@@ -84,16 +84,15 @@ apply from: rootProject.file('gradle-mvn-push.gradle')
  * <p>Unlike most modules, this does NOT call rootProject.sharedPublicationConfiguration: that
  * lists the shared lead maintainers, whereas this module lists only its author.
  */
-final frameworkErrorprone(publication) {
+final frameworkErrorpronePom(publication) {
     // The global shadow plugin adds a "shadowRuntimeElements" variant (the "-all" jar) to
-    // components.java.  That fat jar bundles Error Prone's classes and must NOT be a published
-    // variant of this artifact (a Gradle consumer could otherwise resolve it, reintroducing the
-    // "BugChecker not a subtype" class-loading problem).  Publish only the plain jar.
+    // components.java.  That fat jar bundles a copy of Error Prone's classes and must NOT be a
+    // published variant of this artifact (a Gradle consumer could otherwise resolve it,
+    // reintroducing the "BugChecker not a subtype" class-loading problem).  Publish only the
+    // plain jar.
     components.java.withVariantsFromConfiguration(configurations.shadowRuntimeElements) {
         skip()
     }
-    // Publish the plain (non-shadow) jar; the "-all" shadow jar bundles a copy of Error Prone's
-    // classes and must not be the published artifact.
     publication.from components.java
     publication.pom {
         name = 'Checker Framework as an Error Prone plugin'
@@ -130,7 +129,7 @@ final frameworkErrorprone(publication) {
 publishing {
     publications {
         frameworkErrorprone(MavenPublication) {
-            frameworkErrorprone it
+            frameworkErrorpronePom it
         }
     }
 }

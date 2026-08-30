@@ -44,6 +44,11 @@ public final class CheckerFrameworkDriver {
     /** True once {@link #finish()} has run, to make it idempotent. */
     private boolean finished = false;
 
+    /**
+     * Creates a driver over already-initialized checkers; use {@link #create}.
+     *
+     * @param checkers the initialized checkers to run, in order
+     */
     private CheckerFrameworkDriver(List<SourceChecker> checkers) {
         this.checkers = checkers;
     }
@@ -66,8 +71,8 @@ public final class CheckerFrameworkDriver {
             Context context, List<String> checkerClassNames, DiagnosticSink sink) {
         if (checkerClassNames.isEmpty()) {
             throw new IllegalArgumentException(
-                    "No Checker Framework checkers selected. Pass"
-                            + " -XepOpt:eisopcf:checkers=<fully.qualified.CheckerClass>[,<...>].");
+                    "No Checker Framework checkers selected; name at least one SourceChecker"
+                            + " subclass.");
         }
         ProcessingEnvironment procEnv = EisopContextAdapter.getProcessingEnvironment(context);
         List<SourceChecker> initialized = new ArrayList<>(checkerClassNames.size());
@@ -77,6 +82,8 @@ public final class CheckerFrameworkDriver {
             // not register its own AttributionTaskListener.  Must be set before init().
             checker.enableExternallyDrivenMode(true);
             checker.init(procEnv);
+            // After init(), so that any diagnostic init() itself issues still goes to javac: the
+            // host's sink is only usable once the host is processing a class.
             if (sink != null) {
                 checker.setDiagnosticSink(sink);
             }

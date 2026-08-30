@@ -3,7 +3,9 @@ package org.checkerframework.errorprone;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNotSame;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import com.sun.source.util.JavacTask;
 import com.sun.source.util.TaskEvent;
@@ -17,8 +19,10 @@ import org.junit.Test;
 import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -57,19 +61,24 @@ public class EisopContextAdapterTest {
      *
      * <p>Any {@link Throwable} thrown by {@code assertions} is captured and rethrown after the
      * compilation completes, so JUnit assertion failures are reported normally.
+     *
+     * @param assertions the assertions to run against the live context
+     * @param extraOptions additional javac options for the compilation
      */
-    private static void duringAnalyze(ContextAssertions assertions) throws Throwable {
+    private static void duringAnalyze(ContextAssertions assertions, String... extraOptions)
+            throws Throwable {
         JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
         // Direct class output to a throwaway temp dir so the test does not emit .class files into
         // the working directory / source tree.
         Path outDir = Files.createTempDirectory("eisopcf-ctx-test");
-        // Note: no -proc:none, so a JavacProcessingEnvironment is created (the plugin needs it).
+        List<String> options = new ArrayList<>(Arrays.asList("-d", outDir.toString()));
+        options.addAll(Arrays.asList(extraOptions));
         JavaCompiler.CompilationTask compilationTask =
                 compiler.getTask(
                         null,
                         null,
                         null,
-                        Arrays.asList("-d", outDir.toString()),
+                        options,
                         null,
                         Collections.singletonList(
                                 source("Hello", "class Hello { int f() { return 1; } }")));
@@ -103,6 +112,10 @@ public class EisopContextAdapterTest {
         void run(Context context) throws Throwable;
     }
 
+    /**
+     * Without {@code -proc:none} javac registers a {@code JavacProcessingEnvironment} in the
+     * context, and the adapter returns an environment that is wired to the live compilation.
+     */
     @Test
     public void producesUsableProcessingEnvironment() throws Throwable {
         duringAnalyze(
@@ -128,12 +141,39 @@ public class EisopContextAdapterTest {
                     assertNotNull(
                             "compiled type element should be resolvable via the env",
                             elements.getTypeElement("Hello"));
-
-                    // Convenience accessor returns a usable Trees instance too.
-                    assertNotNull("adapter getTrees", EisopContextAdapter.getTrees(context));
                 });
     }
 
+    /**
+     * A context with no registered {@code JavacProcessingEnvironment} is diagnosed, rather than
+     * silently getting a freshly created environment that belongs to no compilation.
+     */
+    @Test
+    public void contextWithoutProcessingEnvironmentIsDiagnosed() {
+        try {
+            EisopContextAdapter.getProcessingEnvironment(new Context());
+            fail("expected IllegalStateException for a context with no processing environment");
+        } catch (IllegalStateException expected) {
+            // Expected.
+        }
+    }
+
+    /**
+     * The environment is available even under {@code -proc:none}: javac registers a {@code
+     * JavacProcessingEnvironment} while initializing compiler plugins, independently of whether
+     * annotation processing runs. So the Error Prone plugin works without {@code -proc:full}.
+     */
+    @Test
+    public void processingEnvironmentIsAvailableWithProcNone() throws Throwable {
+        duringAnalyze(
+                context ->
+                        assertNotNull(
+                                "processing environment under -proc:none",
+                                EisopContextAdapter.getProcessingEnvironment(context)),
+                "-proc:none");
+    }
+
+    /** The dataflow classes in effect are the Checker Framework's own, un-relocated ones. */
     @Test
     public void usesUnrelocatedCheckerFrameworkDataflow() {
         // The CF core must use its own org.checkerframework.dataflow, NOT Error Prone's shaded
@@ -147,13 +187,14 @@ public class EisopContextAdapterTest {
                 pkg.startsWith("org.checkerframework.errorprone.dataflow"));
     }
 
+    /** Both dataflow copies coexist on the classpath, and the un-relocated one is what resolves. */
     @Test
     public void bothDataflowCopiesAreOnClasspathButDistinct() throws Exception {
         // Guard rationale: verify the coexistence assumption actually holds — the relocated copy
         // IS present (so this is a real test), yet the un-relocated FQN resolves to the CF's own.
         Class<?> unrelocated = Class.forName("org.checkerframework.dataflow.cfg.ControlFlowGraph");
         assertNotNull("un-relocated CF dataflow must be present", unrelocated);
-        Class<?> relocated = null;
+        Class<?> relocated;
         try {
             relocated =
                     Class.forName("org.checkerframework.errorprone.dataflow.cfg.ControlFlowGraph");
@@ -162,10 +203,7 @@ public class EisopContextAdapterTest {
             relocated = null;
         }
         if (relocated != null) {
-            assertFalse("the two copies must be distinct classes", unrelocated.equals(relocated));
-            assertFalse(
-                    "the two copies must have distinct names",
-                    unrelocated.getName().equals(relocated.getName()));
+            assertNotSame("the two copies must be distinct classes", unrelocated, relocated);
         }
         assertFalse(
                 "adapter must never report the relocated package",

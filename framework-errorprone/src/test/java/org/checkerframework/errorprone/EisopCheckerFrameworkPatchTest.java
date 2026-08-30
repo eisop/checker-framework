@@ -6,13 +6,12 @@ import com.google.errorprone.scanner.ScannerSupplier;
 
 import org.junit.Test;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
 /**
  * Patch-mode tests for {@link EisopCheckerFrameworkPlugin}: exercising Error Prone's suggested-fix
- * / refactoring pipeline (goal 1c).
+ * / refactoring pipeline.
  *
  * <p>Every {@code eisopcf} finding carries an "add {@code @SuppressWarnings("eisopcf")}" fix, the
  * same way Error Prone's own checks offer a suppression fix. Applying that fix through Error
@@ -21,19 +20,29 @@ import java.util.List;
  */
 public class EisopCheckerFrameworkPatchTest {
 
+    /** Fully-qualified name of the Nullness Checker (lives in the :checker module). */
     private static final String NULLNESS_CHECKER =
             "org.checkerframework.checker.nullness.NullnessChecker";
 
-    private static final List<String> BASE_ARGS =
+    /** javac flags Error Prone requires, plus the Nullness Checker selection. */
+    private static final List<String> ARGS =
             Arrays.asList(
                     "-XDcompilePolicy=simple",
                     "--should-stop=ifError=FLOW",
-                    "-XDaddTypeAnnotationsToSymbol=true");
+                    "-XDaddTypeAnnotationsToSymbol=true",
+                    "-XepOpt:eisopcf:checkers=" + NULLNESS_CHECKER);
 
-    private static List<String> append(List<String> base, String... extra) {
-        List<String> result = new ArrayList<>(base);
-        result.addAll(Arrays.asList(extra));
-        return result;
+    /**
+     * Returns a refactoring helper that runs the {@code eisopcf} plugin with the Nullness Checker.
+     *
+     * @return the refactoring helper
+     */
+    private static BugCheckerRefactoringTestHelper refactoringHelper() {
+        ScannerSupplier scanner =
+                ScannerSupplier.fromBugCheckerClasses(EisopCheckerFrameworkPlugin.class);
+        return BugCheckerRefactoringTestHelper.newInstance(
+                        scanner, EisopCheckerFrameworkPatchTest.class)
+                .setArgs(ARGS.toArray(new String[0]));
     }
 
     /**
@@ -42,13 +51,8 @@ public class EisopCheckerFrameworkPatchTest {
      */
     @Test
     public void suppressionFixIsApplied() {
-        ScannerSupplier scanner =
-                ScannerSupplier.fromBugCheckerClasses(EisopCheckerFrameworkPlugin.class);
-        BugCheckerRefactoringTestHelper.newInstance(scanner, getClass())
-                .setArgs(
-                        append(BASE_ARGS, "-XepOpt:eisopcf:checkers=" + NULLNESS_CHECKER)
-                                .toArray(new String[0]))
-                // The suppression fix is the first fix attached to each finding.
+        refactoringHelper()
+                // This finding carries no Checker Framework fix, so the suppression fix is first.
                 .setFixChooser(FixChoosers.FIRST)
                 .addInputLines(
                         "test/Bad.java",
@@ -79,13 +83,8 @@ public class EisopCheckerFrameworkPatchTest {
      */
     @Test
     public void nullnessOnPrimitiveRemoveAnnotationFixIsApplied() {
-        ScannerSupplier scanner =
-                ScannerSupplier.fromBugCheckerClasses(EisopCheckerFrameworkPlugin.class);
-        BugCheckerRefactoringTestHelper.newInstance(scanner, getClass())
-                .setArgs(
-                        append(BASE_ARGS, "-XepOpt:eisopcf:checkers=" + NULLNESS_CHECKER)
-                                .toArray(new String[0]))
-                // The Checker-Framework fix (remove the annotation) is the first fix.
+        refactoringHelper()
+                // The Checker Framework fix (remove the annotation) is the first fix.
                 .setFixChooser(FixChoosers.FIRST)
                 .addInputLines(
                         "test/Prim.java",

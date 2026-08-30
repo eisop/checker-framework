@@ -6,7 +6,9 @@ import com.google.errorprone.scanner.ScannerSupplier;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 
 /**
  * End-to-end tests for {@link EisopCheckerFrameworkPlugin}: running Checker Framework type
@@ -35,27 +37,44 @@ public class EisopCheckerFrameworkPluginTest {
      * javac flags Error Prone requires. The --add-exports/--add-opens needed to run in-process are
      * supplied as JVM args by the module's build.gradle (they have no effect as compiler args).
      */
-    private static final java.util.List<String> BASE_ARGS =
+    private static final List<String> BASE_ARGS =
             Arrays.asList(
                     "-XDcompilePolicy=simple",
                     "--should-stop=ifError=FLOW",
                     "-XDaddTypeAnnotationsToSymbol=true");
 
+    /** A helper running the {@code eisopcf} plugin with the Nullness Checker selected. */
     private CompilationTestHelper helper;
 
     @Before
     public void setUp() {
-        ScannerSupplier scanner =
-                ScannerSupplier.fromBugCheckerClasses(EisopCheckerFrameworkPlugin.class);
-        helper =
-                CompilationTestHelper.newInstance(scanner, getClass())
-                        .setArgs(append(BASE_ARGS, "-XepOpt:eisopcf:checkers=" + NULLNESS_CHECKER));
+        helper = helperWith("-XepOpt:eisopcf:checkers=" + NULLNESS_CHECKER);
     }
 
-    private static java.util.List<String> append(java.util.List<String> base, String... extra) {
-        java.util.List<String> result = new java.util.ArrayList<>(base);
-        result.addAll(Arrays.asList(extra));
-        return result;
+    /**
+     * Returns a {@link CompilationTestHelper} that runs the {@code eisopcf} plugin with {@link
+     * #BASE_ARGS} plus the given arguments.
+     *
+     * @param extraArgs arguments to append to {@link #BASE_ARGS}
+     * @return a helper configured with those arguments
+     */
+    private static CompilationTestHelper helperWith(String... extraArgs) {
+        ScannerSupplier scanner =
+                ScannerSupplier.fromBugCheckerClasses(EisopCheckerFrameworkPlugin.class);
+        List<String> args = new ArrayList<>(BASE_ARGS);
+        args.addAll(Arrays.asList(extraArgs));
+        return CompilationTestHelper.newInstance(scanner, EisopCheckerFrameworkPluginTest.class)
+                .setArgs(args);
+    }
+
+    /**
+     * Returns a {@link CompilationTestHelper} with both the Nullness and Interning checkers
+     * selected.
+     *
+     * @return a helper running both checkers
+     */
+    private static CompilationTestHelper twoCheckerHelper() {
+        return helperWith("-XepOpt:eisopcf:checkers=" + NULLNESS_CHECKER + "," + INTERNING_CHECKER);
     }
 
     /**
@@ -113,16 +132,7 @@ public class EisopCheckerFrameworkPluginTest {
      */
     @Test
     public void severityOverrideIsAccepted() {
-        ScannerSupplier scanner =
-                ScannerSupplier.fromBugCheckerClasses(EisopCheckerFrameworkPlugin.class);
-        CompilationTestHelper errorHelper =
-                CompilationTestHelper.newInstance(scanner, getClass())
-                        .setArgs(
-                                append(
-                                        BASE_ARGS,
-                                        "-XepOpt:eisopcf:checkers=" + NULLNESS_CHECKER,
-                                        "-Xep:eisopcf:ERROR"));
-        errorHelper
+        helperWith("-XepOpt:eisopcf:checkers=" + NULLNESS_CHECKER, "-Xep:eisopcf:ERROR")
                 .addSourceLines(
                         "test/Err.java",
                         "package test;",
@@ -141,18 +151,7 @@ public class EisopCheckerFrameworkPluginTest {
      */
     @Test
     public void multipleCheckersRunTogether() {
-        ScannerSupplier scanner =
-                ScannerSupplier.fromBugCheckerClasses(EisopCheckerFrameworkPlugin.class);
-        CompilationTestHelper multiHelper =
-                CompilationTestHelper.newInstance(scanner, getClass())
-                        .setArgs(
-                                append(
-                                        BASE_ARGS,
-                                        "-XepOpt:eisopcf:checkers="
-                                                + NULLNESS_CHECKER
-                                                + ","
-                                                + INTERNING_CHECKER));
-        multiHelper
+        twoCheckerHelper()
                 .addSourceLines(
                         "test/Two.java",
                         "package test;",
@@ -173,15 +172,7 @@ public class EisopCheckerFrameworkPluginTest {
      */
     @Test
     public void unknownCheckerNameIsReported() {
-        ScannerSupplier scanner =
-                ScannerSupplier.fromBugCheckerClasses(EisopCheckerFrameworkPlugin.class);
-        CompilationTestHelper badHelper =
-                CompilationTestHelper.newInstance(scanner, getClass())
-                        .setArgs(
-                                append(
-                                        BASE_ARGS,
-                                        "-XepOpt:eisopcf:checkers=com.example.NoSuchChecker"));
-        badHelper
+        helperWith("-XepOpt:eisopcf:checkers=com.example.NoSuchChecker")
                 .addSourceLines(
                         "test/Any.java",
                         "package test;",
@@ -190,20 +181,6 @@ public class EisopCheckerFrameworkPluginTest {
                         "  String m() { return \"x\"; }",
                         "}")
                 .doTest();
-    }
-
-    /** A {@link CompilationTestHelper} with both the Nullness and Interning checkers selected. */
-    private CompilationTestHelper twoCheckerHelper() {
-        ScannerSupplier scanner =
-                ScannerSupplier.fromBugCheckerClasses(EisopCheckerFrameworkPlugin.class);
-        return CompilationTestHelper.newInstance(scanner, getClass())
-                .setArgs(
-                        append(
-                                BASE_ARGS,
-                                "-XepOpt:eisopcf:checkers="
-                                        + NULLNESS_CHECKER
-                                        + ","
-                                        + INTERNING_CHECKER));
     }
 
     /**
@@ -369,19 +346,11 @@ public class EisopCheckerFrameworkPluginTest {
      */
     @Test
     public void checkerOptionsArePassedWithDashA() {
-        ScannerSupplier scanner =
-                ScannerSupplier.fromBugCheckerClasses(EisopCheckerFrameworkPlugin.class);
-        CompilationTestHelper optionHelper =
-                CompilationTestHelper.newInstance(scanner, getClass())
-                        .setArgs(
-                                append(
-                                        BASE_ARGS,
-                                        "-XepOpt:eisopcf:checkers=" + NULLNESS_CHECKER,
-                                        // A standard SourceChecker option, passed with -A as in
-                                        // standalone mode; suppresses all "nullness"-prefixed
-                                        // findings.
-                                        "-AsuppressWarnings=nullness"));
-        optionHelper
+        helperWith(
+                        "-XepOpt:eisopcf:checkers=" + NULLNESS_CHECKER,
+                        // A standard SourceChecker option, passed with -A as in standalone mode;
+                        // suppresses all "nullness"-prefixed findings.
+                        "-AsuppressWarnings=nullness")
                 .expectNoDiagnostics()
                 .addSourceLines(
                         "test/WithOption.java",
