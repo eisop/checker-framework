@@ -355,10 +355,12 @@ public class EisopCheckerFrameworkPlugin extends BugChecker implements ClassTree
         CheckerFrameworkDriver currentDriver;
         try {
             currentDriver = driverFor(state.context);
-        } catch (IllegalArgumentException e) {
-            // A configuration error (e.g. an unresolvable checker name).  Report it once, as an
-            // eisopcf diagnostic, rather than throwing an unhandled plugin exception on every
-            // class.
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            // Driver setup failed: either a configuration error (IllegalArgumentException, e.g. an
+            // unresolvable checker name) or a context with no live javac compilation
+            // (IllegalStateException from EisopContextAdapter).  Report it once, as a clean eisopcf
+            // diagnostic, rather than letting it propagate as an unhandled plugin exception on
+            // every class.  Other (unexpected) runtime exceptions are left to propagate.
             if (configErrorContext != state.context) {
                 configErrorContext = state.context;
                 return buildDescription(tree).setMessage(e.getMessage()).build();
