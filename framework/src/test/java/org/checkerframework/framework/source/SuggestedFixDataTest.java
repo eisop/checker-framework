@@ -45,4 +45,24 @@ public class SuggestedFixDataTest {
         SuggestedFixData fix = SuggestedFixData.replace(0, 1, "x");
         fix.getReplacements().add(new SuggestedFixData.Replacement(2, 3, "y"));
     }
+
+    /** A replacement with end before start is rejected at construction. */
+    @Test(expected = IllegalArgumentException.class)
+    public void replacementRejectsEndBeforeStart() {
+        new SuggestedFixData.Replacement(5, 3, "x");
+    }
+
+    /** A replacement with a negative start offset is rejected at construction. */
+    @Test(expected = IllegalArgumentException.class)
+    public void replacementRejectsNegativeStart() {
+        new SuggestedFixData.Replacement(-1, 0, "x");
+    }
+
+    /** A zero-width replacement (a pure insertion at one offset) is allowed. */
+    @Test
+    public void replacementAllowsEmptyRange() {
+        SuggestedFixData.Replacement r = new SuggestedFixData.Replacement(4, 4, "inserted");
+        assertEquals(4, r.startPosition);
+        assertEquals(4, r.endPosition);
+    }
 }

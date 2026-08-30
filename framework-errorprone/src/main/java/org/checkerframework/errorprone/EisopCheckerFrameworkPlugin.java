@@ -214,27 +214,20 @@ public class EisopCheckerFrameworkPlugin extends BugChecker implements ClassTree
                 // Anchor the finding (and its suppression fix) at the finding's own source tree,
                 // not the enclosing class that matchClass is visiting, so that a generated
                 // @SuppressWarnings lands on the nearest suppressible element to the finding.
+                // Use the driver's TreePathCacher rather than TreePath.getPath(root, source), which
+                // re-scans the whole compilation unit on every finding (quadratic on a
+                // finding-heavy file).  The checkers populate the cacher while type-checking, so
+                // the finding's tree is typically already cached.
                 VisitorState state = base;
-                Tree position;
-                TreePath findingPath = null;
-                if (source != null) {
-                    // Use the driver's TreePathCacher rather than TreePath.getPath(root, source),
-                    // which re-scans the whole compilation unit on every finding (quadratic on a
-                    // finding-heavy file).  The checkers populate the cacher while type-checking,
-                    // so the finding's tree is typically already cached.
-                    findingPath = driver.getTreePathCacher().getPath(root, source);
-                    if (findingPath != null) {
-                        state = base.withPath(findingPath);
-                    }
-                    position = source;
-                } else {
-                    position = base.getPath().getLeaf();
+                TreePath findingPath = driver.getTreePathCacher().getPath(root, source);
+                if (findingPath != null) {
+                    state = base.withPath(findingPath);
                 }
                 if (findingPath != null && isSuppressedAt(findingPath, state)) {
                     return;
                 }
                 Description.Builder builder =
-                        buildDescription(position).setMessage(formatMessage(kind, message));
+                        buildDescription(source).setMessage(formatMessage(kind, message));
                 // Checker-Framework-supplied fixes first (they are the meaningful fixes, e.g.
                 // "remove the annotation"); Error Prone's FixChoosers.FIRST picks the first fix.
                 for (SuggestedFixData fix : fixes) {

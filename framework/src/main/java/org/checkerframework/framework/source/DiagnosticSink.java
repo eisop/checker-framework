@@ -41,8 +41,10 @@ public interface DiagnosticSink {
      * @param kind the diagnostic kind (typically {@link Diagnostic.Kind#ERROR} or {@link
      *     Diagnostic.Kind#WARNING})
      * @param message the fully-formatted, localized message text
-     * @param source the tree at which the finding is reported (its source position locates the
-     *     diagnostic); may be {@code null} if no tree is associated
+     * @param source the tree at which the finding is reported; its source position locates the
+     *     diagnostic. Never {@code null}: a finding with no tree position is reported through javac
+     *     before reaching a sink (see above), so an installed sink is called only for
+     *     tree-positioned findings.
      * @param root the compilation unit containing {@code source}
      * @param fixes suggested fixes for the finding, as alternatives (possibly empty)
      */

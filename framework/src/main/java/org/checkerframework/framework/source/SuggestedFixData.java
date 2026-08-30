@@ -45,11 +45,21 @@ public final class SuggestedFixData {
         /**
          * Creates a replacement.
          *
-         * @param startPosition start source offset, inclusive
-         * @param endPosition end source offset, exclusive
+         * @param startPosition start source offset, inclusive; must be non-negative
+         * @param endPosition end source offset, exclusive; must be at least {@code startPosition}
+         *     (equal for a pure insertion)
          * @param text the replacement text (empty to delete)
+         * @throws IllegalArgumentException if {@code startPosition} is negative or {@code
+         *     endPosition} is less than {@code startPosition}
          */
         public Replacement(int startPosition, int endPosition, String text) {
+            if (startPosition < 0 || endPosition < startPosition) {
+                throw new IllegalArgumentException(
+                        "invalid replacement range: start="
+                                + startPosition
+                                + ", end="
+                                + endPosition);
+            }
             this.startPosition = startPosition;
             this.endPosition = endPosition;
             this.text = text;
