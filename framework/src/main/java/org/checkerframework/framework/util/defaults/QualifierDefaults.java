@@ -14,7 +14,6 @@ import com.sun.source.util.TreePath;
 
 import org.checkerframework.checker.interning.qual.FindDistinct;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.framework.qual.AnnotatedFor;
 import org.checkerframework.framework.qual.DefaultQualifier;
 import org.checkerframework.framework.qual.TypeUseLocation;
 import org.checkerframework.framework.type.AnnotatedTypeFactory;
@@ -156,9 +155,6 @@ public class QualifierDefaults {
      * defaults for certain Elements.
      */
     private final IdentityHashMap<Element, DefaultSet> elementDefaults = new IdentityHashMap<>();
-
-    /** A mapping of Element &rarr; Whether or not that element is AnnotatedFor this type system. */
-    private final IdentityHashMap<Element, Boolean> elementAnnotatedFors = new IdentityHashMap<>();
 
     /** CLIMB locations whose standard default is top for a given type system. */
     public static final List<TypeUseLocation> STANDARD_CLIMB_DEFAULTS_TOP =
@@ -707,47 +703,6 @@ public class QualifierDefaults {
         }
     }
 
-    private boolean isElementAnnotatedForThisChecker(Element elt) {
-        boolean elementAnnotatedForThisChecker = false;
-
-        if (elt == null) {
-            throw new BugInCF(
-                    "Call of QualifierDefaults.isElementAnnotatedForThisChecker with null");
-        }
-
-        Boolean cached = elementAnnotatedFors.get(elt);
-        if (cached != null) {
-            return cached;
-        }
-
-        AnnotationMirror annotatedFor = atypeFactory.getDeclAnnotation(elt, AnnotatedFor.class);
-
-        if (annotatedFor != null) {
-            elementAnnotatedForThisChecker =
-                    atypeFactory.doesAnnotatedForApplyToThisChecker(annotatedFor);
-        }
-
-        if (!elementAnnotatedForThisChecker) {
-            Element parent;
-            if (elt.getKind() == ElementKind.PACKAGE) {
-                // TODO: should AnnotatedFor apply to subpackages??
-                // elt.getEnclosingElement() on a package is null; therefore,
-                // use the dedicated method.
-                parent = ElementUtils.parentPackage((PackageElement) elt, elements);
-            } else {
-                parent = elt.getEnclosingElement();
-            }
-
-            if (parent != null && isElementAnnotatedForThisChecker(parent)) {
-                elementAnnotatedForThisChecker = true;
-            }
-        }
-
-        elementAnnotatedFors.put(elt, elementAnnotatedForThisChecker);
-
-        return elementAnnotatedForThisChecker;
-    }
-
     /**
      * Returns the defaults that apply to the given Element, considering defaults from enclosing
      * Elements.
@@ -890,11 +845,28 @@ public class QualifierDefaults {
             return false;
         }
 
+        // Skip the conservative-defaults check while annotation files are being parsed, to
+        // avoid an initialization cycle. During GenericAnnotatedTypeFactory.postInit(),
+        // parseAnnotationFiles() runs the stub/ajava parser, which asks the type factory for
+        // defaulted types. That reaches here and would call
+        // checker.isElementAnnotatedForThisCheckerOrUpstreamChecker(...), which routes through
+        // BaseTypeChecker.getTypeFactory() -- but the visitor (and thus the type factory) is not
+        // yet installed on the checker, causing an NPE. Eagerly-parsed annotation files (checker
+        // @StubFiles, command-line stubs, ajava files, annotated-JDK package-info.java) are the
+        // risky cases; most JDK class stubs are only parsed lazily after init completes.
+        // Stub-file elements are still treated as checked code by the isFromStubFile branch below
+        // once parsing has finished.
+        if (atypeFactory.isParsingAnnotationFile()) {
+            return false;
+        }
+
         boolean isFromStubFile = atypeFactory.isFromStubFile(annotationScope);
         boolean isBytecode = atypeFactory.isFromByteCode(annotationScope);
         if (isBytecode) {
             return useConservativeDefaultsBytecode
-                    && !isElementAnnotatedForThisChecker(annotationScope);
+                    && !atypeFactory
+                            .getChecker()
+                            .isElementAnnotatedForThisCheckerOrUpstreamChecker(annotationScope);
         } else if (isFromStubFile) {
             // TODO: Types in stub files not annotated for a particular checker should be
             // treated as unchecked bytecode.  For now, all types in stub files are treated as
@@ -903,7 +875,9 @@ public class QualifierDefaults {
             // be treated like unchecked code except for methods in the scope of an @AnnotatedFor.
             return false;
         } else if (useConservativeDefaultsSource) {
-            return !isElementAnnotatedForThisChecker(annotationScope);
+            return !atypeFactory
+                    .getChecker()
+                    .isElementAnnotatedForThisCheckerOrUpstreamChecker(annotationScope);
         }
         return false;
     }

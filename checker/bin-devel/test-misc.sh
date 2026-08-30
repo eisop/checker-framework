@@ -53,6 +53,9 @@ git diff --exit-code docs/manual/contributors.tex \
 # Check gradle tasks are configured properly
 ./gradlew tasks
 
+# Check subproject clean and build with configuration cache
+./gradlew :dataflow:clean :dataflow:build --console=plain --warning-mode=all
+
 ## Code style and formatting
 JAVA_VER=$(java -version 2>&1 | head -1 | cut -d'"' -f2 | sed '/^1\./s///' | cut -d'.' -f1 | sed 's/-ea//' | sed 's/-beta//')
 if [ "${JAVA_VER}" != "8" ] && [ "${JAVA_VER}" != "11" ]; then
