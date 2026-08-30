@@ -15,6 +15,7 @@ import com.sun.source.util.TreePath;
 import org.checkerframework.checker.interning.qual.FindDistinct;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.framework.qual.DefaultQualifier;
+import org.checkerframework.framework.qual.TargetLocations;
 import org.checkerframework.framework.qual.TypeUseLocation;
 import org.checkerframework.framework.type.AnnotatedTypeFactory;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
@@ -382,7 +383,9 @@ public class QualifierDefaults {
         for (TypeUseLocation loc : OPTIMISTIC_UNCHECKED_DEFAULTS_TOP) {
             // Only add standard defaults in locations where a default has not be specified.
             for (AnnotationMirror top : tops) {
-                if (!conflictsWithExistingDefaults(optimisticUncheckedCodeDefaults, top, loc)) {
+                if (permittedAtLocation(top, loc)
+                        && !conflictsWithExistingDefaults(
+                                optimisticUncheckedCodeDefaults, top, loc)) {
                     addOptimisticUncheckedCodeDefault(top, loc);
                 }
             }
@@ -391,11 +394,43 @@ public class QualifierDefaults {
         for (TypeUseLocation loc : OPTIMISTIC_UNCHECKED_DEFAULTS_BOTTOM) {
             for (AnnotationMirror bottom : bottoms) {
                 // Only add standard defaults in locations where a default has not be specified.
-                if (!conflictsWithExistingDefaults(optimisticUncheckedCodeDefaults, bottom, loc)) {
+                if (permittedAtLocation(bottom, loc)
+                        && !conflictsWithExistingDefaults(
+                                optimisticUncheckedCodeDefaults, bottom, loc)) {
                     addOptimisticUncheckedCodeDefault(bottom, loc);
                 }
             }
         }
+    }
+
+    /**
+     * Does {@code anno}'s {@link TargetLocations} meta-annotation permit it at {@code location}?
+     *
+     * <p>The optimistic defaults put bottom qualifiers where the conservative ones put top, and
+     * vice versa. A qualifier can restrict where it may be written -- {@code @KeyForBottom} and
+     * {@code @FBCBottom}, for instance, are not permitted on a {@code RETURN} or {@code FIELD} --
+     * and defaulting one onto a prohibited location makes {@link
+     * org.checkerframework.common.basetype.BaseTypeValidator} report {@code
+     * type.invalid.annotations.on.location} on code the user did not write. Skip those pairs; the
+     * qualifier hierarchy's other defaults still apply there.
+     *
+     * @param anno a qualifier
+     * @param location a type use location
+     * @return true if {@code anno} may be applied at {@code location}
+     */
+    private boolean permittedAtLocation(AnnotationMirror anno, TypeUseLocation location) {
+        Element qualElt = anno.getAnnotationType().asElement();
+        TargetLocations targetLocations = qualElt.getAnnotation(TargetLocations.class);
+        // No @TargetLocations means the qualifier may be written on any type use.
+        if (targetLocations == null) {
+            return true;
+        }
+        for (TypeUseLocation permitted : targetLocations.value()) {
+            if (permitted == location || permitted == TypeUseLocation.ALL) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /** Add standard CLIMB defaults that do not conflict with previously added defaults. */

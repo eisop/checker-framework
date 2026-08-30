@@ -1182,6 +1182,8 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
         // Set the active options for this checker and all subcheckers.
         getOptions();
 
+        checkOptimisticAndConservativeDefaults();
+
         // Initialize all checkers and share supported lint options.
         for (SourceChecker checker : getSubcheckers()) {
             // Each checker should "support" all possible lint options - otherwise
@@ -2926,6 +2928,22 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
             }
         }
         return false;
+    }
+
+    /**
+     * Throws a {@link UserError} if a kind of code is to be defaulted both optimistically and
+     * conservatively. The two are opposites, so applying both is always a mistake.
+     */
+    private void checkOptimisticAndConservativeDefaults() {
+        for (String kindOfCode : new String[] {"source", "bytecode"}) {
+            if (useOptimisticDefault(kindOfCode) && useConservativeDefault(kindOfCode)) {
+                throw new UserError(
+                        "Both -AuseOptimisticDefaultsForUncheckedCode and"
+                                + " -AuseConservativeDefaultsForUncheckedCode were supplied for "
+                                + kindOfCode
+                                + "; a kind of code can be defaulted only one way.");
+            }
+        }
     }
 
     /**
