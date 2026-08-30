@@ -5,6 +5,7 @@ import com.sun.tools.javac.util.Context;
 
 import org.checkerframework.framework.source.DiagnosticSink;
 import org.checkerframework.framework.source.SourceChecker;
+import org.checkerframework.framework.util.TreePathCacher;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -186,5 +187,19 @@ public final class CheckerFrameworkDriver {
         for (SourceChecker checker : checkers) {
             checker.typeProcessingOverExternally();
         }
+    }
+
+    /**
+     * Returns a {@link TreePathCacher} for locating the {@link TreePath} of a tree within the
+     * compilation unit. This is the shared cacher of the first driven checker; using it avoids the
+     * unbounded {@code TreePath.getPath(root, tree)} re-scan of the whole compilation unit on every
+     * lookup (a quadratic cost on a finding-heavy file). All checkers share the same compilation
+     * unit, so any checker's cacher computes the same paths; the checkers also populate it while
+     * type-checking, so the trees a finding refers to are typically already cached.
+     *
+     * @return the shared tree-path cacher
+     */
+    public TreePathCacher getTreePathCacher() {
+        return checkers.get(0).getTreePathCacher();
     }
 }

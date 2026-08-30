@@ -224,7 +224,11 @@ public class EisopCheckerFrameworkPlugin extends BugChecker implements ClassTree
                 Tree position;
                 TreePath findingPath = null;
                 if (source != null) {
-                    findingPath = TreePath.getPath(root, source);
+                    // Use the driver's TreePathCacher rather than TreePath.getPath(root, source),
+                    // which re-scans the whole compilation unit on every finding (quadratic on a
+                    // finding-heavy file).  The checkers populate the cacher while type-checking,
+                    // so the finding's tree is typically already cached.
+                    findingPath = driver.getTreePathCacher().getPath(root, source);
                     if (findingPath != null) {
                         state = base.withPath(findingPath);
                     }
