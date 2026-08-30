@@ -462,14 +462,15 @@ the CF is a large, separate feature out of scope here.
    - `SuggestedFixData` (new, in `framework`): a list of `Replacement(startPosition,
      endPosition, text)` using javac source offsets — JDK-neutral, no Error Prone
      type. The core stays framework-agnostic.
-   - `DiagnosticSink` gains a `default reportWithFix(kind, message, source, root,
-     @Nullable SuggestedFixData)` that by default ignores the fix and delegates to
-     `report(...)`, so existing lambda sinks keep working. No CF code calls it with a
-     non-null fix yet (the CF produces none), but the channel is defined and
-     unit-tested (`SuggestedFixDataTest`), and the module translates it to an Error
-     Prone `SuggestedFix` (`EisopCheckerFrameworkPlugin.toErrorProneFix`,
-     position-based `SuggestedFix.Builder.replace`). (ADR-0011 later widened the
-     parameter to a `List<SuggestedFixData>` and gave the channel its first producer.)
+   - `DiagnosticSink` (new, in `framework`): a single-method functional interface
+     `report(kind, message, source, root, List<SuggestedFixData> fixes)`. A host with
+     no fix pipeline simply ignores `fixes`. The channel is unit-tested
+     (`SuggestedFixDataTest`), and the module translates each fix to an Error Prone
+     `SuggestedFix` (`EisopCheckerFrameworkPlugin.toErrorProneFix`, position-based
+     `SuggestedFix.Builder.replace`). (Earlier iterations had a fix-less `report` plus
+     a defaulted `reportWithFix`, and a single `@Nullable SuggestedFixData`; these were
+     collapsed to the one `List`-carrying method once the channel had a real producer,
+     since the fix-less overload was never called.)
 
 2. **A real, always-available suppression fix** (mirrors Error Prone's own checks):
    every `eisopcf` finding's `Description` carries
@@ -494,8 +495,8 @@ also makes reported diagnostics point at the finding rather than the class.
   plugin tests (including class-level suppression) still pass.
 
 **Follow-up (out of scope).** When the CF gains per-finding fixes, route them through
-`reportWithFix` with `SuggestedFixData`; the module already translates and attaches
-them, so no further core or module change is required.
+`DiagnosticSink.report` with `SuggestedFixData`; the module already translates and
+attaches them, so no further core or module change is required.
 
 
 ---
@@ -655,12 +656,13 @@ leaves the hot `reportError(source, key, args...)` path untouched. (Overloads on
 - `DiagMessage` gains an immutable `List<SuggestedFixData> fixes` plus `withFix`/`withFixes`
   (copy-on-write; `equals`/`hashCode` unchanged — fixes are advisory).
 - `SourceChecker`: a new private `report(source, kind, key, fixes, args...)` (old one
-  delegates with empty fixes); `report(source, DiagMessage)` passes `d.getFixes()`; new
-  fixes-carrying overloads of both `printOrStoreMessage` methods (old ones delegate);
-  `CheckerMessage` gains a `fixes` field (buffered/aggregate path) forwarded by
-  `printStoredMessages`. All old signatures are preserved for `BaseTypeChecker` overriders.
-- `DiagnosticSink.reportWithFix` now takes `List<SuggestedFixData>` (default delegates to
-  `report`, ignoring fixes — standalone/lambda sinks unaffected).
+  delegates with empty fixes); `report(source, DiagMessage)` passes `d.getFixes()`;
+  `printOrStoreMessage` carries the fixes through to the sink; `CheckerMessage` gains a
+  `fixes` field (buffered/aggregate path) forwarded by `printStoredMessages`. (The
+  fix-less `printOrStoreMessage` overloads were later removed and the remaining ones made
+  private, since nothing overrode or called them; host interception is via `DiagnosticSink`.)
+- `DiagnosticSink.report` takes `List<SuggestedFixData>`; a host with no fix pipeline
+  ignores it (standalone/lambda sinks unaffected).
 - The plugin adds each Checker-Framework fix as an Error Prone `SuggestedFix` alternative,
   ordered BEFORE the suppression fix (so `FixChoosers.FIRST` / an interactive user gets
   the meaningful fix first).

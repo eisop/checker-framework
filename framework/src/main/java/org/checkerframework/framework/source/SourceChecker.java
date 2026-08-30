@@ -1828,8 +1828,8 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      *
      * <p>Prints or hands off the message together with machine-applicable suggested fixes. When a
      * {@link DiagnosticSink} is installed, the message and fixes are passed to it via {@link
-     * DiagnosticSink#reportWithFix}; otherwise (standalone javac) the message is printed through
-     * javac's {@code Trees} and the fixes are ignored.
+     * DiagnosticSink#report}; otherwise (standalone javac) the message is printed through javac's
+     * {@code Trees} and the fixes are ignored.
      *
      * @param kind the kind of message to print
      * @param message the message text
@@ -1849,9 +1849,8 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
         if (diagnosticSink != null) {
             // A host (e.g. the Error Prone plugin) is intercepting findings; hand off the neutral
             // (kind, message, source, root, fixes) values instead of printing through javac's
-            // Trees.  A sink that does not support fixes inherits reportWithFix's default
-            // implementation, which discards them and delegates to DiagnosticSink#report.
-            diagnosticSink.reportWithFix(kind, message, source, root, fixes);
+            // Trees.  A host with no fix pipeline simply ignores the fixes.
+            diagnosticSink.report(kind, message, source, root, fixes);
             return;
         }
         Trees.instance(processingEnv).printMessage(kind, message, source, root);

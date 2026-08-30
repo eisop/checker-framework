@@ -201,12 +201,6 @@ public class EisopCheckerFrameworkPlugin extends BugChecker implements ClassTree
         return new DiagnosticSink() {
             @Override
             public void report(
-                    Diagnostic.Kind kind, String message, Tree source, CompilationUnitTree root) {
-                reportWithFix(kind, message, source, root, Collections.emptyList());
-            }
-
-            @Override
-            public void reportWithFix(
                     Diagnostic.Kind kind,
                     String message,
                     Tree source,

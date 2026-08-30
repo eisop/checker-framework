@@ -27,7 +27,9 @@ import javax.tools.Diagnostic;
 public interface DiagnosticSink {
 
     /**
-     * Receives one Checker Framework finding.
+     * Receives one Checker Framework finding, which may carry machine-applicable suggested fixes
+     * (as alternatives). A host with no fix pipeline simply ignores {@code fixes}, so this
+     * interface can be implemented with a lambda.
      *
      * @param kind the diagnostic kind (typically {@link Diagnostic.Kind#ERROR} or {@link
      *     Diagnostic.Kind#WARNING})
@@ -35,31 +37,12 @@ public interface DiagnosticSink {
      * @param source the tree at which the finding is reported (its source position locates the
      *     diagnostic); may be {@code null} if no tree is associated
      * @param root the compilation unit containing {@code source}
-     */
-    void report(Diagnostic.Kind kind, String message, Tree source, CompilationUnitTree root);
-
-    /**
-     * Receives one Checker Framework finding that may carry machine-applicable suggested fixes (as
-     * alternatives).
-     *
-     * <p>This is the method that a {@link SourceChecker} invokes for every finding. The default
-     * implementation ignores the fixes and delegates to {@link #report}, so a host that has no fix
-     * pipeline can implement this interface with a lambda. A host that supports fixes (such as the
-     * Error Prone plugin) overrides this method to translate each fix into its own representation
-     * and attach it to the reported finding.
-     *
-     * @param kind the diagnostic kind
-     * @param message the fully-formatted, localized message text
-     * @param source the tree at which the finding is reported; may be {@code null}
-     * @param root the compilation unit containing {@code source}
      * @param fixes suggested fixes for the finding, as alternatives (possibly empty)
      */
-    default void reportWithFix(
+    void report(
             Diagnostic.Kind kind,
             String message,
             Tree source,
             CompilationUnitTree root,
-            List<SuggestedFixData> fixes) {
-        report(kind, message, source, root);
-    }
+            List<SuggestedFixData> fixes);
 }
