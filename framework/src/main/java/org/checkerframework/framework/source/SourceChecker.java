@@ -763,6 +763,10 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      * are flushed through the parent checker, so installing the sink on the checker that the host
      * drives is sufficient.
      *
+     * <p>The sink receives only tree-positioned findings; findings positioned at an {@code Element}
+     * or with no source position still go through javac's {@code Messager} (see {@link
+     * DiagnosticSink}).
+     *
      * @param sink the diagnostic sink, or {@code null} to print to javac
      */
     public void setDiagnosticSink(@Nullable DiagnosticSink sink) {

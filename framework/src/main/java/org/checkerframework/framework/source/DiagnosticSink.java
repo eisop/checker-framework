@@ -18,6 +18,13 @@ import javax.tools.Diagnostic;
  * Framework findings become Error Prone {@code Description}s (honoring Error Prone severity,
  * suppression, and the suggested-fix / patch pipeline).
  *
+ * <p>Only findings positioned at a {@link Tree} reach the sink. A finding positioned at an {@link
+ * javax.lang.model.element.Element} (rather than a tree), or with no source position at all, is
+ * still reported directly through javac's {@code Messager}, because such a finding has no {@code
+ * Tree}/{@code TreePath} for a host to anchor its own diagnostic to. In Error Prone mode those
+ * (rare) findings therefore appear as plain javac diagnostics rather than host diagnostics. Almost
+ * all Checker Framework findings are positioned at a tree.
+ *
  * <p>This interface intentionally uses only {@code javax.tools}, {@code com.sun.source.tree}, and
  * Checker Framework types, so the Checker Framework core has no dependency on any host framework
  * (in particular, no dependency on Error Prone). The translation from these neutral values to a

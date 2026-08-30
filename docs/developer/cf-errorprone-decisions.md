@@ -359,6 +359,16 @@ flushes via `printStoredMessages` -> the same method on the parent). This is the
 one choke point to intercept, and intercepting on the parent covers multi-checker
 runs (Task 6) as well.
 
+Caveat: `report(source, ...)` reaches `printOrStoreMessage` (and thus the sink) only for
+a `Tree`-positioned finding. A finding positioned at an `Element`, or with no source
+position, goes straight to `messager.printMessage` on both paths. That is deliberate: the
+sink is `Tree`-shaped (the host needs a `Tree`/`TreePath` to position and suppress its own
+diagnostic), and an `Element` has no tree in general (e.g. a symbol from an
+already-compiled file). Such findings are rare — no production checker reports against an
+`Element` (the only live case is a test checker) — and they still print through javac, so
+they are visible; they are just not `eisopcf` diagnostics. Documented as a limitation in
+the manual's Error Prone section and on `DiagnosticSink`.
+
 **Decision.**
 - Add `org.checkerframework.framework.source.DiagnosticSink`, a `@FunctionalInterface`
   with `report(Diagnostic.Kind, String message, Tree source, CompilationUnitTree root)`.

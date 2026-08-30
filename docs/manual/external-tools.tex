@@ -947,6 +947,18 @@ Checker reports a nullness annotation on a primitive type (such as \<@Nullable i
 offers a fix that removes the annotation, so running Error Prone in patch mode rewrites
 \<@Nullable int x> to \<int x>.
 
+\subsectionAndLabel{Limitations}{error-prone-limitations}
+
+Almost every Checker Framework finding is positioned at a source-code construct and becomes
+an \<eisopcf> Error Prone diagnostic as described above.  A finding that is instead positioned
+at a program element with no corresponding source tree (for example, an error about a
+declaration in a different, already-compiled file), or that has no source position at all, is
+reported directly by \<javac> rather than through Error Prone.  Such a finding appears as an
+ordinary \<javac> diagnostic: it is not an \<eisopcf> diagnostic, so it is not affected by the
+\<eisopcf> severity setting and is not suppressed by \<@SuppressWarnings("eisopcf")> (a Checker
+Framework suppression key such as \<@SuppressWarnings("nullness")> still suppresses it).  In
+practice these findings are rare.
+
 
 \sectionAndLabel{Gradle}{gradle}
 
