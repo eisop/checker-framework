@@ -42,7 +42,13 @@ public final class CheckerFrameworkDriver {
     /** The initialized checkers to run, in order. */
     private final List<SourceChecker> checkers;
 
-    /** True once {@link #finish()} has run, to make it idempotent. */
+    /**
+     * True once {@link #finish()} has run. Makes {@link #finish()} idempotent at the driver level:
+     * {@code SourceChecker.typeProcessingOverExternally} is already once-only per checker, but this
+     * guard lets {@link #finish()} document and guarantee that contract on its own, without relying
+     * on that internal detail, and short-circuits the per-checker loop on repeated calls (the
+     * end-of-compilation TaskListener may fire {@code finish()} more than once).
+     */
     private boolean finished = false;
 
     /**
@@ -176,8 +182,10 @@ public final class CheckerFrameworkDriver {
     }
 
     /**
-     * Signals that all classes have been processed. Invokes each checker's {@code
-     * typeProcessingOverExternally} exactly once (idempotent).
+     * Signals that all classes have been processed, running each checker's end-of-compilation step
+     * (e.g. unneeded-suppression warnings) via {@code typeProcessingOverExternally}. Idempotent:
+     * safe to call more than once (see {@link #finished}), so the end-of-compilation {@code
+     * TaskListener} that invokes it need not track whether it has already fired.
      */
     public void finish() {
         if (finished) {
