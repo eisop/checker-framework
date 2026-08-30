@@ -87,7 +87,7 @@ public final class CheckerFrameworkDriver {
             SourceChecker checker = instantiate(className);
             // Externally-driven: Error Prone owns the compilation TaskListener, so the checker must
             // not register its own AttributionTaskListener.  Must be set before init().
-            checker.enableExternallyDrivenMode(true);
+            checker.setExternallyDriven(true);
             checker.init(procEnv);
             // After init(), so that any diagnostic init() itself issues still goes to javac: the
             // host's sink is only usable once the host is processing a class.

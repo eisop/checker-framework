@@ -117,10 +117,14 @@ public abstract class AbstractTypeProcessor extends AbstractProcessor {
      * Sets whether this processor is driven by an external host rather than by its own {@link
      * TaskListener}. Must be called before {@link #init(ProcessingEnvironment)}.
      *
+     * <p>A host that embeds the Checker Framework (such as the Error Prone plugin bridge) calls
+     * this with {@code true} and then drives the type-processing lifecycle through {@link
+     * #typeProcessExternally(TypeElement, TreePath)} and {@link #typeProcessingOverExternally()}.
+     *
      * @param externallyDriven true if a host will drive the type-processing lifecycle
      * @see #externallyDriven
      */
-    protected void setExternallyDriven(boolean externallyDriven) {
+    public void setExternallyDriven(boolean externallyDriven) {
         this.externallyDriven = externallyDriven;
     }
 

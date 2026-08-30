@@ -95,10 +95,9 @@ registered its own `AttributionTaskListener`, type-checking would run twice
 
 ### ADR-0001 notes: verification and API surface
 
-- `AbstractTypeProcessor.setExternallyDriven(boolean)` is `protected`. Because the
-  EP bridge lives in a different package and holds a `SourceChecker` reference,
-  `SourceChecker` exposes a public `enableExternallyDrivenMode(boolean)` wrapper
-  that must be called before `init(ProcessingEnvironment)`.
+- `AbstractTypeProcessor.setExternallyDriven(boolean)` is `public`, so the EP bridge
+  (in a different package, holding a `SourceChecker` reference) can call it directly.
+  It must be called before `init(ProcessingEnvironment)`.
 - Host-facing lifecycle helpers `typeProcessExternally(TypeElement, TreePath)` and
   `typeProcessingOverExternally()` handle the once-only `typeProcessingStart` /
   `typeProcessingOver` bracketing so the host does not duplicate the guard logic.
@@ -293,7 +292,7 @@ compilation it builds a `CheckerFrameworkDriver`, which:
    `EisopContextAdapter` (ADR-0003);
 2. instantiates each selected `SourceChecker` reflectively by name (no compile-time
    dependency on `:checker`);
-3. calls `enableExternallyDrivenMode(true)` then `init(procEnv)` (ADR-0001);
+3. calls `setExternallyDriven(true)` then `init(procEnv)` (ADR-0001);
 4. per class, calls `typeProcessExternally(classSymbol, state.getPath())`.
 
 The class symbol comes from `ASTHelpers.getSymbol(ClassTree)` and the `TreePath`
