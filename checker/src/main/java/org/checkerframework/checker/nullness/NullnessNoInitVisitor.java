@@ -988,8 +988,11 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
      *
      * <p>The fixes are expressed in the framework-agnostic {@link SuggestedFixData} representation
      * (source-offset edits computed with javac's {@link com.sun.source.util.SourcePositions}), so a
-     * host such as the Error Prone plugin can offer them; standalone javac ignores them. The
-     * Checker Framework owns this fix logic, keeping type-system-specific fixes out of any host.
+     * host such as the Error Prone plugin can offer them; standalone javac ignores them.
+     *
+     * <p>The returned fixes are alternatives, so in the rare case that a primitive type carries
+     * more than one nullness annotation, applying a single fix does not by itself resolve the
+     * finding.
      *
      * @param annoTrees extra annotation trees to consider (may be null), as passed to {@link
      *     #visitAnnotatedType}

@@ -16,6 +16,7 @@ import javax.tools.Diagnostic;
 /**
  * A {@code DiagMessage} is a kind, a message key, and arguments. The message key will be expanded
  * according to the user locale. Any arguments will then be interpolated into the localized message.
+ * A {@code DiagMessage} may also carry suggested fixes; see {@link #withFixes}.
  *
  * <p>By contrast, {@code javax.tools.Diagnostic} has just a string message.
  */
@@ -31,10 +32,11 @@ public class DiagMessage {
     private final Object[] args;
 
     /**
-     * Machine-applicable suggested fixes for this diagnostic, or an empty list if there are none. A
-     * host (such as the Error Prone plugin) may offer these through its own fix / patch pipeline;
-     * standalone javac ignores them. Expressed in the framework-agnostic {@link SuggestedFixData}
-     * representation, so the Checker Framework core has no dependency on any host framework.
+     * Machine-applicable suggested fixes for this diagnostic, or an empty list if there are none.
+     * Always unmodifiable. A host (such as the Error Prone plugin) may offer these through its own
+     * fix / patch pipeline; standalone javac ignores them. Expressed in the framework-agnostic
+     * {@link SuggestedFixData} representation, so the Checker Framework core has no dependency on
+     * any host framework.
      *
      * <p>Deliberately excluded from {@link #equals} and {@link #hashCode}: two diagnostics with the
      * same kind, key, and arguments are considered equal regardless of any attached fixes, which
@@ -83,7 +85,7 @@ public class DiagMessage {
      * @param kind the kind of message
      * @param messageKey the message key
      * @param args the arguments that will be interpolated into the localized message
-     * @param fixes the suggested fixes
+     * @param fixes the suggested fixes; this constructor takes ownership of the list
      */
     private DiagMessage(
             Diagnostic.Kind kind,
@@ -93,7 +95,7 @@ public class DiagMessage {
         this.kind = kind;
         this.messageKey = messageKey;
         this.args = args;
-        this.fixes = fixes;
+        this.fixes = Collections.unmodifiableList(fixes);
     }
 
     /**
@@ -141,7 +143,7 @@ public class DiagMessage {
      * @return the suggested fixes for this diagnostic
      */
     public List<SuggestedFixData> getFixes() {
-        return Collections.unmodifiableList(this.fixes);
+        return this.fixes;
     }
 
     /**

@@ -58,6 +58,11 @@ import javax.lang.model.util.ElementFilter;
  * rest of classes are analyzed. The tool is also permitted to stop type processing immediately if
  * any errors are raised, without invoking {@link #typeProcessingOver}.
  *
+ * <p>The above describes the default, self-driven mode, in which this class registers its own
+ * {@link TaskListener}. A host that already owns the compilation {@code TaskListener} can instead
+ * call {@link #setExternallyDriven} and drive steps 4-5 itself; see {@link #typeProcessExternally}
+ * and {@link #typeProcessingOverExternally}.
+ *
  * <p>A subclass may override any of the methods in this class, as long as the general {@link
  * javax.annotation.processing.Processor Processor} contract is obeyed, with one notable exception.
  * {@link #process(Set, RoundEnvironment)} may not be overridden, as it is called during the
@@ -87,21 +92,19 @@ public abstract class AbstractTypeProcessor extends AbstractProcessor {
     private final AttributionTaskListener listener = new AttributionTaskListener();
 
     /**
-     * Whether this processor is driven by an external host (e.g. an Error Prone plugin) instead of
-     * by its own {@link AttributionTaskListener}.
+     * Whether this processor is driven by an external host instead of by its own {@link
+     * AttributionTaskListener}.
      *
-     * <p>When {@code false} (the default), this processor registers its own {@link TaskListener} in
-     * {@link #init(ProcessingEnvironment)} and drives {@link #typeProcessingStart()}, {@link
-     * #typeProcess(TypeElement, TreePath)}, and {@link #typeProcessingOver()} itself. This is the
-     * standard standalone annotation-processor mode.
+     * <p>When {@code false} (the default), {@link #init(ProcessingEnvironment)} registers the
+     * listener, which drives {@link #typeProcessingStart()}, {@link #typeProcess(TypeElement,
+     * TreePath)}, and {@link #typeProcessingOver()}. This is the standard standalone
+     * annotation-processor mode.
      *
-     * <p>When {@code true}, this processor does <em>not</em> register a {@link TaskListener}. A
-     * host is responsible for invoking {@link #typeProcessingStart()}, {@link
-     * #typeProcess(TypeElement, TreePath)}, and {@link #typeProcessingOver()} (or, preferably,
-     * {@link #typeProcessExternally(TypeElement, TreePath)} and {@link
-     * #typeProcessingOverExternally()}, which handle the once-only lifecycle bracketing). This is
-     * used when the Checker Framework runs as an Error Prone plugin, where Error Prone already owns
-     * the compilation {@link TaskListener}.
+     * <p>When {@code true}, no {@link TaskListener} is registered and a host drives that lifecycle,
+     * preferably through {@link #typeProcessExternally(TypeElement, TreePath)} and {@link
+     * #typeProcessingOverExternally()}, which handle the once-only bracketing. This is used when
+     * the Checker Framework runs as an Error Prone plugin, because Error Prone already owns the
+     * compilation {@link TaskListener}.
      *
      * @see #setExternallyDriven(boolean)
      */
@@ -128,8 +131,9 @@ public abstract class AbstractTypeProcessor extends AbstractProcessor {
      * after FLOW. In externally-driven mode (see {@link #externallyDriven}), no {@link
      * TaskListener} is registered; the host drives the type-processing lifecycle instead.
      *
-     * <p>The {@code shouldStopPolicy} is bumped to at least {@code FLOW} in both modes. This is
-     * idempotent and Error Prone sets the same policy, so it is harmless when externally driven.
+     * <p>The {@code shouldStopPolicy} is bumped to at least {@code FLOW} in both modes. The bump is
+     * idempotent, so it is harmless if a host has already requested the same or a later stop
+     * policy.
      */
     @Override
     public synchronized void init(ProcessingEnvironment env) {

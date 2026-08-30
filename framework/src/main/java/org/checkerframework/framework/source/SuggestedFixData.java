@@ -6,11 +6,13 @@ import com.sun.source.util.SourcePositions;
 
 import org.checkerframework.checker.nullness.qual.Nullable;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
 import javax.tools.Diagnostic;
+import javax.tools.JavaFileObject;
 
 /**
  * A machine-applicable source edit that a {@link SourceChecker} may attach to a finding, so a host
@@ -24,9 +26,8 @@ import javax.tools.Diagnostic;
  * so the Checker Framework core stays framework-agnostic. Translating a {@code SuggestedFixData}
  * into a host-specific fix (e.g. an Error Prone {@code SuggestedFix}) is the host's responsibility.
  *
- * <p>The Checker Framework does not yet produce these for its findings in general; this type
- * establishes the neutral representation so that fixes flow through to a host's patch pipeline as
- * soon as a checker does produce them.
+ * <p>Most Checker Framework findings do not carry a fix. A checker that can compute one attaches it
+ * with {@link DiagMessage#withFixes}; see {@code NullnessNoInitVisitor} for an example.
  */
 public final class SuggestedFixData {
 
@@ -55,7 +56,7 @@ public final class SuggestedFixData {
         }
     }
 
-    /** The replacements that make up this fix, applied together. */
+    /** The replacements that make up this fix, applied together. Unmodifiable. */
     private final List<Replacement> replacements;
 
     /**
@@ -64,16 +65,16 @@ public final class SuggestedFixData {
      * @param replacements the replacements that make up this fix
      */
     public SuggestedFixData(List<Replacement> replacements) {
-        this.replacements = new ArrayList<>(replacements);
+        this.replacements = Collections.unmodifiableList(new ArrayList<>(replacements));
     }
 
     /**
-     * Returns the replacements that make up this fix.
+     * Returns the replacements that make up this fix. The returned list is unmodifiable.
      *
      * @return the replacements, applied together
      */
     public List<Replacement> getReplacements() {
-        return Collections.unmodifiableList(replacements);
+        return replacements;
     }
 
     /**
@@ -116,13 +117,13 @@ public final class SuggestedFixData {
      * Deleting the trailing whitespace avoids leaving a stray space behind: for example, deleting
      * the {@code @Nullable} annotation from {@code @Nullable int x} leaves {@code int x} rather
      * than a leading space before {@code int}. Uses javac's {@link SourcePositions} and the
-     * compilation unit's source text; all arguments are JDK types.
+     * compilation unit's source text; all arguments are JDK types. If the source text is
+     * unavailable, only {@code tree}'s own source range is deleted.
      *
      * @param sourcePositions javac source positions (e.g. from {@code trees.getSourcePositions()})
      * @param root the compilation unit containing {@code tree}
      * @param tree the tree to delete
-     * @return the fix, or {@code null} if {@code tree}'s source position or the source text is
-     *     unavailable
+     * @return the fix, or {@code null} if {@code tree}'s source position is unavailable
      */
     @SuppressWarnings("removal") // SourcePositions#getStartPosition/getEndPosition
     public static @Nullable SuggestedFixData deleteTree(
@@ -132,11 +133,19 @@ public final class SuggestedFixData {
         if (start == Diagnostic.NOPOS || end == Diagnostic.NOPOS) {
             return null;
         }
+        // getSourceFile() and getCharContent() may each return null, and getCharContent() may
+        // throw if the file cannot be read.  In any of those cases, fall back to deleting only the
+        // tree's own source range.
+        JavaFileObject sourceFile = root.getSourceFile();
         CharSequence source;
-        try {
-            source = root.getSourceFile().getCharContent(true);
-        } catch (Exception e) {
+        if (sourceFile == null) {
             source = null;
+        } else {
+            try {
+                source = sourceFile.getCharContent(true);
+            } catch (IOException e) {
+                source = null;
+            }
         }
         int deleteEnd = (int) end;
         if (source != null) {

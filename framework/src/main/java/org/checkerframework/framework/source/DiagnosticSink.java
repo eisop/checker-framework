@@ -42,14 +42,11 @@ public interface DiagnosticSink {
      * Receives one Checker Framework finding that may carry machine-applicable suggested fixes (as
      * alternatives).
      *
-     * <p>The default implementation ignores the fixes and delegates to {@link #report}, so existing
-     * single-method (lambda) sinks keep working. A host that supports fixes (such as the Error
-     * Prone plugin) overrides this to translate each fix into its own representation and attach it
-     * to the reported finding.
-     *
-     * <p>The Checker Framework does not yet produce fixes for its findings in general; this method
-     * defines the neutral channel so that, once a checker does, fixes reach a host's patch pipeline
-     * without any further core change.
+     * <p>This is the method that a {@link SourceChecker} invokes for every finding. The default
+     * implementation ignores the fixes and delegates to {@link #report}, so a host that has no fix
+     * pipeline can implement this interface with a lambda. A host that supports fixes (such as the
+     * Error Prone plugin) overrides this method to translate each fix into its own representation
+     * and attach it to the reported finding.
      *
      * @param kind the diagnostic kind
      * @param message the fully-formatted, localized message text

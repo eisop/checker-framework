@@ -753,8 +753,8 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     protected SourceChecker() {}
 
     /**
-     * Enables or disables externally-driven mode for this checker and (transitively) how its
-     * lifecycle is triggered. Must be called before {@link #init(ProcessingEnvironment)}.
+     * Enables or disables externally-driven mode for this checker. Must be called before {@link
+     * #init(ProcessingEnvironment)}.
      *
      * <p>In externally-driven mode this checker does not register its own compilation {@link
      * com.sun.source.util.TaskListener}; a host (such as the Error Prone plugin bridge) invokes
@@ -1790,6 +1790,11 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      * <p>This method exists so that the BaseTypeChecker can override it. For compound checkers, it
      * stores all messages and sorts them by location before outputting them.
      *
+     * <p>The framework itself no longer calls this overload; it calls {@link
+     * #printOrStoreMessage(Diagnostic.Kind, String, Tree, CompilationUnitTree, List)}, which
+     * additionally carries suggested fixes. A subclass that intercepts messages should override
+     * that overload instead.
+     *
      * @param kind the kind of message to print
      * @param message the message text
      * @param source the source code position of the diagnostic message
@@ -1846,6 +1851,11 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      * <p>This method exists so that the BaseTypeChecker can override it. For compound checkers, it
      * stores all messages and sorts them by location before outputting them.
      *
+     * <p>The framework itself no longer calls this overload; it calls {@link
+     * #printOrStoreMessage(Diagnostic.Kind, String, Tree, CompilationUnitTree, StackTraceElement[],
+     * List)}, which additionally carries suggested fixes. A subclass that intercepts messages
+     * should override that overload instead.
+     *
      * @param kind the kind of message to print
      * @param message the message text
      * @param source the source code position of the diagnostic message
@@ -1888,7 +1898,8 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
         if (diagnosticSink != null) {
             // A host (e.g. the Error Prone plugin) is intercepting findings; hand off the neutral
             // (kind, message, source, root, fixes) values instead of printing through javac's
-            // Trees.  If there are no fixes, reportWithFix's default delegates to report.
+            // Trees.  A sink that does not support fixes inherits reportWithFix's default
+            // implementation, which discards them and delegates to DiagnosticSink#report.
             diagnosticSink.reportWithFix(kind, message, source, root, fixes);
             return;
         }
