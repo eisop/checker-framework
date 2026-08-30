@@ -351,6 +351,13 @@ which `BaseTypeChecker` implements with a cache.
 
 **Implementation details:**
 
+`SourceChecker.printOrStoreMessage` no longer has the two `protected` overloads
+that took no suggested fixes (the four-argument form, and the five-argument form
+taking a `StackTraceElement[]`). The framework now routes all diagnostics
+through fix-carrying overloads, which are `private`. Host-side interception of
+diagnostics is done by installing a `DiagnosticSink`, not by overriding
+`printOrStoreMessage`.
+
 `AnnotatedIntersectionType.summarizeBounds` computes the summary described
 above, reading each bound's qualifier, explicit or defaulted, uniformly,
 and folding

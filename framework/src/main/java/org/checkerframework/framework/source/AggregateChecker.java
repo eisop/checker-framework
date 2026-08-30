@@ -1,13 +1,8 @@
 package org.checkerframework.framework.source;
 
-import com.sun.source.tree.CompilationUnitTree;
-import com.sun.source.tree.Tree;
-
 import java.util.Collection;
 import java.util.LinkedHashSet;
 import java.util.Set;
-
-import javax.tools.Diagnostic;
 
 /**
  * An abstract {@link SourceChecker} that runs independent subcheckers and interleaves their
@@ -19,8 +14,7 @@ import javax.tools.Diagnostic;
  *
  * <p>Though each checker is run on a whole compilation unit before the next checker is run, error
  * and warning messages are collected and sorted based on the location in the source file before
- * being printed. (See {@link #printOrStoreMessage(Diagnostic.Kind, String, Tree,
- * CompilationUnitTree)}.)
+ * being printed (see {@code printOrStoreMessage} in {@link SourceChecker}).
  *
  * <p>This class delegates {@code AbstractTypeProcessor} responsibilities to each component checker.
  *

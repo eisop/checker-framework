@@ -1785,35 +1785,12 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     }
 
     /**
-     * Do not call this method. Call {@link #reportError} or {@link #reportWarning} instead.
+     * Internal implementation of diagnostic reporting; callers use {@link #reportError} or {@link
+     * #reportWarning}.
      *
-     * <p>This method exists so that the BaseTypeChecker can override it. For compound checkers, it
-     * stores all messages and sorts them by location before outputting them.
-     *
-     * <p>The framework itself no longer calls this overload; it calls {@link
-     * #printOrStoreMessage(Diagnostic.Kind, String, Tree, CompilationUnitTree, List)}, which
-     * additionally carries suggested fixes. A subclass that intercepts messages should override
-     * that overload instead.
-     *
-     * @param kind the kind of message to print
-     * @param message the message text
-     * @param source the source code position of the diagnostic message
-     * @param root the compilation unit
-     */
-    protected void printOrStoreMessage(
-            javax.tools.Diagnostic.Kind kind,
-            String message,
-            Tree source,
-            CompilationUnitTree root) {
-        printOrStoreMessage(kind, message, source, root, Collections.emptyList());
-    }
-
-    /**
-     * Do not call this method. Call {@link #reportError} or {@link #reportWarning} instead.
-     *
-     * <p>Like {@link #printOrStoreMessage(Diagnostic.Kind, String, Tree, CompilationUnitTree)}, but
-     * additionally carries machine-applicable suggested fixes, which a host (e.g. the Error Prone
-     * plugin) may offer and which standalone javac ignores.
+     * <p>Stores the message (for compound checkers, which sort all messages by location before
+     * outputting them) or prints it. Carries machine-applicable suggested fixes, which a host (e.g.
+     * the Error Prone plugin) may offer and which standalone javac ignores.
      *
      * @param kind the kind of message to print
      * @param message the message text
@@ -1821,7 +1798,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      * @param root the compilation unit
      * @param fixes suggested fixes for this diagnostic (possibly empty)
      */
-    protected void printOrStoreMessage(
+    private void printOrStoreMessage(
             javax.tools.Diagnostic.Kind kind,
             String message,
             Tree source,
@@ -1846,39 +1823,13 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     private static final StackTraceElement[] EMPTY_STACK_TRACE = new StackTraceElement[0];
 
     /**
-     * Do not call this method. Call {@link #reportError} or {@link #reportWarning} instead.
+     * Internal implementation of diagnostic reporting; callers use {@link #reportError} or {@link
+     * #reportWarning}.
      *
-     * <p>This method exists so that the BaseTypeChecker can override it. For compound checkers, it
-     * stores all messages and sorts them by location before outputting them.
-     *
-     * <p>The framework itself no longer calls this overload; it calls {@link
-     * #printOrStoreMessage(Diagnostic.Kind, String, Tree, CompilationUnitTree, StackTraceElement[],
-     * List)}, which additionally carries suggested fixes. A subclass that intercepts messages
-     * should override that overload instead.
-     *
-     * @param kind the kind of message to print
-     * @param message the message text
-     * @param source the source code position of the diagnostic message
-     * @param root the compilation unit
-     * @param trace the stack trace where the checker encountered an error. It is printed when the
-     *     dumpOnErrors option is enabled.
-     */
-    protected void printOrStoreMessage(
-            javax.tools.Diagnostic.Kind kind,
-            String message,
-            Tree source,
-            CompilationUnitTree root,
-            StackTraceElement[] trace) {
-        printOrStoreMessage(kind, message, source, root, trace, Collections.emptyList());
-    }
-
-    /**
-     * Do not call this method. Call {@link #reportError} or {@link #reportWarning} instead.
-     *
-     * <p>Like {@link #printOrStoreMessage(Diagnostic.Kind, String, Tree, CompilationUnitTree,
-     * StackTraceElement[])}, but additionally carries machine-applicable suggested fixes. When a
-     * {@link DiagnosticSink} is installed, the fixes are passed to it via {@link
-     * DiagnosticSink#reportWithFix}; otherwise (standalone javac) they are ignored.
+     * <p>Prints or hands off the message together with machine-applicable suggested fixes. When a
+     * {@link DiagnosticSink} is installed, the message and fixes are passed to it via {@link
+     * DiagnosticSink#reportWithFix}; otherwise (standalone javac) the message is printed through
+     * javac's {@code Trees} and the fixes are ignored.
      *
      * @param kind the kind of message to print
      * @param message the message text
@@ -1888,7 +1839,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      *     -AdumpOnErrors}
      * @param fixes suggested fixes for this diagnostic (possibly empty)
      */
-    protected void printOrStoreMessage(
+    private void printOrStoreMessage(
             javax.tools.Diagnostic.Kind kind,
             String message,
             Tree source,
@@ -2306,8 +2257,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      *
      * <p>Though each checker is run on a whole compilation unit before the next checker is run,
      * error and warning messages are collected and sorted based on the location in the source file
-     * before being printed. (See {@link #printOrStoreMessage(Diagnostic.Kind, String, Tree,
-     * CompilationUnitTree)}.)
+     * before being printed (see {@code printOrStoreMessage}).
      *
      * <p>WARNING: Circular dependencies are not supported. (In other words, if checker A depends on
      * checker B, checker B cannot depend on checker A.) The Checker Framework does not check for
