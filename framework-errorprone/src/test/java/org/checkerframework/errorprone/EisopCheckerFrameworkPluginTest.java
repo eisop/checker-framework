@@ -46,6 +46,10 @@ public class EisopCheckerFrameworkPluginTest {
     /** A helper running the {@code eisopcf} plugin with the Nullness Checker selected. */
     private CompilationTestHelper helper;
 
+    /**
+     * Sets up a {@link CompilationTestHelper} running the {@code eisopcf} plugin with the Nullness
+     * Checker.
+     */
     @Before
     public void setUp() {
         helper = helperWith("-XepOpt:eisopcf:checkers=" + NULLNESS_CHECKER);

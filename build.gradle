@@ -844,6 +844,19 @@ def javadocDirs = [
 
 def requireJavadocDirs = javadocDirs
 
+// framework-errorprone exists only on JDK 21+ builds (gated in settings.gradle), so it is not in
+// the unconditional javadocDirs list above.  When it IS part of the build, include its sources in
+// the require-javadoc completeness check, so its Javadoc is enforced like every other module's.
+// (allJavadoc still omits it: it is a leaf plugin module, not part of the published API docs.)
+if (findProject(':framework-errorprone') != null) {
+    project(':framework-errorprone').afterEvaluate {
+        requireJavadocDirs += [
+            project(':framework-errorprone').sourceSets.main.allJava,
+            project(':framework-errorprone').sourceSets.test.allJava
+        ]
+    }
+}
+
 // The wrapping '[ ]' is required.  'requireJavadocDirs += someSourceDirectorySet'
 // would resolve Groovy's plus(List, Iterable) overload (SourceDirectorySet is
 // Iterable<File> but not a Collection) and flatten the set into individual File

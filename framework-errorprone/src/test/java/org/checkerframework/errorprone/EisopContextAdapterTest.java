@@ -109,6 +109,12 @@ public class EisopContextAdapterTest {
 
     /** Assertions run against a live javac {@link Context} during the ANALYZE phase. */
     private interface ContextAssertions {
+        /**
+         * Runs the assertions against the given context.
+         *
+         * @param context the live javac context
+         * @throws Throwable if an assertion fails
+         */
         void run(Context context) throws Throwable;
     }
 
