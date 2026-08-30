@@ -391,4 +391,71 @@ public class EisopCheckerFrameworkPluginTest {
                         "}")
                 .doTest();
     }
+
+    /**
+     * A finding inside a nested class is reported exactly once. Error Prone's scanner matches every
+     * class node (including nested ones), but the Checker Framework already type-checks a nested
+     * class as part of its enclosing top-level class's recursive scan; driving it again per nested
+     * class reported each such finding once per level of nesting. Regression test for that
+     * double-reporting bug: the {@code // BUG:} marker asserts the finding is present, and
+     * expecting no other diagnostics asserts it is not duplicated.
+     */
+    @Test
+    public void findingInNestedClassReportedOnce() {
+        helper.addSourceLines(
+                        "test/Nested.java",
+                        "package test;",
+                        "class Nested {",
+                        "  class Inner {",
+                        "    // BUG: Diagnostic contains: return.type.incompatible",
+                        "    String m() { return null; }",
+                        "  }",
+                        "}")
+                .doTest();
+    }
+
+    /**
+     * A finding inside a local class (nested two levels deep, within a method) is reported exactly
+     * once. Deeper nesting compounded the double-reporting bug (n+1 reports for depth n), and a
+     * local class is a non-{@code TOP_LEVEL} nesting kind distinct from a member class, so this
+     * covers that the top-level-only driving handles it too.
+     */
+    @Test
+    public void findingInLocalClassReportedOnce() {
+        helper.addSourceLines(
+                        "test/WithLocal.java",
+                        "package test;",
+                        "class WithLocal {",
+                        "  void outer() {",
+                        "    class Local {",
+                        "      // BUG: Diagnostic contains: return.type.incompatible",
+                        "      String m() { return null; }",
+                        "    }",
+                        "  }",
+                        "}")
+                .doTest();
+    }
+
+    /**
+     * A finding inside an anonymous class is reported exactly once. An anonymous class is a
+     * non-{@code TOP_LEVEL} nesting kind ({@code ANONYMOUS}), distinct from member and local
+     * classes; this confirms the top-level-only driving handles it too, so the finding is not
+     * duplicated.
+     */
+    @Test
+    public void findingInAnonymousClassReportedOnce() {
+        helper.addSourceLines(
+                        "test/WithAnon.java",
+                        "package test;",
+                        "import java.util.concurrent.Callable;",
+                        "class WithAnon {",
+                        "  Callable<String> c =",
+                        "      new Callable<String>() {",
+                        "        @Override",
+                        "        // BUG: Diagnostic contains: return.type.incompatible",
+                        "        public String call() { return null; }",
+                        "      };",
+                        "}")
+                .doTest();
+    }
 }

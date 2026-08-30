@@ -32,6 +32,7 @@ import java.util.Deque;
 import java.util.List;
 
 import javax.inject.Inject;
+import javax.lang.model.element.NestingKind;
 import javax.tools.Diagnostic;
 
 /**
@@ -39,9 +40,10 @@ import javax.tools.Diagnostic;
  *
  * <p>This is a single entry point: it builds one AST/CFG per compilation and runs the Checker
  * Framework type system(s) selected by the {@code eisopcf:checkers} Error Prone option over it,
- * rather than registering multiple independent annotation processors. It mirrors the Checker
- * Framework's own per-class ({@link ClassTree}) processing granularity by implementing {@link
- * ClassTreeMatcher}.
+ * rather than registering multiple independent annotation processors. Although it implements {@link
+ * ClassTreeMatcher}, it drives the Checker Framework only for top-level classes: the Checker
+ * Framework recursively type-checks each top-level class's whole subtree (nested, local, and
+ * anonymous classes included), mirroring how it runs in standalone mode.
  *
  * <p>Selection example:
  *
@@ -372,6 +374,16 @@ public class EisopCheckerFrameworkPlugin extends BugChecker implements ClassTree
         ClassSymbol classSymbol = ASTHelpers.getSymbol(tree);
         TreePath path = state.getPath();
         if (classSymbol == null || path == null) {
+            return Description.NO_MATCH;
+        }
+        // Error Prone's scanner matches every class node -- top-level, nested, local, and
+        // anonymous -- but the Checker Framework's SourceVisitor.visit(TreePath) recursively scans
+        // the whole subtree it is given (it expects a top-level type tree).  So a nested class is
+        // already type-checked as part of its enclosing top-level class's scan.  Drive the checker
+        // only for top-level classes, mirroring standalone mode (where the AttributionTaskListener
+        // fires typeProcess once per top-level type); otherwise every nested class would be
+        // re-checked and its findings reported once per level of nesting.
+        if (classSymbol.getNestingKind() != NestingKind.TOP_LEVEL) {
             return Description.NO_MATCH;
         }
         // Make the current state available to the diagnostic sink, which fires (re-entrantly) while
