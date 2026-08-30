@@ -806,13 +806,13 @@ two ways:
   project.  The rest of this section describes this mode.
 \end{enumerate}
 
-Running the Checker Framework as an Error Prone plugin makes its findings into Error Prone
+Running the Checker Framework as an Error Prone plugin turns its findings into Error Prone
 diagnostics, so they honor Error Prone's severity configuration, its suppression mechanism,
 and its suggested-fix and patch pipeline.  This is useful if you already use Error Prone and
 want to enable Checker Framework type systems through your existing Error Prone
 configuration.  Running the Checker Framework standalone (mode 1 above, or without Error
-Prone at all) remains fully supported and behaves identically; choose whichever fits your
-build.
+Prone at all) remains fully supported and finds the same errors; only how they are reported
+and configured differs.
 
 Running as an Error Prone plugin requires JDK 21 or later, because Error Prone itself
 requires JDK 21 or later.
@@ -824,7 +824,8 @@ run all on Error Prone's annotation processor path.  The plugin loads each selec
 by name, so any Checker Framework checker on the path can be run.
 
 The plugin is published to Maven Central as \code{io.github.eisop:framework-errorprone},
-with the same version as the other Checker Framework artifacts.
+with the same version as the other Checker Framework artifacts; replace \<VERSION> below
+with that version (currently \ReleaseVersion{}).
 
 For example, with the
 \href{https://github.com/tbroyer/gradle-errorprone-plugin}{Gradle Error Prone plugin}, add
@@ -874,11 +875,11 @@ comma-separated list of fully-qualified checker class names.
 \begin{Verbatim}
 -XepOpt:eisopcf:checkers=org.checkerframework.checker.nullness.NullnessChecker
 \end{Verbatim}
-Several type systems can run together over a single compilation:
+Several type systems can run together over a single compilation.  The list is a single
+command-line argument, so it must not contain spaces:
 \begin{Verbatim}
--XepOpt:eisopcf:checkers=\
-  org.checkerframework.checker.nullness.NullnessChecker,\
-  org.checkerframework.checker.interning.InterningChecker
+-XepOpt:eisopcf:checkers=org.checkerframework.checker.nullness.NullnessChecker,\
+org.checkerframework.checker.interning.InterningChecker
 \end{Verbatim}
 As when running standalone with \<javac -processor A,B>, the selected type systems share
 the compilation's AST, and each builds its own control-flow graph.
@@ -901,7 +902,8 @@ finding.  It defaults to a warning.  Override it with the standard Error Prone m
 -Xep:eisopcf:OFF
 \end{Verbatim}
 All findings from all selected type systems share the \<eisopcf> severity; the Checker
-Framework's own error-versus-warning distinction is preserved textually in each message.
+Framework's own error-versus-warning distinction is preserved textually, by prefixing the
+message of a Checker Framework warning with \<[warning]>.
 
 \subsectionAndLabel{Suppressing warnings}{error-prone-suppression}
 

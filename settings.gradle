@@ -16,8 +16,9 @@ include 'javacutil'
 // the module is absent entirely, so it never affects the standalone (Java 8+) build path.
 // See docs/developer/cf-errorprone-decisions.md, ADR-0002.
 //
-// settings.gradle is evaluated before build.gradle, so the JDK version is computed here directly
-// (mirroring the useJdkVersion / runtime-version logic in the root build.gradle).
+// settings.gradle is evaluated before build.gradle, so the JDK version is computed here directly:
+// the 'useJdkVersion' property if given, else the JVM running Gradle.  Keep in sync with
+// majorVersionToInt and useJdkVersionInt in the root build.gradle.
 def useJdkVersionProp = settings.hasProperty('useJdkVersion') ? settings.getProperty('useJdkVersion') : null
 def firstDigits = { String s -> def m = (s =~ /^(\d+)/); (m ? m[0][0] : s) as Integer }
 def buildJdkMajor = useJdkVersionProp != null

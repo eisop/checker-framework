@@ -20,9 +20,10 @@ see [`cf-errorprone-decisions.md`](cf-errorprone-decisions.md).
     registered with Error Prone via a hand-written
     `META-INF/services/com.google.errorprone.bugpatterns.BugChecker` resource.
   - `EisopContextAdapter` — obtains the javac `ProcessingEnvironment` from Error Prone's
-    `VisitorState.context` (via `JavacProcessingEnvironment.instance`), and guards that the
-    Checker Framework's own (un-relocated) dataflow classes are used, not Error Prone's
-    shaded copy.
+    `VisitorState.context` (with `Context.get`, so that a context without one is diagnosed
+    rather than silently given a fresh, unrelated environment), and reports which dataflow
+    copy is loaded, so that a test can check that the Checker Framework's own (un-relocated)
+    dataflow classes are used rather than Error Prone's shaded copy.
   - `CheckerFrameworkDriver` — instantiates the selected `SourceChecker`s by reflection and
     drives them per class through the externally-driven lifecycle. Contains no Error Prone
     types.
@@ -66,6 +67,6 @@ cd docs/examples/eisop-errorprone
 make all
 ```
 
-`make all` builds the required jars, compiles the demo, and checks the expected
+`make all` builds the required jars, compiles the demo, and checks that the expected
 `[eisopcf] [dereference.of.nullable]` diagnostic is produced (JDK 21+; a no-op otherwise).
 Its `build.gradle` doubles as a template for a real build.

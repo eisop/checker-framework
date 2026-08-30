@@ -40,7 +40,7 @@ Current dependency order (no Guava/EP anywhere in these):
 
 ## Cyclic-dependency constraint (verified)
 
-`error-prone/check_api` depends on `io.github.eisop:dataflow-errorprone`, which
+`error_prone_check_api` depends on `io.github.eisop:dataflow-errorprone`, which
 is produced by *this* repo's `dataflow` module (`createDataflowShaded('errorprone')`
 in `dataflow/build.gradle`). Therefore:
 
@@ -136,9 +136,11 @@ JDK is 21+).
   (chosen option "a"). On Java 8/11/17 builds the module is not part of the build at
   all, so it never configures its EP dependency and cannot affect the standalone
   Java 8 build path.
-- Inside the module, override the global Java 8 compatibility: compile with
-  `options.release = 21` and the same `--add-exports jdk.compiler/...` flags the rest
-  of the build uses on JDK 9+ (the CF reaches into `com.sun.tools.javac.*`).
+- Inside the module, override the global Java 8 compatibility: set
+  `sourceCompatibility`/`targetCompatibility` to 21 (not `options.release`, which javac
+  rejects together with `--add-exports` of system-module packages) and pass the same
+  `--add-exports jdk.compiler/...` flags the rest of the build uses on JDK 9+ (the CF
+  reaches into `com.sun.tools.javac.*`).
 - Consequence, stated plainly: **CF-as-an-Error-Prone-plugin requires JDK 21+.**
   Standalone annotation-processor mode keeps its full Java 8+ support, unchanged.
   No capability is lost, since EP already requires 21+.
@@ -204,10 +206,11 @@ processor path untouched, avoiding the version-conflict fragility above.
 - `settings.gradle` computes the build JDK major version directly (settings is
   evaluated before build.gradle) and only `include 'framework-errorprone'` when it
   is >= 21.
-- The module sets `sourceCompatibility`/`targetCompatibility = 21` (NOT
-  `options.release`, which is incompatible with `--add-exports` of JDK system
-  packages) and passes the same `--add-exports jdk.compiler/...` the rest of the
-  build uses on JDK 9+.
+- The javac-internal flags are not repeated in the module: the root `build.gradle`
+  derives `compilerArgsForCompilingCF` (the `--add-exports` only, since a compile-time
+  `--add-opens` warns and would fail the `-Werror` build) and
+  `compilerArgsForRunningCF` (those plus the `--add-opens`) from one list of package
+  names, and the module reuses both.
 - The module inherits the shared root config (spotless; the `net.ltgt.errorprone`
   build-time linter with `-Werror`). Its code must therefore be EP-linter-clean;
   `@SuppressWarnings("BugPatternNaming")` is used on the plugin class because the
@@ -216,7 +219,7 @@ processor path untouched, avoiding the version-conflict fragility above.
 
 ---
 
-## ADR-0003: Context -> ProcessingEnvironment via JavacProcessingEnvironment.instance
+## ADR-0003: Context -> ProcessingEnvironment from the javac Context
 
 **Status:** accepted (Task 3)
 
@@ -225,12 +228,15 @@ processor path untouched, avoiding the version-conflict fragility above.
 In Error Prone mode the bridge only has Error Prone's `VisitorState.context`, a
 `com.sun.tools.javac.util.Context`.
 
-**Decision.** Obtain the environment with
-`JavacProcessingEnvironment.instance(context)`. This works because the
+**Decision.** Obtain the environment from the javac `Context`, with
+`context.get(JavacProcessingEnvironment.class)`. This works because the
 `JavacProcessingEnvironment` singleton stays registered in the `Context` through
 the ANALYZE phase (when Error Prone, and therefore this plugin, runs). It is
-precedented: NullAway does the same (`Trees.instance(JavacProcessingEnvironment
-.instance(state.context))`). `SourceChecker.unwrapProcessingEnvironment`
+precedented: NullAway obtains the same environment (`Trees.instance(
+JavacProcessingEnvironment.instance(state.context))`). `Context.get` is used rather
+than `JavacProcessingEnvironment.instance` because the latter would construct and
+register a fresh environment unrelated to the compilation instead of revealing that
+none is present. `SourceChecker.unwrapProcessingEnvironment`
 explicitly recognizes a `JavacProcessingEnvironment` and uses it as-is, so this is
 *the same* environment the CF gets in standalone mode.
 
@@ -239,16 +245,19 @@ compiler API — so the Context-to-ProcessingEnvironment concern is unit-testabl
 without constructing a `VisitorState`.
 
 **Consequences / caveats.**
-- Annotation processing must be enabled: with `-proc:none` no
-  `JavacProcessingEnvironment` is created. The adapter throws a clear
-  `IllegalStateException` in that case. (Error Prone itself runs with processing
-  enabled, so this is not a practical restriction.)
+- The environment is registered even under `-proc:none`: javac's
+  `BasicJavacTask.initPlugins` calls `JavacProcessingEnvironment.instance(context)`
+  unconditionally, in order to service-load `com.sun.source.util.Plugin`s, so the
+  singleton exists whenever a plugin such as Error Prone can run at all. (Verified by a
+  test that compiles with `-proc:none`.) The adapter's `IllegalStateException` therefore
+  signals a `Context` that is not that of a live javac compilation, not that annotation
+  processing was turned off.
 - Element/type resolution via the environment is only valid *while the compiler is
   live* (during the ANALYZE callback), not after the task completes. The Error
   Prone plugin runs mid-compilation, so this is naturally satisfied; the unit test
   runs its assertions inside an ANALYZE `TaskListener` for the same reason.
 
-## ADR-0003 notes: dataflow classloader guard (Task 3)
+### ADR-0003 notes: dataflow classloader guard (Task 3)
 
 **Concern (from ADR-0002 notes).** Error Prone's classpath carries a
 package-relocated, older dataflow copy (`org.checkerframework.errorprone.dataflow`,
@@ -288,7 +297,12 @@ compilation it builds a `CheckerFrameworkDriver`, which:
 4. per class, calls `typeProcessExternally(classSymbol, state.getPath())`.
 
 The class symbol comes from `ASTHelpers.getSymbol(ClassTree)` and the `TreePath`
-from `VisitorState.getPath()` (leaf = the matched `ClassTree`).
+from `VisitorState.getPath()` (leaf = the matched `ClassTree`). Only *top-level*
+classes are driven: Error Prone's scanner matches every class node, but the CF's
+`SourceVisitor.visit(TreePath)` recursively scans the whole subtree it is given, so a
+nested, local, or anonymous class is already checked as part of its top-level class.
+This mirrors standalone mode, where `AttributionTaskListener` fires `typeProcess` once
+per top-level type.
 
 **End-of-compilation.** The CF's `typeProcessingOver` is a whole-compilation step
 (e.g. unneeded-suppression warnings), but `ClassTreeMatcher` has no end hook. The
@@ -369,7 +383,8 @@ runs (Task 6) as well.
 - `@SuppressWarnings("eisopcf")` is honored at the granularity of the enclosing
   class (the tree the plugin matches, which is the `VisitorState` path when the sink
   fires). Finer-grained CF `@SuppressWarnings` keys still work via the CF's own
-  suppression, which runs before a finding ever reaches the sink.
+  suppression, which runs before a finding ever reaches the sink. (Superseded by
+  ADR-0009: `"eisopcf"` is now honored at any enclosing declaration.)
 
 **Verified (EisopCheckerFrameworkPluginTest).** return-null finding appears as an
 `eisopcf` diagnostic; `@SuppressWarnings("eisopcf")` suppresses it (proving it is an
@@ -415,8 +430,8 @@ introduced.
 already covers multiple checkers (each reports through the sink). The plugin change
 is limited to surfacing a configuration error (e.g. an unresolvable checker name)
 once, as a clean `eisopcf` diagnostic on the class, instead of an unhandled plugin
-exception (`configErrorReported` flag; `matchClass` catches `IllegalArgumentException`
-from driver creation).
+exception (`matchClass` catches `IllegalArgumentException` from driver creation and
+records the compilation `Context` it reported for, in `configErrorContext`).
 
 **Verified (EisopCheckerFrameworkPluginTest).**
 - `multipleCheckersRunTogether`: Nullness (`return.type.incompatible`) and Interning
@@ -450,10 +465,11 @@ the CF is a large, separate feature out of scope here.
    - `DiagnosticSink` gains a `default reportWithFix(kind, message, source, root,
      @Nullable SuggestedFixData)` that by default ignores the fix and delegates to
      `report(...)`, so existing lambda sinks keep working. No CF code calls it with a
-     non-null fix yet (the CF produces none), but the channel is defined and unit
-     -tested (`SuggestedFixDataTest`), and the module translates it to an Error Prone
-     `SuggestedFix` (`EisopCheckerFrameworkPlugin.toErrorProneFix`, position-based
-     `SuggestedFix.Builder.replace`).
+     non-null fix yet (the CF produces none), but the channel is defined and
+     unit-tested (`SuggestedFixDataTest`), and the module translates it to an Error
+     Prone `SuggestedFix` (`EisopCheckerFrameworkPlugin.toErrorProneFix`,
+     position-based `SuggestedFix.Builder.replace`). (ADR-0011 later widened the
+     parameter to a `List<SuggestedFixData>` and gave the channel its first producer.)
 
 2. **A real, always-available suppression fix** (mirrors Error Prone's own checks):
    every `eisopcf` finding's `Description` carries
@@ -569,8 +585,8 @@ missing suggested fix must never break compilation).
 **Tests.** `EisopCheckerFrameworkPluginTest.perTypeSystemSuppression` (both checkers
 enabled; `"nullness"`, `"interning"`, `"allcheckers"` at method level) and
 `eisopcfKeySuppressesAtAnyDeclaration` (`"eisopcf"` at class, method, field, and
-local-variable level, each with a sibling finding that still reports). The user guide's
-Suppression section documents this with a summary table.
+local-variable level, each with a sibling finding that still reports). The manual's
+"Suppressing warnings" subsection documents both layers.
 
 
 
@@ -605,8 +621,8 @@ don't claim them; EP-as-plugin with no processor passes them through quietly).
 **Test.** `EisopCheckerFrameworkPluginTest.checkerOptionsArePassedWithDashA` compiles a
 returning-null program under the Nullness Checker with `-AsuppressWarnings=nullness` and
 asserts no diagnostics — a `-A` option visibly changing checker behavior under `eisopcf`.
-The user guide gains a "Checker Framework options" section, and the runnable example shows
-the syntax in comments.
+The manual gains a "Command-line options for checkers" subsection, and the runnable example
+shows the syntax in comments.
 
 
 ---
@@ -695,7 +711,8 @@ picks up every subproject that has a publishing block — so `framework-errorpro
 included automatically. Caveat: `framework-errorprone` is gated to JDK 21+ in
 `settings.gradle`, so the Maven-publish step must run on JDK 21+ or the module is silently
 excluded from the build and not published. This is documented in the release README
-(`README-release-process.html`). The current release is built on JDK 21, so this holds.
+(`README-release-process.html`). It holds today: `release_vars.py` sets `JAVA_HOME` to
+`JAVA_21_HOME`.
 
 **Docs.** The manual's "Error Prone" section states the plugin is published as
 `io.github.eisop:framework-errorprone`. The runnable example still consumes locally-built

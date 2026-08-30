@@ -4,8 +4,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Demonstrates the EISOP Checker Framework running as an Error Prone plugin (the {@code eisopcf}
- * check). Compiling this class with the plugin enabled and the Nullness Checker selected produces a
- * Nullness Checker error on the {@code toString()} call below.
+ * check). Compiling this class with the plugin enabled and the Nullness Checker selected produces
+ * an {@code eisopcf} diagnostic on the {@code toString()} call below.
  */
 public class Demo {
 
@@ -13,8 +13,8 @@ public class Demo {
     private @Nullable Object field;
 
     /**
-     * Dereferences a possibly-null field, which the Nullness Checker reports as an error when run
-     * via the {@code eisopcf} Error Prone plugin.
+     * Dereferences a possibly-null field, which the Nullness Checker reports when run via the
+     * {@code eisopcf} Error Prone plugin.
      *
      * @return the field's string form
      */

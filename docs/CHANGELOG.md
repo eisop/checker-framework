@@ -4,8 +4,9 @@ Version 3.49.5-eisop2 (June ?, 2026)
 **User-visible changes:**
 
 The Checker Framework can now run as an Error Prone plugin (the `eisopcf` check), as an
-alternative to running it as a standalone annotation processor; it is published as
-`io.github.eisop:framework-errorprone` and requires JDK 21 or later.
+alternative to running it as a standalone annotation processor.  It is published as
+`io.github.eisop:framework-errorprone` and requires JDK 21 or later.  See the manual's
+"Error Prone" section.
 
 The Checker Framework now issues an `annotation.on.supertype` error when an annotation supported by
 the checker is written as a main annotation on the superclass or interface in an `extends` or

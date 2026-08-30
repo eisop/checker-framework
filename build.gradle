@@ -235,8 +235,8 @@ allprojects { currentProj ->
     }
 
     ext {
-        // A list of add-export and add-open arguments to be used when running the Checker Framework.
-        // Keep this list in sync with the lists in CheckerMain#getExecArguments,
+        // The add-export and add-open arguments for compiling and for running the Checker Framework.
+        // Keep these lists in sync with the lists in CheckerMain#getExecArguments,
         // the sections with labels "javac-jdk11-non-modularized", "maven", and "sbt" in the manual
         // and in the checker-framework-gradle-plugin, CheckerFrameworkPlugin#applyToProject
         //
@@ -253,9 +253,9 @@ allprojects { currentProj ->
         javacInternalExportedPackages = javacExportedPackages
         javacInternalOpenedPackages = javacOpenedPackages
 
-        // The --add-exports-only arguments, for compiling code that reaches into javac internals.
-        // A compile-time --add-opens has no effect and warns, which fails builds under -Werror, so
-        // this list omits the opens.  Only framework-errorprone currently needs javac-internal
+        // The --add-exports arguments, for compiling code that reaches into javac internals.  This
+        // list omits the --add-opens: at compile time they have no effect and javac warns, which
+        // fails the build under -Werror.  Only framework-errorprone currently needs javac-internal
         // exports at compile time.
         compilerArgsForCompilingCF = javacExportedPackages.collectMany {
             ['--add-exports', "jdk.compiler/com.sun.tools.javac.${it}=ALL-UNNAMED".toString()]
@@ -472,8 +472,8 @@ allprojects { currentProj ->
             options.tagletPath(project(':framework-test').layout.buildDirectory.dir("classes/java/${tagletVersion}").get().asFile)
 
             if (!isJava8) {
-                // Javadoc reaches into the same javac-internal packages as running the CF; here
-                // the opened package (comp) is also merely exported since javadoc needs no more.
+                // Javadoc needs the same javac-internal packages as running the CF, but only
+                // exported: the package that is opened at run time (comp) is merely exported here.
                 (javacInternalExportedPackages + javacInternalOpenedPackages).each { pkg ->
                     options.addBooleanOption("-add-exports=jdk.compiler/com.sun.tools.javac.${pkg}=ALL-UNNAMED", true)
                 }

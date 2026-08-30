@@ -1346,9 +1346,9 @@ The Checker Framework does not apply fixes itself, and standalone \<javac> ignor
 them.  A host that runs the checker can offer them through its own refactoring
 mechanism; in particular, when the checker runs as an Error Prone plugin
 (Section~\ref{error-prone}), each suggested fix becomes an Error Prone
-\<SuggestedFix>, so it participates in Error Prone's patch workflow.  Because the
-suggested-fix representation is host-agnostic, the checker's fix logic works with
-any such host and the Checker Framework core does not depend on any of them.
+\<SuggestedFix>, so it participates in Error Prone's patch workflow.  The
+representation of a fix mentions no host type, so the same fix logic in a checker
+works with any such host.
 
 To attach fixes, report the error with a
 \refclass{framework/source}{DiagMessage} that carries them, using
@@ -1375,8 +1375,11 @@ and the current compilation unit (the visitor's \code{root} field); for example:
 
 \refclass{framework/source}{SuggestedFixData} also provides \code{replaceTree} (to
 replace a tree with new text) and lower-level \code{replace} (raw source offsets).
-When a finding has several independent fixes, pass them all to \code{withFixes} as
-alternatives.  For a complete example, see
+The tree-based factory methods return \<null> if the tree's source position is
+unavailable; skip such a fix rather than attaching it.  The replacements within one
+\<SuggestedFixData> are applied together, whereas multiple \<SuggestedFixData>s
+passed to \code{withFixes} are alternative fixes, of which a host applies one (Error
+Prone's patch mode applies the first).  For a complete example, see
 \refclass{checker/nullness}{NullnessNoInitVisitor}, which builds a removal fix for
 each offending nullness annotation on a primitive type.
 
