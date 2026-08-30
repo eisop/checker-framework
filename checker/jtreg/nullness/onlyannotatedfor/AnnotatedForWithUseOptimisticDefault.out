@@ -9,10 +9,10 @@ method return type: @KeyForBottom Object
 AnnotatedForWithUse.java:18:20: compiler.err.proc.messager: [return.type.incompatible] incompatible types in return.
 type of expression: @Nullable NullType
 method return type: @NonNull Object
-AnnotatedForWithUse.java:30:19: compiler.err.proc.messager: [assignment.type.incompatible] incompatible types in assignment.
+AnnotatedForWithUse.java:33:19: compiler.err.proc.messager: [assignment.type.incompatible] incompatible types in assignment.
 found   : @UnknownKeyFor NullType
 required: @KeyForBottom Object
-AnnotatedForWithUse.java:30:19: compiler.err.proc.messager: [assignment.type.incompatible] incompatible types in assignment.
+AnnotatedForWithUse.java:33:19: compiler.err.proc.messager: [assignment.type.incompatible] incompatible types in assignment.
 found   : @Nullable NullType
 required: @NonNull Object
 9 errors

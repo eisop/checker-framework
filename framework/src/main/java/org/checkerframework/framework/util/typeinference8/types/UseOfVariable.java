@@ -9,7 +9,6 @@ import org.checkerframework.framework.util.typeinference8.util.Java8InferenceCon
 import org.checkerframework.javacutil.AnnotationMirrorMap;
 import org.checkerframework.javacutil.AnnotationMirrorSet;
 
-import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
@@ -116,8 +115,13 @@ public class UseOfVariable extends AbstractType {
         return Kind.USE_OF_VARIABLE;
     }
 
+    /**
+     * Returns an unmodifiable singleton set containing this variable.
+     *
+     * @return an unmodifiable singleton set containing this variable
+     */
     @Override
-    public Collection<Variable> getInferenceVariables() {
+    public Set<Variable> getInferenceVariables() {
         return Collections.singleton(variable);
     }
 
@@ -242,14 +246,20 @@ public class UseOfVariable extends AbstractType {
         return type.equals(that.type);
     }
 
+    /** Cached hash code to prevent repeated recomputation of complex deep-hashes. */
+    private int cachedHashCode = 0;
+
     @Override
     public int hashCode() {
-        int result = super.hashCode();
-        result = 31 * result + variable.hashCode();
-        result = 31 * result + (hasPrimaryAnno ? 1 : 0);
-        result = 31 * result + bots.hashCode();
-        result = 31 * result + tops.hashCode();
-        result = 31 * result + type.hashCode();
-        return result;
+        if (cachedHashCode == 0) {
+            int result = super.hashCode();
+            result = 31 * result + variable.hashCode();
+            result = 31 * result + (hasPrimaryAnno ? 1 : 0);
+            result = 31 * result + bots.hashCode();
+            result = 31 * result + tops.hashCode();
+            result = 31 * result + type.hashCode();
+            cachedHashCode = result == 0 ? 1 : result;
+        }
+        return cachedHashCode;
     }
 }

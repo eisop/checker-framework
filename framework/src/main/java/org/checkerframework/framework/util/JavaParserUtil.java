@@ -129,18 +129,60 @@ public class JavaParserUtil {
      * it creates a new instance of JavaParser each time it is invoked. Re-using {@code
      * StaticJavaParser} causes memory problems because it retains too much memory.
      *
+     * <p>This variant preserves JavaToken objects on the parsed AST so that {@link
+     * ParseProblemException}s emitted on malformed user-supplied stubs include precise token-level
+     * diagnostics. Callers that parse the annotated JDK and do not need that diagnostic detail
+     * should use {@link #parseStubUnitForJdk(InputStream)} instead, which is measurably faster and
+     * allocates less.
+     *
      * @param inputStream the stub file
      * @return StubUnit representing the stub file
      * @throws ParseProblemException if the source code has parser errors
      */
     public static StubUnit parseStubUnit(InputStream inputStream) {
+        return parseStubUnit(inputStream, true);
+    }
+
+    /**
+     * Parses an annotated-JDK stub file and returns a {@code StubUnit} representing it.
+     *
+     * <p>Identical to {@link #parseStubUnit(InputStream)} except that token retention is disabled.
+     * AST nodes still carry their {@link com.github.javaparser.Range Range} (line/column), so
+     * {@link ParseProblemException}s remain identifiable, but the per-token detail used by some
+     * JavaParser diagnostics is dropped. This trade-off is appropriate for the annotated JDK, whose
+     * stubs are maintained inside the Checker Framework and whose parse errors should never reach
+     * an end user; it is not appropriate for user-supplied stub files.
+     *
+     * <p>JFR profiling of {@code allNullnessTests} attributes ~6.7% of main-thread time to
+     * JavaParser, dominated by the lazy on-demand parsing of JDK class astubs via {@code
+     * AnnotationFileElementTypes#maybeParseEnclosingJdkClass}.
+     *
+     * @param inputStream the JDK stub file
+     * @return StubUnit representing the JDK stub file
+     * @throws ParseProblemException if the source code has parser errors
+     */
+    public static StubUnit parseStubUnitForJdk(InputStream inputStream) {
+        return parseStubUnit(inputStream, false);
+    }
+
+    /**
+     * Implementation of {@link #parseStubUnit(InputStream)} and {@link
+     * #parseStubUnitForJdk(InputStream)}.
+     *
+     * @param inputStream the stub file
+     * @param storeTokens whether JavaParser should retain {@link com.github.javaparser.JavaToken
+     *     JavaToken} objects on the parsed AST; pass {@code true} for user-supplied stubs and
+     *     {@code false} for the annotated JDK
+     * @return StubUnit representing the stub file
+     * @throws ParseProblemException if the source code has parser errors
+     */
+    private static StubUnit parseStubUnit(InputStream inputStream, boolean storeTokens) {
         // The ParserConfiguration accumulates data each time parse is called, so create a new one
         // each time.  There's no method to set the ParserConfiguration used by a JavaParser, so a
         // JavaParser has to be created each time.
         ParserConfiguration configuration = new ParserConfiguration();
         configuration.setLanguageLevel(DEFAULT_LANGUAGE_LEVEL);
-        // Store the tokens so that errors have line and column numbers.
-        // configuration.setStoreTokens(false);
+        configuration.setStoreTokens(storeTokens);
         configuration.setLexicalPreservationEnabled(false);
         configuration.setAttributeComments(false);
         configuration.setDetectOriginalLineSeparator(false);
@@ -336,8 +378,20 @@ public class JavaParserUtil {
         node.accept(new StringLiteralConcatenateVisitor(), null);
     }
 
-    /** Visitor that combines added String literals, see {@link #concatenateAddedStringLiterals}. */
+    /**
+     * Visitor that combines String literals in binary "+" expressions to match javac's
+     * constant-folding behavior. javac folds only {@code String + String} concatenation in the AST
+     * (not {@code char + String}, {@code null + String}, etc.), so this visitor must mirror that
+     * precisely to keep the JavaParser AST in sync with javac's tree during the joint traversal
+     * performed by {@link org.checkerframework.framework.ajava.JointJavacJavaParserVisitor}.
+     *
+     * @see #concatenateAddedStringLiterals
+     */
     public static class StringLiteralConcatenateVisitor extends VoidVisitorAdapter<Void> {
+
+        /** Creates a new StringLiteralConcatenateVisitor. */
+        public StringLiteralConcatenateVisitor() {}
+
         @Override
         public void visit(BinaryExpr node, Void p) {
             super.visit(node, p);
@@ -345,9 +399,12 @@ public class JavaParserUtil {
                     && node.getRight().isStringLiteralExpr()) {
                 String right = node.getRight().asStringLiteralExpr().getValue();
                 if (node.getLeft().isStringLiteralExpr()) {
+                    // String + String → fold into a single StringLiteralExpr.
                     String left = node.getLeft().asStringLiteralExpr().getValue();
                     node.replace(new StringLiteralExpr(left + right));
                 } else if (node.getLeft().isBinaryExpr()) {
+                    // expr + strLit + strLit → fold the two rightmost string literals.
+                    // This matches javac's partial folding of adjacent string constants.
                     BinaryExpr leftExpr = node.getLeft().asBinaryExpr();
                     if (leftExpr.getOperator() == BinaryExpr.Operator.PLUS
                             && leftExpr.getRight().isStringLiteralExpr()) {

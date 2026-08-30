@@ -20,6 +20,11 @@ import javax.lang.model.element.AnnotationMirror;
  * QualifierVar}. A {@link Qualifier} is a wrapper around {@code AnnotationMirror}. A {@code
  * QualifierVar} is a variable for a polymorphic qualifier that needs to be viewpoint adapted at a
  * call site.
+ *
+ * <p>Subclasses (like {@link Qualifier}) MUST NOT override {@code equals} or {@code hashCode}
+ * unless they specifically represent unique symbolic variables (like {@link QualifierVar}).
+ * Value-based equality for standard wrappers breaks constraint solver logic which relies on
+ * identity-based deduplication in sets.
  */
 public abstract class AbstractQualifier {
 
@@ -134,8 +139,9 @@ public abstract class AbstractQualifier {
 
         Set<AbstractQualifier> quals = new HashSet<>();
         for (AnnotationMirror anno : annos) {
-            if (qualifierVars.containsKey(anno)) {
-                quals.add(qualifierVars.get(anno));
+            AbstractQualifier existing = qualifierVars.get(anno);
+            if (existing != null) {
+                quals.add(existing);
             } else {
                 quals.add(new Qualifier(anno, context));
             }

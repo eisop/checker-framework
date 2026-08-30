@@ -38,6 +38,9 @@ public class CharacterLiteralNode extends ValueLiteralNode {
 
     @Override
     public boolean equals(@Nullable Object obj) {
+        if (this == obj) {
+            return true;
+        }
         // test that obj is a CharacterLiteralNode
         if (!(obj instanceof CharacterLiteralNode)) {
             return false;

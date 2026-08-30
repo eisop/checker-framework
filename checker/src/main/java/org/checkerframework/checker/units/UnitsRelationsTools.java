@@ -8,6 +8,7 @@ import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.javacutil.AnnotationBuilder;
 import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.AnnotationUtils;
+import org.checkerframework.javacutil.InternalUtils;
 
 import java.lang.annotation.Annotation;
 import java.util.Map;
@@ -155,7 +156,7 @@ public class UnitsRelationsTools {
 
         for (Map.Entry<? extends ExecutableElement, ? extends AnnotationValue> entry :
                 elementValues.entrySet()) {
-            if (entry.getKey().getSimpleName().contentEquals("value")) {
+            if (InternalUtils.isValueName(entry.getKey().getSimpleName())) {
                 return entry.getValue();
             }
         }

@@ -1,6 +1,7 @@
 package org.checkerframework.framework.type;
 
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.plumelib.util.IPair;
 
 import javax.lang.model.element.AnnotationMirror;
 
@@ -32,6 +33,15 @@ public class StructuralEqualityVisitHistory {
     }
 
     /**
+     * Removes all entries from both inner histories. Called between top-level subtype checks to
+     * bound memory.
+     */
+    public void clear() {
+        trueHistory.clear();
+        falseHistory.clear();
+    }
+
+    /**
      * Put result of comparing {@code type1} and {@code type2} for structural equality for the given
      * hierarchy.
      *
@@ -46,12 +56,15 @@ public class StructuralEqualityVisitHistory {
             AnnotatedTypeMirror type2,
             AnnotationMirror hierarchy,
             boolean result) {
+        // Share one key across both true- and false-history operations to avoid allocating two
+        // equal IPairs per call.
+        IPair<AnnotatedTypeMirror, AnnotatedTypeMirror> key = IPair.of(type1, type2);
         if (result) {
-            trueHistory.put(type1, type2, hierarchy, true);
-            falseHistory.remove(type1, type2, hierarchy);
+            trueHistory.putKey(key, hierarchy);
+            falseHistory.removeKey(key, hierarchy);
         } else {
-            falseHistory.put(type1, type2, hierarchy, true);
-            trueHistory.remove(type1, type2, hierarchy);
+            falseHistory.putKey(key, hierarchy);
+            trueHistory.removeKey(key, hierarchy);
         }
     }
 
@@ -68,9 +81,10 @@ public class StructuralEqualityVisitHistory {
      */
     public @Nullable Boolean get(
             AnnotatedTypeMirror type1, AnnotatedTypeMirror type2, AnnotationMirror hierarchy) {
-        if (falseHistory.contains(type1, type2, hierarchy)) {
+        IPair<AnnotatedTypeMirror, AnnotatedTypeMirror> key = IPair.of(type1, type2);
+        if (falseHistory.containsKey(key, hierarchy)) {
             return false;
-        } else if (trueHistory.contains(type1, type2, hierarchy)) {
+        } else if (trueHistory.containsKey(key, hierarchy)) {
             return true;
         }
         return null;
@@ -87,7 +101,8 @@ public class StructuralEqualityVisitHistory {
      */
     public void remove(
             AnnotatedTypeMirror type1, AnnotatedTypeMirror type2, AnnotationMirror hierarchy) {
-        falseHistory.remove(type1, type2, hierarchy);
-        trueHistory.remove(type1, type2, hierarchy);
+        IPair<AnnotatedTypeMirror, AnnotatedTypeMirror> key = IPair.of(type1, type2);
+        falseHistory.removeKey(key, hierarchy);
+        trueHistory.removeKey(key, hierarchy);
     }
 }

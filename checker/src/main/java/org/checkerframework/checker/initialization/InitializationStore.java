@@ -25,7 +25,13 @@ import javax.lang.model.element.VariableElement;
 public class InitializationStore extends CFAbstractStore<CFValue, InitializationStore> {
 
     /** The set of fields that are initialized. */
-    protected final Set<VariableElement> initializedFields;
+    protected Set<VariableElement> initializedFields;
+
+    /**
+     * Whether {@link #initializedFields} is shared with another store. If true, it must be copied
+     * before mutation.
+     */
+    protected boolean isShared = false;
 
     /**
      * Creates a new InitializationStore.
@@ -63,13 +69,31 @@ public class InitializationStore extends CFAbstractStore<CFValue, Initialization
     }
 
     /**
-     * A copy constructor.
+     * Copy constructor.
      *
      * @param other the store to copy
      */
     public InitializationStore(InitializationStore other) {
         super(other);
-        initializedFields = new HashSet<>(other.initializedFields);
+        this.initializedFields = other.initializedFields;
+        this.isShared = true;
+        other.isShared = true;
+    }
+
+    @Override
+    public InitializationStore copy() {
+        return new InitializationStore(this);
+    }
+
+    /**
+     * Ensures that the {@link #initializedFields} set is unshared and modifiable before mutation.
+     */
+    private void ensureModifiable() {
+        if (isShared) {
+            initializedFields = new HashSet<>(initializedFields);
+            isShared = false;
+        }
+        hashCodeCache = 0;
     }
 
     /**
@@ -83,6 +107,7 @@ public class InitializationStore extends CFAbstractStore<CFValue, Initialization
         boolean fieldOnThisReference = field.getReceiver() instanceof ThisReference;
         boolean staticField = field.isStatic();
         if (fieldOnThisReference || staticField) {
+            ensureModifiable();
             initializedFields.add(field.getField());
         }
     }
@@ -94,6 +119,7 @@ public class InitializationStore extends CFAbstractStore<CFValue, Initialization
      * @param f a field that is initialized
      */
     public void addInitializedField(VariableElement f) {
+        ensureModifiable();
         initializedFields.add(f);
     }
 
@@ -119,7 +145,38 @@ public class InitializationStore extends CFAbstractStore<CFValue, Initialization
     }
 
     @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        if (!super.equals(o)) {
+            return false;
+        }
+        InitializationStore that = (InitializationStore) o;
+        return initializedFields.equals(that.initializedFields);
+    }
+
+    /** The cached hash code. */
+    private int hashCodeCache = 0;
+
+    @Override
+    public int hashCode() {
+        if (hashCodeCache == 0) {
+            int h = super.hashCode();
+            h = 31 * h + initializedFields.hashCode();
+            hashCodeCache = h == 0 ? 1 : h;
+        }
+        return hashCodeCache;
+    }
+
+    @Override
     public InitializationStore leastUpperBound(InitializationStore other) {
+        if (this.equals(other)) {
+            return this.copy();
+        }
         InitializationStore result = super.leastUpperBound(other);
 
         result.initializedFields.addAll(other.initializedFields);

@@ -48,8 +48,11 @@ public class ForwardAnalysisImpl<
     /**
      * Number of times each block has been analyzed since the last time widening was applied. Null
      * if maxCountBeforeWidening is -1, which implies widening isn't used for this analysis.
+     *
+     * <p>This field is intentionally not final; it should only be re-assigned by {@link
+     * #initFields}.
      */
-    protected final @Nullable IdentityHashMap<Block, Integer> blockCount;
+    protected @Nullable IdentityHashMap<Block, Integer> blockCount;
 
     /**
      * Number of times a block can be analyzed before widening. -1 implies that widening shouldn't
@@ -57,14 +60,29 @@ public class ForwardAnalysisImpl<
      */
     protected final int maxCountBeforeWidening;
 
-    /** Then stores before every basic block (assumed to be 'no information' if not present). */
-    protected final IdentityHashMap<Block, S> thenStores;
+    /**
+     * Then stores before every basic block (assumed to be 'no information' if not present).
+     *
+     * <p>This field is intentionally not final; it should only be re-assigned by {@link
+     * #initFields}.
+     */
+    protected IdentityHashMap<Block, S> thenStores;
 
-    /** Else stores before every basic block (assumed to be 'no information' if not present). */
-    protected final IdentityHashMap<Block, S> elseStores;
+    /**
+     * Else stores before every basic block (assumed to be 'no information' if not present).
+     *
+     * <p>This field is intentionally not final; it should only be re-assigned by {@link
+     * #initFields}.
+     */
+    protected IdentityHashMap<Block, S> elseStores;
 
-    /** The stores after every return statement. */
-    protected final IdentityHashMap<ReturnNode, TransferResult<V, S>> storesAtReturnStatements;
+    /**
+     * The stores after every return statement.
+     *
+     * <p>This field is intentionally not final; it should only be re-assigned by {@link
+     * #initFields}.
+     */
+    protected IdentityHashMap<ReturnNode, TransferResult<V, S>> storesAtReturnStatements;
 
     // `@code`, not `@link`, because dataflow module doesn't depend on framework module.
     /**
@@ -144,7 +162,7 @@ public class ForwardAnalysisImpl<
                                     + " non-exceptional successor unexpected";
                     propagateStoresTo(
                             succ, lastNode, currentInput, rb.getFlowRule(), addToWorklistAgain);
-                    break;
+                    return;
                 }
             case EXCEPTION_BLOCK:
                 {
@@ -181,17 +199,18 @@ public class ForwardAnalysisImpl<
                                         addToWorklistAgain);
                             }
                         } else {
+                            S regular = inputBefore.getRegularStore();
                             for (Block exceptionSucc : e.getValue()) {
                                 addStoreBefore(
                                         exceptionSucc,
                                         node,
-                                        inputBefore.copy().getRegularStore(),
+                                        regular.copy(),
                                         Store.Kind.BOTH,
                                         addToWorklistAgain);
                             }
                         }
                     }
-                    break;
+                    return;
                 }
             case CONDITIONAL_BLOCK:
                 {
@@ -205,7 +224,7 @@ public class ForwardAnalysisImpl<
                     Block elseSucc = cb.getElseSuccessor();
                     propagateStoresTo(thenSucc, null, input, cb.getThenFlowRule(), false);
                     propagateStoresTo(elseSucc, null, input, cb.getElseFlowRule(), false);
-                    break;
+                    return;
                 }
             case SPECIAL_BLOCK:
                 {
@@ -218,11 +237,12 @@ public class ForwardAnalysisImpl<
                         assert input != null : "@AssumeAssertion(nullness): invariant";
                         propagateStoresTo(succ, null, input, sb.getFlowRule(), false);
                     }
-                    break;
+                    return;
                 }
-            default:
-                throw new BugInCF("Unexpected block type: " + b.getType());
+                // No default: if a new BlockType is added, EP's MissingCasesInEnumSwitch fires
+                // and the build breaks under -Werror, forcing the developer to handle the new case.
         }
+        throw new BugInCF("Unexpected block type: " + b.getType());
     }
 
     @Override
@@ -253,16 +273,6 @@ public class ForwardAnalysisImpl<
         assert block != null : "@AssumeAssertion(nullness): invariant";
         Node oldCurrentNode = currentNode;
 
-        // Prepare cache
-        IdentityHashMap<Node, TransferResult<V, S>> cache;
-        if (analysisCaches != null) {
-            cache =
-                    analysisCaches.computeIfAbsent(
-                            blockTransferInput, __ -> new IdentityHashMap<>());
-        } else {
-            cache = null;
-        }
-
         if (isRunning) {
             assert currentInput != null : "@AssumeAssertion(nullness): invariant";
             return currentInput.getRegularStore();
@@ -270,6 +280,16 @@ public class ForwardAnalysisImpl<
         setNodeValues(nodeValues);
         isRunning = true;
         try {
+            // Prepare cache (after the isRunning check to avoid creating empty cache entries when
+            // the analysis is already running)
+            IdentityHashMap<Node, TransferResult<V, S>> cache;
+            if (analysisCaches != null) {
+                cache =
+                        analysisCaches.computeIfAbsent(
+                                blockTransferInput, __ -> new IdentityHashMap<>());
+            } else {
+                cache = null;
+            }
             switch (block.getType()) {
                 case REGULAR_BLOCK:
                     {
@@ -277,18 +297,24 @@ public class ForwardAnalysisImpl<
                         // Apply transfer function to contents until we found the node we are
                         // looking for.
                         TransferInput<V, S> store = blockTransferInput;
+                        boolean copied = false;
                         TransferResult<V, S> transferResult;
                         for (Node n : rb.getNodes()) {
                             setCurrentNode(n);
                             if (n == node && preOrPost == Analysis.BeforeOrAfter.BEFORE) {
                                 return store.getRegularStore();
                             }
-                            if (cache != null && cache.containsKey(n)) {
-                                transferResult = cache.get(n);
+                            TransferResult<V, S> cached = cache != null ? cache.get(n) : null;
+                            if (cached != null) {
+                                transferResult = cached;
                             } else {
-                                // Copy the store to avoid changing other blocks' transfer inputs in
-                                // {@link #inputs}
-                                transferResult = callTransferFunction(n, store.copy());
+                                if (!copied) {
+                                    // Copy the store once per block to avoid changing other blocks'
+                                    // transfer inputs.
+                                    store = store.copy();
+                                    copied = true;
+                                }
+                                transferResult = callTransferFunction(n, store);
                                 if (cache != null) {
                                     cache.put(n, transferResult);
                                 }
@@ -315,14 +341,13 @@ public class ForwardAnalysisImpl<
                             return blockTransferInput.getRegularStore();
                         }
                         setCurrentNode(node);
-                        // Copy the store to avoid changing other blocks' transfer inputs in {@link
-                        // #inputs}
                         TransferResult<V, S> transferResult;
-                        if (cache != null && cache.containsKey(node)) {
-                            transferResult = cache.get(node);
+                        TransferResult<V, S> cached = cache != null ? cache.get(node) : null;
+                        if (cached != null) {
+                            transferResult = cached;
                         } else {
                             // Copy the store to avoid changing other blocks' transfer inputs in
-                            // {@link #inputs}
+                            // {@link #inputs}.
                             transferResult = callTransferFunction(node, blockTransferInput.copy());
                             if (cache != null) {
                                 cache.put(node, transferResult);
@@ -342,12 +367,12 @@ public class ForwardAnalysisImpl<
 
     @Override
     protected void initFields(ControlFlowGraph cfg) {
-        thenStores.clear();
-        elseStores.clear();
+        thenStores = new IdentityHashMap<>();
+        elseStores = new IdentityHashMap<>();
         if (blockCount != null) {
-            blockCount.clear();
+            blockCount = new IdentityHashMap<>();
         }
-        storesAtReturnStatements.clear();
+        storesAtReturnStatements = new IdentityHashMap<>();
         super.initFields(cfg);
     }
 
@@ -489,8 +514,6 @@ public class ForwardAnalysisImpl<
      */
     protected void addStoreBefore(
             Block b, @Nullable Node node, S s, Store.Kind kind, boolean addBlockToWorklist) {
-        S thenStore = getStoreBefore(b, Store.Kind.THEN);
-        S elseStore = getStoreBefore(b, Store.Kind.ELSE);
         boolean shouldWiden = false;
         if (blockCount != null) {
             Integer count = blockCount.getOrDefault(b, 0);
@@ -504,10 +527,12 @@ public class ForwardAnalysisImpl<
         switch (kind) {
             case THEN:
                 {
-                    // Update the then store
+                    // Update the then store.
+                    S thenStore = getStoreBefore(b, Store.Kind.THEN);
                     S newThenStore = mergeStores(s, thenStore, shouldWiden);
                     if (!newThenStore.equals(thenStore)) {
                         thenStores.put(b, newThenStore);
+                        S elseStore = getStoreBefore(b, Store.Kind.ELSE);
                         if (elseStore != null) {
                             inputs.put(b, new TransferInput<>(node, this, newThenStore, elseStore));
                             addBlockToWorklist = true;
@@ -517,10 +542,12 @@ public class ForwardAnalysisImpl<
                 }
             case ELSE:
                 {
-                    // Update the else store
+                    // Update the else store.
+                    S elseStore = getStoreBefore(b, Store.Kind.ELSE);
                     S newElseStore = mergeStores(s, elseStore, shouldWiden);
                     if (!newElseStore.equals(elseStore)) {
                         elseStores.put(b, newElseStore);
+                        S thenStore = getStoreBefore(b, Store.Kind.THEN);
                         if (thenStore != null) {
                             inputs.put(b, new TransferInput<>(node, this, thenStore, newElseStore));
                             addBlockToWorklist = true;
@@ -529,6 +556,8 @@ public class ForwardAnalysisImpl<
                     break;
                 }
             case BOTH:
+                S thenStore = getStoreBefore(b, Store.Kind.THEN);
+                S elseStore = getStoreBefore(b, Store.Kind.ELSE);
                 @SuppressWarnings("interning:not.interned")
                 boolean sameStore = (thenStore == elseStore);
                 if (sameStore) {

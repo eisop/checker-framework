@@ -14,6 +14,7 @@ import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.common.basetype.BaseTypeVisitor;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.javacutil.AnnotationUtils;
+import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.TreeUtils;
 
@@ -52,13 +53,13 @@ public class I18nFormatterVisitor extends BaseTypeVisitor<I18nFormatterAnnotated
         switch (type.value()) {
             case I18NINVALID:
                 tu.failure(type, "i18nformat.string.invalid", fc.getInvalidError());
-                break;
+                return;
             case I18NFORMATFOR:
                 if (!fc.isValidFormatForInvocation()) {
                     Result<FormatType> failureType = fc.getInvalidInvocationType();
                     tu.failure(failureType, "i18nformat.invalid.formatfor");
                 }
-                break;
+                return;
             case I18NFORMAT:
                 Result<InvocationType> invc = fc.getInvocationType();
                 I18nConversionCategory[] formatCats = fc.getFormatCategories();
@@ -103,7 +104,7 @@ public class I18nFormatterVisitor extends BaseTypeVisitor<I18nFormatterAnnotated
                                     }
                             }
                         }
-                        break;
+                        return;
                     case NULLARRAY:
                     // fall-through
                     case ARRAY:
@@ -113,14 +114,12 @@ public class I18nFormatterVisitor extends BaseTypeVisitor<I18nFormatterAnnotated
                             }
                         }
                         tu.warning(invc, "i18nformat.indirect.arguments");
-                        break;
-                    default:
-                        break;
+                        return;
                 }
-                break;
-            default:
-                break;
+                throw new BugInCF("Unhandled InvocationType: " + invc.value());
+                // No default: MissingCasesInEnumSwitch enforces exhaustiveness for FormatType.
         }
+        throw new BugInCF("Unhandled FormatType: " + type.value());
     }
 
     @Override

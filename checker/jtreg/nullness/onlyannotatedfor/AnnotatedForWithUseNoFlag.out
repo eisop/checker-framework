@@ -2,10 +2,10 @@ AnnotatedForWithUse.java:15:16: compiler.err.proc.messager: [initialization.fiel
 AnnotatedForWithUse.java:18:20: compiler.err.proc.messager: [return.type.incompatible] incompatible types in return.
 type of expression: @Nullable NullType
 method return type: @NonNull Object
-AnnotatedForWithUse.java:30:19: compiler.err.proc.messager: [assignment.type.incompatible] incompatible types in assignment.
+AnnotatedForWithUse.java:33:19: compiler.err.proc.messager: [assignment.type.incompatible] incompatible types in assignment.
 found   : @Nullable NullType
 required: @NonNull Object
-AnnotatedForWithUse.java:34:19: compiler.err.proc.messager: [argument.type.incompatible] incompatible argument for parameter of of Unannotated.set.
+AnnotatedForWithUse.java:37:19: compiler.err.proc.messager: [argument.type.incompatible] incompatible argument for parameter of of Unannotated.set.
 found   : @Nullable NullType
 required: @NonNull Object
 4 errors

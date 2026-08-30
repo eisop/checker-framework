@@ -37,10 +37,17 @@
       "matchStrings": [
         "JDK_EA_MAJOR:\\s+\"(?<major>\\d+)\"[\\s\\S]*?JDK_EA_BUILD:\\s+\"(?<currentValue>\\d+)\""
       ],
-      "datasourceTemplate": "github-releases",
+      "datasourceTemplate": "github-tags",
+      "depNameTemplate": "openjdk/jdk",
       "versioningTemplate": "loose",
-      "depNameTemplate": "adoptium/temurin{{{major}}}-binaries",
-      "extractVersionTemplate": "^jdk-\\d+\\+(?<version>\\d+)"
+      "extractVersionTemplate": "^jdk-{{{major}}}\\+(?<version>\\d+)$"
+    },
+    {
+      "description": "Update the pinned ruff version in the misc job's GitHub Actions setup",
+      "fileMatch": ["^\\.github/actions/setup-misc/action\\.yml$"],
+      "matchStrings": ["ruff==(?<currentValue>[\\d.]+)"],
+      "datasourceTemplate": "pypi",
+      "depNameTemplate": "ruff"
     }
   ]
 }

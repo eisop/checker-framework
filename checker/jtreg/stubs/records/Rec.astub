@@ -1,0 +1,5 @@
+package records;
+
+import org.checkerframework.checker.nullness.qual.Nullable;
+
+public record Rec(@Nullable Object f) {}
