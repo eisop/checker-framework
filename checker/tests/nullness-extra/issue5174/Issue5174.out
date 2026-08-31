@@ -128,8 +128,7 @@ Before: InitializationStore#19(
 Before: NullnessNoInitStore#27(
 
   isPolyNullNonNull = false
-  isPolyNullNull = false
-  nonEmptyQueueReceivers = [])
+  isPolyNullNull = false)
 ~~~~~~~~~
 <entry>
 
@@ -137,8 +136,7 @@ Before: NullnessNoInitStore#27(
 Before: NullnessNoInitStore#27(
 
   isPolyNullNonNull = false
-  isPolyNullNull = false
-  nonEmptyQueueReceivers = [])
+  isPolyNullNull = false)
 ~~~~~~~~~
 ""   [ StringLiteral ]    > NV{@NonNull, String, poly nn/n=f/f}
 (this).sf = ""   [ Assignment ]    > NV{@NonNull, String, poly nn/n=f/f}
@@ -147,8 +145,7 @@ Before: NullnessNoInitStore#27(
 Before: NullnessNoInitStore#28(
   Issue5174Super<S>.sf > NV{@NonNull, String, poly nn/n=f/f}
   isPolyNullNonNull = false
-  isPolyNullNull = false
-  nonEmptyQueueReceivers = [])
+  isPolyNullNull = false)
 ~~~~~~~~~
 <exit>
 7 -> 8
@@ -161,8 +158,7 @@ Before: NullnessNoInitStore#32(
   Issue5174Super<S>.sf > NV{@NonNull, Object, poly nn/n=f/f}
   this.f > NV{, S, poly nn/n=f/f}
   isPolyNullNonNull = false
-  isPolyNullNull = false
-  nonEmptyQueueReceivers = [])
+  isPolyNullNull = false)
 ~~~~~~~~~
 <entry>
 
@@ -173,8 +169,7 @@ Before: NullnessNoInitStore#32(
   Issue5174Super<S>.sf > NV{@NonNull, Object, poly nn/n=f/f}
   this.f > NV{, S, poly nn/n=f/f}
   isPolyNullNonNull = false
-  isPolyNullNull = false
-  nonEmptyQueueReceivers = [])
+  isPolyNullNull = false)
 ~~~~~~~~~
 in   [ LocalVariable ]    > NV{, S, poly nn/n=f/f}
 return in   [ Return ]    > NV{@NonNull, boolean, poly nn/n=f/f}
@@ -186,8 +181,7 @@ Before: NullnessNoInitStore#33(
   Issue5174Super<S>.sf > NV{@NonNull, Object, poly nn/n=f/f}
   this.f > NV{, S, poly nn/n=f/f}
   isPolyNullNonNull = false
-  isPolyNullNull = false
-  nonEmptyQueueReceivers = [])
+  isPolyNullNull = false)
 ~~~~~~~~~
 <exit>
 13 -> 14
@@ -203,8 +197,7 @@ Before: NullnessNoInitStore#37(
   this > NV{@NonNull, Issue5174Super, poly nn/n=f/f}
   Issue5174Super<S>.sf > NV{@NonNull, Object, poly nn/n=f/f}
   isPolyNullNonNull = false
-  isPolyNullNull = false
-  nonEmptyQueueReceivers = [])
+  isPolyNullNull = false)
 ~~~~~~~~~
 <entry>
 
@@ -214,8 +207,7 @@ Before: NullnessNoInitStore#37(
   this > NV{@NonNull, Issue5174Super, poly nn/n=f/f}
   Issue5174Super<S>.sf > NV{@NonNull, Object, poly nn/n=f/f}
   isPolyNullNonNull = false
-  isPolyNullNull = false
-  nonEmptyQueueReceivers = [])
+  isPolyNullNull = false)
 ~~~~~~~~~
 (this)   [ ImplicitThis ]    > NV{@NonNull, Issue5174Super, poly nn/n=f/f}
 (this).<init>   [ MethodAccess ]    > NV{@NonNull, Issue5174Super, poly nn/n=f/f}
@@ -226,8 +218,7 @@ Before: NullnessNoInitStore#38(
   this > NV{@NonNull, Issue5174Super, poly nn/n=f/f}
   Issue5174Super<S>.sf > NV{@NonNull, Object, poly nn/n=f/f}
   isPolyNullNonNull = false
-  isPolyNullNull = false
-  nonEmptyQueueReceivers = [])
+  isPolyNullNull = false)
 ~~~~~~~~~
 (this).<init>()   [ MethodInvocation ]    > NV{@NonNull, Object, poly nn/n=f/f}
 
@@ -238,8 +229,7 @@ Before: NullnessNoInitStore#39(
   Issue5174Super<S>.sf > NV{@NonNull, Object, poly nn/n=f/f}
   this.<init>() > NV{@NonNull, Object, poly nn/n=f/f}
   isPolyNullNonNull = false
-  isPolyNullNull = false
-  nonEmptyQueueReceivers = [])
+  isPolyNullNull = false)
 ~~~~~~~~~
 expression statement super()   [ ExpressionStatement ]
 this   [ ExplicitThis ]    > NV{@NonNull, Issue5174Super, poly nn/n=f/f}
@@ -254,8 +244,7 @@ Before: NullnessNoInitStore#40(
   this > NV{@NonNull, Issue5174Super, poly nn/n=f/f}
   Issue5174Super<S>.sf > NV{@NonNull, Object, poly nn/n=f/f}
   isPolyNullNonNull = false
-  isPolyNullNull = false
-  nonEmptyQueueReceivers = [])
+  isPolyNullNull = false)
 ~~~~~~~~~
 <exceptional-exit>
 
@@ -266,8 +255,7 @@ Before: NullnessNoInitStore#43(
   Issue5174Super<S>.sf > NV{@NonNull, Object, poly nn/n=f/f}
   this.f > NV{, S, poly nn/n=f/f}
   isPolyNullNonNull = false
-  isPolyNullNull = false
-  nonEmptyQueueReceivers = [])
+  isPolyNullNull = false)
 ~~~~~~~~~
 <exit>
 20 -> 21
@@ -1018,8 +1006,7 @@ Before: NullnessNoInitStore#274(
   f > NV{, T, poly nn/n=f/f}
   this > NV{@NonNull, Issue5174Sub, poly nn/n=f/f}
   isPolyNullNonNull = false
-  isPolyNullNull = false
-  nonEmptyQueueReceivers = [])
+  isPolyNullNull = false)
 ~~~~~~~~~
 <entry>
 
@@ -1028,8 +1015,7 @@ Before: NullnessNoInitStore#274(
   f > NV{, T, poly nn/n=f/f}
   this > NV{@NonNull, Issue5174Sub, poly nn/n=f/f}
   isPolyNullNonNull = false
-  isPolyNullNull = false
-  nonEmptyQueueReceivers = [])
+  isPolyNullNull = false)
 ~~~~~~~~~
 (this)   [ ImplicitThis ]    > NV{@NonNull, Issue5174Sub, poly nn/n=f/f}
 (this).<init>   [ MethodAccess ]    > NV{@NonNull, Issue5174Sub, poly nn/n=f/f}
@@ -1040,8 +1026,7 @@ Before: NullnessNoInitStore#275(
   f > NV{, T, poly nn/n=f/f}
   this > NV{@NonNull, Issue5174Sub, poly nn/n=f/f}
   isPolyNullNonNull = false
-  isPolyNullNull = false
-  nonEmptyQueueReceivers = [])
+  isPolyNullNull = false)
 ~~~~~~~~~
 (this).<init>(f)   [ MethodInvocation ]    > NV{@NonNull, Issue5174Super, poly nn/n=f/f}
 
@@ -1050,8 +1035,7 @@ Before: NullnessNoInitStore#276(
   f > NV{, T, poly nn/n=f/f}
   this > NV{@NonNull, Issue5174Sub, poly nn/n=f/f}
   isPolyNullNonNull = false
-  isPolyNullNull = false
-  nonEmptyQueueReceivers = [])
+  isPolyNullNull = false)
 ~~~~~~~~~
 expression statement super(f)   [ ExpressionStatement ]
 
@@ -1060,8 +1044,7 @@ Before: NullnessNoInitStore#277(
   f > NV{, T, poly nn/n=f/f}
   this > NV{@NonNull, Issue5174Sub, poly nn/n=f/f}
   isPolyNullNonNull = false
-  isPolyNullNull = false
-  nonEmptyQueueReceivers = [])
+  isPolyNullNull = false)
 ~~~~~~~~~
 <exceptional-exit>
 
@@ -1070,8 +1053,7 @@ Before: NullnessNoInitStore#280(
   f > NV{, T, poly nn/n=f/f}
   this > NV{@NonNull, Issue5174Sub, poly nn/n=f/f}
   isPolyNullNonNull = false
-  isPolyNullNull = false
-  nonEmptyQueueReceivers = [])
+  isPolyNullNull = false)
 ~~~~~~~~~
 <exit>
 27 -> 28
@@ -1086,8 +1068,7 @@ Before: NullnessNoInitStore#287(
   in > NV{, T, poly nn/n=f/f}
   this > NV{@NonNull, Issue5174Sub, poly nn/n=f/f}
   isPolyNullNonNull = false
-  isPolyNullNull = false
-  nonEmptyQueueReceivers = [])
+  isPolyNullNull = false)
 ~~~~~~~~~
 <entry>
 
@@ -1096,8 +1077,7 @@ Before: NullnessNoInitStore#287(
   in > NV{, T, poly nn/n=f/f}
   this > NV{@NonNull, Issue5174Sub, poly nn/n=f/f}
   isPolyNullNonNull = false
-  isPolyNullNull = false
-  nonEmptyQueueReceivers = [])
+  isPolyNullNull = false)
 ~~~~~~~~~
 o   [ VariableDeclaration ]
 (this)   [ ImplicitThis ]    > NV{@NonNull, Issue5174Sub, poly nn/n=f/f}
@@ -1109,8 +1089,7 @@ Before: NullnessNoInitStore#288(
   in > NV{, T, poly nn/n=f/f}
   this > NV{@NonNull, Issue5174Sub, poly nn/n=f/f}
   isPolyNullNonNull = false
-  isPolyNullNull = false
-  nonEmptyQueueReceivers = [])
+  isPolyNullNull = false)
 ~~~~~~~~~
 (this).methodInner(in)   [ MethodInvocation ]    > NV{, T, poly nn/n=f/f}
 
@@ -1119,8 +1098,7 @@ Before: NullnessNoInitStore#289(
   in > NV{, T, poly nn/n=f/f}
   this > NV{@NonNull, Issue5174Sub, poly nn/n=f/f}
   isPolyNullNonNull = false
-  isPolyNullNull = false
-  nonEmptyQueueReceivers = [])
+  isPolyNullNull = false)
 ~~~~~~~~~
 o = (this).methodInner(in)   [ Assignment ]    > NV{, T, poly nn/n=f/f}
 
@@ -1129,8 +1107,7 @@ Before: NullnessNoInitStore#290(
   in > NV{, T, poly nn/n=f/f}
   this > NV{@NonNull, Issue5174Sub, poly nn/n=f/f}
   isPolyNullNonNull = false
-  isPolyNullNull = false
-  nonEmptyQueueReceivers = [])
+  isPolyNullNull = false)
 ~~~~~~~~~
 <exceptional-exit>
 
@@ -1140,8 +1117,7 @@ Before: NullnessNoInitStore#293(
   o > NV{, T, poly nn/n=f/f}
   this > NV{@NonNull, Issue5174Sub, poly nn/n=f/f}
   isPolyNullNonNull = false
-  isPolyNullNull = false
-  nonEmptyQueueReceivers = [])
+  isPolyNullNull = false)
 ~~~~~~~~~
 <exit>
 34 -> 35
@@ -1156,8 +1132,7 @@ Before: NullnessNoInitStore#300(
   in > NV{, T, poly nn/n=f/f}
   this > NV{@NonNull, Issue5174Sub, poly nn/n=f/f}
   isPolyNullNonNull = false
-  isPolyNullNull = false
-  nonEmptyQueueReceivers = [])
+  isPolyNullNull = false)
 ~~~~~~~~~
 <entry>
 
@@ -1166,8 +1141,7 @@ Before: NullnessNoInitStore#300(
   in > NV{, T, poly nn/n=f/f}
   this > NV{@NonNull, Issue5174Sub, poly nn/n=f/f}
   isPolyNullNonNull = false
-  isPolyNullNull = false
-  nonEmptyQueueReceivers = [])
+  isPolyNullNull = false)
 ~~~~~~~~~
 o   [ VariableDeclaration ]
 this   [ ExplicitThis ]    > NV{@NonNull, Issue5174Sub, poly nn/n=f/f}
@@ -1179,8 +1153,7 @@ Before: NullnessNoInitStore#301(
   in > NV{, T, poly nn/n=f/f}
   this > NV{@NonNull, Issue5174Sub, poly nn/n=f/f}
   isPolyNullNonNull = false
-  isPolyNullNull = false
-  nonEmptyQueueReceivers = [])
+  isPolyNullNull = false)
 ~~~~~~~~~
 this.methodInner(in)   [ MethodInvocation ]    > NV{, T, poly nn/n=f/f}
 
@@ -1189,8 +1162,7 @@ Before: NullnessNoInitStore#302(
   in > NV{, T, poly nn/n=f/f}
   this > NV{@NonNull, Issue5174Sub, poly nn/n=f/f}
   isPolyNullNonNull = false
-  isPolyNullNull = false
-  nonEmptyQueueReceivers = [])
+  isPolyNullNull = false)
 ~~~~~~~~~
 o = this.methodInner(in)   [ Assignment ]    > NV{, T, poly nn/n=f/f}
 
@@ -1199,8 +1171,7 @@ Before: NullnessNoInitStore#303(
   in > NV{, T, poly nn/n=f/f}
   this > NV{@NonNull, Issue5174Sub, poly nn/n=f/f}
   isPolyNullNonNull = false
-  isPolyNullNull = false
-  nonEmptyQueueReceivers = [])
+  isPolyNullNull = false)
 ~~~~~~~~~
 <exceptional-exit>
 
@@ -1210,8 +1181,7 @@ Before: NullnessNoInitStore#306(
   o > NV{, T, poly nn/n=f/f}
   this > NV{@NonNull, Issue5174Sub, poly nn/n=f/f}
   isPolyNullNonNull = false
-  isPolyNullNull = false
-  nonEmptyQueueReceivers = [])
+  isPolyNullNull = false)
 ~~~~~~~~~
 <exit>
 41 -> 42
@@ -1221,8 +1191,7 @@ Before: NullnessNoInitStore#306(
 Before: NullnessNoInitStore#313(
   this > NV{@NonNull, Issue5174Sub, poly nn/n=f/f}
   isPolyNullNonNull = false
-  isPolyNullNull = false
-  nonEmptyQueueReceivers = [])
+  isPolyNullNull = false)
 ~~~~~~~~~
 <entry>
 
@@ -1230,8 +1199,7 @@ Before: NullnessNoInitStore#313(
 Before: NullnessNoInitStore#313(
   this > NV{@NonNull, Issue5174Sub, poly nn/n=f/f}
   isPolyNullNonNull = false
-  isPolyNullNull = false
-  nonEmptyQueueReceivers = [])
+  isPolyNullNull = false)
 ~~~~~~~~~
 o   [ VariableDeclaration ]
 (this)   [ ImplicitThis ]    > NV{@NonNull, Issue5174Sub, poly nn/n=f/f}
@@ -1243,8 +1211,7 @@ Before: NullnessNoInitStore#314(
   o > NV{, T, poly nn/n=f/f}
   this > NV{@NonNull, Issue5174Sub, poly nn/n=f/f}
   isPolyNullNonNull = false
-  isPolyNullNull = false
-  nonEmptyQueueReceivers = [])
+  isPolyNullNull = false)
 ~~~~~~~~~
 <exit>
 46 -> 47
@@ -1254,8 +1221,7 @@ Before: NullnessNoInitStore#314(
 Before: NullnessNoInitStore#318(
   this > NV{@NonNull, Issue5174Sub, poly nn/n=f/f}
   isPolyNullNonNull = false
-  isPolyNullNull = false
-  nonEmptyQueueReceivers = [])
+  isPolyNullNull = false)
 ~~~~~~~~~
 <entry>
 
@@ -1263,8 +1229,7 @@ Before: NullnessNoInitStore#318(
 Before: NullnessNoInitStore#318(
   this > NV{@NonNull, Issue5174Sub, poly nn/n=f/f}
   isPolyNullNonNull = false
-  isPolyNullNull = false
-  nonEmptyQueueReceivers = [])
+  isPolyNullNull = false)
 ~~~~~~~~~
 o   [ VariableDeclaration ]
 this   [ ExplicitThis ]    > NV{@NonNull, Issue5174Sub, poly nn/n=f/f}
@@ -1276,8 +1241,7 @@ Before: NullnessNoInitStore#319(
   o > NV{, T, poly nn/n=f/f}
   this > NV{@NonNull, Issue5174Sub, poly nn/n=f/f}
   isPolyNullNonNull = false
-  isPolyNullNull = false
-  nonEmptyQueueReceivers = [])
+  isPolyNullNull = false)
 ~~~~~~~~~
 <exit>
 51 -> 52
@@ -1305,8 +1269,7 @@ Before: NullnessNoInitStore#319(
 Before: NullnessNoInitStore#323(
   this > NV{@NonNull, Issue5174Sub, poly nn/n=f/f}
   isPolyNullNonNull = false
-  isPolyNullNull = false
-  nonEmptyQueueReceivers = [])
+  isPolyNullNull = false)
 ~~~~~~~~~
 <entry>
 
@@ -1314,8 +1277,7 @@ Before: NullnessNoInitStore#323(
 Before: NullnessNoInitStore#323(
   this > NV{@NonNull, Issue5174Sub, poly nn/n=f/f}
   isPolyNullNonNull = false
-  isPolyNullNull = false
-  nonEmptyQueueReceivers = [])
+  isPolyNullNull = false)
 ~~~~~~~~~
 o   [ VariableDeclaration ]
 o   [ LocalVariable ]
@@ -1324,8 +1286,7 @@ o   [ LocalVariable ]
 Before: NullnessNoInitStore#324(
   this > NV{@NonNull, Issue5174Sub, poly nn/n=f/f}
   isPolyNullNonNull = false
-  isPolyNullNull = false
-  nonEmptyQueueReceivers = [])
+  isPolyNullNull = false)
 ~~~~~~~~~
 Issue5174Super   [ ClassName ]
 
@@ -1333,8 +1294,7 @@ Issue5174Super   [ ClassName ]
 Before: NullnessNoInitStore#325(
   this > NV{@NonNull, Issue5174Sub, poly nn/n=f/f}
   isPolyNullNonNull = false
-  isPolyNullNull = false
-  nonEmptyQueueReceivers = [])
+  isPolyNullNull = false)
 ~~~~~~~~~
 Issue5174Super.sf   [ FieldAccess ]    > NV{@NonNull, Object, poly nn/n=f/f}
 o = Issue5174Super.sf   [ Assignment ]    > NV{@NonNull, Object, poly nn/n=f/f}
@@ -1345,8 +1305,7 @@ o   [ LocalVariable ]
 Before: NullnessNoInitStore#326(
   this > NV{@NonNull, Issue5174Sub, poly nn/n=f/f}
   isPolyNullNonNull = false
-  isPolyNullNull = false
-  nonEmptyQueueReceivers = [])
+  isPolyNullNull = false)
 ~~~~~~~~~
 <exceptional-exit>
 
@@ -1355,8 +1314,7 @@ Before: NullnessNoInitStore#333(
   o > NV{@NonNull, Object, poly nn/n=f/f}
   this > NV{@NonNull, Issue5174Sub, poly nn/n=f/f}
   isPolyNullNonNull = false
-  isPolyNullNull = false
-  nonEmptyQueueReceivers = [])
+  isPolyNullNull = false)
 ~~~~~~~~~
 Issue5174Sub   [ ClassName ]    > NV{@NonNull, Issue5174Sub, poly nn/n=f/f}
 
@@ -1365,8 +1323,7 @@ Before: NullnessNoInitStore#334(
   o > NV{@NonNull, Object, poly nn/n=f/f}
   this > NV{@NonNull, Issue5174Sub, poly nn/n=f/f}
   isPolyNullNonNull = false
-  isPolyNullNull = false
-  nonEmptyQueueReceivers = [])
+  isPolyNullNull = false)
 ~~~~~~~~~
 Issue5174Sub.sf   [ FieldAccess ]    > NV{@NonNull, Object, poly nn/n=f/f}
 o = Issue5174Sub.sf   [ Assignment ]    > NV{@NonNull, Object, poly nn/n=f/f}
@@ -1378,8 +1335,7 @@ Before: NullnessNoInitStore#343(
   o > NV{@NonNull, Object, poly nn/n=f/f}
   this > NV{@NonNull, Issue5174Sub, poly nn/n=f/f}
   isPolyNullNonNull = false
-  isPolyNullNull = false
-  nonEmptyQueueReceivers = [])
+  isPolyNullNull = false)
 ~~~~~~~~~
 Issue5174Super   [ ClassName ]    > NV{@NonNull, Issue5174Super, poly nn/n=f/f}
 
@@ -1388,8 +1344,7 @@ Before: NullnessNoInitStore#344(
   o > NV{@NonNull, Object, poly nn/n=f/f}
   this > NV{@NonNull, Issue5174Sub, poly nn/n=f/f}
   isPolyNullNonNull = false
-  isPolyNullNull = false
-  nonEmptyQueueReceivers = [])
+  isPolyNullNull = false)
 ~~~~~~~~~
 Issue5174Super.sf   [ FieldAccess ]    > NV{@NonNull, Object, poly nn/n=f/f}
 o = Issue5174Super.sf   [ Assignment ]    > NV{@NonNull, Object, poly nn/n=f/f}
@@ -1400,8 +1355,7 @@ Before: NullnessNoInitStore#353(
   o > NV{@NonNull, Object, poly nn/n=f/f}
   this > NV{@NonNull, Issue5174Sub, poly nn/n=f/f}
   isPolyNullNonNull = false
-  isPolyNullNull = false
-  nonEmptyQueueReceivers = [])
+  isPolyNullNull = false)
 ~~~~~~~~~
 <exit>
 62 -> 63
@@ -1415,8 +1369,7 @@ Before: NullnessNoInitStore#353(
 Before: NullnessNoInitStore#364(
   this > NV{@NonNull, SubNested, poly nn/n=f/f}
   isPolyNullNonNull = false
-  isPolyNullNull = false
-  nonEmptyQueueReceivers = [])
+  isPolyNullNull = false)
 ~~~~~~~~~
 <entry>
 
@@ -1424,8 +1377,7 @@ Before: NullnessNoInitStore#364(
 Before: NullnessNoInitStore#364(
   this > NV{@NonNull, SubNested, poly nn/n=f/f}
   isPolyNullNonNull = false
-  isPolyNullNull = false
-  nonEmptyQueueReceivers = [])
+  isPolyNullNull = false)
 ~~~~~~~~~
 (this)   [ ImplicitThis ]    > NV{@NonNull, SubNested, poly nn/n=f/f}
 (this).<init>   [ MethodAccess ]    > NV{@NonNull, SubNested, poly nn/n=f/f}
@@ -1434,8 +1386,7 @@ Before: NullnessNoInitStore#364(
 Before: NullnessNoInitStore#365(
   this > NV{@NonNull, SubNested, poly nn/n=f/f}
   isPolyNullNonNull = false
-  isPolyNullNull = false
-  nonEmptyQueueReceivers = [])
+  isPolyNullNull = false)
 ~~~~~~~~~
 (this).<init>()   [ MethodInvocation ]    > NV{@NonNull, Object, poly nn/n=f/f}
 
@@ -1444,8 +1395,7 @@ Before: NullnessNoInitStore#366(
   this > NV{@NonNull, SubNested, poly nn/n=f/f}
   this.<init>() > NV{@NonNull, Object, poly nn/n=f/f}
   isPolyNullNonNull = false
-  isPolyNullNull = false
-  nonEmptyQueueReceivers = [])
+  isPolyNullNull = false)
 ~~~~~~~~~
 expression statement super()   [ ExpressionStatement ]
 
@@ -1453,8 +1403,7 @@ expression statement super()   [ ExpressionStatement ]
 Before: NullnessNoInitStore#367(
   this > NV{@NonNull, SubNested, poly nn/n=f/f}
   isPolyNullNonNull = false
-  isPolyNullNull = false
-  nonEmptyQueueReceivers = [])
+  isPolyNullNull = false)
 ~~~~~~~~~
 <exceptional-exit>
 
@@ -1463,8 +1412,7 @@ Before: NullnessNoInitStore#370(
   this > NV{@NonNull, SubNested, poly nn/n=f/f}
   this.<init>() > NV{@NonNull, Object, poly nn/n=f/f}
   isPolyNullNonNull = false
-  isPolyNullNull = false
-  nonEmptyQueueReceivers = [])
+  isPolyNullNull = false)
 ~~~~~~~~~
 <exit>
 69 -> 70
@@ -1479,8 +1427,7 @@ Before: NullnessNoInitStore#377(
   in > NV{, T, poly nn/n=f/f}
   this > NV{@NonNull, SubNested, poly nn/n=f/f}
   isPolyNullNonNull = false
-  isPolyNullNull = false
-  nonEmptyQueueReceivers = [])
+  isPolyNullNull = false)
 ~~~~~~~~~
 <entry>
 
@@ -1489,8 +1436,7 @@ Before: NullnessNoInitStore#377(
   in > NV{, T, poly nn/n=f/f}
   this > NV{@NonNull, SubNested, poly nn/n=f/f}
   isPolyNullNonNull = false
-  isPolyNullNull = false
-  nonEmptyQueueReceivers = [])
+  isPolyNullNull = false)
 ~~~~~~~~~
 o   [ VariableDeclaration ]
 (this)   [ ImplicitThis ]    > NV{@NonNull, SubNested, poly nn/n=f/f}
@@ -1502,8 +1448,7 @@ Before: NullnessNoInitStore#378(
   in > NV{, T, poly nn/n=f/f}
   this > NV{@NonNull, Issue5174Sub, poly nn/n=f/f}
   isPolyNullNonNull = false
-  isPolyNullNull = false
-  nonEmptyQueueReceivers = [])
+  isPolyNullNull = false)
 ~~~~~~~~~
 (this).methodInner(in)   [ MethodInvocation ]    > NV{, T, poly nn/n=f/f}
 
@@ -1512,8 +1457,7 @@ Before: NullnessNoInitStore#379(
   in > NV{, T, poly nn/n=f/f}
   this > NV{@NonNull, Issue5174Sub, poly nn/n=f/f}
   isPolyNullNonNull = false
-  isPolyNullNull = false
-  nonEmptyQueueReceivers = [])
+  isPolyNullNull = false)
 ~~~~~~~~~
 o = (this).methodInner(in)   [ Assignment ]    > NV{, T, poly nn/n=f/f}
 
@@ -1522,8 +1466,7 @@ Before: NullnessNoInitStore#380(
   in > NV{, T, poly nn/n=f/f}
   this > NV{@NonNull, Issue5174Sub, poly nn/n=f/f}
   isPolyNullNonNull = false
-  isPolyNullNull = false
-  nonEmptyQueueReceivers = [])
+  isPolyNullNull = false)
 ~~~~~~~~~
 <exceptional-exit>
 
@@ -1533,8 +1476,7 @@ Before: NullnessNoInitStore#383(
   o > NV{, T, poly nn/n=f/f}
   this > NV{@NonNull, Issue5174Sub, poly nn/n=f/f}
   isPolyNullNonNull = false
-  isPolyNullNull = false
-  nonEmptyQueueReceivers = [])
+  isPolyNullNull = false)
 ~~~~~~~~~
 <exit>
 76 -> 77
@@ -1559,8 +1501,7 @@ Before: NullnessNoInitStore#390(
   in > NV{, T, poly nn/n=f/f}
   this > NV{@NonNull, SubNested, poly nn/n=f/f}
   isPolyNullNonNull = false
-  isPolyNullNull = false
-  nonEmptyQueueReceivers = [])
+  isPolyNullNull = false)
 ~~~~~~~~~
 <entry>
 
@@ -1569,8 +1510,7 @@ Before: NullnessNoInitStore#390(
   in > NV{, T, poly nn/n=f/f}
   this > NV{@NonNull, SubNested, poly nn/n=f/f}
   isPolyNullNonNull = false
-  isPolyNullNull = false
-  nonEmptyQueueReceivers = [])
+  isPolyNullNull = false)
 ~~~~~~~~~
 o   [ VariableDeclaration ]
 
@@ -1579,8 +1519,7 @@ Before: NullnessNoInitStore#391(
   in > NV{, T, poly nn/n=f/f}
   this > NV{@NonNull, SubNested, poly nn/n=f/f}
   isPolyNullNonNull = false
-  isPolyNullNull = false
-  nonEmptyQueueReceivers = [])
+  isPolyNullNull = false)
 ~~~~~~~~~
 Issue5174Sub   [ ClassName ]    > NV{@NonNull, Issue5174Sub, poly nn/n=f/f}
 
@@ -1589,8 +1528,7 @@ Before: NullnessNoInitStore#392(
   in > NV{, T, poly nn/n=f/f}
   this > NV{@NonNull, SubNested, poly nn/n=f/f}
   isPolyNullNonNull = false
-  isPolyNullNull = false
-  nonEmptyQueueReceivers = [])
+  isPolyNullNull = false)
 ~~~~~~~~~
 Issue5174Sub.this   [ FieldAccess ]    > NV{@NonNull, Issue5174Sub, poly nn/n=f/f}
 
@@ -1599,8 +1537,7 @@ Before: NullnessNoInitStore#409(
   in > NV{, T, poly nn/n=f/f}
   this > NV{@NonNull, Object, poly nn/n=f/f}
   isPolyNullNonNull = false
-  isPolyNullNull = false
-  nonEmptyQueueReceivers = [])
+  isPolyNullNull = false)
 ~~~~~~~~~
 <exceptional-exit>
 
@@ -1610,8 +1547,7 @@ Before: NullnessNoInitStore#400(
   this > NV{@NonNull, SubNested, poly nn/n=f/f}
   Issue5174Sub.class > NV{@NonNull, Issue5174Sub, poly nn/n=f/f}
   isPolyNullNonNull = false
-  isPolyNullNull = false
-  nonEmptyQueueReceivers = [])
+  isPolyNullNull = false)
 ~~~~~~~~~
 Issue5174Sub.this.methodInner   [ MethodAccess ]
 
@@ -1621,8 +1557,7 @@ Before: NullnessNoInitStore#403(
   this > NV{@NonNull, Issue5174Sub, poly nn/n=f/f}
   Issue5174Sub.class > NV{@NonNull, Issue5174Sub, poly nn/n=f/f}
   isPolyNullNonNull = false
-  isPolyNullNull = false
-  nonEmptyQueueReceivers = [])
+  isPolyNullNull = false)
 ~~~~~~~~~
 in   [ LocalVariable ]    > NV{, T, poly nn/n=f/f}
 
@@ -1632,8 +1567,7 @@ Before: NullnessNoInitStore#406(
   this > NV{@NonNull, Issue5174Sub, poly nn/n=f/f}
   Issue5174Sub.class > NV{@NonNull, Issue5174Sub, poly nn/n=f/f}
   isPolyNullNonNull = false
-  isPolyNullNull = false
-  nonEmptyQueueReceivers = [])
+  isPolyNullNull = false)
 ~~~~~~~~~
 Issue5174Sub.this.methodInner(in)   [ MethodInvocation ]    > NV{, T, poly nn/n=f/f}
 
@@ -1643,8 +1577,7 @@ Before: NullnessNoInitStore#407(
   this > NV{@NonNull, Issue5174Sub, poly nn/n=f/f}
   Issue5174Sub.class > NV{@NonNull, Issue5174Sub, poly nn/n=f/f}
   isPolyNullNonNull = false
-  isPolyNullNull = false
-  nonEmptyQueueReceivers = [])
+  isPolyNullNull = false)
 ~~~~~~~~~
 o = Issue5174Sub.this.methodInner(in)   [ Assignment ]    > NV{, T, poly nn/n=f/f}
 
@@ -1655,8 +1588,7 @@ Before: NullnessNoInitStore#412(
   this > NV{@NonNull, Issue5174Sub, poly nn/n=f/f}
   Issue5174Sub.class > NV{@NonNull, Issue5174Sub, poly nn/n=f/f}
   isPolyNullNonNull = false
-  isPolyNullNull = false
-  nonEmptyQueueReceivers = [])
+  isPolyNullNull = false)
 ~~~~~~~~~
 <exit>
 89 -> 90
@@ -1666,8 +1598,7 @@ Before: NullnessNoInitStore#412(
 Before: NullnessNoInitStore#423(
   this > NV{@NonNull, SubNested, poly nn/n=f/f}
   isPolyNullNonNull = false
-  isPolyNullNull = false
-  nonEmptyQueueReceivers = [])
+  isPolyNullNull = false)
 ~~~~~~~~~
 <entry>
 
@@ -1675,8 +1606,7 @@ Before: NullnessNoInitStore#423(
 Before: NullnessNoInitStore#423(
   this > NV{@NonNull, SubNested, poly nn/n=f/f}
   isPolyNullNonNull = false
-  isPolyNullNull = false
-  nonEmptyQueueReceivers = [])
+  isPolyNullNull = false)
 ~~~~~~~~~
 o   [ VariableDeclaration ]
 (this)   [ ImplicitThis ]    > NV{@NonNull, SubNested, poly nn/n=f/f}
@@ -1688,8 +1618,7 @@ Before: NullnessNoInitStore#424(
   o > NV{, T, poly nn/n=f/f}
   this > NV{@NonNull, Issue5174Sub, poly nn/n=f/f}
   isPolyNullNonNull = false
-  isPolyNullNull = false
-  nonEmptyQueueReceivers = [])
+  isPolyNullNull = false)
 ~~~~~~~~~
 <exit>
 94 -> 95
@@ -1709,8 +1638,7 @@ Before: NullnessNoInitStore#424(
 Before: NullnessNoInitStore#428(
   this > NV{@NonNull, SubNested, poly nn/n=f/f}
   isPolyNullNonNull = false
-  isPolyNullNull = false
-  nonEmptyQueueReceivers = [])
+  isPolyNullNull = false)
 ~~~~~~~~~
 <entry>
 
@@ -1718,8 +1646,7 @@ Before: NullnessNoInitStore#428(
 Before: NullnessNoInitStore#428(
   this > NV{@NonNull, SubNested, poly nn/n=f/f}
   isPolyNullNonNull = false
-  isPolyNullNull = false
-  nonEmptyQueueReceivers = [])
+  isPolyNullNull = false)
 ~~~~~~~~~
 o   [ VariableDeclaration ]
 
@@ -1727,8 +1654,7 @@ o   [ VariableDeclaration ]
 Before: NullnessNoInitStore#429(
   this > NV{@NonNull, SubNested, poly nn/n=f/f}
   isPolyNullNonNull = false
-  isPolyNullNull = false
-  nonEmptyQueueReceivers = [])
+  isPolyNullNull = false)
 ~~~~~~~~~
 Issue5174Sub   [ ClassName ]    > NV{@NonNull, Issue5174Sub, poly nn/n=f/f}
 
@@ -1736,8 +1662,7 @@ Issue5174Sub   [ ClassName ]    > NV{@NonNull, Issue5174Sub, poly nn/n=f/f}
 Before: NullnessNoInitStore#430(
   this > NV{@NonNull, SubNested, poly nn/n=f/f}
   isPolyNullNonNull = false
-  isPolyNullNull = false
-  nonEmptyQueueReceivers = [])
+  isPolyNullNull = false)
 ~~~~~~~~~
 Issue5174Sub.this   [ FieldAccess ]    > NV{@NonNull, Issue5174Sub, poly nn/n=f/f}
 
@@ -1745,8 +1670,7 @@ Issue5174Sub.this   [ FieldAccess ]    > NV{@NonNull, Issue5174Sub, poly nn/n=f/
 Before: NullnessNoInitStore#431(
   this > NV{@NonNull, SubNested, poly nn/n=f/f}
   isPolyNullNonNull = false
-  isPolyNullNull = false
-  nonEmptyQueueReceivers = [])
+  isPolyNullNull = false)
 ~~~~~~~~~
 <exceptional-exit>
 
@@ -1755,8 +1679,7 @@ Before: NullnessNoInitStore#438(
   this > NV{@NonNull, SubNested, poly nn/n=f/f}
   Issue5174Sub.class > NV{@NonNull, Issue5174Sub, poly nn/n=f/f}
   isPolyNullNonNull = false
-  isPolyNullNull = false
-  nonEmptyQueueReceivers = [])
+  isPolyNullNull = false)
 ~~~~~~~~~
 Issue5174Sub.this.f   [ FieldAccess ]    > NV{, T, poly nn/n=f/f}
 
@@ -1765,8 +1688,7 @@ Before: NullnessNoInitStore#441(
   this > NV{@NonNull, Issue5174Sub, poly nn/n=f/f}
   Issue5174Sub.class > NV{@NonNull, Issue5174Sub, poly nn/n=f/f}
   isPolyNullNonNull = false
-  isPolyNullNull = false
-  nonEmptyQueueReceivers = [])
+  isPolyNullNull = false)
 ~~~~~~~~~
 o = Issue5174Sub.this.f   [ Assignment ]    > NV{, T, poly nn/n=f/f}
 
@@ -1776,8 +1698,7 @@ Before: NullnessNoInitStore#444(
   this > NV{@NonNull, Issue5174Sub, poly nn/n=f/f}
   Issue5174Sub.class > NV{@NonNull, Issue5174Sub, poly nn/n=f/f}
   isPolyNullNonNull = false
-  isPolyNullNull = false
-  nonEmptyQueueReceivers = [])
+  isPolyNullNull = false)
 ~~~~~~~~~
 <exit>
 105 -> 106
@@ -1805,8 +1726,7 @@ Before: NullnessNoInitStore#444(
 Before: NullnessNoInitStore#453(
   this > NV{@NonNull, SubNested, poly nn/n=f/f}
   isPolyNullNonNull = false
-  isPolyNullNull = false
-  nonEmptyQueueReceivers = [])
+  isPolyNullNull = false)
 ~~~~~~~~~
 <entry>
 
@@ -1814,8 +1734,7 @@ Before: NullnessNoInitStore#453(
 Before: NullnessNoInitStore#453(
   this > NV{@NonNull, SubNested, poly nn/n=f/f}
   isPolyNullNonNull = false
-  isPolyNullNull = false
-  nonEmptyQueueReceivers = [])
+  isPolyNullNull = false)
 ~~~~~~~~~
 o   [ VariableDeclaration ]
 o   [ LocalVariable ]
@@ -1824,8 +1743,7 @@ o   [ LocalVariable ]
 Before: NullnessNoInitStore#454(
   this > NV{@NonNull, SubNested, poly nn/n=f/f}
   isPolyNullNonNull = false
-  isPolyNullNull = false
-  nonEmptyQueueReceivers = [])
+  isPolyNullNull = false)
 ~~~~~~~~~
 Issue5174Super   [ ClassName ]
 
@@ -1833,8 +1751,7 @@ Issue5174Super   [ ClassName ]
 Before: NullnessNoInitStore#455(
   this > NV{@NonNull, SubNested, poly nn/n=f/f}
   isPolyNullNonNull = false
-  isPolyNullNull = false
-  nonEmptyQueueReceivers = [])
+  isPolyNullNull = false)
 ~~~~~~~~~
 Issue5174Super.sf   [ FieldAccess ]    > NV{@NonNull, Object, poly nn/n=f/f}
 o = Issue5174Super.sf   [ Assignment ]    > NV{@NonNull, Object, poly nn/n=f/f}
@@ -1845,8 +1762,7 @@ o   [ LocalVariable ]
 Before: NullnessNoInitStore#456(
   this > NV{@NonNull, SubNested, poly nn/n=f/f}
   isPolyNullNonNull = false
-  isPolyNullNull = false
-  nonEmptyQueueReceivers = [])
+  isPolyNullNull = false)
 ~~~~~~~~~
 <exceptional-exit>
 
@@ -1855,8 +1771,7 @@ Before: NullnessNoInitStore#463(
   o > NV{@NonNull, Object, poly nn/n=f/f}
   this > NV{@NonNull, SubNested, poly nn/n=f/f}
   isPolyNullNonNull = false
-  isPolyNullNull = false
-  nonEmptyQueueReceivers = [])
+  isPolyNullNull = false)
 ~~~~~~~~~
 Issue5174Sub   [ ClassName ]    > NV{@NonNull, Issue5174Sub, poly nn/n=f/f}
 
@@ -1865,8 +1780,7 @@ Before: NullnessNoInitStore#464(
   o > NV{@NonNull, Object, poly nn/n=f/f}
   this > NV{@NonNull, SubNested, poly nn/n=f/f}
   isPolyNullNonNull = false
-  isPolyNullNull = false
-  nonEmptyQueueReceivers = [])
+  isPolyNullNull = false)
 ~~~~~~~~~
 Issue5174Sub.sf   [ FieldAccess ]    > NV{@NonNull, Object, poly nn/n=f/f}
 o = Issue5174Sub.sf   [ Assignment ]    > NV{@NonNull, Object, poly nn/n=f/f}
@@ -1878,8 +1792,7 @@ Before: NullnessNoInitStore#473(
   o > NV{@NonNull, Object, poly nn/n=f/f}
   this > NV{@NonNull, SubNested, poly nn/n=f/f}
   isPolyNullNonNull = false
-  isPolyNullNull = false
-  nonEmptyQueueReceivers = [])
+  isPolyNullNull = false)
 ~~~~~~~~~
 Issue5174Super   [ ClassName ]    > NV{@NonNull, Issue5174Super, poly nn/n=f/f}
 
@@ -1888,8 +1801,7 @@ Before: NullnessNoInitStore#474(
   o > NV{@NonNull, Object, poly nn/n=f/f}
   this > NV{@NonNull, SubNested, poly nn/n=f/f}
   isPolyNullNonNull = false
-  isPolyNullNull = false
-  nonEmptyQueueReceivers = [])
+  isPolyNullNull = false)
 ~~~~~~~~~
 Issue5174Super.sf   [ FieldAccess ]    > NV{@NonNull, Object, poly nn/n=f/f}
 o = Issue5174Super.sf   [ Assignment ]    > NV{@NonNull, Object, poly nn/n=f/f}
@@ -1900,7 +1812,6 @@ Before: NullnessNoInitStore#483(
   o > NV{@NonNull, Object, poly nn/n=f/f}
   this > NV{@NonNull, SubNested, poly nn/n=f/f}
   isPolyNullNonNull = false
-  isPolyNullNull = false
-  nonEmptyQueueReceivers = [])
+  isPolyNullNull = false)
 ~~~~~~~~~
 <exit>

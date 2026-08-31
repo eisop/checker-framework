@@ -18,7 +18,6 @@ import org.checkerframework.framework.qual.MonotonicQualifier;
 import org.checkerframework.framework.type.GenericAnnotatedTypeFactory;
 import org.checkerframework.javacutil.TreeUtils;
 
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -242,17 +241,19 @@ public class NullnessNoInitStore extends CFAbstractStore<NullnessNoInitValue, Nu
     @Override
     protected String internalVisualize(
             CFGVisualizer<NullnessNoInitValue, NullnessNoInitStore, ?> viz) {
-        return super.internalVisualize(viz)
-                + viz.getSeparator()
-                + viz.visualizeStoreKeyVal("isPolyNullNonNull", isPolyNullNonNull)
-                + viz.getSeparator()
-                + viz.visualizeStoreKeyVal("isPolyNullNull", isPolyNullNull)
-                + viz.getSeparator()
-                + viz.visualizeStoreKeyVal(
-                        "nonEmptyQueueReceivers",
-                        nonEmptyQueueReceivers == null
-                                ? Collections.emptySet()
-                                : nonEmptyQueueReceivers);
+        String res =
+                super.internalVisualize(viz)
+                        + viz.getSeparator()
+                        + viz.visualizeStoreKeyVal("isPolyNullNonNull", isPolyNullNonNull)
+                        + viz.getSeparator()
+                        + viz.visualizeStoreKeyVal("isPolyNullNull", isPolyNullNull);
+        if (nonEmptyQueueReceivers != null && !nonEmptyQueueReceivers.isEmpty()) {
+            res +=
+                    viz.getSeparator()
+                            + viz.visualizeStoreKeyVal(
+                                    "nonEmptyQueueReceivers", nonEmptyQueueReceivers);
+        }
+        return res;
     }
 
     /**
