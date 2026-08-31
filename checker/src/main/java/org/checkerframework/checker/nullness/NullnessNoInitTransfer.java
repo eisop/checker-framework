@@ -565,11 +565,13 @@ public class NullnessNoInitTransfer
         }
         AnnotatedDeclaredType queueType =
                 AnnotatedTypes.asSuper(nullnessTypeFactory, queueOrSubtype, QUEUE_TYPE);
-        if (queueType == null || queueType.getTypeArguments().size() != 1) {
+        if (queueType == null
+                || queueType.isUnderlyingTypeRaw()
+                || queueType.getTypeArguments().size() != 1) {
             return false;
         }
         AnnotatedTypeMirror elementType = queueType.getTypeArguments().get(0);
-        return elementType.hasAnnotation(NONNULL);
+        return elementType.hasEffectiveAnnotation(NONNULL);
     }
 
     @Override

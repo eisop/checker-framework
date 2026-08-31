@@ -214,4 +214,28 @@ public final class IsEmptyPoll extends ArrayList<String> {
             @NonNull String lastNode = d.peekLast();
         }
     }
+
+    <T extends @NonNull Object> void mQueueTypeVarNonNull(Queue<T> q) {
+        while (!q.isEmpty()) {
+            @NonNull T peeked = q.peek();
+            @NonNull T polled = q.poll();
+        }
+    }
+
+    <T extends @Nullable Object> void mQueueTypeVarNullable(Queue<T> q) {
+        while (!q.isEmpty()) {
+            // :: error: (assignment.type.incompatible)
+            @NonNull T peeked = q.peek();
+            // :: error: (assignment.type.incompatible)
+            @NonNull T polled = q.poll();
+        }
+    }
+
+    <T extends @NonNull Object> void mQueueTypeVarPollThenPeek(Queue<T> q) {
+        while (!q.isEmpty()) {
+            @NonNull T polled = q.poll();
+            // :: error: (assignment.type.incompatible)
+            @NonNull T peeked = q.peek();
+        }
+    }
 }
