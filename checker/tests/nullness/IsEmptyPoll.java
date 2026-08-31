@@ -6,6 +6,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.checker.nullness.qual.PolyNull;
 
 import java.util.ArrayList;
+import java.util.Deque;
 import java.util.Queue;
 
 public final class IsEmptyPoll extends ArrayList<String> {
@@ -168,6 +169,49 @@ public final class IsEmptyPoll extends ArrayList<String> {
             q.clear();
             // :: error: (assignment.type.incompatible)
             @NonNull String firstNode = q.peek();
+        }
+    }
+
+    void mDequePollFirst(Deque<String> d) {
+        while (!d.isEmpty()) {
+            @NonNull String firstNode = d.pollFirst();
+        }
+    }
+
+    void mDequePollLast(Deque<String> d) {
+        while (!d.isEmpty()) {
+            @NonNull String lastNode = d.pollLast();
+        }
+    }
+
+    void mDequePeekFirstAndLast(Deque<String> d) {
+        while (!d.isEmpty()) {
+            @NonNull String firstNode = d.peekFirst();
+            @NonNull String lastNode = d.peekLast();
+        }
+    }
+
+    void mDequePeekThenPoll(Deque<String> d) {
+        while (!d.isEmpty()) {
+            @NonNull String peekedNode = d.peekFirst();
+            @NonNull String polledNode = d.pollLast();
+        }
+    }
+
+    void mDequeSecondPoll(Deque<String> d) {
+        while (!d.isEmpty()) {
+            @NonNull String firstNode = d.pollFirst();
+            // :: error: (assignment.type.incompatible)
+            @NonNull String secondNode = d.pollLast();
+        }
+    }
+
+    void mDequeNullable(Deque<@Nullable String> d) {
+        while (!d.isEmpty()) {
+            // :: error: (assignment.type.incompatible)
+            @NonNull String firstNode = d.pollFirst();
+            // :: error: (assignment.type.incompatible)
+            @NonNull String lastNode = d.peekLast();
         }
     }
 }

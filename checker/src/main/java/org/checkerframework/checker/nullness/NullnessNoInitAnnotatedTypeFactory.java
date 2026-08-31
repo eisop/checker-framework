@@ -131,6 +131,22 @@ public class NullnessNoInitAnnotatedTypeFactory
     private final ExecutableElement queuePeek =
             TreeUtils.getMethod("java.util.Queue", "peek", 0, processingEnv);
 
+    /** The Deque.pollFirst method. */
+    private final ExecutableElement dequePollFirst =
+            TreeUtils.getMethod("java.util.Deque", "pollFirst", 0, processingEnv);
+
+    /** The Deque.pollLast method. */
+    private final ExecutableElement dequePollLast =
+            TreeUtils.getMethod("java.util.Deque", "pollLast", 0, processingEnv);
+
+    /** The Deque.peekFirst method. */
+    private final ExecutableElement dequePeekFirst =
+            TreeUtils.getMethod("java.util.Deque", "peekFirst", 0, processingEnv);
+
+    /** The Deque.peekLast method. */
+    private final ExecutableElement dequePeekLast =
+            TreeUtils.getMethod("java.util.Deque", "peekLast", 0, processingEnv);
+
     // List is in alphabetical order.  If you update it, also update
     // ../../../../../../../../docs/manual/nullness-checker.tex
     // and make a pull request for variables NONNULL_ANNOTATIONS and BASE_COPYABLE_ANNOTATIONS in
@@ -1209,22 +1225,28 @@ public class NullnessNoInitAnnotatedTypeFactory
     }
 
     /**
-     * Returns true if {@code node} is an invocation of Queue.poll.
+     * Returns true if {@code node} is an invocation of Queue.poll, Deque.pollFirst, or
+     * Deque.pollLast.
      *
      * @param node a CFG node
-     * @return true if {@code node} is an invocation of Queue.poll
+     * @return true if {@code node} is an invocation of a queue/deque poll method
      */
     public boolean isQueuePoll(Node node) {
-        return NodeUtils.isMethodInvocation(node, queuePoll, getProcessingEnv());
+        return NodeUtils.isMethodInvocation(node, queuePoll, getProcessingEnv())
+                || NodeUtils.isMethodInvocation(node, dequePollFirst, getProcessingEnv())
+                || NodeUtils.isMethodInvocation(node, dequePollLast, getProcessingEnv());
     }
 
     /**
-     * Returns true if {@code node} is an invocation of Queue.peek.
+     * Returns true if {@code node} is an invocation of Queue.peek, Deque.peekFirst, or
+     * Deque.peekLast.
      *
      * @param node a CFG node
-     * @return true if {@code node} is an invocation of Queue.peek
+     * @return true if {@code node} is an invocation of a queue/deque peek method
      */
     public boolean isQueuePeek(Node node) {
-        return NodeUtils.isMethodInvocation(node, queuePeek, getProcessingEnv());
+        return NodeUtils.isMethodInvocation(node, queuePeek, getProcessingEnv())
+                || NodeUtils.isMethodInvocation(node, dequePeekFirst, getProcessingEnv())
+                || NodeUtils.isMethodInvocation(node, dequePeekLast, getProcessingEnv());
     }
 }
