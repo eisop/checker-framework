@@ -108,6 +108,10 @@ public class NullnessNoInitTransfer
      */
     private final boolean nonNullAssumptionAfterInvocation;
 
+    /** Reusable scanner for {@link #containsPolyNullNotAtTopLevel}; reset before each visit. */
+    private final ContainsPolyNullNotAtTopLevelScanner polyNullScanner =
+            new ContainsPolyNullNotAtTopLevelScanner();
+
     /**
      * Create a new NullnessTransfer for the given analysis.
      *
@@ -201,8 +205,8 @@ public class NullnessNoInitTransfer
             @Nullable NullnessNoInitValue value, NullnessNoInitStore store) {
         value = super.finishValue(value, store);
         if (value != null) {
-            value.isPolyNullNonNull = store.isPolyNullNonNull();
-            value.isPolyNullNull = store.isPolyNullNull();
+            value.setPolyNullNonNull(store.isPolyNullNonNull());
+            value.setPolyNullNull(store.isPolyNullNull());
         }
         return value;
     }
@@ -214,9 +218,9 @@ public class NullnessNoInitTransfer
             NullnessNoInitStore elseStore) {
         value = super.finishValue(value, thenStore, elseStore);
         if (value != null) {
-            value.isPolyNullNonNull =
-                    thenStore.isPolyNullNonNull() && elseStore.isPolyNullNonNull();
-            value.isPolyNullNull = thenStore.isPolyNullNull() && elseStore.isPolyNullNull();
+            value.setPolyNullNonNull(
+                    thenStore.isPolyNullNonNull() && elseStore.isPolyNullNonNull());
+            value.setPolyNullNull(thenStore.isPolyNullNull() && elseStore.isPolyNullNull());
         }
         return value;
     }
@@ -333,6 +337,12 @@ public class NullnessNoInitTransfer
         }
 
         @Override
+        public void reset() {
+            isTopLevel = true;
+            super.reset();
+        }
+
+        @Override
         protected Boolean defaultAction(AnnotatedTypeMirror type, Void p) {
             if (isTopLevel) {
                 isTopLevel = false;
@@ -350,7 +360,7 @@ public class NullnessNoInitTransfer
      * @return true if there is an occurrence of @PolyNull that is not at the top level
      */
     private boolean containsPolyNullNotAtTopLevel(AnnotatedTypeMirror t) {
-        return new ContainsPolyNullNotAtTopLevelScanner().visit(t);
+        return polyNullScanner.visit(t);
     }
 
     @Override

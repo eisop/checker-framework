@@ -170,14 +170,21 @@ public final class TypeKindUtils {
      */
     private static boolean isPossiblyBoxedSimpleName(Name n) {
         // Keep consistent with keys in `boxedToPrimitiveType`.
-        return n.contentEquals("Byte")
-                || n.contentEquals("Boolean")
-                || n.contentEquals("Character")
-                || n.contentEquals("Double")
-                || n.contentEquals("Float")
-                || n.contentEquals("Integer")
-                || n.contentEquals("Long")
-                || n.contentEquals("Short");
+        // Decode the Name once, then dispatch via String switch (compiles to
+        // hashCode + targeted equals — short-circuits on length mismatch).
+        switch (n.toString()) {
+            case "Byte":
+            case "Boolean":
+            case "Character":
+            case "Double":
+            case "Float":
+            case "Integer":
+            case "Long":
+            case "Short":
+                return true;
+            default:
+                return false;
+        }
     }
 
     // No overload that takes AnnotatedTypeMirror because javacutil cannot depend on framework.

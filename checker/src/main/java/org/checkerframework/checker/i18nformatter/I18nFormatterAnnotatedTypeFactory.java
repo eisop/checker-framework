@@ -226,7 +226,7 @@ public class I18nFormatterAnnotatedTypeFactory extends BaseAnnotatedTypeFactory 
         public I18nFormatterQualifierHierarchy() {
             super(
                     I18nFormatterAnnotatedTypeFactory.this.getSupportedTypeQualifiers(),
-                    elements,
+                    I18nFormatterAnnotatedTypeFactory.this.elements,
                     I18nFormatterAnnotatedTypeFactory.this);
             this.I18NFORMAT_KIND = this.getQualifierKind(I18NFORMAT_NAME);
             this.I18NFORMATFOR_KIND = this.getQualifierKind(I18NFORMATFOR_NAME);

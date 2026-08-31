@@ -1,6 +1,7 @@
 package org.checkerframework.javacutil;
 
 import org.checkerframework.checker.interning.qual.Interned;
+import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.checker.signature.qual.CanonicalName;
@@ -75,6 +76,13 @@ public class AnnotationBuilder {
     private final Map<ExecutableElement, AnnotationValue> elementValues;
 
     /**
+     * Cached list of declared methods on {@link #annotationElt}, used by {@link
+     * #findElement(CharSequence)} to avoid an {@code ElementFilter.methodsIn} allocation per
+     * lookup.
+     */
+    private @MonotonicNonNull List<ExecutableElement> annotationMethodsCache = null;
+
+    /**
      * Create a new AnnotationBuilder for the given annotation and environment (with no
      * elements/fields, but they can be added later).
      *
@@ -101,6 +109,29 @@ public class AnnotationBuilder {
             throw new UserError("Could not find annotation: " + name + ". Is it on the classpath?");
         }
         assert annotationElt.getKind() == ElementKind.ANNOTATION_TYPE;
+        this.annotationType = (DeclaredType) annotationElt.asType();
+        this.elementValues = new ArrayMap<>(2); // most annotations have few elements
+    }
+
+    /**
+     * Create a new AnnotationBuilder for the given annotation element (with no elements/fields, but
+     * they can be added later).
+     *
+     * <p>Use this constructor on hot paths: unlike the name-based constructors, it performs no
+     * {@link Elements#getTypeElement(CharSequence)} lookup (which validates and searches for the
+     * name on every call). Callers that repeatedly build annotations of the same type should look
+     * the {@link TypeElement} up once and reuse it.
+     *
+     * @param env the processing environment
+     * @param annotationElt the type element of the annotation to build
+     */
+    public AnnotationBuilder(ProcessingEnvironment env, TypeElement annotationElt) {
+        this.elements = env.getElementUtils();
+        this.types = env.getTypeUtils();
+        if (annotationElt.getKind() != ElementKind.ANNOTATION_TYPE) {
+            throw new BugInCF("Not an annotation type: " + annotationElt);
+        }
+        this.annotationElt = annotationElt;
         this.annotationType = (DeclaredType) annotationElt.asType();
         this.elementValues = new ArrayMap<>(2); // most annotations have few elements
     }
@@ -347,7 +378,13 @@ public class AnnotationBuilder {
         }
     }
 
-    /** Set the element/field with the given name, to the given value. */
+    /**
+     * Set the element/field with the given name, to the given value.
+     *
+     * @param elementName the element/field name
+     * @param value the new value for the element/field
+     * @return this
+     */
     public AnnotationBuilder setValue(CharSequence elementName, AnnotationMirror value) {
         setValue(elementName, (Object) value);
         return this;
@@ -392,47 +429,112 @@ public class AnnotationBuilder {
         return this;
     }
 
-    /** Set the element/field with the given name, to the given value. */
+    /**
+     * Set the element/field with the given name, to the given value.
+     *
+     * @param elementName the element/field name
+     * @param values the new value for the element/field
+     * @return this
+     */
     public AnnotationBuilder setValue(CharSequence elementName, Object[] values) {
         return setValue(elementName, Arrays.asList(values));
     }
 
-    /** Set the element/field with the given name, to the given value. */
+    /**
+     * Set the element/field with the given name, to the given value.
+     *
+     * @param elementName the element/field name
+     * @param value the new value for the element/field
+     * @return this
+     */
     public AnnotationBuilder setValue(CharSequence elementName, Boolean value) {
         return setValue(elementName, (Object) value);
     }
 
-    /** Set the element/field with the given name, to the given value. */
+    /**
+     * Set the element/field with the given name, to the given value.
+     *
+     * @param elementName the element/field name
+     * @param value the new value for the element/field
+     * @return this
+     */
+    public AnnotationBuilder setValue(CharSequence elementName, Byte value) {
+        return setValue(elementName, (Object) value);
+    }
+
+    /**
+     * Set the element/field with the given name, to the given value.
+     *
+     * @param elementName the element/field name
+     * @param value the new value for the element/field
+     * @return this
+     */
     public AnnotationBuilder setValue(CharSequence elementName, Character value) {
         return setValue(elementName, (Object) value);
     }
 
-    /** Set the element/field with the given name, to the given value. */
+    /**
+     * Set the element/field with the given name, to the given value.
+     *
+     * @param elementName the element/field name
+     * @param value the new value for the element/field
+     * @return this
+     */
     public AnnotationBuilder setValue(CharSequence elementName, Double value) {
         return setValue(elementName, (Object) value);
     }
 
-    /** Set the element/field with the given name, to the given value. */
+    /**
+     * Set the element/field with the given name, to the given value.
+     *
+     * @param elementName the element/field name
+     * @param value the new value for the element/field
+     * @return this
+     */
     public AnnotationBuilder setValue(CharSequence elementName, Float value) {
         return setValue(elementName, (Object) value);
     }
 
-    /** Set the element/field with the given name, to the given value. */
+    /**
+     * Set the element/field with the given name, to the given value.
+     *
+     * @param elementName the element/field name
+     * @param value the new value for the element/field
+     * @return this
+     */
     public AnnotationBuilder setValue(CharSequence elementName, Integer value) {
         return setValue(elementName, (Object) value);
     }
 
-    /** Set the element/field with the given name, to the given value. */
+    /**
+     * Set the element/field with the given name, to the given value.
+     *
+     * @param elementName the element/field name
+     * @param value the new value for the element/field
+     * @return this
+     */
     public AnnotationBuilder setValue(CharSequence elementName, Long value) {
         return setValue(elementName, (Object) value);
     }
 
-    /** Set the element/field with the given name, to the given value. */
+    /**
+     * Set the element/field with the given name, to the given value.
+     *
+     * @param elementName the element/field name
+     * @param value the new value for the element/field
+     * @return this
+     */
     public AnnotationBuilder setValue(CharSequence elementName, Short value) {
         return setValue(elementName, (Object) value);
     }
 
-    /** Set the element/field with the given name, to the given value. */
+    /**
+     * Set the element/field with the given name, to the given value.
+     *
+     * @param elementName the element/field name
+     * @param value the new value for the element/field
+     * @return this
+     */
     public AnnotationBuilder setValue(CharSequence elementName, String value) {
         return setValue(elementName, (Object) value);
     }
@@ -590,14 +692,26 @@ public class AnnotationBuilder {
         TypeElement enumClassElt = elements.getTypeElement(enumClass);
         assert enumClassElt != null;
         for (Element enumElt : enumClassElt.getEnclosedElements()) {
-            if (enumElt.getSimpleName().contentEquals(value.name())) {
+            if (InternalUtils.sameName(enumElt.getSimpleName(), value.name())) {
                 return (VariableElement) enumElt;
             }
         }
         throw new BugInCF("cannot be here");
     }
 
-    private AnnotationBuilder setValue(CharSequence key, Object value) {
+    /**
+     * Set the element/field with the given name, to the given value. This is the generic fallback
+     * that the typed {@code setValue} overloads above (for {@code Boolean}, {@code Byte}, {@code
+     * Character}, {@code Double}, {@code Float}, {@code Integer}, {@code Long}, {@code Short},
+     * {@code String}, and {@code AnnotationMirror}) all delegate to; call it directly if the caller
+     * already holds an {@code Object} of one of those supported types.
+     *
+     * @param key the element/field name
+     * @param value the new value for the element/field; must be an instance of one of the types
+     *     supported by the typed {@code setValue} overloads
+     * @return this
+     */
+    public AnnotationBuilder setValue(CharSequence key, Object value) {
         assertNotBuilt();
         AnnotationValue val = createValue(value);
         ExecutableElement var = findElement(key);
@@ -606,9 +720,21 @@ public class AnnotationBuilder {
         return this;
     }
 
+    /**
+     * Find the executable element with the given name. Throws an exception if no element with that
+     * name exists.
+     *
+     * @param key the executable element name
+     * @return the executable element
+     */
     public ExecutableElement findElement(CharSequence key) {
-        for (ExecutableElement elt : ElementFilter.methodsIn(annotationElt.getEnclosedElements())) {
-            if (elt.getSimpleName().contentEquals(key)) {
+        List<ExecutableElement> methods = annotationMethodsCache;
+        if (methods == null) {
+            methods = ElementFilter.methodsIn(annotationElt.getEnclosedElements());
+            annotationMethodsCache = methods;
+        }
+        for (ExecutableElement elt : methods) {
+            if (InternalUtils.sameName(elt.getSimpleName(), key)) {
                 return elt;
             }
         }
@@ -616,12 +742,66 @@ public class AnnotationBuilder {
     }
 
     /**
+     * Returns the boxed class corresponding to the given primitive type kind, or null if the kind
+     * is not primitive.
+     *
+     * @param kind a type kind
+     * @return the boxed class for {@code kind}, or null
+     */
+    private static @Nullable Class<?> boxedClassFor(TypeKind kind) {
+        switch (kind) {
+            case BOOLEAN:
+                return Boolean.class;
+            case BYTE:
+                return Byte.class;
+            case CHAR:
+                return Character.class;
+            case DOUBLE:
+                return Double.class;
+            case FLOAT:
+                return Float.class;
+            case INT:
+                return Integer.class;
+            case LONG:
+                return Long.class;
+            case SHORT:
+                return Short.class;
+            default:
+                return null;
+        }
+    }
+
+    /**
+     * Checks that the given value is a subtype of the expected type.
+     *
      * @param expected the expected type
      * @param givenValue the object whose run-time class to check
      * @throws BugInCF if the type of {@code givenValue} is not the same as {@code expected}
      */
     private void checkSubtype(TypeMirror expected, Object givenValue) {
-        if (expected.getKind().isPrimitive()) {
+        // Fast path: annotation element types are restricted by the JLS, so in the common case
+        // the value's run-time class matches the (boxed) expected type exactly.  Name equality
+        // is already accepted as proof of compatibility by the slow path below (see the
+        // toString comparison); checking it first avoids an Elements lookup (with its name
+        // validation) and a Types.isSubtype visitor walk per value.
+        TypeKind expectedKind = expected.getKind();
+        if (expectedKind.isPrimitive()) {
+            if (givenValue.getClass() == boxedClassFor(expectedKind)) {
+                return;
+            }
+        } else if (expectedKind == TypeKind.DECLARED
+                && !(givenValue instanceof TypeMirror)
+                && !(givenValue instanceof AnnotationMirror)
+                && !(givenValue instanceof VariableElement)) {
+            String expectedName =
+                    ElementUtils.getQualifiedName(
+                            (TypeElement) ((DeclaredType) expected).asElement());
+            if (expectedName.equals(givenValue.getClass().getCanonicalName())) {
+                return;
+            }
+        }
+
+        if (expectedKind.isPrimitive()) {
             expected = types.boxedClass((PrimitiveType) expected).asType();
         }
 
@@ -661,8 +841,11 @@ public class AnnotationBuilder {
         }
         if (!isSubtype) {
             // Annotations in stub files sometimes are the same type, but Types#isSubtype fails
-            // anyway.
-            isSubtype = found.toString().equals(expected.toString());
+            // anyway. Comparing toString() representations is a correct fallback for this case:
+            // both found and expected are annotation types whose string forms are canonical names.
+            @SuppressWarnings("TypeToString")
+            boolean sameByName = found.toString().equals(expected.toString());
+            isSubtype = sameByName;
         }
 
         if (!isSubtype) {
@@ -697,6 +880,13 @@ public class AnnotationBuilder {
         /** The element values. */
         private final Map<ExecutableElement, AnnotationValue> elementValues;
 
+        /**
+         * Cached unmodifiable view of {@link #elementValues}, populated lazily on first call to
+         * {@link #getElementValues()} to avoid allocating a wrapper map per call.
+         */
+        private @Nullable Map<? extends ExecutableElement, ? extends AnnotationValue>
+                unmodifiableElementValues;
+
         /** The annotation name. */
         // default visibility to allow access from within package.
         final @Interned @CanonicalName String annotationName;
@@ -707,13 +897,12 @@ public class AnnotationBuilder {
          * @param annotationType the annotation type
          * @param elementValues the element values
          */
-        @SuppressWarnings("signature:assignment.type.incompatible") // needs JDK annotations
         CheckerFrameworkAnnotationMirror(
                 DeclaredType annotationType,
                 Map<ExecutableElement, AnnotationValue> elementValues) {
             this.annotationType = annotationType;
             TypeElement elm = (TypeElement) annotationType.asElement();
-            this.annotationName = elm.getQualifiedName().toString().intern();
+            this.annotationName = ElementUtils.getQualifiedName(elm);
             this.elementValues = elementValues;
         }
 
@@ -724,7 +913,13 @@ public class AnnotationBuilder {
 
         @Override
         public Map<? extends ExecutableElement, ? extends AnnotationValue> getElementValues() {
-            return Collections.unmodifiableMap(elementValues);
+            Map<? extends ExecutableElement, ? extends AnnotationValue> r =
+                    unmodifiableElementValues;
+            if (r == null) {
+                r = Collections.unmodifiableMap(elementValues);
+                unmodifiableElementValues = r;
+            }
+            return r;
         }
 
         @SideEffectFree
@@ -821,6 +1016,8 @@ public class AnnotationBuilder {
                 return v.visitArray((List<? extends AnnotationValue>) value, p);
             } else if (value instanceof Boolean) {
                 return v.visitBoolean((Boolean) value, p);
+            } else if (value instanceof Byte) {
+                return v.visitByte((Byte) value, p);
             } else if (value instanceof Character) {
                 return v.visitChar((Character) value, p);
             } else if (value instanceof Double) {

@@ -357,17 +357,45 @@ Section~\ref{inherited-wildcard-annotations}).
 
 \subsectionAndLabel{Examples of qualifiers on a type parameter}{type-parameter-qualifier-examples}
 
+These examples illustrate the general rules of
+Section~\ref{generics-bounds-syntax} and Section~\ref{generics-defaults},
+which are the authoritative specification.  Recall the two rules that those
+sections state:  a primary annotation written directly on the type variable
+(as in \<@Nullable T>) sets only the \emph{lower} bound; and if the
+\<extends> clause is omitted, then the \emph{upper} bound defaults
+independently to \<@\emph{TopType} Object>, regardless of the primary
+annotation.
+
 Recall that \<@Nullable \emph{X}> is a supertype of \<@NonNull \emph{X}>,
 for any \emph{X}\@.
 Most of the following types mean different things:
 
 \begin{Verbatim}
   class MyList1<@Nullable T> { ... }
-  class MyList1a<@Nullable T extends @Nullable Object> { ... } // same as MyList1
+  class MyList1a<@Nullable T extends @Nullable Object> { ... } // same as MyList1 (see below)
   class MyList2<@NonNull T extends @NonNull Object> { ... }
-  class MyList2a<T extends @NonNull Object> { ... } // same as MyList2
+  class MyList2a<T extends @NonNull Object> { ... }            // same as MyList2
   class MyList3<T extends @Nullable Object> { ... }
+  class MyList4<@NonNull T> { ... }                            // same as MyList3, NOT MyList2 (see below)
 \end{Verbatim}
+
+\<MyList1> and \<MyList1a> mean the same thing, but only because
+\<@Nullable> is the \emph{top} qualifier of the Nullness type hierarchy.
+\<MyList1> omits the \<extends> clause, so its upper bound defaults to the
+top qualifier \<@Nullable Object>; \<MyList1a> writes that same bound
+explicitly.  Do not over-generalize this coincidence into a rule that a
+primary annotation is copied onto the upper bound --- it is not.  This is
+shown by \<MyList4>:  \<@NonNull> is not the top qualifier, so
+\<MyList4>'s omitted \<extends> clause still defaults the upper bound to the
+top qualifier \<@Nullable Object>.  The primary \<@NonNull> sets only the
+lower bound (which for a type variable already defaults to the bottom
+qualifier \<@NonNull>).  Therefore \<MyList4> means the same as \<MyList3>,
+and is emphatically \emph{not} the same as \<MyList2>:  \<MyList4> may be
+instantiated with a \<@Nullable> type, whereas \<MyList2> may not.  The Map
+Key Checker relies on exactly this rule when it writes a bare lower-bound
+annotation such as \<class Set<@KeyForBottom E>> to widen a type
+parameter's lower bound without constraining its upper bound; see
+Section~\ref{map-key-defaults-lowerbound}.
 
 \<MyList1> and \<MyList1a> must be instantiated with a nullable type.
 The implementation of \<MyList1> must be able to consume (store) a null
@@ -484,6 +512,17 @@ explicit method type arguments, for which the syntax is as follows:
 
 \noindent
 This uses Java's existing syntax for specifying a method call's type arguments.
+
+Type argument inference for a single method invocation can be expensive: it is
+roughly cubic in the nesting depth of the invocation, so a deeply nested, often
+machine-generated, invocation could make the checker run for many seconds.  To
+bound this, the checker abandons the type argument inference of an invocation
+once it exceeds a work budget, issuing a \code{type.argument.inference.budget}
+error that asks you to supply explicit type arguments as shown above.  The
+default budget has about an order of magnitude of headroom over the most complex
+hand-written code, so it does not affect realistic programs.  If legitimate
+(typically machine-generated) code triggers the error, raise the budget using
+the \code{-AinferenceWorkBudget=}\emph{N} command-line option.
 
 
 \subsectionAndLabel{The Bottom type}{bottom-type}
@@ -959,7 +998,7 @@ At a field access where the declared type of the field has a polymorphic
 qualifier, that polymorphic qualifier is instantiated to the qualifier on the
 type of the receiver of the field access (or in the case of type variables, the
 qualifier on the upper bound).  That is, the qualifier on \<myBuffer.field>
-is that same as that on \<myBuffer>.
+is the same as that on \<myBuffer>.
 
 \subsectionAndLabel{Local variable defaults for types with qualifier parameters}{local-vars-qual-param-defaults}
 
