@@ -643,7 +643,7 @@ Methods such as \sunjavadoc{java.base/java/util/Queue.html\#poll()}{Queue.poll},
 \sunjavadoc{java.base/java/util/Deque.html\#peekFirst()}{Deque.peekFirst}, and
 \sunjavadoc{java.base/java/util/Deque.html\#peekLast()}{Deque.peekLast} return
 \<@Nullable> when invoked on an empty queue or deque, but return a non-null
-element when invoked on a non-empty queue whose element type is \<@NonNull>.
+element when invoked on a non-empty queue or deque whose element type is \<@NonNull>.
 
 The Nullness Checker tracks when a queue or deque expression is known to be
 non-empty (such as on the false branch of
@@ -651,8 +651,9 @@ non-empty (such as on the false branch of
 When a retrieval method is called on a known non-empty receiver with a
 \<@NonNull> element type, the return value is refined to \<@NonNull>.
 Mutating operations (including calls to \<poll()>, \<pollFirst()>, \<pollLast()>,
-or other side-effecting methods) conservatively reset this non-empty knowledge,
-so subsequent poll operations will not be refined without another non-emptiness check.
+or other side-effecting methods) conservatively clear this non-empty knowledge,
+so subsequent poll or peek operations will not be refined without another
+non-emptiness check.
 
 
 \subsectionAndLabel{Run-time checks for nullness}{nullness-runtime-checks}
