@@ -763,7 +763,7 @@ component type to be refined to `@NonNull`.
 
 The `ClassBound` annotation can now be used with anonymous types.
 
-The Nullness Checker now refines `Queue.poll()` to `@NonNull` after a false `isEmpty()` check for queues with `@NonNull` element types.
+The Nullness Checker now refines `Queue.poll()`, `Queue.peek()`, `Deque.pollFirst()`, `Deque.pollLast()`, `Deque.peekFirst()`, and `Deque.peekLast()` to `@NonNull` after a false `isEmpty()` check for queues and deques with `@NonNull` element types.
 
 **Implementation details:**
 
