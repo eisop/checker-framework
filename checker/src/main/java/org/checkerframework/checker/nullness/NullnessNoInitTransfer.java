@@ -511,10 +511,10 @@ public class NullnessNoInitTransfer
         }
 
         // Refine result to @NonNull if n is an invocation of Queue.poll(), the receiver is known to
-        // be non-empty, and Queue element type is @NonNull
+        // be non-empty, and the Queue element type is @NonNull.
         if (isNonEmptyQueuePoll) {
             AnnotatedTypeMirror receiverType = nullnessTypeFactory.getReceiverType(n.getTree());
-            if (!isElementTypeNullable(receiverType)) {
+            if (isElementTypeNonNull(receiverType)) {
                 makeNonNull(result, n);
                 refineToNonNull(result);
             }
@@ -542,21 +542,22 @@ public class NullnessNoInitTransfer
     }
 
     /**
-     * Returns true if queueType's element type (the E type argument to Queue) is @Nullable.
+     * Returns true if queueType's element type (the E type argument to Queue) is @NonNull.
      *
      * @param queueOrSubtype the Queue type, or a subtype
-     * @return true if queueType's element type is @Nullable
+     * @return true if queueType's element type is @NonNull
      */
-    private boolean isElementTypeNullable(AnnotatedTypeMirror queueOrSubtype) {
+    private boolean isElementTypeNonNull(@Nullable AnnotatedTypeMirror queueOrSubtype) {
+        if (queueOrSubtype == null) {
+            return false;
+        }
         AnnotatedDeclaredType queueType =
                 AnnotatedTypes.asSuper(nullnessTypeFactory, queueOrSubtype, QUEUE_TYPE);
-        int numTypeArguments = queueType.getTypeArguments().size();
-        if (numTypeArguments != 1) {
-            throw new TypeSystemError(
-                    "Wrong number %d of type arguments: %s", numTypeArguments, queueType);
+        if (queueType == null || queueType.getTypeArguments().size() != 1) {
+            return false;
         }
         AnnotatedTypeMirror elementType = queueType.getTypeArguments().get(0);
-        return elementType.hasAnnotation(NULLABLE);
+        return elementType.hasAnnotation(NONNULL);
     }
 
     @Override

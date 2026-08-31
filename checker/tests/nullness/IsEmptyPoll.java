@@ -3,6 +3,7 @@
 
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.checker.nullness.qual.PolyNull;
 
 import java.util.ArrayList;
 import java.util.Queue;
@@ -108,6 +109,21 @@ public final class IsEmptyPoll extends ArrayList<String> {
     void argMutate(Queue<String> q) {
         while (!q.isEmpty()) {
             clearViaArg(q);
+            // :: error: (assignment.type.incompatible)
+            @NonNull String firstNode = q.poll();
+        }
+    }
+
+    @SuppressWarnings("rawtypes")
+    void rawQueue(Queue q) {
+        while (!q.isEmpty()) {
+            // :: error: (assignment.type.incompatible)
+            @NonNull Object firstNode = q.poll();
+        }
+    }
+
+    void mPolyNull(Queue<@PolyNull String> q) {
+        while (!q.isEmpty()) {
             // :: error: (assignment.type.incompatible)
             @NonNull String firstNode = q.poll();
         }
