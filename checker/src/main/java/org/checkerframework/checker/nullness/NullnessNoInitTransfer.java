@@ -513,7 +513,6 @@ public class NullnessNoInitTransfer
         // to avoid needless bookkeeping for every List/Set/... isEmpty() call.
         if (nullnessTypeFactory.isCollectionIsEmpty(n)
                 && receiverExpr != null
-                && receiver.getType() != null
                 && TypesUtils.isErasedSubtype(
                         receiver.getType(), QUEUE_TYPE.getUnderlyingType(), analysis.getTypes())) {
             NullnessNoInitStore thenStore = result.getThenStore();
