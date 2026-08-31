@@ -361,6 +361,9 @@ been assigned.
 \item[\refqualclass{checker/initialization/qual}{UnknownInitialization}]
 \item[\refqualclass{checker/initialization/qual}{UnderInitialization}]
 \item[\refqualclass{checker/initialization/qual}{PolyInitialized}]
+\item[\refqualclass{checker/initialization/qual}{EnsuresInitialized}]
+  indicates a method postcondition.  After the method returns normally, the given
+  expressions are initialized.
 \end{description}
 
 \noindent
@@ -1659,18 +1662,13 @@ All \code{@NonNull} fields must either have a
 default in the field declaration, or be assigned in the constructor or in a
 helper method that the constructor calls.  If
 your code initializes (some) fields in a helper method, you will need to
-annotate the helper method with an annotation such as
+annotate the helper method with a postcondition annotation.
+If the field is a reference type, you should use
 \refqualclass{checker/nullness/qual}{EnsuresNonNull}\code{(\{"field1", "field2"\})}
-for all the fields that the helper method assigns.
-
-% TODO:
-% We need an
-%   @EnsuresInitialized("b")
-% that is analogous to
-%   @EnsuresNonNull("b")
-% when we are dealing with a field of primitive type.
-% But, for now just use the same annotation, @EnsuresNonNull, for both purposes.
-
+to inform both the Nullness and Initialization checkers that the field is non-null and therefore initialized.
+If the field is a primitive type (or if you only wish to guarantee initialization and not non-nullness), use
+\refqualclass{checker/initialization/qual}{EnsuresInitialized}\code{(\{"field1", "field2"\})}
+instead.
 
 \subsectionAndLabel{\code{@UnderInitialization} examples}{underinitialization-examples}
 
@@ -2218,8 +2216,9 @@ class MyClass {
 
 \noindent
 You are likely to want to annotate \<initHelper()> with
-\refqualclass{checker/nullness/qual}{EnsuresNonNull} as well; see
-Section~\ref{nullness-method-annotations}.
+\refqualclass{checker/nullness/qual}{EnsuresNonNull}
+(or \refqualclass{checker/initialization/qual}{EnsuresInitialized})
+as well; see Section~\ref{nullness-method-annotations}.
 
 You may get the ``call to \ldots\ is not allowed on the given receiver''
 error even if your constructor has already initialized all the fields.
@@ -2296,7 +2295,8 @@ A method with a non-initialized receiver may assume that a few fields (but not a
 of them) are non-null, and it sometimes sets some more fields to non-null
 values.  To express these concepts, use the
 \refqualclass{checker/nullness/qual}{RequiresNonNull},
-\refqualclass{checker/nullness/qual}{EnsuresNonNull}, and
+\refqualclass{checker/nullness/qual}{EnsuresNonNull}
+(or \refqualclass{checker/initialization/qual}{EnsuresInitialized}), and
 \refqualclass{checker/nullness/qual}{EnsuresNonNullIf} method annotations;
 see Section~\ref{nullness-method-annotations}.
 
