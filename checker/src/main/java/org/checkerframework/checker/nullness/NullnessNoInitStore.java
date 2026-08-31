@@ -28,7 +28,8 @@ import javax.lang.model.element.ExecutableElement;
 
 /**
  * In addition to the base class behavior, tracks whether {@link PolyNull} is known to be {@link
- * NonNull} or {@link Nullable} (or not known to be either).
+ * NonNull} or {@link Nullable} (or not known to be either), and tracks which queue or deque
+ * receiver expressions are known to be non-empty.
  */
 public class NullnessNoInitStore extends CFAbstractStore<NullnessNoInitValue, NullnessNoInitStore> {
 

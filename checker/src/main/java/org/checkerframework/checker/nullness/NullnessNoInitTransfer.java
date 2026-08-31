@@ -434,6 +434,15 @@ public class NullnessNoInitTransfer
      *   <li>Given a call m.get(k), if k is @KeyFor("m") and m's value type is @NonNull, then the
      *       result is @NonNull in the thenStore and elseStore of the transfer result.
      * </ul>
+     *
+     * <p>Provided that q is of a type that implements interface java.util.Queue:
+     *
+     * <ul>
+     *   <li>Given a call q.isEmpty(), q is known to be non-empty in the elseStore of the transfer
+     *       result.
+     *   <li>Given a call q.poll() or q.peek() (or the corresponding Deque methods), if q is known
+     *       to be non-empty and q's element type is @NonNull, then the result is @NonNull.
+     * </ul>
      */
     @Override
     public TransferResult<NullnessNoInitValue, NullnessNoInitStore> visitMethodInvocation(
@@ -499,15 +508,18 @@ public class NullnessNoInitTransfer
             }
         }
 
-        // Handle Collection.isEmpty(): mark receiver as non-empty in the false branch.
-        if (nullnessTypeFactory.isCollectionIsEmpty(n)) {
-            if (receiverExpr != null) {
-                NullnessNoInitStore thenStore = result.getThenStore();
-                NullnessNoInitStore elseStore = result.getElseStore();
-                elseStore.markQueueAsNonEmpty(receiverExpr);
-                return new ConditionalTransferResult<>(
-                        result.getResultValue(), thenStore, elseStore);
-            }
+        // Handle Collection.isEmpty(): mark receiver as non-empty in the false branch. Restricted
+        // to Queue/Deque receivers, since that is the only place this information is consulted,
+        // to avoid needless bookkeeping for every List/Set/... isEmpty() call.
+        if (nullnessTypeFactory.isCollectionIsEmpty(n)
+                && receiverExpr != null
+                && receiver.getType() != null
+                && TypesUtils.isErasedSubtype(
+                        receiver.getType(), QUEUE_TYPE.getUnderlyingType(), analysis.getTypes())) {
+            NullnessNoInitStore thenStore = result.getThenStore();
+            NullnessNoInitStore elseStore = result.getElseStore();
+            elseStore.markQueueAsNonEmpty(receiverExpr);
+            return new ConditionalTransferResult<>(result.getResultValue(), thenStore, elseStore);
         }
 
         // Refine result to @NonNull if n is an invocation of Queue.poll() or Queue.peek(), the
