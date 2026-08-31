@@ -440,10 +440,10 @@ public class NullnessNoInitTransfer
             MethodInvocationNode n, TransferInput<NullnessNoInitValue, NullnessNoInitStore> in) {
         Node receiver = n.getTarget().getReceiver();
         JavaExpression receiverExpr = JavaExpression.fromNode(receiver);
-        // Capture queue non-emptiness fact before superclass mutates the store when handling side
-        // effects.
-        boolean isNonEmptyQueuePoll =
-                nullnessTypeFactory.isQueuePoll(n)
+        // Capture whether the queue is known to be non-empty before the superclass mutates the
+        // store when handling side effects.
+        boolean isNonEmptyQueuePollOrPeek =
+                (nullnessTypeFactory.isQueuePoll(n) || nullnessTypeFactory.isQueuePeek(n))
                         && receiverExpr != null
                         && in.getRegularStore().isQueueNonEmpty(receiverExpr);
 
@@ -510,9 +510,9 @@ public class NullnessNoInitTransfer
             }
         }
 
-        // Refine result to @NonNull if n is an invocation of Queue.poll(), the receiver is known to
-        // be non-empty, and the Queue element type is @NonNull.
-        if (isNonEmptyQueuePoll) {
+        // Refine result to @NonNull if n is an invocation of Queue.poll() or Queue.peek(), the
+        // receiver is known to be non-empty, and the Queue element type is @NonNull.
+        if (isNonEmptyQueuePollOrPeek) {
             AnnotatedTypeMirror receiverType = nullnessTypeFactory.getReceiverType(n.getTree());
             if (isElementTypeNonNull(receiverType)) {
                 makeNonNull(result, n);

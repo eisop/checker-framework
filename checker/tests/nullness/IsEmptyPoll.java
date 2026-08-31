@@ -128,4 +128,46 @@ public final class IsEmptyPoll extends ArrayList<String> {
             @NonNull String firstNode = q.poll();
         }
     }
+
+    void mPeekNonNull(Queue<String> q) {
+        while (!q.isEmpty()) {
+            @NonNull String firstNode = q.peek();
+            @NonNull String secondNode = q.peek();
+        }
+    }
+
+    void mPeekThenPoll(Queue<String> q) {
+        while (!q.isEmpty()) {
+            @NonNull String peekedNode = q.peek();
+            @NonNull String polledNode = q.poll();
+        }
+    }
+
+    void mPeekNullable(Queue<@Nullable String> q) {
+        while (!q.isEmpty()) {
+            // :: error: (assignment.type.incompatible)
+            @NonNull String firstNode = q.peek();
+        }
+    }
+
+    void mPeekNoCheck(Queue<@Nullable String> q) {
+        // :: error: (assignment.type.incompatible)
+        @NonNull String firstNode = q.peek();
+    }
+
+    void mPeekAfterPoll(Queue<String> q) {
+        while (!q.isEmpty()) {
+            @NonNull String firstNode = q.poll();
+            // :: error: (assignment.type.incompatible)
+            @NonNull String peekedNode = q.peek();
+        }
+    }
+
+    void mClearBeforePeek(Queue<String> q) {
+        while (!q.isEmpty()) {
+            q.clear();
+            // :: error: (assignment.type.incompatible)
+            @NonNull String firstNode = q.peek();
+        }
+    }
 }

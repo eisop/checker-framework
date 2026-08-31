@@ -127,6 +127,10 @@ public class NullnessNoInitAnnotatedTypeFactory
     private final ExecutableElement queuePoll =
             TreeUtils.getMethod("java.util.Queue", "poll", 0, processingEnv);
 
+    /** The Queue.peek method. */
+    private final ExecutableElement queuePeek =
+            TreeUtils.getMethod("java.util.Queue", "peek", 0, processingEnv);
+
     // List is in alphabetical order.  If you update it, also update
     // ../../../../../../../../docs/manual/nullness-checker.tex
     // and make a pull request for variables NONNULL_ANNOTATIONS and BASE_COPYABLE_ANNOTATIONS in
@@ -1212,5 +1216,15 @@ public class NullnessNoInitAnnotatedTypeFactory
      */
     public boolean isQueuePoll(Node node) {
         return NodeUtils.isMethodInvocation(node, queuePoll, getProcessingEnv());
+    }
+
+    /**
+     * Returns true if {@code node} is an invocation of Queue.peek.
+     *
+     * @param node a CFG node
+     * @return true if {@code node} is an invocation of Queue.peek
+     */
+    public boolean isQueuePeek(Node node) {
+        return NodeUtils.isMethodInvocation(node, queuePeek, getProcessingEnv());
     }
 }
