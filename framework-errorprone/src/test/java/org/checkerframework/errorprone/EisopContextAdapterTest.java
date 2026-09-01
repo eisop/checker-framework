@@ -152,7 +152,8 @@ public class EisopContextAdapterTest {
     public void contextWithoutProcessingEnvironmentIsDiagnosed() {
         try {
             EisopContextAdapter.getProcessingEnvironment(new Context());
-            Assert.fail("expected IllegalStateException for a context with no processing environment");
+            Assert.fail(
+                    "expected IllegalStateException for a context with no processing environment");
         } catch (IllegalStateException expected) {
             // Expected.
         }
