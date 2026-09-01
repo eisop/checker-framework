@@ -5,7 +5,8 @@ Version 3.49.5-eisop2 (June ?, 2026)
 
 The Nullness Checker's new `-AjspecifyMode` option enables its JSpecify-compatible
 checking behaviors as a group.  It currently enables `-AonlyAnnotatedFor`
-and recognizes JSpecify's `@NullMarked`.
+and recognizes JSpecify's `@NullMarked`.  It also disables initialization checking
+and the Map Key Checker.
 
 The Checker Framework now issues an `annotation.on.supertype` error when an annotation supported by
 the checker is written as a main annotation on the superclass or interface in an `extends` or

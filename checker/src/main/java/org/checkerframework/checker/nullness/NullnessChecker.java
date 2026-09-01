@@ -6,6 +6,7 @@ import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.framework.qual.StubFiles;
 import org.checkerframework.framework.source.SupportedLintOptions;
 
+import java.util.Map;
 import java.util.NavigableSet;
 
 import javax.annotation.processing.SupportedOptions;
@@ -113,6 +114,23 @@ public class NullnessChecker extends InitializationChecker {
 
     /** Default constructor for NullnessChecker. */
     public NullnessChecker() {}
+
+    /**
+     * Expands {@code -AjspecifyMode} into the individual options it enables. Add future options
+     * implied by JSpecify mode to this method.
+     *
+     * @param activeOptions the active options to which implied options should be added
+     */
+    @Override
+    protected void addImpliedOptions(Map<String, String> activeOptions) {
+        super.addImpliedOptions(activeOptions);
+        if (activeOptions.containsKey("jspecifyMode")) {
+            activeOptions.putIfAbsent("onlyAnnotatedFor", null);
+            activeOptions.putIfAbsent("jspecifyNullMarkedAlias", "true");
+            activeOptions.putIfAbsent("assumeInitialized", null);
+            activeOptions.putIfAbsent("assumeKeyFor", null);
+        }
+    }
 
     @Override
     public boolean checkPrimitives() {

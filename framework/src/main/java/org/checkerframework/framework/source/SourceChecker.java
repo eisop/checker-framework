@@ -918,7 +918,9 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      * @return the active options for this checker, not including those passed only to subcheckers
      */
     public Map<String, String> getOptionsNoSubcheckers() {
-        return createActiveOptions(processingEnv.getOptions());
+        Map<String, String> options = createActiveOptions(processingEnv.getOptions());
+        addImpliedOptions(options);
+        return options;
     }
 
     /**
@@ -2349,49 +2351,28 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
             }
             // Don't add code here, there is a `continue` in the switch above.
         }
-        if (activeOpts.containsKey("jspecifyMode")
-                && isOptionSupportedByCheckerOrParent("jspecifyMode")) {
-            expandJSpecifyModeOptions(activeOpts);
-        }
         return activeOpts;
     }
 
     /**
-     * Returns whether this checker or one of its parent checkers supports the given option.
+     * Adds options implied by other active options. The default implementation applies the
+     * implications defined by the parent checker, if any.
      *
-     * @param option the option name
-     * @return whether this checker or one of its parent checkers supports the option
+     * @param activeOptions the active options to which implied options should be added
      */
-    private boolean isOptionSupportedByCheckerOrParent(String option) {
-        SourceChecker checker = this;
-        while (checker != null) {
-            if (checker.getSupportedOptions().contains(option)) {
-                return true;
-            }
-            checker = checker.parentChecker;
+    protected void addImpliedOptions(Map<String, String> activeOptions) {
+        if (parentChecker != null) {
+            parentChecker.addImpliedOptions(activeOptions);
         }
-        return false;
-    }
-
-    /**
-     * Expands {@code -AjspecifyMode} into the individual options it enables. Add future options
-     * implied by JSpecify mode to this method so that the rest of the implementation only needs to
-     * query individual options.
-     *
-     * @param activeOptions the active options to expand
-     */
-    private static void expandJSpecifyModeOptions(Map<String, String> activeOptions) {
-        activeOptions.putIfAbsent("onlyAnnotatedFor", null);
-        activeOptions.putIfAbsent("jspecifyNullMarkedAlias", "true");
     }
 
     @Override
     public Map<String, String> getOptions() {
         if (activeOptions == null) {
-            activeOptions = createActiveOptions(processingEnv.getOptions());
+            activeOptions = getOptionsNoSubcheckers();
 
             for (SourceChecker subchecker : getSubcheckers()) {
-                activeOptions.putAll(subchecker.createActiveOptions(processingEnv.getOptions()));
+                activeOptions.putAll(subchecker.getOptionsNoSubcheckers());
             }
             activeOptions = Collections.unmodifiableMap(activeOptions);
         }
