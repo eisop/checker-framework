@@ -289,7 +289,14 @@ public class EisopCheckerFrameworkPlugin extends BugChecker implements ClassTree
                 info = info.withExtendedSuppressions(sym, state, Collections.emptySet());
             }
         }
-        return info.suppressedState(this, /* suppressedInGeneratedCode= */ false, state)
+        // Honor -XepDisableWarningsInGeneratedCode: a finding in @Generated code is suppressed only
+        // when that flag is set.  Error Prone's scanner combines these two conditions in
+        // SuppressionInfo#isSuppressed, which is not public, so pass their conjunction to the
+        // public suppressedState overload.
+        boolean inGeneratedCode = !ASTHelpers.getGeneratedBy(state).isEmpty();
+        boolean disableWarningsInGeneratedCode =
+                state.errorProneOptions().disableWarningsInGeneratedCode();
+        return info.suppressedState(this, inGeneratedCode && disableWarningsInGeneratedCode, state)
                 == SuppressionInfo.SuppressedState.SUPPRESSED;
     }
 
