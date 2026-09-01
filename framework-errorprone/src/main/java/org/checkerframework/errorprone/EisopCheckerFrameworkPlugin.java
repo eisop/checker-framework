@@ -215,8 +215,20 @@ public class EisopCheckerFrameworkPlugin extends BugChecker implements ClassTree
                 VisitorState base = currentState;
                 CheckerFrameworkDriver currentDriver = driver;
                 if (base == null || currentDriver == null) {
-                    // Should not happen: findings are produced only while matchClass is running,
-                    // by which point both the current state and the driver are set.
+                    // No matchClass is in progress, so there is no VisitorState to report an Error
+                    // Prone Description against.  This is not expected for the built-in checkers
+                    // (their findings, including end-of-compilation warnings such as
+                    // -AwarnUnneededSuppressions, are produced during typeProcess while matchClass
+                    // runs), but a checker could emit a finding from typeProcessingOver(), which
+                    // runs at the end of compilation.  Rather than silently drop it, fall back to
+                    // javac's Messager (with no source position, since the finding's tree may no
+                    // longer map to a live position by then) so the diagnostic is still surfaced.
+                    Context context = driverContext;
+                    if (context != null) {
+                        EisopContextAdapter.getProcessingEnvironment(context)
+                                .getMessager()
+                                .printMessage(kind, message);
+                    }
                     return;
                 }
                 // Anchor the finding (and its suppression fix) at the finding's own source tree,
