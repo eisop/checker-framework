@@ -125,6 +125,12 @@ public abstract class AbstractTypeProcessor extends AbstractProcessor {
      * @see #externallyDriven
      */
     public void setExternallyDriven(boolean externallyDriven) {
+        if (processingEnv != null) {
+            throw new BugInCF(
+                    "setExternallyDriven must be called before init(ProcessingEnvironment);"
+                            + " init has already run, so the self-driven TaskListener may already"
+                            + " be registered.");
+        }
         this.externallyDriven = externallyDriven;
     }
 
