@@ -2,23 +2,21 @@ JAVA_VER := $(shell java -version 2>&1 | head -1 | cut -d'"' -f2 | sed '/^1\./s/
 CHECKERFRAMEWORK ?= $(abspath ../../..)
 export CHECKERFRAMEWORK
 
-.PHONY: all build-cf-jars clean
+.PHONY: all clean
 
 # The eisopcf Error Prone plugin requires JDK 21+.  On older JDKs, do nothing (succeed),
 # mirroring how the framework-errorprone module is absent from the build below JDK 21.
+#
+# Uses -PcfVersion=local like the sibling examples: the example then consumes this checkout's
+# jars.  Those jars are built by the :checker:exampleTests task (which depends on
+# :framework-errorprone:jar and :checker:shadowJar), so no separate build step is needed here.
 all:
 ifeq ($(shell [ "$(JAVA_VER)" -ge 21 ] && echo yes),yes)
-	$(MAKE) build-cf-jars
-	- ../../../gradlew build > Out.txt 2>&1
+	- ../../../gradlew -PcfVersion=local build > Out.txt 2>&1
 	grep -qF "Demo.java:23: warning: [eisopcf] [dereference.of.nullable]" Out.txt
 else
 	@echo "Skipping eisop-errorprone example: requires JDK 21+, found JDK $(JAVA_VER)."
 endif
-
-# Build the locally-produced jars the example consumes: checker-qual, the eisopcf plugin, and the
-# checker "-all" shadow jar (which bundles the checkers).
-build-cf-jars:
-	../../../gradlew -p ../../.. :checker-qual:jar :framework-errorprone:jar :checker:shadowJar
 
 clean:
 	- ../../../gradlew clean

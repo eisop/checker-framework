@@ -435,6 +435,14 @@ tasks.register('tutorialTests') {
 
 tasks.register('exampleTests', Exec) {
     dependsOn 'assembleForJavac'
+    // The eisop-errorprone example consumes locally-built jars in cfVersion=local mode.
+    // assembleForJavac already builds :checker:shadowJar and :checker-qual:jar; also build the
+    // framework-errorprone plugin jar here, so the example needs no nested Gradle invocation.
+    // framework-errorprone exists only on JDK 21+ (gated in settings.gradle); on older JDKs the
+    // example's own Makefile no-ops, so the dependency is added only when the module is present.
+    if (rootProject.ext.useJdkVersionInt >= 21) {
+        dependsOn ':framework-errorprone:jar'
+    }
     group = 'Verification'
     description = 'Run tests for the example programs.'
     executable 'make'

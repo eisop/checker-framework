@@ -5,9 +5,14 @@
 // standalone annotation processor alongside Error Prone), this example runs the Checker
 // Framework *inside* Error Prone, as the single "eisopcf" Error Prone check.
 //
-// It consumes the locally-built Checker Framework (rather than the published
-// io.github.eisop:framework-errorprone artifact) so it exercises the current checkout.
-// The Makefile builds the required jars first. See docs/developer/cf-errorprone.md.
+// Two modes, selected by the cfVersion project property (like the sibling examples):
+//   * -PcfVersion=local  -- consume the locally-built jars from this checkout, so the example
+//                           exercises the current development Checker Framework. This is what the
+//                           examples CI job runs; the jars are built for it by the :checker:
+//                           exampleTests task, so no nested Gradle build is needed here.
+//   * (default)          -- consume the published io.github.eisop artifacts from Maven Central.
+//                           This will fail until framework-errorprone has its first release.
+// See docs/developer/cf-errorprone.md.
 //
 
 plugins {
@@ -19,13 +24,20 @@ repositories {
     mavenCentral()
 }
 
+// Released version to consume in the default (non-local) mode. framework-errorprone is not yet
+// published, so this mode fails until the first release that includes it.
+def eisopVersion = '3.49.5-eisop2'
+
+boolean useLocal = findProperty('cfVersion') == 'local'
+
 // The Checker Framework repository root (this example lives at docs/examples/eisop-errorprone).
 def cfRoot = rootProject.file('../../..')
 
-// Locate a locally-built jar by name prefix, tolerating the exact version string.  The Makefile
-// builds these before invoking Gradle.  When 'shaded' is false, the plain (non-shadow) jar is
-// selected -- the framework-errorprone plugin must NOT be the "-all" shadow jar, which bundles a
-// copy of Error Prone's classes and breaks the BugChecker service check ("not a subtype").
+// Locate a locally-built jar by name prefix, tolerating the exact version string.  The
+// :checker:exampleTests task builds these before invoking make/Gradle.  When 'shaded' is false,
+// the plain (non-shadow) jar is selected -- the framework-errorprone plugin must NOT be the
+// "-all" shadow jar, which bundles a copy of Error Prone's classes and breaks the BugChecker
+// service check ("not a subtype").
 def cfJar = { String dir, String prefix, boolean shaded = false ->
     def libs = file("${cfRoot}/${dir}/build/libs")
     def match = libs.listFiles()?.findAll {
@@ -39,25 +51,37 @@ def cfJar = { String dir, String prefix, boolean shaded = false ->
     }
     if (match == null || match.isEmpty()) {
         throw new GradleException(
-                "Could not find the expected ${prefix}*.jar in ${libs}. Build it first (see the"
-                        + " Makefile): ./gradlew :checker-qual:jar :framework-errorprone:jar"
+                "Could not find the expected ${prefix}*.jar in ${libs}. It is built by the"
+                        + " :checker:exampleTests task; to build it directly run, from the"
+                        + " repository root: ./gradlew :checker-qual:jar :framework-errorprone:jar"
                         + " :checker:shadowJar")
     }
     return match[0]
 }
 
 dependencies {
-    // Annotations used by the demo source (e.g. @Nullable).
-    compileOnly files(cfJar('checker-qual', 'checker-qual-'))
+    if (useLocal) {
+        // Annotations used by the demo source (e.g. @Nullable).
+        compileOnly files(cfJar('checker-qual', 'checker-qual-'))
 
-    // Error Prone itself, the eisopcf plugin, and the Checker Framework checkers to run, all on
-    // the errorprone (annotation processor) path.  The plugin resolves the selected checker class
-    // by name at run time from this path.
-    errorprone "com.google.errorprone:error_prone_core:2.50.0"
-    // The plain (non-shadow) plugin jar.
-    errorprone files(cfJar('framework-errorprone', 'framework-errorprone-', false))
-    // The checker "-all" shadow jar bundles all Checker Framework checkers.
-    errorprone files(cfJar('checker', 'checker-', true))
+        // Error Prone itself, the eisopcf plugin, and the Checker Framework checkers to run, all
+        // on the errorprone (annotation processor) path.  The plugin resolves the selected checker
+        // class by name at run time from this path.
+        errorprone "com.google.errorprone:error_prone_core:2.50.0"
+        // The plain (non-shadow) plugin jar.
+        errorprone files(cfJar('framework-errorprone', 'framework-errorprone-', false))
+        // The checker "-all" shadow jar bundles all Checker Framework checkers.
+        errorprone files(cfJar('checker', 'checker-', true))
+    } else {
+        // Annotations used by the demo source (e.g. @Nullable).
+        compileOnly "io.github.eisop:checker-qual:${eisopVersion}"
+
+        // Error Prone itself, the published eisopcf plugin, and the Checker Framework checkers to
+        // run, all on the errorprone (annotation processor) path.
+        errorprone "com.google.errorprone:error_prone_core:2.50.0"
+        errorprone "io.github.eisop:framework-errorprone:${eisopVersion}"
+        errorprone "io.github.eisop:checker:${eisopVersion}"
+    }
 }
 
 tasks.withType(JavaCompile).configureEach {

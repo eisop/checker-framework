@@ -533,18 +533,30 @@ moved into the manual to avoid duplication.)
 **Runnable example.** Added `docs/examples/eisop-errorprone/`, a standalone Gradle
 project (its own empty `settings.gradle`, mirroring the sibling `errorprone` example)
 that runs the Nullness Checker as the `eisopcf` plugin over a demo class with a
-nullness bug. To exercise the current checkout (rather than the published
-`framework-errorprone` artifact), the example consumes the *locally-built* jars by file:
-- `checker-qual-<v>.jar` (compileOnly, for `@Nullable`);
-- the plain (non-shadow) `framework-errorprone-<v>.jar` on the `errorprone` path — the
-  `-all` shadow jar must NOT be used, as it bundles a copy of Error Prone's classes and
-  breaks the `BugChecker` service check with "not a subtype";
-- the `checker-<v>-all.jar` shadow jar (bundles the checkers) on the `errorprone` path.
-A `Makefile` builds those jars (`:checker-qual:jar :framework-errorprone:jar
-:checker:shadowJar`), runs the example, and greps for the expected
-`[eisopcf] [dereference.of.nullable]` diagnostic. It is gated on JDK 21+ (no-op below).
+nullness bug. Like the sibling examples, it has two modes selected by the `cfVersion`
+property:
+- `-PcfVersion=local` consumes *this checkout's* jars, so the example exercises the
+  current development Checker Framework. It reads them by file from the module build
+  directories:
+  - `checker-qual-<v>.jar` (compileOnly, for `@Nullable`);
+  - the plain (non-shadow) `framework-errorprone-<v>.jar` on the `errorprone` path — the
+    `-all` shadow jar must NOT be used, as it bundles a copy of Error Prone's classes and
+    breaks the `BugChecker` service check with "not a subtype";
+  - the `checker-<v>-all.jar` shadow jar (bundles the checkers) on the `errorprone` path.
+- the default (non-`local`) mode consumes the published `io.github.eisop` artifacts
+  (`checker-qual`, `framework-errorprone`, `checker`); it fails until the first release
+  that publishes `framework-errorprone`, and serves as the release-based template.
+
+The `Makefile` runs `gradlew -PcfVersion=local build` (mirroring the sibling examples)
+and greps for the expected `[eisopcf] [dereference.of.nullable]` diagnostic; it is gated on
+JDK 21+ (no-op below). The local-mode jars are built by the `:checker:exampleTests` task
+(which now `dependsOn :framework-errorprone:jar` and `:checker-qual:jar`, JDK-21-gated, on
+top of the `:checker:shadowJar` it already builds via `assembleForJavac`), so the example
+needs no nested Gradle build of its own. (This superseded an earlier design in which the
+example's `Makefile` built the jars itself via a nested `gradlew` invocation.)
 `.gitignore` gained `docs/examples/eisop-errorprone/{.gradle/,Out.txt}` entries, matching
-the other examples. Verified: `make all` exits 0.
+the other examples. Verified: `make all` (local mode) exits 0; the default mode fails
+cleanly with an unresolved-dependency error until the artifacts are published.
 
 **CI.** No workflow change is needed. `./gradlew test` (run by the existing
 `cftests-junit` job, whose primary JDK is 21) includes `:framework-errorprone:test`
@@ -734,5 +746,5 @@ excluded from the build and not published. This is documented in the release REA
 `JAVA_21_HOME`.
 
 **Docs.** The manual's "Error Prone" section states the plugin is published as
-`io.github.eisop:framework-errorprone`. The runnable example still consumes locally-built
-jars (to exercise the current checkout), which is independent of publication.
+`io.github.eisop:framework-errorprone`. The runnable example builds against it in its
+default mode and against the current checkout under `-PcfVersion=local` (see ADR-0008).

@@ -63,15 +63,21 @@ task checks all of it, without a per-file `@AnnotatedFor("nullness")` opt-in.
 ## Runnable example
 
 `docs/examples/eisop-errorprone/` is a self-contained Gradle project that runs the Nullness
-Checker as the `eisopcf` plugin. It consumes the locally-built Checker Framework jars (rather
-than the published `io.github.eisop:framework-errorprone` artifact), so it exercises the
-current checkout:
+Checker as the `eisopcf` plugin, in two modes selected by the `cfVersion` property (like the
+sibling examples):
 
 ```
 cd docs/examples/eisop-errorprone
-make all
+make all                          # -PcfVersion=local: the current checkout's jars
+../../../gradlew build            # default: the published io.github.eisop artifacts
 ```
 
-`make all` builds the required jars, compiles the demo, and checks that the expected
+`make all` runs `gradlew -PcfVersion=local build`, so the example exercises the current
+development Checker Framework. The jars it consumes are built by the `:checker:exampleTests`
+task (which depends on `:framework-errorprone:jar` and `:checker:shadowJar`), so running the
+example under that task needs no separate build step. `make all` then checks that the expected
 `[eisopcf] [dereference.of.nullable]` diagnostic is produced (JDK 21+; a no-op otherwise).
-Its `build.gradle` doubles as a template for a real build.
+
+The default (non-`local`) mode consumes the published `io.github.eisop` artifacts, including
+`io.github.eisop:framework-errorprone`; it fails until the first release that publishes that
+module. Its `build.gradle` doubles as a template for a real, release-based build.
