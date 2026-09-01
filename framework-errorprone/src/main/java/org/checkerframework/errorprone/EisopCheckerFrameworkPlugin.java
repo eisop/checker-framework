@@ -370,6 +370,9 @@ public class EisopCheckerFrameworkPlugin extends BugChecker implements ClassTree
             return Description.NO_MATCH;
         }
         ClassSymbol classSymbol = ASTHelpers.getSymbol(tree);
+        // ASTHelpers.getSymbol(ClassTree) can return null for an incomplete or unattributed class
+        // tree; skip such a tree rather than dereferencing null.
+        //
         // Error Prone's scanner matches every class node -- top-level, nested, local, and
         // anonymous -- but the Checker Framework's SourceVisitor.visit(TreePath) recursively scans
         // the whole subtree it is given (it expects a top-level type tree).  So a nested class is
@@ -377,7 +380,7 @@ public class EisopCheckerFrameworkPlugin extends BugChecker implements ClassTree
         // only for top-level classes, mirroring standalone mode (where the AttributionTaskListener
         // fires typeProcess once per top-level type); otherwise every nested class would be
         // re-checked and its findings reported once per level of nesting.
-        if (classSymbol.getNestingKind() != NestingKind.TOP_LEVEL) {
+        if (classSymbol == null || classSymbol.getNestingKind() != NestingKind.TOP_LEVEL) {
             return Description.NO_MATCH;
         }
         // Make the current state available to the diagnostic sink, which fires (re-entrantly) while
