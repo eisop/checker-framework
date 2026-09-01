@@ -1004,6 +1004,10 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
         List<SuggestedFixData> fixes = new ArrayList<>();
         for (AnnotationTree annoTree : TreeUtils.getExplicitAnnotationTrees(annoTrees, typeTree)) {
             AnnotationMirror am = TreeUtils.annotationFromAnnotationTree(annoTree);
+            // This condition must match
+            // NullnessNoInitAnnotatedTypeFactory#containsNullnessAnnotation,
+            // which decides when the nullness.on.primitive error fires: offer a removal fix for
+            // exactly the annotations that triggered the error.
             if (atypeFactory.isNullnessAnnotation(am) && AnnotationUtils.isTypeUseAnnotation(am)) {
                 SuggestedFixData fix = SuggestedFixData.deleteTree(positions, root, annoTree);
                 if (fix != null) {
