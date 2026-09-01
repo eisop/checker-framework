@@ -62,6 +62,11 @@ public class ReportVisitor extends BaseTypeVisitor<BaseAnnotatedTypeFactory> {
      */
     private final @Nullable ExecutableElement reportUseApplyToSubpackagesElement;
 
+    /**
+     * Creates a ReportVisitor.
+     *
+     * @param checker the checker
+     */
     public ReportVisitor(BaseTypeChecker checker) {
         super(checker);
 
