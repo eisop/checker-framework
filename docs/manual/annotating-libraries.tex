@@ -436,6 +436,17 @@ Writing \<@AnnotatedFor> on a class doesn't necessarily mean that you wrote
 any annotations, but that you examined the source code and verified
 that all appropriate annotations are present.
 
+\<@AnnotatedFor> may also be written on a package, via the
+\<package-info.java> file, in which case it applies to the given package
+\emph{and} all subpackages.  To limit it to the package it is written on,
+set the \<applyToSubpackages> element to false, as in
+\<@AnnotatedFor(value = "nullness", applyToSubpackages = false)>.
+This limits only that annotation; it does not block an applicable
+\<@AnnotatedFor> on an enclosing package.
+Because \<@AnnotatedFor> has source retention, a package annotation only
+affects compilation units that are compiled together with its
+\<package-info.java> file.
+
 \begin{sloppypar}
 Whenever you compile a class using the Checker Framework, including when
 using the \<-AuseConservativeDefaultsForUncheckedCode=source,bytecode> command-line

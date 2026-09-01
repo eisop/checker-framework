@@ -3,6 +3,13 @@ Version 3.49.5-eisop2 (June ?, 2026)
 
 **User-visible changes:**
 
+`AnnotatedFor`, `HasQualifierParameter`, and `ReportUse` support the new
+`applyToSubpackages` annotation element, which decides whether an annotation
+written on a package also applies to that package's subpackages. To preserve
+the current behavior the default is `true`. `DefaultQualifier` already had this
+element. When an older `checker-qual` artifact lacks the element, package
+annotations retain their previous behavior and apply to subpackages.
+
 The Checker Framework now issues an `annotation.on.supertype` error when an annotation supported by
 the checker is written as a main annotation on the superclass or interface in an `extends` or
 `implements` clause. Annotations on the supertype's type arguments remain permitted. A checker
@@ -340,6 +347,14 @@ defaults, and only the latter was cached. Both now use the new
 which `BaseTypeChecker` implements with a cache.
 
 **Implementation details:**
+
+New method `AnnotatedTypeFactory.doesAnnotatedForApplyToSubpackages(AnnotationMirror)`
+reports whether an `@AnnotatedFor` written on a package also applies to that
+package's subpackages. Code that walks up the package chain to find a package
+annotation should gate the steps to enclosing packages on the annotation's
+`applyToSubpackages` element rather than propagating unconditionally; the
+annotated package itself is always in scope. An absent element, as in a
+`checker-qual` that predates it, is treated as true for compatibility.
 
 `AnnotatedIntersectionType.summarizeBounds` computes the summary described
 above, reading each bound's qualifier, explicit or defaulted, uniformly,
