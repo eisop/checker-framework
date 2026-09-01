@@ -1,7 +1,6 @@
 package org.checkerframework.framework.source;
 
-import static org.junit.Assert.assertEquals;
-
+import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.Arrays;
@@ -18,11 +17,11 @@ public class SuggestedFixDataTest {
     public void singleReplacementFactory() {
         SuggestedFixData fix = SuggestedFixData.replace(3, 7, "@NonNull ");
         List<SuggestedFixData.Replacement> replacements = fix.getReplacements();
-        assertEquals(1, replacements.size());
+        Assert.assertEquals(1, replacements.size());
         SuggestedFixData.Replacement r = replacements.get(0);
-        assertEquals(3, r.startPosition);
-        assertEquals(7, r.endPosition);
-        assertEquals("@NonNull ", r.text);
+        Assert.assertEquals(3, r.startPosition);
+        Assert.assertEquals(7, r.endPosition);
+        Assert.assertEquals("@NonNull ", r.text);
     }
 
     /** A fix built from several replacements preserves their order. */
@@ -34,9 +33,9 @@ public class SuggestedFixDataTest {
                                 new SuggestedFixData.Replacement(0, 0, "import a.B;\n"),
                                 new SuggestedFixData.Replacement(10, 12, "B")));
         List<SuggestedFixData.Replacement> replacements = fix.getReplacements();
-        assertEquals(2, replacements.size());
-        assertEquals("import a.B;\n", replacements.get(0).text);
-        assertEquals(10, replacements.get(1).startPosition);
+        Assert.assertEquals(2, replacements.size());
+        Assert.assertEquals("import a.B;\n", replacements.get(0).text);
+        Assert.assertEquals(10, replacements.get(1).startPosition);
     }
 
     /** The list returned by {@link SuggestedFixData#getReplacements} is unmodifiable. */
@@ -62,7 +61,7 @@ public class SuggestedFixDataTest {
     @Test
     public void replacementAllowsEmptyRange() {
         SuggestedFixData.Replacement r = new SuggestedFixData.Replacement(4, 4, "inserted");
-        assertEquals(4, r.startPosition);
-        assertEquals(4, r.endPosition);
+        Assert.assertEquals(4, r.startPosition);
+        Assert.assertEquals(4, r.endPosition);
     }
 }
