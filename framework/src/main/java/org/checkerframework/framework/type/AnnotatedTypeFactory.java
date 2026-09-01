@@ -5518,24 +5518,20 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
                         element, HasQualifierParameter.class, hasQualifierParameterValueElement));
         AnnotationMirrorSet hasQualifierParameterTops = new AnnotationMirrorSet();
         PackageElement packageElement = ElementUtils.enclosingPackage(element);
-        if (packageElement != null) {
-            // The type's own package always applies; applyToSubpackages does not govern this step.
-            hasQualifierParameterTops.addAll(
-                    getSupportedAnnotationsInElementAnnotation(
-                            packageElement,
-                            HasQualifierParameter.class,
-                            hasQualifierParameterValueElement));
-            packageElement = ElementUtils.parentPackage(packageElement, elements);
-            while (packageElement != null) {
-                if (doesHasQualifierParameterApplyToSubpackages(packageElement)) {
-                    hasQualifierParameterTops.addAll(
-                            getSupportedAnnotationsInElementAnnotation(
-                                    packageElement,
-                                    HasQualifierParameter.class,
-                                    hasQualifierParameterValueElement));
-                }
-                packageElement = ElementUtils.parentPackage(packageElement, elements);
+        // Traverse all packages containing this element. The element's own package always applies;
+        // an outer package applies only if its annotation applies to subpackages.
+        boolean isOwnPackage = true;
+        while (packageElement != null) {
+            if (isOwnPackage || doesHasQualifierParameterApplyToSubpackages(packageElement)) {
+                AnnotationMirrorSet packageDefaultTops =
+                        getSupportedAnnotationsInElementAnnotation(
+                                packageElement,
+                                HasQualifierParameter.class,
+                                hasQualifierParameterValueElement);
+                hasQualifierParameterTops.addAll(packageDefaultTops);
             }
+            packageElement = ElementUtils.parentPackage(packageElement, elements);
+            isOwnPackage = false;
         }
 
         AnnotationMirrorSet noQualifierParamClasses =
