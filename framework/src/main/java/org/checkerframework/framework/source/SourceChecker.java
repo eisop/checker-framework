@@ -2349,7 +2349,22 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
             }
             // Don't add code here, there is a `continue` in the switch above.
         }
+        if (activeOpts.containsKey("jspecifyMode")) {
+            expandJSpecifyModeOptions(activeOpts);
+        }
         return activeOpts;
+    }
+
+    /**
+     * Expands {@code -AjspecifyMode} into the individual options it enables. Add future options
+     * implied by JSpecify mode to this method so that the rest of the implementation only needs to
+     * query individual options.
+     *
+     * @param activeOptions the active options to expand
+     */
+    private static void expandJSpecifyModeOptions(Map<String, String> activeOptions) {
+        activeOptions.put("onlyAnnotatedFor", null);
+        activeOptions.put("jspecifyNullMarkedAlias", "true");
     }
 
     @Override

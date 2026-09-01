@@ -208,6 +208,12 @@ command-line option.)
   might clear any built-in property, as described above.
 
 \item
+  If you supply the \code{-AjspecifyMode} command-line option, then the Nullness
+  Checker enables its JSpecify-compatible checking behaviors.  Currently, it
+  checks only code in the scope of a corresponding \code{@AnnotatedFor} and treats
+  \code{org.jspecify.nullness.NullMarked} as a defaulting annotation.
+
+\item
   \label{nullness-jspecifyNullMarkedAlias}%
   If you supply the \code{-AjspecifyNullMarkedAlias=false} command-line option, then the
   checker will not treat \code{org.jspecify.nullness.NullMarked} as a defaulting
