@@ -1,12 +1,5 @@
 package org.checkerframework.errorprone;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNotSame;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-
 import com.sun.source.util.JavacTask;
 import com.sun.source.util.TaskEvent;
 import com.sun.source.util.TaskListener;
@@ -14,6 +7,7 @@ import com.sun.source.util.Trees;
 import com.sun.tools.javac.api.BasicJavacTask;
 import com.sun.tools.javac.util.Context;
 
+import org.junit.Assert;
 import org.junit.Test;
 
 import java.net.URI;
@@ -104,7 +98,7 @@ public class EisopContextAdapterTest {
         if (thrown.get() != null) {
             throw thrown.get();
         }
-        assertTrue("ANALYZE event never fired; assertions did not run", ran.get());
+        Assert.assertTrue("ANALYZE event never fired; assertions did not run", ran.get());
     }
 
     /** Assertions run against a live javac {@link Context} during the ANALYZE phase. */
@@ -128,23 +122,23 @@ public class EisopContextAdapterTest {
                 context -> {
                     ProcessingEnvironment env =
                             EisopContextAdapter.getProcessingEnvironment(context);
-                    assertNotNull("processing environment", env);
+                    Assert.assertNotNull("processing environment", env);
 
                     // The utilities SourceChecker.setProcessingEnvironment / initChecker rely on.
                     Elements elements = env.getElementUtils();
                     Types types = env.getTypeUtils();
-                    assertNotNull("Elements", elements);
-                    assertNotNull("Types", types);
-                    assertNotNull("Messager", env.getMessager());
-                    assertNotNull("options map", env.getOptions());
+                    Assert.assertNotNull("Elements", elements);
+                    Assert.assertNotNull("Types", types);
+                    Assert.assertNotNull("Messager", env.getMessager());
+                    Assert.assertNotNull("options map", env.getOptions());
 
                     Trees trees = Trees.instance(env);
-                    assertNotNull("Trees", trees);
+                    Assert.assertNotNull("Trees", trees);
 
                     // The environment is actually wired to the compilation: the compiled type is
                     // resolvable through the Elements utility (only valid while the compiler is
                     // live, hence running inside the ANALYZE callback).
-                    assertNotNull(
+                    Assert.assertNotNull(
                             "compiled type element should be resolvable via the env",
                             elements.getTypeElement("Hello"));
                 });
@@ -158,7 +152,8 @@ public class EisopContextAdapterTest {
     public void contextWithoutProcessingEnvironmentIsDiagnosed() {
         try {
             EisopContextAdapter.getProcessingEnvironment(new Context());
-            fail("expected IllegalStateException for a context with no processing environment");
+            Assert.fail(
+                    "expected IllegalStateException for a context with no processing environment");
         } catch (IllegalStateException expected) {
             // Expected.
         }
@@ -173,7 +168,7 @@ public class EisopContextAdapterTest {
     public void processingEnvironmentIsAvailableWithProcNone() throws Throwable {
         duringAnalyze(
                 context ->
-                        assertNotNull(
+                        Assert.assertNotNull(
                                 "processing environment under -proc:none",
                                 EisopContextAdapter.getProcessingEnvironment(context)),
                 "-proc:none");
@@ -187,8 +182,8 @@ public class EisopContextAdapterTest {
         // error_prone_check_api). Class.forName on the un-relocated FQN must resolve, and its
         // package must be the un-relocated one.
         String pkg = EisopContextAdapter.loadedDataflowPackage();
-        assertEquals("org.checkerframework.dataflow.cfg", pkg);
-        assertFalse(
+        Assert.assertEquals("org.checkerframework.dataflow.cfg", pkg);
+        Assert.assertFalse(
                 "must not be Error Prone's relocated dataflow copy",
                 pkg.startsWith("org.checkerframework.errorprone.dataflow"));
     }
@@ -199,7 +194,7 @@ public class EisopContextAdapterTest {
         // Guard rationale: verify the coexistence assumption actually holds — the relocated copy
         // IS present (so this is a real test), yet the un-relocated FQN resolves to the CF's own.
         Class<?> unrelocated = Class.forName("org.checkerframework.dataflow.cfg.ControlFlowGraph");
-        assertNotNull("un-relocated CF dataflow must be present", unrelocated);
+        Assert.assertNotNull("un-relocated CF dataflow must be present", unrelocated);
         Class<?> relocated;
         try {
             relocated =
@@ -209,9 +204,9 @@ public class EisopContextAdapterTest {
             relocated = null;
         }
         if (relocated != null) {
-            assertNotSame("the two copies must be distinct classes", unrelocated, relocated);
+            Assert.assertNotSame("the two copies must be distinct classes", unrelocated, relocated);
         }
-        assertFalse(
+        Assert.assertFalse(
                 "adapter must never report the relocated package",
                 EisopContextAdapter.loadedDataflowPackage()
                         .startsWith("org.checkerframework.errorprone"));
