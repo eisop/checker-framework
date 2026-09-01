@@ -3,6 +3,7 @@ package org.checkerframework.errorprone;
 import com.sun.source.util.TreePath;
 import com.sun.tools.javac.util.Context;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.framework.source.DiagnosticSink;
 import org.checkerframework.framework.source.SourceChecker;
 import org.checkerframework.framework.util.TreePathCacher;
@@ -75,7 +76,7 @@ public final class CheckerFrameworkDriver {
      *     resolve to an instantiable {@link SourceChecker}
      */
     public static CheckerFrameworkDriver create(
-            Context context, List<String> checkerClassNames, DiagnosticSink sink) {
+            Context context, List<String> checkerClassNames, @Nullable DiagnosticSink sink) {
         if (checkerClassNames.isEmpty()) {
             throw new IllegalArgumentException(
                     "No Checker Framework checkers selected; name at least one SourceChecker"
@@ -141,7 +142,7 @@ public final class CheckerFrameworkDriver {
      * @throws IllegalArgumentException if no candidate classloader can resolve the class
      */
     private static Class<?> loadCheckerClass(String className) {
-        ClassLoader[] candidates = {
+        @Nullable ClassLoader[] candidates = {
             // The loader that has the CF core, and (in a valid deployment) the checkers with it.
             SourceChecker.class.getClassLoader(),
             // The thread context classloader (set by build tools / launchers).

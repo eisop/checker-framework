@@ -26,6 +26,12 @@ dependencies {
     // on :checker (which also keeps this module below :checker in the dependency graph).
     implementation project(':framework')
 
+    // Nullness (and other) qualifier annotations used to annotate this module's own API. This
+    // module is dog-fooded: the build's checkNullness task runs the Nullness Checker over it.
+    // (checker-qual is already on the compile classpath transitively via :framework's api
+    // dependency; declared here explicitly because this module imports it directly.)
+    implementation project(':checker-qual')
+
     // Error Prone check API: the BugChecker base class and related extension points.
     // A PUBLISHED artifact (not a composite build): the build-graph edge crosses a published
     // -artifact boundary, so Gradle sees no project-path cycle even though error_prone_check_api

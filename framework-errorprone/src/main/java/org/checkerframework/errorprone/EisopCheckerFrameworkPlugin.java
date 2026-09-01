@@ -22,6 +22,7 @@ import com.sun.tools.javac.code.Symbol;
 import com.sun.tools.javac.code.Symbol.ClassSymbol;
 import com.sun.tools.javac.util.Context;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.framework.source.DiagnosticSink;
 import org.checkerframework.framework.source.SuggestedFixData;
 
@@ -99,17 +100,17 @@ public class EisopCheckerFrameworkPlugin extends BugChecker implements ClassTree
      * compilation, but to be robust against instance reuse across compilations this is validated
      * against the compilation {@link Context} in {@link #driverFor}.
      */
-    private transient CheckerFrameworkDriver driver;
+    private transient @Nullable CheckerFrameworkDriver driver;
 
     /** The context the current {@link #driver} was created for. */
-    private transient Context driverContext;
+    private transient @Nullable Context driverContext;
 
     /**
      * The {@link VisitorState} of the in-progress {@link #matchClass} call, made available to the
      * {@link #diagnosticSink()} (which fires re-entrantly while the driver type-checks the class).
      * Not part of any persistent state.
      */
-    private transient VisitorState currentState;
+    private transient @Nullable VisitorState currentState;
 
     /**
      * The context of the compilation for which a configuration error (e.g. an unresolvable checker
@@ -117,7 +118,7 @@ public class EisopCheckerFrameworkPlugin extends BugChecker implements ClassTree
      * class. Keyed by context, like {@link #driverContext}, so a reused plugin instance still
      * reports the error in a later compilation.
      */
-    private transient Context configErrorContext;
+    private transient @Nullable Context configErrorContext;
 
     /**
      * Constructs the plugin with no configuration. Error Prone uses this when instantiating checks
@@ -146,7 +147,7 @@ public class EisopCheckerFrameworkPlugin extends BugChecker implements ClassTree
      * @param context the compilation context
      * @return the initialized driver, or {@code null} if no checkers are selected
      */
-    private CheckerFrameworkDriver driverFor(Context context) {
+    private @Nullable CheckerFrameworkDriver driverFor(Context context) {
         if (checkerClassNames.isEmpty()) {
             return null;
         }
@@ -207,8 +208,10 @@ public class EisopCheckerFrameworkPlugin extends BugChecker implements ClassTree
                     CompilationUnitTree root,
                     List<SuggestedFixData> fixes) {
                 VisitorState base = currentState;
-                if (base == null) {
-                    // Should not happen: findings are produced only while matchClass is running.
+                CheckerFrameworkDriver currentDriver = driver;
+                if (base == null || currentDriver == null) {
+                    // Should not happen: findings are produced only while matchClass is running,
+                    // by which point both the current state and the driver are set.
                     return;
                 }
                 // Anchor the finding (and its suppression fix) at the finding's own source tree,
@@ -219,7 +222,7 @@ public class EisopCheckerFrameworkPlugin extends BugChecker implements ClassTree
                 // finding-heavy file).  The checkers populate the cacher while type-checking, so
                 // the finding's tree is typically already cached.
                 VisitorState state = base;
-                TreePath findingPath = driver.getTreePathCacher().getPath(root, source);
+                TreePath findingPath = currentDriver.getTreePathCacher().getPath(root, source);
                 if (findingPath != null) {
                     state = base.withPath(findingPath);
                 }
@@ -314,7 +317,7 @@ public class EisopCheckerFrameworkPlugin extends BugChecker implements ClassTree
      * @param state the visitor state anchored at the finding
      * @return the suppression fix, or {@code null} if none can be built
      */
-    private SuggestedFix buildSuppressionFix(VisitorState state) {
+    private @Nullable SuggestedFix buildSuppressionFix(VisitorState state) {
         try {
             return SuggestedFixes.addSuppressWarnings(state, canonicalName());
         } catch (IllegalArgumentException e) {
@@ -350,7 +353,10 @@ public class EisopCheckerFrameworkPlugin extends BugChecker implements ClassTree
             // every class.  Other (unexpected) runtime exceptions are left to propagate.
             if (configErrorContext != state.context) {
                 configErrorContext = state.context;
-                return buildDescription(tree).setMessage(e.getMessage()).build();
+                String message = e.getMessage();
+                return buildDescription(tree)
+                        .setMessage(message != null ? message : e.toString())
+                        .build();
             }
             return Description.NO_MATCH;
         }

@@ -55,6 +55,11 @@ The plugin's tests live in `framework-errorprone/src/test` and use Error Prone's
 of `./gradlew test` whenever the build JDK is 21 or newer (the module is absent on older
 JDKs), so no separate CI job is required.
 
+The module is also dog-fooded: `./gradlew :framework-errorprone:checkNullness` runs the
+Nullness Checker over its entire source set (it is annotated with `@Nullable` where
+applicable). Because the module is not `framework` or `checker`, the shared `checkNullness`
+task checks all of it, without a per-file `@AnnotatedFor("nullness")` opt-in.
+
 ## Runnable example
 
 `docs/examples/eisop-errorprone/` is a self-contained Gradle project that runs the Nullness

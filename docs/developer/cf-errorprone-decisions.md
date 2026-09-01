@@ -214,6 +214,14 @@ processor path untouched, avoiding the version-conflict fragility above.
   build-time linter with `-Werror`). Its code must therefore be EP-linter-clean;
   `@SuppressWarnings("BugPatternNaming")` is used on the plugin class because the
   canonical check name (`eisopcf`) intentionally differs from the class name.
+- The module is dog-fooded: it depends on `checker-qual` and the shared `checkNullness`
+  task runs the Nullness Checker over it. Unlike `framework`/`checker` (which are checked
+  only in `@AnnotatedFor("nullness")` files, via
+  `-AuseConservativeDefaultsForUncheckedCode=source`), `framework-errorprone` takes the
+  default `createCheckTypeTask` args, so its *entire* source set is checked with no
+  per-file opt-in. Its API is annotated accordingly (`@Nullable` on the lazily-set
+  plugin fields, the `driverFor`/`buildSuppressionFix` returns, the optional
+  `DiagnosticSink` parameter, and the classloader-candidate array).
 
 
 ---
