@@ -156,7 +156,12 @@ public final class CheckerFrameworkDriver {
                 continue;
             }
             try {
-                return Class.forName(className, true, loader);
+                // className comes from the user-supplied eisopcf:checkers option, so it is not a
+                // statically-known @BinaryName; an invalid name simply throws
+                // ClassNotFoundException, handled below.
+                @SuppressWarnings("signature:argument.type.incompatible")
+                Class<?> loaded = Class.forName(className, true, loader);
+                return loaded;
             } catch (ClassNotFoundException e) {
                 last = e;
             }

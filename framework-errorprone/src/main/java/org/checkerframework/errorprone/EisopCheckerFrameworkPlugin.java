@@ -156,7 +156,10 @@ public class EisopCheckerFrameworkPlugin extends BugChecker implements ClassTree
         if (checkerClassNames.isEmpty()) {
             return null;
         }
-        if (driver != null && driverContext == context) {
+        // The javac Context is compared by identity: it is unique per compilation.
+        @SuppressWarnings("interning:not.interned")
+        boolean sameContext = driverContext == context;
+        if (driver != null && sameContext) {
             return driver;
         }
         CheckerFrameworkDriver newDriver =
@@ -375,7 +378,10 @@ public class EisopCheckerFrameworkPlugin extends BugChecker implements ClassTree
             // (IllegalStateException from EisopContextAdapter).  Report it once, as a clean eisopcf
             // diagnostic, rather than letting it propagate as an unhandled plugin exception on
             // every class.  Other (unexpected) runtime exceptions are left to propagate.
-            if (configErrorContext != state.context) {
+            // The javac Context is compared by identity: it is unique per compilation.
+            @SuppressWarnings("interning:not.interned")
+            boolean alreadyReportedForThisContext = configErrorContext == state.context;
+            if (!alreadyReportedForThisContext) {
                 configErrorContext = state.context;
                 String message = e.getMessage();
                 return buildDescription(tree)
