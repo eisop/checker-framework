@@ -211,7 +211,9 @@ command-line option.)
   If you supply the \code{-AjspecifyMode} command-line option, then the Nullness
   Checker enables its JSpecify-compatible checking behaviors.  Currently, it
   checks only code in the scope of a corresponding \code{@AnnotatedFor} and treats
-  \code{org.jspecify.nullness.NullMarked} as a defaulting annotation.
+  \code{org.jspecify.annotations.NullMarked} as a defaulting annotation.  The legacy
+  \code{org.jspecify.nullness.NullMarked} annotation is also supported.  An explicitly
+  supplied value for an individual option takes precedence over \code{-AjspecifyMode}.
 
 \item
   \label{nullness-jspecifyNullMarkedAlias}%
