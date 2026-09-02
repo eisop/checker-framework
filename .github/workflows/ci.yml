@@ -43,37 +43,13 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - name: Set up JDK ${{ matrix.java_version }}
-        uses: actions/setup-java@v6.0.0
+      - name: Set up test environment
+        uses: ./.github/actions/setup-test-env
         with:
-          java-version: ${{ matrix.java_version }}
-          distribution: 'zulu'
-          # Caching handled by gradle/actions/setup-gradle below.
-
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v6.3.0
-        with:
-          # Allow cache writes on PR runs so subsequent reruns on the same PR
-          # restore the previous run's Gradle home instead of rebuilding from
-          # scratch.
+          primary-jdk: ${{ matrix.java_version }}
+          target-jdk: ${{ matrix.java_version }}
+          script: ${{ matrix.script }}
           cache-read-only: false
-
-      - name: Cache Maven repository
-        if: ${{ matrix.script == 'cftests-nonjunit' }}
-        uses: actions/cache@v6
-        with:
-          path: ~/.m2/repository
-          key: maven-${{ runner.os }}-${{ hashFiles('**/pom.xml') }}
-          restore-keys: |
-            maven-${{ runner.os }}-
-
-      - name: Setup Bazel
-        if: ${{ matrix.script == 'cftests-nonjunit' }}
-        uses: bazel-contrib/setup-bazel@0.19.0
-        with:
-          bazelisk-cache: true
-          disk-cache: ${{ github.workflow }}
-          repository-cache: true
 
       - name: Run test script checker/bin-devel/test-${{ matrix.script }}
         run: ./checker/bin-devel/test-${{ matrix.script }}.sh
@@ -113,29 +89,13 @@ jobs:
         with:
           fetch-depth: 1
 
-      - name: Set up JDK ${{ matrix.java_version }}
-        uses: actions/setup-java@v6.0.0
+      - name: Set up test environment
+        uses: ./.github/actions/setup-test-env
         with:
-          java-version: ${{ matrix.java_version }}
-          distribution: 'zulu'
-
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v6.3.0
-        with:
+          primary-jdk: ${{ matrix.java_version }}
+          target-jdk: ${{ matrix.java_version }}
+          script: ${{ matrix.script }}
           cache-read-only: false
-
-      - name: Cache Maven repository
-        if: ${{ matrix.script == 'guava' }}
-        uses: actions/cache@v6
-        with:
-          path: ~/.m2/repository
-          key: maven-${{ runner.os }}-${{ hashFiles('**/pom.xml') }}
-          restore-keys: |
-            maven-${{ runner.os }}-
-
-      - name: Set up misc test dependencies
-        if: ${{ matrix.script == 'misc' }}
-        uses: ./.github/actions/setup-misc
 
       - name: Run test script checker/bin-devel/test-${{ matrix.script }}
         run: ./checker/bin-devel/test-${{ matrix.script }}.sh
@@ -177,103 +137,15 @@ jobs:
         with:
           fetch-depth: 1
 
-      - name: Set up JDK ${{ env.PRIMARY_JDK }} for Gradle to run on
-        uses: actions/setup-java@v6.0.0
+      - name: Set up test environment
+        uses: ./.github/actions/setup-test-env
         with:
-          # Install the primary JDK first, to make it available to Gradle via gradle.properties below.
-          java-version: ${{ env.PRIMARY_JDK }}
-          distribution: 'zulu'
-
-      - name: Set up stable JDK ${{ matrix.java.version }}
-        if: ${{ matrix.java.version != env.JDK_EA_MAJOR }}
-        uses: actions/setup-java@v6.0.0
-        with:
-          # Install the requested JDK second, to make it the default on which tests run.
-          java-version: ${{ matrix.java.version }}
-          distribution: 'zulu'
-
-      # A pre-release build lives on one of two download paths, depending on how
-      # far through its release cycle it is, so resolve the pinned build against
-      # both rather than assuming either.
-      #
-      # Do not replace this with `website:`/`release:`/`version:`, which lets
-      # `oracle-actions/setup-java` resolve the build. Passing a build-specific
-      # `version: 27-ea+NN` (what #1620 replaced) fails with `No URI mapped for
-      # key` as soon as a newer build lands, because that action's mapping lists
-      # only the current build. Passing no version tracks whatever build is
-      # current, which is what the pin exists to prevent.
-      - name: Resolve pinned JDK ${{ env.JDK_EA_MAJOR }} build ${{ env.JDK_EA_BUILD }}
-        id: ea-jdk
-        if: ${{ matrix.java.version == env.JDK_EA_MAJOR }}
-        env:
-          MAJOR: ${{ env.JDK_EA_MAJOR }}
-          BUILD: ${{ env.JDK_EA_BUILD }}
-        run: |
-          ea="https://download.java.net/java/early_access/jdk${MAJOR}/${BUILD}/GPL/openjdk-${MAJOR}-ea+${BUILD}_linux-x64_bin.tar.gz"
-          if curl -sfI "$ea" > /dev/null; then
-            # Early-access builds stay downloadable long after they stop being
-            # current, so this covers the whole early-access phase.
-            echo "Resolved build ${BUILD} on the early-access path."
-            echo "uri=$ea" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          # Once a release reaches its release-candidate phase, its builds move to
-          # a path containing a hash that the build number cannot yield, so read
-          # the URI off the release page instead of constructing it.
-          page="https://jdk.java.net/${MAJOR}/"
-          pattern="https://download\.java\.net/java/GA/jdk${MAJOR}/[0-9a-f]+/[0-9]+/GPL/openjdk-${MAJOR}_linux-x64_bin\.tar\.gz"
-          uri=$(curl -sf "$page" | grep -oE "$pattern" | sort -u | head -n 1) || true
-          if [ -z "$uri" ]; then
-            echo "::error::JDK ${MAJOR} build ${BUILD} is not on the early-access path, and ${page} lists no linux-x64 release-candidate archive. Check that page and update JDK_EA_MAJOR/JDK_EA_BUILD."
-            exit 1
-          fi
-          # That page only ever shows the current build, so confirm it is the
-          # pinned one instead of silently testing whatever has replaced it.
-          found=$(printf '%s' "$uri" | sed -E 's#.*/[0-9a-f]+/([0-9]+)/GPL/.*#\1#')
-          if [ "$found" != "$BUILD" ]; then
-            echo "::error::Pinned JDK ${MAJOR} build ${BUILD} is no longer available: it is not on the early-access path, and ${page} now offers build ${found}. Superseded release-candidate builds are not retained, so set JDK_EA_BUILD to ${found}."
-            exit 1
-          fi
-          echo "Resolved build ${BUILD} on the release-candidate path."
-          echo "uri=$uri" >> "$GITHUB_OUTPUT"
-
-      - name: Set up early-access JDK ${{ env.JDK_EA_MAJOR }}
-        if: ${{ matrix.java.version == env.JDK_EA_MAJOR }}
-        uses: oracle-actions/setup-java@v1
-        with:
-          # Resolved above; the action still verifies the archive's checksum.
-          uri: ${{ steps.ea-jdk.outputs.uri }}
-          install-as-version: ${{ env.JDK_EA_MAJOR }}
-
-      - name: Pin Gradle to JDK ${{ env.PRIMARY_JDK }} via gradle.properties
-        run: |
-          mkdir -p ~/.gradle
-          echo "org.gradle.java.home=$JAVA_HOME_${{ env.PRIMARY_JDK }}_X64" >> ~/.gradle/gradle.properties
-
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v6.3.0
-        with:
+          primary-jdk: ${{ env.PRIMARY_JDK }}
+          target-jdk: ${{ matrix.java.version }}
+          jdk-ea-major: ${{ env.JDK_EA_MAJOR }}
+          jdk-ea-build: ${{ env.JDK_EA_BUILD }}
+          script: ${{ matrix.script }}
           cache-read-only: ${{ github.ref != 'refs/heads/master' }}
-
-      - name: Cache Maven repository
-        if: ${{ matrix.script == 'cftests-nonjunit' }}
-        uses: actions/cache@v6
-        with:
-          path: ~/.m2/repository
-          key: maven-${{ runner.os }}-${{ hashFiles('**/pom.xml') }}
-          restore-keys: |
-            maven-${{ runner.os }}-
-
-      - name: Setup Bazel
-        if: ${{ matrix.script == 'cftests-nonjunit' }}
-        uses: bazel-contrib/setup-bazel@0.19.0
-        with:
-          bazelisk-cache: true
-          disk-cache: ${{ github.workflow }}
-          repository-cache: true
-
-      - name: Output version information to debug CI
-        run: which java && ./gradlew --version
 
       - name: Run test script checker/bin-devel/test-${{ matrix.script }}
         run: ./checker/bin-devel/test-${{ matrix.script }}.sh
@@ -321,43 +193,15 @@ jobs:
         with:
           fetch-depth: 1
 
-      - name: Set up JDK ${{ env.PRIMARY_JDK }} for Gradle to run on
-        uses: actions/setup-java@v6.0.0
+      - name: Set up test environment
+        uses: ./.github/actions/setup-test-env
         with:
-          java-version: ${{ env.PRIMARY_JDK }}
-          distribution: 'zulu'
-
-      - name: Set up stable JDK ${{ matrix.java.version }}
-        uses: actions/setup-java@v6.0.0
-        with:
-          java-version: ${{ matrix.java.version }}
-          distribution: 'zulu'
-
-      - name: Pin Gradle to JDK ${{ env.PRIMARY_JDK }} via gradle.properties
-        run: |
-          mkdir -p ~/.gradle
-          echo "org.gradle.java.home=$JAVA_HOME_${{ env.PRIMARY_JDK }}_X64" >> ~/.gradle/gradle.properties
-
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v6.3.0
-        with:
+          primary-jdk: ${{ env.PRIMARY_JDK }}
+          target-jdk: ${{ matrix.java.version }}
+          jdk-ea-major: ${{ env.JDK_EA_MAJOR }}
+          jdk-ea-build: ${{ env.JDK_EA_BUILD }}
+          script: ${{ matrix.script }}
           cache-read-only: ${{ github.ref != 'refs/heads/master' }}
-
-      - name: Cache Maven repository
-        if: ${{ matrix.script == 'guava' }}
-        uses: actions/cache@v6
-        with:
-          path: ~/.m2/repository
-          key: maven-${{ runner.os }}-${{ hashFiles('**/pom.xml') }}
-          restore-keys: |
-            maven-${{ runner.os }}-
-
-      - name: Set up misc test dependencies
-        if: ${{ matrix.script == 'misc' }}
-        uses: ./.github/actions/setup-misc
-
-      - name: Output version information to debug CI
-        run: which java && ./gradlew --version
 
       - name: Run test script checker/bin-devel/test-${{ matrix.script }}
         run: ./checker/bin-devel/test-${{ matrix.script }}.sh
