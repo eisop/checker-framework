@@ -960,9 +960,12 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             boolean isExtends) {
         checkAnnotationOnSupertype(boundClause);
         AnnotatedTypeMirror boundType = atypeFactory.getTypeOfExtendsImplements(boundClause);
+        AnnotationMirrorSet adaptedSuperBounds =
+                atypeFactory.getViewpointAdaptedTypeDeclarationBounds(classBounds, boundType);
         TypeMirror boundTM = boundType.getUnderlyingType();
         for (AnnotationMirror classAnno : classBounds) {
-            AnnotationMirror boundAnno = boundType.getAnnotationInHierarchy(classAnno);
+            AnnotationMirror boundAnno =
+                    qualHierarchy.findAnnotationInHierarchy(adaptedSuperBounds, classAnno);
             checkExtendsOrImplementsStartDiagnostic(
                     boundClause, classAnno, classType, boundAnno, boundTM, isExtends);
             boolean success =

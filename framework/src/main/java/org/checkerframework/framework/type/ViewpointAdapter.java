@@ -1,6 +1,7 @@
 package org.checkerframework.framework.type;
 
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedExecutableType;
+import org.checkerframework.javacutil.AnnotationMirrorSet;
 
 import java.util.List;
 
@@ -78,6 +79,16 @@ public interface ViewpointAdapter {
     void viewpointAdaptTypeParameterBounds(
             AnnotatedTypeMirror receiverType,
             List<AnnotatedTypeParameterBounds> typeParameterBounds);
+
+    /**
+     * Viewpoint-adapts type-declaration bounds.
+     *
+     * @param viewpointBounds the type-declaration bounds that provide the viewpoint
+     * @param declarationBoundType the type whose declaration bounds should be adapted
+     * @return the declaration bounds adapted to {@code viewpointBounds}
+     */
+    AnnotationMirrorSet viewpointAdaptTypeDeclarationBounds(
+            AnnotationMirrorSet viewpointBounds, AnnotatedTypeMirror declarationBoundType);
 
     /**
      * Viewpoint-adapts a type written from the receiver's declaration viewpoint.
