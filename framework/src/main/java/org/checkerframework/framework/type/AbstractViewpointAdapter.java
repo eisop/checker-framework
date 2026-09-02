@@ -251,7 +251,6 @@ public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
     public AnnotationMirrorSet viewpointAdaptTypeDeclarationBounds(
             AnnotationMirrorSet viewpointBounds, AnnotatedTypeMirror declarationBoundType) {
         AnnotationMirror viewpointAnnotation = extractAnnotationMirror(viewpointBounds);
-        assert viewpointAnnotation != null;
         return combineAnnotationWithType(viewpointAnnotation, declarationBoundType)
                 .getAnnotations();
     }
