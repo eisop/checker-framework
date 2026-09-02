@@ -21,6 +21,8 @@ import java.lang.annotation.Target;
 @Inherited
 public @interface SupportedModes {
     /**
+     * Returns the supported mode names.
+     *
      * @return the supported mode names
      */
     String[] value();
