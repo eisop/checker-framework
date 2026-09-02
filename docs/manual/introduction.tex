@@ -641,6 +641,13 @@ More sound (strict) checking: enable errors that are disabled by default
   and Section~\ref{invariant-arrays}.
 \item \<-AcheckEnclosingExpr>
   Enables type checking for enclosing expression types of inner class instantiations.
+\item \<-AuseOptimisticDefaultsForUncheckedCode>
+  Enables optimistic defaults in unchecked code, but does not suppress type-checking warnings.
+  Takes arguments ``source,bytecode''; prefix an argument with ``-'' to disable it.
+  Outside a relevant \refqualclass{framework/qual}{AnnotatedFor} scope, parameters default to
+  top and returns and fields default to bottom.  Upper bounds default to top and lower bounds
+  default to bottom.  See Sections~\ref{defaults-classfile} and~\ref{compiling-libraries}.
+  A kind of code cannot use both optimistic and conservative defaults.
 \item \<-AuseConservativeDefaultsForUncheckedCode>
   Enables conservative defaults, and suppresses all type-checking warnings,
   in unchecked code.  Takes arguments ``source,bytecode''.

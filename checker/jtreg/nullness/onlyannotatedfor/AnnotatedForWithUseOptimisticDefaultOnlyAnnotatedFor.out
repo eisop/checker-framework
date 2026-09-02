@@ -1,0 +1,4 @@
+AnnotatedForWithUse.java:33:19: compiler.err.proc.messager: [assignment.type.incompatible] incompatible types in assignment.
+found   : @Nullable NullType
+required: @NonNull Object
+1 error

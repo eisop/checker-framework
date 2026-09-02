@@ -632,6 +632,19 @@ in a classfile would be interpreted as
   @Top String concatenate(@Bottom String p1, @Bottom String p2)
 \end{Verbatim}
 
+Alternatively, the \<-AuseOptimisticDefaultsForUncheckedCode=bytecode> option applies
+Optimistic defaults to unchecked bytecode.  Method parameters and upper bounds default to top;
+method returns, fields, and lower bounds default to bottom.  For example, the method above is
+interpreted as:
+
+\begin{Verbatim}
+  @Bottom String concatenate(@Top String p1, @Top String p2)
+\end{Verbatim}
+
+Optimistic defaults reduce false positives but are unsound: they trust unchecked code to accept
+all inputs and return values satisfying every requirement.  They do not suppress warnings.  A kind
+of code (\code{source} or \code{bytecode}) cannot use both optimistic and conservative defaults.
+
 There is no single possible default that is sound for fields.  In the rare
 circumstance that there is a mutable public field in an unannotated
 library, the Checker Framework may fail to warn about code that can

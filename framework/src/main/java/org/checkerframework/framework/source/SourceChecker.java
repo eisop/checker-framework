@@ -2916,18 +2916,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      * @return whether optimistic defaults should be used
      */
     public boolean useOptimisticDefault(String kindOfCode) {
-        if (!kindOfCode.equals("source") && !kindOfCode.equals("bytecode")) {
-            throw new UserError(
-                    "SourceChecker: unexpected argument to useOptimisticDefault: " + kindOfCode);
-        }
-        for (String arg : this.getStringsOption("useOptimisticDefaultsForUncheckedCode", ',')) {
-            boolean value = arg.indexOf("-") != 0;
-            arg = value ? arg : arg.substring(1);
-            if (arg.equals(kindOfCode)) {
-                return value;
-            }
-        }
-        return false;
+        return useUncheckedDefault("useOptimisticDefaultsForUncheckedCode", kindOfCode, true);
     }
 
     /**
@@ -2954,23 +2943,70 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      * @return whether conservative defaults should be used
      */
     public boolean useConservativeDefault(String kindOfCode) {
-        boolean useUncheckedDefaultsForSource = false;
-        boolean useUncheckedDefaultsForByteCode = false;
-        for (String arg : this.getStringsOption("useConservativeDefaultsForUncheckedCode", ',')) {
-            boolean value = arg.indexOf("-") != 0;
-            arg = value ? arg : arg.substring(1);
+        // Preserve the legacy behavior of ignoring unrecognized conservative-default values.
+        return useUncheckedDefault("useConservativeDefaultsForUncheckedCode", kindOfCode, false);
+    }
+
+    /**
+     * Returns whether an unchecked-code defaulting option enables defaults for a kind of code.
+     *
+     * @param optionName the option to parse
+     * @param kindOfCode source or bytecode
+     * @param validateValues whether to reject malformed and contradictory option values
+     * @return whether the option enables defaults for the kind of code
+     */
+    private boolean useUncheckedDefault(
+            String optionName, String kindOfCode, boolean validateValues) {
+        if (!kindOfCode.equals("source") && !kindOfCode.equals("bytecode")) {
+            throw new UserError("SourceChecker: unexpected kind of code: " + kindOfCode);
+        }
+        if (!hasOption(optionName)) {
+            return false;
+        }
+
+        String optionValue = getOption(optionName);
+        if (optionValue == null) {
+            if (validateValues) {
+                throw new UserError("Option -A" + optionName + " requires a value.");
+            }
+            return false;
+        }
+
+        @Nullable Boolean result = null;
+        for (String rawArg : optionValue.split(",", -1)) {
+            if (rawArg.isEmpty()) {
+                if (validateValues) {
+                    throw new UserError("Option -A" + optionName + " contains an empty value.");
+                }
+                continue;
+            }
+            boolean value = rawArg.charAt(0) != '-';
+            String arg = value ? rawArg : rawArg.substring(1);
+            if (!arg.equals("source") && !arg.equals("bytecode")) {
+                if (validateValues) {
+                    throw new UserError(
+                            "Invalid value \""
+                                    + rawArg
+                                    + "\" for -A"
+                                    + optionName
+                                    + "; expected source, -source, bytecode, or -bytecode.");
+                }
+                continue;
+            }
             if (arg.equals(kindOfCode)) {
-                return value;
+                if (result == null) {
+                    result = value;
+                } else if (result.booleanValue() != value && validateValues) {
+                    throw new UserError(
+                            "Option -A"
+                                    + optionName
+                                    + " contains conflicting values for "
+                                    + kindOfCode
+                                    + ".");
+                }
             }
         }
-        if (kindOfCode.equals("source")) {
-            return useUncheckedDefaultsForSource;
-        } else if (kindOfCode.equals("bytecode")) {
-            return useUncheckedDefaultsForByteCode;
-        } else {
-            throw new UserError(
-                    "SourceChecker: unexpected argument to useConservativeDefault: " + kindOfCode);
-        }
+        return result != null && result;
     }
 
     /**
