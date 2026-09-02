@@ -7,6 +7,11 @@
     "schedule:nonOfficeHours",
     ":disableDependencyDashboard"
   ],
+  "ignorePaths": [
+    "**/node_modules/**",
+    "**/bower_components/**",
+    "**/vendor/**"
+  ],
   "timezone": "America/Los_Angeles",
   "packageRules": [
     {
