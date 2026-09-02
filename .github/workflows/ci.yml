@@ -58,6 +58,15 @@ jobs:
           # scratch.
           cache-read-only: false
 
+      - name: Cache Maven repository
+        if: ${{ matrix.script == 'cftests-nonjunit' }}
+        uses: actions/cache@v6
+        with:
+          path: ~/.m2/repository
+          key: maven-${{ runner.os }}-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            maven-${{ runner.os }}-
+
       - name: Setup Bazel
         if: ${{ matrix.script == 'cftests-nonjunit' }}
         uses: bazel-contrib/setup-bazel@0.19.0
@@ -114,6 +123,15 @@ jobs:
         uses: gradle/actions/setup-gradle@v6.3.0
         with:
           cache-read-only: false
+
+      - name: Cache Maven repository
+        if: ${{ matrix.script == 'guava' }}
+        uses: actions/cache@v6
+        with:
+          path: ~/.m2/repository
+          key: maven-${{ runner.os }}-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            maven-${{ runner.os }}-
 
       - name: Set up misc test dependencies
         if: ${{ matrix.script == 'misc' }}
@@ -235,7 +253,16 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v6.3.0
         with:
-          cache-read-only: false
+          cache-read-only: ${{ github.ref != 'refs/heads/master' }}
+
+      - name: Cache Maven repository
+        if: ${{ matrix.script == 'cftests-nonjunit' }}
+        uses: actions/cache@v6
+        with:
+          path: ~/.m2/repository
+          key: maven-${{ runner.os }}-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            maven-${{ runner.os }}-
 
       - name: Setup Bazel
         if: ${{ matrix.script == 'cftests-nonjunit' }}
@@ -314,7 +341,16 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v6.3.0
         with:
-          cache-read-only: false
+          cache-read-only: ${{ github.ref != 'refs/heads/master' }}
+
+      - name: Cache Maven repository
+        if: ${{ matrix.script == 'guava' }}
+        uses: actions/cache@v6
+        with:
+          path: ~/.m2/repository
+          key: maven-${{ runner.os }}-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            maven-${{ runner.os }}-
 
       - name: Set up misc test dependencies
         if: ${{ matrix.script == 'misc' }}
@@ -354,10 +390,13 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v6.3.0
         with:
-          cache-read-only: false
+          cache-read-only: ${{ github.ref != 'refs/heads/master' }}
 
       - name: Install coreutils on macOS
         if: ${{ matrix.os == 'macos-latest' }}
+        env:
+          HOMEBREW_NO_AUTO_UPDATE: "1"
+          HOMEBREW_NO_INSTALL_CLEANUP: "1"
         run: brew install coreutils
 
       - name: Install wget on Windows
