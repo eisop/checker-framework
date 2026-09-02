@@ -26,172 +26,66 @@ env:
   JDK_EA_BUILD: "35"
 
 jobs:
-  # Basic sanity tests on the primary JDK.
-  sanity:
-    name: ${{ matrix.script }} on JDK ${{ matrix.java_version }}
-    runs-on: ubuntu-24.04
-    timeout-minutes: 60
-    strategy:
-      fail-fast: false
-      matrix:
-        script: ['cftests-junit', 'cftests-nonjunit']
-        # env.PRIMARY_JDK is not available in strategy.matrix or in
-        # jobs.<id>.name / jobs.<id>.env, so the primary JDK is repeated here.
-        java_version: [21]
-    env:
-      JAVA_VERSION: ${{ matrix.java_version }}
-    steps:
-      - uses: actions/checkout@v7
-
-      - name: Set up test environment
-        uses: ./.github/actions/setup-test-env
-        with:
-          primary-jdk: ${{ matrix.java_version }}
-          target-jdk: ${{ matrix.java_version }}
-          script: ${{ matrix.script }}
-          cache-read-only: false
-
-      - name: Run test script checker/bin-devel/test-${{ matrix.script }}
-        run: ./checker/bin-devel/test-${{ matrix.script }}.sh
-
-  # Remaining tests on the primary JDK. Runs in parallel with `sanity` for throughput.
-  remainder:
-    name: ${{ matrix.script }} on JDK ${{ matrix.java_version }}
-    runs-on: ubuntu-24.04
-    timeout-minutes: 60
-    strategy:
-      fail-fast: false
-      matrix:
-        # No need to run 'cftests-junit-jdk21' on JDK 21.
-        script:
-          - 'typecheck-part1'
-          - 'typecheck-part2'
-          - 'guava'
-          - 'plume-lib'
-          - 'daikon-part1'
-          - 'daikon-part2'
-          - 'jspecify-conformance'
-          - 'jspecify-reference-checker'
-          - 'templatefora-checker'
-          - 'misc'
-        # Keep in sync with env.PRIMARY_JDK.
-        java_version: [21]
-    env:
-      JAVA_VERSION: ${{ matrix.java_version }}
-    steps:
-      # `misc` runs `ci-diff` which needs full history; everything else is shallow.
-      - uses: actions/checkout@v7
-        if: ${{ matrix.script == 'misc' }}
-        with:
-          fetch-depth: 0
-      - uses: actions/checkout@v7
-        if: ${{ matrix.script != 'misc' }}
-        with:
-          fetch-depth: 1
-
-      - name: Set up test environment
-        uses: ./.github/actions/setup-test-env
-        with:
-          primary-jdk: ${{ matrix.java_version }}
-          target-jdk: ${{ matrix.java_version }}
-          script: ${{ matrix.script }}
-          cache-read-only: false
-
-      - name: Run test script checker/bin-devel/test-${{ matrix.script }}
-        run: ./checker/bin-devel/test-${{ matrix.script }}.sh
-
-  core-jdks:
+  # All Linux test suites across all supported JDKs in a single parallel matrix.
+  linux-tests:
     name: ${{ matrix.script }} on JDK ${{ matrix.java.version }}
     runs-on: ubuntu-24.04
     timeout-minutes: 60
-    needs: [sanity, remainder]
-    env:
-      JAVA_VERSION: ${{ matrix.java.version }}
-    strategy:
-      # `continue-on-error` below prevents experimental JDK failures from
-      # triggering fail-fast cancellation of the rest of the matrix.
-      fail-fast: true
-      matrix:
-        script:
-          - 'cftests-junit'
-          - 'cftests-nonjunit'
-          - 'cftests-junit-jdk21'
-        # Keep all LTS versions plus the newest non-LTS version.
-        # Experimental versions use the $version compiler but run Gradle on the primary JDK.
-        # Keep $version values in sync with env.JDK_EA_MAJOR above;
-        # env context is not available in strategy.matrix.
-        java:
-          - {version: '27', experimental: true}
-          - {version: '26', experimental: false}
-          - {version: '25', experimental: false}
-          - {version: '17', experimental: false}
-          - {version: '11', experimental: false}
-          - {version: '8',  experimental: false}
-        exclude:
-          # JDK 8 does not allow toolchains, so 'cftests-junit-jdk21' is unnecessary.
-          - {script: 'cftests-junit-jdk21', java: {version: '8'}}
-    continue-on-error: ${{ matrix.java.experimental }}
-    steps:
-      - name: Check out sources (shallow)
-        uses: actions/checkout@v7
-        with:
-          fetch-depth: 1
-
-      - name: Set up test environment
-        uses: ./.github/actions/setup-test-env
-        with:
-          primary-jdk: ${{ env.PRIMARY_JDK }}
-          target-jdk: ${{ matrix.java.version }}
-          jdk-ea-major: ${{ env.JDK_EA_MAJOR }}
-          jdk-ea-build: ${{ env.JDK_EA_BUILD }}
-          script: ${{ matrix.script }}
-          cache-read-only: ${{ github.ref != 'refs/heads/master' }}
-
-      - name: Run test script checker/bin-devel/test-${{ matrix.script }}
-        run: ./checker/bin-devel/test-${{ matrix.script }}.sh
-        env:
-          # Tells Gradle which JDK version to compile/run tests against,
-          # so we can e.g. run JDK 25 while Gradle itself does not support JDK 25 yet.
-          ORG_GRADLE_PROJECT_useJdkVersion: ${{ matrix.java.version }}
-
-  integration-jdks:
-    name: ${{ matrix.script }} on JDK ${{ matrix.java.version }}
-    runs-on: ubuntu-24.04
-    timeout-minutes: 60
-    needs: [sanity, remainder]
-    env:
-      JAVA_VERSION: ${{ matrix.java.version }}
     strategy:
       fail-fast: true
       matrix:
         include:
-          # typecheck and guava on oldest core version (8) and newest stable (26)
-          - {script: 'typecheck-part1', java: {version: '8'}}
-          - {script: 'typecheck-part1', java: {version: '26'}}
-          - {script: 'typecheck-part2', java: {version: '8'}}
-          - {script: 'typecheck-part2', java: {version: '26'}}
-          - {script: 'guava',           java: {version: '8'}}
-          - {script: 'guava',           java: {version: '26'}}
-          # plume-lib, misc, and jspecify tests only on newest stable (26)
-          - {script: 'plume-lib',       java: {version: '26'}}
-          - {script: 'misc',            java: {version: '26'}}
-          - {script: 'jspecify-conformance', java: {version: '26'}}
-          - {script: 'jspecify-reference-checker', java: {version: '26'}}
-          - {script: 'templatefora-checker', java: {version: '26'}}
-          # Daikon produces 'this-escape' warnings in JDK 22+. Only JDK 17.
-          - {script: 'daikon-part1',    java: {version: '17'}}
-          - {script: 'daikon-part2',    java: {version: '17'}}
+          # --- Core tests on Primary JDK 21 ---
+          - {script: 'cftests-junit',               java: {version: '21', experimental: false}}
+          - {script: 'cftests-nonjunit',            java: {version: '21', experimental: false}}
+          # --- Core tests on other JDKs ---
+          - {script: 'cftests-junit',               java: {version: '27', experimental: true}}
+          - {script: 'cftests-junit',               java: {version: '26', experimental: false}}
+          - {script: 'cftests-junit',               java: {version: '25', experimental: false}}
+          - {script: 'cftests-junit',               java: {version: '17', experimental: false}}
+          - {script: 'cftests-junit',               java: {version: '11', experimental: false}}
+          - {script: 'cftests-junit',               java: {version: '8',  experimental: false}}
+          - {script: 'cftests-nonjunit',            java: {version: '27', experimental: true}}
+          - {script: 'cftests-nonjunit',            java: {version: '26', experimental: false}}
+          - {script: 'cftests-nonjunit',            java: {version: '25', experimental: false}}
+          - {script: 'cftests-nonjunit',            java: {version: '17', experimental: false}}
+          - {script: 'cftests-nonjunit',            java: {version: '11', experimental: false}}
+          - {script: 'cftests-nonjunit',            java: {version: '8',  experimental: false}}
+          - {script: 'cftests-junit-jdk21',         java: {version: '27', experimental: true}}
+          - {script: 'cftests-junit-jdk21',         java: {version: '26', experimental: false}}
+          - {script: 'cftests-junit-jdk21',         java: {version: '25', experimental: false}}
+          - {script: 'cftests-junit-jdk21',         java: {version: '17', experimental: false}}
+          - {script: 'cftests-junit-jdk21',         java: {version: '11', experimental: false}}
+          # --- Downstream integration tests on Primary JDK 21 ---
+          - {script: 'typecheck-part1',             java: {version: '21', experimental: false}}
+          - {script: 'typecheck-part2',             java: {version: '21', experimental: false}}
+          - {script: 'guava',                       java: {version: '21', experimental: false}}
+          - {script: 'plume-lib',                   java: {version: '21', experimental: false}}
+          - {script: 'daikon-part1',                java: {version: '21', experimental: false}}
+          - {script: 'daikon-part2',                java: {version: '21', experimental: false}}
+          - {script: 'jspecify-conformance',        java: {version: '21', experimental: false}}
+          - {script: 'jspecify-reference-checker',  java: {version: '21', experimental: false}}
+          - {script: 'templatefora-checker',        java: {version: '21', experimental: false}}
+          - {script: 'misc',                        java: {version: '21', experimental: false}}
+          # --- Downstream integration tests on other JDKs ---
+          - {script: 'typecheck-part1',             java: {version: '8',  experimental: false}}
+          - {script: 'typecheck-part1',             java: {version: '26', experimental: false}}
+          - {script: 'typecheck-part2',             java: {version: '8',  experimental: false}}
+          - {script: 'typecheck-part2',             java: {version: '26', experimental: false}}
+          - {script: 'guava',                       java: {version: '8',  experimental: false}}
+          - {script: 'guava',                       java: {version: '26', experimental: false}}
+          - {script: 'plume-lib',                   java: {version: '26', experimental: false}}
+          - {script: 'misc',                        java: {version: '26', experimental: false}}
+          - {script: 'jspecify-conformance',        java: {version: '26', experimental: false}}
+          - {script: 'jspecify-reference-checker',  java: {version: '26', experimental: false}}
+          - {script: 'templatefora-checker',        java: {version: '26', experimental: false}}
+          - {script: 'daikon-part1',                java: {version: '17', experimental: false}}
+          - {script: 'daikon-part2',                java: {version: '17', experimental: false}}
+    continue-on-error: ${{ matrix.java.experimental }}
     steps:
-      - name: Check out sources (full history for misc)
-        uses: actions/checkout@v7
-        if: ${{ matrix.script == 'misc' }}
+      - uses: actions/checkout@v7
         with:
-          fetch-depth: 0
-      - name: Check out sources (shallow)
-        uses: actions/checkout@v7
-        if: ${{ matrix.script != 'misc' }}
-        with:
-          fetch-depth: 1
+          fetch-depth: ${{ matrix.script == 'misc' && 0 || 1 }}
 
       - name: Set up test environment
         uses: ./.github/actions/setup-test-env
@@ -201,19 +95,19 @@ jobs:
           jdk-ea-major: ${{ env.JDK_EA_MAJOR }}
           jdk-ea-build: ${{ env.JDK_EA_BUILD }}
           script: ${{ matrix.script }}
-          cache-read-only: ${{ github.ref != 'refs/heads/master' }}
+          cache-read-only: ${{ github.ref != 'refs/heads/master' && matrix.java.version != env.PRIMARY_JDK }}
 
       - name: Run test script checker/bin-devel/test-${{ matrix.script }}
         run: ./checker/bin-devel/test-${{ matrix.script }}.sh
         env:
           ORG_GRADLE_PROJECT_useJdkVersion: ${{ matrix.java.version }}
+          JAVA_VERSION: ${{ matrix.java.version }}
 
   # Sanity tests on Windows and macOS.
   otheros:
     name: ${{ matrix.script }} on JDK ${{ matrix.java_version }} on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 60
-    needs: sanity
     strategy:
       fail-fast: false
       matrix:
