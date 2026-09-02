@@ -805,7 +805,6 @@ public abstract class GenericAnnotatedTypeFactory<
         addCheckedCodeDefaults(defs);
         addCheckedStandardDefaults(defs);
         addUncheckedStandardDefaults(defs);
-        addOptimisticUncheckedStandardDefaults(defs);
         checkForDefaultQualifierInHierarchy(defs);
 
         return defs;
@@ -884,23 +883,13 @@ public abstract class GenericAnnotatedTypeFactory<
     }
 
     /**
-     * Adds standard unchecked defaults that do not conflict with previously added defaults.
+     * Adds standard conservative and optimistic defaults for unchecked code. Subclasses may
+     * override this method to customize unchecked-code defaults.
      *
      * @param defs {@link QualifierDefaults} object to which defaults are added
      */
     protected void addUncheckedStandardDefaults(QualifierDefaults defs) {
         defs.addUncheckedStandardDefaults();
-    }
-
-    /**
-     * Adds standard optimistic unchecked defaults that do not conflict with previously added
-     * optimistic defaults. These apply instead of the conservative ones when {@code
-     * -AuseOptimisticDefaultsForUncheckedCode} is supplied.
-     *
-     * @param defs {@link QualifierDefaults} object to which defaults are added
-     */
-    protected void addOptimisticUncheckedStandardDefaults(QualifierDefaults defs) {
-        defs.addOptimisticUncheckedStandardDefaults();
     }
 
     /**

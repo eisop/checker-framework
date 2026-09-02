@@ -2972,7 +2972,8 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
             return false;
         }
 
-        @Nullable Boolean result = null;
+        boolean found = false;
+        boolean result = false;
         for (String rawArg : optionValue.split(",", -1)) {
             if (rawArg.isEmpty()) {
                 if (validateValues) {
@@ -2994,9 +2995,10 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
                 continue;
             }
             if (arg.equals(kindOfCode)) {
-                if (result == null) {
+                if (!found) {
+                    found = true;
                     result = value;
-                } else if (result.booleanValue() != value && validateValues) {
+                } else if (result != value && validateValues) {
                     throw new UserError(
                             "Option -A"
                                     + optionName
@@ -3006,7 +3008,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
                 }
             }
         }
-        return result != null && result;
+        return result;
     }
 
     /**

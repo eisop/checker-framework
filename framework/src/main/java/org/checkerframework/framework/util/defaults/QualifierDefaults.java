@@ -213,7 +213,7 @@ public class QualifierDefaults {
                             TypeUseLocation.OTHERWISE,
                             TypeUseLocation.ALL));
 
-    /** Standard unchecked default locations that should be top. */
+    /** Conservative unchecked default locations that should be top. */
     // Fields are defaulted to top so that warnings are issued at field reads, which we believe are
     // more common than field writes. Future work is to specify different defaults for field reads
     // and field writes.  (When a field is written to, its type should be bottom.)
@@ -226,22 +226,22 @@ public class QualifierDefaults {
     // but a sound fix needs a separate write-variant of the unchecked FIELD default rather than
     // flipping any top FIELD default to bottom: an explicit @DefaultQualifier(locations=FIELD) must
     // still apply to writes. See the issue for discussion.
-    public static final List<TypeUseLocation> STANDARD_UNCHECKED_DEFAULTS_TOP =
+    public static final List<TypeUseLocation> CONSERVATIVE_UNCHECKED_DEFAULTS_TOP =
             Collections.unmodifiableList(
                     Arrays.asList(
                             TypeUseLocation.RETURN,
                             TypeUseLocation.FIELD,
                             TypeUseLocation.UPPER_BOUND));
 
-    /** Standard unchecked default locations that should be bottom. */
-    public static final List<TypeUseLocation> STANDARD_UNCHECKED_DEFAULTS_BOTTOM =
+    /** Conservative unchecked default locations that should be bottom. */
+    public static final List<TypeUseLocation> CONSERVATIVE_UNCHECKED_DEFAULTS_BOTTOM =
             Collections.unmodifiableList(
                     Arrays.asList(TypeUseLocation.PARAMETER, TypeUseLocation.LOWER_BOUND));
 
     /**
      * Optimistic unchecked default locations that should be top. These are the mirror image of
-     * {@link #STANDARD_UNCHECKED_DEFAULTS_TOP}: a call into unchecked code may pass anything, so
-     * its parameters are assumed to accept anything.
+     * {@link #CONSERVATIVE_UNCHECKED_DEFAULTS_TOP}: a call into unchecked code may pass anything,
+     * so its parameters are assumed to accept anything.
      */
     public static final List<TypeUseLocation> OPTIMISTIC_UNCHECKED_DEFAULTS_TOP =
             Collections.unmodifiableList(
@@ -352,22 +352,29 @@ public class QualifierDefaults {
      * @return the mode's code defaults
      */
     private DefaultSet defaultsFor(DefaultsMode mode) {
-        if (mode == DefaultsMode.CHECKED) {
-            return checkedCodeDefaults;
-        } else if (mode == DefaultsMode.CONSERVATIVE) {
-            return uncheckedCodeDefaults;
-        } else {
-            return optimisticUncheckedCodeDefaults;
+        switch (mode) {
+            case CHECKED:
+                return checkedCodeDefaults;
+            case CONSERVATIVE:
+                return uncheckedCodeDefaults;
+            case OPTIMISTIC:
+                return optimisticUncheckedCodeDefaults;
         }
+        throw new BugInCF("Unhandled defaults mode: " + mode);
     }
 
-    /** Add standard unchecked defaults that do not conflict with previously added defaults. */
+    /** Adds standard conservative and optimistic defaults for unchecked code. */
     public void addUncheckedStandardDefaults() {
-        addStandardUncheckedDefaults(
+        addConservativeUncheckedStandardDefaults();
+        addOptimisticUncheckedStandardDefaults();
+    }
+
+    /** Add standard conservative unchecked defaults that do not conflict with existing defaults. */
+    public void addConservativeUncheckedStandardDefaults() {
+        addStandardDefaultsForUncheckedMode(
                 DefaultsMode.CONSERVATIVE,
-                STANDARD_UNCHECKED_DEFAULTS_TOP,
-                STANDARD_UNCHECKED_DEFAULTS_BOTTOM,
-                false);
+                CONSERVATIVE_UNCHECKED_DEFAULTS_TOP,
+                CONSERVATIVE_UNCHECKED_DEFAULTS_BOTTOM);
     }
 
     /**
@@ -376,31 +383,29 @@ public class QualifierDefaults {
      * -AuseOptimisticDefaultsForUncheckedCode} is supplied for the kind of code at hand.
      */
     public void addOptimisticUncheckedStandardDefaults() {
-        addStandardUncheckedDefaults(
+        addStandardDefaultsForUncheckedMode(
                 DefaultsMode.OPTIMISTIC,
                 OPTIMISTIC_UNCHECKED_DEFAULTS_TOP,
-                OPTIMISTIC_UNCHECKED_DEFAULTS_BOTTOM,
-                true);
+                OPTIMISTIC_UNCHECKED_DEFAULTS_BOTTOM);
     }
 
     /**
-     * Adds a mode's standard top and bottom defaults.
+     * Adds an unchecked mode's standard top and bottom defaults.
      *
      * @param mode the unchecked defaulting mode
      * @param topLocations locations that should default to top
      * @param bottomLocations locations that should default to bottom
-     * @param checkTargetLocations whether to honor qualifiers' {@link TargetLocations}
      */
-    private void addStandardUncheckedDefaults(
+    private void addStandardDefaultsForUncheckedMode(
             DefaultsMode mode,
             List<TypeUseLocation> topLocations,
-            List<TypeUseLocation> bottomLocations,
-            boolean checkTargetLocations) {
+            List<TypeUseLocation> bottomLocations) {
+        if (mode == DefaultsMode.CHECKED) {
+            throw new BugInCF("Expected an unchecked defaults mode, but received " + mode);
+        }
         QualifierHierarchy qualHierarchy = this.atypeFactory.getQualifierHierarchy();
-        addStandardUncheckedDefaults(
-                mode, qualHierarchy.getTopAnnotations(), topLocations, checkTargetLocations);
-        addStandardUncheckedDefaults(
-                mode, qualHierarchy.getBottomAnnotations(), bottomLocations, checkTargetLocations);
+        addStandardDefaultsAtLocations(mode, qualHierarchy.getTopAnnotations(), topLocations);
+        addStandardDefaultsAtLocations(mode, qualHierarchy.getBottomAnnotations(), bottomLocations);
     }
 
     /**
@@ -409,19 +414,28 @@ public class QualifierDefaults {
      * @param mode the unchecked defaulting mode
      * @param qualifiers qualifiers to add as defaults
      * @param locations locations for the defaults
-     * @param checkTargetLocations whether to honor qualifiers' {@link TargetLocations}
      */
-    private void addStandardUncheckedDefaults(
-            DefaultsMode mode,
-            AnnotationMirrorSet qualifiers,
-            List<TypeUseLocation> locations,
-            boolean checkTargetLocations) {
+    private void addStandardDefaultsAtLocations(
+            DefaultsMode mode, AnnotationMirrorSet qualifiers, List<TypeUseLocation> locations) {
         DefaultSet defaults = defaultsFor(mode);
         for (TypeUseLocation location : locations) {
             for (AnnotationMirror qualifier : qualifiers) {
-                if ((!checkTargetLocations || permittedAtLocation(qualifier, location))
-                        && !conflictsWithExistingDefaults(defaults, qualifier, location)) {
-                    addUncheckedCodeDefault(mode, qualifier, location, true);
+                if (mode == DefaultsMode.OPTIMISTIC && !permittedAtLocation(qualifier, location)) {
+                    continue;
+                }
+                if (conflictsWithExistingDefaults(defaults, qualifier, location)) {
+                    continue;
+                }
+                switch (mode) {
+                    case CONSERVATIVE:
+                        addConservativeUncheckedCodeDefault(qualifier, location);
+                        break;
+                    case OPTIMISTIC:
+                        addOptimisticUncheckedCodeDefault(qualifier, location);
+                        break;
+                    case CHECKED:
+                        throw new BugInCF(
+                                "Expected an unchecked defaults mode, but received " + mode);
                 }
             }
         }
@@ -514,13 +528,13 @@ public class QualifierDefaults {
     }
 
     /**
-     * Add a default annotation for unchecked elements.
+     * Add a conservative default annotation for unchecked elements.
      *
      * @param uncheckedDefaultAnno the default annotation mirror
      * @param location the type use location
      * @param applyToSubpackages whether the default should be inherited by subpackages
      */
-    public void addUncheckedCodeDefault(
+    public void addConservativeUncheckedCodeDefault(
             AnnotationMirror uncheckedDefaultAnno,
             TypeUseLocation location,
             boolean applyToSubpackages) {
@@ -529,15 +543,15 @@ public class QualifierDefaults {
     }
 
     /**
-     * Add a default annotation for unchecked elements that also applies to subpackages, if
-     * applicable.
+     * Add a conservative default annotation for unchecked elements that also applies to
+     * subpackages, if applicable.
      *
      * @param uncheckedDefaultAnno the default annotation mirror
      * @param location the type use location
      */
-    public void addUncheckedCodeDefault(
+    public void addConservativeUncheckedCodeDefault(
             AnnotationMirror uncheckedDefaultAnno, TypeUseLocation location) {
-        addUncheckedCodeDefault(uncheckedDefaultAnno, location, true);
+        addConservativeUncheckedCodeDefault(uncheckedDefaultAnno, location, true);
     }
 
     /**
@@ -580,6 +594,9 @@ public class QualifierDefaults {
             AnnotationMirror uncheckedDefaultAnno,
             TypeUseLocation location,
             boolean applyToSubpackages) {
+        if (mode == DefaultsMode.CHECKED) {
+            throw new BugInCF("Expected an unchecked defaults mode, but received " + mode);
+        }
         DefaultSet defaults = defaultsFor(mode);
         checkDuplicates(defaults, uncheckedDefaultAnno, location);
         checkIsValidUncheckedCodeLocation(uncheckedDefaultAnno, location);
@@ -587,11 +604,16 @@ public class QualifierDefaults {
         invalidateFusedDefaults();
     }
 
-    /** Sets the default annotation for unchecked elements, with specific locations. */
-    public void addUncheckedCodeDefaults(
+    /**
+     * Sets the conservative default annotation for unchecked elements at the given locations.
+     *
+     * @param absoluteDefaultAnno the default annotation mirror
+     * @param locations the type-use locations where the default applies
+     */
+    public void addConservativeUncheckedCodeDefaults(
             AnnotationMirror absoluteDefaultAnno, TypeUseLocation[] locations) {
         for (TypeUseLocation location : locations) {
-            addUncheckedCodeDefault(absoluteDefaultAnno, location);
+            addConservativeUncheckedCodeDefault(absoluteDefaultAnno, location);
         }
     }
 
