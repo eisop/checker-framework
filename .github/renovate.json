@@ -4,9 +4,10 @@
     "config:base",
     ":automergeDisabled",
     ":automergeRequireAllStatusChecks",
-    "schedule:nonOfficeHours",
-    ":disableDependencyDashboard"
+    "schedule:nonOfficeHours"
   ],
+  "minimumReleaseAge": "7 days",
+  "prConcurrentLimit": 5,
   "ignorePaths": [
     "**/node_modules/**",
     "**/bower_components/**",
@@ -14,6 +15,27 @@
   ],
   "timezone": "America/Los_Angeles",
   "packageRules": [
+    {
+      "description": "Group all dependency updates in docs/examples into a single PR",
+      "matchFileNames": ["docs/examples/**"],
+      "groupName": "docs/examples dependencies"
+    },
+    {
+      "description": "Group non-major GitHub Actions updates",
+      "matchManagers": ["github-actions"],
+      "matchUpdateTypes": ["minor", "patch", "pin", "digest"],
+      "groupName": "GitHub Actions non-major updates"
+    },
+    {
+      "description": "Do not delay JDK EA builds to avoid downloading superseded/deleted binaries",
+      "matchPackageNames": ["openjdk/jdk"],
+      "minimumReleaseAge": "0 days"
+    },
+    {
+      "description": "Do not delay security vulnerability fixes",
+      "matchCategories": ["security"],
+      "minimumReleaseAge": "0 days"
+    },
     {
       "matchPackagePatterns": ["^adoptium/temurin\\d+-binaries$"],
       "ignoreUnstable": false
