@@ -83,9 +83,15 @@ jobs:
           - {script: 'daikon-part2',                java: {version: '17', experimental: false}}
     continue-on-error: ${{ matrix.java.experimental }}
     steps:
+      # `misc` runs `ci-diff` which needs full history; everything else is shallow.
       - uses: actions/checkout@v7
+        if: ${{ matrix.script == 'misc' }}
         with:
-          fetch-depth: ${{ matrix.script == 'misc' && 0 || 1 }}
+          fetch-depth: 0
+      - uses: actions/checkout@v7
+        if: ${{ matrix.script != 'misc' }}
+        with:
+          fetch-depth: 1
 
       - name: Set up test environment
         uses: ./.github/actions/setup-test-env
