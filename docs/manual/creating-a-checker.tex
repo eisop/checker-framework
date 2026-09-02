@@ -1177,6 +1177,36 @@ To pass an option on the command line, call javac as follows:
 The value is returned as a single string and you have to perform the
 required parsing of the option.
 
+
+\subsubsectionAndLabel{Modes}{creating-providing-command-line-options-modes}
+
+A mode is a named group of options.  Declare the modes that a checker supports with
+\refqualclass{framework/source}{SupportedModes}:
+
+\begin{alltt}
+  \refqualclass{framework/source}{SupportedModes}({"sound", "convenience"})
+\end{alltt}
+
+Define the options enabled by each mode by overriding \code{addOptionsForMode}:
+
+\begin{Verbatim}
+  @Override
+  protected void addOptionsForMode(
+      String mode, Map<String, String> activeOptions) {
+    super.addOptionsForMode(mode, activeOptions);
+    switch (mode) {
+      case "sound":
+        activeOptions.putIfAbsent("checkPurityAnnotations", null);
+        break;
+      case "convenience":
+        activeOptions.putIfAbsent("assumePure", null);
+        break;
+      default:
+        break;
+    }
+  }
+\end{Verbatim}
+
 \subsubsectionAndLabel{Default Options}{creating-providing-command-line-options-default-options}
 
 The default options passed to a custom checker may be customized by overriding the
@@ -2777,4 +2807,4 @@ without warnings or errors.
 % LocalWords:  UnionType subpackage distributable DefaultFor FormatMethod
 % LocalWords:  AnoWarnMemoryConstraints JCDiagnostic DiagnosticPosition
 % LocalWords:  LineMap SomeAnn getTypeFactoryOfSubcheckerOrNull traceback
-% LocalWords:  pids jstack ctrl
+% LocalWords:  pids jstack ctrl SupportedModes addOptionsForMode putIfAbsent Amode

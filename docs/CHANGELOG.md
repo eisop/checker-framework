@@ -3,7 +3,7 @@ Version 3.49.5-eisop2 (June ?, 2026)
 
 **User-visible changes:**
 
-The Nullness Checker's new `-AjspecifyMode` option enables its JSpecify-compatible
+The Nullness Checker's new `-Amode=jspecify` option enables its JSpecify-compatible
 checking behaviors as a group.  It currently enables `-AonlyAnnotatedFor`
 and recognizes JSpecify's `@NullMarked`.  It also disables initialization checking
 and the Map Key Checker.

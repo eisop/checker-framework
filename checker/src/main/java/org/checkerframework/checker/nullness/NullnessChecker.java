@@ -5,6 +5,7 @@ import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.framework.qual.StubFiles;
 import org.checkerframework.framework.source.SupportedLintOptions;
+import org.checkerframework.framework.source.SupportedModes;
 
 import java.util.Map;
 import java.util.NavigableSet;
@@ -60,15 +61,18 @@ import javax.annotation.processing.SupportedOptions;
     NullnessChecker.LINT_PERMITCLEARPROPERTY,
     NullnessChecker.LINT_MONOTONICNONNULLONSTATIC,
 })
+@SupportedModes(NullnessChecker.MODE_JSPECIFY)
 @SupportedOptions({
     "assumeKeyFor",
     "assumeInitialized",
-    "jspecifyMode",
     "jspecifyNullMarkedAlias",
     "conservativeArgumentNullnessAfterInvocation"
 })
 @StubFiles({"junit-assertions.astub", "log4j.astub"})
 public class NullnessChecker extends InitializationChecker {
+
+    /** The JSpecify compatibility mode. */
+    public static final String MODE_JSPECIFY = "jspecify";
 
     /** Should we be strict about initialization of {@link MonotonicNonNull} variables? */
     public static final String LINT_NOINITFORMONOTONICNONNULL = "noInitForMonotonicNonNull";
@@ -116,19 +120,23 @@ public class NullnessChecker extends InitializationChecker {
     public NullnessChecker() {}
 
     /**
-     * Expands {@code -AjspecifyMode} into the individual options it enables. Add future options
-     * implied by JSpecify mode to this method.
+     * Adds the options enabled by the given mode.
      *
-     * @param activeOptions the active options to which implied options should be added
+     * @param mode the value of the {@code -Amode} option
+     * @param activeOptions the active options to which mode options should be added
      */
     @Override
-    protected void addImpliedOptions(Map<String, String> activeOptions) {
-        super.addImpliedOptions(activeOptions);
-        if (activeOptions.containsKey("jspecifyMode")) {
-            activeOptions.putIfAbsent("onlyAnnotatedFor", null);
-            activeOptions.putIfAbsent("jspecifyNullMarkedAlias", "true");
-            activeOptions.putIfAbsent("assumeInitialized", null);
-            activeOptions.putIfAbsent("assumeKeyFor", null);
+    protected void addOptionsForMode(String mode, Map<String, String> activeOptions) {
+        super.addOptionsForMode(mode, activeOptions);
+        switch (mode) {
+            case MODE_JSPECIFY:
+                activeOptions.putIfAbsent("onlyAnnotatedFor", null);
+                activeOptions.putIfAbsent("jspecifyNullMarkedAlias", "true");
+                activeOptions.putIfAbsent("assumeInitialized", null);
+                activeOptions.putIfAbsent("assumeKeyFor", null);
+                break;
+            default:
+                break;
         }
     }
 

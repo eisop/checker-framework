@@ -230,6 +230,9 @@ import javax.tools.Diagnostic;
     // Type-checking modes:  enable/disable functionality
     //
 
+    // Enable a checker-defined group of options.
+    "mode",
+
     // Lint options
     // org.checkerframework.framework.source.SourceChecker.getSupportedLintOptions() and similar
     "lint",
@@ -646,6 +649,9 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     /** The supported lint options. */
     private @MonotonicNonNull Set<String> supportedLints;
 
+    /** The supported values for the {@code -Amode} option. */
+    private @MonotonicNonNull Set<String> supportedModes;
+
     /** The enabled lint options. Is set in {@link #initChecker}. */
     private Set<String> activeLints;
 
@@ -919,7 +925,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      */
     public Map<String, String> getOptionsNoSubcheckers() {
         Map<String, String> options = createActiveOptions(processingEnv.getOptions());
-        addImpliedOptions(options);
+        addModeOptions(options);
         return options;
     }
 
@@ -1175,7 +1181,10 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
         this.messagesProperties = getMessagesProperties();
 
         // Set the active options for this checker and all subcheckers.
-        getOptions();
+        Map<String, String> options = getOptions();
+        if (parentChecker == null) {
+            validateMode(options);
+        }
 
         // Initialize all checkers and share supported lint options.
         for (SourceChecker checker : getSubcheckers()) {
@@ -2286,6 +2295,41 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
         supportedLints = newLints;
     }
 
+    /**
+     * Returns the modes recognized by this checker and its subcheckers.
+     *
+     * @return an unmodifiable set of supported mode names
+     */
+    public Set<String> getSupportedModes() {
+        if (supportedModes == null) {
+            supportedModes = Collections.unmodifiableSet(createSupportedModes());
+        }
+        return supportedModes;
+    }
+
+    /**
+     * Computes the modes recognized by this checker and its subcheckers.
+     *
+     * @return the supported mode names
+     */
+    protected Set<String> createSupportedModes() {
+        Set<String> result = new HashSet<>();
+        Class<?> clazz = getClass();
+        do {
+            SupportedModes annotation = clazz.getAnnotation(SupportedModes.class);
+            if (annotation != null) {
+                Collections.addAll(result, annotation.value());
+            }
+            clazz = clazz.getSuperclass();
+        } while (clazz != null
+                && !clazz.getName().equals(AbstractTypeProcessor.class.getCanonicalName()));
+
+        for (SourceChecker checker : getSubcheckers()) {
+            result.addAll(checker.createSupportedModes());
+        }
+        return result;
+    }
+
     // ///////////////////////////////////////////////////////////////////////////
     // Regular (non-lint) options ("-Axxxx")
     //
@@ -2354,15 +2398,44 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
         return activeOpts;
     }
 
-    /**
-     * Adds options implied by other active options. The default implementation applies the
-     * implications defined by the parent checker, if any.
-     *
-     * @param activeOptions the active options to which implied options should be added
-     */
-    protected void addImpliedOptions(Map<String, String> activeOptions) {
+    /** Adds the options enabled by the active mode. */
+    private void addModeOptions(Map<String, String> activeOptions) {
         if (parentChecker != null) {
-            parentChecker.addImpliedOptions(activeOptions);
+            parentChecker.addModeOptions(activeOptions);
+        }
+
+        String mode = activeOptions.get("mode");
+        if (mode == null || mode.isEmpty()) {
+            return;
+        }
+
+        addOptionsForMode(mode, activeOptions);
+    }
+
+    /**
+     * Adds the options enabled by the given mode for this checker. An explicitly supplied option
+     * should take precedence, so implementations should use {@link Map#putIfAbsent}.
+     *
+     * @param mode the value of the {@code -Amode} option
+     * @param activeOptions the active options to which mode options should be added
+     */
+    protected void addOptionsForMode(String mode, Map<String, String> activeOptions) {}
+
+    /** Validates the {@code -Amode} command-line option. */
+    private void validateMode(Map<String, String> activeOptions) {
+        if (!activeOptions.containsKey("mode")) {
+            return;
+        }
+        String mode = activeOptions.get("mode");
+        if (mode == null || mode.isEmpty()) {
+            throw new UserError("The -Amode option requires a value.");
+        }
+        Set<String> modes = getSupportedModes();
+        if (!modes.contains(mode)) {
+            throw new UserError(
+                    String.format(
+                            "Unsupported mode %s for %s; supported modes: %s.",
+                            mode, getClass().getSimpleName(), new TreeSet<>(modes)));
         }
     }
 
