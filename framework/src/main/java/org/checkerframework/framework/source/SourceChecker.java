@@ -2398,7 +2398,11 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
         return activeOpts;
     }
 
-    /** Adds the options enabled by the active mode. */
+    /**
+     * Adds the options enabled by the active mode.
+     *
+     * @param activeOptions the active options to which mode options should be added
+     */
     private void addModeOptions(Map<String, String> activeOptions) {
         if (parentChecker != null) {
             parentChecker.addModeOptions(activeOptions);
@@ -2421,7 +2425,11 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      */
     protected void addOptionsForMode(String mode, Map<String, String> activeOptions) {}
 
-    /** Validates the {@code -Amode} command-line option. */
+    /**
+     * Validates the {@code -Amode} command-line option.
+     *
+     * @param activeOptions the active options whose mode should be validated
+     */
     private void validateMode(Map<String, String> activeOptions) {
         if (!activeOptions.containsKey("mode")) {
             return;
