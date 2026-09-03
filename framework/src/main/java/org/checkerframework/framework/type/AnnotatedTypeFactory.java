@@ -1622,7 +1622,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         if (useCache) {
             AnnotatedTypeMirror cached = elementTypeCache.get(elt);
             if (cached != null) {
-                return cached.deepCopy();
+                return AnnotatedTypeMirror.COW ? cached.cowCopy() : cached.deepCopy();
             }
         }
         // Annotations explicitly written in the source code,
@@ -1950,7 +1950,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         if (shouldCache) {
             AnnotatedTypeMirror cached = elementCache.get(elt);
             if (cached != null) {
-                return cached.deepCopy();
+                return AnnotatedTypeMirror.COW ? cached.cowCopy() : cached.deepCopy();
             }
         }
         if (elt.getKind() == ElementKind.PACKAGE) {
@@ -2080,7 +2080,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         if (shouldCache) {
             AnnotatedTypeMirror cached = fromMemberTreeCache.get(tree);
             if (cached != null) {
-                return cached.deepCopy();
+                return AnnotatedTypeMirror.COW ? cached.cowCopy() : cached.deepCopy();
             }
         }
         AnnotatedTypeMirror result = TypeFromTree.fromMember(this, tree);
@@ -2176,7 +2176,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         if (shouldCache) {
             AnnotatedTypeMirror cached = fromExpressionTreeCache.get(tree);
             if (cached != null) {
-                return cached.deepCopy();
+                return AnnotatedTypeMirror.COW ? cached.cowCopy() : cached.deepCopy();
             }
         }
 
@@ -2209,7 +2209,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         if (shouldCache) {
             AnnotatedTypeMirror cached = fromTypeTreeCache.get(tree);
             if (cached != null) {
-                return cached.deepCopy();
+                return AnnotatedTypeMirror.COW ? cached.cowCopy() : cached.deepCopy();
             }
         }
 
@@ -3036,7 +3036,10 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         AnnotatedExecutableType cachedMethodType =
                 cacheKey == null ? null : methodAsMemberOfCache.get(cacheKey);
         if (cachedMethodType != null) {
-            methodType = cachedMethodType.deepCopy();
+            methodType =
+                    AnnotatedTypeMirror.COW
+                            ? (AnnotatedExecutableType) cachedMethodType.cowCopy()
+                            : cachedMethodType.deepCopy();
         } else {
             methodType = computeMethodTypeAsMemberOf(tree, methodElt, receiverType, inferTypeArgs);
             if (cacheKey != null) {

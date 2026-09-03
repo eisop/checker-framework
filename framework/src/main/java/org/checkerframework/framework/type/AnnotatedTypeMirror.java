@@ -916,6 +916,84 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
     }
 
     /**
+     * Experimental copy-on-write toggle ({@code -Dcf.cow}). When on, post-pipeline caches hand out
+     * a {@link #shallowCopy()} (a fresh, non-frozen root that shares the master's frozen children)
+     * instead of a {@link #deepCopy()}, and the child accessors below lazily unshare a frozen child
+     * of a non-frozen parent ({@link #cowChild}/{@link #cowChildren}). Mutation therefore copies
+     * only the spine it touches; read-only hits copy one node. Off by default (behavior unchanged).
+     */
+    static final boolean COW = Boolean.getBoolean("cf.cow");
+
+    /**
+     * COW fast-path flag: true only for a type that may transitively hold a frozen (shared) child —
+     * i.e. a {@link #cowCopy()} of a frozen cache master, or a child unshared from one. A type
+     * without this flag was built fresh and has no frozen children, so the COW accessors can skip
+     * the per-call scan entirely. This keeps {@link #cowChild}/{@link #cowChildren} off the hot
+     * path for the overwhelming majority of (non-cache) types.
+     */
+    private boolean cowDirty = false;
+
+    /**
+     * Returns a non-frozen shallow copy of this (frozen) type, marked {@link #cowDirty} because it
+     * shares this type's frozen children. Used at cache boundaries and by the COW accessors.
+     *
+     * @return a cow-dirty shallow copy of this type
+     */
+    final AnnotatedTypeMirror cowCopy() {
+        AnnotatedTypeMirror c = shallowCopy();
+        c.cowDirty = true;
+        return c;
+    }
+
+    /** Whether COW unsharing might be needed for this type's children (cheap hot-path gate). */
+    final boolean cowActive() {
+        return COW && cowDirty;
+    }
+
+    /**
+     * Copy-on-write a single child component. If COW is on and {@code this} is non-frozen but
+     * {@code child} is frozen (shared from a cache master), returns a fresh non-frozen shallow copy
+     * that the caller stores back into its field; otherwise returns {@code child} unchanged.
+     *
+     * @param <T> the static type of the child
+     * @param child a child component of this type, or null
+     * @return an unshared shallow copy when COW must unshare, else {@code child}
+     */
+    @SuppressWarnings("unchecked")
+    final <T extends AnnotatedTypeMirror> @Nullable T cowChild(@Nullable T child) {
+        if (COW && cowDirty && !this.frozen && child != null && child.isFrozen()) {
+            return (T) child.cowCopy();
+        }
+        return child;
+    }
+
+    /**
+     * Copy-on-write a list of child components. Returns a new list with any frozen elements
+     * replaced by unshared shallow copies (when COW is on and {@code this} is non-frozen);
+     * otherwise returns {@code children} unchanged.
+     *
+     * @param children a list of child components
+     * @return a list with frozen elements unshared, or {@code children} unchanged
+     */
+    @SuppressWarnings("unchecked")
+    final <T extends AnnotatedTypeMirror> List<T> cowChildren(List<T> children) {
+        if (!COW || !cowDirty || this.frozen || children.isEmpty()) {
+            return children;
+        }
+        List<T> result = null;
+        for (int i = 0; i < children.size(); i++) {
+            T c = children.get(i);
+            if (c != null && c.isFrozen()) {
+                if (result == null) {
+                    result = new ArrayList<>(children);
+                }
+                result.set(i, (T) c.cowCopy());
+            }
+        }
+        return result == null ? children : result;
+    }
+
+    /**
      * Returns true if this type has been {@linkplain #freeze() frozen}.
      *
      * @return true if this type is frozen
@@ -1322,6 +1400,7 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
          */
         public List<AnnotatedTypeMirror> getTypeArguments() {
             if (typeArgs != null) {
+                if (cowActive()) typeArgs = cowChildren(typeArgs);
                 return typeArgs;
             }
 
@@ -1483,6 +1562,7 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
          * @return enclosingType the enclosing type, or null if this is a top-level type
          */
         public @Nullable AnnotatedDeclaredType getEnclosingType() {
+            if (cowActive()) enclosingType = cowChild(enclosingType);
             return enclosingType;
         }
 
@@ -1676,6 +1756,7 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
                 freezeLazyComponents(paramTypes);
             }
             // No need to copy or wrap; it is an unmodifiable list.
+            if (cowActive()) paramTypes = cowChildren(paramTypes);
             return paramTypes;
         }
 
@@ -1785,6 +1866,7 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
                 returnTypeComputed = true;
                 freezeLazyComponent(returnType);
             }
+            if (cowActive()) returnType = cowChild(returnType);
             return returnType;
         }
 
@@ -1835,6 +1917,7 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
                 receiverTypeComputed = true;
                 freezeLazyComponent(receiverType);
             }
+            if (cowActive()) receiverType = cowChild(receiverType);
             return receiverType;
         }
 
@@ -1882,6 +1965,7 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
                 freezeLazyComponents(thrownTypes);
             }
             // No need to copy or wrap; it is an unmodifiable list.
+            if (cowActive()) thrownTypes = cowChildren(thrownTypes);
             return thrownTypes;
         }
 
@@ -1931,6 +2015,7 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
                 freezeLazyComponents(typeVarTypes);
             }
             // No need to copy or wrap; it is an unmodifiable list.
+            if (cowActive()) typeVarTypes = cowChildren(typeVarTypes);
             return typeVarTypes;
         }
 
@@ -2101,6 +2186,7 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
                                 false));
                 freezeLazyComponent(componentType);
             }
+            if (cowActive()) componentType = cowChild(componentType);
             return componentType;
         }
 
@@ -2316,6 +2402,7 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
                 freezeLazyComponent(lowerBound);
                 freezeLazyComponent(upperBound);
             }
+            if (cowActive()) lowerBound = cowChild(lowerBound);
             return lowerBound;
         }
 
@@ -2335,6 +2422,7 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
         private void fixupBoundAnnotations() {
             if (!this.getAnnotationsField().isEmpty()) {
                 AnnotationMirrorSet newAnnos = this.getAnnotationsField();
+                if (cowActive()) upperBound = cowChild(upperBound);
                 if (upperBound != null) {
                     upperBound.replaceAnnotations(newAnnos);
                 }
@@ -2345,6 +2433,7 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
                 // propagate the primary annotation to the type variable because primary annotations
                 // overwrite the upper and lower bounds of type variables when
                 // getUpperBound/getLowerBound is called.
+                if (cowActive()) lowerBound = cowChild(lowerBound);
                 if (lowerBound != null) {
                     lowerBound.replaceAnnotations(newAnnos);
                 }
@@ -2389,6 +2478,7 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
                 freezeLazyComponent(upperBound);
                 freezeLazyComponent(lowerBound);
             }
+            if (cowActive()) upperBound = cowChild(upperBound);
             return upperBound;
         }
 
@@ -2724,6 +2814,7 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
                 freezeLazyComponent(superBound);
                 freezeLazyComponent(extendsBound);
             }
+            if (cowActive()) this.superBound = cowChild(this.superBound);
             return this.superBound;
         }
 
@@ -2758,6 +2849,7 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
                 freezeLazyComponent(extendsBound);
                 freezeLazyComponent(superBound);
             }
+            if (cowActive()) this.extendsBound = cowChild(this.extendsBound);
             return this.extendsBound;
         }
 
@@ -2778,9 +2870,11 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
          */
         private void fixupBoundAnnotations() {
             if (!this.getAnnotationsField().isEmpty()) {
+                if (cowActive()) superBound = cowChild(superBound);
                 if (superBound != null) {
                     superBound.replaceAnnotations(this.getAnnotationsField());
                 }
+                if (cowActive()) extendsBound = cowChild(extendsBound);
                 if (extendsBound != null) {
                     extendsBound.replaceAnnotations(this.getAnnotationsField());
                 }
@@ -2928,6 +3022,7 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
         public boolean removeAnnotation(AnnotationMirror a) {
             boolean ret = super.removeAnnotation(a);
             if (bounds != null) {
+                if (cowActive()) bounds = cowChildren(bounds);
                 for (AnnotatedTypeMirror bound : bounds) {
                     ret |= bound.removeAnnotation(a);
                 }
@@ -2962,6 +3057,7 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
             if (!this.getAnnotationsField().isEmpty()) {
                 AnnotationMirrorSet newAnnos = this.getAnnotationsField();
                 if (bounds != null) {
+                    if (cowActive()) bounds = cowChildren(bounds);
                     for (AnnotatedTypeMirror bound : bounds) {
                         bound.replaceAnnotations(newAnnos);
                     }
@@ -3051,6 +3147,7 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
                 fixupBoundAnnotations();
                 freezeLazyComponents(bounds);
             }
+            if (cowActive()) bounds = cowChildren(bounds);
             return bounds;
         }
 
@@ -3238,6 +3335,7 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
                 alternatives = Collections.unmodifiableList(res);
                 freezeLazyComponents(alternatives);
             }
+            if (cowActive()) alternatives = cowChildren(alternatives);
             return alternatives;
         }
 
