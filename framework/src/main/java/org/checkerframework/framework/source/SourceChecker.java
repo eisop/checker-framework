@@ -2841,7 +2841,9 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
             return true;
         }
 
-        boolean foundAnnotatedFor = false;
+        // The innermost declaration enclosing path.  The @AnnotatedFor scope question is asked
+        // about it once, after the loop.
+        Element innermostDecl = null;
 
         // iterate through the path; continue until path contains no declarations
         for (TreePath declPath = TreePathUtil.enclosingDeclarationPath(path);
@@ -2849,46 +2851,37 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
                 declPath = TreePathUtil.enclosingDeclarationPath(declPath.getParentPath())) {
             Tree decl = declPath.getLeaf();
 
+            Element elt;
             if (decl instanceof VariableTree) {
-                Element elt = TreeUtils.elementFromDeclaration((VariableTree) decl);
-                if (hasSuppressWarningsAnnotationForErrorKey(elt, errKey)) {
-                    return true;
-                }
+                elt = TreeUtils.elementFromDeclaration((VariableTree) decl);
             } else if (decl instanceof MethodTree) {
-                Element elt = TreeUtils.elementFromDeclaration((MethodTree) decl);
-                if (hasSuppressWarningsAnnotationForErrorKey(elt, errKey)) {
-                    return true;
-                }
-
-                if (!foundAnnotatedFor && isElementAnnotatedForThisCheckerOrUpstreamChecker(elt)) {
-                    foundAnnotatedFor = true;
-                }
+                elt = TreeUtils.elementFromDeclaration((MethodTree) decl);
             } else if (TreeUtils.classTreeKinds().contains(decl.getKind())) {
-                // A class tree
-                Element elt = TreeUtils.elementFromDeclaration((ClassTree) decl);
-                if (hasSuppressWarningsAnnotationForErrorKey(elt, errKey)) {
-                    return true;
-                }
-
-                if (!foundAnnotatedFor && isElementAnnotatedForThisCheckerOrUpstreamChecker(elt)) {
-                    foundAnnotatedFor = true;
-                }
-                Element packageElement = elt.getEnclosingElement();
-                if (packageElement != null && packageElement.getKind() == ElementKind.PACKAGE) {
-                    if (hasSuppressWarningsAnnotationForErrorKey(packageElement, errKey)) {
-                        return true;
-                    }
-                    if (!foundAnnotatedFor
-                            && isElementAnnotatedForThisCheckerOrUpstreamChecker(packageElement)) {
-                        foundAnnotatedFor = true;
-                    }
-                }
+                elt = TreeUtils.elementFromDeclaration((ClassTree) decl);
             } else {
                 throw new BugInCF("Unexpected declaration kind: " + decl.getKind() + " " + decl);
             }
+
+            if (hasSuppressWarningsAnnotationForErrorKey(elt, errKey)) {
+                return true;
+            }
+            if (innermostDecl == null) {
+                innermostDecl = elt;
+            }
+
+            Element packageElement = elt.getEnclosingElement();
+            if (packageElement != null
+                    && packageElement.getKind() == ElementKind.PACKAGE
+                    && hasSuppressWarningsAnnotationForErrorKey(packageElement, errKey)) {
+                return true;
+            }
         }
 
-        if (foundAnnotatedFor) {
+        // Ask only about the innermost declaration:
+        // isElementAnnotatedForThisCheckerOrUpstreamChecker already resolves the enclosing scope,
+        // and asking about an enclosing element separately would ignore an @UnannotatedFor that
+        // excludes the innermost declaration from that scope.
+        if (isElementAnnotatedForThisCheckerOrUpstreamChecker(innermostDecl)) {
             return false;
         } else if (useConservativeDefaultsSource || onlyAnnotatedFor) {
             // If we got this far without hitting an @AnnotatedFor and returning
@@ -2955,17 +2948,16 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
             return true;
         }
 
-        boolean foundAnnotatedFor = false;
         for (Element currElt = elt; currElt != null; currElt = currElt.getEnclosingElement()) {
             if (hasSuppressWarningsAnnotationForErrorKey(currElt, errKey)) {
                 return true;
             }
-            if (!foundAnnotatedFor && isElementAnnotatedForThisCheckerOrUpstreamChecker(currElt)) {
-                foundAnnotatedFor = true;
-            }
         }
 
-        if (foundAnnotatedFor) {
+        // Ask only about elt: isElementAnnotatedForThisCheckerOrUpstreamChecker already resolves
+        // the enclosing scope, and asking about an enclosing element separately would ignore an
+        // @UnannotatedFor that excludes elt from that scope.
+        if (isElementAnnotatedForThisCheckerOrUpstreamChecker(elt)) {
             return false;
         } else if (useConservativeDefaultsSource || onlyAnnotatedFor) {
             // If we got this far without hitting an @AnnotatedFor and returning

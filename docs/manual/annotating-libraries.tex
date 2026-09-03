@@ -436,6 +436,16 @@ Writing \<@AnnotatedFor> on a class doesn't necessarily mean that you wrote
 any annotations, but that you examined the source code and verified
 that all appropriate annotations are present.
 
+The \refqualclass{framework/qual}{UnannotatedFor} annotation is the inverse:
+it excludes a package, class, method, or constructor from the scope of an
+enclosing \<@AnnotatedFor>.  For example, if a package is
+\<@AnnotatedFor("nullness")> but one class in it has not been annotated, write
+\<@UnannotatedFor("nullness")> on that class; it is then treated as unchecked
+code, exactly as if the package had no \<@AnnotatedFor>.  An \<@AnnotatedFor>
+on a nested element takes effect again for that element.
+\refqualclass{framework/qual}{UnannotatedFor}'s arguments are checker names,
+in the same format as \refqualclass{framework/qual}{AnnotatedFor}'s.
+
 \begin{sloppypar}
 Whenever you compile a class using the Checker Framework, including when
 using the \<-AuseConservativeDefaultsForUncheckedCode=source,bytecode> command-line

@@ -6,6 +6,7 @@ import org.checkerframework.checker.signature.qual.ClassGetName;
 import org.checkerframework.dataflow.cfg.visualize.CFGVisualizer;
 import org.checkerframework.framework.qual.AnnotatedFor;
 import org.checkerframework.framework.qual.SubtypeOf;
+import org.checkerframework.framework.qual.UnannotatedFor;
 import org.checkerframework.framework.source.SourceChecker;
 import org.checkerframework.framework.type.AnnotatedTypeFactory;
 import org.checkerframework.framework.type.GenericAnnotatedTypeFactory;
@@ -76,7 +77,8 @@ public abstract class BaseTypeChecker extends SourceChecker {
 
     /**
      * A mapping from an element to whether it is in an {@code @AnnotatedFor} scope for this checker
-     * or an upstream checker.
+     * or an upstream checker. The value is the fully-resolved answer for the element: it accounts
+     * for enclosing elements and for {@code @UnannotatedFor} exclusions.
      */
     private final IdentityHashMap<Element, Boolean> elementAnnotatedForThisCheckerOrUpstreamCache =
             new IdentityHashMap<>();
@@ -344,7 +346,10 @@ public abstract class BaseTypeChecker extends SourceChecker {
                 annotatedFor != null
                         && atypeFactory.doesAnnotatedForApplyToThisChecker(annotatedFor);
 
-        if (!elementAnnotatedForThisChecker) {
+        // @UnannotatedFor only subtracts from an enclosing @AnnotatedFor scope, so consult it only
+        // when this element is not itself annotated for this checker, and let it stop the walk to
+        // the enclosing element.
+        if (!elementAnnotatedForThisChecker && !isElementUnannotatedForThisChecker(elt)) {
             Element parent;
             if (elt.getKind() == ElementKind.PACKAGE) {
                 parent =
@@ -361,5 +366,20 @@ public abstract class BaseTypeChecker extends SourceChecker {
 
         elementAnnotatedForThisCheckerOrUpstreamCache.put(elt, elementAnnotatedForThisChecker);
         return elementAnnotatedForThisChecker;
+    }
+
+    /**
+     * Is {@code elt} annotated with an {@code @UnannotatedFor} that applies to this checker or an
+     * upstream checker? Unlike {@link #isElementAnnotatedForThisCheckerOrUpstreamChecker}, this
+     * does not consider enclosing elements.
+     *
+     * @param elt the element to check
+     * @return true if {@code elt} is excluded from an enclosing {@code @AnnotatedFor} scope
+     */
+    private boolean isElementUnannotatedForThisChecker(Element elt) {
+        AnnotatedTypeFactory atypeFactory = getTypeFactory();
+        AnnotationMirror unannotatedFor = atypeFactory.getDeclAnnotation(elt, UnannotatedFor.class);
+        return unannotatedFor != null
+                && atypeFactory.doesUnannotatedForApplyToThisChecker(unannotatedFor);
     }
 }

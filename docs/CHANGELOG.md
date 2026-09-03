@@ -3,6 +3,13 @@ Version 3.49.5-eisop2 (June ?, 2026)
 
 **User-visible changes:**
 
+New declaration annotation `@UnannotatedFor`, which excludes a package, class, method, or
+constructor from the scope of an enclosing `@AnnotatedFor` for the given checkers. Its scope is
+defaulted using conservative defaults and its warnings are suppressed, as if no enclosing
+`@AnnotatedFor` were present; a nested `@AnnotatedFor` takes effect again. Like `@AnnotatedFor`,
+it has no effect unless `-AuseConservativeDefaultsForUncheckedCode=source` or `-AonlyAnnotatedFor`
+is supplied.
+
 The Checker Framework now issues an `annotation.on.supertype` error when an annotation supported by
 the checker is written as a main annotation on the superclass or interface in an `extends` or
 `implements` clause. Annotations on the supertype's type arguments remain permitted. A checker

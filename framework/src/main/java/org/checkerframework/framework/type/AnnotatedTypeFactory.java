@@ -55,6 +55,7 @@ import org.checkerframework.framework.qual.HasQualifierParameter;
 import org.checkerframework.framework.qual.InheritedAnnotation;
 import org.checkerframework.framework.qual.NoQualifierParameter;
 import org.checkerframework.framework.qual.RequiresQualifier;
+import org.checkerframework.framework.qual.UnannotatedFor;
 import org.checkerframework.framework.stub.AnnotationFileElementTypes;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedArrayType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedDeclaredType;
@@ -205,6 +206,9 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     // These variables cannot be static because they depend on the ProcessingEnvironment.
     /** The AnnotatedFor.value argument/element. */
     protected final ExecutableElement annotatedForValueElement;
+
+    /** The UnannotatedFor.value argument/element. */
+    protected final ExecutableElement unannotatedForValueElement;
 
     /** The EnsuresQualifier.expression field/element. */
     protected final ExecutableElement ensuresQualifierExpressionElement;
@@ -800,6 +804,8 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
 
         annotatedForValueElement =
                 TreeUtils.getMethod(AnnotatedFor.class, "value", 0, processingEnv);
+        unannotatedForValueElement =
+                TreeUtils.getMethod(UnannotatedFor.class, "value", 0, processingEnv);
         ensuresQualifierExpressionElement =
                 TreeUtils.getMethod(EnsuresQualifier.class, "expression", 0, processingEnv);
         ensuresQualifierListValueElement =
@@ -6868,6 +6874,28 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             if (upstreamCheckerNames.contains(annoForChecker)
                     || CheckerMain.matchesFullyQualifiedProcessor(
                             annoForChecker, upstreamCheckerNames, true)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Does {@code unannotatedForAnno}, which is an {@link UnannotatedFor} annotation, apply to this
+     * checker?
+     *
+     * @param unannotatedForAnno an {@link UnannotatedFor} annotation
+     * @return whether {@code unannotatedForAnno} applies to this checker
+     */
+    public boolean doesUnannotatedForApplyToThisChecker(AnnotationMirror unannotatedForAnno) {
+        List<String> unannotatedForCheckers =
+                AnnotationUtils.getElementValueArray(
+                        unannotatedForAnno, unannotatedForValueElement, String.class);
+        List<@FullyQualifiedName String> upstreamCheckerNames = checker.getUpstreamCheckerNames();
+        for (String unannoForChecker : unannotatedForCheckers) {
+            if (upstreamCheckerNames.contains(unannoForChecker)
+                    || CheckerMain.matchesFullyQualifiedProcessor(
+                            unannoForChecker, upstreamCheckerNames, true)) {
                 return true;
             }
         }
