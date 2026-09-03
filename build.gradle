@@ -1184,7 +1184,7 @@ subprojects {
     // select shadowRuntimeElements, which points to the shadow JAR (framework-X-all.jar).
     // Change its Usage attribute so it doesn't conflict with standard runtimeElements.
     configurations.all {
-        if (name == 'shadowRuntimeElements') {
+        if (name == 'shadowRuntimeElements' && project.name != 'checker') {
             attributes {
                 attribute(Usage.USAGE_ATTRIBUTE, objects.named(Usage, "shadow-runtime-elements"))
             }
