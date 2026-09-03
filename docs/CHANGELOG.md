@@ -9,6 +9,11 @@ the checker is written as a main annotation on the superclass or interface in an
 that permits main annotations on supertypes, such as the Tainting Checker, can override
 `BaseTypeVisitor#checkAnnotationOnSupertype(Tree)`.
 
+The Nullness Checker now refines `Queue.poll()`, `Queue.peek()`,
+`Deque.pollFirst()`, `Deque.pollLast()`, `Deque.peekFirst()`, and
+`Deque.peekLast()` to `@NonNull` after a false `isEmpty()` check for queues
+and deques with `@NonNull` element types.
+
 Further performance improvements relative to the 3.49.5-eisop1 release:
 - `allNullnessTests`: 1m24s vs. 2m16s
 - `checkNullness`: 1m28s vs. 3m40s
@@ -332,6 +337,12 @@ and verbose generics off, overriding `-AprintAllQualifiers`,
 `-AprintVerboseGenerics`, and a checker-supplied formatter default; for
 instance, a Units Checker type printed through `toString(false)` lost its
 `@UnknownUnits` qualifier, which `toString()` prints.
+
+Determining whether an element is in the scope of an `@AnnotatedFor` was
+implemented twice, once for warning suppression and once for conservative
+defaults, and only the latter was cached. Both now use the new
+`SourceChecker.isElementAnnotatedForThisCheckerOrUpstreamChecker(Element)`,
+which `BaseTypeChecker` implements with a cache.
 
 **Implementation details:**
 
@@ -692,7 +703,8 @@ eisop#104, eisop#386, eisop#433, eisop#737, eisop#778, eisop#786, eisop#792,
 eisop#863, eisop#949, eisop#1015, eisop#1059, eisop#1074, eisop#1244,
 eisop#1315, eisop#1564, eisop#1592, eisop#1642, eisop#1653, eisop#1735,
 eisop#1801, eisop#1818, eisop#1819, eisop#1861, eisop#1862, eisop#1863,
-eisop#1865, eisop#1887, eisop#1965, eisop#1987, typetools#3203.
+eisop#1865, eisop#1887, eisop#1965, eisop#1987, typetools#399,
+typetools#3203.
 
 
 Version 3.49.5-eisop1 (April 26, 2026)

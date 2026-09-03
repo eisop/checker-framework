@@ -92,7 +92,7 @@ ext {
         googleJavaFormat : '1.35.0',
         hashmapUtil     : '0.0.1',
         junit           : '4.13.2',
-        lombok          : '1.18.46',
+        lombok          : '1.18.48',
         // plume-util includes a version of reflection-util. When updating ensure the versions are consistent.
         plumeUtil       : '1.11.0',
         reflectionUtil  : '1.1.6',
@@ -151,30 +151,6 @@ tasks.register('installGitHooks', Copy) {
 }
 
 apply plugin: 'com.diffplug.spotless'
-spotless {
-    // Resolve the Spotless plugin dependencies from the buildscript repositories rather than the
-    // project repositories.  That way the spotless plugin does not use the locally built version of
-    // checker-qual as a dependency. Without this, errors like the follow are issued when running
-    // a spotless task without a locally-built version of checker-qual.jar:
-    // Could not determine the dependencies of task ':checker-qual:spotlessCheck'.
-    //  > Could not create task ':checker-qual:spotlessJavaCheck'.
-    //     > Could not create task ':checker-qual:spotlessJava'.
-    //        > File signature can only be created for existing regular files, given:
-    //          .../checker-framework/checker-qual/build/libs/checker-qual-VERSION-SNAPSHOT.jar
-    predeclareDepsFromBuildscript()
-}
-
-spotlessPredeclare {
-    // Put all the formatters that have dependencies here.  Without this, errors like the following
-    // will happen:
-    // Could not determine the dependencies of task ':spotlessCheck'.
-    //  > Could not create task ':spotlessJavaCheck'.
-    //     > Could not create task ':spotlessJava'.
-    //        > Add a step with [com.google.googlejavaformat:google-java-format:1.15.0] into the `spotlessPredeclare` block in the root project.
-    java {
-        googleJavaFormat(versions.googleJavaFormat)
-    }
-}
 
 allprojects { currentProj ->
     // Explicitly propagate root-level ext properties so subproject build scripts
