@@ -88,7 +88,8 @@ public class ViewpointAdaptationBounds {
         methods.<@Mutable Object>method(mutable);
 
         // Even when using null, the adapted method type parameter bound is @MutabilityLost.
-        // :: error: (method.invocation.invalid) :: error: (mutability.lost.in.bounds)
+        // :: error: (method.invocation.invalid) :: error: (mutability.lost.in.bounds) ::
+        // error: (mutability.lost.parameter)
         methods.method(null);
     }
 }
