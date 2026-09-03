@@ -1,0 +1,7 @@
+OptimisticDefaults.java:21:23: compiler.err.proc.messager: [argument.type.incompatible] incompatible argument for parameter arg0 of Lib.setObject.
+found   : @Nullable NullType
+required: @NonNull Object
+OptimisticDefaults.java:26:19: compiler.err.proc.messager: [argument.type.incompatible] incompatible argument for parameter arg0 of Lib.upper.
+found   : @NonNull Lib<@Nullable Object>
+required: @NonNull Lib<? extends @NonNull Object>
+2 errors

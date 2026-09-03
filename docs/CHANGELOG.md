@@ -3,6 +3,13 @@ Version 3.49.5-eisop2 (June ?, 2026)
 
 **User-visible changes:**
 
+The new command-line option `-AuseOptimisticDefaultsForUncheckedCode` takes `source` and/or
+`bytecode` arguments, like `-AuseConservativeDefaultsForUncheckedCode`, but applies optimistic
+defaults to code outside the scope of an `@AnnotatedFor`: top for method parameters and upper
+bounds, bottom for method returns, fields, and lower bounds.  It does not suppress warnings in that
+code; combine it with `-AonlyAnnotatedFor` to do that.  A given kind of code cannot be defaulted
+both optimistically and conservatively.
+
 The Checker Framework now issues an `annotation.on.supertype` error when an annotation supported by
 the checker is written as a main annotation on the superclass or interface in an `extends` or
 `implements` clause. Annotations on the supertype's type arguments remain permitted. A checker

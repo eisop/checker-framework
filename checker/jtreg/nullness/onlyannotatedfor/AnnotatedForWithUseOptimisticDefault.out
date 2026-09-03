@@ -5,7 +5,4 @@ method return type: @NonNull Object
 AnnotatedForWithUse.java:33:19: compiler.err.proc.messager: [assignment.type.incompatible] incompatible types in assignment.
 found   : @Nullable NullType
 required: @NonNull Object
-AnnotatedForWithUse.java:37:19: compiler.err.proc.messager: [argument.type.incompatible] incompatible argument for parameter of of Unannotated.set.
-found   : @Nullable NullType
-required: @NonNull Object
-4 errors
+3 errors

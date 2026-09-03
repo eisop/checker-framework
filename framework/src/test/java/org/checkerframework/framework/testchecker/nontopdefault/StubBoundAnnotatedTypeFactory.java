@@ -27,6 +27,6 @@ public class StubBoundAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
         super.addCheckedCodeDefaults(defs);
         AnnotationMirror middle = AnnotationBuilder.fromClass(elements, NTDMiddle.class);
         defs.addCheckedCodeDefault(middle, TypeUseLocation.UPPER_BOUND);
-        defs.addUncheckedCodeDefault(middle, TypeUseLocation.UPPER_BOUND);
+        defs.addConservativeUncheckedCodeDefault(middle, TypeUseLocation.UPPER_BOUND);
     }
 }
