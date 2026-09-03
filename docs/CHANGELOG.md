@@ -3,6 +3,10 @@ Version 3.49.5-eisop2 (June ?, 2026)
 
 **User-visible changes:**
 
+Viewpoint adaptation no longer crashes with a `StackOverflowError` on a raw use of an F-bounded
+class, such as `Rec` where `class Rec<T extends Rec<T>>`.  Such a type's graph is cyclic, because
+the raw type's implicit wildcard bound leads back to the same declared type.
+
 The Checker Framework now issues an `annotation.on.supertype` error when an annotation supported by
 the checker is written as a main annotation on the superclass or interface in an `extends` or
 `implements` clause. Annotations on the supertype's type arguments remain permitted. A checker
@@ -345,6 +349,13 @@ defaults, and only the latter was cached. Both now use the new
 which `BaseTypeChecker` implements with a cache.
 
 **Implementation details:**
+
+`AbstractViewpointAdapter` performs its two passes -- combining the receiver qualifier with the
+declared type, and substituting the receiver's type arguments for the declared type's type
+variables -- with `AnnotatedTypeCopier` subclasses instead of hand-rolled recursion.
+`AnnotatedTypeCopier` records each copy before descending into it, so a cyclic type graph is
+copied once and every back edge points at the adapted copy.  This replaces two guards that
+detected a repeated visit and returned the original, un-adapted type.
 
 `AnnotatedIntersectionType.summarizeBounds` computes the summary described
 above, reading each bound's qualifier, explicit or defaulted, uniformly,
