@@ -319,6 +319,8 @@ tasks.named('shadowJar') {
     minimize {
         // Keep all classes from checker-qual and checker-util rather than
         // relying on the `api` re-export to protect them from minimize().
+        exclude(dependency('io.github.eisop:checker-qual:.*'))
+        exclude(dependency('io.github.eisop:checker-util:.*'))
         exclude(dependency('org.checkerframework:checker-qual:.*'))
         exclude(dependency('org.checkerframework:checker-util:.*'))
     }

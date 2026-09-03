@@ -218,7 +218,7 @@ final dataflowShadedPom(MavenPublication publication, String shadedPkgName) {
                 String.join(System.lineSeparator(),
                 "dataflow-${shadedPkgName} is a dataflow framework based on the javac compiler.",
                 '',
-                'It differs from the org.checkerframework:dataflow artifact in two ways.',
+                'It differs from the io.github.eisop:dataflow artifact in two ways.',
                 "First, the packages in this artifact have been renamed to org.checkerframework.${shadedPkgName}.*.",
                 'Second, unlike the dataflow artifact, this artifact contains the dependencies it requires.')
         licenses {
