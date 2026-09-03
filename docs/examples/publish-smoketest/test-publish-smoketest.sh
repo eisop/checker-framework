@@ -62,6 +62,6 @@ HOME="${SMOKETEST_HOME}" ./gradlew --console=plain \
 cd "${CONSUMER_DIR}"
 HOME="${SMOKETEST_HOME}" "${REPO_ROOT}/gradlew" --console=plain \
   -PcheckerVersion="${CHECKER_VERSION}" \
-  clean compileJava
+  clean compileJava verifyResolutions
 
-echo "Publish smoke test passed: a Java 8 consumer build resolved and compiled against io.github.eisop:checker:${CHECKER_VERSION}."
+echo "Publish smoke test passed: a Java 8 consumer build resolved and compiled against io.github.eisop:checker:${CHECKER_VERSION}, framework, and framework-all."

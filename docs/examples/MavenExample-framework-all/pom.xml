@@ -25,8 +25,7 @@
     </dependency>
     <!-- Annotations from the Checker Framework: nullness, interning, locking, ... -->
     <dependency>
-      <!-- After next release, then: io.github.eisop -->
-      <groupId>org.checkerframework</groupId>
+      <groupId>io.github.eisop</groupId>
       <artifactId>checker-qual</artifactId>
       <version>${checkerFrameworkVersion}</version>
     </dependency>
@@ -67,8 +66,7 @@
               <showWarnings>true</showWarnings>
               <annotationProcessorPaths>
                 <path>
-                  <!-- Until next release, then: io.github.eisop -->
-                  <groupId>org.checkerframework</groupId>
+                  <groupId>io.github.eisop</groupId>
                   <artifactId>framework-all</artifactId>
                   <version>${checkerFrameworkVersion}</version>
                 </path>

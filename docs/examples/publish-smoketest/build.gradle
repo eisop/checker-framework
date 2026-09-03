@@ -14,11 +14,27 @@ java {
 
 repositories {
     // The checker, checker-qual, and checker-util artifacts published by
-    // test-publish-smoketest.sh just before this build runs. checker-qual
-    // and checker-util are regular (non-bundled) dependencies of the
-    // published `checker` artifact, so they must be resolvable here too;
-    // neither of them needs anything beyond mavenLocal().
+    // test-publish-smoketest.sh just before this build runs.
     mavenLocal()
+    mavenCentral()
+}
+
+configurations {
+    checkerDep {
+        attributes {
+            attribute(Usage.USAGE_ATTRIBUTE, objects.named(Usage, Usage.JAVA_RUNTIME))
+        }
+    }
+    frameworkDep {
+        attributes {
+            attribute(Usage.USAGE_ATTRIBUTE, objects.named(Usage, Usage.JAVA_RUNTIME))
+        }
+    }
+    frameworkAllDep {
+        attributes {
+            attribute(Usage.USAGE_ATTRIBUTE, objects.named(Usage, Usage.JAVA_RUNTIME))
+        }
+    }
 }
 
 dependencies {
@@ -28,4 +44,16 @@ dependencies {
         "checkerVersion project property not set; run via test-publish-smoketest.sh")
     }
     implementation "io.github.eisop:checker:${checkerVersion}"
+    checkerDep "io.github.eisop:checker:${checkerVersion}"
+    frameworkDep "io.github.eisop:framework:${checkerVersion}"
+    frameworkAllDep "io.github.eisop:framework-all:${checkerVersion}"
+}
+
+tasks.register('verifyResolutions') {
+    dependsOn configurations.checkerDep, configurations.frameworkDep, configurations.frameworkAllDep
+    doLast {
+        println "Resolved checker: ${configurations.checkerDep.files*.name}"
+        println "Resolved framework: ${configurations.frameworkDep.files*.name}"
+        println "Resolved framework-all: ${configurations.frameworkAllDep.files*.name}"
+    }
 }
