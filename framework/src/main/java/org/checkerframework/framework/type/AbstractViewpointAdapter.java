@@ -352,8 +352,9 @@ public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
 
     /**
      * If rhs contains or is a use of a type variable of lhs's class, substitutes lhs's actual type
-     * argument for it and returns the result. Side-effect free: rhs is copied and the copy is
-     * returned.
+     * argument for it and returns the result. Side-effect free: when there is anything to
+     * substitute, rhs is copied and the copy is returned; when lhs is not a declared type there is
+     * nothing to substitute and rhs itself is returned.
      *
      * @param lhs type from which type arguments are extracted to replace formal type parameters of
      *     rhs
