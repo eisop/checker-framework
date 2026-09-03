@@ -3,6 +3,7 @@ package org.checkerframework.framework.type;
 import com.sun.source.tree.AnnotatedTypeTree;
 import com.sun.source.tree.ArrayTypeTree;
 import com.sun.source.tree.ClassTree;
+import com.sun.source.tree.ErroneousTree;
 import com.sun.source.tree.ExpressionTree;
 import com.sun.source.tree.IdentifierTree;
 import com.sun.source.tree.IntersectionTypeTree;
@@ -480,5 +481,10 @@ class TypeFromTypeTreeVisitor extends TypeFromTreeVisitor {
         // defaulting; see summarizeBounds's Javadoc.
         type.summarizeBounds();
         return type;
+    }
+
+    @Override
+    public AnnotatedTypeMirror visitErroneous(ErroneousTree tree, AnnotatedTypeFactory p) {
+        throw new BugInCF("ErroneousTree is unexpected in TypeFromTypeTreeVisitor: " + tree);
     }
 }
