@@ -35,7 +35,6 @@ tasks.named('sourcesJar') {
 }
 
 configurations {
-    implementation.extendsFrom(annotatedGuava)
     fatJar {
         canBeConsumed = true
         canBeResolved = false
@@ -88,6 +87,7 @@ dependencies {
 
     implementation ("org.plumelib:reflection-util:${versions.reflectionUtil}")
     implementation "org.plumelib:plume-util:${versions.plumeUtil}"
+    implementation "com.google.guava:guava:${versions.guava}"
 
     // Dependencies added to "shadow" appear as dependencies in Maven Central.
     shadow project(':checker-qual')

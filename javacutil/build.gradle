@@ -6,12 +6,9 @@ repositories {
     mavenCentral()
 }
 
-configurations {
-    compileOnly.extendsFrom(annotatedGuava)
-    testImplementation.extendsFrom(annotatedGuava)
-}
-
 dependencies {
+    compileOnly "com.google.guava:guava:${versions.guava}"
+    testImplementation "com.google.guava:guava:${versions.guava}"
     implementation project(':checker-qual')
 
     // This is used by org.checkerframework.javacutil.TypesUtils.isImmutableTypeInJdk.
