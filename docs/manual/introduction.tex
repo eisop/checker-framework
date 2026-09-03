@@ -1501,6 +1501,23 @@ or, more generally, as
 Then, the specification is more informative, and the Checker Framework is
 able to do more precise checking, than if line 141 has an annotation.
 
+\noindent
+The annotations in \code{MyNullPermittingMultiset} and
+\code{MyNullProhibitingMultiset} are on type arguments of \code{Multiset},
+which is permitted.  By contrast, an annotation immediately before the class
+or interface name in an \code{extends} or \code{implements} clause is a main annotation
+on the supertype.  By default, the Checker Framework reports an
+\code{annotation.on.supertype} error for such an annotation.
+
+The Tainting Checker permits main annotations on supertypes because it
+tracks taintedness when a value of a subclass type is used as a value of a
+supertype.  For example, in
+\code{@Untainted class UntaintedBuffer extends @Untainted Buffer},
+the first \code{@Untainted} is a type-declaration bound of
+\code{UntaintedBuffer}, and the second is the main annotation on
+\code{Buffer}.  The Tainting Checker verifies that the former is a subtype of
+the latter.
+
 It is a pleasant feature of the Checker Framework that in many cases, no
 annotations at all are needed on type parameters such as \code{E} in \<MultiSet>.
 

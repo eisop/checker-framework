@@ -59,7 +59,7 @@ runs:
       uses: actions/cache@v6
       with:
         path: ~/.cache/pip
-        key: pip-misc-v1-${{ runner.os }}
+        key: pip-misc-v1-${{ runner.os }}-${{ hashFiles('.github/actions/setup-misc/action.yml') }}
         restore-keys: |
           pip-misc-v1-${{ runner.os }}-
 
@@ -74,4 +74,4 @@ runs:
       # fixed version here makes that fallback a no-op and keeps `make
       # style-check` results reproducible across CI runs. Bump this pin
       # deliberately, not as a side effect of an unrelated PR.
-      run: pip install --break-system-packages black flake8 html5validator ruff==0.16.4
+      run: pip install --break-system-packages black flake8 html5validator ruff==0.16.5
