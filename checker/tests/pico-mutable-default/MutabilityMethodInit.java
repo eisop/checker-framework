@@ -1,7 +1,3 @@
-// Test that @EnsuresInitialized lets helper methods initialize fields.  Before
-// https://github.com/eisop/checker-framework/pull/1918 the Initialization Checker had no
-// postcondition qualifier, so the constructor reported a false positive
-// initialization.fields.uninitialized.
 import org.checkerframework.checker.initialization.qual.EnsuresInitialized;
 import org.checkerframework.checker.initialization.qual.UnderInitialization;
 import org.checkerframework.checker.mutability.qual.Immutable;
