@@ -1,8 +1,8 @@
-// @skip-test
-// Missing Feature: The PICO initialization checker does not yet support postcondition
-// qualifiers (like @EnsuresAssigned or @EnsuresNonNull). Because of this, it cannot
-// verify that helper methods (like initA) initialize fields, resulting in a false
-// positive (initialization.fields.uninitialized) in the constructor.
+// Test that @EnsuresInitialized lets helper methods initialize fields.  Before
+// https://github.com/eisop/checker-framework/pull/1918 the Initialization Checker had no
+// postcondition qualifier, so the constructor reported a false positive
+// initialization.fields.uninitialized.
+import org.checkerframework.checker.initialization.qual.EnsuresInitialized;
 import org.checkerframework.checker.initialization.qual.UnderInitialization;
 import org.checkerframework.checker.mutability.qual.Immutable;
 
@@ -11,22 +11,24 @@ import org.checkerframework.checker.mutability.qual.Immutable;
     Object b;
     Object c;
 
-    // :: error: (initialization.fields.uninitialized)
     MutabilityMethodInit() {
         initA();
         initB();
         initC();
     }
 
+    @EnsuresInitialized("this.a")
     void initA(@UnderInitialization(Object.class) MutabilityMethodInit this) {
-        this.a = new Object();
+        this.a = new @Immutable Object();
     }
 
+    @EnsuresInitialized("this.b")
     void initB(@UnderInitialization(Object.class) MutabilityMethodInit this) {
-        this.b = new Object();
+        this.b = new @Immutable Object();
     }
 
+    @EnsuresInitialized("this.c")
     void initC(@UnderInitialization(Object.class) MutabilityMethodInit this) {
-        this.c = new Object();
+        this.c = new @Immutable Object();
     }
 }
