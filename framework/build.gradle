@@ -66,7 +66,8 @@ tasks.named('jar') {
 
 configurations {
     implementation.extendsFrom(stubifierImplementation)
-    implementation.extendsFrom(annotatedGuava)
+    compileOnly.extendsFrom(annotatedGuava)
+    testImplementation.extendsFrom(annotatedGuava)
 
     // Exposes the stubifier tool (JavaStubifier, BinaryStubWriter, BinaryStubFileGenerator)
     // together with its runtime dependencies, for the generateBinaryStubFiles tasks that the
@@ -229,6 +230,7 @@ tasks.register('allSourcesJar', Jar) {
     description = 'Creates a sources jar that includes sources for all Checker Framework classes in framework.jar'
     destinationDirectory = file("${projectDir}/dist")
     archiveFileName = 'framework-source.jar'
+    archiveClassifier = 'sources'
     from (project(':framework').sourceSets.main.java,
             project(':dataflow').sourceSets.main.allJava,
             project(':javacutil').sourceSets.main.allJava)
@@ -249,6 +251,7 @@ tasks.register('allJavadocJar', Jar) {
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
     destinationDirectory = file("${projectDir}/dist")
     archiveFileName = 'framework-javadoc.jar'
+    archiveClassifier = 'javadoc'
     from javadocs.collect {
         it.map { jd ->
             jd.destinationDir
@@ -328,4 +331,96 @@ if (skipDelombok) {
         args 'delombok', srcJava, '-d', srcDelomboked, '-c', delombokClasspath.asPath
     }
     tasks.named('test').configure { dependsOn 'delombok' }
+}
+
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+
+tasks.register('frameworkAllJar', ShadowJar) {
+    dependsOn 'compileJava'
+    group = 'Build'
+    description = "Builds framework-all-${project.version}.jar with all dependencies except checker-qual."
+    includeEmptyDirs = false
+    base {
+        archivesName = 'framework-all'
+    }
+    archiveClassifier.set('')
+    destinationDirectory = layout.buildDirectory.dir('shadow/frameworkAll')
+
+    from shadowJar.source
+    configurations = shadowJar.configurations
+    manifest {
+        attributes('Automatic-Module-Name': 'org.checkerframework.framework')
+    }
+    exclude 'org/checkerframework/**/qual/*'
+    relocators = shadowJar.getRelocators()
+    minimize()
+}
+
+apply from: rootProject.file('gradle-mvn-push.gradle')
+
+/**
+ * Configures the POM for framework and framework-all publications.
+ * @param publication the MavenPublication to configure
+ * @param isAll true if configuring framework-all, false for framework
+ */
+final configureFrameworkPom(MavenPublication publication, boolean isAll) {
+    rootProject.sharedPublicationConfiguration(publication)
+
+    if (isAll) {
+        def ver = version
+        publication.artifactId = 'framework-all'
+        publication.pom {
+            withXml {
+                asNode().appendNode('dependencies').appendNode('dependency')
+                    .appendNode('groupId', 'io.github.eisop').parent()
+                    .appendNode('artifactId', 'checker-qual').parent()
+                    .appendNode('version', ver).parent()
+                    .appendNode('scope', 'runtime')
+            }
+        }
+    } else {
+        publication.from components.java
+        publication.suppressPomMetadataWarningsFor('testFixturesApiElements')
+        publication.suppressPomMetadataWarningsFor('testFixturesRuntimeElements')
+    }
+
+    publication.pom {
+        name = isAll
+            ? 'Checker Framework Core Library (including all dependencies)'
+            : 'Checker Framework Core Library'
+        description = String.join(System.lineSeparator(),
+                'The Checker Framework enhances Java\'s type system to',
+                'make it more powerful and useful. This lets software developers',
+                'detect and prevent errors in their Java programs.',
+                "The ${isAll ? 'framework-all' : 'framework'} artifact contains the core type checking infrastructure",
+                'and permits you to write your own compiler plug-ins.',
+                *(isAll ? ['Unlike the framework artifact, this artifact contains all its dependencies.'] : []))
+        licenses {
+            license {
+                name = 'GNU General Public License, version 2 (GPL2), with the classpath exception'
+                url = 'http://www.gnu.org/software/classpath/license.html'
+                distribution = 'repo'
+            }
+        }
+    }
+}
+
+publishing {
+    publications {
+        framework(MavenPublication) {
+            configureFrameworkPom(it, false)
+        }
+
+        frameworkAll(MavenPublication) {
+            configureFrameworkPom(it, true)
+            artifact tasks.named('frameworkAllJar')
+            artifact tasks.named('allSourcesJar')
+            artifact tasks.named('allJavadocJar')
+        }
+    }
+}
+
+signing {
+    sign publishing.publications.framework
+    sign publishing.publications.frameworkAll
 }
