@@ -208,8 +208,7 @@ final dataflowPom(publication) {
  */
 final dataflowShadedPom(MavenPublication publication, String shadedPkgName) {
     rootProject.sharedPublicationConfiguration(publication)
-
-    def ver = version
+    rootProject.addCheckerQualDependencyToPom(publication, version)
 
     publication.artifactId = "dataflow-${shadedPkgName}"
     publication.pom {
@@ -227,15 +226,6 @@ final dataflowShadedPom(MavenPublication publication, String shadedPkgName) {
                 url = 'http://www.gnu.org/software/classpath/license.html'
                 distribution = 'repo'
             }
-        }
-        withXml {
-            // This should just happen automatically, but I can't figure out how to make it happen with
-            // a custom Shadow task.
-            asNode().appendNode('dependencies').appendNode('dependency')
-            .appendNode('groupId', 'io.github.eisop').parent()
-            .appendNode('artifactId', 'checker-qual').parent()
-            .appendNode('version', ver).parent()
-            .appendNode('scope','runtime')
         }
     }
 }

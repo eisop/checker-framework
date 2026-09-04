@@ -119,11 +119,14 @@ dependencies {
     implementation "org.plumelib:hashmap-util:${versions.hashmapUtil}"
     implementation "org.plumelib:plume-util:${versions.plumeUtil}"
     implementation "org.plumelib:reflection-util:${versions.reflectionUtil}"
-    compileOnly "com.google.guava:guava:${versions.guava}"
+    // Guava is used from main sources on unconditional code paths (SourceChecker's
+    // Splitter/ImmutableSet uses and GenericAnnotatedTypeFactory's Ordering uses), so it must
+    // be an `implementation` dependency: it has to appear in this artifact's POM and on
+    // runtimeClasspath, which is what frameworkAllJar is built from.
+    implementation "com.google.guava:guava:${versions.guava}"
     // Add this dependency if needed to debug classpath issues.
     // implementation 'io.github.classgraph:classgraph:4.8.180'
 
-    testImplementation "com.google.guava:guava:${versions.guava}"
     testImplementation "junit:junit:${versions.junit}"
     testImplementation project(':framework-test')
     testImplementation sourceSets.testannotations.output
@@ -227,7 +230,7 @@ tasks.named('processResources').configure { dependsOn 'copyAndMinimizeAnnotatedJ
 
 tasks.register('allSourcesJar', Jar) {
     group = 'Build'
-    description = 'Creates a sources jar that includes sources for all Checker Framework classes in framework.jar'
+    description = 'Creates a sources jar with the sources of every class in framework-all.jar'
     destinationDirectory = file("${projectDir}/dist")
     archiveFileName = 'framework-source.jar'
     archiveClassifier = 'sources'
@@ -238,7 +241,7 @@ tasks.register('allSourcesJar', Jar) {
 
 tasks.register('allJavadocJar', Jar) {
     group = 'Build'
-    description = 'Creates javadoc jar include Javadoc for all of the framework'
+    description = 'Creates a javadoc jar with the Javadoc of every class in framework-all.jar'
     def javadocs = [
         ':framework',
         ':dataflow',
@@ -334,6 +337,7 @@ if (skipDelombok) {
 }
 
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+import org.gradle.api.component.AdhocComponentWithVariants
 
 tasks.register('frameworkAllJar', ShadowJar) {
     dependsOn 'compileJava'
@@ -347,54 +351,60 @@ tasks.register('frameworkAllJar', ShadowJar) {
     destinationDirectory = layout.buildDirectory.dir('shadow/frameworkAll')
 
     from shadowJar.source
+    // runtimeClasspath, so every `implementation` dependency is bundled and relocated.
+    // A dependency declared `compileOnly` would silently be left out; see the guava
+    // comment in the dependencies block above.
     configurations = shadowJar.configurations
-    manifest {
-        attributes('Automatic-Module-Name': 'org.checkerframework.framework')
-    }
-    exclude 'org/checkerframework/**/qual/*'
     relocators = shadowJar.getRelocators()
+    // The manifest (Automatic-Module-Name, Implementation-Version, Bundle-License) comes
+    // from the `tasks.withType(Jar)` block in ../build.gradle, which keys off archiveFileName.
+
+    // checker-qual is a normal published dependency of framework-all (added to its POM in
+    // configureFrameworkPom below), not bundled, so that a consumer gets one copy of the
+    // qualifiers rather than a relocated duplicate.
+    exclude 'org/checkerframework/**/qual/*'
+    // Not inherited from the shadowJar block in ../build.gradle, which configures only the
+    // task named `shadowJar`. Without it this jar ships checker-qual's module descriptor,
+    // which declares `module org.checkerframework.checker.qual` and exports packages the
+    // exclude above has just removed -- a module that does not describe this jar.
+    exclude '**/module-info.class'
+    // jsr305 comes in through guava, and its annotations on the bundled guava classes keep
+    // part of it alive through minimize(). No Checker Framework class references a jsr305
+    // type, so it is not API here -- and shipping it would put `javax.annotation`, a package
+    // shared with JSR-250, unrelocated inside this jar. It cannot be relocated instead: the
+    // Nullness Checker compares user annotations against the literal
+    // "javax.annotation.Nullable", which ShadowJar would rewrite along with the package.
+    dependencies {
+        exclude(dependency('com.google.code.findbugs:jsr305:.*'))
+    }
     minimize()
 }
+
+// `assemble` deliberately does not build frameworkAllJar: it is needed only when publishing,
+// and it costs a full shadow pass. `publish`/`publishToMavenLocal` pick it up through the
+// frameworkAll publication's artifact list. This mirrors the reasoning for allJavadocJar and
+// allSourcesJar, which are likewise kept off `assemble`.
 
 apply from: rootProject.file('gradle-mvn-push.gradle')
 
 /**
- * Configures the POM for framework and framework-all publications.
+ * Configures the parts of the POM that framework and framework-all share.
+ *
  * @param publication the MavenPublication to configure
- * @param isAll true if configuring framework-all, false for framework
+ * @param artifactName the artifact this publication produces, named in the description
+ * @param extraDescriptionLines description lines to append, if any
  */
-final configureFrameworkPom(MavenPublication publication, boolean isAll) {
+final configureFrameworkPom(
+MavenPublication publication, String artifactName, List<String> extraDescriptionLines = []) {
     rootProject.sharedPublicationConfiguration(publication)
-
-    if (isAll) {
-        def ver = version
-        publication.artifactId = 'framework-all'
-        publication.pom {
-            withXml {
-                asNode().appendNode('dependencies').appendNode('dependency')
-                    .appendNode('groupId', 'io.github.eisop').parent()
-                    .appendNode('artifactId', 'checker-qual').parent()
-                    .appendNode('version', ver).parent()
-                    .appendNode('scope', 'runtime')
-            }
-        }
-    } else {
-        publication.from components.java
-        publication.suppressPomMetadataWarningsFor('testFixturesApiElements')
-        publication.suppressPomMetadataWarningsFor('testFixturesRuntimeElements')
-    }
-
     publication.pom {
-        name = isAll
-            ? 'Checker Framework Core Library (including all dependencies)'
-            : 'Checker Framework Core Library'
         description = String.join(System.lineSeparator(),
-                'The Checker Framework enhances Java\'s type system to',
-                'make it more powerful and useful. This lets software developers',
-                'detect and prevent errors in their Java programs.',
-                "The ${isAll ? 'framework-all' : 'framework'} artifact contains the core type checking infrastructure",
-                'and permits you to write your own compiler plug-ins.',
-                *(isAll ? ['Unlike the framework artifact, this artifact contains all its dependencies.'] : []))
+                ['The Checker Framework enhances Java\'s type system to',
+                 'make it more powerful and useful. This lets software developers',
+                 'detect and prevent errors in their Java programs.',
+                 "The ${artifactName} artifact contains the core type checking infrastructure",
+                 'and permits you to write your own compiler plug-ins.']
+                + extraDescriptionLines)
         licenses {
             license {
                 name = 'GNU General Public License, version 2 (GPL2), with the classpath exception'
@@ -405,14 +415,42 @@ final configureFrameworkPom(MavenPublication publication, boolean isAll) {
     }
 }
 
+// src/testFixtures is an internal support library: it exists so that the testchecker sources
+// are shared with :checker's tests (see the java-test-fixtures comment at the top of this file).
+// The java-test-fixtures plugin adds its two variants to `components.java`, which would publish
+// framework-VERSION-test-fixtures.jar and reference it from the Gradle Module Metadata -- an
+// artifact we do not support, invisible to Maven consumers, and describable in a POM only by
+// suppressing the warning that says so. Skip both variants instead.
+afterEvaluate {
+    def javaComponent = components.java as AdhocComponentWithVariants
+    ['testFixturesApiElements', 'testFixturesRuntimeElements'].each { name ->
+        def variant = configurations.findByName(name)
+        if (variant != null) {
+            javaComponent.withVariantsFromConfiguration(variant) { it.skip() }
+        }
+    }
+}
+
 publishing {
     publications {
+        // The ordinary library: the framework classes, with its dependencies declared in the
+        // POM rather than bundled.
         framework(MavenPublication) {
-            configureFrameworkPom(it, false)
+            configureFrameworkPom(it, 'framework')
+            pom.name = 'Checker Framework Core Library'
+            from components.java
         }
 
+        // The self-contained variant: one jar with every dependency bundled and relocated.
+        // It has no Gradle component (its jar is assembled by frameworkAllJar rather than by
+        // a configuration), so there is nothing for Gradle to derive POM dependencies from,
+        // and the single dependency it does have has to be written by hand.
         frameworkAll(MavenPublication) {
-            configureFrameworkPom(it, true)
+            configureFrameworkPom(it, 'framework-all',
+            ['Unlike the framework artifact, this artifact contains all its dependencies.'])
+            pom.name = 'Checker Framework Core Library (including all dependencies)'
+            artifactId = 'framework-all'
+            rootProject.addCheckerQualDependencyToPom(it, version)
             artifact tasks.named('frameworkAllJar')
             artifact tasks.named('allSourcesJar')
             artifact tasks.named('allJavadocJar')
