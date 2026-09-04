@@ -1248,6 +1248,19 @@ afterEvaluate {
     // Repoint the Shadow plugin's own runtime variant at checkerJar too; see above.
     configurations.shadowRuntimeElements.outgoing.artifacts.clear()
     configurations.shadowRuntimeElements.outgoing.artifact(tasks.named('checkerJar'))
+
+    // The java plugin's own variants advertise checker-VERSION-skinny.jar, from the `jar` task
+    // disabled above. That file is never produced, so a build that substitutes this project for
+    // the io.github.eisop:checker coordinate -- any consumer using --include-build -- resolves a
+    // path that does not exist and fails when it loads a class from it. Serve checkerJar, the
+    // artifact this project actually builds, from these variants as well.
+    ['apiElements', 'runtimeElements'].each { variantName ->
+        def variant = configurations.findByName(variantName)
+        if (variant != null) {
+            variant.outgoing.artifacts.clear()
+            variant.outgoing.artifact(tasks.named('checkerJar'))
+        }
+    }
 }
 
 publishing {
