@@ -14,6 +14,10 @@
 #   2. The `checker` artifact's published component lacking a compile-time
 #      (java-api) variant, so `compileClasspath` resolution fails with
 #      "No matching variant" even when the JVM version matches.
+#   3. A POM that has lost a dependency it needs at runtime. `framework` and
+#      `javacutil` once dropped guava this way, which broke them and
+#      framework-all at class-load time while every in-repo test still passed,
+#      because the in-repo tests never run off the published artifacts.
 #
 # Publishing goes to an isolated, throwaway Maven-local repository (a fresh
 # $HOME, so `~/.m2/repository` resolves underneath it) rather than the
@@ -46,9 +50,11 @@ if [ -z "${CHECKER_VERSION}" ]; then
 fi
 echo "Publishing and consuming version ${CHECKER_VERSION}"
 
-# Publish exactly the artifacts an external consumer of `checker` resolves:
-# checker itself, plus checker-qual and checker-util, which are declared as
-# regular (non-bundled) dependencies of the published `checker` artifact.
+# Publish exactly the artifacts an external consumer resolves: checker itself,
+# plus checker-qual and checker-util, which are declared as regular (non-bundled)
+# dependencies of the published `checker` artifact. The trailing `publishToMavenLocal`
+# covers every other subproject, which is where framework, framework-all and their
+# own dependencies (javacutil, dataflow) come from.
 HOME="${SMOKETEST_HOME}" ./gradlew --console=plain \
   -x javadoc -x allJavadoc \
   :checker-qual:publishToMavenLocal \
@@ -62,6 +68,8 @@ HOME="${SMOKETEST_HOME}" ./gradlew --console=plain \
 cd "${CONSUMER_DIR}"
 HOME="${SMOKETEST_HOME}" "${REPO_ROOT}/gradlew" --console=plain \
   -PcheckerVersion="${CHECKER_VERSION}" \
-  clean compileJava verifyResolutions
+  clean smoketest
 
-echo "Publish smoke test passed: a Java 8 consumer build resolved and compiled against io.github.eisop:checker:${CHECKER_VERSION}, framework, and framework-all."
+echo "Publish smoke test passed: a Java 8 consumer build resolved every published"
+echo "io.github.eisop artifact at version ${CHECKER_VERSION}, compiled against checker,"
+echo "and ran a checker out of the published framework-all artifact."
