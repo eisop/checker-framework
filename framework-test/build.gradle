@@ -1,3 +1,9 @@
+plugins {
+    // For the `api` configuration used below: framework-test is a published library whose
+    // public signatures expose framework types.
+    id 'java-library'
+}
+
 sourceSets {
     taglet
     tagletJdk8
@@ -23,8 +29,13 @@ dependencies {
         tagletJdk8Implementation files(toolsJar)
     }
 
-    // BinaryStubDiffChecker (org.checkerframework.framework.stub) type-checks against framework's internals.
-    implementation project(':framework')
+    // BinaryStubDiffChecker (org.checkerframework.framework.stub) type-checks against framework's
+    // internals, and exposes them in its own public signatures -- BinaryStubDiffChecker.run and
+    // diffBuiltinStub both take an AnnotatedTypeFactory. `api`, not `implementation`, so that
+    // framework reaches consumers at compile scope: with `implementation` the POM would declare
+    // it at runtime scope, off a Maven consumer's compile classpath and absent from the
+    // apiElements variant a Gradle consumer resolves.
+    api project(':framework')
 }
 
 // Shadow 9.4.2 eagerly triggers compile tasks for all source sets.

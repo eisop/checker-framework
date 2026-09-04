@@ -282,6 +282,7 @@ tasks.register('checkerJar', ShadowJar) {
     exclude 'org/checkerframework/**/qual/*'
     exclude 'org/checkerframework/checker/**/util/*'
     relocators = shadowJar.getRelocators()
+
 }
 
 tasks.named('jar') {
@@ -1178,11 +1179,22 @@ final checkerPom(publication) {
 // compile-time, and fails with "no matching variant" -- this is a known
 // Shadow plugin limitation, see https://github.com/GradleUp/shadow/issues/847.
 //
-// Register a `shadowApiElements` configuration that exposes the same
-// shadow jar for compile-time usage, and add it to `components.shadow` as
-// the missing compile-time variant, so the published Gradle Module
-// Metadata has both a runtime and a compile variant pointing at the
-// shadow jar.
+// Register a `shadowApiElements` configuration to supply that missing
+// compile-time variant, and point both variants at `checkerJar`
+// (checker-VERSION.jar) rather than at `shadowJar` (checker-VERSION-all.jar).
+//
+// Both variants must serve checkerJar, because the variants also carry the
+// `shadow` configuration's dependencies on checker-qual and checker-util.
+// shadowJar *bundles* those two, so serving it alongside those dependencies
+// puts every qualifier class on a Gradle consumer's classpath twice -- once
+// inside checker-VERSION-all.jar and once as its own jar -- while a Maven
+// consumer, who gets checker-VERSION.jar from the POM, sees them once.
+// checkerJar excludes checker-qual and checker-util for exactly this reason,
+// so serving it makes the two consumers agree.
+//
+// checker-VERSION-all.jar is still published, as a plain classified artifact
+// outside any variant: it is the self-contained download that
+// docs/manual/external-tools.tex points users at.
 import org.gradle.api.attributes.Bundling
 import org.gradle.api.attributes.Category
 import org.gradle.api.attributes.LibraryElements
@@ -1194,13 +1206,19 @@ configurations {
     shadowApiElements {
         canBeConsumed = true
         canBeResolved = false
+        // The Shadow plugin makes shadowRuntimeElements extend `shadow`, whose dependencies
+        // (checker-qual, checker-util) are the ones that appear in the POM. The compile-time
+        // variant needs them too: it serves checkerJar, which deliberately excludes those two,
+        // so without this a Gradle consumer compiling against `checker` would have no
+        // qualifier classes on its compile classpath.
+        extendsFrom configurations.shadow
         attributes {
             attribute(Usage.USAGE_ATTRIBUTE, objects.named(Usage, Usage.JAVA_API))
             attribute(Category.CATEGORY_ATTRIBUTE, objects.named(Category, Category.LIBRARY))
             attribute(LibraryElements.LIBRARY_ELEMENTS_ATTRIBUTE, objects.named(LibraryElements, LibraryElements.JAR))
             attribute(Bundling.BUNDLING_ATTRIBUTE, objects.named(Bundling, Bundling.SHADOWED))
         }
-        outgoing.artifact(tasks.named('shadowJar'))
+        outgoing.artifact(tasks.named('checkerJar'))
     }
 }
 
@@ -1220,6 +1238,10 @@ afterEvaluate {
     (components.shadow as AdhocComponentWithVariants).addVariantsFromConfiguration(configurations.shadowApiElements) {
         it.mapToMavenScope('compile')
     }
+
+    // Repoint the Shadow plugin's own runtime variant at checkerJar too; see above.
+    configurations.shadowRuntimeElements.outgoing.artifacts.clear()
+    configurations.shadowRuntimeElements.outgoing.artifact(tasks.named('checkerJar'))
 }
 
 publishing {
@@ -1227,7 +1249,8 @@ publishing {
         checker(MavenPublication) {
             from(components.shadow)
             checkerPom it
-            artifact tasks.named('checkerJar')
+            // checkerJar is the artifact of both variants above, so it needs no entry here.
+            artifact tasks.named('shadowJar')
             artifact tasks.named('allSourcesJar')
             artifact tasks.named('allJavadocJar')
         }
