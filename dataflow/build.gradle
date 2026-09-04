@@ -36,9 +36,12 @@ def createDataflowShaded(shadedPkgName) {
         group = 'Build'
         description = "Builds dataflow-${shadedPkgName}.jar."
         includeEmptyDirs = false
-        base {
-            archivesName = "dataflow-${shadedPkgName}"
-        }
+        // archiveBaseName, not `base { archivesName = ... }`: a Jar task has no `base`, so that
+        // closure configures the project's BasePluginExtension and renames every archive in
+        // this subproject.  With this factory called three times, the last call won, and
+        // dataflow's own jar and sources jar were written to dataflow/build/libs as
+        // dataflow-errorprone-VERSION*.jar.
+        archiveBaseName = "dataflow-${shadedPkgName}"
         dependencies {
             exclude(project(':checker-qual'))
         }
