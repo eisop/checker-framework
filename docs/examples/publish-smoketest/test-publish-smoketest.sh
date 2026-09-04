@@ -62,12 +62,24 @@ HOME="${SMOKETEST_HOME}" ./gradlew --console=plain \
   :checker:publishToMavenLocal \
   publishToMavenLocal
 
+# framework-errorprone is only part of the build on JDK 21+ (see the root settings.gradle), so
+# whether it was published depends on the JDK this ran under. Ask the build which projects it
+# has, rather than looking for the artifact on disk: Gradle's daemon keeps its own user.home, so
+# publishToMavenLocal does not necessarily write under $SMOKETEST_HOME.
+if HOME="${SMOKETEST_HOME}" ./gradlew -q projects | grep -q "':framework-errorprone'"; then
+  HAS_FRAMEWORK_ERRORPRONE=true
+else
+  HAS_FRAMEWORK_ERRORPRONE=false
+fi
+echo "framework-errorprone published: ${HAS_FRAMEWORK_ERRORPRONE}"
+
 # Run the standalone consumer build against the freshly published artifacts.
 # It has its own settings.gradle/build.gradle and is not part of this
 # project's Gradle build, matching how an external consumer would see it.
 cd "${CONSUMER_DIR}"
 HOME="${SMOKETEST_HOME}" "${REPO_ROOT}/gradlew" --console=plain \
   -PcheckerVersion="${CHECKER_VERSION}" \
+  -PhasFrameworkErrorprone="${HAS_FRAMEWORK_ERRORPRONE}" \
   clean smoketest
 
 echo "Publish smoke test passed: a Java 8 consumer build resolved every published"

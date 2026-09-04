@@ -52,6 +52,13 @@ def publishedArtifacts = [
     'framework-test',
 ]
 
+// framework-errorprone is a JDK-21+-only module: the root settings.gradle omits it entirely on
+// older build JDKs, so it is not always published. test-publish-smoketest.sh looks for it in the
+// repository it just published to and tells us whether to expect it.
+if (findProperty('hasFrameworkErrorprone') == 'true') {
+    publishedArtifacts += 'framework-errorprone'
+}
+
 // One resolvable configuration per artifact, each requesting java-runtime explicitly so
 // resolution goes through the published Gradle Module Metadata the way a consumer's would.
 publishedArtifacts.each { artifact ->
