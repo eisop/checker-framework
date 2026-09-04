@@ -1176,6 +1176,22 @@ subprojects {
 
         exclude '**/module-info.class'
 
+        // Guava depends on jsr305, and 784 of the bundled Guava classes carry its annotations,
+        // which keeps part of it alive through minimize(). No Checker Framework class
+        // references any jsr305 type, so it is not part of our API -- only annotation metadata
+        // on relocated internals. Leaving it in would ship `javax.annotation`, a package we
+        // share with JSR-250, unrelocated inside our jars, where it can collide with a
+        // consumer's own. Relocating it instead is not an option: the Nullness Checker
+        // compares *user* annotations against the literals "javax.annotation.Nullable",
+        // ".Nonnull" and ".CheckForNull", which ShadowJar would rewrite along with the package.
+        //
+        // It stays on the compile classpath, where javac needs javax.annotation.meta.When to
+        // read Guava's annotations -- without it, `-Werror` fails on
+        // "unknown enum constant When.UNKNOWN".
+        dependencies {
+            exclude(dependency('com.google.code.findbugs:jsr305:.*'))
+        }
+
         minimize()
     }
 

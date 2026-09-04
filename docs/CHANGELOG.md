@@ -3,6 +3,21 @@ Version 3.49.5-eisop2 (June ?, 2026)
 
 **User-visible changes:**
 
+The published `checker` artifact is about 2 MB smaller. It was the only shaded
+jar built without `minimize()`, so it shipped roughly 1240 classes that nothing
+in it could reach.
+
+The published `checker` artifact no longer contains a `module-info.class`. It
+was checker-qual's module descriptor, declaring a module whose exported
+packages the artifact does not contain.
+
+The shaded jars no longer bundle jsr305's `javax.annotation` classes. Those are
+annotation metadata on relocated Guava internals, not part of the Checker
+Framework's API, and shipping them unrelocated put a package shared with
+JSR-250 on consumers' classpaths. Recognition of `javax.annotation.Nullable`,
+`@Nonnull` and `@CheckForNull` in user code is unaffected; those are read from
+the user's own classpath.
+
 The Checker Framework now issues an `annotation.on.supertype` error when an annotation supported by
 the checker is written as a main annotation on the superclass or interface in an `extends` or
 `implements` clause. Annotations on the supertype's type arguments remain permitted. A checker

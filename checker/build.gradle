@@ -281,7 +281,31 @@ tasks.register('checkerJar', ShadowJar) {
     }
     exclude 'org/checkerframework/**/qual/*'
     exclude 'org/checkerframework/checker/**/util/*'
+    // Not inherited from the shadowJar block in ../build.gradle, which configures only the
+    // task named `shadowJar`. Without it the published checker artifact ships checker-qual's
+    // module descriptor, declaring `module org.checkerframework.checker.qual` and exporting
+    // the qual packages the exclude above has just removed.
+    exclude '**/module-info.class'
+    // Not inherited either; see the same exclusion in ../build.gradle's shadowJar block.
+    dependencies {
+        exclude(dependency('com.google.code.findbugs:jsr305:.*'))
+    }
     relocators = shadowJar.getRelocators()
+
+    // Same reachability root as shadowJar's: BinaryStubFileGenerator is a build-time main class
+    // with no caller, so minimize() would prune it, and the stubifier tool is meant to ship in
+    // checker.jar for external checkers (see the stubifierToolForShadow configuration above).
+    // Registering the classesDir as a root keeps all three tool classes unconditionally.
+    // This appends to sourceSetsClassesDirs rather than adding a second entry to
+    // `configurations`, which would corrupt minimize()'s analysis for the whole jar; see the
+    // comment on shadowJar's own copy of this, and commit 8396efab63.
+    sourceSetsClassesDirs.from(project.configurations.stubifierToolForShadow.filter { it.isDirectory() })
+
+    // Without this the published artifact ships ~1240 classes, about 2 MB, that nothing in it
+    // can reach -- shadowJar has always minimized, and this jar differs from it only by the
+    // deliberately excluded checker-qual and checker-util classes, which are declared as
+    // dependencies instead.
+    minimize()
 }
 
 tasks.named('jar') {
