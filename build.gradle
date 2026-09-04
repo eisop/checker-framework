@@ -1623,10 +1623,6 @@ tasks.named('jar') {
 }
 
 /**
- * Adds the shared pom information to the given publication.
- * @param publication the MavenPublication
- */
-/**
  * Adds a runtime dependency on checker-qual to a shaded publication's POM.
  *
  * <p>The shaded artifacts (framework-all, dataflow-shaded, ...) assemble their jar with a custom
@@ -1648,6 +1644,10 @@ final addCheckerQualDependencyToPom(MavenPublication publication, String checker
     }
 }
 
+/**
+ * Adds the shared pom information to the given publication.
+ * @param publication the MavenPublication
+ */
 final sharedPublicationConfiguration(publication) {
     publication.pom {
         url = 'https://eisop.github.io/'
