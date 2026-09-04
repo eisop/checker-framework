@@ -1,4 +1,5 @@
 import de.undercouch.gradle.tasks.download.Download
+import org.gradle.api.component.AdhocComponentWithVariants
 import org.gradle.api.tasks.testing.TestDescriptor
 import org.gradle.api.tasks.testing.TestListener
 import org.gradle.api.tasks.testing.TestResult
@@ -207,6 +208,24 @@ allprojects { currentProj ->
         // This is to be used to add errorprone to the processorpath of the compile task.  The errorprone
         // configuration can't be used directly because it is marked unresolvable by the errorprone plugin.
         errorProneAnnotationProcessor.extendsFrom(errorprone)
+    }
+
+    // We publish our own qualifiers as io.github.eisop:checker-qual. Several dependencies pull
+    // in typetools' org.checkerframework:checker-qual as well -- guava directly, and plume-util
+    // through hashmap-util -> reflection-util -- which puts two definitions of every
+    // org.checkerframework.checker.*.qual.* class on the classpath, ours and theirs. Those
+    // dependencies use the qualifiers only as annotations, so dropping the artifact costs
+    // nothing and leaves one definition of each.
+    //
+    // Excluding it on the declarable configurations covers our own builds and, because Gradle
+    // has to render a configuration-level exclusion as an <exclusions> block on each dependency
+    // of the generated POM (Maven has no configuration-level equivalent), consumers of our
+    // published artifacts too. Only the checker-qual module is excluded:
+    // org.checkerframework:stubparser is a real dependency of framework.
+    configurations.matching {
+        it.name in ['api', 'implementation', 'compileOnly', 'runtimeOnly']
+    }.configureEach {
+        exclude group: 'org.checkerframework', module: 'checker-qual'
     }
 
     dependencies {
@@ -1169,13 +1188,33 @@ subprojects {
 
     // Shadow 9.x registers a "shadowRuntimeElements" consumable variant for each project.
     // When checker:runtimeClasspath resolves project dependencies (e.g. framework), Gradle may
-    // select shadowRuntimeElements, which points to the shadow JAR (framework-X-all.jar).
+    // select shadowRuntimeElements, which points to the shadow jar (framework-VERSION-all.jar).
     // Change its Usage attribute so it doesn't conflict with standard runtimeElements.
+    //
+    // :checker is exempt: its published `checker` artifact IS the shadow jar, published via
+    // `components.shadow`, whose only runtime variant is shadowRuntimeElements. Renaming that
+    // variant's Usage there would leave the published module metadata with no variant a
+    // consumer can select for java-runtime, which is the failure PR #1822 reported.
     configurations.all {
         if (name == 'shadowRuntimeElements' && project.name != 'checker') {
             attributes {
                 attribute(Usage.USAGE_ATTRIBUTE, objects.named(Usage, "shadow-runtime-elements"))
             }
+        }
+    }
+
+    // Shadow 9.x also adds shadowRuntimeElements to `components.java`. Every publication that
+    // uses `from components.java` (dataflow, javacutil, framework) would therefore advertise
+    // the fat "-all.jar" in its Gradle Module Metadata, under the placeholder Usage set above
+    // that no consumer ever requests -- and really upload that jar, several MB per artifact.
+    // Nothing consumes those: :checker publishes its shadow jar deliberately through
+    // `components.shadow`, and framework-all is its own publication. Drop the variant so each
+    // module's metadata describes only the artifacts we actually intend to ship.
+    afterEvaluate {
+        def javaComponent = components.findByName('java')
+        def shadowRuntime = configurations.findByName('shadowRuntimeElements')
+        if (javaComponent instanceof AdhocComponentWithVariants && shadowRuntime != null) {
+            javaComponent.withVariantsFromConfiguration(shadowRuntime) { it.skip() }
         }
     }
 
@@ -1587,6 +1626,28 @@ tasks.named('jar') {
  * Adds the shared pom information to the given publication.
  * @param publication the MavenPublication
  */
+/**
+ * Adds a runtime dependency on checker-qual to a shaded publication's POM.
+ *
+ * <p>The shaded artifacts (framework-all, dataflow-shaded, ...) assemble their jar with a custom
+ * Shadow task rather than from a Gradle component, so maven-publish has no dependency information
+ * to derive a POM from and generates none. checker-qual is deliberately not bundled -- a consumer
+ * should get one copy of the qualifiers rather than a relocated duplicate -- which makes it the
+ * one dependency these POMs need, so it has to be written by hand.
+ *
+ * @param publication the publication whose POM to add the dependency to
+ * @param checkerQualVersion the checker-qual version to depend on
+ */
+final addCheckerQualDependencyToPom(MavenPublication publication, String checkerQualVersion) {
+    publication.pom.withXml {
+        asNode().appendNode('dependencies').appendNode('dependency')
+        .appendNode('groupId', 'io.github.eisop').parent()
+        .appendNode('artifactId', 'checker-qual').parent()
+        .appendNode('version', checkerQualVersion).parent()
+        .appendNode('scope', 'runtime')
+    }
+}
+
 final sharedPublicationConfiguration(publication) {
     publication.pom {
         url = 'https://eisop.github.io/'

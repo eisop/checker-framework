@@ -7,8 +7,11 @@ repositories {
 }
 
 dependencies {
-    compileOnly "com.google.guava:guava:${versions.guava}"
-    testImplementation "com.google.guava:guava:${versions.guava}"
+    // Guava is used from main sources on unconditional code paths (SystemUtil's Splitter
+    // fields are initialized at class load), so it must be an `implementation` dependency:
+    // it has to appear in this artifact's POM and on runtimeClasspath, which is what the
+    // shadow jars are built from.
+    implementation "com.google.guava:guava:${versions.guava}"
     implementation project(':checker-qual')
 
     // This is used by org.checkerframework.javacutil.TypesUtils.isImmutableTypeInJdk.
