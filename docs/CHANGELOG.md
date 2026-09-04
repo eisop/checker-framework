@@ -3,6 +3,30 @@ Version 3.49.5-eisop2 (June ?, 2026)
 
 **User-visible changes:**
 
+Two new Maven Central artifacts support writing a custom checker without
+depending on the whole `checker` artifact: `io.github.eisop:framework`, which
+declares its dependencies in its POM, and `io.github.eisop:framework-all`,
+which bundles them (relocated) into a single jar. `io.github.eisop:framework-test`
+now declares its dependency on `framework` and so can be used outside this
+repository. See the "Declaring dependencies for a custom checker" section of
+the manual.
+
+The `framework`, `javacutil` and `dataflow` artifacts no longer publish an
+unusable shadow (`-all.jar`) variant in their Gradle module metadata.
+
+The published artifacts no longer pull in `org.checkerframework:checker-qual`
+transitively (through Guava and plume-util), which previously put a second
+definition of every qualifier on the classpath alongside
+`io.github.eisop:checker-qual`.
+
+Gradle consumers of `io.github.eisop:checker` now resolve `checker-VERSION.jar`,
+the same artifact Maven consumers get from the POM. They previously resolved
+`checker-VERSION-all.jar`, which bundles checker-qual and checker-util while
+also depending on them, so every qualifier class appeared on the classpath
+twice. `checker-VERSION-all.jar` is still published as a classified artifact.
+Accordingly, `checker` now declares checker-qual and checker-util at `compile`
+scope rather than `runtime`, matching the jar it actually ships.
+
 Fixed five annotation names that ShadowJar rewrote when building `checker.jar`,
 so they never matched the annotations they name. The Nullness Checker now again
 recognizes `org.codehaus.commons.nullanalysis.NotNull` and `.Nullable` as
