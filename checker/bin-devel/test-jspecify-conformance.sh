@@ -10,11 +10,9 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &> /dev/null && pwd)"
 source "$SCRIPT_DIR"/clone-related.sh
 
 # Publish this checkout to the local Maven repository, so the conformance project below can
-# resolve it by coordinate. It previously read jars straight out of this checkout's build
-# directories, which depended on framework-test/build/libs holding exactly one jar as a side
-# effect of an unrelated task, and reported a missing one as "package
-# org.checkerframework.framework.test does not exist" rather than as a missing dependency.
-# Javadoc is skipped: nothing here consumes it, and it is slow.
+# resolve it by coordinate.  Resolving by coordinate means a missing or mis-scoped artifact
+# fails as a resolution error naming it, rather than as a compilation error in that project's
+# own source.  Javadoc is skipped: nothing here consumes it, and it is slow.
 ./gradlew publishToMavenLocal -x javadoc -x allJavadoc --console=plain -Dorg.gradle.internal.http.socketTimeout=60000 -Dorg.gradle.internal.http.connectionTimeout=60000
 
 CF_VERSION="$(./gradlew -q :checker:properties | sed -n 's/^version: //p')"
@@ -62,4 +60,7 @@ SETTINGS
 cd ../jspecify-conformance
 # -PcfVersion makes the project resolve io.github.eisop artifacts at this checkout's version;
 # its repositories list mavenLocal() first, so the artifacts published above are the ones used.
+# jspecify-conformance does not use the Checker Framework Gradle plugin and runs the checker off
+# a plain classpath, so it needs the shaded checker.jar; --include-build, which
+# test-templatefora-checker.sh uses, would supply :checker's ordinary jar variant instead.
 ./gradlew test --console=plain --warning-mode=all -PcfVersion="${CF_VERSION}"

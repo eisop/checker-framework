@@ -36,11 +36,10 @@ def createDataflowShaded(shadedPkgName) {
         group = 'Build'
         description = "Builds dataflow-${shadedPkgName}.jar."
         includeEmptyDirs = false
-        // archiveBaseName, not `base { archivesName = ... }`: a Jar task has no `base`, so that
-        // closure configures the project's BasePluginExtension and renames every archive in
-        // this subproject.  With this factory called three times, the last call won, and
-        // dataflow's own jar and sources jar were written to dataflow/build/libs as
-        // dataflow-errorprone-VERSION*.jar.
+        // archiveBaseName sets the name for this task.  A Jar task has no `base`, so
+        // `base { archivesName = ... }` would resolve against the project and rename every
+        // archive in this subproject; with this factory called once per shaded package, the
+        // last call would decide the name of dataflow's own jar.
         archiveBaseName = "dataflow-${shadedPkgName}"
         dependencies {
             exclude(project(':checker-qual'))

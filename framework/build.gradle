@@ -344,9 +344,9 @@ tasks.register('frameworkAllJar', ShadowJar) {
     group = 'Build'
     description = "Builds framework-all-${project.version}.jar with all dependencies except checker-qual."
     includeEmptyDirs = false
-    // archiveBaseName, not `base { archivesName = ... }`: `base` resolves to the project's
-    // BasePluginExtension, so setting it here renamed every archive in this subproject --
-    // framework's own jar and sources jar were being written as framework-all-VERSION*.jar.
+    // archiveBaseName sets the name for this task.  `base { archivesName = ... }` would
+    // instead resolve against the project and rename every archive in this subproject,
+    // including framework's own jar and sources jar.
     archiveBaseName = 'framework-all'
     archiveClassifier = ''
     destinationDirectory = layout.buildDirectory.dir('shadow/frameworkAll')

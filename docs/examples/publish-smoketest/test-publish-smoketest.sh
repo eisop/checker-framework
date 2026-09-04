@@ -14,10 +14,10 @@
 #   2. The `checker` artifact's published component lacking a compile-time
 #      (java-api) variant, so `compileClasspath` resolution fails with
 #      "No matching variant" even when the JVM version matches.
-#   3. A POM that has lost a dependency it needs at runtime. `framework` and
-#      `javacutil` once dropped guava this way, which broke them and
-#      framework-all at class-load time while every in-repo test still passed,
-#      because the in-repo tests never run off the published artifacts.
+#   3. A published POM that omits a dependency the artifact needs at runtime.
+#      The in-repo test suite cannot see this, because it never runs off the
+#      published artifacts; the failure appears only when a consumer resolves
+#      the POM, or when a bundled jar is missing classes it needs at load time.
 #
 # Publishing goes to an isolated, throwaway Maven-local repository (a fresh
 # $HOME, so `~/.m2/repository` resolves underneath it) rather than the

@@ -268,10 +268,8 @@ tasks.register('checkerJar', ShadowJar) {
     group = 'Build'
     description = "Builds checker-${project.version}.jar with all dependencies except checker-qual and checker-util."
     includeEmptyDirs = false
-    // archiveBaseName, not `base { archivesName = ... }`, which configures the project's
-    // BasePluginExtension and renames every archive in this subproject.  Harmless here only
-    // because the value matches the project name; see dataflow/build.gradle for the same
-    // pattern where it did not.
+    // archiveBaseName sets the name for this task.  `base { archivesName = ... }` would
+    // instead resolve against the project and rename every archive in this subproject.
     archiveBaseName = 'checker'
 
     from shadowJar.source

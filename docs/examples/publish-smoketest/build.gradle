@@ -36,8 +36,8 @@ repositories {
 }
 
 // Every artifact this repository publishes. Resolving each one through its published metadata
-// is what catches a POM that has lost a dependency: the `framework` and `javacutil` POMs once
-// silently dropped guava, which left them and framework-all broken at class-load time.
+// is what catches a POM that is missing a dependency the artifact needs at runtime, which no
+// in-repo test can see because none of them run off the published artifacts.
 def publishedArtifacts = [
     'checker',
     'checker-qual',
@@ -164,7 +164,7 @@ tasks.register('verifyResolutions') {
             }
         }
 
-        // javacutil is the other artifact that lost guava from its POM; it is used standalone.
+        // javacutil is published and used standalone, so its POM must stand on its own too.
         def javacutilFiles = resolved['javacutil'].get()
         ['guava', 'plume-util', 'checker-qual'].each {
             if (!javacutilFiles.any { f -> f.startsWith(it) }) {

@@ -1708,10 +1708,9 @@ final createCheckRelocatedStringsTask(Project project, List jarTasks) {
  *
  * <p>A Jar task has no {@code base}, {@code version}, {@code buildDir} or {@code status}, so
  * writing one of those inside a task closure resolves against the enclosing Project instead and
- * silently reconfigures the whole subproject. {@code base { archivesName = ... }} inside
- * frameworkAllJar and inside dataflow's shaded-jar factory did exactly that, renaming every
- * archive in those subprojects: framework's own jar was written as framework-all-VERSION.jar and
- * dataflow's as dataflow-errorprone-VERSION.jar. Set {@code archiveBaseName} on the task instead.
+ * silently reconfigures the whole subproject: {@code base { archivesName = ... }} in a Jar task
+ * renames every archive in that subproject, including the project's own jar and sources jar.
+ * Set {@code archiveBaseName} on the task instead.
  *
  * <p>Nothing else catches this. maven-publish names published artifacts from the publication
  * rather than from the file on disk, so every POM and published coordinate stays correct while
