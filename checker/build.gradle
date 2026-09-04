@@ -340,6 +340,12 @@ tasks.named('assemble') {
     dependsOn('checkerJar')
 }
 
+// checker.jar bundles framework, javacutil and dataflow as well, so scanning the two shaded
+// jars this project produces covers every Checker Framework class that gets relocated.
+rootProject.createCheckRelocatedStringsTask(
+project, [tasks.named('shadowJar'), tasks.named('checkerJar')])
+tasks.named('check') { dependsOn 'checkRelocatedStrings' }
+
 artifacts {
     fatJar(tasks.named('shadowJar'))
 }

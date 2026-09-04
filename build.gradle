@@ -1649,9 +1649,60 @@ final addCheckerQualDependencyToPom(MavenPublication publication, String checker
 }
 
 /**
- * Adds the shared pom information to the given publication.
- * @param publication the MavenPublication
+ * Registers a task that fails if any Checker Framework class in a shaded jar contains a string
+ * constant naming a relocated package.
+ *
+ * <p>ShadowJar rewrites string literals as well as type references, so a literal such as
+ * {@code "org.plumelib.options.Option"} silently becomes
+ * {@code "org.checkerframework.org.plumelib.options.Option"} in the shipped jar. When the literal
+ * is a name compared against *user* code -- an annotation the user wrote -- the comparison then
+ * never matches and the feature quietly stops working. The workaround is to split the constant,
+ * as {@code "org.pl".toString() + "umelib.options.Option"}; see NullnessNoInitAnnotatedTypeFactory.
+ *
+ * <p>Only the Checker Framework's own classes are scanned. Relocated third-party classes may
+ * legitimately contain their own relocated names (a logger name, say), and rewriting those is
+ * exactly what relocation is for.
+ *
+ * @param project the project to register the task in
+ * @param jarTasks the shaded jars to scan
  */
+final createCheckRelocatedStringsTask(Project project, List jarTasks) {
+    project.tasks.register('checkRelocatedStrings') {
+        group = 'Verification'
+        description = 'Fails if a shaded jar has a string constant naming a relocated package.'
+        FileCollection jars = project.files(jarTasks)
+        inputs.files(jars).withPropertyName('shadedJars')
+        doLast {
+            // Dot-form: type descriptors in a class file use '/', so a dotted occurrence of a
+            // relocated package is a string constant.
+            def relocated = ~/org\.checkerframework\.(?:com|org|io|nonapi)\.[A-Za-z0-9_.$]+/
+            def problems = []
+            jars.each { File jar ->
+                new java.util.zip.ZipFile(jar).withCloseable { zf ->
+                    for (entry in Collections.list(zf.entries())) {
+                        if (!entry.name.endsWith('.class')
+                        || entry.name =~ '^org/checkerframework/(com|org|io|nonapi)/') {
+                            continue
+                        }
+                        String bytes = new String(
+                        zf.getInputStream(entry).getBytes(), 'ISO-8859-1')
+                        def matcher = relocated.matcher(bytes)
+                        while (matcher.find()) {
+                            problems << "  ${jar.name}: ${entry.name}: \"${matcher.group()}\""
+                        }
+                    }
+                }
+            }
+            if (!problems.isEmpty()) {
+                throw new GradleException(
+                'ShadowJar relocated a string constant. Split the literal at its source, as\n'
+                + '"org.pl".toString() + "umelib.options.Option", keeping the original in a\n'
+                + 'comment. Offending constants:\n' + problems.unique().join('\n'))
+            }
+        }
+    }
+}
+
 /**
  * Registers a task that fails if a task configuration closure configures project-wide state.
  *
@@ -1722,6 +1773,10 @@ final createCheckTaskClosureScopingTask(Project project) {
 
 createCheckTaskClosureScopingTask(rootProject)
 
+/**
+ * Adds the shared pom information to the given publication.
+ * @param publication the MavenPublication
+ */
 final sharedPublicationConfiguration(publication) {
     publication.pom {
         url = 'https://eisop.github.io/'

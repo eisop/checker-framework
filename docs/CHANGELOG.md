@@ -27,6 +27,14 @@ twice. `checker-VERSION-all.jar` is still published as a classified artifact.
 Accordingly, `checker` now declares checker-qual and checker-util at `compile`
 scope rather than `runtime`, matching the jar it actually ships.
 
+Fixed five annotation names that ShadowJar rewrote when building `checker.jar`,
+so they never matched the annotations they name. The Nullness Checker now again
+recognizes `org.codehaus.commons.nullanalysis.NotNull` and `.Nullable` as
+aliases, the Called Methods Checker recognizes Lombok's
+`com.google.firebase.database.annotations.NotNull` and
+`org.codehaus.commons.nullanalysis.NotNull`, and whole-program inference again
+honors `@org.plumelib.options.Option`.
+
 The Checker Framework now issues an `annotation.on.supertype` error when an annotation supported by
 the checker is written as a main annotation on the superclass or interface in an `extends` or
 `implements` clause. Annotations on the supertype's type arguments remain permitted. A checker
