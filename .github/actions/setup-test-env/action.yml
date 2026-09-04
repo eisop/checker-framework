@@ -1,0 +1,128 @@
+name: 'Set up test environment'
+description: 'Sets up JDKs (primary and target), Gradle, Maven cache, Bazel, and misc test dependencies'
+
+inputs:
+  primary-jdk:
+    description: 'Primary JDK version used by Gradle'
+    required: false
+    default: '21'
+  target-jdk:
+    description: 'Target JDK version for tests'
+    required: false
+    default: '21'
+  jdk-ea-major:
+    description: 'Major version of current Early Access JDK'
+    required: false
+    default: '27'
+  jdk-ea-build:
+    description: 'Build number of current Early Access JDK'
+    required: false
+    default: '35'
+  script:
+    description: 'Test script name (e.g. cftests-nonjunit, guava, misc)'
+    required: false
+    default: ''
+  cache-read-only:
+    description: 'Whether Gradle cache should be read-only'
+    required: false
+    default: 'false'
+
+runs:
+  using: composite
+  steps:
+    - name: Set up primary JDK ${{ inputs.primary-jdk }}
+      uses: actions/setup-java@v6.0.0
+      with:
+        java-version: ${{ inputs.primary-jdk }}
+        distribution: 'zulu'
+
+    - name: Set up stable target JDK ${{ inputs.target-jdk }}
+      if: ${{ inputs.target-jdk != inputs.primary-jdk && inputs.target-jdk != inputs.jdk-ea-major }}
+      uses: actions/setup-java@v6.0.0
+      with:
+        java-version: ${{ inputs.target-jdk }}
+        distribution: 'zulu'
+
+    # A pre-release build lives on one of two download paths, depending on how
+    # far through its release cycle it is, so resolve the pinned build against
+    # both rather than assuming either.
+    - name: Resolve pinned JDK ${{ inputs.jdk-ea-major }} build ${{ inputs.jdk-ea-build }}
+      id: ea-jdk
+      if: ${{ inputs.target-jdk == inputs.jdk-ea-major }}
+      shell: bash
+      env:
+        MAJOR: ${{ inputs.jdk-ea-major }}
+        BUILD: ${{ inputs.jdk-ea-build }}
+      run: |
+        ea="https://download.java.net/java/early_access/jdk${MAJOR}/${BUILD}/GPL/openjdk-${MAJOR}-ea+${BUILD}_linux-x64_bin.tar.gz"
+        if curl -sfI "$ea" > /dev/null; then
+          # Early-access builds stay downloadable long after they stop being
+          # current, so this covers the whole early-access phase.
+          echo "Resolved build ${BUILD} on the early-access path."
+          echo "uri=$ea" >> "$GITHUB_OUTPUT"
+          exit 0
+        fi
+        # Once a release reaches its release-candidate phase, its builds move to
+        # a path containing a hash that the build number cannot yield, so read
+        # the URI off the release page instead of constructing it.
+        page="https://jdk.java.net/${MAJOR}/"
+        pattern="https://download\.java\.net/java/GA/jdk${MAJOR}/[0-9a-f]+/[0-9]+/GPL/openjdk-${MAJOR}_linux-x64_bin\.tar\.gz"
+        uri=$(curl -sf "$page" | grep -oE "$pattern" | sort -u | head -n 1) || true
+        if [ -z "$uri" ]; then
+          echo "::error::JDK ${MAJOR} build ${BUILD} is not on the early-access path, and ${page} lists no linux-x64 release-candidate archive. Check that page and update JDK_EA_MAJOR/JDK_EA_BUILD."
+          exit 1
+        fi
+        # That page only ever shows the current build, so confirm it is the
+        # pinned one instead of silently testing whatever has replaced it.
+        found=$(printf '%s' "$uri" | sed -E 's#.*/[0-9a-f]+/([0-9]+)/GPL/.*#\1#')
+        if [ "$found" != "$BUILD" ]; then
+          echo "::error::Pinned JDK ${MAJOR} build ${BUILD} is no longer available: it is not on the early-access path, and ${page} now offers build ${found}. Superseded release-candidate builds are not retained, so set JDK_EA_BUILD to ${found}."
+          exit 1
+        fi
+        echo "Resolved build ${BUILD} on the release-candidate path."
+        echo "uri=$uri" >> "$GITHUB_OUTPUT"
+
+    - name: Set up early-access JDK ${{ inputs.jdk-ea-major }}
+      if: ${{ inputs.target-jdk == inputs.jdk-ea-major }}
+      uses: oracle-actions/setup-java@v1
+      with:
+        uri: ${{ steps.ea-jdk.outputs.uri }}
+        install-as-version: ${{ inputs.jdk-ea-major }}
+
+    - name: Pin Gradle to primary JDK via gradle.properties
+      if: ${{ inputs.target-jdk != inputs.primary-jdk }}
+      shell: bash
+      run: |
+        mkdir -p ~/.gradle
+        echo "org.gradle.java.home=$JAVA_HOME_${{ inputs.primary-jdk }}_X64" >> ~/.gradle/gradle.properties
+
+    - name: Setup Gradle
+      uses: gradle/actions/setup-gradle@v6.3.0
+      with:
+        cache-read-only: ${{ inputs.cache-read-only == 'true' }}
+
+    - name: Cache Maven repository
+      if: ${{ inputs.script == 'cftests-nonjunit' || inputs.script == 'guava' }}
+      uses: actions/cache@v6
+      with:
+        path: ~/.m2/repository
+        key: maven-${{ runner.os }}-${{ hashFiles('**/pom.xml') }}
+        restore-keys: |
+          maven-${{ runner.os }}-
+
+    - name: Setup Bazel
+      if: ${{ inputs.script == 'cftests-nonjunit' }}
+      uses: bazel-contrib/setup-bazel@0.19.0
+      with:
+        bazelisk-cache: true
+        disk-cache: ${{ github.workflow }}
+        repository-cache: true
+
+    - name: Set up misc test dependencies
+      if: ${{ inputs.script == 'misc' }}
+      uses: ./.github/actions/setup-misc
+
+    - name: Output version information to debug CI
+      if: ${{ inputs.target-jdk != inputs.primary-jdk }}
+      shell: bash
+      run: which java && ./gradlew --version

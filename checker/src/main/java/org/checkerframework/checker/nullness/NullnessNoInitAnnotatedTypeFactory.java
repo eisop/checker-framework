@@ -225,7 +225,8 @@ public class NullnessNoInitAnnotatedTypeFactory
                     // https://source.chromium.org/chromium/chromium/src/+/main:build/android/java/src/org/chromium/build/annotations/OptimizeAsNonNull.java
                     "org.chromium.build.annotations.OptimizeAsNonNull",
                     // https://janino-compiler.github.io/janino/apidocs/org/codehaus/commons/nullanalysis/NotNull.html
-                    "org.codehaus.commons.nullanalysis.NotNull",
+                    // "org.codehaus.commons.nullanalysis.NotNull",
+                    "org.co".toString() + "dehaus.commons.nullanalysis.NotNull",
                     // https://help.eclipse.org/neon/index.jsp?topic=/org.eclipse.jdt.doc.isv/reference/api/org/eclipse/jdt/annotation/NonNull.html
                     // https://git.eclipse.org/c/jdt/eclipse.jdt.core.git/tree/org.eclipse.jdt.annotation/src/org/eclipse/jdt/annotation/NonNull.java
                     "org.eclipse.jdt.annotation.NonNull",
@@ -357,7 +358,8 @@ public class NullnessNoInitAnnotatedTypeFactory
                     // https://source.chromium.org/chromium/chromium/src/+/main:build/android/java/src/org/chromium/build/annotations/Nullable.java
                     "org.chromium.build.annotations.Nullable",
                     // https://janino-compiler.github.io/janino/apidocs/org/codehaus/commons/nullanalysis/Nullable.html
-                    "org.codehaus.commons.nullanalysis.Nullable",
+                    // "org.codehaus.commons.nullanalysis.Nullable",
+                    "org.co".toString() + "dehaus.commons.nullanalysis.Nullable",
                     // https://help.eclipse.org/neon/index.jsp?topic=/org.eclipse.jdt.doc.isv/reference/api/org/eclipse/jdt/annotation/Nullable.html
                     // https://git.eclipse.org/c/jdt/eclipse.jdt.core.git/tree/org.eclipse.jdt.annotation/src/org/eclipse/jdt/annotation/Nullable.java
                     "org.eclipse.jdt.annotation.Nullable",
