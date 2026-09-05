@@ -49,6 +49,14 @@ the checker is written as a main annotation on the superclass or interface in an
 that permits main annotations on supertypes, such as the Tainting Checker, can override
 `BaseTypeVisitor#checkAnnotationOnSupertype(Tree)`.
 
+A checker that viewpoint-adapts can now extend or implement a type whose declaration bound is
+receiver-dependent: the supertype's bound is adapted to the subtype's before the two are compared.
+`@A class Y extends X {}` was previously rejected when `X`'s bound was receiver-dependent.
+
+`ViewpointAdapter` gains `viewpointAdaptTypeDeclarationBounds`, and `AbstractViewpointAdapter` a new
+abstract `extractAnnotationMirror(AnnotationMirrorSet)` that every subclass must implement. It is
+the counterpart of the existing `extractAnnotationMirror(AnnotatedTypeMirror)`.
+
 The Nullness Checker now refines `Queue.poll()`, `Queue.peek()`,
 `Deque.pollFirst()`, `Deque.pollLast()`, `Deque.peekFirst()`, and
 `Deque.peekLast()` to `@NonNull` after a false `isEmpty()` check for queues
@@ -743,7 +751,7 @@ eisop#104, eisop#386, eisop#433, eisop#737, eisop#786, eisop#792, eisop#863,
 eisop#949, eisop#1015, eisop#1059, eisop#1074, eisop#1244, eisop#1315,
 eisop#1564, eisop#1592, eisop#1642, eisop#1653, eisop#1735, eisop#1801,
 eisop#1818, eisop#1819, eisop#1861, eisop#1862, eisop#1863, eisop#1865,
-eisop#1887, eisop#1965, eisop#1987, typetools#399, typetools#3203.
+eisop#1887, eisop#1965, eisop#1986, eisop#1987, typetools#399, typetools#3203.
 
 
 Version 3.49.5-eisop1 (April 26, 2026)
