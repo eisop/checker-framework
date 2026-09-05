@@ -21,7 +21,7 @@ dependencies {
     checkerQual("io.github.eisop:checker-qual:${versions.eisopVersion}")
     checkerFramework("io.github.eisop:checker:${versions.eisopVersion}")
 
-    compileOnly 'org.jspecify:jspecify:1.0.0'
+    compileOnly 'org.jspecify:jspecify:1.0.1'
     if (JavaVersion.current() >= JavaVersion.VERSION_21) {
         errorprone 'com.google.errorprone:error_prone_core:2.50.0'
     }

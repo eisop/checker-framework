@@ -3,6 +3,46 @@ Version 3.49.5-eisop2 (June ?, 2026)
 
 **User-visible changes:**
 
+Two new Maven Central artifacts support writing a custom checker without
+depending on the whole `checker` artifact: `io.github.eisop:framework`, which
+declares its dependencies in its POM, and `io.github.eisop:framework-all`,
+which bundles them (relocated) into a single jar. `io.github.eisop:framework-test`
+now declares its dependency on `framework` and so can be used outside this
+repository. See the "Declaring dependencies for a custom checker" section of
+the manual.
+
+The `framework`, `javacutil` and `dataflow` artifacts no longer publish an
+unusable shadow (`-all.jar`) variant in their Gradle module metadata.
+
+The published artifacts no longer pull in `org.checkerframework:checker-qual`
+transitively (through Guava and plume-util), which previously put a second
+definition of every qualifier on the classpath alongside
+`io.github.eisop:checker-qual`.
+
+Gradle consumers of `io.github.eisop:checker` now resolve `checker-VERSION.jar`,
+the same artifact Maven consumers get from the POM. They previously resolved
+`checker-VERSION-all.jar`, which bundles checker-qual and checker-util while
+also depending on them, so every qualifier class appeared on the classpath
+twice. `checker-VERSION-all.jar` is still published as a classified artifact.
+Accordingly, `checker` now declares checker-qual and checker-util at `compile`
+scope rather than `runtime`, matching the jar it actually ships.
+
+Fixed five annotation names that ShadowJar rewrote when building `checker.jar`,
+so they never matched the annotations they name. The Nullness Checker now again
+recognizes `org.codehaus.commons.nullanalysis.NotNull` and `.Nullable` as
+aliases, the Called Methods Checker recognizes Lombok's
+`com.google.firebase.database.annotations.NotNull` and
+`org.codehaus.commons.nullanalysis.NotNull`, and whole-program inference again
+honors `@org.plumelib.options.Option`.
+
+The published `checker` artifact is about 2 MB smaller: it is now minimized, like
+the other shaded jars.
+
+The shaded jars no longer contain a `module-info.class` or jsr305's
+`javax.annotation` classes, neither of which described or belonged to them.
+Recognition of `javax.annotation.Nullable`, `@Nonnull` and `@CheckForNull` in
+user code is unaffected.
+
 `AnnotatedFor`, `HasQualifierParameter`, and `ReportUse` support the new
 `applyToSubpackages` annotation element, which decides whether an annotation
 written on a package also applies to that package's subpackages. To preserve
@@ -15,6 +55,11 @@ the checker is written as a main annotation on the superclass or interface in an
 `implements` clause. Annotations on the supertype's type arguments remain permitted. A checker
 that permits main annotations on supertypes, such as the Tainting Checker, can override
 `BaseTypeVisitor#checkAnnotationOnSupertype(Tree)`.
+
+The Nullness Checker now refines `Queue.poll()`, `Queue.peek()`,
+`Deque.pollFirst()`, `Deque.pollLast()`, `Deque.peekFirst()`, and
+`Deque.peekLast()` to `@NonNull` after a false `isEmpty()` check for queues
+and deques with `@NonNull` element types.
 
 Further performance improvements relative to the 3.49.5-eisop1 release:
 - `allNullnessTests`: 1m24s vs. 2m16s
@@ -713,7 +758,7 @@ eisop#104, eisop#386, eisop#433, eisop#737, eisop#786, eisop#792, eisop#863,
 eisop#949, eisop#1015, eisop#1059, eisop#1074, eisop#1244, eisop#1315,
 eisop#1564, eisop#1592, eisop#1642, eisop#1653, eisop#1735, eisop#1801,
 eisop#1818, eisop#1819, eisop#1861, eisop#1862, eisop#1863, eisop#1865,
-eisop#1887, eisop#1965, eisop#1987, typetools#3203.
+eisop#1887, eisop#1965, eisop#1987, typetools#399, typetools#3203.
 
 
 Version 3.49.5-eisop1 (April 26, 2026)

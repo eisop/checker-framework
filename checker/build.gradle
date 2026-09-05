@@ -35,7 +35,6 @@ tasks.named('sourcesJar') {
 }
 
 configurations {
-    implementation.extendsFrom(annotatedGuava)
     fatJar {
         canBeConsumed = true
         canBeResolved = false
@@ -88,6 +87,7 @@ dependencies {
 
     implementation ("org.plumelib:reflection-util:${versions.reflectionUtil}")
     implementation "org.plumelib:plume-util:${versions.plumeUtil}"
+    implementation "com.google.guava:guava:${versions.guava}"
 
     // Dependencies added to "shadow" appear as dependencies in Maven Central.
     shadow project(':checker-qual')
@@ -268,9 +268,9 @@ tasks.register('checkerJar', ShadowJar) {
     group = 'Build'
     description = "Builds checker-${project.version}.jar with all dependencies except checker-qual and checker-util."
     includeEmptyDirs = false
-    base {
-        archivesName = 'checker'
-    }
+    // archiveBaseName sets the name for this task.  `base { archivesName = ... }` would
+    // instead resolve against the project and rename every archive in this subproject.
+    archiveBaseName = 'checker'
 
     from shadowJar.source
     configurations = shadowJar.configurations
@@ -282,6 +282,21 @@ tasks.register('checkerJar', ShadowJar) {
     exclude 'org/checkerframework/**/qual/*'
     exclude 'org/checkerframework/checker/**/util/*'
     relocators = shadowJar.getRelocators()
+
+    // Same reachability root as shadowJar's: BinaryStubFileGenerator is a build-time main class
+    // with no caller, so minimize() would prune it, and the stubifier tool is meant to ship in
+    // checker.jar for external checkers (see the stubifierToolForShadow configuration above).
+    // Registering the classesDir as a root keeps all three tool classes unconditionally.
+    // This appends to sourceSetsClassesDirs rather than adding a second entry to
+    // `configurations`, which would corrupt minimize()'s analysis for the whole jar; see the
+    // comment on shadowJar's own copy of this, and commit 8396efab63.
+    sourceSetsClassesDirs.from(project.configurations.stubifierToolForShadow.filter { it.isDirectory() })
+
+    // Without this the published artifact ships ~1240 classes, about 2 MB, that nothing in it
+    // can reach -- shadowJar has always minimized, and this jar differs from it only by the
+    // deliberately excluded checker-qual and checker-util classes, which are declared as
+    // dependencies instead.
+    minimize()
 }
 
 tasks.named('jar') {
@@ -319,6 +334,8 @@ tasks.named('shadowJar') {
     minimize {
         // Keep all classes from checker-qual and checker-util rather than
         // relying on the `api` re-export to protect them from minimize().
+        exclude(dependency('io.github.eisop:checker-qual:.*'))
+        exclude(dependency('io.github.eisop:checker-util:.*'))
         exclude(dependency('org.checkerframework:checker-qual:.*'))
         exclude(dependency('org.checkerframework:checker-util:.*'))
     }
@@ -334,6 +351,12 @@ tasks.named('assemble') {
     dependsOn('shadowJar')
     dependsOn('checkerJar')
 }
+
+// checker.jar bundles framework, javacutil and dataflow as well, so scanning the two shaded
+// jars this project produces covers every Checker Framework class that gets relocated.
+rootProject.createCheckRelocatedStringsTask(
+project, [tasks.named('shadowJar'), tasks.named('checkerJar')])
+tasks.named('check') { dependsOn 'checkRelocatedStrings' }
 
 artifacts {
     fatJar(tasks.named('shadowJar'))
@@ -1176,11 +1199,22 @@ final checkerPom(publication) {
 // compile-time, and fails with "no matching variant" -- this is a known
 // Shadow plugin limitation, see https://github.com/GradleUp/shadow/issues/847.
 //
-// Register a `shadowApiElements` configuration that exposes the same
-// shadow jar for compile-time usage, and add it to `components.shadow` as
-// the missing compile-time variant, so the published Gradle Module
-// Metadata has both a runtime and a compile variant pointing at the
-// shadow jar.
+// Register a `shadowApiElements` configuration to supply that missing
+// compile-time variant, and point both variants at `checkerJar`
+// (checker-VERSION.jar) rather than at `shadowJar` (checker-VERSION-all.jar).
+//
+// Both variants must serve checkerJar, because the variants also carry the
+// `shadow` configuration's dependencies on checker-qual and checker-util.
+// shadowJar *bundles* those two, so serving it alongside those dependencies
+// puts every qualifier class on a Gradle consumer's classpath twice -- once
+// inside checker-VERSION-all.jar and once as its own jar -- while a Maven
+// consumer, who gets checker-VERSION.jar from the POM, sees them once.
+// checkerJar excludes checker-qual and checker-util for exactly this reason,
+// so serving it makes the two consumers agree.
+//
+// checker-VERSION-all.jar is still published, as a plain classified artifact
+// outside any variant: it is the self-contained download that
+// docs/manual/external-tools.tex points users at.
 import org.gradle.api.attributes.Bundling
 import org.gradle.api.attributes.Category
 import org.gradle.api.attributes.LibraryElements
@@ -1192,13 +1226,19 @@ configurations {
     shadowApiElements {
         canBeConsumed = true
         canBeResolved = false
+        // The Shadow plugin makes shadowRuntimeElements extend `shadow`, whose dependencies
+        // (checker-qual, checker-util) are the ones that appear in the POM. The compile-time
+        // variant needs them too: it serves checkerJar, which deliberately excludes those two,
+        // so without this a Gradle consumer compiling against `checker` would have no
+        // qualifier classes on its compile classpath.
+        extendsFrom configurations.shadow
         attributes {
             attribute(Usage.USAGE_ATTRIBUTE, objects.named(Usage, Usage.JAVA_API))
             attribute(Category.CATEGORY_ATTRIBUTE, objects.named(Category, Category.LIBRARY))
             attribute(LibraryElements.LIBRARY_ELEMENTS_ATTRIBUTE, objects.named(LibraryElements, LibraryElements.JAR))
             attribute(Bundling.BUNDLING_ATTRIBUTE, objects.named(Bundling, Bundling.SHADOWED))
         }
-        outgoing.artifact(tasks.named('shadowJar'))
+        outgoing.artifact(tasks.named('checkerJar'))
     }
 }
 
@@ -1218,6 +1258,23 @@ afterEvaluate {
     (components.shadow as AdhocComponentWithVariants).addVariantsFromConfiguration(configurations.shadowApiElements) {
         it.mapToMavenScope('compile')
     }
+
+    // Repoint the Shadow plugin's own runtime variant at checkerJar too; see above.
+    configurations.shadowRuntimeElements.outgoing.artifacts.clear()
+    configurations.shadowRuntimeElements.outgoing.artifact(tasks.named('checkerJar'))
+
+    // The java plugin's own variants advertise checker-VERSION-skinny.jar, from the `jar` task
+    // disabled above. That file is never produced, so a build that substitutes this project for
+    // the io.github.eisop:checker coordinate -- any consumer using --include-build -- resolves a
+    // path that does not exist and fails when it loads a class from it. Serve checkerJar, the
+    // artifact this project actually builds, from these variants as well.
+    ['apiElements', 'runtimeElements'].each { variantName ->
+        def variant = configurations.findByName(variantName)
+        if (variant != null) {
+            variant.outgoing.artifacts.clear()
+            variant.outgoing.artifact(tasks.named('checkerJar'))
+        }
+    }
 }
 
 publishing {
@@ -1225,7 +1282,8 @@ publishing {
         checker(MavenPublication) {
             from(components.shadow)
             checkerPom it
-            artifact tasks.named('checkerJar')
+            // checkerJar is the artifact of both variants above, so it needs no entry here.
+            artifact tasks.named('shadowJar')
             artifact tasks.named('allSourcesJar')
             artifact tasks.named('allJavadocJar')
         }

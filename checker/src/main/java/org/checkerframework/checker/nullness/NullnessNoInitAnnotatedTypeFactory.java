@@ -119,6 +119,34 @@ public class NullnessNoInitAnnotatedTypeFactory
     private final ExecutableElement mapGet =
             TreeUtils.getMethod("java.util.Map", "get", 1, processingEnv);
 
+    /** The Collection.isEmpty method. */
+    private final ExecutableElement collectionIsEmpty =
+            TreeUtils.getMethod("java.util.Collection", "isEmpty", 0, processingEnv);
+
+    /** The Queue.poll method. */
+    private final ExecutableElement queuePoll =
+            TreeUtils.getMethod("java.util.Queue", "poll", 0, processingEnv);
+
+    /** The Queue.peek method. */
+    private final ExecutableElement queuePeek =
+            TreeUtils.getMethod("java.util.Queue", "peek", 0, processingEnv);
+
+    /** The Deque.pollFirst method. */
+    private final ExecutableElement dequePollFirst =
+            TreeUtils.getMethod("java.util.Deque", "pollFirst", 0, processingEnv);
+
+    /** The Deque.pollLast method. */
+    private final ExecutableElement dequePollLast =
+            TreeUtils.getMethod("java.util.Deque", "pollLast", 0, processingEnv);
+
+    /** The Deque.peekFirst method. */
+    private final ExecutableElement dequePeekFirst =
+            TreeUtils.getMethod("java.util.Deque", "peekFirst", 0, processingEnv);
+
+    /** The Deque.peekLast method. */
+    private final ExecutableElement dequePeekLast =
+            TreeUtils.getMethod("java.util.Deque", "peekLast", 0, processingEnv);
+
     // List is in alphabetical order.  If you update it, also update
     // ../../../../../../../../docs/manual/nullness-checker.tex
     // and make a pull request for variables NONNULL_ANNOTATIONS and BASE_COPYABLE_ANNOTATIONS in
@@ -197,7 +225,8 @@ public class NullnessNoInitAnnotatedTypeFactory
                     // https://source.chromium.org/chromium/chromium/src/+/main:build/android/java/src/org/chromium/build/annotations/OptimizeAsNonNull.java
                     "org.chromium.build.annotations.OptimizeAsNonNull",
                     // https://janino-compiler.github.io/janino/apidocs/org/codehaus/commons/nullanalysis/NotNull.html
-                    "org.codehaus.commons.nullanalysis.NotNull",
+                    // "org.codehaus.commons.nullanalysis.NotNull",
+                    "org.co".toString() + "dehaus.commons.nullanalysis.NotNull",
                     // https://help.eclipse.org/neon/index.jsp?topic=/org.eclipse.jdt.doc.isv/reference/api/org/eclipse/jdt/annotation/NonNull.html
                     // https://git.eclipse.org/c/jdt/eclipse.jdt.core.git/tree/org.eclipse.jdt.annotation/src/org/eclipse/jdt/annotation/NonNull.java
                     "org.eclipse.jdt.annotation.NonNull",
@@ -329,7 +358,8 @@ public class NullnessNoInitAnnotatedTypeFactory
                     // https://source.chromium.org/chromium/chromium/src/+/main:build/android/java/src/org/chromium/build/annotations/Nullable.java
                     "org.chromium.build.annotations.Nullable",
                     // https://janino-compiler.github.io/janino/apidocs/org/codehaus/commons/nullanalysis/Nullable.html
-                    "org.codehaus.commons.nullanalysis.Nullable",
+                    // "org.codehaus.commons.nullanalysis.Nullable",
+                    "org.co".toString() + "dehaus.commons.nullanalysis.Nullable",
                     // https://help.eclipse.org/neon/index.jsp?topic=/org.eclipse.jdt.doc.isv/reference/api/org/eclipse/jdt/annotation/Nullable.html
                     // https://git.eclipse.org/c/jdt/eclipse.jdt.core.git/tree/org.eclipse.jdt.annotation/src/org/eclipse/jdt/annotation/Nullable.java
                     "org.eclipse.jdt.annotation.Nullable",
@@ -1184,5 +1214,41 @@ public class NullnessNoInitAnnotatedTypeFactory
      */
     public boolean isMapGet(Node node) {
         return NodeUtils.isMethodInvocation(node, mapGet, getProcessingEnv());
+    }
+
+    /**
+     * Returns true if {@code node} is an invocation of Collection.isEmpty.
+     *
+     * @param node a CFG node
+     * @return true if {@code node} is an invocation of Collection.isEmpty
+     */
+    public boolean isCollectionIsEmpty(Node node) {
+        return NodeUtils.isMethodInvocation(node, collectionIsEmpty, getProcessingEnv());
+    }
+
+    /**
+     * Returns true if {@code node} is an invocation of Queue.poll, Deque.pollFirst, or
+     * Deque.pollLast.
+     *
+     * @param node a CFG node
+     * @return true if {@code node} is an invocation of a queue/deque poll method
+     */
+    public boolean isQueuePoll(Node node) {
+        return NodeUtils.isMethodInvocation(node, queuePoll, getProcessingEnv())
+                || NodeUtils.isMethodInvocation(node, dequePollFirst, getProcessingEnv())
+                || NodeUtils.isMethodInvocation(node, dequePollLast, getProcessingEnv());
+    }
+
+    /**
+     * Returns true if {@code node} is an invocation of Queue.peek, Deque.peekFirst, or
+     * Deque.peekLast.
+     *
+     * @param node a CFG node
+     * @return true if {@code node} is an invocation of a queue/deque peek method
+     */
+    public boolean isQueuePeek(Node node) {
+        return NodeUtils.isMethodInvocation(node, queuePeek, getProcessingEnv())
+                || NodeUtils.isMethodInvocation(node, dequePeekFirst, getProcessingEnv())
+                || NodeUtils.isMethodInvocation(node, dequePeekLast, getProcessingEnv());
     }
 }
