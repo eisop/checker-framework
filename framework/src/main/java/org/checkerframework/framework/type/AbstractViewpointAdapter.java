@@ -287,9 +287,12 @@ public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
     }
 
     /**
-     * Copies an annotated type graph while viewpoint-adapting its qualifiers. The copier's
-     * original-to-copy map preserves recursive edges and shared subgraphs, so a type that refers
-     * back to itself is adapted once and every reference to it points at the adapted copy.
+     * Copies an annotated type graph, viewpoint-adapting each qualifier as it goes. Adaptation is
+     * the copy's only difference from its original.
+     *
+     * <p>Using a copier is what makes a self-referential type terminate: the original-to-copy map
+     * adapts each type once and points every later reference at that copy. The hand-rolled
+     * traversal this replaced recursed until it overflowed the stack (eisop#778).
      */
     private final class ViewpointAdaptationCopier extends AnnotatedTypeCopier {
 
@@ -309,6 +312,9 @@ public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
         protected void maybeCopyPrimaryAnnotations(
                 AnnotatedTypeMirror source, AnnotatedTypeMirror dest) {
             super.maybeCopyPrimaryAnnotations(source, dest);
+            // Only these kinds carry a primary annotation that adaptation applies to.  A wildcard
+            // has none; a type variable's is the use's, not the declaration's, and an
+            // intersection's is recomputed from its bounds (see visitIntersection).
             TypeKind kind = source.getKind();
             if (kind.isPrimitive()
                     || kind == TypeKind.DECLARED
@@ -325,15 +331,12 @@ public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
         public AnnotatedTypeMirror visitIntersection(
                 AnnotatedIntersectionType original,
                 IdentityHashMap<AnnotatedTypeMirror, AnnotatedTypeMirror> originalToCopy) {
-            AnnotatedTypeMirror existing = originalToCopy.get(original);
-            if (existing != null) {
-                return existing;
-            }
             AnnotatedIntersectionType result =
                     (AnnotatedIntersectionType) super.visitIntersection(original, originalToCopy);
-            // Recompute the intersection's own primary annotation from the adapted bounds.  Do not
-            // clear it first: AnnotatedIntersectionType#clearAnnotations also clears every bound,
-            // which would discard the adapted bounds before summarizeBounds reads them.
+            // An intersection has no primary annotation of its own to adapt; recompute it from the
+            // bounds, which super just adapted.  Do not clear it first:
+            // AnnotatedIntersectionType#clearAnnotations also clears every bound, which would
+            // discard those adapted bounds before summarizeBounds reads them.
             result.summarizeBounds();
             return result;
         }
@@ -369,9 +372,9 @@ public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
     }
 
     /**
-     * Performs the substitution described by {@link #substituteTVars}. Cycles terminate on {@link
-     * AnnotatedTypeCopier}'s original-to-copy map: a type that refers back to itself is copied once
-     * and every reference to it points at that copy.
+     * Performs the substitution described by {@link #substituteTVars}, as a copy. Like {@link
+     * ViewpointAdaptationCopier}, it terminates on a self-referential type because {@link
+     * AnnotatedTypeCopier}'s original-to-copy map copies each type once.
      */
     private final class TypeVariableSubstitutionCopier extends AnnotatedTypeCopier {
 
@@ -391,13 +394,10 @@ public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
         public AnnotatedTypeMirror visitTypeVariable(
                 AnnotatedTypeVariable original,
                 IdentityHashMap<AnnotatedTypeMirror, AnnotatedTypeMirror> originalToCopy) {
-            AnnotatedTypeMirror existing = originalToCopy.get(original);
-            if (existing != null) {
-                return existing;
-            }
-            // As before this class replaced a hand-rolled traversal, a type variable is terminal:
-            // if it has no actual type argument, it is returned unchanged rather than descended
-            // into.
+            // A type variable is terminal, as it was in the hand-rolled traversal this replaced:
+            // it is replaced by the receiver's actual type argument, or left alone if the receiver
+            // supplies none.  Its bounds are not descended into, so it cannot start a cycle and
+            // needs no originalToCopy entry.
             return getTypeVariableSubstitution(receiver, original);
         }
 
@@ -405,12 +405,9 @@ public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
         public AnnotatedTypeMirror visitIntersection(
                 AnnotatedIntersectionType original,
                 IdentityHashMap<AnnotatedTypeMirror, AnnotatedTypeMirror> originalToCopy) {
-            AnnotatedTypeMirror existing = originalToCopy.get(original);
-            if (existing != null) {
-                return existing;
-            }
             AnnotatedIntersectionType result =
                     (AnnotatedIntersectionType) super.visitIntersection(original, originalToCopy);
+            // Recompute the intersection's primary annotation from the substituted bounds.
             result.summarizeBounds();
             return result;
         }

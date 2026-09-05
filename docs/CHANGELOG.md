@@ -49,6 +49,12 @@ the checker is written as a main annotation on the superclass or interface in an
 that permits main annotations on supertypes, such as the Tainting Checker, can override
 `BaseTypeVisitor#checkAnnotationOnSupertype(Tree)`.
 
+A checker that viewpoint-adapts no longer crashes on a raw use of an F-bounded
+class such as `class Rec<T extends Rec<T>>`, whose type graph points back at
+itself. `AbstractViewpointAdapter` now adapts and substitutes with
+`AnnotatedTypeCopier`, which copies each type once, instead of with its own
+recursion, which never reached the end of such a graph.
+
 The Nullness Checker now refines `Queue.poll()`, `Queue.peek()`,
 `Deque.pollFirst()`, `Deque.pollLast()`, `Deque.peekFirst()`, and
 `Deque.peekLast()` to `@NonNull` after a false `isEmpty()` check for queues
