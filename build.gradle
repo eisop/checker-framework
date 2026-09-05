@@ -1,4 +1,5 @@
 import de.undercouch.gradle.tasks.download.Download
+import org.gradle.api.component.AdhocComponentWithVariants
 import org.gradle.api.tasks.testing.TestDescriptor
 import org.gradle.api.tasks.testing.TestListener
 import org.gradle.api.tasks.testing.TestResult
@@ -90,6 +91,7 @@ ext {
         errorprone      : '2.50.0',
         // NOTE: Google Java Format requires JDK 17 or higher as of version 1.25.0.
         googleJavaFormat : '1.35.0',
+        guava           : '33.7.1-jre',
         hashmapUtil     : '0.0.1',
         junit           : '4.13.2',
         lombok          : '1.18.48',
@@ -206,6 +208,24 @@ allprojects { currentProj ->
         // This is to be used to add errorprone to the processorpath of the compile task.  The errorprone
         // configuration can't be used directly because it is marked unresolvable by the errorprone plugin.
         errorProneAnnotationProcessor.extendsFrom(errorprone)
+    }
+
+    // We publish our own qualifiers as io.github.eisop:checker-qual. Several dependencies pull
+    // in typetools' org.checkerframework:checker-qual as well -- guava directly, and plume-util
+    // through hashmap-util -> reflection-util -- which puts two definitions of every
+    // org.checkerframework.checker.*.qual.* class on the classpath, ours and theirs. Those
+    // dependencies use the qualifiers only as annotations, so dropping the artifact costs
+    // nothing and leaves one definition of each.
+    //
+    // Excluding it on the declarable configurations covers our own builds and, because Gradle
+    // has to render a configuration-level exclusion as an <exclusions> block on each dependency
+    // of the generated POM (Maven has no configuration-level equivalent), consumers of our
+    // published artifacts too. Only the checker-qual module is excluded:
+    // org.checkerframework:stubparser is a real dependency of framework.
+    configurations.matching {
+        it.name in ['api', 'implementation', 'compileOnly', 'runtimeOnly']
+    }.configureEach {
+        exclude group: 'org.checkerframework', module: 'checker-qual'
     }
 
     dependencies {
@@ -1135,16 +1155,25 @@ subprojects {
         }
     }
 
-    configurations {
-        annotatedGuava
-    }
-
-    dependencies {
-        // TODO: it's a bug that annotatedlib:guava requires the error_prone_annotations dependency.
-        annotatedGuava "com.google.errorprone:error_prone_annotations:${versions.errorprone}"
-        annotatedGuava ('org.checkerframework.annotatedlib:guava:33.1.0.2-jre') {
-            // So long as Guava only uses annotations from checker-qual, excluding it should not cause problems.
-            exclude group: 'org.checkerframework'
+    // Every shaded jar, not just the one named `shadowJar`: checker, framework-all and
+    // dataflow's three shaded artifacts are each built by their own ShadowJar task.
+    //
+    // module-info.class would otherwise be checker-qual's module descriptor, declaring a module
+    // whose exported packages the jar excludes -- a descriptor that does not describe its jar.
+    //
+    // jsr305 comes in through Guava, whose bundled classes carry its annotations, which keeps
+    // part of it alive through minimize(). No Checker Framework class references a jsr305 type,
+    // so it is not part of our API, and shipping it puts `javax.annotation` -- a package shared
+    // with JSR-250 -- unrelocated inside our jars. Relocating it instead is not an option: the
+    // Nullness, Index and Value checkers compare *user* annotations against the literals
+    // "javax.annotation.Nullable", ".Nonnull", ".CheckForNull" and ".Nonnegative", which
+    // ShadowJar would rewrite along with the package. It stays on the compile classpath, where
+    // javac needs javax.annotation.meta.When to read Guava's annotations; without it `-Werror`
+    // fails on "unknown enum constant When.UNKNOWN".
+    tasks.withType(com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar).configureEach {
+        exclude '**/module-info.class'
+        dependencies {
+            exclude(dependency('com.google.code.findbugs:jsr305:.*'))
         }
     }
 
@@ -1174,21 +1203,43 @@ subprojects {
         // relocate 'sun', 'org.checkerframework.sun'
         relocate 'com.google', 'org.checkerframework.com.google'
 
-        exclude '**/module-info.class'
-
         minimize()
     }
 
     // Shadow 9.x registers a "shadowRuntimeElements" consumable variant for each project.
     // When checker:runtimeClasspath resolves project dependencies (e.g. framework), Gradle may
-    // select shadowRuntimeElements, which points to the shadow JAR (framework-X-all.jar).
+    // select shadowRuntimeElements, which points to the shadow jar (framework-VERSION-all.jar).
     // Change its Usage attribute so it doesn't conflict with standard runtimeElements.
+    //
+    // :checker is exempt: its published `checker` artifact IS the shadow jar, published via
+    // `components.shadow`, whose only runtime variant is shadowRuntimeElements. Renaming that
+    // variant's Usage there would leave the published module metadata with no variant a
+    // consumer can select for java-runtime, which is the failure PR #1822 reported.
     configurations.all {
-        if (name == 'shadowRuntimeElements') {
+        if (name == 'shadowRuntimeElements' && project.name != 'checker') {
             attributes {
                 attribute(Usage.USAGE_ATTRIBUTE, objects.named(Usage, "shadow-runtime-elements"))
             }
         }
+    }
+
+    // Shadow 9.x also adds shadowRuntimeElements to `components.java`. Every publication that
+    // uses `from components.java` (dataflow, javacutil, framework) would therefore advertise
+    // the fat "-all.jar" in its Gradle Module Metadata, under the placeholder Usage set above
+    // that no consumer ever requests -- and really upload that jar, several MB per artifact.
+    // Nothing consumes those: :checker publishes its shadow jar deliberately through
+    // `components.shadow`, and framework-all is its own publication. Drop the variant so each
+    // module's metadata describes only the artifacts we actually intend to ship.
+    afterEvaluate {
+        def javaComponent = components.findByName('java')
+        def shadowRuntime = configurations.findByName('shadowRuntimeElements')
+        if (javaComponent instanceof AdhocComponentWithVariants && shadowRuntime != null) {
+            javaComponent.withVariantsFromConfiguration(shadowRuntime) { it.skip() }
+        }
+    }
+
+    tasks.matching { it.name == 'check' }.configureEach {
+        dependsOn rootProject.tasks.named('checkTaskClosureScoping')
     }
 
     if (!project.name.startsWith('checker-qual-android')) {
@@ -1594,6 +1645,152 @@ tasks.register('releaseAndTest') {
 tasks.named('jar') {
     onlyIf { false }
 }
+
+/**
+ * Adds a runtime dependency on checker-qual to a shaded publication's POM.
+ *
+ * <p>The shaded artifacts (framework-all, dataflow-shaded, ...) assemble their jar with a custom
+ * Shadow task rather than from a Gradle component, so maven-publish has no dependency information
+ * to derive a POM from and generates none. checker-qual is deliberately not bundled -- a consumer
+ * should get one copy of the qualifiers rather than a relocated duplicate -- which makes it the
+ * one dependency these POMs need, so it has to be written by hand.
+ *
+ * @param publication the publication whose POM to add the dependency to
+ * @param checkerQualVersion the checker-qual version to depend on
+ */
+final addCheckerQualDependencyToPom(MavenPublication publication, String checkerQualVersion) {
+    publication.pom.withXml {
+        asNode().appendNode('dependencies').appendNode('dependency')
+        .appendNode('groupId', 'io.github.eisop').parent()
+        .appendNode('artifactId', 'checker-qual').parent()
+        .appendNode('version', checkerQualVersion).parent()
+        .appendNode('scope', 'runtime')
+    }
+}
+
+/**
+ * Registers a task that fails if any Checker Framework class in a shaded jar contains a string
+ * constant naming a relocated package.
+ *
+ * <p>ShadowJar rewrites string literals as well as type references, so a literal such as
+ * {@code "org.plumelib.options.Option"} silently becomes
+ * {@code "org.checkerframework.org.plumelib.options.Option"} in the shipped jar. When the literal
+ * is a name compared against *user* code -- an annotation the user wrote -- the comparison then
+ * never matches and the feature quietly stops working. The workaround is to split the constant,
+ * as {@code "org.pl".toString() + "umelib.options.Option"}; see NullnessNoInitAnnotatedTypeFactory.
+ *
+ * <p>Only the Checker Framework's own classes are scanned. Relocated third-party classes may
+ * legitimately contain their own relocated names (a logger name, say), and rewriting those is
+ * exactly what relocation is for.
+ *
+ * @param project the project to register the task in
+ * @param jarTasks the shaded jars to scan
+ */
+final createCheckRelocatedStringsTask(Project project, List jarTasks) {
+    project.tasks.register('checkRelocatedStrings') {
+        group = 'Verification'
+        description = 'Fails if a shaded jar has a string constant naming a relocated package.'
+        FileCollection jars = project.files(jarTasks)
+        inputs.files(jars).withPropertyName('shadedJars')
+        doLast {
+            // Dot-form: type descriptors in a class file use '/', so a dotted occurrence of a
+            // relocated package is a string constant.
+            def relocated = ~/org\.checkerframework\.(?:com|org|io|nonapi)\.[A-Za-z0-9_.$]+/
+            def problems = []
+            jars.each { File jar ->
+                new java.util.zip.ZipFile(jar).withCloseable { zf ->
+                    for (entry in Collections.list(zf.entries())) {
+                        if (!entry.name.endsWith('.class')
+                        || entry.name =~ '^org/checkerframework/(com|org|io|nonapi)/') {
+                            continue
+                        }
+                        String bytes = new String(
+                        zf.getInputStream(entry).getBytes(), 'ISO-8859-1')
+                        def matcher = relocated.matcher(bytes)
+                        while (matcher.find()) {
+                            problems << "  ${jar.name}: ${entry.name}: \"${matcher.group()}\""
+                        }
+                    }
+                }
+            }
+            if (!problems.isEmpty()) {
+                throw new GradleException(
+                'ShadowJar relocated a string constant. Split the literal at its source, as\n'
+                + '"org.pl".toString() + "umelib.options.Option", keeping the original in a\n'
+                + 'comment. Offending constants:\n' + problems.unique().join('\n'))
+            }
+        }
+    }
+}
+
+/**
+ * Registers a task that fails if a task configuration closure configures project-wide state.
+ *
+ * <p>A Jar task has no {@code base}, {@code version}, {@code buildDir} or {@code status}, so
+ * writing one of those inside a task closure resolves against the enclosing Project instead and
+ * silently reconfigures the whole subproject: {@code base { archivesName = ... }} in a Jar task
+ * renames every archive in that subproject, including the project's own jar and sources jar.
+ * Set {@code archiveBaseName} on the task instead.
+ *
+ * <p>Nothing else catches this. maven-publish names published artifacts from the publication
+ * rather than from the file on disk, so every POM and published coordinate stays correct while
+ * the on-disk names are wrong -- which is what a downstream globbing build/libs trips over.
+ * Checking the built state at execution time does not work either: the mutation happens when the
+ * offending task is realized, so whether it is visible depends on what else the invocation
+ * realized first. This reads the build scripts, so it is deterministic.
+ *
+ * <p>It is a line scan, not a Groovy parser, so it catches the idiomatic form and not every
+ * possible one. Known blind spots: an explicitly qualified write ({@code project.base { ... }}),
+ * and a closure passed to a task provider held in a variable rather than to
+ * {@code tasks.register}/{@code named} directly.
+ */
+final createCheckTaskClosureScopingTask(Project project) {
+    project.tasks.register('checkTaskClosureScoping') {
+        group = 'Verification'
+        description = 'Fails if a task configuration closure configures project-wide state.'
+        FileCollection buildScripts = project.files(
+        [project.rootProject.buildFile] + project.rootProject.subprojects*.buildFile)
+        inputs.files(buildScripts).withPropertyName('buildScripts')
+        doLast {
+            // Names with no counterpart on Task/Jar, so an assignment or closure binds to the
+            // Project. `group` is deliberately absent: Task has its own.
+            def projectOnly = ~/^\s*(base|version|buildDir|status)\s*(\{|=[^=])/
+            def opensClosure = ~/tasks\.(register|named|withType|create)\b/
+            def problems = []
+            buildScripts.each { File f ->
+                if (!f.isFile()) {
+                    return
+                }
+                int depth = -1
+                String header = ''
+                f.readLines().eachWithIndex { String line, int i ->
+                    if (depth < 0) {
+                        if (opensClosure.matcher(line).find() && line.contains('{')) {
+                            depth = line.count('{') - line.count('}')
+                            header = line.trim()
+                        }
+                        return
+                    }
+                    if (projectOnly.matcher(line).find()) {
+                        problems << "  ${f.name}:${i + 1}: ${line.trim()}\n      inside: ${header}"
+                    }
+                    depth += line.count('{') - line.count('}')
+                    if (depth <= 0) {
+                        depth = -1
+                    }
+                }
+            }
+            if (!problems.isEmpty()) {
+                throw new GradleException(
+                'A task configuration closure configures project-wide state. Set the property on\n'
+                + 'the task instead -- for an archive name, archiveBaseName rather than\n'
+                + '`base { archivesName = ... }`. Offending lines:\n' + problems.join('\n'))
+            }
+        }
+    }
+}
+
+createCheckTaskClosureScopingTask(rootProject)
 
 /**
  * Adds the shared pom information to the given publication.

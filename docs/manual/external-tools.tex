@@ -568,6 +568,15 @@ Alternately, you can get all of the jars mentioned in this section from Maven Ce
 \item \<checker.jar>: \url{https://repo1.maven.org/maven2/io/github/eisop/checker/3.49.5-eisop1/checker-3.49.5-eisop1-all.jar}
 \end{itemize}
 
+Note the \<-all> classifier on that last URL.  On Maven Central,
+\<checker-\emph{version}-all.jar> is the self-contained jar, and it is the one
+that corresponds to \<checker/dist/checker.jar> in the release zip.  The plain
+\<checker-\emph{version}.jar> artifact is \emph{not} self-contained: it omits the
+qualifier and utility classes, declaring \<checker-qual> and \<checker-util> as
+Maven dependencies instead, so on its own it does not work as a processor path.
+Build tools that read the Maven metadata resolve those dependencies for you; a
+manual download does not.
+
 Different arguments to \<javac> are required for JDK 8
 (Section~\ref{javac-jdk8}) and for JDK 9+ (Section~\ref{javac-jdk11}).
 
