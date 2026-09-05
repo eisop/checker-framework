@@ -208,6 +208,16 @@ command-line option.)
   might clear any built-in property, as described above.
 
 \item
+  If you supply the \code{-Amode=jspecify} command-line option, then the Nullness
+  Checker behaves as JSpecify specifies:  it checks only code in the scope of a
+  corresponding \code{@AnnotatedFor}, treats \code{@NullMarked} as a defaulting
+  annotation (both \code{org.jspecify.annotations.NullMarked} and the legacy
+  \code{org.jspecify.nullness.NullMarked}), and performs neither initialization
+  checking nor map-key checking, neither of which JSpecify specifies.
+  This is a shorthand for \code{-AonlyAnnotatedFor -AassumeInitialized
+  -AassumeKeyFor}; writing any of those options yourself overrides the mode.
+
+\item
   \label{nullness-jspecifyNullMarkedAlias}%
   If you supply the \code{-AjspecifyNullMarkedAlias=false} command-line option, then the
   checker will not treat \code{org.jspecify.nullness.NullMarked} as a defaulting

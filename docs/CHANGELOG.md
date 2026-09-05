@@ -43,6 +43,15 @@ The shaded jars no longer contain a `module-info.class` or jsr305's
 Recognition of `javax.annotation.Nullable`, `@Nonnull` and `@CheckForNull` in
 user code is unaffected.
 
+The new `-Amode=<mode>` option turns on a checker-defined group of options; writing one
+of those options yourself overrides the mode.  A checker declares its modes with
+`@SupportedModes` and defines them by overriding `SourceChecker.addOptionsForMode`.
+
+The Nullness Checker supports `-Amode=jspecify`, which makes it behave as JSpecify
+specifies: it checks only code in the scope of an `@AnnotatedFor`, treats `@NullMarked`
+as a defaulting annotation, and performs neither initialization checking nor map-key
+checking.
+
 The Checker Framework now issues an `annotation.on.supertype` error when an annotation supported by
 the checker is written as a main annotation on the superclass or interface in an `extends` or
 `implements` clause. Annotations on the supertype's type arguments remain permitted. A checker
@@ -743,7 +752,7 @@ eisop#104, eisop#386, eisop#433, eisop#737, eisop#786, eisop#792, eisop#863,
 eisop#949, eisop#1015, eisop#1059, eisop#1074, eisop#1244, eisop#1315,
 eisop#1564, eisop#1592, eisop#1642, eisop#1653, eisop#1735, eisop#1801,
 eisop#1818, eisop#1819, eisop#1861, eisop#1862, eisop#1863, eisop#1865,
-eisop#1887, eisop#1965, eisop#1987, typetools#399, typetools#3203.
+eisop#1887, eisop#1965, eisop#1987, eisop#1991, typetools#399, typetools#3203.
 
 
 Version 3.49.5-eisop1 (April 26, 2026)
