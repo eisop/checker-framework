@@ -91,7 +91,7 @@ ext {
         errorprone      : '2.50.0',
         // NOTE: Google Java Format requires JDK 17 or higher as of version 1.25.0.
         googleJavaFormat : '1.35.0',
-        guava           : '33.4.0-jre',
+        guava           : '33.7.1-jre',
         hashmapUtil     : '0.0.1',
         junit           : '4.13.2',
         lombok          : '1.18.48',
