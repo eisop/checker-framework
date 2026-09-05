@@ -47,6 +47,32 @@ run as an Error Prone check (`eisopcf`), on the same processorpath, in the same
 compile, with no plugin of its own -- the integration NullAway has always had.
 Nobody has measured what it costs there.
 
+## A first measurement, on the best-case corpus
+
+Compiling the first *n* files of `framework/src/main/java` (annotated Checker
+Framework code), plain `javac -proc:none` versus `checker/bin/javac -processor
+nullness`, best of three cold runs each, 2026-09-05:
+
+| files | javac | + Nullness Checker | ratio | absolute gap |
+| ---: | ---: | ---: | ---: | ---: |
+| 5   | 1.02s | 2.82s | 2.78x | 1.81s |
+| 50  | 2.17s | 3.11s | 1.44x | 0.94s |
+| 150 | 4.84s | 6.17s | 1.28x | 1.33s |
+| 275 | 5.49s | 7.41s | 1.35x | 1.92s |
+
+The ratio falls as the compilation grows, and the *absolute* gap stays in the
+1-2s band across a 55x range of input size. On this corpus the checker's cost
+is close to a constant -- loading the annotated JDK and building the type
+factories -- rather than something proportional to the code being checked.
+
+Treat this as a hypothesis, not a result. The corpus is the best case in three
+ways: fully annotated, no suppressions, and written against this analysis. Code
+that is *not* annotated makes the checker do more work, not less, and the whole
+point of the question is what happens to somebody else's code. It is recorded
+here because it is cheap, reproducible, and it sharpens question 1: if the cost
+really is mostly fixed, then "run it in a separate CI job" is the wrong remedy
+and amortizing startup is the right one.
+
 ## The three questions
 
 1. **On a real third-party codebase, what does the Checker Framework cost
