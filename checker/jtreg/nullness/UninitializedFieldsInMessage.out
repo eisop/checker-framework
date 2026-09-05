@@ -1,0 +1,7 @@
+UninitializedFieldsInMessage.java:15:13: compiler.err.proc.messager: [initialization.method.invocation.invalid] call to init() not allowed on the given receiver; uninitialized fields: foo
+found   : @UnderInitialization UninitializedFieldsInMessage
+required: @Initialized UninitializedFieldsInMessage
+UninitializedFieldsInMessage.java:21:13: compiler.err.proc.messager: [initialization.method.invocation.invalid] call to init() not allowed on the given receiver; uninitialized fields: s, foo
+found   : @UnderInitialization UninitializedFieldsInMessage
+required: @Initialized UninitializedFieldsInMessage
+2 errors
