@@ -997,6 +997,9 @@ public class NullnessNoInitAnnotatedTypeFactory
     protected boolean containsNullnessAnnotation(List<? extends AnnotationTree> annoTrees) {
         for (AnnotationTree annoTree : annoTrees) {
             AnnotationMirror am = TreeUtils.annotationFromAnnotationTree(annoTree);
+            // If this condition changes, update
+            // NullnessNoInitVisitor#removeNullnessAnnotationFixes,
+            // which offers a removal fix for exactly the annotations this method flags.
             if (isNullnessAnnotation(am) && AnnotationUtils.isTypeUseAnnotation(am)) {
                 return true;
             }

@@ -1370,6 +1370,56 @@ where your rule checks the (class and) name of the method
 being called and then treats the method in a special way.
 
 
+\subsectionAndLabel{Suggesting fixes for errors}{creating-suggesting-fixes}
+
+In addition to reporting an error, a checker can attach one or more
+machine-applicable \emph{suggested fixes} to it:  edits that a tool can apply to
+the source code to address the error.  For example, the Nullness Checker reports
+an error when a nullness annotation is written on a primitive type (such as
+\<@Nullable int x>) and suggests removing the annotation, yielding \<int x>.
+
+The Checker Framework does not apply fixes itself, and standalone \<javac> ignores
+them.  A host that runs the checker can offer them through its own refactoring
+mechanism; in particular, when the checker runs as an Error Prone plugin
+(Section~\ref{error-prone}), each suggested fix becomes an Error Prone
+\<SuggestedFix>, so it participates in Error Prone's patch workflow.  The
+representation of a fix mentions no host type, so the same fix logic in a checker
+works with any such host.
+
+To attach fixes, report the error with a
+\refclass{framework/source}{DiagMessage} that carries them, using
+\refmethodterse{framework/source}{DiagMessage}{withFixes}{(java.util.List)}
+(or \code{withFix} for a single fix):
+
+\begin{Verbatim}
+  checker.report(
+      tree,
+      DiagMessage.error("nullness.on.primitive").withFixes(fixes));
+\end{Verbatim}
+
+Each fix is a \refclass{framework/source}{SuggestedFixData}, a list of text
+replacements expressed with javac source positions.  Build one from the tree(s) to
+edit using its factory methods, which take a \sunjavadoc{jdk.compiler/com/sun/source/util/SourcePositions.html}{SourcePositions}
+(available as \refclass{common/basetype}{BaseTypeVisitor}'s \code{positions} field)
+and the current compilation unit (the visitor's \code{root} field); for example:
+
+\begin{Verbatim}
+  // Remove the annotation tree (and its trailing whitespace).
+  SuggestedFixData fix =
+      SuggestedFixData.deleteTree(positions, root, annotationTree);
+\end{Verbatim}
+
+\refclass{framework/source}{SuggestedFixData} also provides \code{replaceTree} (to
+replace a tree with new text) and lower-level \code{replace} (raw source offsets).
+The tree-based factory methods return \<null> if the tree's source position is
+unavailable; skip such a fix rather than attaching it.  The replacements within one
+\<SuggestedFixData> are applied together, whereas multiple \<SuggestedFixData>s
+passed to \code{withFixes} are alternative fixes, of which a host applies one (Error
+Prone's patch mode applies the first).  For a complete example, see
+\refclass{checker/nullness}{NullnessNoInitVisitor}, which builds a removal fix for
+each offending nullness annotation on a primitive type.
+
+
 \sectionAndLabel{Type factory: Type introduction rules}{creating-type-introduction}
 
 The annotated type of expressions and types are defined via type introduction rules in the

@@ -58,6 +58,11 @@ import javax.lang.model.util.ElementFilter;
  * rest of classes are analyzed. The tool is also permitted to stop type processing immediately if
  * any errors are raised, without invoking {@link #typeProcessingOver}.
  *
+ * <p>The above describes the default, self-driven mode, in which this class registers its own
+ * {@link TaskListener}. A host that already owns the compilation {@code TaskListener} can instead
+ * call {@link #setExternallyDriven} and drive steps 4-5 itself; see {@link #typeProcessExternally}
+ * and {@link #typeProcessingOverExternally}.
+ *
  * <p>A subclass may override any of the methods in this class, as long as the general {@link
  * javax.annotation.processing.Processor Processor} contract is obeyed, with one notable exception.
  * {@link #process(Set, RoundEnvironment)} may not be overridden, as it is called during the
@@ -86,18 +91,76 @@ public abstract class AbstractTypeProcessor extends AbstractProcessor {
     /** The TaskListener registered for completion of attribution. */
     private final AttributionTaskListener listener = new AttributionTaskListener();
 
+    /**
+     * Whether this processor is driven by an external host instead of by its own {@link
+     * AttributionTaskListener}.
+     *
+     * <p>When {@code false} (the default), {@link #init(ProcessingEnvironment)} registers the
+     * listener, which drives {@link #typeProcessingStart()}, {@link #typeProcess(TypeElement,
+     * TreePath)}, and {@link #typeProcessingOver()}. This is the standard standalone
+     * annotation-processor mode.
+     *
+     * <p>When {@code true}, no {@link TaskListener} is registered and a host drives that lifecycle,
+     * preferably through {@link #typeProcessExternally(TypeElement, TreePath)} and {@link
+     * #typeProcessingOverExternally()}, which handle the once-only bracketing. This is used when
+     * the Checker Framework runs as an Error Prone plugin, because Error Prone already owns the
+     * compilation {@link TaskListener}.
+     *
+     * @see #setExternallyDriven(boolean)
+     */
+    private boolean externallyDriven = false;
+
     /** Constructor for subclasses to call. */
     protected AbstractTypeProcessor() {}
 
     /**
+     * Sets whether this processor is driven by an external host rather than by its own {@link
+     * TaskListener}. Must be called before {@link #init(ProcessingEnvironment)}.
+     *
+     * <p>A host that embeds the Checker Framework (such as the Error Prone plugin bridge) calls
+     * this with {@code true} and then drives the type-processing lifecycle through {@link
+     * #typeProcessExternally(TypeElement, TreePath)} and {@link #typeProcessingOverExternally()}.
+     *
+     * @param externallyDriven true if a host will drive the type-processing lifecycle
+     * @see #externallyDriven
+     */
+    public void setExternallyDriven(boolean externallyDriven) {
+        if (processingEnv != null) {
+            throw new BugInCF(
+                    "setExternallyDriven must be called before init(ProcessingEnvironment);"
+                            + " init has already run, so the self-driven TaskListener may already"
+                            + " be registered.");
+        }
+        this.externallyDriven = externallyDriven;
+    }
+
+    /**
+     * Returns true if a host drives this processor's type-processing lifecycle.
+     *
+     * @return true if a host drives the type-processing lifecycle
+     * @see #setExternallyDriven(boolean)
+     */
+    protected final boolean isExternallyDriven() {
+        return externallyDriven;
+    }
+
+    /**
      * {@inheritDoc}
      *
-     * <p>Register a TaskListener that will get called after FLOW.
+     * <p>In the default (self-driven) mode, registers a {@link TaskListener} that will get called
+     * after FLOW. In externally-driven mode (see {@link #externallyDriven}), no {@link
+     * TaskListener} is registered; the host drives the type-processing lifecycle instead.
+     *
+     * <p>The {@code shouldStopPolicy} is bumped to at least {@code FLOW} in both modes. The bump is
+     * idempotent, so it is harmless if a host has already requested the same or a later stop
+     * policy.
      */
     @Override
     public synchronized void init(ProcessingEnvironment env) {
         super.init(env);
-        JavacTask.instance(env).addTaskListener(listener);
+        if (!externallyDriven) {
+            JavacTask.instance(env).addTaskListener(listener);
+        }
         Context ctx = ((JavacProcessingEnvironment) processingEnv).getContext();
         JavaCompiler compiler = JavaCompiler.instance(ctx);
         compiler.shouldStopPolicyIfNoError =
@@ -146,6 +209,49 @@ public abstract class AbstractTypeProcessor extends AbstractProcessor {
      * <p>Method {@link #getCompilerLog()} can be used to access the number of compiler errors.
      */
     public void typeProcessingOver() {}
+
+    /**
+     * Drives a single {@link #typeProcess(TypeElement, TreePath)} invocation on behalf of an
+     * external host (see {@link #externallyDriven}), handling the once-only {@link
+     * #typeProcessingStart()} bracketing.
+     *
+     * <p>Intended for hosts that own the compilation {@link TaskListener} (e.g. an Error Prone
+     * plugin) and therefore cannot rely on this processor's own {@link AttributionTaskListener}.
+     * The host must call {@link #typeProcessingOverExternally()} once, after the last class has
+     * been processed.
+     *
+     * <p>Unlike the self-driven path, this method does not consult the {@link #elements} set (which
+     * is only populated during the declaration annotation-processing round); the host is
+     * responsible for deciding which classes to process and when processing is over.
+     *
+     * @param element element of the analyzed class
+     * @param tree the tree path to the element, with the leaf being a {@link ClassTree}
+     */
+    public final void typeProcessExternally(TypeElement element, TreePath tree) {
+        if (!hasInvokedTypeProcessingStart) {
+            typeProcessingStart();
+            hasInvokedTypeProcessingStart = true;
+        }
+        typeProcess(element, tree);
+    }
+
+    /**
+     * Signals, on behalf of an external host (see {@link #externallyDriven}), that all classes have
+     * been processed. Invokes {@link #typeProcessingOver()} exactly once. Also invokes {@link
+     * #typeProcessingStart()} first if it has not yet run (e.g. if no classes were processed).
+     *
+     * @see #typeProcessExternally(TypeElement, TreePath)
+     */
+    public final void typeProcessingOverExternally() {
+        if (!hasInvokedTypeProcessingStart) {
+            typeProcessingStart();
+            hasInvokedTypeProcessingStart = true;
+        }
+        if (!hasInvokedTypeProcessingOver) {
+            typeProcessingOver();
+            hasInvokedTypeProcessingOver = true;
+        }
+    }
 
     /**
      * Return the compiler log, which contains errors and warnings.

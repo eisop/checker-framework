@@ -187,6 +187,18 @@ TreeAnnotator
       <code>TODO<br/></code>
   </li>
   <li>
+      <strong>Note: JDK version for the Maven-publish step.</strong>
+      The <code>framework-errorprone</code> subproject (the Checker Framework as an
+      Error Prone plugin) is part of the build only when the build JDK is 21 or newer
+      (it is gated in <code>settings.gradle</code>).  The Maven-publish step
+      (<code>release_push</code>, which runs <code>./gradlew publish</code>) therefore
+      must run on <b>JDK 21 or later</b>; otherwise that artifact is silently excluded
+      and not published.  No per-artifact change is needed, since <code>publish</code>
+      picks up every subproject that has a publishing block.
+      (<code>release_vars.py</code> sets <code>JAVA_HOME</code> to
+      <code>JAVA_21_HOME</code>, which satisfies this.)
+  </li>
+  <li>
       <strong>In a user-specific temporary directory, clone/update the Checker Framework repository (it contains the release scripts).</strong><br/>
       <!-- This isn't a <pre> block because that formats differently than commands. -->
       <code>mkdir -p /tmp/$USER/cf-release<br/></code>

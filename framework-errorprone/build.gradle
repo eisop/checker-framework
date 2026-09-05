@@ -1,0 +1,145 @@
+// The framework-errorprone module lets the Checker Framework run as an Error Prone (EP) plugin,
+// as an alternative to the standalone javac annotation-processor mode.
+//
+// This is the ONLY module that depends on Error Prone.  Error Prone (error_prone_check_api)
+// requires JDK 21+, so this is a JDK-21+-only leaf module: settings.gradle only includes it when
+// the build JDK is 21+.  Core modules (checker-qual, javacutil, dataflow, framework, checker) must
+// never depend on or import com.google.errorprone.*; the EP dependency is quarantined here to keep
+// the standalone build lean and to avoid a dependency cycle (error_prone_check_api itself depends
+// on the published io.github.eisop:dataflow-errorprone artifact built from this repo's :dataflow
+// module).  See docs/developer/cf-errorprone-decisions.md (ADR-0002).
+
+// The rest of the build compiles with source/target 8 so the CF runs under Java 8.  This module
+// compiles against EP APIs and javac internals, which require a newer release, so clear the
+// inherited Java 8 compatibility and target 21 instead.  NOTE: use -source/-target 21, NOT
+// --release, because javac forbids --add-exports of system-module packages together with --release.
+java {
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
+}
+
+dependencies {
+    // The CF core engine (SourceChecker, BaseTypeChecker, AggregateChecker) lives here.
+    // 'implementation', not 'api': framework-errorprone is a launcher, not a library others
+    // compile against.  Concrete checkers (e.g. NullnessChecker in :checker) are resolved by
+    // reflection at runtime from the EP checkers option, so there is no compile-time dependency
+    // on :checker (which also keeps this module below :checker in the dependency graph).
+    implementation project(':framework')
+
+    // Nullness (and other) qualifier annotations used to annotate this module's own API. This
+    // module is dog-fooded: the build's checkNullness task runs the Nullness Checker over it.
+    // (checker-qual is already on the compile classpath transitively via :framework's api
+    // dependency; declared here explicitly because this module imports it directly.)
+    implementation project(':checker-qual')
+
+    // Error Prone check API: the BugChecker base class and related extension points.
+    // A PUBLISHED artifact (not a composite build): the build-graph edge crosses a published
+    // -artifact boundary, so Gradle sees no project-path cycle even though error_prone_check_api
+    // transitively depends on the published dataflow-errorprone built from this repo.
+    implementation "com.google.errorprone:error_prone_check_api:${versions.errorprone}"
+
+    // Test-only: run the plugin through Error Prone end-to-end.
+    // - error_prone_test_helpers provides CompilationTestHelper (captures ALL compiler
+    //   diagnostics, so it also sees findings that the Checker Framework prints through its own
+    //   Messager rather than reporting as Error Prone Descriptions).
+    // - error_prone_core supplies ScannerSupplier and the machinery to actually run EP in-process.
+    // - :checker provides concrete checkers (e.g. NullnessChecker) that the test selects by name.
+    //   Depend on its shadow ("-all") jar file directly: that fat jar is what users actually put on
+    //   the Error Prone processorpath, and (unlike the skinny runtime variant) it definitively
+    //   contains the checker classes. A file dependency on the shadowJar task output sidesteps
+    //   Gradle variant-attribute matching (the shadow variant is tagged Java-8, incompatible with
+    //   this Java-21 module). TEST scope only: main code resolves checkers by reflection, so the
+    //   module stays below :checker in the production dependency graph.
+    testImplementation "com.google.errorprone:error_prone_test_helpers:${versions.errorprone}"
+    testImplementation "com.google.errorprone:error_prone_core:${versions.errorprone}"
+    testImplementation files(tasks.getByPath(':checker:shadowJar').archiveFile) {
+        builtBy ':checker:shadowJar'
+    }
+    testImplementation "junit:junit:${versions.junit}"
+}
+
+// Error Prone discovers this plugin via a hand-written
+// META-INF/services/com.google.errorprone.bugpatterns.BugChecker resource (src/main/resources),
+// not @AutoService.  See docs/developer/cf-errorprone-decisions.md (ADR-0002 notes) for why the
+// auto-service annotation processor is not reliable in this build.
+
+// framework-errorprone reaches into com.sun.tools.javac.* (as the rest of the CF does on JDK 9+).
+// Reuse the parent project's shared compilerArgsForCompilingCF (the --add-exports flags, without
+// the runtime-only --add-opens) rather than repeating them here.
+tasks.withType(JavaCompile).configureEach {
+    options.compilerArgs += compilerArgsForCompilingCF
+}
+
+// Tests launch an in-process javac against EP + CF internals, so they need the same module flags
+// at run time as the parent project's shared compilerArgsForRunningCF, plus one extra
+// --add-exports of com.sun.tools.javac.parser which Error Prone's ASTHelpers requires.
+tasks.withType(Test).configureEach {
+    jvmArgs += compilerArgsForRunningCF
+    jvmArgs += ['--add-exports', 'jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED']
+}
+
+tasks.named('jar') {
+    archiveBaseName = 'framework-errorprone'
+}
+
+apply from: rootProject.file('gradle-mvn-push.gradle')
+
+/**
+ * Adds information to the publication for uploading to Maven repositories.
+ *
+ * <p>Unlike most modules, this does NOT call rootProject.sharedPublicationConfiguration: that
+ * lists the shared lead maintainers, whereas this module lists only its author.
+ */
+final frameworkErrorpronePom(publication) {
+    // The global shadow plugin adds a "shadowRuntimeElements" variant (the "-all" jar) to
+    // components.java.  That fat jar bundles a copy of Error Prone's classes and must NOT be a
+    // published variant of this artifact (a Gradle consumer could otherwise resolve it,
+    // reintroducing the "BugChecker not a subtype" class-loading problem).  Publish only the
+    // plain jar.
+    components.java.withVariantsFromConfiguration(configurations.shadowRuntimeElements) {
+        skip()
+    }
+    publication.from components.java
+    publication.pom {
+        name = 'Checker Framework as an Error Prone plugin'
+        description = String.join(System.lineSeparator(),
+                'framework-errorprone runs the EISOP Checker Framework as an Error Prone plugin',
+                '(the "eisopcf" check), as an alternative to running it as a standalone javac',
+                'annotation processor. It requires JDK 21 or later.')
+        url = 'https://eisop.github.io/'
+        developers {
+            developer {
+                id = 'wmdietl'
+                name = 'Werner M. Dietl'
+                email = 'wdietl@gmail.com'
+                url = 'https://ece.uwaterloo.ca/~wdietl/'
+                organization = 'University of Waterloo'
+                organizationUrl = 'https://uwaterloo.ca/'
+            }
+        }
+        licenses {
+            license {
+                name = 'GNU General Public License, version 2 (GPL2), with the classpath exception'
+                url = 'http://www.gnu.org/software/classpath/license.html'
+                distribution = 'repo'
+            }
+        }
+        scm {
+            url = 'https://github.com/eisop/checker-framework.git'
+            connection = 'scm:git:https://github.com/eisop/checker-framework.git'
+            developerConnection = 'scm:git:ssh://git@github.com/eisop/checker-framework.git'
+        }
+    }
+}
+
+publishing {
+    publications {
+        frameworkErrorprone(MavenPublication) {
+            frameworkErrorpronePom it
+        }
+    }
+}
+
+signing {
+    sign publishing.publications.frameworkErrorprone
+}

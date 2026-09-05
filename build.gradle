@@ -255,34 +255,36 @@ allprojects { currentProj ->
     }
 
     ext {
-        // A list of add-export and add-open arguments to be used when running the Checker Framework.
-        // Keep this list in sync with the lists in CheckerMain#getExecArguments,
+        // The add-export and add-open arguments for compiling and for running the Checker Framework.
+        // Keep these lists in sync with the lists in CheckerMain#getExecArguments,
         // the sections with labels "javac-jdk11-non-modularized", "maven", and "sbt" in the manual
         // and in the checker-framework-gradle-plugin, CheckerFrameworkPlugin#applyToProject
-        compilerArgsForRunningCF = [
-            // These are required in Java 16+ because the --illegal-access option is set to deny
-            // by default.  None of these packages are accessed via reflection, so the module
-            // only needs to be exported, but not opened.
-            '--add-exports',
-            'jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED',
-            '--add-exports',
-            'jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED',
-            '--add-exports',
-            'jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED',
-            '--add-exports',
-            'jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED',
-            '--add-exports',
-            'jdk.compiler/com.sun.tools.javac.model=ALL-UNNAMED',
-            '--add-exports',
-            'jdk.compiler/com.sun.tools.javac.processing=ALL-UNNAMED',
-            '--add-exports',
-            'jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED',
-            '--add-exports',
-            'jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED',
-            // Required because the Checker Framework reflectively accesses private members in com.sun.tools.javac.comp.
-            '--add-opens',
-            'jdk.compiler/com.sun.tools.javac.comp=ALL-UNNAMED',
+        //
+        // These are required in Java 16+ because the --illegal-access option is set to deny by
+        // default.  The exported packages are not accessed via reflection, so they only need to be
+        // exported, not opened; com.sun.tools.javac.comp is opened because the Checker Framework
+        // reflectively accesses its private members.
+        def javacExportedPackages = [
+            'api', 'code', 'file', 'main', 'model', 'processing', 'tree', 'util',
         ]
+        def javacOpenedPackages = ['comp']
+        // Expose the bare package-name lists so other tasks (e.g. the Javadoc --add-exports below)
+        // can reuse them without repeating the fully-qualified flag strings.
+        javacInternalExportedPackages = javacExportedPackages
+        javacInternalOpenedPackages = javacOpenedPackages
+
+        // The --add-exports arguments, for compiling code that reaches into javac internals.  This
+        // list omits the --add-opens: at compile time they have no effect and javac warns, which
+        // fails the build under -Werror.  Only framework-errorprone currently needs javac-internal
+        // exports at compile time.
+        compilerArgsForCompilingCF = javacExportedPackages.collectMany {
+            ['--add-exports', "jdk.compiler/com.sun.tools.javac.${it}=ALL-UNNAMED".toString()]
+        }
+
+        // The exports plus the --add-opens arguments, for actually running the Checker Framework.
+        compilerArgsForRunningCF = compilerArgsForCompilingCF + javacOpenedPackages.collectMany {
+            ['--add-opens', "jdk.compiler/com.sun.tools.javac.${it}=ALL-UNNAMED".toString()]
+        }
     }
 
     apply plugin: 'com.diffplug.spotless'
@@ -490,15 +492,11 @@ allprojects { currentProj ->
             options.tagletPath(project(':framework-test').layout.buildDirectory.dir("classes/java/${tagletVersion}").get().asFile)
 
             if (!isJava8) {
-                options.addBooleanOption('-add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED', true)
-                options.addBooleanOption('-add-exports=jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED', true)
-                options.addBooleanOption('-add-exports=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED', true)
-                options.addBooleanOption('-add-exports=jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED', true)
-                options.addBooleanOption('-add-exports=jdk.compiler/com.sun.tools.javac.model=ALL-UNNAMED', true)
-                options.addBooleanOption('-add-exports=jdk.compiler/com.sun.tools.javac.processing=ALL-UNNAMED', true)
-                options.addBooleanOption('-add-exports=jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED', true)
-                options.addBooleanOption('-add-exports=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED', true)
-                options.addBooleanOption('-add-exports=jdk.compiler/com.sun.tools.javac.comp=ALL-UNNAMED', true)
+                // Javadoc needs the same javac-internal packages as running the CF, but only
+                // exported: the package that is opened at run time (comp) is merely exported here.
+                (javacInternalExportedPackages + javacInternalOpenedPackages).each { pkg ->
+                    options.addBooleanOption("-add-exports=jdk.compiler/com.sun.tools.javac.${pkg}=ALL-UNNAMED", true)
+                }
             }
 
             // "-Xwerror" requires Javadoc everywhere.  Currently, CI jobs require Javadoc only
@@ -865,6 +863,19 @@ def javadocDirs = [
 ]
 
 def requireJavadocDirs = javadocDirs
+
+// framework-errorprone exists only on JDK 21+ builds (gated in settings.gradle), so it is not in
+// the unconditional javadocDirs list above.  When it IS part of the build, include its sources in
+// the require-javadoc completeness check, so its Javadoc is enforced like every other module's.
+// (allJavadoc still omits it: it is a leaf plugin module, not part of the published API docs.)
+if (findProject(':framework-errorprone') != null) {
+    project(':framework-errorprone').afterEvaluate {
+        requireJavadocDirs += [
+            project(':framework-errorprone').sourceSets.main.allJava,
+            project(':framework-errorprone').sourceSets.test.allJava
+        ]
+    }
+}
 
 // The wrapping '[ ]' is required.  'requireJavadocDirs += someSourceDirectorySet'
 // would resolve Groovy's plus(List, Iterable) overload (SourceDirectorySet is

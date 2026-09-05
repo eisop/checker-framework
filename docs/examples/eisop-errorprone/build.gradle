@@ -1,0 +1,144 @@
+// ///////////////////////////////////////////////////////////////////////////
+// Example: run the EISOP Checker Framework as an Error Prone plugin (eisopcf).
+//
+// Unlike the sibling "errorprone" example (which runs the Checker Framework as a
+// standalone annotation processor alongside Error Prone), this example runs the Checker
+// Framework *inside* Error Prone, as the single "eisopcf" Error Prone check.
+//
+// Two modes, selected by the cfVersion project property, as in the sibling examples.  Those use
+// the org.checkerframework Gradle plugin, which implements -PcfVersion=local itself; this example
+// cannot, because that plugin configures the annotation-processor path and here the Checker
+// Framework runs inside Error Prone instead.  So the two modes are spelled out below.
+//   * -PcfVersion=local  -- consume this checkout's jars, so the example exercises the current
+//                           development Checker Framework. This is what the examples CI job runs;
+//                           :checker:exampleTests builds the jars first, so no nested Gradle
+//                           build is needed here.
+//   * (default)          -- consume the published io.github.eisop artifacts from Maven Central.
+//                           This fails until framework-errorprone has its first release; every
+//                           other artifact it names is already published at eisopVersion below.
+// See docs/developer/cf-errorprone.md.
+//
+
+plugins {
+    id 'java'
+    id 'net.ltgt.errorprone' version '5.1.0'
+}
+
+repositories {
+    mavenCentral()
+}
+
+// Released version to consume in the default (non-local) mode, kept in step with the sibling
+// examples. Of the artifacts below, only framework-errorprone is missing at this version: that
+// mode therefore fails until the first release that includes framework-errorprone, after which
+// bumping this to that release makes it work.
+def eisopVersion = '3.49.5-eisop1'
+
+boolean useLocal = findProperty('cfVersion') == 'local'
+
+// The Checker Framework repository root (this example lives at docs/examples/eisop-errorprone).
+def cfRoot = rootProject.file('../../..')
+
+// checker/dist holds unversioned copies of the jars this checkout builds, written by
+// :checker:assembleForJavac, which :checker:exampleTests depends on.  dist/checker.jar is the
+// shadow ("-all") jar -- the one users put on the Error Prone processorpath.  Taking them from
+// here rather than globbing build/libs keeps the example off the versioned "-all" file names.
+def cfDistJar = { String name ->
+    def jar = file("${cfRoot}/checker/dist/${name}")
+    if (!jar.exists()) {
+        throw new GradleException(
+                "Could not find ${jar}. It is built by the :checker:exampleTests task; to build"
+                        + " it directly run, from the repository root:"
+                        + " ./gradlew :checker:assembleForJavac")
+    }
+    return jar
+}
+
+// framework-errorprone has no checker/dist entry, so locate it by name, tolerating the version.
+// It must be the plain jar, NOT the "-all" shadow jar: that one bundles a copy of Error Prone's
+// classes, which breaks the BugChecker service check ("not a subtype").
+def frameworkErrorproneJar = {
+    def libs = file("${cfRoot}/framework-errorprone/build/libs")
+    def match = libs.listFiles()?.findAll {
+        it.name.startsWith('framework-errorprone-')
+                && it.name.endsWith('.jar')
+                && !it.name.endsWith('-all.jar')
+                && !it.name.contains('sources')
+                && !it.name.contains('javadoc')
+    }
+    if (match == null || match.isEmpty()) {
+        throw new GradleException(
+                "Could not find framework-errorprone-*.jar in ${libs}. It is built by the"
+                        + " :checker:exampleTests task; to build it directly run, from the"
+                        + " repository root: ./gradlew :framework-errorprone:jar")
+    }
+    return match[0]
+}
+
+dependencies {
+    if (useLocal) {
+        // Annotations used by the demo source (e.g. @Nullable).
+        compileOnly files(cfDistJar('checker-qual.jar'))
+
+        // Error Prone itself, the eisopcf plugin, and the Checker Framework checkers to run, all
+        // on the errorprone (annotation processor) path.  The plugin resolves the selected checker
+        // class by name at run time from this path.
+        errorprone "com.google.errorprone:error_prone_core:2.50.0"
+        errorprone files(frameworkErrorproneJar())
+        // Bundles all Checker Framework checkers.
+        errorprone files(cfDistJar('checker.jar'))
+    } else {
+        // Annotations used by the demo source (e.g. @Nullable).
+        compileOnly "io.github.eisop:checker-qual:${eisopVersion}"
+
+        // Error Prone itself, the published eisopcf plugin, and the Checker Framework checkers to
+        // run, all on the errorprone (annotation processor) path.
+        errorprone "com.google.errorprone:error_prone_core:2.50.0"
+        errorprone "io.github.eisop:framework-errorprone:${eisopVersion}"
+        errorprone "io.github.eisop:checker:${eisopVersion}"
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    // The Makefile greps the build output for the demo's finding, and compiler diagnostics are
+    // not among this task's declared outputs.  This example's finding is a warning, so unlike the
+    // sibling examples -- whose expected output includes an error, and whose compile therefore
+    // fails and never goes up to date -- this compile succeeds and a second run would print
+    // nothing for the Makefile to find.  So always recompile.
+    outputs.upToDateWhen { false }
+    options.errorprone.enabled = true
+    // Select the Checker Framework type system(s) to run as the eisopcf check.  Add more,
+    // comma-separated, to run several type systems over the one compilation.
+    options.errorprone.option(
+            'eisopcf:checkers',
+            'org.checkerframework.checker.nullness.NullnessChecker')
+
+    // Checker Framework options are passed with javac -A, exactly as in standalone mode (NOT via
+    // -XepOpt).  Both common options and checker-specific options (-ACheckerName_option=...) work.
+    // Examples (commented out so this example still reports its demo error):
+    //   options.compilerArgs += ['-Astubs=/path/to/my.astub']
+    //   options.compilerArgs += ['-AsuppressWarnings=nullness']   // would suppress the demo error
+    //   options.compilerArgs += ['-ANullnessChecker_someOption=value']
+
+    // javac options Error Prone (and the Checker Framework) require.
+    options.compilerArgs += [
+        '-XDcompilePolicy=simple',
+        '--should-stop=ifError=FLOW',
+        '-XDaddTypeAnnotationsToSymbol=true',
+    ]
+
+    // The Checker Framework and Error Prone reach into javac internals.
+    options.fork = true
+    options.forkOptions.jvmArgs += [
+        '--add-exports', 'jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED',
+        '--add-exports', 'jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED',
+        '--add-exports', 'jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED',
+        '--add-exports', 'jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED',
+        '--add-exports', 'jdk.compiler/com.sun.tools.javac.model=ALL-UNNAMED',
+        '--add-exports', 'jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED',
+        '--add-exports', 'jdk.compiler/com.sun.tools.javac.processing=ALL-UNNAMED',
+        '--add-exports', 'jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED',
+        '--add-exports', 'jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED',
+        '--add-opens', 'jdk.compiler/com.sun.tools.javac.comp=ALL-UNNAMED',
+    ]
+}

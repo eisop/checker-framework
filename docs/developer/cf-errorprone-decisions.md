@@ -1,0 +1,786 @@
+# Architectural Decision Log: Checker Framework as an Error Prone plugin
+
+This document records the design decisions made while integrating the EISOP
+Checker Framework (CF) so that it can run either as a standalone javac
+annotation processor (the existing, canonical mode) or as an Error Prone (EP)
+plugin. It is the raw material for the user-facing documentation produced in
+Task 8. Entries are append-only and roughly chronological.
+
+## Goals (as agreed with the maintainers)
+
+- **1b (primary):** Let teams already using Error Prone enable CF type systems
+  through their existing EP configuration.
+- **1c (desirable):** Reuse EP's suggested-fix / patching pipeline for CF fixes.
+- **Single entry point:** One EP check builds one AST/CFG and runs *multiple*
+  selected CF type systems over it (reusing the CF's aggregate/subchecker
+  infrastructure and shared-CFG support), rather than registering N independent
+  annotation processors.
+- **Diagnostics:** CF findings become EP `Description`s (option "2a"), so EP
+  severity/suppression and the patch pipeline apply.
+- **Keep standalone mode unchanged:** Core modules must not gain any EP or Guava
+  dependency, and standalone annotation-processor behavior must not change.
+
+## Fixed conventions
+
+- New git branch: `cf-ep`.
+- EP option namespace: `eisopcf` (e.g. `-XepOpt:eisopcf:checkers=...`). Chosen
+  over `CheckerFramework` to keep EISOP CF distinct from the typetools CF.
+- The new EP-specific Gradle module consumes a *published* `error_prone_check_api`
+  artifact (latest release), never a composite build. See ADR-0002.
+
+## Module layering (verified)
+
+Current dependency order (no Guava/EP anywhere in these):
+
+    checker-qual <- javacutil <- dataflow <- framework <- checker
+
+- `SourceChecker`, `BaseTypeChecker`, `AggregateChecker` live in `framework`.
+- Concrete checkers (e.g. `NullnessChecker`) live in `checker`.
+- `AbstractTypeProcessor` lives in `javacutil`.
+
+## Cyclic-dependency constraint (verified)
+
+`error_prone_check_api` depends on `io.github.eisop:dataflow-errorprone`, which
+is produced by *this* repo's `dataflow` module (`createDataflowShaded('errorprone')`
+in `dataflow/build.gradle`). Therefore:
+
+- The EP dependency must live only in the new leaf module(s).
+- Core modules must never import `com.google.errorprone.*`.
+- The new module consumes a *published* `error_prone_check_api` jar so the build
+  graph edge crosses a published-artifact boundary (no Gradle project-path cycle).
+
+`dataflow-errorprone` is package-relocated to
+`org.checkerframework.errorprone.dataflow...`; the CF core uses the un-relocated
+`org.checkerframework.dataflow`. The bridge must ensure the CF core loads its own
+(un-relocated) dataflow classes, not EP's shaded copy. (Addressed in Task 3.)
+
+---
+
+## ADR-0001: Externally-driven mode for `AbstractTypeProcessor`
+
+**Status:** accepted (Task 1)
+
+**Context.** Both the CF and EP drive work from a `TaskListener` on
+`TaskEvent.Kind.ANALYZE`-finished, walking a fully-attributed `TreePath`.
+- CF: `AbstractTypeProcessor.AttributionTaskListener` -> `typeProcessingStart()`,
+  then `typeProcess(TypeElement, TreePath)` per top-level class (the `TreePath`
+  leaf is a `ClassTree`), then `typeProcessingOver()`.
+- EP: `ErrorProneAnalyzer` (itself a `TaskListener`) invokes registered
+  `BugChecker`s per tree node as it scans each attributed compilation unit.
+
+In EP mode, EP already owns the `TaskListener` and already forces
+`--should-stop=ifError=FLOW`. If the CF's `AbstractTypeProcessor.init()` also
+registered its own `AttributionTaskListener`, type-checking would run twice
+(once EP-driven, once CF-listener-driven).
+
+**Decision.** Add an "externally-driven" mode to `AbstractTypeProcessor`:
+- A protected boolean, default `false`, preserving the existing self-driven
+  behavior for standalone mode.
+- When externally driven, `init()` does **not** register the
+  `AttributionTaskListener`. A host (the EP bridge) invokes the existing public
+  `typeProcessingStart()` / `typeProcess(...)` / `typeProcessingOver()` methods
+  itself, guarding the once-only lifecycle with the same flags the listener uses.
+- The `shouldStopPolicy` bump to FLOW is kept unconditionally: it is idempotent
+  and EP sets the same policy, so it is harmless in both modes.
+
+**Consequences.**
+- Standalone mode is byte-for-byte unchanged (the field defaults to self-driven).
+- The core logic (`typeProcess` -> `visitor.visit`) is untouched and shared by
+  both modes; no `com.google.errorprone.*` reference enters `javacutil` or
+  `framework`.
+- The host is responsible for the once-only `typeProcessingStart` /
+  `typeProcessingOver` bracketing when externally driven; a public helper is
+  exposed so the host does not duplicate the lifecycle guards.
+
+
+### ADR-0001 notes: verification and API surface
+
+- `AbstractTypeProcessor.setExternallyDriven(boolean)` is `public`, so the EP bridge
+  (in a different package, holding a `SourceChecker` reference) can call it directly.
+  It must be called before `init(ProcessingEnvironment)`.
+- Host-facing lifecycle helpers `typeProcessExternally(TypeElement, TreePath)` and
+  `typeProcessingOverExternally()` handle the once-only `typeProcessingStart` /
+  `typeProcessingOver` bracketing so the host does not duplicate the guard logic.
+  They intentionally do **not** consult the `elements` set (populated only during
+  the declaration annotation-processing round, which does not run meaningfully in
+  EP mode); the host decides which classes to process and when it is done.
+- Verification for Task 1 focuses on "standalone unchanged": `AggregateTest`,
+  `CompoundCheckerTest`, and `ElementSuppressionTest` (which exercise the
+  subchecker/aggregate lifecycle most directly) all pass unchanged. The
+  externally-driven path itself is exercised end-to-end by the Error Prone
+  `CompilationTestHelper` test added in Task 4, over a real compilation, rather
+  than via a throwaway low-level `ProcessingEnvironment`/`TreePath` harness.
+- `SourceChecker.typeProcess` skips a compilation unit whose processing began
+  after `Log.nerrors` rose, and latches `javacErrored` so every later unit is
+  skipped too. That is the right reading of `Log.nerrors` in standalone mode,
+  where the only errors are javac's own and a raised count means an
+  unattributable AST. It is the wrong reading when a host drives the lifecycle:
+  EP reports every check's findings as javac diagnostics, so one ERROR --- from
+  an unrelated check such as `SelfAssignment`, or from `eisopcf` itself ---
+  stops all further type-checking. The guard is therefore conditioned on
+  `!isExternallyDriven()`; `--should-stop=ifError=FLOW`, which EP requires,
+  already keeps an unattributable unit from reaching the host. EP enforces that
+  flag at plugin init (`BaseErrorProneJavaCompiler.checkShouldStopIfErrorPolicy`
+  throws `InvalidCommandLineOptionException` without it), so it cannot be absent.
+  Verified: a file with an unresolvable symbol plus a later file with a nullness
+  error reports only javac's error, in both standalone and EP mode.
+- `instantiateSubcheckers` propagates the parent's externally-driven flag to
+  each subchecker, before `setProcessingEnvironment` (which
+  `setExternallyDriven` refuses to follow). Subcheckers run from the parent's
+  `typeProcess`, so they share the parent's lifecycle ownership; without the
+  propagation a subchecker keeps the standalone `Log.nerrors` guard and stops
+  checking on the first EP error.
+
+
+---
+
+## ADR-0002: `framework-errorprone` is a JDK-21+-only leaf module
+
+**Status:** accepted (Task 2)
+
+**Context.** The new EP bridge module must compile and run against Error Prone
+`error_prone_check_api` 2.50.0. Error Prone requires JDK 21+ (its own build uses
+a JDK-21 toolchain; EP as a tool does not run below 21). Every existing CF module,
+however, is compiled with `sourceCompatibility = targetCompatibility = 8` so that
+the Checker Framework can run under Java 8. These two requirements cannot both hold
+for the bridge module.
+
+The repo already gates Error Prone itself on `useJdkVersionInt >= 21` (see the root
+`build.gradle` `dependencies` block that only adds `error_prone_core` when the build
+JDK is 21+).
+
+**Decision.**
+- `framework-errorprone` is included in the Gradle build **only** when the build JDK
+  is 21+ (`useJdkVersionInt >= 21`), via a conditional `include` in `settings.gradle`
+  (chosen option "a"). On Java 8/11/17 builds the module is not part of the build at
+  all, so it never configures its EP dependency and cannot affect the standalone
+  Java 8 build path.
+- Inside the module, override the global Java 8 compatibility: set
+  `sourceCompatibility`/`targetCompatibility` to 21 (not `options.release`, which javac
+  rejects together with `--add-exports` of system-module packages) and pass the same
+  `--add-exports jdk.compiler/...` flags the rest of the build uses on JDK 9+ (the CF
+  reaches into `com.sun.tools.javac.*`).
+- Consequence, stated plainly: **CF-as-an-Error-Prone-plugin requires JDK 21+.**
+  Standalone annotation-processor mode keeps its full Java 8+ support, unchanged.
+  No capability is lost, since EP already requires 21+.
+
+**Version.** Reuse the existing central `versions.errorprone` property (`2.50.0`),
+which is already the latest published `error_prone_check_api` release and the version
+the CF is otherwise built/tested against. No new version property is introduced.
+
+**Consequences / follow-ups.**
+- Release scripts will later need updating so the JDK-21+-only artifact is built and
+  published correctly. Deferred (agreed with maintainers) — not addressed in this task.
+- The module gets the shared root config automatically (spotless, the Error Prone
+  build-time linter with `-Werror`, publishing scaffolding), so its own code must be
+  EP-linter-clean.
+
+
+### ADR-0002 notes: BugChecker service registration without @AutoService
+
+**Problem.** The obvious way to register the Error Prone plugin is
+`@AutoService(BugChecker.class)`, which relies on the auto-service annotation
+processor to generate `META-INF/services/com.google.errorprone.bugpatterns.BugChecker`.
+In this repo that processor never runs reliably for a subproject:
+
+- The root `build.gradle` reassigns `options.annotationProcessorPath =
+  configurations.errorProneAnnotationProcessor` in a subprojects `afterEvaluate`,
+  and the `net.ltgt.errorprone` plugin (v5.1.1) runs Error Prone as a compiler
+  `-Xplugin` rather than a plain annotation processor.
+- Even after forcing auto-service onto the processor path, javac reported
+  "No processor claimed ... @AutoService, @BugPattern": `error_prone_core` drags
+  in conflicting transitive `auto-service` / `auto-common` versions, so the
+  auto-service processor did not claim the annotation.
+
+**Decision.** Do not use `@AutoService`. Register the plugin with a hand-written
+resource file `src/main/resources/META-INF/services/com.google.errorprone.bugpatterns.BugChecker`
+containing the fully-qualified plugin class name. This is deterministic, needs no
+annotation processor, and is exactly what Error Prone's `ServiceLoader`-based
+`ErrorPronePlugins` discovery reads. It also keeps the module's annotation
+processor path untouched, avoiding the version-conflict fragility above.
+
+
+### ADR-0002 notes: verified dependency facts (Task 2)
+
+- **No cycle.** `framework-errorprone` -> published `error_prone_check_api:2.50.0`
+  -> published `io.github.eisop:dataflow-errorprone:3.41.0-eisop1`. That last
+  artifact is a *released* jar, distinct from this reactor's `:dataflow` project
+  (currently 3.49.x). The version skew across the published-artifact boundary is
+  precisely what keeps Gradle from seeing a project-path cycle.
+- **Core stays EP-framework-free.** `:javacutil`, `:dataflow`, `:framework`
+  runtime classpaths contain no `error_prone_check_api`, `error_prone_core`, or
+  real `com.google.guava:guava`. They do reference `error_prone_annotations` (a
+  trivial annotations-only jar) and `org.checkerframework.annotatedlib:guava`
+  (the CF's annotated Guava stubs) — both pre-existing and unrelated to the EP
+  framework. The requirement is "no EP *framework* in core," which holds.
+- **Watch for Task 3:** EP bundles `dataflow-errorprone` *relocated* to
+  `org.checkerframework.errorprone.dataflow...`, and at an *older* version than
+  this repo's `:dataflow`. When the bridge runs a CF checker, the checker must use
+  the CF core's own un-relocated `org.checkerframework.dataflow` (from `:framework`
+  -> `:dataflow`), not EP's shaded/older copy. Package names differ, so they can
+  coexist, but this must be verified in Task 3.
+
+### Build wiring facts (Task 2)
+
+- `settings.gradle` computes the build JDK major version directly (settings is
+  evaluated before build.gradle) and only `include 'framework-errorprone'` when it
+  is >= 21.
+- The javac-internal flags are not repeated in the module: the root `build.gradle`
+  derives `compilerArgsForCompilingCF` (the `--add-exports` only, since a compile-time
+  `--add-opens` warns and would fail the `-Werror` build) and
+  `compilerArgsForRunningCF` (those plus the `--add-opens`) from one list of package
+  names, and the module reuses both.
+- The module inherits the shared root config (spotless; the `net.ltgt.errorprone`
+  build-time linter with `-Werror`). Its code must therefore be EP-linter-clean;
+  `@SuppressWarnings("BugPatternNaming")` is used on the plugin class because the
+  canonical check name (`eisopcf`) intentionally differs from the class name.
+- The module is dog-fooded: it depends on `checker-qual` and the shared `checkNullness`
+  task runs the Nullness Checker over it. Unlike `framework`/`checker` (which are checked
+  only in `@AnnotatedFor("nullness")` files, via
+  `-AuseConservativeDefaultsForUncheckedCode=source`), `framework-errorprone` takes the
+  default `createCheckTypeTask` args, so its *entire* source set is checked with no
+  per-file opt-in. Its API is annotated accordingly (`@Nullable` on the lazily-set
+  plugin fields, the `driverFor`/`buildSuppressionFix` returns, the optional
+  `DiagnosticSink` parameter, and the classloader-candidate array).
+
+
+---
+
+## ADR-0003: Context -> ProcessingEnvironment from the javac Context
+
+**Status:** accepted (Task 3)
+
+**Context.** `SourceChecker.init(ProcessingEnvironment)` needs a real
+`ProcessingEnvironment` (for `Trees`, `Messager`, `Elements`, `Types`, options).
+In Error Prone mode the bridge only has Error Prone's `VisitorState.context`, a
+`com.sun.tools.javac.util.Context`.
+
+**Decision.** Obtain the environment from the javac `Context`, with
+`context.get(JavacProcessingEnvironment.class)`. This works because the
+`JavacProcessingEnvironment` singleton stays registered in the `Context` through
+the ANALYZE phase (when Error Prone, and therefore this plugin, runs). It is
+precedented: NullAway obtains the same environment (`Trees.instance(
+JavacProcessingEnvironment.instance(state.context))`). `Context.get` is used rather
+than `JavacProcessingEnvironment.instance` because the latter would construct and
+register a fresh environment unrelated to the compilation instead of revealing that
+none is present. `SourceChecker.unwrapProcessingEnvironment`
+explicitly recognizes a `JavacProcessingEnvironment` and uses it as-is, so this is
+*the same* environment the CF gets in standalone mode.
+
+The adapter (`EisopContextAdapter`) contains no Error Prone types — only the JDK
+compiler API — so the Context-to-ProcessingEnvironment concern is unit-testable
+without constructing a `VisitorState`.
+
+**Consequences / caveats.**
+- The environment is registered even under `-proc:none`: javac's
+  `BasicJavacTask.initPlugins` calls `JavacProcessingEnvironment.instance(context)`
+  unconditionally, in order to service-load `com.sun.source.util.Plugin`s, so the
+  singleton exists whenever a plugin such as Error Prone can run at all. (Verified by a
+  test that compiles with `-proc:none`.) The adapter's `IllegalStateException` therefore
+  signals a `Context` that is not that of a live javac compilation, not that annotation
+  processing was turned off.
+- Element/type resolution via the environment is only valid *while the compiler is
+  live* (during the ANALYZE callback), not after the task completes. The Error
+  Prone plugin runs mid-compilation, so this is naturally satisfied; the unit test
+  runs its assertions inside an ANALYZE `TaskListener` for the same reason.
+
+### ADR-0003 notes: dataflow classloader guard (Task 3)
+
+**Concern (from ADR-0002 notes).** Error Prone's classpath carries a
+package-relocated, older dataflow copy (`org.checkerframework.errorprone.dataflow`,
+3.41.x), while the CF core uses the un-relocated `org.checkerframework.dataflow`
+(3.49.x). A CF checker running under Error Prone must use the un-relocated copy.
+
+**Finding.** The two copies have *different package names*, so they coexist as
+distinct classes with no collision. `Class.forName("org.checkerframework.dataflow
+.cfg.ControlFlowGraph")` resolves to the CF's own un-relocated class; the relocated
+FQN (`org.checkerframework.errorprone.dataflow...`) is a different class entirely.
+`EisopContextAdapter.loadedDataflowPackage()` exposes which is loaded, and the test
+`EisopContextAdapterTest` asserts (a) the un-relocated package is what resolves and
+(b) both copies are present yet distinct. No shading/relocation work is needed on
+our side; the guard is a regression test rather than a code fix.
+
+**Significance.** This was the highest-risk unknown in the plan (the
+Context->ProcessingEnvironment bridge and shaded-dataflow coexistence). Both work
+with a thin adapter and no invasive changes, which de-risks Tasks 4-7.
+
+
+---
+
+## ADR-0004: Umbrella BugChecker drives the CF via reflection (Task 4)
+
+**Status:** accepted (Task 4)
+
+**Design.** `EisopCheckerFrameworkPlugin` (the `eisopcf` `ClassTreeMatcher`) reads
+the comma-separated `-XepOpt:eisopcf:checkers=<FQN>[,<...>]` option through an
+`@Inject EisopCheckerFrameworkPlugin(ErrorProneFlags)` constructor
+(`flags.getListOrEmpty("eisopcf:checkers")`). On the first `matchClass` of a
+compilation it builds a `CheckerFrameworkDriver`, which:
+1. obtains the `ProcessingEnvironment` from the `VisitorState.context` via
+   `EisopContextAdapter` (ADR-0003);
+2. instantiates each selected `SourceChecker` reflectively by name (no compile-time
+   dependency on `:checker`);
+3. calls `setExternallyDriven(true)` then `init(procEnv)` (ADR-0001);
+4. per class, calls `typeProcessExternally(classSymbol, state.getPath())`.
+
+The class symbol comes from `ASTHelpers.getSymbol(ClassTree)` and the `TreePath`
+from `VisitorState.getPath()` (leaf = the matched `ClassTree`). Only *top-level*
+classes are driven: Error Prone's scanner matches every class node, but the CF's
+`SourceVisitor.visit(TreePath)` recursively scans the whole subtree it is given, so a
+nested, local, or anonymous class is already checked as part of its top-level class.
+This mirrors standalone mode, where `AttributionTaskListener` fires `typeProcess` once
+per top-level type.
+
+**End-of-compilation.** The CF's `typeProcessingOver` is a whole-compilation step
+(e.g. unneeded-suppression warnings), but `ClassTreeMatcher` has no end hook. The
+driver registers a `MultiTaskListener.instance(context).add(listener)` that calls
+`CheckerFrameworkDriver.finish()` on the `TaskEvent.Kind.COMPILATION`-finished
+event. (`MultiTaskListener` is the Context-level way to add a `TaskListener`;
+`JavacTask.instance` takes a `ProcessingEnvironment`, not a `Context`.)
+
+**Diagnostics (2b).** `matchClass` returns `Description.NO_MATCH`; the CF reports
+through its own `Messager`. Task 5 will switch to emitting EP `Description`s.
+
+**Findings worth remembering.**
+- **Checker jar variant.** A plain `testImplementation project(':checker')`
+  resolves to `:checker`'s skinny/runtime variant, which did NOT put
+  `NullnessChecker` on the test classpath (confirmed with a probe: plain
+  `Class.forName` failed, unrelated to Error Prone). The fix is to depend on the
+  shadow ("-all") jar file directly:
+  `testImplementation files(tasks.getByPath(':checker:shadowJar').archiveFile) { builtBy ':checker:shadowJar' }`.
+  A `project(path: ':checker', configuration: 'shadowRuntimeElements')` dependency
+  fails variant matching because the shadow variant is tagged Java-8 while this
+  module is Java-21. The fat jar is also what users really put on the processorpath,
+  so this is deployment-faithful.
+- **Classloader resolution.** `CheckerFrameworkDriver.loadCheckerClass` tries, in
+  order, the classloaders of `SourceChecker`, the thread context, and the driver
+  itself. In the test all three are the same app classloader; the multi-loader
+  approach is defensive for deployments where Error Prone loads the plugin through a
+  `MaskedClassLoader` from the processorpath.
+- **Error Prone required javac exports for in-process tests.** The
+  `CompilationTestHelper` runs javac in the test JVM; Error Prone's `ASTHelpers`
+  triggers a superclass access check on `com.sun.tools.javac.parser.JavaTokenizer`,
+  so `--add-exports jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED` must be a
+  Test JVM arg (in addition to the other javac-internal exports). These are JVM
+  args, not compiler args (passing `--add-opens`/`--add-exports` as compiler args
+  yields "has no effect at compile time" warnings).
+- **Test source packages.** Put test sources in a named package to avoid Error
+  Prone's own `DefaultPackage` check firing on the sample code and colliding with
+  the `// BUG:` marker lines.
+
+
+---
+
+## ADR-0005: DiagnosticSink seam maps CF findings to Error Prone Descriptions (Task 5)
+
+**Status:** accepted (Task 5)
+
+**Context.** For "2a", Checker Framework findings should become Error Prone
+`Description`s so Error Prone severity, `@SuppressWarnings("eisopcf")` suppression,
+and (later) the patch pipeline apply. The core (`framework`) must not reference any
+Error Prone type.
+
+**Seam.** All CF diagnostics funnel through a single method:
+`SourceChecker.printOrStoreMessage(kind, message, source, root, trace)` — both the
+direct path (no subcheckers) and the buffered aggregate/subchecker path (which
+flushes via `printStoredMessages` -> the same method on the parent). This is the
+one choke point to intercept, and intercepting on the parent covers multi-checker
+runs (Task 6) as well.
+
+Caveat: `report(source, ...)` reaches `printOrStoreMessage` (and thus the sink) only for
+a `Tree`-positioned finding. A finding positioned at an `Element`, or with no source
+position, goes straight to `messager.printMessage` on both paths. That is deliberate: the
+sink is `Tree`-shaped (the host needs a `Tree`/`TreePath` to position and suppress its own
+diagnostic), and an `Element` has no tree in general (e.g. a symbol from an
+already-compiled file). Such findings are rare — no production checker reports against an
+`Element` (the only live case is a test checker) — and they still print through javac, so
+they are visible; they are just not `eisopcf` diagnostics. Documented as a limitation in
+the manual's Error Prone section and on `DiagnosticSink`.
+
+**Decision.**
+- Add `org.checkerframework.framework.source.DiagnosticSink`, a `@FunctionalInterface`
+  with `report(Diagnostic.Kind, String message, Tree source, CompilationUnitTree root,
+  TreePath path, List<SuggestedFixData> fixes)`.
+  It uses only `javax.tools` and `com.sun.source.tree` types — no Error Prone, no
+  host types — so the core stays framework-agnostic.
+- `SourceChecker` gets a nullable `diagnosticSink` field and `setDiagnosticSink(...)`.
+  When set, the 5-arg `printOrStoreMessage` calls the sink instead of
+  `Trees.printMessage`. Default null => unchanged standalone behavior (verified:
+  AggregateTest/CompoundCheckerTest/ElementSuppressionTest still pass).
+- In `framework-errorprone`, `CheckerFrameworkDriver.create(context, names, sink)`
+  installs the sink on every checker. `EisopCheckerFrameworkPlugin.diagnosticSink()`
+  builds a sink that, using the `VisitorState` active during `matchClass` (stored in
+  a transient `currentState` field for the duration of the call), does
+  `state.reportMatch(buildDescription(sourceTree).setMessage(msg).build())`.
+- The sink is handed the finding's `TreePath` along with its tree. The checker
+  captures it in the 5-arg `printOrStoreMessage`, while it is still visiting the
+  finding and the suppression check has just put the path in the shared
+  `TreePathCacher`; it travels with the finding in `CheckerMessage`. The host must not
+  re-derive it: findings are flushed after the visit, and the main checker's `setRoot`
+  clears the path cache in between, so `TreePathCacher.getPath(root, tree)` at that
+  point rescans the whole compilation unit — quadratic in the findings per file. On a
+  single class with 3200 findings, re-deriving cost 9.81 s / 1176 MB versus 7.81 s /
+  996 MB when the path is passed through (median of 3; the plugin's overhead over
+  standalone mode drops from +2.31 s / +273 MB to +0.31 s / +93 MB). The capture is
+  skipped when no sink is installed, so standalone mode pays only a null check. The
+  host does not fall back to looking the path up itself: the checker's own lookup
+  negative-caches a tree it cannot find, so a second lookup would return null too
+  (confirmed: zero fallbacks across the module's tests and the measurement corpus).
+  `CheckerFrameworkDriver` therefore exposes no `TreePathCacher`.
+
+**Severity / suppression semantics (documented limitations).**
+- Error Prone severity is per-*check*, not per-finding. All `eisopcf` findings share
+  the `eisopcf` severity (default WARNING; override with `-Xep:eisopcf:ERROR`). The
+  CF diagnostic kind is preserved textually: warnings get a `[warning]` message
+  prefix. (A future refinement could split into separate checks per severity.)
+- `@SuppressWarnings("eisopcf")` is honored at the granularity of the enclosing
+  class (the tree the plugin matches, which is the `VisitorState` path when the sink
+  fires). Finer-grained CF `@SuppressWarnings` keys still work via the CF's own
+  suppression, which runs before a finding ever reaches the sink. (Superseded by
+  ADR-0009: `"eisopcf"` is now honored at any enclosing declaration.)
+
+**Verified (EisopCheckerFrameworkPluginTest).** return-null finding appears as an
+`eisopcf` diagnostic; `@SuppressWarnings("eisopcf")` suppresses it (proving it is an
+EP `Description`, not Messager output); `-Xep:eisopcf:ERROR` is accepted.
+
+
+---
+
+## ADR-0006: Multiple type systems share the AST, not the CFG (Task 6)
+
+**Status:** accepted (Task 6)
+
+**Goal.** `-XepOpt:eisopcf:checkers=A,B[,...]` runs several Checker Framework type
+systems together in one Error Prone / javac invocation.
+
+**Investigation of "shared CFG."** The plan wording mentioned running type systems
+over "one shared AST/CFG." A true shared *CFG object* across independent type
+systems is not something the Checker Framework supports, and the maintainers chose
+not to pursue it (option "a"):
+- `AggregateChecker` explicitly performs no sharing ("no communication, interaction,
+  or cooperation between the component checkers").
+- `GenericAnnotatedTypeFactory.getSharedCFGForTree` / `addSharedCFGForTree` key the
+  shared CFG on the *ultimate parent* `BaseTypeChecker` and are designed for
+  genuinely cooperating subcheckers of one checker (e.g. Nullness + Initialization,
+  which share a qualifier hierarchy). `getUltimateParentChecker()` only walks up
+  through `BaseTypeChecker` parents, so subcheckers under an `AggregateChecker`
+  (a `SourceChecker`, not a `BaseTypeChecker`) are each their own CFG root.
+- Even standalone CF (`javac -processor A,B`) does **not** share a CFG across
+  independently-listed checkers: each `AbstractTypeProcessor` builds its own.
+- Forcing unrelated type systems to be subcheckers of a synthetic `BaseTypeChecker`
+  parent (to reuse the shared-CFG cache) would impose a qualifier-hierarchy/factory
+  relationship they are not designed for, with real correctness risk, and would
+  diverge from how the CF actually composes checkers.
+
+**Decision.** Adopt "shared AST, per-checker CFG": one javac / Error Prone
+invocation over one parsed-and-attributed AST, with each selected type system
+building its own CFG — exactly as standalone `javac -processor A,B` behaves. This is
+what the existing driver already does (it instantiates the selected `SourceChecker`s
+and drives each per class over the same `Context`). No new composition model is
+introduced.
+
+**Implementation.** No core (`framework`) change was needed; Task 5's `DiagnosticSink`
+already covers multiple checkers (each reports through the sink). The plugin change
+is limited to surfacing a configuration error (e.g. an unresolvable checker name)
+once, as a clean `eisopcf` diagnostic on the class, instead of an unhandled plugin
+exception (`matchClass` catches `IllegalArgumentException` from driver creation and
+records the compilation `Context` it reported for, in `configErrorContext`).
+
+**Verified (EisopCheckerFrameworkPluginTest).**
+- `multipleCheckersRunTogether`: Nullness (`return.type.incompatible`) and Interning
+  (`not.interned`) findings both appear from one compilation with a comma-separated
+  `eisopcf:checkers` list.
+- `unknownCheckerNameIsReported`: a bogus checker name yields a clear "Checker class
+  not found" `eisopcf` diagnostic.
+
+
+---
+
+## ADR-0007: Fix seam + suppression fix through Error Prone's patch pipeline (Task 7)
+
+**Status:** accepted (Task 7)
+
+**Finding: the Checker Framework has no per-diagnostic suggested-fix mechanism.**
+CF diagnostics (`CheckerMessage`, `printOrStoreMessage`, the `message(...)` chain)
+carry only `(kind, message, source tree, trace)` — no attached machine-applicable
+edit, unlike Error Prone's `SuggestedFix`. The closest capability is whole-program
+inference (`-Ainfer`), a batch/offline pass that writes `.jaif`/`.ajava`/stub files,
+not per-finding fixes on the diagnostic path. Building general fix generation into
+the CF is a large, separate feature out of scope here.
+
+**Decision (agreed with maintainers, option a).** Two parts:
+
+1. **Plumb a neutral fix channel** so fixes reach a host's patch pipeline the moment
+   any checker produces them:
+   - `SuggestedFixData` (new, in `framework`): a list of `Replacement(startPosition,
+     endPosition, text)` using javac source offsets — JDK-neutral, no Error Prone
+     type. The core stays framework-agnostic.
+   - `DiagnosticSink` (new, in `framework`): a single-method functional interface
+     `report(kind, message, source, root, List<SuggestedFixData> fixes)`. A host with
+     no fix pipeline simply ignores `fixes`. The channel is unit-tested
+     (`SuggestedFixDataTest`), and the module translates each fix to an Error Prone
+     `SuggestedFix` (`EisopCheckerFrameworkPlugin.toErrorProneFix`, position-based
+     `SuggestedFix.Builder.replace`). (Earlier iterations had a fix-less `report` plus
+     a defaulted `reportWithFix`, and a single `@Nullable SuggestedFixData`; these were
+     collapsed to the one `List`-carrying method once the channel had a real producer,
+     since the fix-less overload was never called.)
+
+2. **A real, always-available suppression fix** (mirrors Error Prone's own checks):
+   every `eisopcf` finding's `Description` carries
+   `SuggestedFixes.addSuppressWarnings(state, "eisopcf")`. Applying it via Error
+   Prone's refactoring/patch pipeline inserts `@SuppressWarnings("eisopcf")`. This is
+   what proves goal 1c end-to-end.
+
+**Important refinement: anchor findings at their own source tree.** The sink now
+computes the finding's `TreePath` (`TreePath.getPath(root, source)`) and uses
+`state.withPath(...)`, so both the reported position and the suppression fix anchor
+at the finding's location (e.g. the enclosing method), not the class that
+`matchClass` is visiting. Before this, the suppression landed on the class. This
+also makes reported diagnostics point at the finding rather than the class.
+
+**Verified.**
+- `EisopCheckerFrameworkPatchTest.suppressionFixIsApplied`: Error Prone's
+  `BugCheckerRefactoringTestHelper` applies the fix, inserting
+  `@SuppressWarnings("eisopcf")` on the enclosing method.
+- `SuggestedFixDataTest`: the neutral fix representation (factory, ordering,
+  immutability).
+- Standalone CF unaffected (`AggregateTest`, `CompoundCheckerTest` pass); existing
+  plugin tests (including class-level suppression) still pass.
+
+**Follow-up (out of scope).** When the CF gains per-finding fixes, route them through
+`DiagnosticSink.report` with `SuggestedFixData`; the module already translates and
+attaches them, so no further core or module change is required.
+
+
+---
+
+## ADR-0008: Documentation, runnable example, and CI (Task 8)
+
+**Status:** accepted (Task 8)
+
+**Documentation.** User documentation lives in the manual: the "Error Prone" section of
+the "Integration with external tools" chapter (`docs/manual/external-tools.tex`), also
+listed in `introduction.tex`'s tool list. `docs/developer/cf-errorprone.md` holds only
+developer-facing notes (module layout, how a checker supplies a fix, testing/CI, the
+example) and points to the manual for usage; it complements this decision log. (An
+earlier revision kept the full usage guide in `cf-errorprone.md`; that user content was
+moved into the manual to avoid duplication.)
+
+**Runnable example.** Added `docs/examples/eisop-errorprone/`, a standalone Gradle
+project (its own empty `settings.gradle`, mirroring the sibling `errorprone` example)
+that runs the Nullness Checker as the `eisopcf` plugin over a demo class with a
+nullness bug. Like the sibling examples, it has two modes selected by the `cfVersion`
+property:
+- `-PcfVersion=local` consumes *this checkout's* jars, so the example exercises the
+  current development Checker Framework. It reads them by file from the module build
+  directories:
+  - `checker-qual-<v>.jar` (compileOnly, for `@Nullable`);
+  - the plain (non-shadow) `framework-errorprone-<v>.jar` on the `errorprone` path — the
+    `-all` shadow jar must NOT be used, as it bundles a copy of Error Prone's classes and
+    breaks the `BugChecker` service check with "not a subtype";
+  - the `checker-<v>-all.jar` shadow jar (bundles the checkers) on the `errorprone` path.
+- the default (non-`local`) mode consumes the published `io.github.eisop` artifacts
+  (`checker-qual`, `framework-errorprone`, `checker`); it fails until the first release
+  that publishes `framework-errorprone`, and serves as the release-based template.
+
+The `Makefile` runs `gradlew -PcfVersion=local build` (mirroring the sibling examples)
+and greps for the expected `[eisopcf] [dereference.of.nullable]` diagnostic; it is gated on
+JDK 21+ (no-op below). The local-mode jars are built by the `:checker:exampleTests` task
+(which now `dependsOn :framework-errorprone:jar` and `:checker-qual:jar`, JDK-21-gated, on
+top of the `:checker:shadowJar` it already builds via `assembleForJavac`), so the example
+needs no nested Gradle build of its own. (This superseded an earlier design in which the
+example's `Makefile` built the jars itself via a nested `gradlew` invocation.)
+`.gitignore` gained `docs/examples/eisop-errorprone/{.gradle/,Out.txt}` entries, matching
+the other examples. Verified: `make all` (local mode) exits 0; the default mode fails
+cleanly with an unresolved-dependency error until the artifacts are published.
+
+**CI.** No workflow change is needed. `./gradlew test` (run by the existing
+`cftests-junit` job, whose primary JDK is 21) includes `:framework-errorprone:test`
+automatically when the module is present, and `settings.gradle` excludes the module on
+JDK <= 17. Confirmed with `gradlew test --dry-run`.
+
+
+---
+
+## ADR-0009: Suppression semantics — per-type-system and per-declaration (follow-up)
+
+**Status:** accepted (post-Task-8 follow-up)
+
+**Context.** A question about whether the Nullness and Interning checkers can be
+suppressed independently (vs. only the coarse `eisopcf` key) prompted a closer look at
+the two suppression layers. ADR-0005 had loosely stated that `@SuppressWarnings("eisopcf")`
+is "honored at the granularity of the enclosing class"; the precise behavior is now
+established, corrected, and locked in by tests.
+
+**Investigation (Error Prone's suppression model).** Verified against Error Prone's code
+and docs: Error Prone computes suppression as its `Scanner` descends the tree
+(`Scanner.updateSuppressions` -> `SuppressionInfo.withExtendedSuppressions(Symbol, ...)`
+for each declared symbol) and checks it in `processMatchers` at the node where a matcher
+fires (`VisitorState.reportMatch` itself does NOT consult suppression). So an ordinary
+Error Prone check honors `@SuppressWarnings` at any enclosing declaration — class, method,
+or local variable (`ASTHelpers.getDeclaredSymbol` covers `VariableTree`). This matches the
+Java `@SuppressWarnings` model (Oracle: suppressions union over containing elements).
+
+This plugin is atypical: it matches at the class (`ClassTreeMatcher`) and reports findings
+for the whole subtree via `reportMatch`, so Error Prone's per-node suppression only covers
+the class node — findings below the class would otherwise ignore method/local suppression.
+
+**Decision / behavior.**
+- **Checker Framework keys** — `@SuppressWarnings("nullness")`, `"interning"`,
+  `"allcheckers"`, and specific keys like `"nullness:dereference.of.nullable"` — suppress
+  per type system at any declaration, because `SourceChecker.message(...)` calls
+  `shouldSuppressWarnings(source, key)` and returns early: the finding never reaches the
+  `DiagnosticSink`.
+- **The Error Prone `"eisopcf"` key** now also works at any enclosing declaration (class,
+  method, field, or local variable — fields and locals are both `VariableTree`). The plugin
+  reconstructs Error Prone's descent-based suppression along each finding's path: starting
+  from `SuppressionInfo.EMPTY.forCompilationUnit(root, state)`, it walks the finding's
+  `TreePath` root-first and calls `withExtendedSuppressions` for each node with a declared
+  symbol, then `suppressedState(this, false, state)`; a `SUPPRESSED` result drops the
+  finding (`isSuppressedAt`). This reuses the exact Error Prone API the scanner uses, so
+  `"eisopcf"` behaves like any ordinary Error Prone check — including the common "extract to
+  a local variable and suppress just that declaration" pattern.
+
+**Bug found and fixed.** While writing the test, `SuggestedFixes.addSuppressWarnings` was
+observed to throw `IllegalArgumentException` ("Couldn't find a node to attach
+@SuppressWarnings") for some findings, which propagated as a compilation-breaking
+`SourceChecker.typeProcess: unexpected Throwable`. The plugin now builds the suppression
+fix through `buildSuppressionFix`, which catches that exception and omits the fix (a
+missing suggested fix must never break compilation).
+
+**Tests.** `EisopCheckerFrameworkPluginTest.perTypeSystemSuppression` (both checkers
+enabled; `"nullness"`, `"interning"`, `"allcheckers"` at method level) and
+`eisopcfKeySuppressesAtAnyDeclaration` (`"eisopcf"` at class, method, field, and
+local-variable level, each with a sibling finding that still reports). The manual's
+"Suppressing warnings" subsection documents both layers.
+
+
+
+---
+
+## ADR-0010: Checker Framework options are passed with javac `-A` (follow-up)
+
+**Status:** accepted (post-Task-8 follow-up)
+
+**Question.** How are Checker-Framework options (common `SourceChecker` options like
+`-Astubs=...`, and checker-specific options) passed in an Error Prone invocation? With
+`-A`, or does the plugin need a bridge (e.g. via `-XepOpt:`)?
+
+**Finding (verified empirically).** With `-A`, exactly as in standalone mode; no bridge
+is needed. `SourceChecker` reads its options from `processingEnv.getOptions()`
+(`createActiveOptions`), and the plugin hands each checker the real
+`JavacProcessingEnvironment` (ADR-0003), whose options map javac populates from
+`-Akey=value` on the command line. A probe compiling with `-Astubs=/tmp/foo.astub` and
+`-ANullnessChecker_someOpt=bar`, with Error Prone running as a plugin and no Checker
+Framework annotation processor registered, showed `getOptions()` returned exactly
+`{stubs=..., NullnessChecker_someOpt=bar}` — and javac emitted no "unrecognized option"
+warning (unclaimed-`-A` warnings only arise when processor rounds run with processors that
+don't claim them; EP-as-plugin with no processor passes them through quietly).
+
+**Consequences.**
+- Common options: `-Astubs=...`, `-AsuppressWarnings=...`, `-Alint=...`, etc.
+- Checker-specific options keep the Checker Framework's `CheckerName_option` convention:
+  `-ANullnessChecker_someOption=value` (the `_` is `SourceChecker.OPTION_SEPARATOR`).
+- `-XepOpt:` remains only for the plugin's own options (currently just
+  `eisopcf:checkers`). Checker Framework options are NOT passed via `-XepOpt:`.
+
+**Test.** `EisopCheckerFrameworkPluginTest.checkerOptionsArePassedWithDashA` compiles a
+returning-null program under the Nullness Checker with `-AsuppressWarnings=nullness` and
+asserts no diagnostics — a `-A` option visibly changing checker behavior under `eisopcf`.
+The manual gains a "Command-line options for checkers" subsection, and the runnable example
+shows the syntax in comments.
+
+
+---
+
+## ADR-0011: Checkers supply fixes via `DiagMessage` (the neutral channel wired up)
+
+**Status:** accepted (follow-up to ADR-0007)
+
+**Context.** ADR-0007 established the neutral `SuggestedFixData` channel but no checker
+produced fixes yet; the only fix offered in Error Prone mode was the generic
+suppression fix synthesized in the plugin. The goal now: let each type system supply its
+own fixes (fix logic must live in the checker, not be hard-coded in the central
+`framework-errorprone` module), threaded to the host through neutral types.
+
+**Decision — Option 3 (fix rides on `DiagMessage`).** Considered: (1) overloading
+`reportError`/`report` with fix params; (2) a separate "attach fix to last finding" call
+(rejected — stateful/fragile with the buffered `messageStore` and suppression); (3)
+carrying fixes on `DiagMessage`; (4) a side map keyed by (tree, key) (rejected — hidden,
+fragile keying). Chose (3): `DiagMessage` already bundles kind+key+args and is accepted
+by the public `report(Object, DiagMessage)` entry point, so it is the natural home and
+leaves the hot `reportError(source, key, args...)` path untouched. (Overloads on
+`reportError` can be added later if usage is awkward.)
+
+**Threading (all neutral types; no Error Prone in core).**
+- `SuggestedFixData` gains tree-based factories `deleteTree(SourcePositions, root, tree)`
+  and `replaceTree(..., text)`; `deleteTree` also consumes trailing whitespace so removing
+  `@Nullable` from `@Nullable int x` yields `int x`. Checkers get source offsets from
+  javac's `SourcePositions` (`BaseTypeVisitor.positions`, `SourceVisitor.root`) — no
+  Error Prone API. (Checkers must NOT use Error Prone APIs; `framework` has no such dep.)
+- `DiagMessage` gains an immutable `List<SuggestedFixData> fixes` plus `withFix`/`withFixes`
+  (copy-on-write; `equals`/`hashCode` unchanged — fixes are advisory).
+- `SourceChecker`: a new private `report(source, kind, key, fixes, args...)` (old one
+  delegates with empty fixes); `report(source, DiagMessage)` passes `d.getFixes()`;
+  `printOrStoreMessage` carries the fixes through to the sink; `CheckerMessage` gains a
+  `fixes` field (buffered/aggregate path) forwarded by `printStoredMessages`. (The
+  fix-less `printOrStoreMessage` overloads were later removed and the remaining ones made
+  private, since nothing overrode or called them; host interception is via `DiagnosticSink`.)
+- `DiagnosticSink.report` takes `List<SuggestedFixData>`; a host with no fix pipeline
+  ignores it (standalone/lambda sinks unaffected).
+- The plugin adds each Checker-Framework fix as an Error Prone `SuggestedFix` alternative,
+  ordered BEFORE the suppression fix (so `FixChoosers.FIRST` / an interactive user gets
+  the meaningful fix first).
+
+**First real user.** `NullnessNoInitVisitor.visitAnnotatedType` now reports
+`nullness.on.primitive` via `checker.report(t, DiagMessage.error("nullness.on.primitive")
+.withFixes(removeNullnessAnnotationFixes(...)))`, where the helper collects the offending
+nullness `AnnotationTree`s (`TreeUtils.getExplicitAnnotationTrees` +
+`atypeFactory.isNullnessAnnotation`) and builds one `deleteTree` fix per annotation.
+
+**Verified.**
+- Error Prone mode: `EisopCheckerFrameworkPatchTest.nullnessOnPrimitiveRemoveAnnotationFixIsApplied`
+  rewrites `@Nullable int x = 0;` to `int x = 0;` through Error Prone's patch pipeline.
+- Standalone mode unchanged: full `:checker:NullnessTest` (23 tests, includes
+  `UnannoPrimitives`) passes, plus `AggregateTest`/`CompoundCheckerTest` and the whole
+  `framework-errorprone` suite.
+
+
+**Documentation.** How a checker attaches suggested fixes is documented for checker
+authors in the manual: the "Suggesting fixes for errors" subsection of the "How to create
+a new checker" chapter (`docs/manual/creating-a-checker.tex`), which shows
+`DiagMessage.withFixes` and `SuggestedFixData.deleteTree`/`replaceTree` and points to
+`NullnessNoInitVisitor` as a worked example. The end-user view (fixes participating in
+Error Prone's patch workflow) is in the manual's "Error Prone" section.
+
+
+---
+
+## ADR-0012: Publish `framework-errorprone` as a Maven artifact
+
+**Status:** accepted
+
+**Decision.** `framework-errorprone` is published to Maven Central as
+`io.github.eisop:framework-errorprone`, with the same version and group as the other
+Checker Framework artifacts. Its `build.gradle` applies `gradle-mvn-push.gradle` and
+declares a `frameworkErrorprone` `MavenPublication` plus signing, modeled on
+`framework-test`.
+
+**Author.** Unlike other modules, this module does NOT call
+`sharedPublicationConfiguration` (which lists all lead maintainers). Its pom lists a
+single developer, `wmdietl`, by setting the pom's `developers`/`url`/`scm`/`licenses`
+directly. It publishes the plain jar (`components.java`), not the `-all` shadow jar
+(which bundles Error Prone's classes).
+
+**Release scripts: no change needed, with one caveat.** The release publishes via a
+module-agnostic `./gradlew publish` (see `docs/developer/release/release_push.py`), which
+picks up every subproject that has a publishing block — so `framework-errorprone` is
+included automatically. Caveat: `framework-errorprone` is gated to JDK 21+ in
+`settings.gradle`, so the Maven-publish step must run on JDK 21+ or the module is silently
+excluded from the build and not published. This is documented in the release README
+(`README-release-process.html`). It holds today: `release_vars.py` sets `JAVA_HOME` to
+`JAVA_21_HOME`.
+
+**Docs.** The manual's "Error Prone" section states the plugin is published as
+`io.github.eisop:framework-errorprone`. The runnable example builds against it in its
+default mode and against the current checkout under `-PcfVersion=local` (see ADR-0008).

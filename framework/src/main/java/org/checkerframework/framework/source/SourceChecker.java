@@ -570,6 +570,14 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     protected @MonotonicNonNull TreeSet<CheckerMessage> messageStore;
 
     /**
+     * An optional destination for this checker's diagnostics. When non-null, findings are reported
+     * to this sink instead of being printed through javac's {@code Trees}. Used by hosts that embed
+     * the Checker Framework (e.g. the Error Prone plugin) to translate findings into their own
+     * diagnostic representation. See {@link #setDiagnosticSink}.
+     */
+    private @Nullable DiagnosticSink diagnosticSink = null;
+
+    /**
      * Exceptions to {@code -AwarnUnneededSuppressions} processing. No warning about unneeded
      * suppressions is issued if the SuppressWarnings string matches this pattern.
      */
@@ -743,6 +751,27 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
 
     /** Creates a source checker. */
     protected SourceChecker() {}
+
+    /**
+     * Installs a {@link DiagnosticSink} to receive this checker's findings, instead of printing
+     * them through javac's {@code Trees}. Pass {@code null} to restore the default (print to
+     * javac).
+     *
+     * <p>Intended for hosts that embed the Checker Framework (such as the Error Prone plugin) and
+     * want to translate findings into their own diagnostic representation. When several checkers
+     * run together under one parent (e.g. an {@code AggregateChecker} or subcheckers), all findings
+     * are flushed through the parent checker, so installing the sink on the checker that the host
+     * drives is sufficient.
+     *
+     * <p>The sink receives only tree-positioned findings; findings positioned at an {@code Element}
+     * or with no source position still go through javac's {@code Messager} (see {@link
+     * DiagnosticSink}).
+     *
+     * @param sink the diagnostic sink, or {@code null} to print to javac
+     */
+    public void setDiagnosticSink(@Nullable DiagnosticSink sink) {
+        this.diagnosticSink = sink;
+    }
 
     // Also see initChecker().
     @Override
@@ -1301,6 +1330,10 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
             }
             instance.setParentChecker(this);
             immediateSubcheckers.add(instance);
+            // Inherit the parent's lifecycle ownership: a host that drives this checker drives
+            // its subcheckers too, since they are run from this checker's typeProcess.  Must
+            // precede setProcessingEnvironment, which setExternallyDriven refuses to follow.
+            instance.setExternallyDriven(this.isExternallyDriven());
             instance.setProcessingEnvironment(this.processingEnv);
             instance.treePathCacher = this.getTreePathCacher();
             // Prevent the new checker from storing non-immediate subcheckers
@@ -1374,6 +1407,10 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
         for (SourceChecker subchecker : getSubcheckers()) {
             subchecker.errsOnLastExit = numErrorsOfAllPreviousCheckers;
             subchecker.messageStore = messageStore;
+            // Subcheckers store their findings in the shared messageStore, which this checker
+            // flushes to the sink; they need to know a host is listening so that they capture each
+            // finding's path while they are still visiting it.
+            subchecker.diagnosticSink = diagnosticSink;
             int errorsBeforeTypeChecking = log.nerrors;
 
             subchecker.typeProcess(e, p);
@@ -1426,7 +1463,17 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
             warnedAboutSourceLevel = true;
         }
 
-        if (log.nerrors > this.errsOnLastExit) {
+        // Skip a compilation unit that javac could not attribute: type-checking a broken AST
+        // produces noise, not findings.  Log.nerrors is the signal for that in standalone mode,
+        // where the only errors are javac's own.
+        //
+        // It is not a usable signal when a host drives the lifecycle.  Error Prone reports every
+        // check's findings as javac diagnostics, so an ERROR from any check -- including this
+        // checker's own findings, and unrelated checks such as SelfAssignment -- raises
+        // Log.nerrors and would suppress checking of every compilation unit that follows.  A host
+        // decides which classes to hand over, and javac's --should-stop=ifError=FLOW already keeps
+        // an unattributable unit from reaching the host.
+        if (!isExternallyDriven() && log.nerrors > this.errsOnLastExit) {
             this.errsOnLastExit = log.nerrors;
             javacErrored = true;
             return;
@@ -1532,7 +1579,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      * @param d the diagnostic message
      */
     public void report(@Nullable Object source, DiagMessage d) {
-        report(source, d.getKind(), d.getMessageKey(), d.getArgs());
+        report(source, d.getKind(), d.getMessageKey(), d.getFixes(), d.getArgs());
     }
 
     /**
@@ -1549,14 +1596,31 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      * @param messageKey the message key
      * @param args arguments for interpolation in the string corresponding to the given message key
      */
-    // Not a format method.  However, messageKey should be either a format string for `args`, or a
-    // property key that maps to a format string for `args`.
-    // @FormatMethod
+    private void report(
+            @Nullable Object source,
+            Diagnostic.Kind kind,
+            @CompilerMessageKey String messageKey,
+            Object... args) {
+        report(source, kind, messageKey, Collections.emptyList(), args);
+    }
+
+    /**
+     * Reports a diagnostic message, possibly with suggested fixes. See {@link #report(Object,
+     * Diagnostic.Kind, String, Object...)}; this overload additionally carries {@code fixes}, which
+     * a host (e.g. the Error Prone plugin) may offer and which standalone javac ignores.
+     *
+     * @param source the source position information; may be an Element or a Tree, or null
+     * @param kind the type of message
+     * @param messageKey the message key
+     * @param fixes machine-applicable suggested fixes for this diagnostic (possibly empty)
+     * @param args arguments for interpolation in the string corresponding to the given message key
+     */
     @SuppressWarnings("formatter:format.string.invalid") // arg is a format string or a property key
     private void report(
             @Nullable Object source,
             Diagnostic.Kind kind,
             @CompilerMessageKey String messageKey,
+            List<SuggestedFixData> fixes,
             Object... args) {
         assert messagesProperties != null : "null messagesProperties";
 
@@ -1610,7 +1674,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
         } else if (preciseSource instanceof Element) {
             messager.printMessage(kind, messageText, (Element) preciseSource);
         } else if (preciseSource instanceof Tree) {
-            printOrStoreMessage(kind, messageText, (Tree) preciseSource, currentRoot);
+            printOrStoreMessage(kind, messageText, (Tree) preciseSource, currentRoot, fixes);
         } else {
             throw new BugInCF(
                     "invalid position source of class "
@@ -1723,31 +1787,42 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     }
 
     /**
-     * Do not call this method. Call {@link #reportError} or {@link #reportWarning} instead.
+     * Internal implementation of diagnostic reporting; callers use {@link #reportError} or {@link
+     * #reportWarning}.
      *
-     * <p>This method exists so that the BaseTypeChecker can override it. For compound checkers, it
-     * stores all messages and sorts them by location before outputting them.
+     * <p>Stores the message (for compound checkers, which sort all messages by location before
+     * outputting them) or prints it. Carries machine-applicable suggested fixes, which a host (e.g.
+     * the Error Prone plugin) may offer and which standalone javac ignores.
      *
      * @param kind the kind of message to print
      * @param message the message text
      * @param source the source code position of the diagnostic message
      * @param root the compilation unit
+     * @param fixes suggested fixes for this diagnostic (possibly empty)
      */
-    protected void printOrStoreMessage(
+    private void printOrStoreMessage(
             javax.tools.Diagnostic.Kind kind,
             String message,
             Tree source,
-            CompilationUnitTree root) {
+            CompilationUnitTree root,
+            List<SuggestedFixData> fixes) {
         assert this.currentRoot == root;
         // Thread.currentThread().getStackTrace() walks the entire JVM stack and allocates a
         // StackTraceElement[] on every reported diagnostic.  The trace is only consulted by
         // printStackTrace() when -AdumpOnErrors is set, so skip the capture in the common case.
         StackTraceElement[] trace =
                 dumpOnErrors ? Thread.currentThread().getStackTrace() : EMPTY_STACK_TRACE;
+        // A host needs the finding's path; capture it here, while the visitor is still at the
+        // finding and the path cache holds it (the suppression check just looked it up).  Messages
+        // are flushed after the visit, by which point the same lookup rescans the whole
+        // compilation unit -- quadratic in the number of findings in a file.  javac needs no path,
+        // so this is skipped when no host is listening.
+        TreePath path = diagnosticSink == null ? null : pathToTree(source);
         if (messageStore == null) {
-            printOrStoreMessage(kind, message, source, root, trace);
+            printOrStoreMessage(kind, message, source, root, path, trace, fixes);
         } else {
-            CheckerMessage checkerMessage = new CheckerMessage(kind, message, source, this, trace);
+            CheckerMessage checkerMessage =
+                    new CheckerMessage(kind, message, source, path, this, trace, fixes);
             messageStore.add(checkerMessage);
         }
     }
@@ -1756,24 +1831,38 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     private static final StackTraceElement[] EMPTY_STACK_TRACE = new StackTraceElement[0];
 
     /**
-     * Do not call this method. Call {@link #reportError} or {@link #reportWarning} instead.
+     * Internal implementation of diagnostic reporting; callers use {@link #reportError} or {@link
+     * #reportWarning}.
      *
-     * <p>This method exists so that the BaseTypeChecker can override it. For compound checkers, it
-     * stores all messages and sorts them by location before outputting them.
+     * <p>Prints or hands off the message together with machine-applicable suggested fixes. When a
+     * {@link DiagnosticSink} is installed, the message and fixes are passed to it via {@link
+     * DiagnosticSink#report}; otherwise (standalone javac) the message is printed through javac's
+     * {@code Trees} and the fixes are ignored.
      *
      * @param kind the kind of message to print
      * @param message the message text
      * @param source the source code position of the diagnostic message
      * @param root the compilation unit
-     * @param trace the stack trace where the checker encountered an error. It is printed when the
-     *     dumpOnErrors option is enabled.
+     * @param path the path to {@code source}, or null; only a {@link DiagnosticSink} uses it
+     * @param trace the stack trace where the checker encountered an error; printed under {@code
+     *     -AdumpOnErrors}
+     * @param fixes suggested fixes for this diagnostic (possibly empty)
      */
-    protected void printOrStoreMessage(
+    private void printOrStoreMessage(
             javax.tools.Diagnostic.Kind kind,
             String message,
             Tree source,
             CompilationUnitTree root,
-            StackTraceElement[] trace) {
+            @Nullable TreePath path,
+            StackTraceElement[] trace,
+            List<SuggestedFixData> fixes) {
+        if (diagnosticSink != null) {
+            // A host (e.g. the Error Prone plugin) is intercepting findings; hand off the neutral
+            // (kind, message, source, root, path, fixes) values instead of printing through javac's
+            // Trees.  A host with no fix pipeline simply ignores the fixes.
+            diagnosticSink.report(kind, message, source, root, path, fixes);
+            return;
+        }
         Trees.instance(processingEnv).printMessage(kind, message, source, root);
         printStackTrace(trace);
     }
@@ -2177,8 +2266,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      *
      * <p>Though each checker is run on a whole compilation unit before the next checker is run,
      * error and warning messages are collected and sorted based on the location in the source file
-     * before being printed. (See {@link #printOrStoreMessage(Diagnostic.Kind, String, Tree,
-     * CompilationUnitTree)}.)
+     * before being printed (see {@code printOrStoreMessage}).
      *
      * <p>WARNING: Circular dependencies are not supported. (In other words, if checker A depends on
      * checker B, checker B cannot depend on checker A.) The Checker Framework does not check for
@@ -2473,7 +2561,8 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
             return;
         }
         for (CheckerMessage msg : messageStore) {
-            printOrStoreMessage(msg.kind, msg.message, msg.source, unit, msg.trace);
+            printOrStoreMessage(
+                    msg.kind, msg.message, msg.source, unit, msg.path, msg.trace, msg.fixes);
         }
     }
 
@@ -3812,6 +3901,12 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
         final @InternedDistinct Tree source;
 
         /**
+         * The path to {@link #source}, or null. Captured when the message is created, while the
+         * path cache still holds it; only a {@link DiagnosticSink} consumes it.
+         */
+        final @Nullable TreePath path;
+
+        /**
          * The checker that issued this message. The compound checker that depends on this checker
          * uses this to sort the messages.
          */
@@ -3819,6 +3914,9 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
 
         /** The stack trace when the message was created. */
         final StackTraceElement[] trace;
+
+        /** Machine-applicable suggested fixes for this message (possibly empty). */
+        final List<SuggestedFixData> fixes;
 
         /**
          * Create a new CheckerMessage.
@@ -3835,11 +3933,35 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
                 @FindDistinct Tree source,
                 @FindDistinct SourceChecker checker,
                 StackTraceElement[] trace) {
+            this(kind, message, source, null, checker, trace, Collections.emptyList());
+        }
+
+        /**
+         * Create a new CheckerMessage with suggested fixes.
+         *
+         * @param kind kind of diagnostic, for example, error or warning
+         * @param message error message that needs to be printed
+         * @param source tree node causing the error
+         * @param path the path to {@code source}, or null
+         * @param checker the type-checker in use
+         * @param trace the stack trace when the message is created
+         * @param fixes machine-applicable suggested fixes (possibly empty)
+         */
+        protected CheckerMessage(
+                Diagnostic.Kind kind,
+                String message,
+                @FindDistinct Tree source,
+                @Nullable TreePath path,
+                @FindDistinct SourceChecker checker,
+                StackTraceElement[] trace,
+                List<SuggestedFixData> fixes) {
             this.kind = kind;
             this.message = message;
             this.source = source;
+            this.path = path;
             this.checker = checker;
             this.trace = trace;
+            this.fixes = fixes;
         }
 
         @Override

@@ -15,6 +15,7 @@ build system, or from an IDE\@.  You can skip to the appropriate section:
 \item Command line, via Checker Framework javac wrapper (Section~\ref{javac-wrapper})
 \item Command line, via JDK javac (Section~\ref{javac})
 \item Eclipse (Section~\ref{eclipse})
+\item Error Prone (Section~\ref{error-prone})
 \item Gradle (Section~\ref{gradle})
 \item IntelliJ IDEA (Section~\ref{intellij})
 \item javac Diagnostics Wrapper (Section~\ref{javac-diagnostics-wrapper})
@@ -796,6 +797,178 @@ Annotations $\rightarrow$ Unhandled Token in '@SuppressWarnings',''
 and set it to ignore.
 
 
+\sectionAndLabel{Error Prone}{error-prone}
+
+The Checker Framework and \href{https://errorprone.info/}{Error Prone} can be combined in
+two ways:
+
+\begin{enumerate}
+\item \textbf{Side by side.}  Run the Checker Framework as a standalone annotation
+  processor and Error Prone as a compiler plugin in the same compilation; each operates
+  independently.  This works with the standard setup described elsewhere in this manual
+  plus Error Prone's own setup.  Directory \code{docs/examples/errorprone/} contains an
+  example Gradle project.
+\item \textbf{Checker Framework as an Error Prone plugin.}  Run one or more Checker
+  Framework type systems as a single Error Prone check named \<eisopcf>, so they run
+  \emph{within} your Error Prone compilation rather than as a separate annotation
+  processor.  Directory \code{docs/examples/eisop-errorprone/} contains an example Gradle
+  project.  The rest of this section describes this mode.
+\end{enumerate}
+
+Running the Checker Framework as an Error Prone plugin turns its findings into Error Prone
+diagnostics, so they honor Error Prone's severity configuration, its suppression mechanism,
+and its suggested-fix and patch pipeline.  This is useful if you already use Error Prone and
+want to enable Checker Framework type systems through your existing Error Prone
+configuration.  Running the Checker Framework standalone (mode 1 above, or without Error
+Prone at all) remains fully supported and finds the same errors; only how they are reported
+and configured differs.
+
+Running as an Error Prone plugin requires JDK 21 or later, because Error Prone itself
+requires JDK 21 or later.
+
+\subsectionAndLabel{Enabling the plugin}{error-prone-enabling}
+
+Put Error Prone, the Checker Framework Error Prone plugin, and the checkers you want to
+run all on Error Prone's annotation processor path.  The plugin loads each selected checker
+by name, so any Checker Framework checker on the path can be run.
+
+The plugin is published to Maven Central as \code{io.github.eisop:framework-errorprone},
+with the same version as the other Checker Framework artifacts; replace \<VERSION> below
+with that version (currently \ReleaseVersion{}).
+
+For example, with the
+\href{https://github.com/tbroyer/gradle-errorprone-plugin}{Gradle Error Prone plugin}, add
+to your \<build.gradle> file:
+\begin{Verbatim}
+plugins {
+    id 'java'
+    id 'net.ltgt.errorprone' version '5.1.0'
+}
+
+dependencies {
+    // Annotations used in your code, e.g. @Nullable.
+    compileOnly     "io.github.eisop:checker-qual:VERSION"
+
+    // Error Prone, the eisopcf plugin, and the checkers to run.
+    errorprone      "com.google.errorprone:error_prone_core:2.50.0"
+    errorprone      "io.github.eisop:framework-errorprone:VERSION"
+    errorprone      "io.github.eisop:checker:VERSION"
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.errorprone.enabled = true
+    // Select the type system(s) to run; see below.
+    options.errorprone.option(
+            'eisopcf:checkers',
+            'org.checkerframework.checker.nullness.NullnessChecker')
+
+    // javac options that Error Prone (and the Checker Framework) require.
+    options.compilerArgs += [
+        '-XDcompilePolicy=simple',
+        '--should-stop=ifError=FLOW',
+        '-XDaddTypeAnnotationsToSymbol=true',
+    ]
+}
+\end{Verbatim}
+
+Because the Checker Framework accesses \<com.sun.tools.javac> internals, the compiler
+process additionally needs the module exports and opens listed in
+Section~\ref{javac-jdk11-non-modularized} (the same ones the standalone Checker Framework
+uses on JDK~9+), plus \<-{}-add-exports jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED>
+which Error Prone requires.
+
+\subsectionAndLabel{Selecting type systems}{error-prone-selecting}
+
+Choose the type system(s) to run with the \<eisopcf:checkers> Error Prone option: a
+comma-separated list of fully-qualified checker class names.
+\begin{Verbatim}
+-XepOpt:eisopcf:checkers=org.checkerframework.checker.nullness.NullnessChecker
+\end{Verbatim}
+Several type systems can run together over a single compilation.  The list is a single
+command-line argument, so it must not contain spaces:
+\begin{Verbatim}
+-XepOpt:eisopcf:checkers=org.checkerframework.checker.nullness.NullnessChecker,\
+org.checkerframework.checker.interning.InterningChecker
+\end{Verbatim}
+As when running standalone with \<javac -processor A,B>, the selected type systems share
+the compilation's AST, and each builds its own control-flow graph.
+
+\subsectionAndLabel{Command-line options for checkers}{error-prone-options}
+
+Pass Checker Framework command-line options exactly as when running standalone: with
+javac \<-A> options.  This includes both common options such as
+\<-Astubs=\ldots{}> and \<-AsuppressWarnings=\ldots{}>, and checker-specific options
+written \<-ACheckerName\_option=value>.  Do \emph{not} use \<-XepOpt:> for Checker Framework
+options; \<-XepOpt:eisopcf:\ldots{}> configures only the plugin itself (currently just
+\<checkers>).
+
+\subsectionAndLabel{Severity}{error-prone-severity}
+
+\<eisopcf> is a single Error Prone check, so its severity is configured per check, not per
+finding.  It defaults to a warning.  Override it with the standard Error Prone mechanism:
+\begin{Verbatim}
+-Xep:eisopcf:ERROR
+-Xep:eisopcf:OFF
+\end{Verbatim}
+All findings from all selected type systems share the \<eisopcf> severity; the Checker
+Framework's own error-versus-warning distinction is preserved textually, by prefixing the
+message of a Checker Framework warning with \<[warning]>.
+
+\subsectionAndLabel{Suppressing warnings}{error-prone-suppression}
+
+There are two ways to suppress findings.
+
+\begin{itemize}
+\item
+  \textbf{Per type system.}  Use the Checker Framework's own \<@SuppressWarnings> keys,
+  such as \<@SuppressWarnings("nullness")>, \<@SuppressWarnings("interning")>,
+  \<@SuppressWarnings("allcheckers")>, or a specific message key such as
+  \<@SuppressWarnings("nullness:dereference.of.nullable")>.  These suppress only the named
+  type system's findings, and work on any declaration (local variable, field, method,
+  class, \ldots{}).  This is the recommended way to suppress specific findings, and it
+  works identically to standalone mode.
+\item
+  \textbf{Whole plugin.}  \<@SuppressWarnings("eisopcf")> suppresses all Checker Framework
+  findings.  Like any Error Prone check, it takes effect on any enclosing declaration, so
+  the common idiom of extracting a value into a local variable and annotating just that
+  declaration works:
+\begin{Verbatim}
+int m(@Nullable String s, @Nullable String t) {
+    @SuppressWarnings("eisopcf")  // suppresses only the finding on this declaration
+    int lenS = s.length();
+    int lenT = t.length();        // still reported
+    return lenS + lenT;
+}
+\end{Verbatim}
+\end{itemize}
+
+The per-type-system keys work because the Checker Framework applies its own suppression
+before a finding becomes an Error Prone diagnostic, so a suppressed finding never reaches
+Error Prone.
+
+\subsectionAndLabel{Suggested fixes and patching}{error-prone-fixes}
+
+Checker Framework findings participate in Error Prone's suggested-fix and patch workflow.
+Every \<eisopcf> finding offers an ``add \<@SuppressWarnings("eisopcf")>'' fix, just as
+Error Prone's own checks do.  In addition, a type system can supply its own fix for a
+specific finding, which is offered ahead of the suppression fix.  For example, the Nullness
+Checker reports a nullness annotation on a primitive type (such as \<@Nullable int x>) and
+offers a fix that removes the annotation, so running Error Prone in patch mode rewrites
+\<@Nullable int x> to \<int x>.
+
+\subsectionAndLabel{Limitations}{error-prone-limitations}
+
+Almost every Checker Framework finding is positioned at a source-code construct and becomes
+an \<eisopcf> Error Prone diagnostic as described above.  A finding that is instead positioned
+at a program element with no corresponding source tree (for example, an error about a
+declaration in a different, already-compiled file), or that has no source position at all, is
+reported directly by \<javac> rather than through Error Prone.  Such a finding appears as an
+ordinary \<javac> diagnostic: it is not an \<eisopcf> diagnostic, so it is not affected by the
+\<eisopcf> severity setting and is not suppressed by \<@SuppressWarnings("eisopcf")> (a Checker
+Framework suppression key such as \<@SuppressWarnings("nullness")> still suppresses it).  In
+practice these findings are rare.
+
+
 \sectionAndLabel{Gradle}{gradle}
 
 To run a checker
@@ -833,6 +1006,16 @@ dependencies {
     checkerFramework "io.github.eisop:checker:${versions.eisopVersion}"
 }
 \end{Verbatim}
+
+The following directories contain complete example Gradle projects:
+\begin{itemize}
+\item \code{docs/examples/errorprone/}:  running the Checker Framework and Error Prone
+  side by side (Section~\ref{error-prone}).
+\item \code{docs/examples/eisop-errorprone/}:  running the Checker Framework as an Error
+  Prone plugin (Section~\ref{error-prone}).
+\item \code{docs/examples/lombok/}:  using the Checker Framework together with Lombok
+  (Section~\ref{lombok}).
+\end{itemize}
 
 \sectionAndLabel{IntelliJ IDEA}{intellij}
 
