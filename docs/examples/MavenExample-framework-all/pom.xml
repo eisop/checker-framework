@@ -20,13 +20,12 @@
     <dependency>
       <groupId>junit</groupId>
       <artifactId>junit</artifactId>
-      <version>4.13.1</version>
+      <version>4.13.2</version>
       <scope>test</scope>
     </dependency>
     <!-- Annotations from the Checker Framework: nullness, interning, locking, ... -->
     <dependency>
-      <!-- After next release, then: io.github.eisop -->
-      <groupId>org.checkerframework</groupId>
+      <groupId>io.github.eisop</groupId>
       <artifactId>checker-qual</artifactId>
       <version>${checkerFrameworkVersion}</version>
     </dependency>
@@ -67,8 +66,7 @@
               <showWarnings>true</showWarnings>
               <annotationProcessorPaths>
                 <path>
-                  <!-- Until next release, then: io.github.eisop -->
-                  <groupId>org.checkerframework</groupId>
+                  <groupId>io.github.eisop</groupId>
                   <artifactId>framework-all</artifactId>
                   <version>${checkerFrameworkVersion}</version>
                 </path>
@@ -103,7 +101,7 @@
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>findbugs-maven-plugin</artifactId>
-                <version>3.0.3</version>
+                <version>3.0.5</version>
                 <configuration>
                     <findbugsXmlOutput>true</findbugsXmlOutput>
                     <findbugsXmlWithMessages>true</findbugsXmlWithMessages>

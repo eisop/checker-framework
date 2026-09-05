@@ -215,21 +215,57 @@ template for a stand-alone repository:
 \url{https://github.com/eisop/templatefora-checker}; at that URL,
 click the ``Use this template'' button.
 
-% You may also wish to consult Section~\ref{creating-testing-framework} for
-% information on testing a checker and
-% Section~\ref{creating-debugging-options} for information on debugging a
-% checker.
+\subsectionAndLabel{Declaring dependencies for a custom checker}{creating-compiling-dependencies}
 
-Once your custom checker is written, using it is very similar to using a
-built-in checker (Section~\ref{running}):
+To compile a custom checker, add the Checker Framework core library and
+qualifier annotations to your project's build file.
+
+In Gradle:
+\begin{Verbatim}
+dependencies {
+    implementation "io.github.eisop:framework:${checkerFrameworkVersion}"
+    implementation "io.github.eisop:checker-qual:${checkerFrameworkVersion}"
+}
+\end{Verbatim}
+
+In Maven:
+\begin{Verbatim}
+<dependencies>
+  <dependency>
+    <groupId>io.github.eisop</groupId>
+    <artifactId>framework</artifactId>
+    <version>${checkerFrameworkVersion}</version>
+  </dependency>
+  <dependency>
+    <groupId>io.github.eisop</groupId>
+    <artifactId>checker-qual</artifactId>
+    <version>${checkerFrameworkVersion}</version>
+  </dependency>
+</dependencies>
+\end{Verbatim}
+
+Alternatively, you can depend on the self-contained
+\<io.github.eisop:framework-all> artifact, which bundles the core framework
+and all of its dependencies (relocated to avoid version conflicts).
+
+To write automated tests for your checker
+(Section~\ref{creating-testing-framework}), also add
+\<io.github.eisop:framework-test> as a test dependency:
+\begin{Verbatim}
+testImplementation "io.github.eisop:framework-test:${checkerFrameworkVersion}"
+\end{Verbatim}
+
+\subsectionAndLabel{Running a custom checker}{creating-running-custom-checker}
+
+Once your custom checker is written and compiled, using it is very similar to
+using a built-in checker (Section~\ref{running}):
 simply pass the fully-qualified name of your \<BaseTypeChecker>
 subclass to the \<-processor> command-line option:
 \begin{alltt}
-  javac -processor \textit{mypackage.MyPropChecker} SourceFile.java
+  javac -processor \textit{mypackage.MyPropChecker} -processorpath \textit{mychecker.jar}:\textit{framework-all.jar} SourceFile.java
 \end{alltt}
-Note that your custom checker's
-\<.class> files must be on the same path (the classpath or processorpath)
-as the Checker Framework.
+Note that your custom checker's \<.class> files must be on the processorpath
+along with \<framework-all.jar> (or \<checker.jar>).
 Invoking a custom checker that builds on
 the Subtyping Checker is slightly different (Section~\ref{subtyping-using}).
 
@@ -2041,8 +2077,9 @@ Section~\ref{stub-troubleshooting} useful.
 \sectionAndLabel{Testing framework}{creating-testing-framework}
 
 The Checker Framework provides a convenient way to write tests for your
-checker.  Each test case is a Java file, with inline indications of what
-errors and warnings (if any) a checker should emit.  An example is
+checker using the \<io.github.eisop:framework-test> library.  Each test case
+is a Java file, with inline indications of what errors and warnings (if any)
+a checker should emit.  An example is
 
 \begin{Verbatim}
 class MyNullnessTest {
@@ -2058,6 +2095,12 @@ class MyNullnessTest {
 When the Nullness Checker is run on the above code, it should produce
 exactly one error, whose message key is \<dereference.of.nullable>, on
 the line following the ``// ::'' comment.
+
+The test classes (subclassing
+\refclass{framework/test}{CheckerFrameworkTest} or
+\refclass{framework/test}{CheckerFrameworkPerFileTest}) compile the test
+inputs and assert that the actual diagnostics match the expected error
+comments.
 
 % Don't repeat the information here, to prevent them from getting out of sync.
 The testing infrastructure is extensively documented in file
