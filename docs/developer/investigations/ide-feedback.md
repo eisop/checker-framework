@@ -69,3 +69,12 @@ for the method being typed, in the time between keystrokes.
 Instrument `typeProcessExternally` to report the wall time of one class, in a
 warm process, over a range of class sizes. That single number decides which of
 the three questions above is worth pursuing first.
+
+There is already a hint. A scaling measurement recorded in
+[errorprone-parity.md](errorprone-parity.md) found that on annotated code the
+checker's cost over plain `javac` stays in a 1-2s band whether it compiles 5
+files or 275 -- it looks close to a fixed startup cost rather than a per-file
+one. An editor is the one host that can amortize a fixed cost: it pays it once
+per session, not once per keystroke. If that holds up on unannotated code, the
+per-method number this experiment measures could be small enough to matter,
+and question 1 becomes the promising one rather than the disqualifying one.
