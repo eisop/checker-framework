@@ -119,7 +119,11 @@ registered its own `AttributionTaskListener`, type-checking would run twice
   an unrelated check such as `SelfAssignment`, or from `eisopcf` itself ---
   stops all further type-checking. The guard is therefore conditioned on
   `!isExternallyDriven()`; `--should-stop=ifError=FLOW`, which EP requires,
-  already keeps an unattributable unit from reaching the host.
+  already keeps an unattributable unit from reaching the host. EP enforces that
+  flag at plugin init (`BaseErrorProneJavaCompiler.checkShouldStopIfErrorPolicy`
+  throws `InvalidCommandLineOptionException` without it), so it cannot be absent.
+  Verified: a file with an unresolvable symbol plus a later file with a nullness
+  error reports only javac's error, in both standalone and EP mode.
 - `instantiateSubcheckers` propagates the parent's externally-driven flag to
   each subchecker, before `setProcessingEnvironment` (which
   `setExternallyDriven` refuses to follow). Subcheckers run from the parent's
@@ -418,7 +422,11 @@ the manual's Error Prone section and on `DiagnosticSink`.
   single class with 3200 findings, re-deriving cost 9.81 s / 1176 MB versus 7.81 s /
   996 MB when the path is passed through (median of 3; the plugin's overhead over
   standalone mode drops from +2.31 s / +273 MB to +0.31 s / +93 MB). The capture is
-  skipped when no sink is installed, so standalone mode pays only a null check.
+  skipped when no sink is installed, so standalone mode pays only a null check. The
+  host does not fall back to looking the path up itself: the checker's own lookup
+  negative-caches a tree it cannot find, so a second lookup would return null too
+  (confirmed: zero fallbacks across the module's tests and the measurement corpus).
+  `CheckerFrameworkDriver` therefore exposes no `TreePathCacher`.
 
 **Severity / suppression semantics (documented limitations).**
 - Error Prone severity is per-*check*, not per-finding. All `eisopcf` findings share

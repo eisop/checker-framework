@@ -238,20 +238,16 @@ public class EisopCheckerFrameworkPlugin extends BugChecker implements ClassTree
                 // Anchor the finding (and its suppression fix) at the finding's own source tree,
                 // not the enclosing class that matchClass is visiting, so that a generated
                 // @SuppressWarnings lands on the nearest suppressible element to the finding.
-                // The checker supplies the path, having captured it while visiting the finding.
-                // Locating the tree here instead costs a scan of the whole compilation unit per
-                // finding, because the checkers' path cache is cleared before the findings are
-                // handed over; that fallback runs only if the checker had no path to give.
+                // The checker supplies the path, having captured it while visiting the finding;
+                // locating the tree here instead costs a scan of the whole compilation unit per
+                // finding.  A null path means the tree is not in the unit, which leaves the
+                // description anchored at the enclosing class.
                 VisitorState state = base;
-                TreePath findingPath =
-                        path != null
-                                ? path
-                                : currentDriver.getTreePathCacher().getPath(root, source);
-                if (findingPath != null) {
-                    state = base.withPath(findingPath);
-                }
-                if (findingPath != null && isSuppressedAt(findingPath, state)) {
-                    return;
+                if (path != null) {
+                    state = base.withPath(path);
+                    if (isSuppressedAt(path, state)) {
+                        return;
+                    }
                 }
                 Description.Builder builder =
                         buildDescription(source).setMessage(formatMessage(kind, message));

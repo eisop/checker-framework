@@ -478,6 +478,26 @@ public class EisopCheckerFrameworkPluginTest {
     }
 
     /**
+     * A finding produced at the end of type-checking a class, rather than at a tree the visitor is
+     * on, still reaches Error Prone positioned at its own tree. {@code -AwarnUnneededSuppressions}
+     * is the user-facing instance: the Checker Framework issues it from {@code
+     * warnUnneededSuppressions()}, after the visitor has finished the class.
+     */
+    @Test
+    public void unneededSuppressionWarningIsReported() {
+        helperWith("-XepOpt:eisopcf:checkers=" + NULLNESS_CHECKER, "-AwarnUnneededSuppressions")
+                .addSourceLines(
+                        "test/Unneeded.java",
+                        "package test;",
+                        "class Unneeded {",
+                        "  // BUG: Diagnostic contains: unneeded.suppression",
+                        "  @SuppressWarnings(\"nullness\")",
+                        "  String m() { return \"x\"; }",
+                        "}")
+                .doTest();
+    }
+
+    /**
      * A finding inside a nested class is reported exactly once. Error Prone's scanner matches every
      * class node (including nested ones), but the Checker Framework already type-checks a nested
      * class as part of its enclosing top-level class's recursive scan; driving it again per nested
