@@ -91,7 +91,7 @@ ext {
         errorprone      : '2.50.0',
         // NOTE: Google Java Format requires JDK 17 or higher as of version 1.25.0.
         googleJavaFormat : '1.35.0',
-        guava           : '33.4.0-jre',
+        guava           : '33.7.1-jre',
         hashmapUtil     : '0.0.1',
         junit           : '4.13.2',
         lombok          : '1.18.48',
@@ -1166,6 +1166,28 @@ subprojects {
         }
     }
 
+    // Every shaded jar, not just the one named `shadowJar`: checker, framework-all and
+    // dataflow's three shaded artifacts are each built by their own ShadowJar task.
+    //
+    // module-info.class would otherwise be checker-qual's module descriptor, declaring a module
+    // whose exported packages the jar excludes -- a descriptor that does not describe its jar.
+    //
+    // jsr305 comes in through Guava, whose bundled classes carry its annotations, which keeps
+    // part of it alive through minimize(). No Checker Framework class references a jsr305 type,
+    // so it is not part of our API, and shipping it puts `javax.annotation` -- a package shared
+    // with JSR-250 -- unrelocated inside our jars. Relocating it instead is not an option: the
+    // Nullness, Index and Value checkers compare *user* annotations against the literals
+    // "javax.annotation.Nullable", ".Nonnull", ".CheckForNull" and ".Nonnegative", which
+    // ShadowJar would rewrite along with the package. It stays on the compile classpath, where
+    // javac needs javax.annotation.meta.When to read Guava's annotations; without it `-Werror`
+    // fails on "unknown enum constant When.UNKNOWN".
+    tasks.withType(com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar).configureEach {
+        exclude '**/module-info.class'
+        dependencies {
+            exclude(dependency('com.google.code.findbugs:jsr305:.*'))
+        }
+    }
+
     tasks.named('shadowJar') {
         // If you add an external dependency, then do the following:
         //  * On the master branch and on the modified branch, run:
@@ -1191,8 +1213,6 @@ subprojects {
         // relocate 'nonapi.io.github.classgraph', 'org.checkerframework.nonapi.io.github.classgraph'
         // relocate 'sun', 'org.checkerframework.sun'
         relocate 'com.google', 'org.checkerframework.com.google'
-
-        exclude '**/module-info.class'
 
         minimize()
     }

@@ -35,6 +35,14 @@ aliases, the Called Methods Checker recognizes Lombok's
 `org.codehaus.commons.nullanalysis.NotNull`, and whole-program inference again
 honors `@org.plumelib.options.Option`.
 
+The published `checker` artifact is about 2 MB smaller: it is now minimized, like
+the other shaded jars.
+
+The shaded jars no longer contain a `module-info.class` or jsr305's
+`javax.annotation` classes, neither of which described or belonged to them.
+Recognition of `javax.annotation.Nullable`, `@Nonnull` and `@CheckForNull` in
+user code is unaffected.
+
 The Checker Framework can now run as an Error Prone plugin (the `eisopcf` check), as an
 alternative to running it as a standalone annotation processor.  It is published as
 `io.github.eisop:framework-errorprone` and requires JDK 21 or later.  See the manual's

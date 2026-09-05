@@ -364,20 +364,6 @@ tasks.register('frameworkAllJar', ShadowJar) {
     // configureFrameworkPom below), not bundled, so that a consumer gets one copy of the
     // qualifiers rather than a relocated duplicate.
     exclude 'org/checkerframework/**/qual/*'
-    // Not inherited from the shadowJar block in ../build.gradle, which configures only the
-    // task named `shadowJar`. Without it this jar ships checker-qual's module descriptor,
-    // which declares `module org.checkerframework.checker.qual` and exports packages the
-    // exclude above has just removed -- a module that does not describe this jar.
-    exclude '**/module-info.class'
-    // jsr305 comes in through guava, and its annotations on the bundled guava classes keep
-    // part of it alive through minimize(). No Checker Framework class references a jsr305
-    // type, so it is not API here -- and shipping it would put `javax.annotation`, a package
-    // shared with JSR-250, unrelocated inside this jar. It cannot be relocated instead: the
-    // Nullness Checker compares user annotations against the literal
-    // "javax.annotation.Nullable", which ShadowJar would rewrite along with the package.
-    dependencies {
-        exclude(dependency('com.google.code.findbugs:jsr305:.*'))
-    }
     minimize()
 }
 
