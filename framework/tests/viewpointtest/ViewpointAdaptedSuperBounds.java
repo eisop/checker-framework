@@ -4,12 +4,13 @@ import viewpointtest.quals.Bottom;
 import viewpointtest.quals.ReceiverDependentQual;
 import viewpointtest.quals.Top;
 
-// All supertype qualifiers come from declaration bounds, not annotations on the clauses.
-@SuppressWarnings({
-    "inconsistent.constructor.type",
-    "super.invocation.invalid",
-    "cast.unsafe.constructor.invocation"
-})
+// A class's own type-declaration bound must be a subtype of its supertype's, after the supertype's
+// bound is viewpoint-adapted to it.  No clause below is annotated: every supertype qualifier here
+// comes from the supertype's declaration bound.
+//
+// The implicit constructors are not the subject here: each takes the bound of its own class, which
+// differs from the bound of the super constructor it invokes.
+@SuppressWarnings({"inconsistent.constructor.type", "super.invocation.invalid"})
 public class ViewpointAdaptedSuperBounds {
     @ReceiverDependentQual static class DependentClass {}
 
@@ -27,7 +28,7 @@ public class ViewpointAdaptedSuperBounds {
 
     @Top interface TopInterface {}
 
-    // A receiver-dependent bound adapts to the subclass's bound.
+    // A receiver-dependent bound adapts to the subclass's own bound.
     @A static class AExtendsDependent extends DependentClass {}
 
     @B static class BExtendsDependent extends DependentClass {}
@@ -36,11 +37,11 @@ public class ViewpointAdaptedSuperBounds {
 
     @Bottom static class BottomExtendsDependent extends DependentClass {}
 
-    // @Top adapts the receiver-dependent bound to @Lost, and @Top is not a subtype of @Lost.
+    // Adapting a receiver-dependent bound from @Top yields @Lost, and @Top is not a subtype of it.
     // :: error: (declaration.inconsistent.with.extends.clause)
     @Top static class TopExtendsDependent extends DependentClass {}
 
-    // Fixed bounds do not change under viewpoint adaptation.
+    // A fixed bound is unchanged by adaptation, so the ordinary subtype check applies.
     @A static class AExtendsA extends AClass {}
 
     @Bottom static class BottomExtendsA extends AClass {}
@@ -67,7 +68,7 @@ public class ViewpointAdaptedSuperBounds {
 
     @Top static class TopExtendsTop extends TopClass {}
 
-    // The same adaptation applies to implements clauses.
+    // Implements clauses are adapted the same way.
     @A static class AImplementsDependent implements DependentInterface {}
 
     @B static class BImplementsDependent implements DependentInterface {}
@@ -101,7 +102,7 @@ public class ViewpointAdaptedSuperBounds {
 
     @Top static class TopImplementsTop implements TopInterface {}
 
-    // Interface inheritance uses extends clauses as well.
+    // An interface's extends clause is checked as an implements clause.
     @A interface AInterfaceExtendsDependent extends DependentInterface {}
 
     @B interface BInterfaceExtendsDependent extends DependentInterface {}
@@ -118,7 +119,7 @@ public class ViewpointAdaptedSuperBounds {
     // :: error: (declaration.inconsistent.with.implements.clause)
     @B interface BInterfaceExtendsA extends AInterface {}
 
-    // Check every bound when multiple supertypes are present.
+    // Every clause is checked, not just the first.
     @A static class AExtendsAndImplements extends AClass implements DependentInterface, AInterface {}
 
     @B static class BExtendsAndImplements extends DependentClass implements BInterface, TopInterface {}

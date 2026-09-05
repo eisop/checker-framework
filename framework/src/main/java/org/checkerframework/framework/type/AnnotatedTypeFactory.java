@@ -1870,12 +1870,13 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     }
 
     /**
-     * Returns the primary qualifiers on {@code declarationBoundType}, viewpoint-adapted to {@code
-     * viewpointBounds} if this type factory has a viewpoint adapter.
+     * Returns the primary qualifiers of {@code declarationBoundType}, viewpoint-adapted from the
+     * viewpoint of {@code viewpointBounds}. Returns them unadapted if this type factory has no
+     * viewpoint adapter.
      *
      * @param viewpointBounds the type-declaration bounds that provide the viewpoint
-     * @param declarationBoundType the type whose declaration bounds should be adapted
-     * @return the declaration bounds adapted to {@code viewpointBounds}
+     * @param declarationBoundType the type whose declaration bounds to adapt
+     * @return the adapted declaration bounds
      */
     public AnnotationMirrorSet getViewpointAdaptedTypeDeclarationBounds(
             AnnotationMirrorSet viewpointBounds, AnnotatedTypeMirror declarationBoundType) {

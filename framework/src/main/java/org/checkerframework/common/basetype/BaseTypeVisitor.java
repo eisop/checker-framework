@@ -943,9 +943,11 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      * subtypes of the bounds specified by this extends or implements clause. For each qualifier
      * hierarchy without an explicitly written annotation, {@link
      * AnnotatedTypeFactory#getTypeOfExtendsImplements} uses the type-declaration bound of the class
-     * or interface named by the clause. This check is necessary even if {@link
-     * #checkAnnotationOnSupertype} rejects explicitly written annotations, and it is performed for
-     * every clause because each clause can have different annotations.
+     * or interface named by the clause. Those bounds are first viewpoint-adapted to the bounds of
+     * the class being declared, so that a supertype declared with a receiver-dependent bound can be
+     * extended or implemented. This check is necessary even if {@link #checkAnnotationOnSupertype}
+     * rejects explicitly written annotations, and it is performed for every clause because each
+     * clause can have different annotations.
      *
      * @param boundClause an extends or implements clause
      * @param classBounds the type declarations bounds to check for consistency with {@code
@@ -960,12 +962,15 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             boolean isExtends) {
         checkAnnotationOnSupertype(boundClause);
         AnnotatedTypeMirror boundType = atypeFactory.getTypeOfExtendsImplements(boundClause);
+        // Adapt the supertype's bounds to the subclass's, so that "@A class Y extends X {}" is
+        // allowed when X is declared with a receiver-dependent bound.  Without an adapter this is
+        // just boundType's own qualifiers.
         AnnotationMirrorSet adaptedSuperBounds =
                 atypeFactory.getViewpointAdaptedTypeDeclarationBounds(classBounds, boundType);
         TypeMirror boundTM = boundType.getUnderlyingType();
         for (AnnotationMirror classAnno : classBounds) {
             AnnotationMirror boundAnno =
-                    qualHierarchy.findAnnotationInHierarchy(adaptedSuperBounds, classAnno);
+                    qualHierarchy.findAnnotationInSameHierarchy(adaptedSuperBounds, classAnno);
             checkExtendsOrImplementsStartDiagnostic(
                     boundClause, classAnno, classType, boundAnno, boundTM, isExtends);
             boolean success =

@@ -81,11 +81,13 @@ public interface ViewpointAdapter {
             List<AnnotatedTypeParameterBounds> typeParameterBounds);
 
     /**
-     * Viewpoint-adapts type-declaration bounds.
+     * Viewpoint-adapts the primary qualifiers of {@code declarationBoundType} from the viewpoint of
+     * {@code viewpointBounds}. This is how a supertype declared with a receiver-dependent bound
+     * takes on the bound of the subtype that extends or implements it.
      *
      * @param viewpointBounds the type-declaration bounds that provide the viewpoint
-     * @param declarationBoundType the type whose declaration bounds should be adapted
-     * @return the declaration bounds adapted to {@code viewpointBounds}
+     * @param declarationBoundType the type whose declaration bounds to adapt
+     * @return the adapted declaration bounds
      */
     AnnotationMirrorSet viewpointAdaptTypeDeclarationBounds(
             AnnotationMirrorSet viewpointBounds, AnnotatedTypeMirror declarationBoundType);

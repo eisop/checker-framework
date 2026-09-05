@@ -49,6 +49,14 @@ the checker is written as a main annotation on the superclass or interface in an
 that permits main annotations on supertypes, such as the Tainting Checker, can override
 `BaseTypeVisitor#checkAnnotationOnSupertype(Tree)`.
 
+A checker that viewpoint-adapts can now extend or implement a type whose declaration bound is
+receiver-dependent: the supertype's bound is adapted to the subtype's before the two are compared.
+`@A class Y extends X {}` was previously rejected when `X`'s bound was receiver-dependent.
+
+`ViewpointAdapter` gains `viewpointAdaptTypeDeclarationBounds`, and `AbstractViewpointAdapter` a new
+abstract `extractAnnotationMirror(AnnotationMirrorSet)` that every subclass must implement. It is
+the counterpart of the existing `extractAnnotationMirror(AnnotatedTypeMirror)`.
+
 The Nullness Checker now refines `Queue.poll()`, `Queue.peek()`,
 `Deque.pollFirst()`, `Deque.pollLast()`, `Deque.peekFirst()`, and
 `Deque.peekLast()` to `@NonNull` after a false `isEmpty()` check for queues

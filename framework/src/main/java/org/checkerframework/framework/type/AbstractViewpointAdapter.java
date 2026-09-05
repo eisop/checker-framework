@@ -295,9 +295,11 @@ public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
     protected abstract AnnotationMirror extractAnnotationMirror(AnnotatedTypeMirror atm);
 
     /**
-     * Extracts the qualifier used for viewpoint adaptation from a set of declaration bounds.
+     * Extracts the qualifier that this adapter adapts with, from a set of qualifiers. The
+     * counterpart of {@link #extractAnnotationMirror(AnnotatedTypeMirror)} for a bare qualifier
+     * set, such as a type's declaration bounds.
      *
-     * @param annotations declaration bounds containing the qualifier used by this adapter
+     * @param annotations a set of qualifiers containing one in this adapter's hierarchy
      * @return the qualifier used for viewpoint adaptation
      */
     protected abstract AnnotationMirror extractAnnotationMirror(AnnotationMirrorSet annotations);
