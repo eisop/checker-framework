@@ -19,18 +19,21 @@ if (checkerVersion == null) {
 
 repositories {
     // The artifacts published by test-publish-smoketest.sh just before this build runs.
-    // Restrict the io.github.eisop group to mavenLocal: mavenCentral() below is needed for the
-    // published POMs' external dependencies (plumelib, guava, stubparser), but if it could also
-    // serve io.github.eisop, a *previously released* artifact of the same version would satisfy
-    // resolution and silently mask a broken local publish.
     mavenLocal {
         content {
             includeGroup 'io.github.eisop'
         }
     }
+    // Needed for the published POMs' external dependencies (plumelib, guava, stubparser), and
+    // for the *released* io.github.eisop artifacts they pull in transitively: Error Prone
+    // depends on io.github.eisop:dataflow-errorprone at its own pinned version, which this
+    // build does not publish.  What Central must not serve is the version under test: a
+    // previously released artifact of that version would satisfy resolution and silently mask
+    // a broken local publish.
     mavenCentral {
         content {
-            excludeGroup 'io.github.eisop'
+            excludeVersionByRegex(
+                    'io\\.github\\.eisop', '.*', java.util.regex.Pattern.quote(checkerVersion))
         }
     }
 }
