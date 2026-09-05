@@ -100,6 +100,12 @@ dependencies {
 }
 
 tasks.withType(JavaCompile).configureEach {
+    // The Makefile greps the build output for the demo's finding, and compiler diagnostics are
+    // not among this task's declared outputs.  This example's finding is a warning, so unlike the
+    // sibling examples -- whose expected output includes an error, and whose compile therefore
+    // fails and never goes up to date -- this compile succeeds and a second run would print
+    // nothing for the Makefile to find.  So always recompile.
+    outputs.upToDateWhen { false }
     options.errorprone.enabled = true
     // Select the Checker Framework type system(s) to run as the eisopcf check.  Add more,
     // comma-separated, to run several type systems over the one compilation.
