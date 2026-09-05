@@ -24,9 +24,11 @@ repositories {
     mavenCentral()
 }
 
-// Released version to consume in the default (non-local) mode. framework-errorprone is not yet
-// published, so this mode fails until the first release that includes it.
-def eisopVersion = '3.49.5-eisop2'
+// Released version to consume in the default (non-local) mode, kept in step with the sibling
+// examples. Of the artifacts below, only framework-errorprone is missing at this version: that
+// mode therefore fails until the first release that includes framework-errorprone, after which
+// bumping this to that release makes it work.
+def eisopVersion = '3.49.5-eisop1'
 
 boolean useLocal = findProperty('cfVersion') == 'local'
 
