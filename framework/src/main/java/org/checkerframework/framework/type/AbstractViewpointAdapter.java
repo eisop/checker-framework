@@ -8,7 +8,9 @@ import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedIntersec
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedNullType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedPrimitiveType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedTypeVariable;
+import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedTypeVariable.TypeVariableUseKind;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedWildcardType;
+import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.ElementUtils;
 import org.plumelib.util.IPair;
@@ -304,6 +306,10 @@ public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
             apt.replaceAnnotation(resultAnnotation);
             return apt;
         } else if (declared.getKind() == TypeKind.TYPEVAR) {
+            AnnotatedTypeVariable declaredTypeVariable = (AnnotatedTypeVariable) declared;
+            if (declaredTypeVariable.getTypeVariableUseKind() == TypeVariableUseKind.SUB) {
+                return declared;
+            }
             if (!isTypeVarExtends) {
                 isTypeVarExtends = true;
                 AnnotatedTypeVariable atv = (AnnotatedTypeVariable) declared.shallowCopy();
@@ -321,6 +327,11 @@ public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
 
                 AnnotatedTypeMirror result =
                         AnnotatedTypeCopierWithReplacement.replace(atv, mappings);
+                AnnotationMirror resultAnnotation =
+                        combineAnnotationWithAnnotation(
+                                receiverAnnotation, extractAnnotationMirror(atv));
+                result.replaceAnnotation(resultAnnotation);
+                ((AnnotatedTypeVariable) result).markAsConcreteTypeVariableUse(resultAnnotation);
 
                 isTypeVarExtends = false;
                 return result;
@@ -553,6 +564,12 @@ public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
         List<AnnotatedTypeMirror> tas = decltype.getTypeArguments();
         // return a copy, as we want to modify the type later.
         AnnotatedTypeMirror result = tas.get(foundindex).shallowCopy(true);
+        if (var.getTypeVariableUseKind() == TypeVariableUseKind.CONCRETE) {
+            AnnotationMirrorSet concreteAnnotations = var.getConcreteTypeVariableUseAnnotations();
+            if (!concreteAnnotations.isEmpty()) {
+                result.replaceAnnotations(concreteAnnotations);
+            }
+        }
         if (result.getKind() == TypeKind.WILDCARD) {
             AnnotatedWildcardType wildcard = (AnnotatedWildcardType) result;
             // When substituting an unbounded wildcard for a bounded type variable, the shallow
