@@ -43,10 +43,14 @@ The shaded jars no longer contain a `module-info.class` or jsr305's
 Recognition of `javax.annotation.Nullable`, `@Nonnull` and `@CheckForNull` in
 user code is unaffected.
 
-The Nullness Checker's new `-Amode=jspecify` option enables its JSpecify-compatible
-checking behaviors as a group.  It currently enables `-AonlyAnnotatedFor`
-and recognizes JSpecify's `@NullMarked`.  It also disables initialization checking
-and the Map Key Checker.
+The new `-Amode=<mode>` option turns on a checker-defined group of options; writing one
+of those options yourself overrides the mode.  A checker declares its modes with
+`@SupportedModes` and defines them by overriding `SourceChecker.addOptionsForMode`.
+
+The Nullness Checker supports `-Amode=jspecify`, which makes it behave as JSpecify
+specifies: it checks only code in the scope of an `@AnnotatedFor`, treats `@NullMarked`
+as a defaulting annotation, and performs neither initialization checking nor map-key
+checking.
 
 The Checker Framework now issues an `annotation.on.supertype` error when an annotation supported by
 the checker is written as a main annotation on the superclass or interface in an `extends` or

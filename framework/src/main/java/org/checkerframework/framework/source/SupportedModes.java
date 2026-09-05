@@ -8,10 +8,12 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * An annotation used to indicate which values for the {@code -Amode} option a checker supports.
- * Each mode enables a checker-defined group of options. The {@link SourceChecker#getSupportedModes}
- * method constructs its result from the value of this annotation and the modes supported by
- * subcheckers.
+ * The values of the {@code -Amode} option that a checker supports. Each names a group of options
+ * that the checker turns on, defined by its {@link SourceChecker#addOptionsForMode} override.
+ *
+ * <p>{@link SourceChecker#getSupportedModes} collects these annotations from the checker's class
+ * hierarchy and from its subcheckers; write this annotation on the class whose {@code
+ * addOptionsForMode} handles the mode.
  *
  * @see SupportedOptions
  */

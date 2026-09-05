@@ -120,10 +120,11 @@ public class NullnessChecker extends InitializationChecker {
     public NullnessChecker() {}
 
     /**
-     * Adds the options enabled by the given mode.
+     * {@inheritDoc}
      *
-     * @param mode the value of the {@code -Amode} option
-     * @param activeOptions the active options to which mode options should be added
+     * <p>{@link #MODE_JSPECIFY} restricts checking to code in the scope of an
+     * {@code @AnnotatedFor}, treats {@code @NullMarked} as a defaulting annotation, and turns off
+     * the initialization and map-key checks, none of which JSpecify specifies.
      */
     @Override
     protected void addOptionsForMode(String mode, Map<String, String> activeOptions) {
@@ -131,6 +132,7 @@ public class NullnessChecker extends InitializationChecker {
         switch (mode) {
             case MODE_JSPECIFY:
                 activeOptions.putIfAbsent("onlyAnnotatedFor", null);
+                // Already the default; named here so the mode states the behavior it relies on.
                 activeOptions.putIfAbsent("jspecifyNullMarkedAlias", "true");
                 activeOptions.putIfAbsent("assumeInitialized", null);
                 activeOptions.putIfAbsent("assumeKeyFor", null);

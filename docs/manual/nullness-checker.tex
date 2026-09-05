@@ -209,12 +209,13 @@ command-line option.)
 
 \item
   If you supply the \code{-Amode=jspecify} command-line option, then the Nullness
-  Checker enables its JSpecify-compatible checking behaviors.  Currently, it
-  checks only code in the scope of a corresponding \code{@AnnotatedFor} and treats
-  \code{org.jspecify.annotations.NullMarked} as a defaulting annotation.  The legacy
-  \code{org.jspecify.nullness.NullMarked} annotation is also supported.  It also disables
-  initialization checking and the Map Key Checker.  An explicitly supplied value for an
-  individual option takes precedence over \code{-Amode=jspecify}.
+  Checker behaves as JSpecify specifies:  it checks only code in the scope of a
+  corresponding \code{@AnnotatedFor}, treats \code{@NullMarked} as a defaulting
+  annotation (both \code{org.jspecify.annotations.NullMarked} and the legacy
+  \code{org.jspecify.nullness.NullMarked}), and performs neither initialization
+  checking nor map-key checking, neither of which JSpecify specifies.
+  This is a shorthand for \code{-AonlyAnnotatedFor -AassumeInitialized
+  -AassumeKeyFor}; writing any of those options yourself overrides the mode.
 
 \item
   \label{nullness-jspecifyNullMarkedAlias}%

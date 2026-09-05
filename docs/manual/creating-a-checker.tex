@@ -1223,7 +1223,11 @@ A mode is a named group of options.  Declare the modes that a checker supports w
   \refqualclass{framework/source}{SupportedModes}({"sound", "convenience"})
 \end{alltt}
 
-Define the options enabled by each mode by overriding \code{addOptionsForMode}:
+Define the options each mode enables by overriding \code{addOptionsForMode}.  Use
+\code{putIfAbsent}, so that an option written on the command line wins over the mode.
+Call \code{super} and ignore an unrecognized mode:  another checker in the same run
+may have defined it.
+
 
 \begin{Verbatim}
   @Override
@@ -1242,6 +1246,9 @@ Define the options enabled by each mode by overriding \code{addOptionsForMode}:
     }
   }
 \end{Verbatim}
+
+The user selects one with \<-Amode=sound>.  A mode that no checker in the run declares
+is an error, so a typo does not silently do nothing.
 
 \subsubsectionAndLabel{Default Options}{creating-providing-command-line-options-default-options}
 

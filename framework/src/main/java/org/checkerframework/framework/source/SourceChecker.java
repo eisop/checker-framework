@@ -2296,7 +2296,8 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     }
 
     /**
-     * Returns the modes recognized by this checker and its subcheckers.
+     * Returns the values of {@code -Amode} that this checker and its subcheckers recognize. Each
+     * names a group of options; see {@link #addOptionsForMode}.
      *
      * @return an unmodifiable set of supported mode names
      */
@@ -2308,21 +2309,24 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     }
 
     /**
-     * Computes the modes recognized by this checker and its subcheckers.
+     * Computes the result of {@link #getSupportedModes}, from the {@link SupportedModes}
+     * annotations on this checker's class hierarchy and from its subcheckers.
      *
      * @return the supported mode names
      */
     protected Set<String> createSupportedModes() {
         Set<String> result = new HashSet<>();
-        Class<?> clazz = getClass();
-        do {
-            SupportedModes annotation = clazz.getAnnotation(SupportedModes.class);
+        // Walk the hierarchy rather than relying on @Inherited, which yields only the nearest
+        // annotation: a subclass that declares its own modes still supports its superclass's,
+        // because its addOptionsForMode calls super.
+        for (Class<?> clazz = getClass();
+                clazz != null && SourceChecker.class.isAssignableFrom(clazz);
+                clazz = clazz.getSuperclass()) {
+            SupportedModes annotation = clazz.getDeclaredAnnotation(SupportedModes.class);
             if (annotation != null) {
                 Collections.addAll(result, annotation.value());
             }
-            clazz = clazz.getSuperclass();
-        } while (clazz != null
-                && !clazz.getName().equals(AbstractTypeProcessor.class.getCanonicalName()));
+        }
 
         for (SourceChecker checker : getSubcheckers()) {
             result.addAll(checker.createSupportedModes());
@@ -2399,9 +2403,12 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     }
 
     /**
-     * Adds the options enabled by the active mode.
+     * Adds to {@code activeOptions} the options that the active mode enables, both this checker's
+     * and those of the checkers that this one is a subchecker of. A subchecker needs its parents'
+     * mode options because a mode is named for what the whole checker should do, and the options it
+     * turns on are read by whichever checker owns them.
      *
-     * @param activeOptions the active options to which mode options should be added
+     * @param activeOptions the active options, to which mode options are added
      */
     private void addModeOptions(Map<String, String> activeOptions) {
         if (parentChecker != null) {
@@ -2410,6 +2417,8 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
 
         String mode = activeOptions.get("mode");
         if (mode == null || mode.isEmpty()) {
+            // An absent or empty mode is diagnosed by validateMode, which runs after the options
+            // are built.
             return;
         }
 
@@ -2417,18 +2426,24 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     }
 
     /**
-     * Adds the options enabled by the given mode for this checker. An explicitly supplied option
-     * should take precedence, so implementations should use {@link Map#putIfAbsent}.
+     * Adds to {@code activeOptions} the options that {@code mode} enables for this checker. The
+     * default implementation adds none; a checker that declares modes with {@link SupportedModes}
+     * overrides this, calls {@code super}, and ignores a mode it does not recognize (another
+     * checker in the same run may define it).
+     *
+     * <p>Use {@link Map#putIfAbsent}: {@code activeOptions} already holds the options written on
+     * the command line, which take precedence over the mode.
      *
      * @param mode the value of the {@code -Amode} option
-     * @param activeOptions the active options to which mode options should be added
+     * @param activeOptions the active options, to which mode options are added
      */
     protected void addOptionsForMode(String mode, Map<String, String> activeOptions) {}
 
     /**
-     * Validates the {@code -Amode} command-line option.
+     * Throws a {@link UserError} if the {@code -Amode} command-line option, when given, does not
+     * name a mode that this checker or one of its subcheckers supports.
      *
-     * @param activeOptions the active options whose mode should be validated
+     * @param activeOptions the active options, whose mode to validate
      */
     private void validateMode(Map<String, String> activeOptions) {
         if (!activeOptions.containsKey("mode")) {
