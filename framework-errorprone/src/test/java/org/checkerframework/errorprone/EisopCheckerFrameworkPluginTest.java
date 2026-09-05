@@ -1,6 +1,7 @@
 package org.checkerframework.errorprone;
 
 import com.google.errorprone.CompilationTestHelper;
+import com.google.errorprone.bugpatterns.SelfAssignment;
 import com.google.errorprone.scanner.ScannerSupplier;
 
 import org.junit.Before;
@@ -69,6 +70,117 @@ public class EisopCheckerFrameworkPluginTest {
         args.addAll(Arrays.asList(extraArgs));
         return CompilationTestHelper.newInstance(scanner, EisopCheckerFrameworkPluginTest.class)
                 .setArgs(args);
+    }
+
+    /**
+     * Returns a {@link CompilationTestHelper} running the {@code eisopcf} plugin alongside an
+     * unrelated Error Prone check, both at ERROR severity.
+     *
+     * <p>Error Prone reports its findings as javac diagnostics, so an ERROR from any check raises
+     * {@code Log.nerrors}. The Checker Framework skips a compilation unit whose processing began
+     * after {@code Log.nerrors} rose, on the assumption that a javac error means an unreliable AST.
+     * Under Error Prone that assumption does not hold: another check's finding is not a broken AST.
+     *
+     * @return a helper running eisopcf and SelfAssignment, both as errors
+     */
+    private static CompilationTestHelper helperWithUnrelatedErrorProneCheck() {
+        ScannerSupplier scanner =
+                ScannerSupplier.fromBugCheckerClasses(
+                        EisopCheckerFrameworkPlugin.class, SelfAssignment.class);
+        List<String> args = new ArrayList<>(BASE_ARGS);
+        args.add("-XepOpt:eisopcf:checkers=" + NULLNESS_CHECKER);
+        args.add("-Xep:eisopcf:ERROR");
+        args.add("-Xep:SelfAssignment:ERROR");
+        return CompilationTestHelper.newInstance(scanner, EisopCheckerFrameworkPluginTest.class)
+                .setArgs(args);
+    }
+
+    /**
+     * An Error Prone finding from an unrelated check does not stop the Checker Framework from
+     * checking the compilation units that follow it.
+     *
+     * <p>The file names matter: Error Prone and the Checker Framework see the compilation units in
+     * order, so the file carrying the unrelated error has to be processed first for the effect to
+     * appear.
+     */
+    @Test
+    public void unrelatedErrorProneErrorDoesNotSuppressLaterChecking() {
+        helperWithUnrelatedErrorProneCheck()
+                .addSourceLines(
+                        "AFirst.java",
+                        "package demo;",
+                        "public class AFirst {",
+                        "    int f;",
+                        "    void selfAssign() {",
+                        "        // BUG: Diagnostic contains: SelfAssignment",
+                        "        this.f = this.f;",
+                        "    }",
+                        "}")
+                .addSourceLines(
+                        "CSecond.java",
+                        "package demo;",
+                        "import org.checkerframework.checker.nullness.qual.Nullable;",
+                        "public class CSecond {",
+                        "    @Nullable Object field;",
+                        "    String m() {",
+                        "        // BUG: Diagnostic contains: dereference.of.nullable",
+                        "        return field.toString();",
+                        "    }",
+                        "}")
+                .addSourceLines(
+                        "DSecond.java",
+                        "package demo;",
+                        "import org.checkerframework.checker.nullness.qual.Nullable;",
+                        "public class DSecond {",
+                        "    @Nullable Object field;",
+                        "    String m() {",
+                        "        // BUG: Diagnostic contains: dereference.of.nullable",
+                        "        return field.toString();",
+                        "    }",
+                        "}")
+                .doTest();
+    }
+
+    /**
+     * Control for {@link #unrelatedErrorProneErrorDoesNotSuppressLaterChecking}: with no error in
+     * the first compilation unit, the later units are checked. Isolates the effect of the earlier
+     * error from any question of whether the plugin sees these classes at all.
+     */
+    @Test
+    public void withoutAnEarlierErrorTheLaterUnitsAreChecked() {
+        helperWithUnrelatedErrorProneCheck()
+                .addSourceLines(
+                        "AFirst.java",
+                        "package demo;",
+                        "public class AFirst {",
+                        "    int f;",
+                        "    void noSelfAssign() {",
+                        "        this.f = this.f + 1;",
+                        "    }",
+                        "}")
+                .addSourceLines(
+                        "CSecond.java",
+                        "package demo;",
+                        "import org.checkerframework.checker.nullness.qual.Nullable;",
+                        "public class CSecond {",
+                        "    @Nullable Object field;",
+                        "    String m() {",
+                        "        // BUG: Diagnostic contains: dereference.of.nullable",
+                        "        return field.toString();",
+                        "    }",
+                        "}")
+                .addSourceLines(
+                        "DSecond.java",
+                        "package demo;",
+                        "import org.checkerframework.checker.nullness.qual.Nullable;",
+                        "public class DSecond {",
+                        "    @Nullable Object field;",
+                        "    String m() {",
+                        "        // BUG: Diagnostic contains: dereference.of.nullable",
+                        "        return field.toString();",
+                        "    }",
+                        "}")
+                .doTest();
     }
 
     /**

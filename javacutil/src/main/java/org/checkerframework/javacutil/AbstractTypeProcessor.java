@@ -135,6 +135,16 @@ public abstract class AbstractTypeProcessor extends AbstractProcessor {
     }
 
     /**
+     * Returns true if a host drives this processor's type-processing lifecycle.
+     *
+     * @return true if a host drives the type-processing lifecycle
+     * @see #setExternallyDriven(boolean)
+     */
+    protected final boolean isExternallyDriven() {
+        return externallyDriven;
+    }
+
+    /**
      * {@inheritDoc}
      *
      * <p>In the default (self-driven) mode, registers a {@link TaskListener} that will get called

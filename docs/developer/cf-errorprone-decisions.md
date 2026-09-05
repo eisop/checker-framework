@@ -110,6 +110,22 @@ registered its own `AttributionTaskListener`, type-checking would run twice
   externally-driven path itself is exercised end-to-end by the Error Prone
   `CompilationTestHelper` test added in Task 4, over a real compilation, rather
   than via a throwaway low-level `ProcessingEnvironment`/`TreePath` harness.
+- `SourceChecker.typeProcess` skips a compilation unit whose processing began
+  after `Log.nerrors` rose, and latches `javacErrored` so every later unit is
+  skipped too. That is the right reading of `Log.nerrors` in standalone mode,
+  where the only errors are javac's own and a raised count means an
+  unattributable AST. It is the wrong reading when a host drives the lifecycle:
+  EP reports every check's findings as javac diagnostics, so one ERROR --- from
+  an unrelated check such as `SelfAssignment`, or from `eisopcf` itself ---
+  stops all further type-checking. The guard is therefore conditioned on
+  `!isExternallyDriven()`; `--should-stop=ifError=FLOW`, which EP requires,
+  already keeps an unattributable unit from reaching the host.
+- `instantiateSubcheckers` propagates the parent's externally-driven flag to
+  each subchecker, before `setProcessingEnvironment` (which
+  `setExternallyDriven` refuses to follow). Subcheckers run from the parent's
+  `typeProcess`, so they share the parent's lifecycle ownership; without the
+  propagation a subchecker keeps the standalone `Log.nerrors` guard and stops
+  checking on the first EP error.
 
 
 ---

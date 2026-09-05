@@ -1330,6 +1330,10 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
             }
             instance.setParentChecker(this);
             immediateSubcheckers.add(instance);
+            // Inherit the parent's lifecycle ownership: a host that drives this checker drives
+            // its subcheckers too, since they are run from this checker's typeProcess.  Must
+            // precede setProcessingEnvironment, which setExternallyDriven refuses to follow.
+            instance.setExternallyDriven(this.isExternallyDriven());
             instance.setProcessingEnvironment(this.processingEnv);
             instance.treePathCacher = this.getTreePathCacher();
             // Prevent the new checker from storing non-immediate subcheckers
@@ -1455,7 +1459,17 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
             warnedAboutSourceLevel = true;
         }
 
-        if (log.nerrors > this.errsOnLastExit) {
+        // Skip a compilation unit that javac could not attribute: type-checking a broken AST
+        // produces noise, not findings.  Log.nerrors is the signal for that in standalone mode,
+        // where the only errors are javac's own.
+        //
+        // It is not a usable signal when a host drives the lifecycle.  Error Prone reports every
+        // check's findings as javac diagnostics, so an ERROR from any check -- including this
+        // checker's own findings, and unrelated checks such as SelfAssignment -- raises
+        // Log.nerrors and would suppress checking of every compilation unit that follows.  A host
+        // decides which classes to hand over, and javac's --should-stop=ifError=FLOW already keeps
+        // an unattributable unit from reaching the host.
+        if (!isExternallyDriven() && log.nerrors > this.errsOnLastExit) {
             this.errsOnLastExit = log.nerrors;
             javacErrored = true;
             return;
