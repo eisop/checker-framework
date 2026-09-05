@@ -29,7 +29,6 @@ import org.checkerframework.common.util.report.qual.ReportWrite;
 import org.checkerframework.framework.type.AnnotatedTypeFactory;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedDeclaredType;
 import org.checkerframework.framework.util.AnnotatedTypes;
-import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.TreeUtils;
 
@@ -45,7 +44,6 @@ import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Modifier;
 import javax.lang.model.element.PackageElement;
 import javax.lang.model.element.TypeElement;
-import javax.tools.Diagnostic;
 
 /** The visitor for the Report Checker. */
 public class ReportVisitor extends BaseTypeVisitor<BaseAnnotatedTypeFactory> {
@@ -76,15 +74,6 @@ public class ReportVisitor extends BaseTypeVisitor<BaseAnnotatedTypeFactory> {
                         "applyToSubpackages",
                         0,
                         checker.getProcessingEnvironment());
-        if (reportUseApplyToSubpackagesElement == null) {
-            checker.message(
-                    Diagnostic.Kind.NOTE,
-                    "The @ReportUse annotation on the classpath does not define the"
-                            + " applyToSubpackages element; package annotations will apply to"
-                            + " subpackages. Use the EISOP checker-qual artifact to control this"
-                            + " behavior.");
-        }
-
         EnumSet<Tree.Kind> treeKindsTmp = EnumSet.noneOf(Tree.Kind.class);
         for (String treeKind : checker.getStringsOption("reportTreeKinds", ',')) {
             treeKindsTmp.add(Tree.Kind.valueOf(treeKind.toUpperCase(Locale.ROOT)));
@@ -116,14 +105,16 @@ public class ReportVisitor extends BaseTypeVisitor<BaseAnnotatedTypeFactory> {
      * @param member the element from which to start looking
      */
     private void checkReportUse(Tree tree, Element member) {
-        Element loop = member;
-        boolean isParentPackage = false;
-        while (loop != null) {
+        // Once the walk moves from a package to its parent, an annotation applies only if it
+        // applies to subpackages.  Everything before that -- the member, its enclosing types, and
+        // its own package -- is covered by an annotation written on it.
+        boolean inEnclosingPackage = false;
+        for (Element loop = member; loop != null; ) {
             AnnotationMirror reportUse = this.atypeFactory.getDeclAnnotation(loop, ReportUse.class);
-            boolean report =
-                    reportUse != null
-                            && (!isParentPackage || doesReportUseApplyToSubpackages(reportUse));
-            if (report) {
+            if (reportUse != null
+                    && (!inEnclosingPackage
+                            || AnnotatedTypeFactory.appliesToSubpackages(
+                                    reportUse, reportUseApplyToSubpackagesElement))) {
                 checker.reportError(
                         tree,
                         "usage",
@@ -132,29 +123,17 @@ public class ReportVisitor extends BaseTypeVisitor<BaseAnnotatedTypeFactory> {
                         loop.getKind(),
                         ElementUtils.getQualifiedName(member),
                         member.getKind());
-                break;
-            } else if (loop.getKind() == ElementKind.PACKAGE) {
-                loop = ElementUtils.parentPackage((PackageElement) loop, elements);
-                isParentPackage = true;
-                continue;
+                return;
             }
-            // Package will always be the last iteration.
-            loop = loop.getEnclosingElement();
+            if (loop.getKind() == ElementKind.PACKAGE) {
+                loop = ElementUtils.parentPackage((PackageElement) loop, elements);
+                inEnclosingPackage = true;
+            } else {
+                // The enclosing element of a top-level type is its package, so once the walk
+                // reaches a package it stays in packages until it runs out.
+                loop = loop.getEnclosingElement();
+            }
         }
-    }
-
-    /**
-     * Returns whether the given package-level {@link ReportUse} annotation applies to subpackages.
-     *
-     * @param reportUse a {@link ReportUse} annotation
-     * @return whether {@code reportUse} applies to subpackages
-     */
-    private boolean doesReportUseApplyToSubpackages(AnnotationMirror reportUse) {
-        // A checker-qual that predates the element gives no way to opt out, so preserve the old
-        // behavior and treat package annotations as applying to subpackages.
-        return reportUseApplyToSubpackagesElement == null
-                || AnnotationUtils.getElementValue(
-                        reportUse, reportUseApplyToSubpackagesElement, Boolean.class, true);
     }
 
     /* Would we want this? Seems redundant, as all uses of the imported

@@ -43,12 +43,12 @@ The shaded jars no longer contain a `module-info.class` or jsr305's
 Recognition of `javax.annotation.Nullable`, `@Nonnull` and `@CheckForNull` in
 user code is unaffected.
 
-`AnnotatedFor`, `HasQualifierParameter`, and `ReportUse` support the new
-`applyToSubpackages` annotation element, which decides whether an annotation
-written on a package also applies to that package's subpackages. To preserve
-the current behavior the default is `true`. `DefaultQualifier` already had this
-element. When an older `checker-qual` artifact lacks the element, package
-annotations retain their previous behavior and apply to subpackages.
+`AnnotatedFor`, `HasQualifierParameter`, and `ReportUse` gain the
+`applyToSubpackages` element that `DefaultQualifier` already had. It says whether
+an annotation written on a package also applies to that package's subpackages,
+and defaults to `true`, so existing code is unaffected. Setting it to false limits
+only that annotation; an applicable annotation on an enclosing package still
+applies.
 
 The Checker Framework now issues an `annotation.on.supertype` error when an annotation supported by
 the checker is written as a main annotation on the superclass or interface in an `extends` or
@@ -393,13 +393,13 @@ which `BaseTypeChecker` implements with a cache.
 
 **Implementation details:**
 
-New method `AnnotatedTypeFactory.doesAnnotatedForApplyToSubpackages(AnnotationMirror)`
-reports whether an `@AnnotatedFor` written on a package also applies to that
-package's subpackages. Code that walks up the package chain to find a package
-annotation should gate the steps to enclosing packages on the annotation's
-`applyToSubpackages` element rather than propagating unconditionally; the
-annotated package itself is always in scope. An absent element, as in a
-`checker-qual` that predates it, is treated as true for compatibility.
+Code that walks up the package chain looking for a package annotation must now gate
+each step to an enclosing package on that annotation's `applyToSubpackages` element;
+the annotated package itself is always in scope. `AnnotatedTypeFactory` has two new
+methods for this: the static `appliesToSubpackages(AnnotationMirror, ExecutableElement)`,
+and `doesAnnotatedForApplyToSubpackages(AnnotationMirror)` for `@AnnotatedFor`. A null
+element, as in a `checker-qual` that predates it, is treated as true, so a package
+annotation from such an artifact applies to subpackages as it always did.
 
 `AnnotatedIntersectionType.summarizeBounds` computes the summary described
 above, reading each bound's qualifier, explicit or defaulted, uniformly,

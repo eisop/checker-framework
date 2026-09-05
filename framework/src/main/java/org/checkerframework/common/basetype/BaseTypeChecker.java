@@ -82,10 +82,11 @@ public abstract class BaseTypeChecker extends SourceChecker {
             new IdentityHashMap<>();
 
     /**
-     * A mapping from a package to whether an {@code @AnnotatedFor} on that package or an enclosing
-     * package applies to this checker or an upstream checker and to subpackages. This differs from
-     * {@link #elementAnnotatedForThisCheckerOrUpstreamCache} because an {@code @AnnotatedFor} that
-     * opts out of subpackages still covers its own package.
+     * A mapping from a package to whether that package's subpackages are covered by an
+     * {@code @AnnotatedFor} for this checker or an upstream checker, written on it or on an
+     * enclosing package. Separate from {@link #elementAnnotatedForThisCheckerOrUpstreamCache}
+     * because an {@code @AnnotatedFor} that opts out of subpackages still covers its own package,
+     * so the two answers differ for the same package.
      */
     private final IdentityHashMap<PackageElement, Boolean> annotatedForReachesSubpackagesCache =
             new IdentityHashMap<>();
@@ -375,12 +376,13 @@ public abstract class BaseTypeChecker extends SourceChecker {
     }
 
     /**
-     * Returns true if a subpackage of {@code pkg} would be covered by an {@code @AnnotatedFor} on
-     * {@code pkg} or an enclosing package.
+     * Returns true if the subpackages of {@code pkg} are covered by an {@code @AnnotatedFor} for
+     * this checker or an upstream checker. Such an annotation may be written on {@code pkg} itself
+     * or on any enclosing package: a package that opts out of subpackages does not shield its own
+     * subpackages from an enclosing package that opts in.
      *
-     * @param pkg a package, or null
-     * @return true if {@code pkg} or an enclosing package has an {@code @AnnotatedFor} for this
-     *     checker or an upstream checker that applies to subpackages
+     * @param pkg a package, or null for no package
+     * @return true if an {@code @AnnotatedFor} covers the subpackages of {@code pkg}
      */
     private boolean doesAnnotatedForReachSubpackages(@Nullable PackageElement pkg) {
         if (pkg == null) {
@@ -395,15 +397,11 @@ public abstract class BaseTypeChecker extends SourceChecker {
         AnnotatedTypeFactory atypeFactory = getTypeFactory();
         AnnotationMirror annotatedFor = atypeFactory.getDeclAnnotation(pkg, AnnotatedFor.class);
         boolean result =
-                annotatedFor != null
-                        && atypeFactory.doesAnnotatedForApplyToThisChecker(annotatedFor)
-                        && atypeFactory.doesAnnotatedForApplyToSubpackages(annotatedFor);
-        if (!result) {
-            // A package that opts out of subpackages does not block an outer package that opts in.
-            result =
-                    doesAnnotatedForReachSubpackages(
-                            ElementUtils.parentPackage(pkg, atypeFactory.getElementUtils()));
-        }
+                (annotatedFor != null
+                                && atypeFactory.doesAnnotatedForApplyToThisChecker(annotatedFor)
+                                && atypeFactory.doesAnnotatedForApplyToSubpackages(annotatedFor))
+                        || doesAnnotatedForReachSubpackages(
+                                ElementUtils.parentPackage(pkg, atypeFactory.getElementUtils()));
 
         annotatedForReachesSubpackagesCache.put(pkg, result);
         return result;

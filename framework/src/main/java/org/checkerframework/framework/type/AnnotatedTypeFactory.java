@@ -140,7 +140,6 @@ import javax.lang.model.type.TypeMirror;
 import javax.lang.model.type.TypeVariable;
 import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
-import javax.tools.Diagnostic;
 
 /**
  * The methods of this class take an element or AST node, and return the annotated type as an {@link
@@ -818,14 +817,6 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         annotatedForApplyToSubpackagesElement =
                 TreeUtils.getMethodOrNull(
                         AnnotatedFor.class, "applyToSubpackages", 0, processingEnv);
-        if (annotatedForApplyToSubpackagesElement == null) {
-            checker.message(
-                    Diagnostic.Kind.NOTE,
-                    "The @AnnotatedFor annotation on the classpath does not define the"
-                            + " applyToSubpackages element; package annotations will apply to"
-                            + " subpackages. Use the EISOP checker-qual artifact to control this"
-                            + " behavior.");
-        }
         ensuresQualifierExpressionElement =
                 TreeUtils.getMethod(EnsuresQualifier.class, "expression", 0, processingEnv);
         ensuresQualifierListValueElement =
@@ -845,14 +836,6 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         hasQualifierParameterApplyToSubpackagesElement =
                 TreeUtils.getMethodOrNull(
                         HasQualifierParameter.class, "applyToSubpackages", 0, processingEnv);
-        if (hasQualifierParameterApplyToSubpackagesElement == null) {
-            checker.message(
-                    Diagnostic.Kind.NOTE,
-                    "The @HasQualifierParameter annotation on the classpath does not define the"
-                            + " applyToSubpackages element; package annotations will apply to"
-                            + " subpackages. Use the EISOP checker-qual artifact to control this"
-                            + " behavior.");
-        }
         methodValClassNameElement =
                 TreeUtils.getMethod(MethodVal.class, "className", 0, processingEnv);
         methodValMethodNameElement =
@@ -5518,17 +5501,20 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
                         element, HasQualifierParameter.class, hasQualifierParameterValueElement));
         AnnotationMirrorSet hasQualifierParameterTops = new AnnotationMirrorSet();
         PackageElement packageElement = ElementUtils.enclosingPackage(element);
-        // Traverse all packages containing this element. The element's own package always applies;
-        // an outer package applies only if its annotation applies to subpackages.
+        // Traverse all packages containing this element.  The element's own package always
+        // applies; an enclosing package applies only if its annotation applies to subpackages.
         boolean isOwnPackage = true;
         while (packageElement != null) {
-            if (isOwnPackage || doesHasQualifierParameterApplyToSubpackages(packageElement)) {
-                AnnotationMirrorSet packageDefaultTops =
-                        getSupportedAnnotationsInElementAnnotation(
-                                packageElement,
-                                HasQualifierParameter.class,
-                                hasQualifierParameterValueElement);
-                hasQualifierParameterTops.addAll(packageDefaultTops);
+            AnnotationMirror hasQualifierParameter =
+                    getDeclAnnotation(packageElement, HasQualifierParameter.class);
+            if (hasQualifierParameter != null
+                    && (isOwnPackage
+                            || appliesToSubpackages(
+                                    hasQualifierParameter,
+                                    hasQualifierParameterApplyToSubpackagesElement))) {
+                hasQualifierParameterTops.addAll(
+                        getSupportedAnnotationsInAnnotation(
+                                hasQualifierParameter, hasQualifierParameterValueElement));
             }
             packageElement = ElementUtils.parentPackage(packageElement, elements);
             isOwnPackage = false;
@@ -5547,27 +5533,21 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     }
 
     /**
-     * Returns whether {@code packageElement}'s {@code @HasQualifierParameter} applies to
+     * Returns whether an annotation written on a package also applies to that package's
      * subpackages.
      *
-     * @param packageElement a package
-     * @return true if {@code packageElement} is annotated with a {@code @HasQualifierParameter}
-     *     that applies to subpackages
+     * @param anno an annotation written on a package
+     * @param applyToSubpackagesElement {@code anno}'s {@code applyToSubpackages} element, or null
+     *     if the {@code checker-qual} on the classpath predates that element
+     * @return true if {@code anno} applies to subpackages
      */
-    private boolean doesHasQualifierParameterApplyToSubpackages(PackageElement packageElement) {
-        AnnotationMirror hasQualifierParameter =
-                getDeclAnnotation(packageElement, HasQualifierParameter.class);
-        if (hasQualifierParameter == null) {
-            return false;
-        }
-        // A checker-qual that predates the applyToSubpackages element gives no way to opt out, so
-        // treat the annotation as applying to subpackages.
-        return hasQualifierParameterApplyToSubpackagesElement == null
+    public static boolean appliesToSubpackages(
+            AnnotationMirror anno, @Nullable ExecutableElement applyToSubpackagesElement) {
+        // A checker-qual without the element gives no way to opt out, so an annotation from it
+        // applies to subpackages, as it always did.
+        return applyToSubpackagesElement == null
                 || AnnotationUtils.getElementValue(
-                        hasQualifierParameter,
-                        hasQualifierParameterApplyToSubpackagesElement,
-                        Boolean.class,
-                        true);
+                        anno, applyToSubpackagesElement, Boolean.class, true);
     }
 
     /**
@@ -5596,7 +5576,20 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         if (annotation == null) {
             return AnnotationMirrorSet.emptySet();
         }
+        return getSupportedAnnotationsInAnnotation(annotation, valueElement);
+    }
 
+    /**
+     * Returns the supported annotation mirrors named by {@code valueElement} of {@code annotation}.
+     * The same as {@link #getSupportedAnnotationsInElementAnnotation}, for a caller that already
+     * holds the annotation.
+     *
+     * @param annotation an annotation whose {@code valueElement} names annotation classes
+     * @param valueElement the element of {@code annotation} whose value is a list of classes
+     * @return the supported annotations named by {@code valueElement}
+     */
+    private AnnotationMirrorSet getSupportedAnnotationsInAnnotation(
+            AnnotationMirror annotation, ExecutableElement valueElement) {
         AnnotationMirrorSet found = new AnnotationMirrorSet();
         List<@CanonicalName Name> qualClasses =
                 AnnotationUtils.getElementValueClassNames(annotation, valueElement);
@@ -6925,14 +6918,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * @return whether {@code annotatedForAnno} applies to subpackages
      */
     public boolean doesAnnotatedForApplyToSubpackages(AnnotationMirror annotatedForAnno) {
-        // A checker-qual that predates the applyToSubpackages element gives no way to opt out, so
-        // treat the annotation as applying to subpackages.
-        return annotatedForApplyToSubpackagesElement == null
-                || AnnotationUtils.getElementValue(
-                        annotatedForAnno,
-                        annotatedForApplyToSubpackagesElement,
-                        Boolean.class,
-                        true);
+        return appliesToSubpackages(annotatedForAnno, annotatedForApplyToSubpackagesElement);
     }
 
     /**
