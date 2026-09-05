@@ -18,20 +18,51 @@ import javax.lang.model.type.TypeVariable;
 /** TypeVariableSubstitutor replaces type variables from a declaration with arguments to its use. */
 public class TypeVariableSubstitutor {
 
+    /** Create a TypeVariableSubstitutor. */
+    public TypeVariableSubstitutor() {}
+
     /**
      * Given a mapping from type variable to its type argument, replace each instance of a type
      * variable with a copy of type argument.
      *
+     * <p>This method is {@code final}: it is a convenience entry point, not an extension point. A
+     * checker that wants to customize substitution should override {@link
+     * #substituteTypeVariable(AnnotatedTypeMirror, AnnotatedTypeVariable, boolean)} instead
+     * (installed via {@code AnnotatedTypeFactory#createTypeVariableSubstitutor}), so there is
+     * exactly one override point rather than two arities that could be overridden inconsistently.
+     *
      * @see #substituteTypeVariable(AnnotatedTypeMirror,
-     *     org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedTypeVariable)
+     *     org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedTypeVariable, boolean)
      * @param typeVarToTypeArgument a mapping from type variable to its type argument
      * @param type the type to substitute
      * @return a copy of type with its type variables substituted
      */
-    public AnnotatedTypeMirror substitute(
+    public final AnnotatedTypeMirror substitute(
             Map<TypeVariable, AnnotatedTypeMirror> typeVarToTypeArgument,
             AnnotatedTypeMirror type) {
-        return new Visitor(typeVarToTypeArgument, true).visit(type);
+        return substitute(typeVarToTypeArgument, type, false);
+    }
+
+    /**
+     * Given a mapping from type variable to its type argument, replace each instance of a type
+     * variable with a copy of type argument.
+     *
+     * <p>This method is {@code final}; see {@link #substitute(Map, AnnotatedTypeMirror)}.
+     *
+     * @see #substituteTypeVariable(AnnotatedTypeMirror,
+     *     org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedTypeVariable, boolean)
+     * @param typeVarToTypeArgument a mapping from type variable to its type argument
+     * @param type the type to substitute
+     * @param typeArgumentsInferred whether the type arguments in {@code typeVarToTypeArgument} were
+     *     inferred by the type checker, as opposed to written explicitly by the programmer at the
+     *     call site
+     * @return a copy of type with its type variables substituted
+     */
+    public final AnnotatedTypeMirror substitute(
+            Map<TypeVariable, AnnotatedTypeMirror> typeVarToTypeArgument,
+            AnnotatedTypeMirror type,
+            boolean typeArgumentsInferred) {
+        return new Visitor(typeVarToTypeArgument, true, typeArgumentsInferred).visit(type);
     }
 
     /**
@@ -39,7 +70,7 @@ public class TypeVariableSubstitutor {
      * variable with the given type argument.
      *
      * @see #substituteTypeVariable(AnnotatedTypeMirror,
-     *     org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedTypeVariable)
+     *     org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedTypeVariable, boolean)
      * @param typeVarToTypeArgument a mapping from type variable to its type argument
      * @param type the type to substitute
      * @return a copy of type with its type variables substituted
@@ -47,7 +78,7 @@ public class TypeVariableSubstitutor {
     public AnnotatedTypeMirror substituteWithoutCopyingTypeArguments(
             Map<TypeVariable, AnnotatedTypeMirror> typeVarToTypeArgument,
             AnnotatedTypeMirror type) {
-        return new Visitor(typeVarToTypeArgument, false).visit(type);
+        return new Visitor(typeVarToTypeArgument, false, false).visit(type);
     }
 
     /**
@@ -61,13 +92,16 @@ public class TypeVariableSubstitutor {
      *
      * @param argument the argument to declaration (this will be a value in typeParamToArg)
      * @param use the use that is being replaced
+     * @param argumentIsInferred whether {@code argument} is a type argument that the type checker
+     *     inferred (true), as opposed to one the programmer wrote explicitly at the call site
+     *     (false)
      * @return a deep copy of argument with the appropriate annotations applied
      */
     protected AnnotatedTypeMirror substituteTypeVariable(
-            AnnotatedTypeMirror argument, AnnotatedTypeVariable use) {
+            AnnotatedTypeMirror argument, AnnotatedTypeVariable use, boolean argumentIsInferred) {
         AnnotatedTypeMirror substitute = argument.deepCopy(true);
         if (!use.getAnnotationsField().isEmpty()) {
-            substitute.replaceAnnotations(use.getAnnotations());
+            substitute.replaceAnnotations(use.getAnnotationsField());
         }
         return substitute;
     }
@@ -100,14 +134,25 @@ public class TypeVariableSubstitutor {
         private final boolean copyArgument;
 
         /**
+         * Whether the type arguments in {@code elementToArgMap} were inferred by the type checker,
+         * as opposed to written explicitly by the programmer at the call site.
+         */
+        private final boolean typeArgumentsInferred;
+
+        /**
          * Creates the Visitor.
          *
          * @param typeParamToArg mapping from TypeVariable to the AnnotatedTypeMirror that will
          *     replace it
          * @param copyArgument whether or not a copy of type argument should be substituted
+         * @param typeArgumentsInferred whether the type arguments in {@code typeParamToArg} were
+         *     inferred by the type checker, as opposed to written explicitly by the programmer at
+         *     the call site
          */
         public Visitor(
-                Map<TypeVariable, AnnotatedTypeMirror> typeParamToArg, boolean copyArgument) {
+                Map<TypeVariable, AnnotatedTypeMirror> typeParamToArg,
+                boolean copyArgument,
+                boolean typeArgumentsInferred) {
             int size = typeParamToArg.size();
             elementToArgMap = new HashMap<>(size);
             typeVars = new ArrayList<>(size);
@@ -122,6 +167,7 @@ public class TypeVariableSubstitutor {
                 typeMirrors.add(paramToArg.getValue().getUnderlyingType());
             }
             this.copyArgument = copyArgument;
+            this.typeArgumentsInferred = typeArgumentsInferred;
         }
 
         @Override
@@ -150,7 +196,6 @@ public class TypeVariableSubstitutor {
         public AnnotatedTypeMirror visitTypeVariable(
                 AnnotatedTypeVariable original,
                 IdentityHashMap<AnnotatedTypeMirror, AnnotatedTypeMirror> originalToCopy) {
-
             if (visitingExecutableTypeParam) {
                 // AnnotatedExecutableType differs from AnnotatedDeclaredType in that its list of
                 // type parameters cannot be adapted in place since the
@@ -161,13 +206,12 @@ public class TypeVariableSubstitutor {
                 // AnnotatedTypeVariable's will remain
                 visitingExecutableTypeParam = false;
                 return super.visitTypeVariable(original, originalToCopy);
-
             } else {
                 Element typeVarElem = original.getUnderlyingType().asElement();
-                if (elementToArgMap.containsKey(typeVarElem)) {
-                    AnnotatedTypeMirror argument = elementToArgMap.get(typeVarElem);
+                AnnotatedTypeMirror argument = elementToArgMap.get(typeVarElem);
+                if (argument != null) {
                     if (copyArgument) {
-                        return substituteTypeVariable(argument, original);
+                        return substituteTypeVariable(argument, original, typeArgumentsInferred);
                     } else {
                         return argument;
                     }

@@ -15,10 +15,11 @@ import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.TreeUtils;
 
 import java.io.File;
-import java.io.FileReader;
 import java.io.IOException;
 import java.io.LineNumberReader;
 import java.lang.reflect.Constructor;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -129,7 +130,9 @@ public class FactoryTestChecker extends BaseTypeChecker {
         try {
             JavaFileObject o = tree.getSourceFile();
             File sourceFile = new File(o.toUri());
-            LineNumberReader reader = new LineNumberReader(new FileReader(sourceFile));
+            LineNumberReader reader =
+                    new LineNumberReader(
+                            Files.newBufferedReader(sourceFile.toPath(), StandardCharsets.UTF_8));
             String line = reader.readLine();
             Pattern prevsubtreePattern = Pattern.compile("\\s*///(.*)-:-(.*)");
             Pattern prevfulltreePattern = Pattern.compile("\\s*///(.*)");
@@ -218,10 +221,10 @@ public class FactoryTestChecker extends BaseTypeChecker {
      * buffer
      */
     private static class TreeSpec {
-        public final String treeString;
-        public final long lineNumber;
+        final String treeString;
+        final long lineNumber;
 
-        public TreeSpec(String treeString, long lineNumber) {
+        TreeSpec(String treeString, long lineNumber) {
             this.treeString = canonizeTreeString(treeString);
             this.lineNumber = lineNumber;
         }
@@ -253,7 +256,7 @@ public class FactoryTestChecker extends BaseTypeChecker {
     private class ToStringVisitor extends BaseTypeVisitor<GenericAnnotatedTypeFactory<?, ?, ?, ?>> {
         Map<TreeSpec, String> expected;
 
-        public ToStringVisitor(BaseTypeChecker checker) {
+        ToStringVisitor(BaseTypeChecker checker) {
             super(checker);
             this.expected = buildExpected(root);
         }

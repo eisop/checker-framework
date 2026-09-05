@@ -33,6 +33,7 @@ public class ViewpointTestAnnotatedTypeFactory extends BaseAnnotatedTypeFactory 
      *
      * @param checker the checker to which this annotated type factory belongs
      */
+    @SuppressWarnings("this-escape")
     public ViewpointTestAnnotatedTypeFactory(BaseTypeChecker checker) {
         super(checker);
         this.postInit();

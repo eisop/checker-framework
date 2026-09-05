@@ -2,10 +2,12 @@ package org.checkerframework.checker.guieffect;
 
 import com.sun.source.tree.ConditionalExpressionTree;
 import com.sun.source.tree.ExpressionTree;
+import com.sun.source.tree.IdentifierTree;
 import com.sun.source.tree.LambdaExpressionTree;
 import com.sun.source.tree.MemberSelectTree;
 import com.sun.source.tree.MethodInvocationTree;
 import com.sun.source.tree.MethodTree;
+import com.sun.source.tree.NewClassTree;
 import com.sun.source.tree.ParenthesizedTree;
 import com.sun.source.tree.Tree;
 
@@ -84,6 +86,7 @@ public class GuiEffectTypeFactory extends BaseAnnotatedTypeFactory {
     /** The @{@link UI} annotation. */
     protected final AnnotationMirror UI = AnnotationBuilder.fromClass(elements, UI.class);
 
+    @SuppressWarnings("this-escape")
     public GuiEffectTypeFactory(BaseTypeChecker checker, boolean spew) {
         // use true to enable flow inference, false to disable it
         super(checker, false);
@@ -124,7 +127,7 @@ public class GuiEffectTypeFactory extends BaseAnnotatedTypeFactory {
 
         // Anon inner classes should not inherit the package annotation, since
         // they're so often used for closures to run async on background threads.
-        if (isAnonymousType(cls)) {
+        if (ElementUtils.isAnonymous(cls)) {
             // However, we need to look into Anonymous class effect inference
             if (uiAnonClasses.contains(cls)) {
                 return true;
@@ -157,11 +160,6 @@ public class GuiEffectTypeFactory extends BaseAnnotatedTypeFactory {
         }
 
         return false;
-    }
-
-    // TODO: is there a framework method for this?
-    private static boolean isAnonymousType(TypeElement elem) {
-        return elem.getSimpleName().length() == 0;
     }
 
     /**
@@ -243,7 +241,7 @@ public class GuiEffectTypeFactory extends BaseAnnotatedTypeFactory {
         // Anonymous inner types should just get the effect of the parent by default, rather than
         // annotating every instance. Unless it's implementing a polymorphic supertype, in which
         // case we still want the developer to be explicit.
-        if (isAnonymousType(targetClassElt)) {
+        if (ElementUtils.isAnonymous(targetClassElt)) {
             boolean canInheritParentEffects = true; // Refine this for polymorphic parents
             DeclaredType directSuper = (DeclaredType) targetClassElt.getSuperclass();
             TypeElement superElt = (TypeElement) directSuper.asElement();
@@ -287,10 +285,11 @@ public class GuiEffectTypeFactory extends BaseAnnotatedTypeFactory {
         Effect targetEffect = getDeclaredEffect(methodElt);
         if (targetEffect.isPoly()) {
             AnnotatedTypeMirror srcType = null;
-            if (tree.getMethodSelect().getKind() == Tree.Kind.MEMBER_SELECT) {
-                ExpressionTree src = ((MemberSelectTree) tree.getMethodSelect()).getExpression();
+            ExpressionTree methodSelect = tree.getMethodSelect();
+            if (methodSelect instanceof MemberSelectTree) {
+                ExpressionTree src = ((MemberSelectTree) methodSelect).getExpression();
                 srcType = getAnnotatedType(src);
-            } else if (tree.getMethodSelect().getKind() == Tree.Kind.IDENTIFIER) {
+            } else if (methodSelect instanceof IdentifierTree) {
                 // Tree.Kind.IDENTIFIER, e.g. a direct call like "super()"
                 if (callerReceiver == null) {
                     // Not enought information provided to instantiate this type-polymorphic effects
@@ -347,9 +346,9 @@ public class GuiEffectTypeFactory extends BaseAnnotatedTypeFactory {
      * @return whether it is a lambda expression or new class marked as UI by inference
      */
     public boolean isDirectlyMarkedUIThroughInference(Tree tree) {
-        if (tree.getKind() == Tree.Kind.LAMBDA_EXPRESSION) {
+        if (tree instanceof LambdaExpressionTree) {
             return uiLambdas.contains((LambdaExpressionTree) tree);
-        } else if (tree.getKind() == Tree.Kind.NEW_CLASS) {
+        } else if (tree instanceof NewClassTree) {
             AnnotatedTypeMirror typeMirror = super.getAnnotatedType(tree);
             if (typeMirror.getKind() == TypeKind.DECLARED) {
                 return uiAnonClasses.contains(
@@ -369,10 +368,10 @@ public class GuiEffectTypeFactory extends BaseAnnotatedTypeFactory {
         // containing such class/lambda
         if (isDirectlyMarkedUIThroughInference(tree)) {
             typeMirror.replaceAnnotation(AnnotationBuilder.fromClass(elements, UI.class));
-        } else if (tree.getKind() == Tree.Kind.PARENTHESIZED) {
+        } else if (tree instanceof ParenthesizedTree) {
             ParenthesizedTree parenthesizedTree = (ParenthesizedTree) tree;
             return this.getAnnotatedType(parenthesizedTree.getExpression());
-        } else if (tree.getKind() == Tree.Kind.CONDITIONAL_EXPRESSION) {
+        } else if (tree instanceof ConditionalExpressionTree) {
             ConditionalExpressionTree cet = (ConditionalExpressionTree) tree;
             boolean isTrueOperandUI =
                     (cet.getTrueExpression() != null
@@ -487,7 +486,7 @@ public class GuiEffectTypeFactory extends BaseAnnotatedTypeFactory {
                     //   "new @UI Runnable {...}"
                     // parses as @UI on an anon class decl extending Runnable
                     boolean isAnonInstantiation =
-                            isAnonymousType(declaringType)
+                            ElementUtils.isAnonymous(declaringType)
                                     && (fromElement(declaringType).hasAnnotation(UI.class)
                                             || uiAnonClasses.contains(declaringType));
                     if (!isAnonInstantiation && !overriddenType.hasAnnotation(UI.class)) {
@@ -583,7 +582,7 @@ public class GuiEffectTypeFactory extends BaseAnnotatedTypeFactory {
      *     instantiation of an UI-polymorphic superclass.
      */
     public void constrainAnonymousClassToUI(TypeElement classElt) {
-        assert TypesUtils.isAnonymous(classElt.asType());
+        assert ElementUtils.isAnonymous(classElt);
         uiAnonClasses.add(classElt);
     }
 

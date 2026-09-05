@@ -52,7 +52,6 @@ public class CFGTranslationPhaseThree {
      *     not allowed to read or modify {@code cfg} after the call to {@code process} any more.
      * @return the resulting control flow graph
      */
-    @SuppressWarnings("nullness") // TODO: successors
     public static ControlFlowGraph process(ControlFlowGraph cfg) {
         Set<Block> worklist = cfg.getAllBlocks();
 
@@ -169,7 +168,9 @@ public class CFGTranslationPhaseThree {
                     if (succ.getType() == BlockType.REGULAR_BLOCK) {
                         RegularBlockImpl rs = (RegularBlockImpl) succ;
                         if (rs.getRegularSuccessor() == rs) {
-                            // An infinite loop, do not try to merge.
+                            // Do not attempt to merge a block with a self edge (which would
+                            // infinite-loop if it were run), as it leads to non-termination
+                            // in the merging algorithm.
                             break;
                         }
                         if (rs.getPredecessors().size() == 1) {
@@ -352,9 +353,8 @@ public class CFGTranslationPhaseThree {
             case REGULAR_BLOCK:
                 RegularBlockImpl r = (RegularBlockImpl) pred;
                 return singleSuccessorHolder(r, cur);
-            default:
-                throw new BugInCF("Unexpected block type " + pred.getType());
         }
+        throw new BugInCF("Unexpected block type " + pred.getType());
     }
 
     /**

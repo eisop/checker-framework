@@ -1,17 +1,83 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
-    "config:base",
+    "config:recommended",
     ":automergeDisabled",
     ":automergeRequireAllStatusChecks",
-    "schedule:nonOfficeHours",
-    ":disableDependencyDashboard"
+    "schedule:nonOfficeHours"
+  ],
+  "minimumReleaseAge": "7 days",
+  "prConcurrentLimit": 5,
+  "ignorePaths": [
+    "**/node_modules/**",
+    "**/bower_components/**",
+    "**/vendor/**"
   ],
   "timezone": "America/Los_Angeles",
   "packageRules": [
     {
+      "description": "Group all dependency updates in docs/examples into a single PR",
+      "matchFileNames": ["docs/examples/**"],
+      "groupName": "docs/examples dependencies"
+    },
+    {
+      "description": "Group non-major GitHub Actions updates",
+      "matchManagers": ["github-actions"],
+      "matchUpdateTypes": ["minor", "patch", "pin", "digest"],
+      "groupName": "GitHub Actions non-major updates"
+    },
+    {
+      "description": "Do not delay JDK EA builds to avoid downloading superseded/deleted binaries",
+      "matchPackageNames": ["openjdk/jdk"],
+      "minimumReleaseAge": "0 days"
+    },
+    {
+      "description": "Do not delay security vulnerability fixes",
+      "matchCategories": ["security"],
+      "minimumReleaseAge": "0 days"
+    },
+    {
+      "ignoreUnstable": false,
+      "matchPackageNames": [
+        "/^adoptium/temurin\\d+-binaries$/"
+      ]
+    },
+    {
       "matchPackageNames": ["com.amazonaws:aws-java-sdk-bom"],
       "schedule": ["before 3am on the first day of the month"]
+    },
+    {
+      "description": "We want specifically version 3.3.2, which caused a crash before",
+      "matchPackageNames": ["org.apache.spark:spark-sql_2.12"],
+      "enabled": false
+    }
+  ],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "Update USE_BAZEL_VERSION in GitHub Actions",
+      "managerFilePatterns": ["/^\\.github/workflows/.*\\.yml$/"],
+      "matchStrings": ["USE_BAZEL_VERSION: \"(?<currentValue>.*?)\""],
+      "datasourceTemplate": "github-releases",
+      "depNameTemplate": "bazelbuild/bazel"
+    },
+    {
+      "customType": "regex",
+      "description": "Update JDK_EA_BUILD in GitHub Actions",
+      "managerFilePatterns": ["/^\\.github/workflows/ci\\.yml$/"],
+      "matchStrings": ["JDK_EA_MAJOR:\\s+\"(?<major>\\d+)\"[\\s\\S]*?JDK_EA_BUILD:\\s+\"(?<currentValue>\\d+)\""],
+      "datasourceTemplate": "github-tags",
+      "depNameTemplate": "openjdk/jdk",
+      "versioningTemplate": "loose",
+      "extractVersionTemplate": "^jdk-{{{major}}}\\+(?<version>\\d+)$"
+    },
+    {
+      "customType": "regex",
+      "description": "Update the pinned ruff version in the misc job's GitHub Actions setup",
+      "managerFilePatterns": ["/^\\.github/actions/setup-misc/action\\.yml$/"],
+      "matchStrings": ["ruff==(?<currentValue>[\\d.]+)"],
+      "datasourceTemplate": "pypi",
+      "depNameTemplate": "ruff"
     }
   ]
 }

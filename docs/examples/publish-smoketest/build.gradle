@@ -1,0 +1,185 @@
+// Standalone project: simulates an external consumer of the published artifacts, the way
+// https://github.com/eisop/checker-framework/pull/1822 described one failing. `checkerVersion`
+// is passed in by test-publish-smoketest.sh, which publishes that exact version to an isolated
+// mavenLocal() right before invoking this build.
+plugins {
+    id 'java'
+}
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
+}
+
+def checkerVersion = project.findProperty('checkerVersion')
+if (checkerVersion == null) {
+    throw new GradleException(
+    "checkerVersion project property not set; run via test-publish-smoketest.sh")
+}
+
+repositories {
+    // The artifacts published by test-publish-smoketest.sh just before this build runs.
+    // Restrict the io.github.eisop group to mavenLocal: mavenCentral() below is needed for the
+    // published POMs' external dependencies (plumelib, guava, stubparser), but if it could also
+    // serve io.github.eisop, a *previously released* artifact of the same version would satisfy
+    // resolution and silently mask a broken local publish.
+    mavenLocal {
+        content {
+            includeGroup 'io.github.eisop'
+        }
+    }
+    mavenCentral {
+        content {
+            excludeGroup 'io.github.eisop'
+        }
+    }
+}
+
+// Every artifact this repository publishes. Resolving each one through its published metadata
+// is what catches a POM that is missing a dependency the artifact needs at runtime, which no
+// in-repo test can see because none of them run off the published artifacts.
+def publishedArtifacts = [
+    'checker',
+    'checker-qual',
+    'checker-util',
+    'javacutil',
+    'dataflow',
+    'dataflow-shaded',
+    'dataflow-nullaway',
+    'dataflow-errorprone',
+    'framework',
+    'framework-all',
+    'framework-test',
+]
+
+// One resolvable configuration per artifact, each requesting java-runtime explicitly so
+// resolution goes through the published Gradle Module Metadata the way a consumer's would.
+publishedArtifacts.each { artifact ->
+    configurations.create(configurationNameFor(artifact)) {
+        canBeConsumed = false
+        canBeResolved = true
+        attributes {
+            attribute(Usage.USAGE_ATTRIBUTE, objects.named(Usage, Usage.JAVA_RUNTIME))
+        }
+    }
+}
+
+/**
+ * Returns the name of the resolvable configuration for an artifact, e.g. "resolveFrameworkAll".
+ *
+ * @param artifact a published artifact name, such as "framework-all"
+ * @return the configuration name for that artifact
+ */
+static String configurationNameFor(String artifact) {
+    return 'resolve' + artifact.split('-').collect { it.capitalize() }.join('')
+}
+
+// A second source set, compiled with framework-all on the annotation processor path.
+sourceSets {
+    frameworkAll
+}
+
+dependencies {
+    implementation "io.github.eisop:checker:${checkerVersion}"
+    publishedArtifacts.each { artifact ->
+        add(configurationNameFor(artifact), "io.github.eisop:${artifact}:${checkerVersion}")
+    }
+
+    frameworkAllCompileOnly "io.github.eisop:checker-qual:${checkerVersion}"
+    frameworkAllAnnotationProcessor "io.github.eisop:framework-all:${checkerVersion}"
+}
+
+// Run a checker that lives in `framework` itself (not in `checker`) out of the published
+// framework-all jar. Merely *resolving* an artifact does not show that it works: framework-all
+// is advertised as self-contained, and a missing bundled dependency only surfaces when its
+// classes are actually loaded. This is what catches framework-all shipping without guava.
+tasks.named('compileFrameworkAllJava') {
+    description = 'Type-checks src/frameworkAll with a checker loaded from the published framework-all jar.'
+    // The Constant Value Checker needs no -Aquals configuration, unlike SubtypingChecker.
+    options.compilerArgs += ['-processor', 'org.checkerframework.common.value.ValueChecker']
+    // A checker reaches into javac's internals, which JDK 9+ does not export by default.
+    options.fork = true
+    options.forkOptions.jvmArgs += [
+        'api', 'code', 'comp', 'file', 'main', 'model', 'processing', 'tree', 'util',
+    ].collect { '--add-exports=jdk.compiler/com.sun.tools.javac.' + it + '=ALL-UNNAMED' }
+}
+
+// Assert what each artifact resolves to, rather than only printing it.
+tasks.register('verifyResolutions') {
+    description = 'Checks that every published artifact resolves, with the dependencies it promises.'
+    def resolved = publishedArtifacts.collectEntries { artifact ->
+        [(artifact): configurations.named(configurationNameFor(artifact))
+            .map { c -> c.files*.name.toSorted() }]
+    }
+    def version = checkerVersion
+    doLast {
+        def failures = []
+        resolved.each { artifact, filesProvider ->
+            def files = filesProvider.get()
+            println "${artifact} -> ${files}"
+
+            if (!files.any { it == "${artifact}-${version}.jar".toString() }) {
+                failures << "${artifact}: its own jar is missing from the resolution: ${files}"
+            }
+
+            // Exactly one checker-qual. Guava and plume-util both depend on typetools'
+            // org.checkerframework:checker-qual, which defines the same qualifier classes as
+            // io.github.eisop:checker-qual; both on one classpath is two definitions of every
+            // qualifier, so the POMs exclude it.
+            def strayQuals = files.findAll {
+                it.startsWith('checker-qual-') && it != "checker-qual-${version}.jar".toString()
+            }
+            if (!strayQuals.isEmpty()) {
+                failures << "${artifact}: a second checker-qual on the classpath: ${strayQuals}"
+            }
+        }
+
+        // framework-all bundles everything except checker-qual, so it must bring exactly those
+        // two files; anything more means dependencies leaked into its POM, and anything less
+        // means the fat jar is missing content it promised to bundle.
+        def frameworkAllFiles = resolved['framework-all'].get()
+        def expected = ["checker-qual-${version}.jar", "framework-all-${version}.jar"].toSorted()
+        if (frameworkAllFiles != expected) {
+            failures << "framework-all is meant to be self-contained apart from checker-qual.\n" +
+            "    expected: ${expected}\n    actual:   ${frameworkAllFiles}"
+        }
+
+        // `checker` must resolve to the same jar a Maven consumer gets from the POM, plus
+        // checker-qual and checker-util as separate jars. Serving the fat
+        // checker-VERSION-all.jar here instead would put every qualifier class on the
+        // classpath twice, since that jar bundles the two it also depends on.
+        def checkerFiles = resolved['checker'].get()
+        def expectedChecker = ["checker-${version}.jar", "checker-qual-${version}.jar",
+                               "checker-util-${version}.jar"].toSorted()
+        if (checkerFiles != expectedChecker) {
+            failures << "checker should resolve to its own jar plus checker-qual and " +
+            "checker-util.\n    expected: ${expectedChecker}\n    actual:   ${checkerFiles}"
+        }
+
+        // `framework` is the non-bundled counterpart, so it must declare what it needs.
+        def frameworkFiles = resolved['framework'].get()
+        ['javacutil', 'dataflow', 'checker-qual', 'guava', 'plume-util', 'stubparser'].each {
+            if (!frameworkFiles.any { f -> f.startsWith(it) }) {
+                failures << "the published `framework` POM does not pull in ${it}: ${frameworkFiles}"
+            }
+        }
+
+        // javacutil is published and used standalone, so its POM must stand on its own too.
+        def javacutilFiles = resolved['javacutil'].get()
+        ['guava', 'plume-util', 'checker-qual'].each {
+            if (!javacutilFiles.any { f -> f.startsWith(it) }) {
+                failures << "the published `javacutil` POM does not pull in ${it}: ${javacutilFiles}"
+            }
+        }
+
+        if (!failures.isEmpty()) {
+            throw new GradleException(
+            "Published artifact resolution is wrong:\n  " + failures.join("\n  "))
+        }
+    }
+}
+
+tasks.register('smoketest') {
+    description = 'Runs every check in this consumer build.'
+    dependsOn 'compileJava', 'compileFrameworkAllJava', 'verifyResolutions'
+}

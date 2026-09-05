@@ -24,6 +24,7 @@ import javax.lang.model.element.AnnotationMirror;
 
 public class I18nAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
 
+    @SuppressWarnings("this-escape")
     public I18nAnnotatedTypeFactory(BaseTypeChecker checker) {
         super(checker);
         this.postInit();
@@ -45,7 +46,7 @@ public class I18nAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
         private final AnnotationMirror LOCALIZED =
                 AnnotationBuilder.fromClass(elements, Localized.class);
 
-        public I18nTreeAnnotator(AnnotatedTypeFactory atypeFactory) {
+        I18nTreeAnnotator(AnnotatedTypeFactory atypeFactory) {
             super(atypeFactory);
         }
 

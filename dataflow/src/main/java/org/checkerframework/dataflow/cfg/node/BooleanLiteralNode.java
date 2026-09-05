@@ -37,6 +37,9 @@ public class BooleanLiteralNode extends ValueLiteralNode {
 
     @Override
     public boolean equals(@Nullable Object obj) {
+        if (this == obj) {
+            return true;
+        }
         // test that obj is a BooleanLiteralNode
         if (!(obj instanceof BooleanLiteralNode)) {
             return false;

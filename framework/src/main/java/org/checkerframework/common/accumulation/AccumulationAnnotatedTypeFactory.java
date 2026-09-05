@@ -89,6 +89,7 @@ public abstract class AccumulationAnnotatedTypeFactory
      * @param predicate the predicate annotation. Either null (if predicates are not supported), or
      *     an annotation with a single element named "value" whose type is a String.
      */
+    @SuppressWarnings("this-escape")
     protected AccumulationAnnotatedTypeFactory(
             BaseTypeChecker checker,
             Class<? extends Annotation> accumulator,
@@ -111,7 +112,7 @@ public abstract class AccumulationAnnotatedTypeFactory
         }
 
         Method accValue = accDeclaredMethods[0];
-        if (accValue.getName() != "value") { // interned
+        if (accValue.getName() != "value") { // assumed interned
             rejectMalformedAccumulator("name its element \"value\"");
         }
         if (!accValue.getReturnType().isInstance(new String[0])) {
@@ -130,7 +131,7 @@ public abstract class AccumulationAnnotatedTypeFactory
                 rejectMalformedPredicate("have exactly one element");
             }
             Method predValue = predDeclaredMethods[0];
-            if (predValue.getName() != "value") { // interned
+            if (predValue.getName() != "value") { // assumed interned
                 rejectMalformedPredicate("name its element \"value\"");
             }
             if (!predValue.getReturnType().isInstance("")) {

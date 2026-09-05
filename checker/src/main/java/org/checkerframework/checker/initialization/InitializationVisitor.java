@@ -99,11 +99,11 @@ public class InitializationVisitor extends BaseTypeVisitor<InitializationAnnotat
     }
 
     @Override
-    public void setRoot(CompilationUnitTree root) {
+    public void setRoot(CompilationUnitTree newRoot) {
         // Clean up the cache of initialized fields once per compilation unit.
         // Alternatively, but harder to determine, this could be done once per top-level class.
         initializedFields.clear();
-        super.setRoot(root);
+        super.setRoot(newRoot);
     }
 
     @Override
@@ -174,7 +174,7 @@ public class InitializationVisitor extends BaseTypeVisitor<InitializationAnnotat
         // save all fields that are initialized and do not report errors about
         // them later when checking constructors.
         for (Tree member : tree.getMembers()) {
-            if (member.getKind() == Tree.Kind.BLOCK && !((BlockTree) member).isStatic()) {
+            if (member instanceof BlockTree && !((BlockTree) member).isStatic()) {
                 BlockTree block = (BlockTree) member;
                 InitializationStore store = atypeFactory.getRegularExitStore(block);
 
@@ -218,16 +218,17 @@ public class InitializationVisitor extends BaseTypeVisitor<InitializationAnnotat
     }
 
     @Override
-    public Void visitMethod(MethodTree tree, Void p) {
+    public void processMethodTree(String className, MethodTree tree) {
         if (TreeUtils.isConstructor(tree)) {
             Collection<? extends AnnotationMirror> returnTypeAnnotations =
                     AnnotationUtils.getExplicitAnnotationsOnConstructorResult(tree);
             // check for invalid constructor return type
-            for (Class<? extends Annotation> c : atypeFactory.getSupportedTypeQualifiers()) {
-                for (AnnotationMirror a : returnTypeAnnotations) {
+            outer:
+            for (AnnotationMirror a : returnTypeAnnotations) {
+                for (Class<? extends Annotation> c : atypeFactory.getSupportedTypeQualifiers()) {
                     if (atypeFactory.areSameByClass(a, c)) {
                         checker.reportError(tree, COMMITMENT_INVALID_CONSTRUCTOR_RETURN_TYPE, tree);
-                        break;
+                        break outer;
                     }
                 }
             }
@@ -239,7 +240,7 @@ public class InitializationVisitor extends BaseTypeVisitor<InitializationAnnotat
             List<? extends AnnotationMirror> receiverAnnotations = getAllReceiverAnnotations(tree);
             checkFieldsInitialized(tree, isStatic, store, receiverAnnotations);
         }
-        return super.visitMethod(tree, p);
+        super.processMethodTree(className, tree);
     }
 
     /**
@@ -260,15 +261,18 @@ public class InitializationVisitor extends BaseTypeVisitor<InitializationAnnotat
         if (TreeUtils.elementFromDeclaration(tree).getKind().isField()) {
             AnnotationMirrorSet annotationMirrors =
                     atypeFactory.getAnnotatedType(tree).getExplicitAnnotations();
-            // Fields cannot have commitment annotations.
-            for (Class<? extends Annotation> c : atypeFactory.getSupportedTypeQualifiers()) {
-                for (AnnotationMirror a : annotationMirrors) {
-                    if (atypeFactory.isUnknownInitialization(a)) {
-                        continue; // unknown initialization is allowed
-                    }
+            // Fields cannot have commitment annotations.  Iterate the (typically tiny)
+            // explicit-annotation set in the outer loop and short-circuit on the first match,
+            // rather than scanning all supported qualifiers and only breaking the inner loop.
+            outer:
+            for (AnnotationMirror a : annotationMirrors) {
+                if (atypeFactory.isUnknownInitialization(a)) {
+                    continue; // unknown initialization is allowed
+                }
+                for (Class<? extends Annotation> c : atypeFactory.getSupportedTypeQualifiers()) {
                     if (atypeFactory.areSameByClass(a, c)) {
                         checker.reportError(tree, COMMITMENT_INVALID_FIELD_TYPE, tree);
-                        break;
+                        break outer;
                     }
                 }
             }
@@ -484,6 +488,12 @@ public class InitializationVisitor extends BaseTypeVisitor<InitializationAnnotat
      * @param initExitStore the initialization exit store for the constructor or static initializer
      * @param receiverAnnotations the annotations on the receiver
      */
+    // TODO: the code for checking if fields are initialized should be re-written,
+    // as the current version contains quite a few ugly parts, is hard to understand,
+    // and it is likely that it does not take full advantage of the information
+    // about initialization we compute in
+    // GenericAnnotatedTypeFactory.initializationStaticStore and
+    // GenericAnnotatedTypeFactory.initializationStore.
     protected void checkFieldsInitialized(
             Tree tree,
             boolean staticFields,
@@ -497,7 +507,7 @@ public class InitializationVisitor extends BaseTypeVisitor<InitializationAnnotat
         // Compact canonical record constructors do not generate visible assignments in the source,
         // but by definition they assign to all the record's fields so we don't need to
         // check for uninitialized fields in them:
-        if (tree.getKind() == Tree.Kind.METHOD
+        if (tree instanceof MethodTree
                 && TreeUtils.isCompactCanonicalRecordConstructor((MethodTree) tree)) {
             return;
         }
@@ -516,10 +526,10 @@ public class InitializationVisitor extends BaseTypeVisitor<InitializationAnnotat
                         receiverAnnotations);
         uninitializedFields.removeAll(initializedFields);
 
-        // If we are checking initialization of a class's static fields or of a default constructor,
-        // we issue an error for every uninitialized field at the respective field declaration.
-        // If we are checking a non-default constructor, we issue a single error at the constructor
-        // declaration.
+        // Errors are issued at the field declaration if the field is static or if the constructor
+        // is the default constructor.
+        // Errors are issued at the constructor declaration if the field is non-static and the
+        // constructor is non-default.
         boolean errorAtField = staticFields || TreeUtils.isSynthetic((MethodTree) tree);
 
         String errorMsg =

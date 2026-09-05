@@ -4,9 +4,9 @@
  * The defaults for type variable upper bounds with type Object changed since
  * the issue was filed.  So, this test case has been changed so that
  * annotations on type variable bounds in stub files is still tested.
- * @compile -XDrawDiagnostics -Xlint:unchecked ../issue824lib/Class1.java
+ * @compile -Xlint:unchecked ../issue824lib/Class1.java
  * @compile/fail/ref=Class2.out -XDrawDiagnostics -Xlint:unchecked -processor org.checkerframework.checker.nullness.NullnessChecker -Anomsgtext Class2.java -Astubs=Class1.astub
- * @compile -XDrawDiagnostics -Xlint:unchecked -processor org.checkerframework.checker.nullness.NullnessChecker -Anomsgtext Class2.java
+ * @compile -Xlint:unchecked -processor org.checkerframework.checker.nullness.NullnessChecker -Anomsgtext Class2.java
  */
 
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -20,6 +20,10 @@ public class Class2<X> extends Class1<X> {
         class1.wildcardSuper(gen);
     }
 
+    // Class1's stub declares <T extends @NonNull Object>; this override's <T> widens the upper
+    // bound to the implicit @Nullable Object. That is a sound override of the type-parameter
+    // bound: this method's own body is still constrained by T's (unchanged, @NonNull) lower
+    // bound, so it cannot return a value the wider upper bound alone would not already permit.
     @Override
     public <T> T methodTypeParam(T t) {
         return super.methodTypeParam(t);

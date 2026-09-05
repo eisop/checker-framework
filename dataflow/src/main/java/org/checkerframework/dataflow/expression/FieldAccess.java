@@ -5,12 +5,11 @@ import com.sun.tools.javac.code.Symbol;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.dataflow.analysis.Store;
 import org.checkerframework.dataflow.cfg.node.FieldAccessNode;
+import org.checkerframework.dataflow.cfg.node.Node;
 import org.checkerframework.javacutil.AnnotationProvider;
 import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.TypesUtils;
-
-import java.util.Objects;
 
 import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.TypeMirror;
@@ -98,16 +97,41 @@ public class FieldAccess extends JavaExpression {
 
     @Override
     public boolean equals(@Nullable Object obj) {
+        if (this == obj) {
+            return true;
+        }
         if (!(obj instanceof FieldAccess)) {
             return false;
         }
         FieldAccess fa = (FieldAccess) obj;
-        return fa.getField().equals(getField()) && fa.getReceiver().equals(getReceiver());
+        if (!fa.getField().equals(getField())) {
+            return false;
+        }
+
+        if (fa.getReceiver().equals(getReceiver())) {
+            return true;
+        }
+
+        return (fa.getReceiver() instanceof SuperReference
+                        || fa.getReceiver() instanceof ThisReference)
+                && (this.getReceiver() instanceof SuperReference
+                        || this.getReceiver() instanceof ThisReference);
     }
+
+    /** Cache the hashCode. Recomputed if zero. */
+    private int hashCodeCache = 0;
 
     @Override
     public int hashCode() {
-        return Objects.hash(getField(), getReceiver());
+        if (hashCodeCache == 0) {
+            int h = 1;
+            VariableElement field = getField();
+            h = 31 * h + (field != null ? field.hashCode() : 0);
+            JavaExpression receiver = getReceiver();
+            h = 31 * h + (receiver != null ? receiver.hashCode() : 0);
+            hashCodeCache = h == 0 ? 1 : h;
+        }
+        return hashCodeCache;
     }
 
     @Override
@@ -132,10 +156,14 @@ public class FieldAccess extends JavaExpression {
 
     @Override
     public String toString() {
-        if (receiver instanceof ClassName) {
-            return receiver.getType() + "." + field;
+        String receiverString =
+                (receiver instanceof ClassName)
+                        ? receiver.getType().toString()
+                        : receiver.toString();
+        if (Node.disambiguateOwner) {
+            return receiverString + "." + field + "{owner=" + ((Symbol) field).owner + "}";
         } else {
-            return receiver + "." + field;
+            return receiverString + "." + field;
         }
     }
 
@@ -151,9 +179,13 @@ public class FieldAccess extends JavaExpression {
                 ((Symbol) field).owner);
     }
 
+    @SuppressWarnings("unchecked") // generic cast
     @Override
-    public boolean containsOfClass(Class<? extends JavaExpression> clazz) {
-        return getClass() == clazz || receiver.containsOfClass(clazz);
+    public <T extends JavaExpression> @Nullable T containedOfClass(Class<T> clazz) {
+        if (getClass() == clazz) {
+            return (T) this;
+        }
+        return receiver.containedOfClass(clazz);
     }
 
     @Override
@@ -162,13 +194,13 @@ public class FieldAccess extends JavaExpression {
     }
 
     @Override
-    public boolean isUnassignableByOtherCode() {
-        return isFinal() && getReceiver().isUnassignableByOtherCode();
+    public boolean isAssignableByOtherCode() {
+        return !isFinal() || getReceiver().isAssignableByOtherCode();
     }
 
     @Override
-    public boolean isUnmodifiableByOtherCode() {
-        return isUnassignableByOtherCode() && TypesUtils.isImmutableTypeInJdk(getReceiver().type);
+    public boolean isModifiableByOtherCode() {
+        return isAssignableByOtherCode() || !TypesUtils.isImmutableTypeInJdk(getReceiver().type);
     }
 
     @Override

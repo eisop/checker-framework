@@ -1,7 +1,8 @@
-import org.checkerframework.checker.nullness.qual.*;
-import org.checkerframework.dataflow.qual.*;
+import org.checkerframework.checker.nullness.qual.KeyForBottom;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
 
-import java.io.*;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.Set;
@@ -49,7 +50,7 @@ public class GenericArgs {
     }
 
     void testRecursiveDeclarations() {
-        class MyComparator<@NonNull T extends @NonNull Comparable<T>>
+        class MyComparator<@NonNull @KeyForBottom T extends @NonNull Comparable<T>>
                 implements Comparator<T @NonNull []> {
             @Pure
             public int compare(T[] a, T[] b) {

@@ -40,7 +40,7 @@ public class ReferenceInfoUtil {
         return annos;
     }
 
-    /////////////////// Extract type annotations //////////////////
+    // /////////////////// Extract type annotations //////////////////
     private void findAnnotations(ClassFile cf, List<TypeAnnotation> annos) {
         findAnnotations(cf, Attribute.RuntimeVisibleTypeAnnotations, annos);
         findAnnotations(cf, Attribute.RuntimeInvisibleTypeAnnotations, annos);
@@ -134,7 +134,7 @@ public class ReferenceInfoUtil {
         }
     }
 
-    /////////////////////// Equality testing /////////////////////
+    // /////////////////////// Equality testing /////////////////////
     private static boolean areEquals(int a, int b) {
         return a == b || a == IGNORE_VALUE || b == IGNORE_VALUE;
     }

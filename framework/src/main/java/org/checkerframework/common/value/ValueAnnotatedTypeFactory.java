@@ -5,6 +5,8 @@ import com.sun.source.tree.NewArrayTree;
 import com.sun.source.tree.Tree;
 import com.sun.source.util.TreePath;
 
+import org.checkerframework.checker.interning.qual.Interned;
+import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.checker.nullness.qual.PolyNull;
 import org.checkerframework.checker.regex.qual.Regex;
@@ -60,6 +62,7 @@ import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TypeKindUtils;
 import org.checkerframework.javacutil.TypeSystemError;
 import org.checkerframework.javacutil.TypesUtils;
+import org.checkerframework.javacutil.UserError;
 import org.plumelib.util.ArraySet;
 import org.plumelib.util.CollectionsPlume;
 
@@ -67,9 +70,11 @@ import java.lang.annotation.Annotation;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.regex.Pattern;
@@ -84,57 +89,67 @@ import javax.lang.model.type.TypeMirror;
 /** AnnotatedTypeFactory for the Value type system. */
 public class ValueAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
     /** Fully-qualified class name of {@link UnknownVal}. */
-    public static final String UNKNOWN_NAME = "org.checkerframework.common.value.qual.UnknownVal";
+    public static final @Interned String UNKNOWN_NAME =
+            "org.checkerframework.common.value.qual.UnknownVal";
 
     /** Fully-qualified class name of {@link BottomVal}. */
-    public static final String BOTTOMVAL_NAME = "org.checkerframework.common.value.qual.BottomVal";
+    public static final @Interned String BOTTOMVAL_NAME =
+            "org.checkerframework.common.value.qual.BottomVal";
 
     /** Fully-qualified class name of {@link PolyValue}. */
-    public static final String POLY_NAME = "org.checkerframework.common.value.qual.PolyValue";
+    public static final @Interned String POLY_NAME =
+            "org.checkerframework.common.value.qual.PolyValue";
 
     /** Fully-qualified class name of {@link ArrayLen}. */
-    public static final String ARRAYLEN_NAME = "org.checkerframework.common.value.qual.ArrayLen";
+    public static final @Interned String ARRAYLEN_NAME =
+            "org.checkerframework.common.value.qual.ArrayLen";
 
     /** Fully-qualified class name of {@link BoolVal}. */
-    public static final String BOOLVAL_NAME = "org.checkerframework.common.value.qual.BoolVal";
+    public static final @Interned String BOOLVAL_NAME =
+            "org.checkerframework.common.value.qual.BoolVal";
 
     /** Fully-qualified class name of {@link DoubleVal}. */
-    public static final String DOUBLEVAL_NAME = "org.checkerframework.common.value.qual.DoubleVal";
+    public static final @Interned String DOUBLEVAL_NAME =
+            "org.checkerframework.common.value.qual.DoubleVal";
 
     /** Fully-qualified class name of {@link IntVal}. */
-    public static final String INTVAL_NAME = "org.checkerframework.common.value.qual.IntVal";
+    public static final @Interned String INTVAL_NAME =
+            "org.checkerframework.common.value.qual.IntVal";
 
     /** Fully-qualified class name of {@link StringVal}. */
-    public static final String STRINGVAL_NAME = "org.checkerframework.common.value.qual.StringVal";
+    public static final @Interned String STRINGVAL_NAME =
+            "org.checkerframework.common.value.qual.StringVal";
 
     /** Fully-qualified class name of {@link ArrayLenRange}. */
-    public static final String ARRAYLENRANGE_NAME =
+    public static final @Interned String ARRAYLENRANGE_NAME =
             "org.checkerframework.common.value.qual.ArrayLenRange";
 
     /** Fully-qualified class name of {@link IntRange}. */
-    public static final String INTRANGE_NAME = "org.checkerframework.common.value.qual.IntRange";
+    public static final @Interned String INTRANGE_NAME =
+            "org.checkerframework.common.value.qual.IntRange";
 
     /** Fully-qualified class name of {@link IntRangeFromGTENegativeOne}. */
-    public static final String INTRANGE_FROMGTENEGONE_NAME =
+    public static final @Interned String INTRANGE_FROMGTENEGONE_NAME =
             "org.checkerframework.common.value.qual.IntRangeFromGTENegativeOne";
 
     /** Fully-qualified class name of {@link IntRangeFromNonNegative}. */
-    public static final String INTRANGE_FROMNONNEG_NAME =
+    public static final @Interned String INTRANGE_FROMNONNEG_NAME =
             "org.checkerframework.common.value.qual.IntRangeFromNonNegative";
 
     /** Fully-qualified class name of {@link IntRangeFromPositive}. */
-    public static final String INTRANGE_FROMPOS_NAME =
+    public static final @Interned String INTRANGE_FROMPOS_NAME =
             "org.checkerframework.common.value.qual.IntRangeFromPositive";
 
     /** Fully-qualified class name of {@link MinLen}. */
-    public static final String MINLEN_NAME = "org.checkerframework.common.value.qual.MinLen";
+    public static final @Interned String MINLEN_NAME =
+            "org.checkerframework.common.value.qual.MinLen";
 
     /** Fully-qualified class name of {@link MatchesRegex}. */
-    public static final String MATCHES_REGEX_NAME =
+    public static final @Interned String MATCHES_REGEX_NAME =
             "org.checkerframework.common.value.qual.MatchesRegex";
 
     /** Fully-qualified class name of {@link DoesNotMatchRegex}. */
-    public static final String DOES_NOT_MATCH_REGEX_NAME =
+    public static final @Interned String DOES_NOT_MATCH_REGEX_NAME =
             "org.checkerframework.common.value.qual.DoesNotMatchRegex";
 
     /** The maximum number of values allowed in an annotation's array. */
@@ -152,10 +167,12 @@ public class ValueAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
     public final AnnotationMirror POLY = AnnotationBuilder.fromClass(elements, PolyValue.class);
 
     /** The canonical @{@link BoolVal}(true) annotation. */
+    @SuppressWarnings("this-escape")
     public final AnnotationMirror BOOLEAN_TRUE =
             createBooleanAnnotation(Collections.singletonList(true));
 
     /** The canonical @{@link BoolVal}(false) annotation. */
+    @SuppressWarnings("this-escape")
     public final AnnotationMirror BOOLEAN_FALSE =
             createBooleanAnnotation(Collections.singletonList(false));
 
@@ -215,6 +232,34 @@ public class ValueAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
     public final ExecutableElement stringValValueElement =
             TreeUtils.getMethod(StringVal.class, "value", 0, processingEnv);
 
+    /**
+     * Returns the cached value() element for the Value annotation with the given name, or null if
+     * the name is not one of the single-array-element Value annotations. Used to avoid the
+     * name-based (linear-scan) element lookup on hot comparison paths.
+     *
+     * @param annoName the interned fully-qualified annotation name, as returned by {@link
+     *     AnnotationUtils#annotationName}
+     * @return the value() element for {@code annoName}, or null
+     */
+    /*package-private*/ @Nullable ExecutableElement valueElementForName(@Interned String annoName) {
+        if (annoName == INTVAL_NAME) {
+            return intValValueElement;
+        } else if (annoName == ARRAYLEN_NAME) {
+            return arrayLenValueElement;
+        } else if (annoName == BOOLVAL_NAME) {
+            return boolValValueElement;
+        } else if (annoName == DOUBLEVAL_NAME) {
+            return doubleValValueElement;
+        } else if (annoName == STRINGVAL_NAME) {
+            return stringValValueElement;
+        } else if (annoName == MATCHES_REGEX_NAME) {
+            return matchesRegexValueElement;
+        } else if (annoName == DOES_NOT_MATCH_REGEX_NAME) {
+            return doesNotMatchRegexValueElement;
+        }
+        return null;
+    }
+
     /** Should this type factory report warnings? */
     private final boolean reportEvalWarnings;
 
@@ -225,7 +270,10 @@ public class ValueAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
     /** Helper class that holds references to special methods. */
     private final ValueMethodIdentifier methods;
 
-    @SuppressWarnings("StaticAssignmentInConstructor") // static Range.ignoreOverflow is gross
+    @SuppressWarnings({
+        "StaticAssignmentInConstructor", // static Range.ignoreOverflow is gross
+        "this-escape"
+    })
     public ValueAnnotatedTypeFactory(BaseTypeChecker checker) {
         super(checker);
 
@@ -269,6 +317,7 @@ public class ValueAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
         addAliasedTypeAnnotation(
                 "org.checkerframework.checker.index.qual.SubstringIndexFor",
                 createIntRangeFromGTENegativeOne());
+        addAliasedTypeAnnotation("javax.annotation.Nonnegative", createIntRangeFromNonNegative());
 
         // PolyLength is syntactic sugar for both @PolySameLen and @PolyValue
         addAliasedTypeAnnotation("org.checkerframework.checker.index.qual.PolyLength", POLY);
@@ -283,7 +332,11 @@ public class ValueAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
         }
     }
 
-    /** Gets a helper object that holds references to methods with special handling. */
+    /**
+     * Gets a helper object that holds references to methods with special handling.
+     *
+     * @return the value method identifier object
+     */
     ValueMethodIdentifier getMethodIdentifier() {
         return methods;
     }
@@ -360,7 +413,7 @@ public class ValueAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
         return new DefaultTypeHierarchy(
                 checker,
                 getQualifierHierarchy(),
-                checker.getBooleanOption("ignoreRawTypeArguments", true),
+                ignoreRawTypeArguments,
                 checker.hasOption("invariantArrays")) {
             @Override
             public StructuralEqualityComparer createEqualityComparer() {
@@ -368,16 +421,19 @@ public class ValueAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
                     @Override
                     protected boolean arePrimaryAnnosEqual(
                             AnnotatedTypeMirror type1, AnnotatedTypeMirror type2) {
-                        type1.replaceAnnotation(
+                        // Normalize equivalent qualifiers (e.g. @IntRange(1,1) and @IntVal(1)) to a
+                        // canonical form before comparing, but do NOT mutate type1/type2: compute
+                        // the canonical annotations and compare them directly. The types may be
+                        // shared frozen cache values, so a mutating comparison would corrupt them.
+                        AnnotationMirror anno1 =
                                 convertToUnknown(
                                         convertSpecialIntRangeToStandardIntRange(
-                                                type1.getAnnotationInHierarchy(UNKNOWNVAL))));
-                        type2.replaceAnnotation(
+                                                type1.getAnnotationInHierarchy(UNKNOWNVAL)));
+                        AnnotationMirror anno2 =
                                 convertToUnknown(
                                         convertSpecialIntRangeToStandardIntRange(
-                                                type2.getAnnotationInHierarchy(UNKNOWNVAL))));
-
-                        return super.arePrimaryAnnosEqual(type1, type2);
+                                                type2.getAnnotationInHierarchy(UNKNOWNVAL)));
+                        return arePrimaryAnnosEqual(anno1, anno2, type1, type2);
                     }
                 };
             }
@@ -429,6 +485,7 @@ public class ValueAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
     }
 
     /** The classes of field invariant annotations. */
+    @SuppressWarnings("this-escape")
     private final Set<Class<? extends Annotation>> fieldInvariantDeclarationAnnotations =
             computeFieldInvariantDeclarationAnnotations();
 
@@ -442,10 +499,14 @@ public class ValueAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
      * number of possible values of the enum.
      */
     @Override
-    public ParameterizedExecutableType methodFromUse(
-            ExpressionTree tree, ExecutableElement methodElt, AnnotatedTypeMirror receiverType) {
+    protected ParameterizedExecutableType methodFromUse(
+            ExpressionTree tree,
+            ExecutableElement methodElt,
+            AnnotatedTypeMirror receiverType,
+            boolean inferTypeArgs) {
 
-        ParameterizedExecutableType superPair = super.methodFromUse(tree, methodElt, receiverType);
+        ParameterizedExecutableType superPair =
+                super.methodFromUse(tree, methodElt, receiverType, inferTypeArgs);
         if (ElementUtils.matchesElement(methodElt, "values")
                 && methodElt.getEnclosingElement().getKind() == ElementKind.ENUM
                 && ElementUtils.isStatic(methodElt)) {
@@ -461,8 +522,13 @@ public class ValueAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
     @Override
     public AnnotationMirrorSet getWidenedAnnotations(
             AnnotationMirrorSet annos, TypeKind typeKind, TypeKind widenedTypeKind) {
+        AnnotationMirror anno = qualHierarchy.findAnnotationInSameHierarchy(annos, UNKNOWNVAL);
+        if (anno == null) {
+            throw new TypeSystemError("No value annotation in: " + annos);
+        }
+
         return AnnotationMirrorSet.singleton(
-                convertSpecialIntRangeToStandardIntRange(annos.first(), typeKind));
+                convertSpecialIntRangeToStandardIntRange(anno, typeKind));
     }
 
     /**
@@ -680,10 +746,46 @@ public class ValueAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
         if (TypesUtils.isIntegralPrimitiveOrBoxed(typeMirror)) {
             Range maxRange = Range.create(primitiveKind);
             return convertSpecialIntRangeToStandardIntRange(anm, maxRange.to);
-
         } else {
             return convertSpecialIntRangeToStandardIntRange(anm, Long.MAX_VALUE);
         }
+    }
+
+    /**
+     * Cache of the {@link TypeElement} for the annotation classes this factory builds, so that the
+     * frequent {@code create*Annotation} methods do not perform an {@link
+     * javax.lang.model.util.Elements#getTypeElement} name lookup (which validates and searches for
+     * the name) per created annotation. Lazily initialized, because {@link #annotationBuilder} is
+     * called from field initializers that run before this field's own initializer would.
+     */
+    private @MonotonicNonNull Map<Class<? extends Annotation>, TypeElement> annotationClassElements;
+
+    /**
+     * Returns a new {@link AnnotationBuilder} for the given annotation class, looking up the
+     * annotation's {@link TypeElement} only on the first use of each class.
+     *
+     * @param clazz the annotation class to build
+     * @return a new {@link AnnotationBuilder} for {@code clazz}
+     */
+    private AnnotationBuilder annotationBuilder(Class<? extends Annotation> clazz) {
+        Map<Class<? extends Annotation>, TypeElement> cache = annotationClassElements;
+        if (cache == null) {
+            cache = new HashMap<>(16);
+            annotationClassElements = cache;
+        }
+        TypeElement annoElt = cache.get(clazz);
+        if (annoElt == null) {
+            @SuppressWarnings(
+                    "nullness") // getCanonicalName expected to be non-null for annotation types
+            String name = clazz.getCanonicalName();
+            annoElt = elements.getTypeElement(name);
+            if (annoElt == null) {
+                throw new UserError(
+                        "Could not find annotation: " + name + ". Is it on the classpath?");
+            }
+            cache.put(clazz, annoElt);
+        }
+        return new AnnotationBuilder(processingEnv, annoElt);
     }
 
     /**
@@ -697,15 +799,19 @@ public class ValueAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
      */
     private AnnotationMirror convertSpecialIntRangeToStandardIntRange(
             AnnotationMirror anm, long max) {
-        if (AnnotationUtils.areSameByName(anm, INTRANGE_FROMPOS_NAME)) {
+        // No cache: annotationName is a field read for CheckerFrameworkAnnotationMirror (the
+        // common case here) and cached in ElementUtils otherwise, so three interned-name
+        // comparisons are cheaper than the identity-keyed map this method used to maintain.
+        // Fresh mirrors are created constantly, so that map grew with every created annotation
+        // and missed on the first sight of each.
+        String name = AnnotationUtils.annotationName(anm);
+        if (name == INTRANGE_FROMPOS_NAME) {
             return createIntRangeAnnotation(1, max);
         }
-
-        if (AnnotationUtils.areSameByName(anm, INTRANGE_FROMNONNEG_NAME)) {
+        if (name == INTRANGE_FROMNONNEG_NAME) {
             return createIntRangeAnnotation(0, max);
         }
-
-        if (AnnotationUtils.areSameByName(anm, INTRANGE_FROMGTENEGONE_NAME)) {
+        if (name == INTRANGE_FROMGTENEGONE_NAME) {
             return createIntRangeAnnotation(-1, max);
         }
         return anm;
@@ -801,7 +907,7 @@ public class ValueAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
         } else if (TypesUtils.getClassFromType(resultType) == char[].class) {
             List<String> stringVals =
                     CollectionsPlume.mapList(
-                            (Object o) -> {
+                            o -> {
                                 if (o instanceof char[]) {
                                     return new String((char[]) o);
                                 } else {
@@ -883,7 +989,7 @@ public class ValueAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
             long valMax = values.get(values.size() - 1);
             return createIntRangeAnnotation(valMin, valMax);
         } else {
-            AnnotationBuilder builder = new AnnotationBuilder(processingEnv, IntVal.class);
+            AnnotationBuilder builder = annotationBuilder(IntVal.class);
             builder.setValue("value", values);
             return builder.build();
         }
@@ -921,7 +1027,7 @@ public class ValueAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
         if (values.size() > MAX_VALUES) {
             return UNKNOWNVAL;
         } else {
-            AnnotationBuilder builder = new AnnotationBuilder(processingEnv, DoubleVal.class);
+            AnnotationBuilder builder = annotationBuilder(DoubleVal.class);
             builder.setValue("value", values);
             return builder.build();
         }
@@ -971,7 +1077,7 @@ public class ValueAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
             List<Integer> lengths = ValueCheckerUtils.getLengthsForStringValues(values);
             return createArrayLenAnnotation(lengths);
         } else {
-            AnnotationBuilder builder = new AnnotationBuilder(processingEnv, StringVal.class);
+            AnnotationBuilder builder = annotationBuilder(StringVal.class);
             builder.setValue("value", values);
             return builder.build();
         }
@@ -1000,7 +1106,7 @@ public class ValueAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
         } else if (values.size() > MAX_VALUES) {
             return createArrayLenRangeAnnotation(Collections.min(values), Collections.max(values));
         } else {
-            AnnotationBuilder builder = new AnnotationBuilder(processingEnv, ArrayLen.class);
+            AnnotationBuilder builder = annotationBuilder(ArrayLen.class);
             builder.setValue("value", values);
             return builder.build();
         }
@@ -1029,7 +1135,7 @@ public class ValueAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
             // arguments {true}, {false}, and {true, false}, respectively) in advance and return one
             // of them?  (Maybe an advantage of this implementation is that it is identical to
             // some other implementations and therefore might be less error-prone.)
-            AnnotationBuilder builder = new AnnotationBuilder(processingEnv, BoolVal.class);
+            AnnotationBuilder builder = annotationBuilder(BoolVal.class);
             builder.setValue("value", values);
             return builder.build();
         }
@@ -1121,7 +1227,7 @@ public class ValueAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
      */
     /*package-private*/ AnnotationMirror createIntRangeAnnotation(long from, long to) {
         assert from <= to;
-        AnnotationBuilder builder = new AnnotationBuilder(processingEnv, IntRange.class);
+        AnnotationBuilder builder = annotationBuilder(IntRange.class);
         builder.setValue("from", from);
         builder.setValue("to", to);
         return builder.build();
@@ -1149,10 +1255,11 @@ public class ValueAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
      * for the Index Checker's {@link org.checkerframework.checker.index.qual.Positive} annotation.
      * It is treated everywhere as an IntRange annotation, but is not checked when it appears as the
      * left hand side of an assignment (because the Lower Bound Checker will check it).
+     *
+     * @return an {@link IntRangeFromPositive} annotation
      */
     private AnnotationMirror createIntRangeFromPositive() {
-        AnnotationBuilder builder =
-                new AnnotationBuilder(processingEnv, IntRangeFromPositive.class);
+        AnnotationBuilder builder = annotationBuilder(IntRangeFromPositive.class);
         return builder.build();
     }
 
@@ -1162,10 +1269,11 @@ public class ValueAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
      * annotation. It is treated everywhere as an IntRange annotation, but is not checked when it
      * appears as the left hand side of an assignment (because the Lower Bound Checker will check
      * it).
+     *
+     * @return an {@link IntRangeFromNonNegative} annotation
      */
     private AnnotationMirror createIntRangeFromNonNegative() {
-        AnnotationBuilder builder =
-                new AnnotationBuilder(processingEnv, IntRangeFromNonNegative.class);
+        AnnotationBuilder builder = annotationBuilder(IntRangeFromNonNegative.class);
         return builder.build();
     }
 
@@ -1175,20 +1283,25 @@ public class ValueAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
      * annotation. It is treated everywhere as an IntRange annotation, but is not checked when it
      * appears as the left hand side of an assignment (because the Lower Bound Checker will check
      * it).
+     *
+     * @return an {@link IntRangeFromGTENegativeOne} annotation
      */
     private AnnotationMirror createIntRangeFromGTENegativeOne() {
-        AnnotationBuilder builder =
-                new AnnotationBuilder(processingEnv, IntRangeFromGTENegativeOne.class);
+        AnnotationBuilder builder = annotationBuilder(IntRangeFromGTENegativeOne.class);
         return builder.build();
     }
 
     /**
      * Create an {@code @ArrayLenRange} annotation from the two (inclusive) bounds. Does not return
      * BOTTOMVAL or UNKNOWNVAL.
+     *
+     * @param from the lower bound (inclusive)
+     * @param to the upper bound (inclusive)
+     * @return an {@code @ArrayLenRange} annotation
      */
     public AnnotationMirror createArrayLenRangeAnnotation(int from, int to) {
         assert from <= to;
-        AnnotationBuilder builder = new AnnotationBuilder(processingEnv, ArrayLenRange.class);
+        AnnotationBuilder builder = annotationBuilder(ArrayLenRange.class);
         builder.setValue("from", from);
         builder.setValue("to", to);
         return builder.build();
@@ -1222,8 +1335,8 @@ public class ValueAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
         if (regexes.isEmpty()) {
             return BOTTOMVAL;
         }
-        AnnotationBuilder builder = new AnnotationBuilder(processingEnv, MatchesRegex.class);
-        builder.setValue("value", regexes.toArray(new String[regexes.size()]));
+        AnnotationBuilder builder = annotationBuilder(MatchesRegex.class);
+        builder.setValue("value", regexes.toArray(new String[0]));
         return builder.build();
     }
 
@@ -1241,8 +1354,8 @@ public class ValueAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
         if (regexes.isEmpty()) {
             return UNKNOWNVAL;
         }
-        AnnotationBuilder builder = new AnnotationBuilder(processingEnv, DoesNotMatchRegex.class);
-        builder.setValue("value", regexes.toArray(new String[regexes.size()]));
+        AnnotationBuilder builder = annotationBuilder(DoesNotMatchRegex.class);
+        builder.setValue("value", regexes.toArray(new String[0]));
         return builder.build();
     }
 
@@ -1559,10 +1672,10 @@ public class ValueAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
      */
     public boolean isIntRange(AnnotationMirror anno) {
         String name = AnnotationUtils.annotationName(anno);
-        return name.equals(INTRANGE_NAME)
-                || name.equals(INTRANGE_FROMPOS_NAME)
-                || name.equals(INTRANGE_FROMNONNEG_NAME)
-                || name.equals(INTRANGE_FROMGTENEGONE_NAME);
+        return name == INTRANGE_NAME
+                || name == INTRANGE_FROMPOS_NAME
+                || name == INTRANGE_FROMNONNEG_NAME
+                || name == INTRANGE_FROMGTENEGONE_NAME;
     }
 
     public int getMinLenValue(AnnotatedTypeMirror atm) {
@@ -1707,11 +1820,10 @@ public class ValueAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
             List<? extends AnnotationMirror> annoList =
                     expressionObj.getType().getAnnotationMirrors();
             for (AnnotationMirror anno : annoList) {
-                String ANNO_NAME = AnnotationUtils.annotationName(anno);
-                if (ANNO_NAME.equals(MINLEN_NAME)) {
+                String name = AnnotationUtils.annotationName(anno);
+                if (name == MINLEN_NAME) {
                     return getMinLenValue(canonicalAnnotation(anno));
-                } else if (ANNO_NAME.equals(ARRAYLEN_NAME)
-                        || ANNO_NAME.equals(ARRAYLENRANGE_NAME)) {
+                } else if (name == ARRAYLEN_NAME || name == ARRAYLENRANGE_NAME) {
                     return getMinLenValue(anno);
                 }
             }
@@ -1757,5 +1869,13 @@ public class ValueAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
             return true;
         }
         return super.isImmutable(type);
+    }
+
+    @Override
+    protected boolean shouldCacheMethodAsMemberOf() {
+        // The Value Checker computes a method's result type from the actual argument values (e.g.
+        // Math.min, String.length on a constant), so the method-as-member-of type is call-dependent
+        // and must not be cached on (method, receiver).
+        return false;
     }
 }

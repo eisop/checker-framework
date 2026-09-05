@@ -2,6 +2,7 @@
  * @test
  * @summary Test that defaulted types are stored in bytecode.
  *
+ * @requires jdk.version.major <= 24
  * @compile  ../PersistUtil.java Driver.java ReferenceInfoUtil.java Classes.java
  * @run main Driver Classes
  */

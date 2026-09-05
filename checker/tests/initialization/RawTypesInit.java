@@ -237,8 +237,12 @@ public class RawTypesInit {
         RawAfterConstructorOK2() {}
     }
 
-    // TODO: reinstate.  This shows desired features, for initialization in
-    // a helper method rather than in the constructor.
+    // This class documents a desired but unimplemented feature: treating the receiver as fully
+    // initialized part-way through a constructor or helper method once every field has been set, so
+    // that a non-raw instance method may be called. The checker instead keeps the receiver under
+    // initialization until the constructor returns, so every nonRawMethod() call below is
+    // (imprecisely) rejected, whether the fields are set directly (constructor_inits_ab) or through
+    // an @EnsuresNonNull helper method (init_b, init_ab).
     class InitInHelperMethod {
         Integer a;
         Integer b;

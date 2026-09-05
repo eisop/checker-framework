@@ -49,7 +49,7 @@ public class StringCFGVisualizer<
 
     @Override
     public String getSeparator() {
-        return "\n";
+        return System.lineSeparator();
     }
 
     @Override
@@ -98,7 +98,7 @@ public class StringCFGVisualizer<
 
     @Override
     public String visualizeBlock(Block bb, @Nullable Analysis<V, S, T> analysis) {
-        return super.visualizeBlockHelper(bb, analysis, lineSeparator).trim();
+        return super.visualizeBlockWithSeparator(bb, analysis, lineSeparator).trim();
     }
 
     @Override
@@ -124,11 +124,6 @@ public class StringCFGVisualizer<
     public String visualizeBlockTransferInputAfter(Block bb, Analysis<V, S, T> analysis) {
         return super.visualizeBlockTransferInputHelper(
                 VisualizeWhere.AFTER, bb, analysis, lineSeparator);
-    }
-
-    @Override
-    protected String format(Object obj) {
-        return obj.toString();
     }
 
     @Override

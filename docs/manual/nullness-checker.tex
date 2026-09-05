@@ -171,6 +171,15 @@ command-line option.)
   unnecessary and might indicate a programmer error or misunderstanding.
   The lint option is disabled by default because sometimes such checks are
   part of ordinary defensive programming.
+
+\item
+  \label{nullness-lint-monotonic}%
+  If you supply the \code{-Alint=monotonicNonNullOnStatic} command-line option,
+  then the checker warns when \<@MonotonicNonNull> is written on a \<static>
+  field.  Such a field is a code smell that may indicate poor design; consider
+  whether the field could instead be a member field that is set in the
+  constructor.  The lint option is disabled by default because such a field
+  functions correctly.
 \end{itemize}
 
 \item
@@ -278,7 +287,12 @@ The nullness hierarchy contains these qualifiers:
 
   Use of \<@MonotonicNonNull> on a \emph{static} field is a code smell:  it may
   indicate poor design.  You should consider whether it is possible to make
-  the field a member field that is set in the constructor.
+  the field a member field that is set in the constructor.  If you supply the
+  \<monotonicNonNullOnStatic> lint flag (for example, supply
+  \<-Alint=monotonicNonNullOnStatic> on the command line), then the Nullness
+  Checker issues a \<monotonic.on.static> warning for each \<static> field
+  annotated \<@MonotonicNonNull>.  The warning is off by default because such a
+  field functions correctly; the pattern is discouraged, not erroneous.
 
   In the type system, \<@MonotonicNonNull> is a supertype of \<@NonNull>
   and a subtype of \<@Nullable>.
@@ -320,6 +334,10 @@ apply to the method itself rather than to some particular type.
   field to be non-null.
 
 \item[\refqualclass{checker/nullness/qual}{EnsuresNonNull}]
+  indicates a method postcondition.
+  With \<@EnsuresNonNull>, the successful return (i.e., a non-exceptional
+  return) of the annotated method results in the given expressions being
+  non-null. See the Javadoc for examples of its use.
 \item[\refqualclass{checker/nullness/qual}{EnsuresNonNullIf}]
   indicates a method postcondition.  With \<@EnsuresNonNull>, the given
   expressions are non-null after the method returns; this is useful for a
@@ -343,6 +361,9 @@ been assigned.
 \item[\refqualclass{checker/initialization/qual}{UnknownInitialization}]
 \item[\refqualclass{checker/initialization/qual}{UnderInitialization}]
 \item[\refqualclass{checker/initialization/qual}{PolyInitialized}]
+\item[\refqualclass{checker/initialization/qual}{EnsuresInitialized}]
+  indicates a method postcondition.  After the method returns normally, the given
+  expressions are initialized.
 \end{description}
 
 \noindent
@@ -507,7 +528,7 @@ uses such a pattern:
 Another example is \sunjavadoc{java.base/java/util/Queue.html\#peek()}{Queue.peek}
 and \sunjavadoc{java.base/java/util/Queue.html\#poll()}{Queue.poll}, which return
 non-null if \sunjavadoc{java.base/java/util/Collection.html\#isEmpty()}{isEmpty}
-returns false.
+returns false (see Section~\ref{nullness-queue-retrieval}).
 
 The argument to \code{@EnsuresNonNullIf} is a Java expression, including method calls
 (as shown above), method formal parameters, fields, etc.; for details, see
@@ -587,7 +608,9 @@ hold:
       \begin{itemize}
         \item an empty array initializer, e.g. \<c.toArray(new String[] \{\})>, or
 
-        \item array creation tree of size 0, e.g. \<c.toArray(new String[0])>.
+        \item an array creation tree of size 0, e.g. \<c.toArray(new String[0])>.
+
+        \item a reference to a private, final field with a zero-length array as initializer, e.g. \<c.toArray(EMPTY\_STRING\_ARRAY)>, where \<EMPTY\_STRING\_ARRAY> is initialized to \<new String[0]> (or an equivalent zero-length array expression).
       \end{itemize}
 
     \item array creation tree with a collection \<size()> method invocation as argument
@@ -609,6 +632,28 @@ Note: The nullness of the returned array doesn't depend on the passed array null
 This is a fact about
 \sunjavadoc{java.base/java/util/Collection.html\#toArray(T[])}{Collection.toArray(T[])},
 not a limitation of this heuristic.
+
+
+\subsectionAndLabel{Nullness and queue or deque retrieval methods}{nullness-queue-retrieval}
+
+Methods such as \sunjavadoc{java.base/java/util/Queue.html\#poll()}{Queue.poll},
+\sunjavadoc{java.base/java/util/Queue.html\#peek()}{Queue.peek},
+\sunjavadoc{java.base/java/util/Deque.html\#pollFirst()}{Deque.pollFirst},
+\sunjavadoc{java.base/java/util/Deque.html\#pollLast()}{Deque.pollLast},
+\sunjavadoc{java.base/java/util/Deque.html\#peekFirst()}{Deque.peekFirst}, and
+\sunjavadoc{java.base/java/util/Deque.html\#peekLast()}{Deque.peekLast} return
+\<@Nullable> when invoked on an empty queue or deque, but return a non-null
+element when invoked on a non-empty queue or deque whose element type is \<@NonNull>.
+
+The Nullness Checker tracks when a queue or deque expression is known to be
+non-empty (such as on the false branch of
+\sunjavadoc{java.base/java/util/Collection.html\#isEmpty()}{isEmpty()}).
+When a retrieval method is called on a known non-empty receiver with a
+\<@NonNull> element type, the return value is refined to \<@NonNull>.
+Mutating operations (including calls to \<poll()>, \<pollFirst()>, \<pollLast()>,
+or other side-effecting methods) conservatively clear this non-empty knowledge,
+so subsequent poll or peek operations will not be refined without another
+non-emptiness check.
 
 
 \subsectionAndLabel{Run-time checks for nullness}{nullness-runtime-checks}
@@ -704,15 +749,26 @@ arguments.  One use for this key is when a class is declared to take only
 \<@NonNull> type arguments, but you want to instantiate the class with a
 \<@Nullable> type argument, as in \code{List<@Nullable Object>}.
 
-To suppress warnings by the Nullness Checker without also suppressing warnings
-by the Initialization Checker (see Section~\ref{initialization-checker}),
-use the \<@SuppressWarnings("nullnessnoinit")> annotation.
+To suppress warnings from the Nullness, Initialization, and KeyFor Checkers,
+use the \<@SuppressWarnings("nullness")> annotation.
+
+To suppress warnings from the Nullness and Initialization Checkers without suppressing warnings
+from the KeyFor Checker (see Section~\ref{map-key-checker}),
+use the \<@SuppressWarnings("nullnessinitialization")> annotation.
+
+To suppress warnings from the Nullness and KeyFor Checkers without suppressing warnings
+from the Initialization Checker (see Section~\ref{initialization-checker}),
+use the \<@SuppressWarnings("nullnesskeyfor")> annotation.
+\<@SuppressWarnings("nullnessnoinit")> has the same effect as \<@SuppressWarnings("nullnesskeyfor")>.
+
+To suppress warnings only from the Nullness Checker, use the \<@SuppressWarnings("nullnessonly")> annotation.
+
+To suppress warnings only from the Initialization Checker, use the \<@SuppressWarnings("initialization")> annotation.
+
+To suppress warnings only from the KeyFor Checker, use the \<@SuppressWarnings("keyfor")> annotation.
 
 The Nullness Checker also permits you to use assertions or method calls to
 suppress warnings; see below.
-
-% TODO: check whether the SuppressWarnings strings are correct.
-
 
 \subsectionAndLabel{Suppressing warnings with assertions and method calls}{suppressing-warnings-with-assertions}
 
@@ -1065,6 +1121,7 @@ Section~\ref{declaration-annotations-moved}.
  ~org.antlr.v4.runtime.misc.NotNull~ \\ \hline
  ~org.checkerframework.checker.nullness.compatqual.NonNullDecl~ \\ \hline
  ~org.checkerframework.checker.nullness.compatqual.NonNullType~ \\ \hline
+ ~org.chromium.build.annotations.OptimizeAsNonNull~ \\ \hline
  ~org.codehaus.commons.nullanalysis.NotNull~ \\ \hline
  ~org.eclipse.jdt.annotation.NonNull~ \\ \hline
  ~org.eclipse.jgit.annotations.NonNull~ \\ \hline
@@ -1086,7 +1143,7 @@ $\Rightarrow$
 \vspace{-1.5\baselineskip}
 %END LATEX
 \caption{Correspondence between other nullness annotations and the
-  Checker Framework's \<NonNull> annotation.}
+  Checker Framework's \<@NonNull> annotation.}
 \label{fig-nullness-refactoring-nonnull}
 \end{figure}
 
@@ -1138,6 +1195,7 @@ $\Rightarrow$
  ~org.apache.shindig.common.Nullable~ \\ \hline
  ~org.checkerframework.checker.nullness.compatqual.NullableDecl~ \\ \hline
  ~org.checkerframework.checker.nullness.compatqual.NullableType~ \\ \hline
+ ~org.chromium.build.annotations.Nullable~ \\ \hline
  ~org.codehaus.commons.nullanalysis.Nullable~ \\ \hline
  ~org.eclipse.jdt.annotation.Nullable~ \\ \hline
  ~org.eclipse.jgit.annotations.Nullable~ \\ \hline
@@ -1162,7 +1220,7 @@ $\Rightarrow$
 \vspace{-1.5\baselineskip}
 %END LATEX
 \caption{Correspondence between other nullness annotations and the
-  Checker Framework's \<Nullable> annotation.}
+  Checker Framework's \<@Nullable> annotation.}
 \label{fig-nullness-refactoring-nullable}
 \end{figure}
 
@@ -1183,7 +1241,7 @@ $\Rightarrow$
 \vspace{-1.5\baselineskip}
 %END LATEX
 \caption{Correspondence between other nullness annotations and the
-  Checker Framework's \<PolyNull> annotation.}
+  Checker Framework's \<@PolyNull> annotation.}
 \label{fig-nullness-refactoring-polynull}
 \end{figure}
 
@@ -1626,18 +1684,13 @@ All \code{@NonNull} fields must either have a
 default in the field declaration, or be assigned in the constructor or in a
 helper method that the constructor calls.  If
 your code initializes (some) fields in a helper method, you will need to
-annotate the helper method with an annotation such as
+annotate the helper method with a postcondition annotation.
+If the field is a reference type, you should use
 \refqualclass{checker/nullness/qual}{EnsuresNonNull}\code{(\{"field1", "field2"\})}
-for all the fields that the helper method assigns.
-
-% TODO:
-% We need an
-%   @EnsuresInitialized("b")
-% that is analogous to
-%   @EnsuresNonNull("b")
-% when we are dealing with a field of primitive type.
-% But, for now just use the same annotation, @EnsuresNonNull, for both purposes.
-
+to inform both the Nullness and Initialization checkers that the field is non-null and therefore initialized.
+If the field is a primitive type (or if you only wish to guarantee initialization and not non-nullness), use
+\refqualclass{checker/initialization/qual}{EnsuresInitialized}\code{(\{"field1", "field2"\})}
+instead.
 
 \subsectionAndLabel{\code{@UnderInitialization} examples}{underinitialization-examples}
 
@@ -2185,8 +2238,9 @@ class MyClass {
 
 \noindent
 You are likely to want to annotate \<initHelper()> with
-\refqualclass{checker/nullness/qual}{EnsuresNonNull} as well; see
-Section~\ref{nullness-method-annotations}.
+\refqualclass{checker/nullness/qual}{EnsuresNonNull}
+(or \refqualclass{checker/initialization/qual}{EnsuresInitialized})
+as well; see Section~\ref{nullness-method-annotations}.
 
 You may get the ``call to \ldots\ is not allowed on the given receiver''
 error even if your constructor has already initialized all the fields.
@@ -2263,7 +2317,8 @@ A method with a non-initialized receiver may assume that a few fields (but not a
 of them) are non-null, and it sometimes sets some more fields to non-null
 values.  To express these concepts, use the
 \refqualclass{checker/nullness/qual}{RequiresNonNull},
-\refqualclass{checker/nullness/qual}{EnsuresNonNull}, and
+\refqualclass{checker/nullness/qual}{EnsuresNonNull}
+(or \refqualclass{checker/initialization/qual}{EnsuresInitialized}), and
 \refqualclass{checker/nullness/qual}{EnsuresNonNullIf} method annotations;
 see Section~\ref{nullness-method-annotations}.
 
@@ -2299,7 +2354,7 @@ greater than the benefit from adopting the Freedom Before Commitment system.
 % LocalWords:  typeofthis nraB nrbB rO nroO nroB containsKey enum NullAway
 % LocalWords:  JUnit's field1 field2 superclasses Foo C1 C2 PolyRaw type''
 % LocalWords:  NullnessChecker redundantNullComparison instanceof runtime
-% LocalWords:  noInitForMonotonicNonNull UnknownInitialization isArray
+% LocalWords:  noInitForMonotonicNonNull UnknownInitialization isArray jdk
 % LocalWords:  UnderInitialization getComponentType AsuppressWarnings util
 % LocalWords:  isEmpty AssumeAssertion cleanroom varargs OtherClass Astubs
 % LocalWords:  mymap mykey KeyType ValueType lineSeparator receiver''
@@ -2307,6 +2362,7 @@ greater than the benefit from adopting the Freedom Before Commitment system.
 % LocalWords:  initHelper helperMethod NoSuchElementException classpath
 % LocalWords:  soundArrayCreationNullness lombok findbugs CurrentClass
 % LocalWords:  NotOnlyInitialized underinitialization Commitment'' toarray
-% LocalWords:  unclassified'' trustArrayLenZero ArrayLen toArray
+% LocalWords:  unclassified'' trustArrayLenZero ArrayLen toArray Java''
 % LocalWords:  ConcurrentHashMap permitClearProperty setProperties
-% LocalWords:  clearProperty AassumeKeyFor AassumeInitialized
+% LocalWords:  clearProperty AassumeKeyFor AassumeInitialized WeakReference checkers''
+% LocalWords:  AinvocationPreservesArgumentNullness SpotBugs's

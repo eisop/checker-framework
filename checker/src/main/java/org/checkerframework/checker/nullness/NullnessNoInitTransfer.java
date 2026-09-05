@@ -39,6 +39,7 @@ import org.checkerframework.javacutil.TypesUtils;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Queue;
 
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.ExecutableElement;
@@ -81,6 +82,14 @@ public class NullnessNoInitTransfer
      */
     protected final AnnotatedDeclaredType MAP_TYPE;
 
+    /**
+     * Java's Queue interface.
+     *
+     * <p>The qualifiers in this type don't matter -- it is not used as a fully-annotated
+     * AnnotatedDeclaredType, but just passed to asSuper().
+     */
+    protected final AnnotatedDeclaredType QUEUE_TYPE;
+
     /** The type factory for the nullness analysis that was passed to the constructor. */
     protected final NullnessNoInitAnnotatedTypeFactory nullnessTypeFactory;
 
@@ -98,6 +107,10 @@ public class NullnessNoInitTransfer
      * are assumed to be non-null.
      */
     private final boolean nonNullAssumptionAfterInvocation;
+
+    /** Reusable scanner for {@link #containsPolyNullNotAtTopLevel}; reset before each visit. */
+    private final ContainsPolyNullNotAtTopLevelScanner polyNullScanner =
+            new ContainsPolyNullNotAtTopLevelScanner();
 
     /**
      * Create a new NullnessTransfer for the given analysis.
@@ -127,6 +140,14 @@ public class NullnessNoInitTransfer
                 (AnnotatedDeclaredType)
                         AnnotatedTypeMirror.createType(
                                 TypesUtils.typeFromClass(Map.class, analysis.getTypes(), elements),
+                                nullnessTypeFactory,
+                                false);
+
+        QUEUE_TYPE =
+                (AnnotatedDeclaredType)
+                        AnnotatedTypeMirror.createType(
+                                TypesUtils.typeFromClass(
+                                        Queue.class, analysis.getTypes(), elements),
                                 nullnessTypeFactory,
                                 false);
 
@@ -184,8 +205,8 @@ public class NullnessNoInitTransfer
             @Nullable NullnessNoInitValue value, NullnessNoInitStore store) {
         value = super.finishValue(value, store);
         if (value != null) {
-            value.isPolyNullNonNull = store.isPolyNullNonNull();
-            value.isPolyNullNull = store.isPolyNullNull();
+            value.setPolyNullNonNull(store.isPolyNullNonNull());
+            value.setPolyNullNull(store.isPolyNullNull());
         }
         return value;
     }
@@ -197,9 +218,9 @@ public class NullnessNoInitTransfer
             NullnessNoInitStore elseStore) {
         value = super.finishValue(value, thenStore, elseStore);
         if (value != null) {
-            value.isPolyNullNonNull =
-                    thenStore.isPolyNullNonNull() && elseStore.isPolyNullNonNull();
-            value.isPolyNullNull = thenStore.isPolyNullNull() && elseStore.isPolyNullNull();
+            value.setPolyNullNonNull(
+                    thenStore.isPolyNullNonNull() && elseStore.isPolyNullNonNull());
+            value.setPolyNullNull(thenStore.isPolyNullNull() && elseStore.isPolyNullNull());
         }
         return value;
     }
@@ -241,13 +262,13 @@ public class NullnessNoInitTransfer
                 }
             }
 
-            AnnotationMirrorSet secondAnnos =
-                    secondValue != null ? secondValue.getAnnotations() : new AnnotationMirrorSet();
-            if (nullnessTypeFactory.containsSameByClass(secondAnnos, PolyNull.class)) {
+            if (secondValue != null
+                    && nullnessTypeFactory.containsSameByClass(
+                            secondValue.getAnnotations(), PolyNull.class)) {
                 thenStore = thenStore == null ? res.getThenStore() : thenStore;
                 elseStore = elseStore == null ? res.getElseStore() : elseStore;
                 // TODO: methodTree is null for lambdas.  Handle that case.  See Issue3850.java.
-                MethodTree methodTree = analysis.getContainingMethod(secondNode.getTree());
+                MethodTree methodTree = analysis.getEnclosingMethod(secondNode.getTree());
                 ExecutableElement methodElem =
                         methodTree == null ? null : TreeUtils.elementFromDeclaration(methodTree);
                 if (notEqualTo) {
@@ -316,6 +337,12 @@ public class NullnessNoInitTransfer
         }
 
         @Override
+        public void reset() {
+            isTopLevel = true;
+            super.reset();
+        }
+
+        @Override
         protected Boolean defaultAction(AnnotatedTypeMirror type, Void p) {
             if (isTopLevel) {
                 isTopLevel = false;
@@ -333,7 +360,7 @@ public class NullnessNoInitTransfer
      * @return true if there is an occurrence of @PolyNull that is not at the top level
      */
     private boolean containsPolyNullNotAtTopLevel(AnnotatedTypeMirror t) {
-        return new ContainsPolyNullNotAtTopLevelScanner().visit(t);
+        return polyNullScanner.visit(t);
     }
 
     @Override
@@ -407,10 +434,28 @@ public class NullnessNoInitTransfer
      *   <li>Given a call m.get(k), if k is @KeyFor("m") and m's value type is @NonNull, then the
      *       result is @NonNull in the thenStore and elseStore of the transfer result.
      * </ul>
+     *
+     * <p>Provided that q is of a type that implements interface java.util.Queue:
+     *
+     * <ul>
+     *   <li>Given a call q.isEmpty(), q is known to be non-empty in the elseStore of the transfer
+     *       result.
+     *   <li>Given a call q.poll() or q.peek() (or the corresponding Deque methods), if q is known
+     *       to be non-empty and q's element type is @NonNull, then the result is @NonNull.
+     * </ul>
      */
     @Override
     public TransferResult<NullnessNoInitValue, NullnessNoInitStore> visitMethodInvocation(
             MethodInvocationNode n, TransferInput<NullnessNoInitValue, NullnessNoInitStore> in) {
+        Node receiver = n.getTarget().getReceiver();
+        JavaExpression receiverExpr = JavaExpression.fromNode(receiver);
+        // Capture whether the queue is known to be non-empty before the superclass mutates the
+        // store when handling side effects.
+        boolean isNonEmptyQueuePollOrPeek =
+                (nullnessTypeFactory.isQueuePoll(n) || nullnessTypeFactory.isQueuePeek(n))
+                        && receiverExpr != null
+                        && in.getRegularStore().isQueueNonEmpty(receiverExpr);
+
         TransferResult<NullnessNoInitValue, NullnessNoInitStore> result =
                 super.visitMethodInvocation(n, in);
 
@@ -420,10 +465,9 @@ public class NullnessNoInitTransfer
         boolean isMethodSideEffectFree =
                 nullnessTypeFactory.isSideEffectFree(method)
                         || PurityUtils.isSideEffectFree(nullnessTypeFactory, method);
-        Node receiver = n.getTarget().getReceiver();
         if (nonNullAssumptionAfterInvocation
                 || isMethodSideEffectFree
-                || JavaExpression.fromNode(receiver).isUnassignableByOtherCode()) {
+                || !JavaExpression.fromNode(receiver).isAssignableByOtherCode()) {
             // Make receiver non-null.
             makeNonNull(result, receiver);
         }
@@ -439,8 +483,8 @@ public class NullnessNoInitTransfer
             if (methodParams.get(i).hasAnnotation(NONNULL)
                     && (nonNullAssumptionAfterInvocation
                             || isMethodSideEffectFree
-                            || JavaExpression.fromTree(methodArgs.get(i))
-                                    .isUnassignableByOtherCode())) {
+                            || !JavaExpression.fromTree(methodArgs.get(i))
+                                    .isAssignableByOtherCode())) {
                 makeNonNull(result, n.getArgument(i));
             }
         }
@@ -457,10 +501,33 @@ public class NullnessNoInitTransfer
             }
             if (isKeyFor) {
                 AnnotatedTypeMirror receiverType = nullnessTypeFactory.getReceiverType(n.getTree());
-                if (!hasNullableValueType(receiverType)) {
+                if (!isValueTypeNullable(receiverType)) {
                     makeNonNull(result, n);
                     refineToNonNull(result);
                 }
+            }
+        }
+
+        // Handle Collection.isEmpty(): mark receiver as non-empty in the false branch. Restricted
+        // to Queue/Deque receivers, since that is the only place this information is consulted,
+        // to avoid needless bookkeeping for every List/Set/... isEmpty() call.
+        if (nullnessTypeFactory.isCollectionIsEmpty(n)
+                && receiverExpr != null
+                && TypesUtils.isErasedSubtype(
+                        receiver.getType(), QUEUE_TYPE.getUnderlyingType(), analysis.getTypes())) {
+            NullnessNoInitStore thenStore = result.getThenStore();
+            NullnessNoInitStore elseStore = result.getElseStore();
+            elseStore.markQueueAsNonEmpty(receiverExpr);
+            return new ConditionalTransferResult<>(result.getResultValue(), thenStore, elseStore);
+        }
+
+        // Refine result to @NonNull if n is an invocation of Queue.poll() or Queue.peek(), the
+        // receiver is known to be non-empty, and the Queue element type is @NonNull.
+        if (isNonEmptyQueuePollOrPeek) {
+            AnnotatedTypeMirror receiverType = nullnessTypeFactory.getReceiverType(n.getTree());
+            if (isElementTypeNonNull(receiverType)) {
+                makeNonNull(result, n);
+                refineToNonNull(result);
             }
         }
 
@@ -473,7 +540,7 @@ public class NullnessNoInitTransfer
      * @param mapOrSubtype the Map type, or a subtype
      * @return true if mapType's value type is @Nullable
      */
-    private boolean hasNullableValueType(AnnotatedTypeMirror mapOrSubtype) {
+    private boolean isValueTypeNullable(AnnotatedTypeMirror mapOrSubtype) {
         AnnotatedDeclaredType mapType =
                 AnnotatedTypes.asSuper(nullnessTypeFactory, mapOrSubtype, MAP_TYPE);
         int numTypeArguments = mapType.getTypeArguments().size();
@@ -483,6 +550,27 @@ public class NullnessNoInitTransfer
         }
         AnnotatedTypeMirror valueType = mapType.getTypeArguments().get(1);
         return valueType.hasAnnotation(NULLABLE);
+    }
+
+    /**
+     * Returns true if queueType's element type (the E type argument to Queue) is @NonNull.
+     *
+     * @param queueOrSubtype the Queue type, or a subtype
+     * @return true if queueType's element type is @NonNull
+     */
+    private boolean isElementTypeNonNull(@Nullable AnnotatedTypeMirror queueOrSubtype) {
+        if (queueOrSubtype == null) {
+            return false;
+        }
+        AnnotatedDeclaredType queueType =
+                AnnotatedTypes.asSuper(nullnessTypeFactory, queueOrSubtype, QUEUE_TYPE);
+        if (queueType == null
+                || queueType.isUnderlyingTypeRaw()
+                || queueType.getTypeArguments().size() != 1) {
+            return false;
+        }
+        AnnotatedTypeMirror elementType = queueType.getTypeArguments().get(0);
+        return elementType.hasEffectiveAnnotation(NONNULL);
     }
 
     @Override

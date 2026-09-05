@@ -107,6 +107,7 @@ public class UnitsAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
 
     private static final Map<String, AnnotationMirror> aliasMap = new HashMap<>();
 
+    @SuppressWarnings("this-escape")
     public UnitsAnnotatedTypeFactory(BaseTypeChecker checker) {
         // use true to enable flow inference, false to disable it
         super(checker, false);
@@ -412,8 +413,8 @@ public class UnitsAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
 
     @Override
     public TreeAnnotator createTreeAnnotator() {
-        // Don't call super.createTreeAnnotator because it includes PropagationTreeAnnotator which
-        // is incorrect.
+        // Don't call super.createTreeAnnotator() because it includes PropagationTreeAnnotator,
+        // but we want to use UnitsPropagationTreeAnnotator instead.
         return new ListTreeAnnotator(
                 new UnitsPropagationTreeAnnotator(this),
                 new LiteralTreeAnnotator(this).addStandardLiteralQualifiers(),
@@ -422,7 +423,7 @@ public class UnitsAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
 
     private static class UnitsPropagationTreeAnnotator extends PropagationTreeAnnotator {
 
-        public UnitsPropagationTreeAnnotator(AnnotatedTypeFactory atypeFactory) {
+        UnitsPropagationTreeAnnotator(AnnotatedTypeFactory atypeFactory) {
             super(atypeFactory);
         }
 
@@ -442,6 +443,11 @@ public class UnitsAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
     /** A class for adding annotations based on tree. */
     private class UnitsTreeAnnotator extends TreeAnnotator {
 
+        /**
+         * Creates a new UnitsTreeAnnotator.
+         *
+         * @param atypeFactory the type factory
+         */
         UnitsTreeAnnotator(UnitsAnnotatedTypeFactory atypeFactory) {
             super(atypeFactory);
         }
@@ -580,7 +586,7 @@ public class UnitsAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
         public UnitsQualifierHierarchy() {
             super(
                     UnitsAnnotatedTypeFactory.this.getSupportedTypeQualifiers(),
-                    elements,
+                    UnitsAnnotatedTypeFactory.this.elements,
                     UnitsAnnotatedTypeFactory.this);
         }
 
@@ -588,7 +594,8 @@ public class UnitsAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
         protected QualifierKindHierarchy createQualifierKindHierarchy(
                 @UnderInitialization UnitsQualifierHierarchy this,
                 Collection<Class<? extends Annotation>> qualifierClasses) {
-            return new UnitsQualifierKindHierarchy(qualifierClasses, elements);
+            return new UnitsQualifierKindHierarchy(
+                    qualifierClasses, UnitsAnnotatedTypeFactory.this.elements);
         }
 
         @Override

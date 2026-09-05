@@ -39,6 +39,7 @@ public class PropertyKeyAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
 
     private final Set<String> lookupKeys;
 
+    @SuppressWarnings("this-escape")
     public PropertyKeyAnnotatedTypeFactory(BaseTypeChecker checker) {
         super(checker);
         this.lookupKeys = Collections.unmodifiableSet(buildLookupKeys());

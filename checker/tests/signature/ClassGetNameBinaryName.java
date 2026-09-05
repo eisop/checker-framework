@@ -27,7 +27,7 @@ public class ClassGetNameBinaryName {
         // :: error: (assignment.type.incompatible)
         @DotSeparatedIdentifiers String s13 = Inner.class.getName();
 
-        /// Primitive types
+        // Primitive types
 
         @PrimitiveType String prim1 = int.class.getName();
 
@@ -45,7 +45,7 @@ public class ClassGetNameBinaryName {
         // :: error: (assignment.type.incompatible)
         @PrimitiveType String prim6 = void.class.getName();
 
-        /// Arrays
+        // Arrays
 
         // :: error: (assignment.type.incompatible)
         @DotSeparatedIdentifiers String s6 = int[].class.getName();
@@ -82,7 +82,7 @@ public class ClassGetNameBinaryName {
         // :: error: (assignment.type.incompatible)
         @CanonicalNameAndBinaryName String s13 = Inner.class.getName();
 
-        /// Primitive types
+        // Primitive types
 
         @PrimitiveType String prim1 = int.class.getCanonicalName();
 
@@ -100,7 +100,7 @@ public class ClassGetNameBinaryName {
         // :: error: (assignment.type.incompatible)
         @PrimitiveType String prim6 = void.class.getCanonicalName();
 
-        /// Arrays
+        // Arrays
 
         // :: error: (assignment.type.incompatible)
         @CanonicalNameAndBinaryName String s6 = int[].class.getCanonicalName();

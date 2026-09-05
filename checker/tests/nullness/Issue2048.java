@@ -17,6 +17,7 @@ public class Issue2048 {
     }
 
     // :: error: (type.argument.type.incompatible)
+    // :: error: (type.arguments.not.inferred)
     Fooer<@Nullable Foo> nblFooer = new Fooer<>();
     Fooer<@NonNull Foo> nnFooer = new Fooer<>();
 

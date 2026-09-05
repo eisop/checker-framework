@@ -6,7 +6,6 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.framework.util.JavaExpressionParseUtil.JavaExpressionParseException;
 import org.checkerframework.javacutil.BugInCF;
 
-import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -19,7 +18,7 @@ import java.util.regex.Pattern;
  */
 public class DependentTypesError {
 
-    /// Static fields
+    // Static fields
 
     /** How elements of this class are formatted. */
     @SuppressWarnings("InlineFormatString") // https://github.com/google/error-prone/issues/1650
@@ -49,7 +48,7 @@ public class DependentTypesError {
             Pattern.compile(
                     "^'([a-zA-Z_$][a-zA-Z0-9_$]*)' because (Use \"#\\d+\" rather than \"\\1\")$");
 
-    /// Instance fields
+    // Instance fields
 
     /** The expression that is unparsable or otherwise problematic. */
     public final String expression;
@@ -57,7 +56,7 @@ public class DependentTypesError {
     /** An error message about that expression. */
     public final String error;
 
-    /// Constructors and methods
+    // Constructors and methods
 
     /**
      * Create a DependentTypesError for the given expression and error message.
@@ -112,7 +111,10 @@ public class DependentTypesError {
 
     @Override
     public int hashCode() {
-        return Objects.hash(expression, error);
+        int h = 1;
+        h = 31 * h + (expression != null ? expression.hashCode() : 0);
+        h = 31 * h + (error != null ? error.hashCode() : 0);
+        return h;
     }
 
     @Override

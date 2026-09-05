@@ -319,6 +319,7 @@ public class WholeProgramInferenceScenesStorage
 
     @Override
     public ATypeElement getPreOrPostconditions(
+            String className,
             Analysis.BeforeOrAfter preOrPost,
             ExecutableElement methodElement,
             String expression,
@@ -326,9 +327,11 @@ public class WholeProgramInferenceScenesStorage
             AnnotatedTypeFactory atypeFactory) {
         switch (preOrPost) {
             case BEFORE:
-                return getPreconditionsForExpression(methodElement, expression, declaredType);
+                return getPreconditionsForExpression(
+                        className, methodElement, expression, declaredType);
             case AFTER:
-                return getPostconditionsForExpression(methodElement, expression, declaredType);
+                return getPostconditionsForExpression(
+                        className, methodElement, expression, declaredType);
             default:
                 throw new BugInCF("Unexpected " + preOrPost);
         }
@@ -337,13 +340,18 @@ public class WholeProgramInferenceScenesStorage
     /**
      * Returns the precondition annotations for a Java expression.
      *
+     * @param className the class that contains the method, for diagnostics only
      * @param methodElement the method
      * @param expression the expression
      * @param declaredType the declared type of the expression
      * @return the precondition annotations for a Java expression
      */
+    @SuppressWarnings("UnusedVariable")
     private ATypeElement getPreconditionsForExpression(
-            ExecutableElement methodElement, String expression, AnnotatedTypeMirror declaredType) {
+            String className,
+            ExecutableElement methodElement,
+            String expression,
+            AnnotatedTypeMirror declaredType) {
         AMethod methodAnnos = getMethodAnnos(methodElement);
         preconditionsToDeclaredTypes.put(methodAnnos.methodSignature + expression, declaredType);
         return methodAnnos.vivifyAndAddTypeMirrorToPrecondition(
@@ -354,13 +362,18 @@ public class WholeProgramInferenceScenesStorage
     /**
      * Returns the postcondition annotations for a Java expression.
      *
+     * @param className the class that contains the method, for diagnostics only
      * @param methodElement the method
      * @param expression the expression
      * @param declaredType the declared type of the expression
      * @return the postcondition annotations for a Java expression
      */
+    @SuppressWarnings("UnusedVariable")
     private ATypeElement getPostconditionsForExpression(
-            ExecutableElement methodElement, String expression, AnnotatedTypeMirror declaredType) {
+            String className,
+            ExecutableElement methodElement,
+            String expression,
+            AnnotatedTypeMirror declaredType) {
         AMethod methodAnnos = getMethodAnnos(methodElement);
         postconditionsToDeclaredTypes.put(methodAnnos.methodSignature + expression, declaredType);
         return methodAnnos.vivifyAndAddTypeMirrorToPostcondition(
@@ -378,13 +391,14 @@ public class WholeProgramInferenceScenesStorage
      */
     public AnnotatedTypeMirror getPreconditionDeclaredType(AMethod m, String expression) {
         String key = m.methodSignature + expression;
-        if (!preconditionsToDeclaredTypes.containsKey(key)) {
+        AnnotatedTypeMirror result = preconditionsToDeclaredTypes.get(key);
+        if (result == null) {
             throw new BugInCF(
                     "attempted to retrieve the declared type of a precondition expression for which"
                             + "nothing was inferred: "
                             + key);
         }
-        return preconditionsToDeclaredTypes.get(key);
+        return result;
     }
 
     /**
@@ -397,13 +411,14 @@ public class WholeProgramInferenceScenesStorage
      */
     public AnnotatedTypeMirror getPostconditionDeclaredType(AMethod m, String expression) {
         String key = m.methodSignature + expression;
-        if (!postconditionsToDeclaredTypes.containsKey(key)) {
+        AnnotatedTypeMirror result = postconditionsToDeclaredTypes.get(key);
+        if (result == null) {
             throw new BugInCF(
                     "attempted to retrieve the declared type of a postcondition expression for which"
                             + "nothing was inferred: "
                             + key);
         }
-        return postconditionsToDeclaredTypes.get(key);
+        return result;
     }
 
     @Override
@@ -517,23 +532,22 @@ public class WholeProgramInferenceScenesStorage
      * @return the Scene read from the file, or an empty Scene if the file does not exist
      */
     private ASceneWrapper getScene(String jaifPath) {
-        AScene scene;
-        if (!scenes.containsKey(jaifPath)) {
-            File jaifFile = new File(jaifPath);
-            scene = new AScene();
-            if (jaifFile.exists()) {
-                try {
-                    IndexFileParser.parseFile(jaifPath, scene);
-                } catch (IOException e) {
-                    throw new UserError("Problem while reading %s: %s", jaifPath, e.getMessage());
-                }
-            }
-            ASceneWrapper wrapper = new ASceneWrapper(scene);
-            scenes.put(jaifPath, wrapper);
-            return wrapper;
-        } else {
-            return scenes.get(jaifPath);
+        ASceneWrapper existing = scenes.get(jaifPath);
+        if (existing != null) {
+            return existing;
         }
+        AScene scene = new AScene();
+        File jaifFile = new File(jaifPath);
+        if (jaifFile.exists()) {
+            try {
+                IndexFileParser.parseFile(jaifPath, scene);
+            } catch (IOException e) {
+                throw new UserError("Problem while reading %s: %s", jaifPath, e.getMessage());
+            }
+        }
+        ASceneWrapper wrapper = new ASceneWrapper(scene);
+        scenes.put(jaifPath, wrapper);
+        return wrapper;
     }
 
     /**
@@ -644,25 +658,25 @@ public class WholeProgramInferenceScenesStorage
                         ((AnnotatedTypeVariable) sourceCodeATM).getUpperBound(),
                         ((AnnotatedTypeVariable) jaifATM).getUpperBound());
                 break;
-                //        case WILDCARD:
-                // Because inferring type arguments is not supported, wildcards won't be encoutered
-                //            updateAtmWithLub(((AnnotatedWildcardType)
-                // sourceCodeATM).getExtendsBound(),
-                //                              ((AnnotatedWildcardType)
-                // jaifATM).getExtendsBound());
-                //            updateAtmWithLub(((AnnotatedWildcardType)
-                // sourceCodeATM).getSuperBound(),
-                //                              ((AnnotatedWildcardType) jaifATM).getSuperBound());
-                //            break;
+            //        case WILDCARD:
+            // Because inferring type arguments is not supported, wildcards won't be encoutered
+            //            updateAtmWithLub(((AnnotatedWildcardType)
+            // sourceCodeATM).getExtendsBound(),
+            //                              ((AnnotatedWildcardType)
+            // jaifATM).getExtendsBound());
+            //            updateAtmWithLub(((AnnotatedWildcardType)
+            // sourceCodeATM).getSuperBound(),
+            //                              ((AnnotatedWildcardType) jaifATM).getSuperBound());
+            //            break;
             case ARRAY:
                 updateAtmWithLub(
                         ((AnnotatedArrayType) sourceCodeATM).getComponentType(),
                         ((AnnotatedArrayType) jaifATM).getComponentType());
                 break;
-                // case DECLARED:
-                // inferring annotations on type arguments is not supported, so no need to recur on
-                // generic types. If this was every implemented, this method would need VisitHistory
-                // object to prevent infinite recursion on types such as T extends List<T>.
+            // case DECLARED:
+            // inferring annotations on type arguments is not supported, so no need to recur on
+            // generic types. If this was every implemented, this method would need VisitHistory
+            // object to prevent infinite recursion on types such as T extends List<T>.
             default:
                 // ATM only has primary annotations
                 break;
@@ -844,9 +858,9 @@ public class WholeProgramInferenceScenesStorage
         updateTypeElementFromATM(typeToUpdate, defLoc, newATM, curATM, ignoreIfAnnotated);
     }
 
-    ///
-    /// Writing to a file
-    ///
+    //
+    // Writing to a file
+    //
 
     // The prepare*ForWriting hooks are needed in addition to the postProcessClassTree hook because
     // a scene may be modifed and written at any time, including before or after
@@ -871,7 +885,7 @@ public class WholeProgramInferenceScenesStorage
      */
     public void wpiPrepareClassForWriting(AClass classAnnos) {
         for (Map.Entry<String, AMethod> methodEntry : classAnnos.methods.entrySet()) {
-            wpiPrepareMethodForWriting(methodEntry.getValue());
+            wpiPrepareMethodForWriting(classAnnos.className, methodEntry.getValue());
         }
     }
 
@@ -879,10 +893,11 @@ public class WholeProgramInferenceScenesStorage
      * Side-effects the method or constructor annotations to make any desired changes before writing
      * to a file.
      *
+     * @param className the class that contains the method, for diagnostics only
      * @param methodAnnos the method or constructor annotations to modify
      */
-    public void wpiPrepareMethodForWriting(AMethod methodAnnos) {
-        atypeFactory.wpiPrepareMethodForWriting(methodAnnos);
+    public void wpiPrepareMethodForWriting(String className, AMethod methodAnnos) {
+        atypeFactory.wpiPrepareMethodForWriting(className, methodAnnos);
     }
 
     @Override

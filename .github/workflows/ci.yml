@@ -1,166 +1,121 @@
 name: CI tests
 
 on:
+  schedule:
+    - cron: '0 7 * * *'  # Runs daily at 07:00 UTC.
   pull_request:
   push:
     branches: [ "master" ]
 
-# Configure GitHub Actions cancel in progress workflow to avoid redundant runs in pull requests.
-# See: https://docs.github.com/en/enterprise-cloud@latest/actions/writing-workflows/choosing-what-your-workflow-does/control-the-concurrency-of-workflows-and-jobs
+# Cancel in-progress workflows on PR updates; never cancel master pushes.
+# https://docs.github.com/en/enterprise-cloud@latest/actions/writing-workflows/choosing-what-your-workflow-does/control-the-concurrency-of-workflows-and-jobs
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: ${{ !contains(github.ref, 'heads/master')}}
+  cancel-in-progress: ${{ !contains(github.ref, 'heads/master') }}
+
+# Default minimal permissions for all jobs; individual steps may opt-in to more.
+permissions:
+  contents: read
+
+env:
+  PRIMARY_JDK: "21"
+  USE_BAZEL_VERSION: "9.2.0"
+  # Pinned pre-release JDK build, from jdk.java.net. Renovate bumps JDK_EA_BUILD;
+  # JDK_EA_MAJOR changes by hand when the next feature release opens.
+  JDK_EA_MAJOR: "27"
+  JDK_EA_BUILD: "35"
 
 jobs:
-  # Basic sanity tests on JDK 21.
-  sanity:
-    name: ${{ matrix.script }} on JDK ${{ matrix.java_version }}
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    strategy:
-      matrix:
-        script: ['cftests-junit', 'cftests-nonjunit']
-        java_version: [21]
-    env:
-      JAVA_VERSION: ${{ matrix.java_version }}
-    steps:
-    - uses: actions/checkout@v4
-    - name: Set up JDK ${{ matrix.java_version }}
-      uses: actions/setup-java@v4
-      with:
-        java-version: ${{ matrix.java_version }}
-        distribution: 'temurin'
-
-    # Configure Gradle for optimal use in GitHub Actions, including caching of downloaded dependencies.
-    # See: https://github.com/gradle/actions/blob/main/setup-gradle/README.md
-    - name: Setup Gradle
-      uses: gradle/actions/setup-gradle@v4.2.1
-
-    - name: Setup Bazel
-      uses: bazel-contrib/setup-bazel@0.9.1
-      if: matrix.script == 'cftests-nonjunit'
-      with:
-        # Avoid downloading Bazel every time.
-        bazelisk-cache: true
-        # Store build cache per workflow.
-        disk-cache: ${{ github.workflow }}
-        # Share repository cache between workflows.
-        repository-cache: true
-
-    - name: Run test script checker/bin-devel/test-${{ matrix.script }}
-      run: ./checker/bin-devel/test-${{ matrix.script }}.sh
-
-  # The remaining tests for JDK 21. Separate from `sanity` to allow parallelism with `otheros`.
-  remainder:
-    name: ${{ matrix.script }} on JDK ${{ matrix.java_version }}
-    runs-on: ubuntu-latest
-    # Don't depend on sanity jobs, to have more parallelism.
-    # TODO: cancel these jobs if sanity fails.
-    # needs: sanity
-    permissions:
-      contents: read
-    strategy:
-      fail-fast: true
-      matrix:
-        # No need to run 'cftests-junit-jdk21' on JDK 21.
-        script: ['typecheck-part1', 'typecheck-part2', 'guava', 'plume-lib', 'daikon-part1', 'daikon-part2', 'jspecify-conformance', 'jspecify-reference-checker']
-        java_version: [21]
-    env:
-      JAVA_VERSION: ${{ matrix.java_version }}
-    steps:
-    - uses: actions/checkout@v4
-    - name: Set up JDK ${{ matrix.java_version }}
-      uses: actions/setup-java@v4
-      with:
-        java-version: ${{ matrix.java_version }}
-        distribution: 'temurin'
-
-    # Configure Gradle for optimal use in GitHub Actions, including caching of downloaded dependencies.
-    # See: https://github.com/gradle/actions/blob/main/setup-gradle/README.md
-    - name: Setup Gradle
-      uses: gradle/actions/setup-gradle@v4.2.1
-
-    - name: Run test script checker/bin-devel/test-${{ matrix.script }}
-      run: ./checker/bin-devel/test-${{ matrix.script }}.sh
-
-  otherjdks:
+  # All Linux test suites across all supported JDKs in a single parallel matrix.
+  linux-tests:
     name: ${{ matrix.script }} on JDK ${{ matrix.java.version }}
-    runs-on: ubuntu-latest
-    needs: sanity
-    permissions:
-      contents: read
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
     strategy:
       fail-fast: true
       matrix:
-        # jspecify-conformance and jspecify-reference-checker only tested on JDK 21.
-        script: ['cftests-junit', 'cftests-nonjunit', 'cftests-junit-jdk21', 'typecheck-part1', 'typecheck-part2', 'guava', 'plume-lib', 'daikon-part1', 'daikon-part2']
-        # JDK 21 used by sanity before
-        java: [{version: '8', experimental: false},
-          {version: '11', experimental: false},
-          {version: '17', experimental: false},
-          {version: '22', experimental: true},
-          {version: '23-ea', experimental: true},
-          {version: '24-ea', experimental: true}]
-    env:
-      JAVA_VERSION: ${{ matrix.java.version }}
+        include:
+          # --- Core tests on Primary JDK 21 ---
+          - {script: 'cftests-junit',               java: {version: '21', experimental: false}}
+          - {script: 'cftests-nonjunit',            java: {version: '21', experimental: false}}
+          # --- Core tests on other JDKs ---
+          - {script: 'cftests-junit',               java: {version: '27', experimental: true}}
+          - {script: 'cftests-junit',               java: {version: '26', experimental: false}}
+          - {script: 'cftests-junit',               java: {version: '25', experimental: false}}
+          - {script: 'cftests-junit',               java: {version: '17', experimental: false}}
+          - {script: 'cftests-junit',               java: {version: '11', experimental: false}}
+          - {script: 'cftests-junit',               java: {version: '8',  experimental: false}}
+          - {script: 'cftests-nonjunit',            java: {version: '27', experimental: true}}
+          - {script: 'cftests-nonjunit',            java: {version: '26', experimental: false}}
+          - {script: 'cftests-nonjunit',            java: {version: '25', experimental: false}}
+          - {script: 'cftests-nonjunit',            java: {version: '17', experimental: false}}
+          - {script: 'cftests-nonjunit',            java: {version: '11', experimental: false}}
+          - {script: 'cftests-nonjunit',            java: {version: '8',  experimental: false}}
+          - {script: 'cftests-junit-jdk21',         java: {version: '27', experimental: true}}
+          - {script: 'cftests-junit-jdk21',         java: {version: '26', experimental: false}}
+          - {script: 'cftests-junit-jdk21',         java: {version: '25', experimental: false}}
+          - {script: 'cftests-junit-jdk21',         java: {version: '17', experimental: false}}
+          - {script: 'cftests-junit-jdk21',         java: {version: '11', experimental: false}}
+          # --- Downstream integration tests on Primary JDK 21 ---
+          - {script: 'typecheck-part1',             java: {version: '21', experimental: false}}
+          - {script: 'typecheck-part2',             java: {version: '21', experimental: false}}
+          - {script: 'guava',                       java: {version: '21', experimental: false}}
+          - {script: 'plume-lib',                   java: {version: '21', experimental: false}}
+          - {script: 'daikon-part1',                java: {version: '21', experimental: false}}
+          - {script: 'daikon-part2',                java: {version: '21', experimental: false}}
+          - {script: 'jspecify-conformance',        java: {version: '21', experimental: false}}
+          - {script: 'jspecify-reference-checker',  java: {version: '21', experimental: false}}
+          - {script: 'templatefora-checker',        java: {version: '21', experimental: false}}
+          - {script: 'misc',                        java: {version: '21', experimental: false}}
+          # --- Downstream integration tests on other JDKs ---
+          - {script: 'typecheck-part1',             java: {version: '8',  experimental: false}}
+          - {script: 'typecheck-part1',             java: {version: '26', experimental: false}}
+          - {script: 'typecheck-part2',             java: {version: '8',  experimental: false}}
+          - {script: 'typecheck-part2',             java: {version: '26', experimental: false}}
+          - {script: 'guava',                       java: {version: '8',  experimental: false}}
+          - {script: 'guava',                       java: {version: '26', experimental: false}}
+          - {script: 'plume-lib',                   java: {version: '26', experimental: false}}
+          - {script: 'misc',                        java: {version: '26', experimental: false}}
+          - {script: 'jspecify-conformance',        java: {version: '26', experimental: false}}
+          - {script: 'jspecify-reference-checker',  java: {version: '26', experimental: false}}
+          - {script: 'templatefora-checker',        java: {version: '26', experimental: false}}
+          - {script: 'daikon-part1',                java: {version: '17', experimental: false}}
+          - {script: 'daikon-part2',                java: {version: '17', experimental: false}}
     continue-on-error: ${{ matrix.java.experimental }}
     steps:
-    - uses: actions/checkout@v4
-    - name: Set up JDK ${{ matrix.java.version }}
-      uses: actions/setup-java@v4
-      with:
-        java-version: ${{ matrix.java.version }}
-        distribution: 'temurin'
-    - name: Set up JDK 21 on an experimental platform
-      if: matrix.java.experimental
-      uses: actions/setup-java@v4
-      with:
-        # Install JDK 21 second, to make it the default on which gradle runs.
-        # This unfortunately also means that all tests run on JDK 21 instead of the newer version.
-        java-version: 21
-        distribution: 'temurin'
+      # `misc` runs `ci-diff` which needs full history; everything else is shallow.
+      - uses: actions/checkout@v7
+        if: ${{ matrix.script == 'misc' }}
+        with:
+          fetch-depth: 0
+      - uses: actions/checkout@v7
+        if: ${{ matrix.script != 'misc' }}
+        with:
+          fetch-depth: 1
 
-    # Configure Gradle for optimal use in GitHub Actions, including caching of downloaded dependencies.
-    # See: https://github.com/gradle/actions/blob/main/setup-gradle/README.md
-    - name: Setup Gradle
-      uses: gradle/actions/setup-gradle@v4.2.1
+      - name: Set up test environment
+        uses: ./.github/actions/setup-test-env
+        with:
+          primary-jdk: ${{ env.PRIMARY_JDK }}
+          target-jdk: ${{ matrix.java.version }}
+          jdk-ea-major: ${{ env.JDK_EA_MAJOR }}
+          jdk-ea-build: ${{ env.JDK_EA_BUILD }}
+          script: ${{ matrix.script }}
+          cache-read-only: ${{ github.ref != 'refs/heads/master' && matrix.java.version != env.PRIMARY_JDK }}
 
-    - name: Setup Bazel
-      uses: bazel-contrib/setup-bazel@0.9.1
-      if: matrix.script == 'cftests-nonjunit'
-      with:
-        # Avoid downloading Bazel every time.
-        bazelisk-cache: true
-        # Store build cache per workflow.
-        disk-cache: ${{ github.workflow }}
-        # Share repository cache between workflows.
-        repository-cache: true
+      - name: Run test script checker/bin-devel/test-${{ matrix.script }}
+        run: ./checker/bin-devel/test-${{ matrix.script }}.sh
+        env:
+          ORG_GRADLE_PROJECT_useJdkVersion: ${{ matrix.java.version }}
+          JAVA_VERSION: ${{ matrix.java.version }}
 
-    - name: Run test script checker/bin-devel/test-${{ matrix.script }}
-      run: ./checker/bin-devel/test-${{ matrix.script }}.sh
-      # TODO: it would be nicer to not run the job at all, but GH Actions does
-      # not allow accessing the matrix on the job-if clause. There is also no way
-      # for an earlier step to stop execution successfully.
-      #
-      # At least one plume-lib project no longer works on Java 8.
-      # Java 8 does not allow toolchains, so testing 'cftests-junit-jdk21' is unnecessary.
-      # Daikon produces 'this-escape' compiler warnings in JDK 22+.
-      if: (matrix.java.version != 8 || (matrix.script != 'plume-lib' && matrix.script != 'cftests-junit-jdk21')) &&
-        (matrix.java.version <= 21 || (matrix.script != 'daikon-part1' && matrix.script != 'daikon-part2'))
-      # Set the compiler version to use, allowing us to e.g. run Java 23 while gradle does not work
-      # on Java 23 yet. This only tests the compiler, it does not use that version to run the tests.
-      env:
-        ORG_GRADLE_PROJECT_useJdkCompiler: ${{ matrix.java.version }}
-
-  # Sanity tests on Windows and MacOS.
+  # Sanity tests on Windows and macOS.
   otheros:
     name: ${{ matrix.script }} on JDK ${{ matrix.java_version }} on ${{ matrix.os }}
-    runs-on: "${{ matrix.os }}"
-    needs: sanity
-    permissions:
-      contents: read
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
     strategy:
+      fail-fast: false
       matrix:
         os: ['windows-latest', 'macos-latest']
         script: ['cftests-junit']
@@ -168,22 +123,30 @@ jobs:
     env:
       JAVA_VERSION: ${{ matrix.java_version }}
     steps:
-    - uses: actions/checkout@v4
-    - name: Set up JDK ${{ matrix.java_version }}
-      uses: actions/setup-java@v4
-      with:
-        java-version: ${{ matrix.java_version }}
-        distribution: 'temurin'
+      - uses: actions/checkout@v7
 
-    # Configure Gradle for optimal use in GitHub Actions, including caching of downloaded dependencies.
-    # See: https://github.com/gradle/actions/blob/main/setup-gradle/README.md
-    - name: Setup Gradle
-      uses: gradle/actions/setup-gradle@v4.2.1
+      - name: Set up JDK ${{ matrix.java_version }}
+        uses: actions/setup-java@v6.0.0
+        with:
+          java-version: ${{ matrix.java_version }}
+          distribution: 'zulu'
 
-    - name: Install coreutils on MacOS
-      if: matrix.os == 'macos-latest'
-      run: brew install coreutils
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v6.3.0
+        with:
+          cache-read-only: ${{ github.ref != 'refs/heads/master' }}
 
-    - name: Run test script checker/bin-devel/test-${{ matrix.script }}
-      shell: bash
-      run: ./checker/bin-devel/test-${{ matrix.script }}.sh
+      - name: Install coreutils on macOS
+        if: ${{ matrix.os == 'macos-latest' }}
+        env:
+          HOMEBREW_NO_AUTO_UPDATE: "1"
+          HOMEBREW_NO_INSTALL_CLEANUP: "1"
+        run: brew install coreutils
+
+      - name: Install wget on Windows
+        if: ${{ matrix.os == 'windows-latest' }}
+        run: choco install wget --no-progress
+
+      - name: Run test script checker/bin-devel/test-${{ matrix.script }}
+        shell: bash
+        run: ./checker/bin-devel/test-${{ matrix.script }}.sh

@@ -3,7 +3,10 @@ package org.checkerframework.checker.nullness;
 import org.checkerframework.checker.initialization.InitializationChecker;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.common.basetype.BaseTypeChecker;
+import org.checkerframework.framework.qual.StubFiles;
 import org.checkerframework.framework.source.SupportedLintOptions;
+
+import java.util.NavigableSet;
 
 import javax.annotation.processing.SupportedOptions;
 
@@ -18,12 +21,20 @@ import javax.annotation.processing.SupportedOptions;
  * <p>You can use the following {@link SuppressWarnings} prefixes with this checker:
  *
  * <ul>
- *   <li>{@code @SuppressWarnings("nullness")} suppresses warnings for both nullness and
- *       initialization annotations
- *   <li>{@code @SuppressWarnings("initialization")} suppresses warnings for initialization
- *       annotations only
- *   <li>{@code @SuppressWarnings("nullnessnoinit")} suppresses warnings for nullness annotations
- *       only
+ *   <li>{@code @SuppressWarnings("nullness")} suppresses warnings from the Nullness,
+ *       Initialization, and KeyFor Checkers
+ *   <li>{@code @SuppressWarnings("nullnessinitialization")} suppresses warnings from the Nullness
+ *       and Initialization Checkers only, warnings from the KeyFor Checker are not suppressed
+ *   <li>{@code @SuppressWarnings("nullnesskeyfor")} suppresses warnings from the Nullness and
+ *       KeyFor Checkers only, warnings from the Initialization Checker are not suppressed
+ *       {@code @SuppressWarnings("nullnessnoinit")} has the same effect as
+ *       {@code @SuppressWarnings("nullnesskeyfor")}
+ *   <li>{@code @SuppressWarnings("nullnessonly")} suppresses warnings from the Nullness Checker
+ *       only, warnings from the Initialization and KeyFor Checkers are not suppressed
+ *   <li>{@code @SuppressWarnings("initialization")} suppresses warnings from the Initialization
+ *       Checker only, warnings from the Nullness and KeyFor Checkers are not suppressed
+ *   <li>{@code @SuppressWarnings("keyfor")} suppresses warnings from the KeyFor Checker only,
+ *       warnings from the Nullness and Initialization Checkers are not suppressed
  * </ul>
  *
  * @see KeyForSubchecker
@@ -46,6 +57,7 @@ import javax.annotation.processing.SupportedOptions;
     "forbidnonnullarraycomponents",
     NullnessChecker.LINT_TRUSTARRAYLENZERO,
     NullnessChecker.LINT_PERMITCLEARPROPERTY,
+    NullnessChecker.LINT_MONOTONICNONNULLONSTATIC,
 })
 @SupportedOptions({
     "assumeKeyFor",
@@ -53,6 +65,7 @@ import javax.annotation.processing.SupportedOptions;
     "jspecifyNullMarkedAlias",
     "conservativeArgumentNullnessAfterInvocation"
 })
+@StubFiles({"junit-assertions.astub", "log4j.astub"})
 public class NullnessChecker extends InitializationChecker {
 
     /** Should we be strict about initialization of {@link MonotonicNonNull} variables? */
@@ -88,6 +101,15 @@ public class NullnessChecker extends InitializationChecker {
     /** Default for {@link #LINT_PERMITCLEARPROPERTY}. */
     public static final boolean LINT_DEFAULT_PERMITCLEARPROPERTY = false;
 
+    /**
+     * Warn when {@code @MonotonicNonNull} is written on a {@code static} field, which the manual
+     * documents as a code smell that may indicate poor design.
+     */
+    public static final String LINT_MONOTONICNONNULLONSTATIC = "monotonicNonNullOnStatic";
+
+    /** Default for {@link #LINT_MONOTONICNONNULLONSTATIC}. */
+    public static final boolean LINT_DEFAULT_MONOTONICNONNULLONSTATIC = false;
+
     /** Default constructor for NullnessChecker. */
     public NullnessChecker() {}
 
@@ -99,5 +121,13 @@ public class NullnessChecker extends InitializationChecker {
     @Override
     public Class<? extends BaseTypeChecker> getTargetCheckerClass() {
         return NullnessNoInitSubchecker.class;
+    }
+
+    @Override
+    public NavigableSet<String> getSuppressWarningsPrefixes() {
+        NavigableSet<String> result = super.getSuppressWarningsPrefixes();
+        // The prefix to suppress both nullness and initialization warnings.
+        result.add("nullnessinitialization");
+        return result;
     }
 }

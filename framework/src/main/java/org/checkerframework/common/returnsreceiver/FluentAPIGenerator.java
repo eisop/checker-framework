@@ -48,10 +48,10 @@ public class FluentAPIGenerator {
          */
         AUTO_VALUE {
 
-            /**
+            /*
              * The qualified name of the AutoValue Builder annotation. This needs to be constructed
              * dynamically due to a side effect of the shadow plugin. See {@link
-             * getAutoValueBuilderCanonicalName()} for more information.
+             * #getAutoValueBuilderCanonicalName()} for more information.
              */
             private final String AUTO_VALUE_BUILDER = getAutoValueBuilderCanonicalName();
 
@@ -88,7 +88,7 @@ public class FluentAPIGenerator {
                 return false;
             }
 
-            /**
+            /*
              * Get the qualified name of the AutoValue Builder annotation. This method constructs
              * the String dynamically, to ensure it does not get rewritten due to relocation of the
              * {@code "com.google"} package during the build process.
@@ -135,6 +135,6 @@ public class FluentAPIGenerator {
          * @param t the annotated type of the method signature
          * @return {@code true} if the method was created by this generator and returns {@code this}
          */
-        protected abstract boolean returnsThis(AnnotatedExecutableType t);
+        abstract boolean returnsThis(AnnotatedExecutableType t);
     }
 }

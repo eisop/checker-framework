@@ -29,7 +29,6 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Deque;
-import java.util.HashSet;
 import java.util.IdentityHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -200,11 +199,8 @@ public class ControlFlowGraph implements UniqueId {
      *     trees that don't produce a value
      */
     public @Nullable Set<Node> getNodesCorrespondingToTree(Tree t) {
-        if (convertedTreeLookup.containsKey(t)) {
-            return convertedTreeLookup.get(t);
-        } else {
-            return treeLookup.get(t);
-        }
+        Set<Node> converted = convertedTreeLookup.get(t);
+        return converted != null ? converted : treeLookup.get(t);
     }
 
     /**
@@ -346,7 +342,9 @@ public class ControlFlowGraph implements UniqueId {
             @UnknownInitialization(ControlFlowGraph.class) ControlFlowGraph this,
             Function<TypeMirror, Boolean> shouldIgnoreException) {
         List<Node> result = new ArrayList<>();
-        getAllBlocks(shouldIgnoreException).forEach(b -> result.addAll(b.getNodes()));
+        for (Block b : getAllBlocks(shouldIgnoreException)) {
+            result.addAll(b.getNodes());
+        }
         return result;
     }
 
@@ -359,7 +357,8 @@ public class ControlFlowGraph implements UniqueId {
      */
     public List<Block> getDepthFirstOrderedBlocks() {
         List<Block> dfsOrderResult = new ArrayList<>();
-        Set<Block> visited = new HashSet<>();
+        // Block has no equals/hashCode overrides; use identity for both correctness and speed.
+        Set<Block> visited = Collections.newSetFromMap(new IdentityHashMap<>());
         // worklist can contain values that are not yet in visited.
         Deque<Block> worklist = new ArrayDeque<>();
         worklist.add(entryBlock);
@@ -409,8 +408,8 @@ public class ControlFlowGraph implements UniqueId {
      * @param t a tree that might correspond to a node in the CFG
      * @return the method that contains {@code t}'s Node, or null
      */
-    public @Nullable MethodTree getContainingMethod(Tree t) {
-        if (treeLookup.containsKey(t) && underlyingAST.getKind() == UnderlyingAST.Kind.METHOD) {
+    public @Nullable MethodTree getEnclosingMethod(Tree t) {
+        if (underlyingAST.getKind() == UnderlyingAST.Kind.METHOD && treeLookup.containsKey(t)) {
             UnderlyingAST.CFGMethod cfgMethod = (UnderlyingAST.CFGMethod) underlyingAST;
             return cfgMethod.getMethod();
         }
@@ -424,8 +423,8 @@ public class ControlFlowGraph implements UniqueId {
      * @param t a tree that might be within a class
      * @return the class that contains the given tree, or null
      */
-    public @Nullable ClassTree getContainingClass(Tree t) {
-        if (treeLookup.containsKey(t) && underlyingAST.getKind() == UnderlyingAST.Kind.METHOD) {
+    public @Nullable ClassTree getEnclosingClass(Tree t) {
+        if (underlyingAST.getKind() == UnderlyingAST.Kind.METHOD && treeLookup.containsKey(t)) {
             UnderlyingAST.CFGMethod cfgMethod = (UnderlyingAST.CFGMethod) underlyingAST;
             return cfgMethod.getClassTree();
         }

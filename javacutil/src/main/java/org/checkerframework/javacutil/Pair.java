@@ -36,8 +36,7 @@ public class Pair<V1, V2> {
 
     // The typical way to make a copy is to first call super.clone() and then modify it.
     // That implementation strategy does not work for Pair because its fields are final, so the
-    // clone
-    // and deepCopy() methods use of() instead.
+    // clone and deepCopy() methods use of() instead.
 
     /**
      * Returns a copy of this in which each element is a clone of the corresponding element of this.
@@ -49,7 +48,6 @@ public class Pair<V1, V2> {
      * @return a copy of {@code orig}, with all elements cloned
      */
     // This method is static so that the pair element types can be constrained to be Cloneable.
-    @SuppressWarnings("nullness") // generics problem with deepCopy()
     public static <T1 extends Cloneable, T2 extends Cloneable> Pair<T1, T2> cloneElements(
             Pair<T1, T2> orig) {
 
@@ -69,7 +67,6 @@ public class Pair<V1, V2> {
      * @param orig a pair
      * @return a deep copy of {@code orig}
      */
-    @SuppressWarnings("nullness") // generics problem with deepCopy()
     // This method is static so that the pair element types can be constrained to be DeepCopyable.
     public static <T1 extends DeepCopyable<T1>, T2 extends DeepCopyable<T2>> Pair<T1, T2> deepCopy(
             Pair<T1, T2> orig) {
@@ -87,7 +84,6 @@ public class Pair<V1, V2> {
      * @param orig a pair
      * @return a copy of {@code orig}, where the first element is a deep copy
      */
-    @SuppressWarnings("nullness") // generics problem with deepCopy()
     public static <T1 extends DeepCopyable<T1>, T2> Pair<T1, T2> deepCopyFirst(Pair<T1, T2> orig) {
         return of(DeepCopyable.deepCopyOrNull(orig.first), orig.second);
     }
@@ -102,7 +98,6 @@ public class Pair<V1, V2> {
      * @param orig a pair
      * @return a copy of {@code orig}, where the second element is a deep copy
      */
-    @SuppressWarnings("nullness") // generics problem with deepCopy()
     public static <T1, T2 extends DeepCopyable<T2>> Pair<T1, T2> deepCopySecond(Pair<T1, T2> orig) {
         return of(orig.first, DeepCopyable.deepCopyOrNull(orig.second));
     }
@@ -129,7 +124,10 @@ public class Pair<V1, V2> {
     @Override
     public int hashCode() {
         if (hashCode == -1) {
-            hashCode = Objects.hash(first, second);
+            int h = 1;
+            h = 31 * h + (first != null ? first.hashCode() : 0);
+            h = 31 * h + (second != null ? second.hashCode() : 0);
+            hashCode = h;
         }
         return hashCode;
     }

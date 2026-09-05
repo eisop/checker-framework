@@ -5,6 +5,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 
 import java.io.File;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -98,8 +99,7 @@ public abstract class CheckerFrameworkPerDirectoryTest extends CheckerFrameworkR
      * @param checkerOptions options to pass to the compiler when running tests
      */
     @SuppressWarnings(
-            "signature:argument.type.incompatible" // for non-array non-primitive class, getName():
-    // @BinaryName
+            "signature:cast.unsafe" // for non-array non-primitive class, getName(): @BinaryName
     )
     protected CheckerFrameworkPerDirectoryTest(
             List<File> testFiles,
@@ -109,7 +109,7 @@ public abstract class CheckerFrameworkPerDirectoryTest extends CheckerFrameworkR
             String... checkerOptions) {
         this(
                 testFiles,
-                Collections.singletonList(checker.getName()),
+                Collections.singletonList((@BinaryName String) checker.getName()),
                 testDir,
                 classpathExtra,
                 checkerOptions);
@@ -139,7 +139,9 @@ public abstract class CheckerFrameworkPerDirectoryTest extends CheckerFrameworkR
         this.checkerNames = checkerNames;
         this.testDir = testDir;
         this.classpathExtra = classpathExtra;
-        this.checkerOptions = Arrays.asList(checkerOptions);
+        this.checkerOptions = new ArrayList<>(Arrays.asList(checkerOptions));
+        this.checkerOptions.add("-AajavaChecks");
+        this.checkerOptions.add("-AconvertTypeArgInferenceCrashToWarning=false");
     }
 
     /** Run the tests. */

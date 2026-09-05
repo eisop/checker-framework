@@ -28,6 +28,9 @@ public class AnnotatedForNullnessTest extends CheckerFrameworkPerDirectoryTest {
      */
     @Parameters
     public static String[] getTestDirs() {
-        return new String[] {"nulless-conservative-defaults/annotatedfornullness"};
+        return new String[] {
+            "nulless-conservative-defaults/annotatedfornullness",
+            "nulless-conservative-defaults/packageannotatedfornullness"
+        };
     }
 }

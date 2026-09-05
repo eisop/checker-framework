@@ -2,6 +2,7 @@ import org.checkerframework.checker.nullness.qual.KeyFor;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
+import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -143,5 +144,17 @@ public class MapGetNullable {
     <K, V> V get9a(MyMap9<K, V> m, @KeyFor("#1") String key) {
         // :: error: (return.type.incompatible)
         return m.get(key, 22);
+    }
+
+    public @Nullable Date getNullableKey1(
+            Map<@Nullable Object, Date> dates, @Nullable Object scope) {
+        // This error is mandated because *some* maps prohibit null keys.
+        // :: error: (argument.type.incompatible)
+        return dates.get(scope);
+    }
+
+    public @Nullable Date getNullableKey2(
+            HashMap<@Nullable Object, Date> dates, @Nullable Object scope) {
+        return dates.get(scope);
     }
 }

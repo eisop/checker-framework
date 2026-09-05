@@ -6,6 +6,7 @@ import com.sun.source.tree.ExpressionTree;
 import com.sun.source.tree.LiteralTree;
 import com.sun.source.tree.Tree;
 import com.sun.source.tree.TypeCastTree;
+import com.sun.source.tree.VariableTree;
 import com.sun.source.util.TreePath;
 
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -100,16 +101,21 @@ public class SignednessAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
             elements.getTypeElement(Number.class.getCanonicalName()).asType();
 
     /** A set containing just {@code @Signed}. */
-    private final AnnotationMirrorSet SIGNED_SINGLETON = new AnnotationMirrorSet(SIGNED);
+    final AnnotationMirrorSet SIGNED_SINGLETON = AnnotationMirrorSet.singleton(SIGNED);
 
     /** A set containing just {@code @Unsigned}. */
-    private final AnnotationMirrorSet UNSIGNED_SINGLETON = new AnnotationMirrorSet(UNSIGNED);
+    final AnnotationMirrorSet UNSIGNED_SINGLETON = AnnotationMirrorSet.singleton(UNSIGNED);
+
+    /** A set containing just {@code @SignedPositive}. */
+    final AnnotationMirrorSet SIGNED_POSITIVE_SINGLETON =
+            AnnotationMirrorSet.singleton(SIGNED_POSITIVE);
 
     /**
      * Create a SignednessAnnotatedTypeFactory.
      *
      * @param checker the type-checker associated with this type factory
      */
+    @SuppressWarnings("this-escape")
     public SignednessAnnotatedTypeFactory(BaseTypeChecker checker) {
         super(checker);
 
@@ -149,12 +155,12 @@ public class SignednessAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
      * @param type the type of the tree
      */
     private void addSignedPositiveAnnotation(Tree tree, AnnotatedTypeMirror type) {
-        if (tree.getKind() == Tree.Kind.TYPE_CAST) {
+        if (tree instanceof TypeCastTree) {
             return;
         }
         TypeMirror javaType = type.getUnderlyingType();
         TypeKind javaTypeKind = javaType.getKind();
-        if (tree.getKind() == Tree.Kind.VARIABLE) {
+        if (tree instanceof VariableTree) {
             return;
         }
         if (!(javaTypeKind == TypeKind.BYTE
@@ -210,19 +216,15 @@ public class SignednessAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
             AnnotationMirrorSet annos, TypeKind typeKind, TypeKind widenedTypeKind) {
         assert annos.size() == 1;
 
-        AnnotationMirrorSet result = new AnnotationMirrorSet();
         if (TypeKindUtils.isFloatingPoint(widenedTypeKind)) {
-            result.add(SIGNED);
-            return result;
+            return SIGNED_SINGLETON;
         }
         if (widenedTypeKind == TypeKind.CHAR) {
-            result.add(UNSIGNED);
-            return result;
+            return UNSIGNED_SINGLETON;
         }
         if ((widenedTypeKind == TypeKind.INT || widenedTypeKind == TypeKind.LONG)
                 && typeKind == TypeKind.CHAR) {
-            result.add(SIGNED_POSITIVE);
-            return result;
+            return SIGNED_POSITIVE_SINGLETON;
         }
         return annos;
     }
@@ -232,11 +234,8 @@ public class SignednessAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
             AnnotationMirrorSet annos, TypeKind typeKind, TypeKind narrowedTypeKind) {
         assert annos.size() == 1;
 
-        AnnotationMirrorSet result = new AnnotationMirrorSet();
-
         if (narrowedTypeKind == TypeKind.CHAR) {
-            result.add(SIGNED);
-            return result;
+            return SIGNED_SINGLETON;
         }
 
         return annos;
@@ -270,7 +269,7 @@ public class SignednessAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
      */
     private class SignednessTreeAnnotator extends TreeAnnotator {
 
-        public SignednessTreeAnnotator(AnnotatedTypeFactory atypeFactory) {
+        SignednessTreeAnnotator(AnnotatedTypeFactory atypeFactory) {
             super(atypeFactory);
         }
 
@@ -404,8 +403,7 @@ public class SignednessAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
          * @param env the processing environment
          * @param factory the factory for the current checker
          */
-        public SignednessQualifierPolymorphism(
-                ProcessingEnvironment env, AnnotatedTypeFactory factory) {
+        SignednessQualifierPolymorphism(ProcessingEnvironment env, AnnotatedTypeFactory factory) {
             super(env, factory);
         }
 

@@ -115,10 +115,10 @@ public class I18nFormatUtil {
     /** An I18n conversion directive. */
     private static class I18nConversion {
         /** The index into the string. */
-        public final int index;
+        final int index;
 
         /** The conversion category. */
-        public final I18nConversionCategory category;
+        final I18nConversionCategory category;
 
         /**
          * Creates a new I18nConversion.
@@ -126,7 +126,7 @@ public class I18nFormatUtil {
          * @param index the index into the string
          * @param category the conversion category
          */
-        public I18nConversion(int index, I18nConversionCategory category) {
+        I18nConversion(int index, I18nConversionCategory category) {
             this.index = index;
             this.category = category;
         }
@@ -139,7 +139,7 @@ public class I18nFormatUtil {
 
     private static class MessageFormatParser {
 
-        public static int maxOffset;
+        static int maxOffset;
 
         /** The locale to use for formatting numbers and dates. Is set in {@link #parse}. */
         private static @MonotonicNonNull Locale locale;
@@ -190,7 +190,7 @@ public class I18nFormatUtil {
         };
 
         @EnsuresNonNull({"categories", "argumentIndices", "locale"})
-        public static I18nConversion[] parse(String pattern) {
+        static I18nConversion[] parse(String pattern) {
             MessageFormatParser.categories = new ArrayList<>();
             MessageFormatParser.argumentIndices = new ArrayList<>();
             MessageFormatParser.locale = Locale.getDefault(Locale.Category.FORMAT);

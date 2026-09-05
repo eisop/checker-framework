@@ -26,7 +26,7 @@ public class DefaultQualifierPolymorphism extends AbstractQualifierPolymorphism 
     public DefaultQualifierPolymorphism(ProcessingEnvironment env, AnnotatedTypeFactory factory) {
         super(env, factory);
 
-        for (AnnotationMirror top : qualHierarchy.getTopAnnotations()) {
+        for (AnnotationMirror top : topQuals) {
             AnnotationMirror poly = qualHierarchy.getPolymorphicAnnotation(top);
             if (poly != null) {
                 polyQuals.put(poly, top);
@@ -37,14 +37,25 @@ public class DefaultQualifierPolymorphism extends AbstractQualifierPolymorphism 
     @Override
     protected void replace(
             AnnotatedTypeMirror type, AnnotationMirrorMap<AnnotationMirror> replacements) {
+        if (replacements.isEmpty()) {
+            // If the 'replacements' map is empty, it is likely a case where a method with
+            // a varargs parameter was invoked with zero varargs actuals.
+            // In this case, the polymorphic qualifiers should be replaced with the top type in
+            // the qualifier hierarchy, since there is no further information to deduce.
+            for (AnnotationMirror top : topQuals) {
+                AnnotationMirror effectiveAnno = type.getEffectiveAnnotationInHierarchy(top);
+                if (effectiveAnno != null && qualHierarchy.isPolymorphicQualifier(effectiveAnno)) {
+                    replacements.put(effectiveAnno, top);
+                }
+            }
+        }
         for (Map.Entry<AnnotationMirror, AnnotationMirror> pqentry : replacements.entrySet()) {
             AnnotationMirror poly = pqentry.getKey();
             if (type.hasAnnotation(poly)) {
                 type.removeAnnotation(poly);
-                AnnotationMirror qual;
-                if (polyInstantiationForQualifierParameter.containsKey(poly)) {
-                    qual = polyInstantiationForQualifierParameter.get(poly);
-                } else {
+                // polyInstantiationForQualifierParameter never stores null values.
+                AnnotationMirror qual = polyInstantiationForQualifierParameter.get(poly);
+                if (qual == null) {
                     qual = pqentry.getValue();
                 }
                 type.replaceAnnotation(qual);

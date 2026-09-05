@@ -91,6 +91,7 @@ public class AinferTestAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
      *
      * @param checker the checker
      */
+    @SuppressWarnings("this-escape")
     public AinferTestAnnotatedTypeFactory(BaseTypeChecker checker) {
         super(checker);
         // Support a declaration annotation that has the same meaning as @Sibling1, to test that the
@@ -223,7 +224,7 @@ public class AinferTestAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
 
         @Override
         public AnnotationMirrorSet getBottomAnnotations() {
-            return new AnnotationMirrorSet(BOTTOM);
+            return AnnotationMirrorSet.singleton(BOTTOM);
         }
 
         @Override

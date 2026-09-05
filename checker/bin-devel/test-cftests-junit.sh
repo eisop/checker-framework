@@ -1,18 +1,24 @@
 #!/bin/bash
 
 set -e
-set -o verbose
+# set -o verbose
 set -o xtrace
 export SHELLOPTS
 echo "SHELLOPTS=${SHELLOPTS}"
 
-SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
-# shellcheck disable=SC1090# In newer shellcheck than 0.6.0, pass: "-P SCRIPTDIR" (literally)
-source "$SCRIPTDIR"/clone-related.sh
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &> /dev/null && pwd)"
+source "$SCRIPT_DIR"/clone-related.sh
 
-# Adding --max-workers=1 to avoid random failures in Github Actions. An alternative solution is to use --no-build-cache.
+# The random Github Actions failures that --max-workers=1 used to work around
+# (eisop#849, "internal error in type processor! method typeProcessOver()
+# doesn't get called") were traced to a stale Gradle build cache reused across
+# CI runs, not to test-JVM concurrency: the fix at the time was always
+# `gh cache delete --all`, never reducing parallelism itself. Use
+# --no-build-cache, the issue's own originally-suggested alternative, so CI
+# does not read from a cache that predates the current run, while restoring
+# test parallelism (--max-workers=1 was serializing all test execution).
 # https://github.com/eisop/checker-framework/issues/849
-./gradlew test -x javadoc -x allJavadoc --console=plain --warning-mode=all --max-workers=1
+./gradlew test -x javadoc -x allJavadoc --console=plain --warning-mode=all --no-build-cache
 
 # Test clean task
 ./gradlew clean

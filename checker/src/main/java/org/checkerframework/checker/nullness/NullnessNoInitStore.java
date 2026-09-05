@@ -1,44 +1,65 @@
 package org.checkerframework.checker.nullness;
 
+import com.sun.source.tree.MethodInvocationTree;
+
 import org.checkerframework.checker.initialization.InitializationAnnotatedTypeFactory;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.checker.nullness.qual.PolyNull;
+import org.checkerframework.dataflow.cfg.node.MethodInvocationNode;
+import org.checkerframework.dataflow.cfg.node.Node;
 import org.checkerframework.dataflow.cfg.visualize.CFGVisualizer;
 import org.checkerframework.dataflow.expression.FieldAccess;
+import org.checkerframework.dataflow.expression.JavaExpression;
+import org.checkerframework.dataflow.util.PurityUtils;
 import org.checkerframework.framework.flow.CFAbstractAnalysis;
 import org.checkerframework.framework.flow.CFAbstractStore;
 import org.checkerframework.framework.qual.MonotonicQualifier;
 import org.checkerframework.framework.type.GenericAnnotatedTypeFactory;
+import org.checkerframework.javacutil.TreeUtils;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+
+import javax.lang.model.element.ExecutableElement;
 
 /**
  * In addition to the base class behavior, tracks whether {@link PolyNull} is known to be {@link
- * NonNull} or {@link Nullable} (or not known to be either).
+ * NonNull} or {@link Nullable} (or not known to be either), and tracks which queue or deque
+ * receiver expressions are known to be non-empty.
  */
 public class NullnessNoInitStore extends CFAbstractStore<NullnessNoInitValue, NullnessNoInitStore> {
 
     /** True if, at this point, {@link PolyNull} is known to be {@link NonNull}. */
-    protected boolean isPolyNullNonNull;
+    private boolean isPolyNullNonNull;
 
     /** True if, at this point, {@link PolyNull} is known to be {@link Nullable}. */
-    protected boolean isPolyNullNull;
+    private boolean isPolyNullNull;
 
     /**
-     * Initialized fields and their values.
+     * Maps each field that is known to be initialized along the current flow path to the value it
+     * takes on after a non-pure method call, namely its declared type. Used by {@link
+     * #newFieldValueAfterMethodCall(FieldAccess, GenericAnnotatedTypeFactory, NullnessNoInitValue)}
+     * to avoid re-evaluating the expensive {@link
+     * InitializationAnnotatedTypeFactory#isInitialized(org.checkerframework.framework.type.GenericAnnotatedTypeFactory,
+     * org.checkerframework.framework.flow.CFAbstractValue,
+     * javax.lang.model.element.VariableElement)} check once a field is known to be initialized.
      *
-     * <p>This is used by {@link #newFieldValueAfterMethodCall(FieldAccess,
-     * GenericAnnotatedTypeFactory, NullnessNoInitValue)} as cache to avoid performance issue in
-     * #1438.
-     *
-     * @see
-     *     InitializationAnnotatedTypeFactory#isInitialized(org.checkerframework.framework.type.GenericAnnotatedTypeFactory,
-     *     org.checkerframework.framework.flow.CFAbstractValue,
-     *     javax.lang.model.element.VariableElement)
+     * <p>This is a path-local memoization cache, not part of the store's abstract state, so it is
+     * deliberately excluded from {@link #leastUpperBound}, {@link #equals}, and {@link #hashCode}.
+     * See those methods for why the exclusion is sound.
      */
-    protected Map<FieldAccess, NullnessNoInitValue> initializedFields;
+    private @Nullable Map<FieldAccess, NullnessNoInitValue> initializedFieldValueCache;
+
+    /**
+     * Receivers that are currently known to be non-empty queues.
+     *
+     * <p>Null if no queues are known to be non-empty, to avoid allocation overhead on empty stores.
+     */
+    protected @Nullable Set<JavaExpression> nonEmptyQueueReceivers;
 
     /**
      * Create a NullnessStore.
@@ -53,6 +74,7 @@ public class NullnessNoInitStore extends CFAbstractStore<NullnessNoInitValue, Nu
         super(analysis, sequentialSemantics);
         isPolyNullNonNull = false;
         isPolyNullNull = false;
+        nonEmptyQueueReceivers = null;
     }
 
     /**
@@ -64,8 +86,75 @@ public class NullnessNoInitStore extends CFAbstractStore<NullnessNoInitValue, Nu
         super(s);
         isPolyNullNonNull = s.isPolyNullNonNull;
         isPolyNullNull = s.isPolyNullNull;
-        if (s.initializedFields != null) {
-            initializedFields = s.initializedFields;
+        if (s.initializedFieldValueCache != null) {
+            initializedFieldValueCache = s.initializedFieldValueCache;
+        }
+        if (s.nonEmptyQueueReceivers != null && !s.nonEmptyQueueReceivers.isEmpty()) {
+            nonEmptyQueueReceivers = new HashSet<>(s.nonEmptyQueueReceivers);
+        }
+    }
+
+    /**
+     * Marks the receiver as a queue known to be non-empty.
+     *
+     * @param receiver a queue receiver expression
+     */
+    public void markQueueAsNonEmpty(JavaExpression receiver) {
+        if (nonEmptyQueueReceivers == null) {
+            nonEmptyQueueReceivers = new HashSet<>(4);
+        }
+        if (nonEmptyQueueReceivers.add(receiver)) {
+            hashCodeCache = 0;
+        }
+    }
+
+    /**
+     * Returns true if the receiver is known to be a non-empty queue.
+     *
+     * @param receiver a queue receiver expression
+     * @return true if the receiver is known to be a non-empty queue
+     */
+    public boolean isQueueNonEmpty(JavaExpression receiver) {
+        return nonEmptyQueueReceivers != null && nonEmptyQueueReceivers.contains(receiver);
+    }
+
+    @Override
+    public void updateForAssignment(Node n, @Nullable NullnessNoInitValue val) {
+        super.updateForAssignment(n, val);
+        if (nonEmptyQueueReceivers != null && !nonEmptyQueueReceivers.isEmpty()) {
+            JavaExpression expr = JavaExpression.fromNode(n);
+            if (expr != null) {
+                if (nonEmptyQueueReceivers.removeIf(
+                        receiver -> receiver.containsSyntacticEqualJavaExpression(expr))) {
+                    hashCodeCache = 0;
+                    if (nonEmptyQueueReceivers.isEmpty()) {
+                        nonEmptyQueueReceivers = null;
+                    }
+                }
+            }
+        }
+    }
+
+    @Override
+    public void updateForMethodCall(
+            MethodInvocationNode methodInvocationNode,
+            GenericAnnotatedTypeFactory<NullnessNoInitValue, NullnessNoInitStore, ?, ?>
+                    atypeFactory,
+            NullnessNoInitValue val) {
+        super.updateForMethodCall(methodInvocationNode, atypeFactory, val);
+
+        // Conservatively invalidate all non-empty queue information for side-effecting method
+        // calls.
+        if (nonEmptyQueueReceivers != null && !nonEmptyQueueReceivers.isEmpty()) {
+            MethodInvocationTree tree = methodInvocationNode.getTree();
+            ExecutableElement method = TreeUtils.elementFromUse(tree);
+            boolean hasSideEffect =
+                    !(atypeFactory.isSideEffectFree(method)
+                            || PurityUtils.isSideEffectFree(atypeFactory, method));
+            if (hasSideEffect) {
+                nonEmptyQueueReceivers = null;
+                hashCodeCache = 0;
+            }
         }
     }
 
@@ -75,36 +164,32 @@ public class NullnessNoInitStore extends CFAbstractStore<NullnessNoInitValue, Nu
             GenericAnnotatedTypeFactory<NullnessNoInitValue, NullnessNoInitStore, ?, ?>
                     atypeFactory,
             NullnessNoInitValue value) {
-        // If the field is unassignable, it cannot change; thus we keep
-        // its current value.
-        // Unassignable fields must be handled before initialized fields
-        // because in the case of a field that is both unassignable and
-        // initialized, the initializedFields cache may contain an older,
-        // less refined value.
-        if (fieldAccess.isUnassignableByOtherCode()) {
+        // If the field is unassignable, it cannot change, so keep its current value. Unassignable
+        // fields are handled before initialized ones because a field that is both unassignable and
+        // initialized may have a stale, less-refined value in the cache.
+        if (!fieldAccess.isAssignableByOtherCode()) {
             return value;
         }
 
-        if (initializedFields == null) {
-            initializedFields = new HashMap<>(4);
+        if (initializedFieldValueCache == null) {
+            initializedFieldValueCache = new HashMap<>(4);
         }
 
-        // If the field is initialized, it can change, but cannot be uninitialized.
-        // We thus keep a new value based on its declared type.
-        if (initializedFields.containsKey(fieldAccess)) {
-            return initializedFields.get(fieldAccess);
+        // An initialized field can change but cannot become uninitialized, so after the call it
+        // takes on a value based on its declared type.
+        if (initializedFieldValueCache.containsKey(fieldAccess)) {
+            return initializedFieldValueCache.get(fieldAccess);
         } else if (InitializationAnnotatedTypeFactory.isInitialized(
                         atypeFactory, value, fieldAccess.getField())
                 && atypeFactory
                         .getAnnotationWithMetaAnnotation(
                                 fieldAccess.getField(), MonotonicQualifier.class)
                         .isEmpty()) {
-
             NullnessNoInitValue newValue =
                     analysis.createAbstractValue(
                             atypeFactory.getAnnotatedType(fieldAccess.getField()).getAnnotations(),
                             value.getUnderlyingType());
-            initializedFields.put(fieldAccess, newValue);
+            initializedFieldValueCache.put(fieldAccess, newValue);
             return newValue;
         }
 
@@ -115,9 +200,23 @@ public class NullnessNoInitStore extends CFAbstractStore<NullnessNoInitValue, Nu
 
     @Override
     public NullnessNoInitStore leastUpperBound(NullnessNoInitStore other) {
+        if (this.equals(other)) {
+            return this.copy();
+        }
         NullnessNoInitStore lub = super.leastUpperBound(other);
         lub.isPolyNullNonNull = isPolyNullNonNull && other.isPolyNullNonNull;
         lub.isPolyNullNull = isPolyNullNull && other.isPolyNullNull;
+        if (nonEmptyQueueReceivers != null && other.nonEmptyQueueReceivers != null) {
+            Set<JavaExpression> common = new HashSet<>(nonEmptyQueueReceivers);
+            common.retainAll(other.nonEmptyQueueReceivers);
+            lub.nonEmptyQueueReceivers = common.isEmpty() ? null : common;
+        } else {
+            lub.nonEmptyQueueReceivers = null;
+        }
+        // initializedFieldValueCache is intentionally not merged into lub. It is a path-local memo,
+        // and a field known to be initialized along one branch need not be initialized in the
+        // merged store, so dropping it is required for soundness; lub starts as an empty store, so
+        // its cache is null and gets repopulated on demand.
         return lub;
     }
 
@@ -131,17 +230,31 @@ public class NullnessNoInitStore extends CFAbstractStore<NullnessNoInitValue, Nu
                 || (other.isPolyNullNull != isPolyNullNull)) {
             return false;
         }
+        if (other.nonEmptyQueueReceivers != null && !other.nonEmptyQueueReceivers.isEmpty()) {
+            if (nonEmptyQueueReceivers == null
+                    || !nonEmptyQueueReceivers.containsAll(other.nonEmptyQueueReceivers)) {
+                return false;
+            }
+        }
         return super.supersetOf(other);
     }
 
     @Override
     protected String internalVisualize(
             CFGVisualizer<NullnessNoInitValue, NullnessNoInitStore, ?> viz) {
-        return super.internalVisualize(viz)
-                + viz.getSeparator()
-                + viz.visualizeStoreKeyVal("isPolyNullNonNull", isPolyNullNonNull)
-                + viz.getSeparator()
-                + viz.visualizeStoreKeyVal("isPolyNullNull", isPolyNullNull);
+        String res =
+                super.internalVisualize(viz)
+                        + viz.getSeparator()
+                        + viz.visualizeStoreKeyVal("isPolyNullNonNull", isPolyNullNonNull)
+                        + viz.getSeparator()
+                        + viz.visualizeStoreKeyVal("isPolyNullNull", isPolyNullNull);
+        if (nonEmptyQueueReceivers != null && !nonEmptyQueueReceivers.isEmpty()) {
+            res +=
+                    viz.getSeparator()
+                            + viz.visualizeStoreKeyVal(
+                                    "nonEmptyQueueReceivers", nonEmptyQueueReceivers);
+        }
+        return res;
     }
 
     /**
@@ -161,6 +274,7 @@ public class NullnessNoInitStore extends CFAbstractStore<NullnessNoInitValue, Nu
      */
     public void setPolyNullNonNull(boolean isPolyNullNonNull) {
         this.isPolyNullNonNull = isPolyNullNonNull;
+        hashCodeCache = 0;
     }
 
     /**
@@ -180,5 +294,52 @@ public class NullnessNoInitStore extends CFAbstractStore<NullnessNoInitValue, Nu
      */
     public void setPolyNullNull(boolean isPolyNullNull) {
         this.isPolyNullNull = isPolyNullNull;
+        hashCodeCache = 0;
+    }
+
+    @Override
+    public boolean equals(@Nullable Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (!(o instanceof NullnessNoInitStore)) {
+            return false;
+        }
+        if (!super.equals(o)) {
+            return false;
+        }
+        NullnessNoInitStore other = (NullnessNoInitStore) o;
+        // initializedFieldValueCache is not compared: it is a path-local memo, not part of the
+        // store's abstract state. Two stores that are otherwise equal denote the same abstract
+        // value regardless of what either has cached, and each cache entry is recomputable from the
+        // field's declaration, so ignoring it here (and in hashCode) is sound.
+        boolean thisEmpty = nonEmptyQueueReceivers == null || nonEmptyQueueReceivers.isEmpty();
+        boolean otherEmpty =
+                other.nonEmptyQueueReceivers == null || other.nonEmptyQueueReceivers.isEmpty();
+        if (thisEmpty != otherEmpty) {
+            return false;
+        }
+        if (!thisEmpty && !Objects.equals(nonEmptyQueueReceivers, other.nonEmptyQueueReceivers)) {
+            return false;
+        }
+        return isPolyNullNonNull == other.isPolyNullNonNull
+                && isPolyNullNull == other.isPolyNullNull;
+    }
+
+    /** The cached hash code. */
+    private int hashCodeCache = 0;
+
+    @Override
+    public int hashCode() {
+        if (hashCodeCache == 0) {
+            int h = super.hashCode();
+            h = 31 * h + (isPolyNullNonNull ? 1 : 0);
+            h = 31 * h + (isPolyNullNull ? 1 : 0);
+            if (nonEmptyQueueReceivers != null && !nonEmptyQueueReceivers.isEmpty()) {
+                h = 31 * h + nonEmptyQueueReceivers.hashCode();
+            }
+            hashCodeCache = h == 0 ? 1 : h;
+        }
+        return hashCodeCache;
     }
 }

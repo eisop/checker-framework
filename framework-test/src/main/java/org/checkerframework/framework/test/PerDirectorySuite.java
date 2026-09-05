@@ -53,7 +53,10 @@ public class PerDirectorySuite extends RootedSuite {
      *
      * @param klass the class whose tests to run
      */
-    @SuppressWarnings("nullness") // JUnit needs to be annotated
+    @SuppressWarnings({
+        "nullness", // JUnit needs to be annotated
+        "this-escape"
+    })
     public PerDirectorySuite(Class<?> klass) throws Throwable {
         super(klass, Collections.emptyList());
         TestClass testClass = getTestClass();
@@ -122,10 +125,10 @@ public class PerDirectorySuite extends RootedSuite {
             default:
                 throw new RuntimeException(
                         requiredFormsMessage
-                                + "%n"
+                                + System.lineSeparator()
                                 + "testClass="
                                 + testClass.getName()
-                                + "%n"
+                                + System.lineSeparator()
                                 + "parameterMethods="
                                 + method);
         }
@@ -156,8 +159,7 @@ public class PerDirectorySuite extends RootedSuite {
 
         @Override
         public Object createTest() throws Exception {
-            Object[] arguments = Collections.singleton(javaFiles).toArray();
-            return getTestClass().getOnlyConstructor().newInstance(arguments);
+            return getTestClass().getOnlyConstructor().newInstance(new Object[] {javaFiles});
         }
 
         String testCaseName() {
