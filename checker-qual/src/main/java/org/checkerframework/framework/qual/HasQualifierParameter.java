@@ -63,9 +63,11 @@ import java.lang.annotation.Target;
  * <h2>Written on a package</h2>
  *
  * <p>When {@code @HasQualifierParameter} is written on a package, it is equivalent to writing that
- * annotation on each class in the package or in a sub-package. It can be disabled on a specific
- * class and its subclasses by writing {@code @NoQualifierParameter} on that class. This annotation
- * may not be written on the same class as {@code NoQualifierParameter} for the same hierarchy.
+ * annotation on each class in the package or in a sub-package. Set the {@code applyToSubpackages}
+ * field to false to limit it to the package itself; doing so does not block an applicable
+ * {@code @HasQualifierParameter} on an enclosing package. It can be disabled on a specific class
+ * and its subclasses by writing {@code @NoQualifierParameter} on that class. This annotation may
+ * not be written on the same class as {@code NoQualifierParameter} for the same hierarchy.
  *
  * @see NoQualifierParameter
  */
@@ -81,4 +83,11 @@ public @interface HasQualifierParameter {
      * @return the value
      */
     Class<? extends Annotation>[] value();
+
+    /**
+     * When used on a package, whether this annotation should also apply to subpackages.
+     *
+     * @return whether this annotation should be inherited by subpackages
+     */
+    boolean applyToSubpackages() default true;
 }

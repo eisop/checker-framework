@@ -206,6 +206,13 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     /** The AnnotatedFor.value argument/element. */
     protected final ExecutableElement annotatedForValueElement;
 
+    /**
+     * The AnnotatedFor.applyToSubpackages() field/element. Null if the version of
+     * {@code @AnnotatedFor} on the classpath predates this element, in which case an
+     * {@code @AnnotatedFor} on a package always applies to subpackages.
+     */
+    protected final @Nullable ExecutableElement annotatedForApplyToSubpackagesElement;
+
     /** The EnsuresQualifier.expression field/element. */
     protected final ExecutableElement ensuresQualifierExpressionElement;
 
@@ -229,6 +236,13 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
 
     /** The HasQualifierParameter.value field/element. */
     protected final ExecutableElement hasQualifierParameterValueElement;
+
+    /**
+     * The HasQualifierParameter.applyToSubpackages() field/element. Null if the version of
+     * {@code @HasQualifierParameter} on the classpath predates this element, in which case a
+     * {@code @HasQualifierParameter} on a package always applies to subpackages.
+     */
+    protected final @Nullable ExecutableElement hasQualifierParameterApplyToSubpackagesElement;
 
     /** The MethodVal.className argument/element. */
     public final ExecutableElement methodValClassNameElement;
@@ -800,6 +814,9 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
 
         annotatedForValueElement =
                 TreeUtils.getMethod(AnnotatedFor.class, "value", 0, processingEnv);
+        annotatedForApplyToSubpackagesElement =
+                TreeUtils.getMethodOrNull(
+                        AnnotatedFor.class, "applyToSubpackages", 0, processingEnv);
         ensuresQualifierExpressionElement =
                 TreeUtils.getMethod(EnsuresQualifier.class, "expression", 0, processingEnv);
         ensuresQualifierListValueElement =
@@ -816,6 +833,9 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
                 TreeUtils.getMethod(FieldInvariant.class, "qualifier", 0, processingEnv);
         hasQualifierParameterValueElement =
                 TreeUtils.getMethod(HasQualifierParameter.class, "value", 0, processingEnv);
+        hasQualifierParameterApplyToSubpackagesElement =
+                TreeUtils.getMethodOrNull(
+                        HasQualifierParameter.class, "applyToSubpackages", 0, processingEnv);
         methodValClassNameElement =
                 TreeUtils.getMethod(MethodVal.class, "className", 0, processingEnv);
         methodValMethodNameElement =
@@ -5481,17 +5501,23 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
                         element, HasQualifierParameter.class, hasQualifierParameterValueElement));
         AnnotationMirrorSet hasQualifierParameterTops = new AnnotationMirrorSet();
         PackageElement packageElement = ElementUtils.enclosingPackage(element);
-
-        // Traverse all packages containing this element.
+        // Traverse all packages containing this element.  The element's own package always
+        // applies; an enclosing package applies only if its annotation applies to subpackages.
+        boolean isOwnPackage = true;
         while (packageElement != null) {
-            AnnotationMirrorSet packageDefaultTops =
-                    getSupportedAnnotationsInElementAnnotation(
-                            packageElement,
-                            HasQualifierParameter.class,
-                            hasQualifierParameterValueElement);
-            hasQualifierParameterTops.addAll(packageDefaultTops);
-
+            AnnotationMirror hasQualifierParameter =
+                    getDeclAnnotation(packageElement, HasQualifierParameter.class);
+            if (hasQualifierParameter != null
+                    && (isOwnPackage
+                            || appliesToSubpackages(
+                                    hasQualifierParameter,
+                                    hasQualifierParameterApplyToSubpackagesElement))) {
+                hasQualifierParameterTops.addAll(
+                        getSupportedAnnotationsInAnnotation(
+                                hasQualifierParameter, hasQualifierParameterValueElement));
+            }
             packageElement = ElementUtils.parentPackage(packageElement, elements);
+            isOwnPackage = false;
         }
 
         AnnotationMirrorSet noQualifierParamClasses =
@@ -5504,6 +5530,24 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         }
 
         return found;
+    }
+
+    /**
+     * Returns whether an annotation written on a package also applies to that package's
+     * subpackages.
+     *
+     * @param anno an annotation written on a package
+     * @param applyToSubpackagesElement {@code anno}'s {@code applyToSubpackages} element, or null
+     *     if the {@code checker-qual} on the classpath predates that element
+     * @return true if {@code anno} applies to subpackages
+     */
+    public static boolean appliesToSubpackages(
+            AnnotationMirror anno, @Nullable ExecutableElement applyToSubpackagesElement) {
+        // A checker-qual without the element gives no way to opt out, so an annotation from it
+        // applies to subpackages, as it always did.
+        return applyToSubpackagesElement == null
+                || AnnotationUtils.getElementValue(
+                        anno, applyToSubpackagesElement, Boolean.class, true);
     }
 
     /**
@@ -5532,7 +5576,20 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         if (annotation == null) {
             return AnnotationMirrorSet.emptySet();
         }
+        return getSupportedAnnotationsInAnnotation(annotation, valueElement);
+    }
 
+    /**
+     * Returns the supported annotation mirrors named by {@code valueElement} of {@code annotation}.
+     * The same as {@link #getSupportedAnnotationsInElementAnnotation}, for a caller that already
+     * holds the annotation.
+     *
+     * @param annotation an annotation whose {@code valueElement} names annotation classes
+     * @param valueElement the element of {@code annotation} whose value is a list of classes
+     * @return the supported annotations named by {@code valueElement}
+     */
+    private AnnotationMirrorSet getSupportedAnnotationsInAnnotation(
+            AnnotationMirror annotation, ExecutableElement valueElement) {
         AnnotationMirrorSet found = new AnnotationMirrorSet();
         List<@CanonicalName Name> qualClasses =
                 AnnotationUtils.getElementValueClassNames(annotation, valueElement);
@@ -6851,6 +6908,18 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
       }
     }
     */
+
+    /**
+     * Does {@code annotatedForAnno}, which is an {@link
+     * org.checkerframework.framework.qual.AnnotatedFor} annotation written on a package, also apply
+     * to subpackages of that package?
+     *
+     * @param annotatedForAnno an {@link AnnotatedFor} annotation written on a package
+     * @return whether {@code annotatedForAnno} applies to subpackages
+     */
+    public boolean doesAnnotatedForApplyToSubpackages(AnnotationMirror annotatedForAnno) {
+        return appliesToSubpackages(annotatedForAnno, annotatedForApplyToSubpackagesElement);
+    }
 
     /**
      * Does {@code annotatedForAnno}, which is an {@link
