@@ -5,18 +5,13 @@ import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedArrayTyp
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedDeclaredType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedExecutableType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedIntersectionType;
-import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedNullType;
-import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedPrimitiveType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedTypeVariable;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedWildcardType;
-import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.ElementUtils;
 import org.plumelib.util.IPair;
 
-import java.util.ArrayList;
 import java.util.IdentityHashMap;
 import java.util.List;
-import java.util.function.Function;
 
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
@@ -38,13 +33,6 @@ import javax.lang.model.type.TypeKind;
  * type and a declared type, and implement how to extract the qualifier given an ATM.
  */
 public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
-
-    /**
-     * True iff we are adapting type variable bounds. This prevents calling combineTypeWithType on
-     * type variable if it is an upper bound of another type variable. We only viewpoint adapt a
-     * type variable that is not an upper-bound.
-     */
-    private boolean isTypeVarExtends = false;
 
     /** The annotated type factory. */
     protected final AnnotatedTypeFactory atypeFactory;
@@ -295,122 +283,62 @@ public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
      */
     protected AnnotatedTypeMirror combineAnnotationWithType(
             AnnotationMirror receiverAnnotation, AnnotatedTypeMirror declared) {
-        if (declared.getKind().isPrimitive()) {
-            AnnotatedPrimitiveType apt = (AnnotatedPrimitiveType) declared.shallowCopy();
+        return new ViewpointAdaptationCopier(receiverAnnotation).visit(declared);
+    }
 
-            AnnotationMirror resultAnnotation =
-                    combineAnnotationWithAnnotation(
-                            receiverAnnotation, extractAnnotationMirror(apt));
-            apt.replaceAnnotation(resultAnnotation);
-            return apt;
-        } else if (declared.getKind() == TypeKind.TYPEVAR) {
-            if (!isTypeVarExtends) {
-                isTypeVarExtends = true;
-                AnnotatedTypeVariable atv = (AnnotatedTypeVariable) declared.shallowCopy();
-                IdentityHashMap<AnnotatedTypeMirror, AnnotatedTypeMirror> mappings =
-                        new IdentityHashMap<>();
+    /**
+     * Copies an annotated type graph, viewpoint-adapting each qualifier as it goes. Adaptation is
+     * the copy's only difference from its original.
+     *
+     * <p>Using a copier is what makes a self-referential type terminate: the original-to-copy map
+     * adapts each type once and points every later reference at that copy. The hand-rolled
+     * traversal this replaced recursed until it overflowed the stack (eisop#778).
+     */
+    private final class ViewpointAdaptationCopier extends AnnotatedTypeCopier {
 
-                // For type variables, we recursively adapt upper and lower bounds
-                AnnotatedTypeMirror resUpper =
-                        combineAnnotationWithType(receiverAnnotation, atv.getUpperBound());
-                mappings.put(atv.getUpperBound(), resUpper);
+        /** The receiver qualifier used for viewpoint adaptation. */
+        private final AnnotationMirror receiverAnnotation;
 
-                AnnotatedTypeMirror resLower =
-                        combineAnnotationWithType(receiverAnnotation, atv.getLowerBound());
-                mappings.put(atv.getLowerBound(), resLower);
+        /**
+         * Creates a copier that viewpoint-adapts qualifiers using {@code receiverAnnotation}.
+         *
+         * @param receiverAnnotation the receiver qualifier
+         */
+        private ViewpointAdaptationCopier(AnnotationMirror receiverAnnotation) {
+            this.receiverAnnotation = receiverAnnotation;
+        }
 
-                AnnotatedTypeMirror result =
-                        AnnotatedTypeCopierWithReplacement.replace(atv, mappings);
-
-                isTypeVarExtends = false;
-                return result;
+        @Override
+        protected void maybeCopyPrimaryAnnotations(
+                AnnotatedTypeMirror source, AnnotatedTypeMirror dest) {
+            super.maybeCopyPrimaryAnnotations(source, dest);
+            // Only these kinds carry a primary annotation that adaptation applies to.  A wildcard
+            // has none; a type variable's is the use's, not the declaration's, and an
+            // intersection's is recomputed from its bounds (see visitIntersection).
+            TypeKind kind = source.getKind();
+            if (kind.isPrimitive()
+                    || kind == TypeKind.DECLARED
+                    || kind == TypeKind.ARRAY
+                    || kind == TypeKind.NULL) {
+                AnnotationMirror resultAnnotation =
+                        combineAnnotationWithAnnotation(
+                                receiverAnnotation, extractAnnotationMirror(source));
+                dest.replaceAnnotation(resultAnnotation);
             }
-            return declared;
-        } else if (declared.getKind() == TypeKind.DECLARED) {
-            AnnotatedDeclaredType adt = (AnnotatedDeclaredType) declared.shallowCopy();
+        }
 
-            // Mapping between declared type argument to combined type argument
-            IdentityHashMap<AnnotatedTypeMirror, AnnotatedTypeMirror> mappings =
-                    new IdentityHashMap<>();
-
-            AnnotationMirror resultAnnotation =
-                    combineAnnotationWithAnnotation(
-                            receiverAnnotation, extractAnnotationMirror(adt));
-
-            // Recursively combine type arguments and store to map
-            for (AnnotatedTypeMirror typeArgument : adt.getTypeArguments()) {
-                // Recursively adapt the type arguments of this adt
-                AnnotatedTypeMirror combinedTypeArgument =
-                        combineAnnotationWithType(receiverAnnotation, typeArgument);
-                mappings.put(typeArgument, combinedTypeArgument);
-            }
-
-            // Construct result type
-            AnnotatedTypeMirror result = AnnotatedTypeCopierWithReplacement.replace(adt, mappings);
-            result.replaceAnnotation(resultAnnotation);
-
+        @Override
+        public AnnotatedTypeMirror visitIntersection(
+                AnnotatedIntersectionType original,
+                IdentityHashMap<AnnotatedTypeMirror, AnnotatedTypeMirror> originalToCopy) {
+            AnnotatedIntersectionType result =
+                    (AnnotatedIntersectionType) super.visitIntersection(original, originalToCopy);
+            // An intersection has no primary annotation of its own to adapt; recompute it from the
+            // bounds, which super just adapted.  Do not clear it first:
+            // AnnotatedIntersectionType#clearAnnotations also clears every bound, which would
+            // discard those adapted bounds before summarizeBounds reads them.
+            result.summarizeBounds();
             return result;
-        } else if (declared.getKind() == TypeKind.ARRAY) {
-            AnnotatedArrayType aat = (AnnotatedArrayType) declared.shallowCopy();
-
-            // Replace the main qualifier
-            AnnotationMirror resultAnnotation =
-                    combineAnnotationWithAnnotation(
-                            receiverAnnotation, extractAnnotationMirror(aat));
-            aat.replaceAnnotation(resultAnnotation);
-
-            // Combine component type recursively and sets combined component type
-            AnnotatedTypeMirror compo = aat.getComponentType();
-            // Recursively call itself first on the component type
-            AnnotatedTypeMirror combinedCompoType =
-                    combineAnnotationWithType(receiverAnnotation, compo);
-            aat.setComponentType(combinedCompoType);
-
-            return aat;
-        } else if (declared.getKind() == TypeKind.WILDCARD) {
-            AnnotatedWildcardType awt = (AnnotatedWildcardType) declared.shallowCopy();
-            IdentityHashMap<AnnotatedTypeMirror, AnnotatedTypeMirror> mappings =
-                    new IdentityHashMap<>();
-
-            // There is no main qualifier for a wildcard
-
-            // Adapt extend
-            AnnotatedTypeMirror extend = awt.getExtendsBound();
-            if (extend != null) {
-                // Recursively adapt the extends bound of this awt
-                AnnotatedTypeMirror combinedExtend =
-                        combineAnnotationWithType(receiverAnnotation, extend);
-                mappings.put(extend, combinedExtend);
-            }
-
-            // Adapt super
-            AnnotatedTypeMirror zuper = awt.getSuperBound();
-            if (zuper != null) {
-                // Recursively adapt the lower bound of this awt
-                AnnotatedTypeMirror combinedZuper =
-                        combineAnnotationWithType(receiverAnnotation, zuper);
-                mappings.put(zuper, combinedZuper);
-            }
-
-            AnnotatedTypeMirror result = AnnotatedTypeCopierWithReplacement.replace(awt, mappings);
-            return result;
-        } else if (declared.getKind() == TypeKind.NULL) {
-            AnnotatedNullType ant = (AnnotatedNullType) declared.shallowCopy(true);
-            AnnotationMirror resultAnnotation =
-                    combineAnnotationWithAnnotation(
-                            receiverAnnotation, extractAnnotationMirror(ant));
-            ant.replaceAnnotation(resultAnnotation);
-            return ant;
-        } else if (declared.getKind() == TypeKind.INTERSECTION) {
-            return adaptIntersectionBounds(
-                    (AnnotatedIntersectionType) declared,
-                    bound -> combineAnnotationWithType(receiverAnnotation, bound));
-        } else {
-            throw new BugInCF(
-                    "ViewpointAdapter::combineAnnotationWithType: Unknown decl: "
-                            + declared
-                            + " of kind: "
-                            + declared.getKind());
         }
     }
 
@@ -426,110 +354,63 @@ public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
             AnnotationMirror receiverAnnotation, AnnotationMirror declaredAnnotation);
 
     /**
-     * If rhs contains/is a type variable use whose type arguments should be inferred from the
-     * receiver, i.e. lhs, this method substitutes that type argument into rhs, and returns the
-     * reference to rhs. This method is side effect free, because rhs will be copied and that copy
-     * gets modified and returned.
+     * If rhs contains or is a use of a type variable of lhs's class, substitutes lhs's actual type
+     * argument for it and returns the result. Side-effect free: when there is anything to
+     * substitute, rhs is copied and the copy is returned; when lhs is not a declared type there is
+     * nothing to substitute and rhs itself is returned.
      *
      * @param lhs type from which type arguments are extracted to replace formal type parameters of
-     *     rhs.
-     * @param rhs AnnotatedTypeMirror that might be a formal type parameter
-     * @return rhs' copy with its type parameter substituted
+     *     rhs
+     * @param rhs {@link AnnotatedTypeMirror} that might be, or contain, a formal type parameter
+     * @return a copy of rhs with its type parameters substituted
      */
     private AnnotatedTypeMirror substituteTVars(AnnotatedTypeMirror lhs, AnnotatedTypeMirror rhs) {
-        if (rhs.getKind() == TypeKind.TYPEVAR) {
-            AnnotatedTypeVariable atv = (AnnotatedTypeVariable) rhs.shallowCopy();
-
-            // Base case where actual type argument is extracted
-            if (lhs.getKind() == TypeKind.DECLARED) {
-                rhs = getTypeVariableSubstitution((AnnotatedDeclaredType) lhs, atv);
-            }
-        } else if (rhs.getKind() == TypeKind.DECLARED) {
-            AnnotatedDeclaredType adt = (AnnotatedDeclaredType) rhs.shallowCopy();
-            IdentityHashMap<AnnotatedTypeMirror, AnnotatedTypeMirror> mappings =
-                    new IdentityHashMap<>();
-
-            for (AnnotatedTypeMirror formalTypeParameter : adt.getTypeArguments()) {
-                AnnotatedTypeMirror actualTypeArgument = substituteTVars(lhs, formalTypeParameter);
-                mappings.put(formalTypeParameter, actualTypeArgument);
-                // The following code does the wrong thing!
-            }
-            // We must use AnnotatedTypeReplacer to replace the formal type parameters with actual
-            // type arguments, but not replace with its main qualifier
-            rhs = AnnotatedTypeCopierWithReplacement.replace(adt, mappings);
-        } else if (rhs.getKind() == TypeKind.WILDCARD) {
-            AnnotatedWildcardType awt = (AnnotatedWildcardType) rhs.shallowCopy();
-            IdentityHashMap<AnnotatedTypeMirror, AnnotatedTypeMirror> mappings =
-                    new IdentityHashMap<>();
-
-            AnnotatedTypeMirror extend = awt.getExtendsBound();
-            if (extend != null) {
-                AnnotatedTypeMirror substExtend = substituteTVars(lhs, extend);
-                mappings.put(extend, substExtend);
-            }
-
-            AnnotatedTypeMirror zuper = awt.getSuperBound();
-            if (zuper != null) {
-                AnnotatedTypeMirror substZuper = substituteTVars(lhs, zuper);
-                mappings.put(zuper, substZuper);
-            }
-
-            rhs = AnnotatedTypeCopierWithReplacement.replace(awt, mappings);
-        } else if (rhs.getKind() == TypeKind.ARRAY) {
-            AnnotatedArrayType aat = (AnnotatedArrayType) rhs.shallowCopy();
-            IdentityHashMap<AnnotatedTypeMirror, AnnotatedTypeMirror> mappings =
-                    new IdentityHashMap<>();
-
-            AnnotatedTypeMirror compnentType = aat.getComponentType();
-            // Type variable of compnentType already gets substituted
-            AnnotatedTypeMirror substCompnentType = substituteTVars(lhs, compnentType);
-            mappings.put(compnentType, substCompnentType);
-
-            // Construct result type
-            rhs = AnnotatedTypeCopierWithReplacement.replace(aat, mappings);
-        } else if (rhs.getKind().isPrimitive() || rhs.getKind() == TypeKind.NULL) {
-            // nothing to do for primitive types and the null type
-        } else if (rhs.getKind() == TypeKind.INTERSECTION) {
-            rhs =
-                    adaptIntersectionBounds(
-                            (AnnotatedIntersectionType) rhs, bound -> substituteTVars(lhs, bound));
-        } else {
-            throw new BugInCF(
-                    "ViewpointAdapter::substituteTVars: Cannot handle rhs: "
-                            + rhs
-                            + " of kind: "
-                            + rhs.getKind());
+        if (lhs.getKind() != TypeKind.DECLARED) {
+            return rhs;
         }
-
-        return rhs;
+        return new TypeVariableSubstitutionCopier((AnnotatedDeclaredType) lhs).visit(rhs);
     }
 
     /**
-     * Returns a copy of {@code source} whose bounds have been adapted by {@code adaptBound}.
-     *
-     * @param source intersection type whose bounds should be adapted
-     * @param adaptBound function that adapts one bound
-     * @return a copy of {@code source} with adapted bounds
+     * Performs the substitution described by {@link #substituteTVars}, as a copy. Like {@link
+     * ViewpointAdaptationCopier}, it terminates on a self-referential type because {@link
+     * AnnotatedTypeCopier}'s original-to-copy map copies each type once.
      */
-    private AnnotatedIntersectionType adaptIntersectionBounds(
-            AnnotatedIntersectionType source,
-            Function<AnnotatedTypeMirror, AnnotatedTypeMirror> adaptBound) {
-        AnnotatedIntersectionType intersection = source.shallowCopy(/* copyAnnotations= */ false);
-        List<AnnotatedTypeMirror> bounds = source.getBounds();
-        List<AnnotatedTypeMirror> adaptedBounds = new ArrayList<>(bounds.size());
-        for (AnnotatedTypeMirror bound : bounds) {
-            adaptedBounds.add(adaptBound.apply(bound));
+    private final class TypeVariableSubstitutionCopier extends AnnotatedTypeCopier {
+
+        /** The receiver from which actual type arguments are taken. */
+        private final AnnotatedDeclaredType receiver;
+
+        /**
+         * Creates a copier that substitutes type variables of {@code receiver}'s class.
+         *
+         * @param receiver the receiver
+         */
+        private TypeVariableSubstitutionCopier(AnnotatedDeclaredType receiver) {
+            this.receiver = receiver;
         }
-        // Replace the bounds copied by shallowCopy with the adapted bounds, then recompute the
-        // intersection's own primary annotation from them. summarizeBounds reads each bound's own
-        // annotations, so it must run directly on the adapted bounds -- do not clear here first,
-        // which (since AnnotatedIntersectionType#clearAnnotations also clears every bound) would
-        // discard adaptBound's results before summarizeBounds ever sees them. This clear was
-        // already a no-op before that change too: shallowCopy(false) leaves the intersection's own
-        // primary annotation empty, which is all this call ever cleared.
-        intersection.setBounds(adaptedBounds);
-        intersection.summarizeBounds();
-        return intersection;
+
+        @Override
+        public AnnotatedTypeMirror visitTypeVariable(
+                AnnotatedTypeVariable original,
+                IdentityHashMap<AnnotatedTypeMirror, AnnotatedTypeMirror> originalToCopy) {
+            // A type variable is terminal, as it was in the hand-rolled traversal this replaced:
+            // it is replaced by the receiver's actual type argument, or left alone if the receiver
+            // supplies none.  Its bounds are not descended into, so it cannot start a cycle and
+            // needs no originalToCopy entry.
+            return getTypeVariableSubstitution(receiver, original);
+        }
+
+        @Override
+        public AnnotatedTypeMirror visitIntersection(
+                AnnotatedIntersectionType original,
+                IdentityHashMap<AnnotatedTypeMirror, AnnotatedTypeMirror> originalToCopy) {
+            AnnotatedIntersectionType result =
+                    (AnnotatedIntersectionType) super.visitIntersection(original, originalToCopy);
+            // Recompute the intersection's primary annotation from the substituted bounds.
+            result.summarizeBounds();
+            return result;
+        }
     }
 
     /**
