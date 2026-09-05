@@ -2,6 +2,9 @@ package org.checkerframework.framework.source;
 
 import com.sun.source.tree.CompilationUnitTree;
 import com.sun.source.tree.Tree;
+import com.sun.source.util.TreePath;
+
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 import java.util.List;
 
@@ -46,6 +49,11 @@ public interface DiagnosticSink {
      *     before reaching a sink (see above), so an installed sink is called only for
      *     tree-positioned findings.
      * @param root the compilation unit containing {@code source}
+     * @param path the path to {@code source}, or null if it could not be determined. The checker
+     *     computes it while visiting the finding, which is far cheaper than a host re-deriving it
+     *     afterwards: by the time findings are handed over, locating a tree costs a scan of the
+     *     whole compilation unit, so re-deriving it per finding is quadratic in the number of
+     *     findings in a file.
      * @param fixes suggested fixes for the finding, as alternatives (possibly empty)
      */
     void report(
@@ -53,5 +61,6 @@ public interface DiagnosticSink {
             String message,
             Tree source,
             CompilationUnitTree root,
+            @Nullable TreePath path,
             List<SuggestedFixData> fixes);
 }

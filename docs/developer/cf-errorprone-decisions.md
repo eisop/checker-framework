@@ -395,7 +395,8 @@ the manual's Error Prone section and on `DiagnosticSink`.
 
 **Decision.**
 - Add `org.checkerframework.framework.source.DiagnosticSink`, a `@FunctionalInterface`
-  with `report(Diagnostic.Kind, String message, Tree source, CompilationUnitTree root)`.
+  with `report(Diagnostic.Kind, String message, Tree source, CompilationUnitTree root,
+  TreePath path, List<SuggestedFixData> fixes)`.
   It uses only `javax.tools` and `com.sun.source.tree` types — no Error Prone, no
   host types — so the core stays framework-agnostic.
 - `SourceChecker` gets a nullable `diagnosticSink` field and `setDiagnosticSink(...)`.
@@ -407,6 +408,17 @@ the manual's Error Prone section and on `DiagnosticSink`.
   builds a sink that, using the `VisitorState` active during `matchClass` (stored in
   a transient `currentState` field for the duration of the call), does
   `state.reportMatch(buildDescription(sourceTree).setMessage(msg).build())`.
+- The sink is handed the finding's `TreePath` along with its tree. The checker
+  captures it in the 5-arg `printOrStoreMessage`, while it is still visiting the
+  finding and the suppression check has just put the path in the shared
+  `TreePathCacher`; it travels with the finding in `CheckerMessage`. The host must not
+  re-derive it: findings are flushed after the visit, and the main checker's `setRoot`
+  clears the path cache in between, so `TreePathCacher.getPath(root, tree)` at that
+  point rescans the whole compilation unit — quadratic in the findings per file. On a
+  single class with 3200 findings, re-deriving cost 9.81 s / 1176 MB versus 7.81 s /
+  996 MB when the path is passed through (median of 3; the plugin's overhead over
+  standalone mode drops from +2.31 s / +273 MB to +0.31 s / +93 MB). The capture is
+  skipped when no sink is installed, so standalone mode pays only a null check.
 
 **Severity / suppression semantics (documented limitations).**
 - Error Prone severity is per-*check*, not per-finding. All `eisopcf` findings share

@@ -1407,6 +1407,10 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
         for (SourceChecker subchecker : getSubcheckers()) {
             subchecker.errsOnLastExit = numErrorsOfAllPreviousCheckers;
             subchecker.messageStore = messageStore;
+            // Subcheckers store their findings in the shared messageStore, which this checker
+            // flushes to the sink; they need to know a host is listening so that they capture each
+            // finding's path while they are still visiting it.
+            subchecker.diagnosticSink = diagnosticSink;
             int errorsBeforeTypeChecking = log.nerrors;
 
             subchecker.typeProcess(e, p);
@@ -1808,11 +1812,17 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
         // printStackTrace() when -AdumpOnErrors is set, so skip the capture in the common case.
         StackTraceElement[] trace =
                 dumpOnErrors ? Thread.currentThread().getStackTrace() : EMPTY_STACK_TRACE;
+        // A host needs the finding's path; capture it here, while the visitor is still at the
+        // finding and the path cache holds it (the suppression check just looked it up).  Messages
+        // are flushed after the visit, by which point the same lookup rescans the whole
+        // compilation unit -- quadratic in the number of findings in a file.  javac needs no path,
+        // so this is skipped when no host is listening.
+        TreePath path = diagnosticSink == null ? null : pathToTree(source);
         if (messageStore == null) {
-            printOrStoreMessage(kind, message, source, root, trace, fixes);
+            printOrStoreMessage(kind, message, source, root, path, trace, fixes);
         } else {
             CheckerMessage checkerMessage =
-                    new CheckerMessage(kind, message, source, this, trace, fixes);
+                    new CheckerMessage(kind, message, source, path, this, trace, fixes);
             messageStore.add(checkerMessage);
         }
     }
@@ -1833,6 +1843,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      * @param message the message text
      * @param source the source code position of the diagnostic message
      * @param root the compilation unit
+     * @param path the path to {@code source}, or null; only a {@link DiagnosticSink} uses it
      * @param trace the stack trace where the checker encountered an error; printed under {@code
      *     -AdumpOnErrors}
      * @param fixes suggested fixes for this diagnostic (possibly empty)
@@ -1842,13 +1853,14 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
             String message,
             Tree source,
             CompilationUnitTree root,
+            @Nullable TreePath path,
             StackTraceElement[] trace,
             List<SuggestedFixData> fixes) {
         if (diagnosticSink != null) {
             // A host (e.g. the Error Prone plugin) is intercepting findings; hand off the neutral
-            // (kind, message, source, root, fixes) values instead of printing through javac's
+            // (kind, message, source, root, path, fixes) values instead of printing through javac's
             // Trees.  A host with no fix pipeline simply ignores the fixes.
-            diagnosticSink.report(kind, message, source, root, fixes);
+            diagnosticSink.report(kind, message, source, root, path, fixes);
             return;
         }
         Trees.instance(processingEnv).printMessage(kind, message, source, root);
@@ -2549,7 +2561,8 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
             return;
         }
         for (CheckerMessage msg : messageStore) {
-            printOrStoreMessage(msg.kind, msg.message, msg.source, unit, msg.trace, msg.fixes);
+            printOrStoreMessage(
+                    msg.kind, msg.message, msg.source, unit, msg.path, msg.trace, msg.fixes);
         }
     }
 
@@ -3888,6 +3901,12 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
         final @InternedDistinct Tree source;
 
         /**
+         * The path to {@link #source}, or null. Captured when the message is created, while the
+         * path cache still holds it; only a {@link DiagnosticSink} consumes it.
+         */
+        final @Nullable TreePath path;
+
+        /**
          * The checker that issued this message. The compound checker that depends on this checker
          * uses this to sort the messages.
          */
@@ -3914,7 +3933,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
                 @FindDistinct Tree source,
                 @FindDistinct SourceChecker checker,
                 StackTraceElement[] trace) {
-            this(kind, message, source, checker, trace, Collections.emptyList());
+            this(kind, message, source, null, checker, trace, Collections.emptyList());
         }
 
         /**
@@ -3923,6 +3942,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
          * @param kind kind of diagnostic, for example, error or warning
          * @param message error message that needs to be printed
          * @param source tree node causing the error
+         * @param path the path to {@code source}, or null
          * @param checker the type-checker in use
          * @param trace the stack trace when the message is created
          * @param fixes machine-applicable suggested fixes (possibly empty)
@@ -3931,12 +3951,14 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
                 Diagnostic.Kind kind,
                 String message,
                 @FindDistinct Tree source,
+                @Nullable TreePath path,
                 @FindDistinct SourceChecker checker,
                 StackTraceElement[] trace,
                 List<SuggestedFixData> fixes) {
             this.kind = kind;
             this.message = message;
             this.source = source;
+            this.path = path;
             this.checker = checker;
             this.trace = trace;
             this.fixes = fixes;

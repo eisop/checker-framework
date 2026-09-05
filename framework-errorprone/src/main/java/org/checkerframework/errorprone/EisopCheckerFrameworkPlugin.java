@@ -214,6 +214,7 @@ public class EisopCheckerFrameworkPlugin extends BugChecker implements ClassTree
                     String message,
                     Tree source,
                     CompilationUnitTree root,
+                    @Nullable TreePath path,
                     List<SuggestedFixData> fixes) {
                 VisitorState base = currentState;
                 CheckerFrameworkDriver currentDriver = driver;
@@ -237,12 +238,15 @@ public class EisopCheckerFrameworkPlugin extends BugChecker implements ClassTree
                 // Anchor the finding (and its suppression fix) at the finding's own source tree,
                 // not the enclosing class that matchClass is visiting, so that a generated
                 // @SuppressWarnings lands on the nearest suppressible element to the finding.
-                // Use the driver's TreePathCacher rather than TreePath.getPath(root, source), which
-                // re-scans the whole compilation unit on every finding (quadratic on a
-                // finding-heavy file).  The checkers populate the cacher while type-checking, so
-                // the finding's tree is typically already cached.
+                // The checker supplies the path, having captured it while visiting the finding.
+                // Locating the tree here instead costs a scan of the whole compilation unit per
+                // finding, because the checkers' path cache is cleared before the findings are
+                // handed over; that fallback runs only if the checker had no path to give.
                 VisitorState state = base;
-                TreePath findingPath = currentDriver.getTreePathCacher().getPath(root, source);
+                TreePath findingPath =
+                        path != null
+                                ? path
+                                : currentDriver.getTreePathCacher().getPath(root, source);
                 if (findingPath != null) {
                     state = base.withPath(findingPath);
                 }
