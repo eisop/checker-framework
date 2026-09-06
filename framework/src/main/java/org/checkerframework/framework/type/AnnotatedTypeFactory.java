@@ -1926,7 +1926,31 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         AnnotationMirrorSet bound = getTypeDeclarationBounds(fromTypeTree.getUnderlyingType());
         fromTypeTree.addMissingAnnotations(bound);
         addComputedTypeAnnotations(clause, fromTypeTree);
+        applyAnonymousClassCreationAnnos(clause, fromTypeTree);
         return fromTypeTree;
+    }
+
+    /**
+     * If {@code clause} is the extends or implements clause of an anonymous class, applies the
+     * annotations written on the creation expression to {@code type}.
+     *
+     * <p>An anonymous class's supertype is annotated by its creation expression, as in {@code
+     * new @HERE Class() {}}. javac attaches that annotation to the anonymous class declaration's
+     * modifiers in Java 11 and lower, and to the clause itself in Java 17 and later; {@link
+     * #getExplicitNewClassAnnos} reconciles the two.
+     *
+     * <p>Call this after {@link #addComputedTypeAnnotations}, whose defaulting would otherwise
+     * overwrite the written annotation.
+     *
+     * @param clause an extends or implements clause
+     * @param type the type of {@code clause}, side-effected by this method
+     */
+    private void applyAnonymousClassCreationAnnos(Tree clause, AnnotatedTypeMirror type) {
+        TreePath path = getPath(clause);
+        Tree parent = path == null ? null : path.getParentPath().getLeaf();
+        if (parent instanceof NewClassTree) {
+            type.replaceAnnotations(getExplicitNewClassAnnos((NewClassTree) parent));
+        }
     }
 
     // **********************************************************************
