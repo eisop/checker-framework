@@ -43,10 +43,15 @@ The shaded jars no longer contain a `module-info.class` or jsr305's
 Recognition of `javax.annotation.Nullable`, `@Nonnull` and `@CheckForNull` in
 user code is unaffected.
 
-`sometimes-nullable.astub` now covers `VarHandle`'s access methods. A `VarHandle`
-for a reference-typed field accepts null, but the same method on a primitive-typed
-field throws, so the annotated JDK conservatively forbids it; this opt-in stub file
-permits it. `-Astubs=sometimes-nullable.astub` is unchanged and still opt-in.
+`sometimes-nullable.astub` now covers the 19 `VarHandle` access modes that a
+reference-typed field supports: the `get`, `set`, `compareAndSet`,
+`weakCompareAndSet`, `compareAndExchange` and `getAndSet` families. A `VarHandle`
+for a reference-typed field accepts null, but the same access mode on a
+primitive-typed field throws, so the annotated JDK conservatively forbids it; this
+opt-in stub file permits it. The `getAndAdd` and `getAndBitwise` families are
+deliberately not covered: they are defined only for numeric and bitwise types, so a
+reference can never flow through them and null is never a legal argument.
+`-Astubs=sometimes-nullable.astub` is unchanged and still opt-in.
 
 The Checker Framework now issues an `annotation.on.supertype` error when an annotation supported by
 the checker is written as a main annotation on the superclass or interface in an `extends` or

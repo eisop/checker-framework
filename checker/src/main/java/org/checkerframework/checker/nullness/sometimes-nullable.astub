@@ -16,14 +16,38 @@ package java.lang.invoke;
 
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-// A VarHandle's access methods are signature-polymorphic: the arguments they accept depend on the
-// type of the field the handle was created for.  For a reference-typed field, null is a legal
-// value and a legal expected value; for a primitive-typed field, passing null throws.  The
-// annotated JDK is conservative and forbids null, which rejects correct code such as
+// A VarHandle's access methods are signature-polymorphic: the arguments they accept, and the value
+// they return, depend on the type of the field the handle was created for.  For a reference-typed
+// field, null is a legal value, a legal expected value, and a legal result; for a primitive-typed
+// field, passing null throws.  The annotated JDK takes the conservative reading and forbids null,
+// which rejects correct code such as
 //     REFRESHES.compareAndSet(this, null, pending)
 // on a handle for a reference field.
+//
+// Listed here are the 19 access modes that a reference-typed field supports.  The other 12 --
+// getAndAdd*, getAndBitwiseAnd*, getAndBitwiseOr* and getAndBitwiseXor* -- are defined only for
+// numeric and bitwise types, so a reference can never flow through them and null is never a legal
+// argument.  They are deliberately absent.
 public abstract class VarHandle {
     public final native @Nullable Object get(@Nullable Object... args);
+
+    public final native @Nullable Object getVolatile(@Nullable Object... args);
+
+    public final native @Nullable Object getAcquire(@Nullable Object... args);
+
+    public final native @Nullable Object getOpaque(@Nullable Object... args);
+
+    public final native @Nullable Object compareAndExchange(@Nullable Object... args);
+
+    public final native @Nullable Object compareAndExchangeAcquire(@Nullable Object... args);
+
+    public final native @Nullable Object compareAndExchangeRelease(@Nullable Object... args);
+
+    public final native @Nullable Object getAndSet(@Nullable Object... args);
+
+    public final native @Nullable Object getAndSetAcquire(@Nullable Object... args);
+
+    public final native @Nullable Object getAndSetRelease(@Nullable Object... args);
 
     public final native void set(@Nullable Object... args);
 
@@ -35,7 +59,11 @@ public abstract class VarHandle {
 
     public final native boolean compareAndSet(@Nullable Object... args);
 
-    public final native @Nullable Object compareAndExchange(@Nullable Object... args);
+    public final native boolean weakCompareAndSet(@Nullable Object... args);
 
-    public final native @Nullable Object getAndSet(@Nullable Object... args);
+    public final native boolean weakCompareAndSetPlain(@Nullable Object... args);
+
+    public final native boolean weakCompareAndSetAcquire(@Nullable Object... args);
+
+    public final native boolean weakCompareAndSetRelease(@Nullable Object... args);
 }
