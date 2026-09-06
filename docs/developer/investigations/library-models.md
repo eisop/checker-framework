@@ -65,6 +65,83 @@ to the rest.
    a question about what it claims to be, and it should be answered before any
    model ships, not after.
 
+## Evidence from the NullAway comparison
+
+The benchmark in [errorprone-parity.md](errorprone-parity.md) produced a
+by-product this investigation asked for: a list of places where the Checker
+Framework rejects code that NullAway accepts, on a real library. Of the 167
+findings on Caffeine 3.0.2 that are neither about generics nor about
+initialization and that NullAway is silent on, grouping by what is being called:
+
+| call target | count |
+| --- | ---: |
+| assignment to Caffeine's own unannotated `Pacer` field | 96 |
+| `Map.put` | 4 |
+| `VarHandle.compareAndSet` / `set` / `setRelease` | 5 |
+| `CompletionException(String, Throwable)` | 1 |
+| `CompletableFuture.getNow` | 1 |
+
+Only three of these are library-annotation questions at all, and they fall into
+three different categories -- which is the useful part.
+
+### Sound: 17 exception classes are missing `@Nullable` on their cause
+
+`new CompletionException("null map", null)` is rejected because
+`CompletionException` carries **no annotations at all** in the annotated JDK,
+so its `Throwable cause` parameter defaults to `@NonNull`. Its superclass is
+annotated correctly -- `Throwable(@Nullable String, @Nullable Throwable)` -- and
+`CompletionException`'s constructors do nothing but delegate to it. Its own
+javadoc documents the null case: the detail message is
+`(cause == null ? null : cause.toString())`.
+
+This is not one class. Auditing `java.base` for exception classes with a
+`(… Throwable cause)` constructor:
+
+- **32** such classes
+- **15** annotate the cause `@Nullable`
+- **17** do not
+
+The 17 include `ReflectiveOperationException`, `NoSuchElementException`,
+`ConcurrentModificationException`, `MissingResourceException`,
+`RejectedExecutionException`, `IOError` and `CompletionException`. Every one
+spot-checked delegates straight to `super(...)` without touching `cause`, so
+`@Nullable` there is **sound** -- no null can reach a dereference. The 15 that
+are already annotated show the intended form.
+
+This is an inconsistency in the annotated JDK rather than a policy, and it is a
+mechanical fix in the `eisop/jdk` fork. It is the clearest sound improvement the
+benchmark turned up.
+
+### Unsound convenience: `VarHandle`
+
+`REFRESHES.compareAndSet(this, null, pending)` is correct code: the handle is
+for a `ConcurrentMap` field, and null is a legal expected value for a
+reference-typed field. But the same call on a handle for a primitive-typed
+field throws, and `VarHandle`'s access methods are signature-polymorphic
+(`Object... args`), so no single annotation is right for both. That is exactly
+what `sometimes-nullable.astub` exists for, and that file says of itself that it
+"is very incomplete and should be expanded". `VarHandle` has been added to it,
+with a jtreg test; the stub remains opt-in.
+
+### Tempting and wrong: `Map.put`
+
+The four `Map.put` findings look like the same kind of thing and are not. The
+code is
+
+```java
+Map<Object, Object> result = new LinkedHashMap<>();
+result.put(key, null);
+```
+
+The Checker Framework is right: a map whose values may be null is
+`Map<Object, @Nullable Object>`, and the fix belongs in the calling code. Adding
+`Map.put(K, @Nullable V)` to a stub would discard the one mechanism that
+expresses this precisely, in exchange for silencing a true positive. Null-value
+restrictions on collections are the manual's own example of what belongs in the
+conservative annotated JDK, and this is a case of the general rule that a
+library-model change is the wrong tool whenever the type system can already say
+the thing.
+
 ## First experiment
 
 Take Calcite's 48 `.astub` files. For each annotation in them, record: which
