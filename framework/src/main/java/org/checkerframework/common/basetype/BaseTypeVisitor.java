@@ -1077,8 +1077,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             // The annotation is as written, so resolve an alias before asking whether this
             // checker supports it.
             AnnotationMirror am = TreeUtils.annotationFromAnnotationTree(annoTree);
-            AnnotationMirror canonical = atypeFactory.canonicalAnnotation(am);
-            if (atypeFactory.isSupportedQualifier(canonical != null ? canonical : am)) {
+            if (atypeFactory.isSupportedQualifier(atypeFactory.canonicalIfAlias(am))) {
                 checker.reportError(boundClause, "annotation.on.supertype");
                 break;
             }

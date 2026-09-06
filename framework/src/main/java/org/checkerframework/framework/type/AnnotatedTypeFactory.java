@@ -4456,6 +4456,43 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     }
 
     /**
+     * Returns the canonical form of {@code a} if {@code a} is an alias, and {@code a} itself
+     * otherwise.
+     *
+     * <p>Use this on an annotation as written, such as one read from an {@link
+     * com.sun.source.tree.AnnotationTree}, before comparing it against a canonical annotation or
+     * against this checker's supported qualifiers. {@link #canonicalAnnotation} returns null for an
+     * annotation that is not an alias, which every such caller would otherwise have to undo.
+     *
+     * @param a an annotation, possibly an alias
+     * @return the annotation that {@code a} stands for
+     */
+    public AnnotationMirror canonicalIfAlias(AnnotationMirror a) {
+        AnnotationMirror canonical = canonicalAnnotation(a);
+        return canonical != null ? canonical : a;
+    }
+
+    /**
+     * Returns true if some annotation in {@code annos} is {@code target}, or an alias for it.
+     *
+     * <p>Use this rather than {@link AnnotationUtils#containsSame} when {@code annos} holds
+     * annotations as written, such as ones read from a tree.
+     *
+     * @param annos annotations, possibly aliases
+     * @param target a canonical annotation
+     * @return true if some annotation in {@code annos} stands for {@code target}
+     */
+    public boolean containsSameOrAlias(
+            Collection<? extends AnnotationMirror> annos, AnnotationMirror target) {
+        for (AnnotationMirror am : annos) {
+            if (AnnotationUtils.areSame(canonicalIfAlias(am), target)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
      * Add the annotation {@code alias} as an alias for the declaration annotation {@code
      * annotation}, where the annotation mirror {@code annotationToUse} will be used instead. If
      * multiple calls are made with the same {@code annotation}, then the {@code annotationToUse}

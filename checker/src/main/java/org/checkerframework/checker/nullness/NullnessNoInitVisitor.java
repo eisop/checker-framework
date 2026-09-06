@@ -51,7 +51,6 @@ import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedArrayTyp
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedExecutableType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedPrimitiveType;
 import org.checkerframework.javacutil.AnnotationMirrorSet;
-import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.InternalUtils;
 import org.checkerframework.javacutil.TreePathUtil;
@@ -319,27 +318,6 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
         return super.visitVariable(tree, p);
     }
 
-    /**
-     * Returns true if some annotation in {@code annos} is {@code target}, or an alias for it.
-     *
-     * <p>Use this rather than {@link AnnotationUtils#containsSame} when {@code annos} was read from
-     * a tree, which holds each annotation as written rather than canonicalized.
-     *
-     * @param annos annotations as written, so possibly aliases
-     * @param target a canonical annotation
-     * @return true if some annotation in {@code annos} stands for {@code target}
-     */
-    private boolean containsSameOrAlias(
-            List<? extends AnnotationMirror> annos, AnnotationMirror target) {
-        for (AnnotationMirror am : annos) {
-            AnnotationMirror canonical = atypeFactory.canonicalAnnotation(am);
-            if (AnnotationUtils.areSame(canonical != null ? canonical : am, target)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
     /** Case 1: Check for null dereferencing. */
     @Override
     public Void visitMemberSelect(MemberSelectTree tree, Void p) {
@@ -549,10 +527,10 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
         }
 
         if (annotations != null) {
-            if (containsSameOrAlias(annotations, NULLABLE)) {
+            if (atypeFactory.containsSameOrAlias(annotations, NULLABLE)) {
                 checker.reportError(tree, "instanceof.nullable");
             }
-            if (containsSameOrAlias(annotations, NONNULL)) {
+            if (atypeFactory.containsSameOrAlias(annotations, NONNULL)) {
                 checker.reportWarning(tree, "instanceof.nonnull.redundant");
             }
         }
