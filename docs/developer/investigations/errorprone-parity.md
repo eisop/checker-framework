@@ -181,7 +181,9 @@ Two samples, checked in the source:
   .append(keyStrength.toString()...) }`. The field is null-checked immediately
   above the dereference, but the intervening `append` call is not
   `@SideEffectFree`, so the Checker Framework discards the refinement. A false
-  positive. `Caffeine.java:340` is the same pattern.
+  positive. `Caffeine.java:340` is the same pattern. Both are confirmed by
+  `-AassumePure`, which removes exactly these -- and only six findings in
+  total (see below), so this cause is real but rare.
 
 **On the evidence sampled, the non-generic surplus is dominated by library-model
 differences and by the Checker Framework's own imprecision, not by NullAway
@@ -190,6 +192,36 @@ read in full, and the 149 NullAway-only locations were not examined at all.
 Classifying both disagreement sets properly is
 [precision-and-adoption-cost.md](precision-and-adoption-cost.md)'s central
 question, and this corpus is now a ready-made subject for it.
+
+### Purity assumptions do not close the gap
+
+The Checker Framework discards a field's flow refinement across any call that is
+not `@SideEffectFree`. NullAway does not, so assuming purity should both remove
+that false-positive class and make the two tools' soundness assumptions
+comparable. It does neither to any useful degree:
+
+| configuration | median | warnings |
+| --- | ---: | ---: |
+| nullness only | 6.45s | 2772 |
+| `-AassumePureGetters` | 6.51s | 2772 |
+| `-AassumeSideEffectFree` | 6.32s | 2766 |
+| `-AassumePure` | 6.34s | 2766 |
+| full checker + `-AassumePure` | 19.25s | 3230 |
+
+`-AassumePure` removes **6 findings of 2772** -- 0.2% -- and moves the time by
+less than the run-to-run spread. `-AassumePureGetters` removes none.
+
+The six it removes are exactly the ones diagnosed above, including
+`Caffeine.java:1184` and `Caffeine.java:340`, so the mechanism is real and the
+diagnosis of those two was right. **The generalisation from them was not.** An
+earlier version of this file described the 20 findings of the form `@Nullable X`
+into `@NonNull X` as field refinements dropped across a call, on the strength of
+two samples. At most six findings in the whole corpus have that cause; the rest
+of that category is something else, still unidentified.
+
+The practical conclusion is the opposite of the hypothesis: purity assumptions
+are unsound, and here they buy 0.2% of the findings and no measurable time. They
+are not the lever.
 
 ## Two corrections to earlier versions of this file
 
