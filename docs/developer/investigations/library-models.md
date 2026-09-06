@@ -142,6 +142,71 @@ conservative annotated JDK, and this is a case of the general rule that a
 library-model change is the wrong tool whenever the type system can already say
 the thing.
 
+## Outcome, and three corrections to the above
+
+Acting on this produced three pull requests and taught things the section above
+gets wrong.
+
+| | |
+| --- | --- |
+| eisop/jdk#139 | 16 exception classes: `@AnnotatedFor` and `@Nullable` on message and cause |
+| eisop/jdk#140 | `VarHandle`'s ten reference read modes return `@Nullable Object` |
+| eisop/checker-framework#2025 | `VarHandle`'s 19 reference access modes in `sometimes-nullable.astub` |
+| eisop/checker-framework#2026 | the stubifier fix that #140 needs |
+
+**Correction 1: "17 of 32 do not annotate the cause" describes the wrong thing.**
+Those classes do not have a missing annotation; they have *no* annotations at
+all -- no `@AnnotatedFor`, no `@Nullable` anywhere. The 15 that are annotated
+carry `@AnnotatedFor({"nullness"})` and are complete. So the unit of work is
+"annotate the class", not "add the one that is missing", and the detail-message
+parameters needed `@Nullable` just as much as the causes did -- about thirty
+parameters that looking only at `cause` would have missed. It is also 16, not
+17: `ResourceBundle` matched a search for a `Throwable cause` parameter only
+through a private field.
+
+**Correction 2: this file only considered parameters, and the return direction
+was where the real bug was.** Conservative means opposite things on the two
+sides of a signature -- `@NonNull` for a parameter, `@Nullable` for a return --
+and the annotated JDK was doing neither for `VarHandle`. Reading a
+reference-typed field can yield null, but the access modes returned unannotated
+`Object`, so
+
+```java
+HANDLE.get(this).toString()
+```
+
+type-checked with no null check. That is a missed `NullPointerException` in the
+default configuration, not the false-positive question this file frames
+everything as. A library-model investigation should ask about both directions
+of every signature; this one asked about one.
+
+**Correction 3: an annotation can be blocked by tooling, not by policy.**
+Annotating `VarHandle` at all was impossible: marking it `@AnnotatedFor`, with
+no other change, failed the annotated-JDK build, because the stubifier could
+not resolve `@MethodHandle.PolymorphicSignature` -- a nested annotation named
+through its enclosing class, whose binary name separates the nesting with `$`.
+That blocked every signature-polymorphic class in the JDK. Fixed in
+eisop/checker-framework#2026.
+
+### Follow-up: `MethodHandle`
+
+`MethodHandle` is the other signature-polymorphic class, and it is still
+entirely unannotated. Its `invoke`, `invokeExact` and `invokeWithArguments`
+return `Object` and can return null for a reference-returning target -- the
+same unsoundness `VarHandle.get` had. With the stubifier fix in place it
+stubifies cleanly (verified by marking it `@AnnotatedFor` and regenerating), so
+the work is unblocked and is the obvious next increment.
+
+### A negative result worth not re-deriving
+
+`AtomicReferenceFieldUpdater` looked like the same gap as `VarHandle`: it is
+`@AnnotatedFor({"interning"})` only, with no nullness annotations, while its
+sibling `AtomicReference` is declared `class AtomicReference<@Nullable V>`. It
+needs nothing. Its type parameter carries the nullness, so
+`AtomicReferenceFieldUpdater<T, @Nullable String>` already type-checks; tested
+directly, zero errors. That is the same distinction as `Map.put` below: where
+generics can express the nullness, a library model is the wrong tool.
+
 ## First experiment
 
 Take Calcite's 48 `.astub` files. For each annotation in them, record: which
