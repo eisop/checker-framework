@@ -19,6 +19,7 @@ import com.sun.source.tree.IdentifierTree;
 import com.sun.source.tree.IfTree;
 import com.sun.source.tree.InstanceOfTree;
 import com.sun.source.tree.LiteralTree;
+import com.sun.source.tree.MemberReferenceTree;
 import com.sun.source.tree.MemberSelectTree;
 import com.sun.source.tree.MethodInvocationTree;
 import com.sun.source.tree.MethodTree;
@@ -31,10 +32,12 @@ import com.sun.source.tree.SynchronizedTree;
 import com.sun.source.tree.ThrowTree;
 import com.sun.source.tree.Tree;
 import com.sun.source.tree.TypeCastTree;
+import com.sun.source.tree.TypeParameterTree;
 import com.sun.source.tree.UnaryTree;
 import com.sun.source.tree.VariableTree;
 import com.sun.source.tree.WhileLoopTree;
 import com.sun.source.util.TreePath;
+import com.sun.source.util.TreeScanner;
 
 import org.checkerframework.checker.compilermsgs.qual.CompilerMessageKey;
 import org.checkerframework.checker.formatter.qual.FormatMethod;
@@ -61,6 +64,7 @@ import org.checkerframework.javacutil.TreeUtilsAfterJava11.BindingPatternUtils;
 import org.checkerframework.javacutil.TreeUtilsAfterJava11.SwitchExpressionUtils;
 import org.checkerframework.javacutil.TypesUtils;
 
+import java.util.Collections;
 import java.util.List;
 
 import javax.annotation.processing.ProcessingEnvironment;
@@ -137,12 +141,25 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
     private final boolean noInitForMonotonicNonNull;
 
     /**
+     * True if {@code -AjspecifyUnrecognizedLocations} was supplied.
+     *
+     * <p>JSpecify defines the locations at which a nullness annotation carries meaning and gives an
+     * annotation written anywhere else none. Some of those locations are meaningful to the Checker
+     * Framework, which reads a nullness annotation on the root type of a local variable and of a
+     * cast, so reporting them is opt-in rather than default.
+     */
+    private final boolean jspecifyUnrecognizedLocations;
+
+    /**
      * Create a new NullnessVisitor.
      *
      * @param checker the checker to which this visitor belongs
      */
     public NullnessNoInitVisitor(BaseTypeChecker checker) {
         super(checker);
+
+        jspecifyUnrecognizedLocations =
+                checker.getUltimateParentChecker().hasOption("jspecifyUnrecognizedLocations");
 
         NONNULL = atypeFactory.NONNULL;
         NULLABLE = atypeFactory.NULLABLE;
@@ -316,7 +333,116 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
                 checker.reportWarning(tree, "monotonic.on.static");
             }
         }
+        Element varElt = TreeUtils.elementFromDeclaration(tree);
+        if (varElt != null
+                && (varElt.getKind() == ElementKind.LOCAL_VARIABLE
+                        || varElt.getKind() == ElementKind.RESOURCE_VARIABLE)) {
+            checkJSpecifyLocation(
+                    tree,
+                    tree.getModifiers().getAnnotations(),
+                    tree.getType(),
+                    "the root type of a local variable");
+        }
+
         return super.visitVariable(tree, p);
+    }
+
+    /**
+     * If {@code -AjspecifyUnrecognizedLocations} was supplied and a nullness annotation is written
+     * on the root of {@code typeTree} or appears in {@code annoTrees}, reports that JSpecify gives
+     * a nullness annotation no meaning at {@code location}.
+     *
+     * @param reportTree the tree at which to report
+     * @param annoTrees annotations the parser attached to a declaration, or null if none
+     * @param typeTree the type whose root annotations to test, or null to test only {@code
+     *     annoTrees}
+     * @param location a description of the location, for the diagnostic message
+     */
+    private void checkJSpecifyLocation(
+            Tree reportTree,
+            @Nullable List<? extends AnnotationTree> annoTrees,
+            @Nullable Tree typeTree,
+            String location) {
+        if (!jspecifyUnrecognizedLocations) {
+            return;
+        }
+        boolean found =
+                typeTree != null
+                        ? atypeFactory.containsNullnessAnnotation(annoTrees, typeTree)
+                        : atypeFactory.containsNullnessAnnotation(
+                                annoTrees == null ? Collections.emptyList() : annoTrees);
+        if (found) {
+            checker.reportError(reportTree, "jspecify.unrecognized.location", location);
+        }
+    }
+
+    /**
+     * Like {@link #checkJSpecifyLocation}, but tests every component of {@code typeTree} rather
+     * than only its root. The JSpecify specification words a few locations as covering "any
+     * component" of a type.
+     *
+     * @param reportTree the tree at which to report
+     * @param annoTrees annotations the parser attached to a declaration, or null if none
+     * @param typeTree the type whose components to test
+     * @param location a description of the location, for the diagnostic message
+     */
+    private void checkJSpecifyLocationAnyComponent(
+            Tree reportTree,
+            @Nullable List<? extends AnnotationTree> annoTrees,
+            Tree typeTree,
+            String location) {
+        if (!jspecifyUnrecognizedLocations) {
+            return;
+        }
+        // A nullness annotation written before the return type is attached to the method's
+        // modifiers, whichever component of the type it applies to, so test those directly rather
+        // than through containsNullnessAnnotation, which associates an annotation with the type's
+        // root.
+        if (annoTrees != null && atypeFactory.containsNullnessAnnotation(annoTrees)) {
+            checker.reportError(reportTree, "jspecify.unrecognized.location", location);
+            return;
+        }
+        // Scan for a nullness annotation written inside the type, as in "String @Nullable []".
+        boolean[] found = new boolean[1];
+        new TreeScanner<Void, Void>() {
+            @Override
+            public Void visitAnnotation(AnnotationTree annoTree, Void unused) {
+                AnnotationMirror am = TreeUtils.annotationFromAnnotationTree(annoTree);
+                if (atypeFactory.isNullnessAnnotation(am)) {
+                    found[0] = true;
+                }
+                return null;
+            }
+        }.scan(typeTree, null);
+        if (found[0]) {
+            checker.reportError(reportTree, "jspecify.unrecognized.location", location);
+        }
+    }
+
+    @Override
+    public Void visitAnnotatedType(AnnotatedTypeTree tree, Void p) {
+        // A wildcard carries its annotations on the enclosing AnnotatedTypeTree, as in
+        // "List<@Nullable ?>".  JSpecify recognizes an annotation on a wildcard's bound, not on
+        // the wildcard itself.
+        if (tree.getUnderlyingType().getKind() == Tree.Kind.UNBOUNDED_WILDCARD
+                || tree.getUnderlyingType().getKind() == Tree.Kind.EXTENDS_WILDCARD
+                || tree.getUnderlyingType().getKind() == Tree.Kind.SUPER_WILDCARD) {
+            checkJSpecifyLocation(tree, tree.getAnnotations(), null, "a wildcard");
+        }
+        return super.visitAnnotatedType(tree, p);
+    }
+
+    @Override
+    public Void visitTypeParameter(TypeParameterTree tree, Void p) {
+        checkJSpecifyLocation(tree, tree.getAnnotations(), null, "a type parameter");
+        return super.visitTypeParameter(tree, p);
+    }
+
+    @Override
+    public Void visitMemberReference(MemberReferenceTree tree, Void p) {
+        checkJSpecifyLocation(
+                tree, null, tree.getQualifierExpression(), "the root type of a method reference");
+        return super.visitMemberReference(tree, p);
     }
 
     /** Case 1: Check for null dereferencing. */
@@ -612,6 +738,7 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
                 return null;
             }
         }
+        checkJSpecifyLocation(tree, null, tree.getType(), "the root type of a cast");
         return super.visitTypeCast(tree, p);
     }
 
@@ -632,6 +759,21 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
             if (atypeFactory.containsNullnessAnnotation(annoTrees, type)) {
                 checker.reportError(tree, "nullness.on.receiver");
             }
+        }
+
+        for (Tree thrown : tree.getThrows()) {
+            checkJSpecifyLocation(thrown, null, thrown, "a thrown type");
+        }
+
+        ClassTree enclosingClass = TreePathUtil.enclosingClass(getCurrentPath());
+        if (enclosingClass != null && enclosingClass.getKind() == Tree.Kind.ANNOTATION_TYPE) {
+            // The JSpecify specification makes *any component* of this return type unrecognized,
+            // not only its root, so scan the whole type rather than testing the root.
+            checkJSpecifyLocationAnyComponent(
+                    tree,
+                    tree.getModifiers().getAnnotations(),
+                    tree.getReturnType(),
+                    "the return type of an annotation interface member");
         }
 
         super.processMethodTree(className, tree);
@@ -674,6 +816,9 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
 
     @Override
     public void processClassTree(ClassTree classTree) {
+        checkJSpecifyLocation(
+                classTree, classTree.getModifiers().getAnnotations(), null, "a class declaration");
+
         if (classTree.getKind() == Tree.Kind.ENUM) {
             for (Tree member : classTree.getMembers()) {
                 if (member instanceof VariableTree

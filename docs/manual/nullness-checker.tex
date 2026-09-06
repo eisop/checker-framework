@@ -212,6 +212,16 @@ command-line option.)
   If you supply the \code{-AjspecifyNullMarkedAlias=false} command-line option, then the
   checker will not treat \code{org.jspecify.nullness.NullMarked} as a defaulting
   annotation. By default the \code{NullMarked} annotation is recognized.
+
+\item
+  \label{nullness-jspecifyUnrecognizedLocations}%
+  JSpecify defines the locations at which a nullness annotation carries meaning
+  and gives an annotation written anywhere else none.  If you supply the
+  \code{-AjspecifyUnrecognizedLocations} command-line option, the checker reports
+  an error for a nullness annotation written on a class declaration, on the return type
+  of an annotation interface member, on a wildcard, before a type parameter, on a
+  thrown type, on the root type of a local variable, on the root type of a cast,
+  or on the root type of a method reference.
 \end{itemize}
 
 \end{enumerate}

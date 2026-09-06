@@ -63,6 +63,7 @@ import javax.annotation.processing.SupportedOptions;
     "assumeKeyFor",
     "assumeInitialized",
     "jspecifyNullMarkedAlias",
+    "jspecifyUnrecognizedLocations",
     "conservativeArgumentNullnessAfterInvocation"
 })
 @StubFiles({"junit-assertions.astub", "log4j.astub"})
