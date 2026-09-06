@@ -816,12 +816,12 @@ public class BinaryStubWriter {
     private final List<String> asteriskImportPackages = new ArrayList<>();
 
     /**
-     * The package of the compilation unit being written, or null if it is in the unnamed package.
-     * Set by {@link #initImportTables}. Used to resolve a nested annotation named through an
-     * enclosing class that the file does not import because it declares it, or shares a package
-     * with it.
+     * The compilation unit being written, or null before writing starts. Set by {@link
+     * #initImportTables} and, per unit, by {@link #processStubUnit}. It is what lets {@link
+     * #nestedAnnotationBinaryName} call {@link #fullyQualify}, which needs the unit to resolve a
+     * simple name against the file's own package.
      */
-    private @Nullable String currentPackage;
+    private @Nullable CompilationUnit currentUnit;
 
     /** Cache for {@link #annotationInPackage}, keyed by {@code pkg + "." + name}. */
     private final Map<String, String> annotationInPackageCache = new HashMap<>();
@@ -883,27 +883,27 @@ public class BinaryStubWriter {
      * "java.lang.invoke.MethodHandle$PolymorphicSignature"} -- or null if {@code name}'s first
      * segment does not resolve to a class that declares such a nested annotation.
      *
-     * <p>The enclosing name is resolved the way {@link #fullyQualify} resolves a class literal:
-     * explicit import, then this file's own package, then {@code java.lang}, then the asterisk
-     * imports. A file that declares or shares a package with the enclosing class does not import
-     * it, so the package step is the one that matters for the JDK's own uses.
+     * <p>The enclosing name is resolved with {@link #fullyQualify}: explicit import, then this
+     * file's own package, then {@code java.lang}, then the asterisk imports. A file that declares
+     * or shares a package with the enclosing class does not import it, so the package step is the
+     * one that matters for the JDK's own uses.
      *
      * @param name a dotted annotation name that is not loadable as written
      * @return the annotation's binary name, or null if it does not resolve
      */
     private @Nullable String nestedAnnotationBinaryName(String name) {
-        // Try every split point, rightmost first, so that both the shape the JDK writes
-        // ("MethodHandle.PolymorphicSignature", enclosing name resolved below) and a fully written
-        // out "java.lang.invoke.MethodHandle.PolymorphicSignature" reach the same binary name.
-        // Rightmost first because the last segment is the annotation's own simple name.
+        CompilationUnit cu = currentUnit;
+        if (cu == null) {
+            return null;
+        }
+        // Rightmost split point first, because the last segment is the annotation's own simple
+        // name.  Trying the others too lets "MethodHandle.PolymorphicSignature" and a written-out
+        // "java.lang.invoke.MethodHandle.PolymorphicSignature" reach the same binary name.
         for (int dot = name.lastIndexOf('.'); dot > 0; dot = name.lastIndexOf('.', dot - 1)) {
-            String enclosing = name.substring(0, dot);
+            // fullyQualify returns a dotted name unchanged, so an already-qualified enclosing name
+            // passes through.
+            String enclosingFqn = fullyQualify(name.substring(0, dot), cu);
             String nested = name.substring(dot + 1);
-            String enclosingFqn =
-                    enclosing.indexOf('.') == -1 ? qualifyEnclosingName(enclosing) : enclosing;
-            if (enclosingFqn == null) {
-                continue;
-            }
             String candidate = enclosingFqn.replace('.', '$') + "$" + nested;
             // A dotted enclosing name is a package-qualified class, so only the segments after the
             // package become '$'; try the name as written first, then the all-dollar form.
@@ -913,39 +913,6 @@ public class BinaryStubWriter {
             }
             if (!candidate.equals(qualified)
                     && annotationTargetsByName(candidate) != NOT_LOADABLE) {
-                return candidate;
-            }
-        }
-        return null;
-    }
-
-    /**
-     * Returns the fully-qualified name of the class with the given simple name, resolved the way
-     * {@link #fullyQualify} resolves a class literal: explicit import, then this file's own
-     * package, then {@code java.lang}, then the asterisk imports. Returns null if none of those
-     * declares such a class on the stubifier classpath.
-     *
-     * @param simpleName a simple class name
-     * @return the fully-qualified name, or null
-     */
-    private @Nullable String qualifyEnclosingName(String simpleName) {
-        String known = simpleToFqn.get(simpleName);
-        if (known != null) {
-            return known;
-        }
-        if (currentPackage != null) {
-            String inCurrentPackage = classInPackage(currentPackage, simpleName);
-            if (inCurrentPackage != null) {
-                return inCurrentPackage;
-            }
-        }
-        String javaLang = classInPackage("java.lang", simpleName);
-        if (javaLang != null) {
-            return javaLang;
-        }
-        for (String pkg : asteriskImportPackages) {
-            String candidate = classInPackage(pkg, simpleName);
-            if (candidate != null) {
                 return candidate;
             }
         }
@@ -1296,8 +1263,7 @@ public class BinaryStubWriter {
             // Unlike the imports, the package is a property of the unit being processed: a stub
             // file's second and later "package" sections declare their own, and resolving a name
             // against the first section's package would be resolving it in the wrong place.
-            currentPackage =
-                    cu.getPackageDeclaration().map(pd -> pd.getNameAsString()).orElse(null);
+            currentUnit = cu;
             processTypes(cu);
         }
     }
@@ -1313,7 +1279,7 @@ public class BinaryStubWriter {
         simpleToFqn.clear();
         asteriskImportPackages.clear();
         staticImportedConstants.clear();
-        currentPackage = cu.getPackageDeclaration().map(pd -> pd.getNameAsString()).orElse(null);
+        currentUnit = cu;
 
         for (ImportDeclaration imp : cu.getImports()) {
             if (imp.isStatic()) {
