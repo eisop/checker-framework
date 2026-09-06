@@ -11,3 +11,31 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 public class WeakReference<T> extends Reference<T> {
     public WeakReference(@Nullable T referent, @Nullable ReferenceQueue<? super T> q);
 }
+
+package java.lang.invoke;
+
+import org.checkerframework.checker.nullness.qual.Nullable;
+
+// A VarHandle's access methods are signature-polymorphic: the arguments they accept depend on the
+// type of the field the handle was created for.  For a reference-typed field, null is a legal
+// value and a legal expected value; for a primitive-typed field, passing null throws.  The
+// annotated JDK is conservative and forbids null, which rejects correct code such as
+//     REFRESHES.compareAndSet(this, null, pending)
+// on a handle for a reference field.
+public abstract class VarHandle {
+    public final native @Nullable Object get(@Nullable Object... args);
+
+    public final native void set(@Nullable Object... args);
+
+    public final native void setVolatile(@Nullable Object... args);
+
+    public final native void setRelease(@Nullable Object... args);
+
+    public final native void setOpaque(@Nullable Object... args);
+
+    public final native boolean compareAndSet(@Nullable Object... args);
+
+    public final native @Nullable Object compareAndExchange(@Nullable Object... args);
+
+    public final native @Nullable Object getAndSet(@Nullable Object... args);
+}
