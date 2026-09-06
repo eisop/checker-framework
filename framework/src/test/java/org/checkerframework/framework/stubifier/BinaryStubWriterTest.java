@@ -14,6 +14,8 @@ import java.io.DataOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Target;
 import java.nio.file.Files;
 
 /** Tests for {@link BinaryStubWriter}. */
@@ -1185,5 +1187,30 @@ public class BinaryStubWriterTest {
         BinaryStubData data = roundTrip(source, /* omitUnannotatedMembers= */ false);
         Assert.assertNotNull(
                 "the class record should have been written", data.classes.get("FakeQualified"));
+    }
+
+    /** Encloses {@link Enclosing.DoublyNested}, whose binary name has two {@code $} separators. */
+    public static class Enclosing {
+        /** An annotation two levels deep, to exercise more than one nesting separator. */
+        @Target(ElementType.METHOD)
+        public @interface DoublyNested {}
+    }
+
+    /**
+     * An annotation nested two deep resolves: every segment after the package becomes a {@code $},
+     * not just the last one.
+     */
+    @Test
+    public void resolvesADoublyNestedAnnotationName() throws IOException {
+        String source =
+                "public abstract class FakeDoublyNested {\n"
+                        + "  @org.checkerframework.framework.stubifier.BinaryStubWriterTest"
+                        + ".Enclosing.DoublyNested\n"
+                        + "  public abstract Object get();\n"
+                        + "}\n";
+        BinaryStubData data = roundTrip(source, /* omitUnannotatedMembers= */ true);
+        BinaryStubData.ClassRecord cr = data.classes.get("FakeDoublyNested");
+        Assert.assertNotNull("the class record should have been written", cr);
+        Assert.assertEquals("the annotated method was recorded", 1, cr.methods.length);
     }
 }

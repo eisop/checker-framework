@@ -901,19 +901,12 @@ public class BinaryStubWriter {
         // "java.lang.invoke.MethodHandle.PolymorphicSignature" reach the same binary name.
         for (int dot = name.lastIndexOf('.'); dot > 0; dot = name.lastIndexOf('.', dot - 1)) {
             // fullyQualify returns a dotted name unchanged, so an already-qualified enclosing name
-            // passes through.
+            // passes through.  Only the segments after the package are nesting, so just those
+            // become '$'.
             String enclosingFqn = fullyQualify(name.substring(0, dot), cu);
-            String nested = name.substring(dot + 1);
-            String candidate = enclosingFqn.replace('.', '$') + "$" + nested;
-            // A dotted enclosing name is a package-qualified class, so only the segments after the
-            // package become '$'; try the name as written first, then the all-dollar form.
-            String qualified = enclosingFqn + "$" + nested;
-            if (annotationTargetsByName(qualified) != NOT_LOADABLE) {
-                return qualified;
-            }
-            if (!candidate.equals(qualified)
-                    && annotationTargetsByName(candidate) != NOT_LOADABLE) {
-                return candidate;
+            String binaryName = enclosingFqn + "$" + name.substring(dot + 1).replace('.', '$');
+            if (annotationTargetsByName(binaryName) != NOT_LOADABLE) {
+                return binaryName;
             }
         }
         return null;
