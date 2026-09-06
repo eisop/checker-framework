@@ -1947,7 +1947,8 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      */
     private void applyAnonymousClassCreationAnnos(Tree clause, AnnotatedTypeMirror type) {
         TreePath path = getPath(clause);
-        Tree parent = path == null ? null : path.getParentPath().getLeaf();
+        TreePath parentPath = path == null ? null : path.getParentPath();
+        Tree parent = parentPath == null ? null : parentPath.getLeaf();
         if (parent instanceof NewClassTree) {
             type.replaceAnnotations(getExplicitNewClassAnnos((NewClassTree) parent));
         }
