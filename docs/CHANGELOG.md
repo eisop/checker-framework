@@ -43,6 +43,13 @@ The shaded jars no longer contain a `module-info.class` or jsr305's
 Recognition of `javax.annotation.Nullable`, `@Nonnull` and `@CheckForNull` in
 user code is unaffected.
 
+The stubifier resolves a nested annotation named through its enclosing class, as
+the JDK's own `java.lang.invoke.VarHandle` writes `@MethodHandle.PolymorphicSignature`.
+Such a name is not loadable as written -- its binary name separates the nesting with
+`$` -- so the stubifier could not read the annotation's `@Target` and failed the whole
+file. That made every class using a signature-polymorphic method impossible to
+annotate; `VarHandle` and `MethodHandle` are the two in the JDK.
+
 The Checker Framework now issues an `annotation.on.supertype` error when an annotation supported by
 the checker is written as a main annotation on the superclass or interface in an `extends` or
 `implements` clause. Annotations on the supertype's type arguments remain permitted. A checker

@@ -815,6 +815,14 @@ public class BinaryStubWriter {
      */
     private final List<String> asteriskImportPackages = new ArrayList<>();
 
+    /**
+     * The package of the compilation unit being written, or null if it is in the unnamed package.
+     * Set by {@link #initImportTables}. Used to resolve a nested annotation named through an
+     * enclosing class that the file does not import because it declares it, or shares a package
+     * with it.
+     */
+    private @Nullable String currentPackage;
+
     /** Cache for {@link #annotationInPackage}, keyed by {@code pkg + "." + name}. */
     private final Map<String, String> annotationInPackageCache = new HashMap<>();
 
@@ -840,7 +848,17 @@ public class BinaryStubWriter {
      */
     private String fullyQualifyAnnotationName(String name) {
         if (name.contains(".")) {
-            return name;
+            if (annotationTargetsByName(name) != NOT_LOADABLE) {
+                return name;
+            }
+            // Not loadable as written, so it may be a nested annotation named through its
+            // enclosing class rather than a fully-qualified name: the JDK's own
+            // java.lang.invoke.VarHandle writes @MethodHandle.PolymorphicSignature, whose binary
+            // name separates the nesting with '$'.  Resolving it is what lets a file that uses one
+            // be stubified at all; without this the writer cannot read the annotation's @Target
+            // and fails the whole file.
+            String nested = nestedAnnotationBinaryName(name);
+            return nested != null ? nested : name;
         }
         String javaLang = annotationInPackage("java.lang", name);
         if (javaLang != null) {
@@ -857,6 +875,41 @@ public class BinaryStubWriter {
             }
         }
         return name;
+    }
+
+    /**
+     * Returns the binary name of the annotation that {@code name} refers to through an enclosing
+     * class -- {@code "MethodHandle.PolymorphicSignature"} to {@code
+     * "java.lang.invoke.MethodHandle$PolymorphicSignature"} -- or null if {@code name}'s first
+     * segment does not resolve to a class that declares such a nested annotation.
+     *
+     * <p>The enclosing name is resolved the way {@link #fullyQualify} resolves a class literal:
+     * explicit import, then this file's own package, then {@code java.lang}, then the asterisk
+     * imports. A file that declares or shares a package with the enclosing class does not import
+     * it, so the package step is the one that matters for the JDK's own uses.
+     *
+     * @param name a dotted annotation name that is not loadable as written
+     * @return the annotation's binary name, or null if it does not resolve
+     */
+    private @Nullable String nestedAnnotationBinaryName(String name) {
+        int firstDot = name.indexOf('.');
+        String enclosing = name.substring(0, firstDot);
+        String nested = name.substring(firstDot + 1).replace('.', '$');
+        String enclosingFqn = simpleToFqn.get(enclosing);
+        if (enclosingFqn == null && currentPackage != null) {
+            enclosingFqn = classInPackage(currentPackage, enclosing);
+        }
+        if (enclosingFqn == null) {
+            enclosingFqn = classInPackage("java.lang", enclosing);
+        }
+        for (int i = 0; enclosingFqn == null && i < asteriskImportPackages.size(); i++) {
+            enclosingFqn = classInPackage(asteriskImportPackages.get(i), enclosing);
+        }
+        if (enclosingFqn == null) {
+            return null;
+        }
+        String candidate = enclosingFqn + "$" + nested;
+        return annotationTargetsByName(candidate) == NOT_LOADABLE ? null : candidate;
     }
 
     /**
@@ -1215,6 +1268,7 @@ public class BinaryStubWriter {
         simpleToFqn.clear();
         asteriskImportPackages.clear();
         staticImportedConstants.clear();
+        currentPackage = cu.getPackageDeclaration().map(pd -> pd.getNameAsString()).orElse(null);
 
         for (ImportDeclaration imp : cu.getImports()) {
             if (imp.isStatic()) {
