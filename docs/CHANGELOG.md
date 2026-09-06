@@ -3,6 +3,11 @@ Version 3.49.5-eisop2 (June ?, 2026)
 
 **User-visible changes:**
 
+A check that reads an annotation from the source tree now resolves aliases first, so a written
+alias such as `org.jspecify.annotations.Nullable` is treated as the qualifier it stands for. The
+`annotation.on.supertype`, `instanceof.nullable`, and `instanceof.nonnull.redundant` diagnostics
+were previously issued only for a checker's own annotation.
+
 Two new Maven Central artifacts support writing a custom checker without
 depending on the whole `checker` artifact: `io.github.eisop:framework`, which
 declares its dependencies in its POM, and `io.github.eisop:framework-all`,
@@ -743,7 +748,8 @@ eisop#104, eisop#386, eisop#433, eisop#737, eisop#786, eisop#792, eisop#863,
 eisop#949, eisop#1015, eisop#1059, eisop#1074, eisop#1244, eisop#1315,
 eisop#1564, eisop#1592, eisop#1642, eisop#1653, eisop#1735, eisop#1801,
 eisop#1818, eisop#1819, eisop#1861, eisop#1862, eisop#1863, eisop#1865,
-eisop#1887, eisop#1965, eisop#1987, typetools#399, typetools#3203.
+eisop#1887, eisop#1965, eisop#1987, eisop#2021, typetools#399,
+typetools#3203.
 
 
 Version 3.49.5-eisop1 (April 26, 2026)
