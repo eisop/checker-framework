@@ -893,6 +893,16 @@ org.checkerframework.checker.interning.InterningChecker
 As when running standalone with \<javac -processor A,B>, the selected type systems share
 the compilation's AST, and each builds its own control-flow graph.
 
+The option is required.  Enabling \<eisopcf> without it reports a configuration error
+rather than doing nothing, because a build that looks like it is type-checking and is not
+is worse than one that fails:
+\begin{Verbatim}
+warning: [eisopcf] The eisopcf check is enabled but no Checker Framework checker is
+selected, so nothing was type-checked. ...
+\end{Verbatim}
+To have the plugin on the processorpath without running it, turn the check off with
+\<-Xep:eisopcf:OFF>.
+
 \subsectionAndLabel{Command-line options for checkers}{error-prone-options}
 
 Pass Checker Framework command-line options exactly as when running standalone: with

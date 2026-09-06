@@ -412,6 +412,17 @@ the manual's Error Prone section and on `DiagnosticSink`.
   builds a sink that, using the `VisitorState` active during `matchClass` (stored in
   a transient `currentState` field for the duration of the call), does
   `state.reportMatch(buildDescription(sourceTree).setMessage(msg).build())`.
+- Selecting no checker is a reported configuration error, not a no-op. `eisopcf`
+  is enabled by default once its jar is on the Error Prone processorpath, so
+  without `eisopcf:checkers` the build would look like it was type-checking and
+  would not be -- the failure mode a user cannot see. NullAway takes the same
+  position for its own required option, though it throws from its constructor
+  and surfaces as a compiler crash loud enough to need the words "DO NOT report
+  an issue to Error Prone for this crash". `driverFor` instead throws
+  `IllegalArgumentException`, which `matchClass` already catches and reports
+  once per compilation as an ordinary `eisopcf` diagnostic at the check's
+  configured severity, the same path an unresolvable checker name takes.
+  `-Xep:eisopcf:OFF` is the way to carry the jar without running it.
 - The sink is handed the finding's `TreePath` along with its tree. The checker
   captures it in the 5-arg `printOrStoreMessage`, while it is still visiting the
   finding and the suppression check has just put the path in the shared

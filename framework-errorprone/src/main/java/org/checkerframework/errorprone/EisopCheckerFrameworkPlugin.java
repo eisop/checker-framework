@@ -127,7 +127,8 @@ public class EisopCheckerFrameworkPlugin extends BugChecker implements ClassTree
 
     /**
      * Constructs the plugin with no configuration. Error Prone uses this when instantiating checks
-     * without flags; no checkers will be selected, so the plugin is inert.
+     * without flags. No checker is selected, so the first class this check matches reports that as
+     * a configuration error; see {@link #driverFor}.
      */
     public EisopCheckerFrameworkPlugin() {
         this.checkerClassNames = ImmutableList.of();
@@ -150,11 +151,25 @@ public class EisopCheckerFrameworkPlugin extends BugChecker implements ClassTree
      * end-of-compilation processing (e.g. unneeded-suppression warnings) runs.
      *
      * @param context the compilation context
-     * @return the initialized driver, or {@code null} if no checkers are selected
+     * @return the initialized driver
+     * @throws IllegalArgumentException if no checker is selected, or a selected name does not
+     *     resolve to an instantiable {@code SourceChecker}
      */
-    private @Nullable CheckerFrameworkDriver driverFor(Context context) {
+    private CheckerFrameworkDriver driverFor(Context context) {
         if (checkerClassNames.isEmpty()) {
-            return null;
+            // Being enabled with nothing to run is a configuration mistake, and a silent one: the
+            // build looks like it is type-checking and is not.  Report it rather than doing
+            // nothing, the same way an unresolvable checker name is reported.
+            throw new IllegalArgumentException(
+                    "The "
+                            + canonicalName()
+                            + " check is enabled but no Checker Framework checker is selected, so"
+                            + " nothing was type-checked. Select one or more with -XepOpt:"
+                            + CHECKERS_FLAG
+                            + "=<fully.qualified.CheckerClass>[,<...>], or turn the check off with"
+                            + " -Xep:"
+                            + canonicalName()
+                            + ":OFF.");
         }
         // The javac Context is compared by identity: it is unique per compilation.
         @SuppressWarnings("interning:not.interned")
@@ -388,10 +403,6 @@ public class EisopCheckerFrameworkPlugin extends BugChecker implements ClassTree
                         .setMessage(message != null ? message : e.toString())
                         .build();
             }
-            return Description.NO_MATCH;
-        }
-        if (currentDriver == null) {
-            // No checkers selected: the plugin is inert.
             return Description.NO_MATCH;
         }
         ClassSymbol classSymbol = ASTHelpers.getSymbol(tree);

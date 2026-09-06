@@ -300,6 +300,29 @@ public class EisopCheckerFrameworkPluginTest {
     }
 
     /**
+     * Enabling the check without selecting a checker is reported, rather than silently doing
+     * nothing. The dangerous outcome is not a missing feature but a build that looks like it is
+     * type-checking and is not, so this is treated as a configuration error, like an unresolvable
+     * checker name above.
+     */
+    @Test
+    public void noCheckerSelectedIsReported() {
+        CompilationTestHelper helper =
+                CompilationTestHelper.newInstance(
+                                EisopCheckerFrameworkPlugin.class,
+                                EisopCheckerFrameworkPluginTest.class)
+                        .setArgs(BASE_ARGS);
+        helper.addSourceLines(
+                        "test/Any.java",
+                        "package test;",
+                        "// BUG: Diagnostic contains: no Checker Framework checker is selected",
+                        "class Any {",
+                        "  String m() { return \"x\"; }",
+                        "}")
+                .doTest();
+    }
+
+    /**
      * Illustrates the suppression mechanisms available when several Checker Framework type systems
      * run under the single {@code eisopcf} Error Prone check. Both the Nullness and Interning
      * checkers are enabled.
