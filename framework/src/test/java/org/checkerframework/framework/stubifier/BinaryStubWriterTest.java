@@ -1140,4 +1140,50 @@ public class BinaryStubWriterTest {
             tmp.delete();
         }
     }
+
+    /**
+     * An annotation named through its enclosing class, as the JDK's own {@code
+     * java.lang.invoke.VarHandle} writes {@code @MethodHandle.PolymorphicSignature}, is resolved to
+     * its binary name so that its {@code @Target} can be read.
+     *
+     * <p>Such a name does not load as written: the binary name separates the nesting with {@code
+     * $}. Before it was resolved, the writer could not route the annotation and failed the whole
+     * file, which made every class using a signature-polymorphic method impossible to annotate.
+     * This asserts the outcome that matters: the file is written, and the {@code @Nullable} on the
+     * same method survives.
+     */
+    @Test
+    public void resolvesAnnotationNamedThroughItsEnclosingClass() throws IOException {
+        String source =
+                "package java.lang.invoke;\n"
+                        + "import org.checkerframework.checker.nullness.qual.Nullable;\n"
+                        + "public abstract class Fake {\n"
+                        + "  public final native\n"
+                        + "  @MethodHandle.PolymorphicSignature\n"
+                        + "  @Nullable Object get(Object... args);\n"
+                        + "}\n";
+        BinaryStubData data = roundTrip(source, /* omitUnannotatedMembers= */ false);
+        BinaryStubData.ClassRecord cr = data.classes.get("java.lang.invoke.Fake");
+        Assert.assertNotNull("the class record should have been written", cr);
+        Assert.assertEquals("the annotated method was recorded", 1, cr.methods.length);
+        Assert.assertEquals("get(Object[])", data.stringPool[cr.methods[0].sigIndex]);
+    }
+
+    /**
+     * The same annotation written out fully qualified resolves too: the writer tries each split
+     * point of a dotted name, so {@code java.lang.invoke.MethodHandle.PolymorphicSignature} and
+     * {@code MethodHandle.PolymorphicSignature} reach the same binary name.
+     */
+    @Test
+    public void resolvesAFullyQualifiedNestedAnnotationName() throws IOException {
+        String source =
+                "public abstract class FakeQualified {\n"
+                        + "  public final native\n"
+                        + "  @java.lang.invoke.MethodHandle.PolymorphicSignature\n"
+                        + "  Object get(Object... args);\n"
+                        + "}\n";
+        BinaryStubData data = roundTrip(source, /* omitUnannotatedMembers= */ false);
+        Assert.assertNotNull(
+                "the class record should have been written", data.classes.get("FakeQualified"));
+    }
 }

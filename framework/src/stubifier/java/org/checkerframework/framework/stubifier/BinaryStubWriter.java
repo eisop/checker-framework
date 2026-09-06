@@ -892,24 +892,64 @@ public class BinaryStubWriter {
      * @return the annotation's binary name, or null if it does not resolve
      */
     private @Nullable String nestedAnnotationBinaryName(String name) {
-        int firstDot = name.indexOf('.');
-        String enclosing = name.substring(0, firstDot);
-        String nested = name.substring(firstDot + 1).replace('.', '$');
-        String enclosingFqn = simpleToFqn.get(enclosing);
-        if (enclosingFqn == null && currentPackage != null) {
-            enclosingFqn = classInPackage(currentPackage, enclosing);
+        // Try every split point, rightmost first, so that both the shape the JDK writes
+        // ("MethodHandle.PolymorphicSignature", enclosing name resolved below) and a fully written
+        // out "java.lang.invoke.MethodHandle.PolymorphicSignature" reach the same binary name.
+        // Rightmost first because the last segment is the annotation's own simple name.
+        for (int dot = name.lastIndexOf('.'); dot > 0; dot = name.lastIndexOf('.', dot - 1)) {
+            String enclosing = name.substring(0, dot);
+            String nested = name.substring(dot + 1);
+            String enclosingFqn =
+                    enclosing.indexOf('.') == -1 ? qualifyEnclosingName(enclosing) : enclosing;
+            if (enclosingFqn == null) {
+                continue;
+            }
+            String candidate = enclosingFqn.replace('.', '$') + "$" + nested;
+            // A dotted enclosing name is a package-qualified class, so only the segments after the
+            // package become '$'; try the name as written first, then the all-dollar form.
+            String qualified = enclosingFqn + "$" + nested;
+            if (annotationTargetsByName(qualified) != NOT_LOADABLE) {
+                return qualified;
+            }
+            if (!candidate.equals(qualified)
+                    && annotationTargetsByName(candidate) != NOT_LOADABLE) {
+                return candidate;
+            }
         }
-        if (enclosingFqn == null) {
-            enclosingFqn = classInPackage("java.lang", enclosing);
+        return null;
+    }
+
+    /**
+     * Returns the fully-qualified name of the class with the given simple name, resolved the way
+     * {@link #fullyQualify} resolves a class literal: explicit import, then this file's own
+     * package, then {@code java.lang}, then the asterisk imports. Returns null if none of those
+     * declares such a class on the stubifier classpath.
+     *
+     * @param simpleName a simple class name
+     * @return the fully-qualified name, or null
+     */
+    private @Nullable String qualifyEnclosingName(String simpleName) {
+        String known = simpleToFqn.get(simpleName);
+        if (known != null) {
+            return known;
         }
-        for (int i = 0; enclosingFqn == null && i < asteriskImportPackages.size(); i++) {
-            enclosingFqn = classInPackage(asteriskImportPackages.get(i), enclosing);
+        if (currentPackage != null) {
+            String inCurrentPackage = classInPackage(currentPackage, simpleName);
+            if (inCurrentPackage != null) {
+                return inCurrentPackage;
+            }
         }
-        if (enclosingFqn == null) {
-            return null;
+        String javaLang = classInPackage("java.lang", simpleName);
+        if (javaLang != null) {
+            return javaLang;
         }
-        String candidate = enclosingFqn + "$" + nested;
-        return annotationTargetsByName(candidate) == NOT_LOADABLE ? null : candidate;
+        for (String pkg : asteriskImportPackages) {
+            String candidate = classInPackage(pkg, simpleName);
+            if (candidate != null) {
+                return candidate;
+            }
+        }
+        return null;
     }
 
     /**
@@ -1253,6 +1293,11 @@ public class BinaryStubWriter {
         }
         initImportTables(cus.get(0));
         for (CompilationUnit cu : cus) {
+            // Unlike the imports, the package is a property of the unit being processed: a stub
+            // file's second and later "package" sections declare their own, and resolving a name
+            // against the first section's package would be resolving it in the wrong place.
+            currentPackage =
+                    cu.getPackageDeclaration().map(pd -> pd.getNameAsString()).orElse(null);
             processTypes(cu);
         }
     }
