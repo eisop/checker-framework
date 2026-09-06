@@ -254,6 +254,17 @@ sources failed for an unrelated reason -- they need `--add-exports` at compile
 time, which the harness does not pass -- so the two corpora have not been
 measured under one harness and the discrepancy is not yet explained.
 
+## What came out of it
+
+The benchmark was built to answer a cost question and mostly paid off as a
+*findings* comparison. Four pull requests came from the 167 places where the
+Nullness Checker rejects code NullAway accepts: eisop/jdk#139 and #140 in the
+annotated JDK, and eisop/checker-framework#2025 and #2026. The reasoning is in
+[library-models.md](library-models.md).
+
+The cost question itself is answered only for one corpus, and the two follow-on
+questions below are still open.
+
 ## Caveats
 
 - **One corpus**, and it is the other tool's benchmark. Caffeine is
