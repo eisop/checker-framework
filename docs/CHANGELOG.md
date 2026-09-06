@@ -43,6 +43,11 @@ The shaded jars no longer contain a `module-info.class` or jsr305's
 Recognition of `javax.annotation.Nullable`, `@Nonnull` and `@CheckForNull` in
 user code is unaffected.
 
+The Checker Framework can now run as an Error Prone plugin (the `eisopcf` check), as an
+alternative to running it as a standalone annotation processor.  It is published as
+`io.github.eisop:framework-errorprone` and requires JDK 21 or later.  See the manual's
+"Error Prone" section.
+
 The new `-Amode=<mode>` option turns on a checker-defined group of options; writing one
 of those options yourself overrides the mode.  A checker declares its modes with
 `@SupportedModes` and defines them by overriding `SourceChecker.addOptionsForMode`.
@@ -394,6 +399,13 @@ defaults, and only the latter was cached. Both now use the new
 which `BaseTypeChecker` implements with a cache.
 
 **Implementation details:**
+
+`SourceChecker.printOrStoreMessage` no longer has the two `protected` overloads
+that took no suggested fixes (the four-argument form, and the five-argument form
+taking a `StackTraceElement[]`). The framework now routes all diagnostics
+through fix-carrying overloads, which are `private`. Host-side interception of
+diagnostics is done by installing a `DiagnosticSink`, not by overriding
+`printOrStoreMessage`.
 
 `AnnotatedIntersectionType.summarizeBounds` computes the summary described
 above, reading each bound's qualifier, explicit or defaulted, uniformly,
