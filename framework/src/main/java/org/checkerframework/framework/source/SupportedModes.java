@@ -2,7 +2,6 @@ package org.checkerframework.framework.source;
 
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
-import java.lang.annotation.Inherited;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
@@ -13,14 +12,15 @@ import java.lang.annotation.Target;
  *
  * <p>{@link SourceChecker#getSupportedModes} collects these annotations from the checker's class
  * hierarchy and from its subcheckers; write this annotation on the class whose {@code
- * addOptionsForMode} handles the mode.
+ * addOptionsForMode} handles the mode. It is deliberately not {@code @Inherited}: the collection
+ * walks the hierarchy itself and reads each class's declared annotation, so that a subclass
+ * declaring its own modes adds to its superclass's rather than hiding them.
  *
  * @see SupportedOptions
  */
 @Documented
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.TYPE)
-@Inherited
 public @interface SupportedModes {
     /**
      * Returns the supported mode names.
