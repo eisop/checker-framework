@@ -22,6 +22,12 @@ public class NullnessJSpecifyLocationsTest extends CheckerFrameworkPerDirectoryT
                 "-AjspecifyUnrecognizedLocations");
     }
 
+    /**
+     * This method returns the directories containing test code. Each directory will be type-checked
+     * with {@code -AjspecifyUnrecognizedLocations}.
+     *
+     * @return the directories containing test code
+     */
     @Parameters
     public static String[] getTestDirs() {
         return new String[] {"nullness-jspecify-locations"};
