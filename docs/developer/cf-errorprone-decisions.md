@@ -412,30 +412,37 @@ the manual's Error Prone section and on `DiagnosticSink`.
   builds a sink that, using the `VisitorState` active during `matchClass` (stored in
   a transient `currentState` field for the duration of the call), does
   `state.reportMatch(buildDescription(sourceTree).setMessage(msg).build())`.
-- Selecting no checker is a reported configuration error, not a no-op. `eisopcf`
-  is enabled by default once its jar is on the Error Prone processorpath, so
-  without `eisopcf:checkers` the build would look like it was type-checking and
-  would not be -- the failure mode a user cannot see. NullAway takes the same
-  position for its own required option, though it throws from its constructor
-  and surfaces as a compiler crash loud enough to need the words "DO NOT report
-  an issue to Error Prone for this crash". This reports it once per
-  compilation through javac's `Messager` at `Diagnostic.Kind.ERROR`, deliberately
-  outside Error Prone's severity model: `-Xep:eisopcf:` scales the importance of
-  findings, and this says there will be none, so it is an error at every setting.
-  `Description.overrideSeverity` would keep it inside that model but is a
+- A misconfiguration is a reported error, not a no-op, and not a warning. There
+  are two of them -- no checker selected, and a selected name that does not
+  resolve to an instantiable `SourceChecker` -- and they are the same mistake:
+  both end in nothing being type-checked. `eisopcf` is enabled by default once
+  its jar is on the Error Prone processorpath, so either one leaves a build that
+  looks like it is type-checking and is not, the failure mode a user cannot see.
+  So `reportConfigurationError` reports both once per compilation through javac's
+  `Messager` at `Diagnostic.Kind.ERROR`, deliberately outside Error Prone's
+  severity model: `-Xep:eisopcf:` scales the importance of findings, and these say
+  there will be none, so they are errors at every setting.
+  `Description.overrideSeverity` would keep them inside that model but is a
   `@RestrictedApi` -- "Overriding the severity for individual Descriptions causes
   any command line options to be ignored, which is potentially very confusing" --
-  a fair objection that this respects rather than suppresses. It is reachable only
-  from a class the scanner hands over, since Error Prone evaluates
-  `@SuppressWarnings` before calling a matcher, so a compilation whose every
-  top-level class suppresses `eisopcf` reports nothing; not worth chasing, as such
-  a compilation would have been checked no more than a misconfigured one is.
-  `-Xep:eisopcf:OFF` is the way to carry the jar without running it.
+  a fair objection that this respects rather than suppresses. NullAway takes the
+  same position for its own required option, and gets the same unconditional
+  outcome a different way: it throws `IllegalStateException` from
+  `ErrorProneCLIFlagsConfig`'s constructor, which surfaces as a compiler crash
+  loud enough to need the words "DO NOT report an issue to Error Prone for this
+  crash". Throwing from the flags constructor does reach further -- it fires
+  before any class is visited, whereas this path is reachable only from a class
+  the scanner hands over, and Error Prone evaluates `@SuppressWarnings` before
+  calling a matcher, so a compilation whose every top-level class suppresses
+  `eisopcf` reports nothing. That gap is not worth a stack trace and a
+  "do not report this" preamble: such a compilation would have been checked no
+  more than a misconfigured one is. `-Xep:eisopcf:OFF` is the way to carry the
+  jar without running it.
 
-  An unresolvable checker *name* is still reported at the configured severity,
-  through the `Description` path. The two are arguably the same mistake -- both
-  end in nothing being checked -- and making that one unconditional too is worth
-  considering; it is left alone here rather than changed unasked.
+  The one thing `matchClass` still reports as an ordinary `Description` is the
+  `IllegalStateException` from `EisopContextAdapter` (no `JavacProcessingEnvironment`
+  in the `Context`, i.e. no live compilation), because there the `Messager` is
+  precisely what is unavailable.
 - The sink is handed the finding's `TreePath` along with its tree. The checker
   captures it in the 5-arg `printOrStoreMessage`, while it is still visiting the
   finding and the suppression check has just put the path in the shared
@@ -506,9 +513,9 @@ introduced.
 **Implementation.** No core (`framework`) change was needed; Task 5's `DiagnosticSink`
 already covers multiple checkers (each reports through the sink). The plugin change
 is limited to surfacing a configuration error (e.g. an unresolvable checker name)
-once, as a clean `eisopcf` diagnostic on the class, instead of an unhandled plugin
-exception (`matchClass` catches `IllegalArgumentException` from driver creation and
-records the compilation `Context` it reported for, in `configErrorContext`).
+once, as a clean error, instead of an unhandled plugin exception (`matchClass`
+catches `IllegalArgumentException` from driver creation and records the compilation
+`Context` it reported for, in `configErrorContext`).
 
 **Verified (EisopCheckerFrameworkPluginTest).**
 - `multipleCheckersRunTogether`: Nullness (`return.type.incompatible`) and Interning

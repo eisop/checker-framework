@@ -900,8 +900,13 @@ that fails:
 error: The eisopcf check is enabled but no Checker Framework checker is selected, so
 nothing was type-checked. ...
 \end{Verbatim}
-This is an error whatever \<-Xep:eisopcf:> severity is in effect:  the severity scales
-the importance of findings, and this is a statement that there will be none.  To have
+A name that does not resolve to a Checker Framework checker is reported the same way,
+since it too leaves nothing type-checked:
+\begin{Verbatim}
+error: Checker class not found on the classpath: com.example.NoSuchChecker. ...
+\end{Verbatim}
+Both are errors whatever \<-Xep:eisopcf:> severity is in effect:  the severity scales
+the importance of findings, and these are statements that there will be none.  To have
 the plugin on the processorpath without running it, turn the check off with
 \<-Xep:eisopcf:OFF>.
 

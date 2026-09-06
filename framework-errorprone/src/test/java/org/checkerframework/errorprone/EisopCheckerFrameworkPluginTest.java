@@ -285,15 +285,35 @@ public class EisopCheckerFrameworkPluginTest {
 
     /**
      * An unresolvable checker name produces a clear error rather than silently doing nothing,
-     * confirming the reflective checker resolution surfaces mistakes.
+     * confirming the reflective checker resolution surfaces mistakes. Like an empty selection, it
+     * fails the compilation whatever {@code -Xep:eisopcf:} severity is in effect.
      */
     @Test
     public void unknownCheckerNameIsReported() {
+        // The diagnostic carries no source position, so it cannot be anchored with a
+        // "// BUG: Diagnostic contains:" marker; assert instead that the compilation fails.
         helperWith("-XepOpt:eisopcf:checkers=com.example.NoSuchChecker")
+                .expectResult(Result.ERROR)
                 .addSourceLines(
                         "test/Any.java",
                         "package test;",
-                        "// BUG: Diagnostic contains: Checker class not found",
+                        "class Any {",
+                        "  String m() { return \"x\"; }",
+                        "}")
+                .doTest();
+    }
+
+    /**
+     * Both configuration errors fail the compilation even at the check's default WARNING severity,
+     * since neither is a finding whose importance that severity should scale.
+     */
+    @Test
+    public void configurationErrorsAreUnconditional() {
+        helperWith("-XepOpt:eisopcf:checkers=com.example.NoSuchChecker", "-Xep:eisopcf:WARN")
+                .expectResult(Result.ERROR)
+                .addSourceLines(
+                        "test/Any.java",
+                        "package test;",
                         "class Any {",
                         "  String m() { return \"x\"; }",
                         "}")
@@ -303,8 +323,8 @@ public class EisopCheckerFrameworkPluginTest {
     /**
      * Enabling the check without selecting a checker is reported, rather than silently doing
      * nothing. The dangerous outcome is not a missing feature but a build that looks like it is
-     * type-checking and is not, so this is treated as a configuration error, like an unresolvable
-     * checker name above.
+     * type-checking and is not, so this is treated as a configuration error, and reported the same
+     * unconditional way as the unresolvable checker name above.
      */
     @Test
     public void noCheckerSelectedIsReported() {

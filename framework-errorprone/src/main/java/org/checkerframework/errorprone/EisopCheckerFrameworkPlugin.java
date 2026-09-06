@@ -118,17 +118,17 @@ public class EisopCheckerFrameworkPlugin extends BugChecker implements ClassTree
     private transient @Nullable VisitorState currentState;
 
     /**
-     * The context of the compilation for which a configuration error (e.g. an unresolvable checker
-     * name) has already been reported, so it is surfaced once per compilation rather than on every
-     * class. Keyed by context, like {@link #driverContext}, so a reused plugin instance still
-     * reports the error in a later compilation.
+     * The context of the compilation for which a configuration error (no checker selected, or an
+     * unresolvable checker name) has already been reported, so it is surfaced once per compilation
+     * rather than on every class. Keyed by context, like {@link #driverContext}, so a reused plugin
+     * instance still reports the error in a later compilation.
      */
     private transient @Nullable Context configErrorContext;
 
     /**
      * Constructs the plugin with no configuration. Error Prone uses this when instantiating checks
      * without flags. No checker is selected, so the first class this check matches reports that as
-     * a configuration error; see {@link #driverFor}.
+     * a configuration error; see {@link #reportConfigurationError}.
      */
     public EisopCheckerFrameworkPlugin() {
         this.checkerClassNames = ImmutableList.of();
@@ -368,7 +368,9 @@ public class EisopCheckerFrameworkPlugin extends BugChecker implements ClassTree
     }
 
     /**
-     * Reports, once per compilation, that the check is enabled with no checker selected.
+     * Reports a configuration error once per compilation: either no checker is selected, or a
+     * selected name does not resolve to an instantiable {@code SourceChecker}. Both mean that
+     * nothing is type-checked, so both are reported the same way.
      *
      * <p>Raised through javac's {@code Messager} at {@link Diagnostic.Kind#ERROR}, deliberately
      * outside Error Prone's severity model. This is not a finding whose importance the {@code
@@ -390,8 +392,9 @@ public class EisopCheckerFrameworkPlugin extends BugChecker implements ClassTree
      * disabled check never reaches this method.
      *
      * @param context the compilation context
+     * @param message the error message
      */
-    private void reportNoCheckerSelected(Context context) {
+    private void reportConfigurationError(Context context, String message) {
         // The javac Context is compared by identity: it is unique per compilation.
         @SuppressWarnings("interning:not.interned")
         boolean alreadyReportedForThisContext = configErrorContext == context;
@@ -401,45 +404,58 @@ public class EisopCheckerFrameworkPlugin extends BugChecker implements ClassTree
         configErrorContext = context;
         EisopContextAdapter.getProcessingEnvironment(context)
                 .getMessager()
-                .printMessage(
-                        Diagnostic.Kind.ERROR,
-                        "The "
-                                + canonicalName()
-                                + " check is enabled but no Checker Framework checker is selected,"
-                                + " so nothing was type-checked. Select one or more with -XepOpt:"
-                                + CHECKERS_FLAG
-                                + "=<fully.qualified.CheckerClass>[,<...>], or turn the check off"
-                                + " with -Xep:"
-                                + canonicalName()
-                                + ":OFF.");
+                .printMessage(Diagnostic.Kind.ERROR, message);
+    }
+
+    /**
+     * Returns the message for the configuration error of enabling the check without selecting a
+     * checker.
+     *
+     * @return the message for an empty checker selection
+     */
+    private String noCheckerSelectedMessage() {
+        return "The "
+                + canonicalName()
+                + " check is enabled but no Checker Framework checker is selected, so nothing was"
+                + " type-checked. Select one or more with -XepOpt:"
+                + CHECKERS_FLAG
+                + "=<fully.qualified.CheckerClass>[,<...>], or turn the check off with -Xep:"
+                + canonicalName()
+                + ":OFF.";
     }
 
     @Override
     public Description matchClass(ClassTree tree, VisitorState state) {
         if (checkerClassNames.isEmpty()) {
-            reportNoCheckerSelected(state.context);
+            reportConfigurationError(state.context, noCheckerSelectedMessage());
             return Description.NO_MATCH;
         }
         CheckerFrameworkDriver currentDriver;
         try {
             currentDriver = driverFor(state.context);
-        } catch (IllegalArgumentException | IllegalStateException e) {
-            // Driver setup failed: either a configuration error (IllegalArgumentException, e.g. an
-            // unresolvable checker name) or a context with no live javac compilation
-            // (IllegalStateException from EisopContextAdapter).  Report it once, as a clean eisopcf
-            // diagnostic, rather than letting it propagate as an unhandled plugin exception on
-            // every class.  Other (unexpected) runtime exceptions are left to propagate.
+        } catch (IllegalArgumentException e) {
+            // A configuration error, e.g. an unresolvable checker name.  Like an empty selection,
+            // it means nothing is type-checked, so report it the same unconditional way.  Other
+            // (unexpected) runtime exceptions are left to propagate.
+            String message = e.getMessage();
+            reportConfigurationError(state.context, message != null ? message : e.toString());
+            return Description.NO_MATCH;
+        } catch (IllegalStateException e) {
+            // The context has no live javac compilation (from EisopContextAdapter), so the
+            // Messager that reportConfigurationError would use is exactly what is unavailable.
+            // Report it once as an ordinary eisopcf Description instead, rather than letting it
+            // propagate as an unhandled plugin exception on every class.
             // The javac Context is compared by identity: it is unique per compilation.
             @SuppressWarnings("interning:not.interned")
             boolean alreadyReportedForThisContext = configErrorContext == state.context;
-            if (!alreadyReportedForThisContext) {
-                configErrorContext = state.context;
-                String message = e.getMessage();
-                return buildDescription(tree)
-                        .setMessage(message != null ? message : e.toString())
-                        .build();
+            if (alreadyReportedForThisContext) {
+                return Description.NO_MATCH;
             }
-            return Description.NO_MATCH;
+            configErrorContext = state.context;
+            String message = e.getMessage();
+            return buildDescription(tree)
+                    .setMessage(message != null ? message : e.toString())
+                    .build();
         }
         ClassSymbol classSymbol = ASTHelpers.getSymbol(tree);
         // ASTHelpers.getSymbol(ClassTree) can return null for an incomplete or unattributed class
