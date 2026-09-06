@@ -43,6 +43,11 @@ The shaded jars no longer contain a `module-info.class` or jsr305's
 Recognition of `javax.annotation.Nullable`, `@Nonnull` and `@CheckForNull` in
 user code is unaffected.
 
+The Checker Framework can now run as an Error Prone plugin (the `eisopcf` check), as an
+alternative to running it as a standalone annotation processor.  It is published as
+`io.github.eisop:framework-errorprone` and requires JDK 21 or later.  See the manual's
+"Error Prone" section.
+
 `AnnotatedFor`, `HasQualifierParameter`, and `ReportUse` gain the
 `applyToSubpackages` element that `DefaultQualifier` already had. It says whether
 an annotation written on a package also applies to that package's subpackages,
@@ -392,6 +397,13 @@ defaults, and only the latter was cached. Both now use the new
 which `BaseTypeChecker` implements with a cache.
 
 **Implementation details:**
+
+`SourceChecker.printOrStoreMessage` no longer has the two `protected` overloads
+that took no suggested fixes (the four-argument form, and the five-argument form
+taking a `StackTraceElement[]`). The framework now routes all diagnostics
+through fix-carrying overloads, which are `private`. Host-side interception of
+diagnostics is done by installing a `DiagnosticSink`, not by overriding
+`printOrStoreMessage`.
 
 Code that walks up the package chain looking for a package annotation must now gate
 each step to an enclosing package on that annotation's `applyToSubpackages` element;
