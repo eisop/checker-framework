@@ -254,6 +254,45 @@ sources failed for an unrelated reason -- they need `--add-exports` at compile
 time, which the harness does not pass -- so the two corpora have not been
 measured under one harness and the discrepancy is not yet explained.
 
+## The 149 "NullAway-only" findings were almost all a measurement artifact
+
+The table above compared the two tools by exact source line. That is too strict:
+the tools anchor a finding at different positions within the same statement -- an
+assignment's left side against its right, a call against its argument -- so the
+same problem lands on different lines. Allowing a three-line tolerance:
+
+| | exact line | within 3 lines |
+| --- | ---: | ---: |
+| NullAway findings with no Checker Framework finding nearby | 149 | **3** |
+| Checker Framework findings with no NullAway finding nearby | 1166 | 908 |
+
+**146 of the 149 were the same problem reported a line or two apart.** The
+disagreement in both directions was overstated; the Checker Framework-only
+figure is the one that still matters, and it too shrinks by a fifth.
+
+### The three real ones are NullAway false positives
+
+All three are the same idiom, in `MpscGrowableArrayQueue`:
+
+```java
+soElement(buffer, offset, null);   // static <E> void soElement(E[] buffer, long offset, E e)
+```
+
+A queue nulling out the slot it has just consumed. The array genuinely holds
+nulls -- the code reads elements back and null-checks them (`if (n == null)
+throw new IllegalStateException(...)` a few lines above one of the three) -- so
+the element type really is nullable and the code is correct at run time.
+NullAway reports it because it does not carry the array's element nullability
+through the type variable `E`, which is the same generics weakness that accounts
+for the 47 `type.argument.type.incompatible` findings going the other way. The
+Checker Framework, which does track it, is right to accept them.
+
+**No Checker Framework unsoundness turned up in this set.** That is a real
+result but a narrow one: it says nothing about the 908 findings the Checker
+Framework reports alone, which remain unexamined, and the three-line tolerance
+is a heuristic that could mask a genuine disagreement that happens to sit near
+an unrelated finding.
+
 ## What came out of it
 
 The benchmark was built to answer a cost question and mostly paid off as a
