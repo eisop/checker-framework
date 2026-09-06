@@ -4,9 +4,10 @@ Version 3.49.5-eisop2 (June ?, 2026)
 **User-visible changes:**
 
 A check that reads an annotation from the source tree now resolves aliases first, so a written
-alias such as `org.jspecify.annotations.Nullable` is treated as the qualifier it stands for. The
-`annotation.on.supertype`, `instanceof.nullable`, and `instanceof.nonnull.redundant` diagnostics
-were previously issued only for a checker's own annotation.
+alias such as `org.jspecify.annotations.Nullable` or `@IndexFor` is treated as the qualifier it
+stands for. The `annotation.on.supertype`, `instanceof.nullable`, `instanceof.nonnull.redundant`,
+`invalid.polymorphic.qualifier`, `explicit.annotation.ignored`, and `anno.on.irrelevant`
+diagnostics were previously issued only for a checker's own annotation.
 
 Two new Maven Central artifacts support writing a custom checker without
 depending on the whole `checker` artifact: `io.github.eisop:framework`, which

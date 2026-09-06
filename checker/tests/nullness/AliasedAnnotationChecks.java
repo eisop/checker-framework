@@ -17,4 +17,12 @@ public class AliasedAnnotationChecks extends @Nullable AliasedAnnotationChecksBa
         // :: warning: (instanceof.nonnull.redundant)
         boolean b = o instanceof @org.jspecify.annotations.NonNull String;
     }
+
+    interface MyList {}
+
+    // The explicit annotation on the second bound is ignored, because the first bound wins.
+    // :: warning: (explicit.annotation.ignored)
+    <E extends Object & @Nullable MyList> void intersectionBound(E e) {
+        e.toString();
+    }
 }

@@ -735,11 +735,12 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             new TreeScanner<Void, String>() {
                 @Override
                 public Void visitAnnotation(AnnotationTree annoTree, String location) {
-                    AnnotationMirror anno = TreeUtils.annotationFromAnnotationTree(annoTree);
+                    AnnotationMirror written = TreeUtils.annotationFromAnnotationTree(annoTree);
+                    AnnotationMirror anno = atypeFactory.canonicalIfAlias(written);
                     if (atypeFactory.isSupportedQualifier(anno)
                             && qualHierarchy.isPolymorphicQualifier(anno)) {
                         checker.reportError(
-                                annoTree, "invalid.polymorphic.qualifier", anno, location);
+                                annoTree, "invalid.polymorphic.qualifier", written, location);
                     }
                     return super.visitAnnotation(annoTree, location);
                 }
@@ -1859,7 +1860,8 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             }
             List<? extends AnnotationMirror> explictAnnos =
                     TreeUtils.annotationsFromTree((AnnotatedTypeTree) boundTree);
-            for (AnnotationMirror explictAnno : explictAnnos) {
+            for (AnnotationMirror writtenAnno : explictAnnos) {
+                AnnotationMirror explictAnno = atypeFactory.canonicalIfAlias(writtenAnno);
                 if (atypeFactory.isSupportedQualifier(explictAnno)) {
                     AnnotationMirror anno = intersection.getAnnotationInHierarchy(explictAnno);
                     if (!AnnotationUtils.areSame(anno, explictAnno)) {
@@ -3396,7 +3398,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         for (AnnotationTree at : annoTrees) {
             AnnotationMirror anno = TreeUtils.annotationFromAnnotationTree(at);
             if (AnnotationUtils.isTypeUseAnnotation(anno)
-                    && atypeFactory.isSupportedQualifier(anno)) {
+                    && atypeFactory.isSupportedQualifier(atypeFactory.canonicalIfAlias(anno))) {
                 result.add(at);
             }
         }
