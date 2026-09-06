@@ -1144,15 +1144,10 @@ public class BinaryStubWriterTest {
     }
 
     /**
-     * An annotation named through its enclosing class, as the JDK's own {@code
-     * java.lang.invoke.VarHandle} writes {@code @MethodHandle.PolymorphicSignature}, is resolved to
-     * its binary name so that its {@code @Target} can be read.
-     *
-     * <p>Such a name does not load as written: the binary name separates the nesting with {@code
-     * $}. Before it was resolved, the writer could not route the annotation and failed the whole
-     * file, which made every class using a signature-polymorphic method impossible to annotate.
-     * This asserts the outcome that matters: the file is written, and the {@code @Nullable} on the
-     * same method survives.
+     * An annotation named through its enclosing class, as {@code java.lang.invoke.VarHandle} writes
+     * {@code @MethodHandle.PolymorphicSignature}, is resolved to its binary name so that its
+     * {@code @Target} can be read. Such a name does not load as written: the binary name separates
+     * the nesting with {@code $}.
      */
     @Test
     public void resolvesAnnotationNamedThroughItsEnclosingClass() throws IOException {

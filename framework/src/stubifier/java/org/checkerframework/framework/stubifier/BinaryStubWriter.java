@@ -852,11 +852,9 @@ public class BinaryStubWriter {
                 return name;
             }
             // Not loadable as written, so it may be a nested annotation named through its
-            // enclosing class rather than a fully-qualified name: the JDK's own
-            // java.lang.invoke.VarHandle writes @MethodHandle.PolymorphicSignature, whose binary
-            // name separates the nesting with '$'.  Resolving it is what lets a file that uses one
-            // be stubified at all; without this the writer cannot read the annotation's @Target
-            // and fails the whole file.
+            // enclosing class rather than a fully-qualified name -- as java.lang.invoke.VarHandle
+            // writes @MethodHandle.PolymorphicSignature, whose binary name separates the nesting
+            // with '$'.
             String nested = nestedAnnotationBinaryName(name);
             return nested != null ? nested : name;
         }
@@ -897,12 +895,10 @@ public class BinaryStubWriter {
             return null;
         }
         // Rightmost split point first, because the last segment is the annotation's own simple
-        // name.  Trying the others too lets "MethodHandle.PolymorphicSignature" and a written-out
-        // "java.lang.invoke.MethodHandle.PolymorphicSignature" reach the same binary name.
+        // name; trying the others too accepts an already-qualified name.
         for (int dot = name.lastIndexOf('.'); dot > 0; dot = name.lastIndexOf('.', dot - 1)) {
-            // fullyQualify returns a dotted name unchanged, so an already-qualified enclosing name
-            // passes through.  Only the segments after the package are nesting, so just those
-            // become '$'.
+            // fullyQualify returns a dotted name unchanged, so a qualified enclosing name passes
+            // through.
             String enclosingFqn = fullyQualify(name.substring(0, dot), cu);
             String binaryName = enclosingFqn + "$" + name.substring(dot + 1).replace('.', '$');
             if (annotationTargetsByName(binaryName) != NOT_LOADABLE) {
