@@ -43,6 +43,11 @@ The shaded jars no longer contain a `module-info.class` or jsr305's
 Recognition of `javax.annotation.Nullable`, `@Nonnull` and `@CheckForNull` in
 user code is unaffected.
 
+`sometimes-nullable.astub` now also covers `MethodHandle`'s `invoke`, `invokeExact`,
+`invokeWithArguments` and `bindTo` arguments, which are signature-polymorphic in the
+same way: whether an argument may be null depends on the target's parameter type.
+Their return types are `@Nullable` in the annotated JDK itself, soundly.
+
 `sometimes-nullable.astub` now covers the 19 `VarHandle` access modes that a
 reference-typed field supports: the `get`, `set`, `compareAndSet`,
 `weakCompareAndSet`, `compareAndExchange` and `getAndSet` families. A `VarHandle`

@@ -67,3 +67,21 @@ public abstract class VarHandle {
 
     public final native boolean weakCompareAndSetRelease(@Nullable Object... args);
 }
+
+// MethodHandle's invocation methods are signature-polymorphic in the same way: whether an argument
+// may be null depends on the parameter type of the target the handle was found for.  For a
+// reference parameter null is a legal argument; for a primitive one it throws.  bindTo has the
+// same shape -- it binds a value to the target's first parameter.
+//
+// Only the arguments are listed.  The return types are @Nullable in the annotated JDK itself,
+// soundly: a reference-returning target really can return null, and invokeWithArguments is
+// documented to return null for a void target.
+public abstract class MethodHandle {
+    public final native @Nullable Object invoke(@Nullable Object... args);
+
+    public final native @Nullable Object invokeExact(@Nullable Object... args);
+
+    public @Nullable Object invokeWithArguments(@Nullable Object... arguments);
+
+    public MethodHandle bindTo(@Nullable Object x);
+}
