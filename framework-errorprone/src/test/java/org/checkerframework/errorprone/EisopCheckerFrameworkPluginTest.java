@@ -3,6 +3,7 @@ package org.checkerframework.errorprone;
 import com.google.errorprone.CompilationTestHelper;
 import com.google.errorprone.bugpatterns.SelfAssignment;
 import com.google.errorprone.scanner.ScannerSupplier;
+import com.sun.tools.javac.main.Main.Result;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -312,10 +313,13 @@ public class EisopCheckerFrameworkPluginTest {
                                 EisopCheckerFrameworkPlugin.class,
                                 EisopCheckerFrameworkPluginTest.class)
                         .setArgs(BASE_ARGS);
-        helper.addSourceLines(
+        // The diagnostic carries no source position, so it cannot be anchored with a
+        // "// BUG: Diagnostic contains:" marker; assert instead that the compilation fails, which
+        // is the property that distinguishes this from the warning it used to be.
+        helper.expectResult(Result.ERROR)
+                .addSourceLines(
                         "test/Any.java",
                         "package test;",
-                        "// BUG: Diagnostic contains: no Checker Framework checker is selected",
                         "class Any {",
                         "  String m() { return \"x\"; }",
                         "}")

@@ -156,21 +156,6 @@ public class EisopCheckerFrameworkPlugin extends BugChecker implements ClassTree
      *     resolve to an instantiable {@code SourceChecker}
      */
     private CheckerFrameworkDriver driverFor(Context context) {
-        if (checkerClassNames.isEmpty()) {
-            // Being enabled with nothing to run is a configuration mistake, and a silent one: the
-            // build looks like it is type-checking and is not.  Report it rather than doing
-            // nothing, the same way an unresolvable checker name is reported.
-            throw new IllegalArgumentException(
-                    "The "
-                            + canonicalName()
-                            + " check is enabled but no Checker Framework checker is selected, so"
-                            + " nothing was type-checked. Select one or more with -XepOpt:"
-                            + CHECKERS_FLAG
-                            + "=<fully.qualified.CheckerClass>[,<...>], or turn the check off with"
-                            + " -Xep:"
-                            + canonicalName()
-                            + ":OFF.");
-        }
         // The javac Context is compared by identity: it is unique per compilation.
         @SuppressWarnings("interning:not.interned")
         boolean sameContext = driverContext == context;
@@ -382,8 +367,59 @@ public class EisopCheckerFrameworkPlugin extends BugChecker implements ClassTree
         return message;
     }
 
+    /**
+     * Reports, once per compilation, that the check is enabled with no checker selected.
+     *
+     * <p>Raised through javac's {@code Messager} at {@link Diagnostic.Kind#ERROR}, deliberately
+     * outside Error Prone's severity model. This is not a finding whose importance the {@code
+     * -Xep:eisopcf:} severity should scale; it is a statement that the configuration is broken, and
+     * a build that looks like it is type-checking and is not should fail rather than warn.
+     *
+     * <p>The alternative, {@code Description.Builder.overrideSeverity}, is a {@code @RestrictedApi}
+     * in Error Prone: "Overriding the severity for individual Descriptions causes any command line
+     * options to be ignored, which is potentially very confusing." That is a fair objection to
+     * deviating per finding, and the reason this goes through the {@code Messager} instead of
+     * suppressing the restriction.
+     *
+     * <p>Reachable only from a class Error Prone hands to this check: the scanner evaluates
+     * {@code @SuppressWarnings} before calling a matcher, so a compilation in which <em>every</em>
+     * top-level class suppresses {@code eisopcf} reports nothing. Not worth chasing -- such a
+     * compilation would have been checked no more than a misconfigured one is.
+     *
+     * <p>{@code -Xep:eisopcf:OFF} remains the way to carry the plugin without running it; a
+     * disabled check never reaches this method.
+     *
+     * @param context the compilation context
+     */
+    private void reportNoCheckerSelected(Context context) {
+        // The javac Context is compared by identity: it is unique per compilation.
+        @SuppressWarnings("interning:not.interned")
+        boolean alreadyReportedForThisContext = configErrorContext == context;
+        if (alreadyReportedForThisContext) {
+            return;
+        }
+        configErrorContext = context;
+        EisopContextAdapter.getProcessingEnvironment(context)
+                .getMessager()
+                .printMessage(
+                        Diagnostic.Kind.ERROR,
+                        "The "
+                                + canonicalName()
+                                + " check is enabled but no Checker Framework checker is selected,"
+                                + " so nothing was type-checked. Select one or more with -XepOpt:"
+                                + CHECKERS_FLAG
+                                + "=<fully.qualified.CheckerClass>[,<...>], or turn the check off"
+                                + " with -Xep:"
+                                + canonicalName()
+                                + ":OFF.");
+    }
+
     @Override
     public Description matchClass(ClassTree tree, VisitorState state) {
+        if (checkerClassNames.isEmpty()) {
+            reportNoCheckerSelected(state.context);
+            return Description.NO_MATCH;
+        }
         CheckerFrameworkDriver currentDriver;
         try {
             currentDriver = driverFor(state.context);

@@ -418,11 +418,24 @@ the manual's Error Prone section and on `DiagnosticSink`.
   would not be -- the failure mode a user cannot see. NullAway takes the same
   position for its own required option, though it throws from its constructor
   and surfaces as a compiler crash loud enough to need the words "DO NOT report
-  an issue to Error Prone for this crash". `driverFor` instead throws
-  `IllegalArgumentException`, which `matchClass` already catches and reports
-  once per compilation as an ordinary `eisopcf` diagnostic at the check's
-  configured severity, the same path an unresolvable checker name takes.
+  an issue to Error Prone for this crash". This reports it once per
+  compilation through javac's `Messager` at `Diagnostic.Kind.ERROR`, deliberately
+  outside Error Prone's severity model: `-Xep:eisopcf:` scales the importance of
+  findings, and this says there will be none, so it is an error at every setting.
+  `Description.overrideSeverity` would keep it inside that model but is a
+  `@RestrictedApi` -- "Overriding the severity for individual Descriptions causes
+  any command line options to be ignored, which is potentially very confusing" --
+  a fair objection that this respects rather than suppresses. It is reachable only
+  from a class the scanner hands over, since Error Prone evaluates
+  `@SuppressWarnings` before calling a matcher, so a compilation whose every
+  top-level class suppresses `eisopcf` reports nothing; not worth chasing, as such
+  a compilation would have been checked no more than a misconfigured one is.
   `-Xep:eisopcf:OFF` is the way to carry the jar without running it.
+
+  An unresolvable checker *name* is still reported at the configured severity,
+  through the `Description` path. The two are arguably the same mistake -- both
+  end in nothing being checked -- and making that one unconditional too is worth
+  considering; it is left alone here rather than changed unasked.
 - The sink is handed the finding's `TreePath` along with its tree. The checker
   captures it in the 5-arg `printOrStoreMessage`, while it is still visiting the
   finding and the suppression check has just put the path in the shared
