@@ -9,9 +9,6 @@ import java.util.function.Function;
 
 public class RecognizedLocations {
 
-    // A record component type.
-    record Rec(@Nullable String component) {}
-
     // A field's root type.
     @Nullable String field;
 
