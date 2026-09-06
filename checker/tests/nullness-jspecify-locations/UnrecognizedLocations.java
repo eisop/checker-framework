@@ -46,7 +46,7 @@ public class UnrecognizedLocations {
 
         // The Checker Framework reads this location, so it also reports the reference as
         // returning @Nullable where @NonNull is required.
-        // :: error: (methodref.return.invalid) :: warning: (jspecify.unrecognized.location)
+        // :: error: (methodref.return.invalid) :: error: (jspecify.unrecognized.location)
         Supplier<String> methodReference = @Nullable String::new;
 
         // The array itself, as opposed to its component type.  The specification gives this

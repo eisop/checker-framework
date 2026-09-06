@@ -7,8 +7,8 @@ The Nullness Checker's new `-AjspecifyUnrecognizedLocations` command-line option
 for a nullness annotation written in a location to which JSpecify gives no meaning: a class declaration,
 an annotation interface member's return type, a wildcard, a type parameter, a thrown type, or the
 root type of a local variable, a cast, or a method reference. It is off by default, because the
-Checker Framework reads a nullness annotation on the root type of a local variable, of a cast, and
-of a method reference.
+Checker Framework reads a nullness annotation in five of those locations: a class declaration, a
+wildcard, and the root type of a local variable, of a cast, and of a method reference.
 
 Two new Maven Central artifacts support writing a custom checker without
 depending on the whole `checker` artifact: `io.github.eisop:framework`, which
