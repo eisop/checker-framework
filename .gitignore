@@ -100,6 +100,8 @@ docs/examples/MavenExample/Out.txt
 docs/examples/MavenExample-framework-all/Out.txt
 docs/examples/errorprone/.gradle/
 docs/examples/errorprone/Out.txt
+docs/examples/eisop-errorprone/.gradle/
+docs/examples/eisop-errorprone/Out.txt
 docs/examples/nullaway/.gradle/
 docs/examples/nullaway/Out.txt
 docs/examples/jspecify/.gradle/
