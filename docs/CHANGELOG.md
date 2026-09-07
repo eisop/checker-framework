@@ -3,6 +3,10 @@ Version 3.49.5-eisop2 (June ?, 2026)
 
 **User-visible changes:**
 
+When the Initialization Checker rejects a method call on a partially-initialized receiver, it
+now reports `initialization.method.invocation.invalid`, which names the fields that are still
+uninitialized at the call, instead of the framework's `method.invocation.invalid`.
+
 Two new Maven Central artifacts support writing a custom checker without
 depending on the whole `checker` artifact: `io.github.eisop:framework`, which
 declares its dependencies in its POM, and `io.github.eisop:framework-all`,
@@ -60,6 +64,12 @@ the checker is written as a main annotation on the superclass or interface in an
 `implements` clause. Annotations on the supertype's type arguments remain permitted. A checker
 that permits main annotations on supertypes, such as the Tainting Checker, can override
 `BaseTypeVisitor#checkAnnotationOnSupertype(Tree)`.
+
+A checker that viewpoint-adapts no longer crashes on a raw use of an F-bounded
+class such as `class Rec<T extends Rec<T>>`, whose type graph points back at
+itself. `AbstractViewpointAdapter` now adapts and substitutes with
+`AnnotatedTypeCopier`, which copies each type once, instead of with its own
+recursion, which never reached the end of such a graph.
 
 The Nullness Checker now refines `Queue.poll()`, `Queue.peek()`,
 `Deque.pollFirst()`, `Deque.pollLast()`, `Deque.peekFirst()`, and
@@ -766,11 +776,11 @@ Other improvements and bug fixes:
 
 **Closed issues:**
 
-eisop#104, eisop#386, eisop#433, eisop#737, eisop#786, eisop#792, eisop#863,
-eisop#949, eisop#1015, eisop#1059, eisop#1074, eisop#1244, eisop#1315,
-eisop#1564, eisop#1592, eisop#1642, eisop#1653, eisop#1735, eisop#1801,
-eisop#1818, eisop#1819, eisop#1861, eisop#1862, eisop#1863, eisop#1865,
-eisop#1887, eisop#1965, eisop#1987, typetools#399, typetools#3203.
+eisop#104, eisop#386, eisop#433, eisop#622, eisop#737, eisop#778, eisop#786,
+eisop#792, eisop#863, eisop#949, eisop#1015, eisop#1059, eisop#1074, eisop#1244,
+eisop#1315, eisop#1564, eisop#1592, eisop#1642, eisop#1653, eisop#1735,
+eisop#1801, eisop#1818, eisop#1819, eisop#1861, eisop#1862, eisop#1863,
+eisop#1865, eisop#1887, eisop#1965, eisop#1987, typetools#399, typetools#3203.
 
 
 Version 3.49.5-eisop1 (April 26, 2026)
