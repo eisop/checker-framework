@@ -406,11 +406,17 @@ Two concrete examples of using \code{-processor} to run the Nullness Checker are
 \noindent
 where \<javac> is as specified in Section~\ref{javac-wrapper}.
 
+If your project already uses \href{https://errorprone.info/}{Error Prone}, you can instead
+run the Checker Framework as an Error Prone plugin, so that its type systems run as part of
+your existing Error Prone compilation rather than as a separate annotation processor.  See
+Section~\ref{error-prone}.
+
 You can also run a checker from within your favorite IDE or build system.  See
-Chapter~\ref{external-tools} for details about build tools such as
+Chapter~\ref{external-tools} for details about tools such as
 Ant (Section~\ref{ant-task}),
 Bazel (Section~\ref{bazel}),
 Buck (Section~\ref{buck}),
+Error Prone (Section~\ref{error-prone}),
 Gradle (Section~\ref{gradle}),
 Maven (Section~\ref{maven}), and
 sbt (Section~\ref{sbt});
