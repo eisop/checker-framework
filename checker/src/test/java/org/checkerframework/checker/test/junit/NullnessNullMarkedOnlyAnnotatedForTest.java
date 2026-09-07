@@ -27,6 +27,12 @@ public class NullnessNullMarkedOnlyAnnotatedForTest extends CheckerFrameworkPerD
                 "-AonlyAnnotatedFor");
     }
 
+    /**
+     * This method returns the directories containing test code. Each directory will be type-checked
+     * with {@code -AonlyAnnotatedFor}.
+     *
+     * @return the directories containing test code
+     */
     @Parameters
     public static String[] getTestDirs() {
         return new String[] {"nullness-nullmarked-onlyannotatedfor"};
