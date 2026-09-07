@@ -23,6 +23,10 @@ import java.lang.annotation.Target;
  * warnings. However, a class with a relevant {@code @AnnotatedFor} annotation is always defaulted
  * normally (typically using the CLIMB-to-top rule), and typechecking warnings are issued.
  *
+ * <p>An {@code @AnnotatedFor} on a package also applies to subpackages, unless the {@code
+ * applyToSubpackages} field is set to false. Setting it to false does not block an applicable
+ * {@code @AnnotatedFor} on an enclosing package.
+ *
  * @checker_framework.manual #compiling-libraries Compiling partially-annotated libraries
  */
 @Documented
@@ -39,4 +43,11 @@ public @interface AnnotatedFor {
      * @checker_framework.manual #shorthand-for-checkers Short names for built-in checkers
      */
     String[] value();
+
+    /**
+     * When used on a package, whether this annotation should also apply to subpackages.
+     *
+     * @return whether this annotation should be inherited by subpackages
+     */
+    boolean applyToSubpackages() default true;
 }
