@@ -287,6 +287,33 @@ public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
     }
 
     /**
+     * An {@link AnnotatedTypeCopier} that recomputes an intersection type's primary annotation from
+     * its bounds, after the copy has transformed them.
+     *
+     * <p>Both copiers below need this, and both terminate on a self-referential type because {@link
+     * AnnotatedTypeCopier}'s original-to-copy map visits each type once.
+     */
+    private abstract static class SummarizeIntersectionCopier extends AnnotatedTypeCopier {
+
+        /** Constructor for subclasses to call. */
+        SummarizeIntersectionCopier() {}
+
+        @Override
+        public AnnotatedTypeMirror visitIntersection(
+                AnnotatedIntersectionType original,
+                IdentityHashMap<AnnotatedTypeMirror, AnnotatedTypeMirror> originalToCopy) {
+            AnnotatedIntersectionType result =
+                    (AnnotatedIntersectionType) super.visitIntersection(original, originalToCopy);
+            // An intersection has no primary annotation of its own to transform; recompute it from
+            // the bounds, which super has just transformed.  Do not clear it first:
+            // AnnotatedIntersectionType#clearAnnotations also clears every bound, which would
+            // discard those results before summarizeBounds reads them.
+            result.summarizeBounds();
+            return result;
+        }
+    }
+
+    /**
      * Copies an annotated type graph, viewpoint-adapting each qualifier as it goes. Adaptation is
      * the copy's only difference from its original.
      *
@@ -294,7 +321,7 @@ public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
      * adapts each type once and points every later reference at that copy. The hand-rolled
      * traversal this replaced recursed until it overflowed the stack (eisop#778).
      */
-    private final class ViewpointAdaptationCopier extends AnnotatedTypeCopier {
+    private final class ViewpointAdaptationCopier extends SummarizeIntersectionCopier {
 
         /** The receiver qualifier used for viewpoint adaptation. */
         private final AnnotationMirror receiverAnnotation;
@@ -312,9 +339,11 @@ public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
         protected void maybeCopyPrimaryAnnotations(
                 AnnotatedTypeMirror source, AnnotatedTypeMirror dest) {
             super.maybeCopyPrimaryAnnotations(source, dest);
-            // Only these kinds carry a primary annotation that adaptation applies to.  A wildcard
-            // has none; a type variable's is the use's, not the declaration's, and an
-            // intersection's is recomputed from its bounds (see visitIntersection).
+            // A wildcard has no primary annotation.  A type variable's belongs to the use
+            // rather than to the declaration, so adaptation leaves it alone.  An intersection's
+            // is recomputed from its bounds instead (see visitIntersection).  Any other kind is
+            // left as copied: the traversal this replaced threw BugInCF rather than adapting one,
+            // so none reaches here.
             TypeKind kind = source.getKind();
             if (kind.isPrimitive()
                     || kind == TypeKind.DECLARED
@@ -325,20 +354,6 @@ public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
                                 receiverAnnotation, extractAnnotationMirror(source));
                 dest.replaceAnnotation(resultAnnotation);
             }
-        }
-
-        @Override
-        public AnnotatedTypeMirror visitIntersection(
-                AnnotatedIntersectionType original,
-                IdentityHashMap<AnnotatedTypeMirror, AnnotatedTypeMirror> originalToCopy) {
-            AnnotatedIntersectionType result =
-                    (AnnotatedIntersectionType) super.visitIntersection(original, originalToCopy);
-            // An intersection has no primary annotation of its own to adapt; recompute it from the
-            // bounds, which super just adapted.  Do not clear it first:
-            // AnnotatedIntersectionType#clearAnnotations also clears every bound, which would
-            // discard those adapted bounds before summarizeBounds reads them.
-            result.summarizeBounds();
-            return result;
         }
     }
 
@@ -371,12 +386,8 @@ public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
         return new TypeVariableSubstitutionCopier((AnnotatedDeclaredType) lhs).visit(rhs);
     }
 
-    /**
-     * Performs the substitution described by {@link #substituteTVars}, as a copy. Like {@link
-     * ViewpointAdaptationCopier}, it terminates on a self-referential type because {@link
-     * AnnotatedTypeCopier}'s original-to-copy map copies each type once.
-     */
-    private final class TypeVariableSubstitutionCopier extends AnnotatedTypeCopier {
+    /** Performs the substitution described by {@link #substituteTVars}, as a copy. */
+    private final class TypeVariableSubstitutionCopier extends SummarizeIntersectionCopier {
 
         /** The receiver from which actual type arguments are taken. */
         private final AnnotatedDeclaredType receiver;
@@ -399,17 +410,6 @@ public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
             // supplies none.  Its bounds are not descended into, so it cannot start a cycle and
             // needs no originalToCopy entry.
             return getTypeVariableSubstitution(receiver, original);
-        }
-
-        @Override
-        public AnnotatedTypeMirror visitIntersection(
-                AnnotatedIntersectionType original,
-                IdentityHashMap<AnnotatedTypeMirror, AnnotatedTypeMirror> originalToCopy) {
-            AnnotatedIntersectionType result =
-                    (AnnotatedIntersectionType) super.visitIntersection(original, originalToCopy);
-            // Recompute the intersection's primary annotation from the substituted bounds.
-            result.summarizeBounds();
-            return result;
         }
     }
 
