@@ -52,6 +52,13 @@ alternative to running it as a standalone annotation processor.  It is published
 `io.github.eisop:framework-errorprone` and requires JDK 21 or later.  See the manual's
 "Error Prone" section.
 
+`AnnotatedFor`, `HasQualifierParameter`, and `ReportUse` gain the
+`applyToSubpackages` element that `DefaultQualifier` already had. It says whether
+an annotation written on a package also applies to that package's subpackages,
+and defaults to `true`, so existing code is unaffected. Setting it to false limits
+only that annotation; an applicable annotation on an enclosing package still
+applies.
+
 The Checker Framework now issues an `annotation.on.supertype` error when an annotation supported by
 the checker is written as a main annotation on the superclass or interface in an `extends` or
 `implements` clause. Annotations on the supertype's type arguments remain permitted. A checker
@@ -407,6 +414,15 @@ taking a `StackTraceElement[]`). The framework now routes all diagnostics
 through fix-carrying overloads, which are `private`. Host-side interception of
 diagnostics is done by installing a `DiagnosticSink`, not by overriding
 `printOrStoreMessage`.
+
+Code that walks up the package chain looking for a package annotation must now gate
+each step to an enclosing package on that annotation's `applyToSubpackages` element;
+the annotated package itself is always in scope. There are two new methods for this:
+`AnnotationUtils.appliesToSubpackages(AnnotationMirror, ExecutableElement)`, and
+`AnnotatedTypeFactory.doesAnnotatedForApplyToSubpackages(AnnotationMirror)` for
+`@AnnotatedFor`. A null element, as in a `checker-qual` that predates it, is treated
+as true, so a package annotation from such an artifact applies to subpackages as it
+always did.
 
 `AnnotatedIntersectionType.summarizeBounds` computes the summary described
 above, reading each bound's qualifier, explicit or defaulted, uniformly,
@@ -765,7 +781,8 @@ eisop#104, eisop#386, eisop#433, eisop#622, eisop#737, eisop#778, eisop#786,
 eisop#792, eisop#863, eisop#949, eisop#1015, eisop#1059, eisop#1074, eisop#1244,
 eisop#1315, eisop#1564, eisop#1592, eisop#1642, eisop#1653, eisop#1735,
 eisop#1801, eisop#1818, eisop#1819, eisop#1861, eisop#1862, eisop#1863,
-eisop#1865, eisop#1887, eisop#1965, eisop#1987, typetools#399, typetools#3203.
+eisop#1865, eisop#1887, eisop#1965, eisop#1987, eisop#1990, typetools#399,
+typetools#3203.
 
 
 Version 3.49.5-eisop1 (April 26, 2026)
