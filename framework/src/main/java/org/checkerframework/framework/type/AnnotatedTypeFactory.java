@@ -5509,7 +5509,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
                     getDeclAnnotation(packageElement, HasQualifierParameter.class);
             if (hasQualifierParameter != null
                     && (isOwnPackage
-                            || appliesToSubpackages(
+                            || AnnotationUtils.appliesToSubpackages(
                                     hasQualifierParameter,
                                     hasQualifierParameterApplyToSubpackagesElement))) {
                 hasQualifierParameterTops.addAll(
@@ -5530,24 +5530,6 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         }
 
         return found;
-    }
-
-    /**
-     * Returns whether an annotation written on a package also applies to that package's
-     * subpackages.
-     *
-     * @param anno an annotation written on a package
-     * @param applyToSubpackagesElement {@code anno}'s {@code applyToSubpackages} element, or null
-     *     if the {@code checker-qual} on the classpath predates that element
-     * @return true if {@code anno} applies to subpackages
-     */
-    public static boolean appliesToSubpackages(
-            AnnotationMirror anno, @Nullable ExecutableElement applyToSubpackagesElement) {
-        // A checker-qual without the element gives no way to opt out, so an annotation from it
-        // applies to subpackages, as it always did.
-        return applyToSubpackagesElement == null
-                || AnnotationUtils.getElementValue(
-                        anno, applyToSubpackagesElement, Boolean.class, true);
     }
 
     /**
@@ -6918,7 +6900,8 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * @return whether {@code annotatedForAnno} applies to subpackages
      */
     public boolean doesAnnotatedForApplyToSubpackages(AnnotationMirror annotatedForAnno) {
-        return appliesToSubpackages(annotatedForAnno, annotatedForApplyToSubpackagesElement);
+        return AnnotationUtils.appliesToSubpackages(
+                annotatedForAnno, annotatedForApplyToSubpackagesElement);
     }
 
     /**

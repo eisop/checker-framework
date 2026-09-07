@@ -417,11 +417,12 @@ diagnostics is done by installing a `DiagnosticSink`, not by overriding
 
 Code that walks up the package chain looking for a package annotation must now gate
 each step to an enclosing package on that annotation's `applyToSubpackages` element;
-the annotated package itself is always in scope. `AnnotatedTypeFactory` has two new
-methods for this: the static `appliesToSubpackages(AnnotationMirror, ExecutableElement)`,
-and `doesAnnotatedForApplyToSubpackages(AnnotationMirror)` for `@AnnotatedFor`. A null
-element, as in a `checker-qual` that predates it, is treated as true, so a package
-annotation from such an artifact applies to subpackages as it always did.
+the annotated package itself is always in scope. There are two new methods for this:
+`AnnotationUtils.appliesToSubpackages(AnnotationMirror, ExecutableElement)`, and
+`AnnotatedTypeFactory.doesAnnotatedForApplyToSubpackages(AnnotationMirror)` for
+`@AnnotatedFor`. A null element, as in a `checker-qual` that predates it, is treated
+as true, so a package annotation from such an artifact applies to subpackages as it
+always did.
 
 `AnnotatedIntersectionType.summarizeBounds` computes the summary described
 above, reading each bound's qualifier, explicit or defaulted, uniformly,

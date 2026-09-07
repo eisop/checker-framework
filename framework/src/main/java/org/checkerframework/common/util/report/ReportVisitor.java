@@ -29,6 +29,7 @@ import org.checkerframework.common.util.report.qual.ReportWrite;
 import org.checkerframework.framework.type.AnnotatedTypeFactory;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedDeclaredType;
 import org.checkerframework.framework.util.AnnotatedTypes;
+import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.TreeUtils;
 
@@ -113,7 +114,7 @@ public class ReportVisitor extends BaseTypeVisitor<BaseAnnotatedTypeFactory> {
             AnnotationMirror reportUse = this.atypeFactory.getDeclAnnotation(loop, ReportUse.class);
             if (reportUse != null
                     && (!inEnclosingPackage
-                            || AnnotatedTypeFactory.appliesToSubpackages(
+                            || AnnotationUtils.appliesToSubpackages(
                                     reportUse, reportUseApplyToSubpackagesElement))) {
                 checker.reportError(
                         tree,
