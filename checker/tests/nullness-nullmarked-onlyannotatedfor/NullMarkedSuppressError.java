@@ -1,5 +1,7 @@
 import org.jspecify.annotations.NullMarked;
 
+// The default package is not @NullMarked, so under -AonlyAnnotatedFor only the @NullMarked
+// nested class is checked.
 public class NullMarkedSuppressError {
     @NullMarked
     class A {

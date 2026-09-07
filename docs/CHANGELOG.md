@@ -3,7 +3,24 @@ Version 3.49.5-eisop2 (June ?, 2026)
 
 **User-visible changes:**
 
-Support the JSpecify `@NullMarked` annotation as an alias to `@AnnotatedFor("nullness")`.
+The Nullness Checker now treats JSpecify's `@NullMarked` as an alias for
+`@AnnotatedFor(value = "nullness", applyToSubpackages = false)`, in addition to the
+existing `@DefaultQualifier` alias. Code under a `@NullMarked` element is therefore
+type-checked under `-AonlyAnnotatedFor` and
+`-AuseConservativeDefaultsForUncheckedCode=source` instead of being skipped. Because
+`@NullMarked` is retained in class files, this also applies to bytecode: a dependency
+compiled with `@NullMarked` is no longer treated as unchecked code under
+`-AuseConservativeDefaultsForUncheckedCode=bytecode`.
+`applyToSubpackages = false` matches JSpecify, which specifies that a `@NullMarked`
+package does not cover its subpackages, and matches the `@DefaultQualifier` alias. As
+before, `-AjspecifyNullMarkedAlias=false` disables all `@NullMarked` aliasing, now
+including this new alias.
+
+An `@AnnotatedFor` annotation written on an element now composes with any alias for
+`@AnnotatedFor` on that same element, rather than the written annotation hiding the alias.
+For example, `@AnnotatedFor("index") @NullMarked` is checked by both the Index Checker and
+the Nullness Checker. `@AnnotatedFor` is not repeatable, so composing is the only way for
+an element to name both.
 
 When the Initialization Checker rejects a method call on a partially-initialized receiver, it
 now reports `initialization.method.invocation.invalid`, which names the fields that are still

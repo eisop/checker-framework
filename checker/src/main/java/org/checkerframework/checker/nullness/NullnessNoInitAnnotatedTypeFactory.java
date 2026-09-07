@@ -465,14 +465,30 @@ public class NullnessNoInitAnnotatedTypeFactory
                     DefaultQualifier.class.getCanonicalName(),
                     nullMarkedDefaultQual);
 
-            AnnotationMirror annotatedForNullness =
+            AnnotationBuilder nullMarkedAnnotatedForBuilder =
                     new AnnotationBuilder(processingEnv, AnnotatedFor.class)
-                            .setValue("value", new String[] {"nullness"})
-                            .build();
+                            .setValue("value", new String[] {"nullness"});
+            // Opt out of subpackages for the same reason, and subject to the same classpath
+            // caveat, as the @DefaultQualifier half above.  Both halves must agree: if
+            // @AnnotatedFor reached subpackages while @DefaultQualifier did not, a class in a
+            // subpackage of a @NullMarked package would be type-checked without the defaults
+            // that @NullMarked is supposed to supply.  Unlike @DefaultQualifier,
+            // AnnotatedTypeFactory already resolves this element, so reuse its field rather
+            // than looking it up again.
+            if (annotatedForApplyToSubpackagesElement != null) {
+                nullMarkedAnnotatedForBuilder.setValue("applyToSubpackages", false);
+            }
+            AnnotationMirror nullMarkedAnnotatedFor = nullMarkedAnnotatedForBuilder.build();
             addAliasedDeclAnnotation(
                     "org.jspecify.annotations.NullMarked",
                     AnnotatedFor.class.getCanonicalName(),
-                    annotatedForNullness);
+                    nullMarkedAnnotatedFor);
+
+            // 2022-11-17: Deprecated old package location, remove after some grace period
+            addAliasedDeclAnnotation(
+                    "org.jspecify.nullness.NullMarked",
+                    AnnotatedFor.class.getCanonicalName(),
+                    nullMarkedAnnotatedFor);
         }
 
         boolean permitClearProperty =

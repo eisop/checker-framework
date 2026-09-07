@@ -174,6 +174,10 @@ import javax.lang.model.util.Types;
  */
 public class AnnotatedTypeFactory implements AnnotationProvider {
 
+    /** The fully-qualified name of {@link AnnotatedFor}. */
+    private static final @FullyQualifiedName String ANNOTATED_FOR_NAME =
+            AnnotatedFor.class.getCanonicalName();
+
     /** Whether to print verbose debugging messages about stub files. */
     private final boolean debugStubParser;
 
@@ -6890,6 +6894,53 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
       }
     }
     */
+
+    /**
+     * Returns every {@link AnnotatedFor} annotation on {@code elt}: the one written on it, if any,
+     * together with one for each of its declaration annotations that is an alias for {@link
+     * AnnotatedFor}.
+     *
+     * <p>{@link #getDeclAnnotation(Element, Class)} cannot serve this purpose: it returns a single
+     * annotation and prefers a written annotation over an alias, so an explicit
+     * {@code @AnnotatedFor} hides an aliased one. For example, on a class annotated
+     * {@code @AnnotatedFor("index") @NullMarked}, it returns only {@code @AnnotatedFor("index")},
+     * and the class would not be checked for nullness. {@code @AnnotatedFor} is not repeatable, so
+     * returning all of them is the only way to honor both.
+     *
+     * <p>The result is an {@link AnnotationMirrorSet}, so two aliases that produce the same
+     * {@code @AnnotatedFor} collapse, while two that differ in any element -- notably {@code
+     * applyToSubpackages} -- are both retained.
+     *
+     * @param elt an element
+     * @return an unmodifiable set of the {@link AnnotatedFor} annotations on {@code elt}; may be
+     *     empty
+     */
+    public AnnotationMirrorSet getAnnotatedForAnnotations(Element elt) {
+        AnnotationMirrorSet declAnnos = getDeclAnnotations(elt);
+        Map<@FullyQualifiedName String, AnnotationMirror> aliases =
+                declAliases.get(ANNOTATED_FOR_NAME);
+        // Allocate only if an @AnnotatedFor is actually found: most elements have none, and this
+        // runs for every element that might produce a warning.
+        AnnotationMirrorSet result = null;
+        for (int i = 0, n = declAnnos.size(); i < n; ++i) {
+            AnnotationMirror am = declAnnos.get(i);
+            // Unlike getDeclAnnotation, do not stop at the first match: a written @AnnotatedFor
+            // and an aliased one must both be collected.
+            AnnotationMirror annotatedFor =
+                    AnnotationUtils.areSameByName(am, ANNOTATED_FOR_NAME)
+                            ? am
+                            : (aliases == null
+                                    ? null
+                                    : aliases.get(AnnotationUtils.annotationName(am)));
+            if (annotatedFor != null) {
+                if (result == null) {
+                    result = new AnnotationMirrorSet();
+                }
+                result.add(annotatedFor);
+            }
+        }
+        return result == null ? AnnotationMirrorSet.emptySet() : result.makeUnmodifiable();
+    }
 
     /**
      * Does {@code annotatedForAnno}, which is an {@link
