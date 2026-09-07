@@ -67,7 +67,7 @@ import java.lang.annotation.Target;
  * field to false to limit it to the package itself; doing so does not block an applicable
  * {@code @HasQualifierParameter} on an enclosing package. It can be disabled on a specific class
  * and its subclasses by writing {@code @NoQualifierParameter} on that class. This annotation may
- * not be written on the same class as {@code NoQualifierParameter} for the same hierarchy.
+ * not be written on the same class as {@code @NoQualifierParameter} for the same hierarchy.
  *
  * @see NoQualifierParameter
  */
