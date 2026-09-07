@@ -322,7 +322,9 @@ You may write multiple
 
 If \code{@DefaultQualifier}[\code{s}] is placed on a package (via the
 \<package-info.java> file), then it applies to the given package \emph{and}
-all subpackages.
+all subpackages.  To limit a default to the package it is written on, set
+the \<applyToSubpackages> element to false, as in
+\<@DefaultQualifier(value = NonNull.class, applyToSubpackages = false)>.
 % This is slightly at odds with Java's treatment of packages of different
 % names as essentially unrelated, but is more intuitive and useful.
 
