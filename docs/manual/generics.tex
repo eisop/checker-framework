@@ -1051,6 +1051,12 @@ for all classes in \code{mypackage}.
 package mypackage;
 \end{Verbatim}
 
+To limit \<@HasQualifierParameter> to the package it is written on, set the
+\<applyToSubpackages> element to false, as in
+\<@HasQualifierParameter(value = Tainted.class, applyToSubpackages = false)>.
+This limits only that annotation; it does not block an applicable
+\<@HasQualifierParameter> on an enclosing package.
+
 When using \<@HasQualifierParameter> on a package, it's possible to disable it
 for a specific class using \refqualclass{framework/qual}{NoQualifierParameter}.
 Writing this on a class indicates it has no class qualifier parameter and

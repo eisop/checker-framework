@@ -59,7 +59,7 @@ runs:
       uses: actions/cache@v6
       with:
         path: ~/.cache/pip
-        key: pip-misc-v1-${{ runner.os }}
+        key: pip-misc-v1-${{ runner.os }}-${{ hashFiles('.github/actions/setup-misc/action.yml') }}
         restore-keys: |
           pip-misc-v1-${{ runner.os }}-
 

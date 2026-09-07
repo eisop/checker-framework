@@ -5,11 +5,78 @@ Version 3.49.5-eisop2 (June ?, 2026)
 
 Support the JSpecify `@NullMarked` annotation as an alias to `@AnnotatedFor("nullness")`.
 
+When the Initialization Checker rejects a method call on a partially-initialized receiver, it
+now reports `initialization.method.invocation.invalid`, which names the fields that are still
+uninitialized at the call, instead of the framework's `method.invocation.invalid`.
+
+Two new Maven Central artifacts support writing a custom checker without
+depending on the whole `checker` artifact: `io.github.eisop:framework`, which
+declares its dependencies in its POM, and `io.github.eisop:framework-all`,
+which bundles them (relocated) into a single jar. `io.github.eisop:framework-test`
+now declares its dependency on `framework` and so can be used outside this
+repository. See the "Declaring dependencies for a custom checker" section of
+the manual.
+
+The `framework`, `javacutil` and `dataflow` artifacts no longer publish an
+unusable shadow (`-all.jar`) variant in their Gradle module metadata.
+
+The published artifacts no longer pull in `org.checkerframework:checker-qual`
+transitively (through Guava and plume-util), which previously put a second
+definition of every qualifier on the classpath alongside
+`io.github.eisop:checker-qual`.
+
+Gradle consumers of `io.github.eisop:checker` now resolve `checker-VERSION.jar`,
+the same artifact Maven consumers get from the POM. They previously resolved
+`checker-VERSION-all.jar`, which bundles checker-qual and checker-util while
+also depending on them, so every qualifier class appeared on the classpath
+twice. `checker-VERSION-all.jar` is still published as a classified artifact.
+Accordingly, `checker` now declares checker-qual and checker-util at `compile`
+scope rather than `runtime`, matching the jar it actually ships.
+
+Fixed five annotation names that ShadowJar rewrote when building `checker.jar`,
+so they never matched the annotations they name. The Nullness Checker now again
+recognizes `org.codehaus.commons.nullanalysis.NotNull` and `.Nullable` as
+aliases, the Called Methods Checker recognizes Lombok's
+`com.google.firebase.database.annotations.NotNull` and
+`org.codehaus.commons.nullanalysis.NotNull`, and whole-program inference again
+honors `@org.plumelib.options.Option`.
+
+The published `checker` artifact is about 2 MB smaller: it is now minimized, like
+the other shaded jars.
+
+The shaded jars no longer contain a `module-info.class` or jsr305's
+`javax.annotation` classes, neither of which described or belonged to them.
+Recognition of `javax.annotation.Nullable`, `@Nonnull` and `@CheckForNull` in
+user code is unaffected.
+
+The Checker Framework can now run as an Error Prone plugin (the `eisopcf` check), as an
+alternative to running it as a standalone annotation processor.  It is published as
+`io.github.eisop:framework-errorprone` and requires JDK 21 or later.  See the manual's
+"Error Prone" section.
+
+`AnnotatedFor`, `HasQualifierParameter`, and `ReportUse` gain the
+`applyToSubpackages` element that `DefaultQualifier` already had. It says whether
+an annotation written on a package also applies to that package's subpackages,
+and defaults to `true`, so existing code is unaffected. Setting it to false limits
+only that annotation; an applicable annotation on an enclosing package still
+applies.
+
 The Checker Framework now issues an `annotation.on.supertype` error when an annotation supported by
 the checker is written as a main annotation on the superclass or interface in an `extends` or
 `implements` clause. Annotations on the supertype's type arguments remain permitted. A checker
 that permits main annotations on supertypes, such as the Tainting Checker, can override
 `BaseTypeVisitor#checkAnnotationOnSupertype(Tree)`.
+
+A checker that viewpoint-adapts no longer crashes on a raw use of an F-bounded
+class such as `class Rec<T extends Rec<T>>`, whose type graph points back at
+itself. `AbstractViewpointAdapter` now adapts and substitutes with
+`AnnotatedTypeCopier`, which copies each type once, instead of with its own
+recursion, which never reached the end of such a graph.
+
+The Nullness Checker now refines `Queue.poll()`, `Queue.peek()`,
+`Deque.pollFirst()`, `Deque.pollLast()`, `Deque.peekFirst()`, and
+`Deque.peekLast()` to `@NonNull` after a false `isEmpty()` check for queues
+and deques with `@NonNull` element types.
 
 Further performance improvements relative to the 3.49.5-eisop1 release:
 - `allNullnessTests`: 1m24s vs. 2m16s
@@ -342,6 +409,22 @@ defaults, and only the latter was cached. Both now use the new
 which `BaseTypeChecker` implements with a cache.
 
 **Implementation details:**
+
+`SourceChecker.printOrStoreMessage` no longer has the two `protected` overloads
+that took no suggested fixes (the four-argument form, and the five-argument form
+taking a `StackTraceElement[]`). The framework now routes all diagnostics
+through fix-carrying overloads, which are `private`. Host-side interception of
+diagnostics is done by installing a `DiagnosticSink`, not by overriding
+`printOrStoreMessage`.
+
+Code that walks up the package chain looking for a package annotation must now gate
+each step to an enclosing package on that annotation's `applyToSubpackages` element;
+the annotated package itself is always in scope. There are two new methods for this:
+`AnnotationUtils.appliesToSubpackages(AnnotationMirror, ExecutableElement)`, and
+`AnnotatedTypeFactory.doesAnnotatedForApplyToSubpackages(AnnotationMirror)` for
+`@AnnotatedFor`. A null element, as in a `checker-qual` that predates it, is treated
+as true, so a package annotation from such an artifact applies to subpackages as it
+always did.
 
 `AnnotatedIntersectionType.summarizeBounds` computes the summary described
 above, reading each bound's qualifier, explicit or defaulted, uniformly,
@@ -696,11 +779,12 @@ Other improvements and bug fixes:
 
 **Closed issues:**
 
-eisop#104, eisop#386, eisop#433, eisop#737, eisop#786, eisop#792, eisop#863,
-eisop#949, eisop#1015, eisop#1059, eisop#1074, eisop#1244, eisop#1299,
-eisop#1315, eisop#1564, eisop#1592, eisop#1642, eisop#1653, eisop#1735,
-eisop#1801, eisop#1818, eisop#1819, eisop#1861, eisop#1862, eisop#1863,
-eisop#1865, eisop#1887, eisop#1965, eisop#1987, typetools#3203.
+eisop#104, eisop#386, eisop#433, eisop#622, eisop#737, eisop#778, eisop#786,
+eisop#792, eisop#863, eisop#949, eisop#1015, eisop#1059, eisop#1074,
+eisop#1244, eisop#1299, eisop#1315, eisop#1564, eisop#1592, eisop#1642,
+eisop#1653, eisop#1735, eisop#1801, eisop#1818, eisop#1819, eisop#1861,
+eisop#1862, eisop#1863, eisop#1865, eisop#1887, eisop#1965, eisop#1987,
+eisop#1990, typetools#399, typetools#3203.
 
 
 Version 3.49.5-eisop1 (April 26, 2026)
