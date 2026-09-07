@@ -215,7 +215,8 @@ command-line option.)
   \code{org.jspecify.nullness.NullMarked}), and performs neither initialization
   checking nor map-key checking, neither of which JSpecify specifies.
   This is a shorthand for \code{-AonlyAnnotatedFor -AassumeInitialized
-  -AassumeKeyFor}; writing any of those options yourself overrides the mode.
+  -AassumeKeyFor}.  Each of those is an on/off flag with no negative form, so there is
+  currently no way to enable this mode but turn one of them back off.
 
 \item
   \label{nullness-jspecifyNullMarkedAlias}%

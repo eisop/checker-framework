@@ -59,8 +59,10 @@ and defaults to `true`, so existing code is unaffected. Setting it to false limi
 only that annotation; an applicable annotation on an enclosing package still
 applies.
 
-The new `-Amode=<mode>` option turns on a checker-defined group of options; writing one
-of those options yourself overrides the mode.  A checker declares its modes with
+The new `-Amode=<mode>` option turns on a checker-defined group of options.  A mode
+only sets an option the user did not, so an option written on the command line keeps
+the value given there.  Note that most options are on/off flags with no negative form,
+so writing one cannot turn off what a mode enables.  A checker declares its modes with
 `@SupportedModes` and defines them by overriding `SourceChecker.addOptionsForMode`.
 
 The Nullness Checker supports `-Amode=jspecify`, which makes it behave as JSpecify
