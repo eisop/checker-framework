@@ -78,6 +78,17 @@ and defaults to `true`, so existing code is unaffected. Setting it to false limi
 only that annotation; an applicable annotation on an enclosing package still
 applies.
 
+The new `-Amode=<mode>` option turns on a checker-defined group of options.  A mode
+only sets an option the user did not, so an option written on the command line keeps
+the value given there.  Note that most options are on/off flags with no negative form,
+so writing one cannot turn off what a mode enables.  A checker declares its modes with
+`@SupportedModes` and defines them by overriding `SourceChecker.addOptionsForMode`.
+
+The Nullness Checker supports `-Amode=jspecify`, which makes it behave as JSpecify
+specifies: it checks only code in the scope of an `@AnnotatedFor`, treats `@NullMarked`
+as a defaulting annotation, and performs neither initialization checking nor map-key
+checking.
+
 The Checker Framework now issues an `annotation.on.supertype` error when an annotation supported by
 the checker is written as a main annotation on the superclass or interface in an `extends` or
 `implements` clause. Annotations on the supertype's type arguments remain permitted. A checker
@@ -89,6 +100,14 @@ class such as `class Rec<T extends Rec<T>>`, whose type graph points back at
 itself. `AbstractViewpointAdapter` now adapts and substitutes with
 `AnnotatedTypeCopier`, which copies each type once, instead of with its own
 recursion, which never reached the end of such a graph.
+
+A checker that viewpoint-adapts can now extend or implement a type whose declaration bound is
+receiver-dependent: the supertype's bound is adapted to the subtype's before the two are compared.
+`@A class Y extends X {}` was previously rejected when `X`'s bound was receiver-dependent.
+
+`ViewpointAdapter` gains `viewpointAdaptTypeDeclarationBounds`, and `AbstractViewpointAdapter` a new
+abstract `extractAnnotationMirror(AnnotationMirrorSet)` that every subclass must implement. It is
+the counterpart of the existing `extractAnnotationMirror(AnnotatedTypeMirror)`.
 
 The Nullness Checker now refines `Queue.poll()`, `Queue.peek()`,
 `Deque.pollFirst()`, `Deque.pollLast()`, `Deque.peekFirst()`, and
@@ -797,11 +816,11 @@ Other improvements and bug fixes:
 **Closed issues:**
 
 eisop#104, eisop#386, eisop#433, eisop#622, eisop#737, eisop#778, eisop#786,
-eisop#792, eisop#863, eisop#949, eisop#1015, eisop#1059, eisop#1074,
-eisop#1244, eisop#1299, eisop#1315, eisop#1564, eisop#1592, eisop#1642,
-eisop#1653, eisop#1735, eisop#1801, eisop#1818, eisop#1819, eisop#1861,
-eisop#1862, eisop#1863, eisop#1865, eisop#1887, eisop#1965, eisop#1987,
-eisop#1990, typetools#399, typetools#3203.
+eisop#792, eisop#863, eisop#949, eisop#1015, eisop#1059, eisop#1074, eisop#1244,
+eisop#1299, eisop#1315, eisop#1564, eisop#1592, eisop#1642, eisop#1653,
+eisop#1735, eisop#1801, eisop#1818, eisop#1819, eisop#1861, eisop#1862,
+eisop#1863, eisop#1865, eisop#1887, eisop#1965, eisop#1986, eisop#1987,
+eisop#1990, eisop#1991, typetools#399, typetools#3203.
 
 
 Version 3.49.5-eisop1 (April 26, 2026)

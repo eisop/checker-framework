@@ -5,7 +5,9 @@ import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.framework.qual.StubFiles;
 import org.checkerframework.framework.source.SupportedLintOptions;
+import org.checkerframework.framework.source.SupportedModes;
 
+import java.util.Map;
 import java.util.NavigableSet;
 
 import javax.annotation.processing.SupportedOptions;
@@ -59,6 +61,7 @@ import javax.annotation.processing.SupportedOptions;
     NullnessChecker.LINT_PERMITCLEARPROPERTY,
     NullnessChecker.LINT_MONOTONICNONNULLONSTATIC,
 })
+@SupportedModes(NullnessChecker.MODE_JSPECIFY)
 @SupportedOptions({
     "assumeKeyFor",
     "assumeInitialized",
@@ -67,6 +70,9 @@ import javax.annotation.processing.SupportedOptions;
 })
 @StubFiles({"junit-assertions.astub", "log4j.astub"})
 public class NullnessChecker extends InitializationChecker {
+
+    /** The JSpecify compatibility mode. */
+    public static final String MODE_JSPECIFY = "jspecify";
 
     /** Should we be strict about initialization of {@link MonotonicNonNull} variables? */
     public static final String LINT_NOINITFORMONOTONICNONNULL = "noInitForMonotonicNonNull";
@@ -112,6 +118,29 @@ public class NullnessChecker extends InitializationChecker {
 
     /** Default constructor for NullnessChecker. */
     public NullnessChecker() {}
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p>{@link #MODE_JSPECIFY} restricts checking to code in the scope of an
+     * {@code @AnnotatedFor}, treats {@code @NullMarked} as a defaulting annotation, and turns off
+     * the initialization and map-key checks, none of which JSpecify specifies.
+     */
+    @Override
+    protected void addOptionsForMode(String mode, Map<String, String> activeOptions) {
+        super.addOptionsForMode(mode, activeOptions);
+        switch (mode) {
+            case MODE_JSPECIFY:
+                activeOptions.putIfAbsent("onlyAnnotatedFor", null);
+                // Already the default; named here so the mode states the behavior it relies on.
+                activeOptions.putIfAbsent("jspecifyNullMarkedAlias", "true");
+                activeOptions.putIfAbsent("assumeInitialized", null);
+                activeOptions.putIfAbsent("assumeKeyFor", null);
+                break;
+            default:
+                break;
+        }
+    }
 
     @Override
     public boolean checkPrimitives() {
