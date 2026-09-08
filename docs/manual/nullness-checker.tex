@@ -214,9 +214,12 @@ command-line option.)
   annotation (both \code{org.jspecify.annotations.NullMarked} and the legacy
   \code{org.jspecify.nullness.NullMarked}), and performs neither initialization
   checking nor map-key checking, neither of which JSpecify specifies.
+  It also reports a nullness annotation written where JSpecify gives it no meaning
+  (see \code{-AjspecifyUnrecognizedLocations} below).
   This is a shorthand for \code{-AonlyAnnotatedFor -AassumeInitialized
-  -AassumeKeyFor}.  Each of those is an on/off flag with no negative form, so there is
-  currently no way to enable this mode but turn one of them back off.
+  -AassumeKeyFor -AjspecifyUnrecognizedLocations}.  Each of those is an on/off flag with
+  no negative form, so there is currently no way to enable this mode but turn one of
+  them back off.
 
 \item
   \label{nullness-jspecifyNullMarkedAlias}%

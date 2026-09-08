@@ -13,6 +13,8 @@ an annotation interface member's return type, a wildcard, a type parameter, a th
 root type of a local variable, a cast, or a method reference. It is off by default, because the
 Checker Framework reads a nullness annotation in five of those locations: a class declaration, a
 wildcard, and the root type of a local variable, of a cast, and of a method reference.
+`-Amode=jspecify` turns it on, since a mode that makes the checker behave as JSpecify specifies
+should also reject what JSpecify gives no meaning.
 
 Two new Maven Central artifacts support writing a custom checker without
 depending on the whole `checker` artifact: `io.github.eisop:framework`, which

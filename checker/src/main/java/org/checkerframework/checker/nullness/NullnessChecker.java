@@ -137,6 +137,7 @@ public class NullnessChecker extends InitializationChecker {
                 activeOptions.putIfAbsent("jspecifyNullMarkedAlias", "true");
                 activeOptions.putIfAbsent("assumeInitialized", null);
                 activeOptions.putIfAbsent("assumeKeyFor", null);
+                activeOptions.putIfAbsent("jspecifyUnrecognizedLocations", null);
                 break;
             default:
                 break;
