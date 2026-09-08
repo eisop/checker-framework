@@ -83,6 +83,16 @@ public abstract class BaseTypeChecker extends SourceChecker {
     private final IdentityHashMap<Element, Boolean> elementAnnotatedForThisCheckerOrUpstreamCache =
             new IdentityHashMap<>();
 
+    /**
+     * A mapping from a package to what the innermost {@code @AnnotatedFor} or
+     * {@code @UnannotatedFor} that reaches that package's subpackages says about them; the
+     * annotation may be written on the package itself or on an enclosing package. Separate from
+     * {@link #elementAnnotatedForThisCheckerOrUpstreamCache} because an annotation that opts out
+     * of subpackages still covers its own package, so the two answers differ for the same package.
+     */
+    private final IdentityHashMap<PackageElement, PackageScope> scopeReachingSubpackagesCache =
+            new IdentityHashMap<>();
+
     /** An array containing just {@code BaseTypeChecker.class}. */
     protected static Class<?>[] baseTypeCheckerClassArray = new Class<?>[] {BaseTypeChecker.class};
 
@@ -342,26 +352,28 @@ public abstract class BaseTypeChecker extends SourceChecker {
 
         AnnotatedTypeFactory atypeFactory = getTypeFactory();
         AnnotationMirror annotatedFor = atypeFactory.getDeclAnnotation(elt, AnnotatedFor.class);
-        boolean elementAnnotatedForThisChecker =
-                annotatedFor != null
-                        && atypeFactory.doesAnnotatedForApplyToThisChecker(annotatedFor);
-
-        // @UnannotatedFor only subtracts from an enclosing @AnnotatedFor scope, so consult it only
-        // when this element is not itself annotated for this checker, and let it stop the walk to
-        // the enclosing element.
-        if (!elementAnnotatedForThisChecker && !isElementUnannotatedForThisChecker(elt)) {
-            Element parent;
-            if (elt.getKind() == ElementKind.PACKAGE) {
-                parent =
-                        ElementUtils.parentPackage(
-                                (PackageElement) elt, atypeFactory.getElementUtils());
-            } else {
-                parent = elt.getEnclosingElement();
-            }
-
-            if (parent != null && isElementAnnotatedForThisCheckerOrUpstreamChecker(parent)) {
-                elementAnnotatedForThisChecker = true;
-            }
+        boolean elementAnnotatedForThisChecker;
+        if (annotatedFor != null && atypeFactory.doesAnnotatedForApplyToThisChecker(annotatedFor)) {
+            elementAnnotatedForThisChecker = true;
+        } else if (isElementUnannotatedForThisChecker(elt)) {
+            // @UnannotatedFor only subtracts from an enclosing @AnnotatedFor scope, so it is
+            // consulted only when this element is not itself annotated for this checker, and it
+            // stops the walk to the enclosing element.
+            elementAnnotatedForThisChecker = false;
+        } else if (elt.getKind() == ElementKind.PACKAGE) {
+            // A package is covered by an enclosing package only if that package's annotation
+            // applies to subpackages.
+            elementAnnotatedForThisChecker =
+                    scopeReachingSubpackages(
+                                    ElementUtils.parentPackage(
+                                            (PackageElement) elt, atypeFactory.getElementUtils()))
+                            == PackageScope.ANNOTATED;
+        } else {
+            // A non-package element is inside its enclosing element rather than in a subpackage of
+            // it, so applyToSubpackages does not apply to this step.
+            Element parent = elt.getEnclosingElement();
+            elementAnnotatedForThisChecker =
+                    parent != null && isElementAnnotatedForThisCheckerOrUpstreamChecker(parent);
         }
 
         elementAnnotatedForThisCheckerOrUpstreamCache.put(elt, elementAnnotatedForThisChecker);
@@ -381,5 +393,59 @@ public abstract class BaseTypeChecker extends SourceChecker {
         AnnotationMirror unannotatedFor = atypeFactory.getDeclAnnotation(elt, UnannotatedFor.class);
         return unannotatedFor != null
                 && atypeFactory.doesUnannotatedForApplyToThisChecker(unannotatedFor);
+    }
+
+    /**
+     * What an {@code @AnnotatedFor} or {@code @UnannotatedFor} written on a package says about that
+     * package's subpackages.
+     */
+    private enum PackageScope {
+        /** An {@code @AnnotatedFor} covers the subpackages. */
+        ANNOTATED,
+        /** An {@code @UnannotatedFor} excludes the subpackages. */
+        UNANNOTATED,
+        /** Neither annotation says anything about the subpackages. */
+        NONE
+    }
+
+    /**
+     * Returns what the innermost package annotation that reaches the subpackages of {@code pkg}
+     * says about them. Such an annotation may be written on {@code pkg} itself or on any enclosing
+     * package: a package that opts out of subpackages does not shield its own subpackages from an
+     * enclosing package that opts in.
+     *
+     * @param pkg a package, or null for no package
+     * @return what covers the subpackages of {@code pkg}
+     */
+    private PackageScope scopeReachingSubpackages(@Nullable PackageElement pkg) {
+        if (pkg == null) {
+            return PackageScope.NONE;
+        }
+
+        PackageScope cached = scopeReachingSubpackagesCache.get(pkg);
+        if (cached != null) {
+            return cached;
+        }
+
+        AnnotatedTypeFactory atypeFactory = getTypeFactory();
+        PackageScope result;
+        AnnotationMirror annotatedFor = atypeFactory.getDeclAnnotation(pkg, AnnotatedFor.class);
+        AnnotationMirror unannotatedFor = atypeFactory.getDeclAnnotation(pkg, UnannotatedFor.class);
+        if (annotatedFor != null
+                && atypeFactory.doesAnnotatedForApplyToThisChecker(annotatedFor)
+                && atypeFactory.doesAnnotatedForApplyToSubpackages(annotatedFor)) {
+            result = PackageScope.ANNOTATED;
+        } else if (unannotatedFor != null
+                && atypeFactory.doesUnannotatedForApplyToThisChecker(unannotatedFor)
+                && atypeFactory.doesUnannotatedForApplyToSubpackages(unannotatedFor)) {
+            result = PackageScope.UNANNOTATED;
+        } else {
+            result =
+                    scopeReachingSubpackages(
+                            ElementUtils.parentPackage(pkg, atypeFactory.getElementUtils()));
+        }
+
+        scopeReachingSubpackagesCache.put(pkg, result);
+        return result;
     }
 }

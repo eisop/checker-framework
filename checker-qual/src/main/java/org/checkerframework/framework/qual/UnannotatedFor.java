@@ -20,6 +20,11 @@ import java.lang.annotation.Target;
  * {@code @AnnotatedFor} were present. An {@code @AnnotatedFor} on a nested element takes effect
  * again for that element.
  *
+ * <p>An {@code @UnannotatedFor} on a package also applies to subpackages, unless the {@code
+ * applyToSubpackages} field is set to false. The innermost package annotation wins: an
+ * {@code @UnannotatedFor} on a package excludes its subpackages from an {@code @AnnotatedFor} on an
+ * enclosing package, and vice versa.
+ *
  * @checker_framework.manual #compiling-libraries Compiling partially-annotated libraries
  */
 @Documented
@@ -36,4 +41,11 @@ public @interface UnannotatedFor {
      * @checker_framework.manual #shorthand-for-checkers Short names for built-in checkers
      */
     String[] value();
+
+    /**
+     * When used on a package, whether this annotation should also apply to subpackages.
+     *
+     * @return whether this annotation should be inherited by subpackages
+     */
+    boolean applyToSubpackages() default true;
 }

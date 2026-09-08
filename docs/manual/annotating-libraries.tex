@@ -436,6 +436,17 @@ Writing \<@AnnotatedFor> on a class doesn't necessarily mean that you wrote
 any annotations, but that you examined the source code and verified
 that all appropriate annotations are present.
 
+\<@AnnotatedFor> may also be written on a package, via the
+\<package-info.java> file, in which case it applies to the given package
+\emph{and} all subpackages.  To limit it to the package it is written on,
+set the \<applyToSubpackages> element to false, as in
+\<@AnnotatedFor(value = "nullness", applyToSubpackages = false)>.
+This limits only that annotation; it does not block an applicable
+\<@AnnotatedFor> on an enclosing package.
+Because \<@AnnotatedFor> has source retention, a package annotation only
+affects compilation units that are compiled together with its
+\<package-info.java> file.
+
 The \refqualclass{framework/qual}{UnannotatedFor} annotation is the inverse:
 it excludes a package, class, method, or constructor from the scope of an
 enclosing \<@AnnotatedFor>.  For example, if a package is
@@ -444,7 +455,10 @@ enclosing \<@AnnotatedFor>.  For example, if a package is
 code, exactly as if the package had no \<@AnnotatedFor>.  An \<@AnnotatedFor>
 on a nested element takes effect again for that element.
 \refqualclass{framework/qual}{UnannotatedFor}'s arguments are checker names,
-in the same format as \refqualclass{framework/qual}{AnnotatedFor}'s.
+in the same format as \refqualclass{framework/qual}{AnnotatedFor}'s, and it
+has the same \<applyToSubpackages> element.  Between two package annotations,
+the innermost one wins:  an \<@UnannotatedFor> on a package excludes its
+subpackages from an \<@AnnotatedFor> on an enclosing package, and vice versa.
 
 \begin{sloppypar}
 Whenever you compile a class using the Checker Framework, including when
