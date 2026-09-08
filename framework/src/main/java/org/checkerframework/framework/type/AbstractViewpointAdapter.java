@@ -7,6 +7,7 @@ import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedExecutab
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedIntersectionType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedTypeVariable;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedWildcardType;
+import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.ElementUtils;
 import org.plumelib.util.IPair;
 
@@ -235,6 +236,14 @@ public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
     }
 
     @Override
+    public AnnotationMirrorSet viewpointAdaptTypeDeclarationBounds(
+            AnnotationMirrorSet viewpointBounds, AnnotatedTypeMirror declarationBoundType) {
+        AnnotationMirror viewpointAnnotation = extractAnnotationMirror(viewpointBounds);
+        return combineAnnotationWithType(viewpointAnnotation, declarationBoundType)
+                .getAnnotations();
+    }
+
+    @Override
     public AnnotatedTypeMirror viewpointAdaptType(
             AnnotatedTypeMirror receiverType, AnnotatedTypeMirror declaredType) {
         return combineTypeWithType(receiverType, declaredType);
@@ -272,6 +281,16 @@ public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
      * @return extracted qualifier
      */
     protected abstract AnnotationMirror extractAnnotationMirror(AnnotatedTypeMirror atm);
+
+    /**
+     * Extracts the qualifier that this adapter adapts with, from a set of qualifiers. The
+     * counterpart of {@link #extractAnnotationMirror(AnnotatedTypeMirror)} for a bare qualifier
+     * set, such as a type's declaration bounds.
+     *
+     * @param annotations a set of qualifiers containing one in this adapter's hierarchy
+     * @return the qualifier used for viewpoint adaptation
+     */
+    protected abstract AnnotationMirror extractAnnotationMirror(AnnotationMirrorSet annotations);
 
     /**
      * Combine receiver qualifiers with declared types. Qualifiers are extracted from declared types
