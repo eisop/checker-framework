@@ -1,0 +1,46 @@
+VarHandleNull.java:34:26: compiler.err.proc.messager: [argument.type.incompatible] incompatible argument for parameter arg0 of VarHandle.set.
+found   : @Nullable NullType
+required: @NonNull Object
+VarHandleNull.java:35:34: compiler.err.proc.messager: [argument.type.incompatible] incompatible argument for parameter arg0 of VarHandle.setVolatile.
+found   : @Nullable NullType
+required: @NonNull Object
+VarHandleNull.java:36:33: compiler.err.proc.messager: [argument.type.incompatible] incompatible argument for parameter arg0 of VarHandle.setRelease.
+found   : @Nullable NullType
+required: @NonNull Object
+VarHandleNull.java:37:32: compiler.err.proc.messager: [argument.type.incompatible] incompatible argument for parameter arg0 of VarHandle.setOpaque.
+found   : @Nullable NullType
+required: @NonNull Object
+VarHandleNull.java:41:36: compiler.err.proc.messager: [argument.type.incompatible] incompatible argument for parameter arg0 of VarHandle.compareAndSet.
+found   : @Nullable NullType
+required: @NonNull Object
+VarHandleNull.java:42:40: compiler.err.proc.messager: [argument.type.incompatible] incompatible argument for parameter arg0 of VarHandle.weakCompareAndSet.
+found   : @Nullable NullType
+required: @NonNull Object
+VarHandleNull.java:43:45: compiler.err.proc.messager: [argument.type.incompatible] incompatible argument for parameter arg0 of VarHandle.weakCompareAndSetPlain.
+found   : @Nullable NullType
+required: @NonNull Object
+VarHandleNull.java:44:47: compiler.err.proc.messager: [argument.type.incompatible] incompatible argument for parameter arg0 of VarHandle.weakCompareAndSetAcquire.
+found   : @Nullable NullType
+required: @NonNull Object
+VarHandleNull.java:45:47: compiler.err.proc.messager: [argument.type.incompatible] incompatible argument for parameter arg0 of VarHandle.weakCompareAndSetRelease.
+found   : @Nullable NullType
+required: @NonNull Object
+VarHandleNull.java:49:41: compiler.err.proc.messager: [argument.type.incompatible] incompatible argument for parameter arg0 of VarHandle.compareAndExchange.
+found   : @Nullable NullType
+required: @NonNull Object
+VarHandleNull.java:50:48: compiler.err.proc.messager: [argument.type.incompatible] incompatible argument for parameter arg0 of VarHandle.compareAndExchangeAcquire.
+found   : @Nullable NullType
+required: @NonNull Object
+VarHandleNull.java:51:48: compiler.err.proc.messager: [argument.type.incompatible] incompatible argument for parameter arg0 of VarHandle.compareAndExchangeRelease.
+found   : @Nullable NullType
+required: @NonNull Object
+VarHandleNull.java:52:32: compiler.err.proc.messager: [argument.type.incompatible] incompatible argument for parameter arg0 of VarHandle.getAndSet.
+found   : @Nullable NullType
+required: @NonNull Object
+VarHandleNull.java:53:39: compiler.err.proc.messager: [argument.type.incompatible] incompatible argument for parameter arg0 of VarHandle.getAndSetAcquire.
+found   : @Nullable NullType
+required: @NonNull Object
+VarHandleNull.java:54:39: compiler.err.proc.messager: [argument.type.incompatible] incompatible argument for parameter arg0 of VarHandle.getAndSetRelease.
+found   : @Nullable NullType
+required: @NonNull Object
+15 errors
