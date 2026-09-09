@@ -29,7 +29,6 @@ public class SubclassFieldInheritance {
         }
     }
 
-    // :: error: (declaration.inconsistent.with.extends.clause)
     @A static class SubA extends SuperClass {
         @ReceiverDependentQual Object subFieldInit = new @A Object();
 
@@ -37,7 +36,6 @@ public class SubclassFieldInheritance {
         @ReceiverDependentQual Object badSubFieldInit = new @B Object();
     }
 
-    // :: error: (declaration.inconsistent.with.extends.clause)
     @B static class SubB extends SuperClass {
         @ReceiverDependentQual Object subFieldInit = new @B Object();
 

@@ -1,0 +1,13 @@
+MethodHandleNull.java:37:23: compiler.err.proc.messager: [argument.type.incompatible] incompatible argument for parameter arg0 of MethodHandle.invoke.
+found   : @Nullable Object
+required: @NonNull Object
+MethodHandleNull.java:38:28: compiler.err.proc.messager: [argument.type.incompatible] incompatible argument for parameter arg0 of MethodHandle.invokeExact.
+found   : @Nullable Object
+required: @NonNull Object
+MethodHandleNull.java:39:36: compiler.err.proc.messager: [argument.type.incompatible] incompatible argument for parameter arguments of MethodHandle.invokeWithArguments.
+found   : @Nullable Object
+required: @NonNull Object
+MethodHandleNull.java:40:23: compiler.err.proc.messager: [argument.type.incompatible] incompatible argument for parameter x of MethodHandle.bindTo.
+found   : @Nullable NullType
+required: @NonNull Object
+4 errors
