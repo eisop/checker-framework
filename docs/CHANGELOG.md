@@ -3,6 +3,10 @@ Version 3.49.5-eisop2 (June ?, 2026)
 
 **User-visible changes:**
 
+When the Initialization Checker rejects a method call on a partially-initialized receiver, it
+now reports `initialization.method.invocation.invalid`, which names the fields that are still
+uninitialized at the call, instead of the framework's `method.invocation.invalid`.
+
 Two new Maven Central artifacts support writing a custom checker without
 depending on the whole `checker` artifact: `io.github.eisop:framework`, which
 declares its dependencies in its POM, and `io.github.eisop:framework-all`,
@@ -55,11 +59,50 @@ Such a name is not loadable as written -- its binary name separates the nesting 
 file. That made every class using a signature-polymorphic method impossible to
 annotate; `VarHandle` and `MethodHandle` are the two in the JDK.
 
+The opt-in `sometimes-nullable.astub` now covers signature-polymorphic methods,
+where whether null is legal depends on the field or parameter type the handle was
+created for: the 19 `VarHandle` access modes a reference-typed field supports, and
+`MethodHandle`'s `invoke`, `invokeExact`, `invokeWithArguments` and `bindTo`
+arguments. `VarHandle`'s `getAndAdd` and `getAndBitwise` families are excluded,
+being defined only for numeric and bitwise types.
+
+`AnnotatedFor`, `HasQualifierParameter`, and `ReportUse` gain the
+`applyToSubpackages` element that `DefaultQualifier` already had. It says whether
+an annotation written on a package also applies to that package's subpackages,
+and defaults to `true`, so existing code is unaffected. Setting it to false limits
+only that annotation; an applicable annotation on an enclosing package still
+applies.
+
+The new `-Amode=<mode>` option turns on a checker-defined group of options.  A mode
+only sets an option the user did not, so an option written on the command line keeps
+the value given there.  Note that most options are on/off flags with no negative form,
+so writing one cannot turn off what a mode enables.  A checker declares its modes with
+`@SupportedModes` and defines them by overriding `SourceChecker.addOptionsForMode`.
+
+The Nullness Checker supports `-Amode=jspecify`, which makes it behave as JSpecify
+specifies: it checks only code in the scope of an `@AnnotatedFor`, treats `@NullMarked`
+as a defaulting annotation, and performs neither initialization checking nor map-key
+checking.
+
 The Checker Framework now issues an `annotation.on.supertype` error when an annotation supported by
 the checker is written as a main annotation on the superclass or interface in an `extends` or
 `implements` clause. Annotations on the supertype's type arguments remain permitted. A checker
 that permits main annotations on supertypes, such as the Tainting Checker, can override
 `BaseTypeVisitor#checkAnnotationOnSupertype(Tree)`.
+
+A checker that viewpoint-adapts no longer crashes on a raw use of an F-bounded
+class such as `class Rec<T extends Rec<T>>`, whose type graph points back at
+itself. `AbstractViewpointAdapter` now adapts and substitutes with
+`AnnotatedTypeCopier`, which copies each type once, instead of with its own
+recursion, which never reached the end of such a graph.
+
+A checker that viewpoint-adapts can now extend or implement a type whose declaration bound is
+receiver-dependent: the supertype's bound is adapted to the subtype's before the two are compared.
+`@A class Y extends X {}` was previously rejected when `X`'s bound was receiver-dependent.
+
+`ViewpointAdapter` gains `viewpointAdaptTypeDeclarationBounds`, and `AbstractViewpointAdapter` a new
+abstract `extractAnnotationMirror(AnnotationMirrorSet)` that every subclass must implement. It is
+the counterpart of the existing `extractAnnotationMirror(AnnotatedTypeMirror)`.
 
 The Nullness Checker now refines `Queue.poll()`, `Queue.peek()`,
 `Deque.pollFirst()`, `Deque.pollLast()`, `Deque.peekFirst()`, and
@@ -404,6 +447,15 @@ taking a `StackTraceElement[]`). The framework now routes all diagnostics
 through fix-carrying overloads, which are `private`. Host-side interception of
 diagnostics is done by installing a `DiagnosticSink`, not by overriding
 `printOrStoreMessage`.
+
+Code that walks up the package chain looking for a package annotation must now gate
+each step to an enclosing package on that annotation's `applyToSubpackages` element;
+the annotated package itself is always in scope. There are two new methods for this:
+`AnnotationUtils.appliesToSubpackages(AnnotationMirror, ExecutableElement)`, and
+`AnnotatedTypeFactory.doesAnnotatedForApplyToSubpackages(AnnotationMirror)` for
+`@AnnotatedFor`. A null element, as in a `checker-qual` that predates it, is treated
+as true, so a package annotation from such an artifact applies to subpackages as it
+always did.
 
 `AnnotatedIntersectionType.summarizeBounds` computes the summary described
 above, reading each bound's qualifier, explicit or defaulted, uniformly,
@@ -758,11 +810,12 @@ Other improvements and bug fixes:
 
 **Closed issues:**
 
-eisop#104, eisop#386, eisop#433, eisop#737, eisop#786, eisop#792, eisop#863,
-eisop#949, eisop#1015, eisop#1059, eisop#1074, eisop#1244, eisop#1315,
-eisop#1564, eisop#1592, eisop#1642, eisop#1653, eisop#1735, eisop#1801,
-eisop#1818, eisop#1819, eisop#1861, eisop#1862, eisop#1863, eisop#1865,
-eisop#1887, eisop#1965, eisop#1987, typetools#399, typetools#3203.
+eisop#104, eisop#386, eisop#433, eisop#622, eisop#737, eisop#778, eisop#786,
+eisop#792, eisop#863, eisop#949, eisop#1015, eisop#1059, eisop#1074, eisop#1244,
+eisop#1315, eisop#1564, eisop#1592, eisop#1642, eisop#1653, eisop#1735,
+eisop#1801, eisop#1818, eisop#1819, eisop#1861, eisop#1862, eisop#1863,
+eisop#1865, eisop#1887, eisop#1965, eisop#1986, eisop#1987, eisop#1990,
+eisop#1991, typetools#399, typetools#3203.
 
 
 Version 3.49.5-eisop1 (April 26, 2026)

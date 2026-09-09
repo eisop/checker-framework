@@ -676,6 +676,11 @@ More sound (strict) checking: enable errors that are disabled by default
 
 Type-checking modes:  enable/disable functionality
 \begin{itemize}
+\item \<-Amode=\emph{mode}>
+  Enable a checker-defined group of options.  Each checker documents the modes it supports and
+  the options each one enables.  A mode only sets an option that you did not set yourself, so an
+  option you write keeps the value you gave it; but most options are on/off flags with no
+  negative form, so writing one cannot turn off what a mode enables.
 \item \<-Alint>
   Enable or disable optional checks; see Section~\ref{lint-options}.
 \item \<-AwarnRedundantAnnotations>

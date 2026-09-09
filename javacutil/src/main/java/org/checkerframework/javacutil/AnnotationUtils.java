@@ -969,6 +969,23 @@ public class AnnotationUtils {
     }
 
     /**
+     * Returns whether an annotation written on a package also applies to that package's
+     * subpackages.
+     *
+     * @param anno an annotation written on a package
+     * @param applyToSubpackagesElement {@code anno}'s own {@code applyToSubpackages} element, or
+     *     null if the {@code checker-qual} on the classpath predates that element
+     * @return true if {@code anno} applies to subpackages
+     */
+    public static boolean appliesToSubpackages(
+            AnnotationMirror anno, @Nullable ExecutableElement applyToSubpackagesElement) {
+        // A checker-qual without the element gives no way to opt out, so an annotation from it
+        // applies to subpackages, as it always did.
+        return applyToSubpackagesElement == null
+                || getElementValue(anno, applyToSubpackagesElement, Boolean.class, true);
+    }
+
+    /**
      * Get the given boolean element of the annotation {@code anno}.
      *
      * @param anno the annotation whose element to access

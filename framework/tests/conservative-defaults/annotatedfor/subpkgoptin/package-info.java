@@ -1,0 +1,7 @@
+// This file and the classes beside it are deliberately in one directory: @AnnotatedFor is
+// source-retention, so a package annotation only reaches other compilation units when its
+// package-info is compiled in the same run.
+@AnnotatedFor("subtyping")
+package afoptin;
+
+import org.checkerframework.framework.qual.AnnotatedFor;
