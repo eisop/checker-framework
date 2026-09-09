@@ -483,12 +483,6 @@ public class NullnessNoInitAnnotatedTypeFactory
                     "org.jspecify.annotations.NullMarked",
                     AnnotatedFor.class.getCanonicalName(),
                     nullMarkedAnnotatedFor);
-
-            // 2022-11-17: Deprecated old package location, remove after some grace period
-            addAliasedDeclAnnotation(
-                    "org.jspecify.nullness.NullMarked",
-                    AnnotatedFor.class.getCanonicalName(),
-                    nullMarkedAnnotatedFor);
         }
 
         boolean permitClearProperty =
