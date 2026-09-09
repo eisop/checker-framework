@@ -52,6 +52,13 @@ alternative to running it as a standalone annotation processor.  It is published
 `io.github.eisop:framework-errorprone` and requires JDK 21 or later.  See the manual's
 "Error Prone" section.
 
+The opt-in `sometimes-nullable.astub` now covers signature-polymorphic methods,
+where whether null is legal depends on the field or parameter type the handle was
+created for: the 19 `VarHandle` access modes a reference-typed field supports, and
+`MethodHandle`'s `invoke`, `invokeExact`, `invokeWithArguments` and `bindTo`
+arguments. `VarHandle`'s `getAndAdd` and `getAndBitwise` families are excluded,
+being defined only for numeric and bitwise types.
+
 `AnnotatedFor`, `HasQualifierParameter`, and `ReportUse` gain the
 `applyToSubpackages` element that `DefaultQualifier` already had. It says whether
 an annotation written on a package also applies to that package's subpackages,
