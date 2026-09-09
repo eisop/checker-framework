@@ -52,6 +52,13 @@ alternative to running it as a standalone annotation processor.  It is published
 `io.github.eisop:framework-errorprone` and requires JDK 21 or later.  See the manual's
 "Error Prone" section.
 
+The stubifier resolves a nested annotation named through its enclosing class, as
+the JDK's own `java.lang.invoke.VarHandle` writes `@MethodHandle.PolymorphicSignature`.
+Such a name is not loadable as written -- its binary name separates the nesting with
+`$` -- so the stubifier could not read the annotation's `@Target` and failed the whole
+file. That made every class using a signature-polymorphic method impossible to
+annotate; `VarHandle` and `MethodHandle` are the two in the JDK.
+
 The opt-in `sometimes-nullable.astub` now covers signature-polymorphic methods,
 where whether null is legal depends on the field or parameter type the handle was
 created for: the 19 `VarHandle` access modes a reference-typed field supports, and
