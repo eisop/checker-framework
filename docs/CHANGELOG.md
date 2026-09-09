@@ -52,6 +52,11 @@ alternative to running it as a standalone annotation processor.  It is published
 `io.github.eisop:framework-errorprone` and requires JDK 21 or later.  See the manual's
 "Error Prone" section.
 
+Type argument inference no longer fails on a `? super` wildcard whose argument mentions
+the inferred type variable through `? extends`, as in
+`Function<? super Set<? extends K>, ?>`.  It reported
+`type.argument.inference.crashed` on code that javac accepts.
+
 The stubifier resolves a nested annotation named through its enclosing class, as
 the JDK's own `java.lang.invoke.VarHandle` writes `@MethodHandle.PolymorphicSignature`.
 Such a name is not loadable as written -- its binary name separates the nesting with
@@ -815,7 +820,7 @@ eisop#792, eisop#863, eisop#949, eisop#1015, eisop#1059, eisop#1074, eisop#1244,
 eisop#1315, eisop#1564, eisop#1592, eisop#1642, eisop#1653, eisop#1735,
 eisop#1801, eisop#1818, eisop#1819, eisop#1861, eisop#1862, eisop#1863,
 eisop#1865, eisop#1887, eisop#1965, eisop#1986, eisop#1987, eisop#1990,
-eisop#1991, typetools#399, typetools#3203.
+eisop#1991, eisop#2032, typetools#399, typetools#3203.
 
 
 Version 3.49.5-eisop1 (April 26, 2026)
