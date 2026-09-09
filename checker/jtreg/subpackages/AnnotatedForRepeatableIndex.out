@@ -1,0 +1,7 @@
+InRepeatable.java:22:25: compiler.err.proc.messager: [argument.type.incompatible] incompatible argument for parameter i of InRepeatable.takeNonNegative.
+found   : int
+required: @NonNegative int
+InRepeatableSub.java:23:25: compiler.err.proc.messager: [argument.type.incompatible] incompatible argument for parameter i of InRepeatableSub.takeNonNegative.
+found   : int
+required: @NonNegative int
+2 errors

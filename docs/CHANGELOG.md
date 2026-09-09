@@ -19,8 +19,21 @@ including this new alias.
 An `@AnnotatedFor` annotation written on an element now composes with any alias for
 `@AnnotatedFor` on that same element, rather than the written annotation hiding the alias.
 For example, `@AnnotatedFor("index") @NullMarked` is checked by both the Index Checker and
-the Nullness Checker. `@AnnotatedFor` is not repeatable, so composing is the only way for
-an element to name both.
+the Nullness Checker. This composition is not something `@AnnotatedFor` being `@Repeatable`
+(below) could provide by itself: `@Repeatable` only lets javac collapse multiple literal
+instances of the same annotation type, and an alias produces an instance that was never
+written.
+
+`@AnnotatedFor` is now `@Repeatable`, so it may be written more than once at the same
+location. This lets different type systems be given different `applyToSubpackages`
+settings on one package, which its single `value()` array could not express on its own:
+```java
+@AnnotatedFor(value = "nullness", applyToSubpackages = false)
+@AnnotatedFor(value = "index", applyToSubpackages = true)
+package mypackage;
+```
+Listing multiple checker names in one `@AnnotatedFor`, as before, remains the right choice
+when they should share one `applyToSubpackages` setting.
 
 When the Initialization Checker rejects a method call on a partially-initialized receiver, it
 now reports `initialization.method.invocation.invalid`, which names the fields that are still
