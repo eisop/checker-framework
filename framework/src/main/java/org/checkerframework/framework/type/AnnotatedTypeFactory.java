@@ -825,13 +825,17 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         annotatedForApplyToSubpackagesElement =
                 TreeUtils.getMethodOrNull(
                         AnnotatedFor.class, "applyToSubpackages", 0, processingEnv);
-        // TreeUtils.getMethodOrNull requires the enclosing type to resolve, and throws if it does
-        // not; AnnotatedFor.List is itself the newly-added type here (unlike applyToSubpackages,
-        // an element on a type that already existed), so its absence must be checked first.
+        // AnnotatedFor.List is itself the newly-added type here (unlike applyToSubpackages, an
+        // element on a type that already existed), so it must not be referenced as a class
+        // literal before its absence is checked: evaluating "AnnotatedFor.List.class" resolves
+        // (links) that nested class immediately, throwing NoClassDefFoundError -- defeating the
+        // guard -- if an older checker-qual on the classpath lacks it. Using its canonical name
+        // as a literal string, instead of deriving it from the class, avoids linking it here.
+        @FullyQualifiedName String annotatedForListName = "org.checkerframework.framework.qual.AnnotatedFor.List";
         annotatedForListValueElement =
-                elements.getTypeElement(AnnotatedFor.List.class.getCanonicalName()) == null
+                elements.getTypeElement(annotatedForListName) == null
                         ? null
-                        : TreeUtils.getMethod(AnnotatedFor.List.class, "value", 0, processingEnv);
+                        : TreeUtils.getMethod(annotatedForListName, "value", 0, processingEnv);
         ensuresQualifierExpressionElement =
                 TreeUtils.getMethod(EnsuresQualifier.class, "expression", 0, processingEnv);
         ensuresQualifierListValueElement =
