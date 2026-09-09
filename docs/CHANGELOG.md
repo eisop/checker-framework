@@ -3,6 +3,12 @@ Version 3.49.5-eisop2 (June ?, 2026)
 
 **User-visible changes:**
 
+The Nullness Checker no longer recognizes `org.jspecify.nullness.NonNull`,
+`org.jspecify.nullness.Nullable`, `org.jspecify.nullness.NullnessUnspecified`, or
+`org.jspecify.nullness.NullMarked` -- JSpecify's original, pre-1.0 package, deprecated
+since 2022. Use the `org.jspecify.annotations` package, which JSpecify moved to years
+ago and which the checker has recognized the whole time.
+
 When the Initialization Checker rejects a method call on a partially-initialized receiver, it
 now reports `initialization.method.invocation.invalid`, which names the fields that are still
 uninitialized at the call, instead of the framework's `method.invocation.invalid`.
