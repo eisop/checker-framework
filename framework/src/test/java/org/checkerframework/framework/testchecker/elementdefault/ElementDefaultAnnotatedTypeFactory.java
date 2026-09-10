@@ -24,6 +24,11 @@ import javax.lang.model.element.PackageElement;
  */
 public class ElementDefaultAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
 
+    /**
+     * Creates a new ElementDefaultAnnotatedTypeFactory.
+     *
+     * @param checker the checker
+     */
     @SuppressWarnings("this-escape")
     public ElementDefaultAnnotatedTypeFactory(BaseTypeChecker checker) {
         super(checker);

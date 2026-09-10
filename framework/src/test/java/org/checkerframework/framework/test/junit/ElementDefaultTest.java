@@ -22,6 +22,11 @@ public class ElementDefaultTest extends CheckerFrameworkPerDirectoryTest {
         super(testFiles, ElementDefaultChecker.class, "elementdefault");
     }
 
+    /**
+     * Define the test directories for this test.
+     *
+     * @return the test directories
+     */
     @Parameters
     public static String[] getTestDirs() {
         return new String[] {"elementdefault"};
