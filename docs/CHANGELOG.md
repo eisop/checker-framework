@@ -47,6 +47,11 @@ stands for. The `annotation.on.supertype`, `instanceof.nullable`, `instanceof.no
 `invalid.polymorphic.qualifier`, `explicit.annotation.ignored`, and `anno.on.irrelevant`
 diagnostics were previously issued only for a checker's own annotation.
 
+`AnnotatedTypeFactory` has two new public methods for writing this kind of alias-aware check:
+`asSupportedQualifier(AnnotationMirror)`, which returns an annotation as written or its canonical
+form, whichever is a supported qualifier (or null if neither is), and
+`isSupportedQualifierOrAlias(AnnotationMirror)`, the boolean form of the same question.
+
 `@AnnotatedFor` is now `@Repeatable`, so it may be written more than once at the same
 location. This lets different type systems be given different `applyToSubpackages`
 settings on one package, which its single `value()` array could not express on its own:

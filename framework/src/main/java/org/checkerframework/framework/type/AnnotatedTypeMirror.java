@@ -325,15 +325,10 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
         if (primaryAnnotations.isEmpty()) {
             return null;
         }
-        AnnotationMirror canonical;
-        if (atypeFactory.isSupportedQualifier(annotation)) {
-            canonical = annotation;
-        } else {
-            canonical = atypeFactory.canonicalAnnotation(annotation);
-            if (canonical == null || !atypeFactory.isSupportedQualifier(canonical)) {
-                // This can happen if annotation is unrelated to this AnnotatedTypeMirror.
-                return null;
-            }
+        // This can be null if annotation is unrelated to this AnnotatedTypeMirror.
+        AnnotationMirror canonical = atypeFactory.asSupportedQualifier(annotation);
+        if (canonical == null) {
+            return null;
         }
         QualifierHierarchy qualHierarchy = atypeFactory.getQualifierHierarchy();
         return qualHierarchy.findAnnotationInSameHierarchy(primaryAnnotations, canonical);
@@ -351,14 +346,9 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
      */
     public @Nullable AnnotationMirror getEffectiveAnnotationInHierarchy(
             AnnotationMirror annotation) {
-        AnnotationMirror canonical;
-        if (atypeFactory.isSupportedQualifier(annotation)) {
-            canonical = annotation;
-        } else {
-            canonical = atypeFactory.canonicalAnnotation(annotation);
-            if (canonical == null || !atypeFactory.isSupportedQualifier(canonical)) {
-                return null;
-            }
+        AnnotationMirror canonical = atypeFactory.asSupportedQualifier(annotation);
+        if (canonical == null) {
+            return null;
         }
         QualifierHierarchy qualHierarchy = this.atypeFactory.getQualifierHierarchy();
         return qualHierarchy.findAnnotationInSameHierarchy(getEffectiveAnnotations(), canonical);
@@ -652,7 +642,7 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
      * Adds the canonical version of {@code annotation} as a primary annotation of this type and, in
      * the case of {@link AnnotatedTypeVariable}s, {@link AnnotatedWildcardType}s, and {@link
      * AnnotatedIntersectionType}s, adds it to all bounds. (The canonical version is found via
-     * {@link AnnotatedTypeFactory#canonicalAnnotation}.) If the canonical version of {@code
+     * {@link AnnotatedTypeFactory#asSupportedQualifier}.) If the canonical version of {@code
      * annotation} is not a supported qualifier, then no annotation is added. If this type already
      * has annotation in the same hierarchy as {@code annotation}, the behavior of this method is
      * undefined.
@@ -664,13 +654,9 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
             throw new BugInCF("AnnotatedTypeMirror.addAnnotation: null argument.");
         }
         checkMutable();
-        if (atypeFactory.isSupportedQualifier(annotation)) {
-            this.primaryAnnotations.add(annotation);
-        } else {
-            AnnotationMirror canonical = atypeFactory.canonicalAnnotation(annotation);
-            if (atypeFactory.isSupportedQualifier(canonical)) {
-                addAnnotation(canonical);
-            }
+        AnnotationMirror canonical = atypeFactory.asSupportedQualifier(annotation);
+        if (canonical != null) {
+            this.primaryAnnotations.add(canonical);
         }
     }
 

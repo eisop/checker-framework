@@ -4336,6 +4336,10 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * factory operates. Null is never a supported qualifier; the parameter is nullable to allow the
      * result of canonicalAnnotation to be passed in directly.
      *
+     * <p>{@code a} is checked exactly as given: an alias for a supported qualifier fails this
+     * check. For an annotation as written, such as one read from an {@link
+     * com.sun.source.tree.AnnotationTree}, use {@link #isSupportedQualifierOrAlias} instead.
+     *
      * @param a any annotation
      * @return true if that annotation is part of the type system under which this type factory
      *     operates, false otherwise
@@ -4497,6 +4501,12 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * <p>A canonical annotation is the internal annotation that will be used by the Checker
      * Framework in the aliased annotation's place.
      *
+     * <p>Most callers do not want this method directly: it returns null both when {@code a} is
+     * already canonical and when {@code a} is unrelated to this checker, which a caller usually has
+     * to tell apart. Use {@link #canonicalIfAlias} to resolve an annotation as written to what it
+     * stands for, or {@link #asSupportedQualifier}/{@link #isSupportedQualifierOrAlias} to also
+     * filter to this checker's supported qualifiers in the same step.
+     *
      * @param a the qualifier to check for an alias
      * @return the canonical annotation, or null if none exists
      */
@@ -4521,9 +4531,15 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * itself otherwise.
      *
      * <p>Use this on an annotation as written, such as one read from an {@link
-     * com.sun.source.tree.AnnotationTree}, before comparing it against a canonical annotation or
-     * against this checker's supported qualifiers. {@link #canonicalAnnotation} returns null for an
-     * annotation that is not an alias, which every such caller would otherwise have to undo.
+     * com.sun.source.tree.AnnotationTree}, before comparing it against a canonical annotation.
+     * {@link #canonicalAnnotation} returns null for an annotation that is not an alias, which every
+     * such caller would otherwise have to undo.
+     *
+     * <p>If the comparison is instead against this checker's supported qualifiers -- the most
+     * common case -- use {@link #asSupportedQualifier} or {@link #isSupportedQualifierOrAlias}
+     * directly rather than this method plus a separate {@code isSupportedQualifier} check: {@code
+     * writtenAnno} may resolve to an annotation this checker does not support, which those two
+     * methods filter out and this one does not.
      *
      * @param writtenAnno an annotation as written, possibly an alias
      * @return the annotation that {@code writtenAnno} stands for
@@ -4531,6 +4547,43 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     public AnnotationMirror canonicalIfAlias(AnnotationMirror writtenAnno) {
         AnnotationMirror canonical = canonicalAnnotation(writtenAnno);
         return canonical != null ? canonical : writtenAnno;
+    }
+
+    /**
+     * Returns {@code writtenAnno} if it is a supported qualifier, or its canonical form if that is
+     * a supported qualifier, or null if neither is.
+     *
+     * <p>Use this on an annotation as written when the caller needs the qualifier itself afterward,
+     * not just whether one exists -- for example, to add it to a type or to build a default from
+     * it. Unlike {@link #canonicalIfAlias}, which returns a value regardless of whether it is
+     * actually supported, this filters to only a supported qualifier: {@code writtenAnno} might be
+     * neither this checker's qualifier nor an alias for one, in which case there is nothing this
+     * checker can use it for.
+     *
+     * @param writtenAnno an annotation as written, possibly an alias
+     * @return {@code writtenAnno} or its canonical form, whichever is a supported qualifier; null
+     *     if neither is
+     */
+    public @Nullable AnnotationMirror asSupportedQualifier(AnnotationMirror writtenAnno) {
+        if (isSupportedQualifier(writtenAnno)) {
+            return writtenAnno;
+        }
+        AnnotationMirror canonical = canonicalAnnotation(writtenAnno);
+        return isSupportedQualifier(canonical) ? canonical : null;
+    }
+
+    /**
+     * Returns true if {@code writtenAnno} is a supported qualifier, or an alias for one.
+     *
+     * <p>Use this on an annotation as written when the caller needs only the yes/no answer, such as
+     * whether to report a diagnostic about it; see {@link #asSupportedQualifier} when the qualifier
+     * itself is needed afterward.
+     *
+     * @param writtenAnno an annotation as written, possibly an alias
+     * @return true if {@code writtenAnno} is a supported qualifier or an alias for one
+     */
+    public boolean isSupportedQualifierOrAlias(AnnotationMirror writtenAnno) {
+        return asSupportedQualifier(writtenAnno) != null;
     }
 
     /**
