@@ -127,7 +127,7 @@ dependencies {
     def sparkVersion = '3.3.2'
     testImplementation("org.apache.spark:spark-sql_2.12:${sparkVersion}") { transitive = false }
     testImplementation("org.apache.spark:spark-core_2.12:${sparkVersion}") { transitive = false }
-    testImplementation 'org.scala-lang:scala-library:2.12.15'
+    testImplementation 'org.scala-lang:scala-library:2.13.18'
 
     // Required for checker/tests/index-initializedfields/RequireJavadoc.java
     if (isJava8) {
