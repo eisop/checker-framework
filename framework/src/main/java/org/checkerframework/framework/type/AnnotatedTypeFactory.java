@@ -1987,12 +1987,12 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         AnnotationMirrorSet bound = getTypeDeclarationBounds(fromTypeTree.getUnderlyingType());
         fromTypeTree.addMissingAnnotations(bound);
         addComputedTypeAnnotations(clause, fromTypeTree);
-        applyAnonymousClassCreationAnnos(clause, fromTypeTree);
+        addAnonymousClassCreationAnnos(clause, fromTypeTree);
         return fromTypeTree;
     }
 
     /**
-     * If {@code clause} is the extends or implements clause of an anonymous class, applies the
+     * If {@code clause} is the extends or implements clause of an anonymous class, adds the
      * annotations written on the creation expression to {@code type}.
      *
      * <p>An anonymous class's supertype is annotated by its creation expression, as in {@code
@@ -2006,7 +2006,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * @param clause an extends or implements clause
      * @param type the type of {@code clause}, side-effected by this method
      */
-    private void applyAnonymousClassCreationAnnos(Tree clause, AnnotatedTypeMirror type) {
+    private void addAnonymousClassCreationAnnos(Tree clause, AnnotatedTypeMirror type) {
         TreePath path = getPath(clause);
         TreePath parentPath = path == null ? null : path.getParentPath();
         Tree parent = parentPath == null ? null : parentPath.getLeaf();
