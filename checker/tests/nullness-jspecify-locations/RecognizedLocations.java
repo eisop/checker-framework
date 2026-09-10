@@ -37,13 +37,14 @@ public class RecognizedLocations {
     }
 
     // An unannotated receiver parameter with a type argument: not reported just because a
-    // receiver parameter is present. (An unannotated instanceof pattern is the same kind of
-    // negative case; it is in RecognizedLocationsInstanceOf.java, since pattern matching for
-    // instanceof requires Java 14+.)
+    // receiver parameter is present.
     static class GenericReceiver<T> {
         void method(GenericReceiver<T> this) {}
     }
 
+    // An unannotated instanceof, and (in RecognizedLocationsInstanceOf.java, since pattern
+    // matching for instanceof requires Java 14+) an unannotated instanceof pattern: neither is
+    // reported just because an instanceof (pattern or not) is present.
     void instanceOf(Object o) {
         if (o instanceof String[]) {}
     }
