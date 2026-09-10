@@ -6971,9 +6971,9 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     */
 
     /**
-     * Returns every declaration annotation named {@code annoName} on {@code elt}: the one written
-     * on it, if any, together with one for each of its declaration annotations that is an alias for
-     * {@code annoName}.
+     * Returns every declaration annotation named {@code annoName} on {@code elt}: the one declared
+     * on it (including via a stub file or inheritance), if any, together with one for each of its
+     * declaration annotations that is an alias for {@code annoName}.
      *
      * <p>{@link #getDeclAnnotation(Element, Class)} cannot serve this purpose: it returns a single
      * annotation and prefers a written annotation over an alias, so an explicit annotation hides an
@@ -6983,22 +6983,16 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * checked for nullness even though {@code @NullMarked} aliases to an {@code @AnnotatedFor} for
      * it. This method returns both.
      *
-     * <p>The result is an {@link AnnotationMirrorSet}, so two aliases that produce an identical
-     * mirror collapse, while two that differ in any element are both retained.
-     *
-     * <p>This does not unpack a {@code @Repeatable} annotation's {@code .List} container -- there
-     * is no way to derive {@code Foo.List.class} from {@code Foo.class} generically. A caller for a
-     * repeatable annotation must also look up its {@code .List} form itself and merge it in, the
-     * way {@link #getAnnotatedForAnnotations} does for {@code AnnotatedFor}/{@code
-     * AnnotatedFor.List} and {@link org.checkerframework.framework.util.defaults.QualifierDefaults}
-     * does for {@code DefaultQualifier}/{@code DefaultQualifier.List}.
+     * <p>This does not unpack a {@code @Repeatable} annotation's {@code .List} container; see
+     * {@link #getAnnotatedForAnnotations}, the only caller, which does that for {@code
+     * AnnotatedFor}/{@code AnnotatedFor.List}.
      *
      * @param elt an element
      * @param annoName the fully-qualified name of the declaration annotation to look for
      * @return an unmodifiable set of the annotations named {@code annoName} on {@code elt}, written
      *     or aliased; may be empty
      */
-    public AnnotationMirrorSet getAllDeclAnnotations(
+    private AnnotationMirrorSet getAllDeclAnnotations(
             Element elt, @FullyQualifiedName String annoName) {
         AnnotationMirrorSet declAnnos = getDeclAnnotations(elt);
         Map<@FullyQualifiedName String, AnnotationMirror> aliases = declAliases.get(annoName);
