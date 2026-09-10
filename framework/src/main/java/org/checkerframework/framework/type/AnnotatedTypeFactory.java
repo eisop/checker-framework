@@ -884,7 +884,10 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
                     TreeUtils.getMethod(unannotatedForName, "value", 0, processingEnv);
             unannotatedForApplyToSubpackagesElement =
                     TreeUtils.getMethod(unannotatedForName, "applyToSubpackages", 0, processingEnv);
-            @FullyQualifiedName String unannotatedForListName = unannotatedForName + ".List";
+            // A literal, like the names above: the Signature Checker cannot prove a concatenation
+            // is a @FullyQualifiedName.
+            @FullyQualifiedName String unannotatedForListName =
+                    "org.checkerframework.framework.qual.UnannotatedFor.List";
             unannotatedForListValueElement =
                     elements.getTypeElement(unannotatedForListName) == null
                             ? null
