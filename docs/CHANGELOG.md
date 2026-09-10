@@ -53,6 +53,35 @@ wildcard, and the root type of a local variable, of a cast, and of a method refe
 `-Amode=jspecify` turns it on, since a mode that makes the checker behave as JSpecify specifies
 should also reject what JSpecify gives no meaning.
 
+The Nullness Checker's new `instanceof.component` error is issued for a nullness annotation on a
+component of the type after `instanceof` when no pattern variable is bound, as in
+`o instanceof @Nullable String[]`, where the annotation is on the array's component type rather
+than on the array itself (which would be written `String @Nullable []`). Such an annotation
+constrains nothing: the test yields only a boolean, and there is no variable whose elements it
+could refine. The error does not depend on `-AjspecifyUnrecognizedLocations`. The existing
+`instanceof.nullable` and `instanceof.nonnull.redundant` remain reserved for the root of a tested
+type, about which their messages make a claim -- that `instanceof` is true only for a non-null
+expression -- that is not true of a component.
+
+The Nullness Checker no longer issues `instanceof.nullable` or `instanceof.nonnull.redundant` for
+a nullness annotation on a component of a pattern's type, as in `o instanceof @Nullable String[] a`.
+That annotation is meaningful: it makes `a[0]` possibly-null. It was reported because a nullness
+annotation written before a pattern variable's type is attached to the variable's modifiers, where
+it was indistinguishable from one on the type's root. Under `-AjspecifyUnrecognizedLocations`,
+which gives no meaning to any component of a pattern, it is reported as
+`jspecify.unrecognized.location.pattern`.
+
+`instanceof.nullable` and `instanceof.nonnull.redundant` are now issued for the root of a pattern
+variable's array type, as in `o instanceof String @Nullable [] a`. This was previously missed for
+the converse of the reason above: an array type's root annotation is written after its component
+type, so it appears on the type tree rather than on the variable's modifiers, which were all that
+was examined.
+
+`instanceof.nullable` and `instanceof.nonnull.redundant` are now issued inside a deconstruction
+pattern, as in `o instanceof Box(@Nullable String s)`, which was previously not examined at all.
+Per JLS 14.30.2, null matches no type pattern, nested or not, so annotating the root of a nested
+binding's type asserts the same contradiction as annotating the root of the tested type.
+
 `@AnnotatedFor` is now `@Repeatable`, so it may be written more than once at the same
 location. This lets different type systems be given different `applyToSubpackages`
 settings on one package, which its single `value()` array could not express on its own:

@@ -45,5 +45,6 @@ public class RecognizedLocations {
 
     void instanceOf(Object o) {
         if (o instanceof String[]) {}
+        if (o instanceof String[] unannotated) {}
     }
 }

@@ -255,6 +255,12 @@ command-line option.)
   \code{jspecify.unrecognized.location.*} message key (for example
   \code{jspecify.unrecognized.location.wildcard}), the same way other diagnostics in
   this manual distinguish one location from another.
+  Two related locations are reported whether or not you supply this option, because the
+  Checker Framework gives an annotation there no meaning either:  the root of the type
+  after \code{instanceof}, or of a type that a pattern binds, is reported as
+  \code{instanceof.nullable} or \code{instanceof.nonnull.redundant}, and a component of
+  the type after an \code{instanceof} that binds no variable, as in
+  \code{o instanceof @Nullable String[]}, is reported as \code{instanceof.component}.
 \end{itemize}
 
 \end{enumerate}

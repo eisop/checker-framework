@@ -645,28 +645,54 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
 
     @Override
     public Void visitInstanceOf(InstanceOfTree tree, Void p) {
-        // JSpecify gives any component of the type after "instanceof" no meaning, not only its
-        // root, and likewise for any component in a pattern (including inside a nested
-        // deconstruction pattern), so collect from the whole subtree rather than just its root.
+        // A nullness annotation written after "instanceof" falls into one of two groups, which
+        // mean different things and are therefore reported differently.
+        //
+        // 1. A "root" annotation is written on the type of a reference that the test itself
+        //    examines: the tested type when there is no pattern, or the type of a variable that a
+        //    pattern binds (including a binding nested in a deconstruction pattern; per JLS
+        //    14.30.2, null matches no type pattern, nested or not).  Such an annotation asserts
+        //    something about that reference's own nullness, so @Nullable contradicts the test and
+        //    @NonNull is redundant.  Those two diagnostics are always issued.
+        //
+        // 2. Any other, nested component annotation, such as the "@Nullable" in
+        //    "@Nullable String[]", asserts that the array's elements may be null, which says
+        //    nothing about the reference under test.  Where a pattern binds a variable, the
+        //    Nullness Checker does give such an annotation a meaning -- it refines the elements of
+        //    the bound variable -- so it is reported only in JSpecify mode, which gives no meaning
+        //    to any component of a pattern.  Where no variable is bound, it constrains nothing at
+        //    all, so it is always reported.
         //
         // Check getPattern() first, unconditionally: getType() can be non-null even when a
         // pattern is present (for a binding pattern such as "o instanceof String[] a", getType()
         // returns the plain "String[]", without whatever was written on the pattern's own
         // variable -- the annotation lives on the pattern, found only via getPattern()). Fall
         // back to getType() only when there truly is no pattern.
-        List<AnnotationMirror> annotations = new ArrayList<>();
+        List<AnnotationMirror> rootAnnos = new ArrayList<>();
+        List<AnnotationMirror> nestedAnnos = new ArrayList<>();
         Tree patternTree = TreeUtilsAfterJava11.InstanceOfUtils.getPattern(tree);
         if (patternTree != null) {
-            collectAnnotationsInTypeOrPattern(patternTree, annotations);
+            collectAnnotationsInPattern(patternTree, rootAnnos, nestedAnnos);
         } else if (tree.getType() != null) {
-            collectAnnotationsInTypeOrPattern(tree.getType(), annotations);
+            collectAnnotationsInType(tree.getType(), rootAnnos, nestedAnnos);
         }
 
-        if (AnnotationUtils.containsSame(annotations, NULLABLE)) {
+        if (AnnotationUtils.containsSame(rootAnnos, NULLABLE)) {
             checker.reportError(tree, "instanceof.nullable");
         }
-        if (AnnotationUtils.containsSame(annotations, NONNULL)) {
+        if (AnnotationUtils.containsSame(rootAnnos, NONNULL)) {
             checker.reportWarning(tree, "instanceof.nonnull.redundant");
+        }
+
+        if (patternTree != null) {
+            checkJSpecifyLocation(tree, nestedAnnos, "jspecify.unrecognized.location.pattern");
+        } else {
+            for (AnnotationMirror am : nestedAnnos) {
+                if (atypeFactory.isNullnessAnnotation(am)) {
+                    checker.reportError(tree, "instanceof.component");
+                    break;
+                }
+            }
         }
 
         // Don't call super because it will issue an incorrect instanceof.unsafe warning.
@@ -701,40 +727,112 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
     }
 
     /**
-     * Adds every annotation written anywhere within {@code tree} to {@code annotations}: any
-     * component of a type, or, if {@code tree} is a pattern ({@code BindingPatternTree} or {@code
-     * DeconstructionPatternTree}), any component of any type appearing anywhere within it,
-     * including inside a nested deconstruction pattern.
+     * Splits the annotations written within {@code tree}, a pattern, into those on the root of the
+     * type of a variable that the pattern binds, and those on some nested component of such a type.
+     * Recurses into the nested patterns of a deconstruction pattern.
      *
-     * @param tree a type tree, or a pattern tree
-     * @param annotations the list to add annotation mirrors to
+     * @param tree a pattern tree ({@code BindingPatternTree} or {@code DeconstructionPatternTree}),
+     *     or a type tree
+     * @param rootAnnos the list to add annotations on the root of a bound variable's type to
+     * @param nestedAnnos the list to add all other annotations to
      */
-    private void collectAnnotationsInTypeOrPattern(Tree tree, List<AnnotationMirror> annotations) {
+    private void collectAnnotationsInPattern(
+            Tree tree, List<AnnotationMirror> rootAnnos, List<AnnotationMirror> nestedAnnos) {
         if (TreeUtils.isBindingPatternTree(tree)) {
             VariableTree variableTree = BindingPatternUtils.getVariable(tree);
+            Tree typeTree = variableTree.getType();
             if (variableTree.getModifiers() != null) {
+                // An annotation written before the type is attached to the variable's modifiers,
+                // whichever component of the type it applies to. It applies to the root of the
+                // type unless the type is an array type: "@Nullable String[] a" is an array of
+                // possibly-null Strings, whose own root annotation would be written as
+                // "String @Nullable [] a".
+                List<AnnotationMirror> target = isArrayTypeTree(typeTree) ? nestedAnnos : rootAnnos;
                 for (AnnotationTree at : variableTree.getModifiers().getAnnotations()) {
-                    annotations.add(TreeUtils.annotationFromAnnotationTree(at));
+                    target.add(TreeUtils.annotationFromAnnotationTree(at));
                 }
             }
-            if (variableTree.getType() != null) {
-                collectAnnotationsInTypeOrPattern(variableTree.getType(), annotations);
+            if (typeTree != null) {
+                collectAnnotationsInType(typeTree, rootAnnos, nestedAnnos);
             }
         } else if (TreeUtils.isDeconstructionPatternTree(tree)) {
-            collectAnnotationsInTypeOrPattern(
-                    DeconstructionPatternUtils.getDeconstructor(tree), annotations);
+            // javac currently rejects an annotation on a record pattern's type
+            // (compiler.err.record.patterns.annotations.not.allowed), but if one appears it is
+            // written on the type of the tested reference itself, as in "o instanceof @Nullable
+            // Box", so it belongs with the root annotations.
+            collectAnnotationsInType(
+                    DeconstructionPatternUtils.getDeconstructor(tree), rootAnnos, nestedAnnos);
             for (Tree nested : DeconstructionPatternUtils.getNestedPatterns(tree)) {
-                collectAnnotationsInTypeOrPattern(nested, annotations);
+                collectAnnotationsInPattern(nested, rootAnnos, nestedAnnos);
             }
         } else {
-            new TreeScanner<Void, Void>() {
-                @Override
-                public Void visitAnnotation(AnnotationTree annoTree, Void unused) {
-                    annotations.add(TreeUtils.annotationFromAnnotationTree(annoTree));
-                    return null;
-                }
-            }.scan(tree, null);
+            collectAnnotationsInType(tree, rootAnnos, nestedAnnos);
         }
+    }
+
+    /**
+     * Splits the annotations written within {@code typeTree} into those on its root and those on
+     * some nested component of it. An annotation is on the root if it applies to the type itself
+     * rather than to a component such as an array's element type or a type argument.
+     *
+     * @param typeTree a type tree
+     * @param rootAnnos the list to add annotations on the root of the type to
+     * @param nestedAnnos the list to add all other annotations to
+     */
+    private void collectAnnotationsInType(
+            Tree typeTree, List<AnnotationMirror> rootAnnos, List<AnnotationMirror> nestedAnnos) {
+        Tree tree = typeTree;
+        // Strip the wrappers that hold the root's own annotations: an AnnotatedTypeTree holds
+        // them directly, and a ParameterizedTypeTree holds them on the type it applies to, as in
+        // "java.util.@Nullable List<String>".
+        while (true) {
+            if (tree instanceof AnnotatedTypeTree) {
+                for (AnnotationTree at : ((AnnotatedTypeTree) tree).getAnnotations()) {
+                    rootAnnos.add(TreeUtils.annotationFromAnnotationTree(at));
+                }
+                tree = ((AnnotatedTypeTree) tree).getUnderlyingType();
+            } else if (tree instanceof ParameterizedTypeTree) {
+                for (Tree typeArgument : ((ParameterizedTypeTree) tree).getTypeArguments()) {
+                    collectAllAnnotations(typeArgument, nestedAnnos);
+                }
+                tree = ((ParameterizedTypeTree) tree).getType();
+            } else {
+                break;
+            }
+        }
+        // Whatever remains -- an array type, an enclosing type -- is a component of the type, not
+        // its root.
+        collectAllAnnotations(tree, nestedAnnos);
+    }
+
+    /**
+     * Returns true if {@code typeTree} is an array type, ignoring any annotation written on the
+     * array itself.
+     *
+     * @param typeTree a type tree, or null
+     * @return true if {@code typeTree} is an array type
+     */
+    private static boolean isArrayTypeTree(@Nullable Tree typeTree) {
+        while (typeTree instanceof AnnotatedTypeTree) {
+            typeTree = ((AnnotatedTypeTree) typeTree).getUnderlyingType();
+        }
+        return typeTree instanceof ArrayTypeTree;
+    }
+
+    /**
+     * Adds every annotation written anywhere within {@code tree} to {@code annotations}.
+     *
+     * @param tree a tree
+     * @param annotations the list to add annotation mirrors to
+     */
+    private static void collectAllAnnotations(Tree tree, List<AnnotationMirror> annotations) {
+        new TreeScanner<Void, Void>() {
+            @Override
+            public Void visitAnnotation(AnnotationTree annoTree, Void unused) {
+                annotations.add(TreeUtils.annotationFromAnnotationTree(annoTree));
+                return null;
+            }
+        }.scan(tree, null);
     }
 
     @Override
@@ -752,8 +850,10 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
                     pattern = label;
                 }
                 if (pattern != null) {
+                    // JSpecify gives no meaning to any component of a pattern, root or nested,
+                    // so collect both into one list.
                     List<AnnotationMirror> annotations = new ArrayList<>();
-                    collectAnnotationsInTypeOrPattern(pattern, annotations);
+                    collectAnnotationsInPattern(pattern, annotations, annotations);
                     checkJSpecifyLocation(
                             tree, annotations, "jspecify.unrecognized.location.pattern");
                 }
