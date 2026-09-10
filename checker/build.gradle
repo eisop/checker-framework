@@ -124,7 +124,7 @@ dependencies {
     // for scala.Serializable.  Spark's full transitive tree is ~100 jars (ZooKeeper, Avro,
     // Netty, Jackson, Protobuf, ...) that appear in no published artifact but do generate
     // Dependabot alerts, and none of them is needed to compile this one test.
-    def sparkVersion = '3.3.2'
+    def sparkVersion = '3.5.9'
     testImplementation("org.apache.spark:spark-sql_2.12:${sparkVersion}") { transitive = false }
     testImplementation("org.apache.spark:spark-core_2.12:${sparkVersion}") { transitive = false }
     testImplementation 'org.scala-lang:scala-library:2.12.15'
