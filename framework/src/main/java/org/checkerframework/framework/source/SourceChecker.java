@@ -3076,6 +3076,13 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
             }
         }
 
+        // Fast path: both branches below return false when neither flag is set, so the
+        // @AnnotatedFor scope resolution -- a walk that reads declaration annotations off every
+        // enclosing element -- would be discarded. This method runs for every reported diagnostic.
+        if (!useConservativeDefaultsSource && !onlyAnnotatedFor) {
+            return false;
+        }
+
         // Ask only about the innermost declaration:
         // isElementAnnotatedForThisCheckerOrUpstreamChecker already resolves the enclosing scope,
         // and asking about an enclosing element separately would ignore an @UnannotatedFor that
@@ -3151,6 +3158,11 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
             if (hasSuppressWarningsAnnotationForErrorKey(currElt, errKey)) {
                 return true;
             }
+        }
+
+        // Fast path, as in the TreePath overload above.
+        if (!useConservativeDefaultsSource && !onlyAnnotatedFor) {
+            return false;
         }
 
         // Ask only about elt: isElementAnnotatedForThisCheckerOrUpstreamChecker already resolves
@@ -3308,8 +3320,11 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     }
 
     /**
-     * Returns true if the element has an {@code @AnnotatedFor} annotation for this checker or an
-     * upstream checker that called this one.
+     * Returns true if the element is in the scope of an {@code @AnnotatedFor} annotation for this
+     * checker or an upstream checker that called this one. The annotation may be on the element
+     * itself or on an enclosing element; an {@code @UnannotatedFor} that applies to this checker
+     * subtracts the element from an enclosing {@code @AnnotatedFor} scope, so this method returns
+     * false for such an element even though an enclosing element is annotated.
      *
      * <p>This implementation always returns false, which is correct for a checker that does not
      * type-check, such as an aggregate checker or one of the counting checkers. {@link

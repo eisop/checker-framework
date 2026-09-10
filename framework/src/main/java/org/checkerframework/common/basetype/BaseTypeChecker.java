@@ -87,8 +87,8 @@ public abstract class BaseTypeChecker extends SourceChecker {
      * A mapping from a package to what the innermost {@code @AnnotatedFor} or
      * {@code @UnannotatedFor} that reaches that package's subpackages says about them; the
      * annotation may be written on the package itself or on an enclosing package. Separate from
-     * {@link #elementAnnotatedForThisCheckerOrUpstreamCache} because an annotation that opts out
-     * of subpackages still covers its own package, so the two answers differ for the same package.
+     * {@link #elementAnnotatedForThisCheckerOrUpstreamCache} because an annotation that opts out of
+     * subpackages still covers its own package, so the two answers differ for the same package.
      */
     private final IdentityHashMap<PackageElement, PackageScope> scopeReachingSubpackagesCache =
             new IdentityHashMap<>();

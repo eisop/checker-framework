@@ -209,11 +209,18 @@ command-line option.)
 
 \item
   If you supply the \code{-Amode=jspecify} command-line option, then the Nullness
-  Checker behaves as JSpecify specifies:  it checks only code in the scope of a
-  corresponding \code{@AnnotatedFor}, treats \code{@NullMarked} as a defaulting
-  annotation (both \code{org.jspecify.annotations.NullMarked} and the legacy
-  \code{org.jspecify.nullness.NullMarked}), and performs neither initialization
-  checking nor map-key checking, neither of which JSpecify specifies.
+  Checker behaves as JSpecify specifies:  it checks only code that JSpecify marks --- in
+  this mode \code{@NullMarked} acts as \code{@AnnotatedFor("nullness")} and
+  \code{@NullUnmarked} as \code{@UnannotatedFor("nullness")}, neither applying to
+  subpackages --- and performs neither initialization checking nor map-key checking,
+  neither of which JSpecify specifies.  (Outside this mode, \code{@NullMarked} and
+  \code{@NullUnmarked} are recognized only as defaulting annotations; see
+  Section~\ref{nullness-jspecifyNullMarkedAlias}.  They do not delimit the checked code
+  there, because the initialization and map-key checks do not recognize them and their
+  conservative defaults would then disagree with the nullness check.)  Note that
+  \code{@NullMarked} has runtime retention, unlike \code{@AnnotatedFor}, so in this mode
+  a \code{@NullMarked} class in a dependency jar is not given conservative defaults by
+  \code{-AuseConservativeDefaultsForUncheckedCode=bytecode}.
   This is a shorthand for \code{-AonlyAnnotatedFor -AassumeInitialized
   -AassumeKeyFor}.  Each of those is an on/off flag with no negative form, so there is
   currently no way to enable this mode but turn one of them back off.
@@ -221,8 +228,14 @@ command-line option.)
 \item
   \label{nullness-jspecifyNullMarkedAlias}%
   If you supply the \code{-AjspecifyNullMarkedAlias=false} command-line option, then the
-  checker will not treat \code{org.jspecify.nullness.NullMarked} as a defaulting
-  annotation. By default the \code{NullMarked} annotation is recognized.
+  checker will not recognize JSpecify's \code{@NullMarked} and \code{@NullUnmarked}.
+  By default it recognizes both, as defaulting annotations:  \code{@NullMarked} is
+  equivalent to \code{@DefaultQualifier(value = NonNull.class, locations = UPPER\_BOUND,
+  applyToSubpackages = false)}, and \code{@NullUnmarked} undoes it within its scope,
+  being equivalent to the same annotation with \code{Nullable.class}.  Both the current
+  \code{org.jspecify.annotations.NullMarked} and the legacy
+  \code{org.jspecify.nullness.NullMarked} are recognized.  Under \code{-Amode=jspecify}
+  the two annotations additionally delimit the checked code, as described above.
 \end{itemize}
 
 \end{enumerate}

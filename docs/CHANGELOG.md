@@ -67,8 +67,8 @@ so writing one cannot turn off what a mode enables.  A checker declares its mode
 
 The Nullness Checker supports `-Amode=jspecify`, which makes it behave as JSpecify
 specifies: it checks only code in the scope of an `@AnnotatedFor`, treats `@NullMarked`
-as a defaulting annotation, and performs neither initialization checking nor map-key
-checking.
+and `@NullUnmarked` as both defaulting and scope annotations, and performs neither
+initialization checking nor map-key checking.
 
 New declaration annotation `@UnannotatedFor`, which excludes a package, class, method, or
 constructor from the scope of an enclosing `@AnnotatedFor` for the given checkers. Its scope is
@@ -77,11 +77,20 @@ defaulted using conservative defaults and its warnings are suppressed, as if no 
 it has an `applyToSubpackages` element, and it has no effect unless
 `-AuseConservativeDefaultsForUncheckedCode=source` or `-AonlyAnnotatedFor` is supplied.
 
-The Nullness Checker now also treats JSpecify's `@NullMarked` as `@AnnotatedFor("nullness")` and
-`@NullUnmarked` as `@UnannotatedFor("nullness")`, so `-AonlyAnnotatedFor` and
-`-AuseConservativeDefaultsForUncheckedCode=source` check exactly the JSpecify-marked code.
-Neither alias applies to subpackages, matching JSpecify. As before, `-AjspecifyNullMarkedAlias=false`
-turns off all of the JSpecify aliases.
+Under `-Amode=jspecify`, the Nullness Checker now also treats JSpecify's `@NullMarked` as
+`@AnnotatedFor("nullness")` and `@NullUnmarked` as `@UnannotatedFor("nullness")`, so the mode
+checks exactly the code that JSpecify marks. Neither alias applies to subpackages, matching
+JSpecify. The aliases are confined to that mode because the initialization and map-key checks,
+which the mode turns off, do not recognize them and would otherwise keep applying conservative
+defaults to code the Nullness Checker had started checking.
+
+`@NullUnmarked` is now also a defaulting annotation, undoing an enclosing `@NullMarked`'s
+`@NonNull` upper-bound default. It has that effect in every mode, as `@NullMarked` already did.
+Note that `@NullMarked` has runtime retention, so unlike `@AnnotatedFor` it is visible on
+bytecode: under `-Amode=jspecify` a `@NullMarked` class in a dependency jar is no longer given
+conservative defaults by `-AuseConservativeDefaultsForUncheckedCode=bytecode`.
+
+As before, `-AjspecifyNullMarkedAlias=false` turns off all of the JSpecify aliases.
 
 The Checker Framework now issues an `annotation.on.supertype` error when an annotation supported by
 the checker is written as a main annotation on the superclass or interface in an `extends` or
@@ -803,7 +812,7 @@ Other improvements and bug fixes:
 
 eisop#104, eisop#386, eisop#433, eisop#622, eisop#737, eisop#778, eisop#786,
 eisop#792, eisop#863, eisop#949, eisop#1015, eisop#1059, eisop#1074, eisop#1244,
-eisop#1315, eisop#1564, eisop#1592, eisop#1642, eisop#1653, eisop#1735,
+eisop#1292, eisop#1315, eisop#1564, eisop#1592, eisop#1642, eisop#1653, eisop#1735,
 eisop#1801, eisop#1818, eisop#1819, eisop#1861, eisop#1862, eisop#1863,
 eisop#1865, eisop#1887, eisop#1965, eisop#1987, eisop#1990, eisop#1991,
 typetools#399, typetools#3203.

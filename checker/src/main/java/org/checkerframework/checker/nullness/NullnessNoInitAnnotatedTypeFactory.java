@@ -38,8 +38,10 @@ import org.checkerframework.dataflow.expression.LocalVariable;
 import org.checkerframework.dataflow.expression.ThisReference;
 import org.checkerframework.dataflow.util.NodeUtils;
 import org.checkerframework.framework.flow.CFAbstractAnalysis;
+import org.checkerframework.framework.qual.AnnotatedFor;
 import org.checkerframework.framework.qual.DefaultQualifier;
 import org.checkerframework.framework.qual.TypeUseLocation;
+import org.checkerframework.framework.qual.UnannotatedFor;
 import org.checkerframework.framework.type.AnnotatedTypeFactory;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedArrayType;
@@ -435,21 +437,24 @@ public class NullnessNoInitAnnotatedTypeFactory
                 MONOTONIC_NONNULL);
 
         if (checker.getUltimateParentChecker().getBooleanOption("jspecifyNullMarkedAlias", true)) {
-            AnnotationBuilder nullMarkedDefaultQualBuilder =
-                    new AnnotationBuilder(processingEnv, DefaultQualifier.class)
-                            .setValue("value", NonNull.class)
-                            .setValue(
-                                    "locations",
-                                    new TypeUseLocation[] {TypeUseLocation.UPPER_BOUND});
             // The applyToSubpackages element is an EISOP-specific addition to @DefaultQualifier;
             // it is absent if the classpath resolves @DefaultQualifier from upstream typetools
             // checker-qual instead of EISOP's fork. QualifierDefaults's constructor already warns
             // about that mismatch once per checker run, so this site degrades silently: the built
             // annotation simply carries no applyToSubpackages value, matching how any other
             // @DefaultQualifier built or written without that element behaves.
-            if (TreeUtils.getMethodOrNull(
-                            DefaultQualifier.class, "applyToSubpackages", 0, processingEnv)
-                    != null) {
+            boolean defaultQualifierHasApplyToSubpackages =
+                    TreeUtils.getMethodOrNull(
+                                    DefaultQualifier.class, "applyToSubpackages", 0, processingEnv)
+                            != null;
+
+            AnnotationBuilder nullMarkedDefaultQualBuilder =
+                    new AnnotationBuilder(processingEnv, DefaultQualifier.class)
+                            .setValue("value", NonNull.class)
+                            .setValue(
+                                    "locations",
+                                    new TypeUseLocation[] {TypeUseLocation.UPPER_BOUND});
+            if (defaultQualifierHasApplyToSubpackages) {
                 nullMarkedDefaultQualBuilder.setValue("applyToSubpackages", false);
             }
             AnnotationMirror nullMarkedDefaultQual = nullMarkedDefaultQualBuilder.build();
@@ -463,6 +468,68 @@ public class NullnessNoInitAnnotatedTypeFactory
                     "org.jspecify.nullness.NullMarked",
                     DefaultQualifier.class.getCanonicalName(),
                     nullMarkedDefaultQual);
+
+            // @NullUnmarked restores the unmarked upper-bound default inside a @NullMarked scope.
+            // Without this alias the enclosing @NullMarked's @DefaultQualifier keeps applying, so
+            // a type variable of a @NullUnmarked method would still be bounded by @NonNull.
+            AnnotationBuilder nullUnmarkedDefaultQualBuilder =
+                    new AnnotationBuilder(processingEnv, DefaultQualifier.class)
+                            .setValue("value", Nullable.class)
+                            .setValue(
+                                    "locations",
+                                    new TypeUseLocation[] {TypeUseLocation.UPPER_BOUND});
+            if (defaultQualifierHasApplyToSubpackages) {
+                nullUnmarkedDefaultQualBuilder.setValue("applyToSubpackages", false);
+            }
+            addAliasedDeclAnnotation(
+                    "org.jspecify.annotations.NullUnmarked",
+                    DefaultQualifier.class.getCanonicalName(),
+                    nullUnmarkedDefaultQualBuilder.build());
+
+            // @NullMarked and @NullUnmarked also delimit the code that JSpecify specifies, which
+            // is what @AnnotatedFor and @UnannotatedFor delimit for this checker.  Alias them only
+            // in JSpecify mode: the mode is where "JSpecify's marked scope is the @AnnotatedFor
+            // scope" is declared, and it also turns off the initialization and map-key checks,
+            // whose factories do not see these aliases and would otherwise keep applying
+            // conservative defaults to code that the Nullness Checker had started checking.
+            if (NullnessChecker.MODE_JSPECIFY.equals(
+                    checker.getUltimateParentChecker().getOption("mode"))) {
+                AnnotationBuilder annotatedForNullnessBuilder =
+                        new AnnotationBuilder(processingEnv, AnnotatedFor.class)
+                                .setValue("value", new String[] {"nullness"});
+                // As above for @DefaultQualifier: applyToSubpackages is an EISOP-specific addition
+                // to @AnnotatedFor, absent if the classpath resolves it from upstream typetools
+                // checker-qual.  Without it, an @AnnotatedFor on a package always applies to
+                // subpackages, which is not what @NullMarked means, but it is the only behavior
+                // that checker-qual offers.
+                if (annotatedForApplyToSubpackagesElement != null) {
+                    annotatedForNullnessBuilder.setValue("applyToSubpackages", false);
+                }
+                AnnotationMirror annotatedForNullness = annotatedForNullnessBuilder.build();
+                addAliasedDeclAnnotation(
+                        "org.jspecify.annotations.NullMarked",
+                        AnnotatedFor.class.getCanonicalName(),
+                        annotatedForNullness);
+                addAliasedDeclAnnotation(
+                        "org.jspecify.nullness.NullMarked",
+                        AnnotatedFor.class.getCanonicalName(),
+                        annotatedForNullness);
+
+                // @UnannotatedFor is EISOP-specific, so the whole annotation is absent -- not just
+                // an element of it -- when the classpath resolves checker-qual from upstream
+                // typetools.  A null unannotatedForValueElement is how the supertype records that.
+                if (unannotatedForValueElement != null) {
+                    AnnotationMirror unannotatedForNullness =
+                            new AnnotationBuilder(processingEnv, UnannotatedFor.class)
+                                    .setValue("value", new String[] {"nullness"})
+                                    .setValue("applyToSubpackages", false)
+                                    .build();
+                    addAliasedDeclAnnotation(
+                            "org.jspecify.annotations.NullUnmarked",
+                            UnannotatedFor.class.getCanonicalName(),
+                            unannotatedForNullness);
+                }
+            }
         }
 
         boolean permitClearProperty =

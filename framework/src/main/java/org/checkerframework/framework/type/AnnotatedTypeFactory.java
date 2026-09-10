@@ -214,11 +214,18 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      */
     protected final @Nullable ExecutableElement annotatedForApplyToSubpackagesElement;
 
-    /** The UnannotatedFor.value argument/element. */
-    protected final ExecutableElement unannotatedForValueElement;
+    /**
+     * The UnannotatedFor.value argument/element. Null if {@code @UnannotatedFor} is not on the
+     * classpath, which is the case for the upstream typetools {@code checker-qual}; no element can
+     * then be annotated with it, so it excludes nothing.
+     */
+    protected final @Nullable ExecutableElement unannotatedForValueElement;
 
-    /** The UnannotatedFor.applyToSubpackages() field/element. */
-    protected final ExecutableElement unannotatedForApplyToSubpackagesElement;
+    /**
+     * The UnannotatedFor.applyToSubpackages() field/element. Null under the same condition as
+     * {@link #unannotatedForValueElement}.
+     */
+    protected final @Nullable ExecutableElement unannotatedForApplyToSubpackagesElement;
 
     /** The EnsuresQualifier.expression field/element. */
     protected final ExecutableElement ensuresQualifierExpressionElement;
@@ -824,10 +831,20 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         annotatedForApplyToSubpackagesElement =
                 TreeUtils.getMethodOrNull(
                         AnnotatedFor.class, "applyToSubpackages", 0, processingEnv);
-        unannotatedForValueElement =
-                TreeUtils.getMethod(UnannotatedFor.class, "value", 0, processingEnv);
-        unannotatedForApplyToSubpackagesElement =
-                TreeUtils.getMethod(UnannotatedFor.class, "applyToSubpackages", 0, processingEnv);
+        // @UnannotatedFor is EISOP-specific, so the whole annotation -- not just an element of it
+        // -- is missing when the classpath resolves org.checkerframework.framework.qual from
+        // upstream typetools checker-qual. TreeUtils.getMethod and getMethodOrNull both throw a
+        // UserError for an absent type, so test for the type before asking for its elements.
+        if (elements.getTypeElement(UnannotatedFor.class.getCanonicalName()) == null) {
+            unannotatedForValueElement = null;
+            unannotatedForApplyToSubpackagesElement = null;
+        } else {
+            unannotatedForValueElement =
+                    TreeUtils.getMethod(UnannotatedFor.class, "value", 0, processingEnv);
+            unannotatedForApplyToSubpackagesElement =
+                    TreeUtils.getMethod(
+                            UnannotatedFor.class, "applyToSubpackages", 0, processingEnv);
+        }
         ensuresQualifierExpressionElement =
                 TreeUtils.getMethod(EnsuresQualifier.class, "expression", 0, processingEnv);
         ensuresQualifierListValueElement =
@@ -6934,6 +6951,9 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * @return whether {@code unannotatedForAnno} applies to subpackages
      */
     public boolean doesUnannotatedForApplyToSubpackages(AnnotationMirror unannotatedForAnno) {
+        if (unannotatedForApplyToSubpackagesElement == null) {
+            return false;
+        }
         return AnnotationUtils.appliesToSubpackages(
                 unannotatedForAnno, unannotatedForApplyToSubpackagesElement);
     }
@@ -6946,6 +6966,9 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * @return whether {@code unannotatedForAnno} applies to this checker
      */
     public boolean doesUnannotatedForApplyToThisChecker(AnnotationMirror unannotatedForAnno) {
+        if (unannotatedForValueElement == null) {
+            return false;
+        }
         return namesThisChecker(unannotatedForAnno, unannotatedForValueElement);
     }
 
