@@ -22,6 +22,11 @@ public class NullnessEnclosingExprTest extends CheckerFrameworkPerDirectoryTest 
         super(testFiles, NullnessChecker.class, "nullness", "-AcheckEnclosingExpr");
     }
 
+    /**
+     * Find the path to the actual test case
+     *
+     * @return path to test case in checker/tests.
+     */
     @Parameters
     public static String[] getTestDirs() {
         return new String[] {"nullness-enclosingexpr"};
