@@ -123,12 +123,8 @@ public class NullnessChecker extends InitializationChecker {
      * {@inheritDoc}
      *
      * <p>{@link #MODE_JSPECIFY} restricts checking to code in the scope of an
-     * {@code @AnnotatedFor}, makes {@code @NullMarked} and {@code @NullUnmarked} act as
-     * {@code @AnnotatedFor("nullness")} and {@code @UnannotatedFor("nullness")} so that the checked
-     * code is exactly the JSpecify-marked code, and turns off the initialization and map-key
-     * checks, none of which JSpecify specifies. ({@code @NullMarked} and {@code @NullUnmarked} are
-     * defaulting annotations in every mode; only delimiting the checked code is specific to this
-     * one.)
+     * {@code @AnnotatedFor}, treats {@code @NullMarked} as a defaulting annotation, and turns off
+     * the initialization and map-key checks, none of which JSpecify specifies.
      */
     @Override
     protected void addOptionsForMode(String mode, Map<String, String> activeOptions) {
