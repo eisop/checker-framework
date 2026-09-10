@@ -736,9 +736,8 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                 @Override
                 public Void visitAnnotation(AnnotationTree annoTree, String location) {
                     AnnotationMirror written = TreeUtils.annotationFromAnnotationTree(annoTree);
-                    AnnotationMirror anno = atypeFactory.canonicalIfAlias(written);
-                    if (atypeFactory.isSupportedQualifier(anno)
-                            && qualHierarchy.isPolymorphicQualifier(anno)) {
+                    AnnotationMirror anno = atypeFactory.asSupportedQualifier(written);
+                    if (anno != null && qualHierarchy.isPolymorphicQualifier(anno)) {
                         checker.reportError(
                                 annoTree, "invalid.polymorphic.qualifier", written, location);
                     }
@@ -1065,8 +1064,8 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
 
     /**
      * Reports an {@code annotation.on.supertype} error if {@code boundClause} carries a type
-     * qualifier in this checker's hierarchy directly on the supertype. A checker that allows
-     * annotations directly on supertypes (e.g., {@link
+     * qualifier in this checker's hierarchy, or an alias for one, directly on the supertype. A
+     * checker that allows annotations directly on supertypes (e.g., {@link
      * org.checkerframework.checker.tainting.TaintingVisitor}) should override this method to do
      * nothing.
      *
@@ -1855,7 +1854,8 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
 
     /**
      * Issues "explicit.annotation.ignored" warning if any explicit annotation on an intersection
-     * bound is not the same as the primary annotation of the given intersection type.
+     * bound -- or, if written as an alias, its canonical form -- is not the same as the primary
+     * annotation of the given intersection type.
      *
      * @param intersection type to use
      * @param boundTrees trees of {@code intersection} bounds
@@ -1869,8 +1869,8 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             List<? extends AnnotationMirror> explicitAnnos =
                     TreeUtils.annotationsFromTree((AnnotatedTypeTree) boundTree);
             for (AnnotationMirror writtenAnno : explicitAnnos) {
-                AnnotationMirror explicitAnno = atypeFactory.canonicalIfAlias(writtenAnno);
-                if (atypeFactory.isSupportedQualifier(explicitAnno)) {
+                AnnotationMirror explicitAnno = atypeFactory.asSupportedQualifier(writtenAnno);
+                if (explicitAnno != null) {
                     AnnotationMirror anno = intersection.getAnnotationInHierarchy(explicitAnno);
                     if (!AnnotationUtils.areSame(anno, explicitAnno)) {
                         checker.reportWarning(
@@ -3393,7 +3393,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
 
     /**
      * Returns a new list containing only the supported annotations from its argument -- that is,
-     * those that are part of the current type system.
+     * those that are part of the current type system, directly or via an alias.
      *
      * <p>This method ignores aliases of supported annotations that are declaration annotations,
      * because they may apply to inner types.

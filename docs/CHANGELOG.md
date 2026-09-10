@@ -45,12 +45,19 @@ A check that reads an annotation from the source tree now resolves aliases first
 alias such as `org.jspecify.annotations.Nullable` or `@IndexFor` is treated as the qualifier it
 stands for. The `annotation.on.supertype`, `instanceof.nullable`, `instanceof.nonnull.redundant`,
 `invalid.polymorphic.qualifier`, `explicit.annotation.ignored`, and `anno.on.irrelevant`
-diagnostics were previously issued only for a checker's own annotation.
+diagnostics were previously issued only for a checker's own annotation. So is the type of a
+constructor reference (`Foo::new`): an explicit annotation on the constructor's own declared type,
+written as an alias, is now recognized the same way its canonical form would be.
+`AnnotatedTypeMirror#getExplicitAnnotations` also now recognizes an alias as one of the checker's
+own qualifiers, while still returning it in the form it was written.
 
-`AnnotatedTypeFactory` has two new public methods for writing this kind of alias-aware check:
+`AnnotatedTypeFactory` has three new public methods for writing this kind of alias-aware check:
 `asSupportedQualifier(AnnotationMirror)`, which returns an annotation as written or its canonical
-form, whichever is a supported qualifier (or null if neither is), and
-`isSupportedQualifierOrAlias(AnnotationMirror)`, the boolean form of the same question.
+form, whichever is a supported qualifier (or null if neither is);
+`isSupportedQualifierOrAlias(AnnotationMirror)`, the boolean form of the same question; and
+`canonicalAnnotationOrWritten(AnnotationMirror)`, which returns the canonical form of an
+annotation as written if it is an alias, and the annotation itself otherwise (regardless of
+whether either form is actually a supported qualifier).
 
 `@AnnotatedFor` is now `@Repeatable`, so it may be written more than once at the same
 location. This lets different type systems be given different `applyToSubpackages`

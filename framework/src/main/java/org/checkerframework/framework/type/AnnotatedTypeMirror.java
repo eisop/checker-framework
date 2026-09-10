@@ -317,7 +317,7 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
      * <p>May return null if the receiver is a type variable or a wildcard without a primary
      * annotation, or if the receiver is not yet fully annotated.
      *
-     * @param annotation an annotation in the qualifier hierarchy to check for
+     * @param annotation an annotation in the qualifier hierarchy to check for, or an alias for one
      * @return the annotation mirror whose class is named {@code annoNAme} or null
      */
     // typetools: getPrimaryAnnotationInHierarchy
@@ -341,7 +341,7 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
      * <p>An effective annotation is the annotation on the type itself, or on the upper/extends
      * bound of a type variable/wildcard (recursively, until a class type is reached).
      *
-     * @param annotation an annotation in the qualifier hierarchy to check for
+     * @param annotation an annotation in the qualifier hierarchy to check for, or an alias for one
      * @return an annotation from the same hierarchy as {@code annotation} if present
      */
     public @Nullable AnnotationMirror getEffectiveAnnotationInHierarchy(
@@ -467,12 +467,14 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
     }
 
     /**
-     * Returns the set of explicitly written annotations on this type that are supported by this
-     * checker. This is useful to check the validity of annotations explicitly present on a type, as
-     * flow inference might add annotations that were not previously present. Note that since
-     * AnnotatedTypeMirror instances are created for type uses, this method will return explicit
-     * annotations in type use locations but will not return explicit annotations that had an impact
-     * on defaulting, such as an explicit annotation on a class declaration. For example, given:
+     * Returns the set of explicitly written annotations on this type that this checker recognizes
+     * -- directly, or via an alias. Each returned annotation is the one as written (an alias is not
+     * replaced by its canonical form). This is useful to check the validity of annotations
+     * explicitly present on a type, as flow inference might add annotations that were not
+     * previously present. Note that since AnnotatedTypeMirror instances are created for type uses,
+     * this method will return explicit annotations in type use locations but will not return
+     * explicit annotations that had an impact on defaulting, such as an explicit annotation on a
+     * class declaration. For example, given:
      *
      * <p>{@code @MyExplicitAnno class MyClass {}; MyClass myClassInstance; }
      *
@@ -481,8 +483,8 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
      *
      * <p>will not contain {@code @MyExplicitAnno}.
      *
-     * @return the set of explicitly written annotations on this type that are supported by this
-     *     checker
+     * @return the set of explicitly written annotations on this type that this checker recognizes,
+     *     directly or via an alias; each as written, not canonicalized
      */
     public AnnotationMirrorSet getExplicitAnnotations() {
         // TODO JSR 308: The explicit type annotations should be always present
@@ -491,7 +493,10 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
                 this.getUnderlyingType().getAnnotationMirrors();
 
         for (AnnotationMirror explicitAnno : typeAnnotations) {
-            if (atypeFactory.isSupportedQualifier(explicitAnno)) {
+            // explicitAnno comes from the underlying TypeMirror, not from addAnnotation, so it is
+            // as written and may be an alias; the check must resolve aliasing, but the annotation
+            // added below must stay the one as written, per this method's contract.
+            if (atypeFactory.isSupportedQualifierOrAlias(explicitAnno)) {
                 explicitAnnotations.add(explicitAnno);
             }
         }
