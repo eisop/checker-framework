@@ -3,6 +3,13 @@ Version 3.49.5-eisop2 (June ?, 2026)
 
 **User-visible changes:**
 
+Fixed a bug where a `@DefaultQualifier` on a package could be lost for deeper subpackages.
+This happened when an intervening package shadowed it -- set a default for the same
+location and qualifier hierarchy -- and that shadowing default did not itself apply to
+subpackages. The intervening package's own default correctly stayed limited to that
+package, but the outer default, which nothing deeper actually shadowed, incorrectly
+stopped propagating too.
+
 The Nullness Checker no longer recognizes `org.jspecify.nullness.NonNull`,
 `org.jspecify.nullness.Nullable`, or `org.jspecify.nullness.NullMarked` -- JSpecify's
 original, pre-1.0 package, deprecated since 2022. Use the corresponding
@@ -840,7 +847,7 @@ eisop#792, eisop#863, eisop#949, eisop#1015, eisop#1059, eisop#1074, eisop#1244,
 eisop#1315, eisop#1564, eisop#1592, eisop#1642, eisop#1653, eisop#1735,
 eisop#1801, eisop#1818, eisop#1819, eisop#1861, eisop#1862, eisop#1863,
 eisop#1865, eisop#1887, eisop#1965, eisop#1986, eisop#1987, eisop#1990,
-eisop#1991, eisop#2032, typetools#399, typetools#3203.
+eisop#1991, eisop#2032, eisop#2037, typetools#399, typetools#3203.
 
 
 Version 3.49.5-eisop1 (April 26, 2026)

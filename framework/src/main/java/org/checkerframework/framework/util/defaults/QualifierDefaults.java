@@ -156,6 +156,22 @@ public class QualifierDefaults {
      */
     private final IdentityHashMap<Element, DefaultSet> elementDefaults = new IdentityHashMap<>();
 
+    /**
+     * For a package, the defaults it makes available to its own subpackages: its own direct
+     * defaults that have {@code applyToSubpackages = true}, plus whatever its own parent package
+     * makes available to it that a nearer, propagating default of its own does not replace. See
+     * {@link #propagatingDefaultsAt}, which computes and caches this.
+     *
+     * <p>This is deliberately a separate cache from {@link #elementDefaults}: a default that is
+     * shadowed for a package's own elements (by a nearer default for the same location and
+     * qualifier hierarchy) is not necessarily shadowed for that package's subpackages too. A
+     * shadowing default that does not itself have {@code applyToSubpackages = true} only wins
+     * locally; the default it shadowed must remain available here for deeper packages, or it is
+     * lost for them even though nothing there shadows it.
+     */
+    private final IdentityHashMap<PackageElement, DefaultSet> packagePropagatingDefaults =
+            new IdentityHashMap<>();
+
     /** CLIMB locations whose standard default is top for a given type system. */
     public static final List<TypeUseLocation> STANDARD_CLIMB_DEFAULTS_TOP =
             Collections.unmodifiableList(
@@ -723,20 +739,11 @@ public class QualifierDefaults {
         DefaultSet qualifiers = defaultsAtDirect(elt);
         DefaultSet parentDefaults;
         if (elt.getKind() == ElementKind.PACKAGE) {
-            Element parent = ElementUtils.parentPackage((PackageElement) elt, elements);
-            DefaultSet origParentDefaults = defaultsAt(parent);
-            if (origParentDefaults.isEmpty()) {
-                // Nothing to filter; reuse the empty set rather than allocating one to copy
-                // zero elements into. Common case: no @DefaultQualifier anywhere in the chain.
-                parentDefaults = origParentDefaults;
-            } else {
-                parentDefaults = new DefaultSet();
-                for (Default d : origParentDefaults) {
-                    if (d.applyToSubpackages) {
-                        parentDefaults.add(d);
-                    }
-                }
-            }
+            // Use what the parent package makes available to its subpackages (already filtered
+            // to applyToSubpackages, and already accounting for the parent's own shadowing), not
+            // the parent's own effective set: see propagatingDefaultsAt for why those can differ.
+            PackageElement parent = ElementUtils.parentPackage((PackageElement) elt, elements);
+            parentDefaults = propagatingDefaultsAt(parent);
         } else {
             Element parent = elt.getEnclosingElement();
             parentDefaults = defaultsAt(parent);
@@ -745,29 +752,7 @@ public class QualifierDefaults {
         if (qualifiers == null || qualifiers.isEmpty()) {
             qualifiers = parentDefaults;
         } else {
-            // A default for a given (location, hierarchy) at a nearer scope shadows a default for
-            // the same (location, hierarchy) at an enclosing scope: only inherit an enclosing-scope
-            // default whose (location, hierarchy) the nearer scope does not itself set. Without
-            // this, both defaults would coexist in the (location, annotation)-ordered TreeSet and
-            // the winner between them would be decided by annotation ordering rather than by scope
-            // distance.
-            QualifierHierarchy qualHierarchy = atypeFactory.getQualifierHierarchy();
-            for (Default d : parentDefaults) {
-                boolean shadowed = false;
-                AnnotationMirror parentTop = qualHierarchy.getTopAnnotation(d.anno);
-                for (Default nearer : qualifiers) {
-                    if (nearer.location == d.location) {
-                        AnnotationMirror nearerTop = qualHierarchy.getTopAnnotation(nearer.anno);
-                        if (AnnotationUtils.areSame(parentTop, nearerTop)) {
-                            shadowed = true;
-                            break;
-                        }
-                    }
-                }
-                if (!shadowed) {
-                    qualifiers.add(d);
-                }
-            }
+            qualifiers = mergeShadowing(qualifiers, parentDefaults);
         }
 
         if (!qualifiers.isEmpty()) {
@@ -781,6 +766,106 @@ public class QualifierDefaults {
             elementDefaults.put(elt, emptyForElt);
             return emptyForElt;
         }
+    }
+
+    /**
+     * Returns the defaults that {@code pkg} makes available to its own subpackages: {@code pkg}'s
+     * own direct defaults that have {@code applyToSubpackages = true}, merged with what {@code
+     * pkg}'s own parent package makes available to it in turn.
+     *
+     * <p>This is not the same as filtering {@link #defaultsAt}({@code pkg}) by {@code
+     * applyToSubpackages}, and computing it that way is the bug this method exists to avoid (see <a
+     * href="https://github.com/eisop/checker-framework/issues/2037">eisop#2037</a>). {@link
+     * #defaultsAt} resolves, once and for all, which default wins <em>at {@code pkg} itself</em>
+     * for a given (location, qualifier hierarchy): a nearer default there permanently shadows a
+     * farther one, full stop. But a default that loses that competition at {@code pkg} has not
+     * necessarily lost it everywhere: if the default that shadowed it does not itself have {@code
+     * applyToSubpackages = true}, the shadowing default only ever applied at {@code pkg}, and the
+     * default it shadowed must remain available for {@code pkg}'s subpackages, which nothing there
+     * shadows. Folding shadowing and {@code applyToSubpackages}-filtering into one pass, the way
+     * {@link #defaultsAt} needs to for {@code pkg}'s own elements, permanently discards that
+     * shadowed default instead: it is not merely unavailable at {@code pkg}, it is gone.
+     *
+     * <p>So this method tracks a second, independent question -- what continues past {@code pkg} --
+     * by only letting a default permanently replace a farther one here if the nearer default itself
+     * also has {@code applyToSubpackages = true}; only then does it actually compete at the same
+     * depths the farther one did. A non-propagating nearer default still wins at {@code pkg} (via
+     * {@link #defaultsAt}, which merges {@code pkg}'s own defaults over this method's result), it
+     * just does not get to erase the farther default for everyone past {@code pkg}.
+     *
+     * @param pkg a package, or null for no package
+     * @return the defaults {@code pkg} makes available to its own subpackages
+     */
+    private DefaultSet propagatingDefaultsAt(@Nullable PackageElement pkg) {
+        if (pkg == null) {
+            return DefaultSet.EMPTY;
+        }
+
+        DefaultSet cached = packagePropagatingDefaults.get(pkg);
+        if (cached != null) {
+            return cached;
+        }
+
+        DefaultSet direct = defaultsAtDirect(pkg);
+        DefaultSet ownPropagating;
+        if (direct == null || direct.isEmpty()) {
+            ownPropagating = DefaultSet.EMPTY;
+        } else {
+            ownPropagating = new DefaultSet();
+            for (Default d : direct) {
+                if (d.applyToSubpackages) {
+                    ownPropagating.add(d);
+                }
+            }
+        }
+
+        PackageElement parent = ElementUtils.parentPackage(pkg, elements);
+        DefaultSet parentPropagating = propagatingDefaultsAt(parent);
+
+        DefaultSet result = mergeShadowing(ownPropagating, parentPropagating);
+        packagePropagatingDefaults.put(pkg, result);
+        return result;
+    }
+
+    /**
+     * Merges {@code farther} into {@code nearer}: every element of {@code nearer} is kept, and an
+     * element of {@code farther} is kept too unless {@code nearer} has an element for the same
+     * (location, qualifier hierarchy), which shadows it. Without this, both defaults would coexist
+     * in the (location, annotation)-ordered {@link DefaultSet} and the winner between them would be
+     * decided by annotation ordering rather than by scope distance.
+     *
+     * @param nearer defaults at a nearer scope; every one of them is kept
+     * @param farther defaults at a farther scope; kept only where {@code nearer} does not set the
+     *     same (location, qualifier hierarchy)
+     * @return the merged set
+     */
+    private DefaultSet mergeShadowing(DefaultSet nearer, DefaultSet farther) {
+        if (farther.isEmpty()) {
+            return nearer;
+        }
+        if (nearer.isEmpty()) {
+            return farther;
+        }
+        DefaultSet result = new DefaultSet();
+        result.addAll(nearer);
+        QualifierHierarchy qualHierarchy = atypeFactory.getQualifierHierarchy();
+        for (Default d : farther) {
+            boolean shadowed = false;
+            AnnotationMirror fartherTop = qualHierarchy.getTopAnnotation(d.anno);
+            for (Default n : nearer) {
+                if (n.location == d.location) {
+                    AnnotationMirror nearerTop = qualHierarchy.getTopAnnotation(n.anno);
+                    if (AnnotationUtils.areSame(fartherTop, nearerTop)) {
+                        shadowed = true;
+                        break;
+                    }
+                }
+            }
+            if (!shadowed) {
+                result.add(d);
+            }
+        }
+        return result;
     }
 
     /**
