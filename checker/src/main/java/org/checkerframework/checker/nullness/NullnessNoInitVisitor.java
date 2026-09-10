@@ -63,6 +63,9 @@ import org.checkerframework.javacutil.TreePathUtil;
 import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TreeUtilsAfterJava11;
 import org.checkerframework.javacutil.TreeUtilsAfterJava11.BindingPatternUtils;
+import org.checkerframework.javacutil.TreeUtilsAfterJava11.CaseUtils;
+import org.checkerframework.javacutil.TreeUtilsAfterJava11.DeconstructionPatternUtils;
+import org.checkerframework.javacutil.TreeUtilsAfterJava11.PatternCaseLabelUtils;
 import org.checkerframework.javacutil.TreeUtilsAfterJava11.SwitchExpressionUtils;
 import org.checkerframework.javacutil.TypesUtils;
 
@@ -636,40 +639,118 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
 
     @Override
     public Void visitInstanceOf(InstanceOfTree tree, Void p) {
-        // The "reference type" is the type after "instanceof".
-        Tree refTypeTree = tree.getType();
-        if (refTypeTree == null) {
-            // TODO: the type is null for deconstructor patterns.
-            // Handle them properly.
-            return null;
+        // JSpecify gives any component of the type after "instanceof" no meaning, not only its
+        // root, and likewise for any component in a pattern (including inside a nested
+        // deconstruction pattern), so collect from the whole subtree rather than just its root.
+        //
+        // Check getPattern() first, unconditionally: getType() can be non-null even when a
+        // pattern is present (for a binding pattern such as "o instanceof String[] a", getType()
+        // returns the plain "String[]", without whatever was written on the pattern's own
+        // variable -- the annotation lives on the pattern, found only via getPattern()). Fall
+        // back to getType() only when there truly is no pattern.
+        List<AnnotationMirror> annotations = new ArrayList<>();
+        Tree patternTree = TreeUtilsAfterJava11.InstanceOfUtils.getPattern(tree);
+        if (patternTree != null) {
+            collectAnnotationsInTypeOrPattern(patternTree, annotations);
+        } else if (tree.getType() != null) {
+            collectAnnotationsInTypeOrPattern(tree.getType(), annotations);
         }
 
-        List<? extends AnnotationMirror> annotations = null;
-        if (refTypeTree instanceof AnnotatedTypeTree) {
-            annotations = TreeUtils.annotationsFromTree((AnnotatedTypeTree) refTypeTree);
-        } else {
-            Tree patternTree = TreeUtilsAfterJava11.InstanceOfUtils.getPattern(tree);
-            if (patternTree != null && TreeUtils.isBindingPatternTree(patternTree)) {
-                VariableTree variableTree = BindingPatternUtils.getVariable(patternTree);
-                if (variableTree.getModifiers() != null) {
-                    List<? extends AnnotationTree> annotationTree =
-                            variableTree.getModifiers().getAnnotations();
-                    annotations = TreeUtils.annotationsFromTypeAnnotationTrees(annotationTree);
-                }
-            }
+        if (AnnotationUtils.containsSame(annotations, NULLABLE)) {
+            checker.reportError(tree, "instanceof.nullable");
         }
-
-        if (annotations != null) {
-            if (AnnotationUtils.containsSame(annotations, NULLABLE)) {
-                checker.reportError(tree, "instanceof.nullable");
-            }
-            if (AnnotationUtils.containsSame(annotations, NONNULL)) {
-                checker.reportWarning(tree, "instanceof.nonnull.redundant");
-            }
+        if (AnnotationUtils.containsSame(annotations, NONNULL)) {
+            checker.reportWarning(tree, "instanceof.nonnull.redundant");
         }
 
         // Don't call super because it will issue an incorrect instanceof.unsafe warning.
         return null;
+    }
+
+    /**
+     * If {@code -AjspecifyUnrecognizedLocations} was supplied and any component of a type or
+     * pattern -- described by {@code location} -- carries a nullness annotation, reports that
+     * JSpecify gives a nullness annotation no meaning there. Unlike {@link #checkJSpecifyLocation},
+     * which builds its own list of annotations to test, this overload takes an already-collected
+     * list, for a caller (such as {@link #visitCase}) that also needs those annotations for another
+     * purpose.
+     *
+     * @param reportTree the tree at which to report
+     * @param annotations annotation mirrors already collected from the location
+     * @param location a description of the location, for the diagnostic message
+     */
+    private void checkJSpecifyLocation(
+            Tree reportTree, List<AnnotationMirror> annotations, String location) {
+        if (!jspecifyUnrecognizedLocations) {
+            return;
+        }
+        for (AnnotationMirror am : annotations) {
+            if (atypeFactory.isNullnessAnnotation(am)) {
+                checker.reportError(reportTree, "jspecify.unrecognized.location", location);
+                return;
+            }
+        }
+    }
+
+    /**
+     * Adds every annotation written anywhere within {@code tree} to {@code annotations}: any
+     * component of a type, or, if {@code tree} is a pattern ({@code BindingPatternTree} or {@code
+     * DeconstructionPatternTree}), any component of any type appearing anywhere within it,
+     * including inside a nested deconstruction pattern.
+     *
+     * @param tree a type tree, or a pattern tree
+     * @param annotations the list to add annotation mirrors to
+     */
+    private void collectAnnotationsInTypeOrPattern(Tree tree, List<AnnotationMirror> annotations) {
+        if (TreeUtils.isBindingPatternTree(tree)) {
+            VariableTree variableTree = BindingPatternUtils.getVariable(tree);
+            if (variableTree.getModifiers() != null) {
+                for (AnnotationTree at : variableTree.getModifiers().getAnnotations()) {
+                    annotations.add(TreeUtils.annotationFromAnnotationTree(at));
+                }
+            }
+            if (variableTree.getType() != null) {
+                collectAnnotationsInTypeOrPattern(variableTree.getType(), annotations);
+            }
+        } else if (TreeUtils.isDeconstructionPatternTree(tree)) {
+            collectAnnotationsInTypeOrPattern(
+                    DeconstructionPatternUtils.getDeconstructor(tree), annotations);
+            for (Tree nested : DeconstructionPatternUtils.getNestedPatterns(tree)) {
+                collectAnnotationsInTypeOrPattern(nested, annotations);
+            }
+        } else {
+            new TreeScanner<Void, Void>() {
+                @Override
+                public Void visitAnnotation(AnnotationTree annoTree, Void unused) {
+                    annotations.add(TreeUtils.annotationFromAnnotationTree(annoTree));
+                    return null;
+                }
+            }.scan(tree, null);
+        }
+    }
+
+    @Override
+    public Void visitCase(CaseTree tree, Void p) {
+        // A switch pattern label carries the same "any component in a pattern" rule as an
+        // instanceof pattern, but has no existing CF-specific diagnostic to reuse the way
+        // instanceof.nullable does, so report the general new diagnostic instead.
+        if (jspecifyUnrecognizedLocations) {
+            for (Tree label : CaseUtils.getLabels(tree)) {
+                Tree pattern = null;
+                if (PatternCaseLabelUtils.isPatternCaseLabelTree(label)) {
+                    pattern = PatternCaseLabelUtils.getPattern(label);
+                } else if (TreeUtils.isBindingPatternTree(label)
+                        || TreeUtils.isDeconstructionPatternTree(label)) {
+                    pattern = label;
+                }
+                if (pattern != null) {
+                    List<AnnotationMirror> annotations = new ArrayList<>();
+                    collectAnnotationsInTypeOrPattern(pattern, annotations);
+                    checkJSpecifyLocation(tree, annotations, "a pattern");
+                }
+            }
+        }
+        return super.visitCase(tree, p);
     }
 
     /**
@@ -764,6 +845,18 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
             Tree type = receiver.getType();
             if (atypeFactory.containsNullnessAnnotation(annoTrees, type)) {
                 checker.reportError(tree, "nullness.on.receiver");
+            }
+            if (type instanceof ParameterizedTypeTree) {
+                // JSpecify gives a nullness annotation no meaning on a type argument of a
+                // receiver parameter's type either, even though a type argument is normally a
+                // recognized location; the receiver's own root type is checked just above.
+                for (Tree typeArgument : ((ParameterizedTypeTree) type).getTypeArguments()) {
+                    checkJSpecifyLocationAnyComponent(
+                            tree,
+                            null,
+                            typeArgument,
+                            "a type argument of a receiver parameter's type");
+                }
             }
         }
 

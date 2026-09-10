@@ -60,4 +60,13 @@ public class UnrecognizedLocations {
         // :: error: (jspecify.unrecognized.location)
         try (@Nullable InputStream in = null) {}
     }
+
+    static class GenericReceiver<T> {
+        // The receiver parameter's own root type is covered by nullness.on.receiver, not repeated
+        // here (see RecognizedLocations for the negative case). A type argument of that root type
+        // is a separate, additionally unrecognized location, even though a type argument is
+        // normally recognized.
+        // :: error: (jspecify.unrecognized.location)
+        void method(GenericReceiver<@Nullable T> this) {}
+    }
 }

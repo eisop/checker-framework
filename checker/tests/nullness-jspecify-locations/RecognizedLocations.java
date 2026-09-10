@@ -35,4 +35,15 @@ public class RecognizedLocations {
 
         return null;
     }
+
+    // An unannotated receiver parameter with a type argument, and an unannotated instanceof of an
+    // array type: neither is reported just because a receiver parameter or an instanceof pattern
+    // is present.
+    static class GenericReceiver<T> {
+        void method(GenericReceiver<T> this) {}
+    }
+
+    void instanceOf(Object o) {
+        if (o instanceof String[]) {}
+    }
 }
