@@ -16,6 +16,17 @@ When the Initialization Checker rejects a method call on a partially-initialized
 now reports `initialization.method.invocation.invalid`, which names the fields that are still
 uninitialized at the call, instead of the framework's `method.invocation.invalid`.
 
+`@AnnotatedFor` is now `@Repeatable`, so it may be written more than once at the same
+location. This lets different type systems be given different `applyToSubpackages`
+settings on one package, which its single `value()` array could not express on its own:
+```java
+@AnnotatedFor(value = "nullness", applyToSubpackages = false)
+@AnnotatedFor(value = "index", applyToSubpackages = true)
+package mypackage;
+```
+Listing multiple checker names in one `@AnnotatedFor`, as before, remains the right choice
+when they should share one `applyToSubpackages` setting.
+
 Two new Maven Central artifacts support writing a custom checker without
 depending on the whole `checker` artifact: `io.github.eisop:framework`, which
 declares its dependencies in its POM, and `io.github.eisop:framework-all`,

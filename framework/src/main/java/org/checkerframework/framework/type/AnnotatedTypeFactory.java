@@ -213,6 +213,14 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      */
     protected final @Nullable ExecutableElement annotatedForApplyToSubpackagesElement;
 
+    /**
+     * The AnnotatedFor.List.value() field/element, for a location with two or more written
+     * {@code @AnnotatedFor} (which javac collapses into one {@code @AnnotatedFor.List}). Null if
+     * the version of {@code @AnnotatedFor} on the classpath predates the nested {@code List} type,
+     * in which case {@code @AnnotatedFor} could not have been written more than once there.
+     */
+    protected final @Nullable ExecutableElement annotatedForListValueElement;
+
     /** The EnsuresQualifier.expression field/element. */
     protected final ExecutableElement ensuresQualifierExpressionElement;
 
@@ -817,6 +825,17 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         annotatedForApplyToSubpackagesElement =
                 TreeUtils.getMethodOrNull(
                         AnnotatedFor.class, "applyToSubpackages", 0, processingEnv);
+        // AnnotatedFor.List is itself the newly-added type here (unlike applyToSubpackages, an
+        // element on a type that already existed), so it must not be referenced as a class
+        // literal before its absence is checked: evaluating "AnnotatedFor.List.class" resolves
+        // (links) that nested class immediately, throwing NoClassDefFoundError -- defeating the
+        // guard -- if an older checker-qual on the classpath lacks it. Using its canonical name
+        // as a literal string, instead of deriving it from the class, avoids linking it here.
+        @FullyQualifiedName String annotatedForListName = "org.checkerframework.framework.qual.AnnotatedFor.List";
+        annotatedForListValueElement =
+                elements.getTypeElement(annotatedForListName) == null
+                        ? null
+                        : TreeUtils.getMethod(annotatedForListName, "value", 0, processingEnv);
         ensuresQualifierExpressionElement =
                 TreeUtils.getMethod(EnsuresQualifier.class, "expression", 0, processingEnv);
         ensuresQualifierListValueElement =
@@ -6908,6 +6927,38 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
       }
     }
     */
+
+    /**
+     * Returns every {@link AnnotatedFor} annotation written on {@code elt}: the one written on it,
+     * if a single instance was written, or each instance in {@code @AnnotatedFor.List}'s value() if
+     * two or more were written at the same location. {@code @AnnotatedFor} is {@code @Repeatable},
+     * so javac exposes only the {@code .List} container, not the individual mirrors, once there are
+     * two or more.
+     *
+     * @param elt an element
+     * @return an unmodifiable set of the {@link AnnotatedFor} annotations written on {@code elt};
+     *     may be empty
+     */
+    public AnnotationMirrorSet getAnnotatedForAnnotations(Element elt) {
+        AnnotationMirrorSet result = null;
+        AnnotationMirror single = getDeclAnnotation(elt, AnnotatedFor.class);
+        if (single != null) {
+            result = new AnnotationMirrorSet(single);
+        }
+        if (annotatedForListValueElement != null) {
+            AnnotationMirror listAnno = getDeclAnnotation(elt, AnnotatedFor.List.class);
+            if (listAnno != null) {
+                List<AnnotationMirror> repeated =
+                        AnnotationUtils.getElementValueArray(
+                                listAnno, annotatedForListValueElement, AnnotationMirror.class);
+                if (result == null) {
+                    result = new AnnotationMirrorSet();
+                }
+                result.addAll(repeated);
+            }
+        }
+        return result == null ? AnnotationMirrorSet.emptySet() : result.makeUnmodifiable();
+    }
 
     /**
      * Does {@code annotatedForAnno}, which is an {@link

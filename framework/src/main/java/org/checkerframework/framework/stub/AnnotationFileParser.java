@@ -2858,6 +2858,11 @@ public class AnnotationFileParser {
      * Returns true if one of the annotations is {@link AnnotatedFor} and this checker is in its
      * list of checkers. If none of the annotations are {@code AnnotatedFor}, then also return true.
      *
+     * <p>{@code @AnnotatedFor} is {@code @Repeatable}, so {@code annotations} may contain more than
+     * one; unlike javac's own compiled view, JavaParser never collapses repeated annotations into a
+     * single {@code AnnotatedFor.List}, so each instance appears here as its own entry. This
+     * checker is admitted if any instance applies to it.
+     *
      * @param annotations a list of JavaParser annotations
      * @return true if one of the annotations is {@link AnnotatedFor} and its list of checkers does
      *     not contain this checker
@@ -2868,17 +2873,21 @@ public class AnnotationFileParser {
             // TODO: Parse the JDK stubs, but only save the declaration annotations.
             return true;
         }
+        boolean foundAnnotatedFor = false;
         for (AnnotationExpr ae : annotations) {
             if (ae.getNameAsString().equals("AnnotatedFor")
                     || ae.getNameAsString()
                             .equals("org.checkerframework.framework.qual.AnnotatedFor")) {
                 AnnotationMirror af = getAnnotation(ae, allAnnotations);
                 if (atypeFactory.areSameByClass(af, AnnotatedFor.class)) {
-                    return atypeFactory.doesAnnotatedForApplyToThisChecker(af);
+                    foundAnnotatedFor = true;
+                    if (atypeFactory.doesAnnotatedForApplyToThisChecker(af)) {
+                        return true;
+                    }
                 }
             }
         }
-        return true;
+        return !foundAnnotatedFor;
     }
 
     /**
