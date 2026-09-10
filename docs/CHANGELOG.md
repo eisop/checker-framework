@@ -43,8 +43,8 @@ uninitialized at the call, instead of the framework's `method.invocation.invalid
 
 A type-use annotation written on an anonymous class creation expression, as in
 `new @A AClass() {}`, is now validated against the declaration bound of the class being extended
-on Java 11 as well. Previously this was checked only on Java 17 and later, so the same source
-checked differently depending on the compiler.
+on Java 8 through 11 as well. Previously this was checked only on Java 12 and later, so the same
+source checked differently depending on the compiler.
 
 `@AnnotatedFor` is now `@Repeatable`, so it may be written more than once at the same
 location. This lets different type systems be given different `applyToSubpackages`

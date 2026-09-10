@@ -1997,7 +1997,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      *
      * <p>An anonymous class's supertype is annotated by its creation expression, as in {@code
      * new @HERE Class() {}}. javac attaches that annotation to the anonymous class declaration's
-     * modifiers in Java 11 and lower, and to the clause itself in Java 17 and later; {@link
+     * modifiers in Java 11 and lower, and to the clause itself in Java 12 and later; {@link
      * #getExplicitNewClassAnnos} reconciles the two.
      *
      * <p>Call this after {@link #addComputedTypeAnnotations}, whose defaulting would otherwise
@@ -3898,12 +3898,15 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      */
     public AnnotationMirrorSet getExplicitNewClassAnnos(NewClassTree newClassTree) {
         if (newClassTree.getClassBody() != null) {
-            // In Java 17+, the annotations are on the identifier, so copy them.
+            // In Java 12+, the annotations are on the identifier, so copy them.
             AnnotatedTypeMirror identifierType = fromTypeTree(newClassTree.getIdentifier());
             // In Java 11 and lower, if newClassTree creates an anonymous class, then annotations in
             // this location:
             //   new @HERE Class() {}
             // are not on the identifier newClassTree, but rather on the modifier newClassTree.
+            // TODO: once the minimum supported JDK is 12, javac always attaches the annotation to
+            // the identifier and this reconciliation (the rest of this if-block, down to and
+            // including the addAnnotations call below) can be deleted.
             List<? extends AnnotationTree> annoTrees =
                     newClassTree.getClassBody().getModifiers().getAnnotations();
             // Add the annotations to an AnnotatedTypeMirror removes the annotations that are not
