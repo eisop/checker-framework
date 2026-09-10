@@ -348,6 +348,8 @@ public abstract class BaseTypeChecker extends SourceChecker {
         }
 
         AnnotatedTypeFactory atypeFactory = getTypeFactory();
+        // An element may have both a written @AnnotatedFor and an aliased one (such as
+        // @NullMarked); any of them naming this checker is enough.
         boolean elementAnnotatedForThisChecker = false;
         for (AnnotationMirror annotatedFor : atypeFactory.getAnnotatedForAnnotations(elt)) {
             if (atypeFactory.doesAnnotatedForApplyToThisChecker(annotatedFor)) {
@@ -397,6 +399,11 @@ public abstract class BaseTypeChecker extends SourceChecker {
         }
 
         AnnotatedTypeFactory atypeFactory = getTypeFactory();
+        // Both conditions must hold of the same @AnnotatedFor, but they need not hold of the
+        // same one for every checker: a package annotated @AnnotatedFor("index") @NullMarked
+        // reaches subpackages for the Index Checker and not for the Nullness Checker, because
+        // the @NullMarked alias sets applyToSubpackages=false.  Any single @AnnotatedFor that
+        // both applies to this checker and reaches subpackages suffices.
         boolean result = false;
         for (AnnotationMirror annotatedFor : atypeFactory.getAnnotatedForAnnotations(pkg)) {
             if (atypeFactory.doesAnnotatedForApplyToThisChecker(annotatedFor)

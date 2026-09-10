@@ -10,6 +10,31 @@ subpackages. The intervening package's own default correctly stayed limited to t
 package, but the outer default, which nothing deeper actually shadowed, incorrectly
 stopped propagating too.
 
+The Nullness Checker now treats JSpecify's `@NullMarked` as an alias for
+`@AnnotatedFor` scoped to nullness checking alone (not initialization or `@KeyFor`
+checking, which JSpecify does not define and which `-Amode=jspecify` already excludes),
+with `applyToSubpackages = false`, in addition to the existing `@DefaultQualifier` alias.
+Nullness-checking code under a `@NullMarked` element is therefore type-checked under
+`-AonlyAnnotatedFor` and `-AuseConservativeDefaultsForUncheckedCode=source` instead of
+being skipped. Because `@NullMarked` is retained in class files, this also applies to
+bytecode: a dependency compiled with `@NullMarked` is no longer treated as unchecked
+code under `-AuseConservativeDefaultsForUncheckedCode=bytecode`. A written
+`@AnnotatedFor("initialization")` or `@AnnotatedFor("keyfor")` still composes normally
+alongside `@NullMarked` (see below). `applyToSubpackages = false` matches JSpecify,
+which specifies that a `@NullMarked` package does not cover its subpackages, and
+matches the `@DefaultQualifier` alias. As before, `-AjspecifyNullMarkedAlias=false`
+disables all `@NullMarked` aliasing, now including this new alias. `@NullUnmarked` is
+not yet honored: nested code under it is still checked as if the enclosing
+`@NullMarked` scope applied.
+
+An `@AnnotatedFor` annotation written on an element now composes with any alias for
+`@AnnotatedFor` on that same element, rather than the written annotation hiding the alias.
+For example, `@AnnotatedFor("index") @NullMarked` is checked by both the Index Checker and
+the Nullness Checker. This composition is not something `@AnnotatedFor` being `@Repeatable`
+(below) could provide by itself: `@Repeatable` only lets javac collapse multiple literal
+instances of the same annotation type, and an alias produces an instance that was never
+written.
+
 The Nullness Checker no longer recognizes `org.jspecify.nullness.NonNull`,
 `org.jspecify.nullness.Nullable`, or `org.jspecify.nullness.NullMarked` -- JSpecify's
 original, pre-1.0 package, deprecated since 2022. Use the corresponding
@@ -844,10 +869,10 @@ Other improvements and bug fixes:
 
 eisop#104, eisop#386, eisop#433, eisop#622, eisop#737, eisop#778, eisop#786,
 eisop#792, eisop#863, eisop#949, eisop#1015, eisop#1059, eisop#1074, eisop#1244,
-eisop#1315, eisop#1564, eisop#1592, eisop#1642, eisop#1653, eisop#1735,
-eisop#1801, eisop#1818, eisop#1819, eisop#1861, eisop#1862, eisop#1863,
-eisop#1865, eisop#1887, eisop#1965, eisop#1986, eisop#1987, eisop#1990,
-eisop#1991, eisop#2032, eisop#2037, typetools#399, typetools#3203.
+eisop#1299, eisop#1315, eisop#1564, eisop#1592, eisop#1642, eisop#1653,
+eisop#1735, eisop#1801, eisop#1818, eisop#1819, eisop#1861, eisop#1862,
+eisop#1863, eisop#1865, eisop#1887, eisop#1965, eisop#1986, eisop#1987,
+eisop#1990, eisop#1991, eisop#2032, eisop#2037, typetools#399, typetools#3203.
 
 
 Version 3.49.5-eisop1 (April 26, 2026)
