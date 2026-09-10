@@ -41,46 +41,21 @@ When the Initialization Checker rejects a method call on a partially-initialized
 now reports `initialization.method.invocation.invalid`, which names the fields that are still
 uninitialized at the call, instead of the framework's `method.invocation.invalid`.
 
-The Nullness Checker's new `-AjspecifyUnrecognizedLocations` command-line option reports an error
-for a nullness annotation written in a location to which JSpecify gives no meaning: a class declaration,
-an annotation interface member's return type, a wildcard, a type parameter, a thrown type, a pattern,
-a type argument of a receiver parameter's type, or the root type of a local variable, a resource
-variable, a cast, or a method reference. Each location has its own `jspecify.unrecognized.location.*`
-diagnostic key (for example `jspecify.unrecognized.location.wildcard`), the same way the checker's
-other diagnostics distinguish one location from another. The option is off by default, because the
-Checker Framework reads a nullness annotation in five of those locations: a class declaration, a
-wildcard, and the root type of a local variable, of a cast, and of a method reference.
-`-Amode=jspecify` turns it on, since a mode that makes the checker behave as JSpecify specifies
-should also reject what JSpecify gives no meaning.
+The Nullness Checker's new `-AjspecifyUnrecognizedLocations` command-line option (also enabled by
+`-Amode=jspecify`) reports an error for a nullness annotation written where JSpecify gives it no
+meaning: a class declaration, an annotation interface member's return type, a wildcard, a type
+parameter, a thrown type, a pattern, a type argument of a receiver parameter's type, or the root
+type of a local variable, a resource variable, a cast, or a method reference. Each location has its
+own `jspecify.unrecognized.location.*` diagnostic key. The option is off by default because five of
+these locations -- a class declaration, a wildcard, and the root type of a local variable, a cast,
+and a method reference -- are meaningful to the Checker Framework itself.
 
-The Nullness Checker's new `instanceof.component` error is issued for a nullness annotation on a
-component of the type after `instanceof` when no pattern variable is bound, as in
-`o instanceof @Nullable String[]`, where the annotation is on the array's component type rather
-than on the array itself (which would be written `String @Nullable []`). Such an annotation
-constrains nothing: the test yields only a boolean, and there is no variable whose elements it
-could refine. The error does not depend on `-AjspecifyUnrecognizedLocations`. The existing
-`instanceof.nullable` and `instanceof.nonnull.redundant` remain reserved for the root of a tested
-type, about which their messages make a claim -- that `instanceof` is true only for a non-null
-expression -- that is not true of a component.
-
-The Nullness Checker no longer issues `instanceof.nullable` or `instanceof.nonnull.redundant` for
-a nullness annotation on a component of a pattern's type, as in `o instanceof @Nullable String[] a`.
-That annotation is meaningful: it makes `a[0]` possibly-null. It was reported because a nullness
-annotation written before a pattern variable's type is attached to the variable's modifiers, where
-it was indistinguishable from one on the type's root. Under `-AjspecifyUnrecognizedLocations`,
-which gives no meaning to any component of a pattern, it is reported as
-`jspecify.unrecognized.location.pattern`.
-
-`instanceof.nullable` and `instanceof.nonnull.redundant` are now issued for the root of a pattern
-variable's array type, as in `o instanceof String @Nullable [] a`. This was previously missed for
-the converse of the reason above: an array type's root annotation is written after its component
-type, so it appears on the type tree rather than on the variable's modifiers, which were all that
-was examined.
-
-`instanceof.nullable` and `instanceof.nonnull.redundant` are now issued inside a deconstruction
-pattern, as in `o instanceof Box(@Nullable String s)`, which was previously not examined at all.
-Per JLS 14.30.2, null matches no type pattern, nested or not, so annotating the root of a nested
-binding's type asserts the same contradiction as annotating the root of the tested type.
+`instanceof` now distinguishes a nullness annotation on the root of the tested type, or of a
+pattern variable's type (including inside a deconstruction pattern), from one on a component, such
+as an array's element type. A root annotation is still reported by `instanceof.nullable` or
+`instanceof.nonnull.redundant`. A component annotation is reported by the new `instanceof.component`
+when no pattern variable is bound, and otherwise -- since the checker uses it to refine the bound
+variable -- only under `-AjspecifyUnrecognizedLocations`, as `jspecify.unrecognized.location.pattern`.
 
 `@AnnotatedFor` is now `@Repeatable`, so it may be written more than once at the same
 location. This lets different type systems be given different `applyToSubpackages`
