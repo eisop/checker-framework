@@ -82,7 +82,7 @@ public class FenumVisitor extends BaseTypeVisitor<FenumAnnotatedTypeFactory> {
 
     @Override
     protected AnnotationMirrorSet getExceptionParameterLowerBoundAnnotations() {
-        return new AnnotationMirrorSet(atypeFactory.FENUM_UNQUALIFIED);
+        return AnnotationMirrorSet.singleton(atypeFactory.FENUM_UNQUALIFIED);
     }
 
     // TODO: should we require a match between switch expression and cases?

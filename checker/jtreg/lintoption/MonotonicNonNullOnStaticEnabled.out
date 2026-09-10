@@ -1,0 +1,2 @@
+MonotonicNonNullOnStaticEnabled.java:14:37: compiler.warn.proc.messager: [monotonic.on.static] @MonotonicNonNull on a static field is a code smell; it may indicate poor design. Consider whether it is possible to make the field a member field that is set in the constructor.
+1 warning

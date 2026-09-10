@@ -127,7 +127,7 @@ public class GuiEffectTypeFactory extends BaseAnnotatedTypeFactory {
 
         // Anon inner classes should not inherit the package annotation, since
         // they're so often used for closures to run async on background threads.
-        if (isAnonymousType(cls)) {
+        if (ElementUtils.isAnonymous(cls)) {
             // However, we need to look into Anonymous class effect inference
             if (uiAnonClasses.contains(cls)) {
                 return true;
@@ -160,11 +160,6 @@ public class GuiEffectTypeFactory extends BaseAnnotatedTypeFactory {
         }
 
         return false;
-    }
-
-    // TODO: is there a framework method for this?
-    private static boolean isAnonymousType(TypeElement elem) {
-        return elem.getSimpleName().length() == 0;
     }
 
     /**
@@ -246,7 +241,7 @@ public class GuiEffectTypeFactory extends BaseAnnotatedTypeFactory {
         // Anonymous inner types should just get the effect of the parent by default, rather than
         // annotating every instance. Unless it's implementing a polymorphic supertype, in which
         // case we still want the developer to be explicit.
-        if (isAnonymousType(targetClassElt)) {
+        if (ElementUtils.isAnonymous(targetClassElt)) {
             boolean canInheritParentEffects = true; // Refine this for polymorphic parents
             DeclaredType directSuper = (DeclaredType) targetClassElt.getSuperclass();
             TypeElement superElt = (TypeElement) directSuper.asElement();
@@ -491,7 +486,7 @@ public class GuiEffectTypeFactory extends BaseAnnotatedTypeFactory {
                     //   "new @UI Runnable {...}"
                     // parses as @UI on an anon class decl extending Runnable
                     boolean isAnonInstantiation =
-                            isAnonymousType(declaringType)
+                            ElementUtils.isAnonymous(declaringType)
                                     && (fromElement(declaringType).hasAnnotation(UI.class)
                                             || uiAnonClasses.contains(declaringType));
                     if (!isAnonInstantiation && !overriddenType.hasAnnotation(UI.class)) {
@@ -587,7 +582,7 @@ public class GuiEffectTypeFactory extends BaseAnnotatedTypeFactory {
      *     instantiation of an UI-polymorphic superclass.
      */
     public void constrainAnonymousClassToUI(TypeElement classElt) {
-        assert TypesUtils.isAnonymous(classElt.asType());
+        assert ElementUtils.isAnonymous(classElt);
         uiAnonClasses.add(classElt);
     }
 

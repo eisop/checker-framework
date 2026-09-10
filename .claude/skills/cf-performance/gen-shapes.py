@@ -20,6 +20,17 @@ Shapes (which machinery each stresses):
   repeat       R methods x D calls to the SAME method/receiver      (methodAsMemberOf element caching)
   tryfin       R methods x D nested try/finally                     (CFG finally duplication)
   loops        R methods x D nested for-loops                       (dataflow fixpoint over back-edges)
+  fbound       D mutually F-bounded interfaces I1..ID (Ii's bound mentions T1..Ti) + R calls to a
+               generic factory method returning ID<?,...,?> (D wildcards) with no explicit type
+               witness -- self-bounded/F-bounded generics with mutual dependencies among the
+               inference variables, the shape javac.comp.Infer's own worklist and CF's
+               typeinference8 (Resolution#resolve/resolveWithCapture, incorporateToFixedPoint) both
+               have to solve together. Modeled on Guava's MapMakerInternalMap<K,V,E extends
+               InternalEntry<K,V,E>,S extends Segment<K,V,E,S>> (which is D=2 with an extra K,V
+               pair) -- ordinary use of that class does NOT exercise typeinference8 at all (0
+               self-time samples over 7800 on the real 625-file Guava module); this isolates the
+               specific shape (many MUTUALLY bounded inference variables resolved via one wildcarded
+               generic call) that a size sweep can check for super-linear cost in D.
 
 Found (June 2026): `cond` is severe super-linear (28 GB at D=160; #602 conditional non-caching);
 `inherit` is quadratic (asSuper depth). `repeat`/`tryfin`/`loops` are linear; `chain`/`switchc`
@@ -148,6 +159,30 @@ def loops(d, r):
     return "\n".join(out) + "\n"
 
 
+def fbound(d, r):
+    out = []
+    for i in range(1, d + 1):
+        params = ", ".join(
+            f"T{j} extends I{j}<{', '.join('T' + str(k) for k in range(1, j + 1))}>"
+            for j in range(1, i + 1)
+        )
+        out.append(f"interface I{i}<{params}> {{}}")
+    targs = ", ".join(
+        f"T{j} extends I{j}<{', '.join('T' + str(k) for k in range(1, j + 1))}>"
+        for j in range(1, d + 1)
+    )
+    wargs = ", ".join("?" for _ in range(d))
+    out.append("class Factory {")
+    out.append('    @SuppressWarnings("nullness")')
+    out.append(f"    static <{targs}> I{d}<{wargs}> create() {{ return null; }}")
+    out.append("}")
+    out.append("class Big {")
+    for k in range(r):
+        out.append(f"    void fb_{k}() {{ var s = Factory.create(); }}")
+    out.append("}")
+    return "\n".join(out) + "\n"
+
+
 SHAPES = {
     "control": control,
     "cond": cond,
@@ -157,6 +192,7 @@ SHAPES = {
     "repeat": repeat,
     "tryfin": tryfin,
     "loops": loops,
+    "fbound": fbound,
 }
 
 if __name__ == "__main__":

@@ -516,8 +516,9 @@ public class AnnotationUtils {
         }
 
         if ((val1 instanceof Type.ClassType) && (val2 instanceof Type.ClassType)) {
-            // Type.ClassType does not override equals
-            if (TypesUtils.areSameDeclaredTypes((Type.ClassType) val1, (Type.ClassType) val2)) {
+            // Type.ClassType does not override equals. Annotation element values of type
+            // Class<?> cannot carry type arguments, so raw type identity is sufficient.
+            if (TypesUtils.areSameRawDeclaredType((Type.ClassType) val1, (Type.ClassType) val2)) {
                 return 0;
             }
         }
@@ -965,6 +966,23 @@ public class AnnotationUtils {
         } else {
             return expectedType.cast(av.getValue());
         }
+    }
+
+    /**
+     * Returns whether an annotation written on a package also applies to that package's
+     * subpackages.
+     *
+     * @param anno an annotation written on a package
+     * @param applyToSubpackagesElement {@code anno}'s own {@code applyToSubpackages} element, or
+     *     null if the {@code checker-qual} on the classpath predates that element
+     * @return true if {@code anno} applies to subpackages
+     */
+    public static boolean appliesToSubpackages(
+            AnnotationMirror anno, @Nullable ExecutableElement applyToSubpackagesElement) {
+        // A checker-qual without the element gives no way to opt out, so an annotation from it
+        // applies to subpackages, as it always did.
+        return applyToSubpackagesElement == null
+                || getElementValue(anno, applyToSubpackagesElement, Boolean.class, true);
     }
 
     /**

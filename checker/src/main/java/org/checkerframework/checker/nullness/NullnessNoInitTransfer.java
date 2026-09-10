@@ -39,6 +39,7 @@ import org.checkerframework.javacutil.TypesUtils;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Queue;
 
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.ExecutableElement;
@@ -80,6 +81,14 @@ public class NullnessNoInitTransfer
      * AnnotatedDeclaredType, but just passed to asSuper().
      */
     protected final AnnotatedDeclaredType MAP_TYPE;
+
+    /**
+     * Java's Queue interface.
+     *
+     * <p>The qualifiers in this type don't matter -- it is not used as a fully-annotated
+     * AnnotatedDeclaredType, but just passed to asSuper().
+     */
+    protected final AnnotatedDeclaredType QUEUE_TYPE;
 
     /** The type factory for the nullness analysis that was passed to the constructor. */
     protected final NullnessNoInitAnnotatedTypeFactory nullnessTypeFactory;
@@ -131,6 +140,14 @@ public class NullnessNoInitTransfer
                 (AnnotatedDeclaredType)
                         AnnotatedTypeMirror.createType(
                                 TypesUtils.typeFromClass(Map.class, analysis.getTypes(), elements),
+                                nullnessTypeFactory,
+                                false);
+
+        QUEUE_TYPE =
+                (AnnotatedDeclaredType)
+                        AnnotatedTypeMirror.createType(
+                                TypesUtils.typeFromClass(
+                                        Queue.class, analysis.getTypes(), elements),
                                 nullnessTypeFactory,
                                 false);
 
@@ -417,10 +434,28 @@ public class NullnessNoInitTransfer
      *   <li>Given a call m.get(k), if k is @KeyFor("m") and m's value type is @NonNull, then the
      *       result is @NonNull in the thenStore and elseStore of the transfer result.
      * </ul>
+     *
+     * <p>Provided that q is of a type that implements interface java.util.Queue:
+     *
+     * <ul>
+     *   <li>Given a call q.isEmpty(), q is known to be non-empty in the elseStore of the transfer
+     *       result.
+     *   <li>Given a call q.poll() or q.peek() (or the corresponding Deque methods), if q is known
+     *       to be non-empty and q's element type is @NonNull, then the result is @NonNull.
+     * </ul>
      */
     @Override
     public TransferResult<NullnessNoInitValue, NullnessNoInitStore> visitMethodInvocation(
             MethodInvocationNode n, TransferInput<NullnessNoInitValue, NullnessNoInitStore> in) {
+        Node receiver = n.getTarget().getReceiver();
+        JavaExpression receiverExpr = JavaExpression.fromNode(receiver);
+        // Capture whether the queue is known to be non-empty before the superclass mutates the
+        // store when handling side effects.
+        boolean isNonEmptyQueuePollOrPeek =
+                (nullnessTypeFactory.isQueuePoll(n) || nullnessTypeFactory.isQueuePeek(n))
+                        && receiverExpr != null
+                        && in.getRegularStore().isQueueNonEmpty(receiverExpr);
+
         TransferResult<NullnessNoInitValue, NullnessNoInitStore> result =
                 super.visitMethodInvocation(n, in);
 
@@ -430,7 +465,6 @@ public class NullnessNoInitTransfer
         boolean isMethodSideEffectFree =
                 nullnessTypeFactory.isSideEffectFree(method)
                         || PurityUtils.isSideEffectFree(nullnessTypeFactory, method);
-        Node receiver = n.getTarget().getReceiver();
         if (nonNullAssumptionAfterInvocation
                 || isMethodSideEffectFree
                 || !JavaExpression.fromNode(receiver).isAssignableByOtherCode()) {
@@ -474,6 +508,29 @@ public class NullnessNoInitTransfer
             }
         }
 
+        // Handle Collection.isEmpty(): mark receiver as non-empty in the false branch. Restricted
+        // to Queue/Deque receivers, since that is the only place this information is consulted,
+        // to avoid needless bookkeeping for every List/Set/... isEmpty() call.
+        if (nullnessTypeFactory.isCollectionIsEmpty(n)
+                && receiverExpr != null
+                && TypesUtils.isErasedSubtype(
+                        receiver.getType(), QUEUE_TYPE.getUnderlyingType(), analysis.getTypes())) {
+            NullnessNoInitStore thenStore = result.getThenStore();
+            NullnessNoInitStore elseStore = result.getElseStore();
+            elseStore.markQueueAsNonEmpty(receiverExpr);
+            return new ConditionalTransferResult<>(result.getResultValue(), thenStore, elseStore);
+        }
+
+        // Refine result to @NonNull if n is an invocation of Queue.poll() or Queue.peek(), the
+        // receiver is known to be non-empty, and the Queue element type is @NonNull.
+        if (isNonEmptyQueuePollOrPeek) {
+            AnnotatedTypeMirror receiverType = nullnessTypeFactory.getReceiverType(n.getTree());
+            if (isElementTypeNonNull(receiverType)) {
+                makeNonNull(result, n);
+                refineToNonNull(result);
+            }
+        }
+
         return result;
     }
 
@@ -493,6 +550,27 @@ public class NullnessNoInitTransfer
         }
         AnnotatedTypeMirror valueType = mapType.getTypeArguments().get(1);
         return valueType.hasAnnotation(NULLABLE);
+    }
+
+    /**
+     * Returns true if queueType's element type (the E type argument to Queue) is @NonNull.
+     *
+     * @param queueOrSubtype the Queue type, or a subtype
+     * @return true if queueType's element type is @NonNull
+     */
+    private boolean isElementTypeNonNull(@Nullable AnnotatedTypeMirror queueOrSubtype) {
+        if (queueOrSubtype == null) {
+            return false;
+        }
+        AnnotatedDeclaredType queueType =
+                AnnotatedTypes.asSuper(nullnessTypeFactory, queueOrSubtype, QUEUE_TYPE);
+        if (queueType == null
+                || queueType.isUnderlyingTypeRaw()
+                || queueType.getTypeArguments().size() != 1) {
+            return false;
+        }
+        AnnotatedTypeMirror elementType = queueType.getTypeArguments().get(0);
+        return elementType.hasEffectiveAnnotation(NONNULL);
     }
 
     @Override

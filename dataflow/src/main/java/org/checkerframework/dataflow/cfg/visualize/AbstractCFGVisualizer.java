@@ -420,9 +420,8 @@ public abstract class AbstractCFGVisualizer<
                 return "<exit>";
             case EXCEPTIONAL_EXIT:
                 return "<exceptional-exit>";
-            default:
-                throw new BugInCF("Unrecognized special block type: " + sbb.getType());
         }
+        throw new BugInCF("Unrecognized special block type: " + sbb.getType());
     }
 
     /**

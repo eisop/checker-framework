@@ -9,7 +9,7 @@ package org.eclipse.compare;
     @SafeEffect public void save(IProgressMonitor pm);
     @SafeEffect public void saveChanges(IProgressMonitor monitor) throws CoreException;
     @SafeEffect protected void setMessage(String message);
-    @SafeEFfect public String getMessage();
+    @SafeEffect public String getMessage();
 }
 
 package org.eclipse.core.commands;

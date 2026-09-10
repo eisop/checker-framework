@@ -45,6 +45,8 @@ import org.checkerframework.common.basetype.BaseTypeValidator;
 import org.checkerframework.common.basetype.BaseTypeVisitor;
 import org.checkerframework.common.basetype.TypeValidator;
 import org.checkerframework.framework.flow.CFCFGBuilder;
+import org.checkerframework.framework.source.DiagMessage;
+import org.checkerframework.framework.source.SuggestedFixData;
 import org.checkerframework.framework.type.AnnotatedTypeFactory;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedArrayType;
@@ -61,6 +63,7 @@ import org.checkerframework.javacutil.TreeUtilsAfterJava11.BindingPatternUtils;
 import org.checkerframework.javacutil.TreeUtilsAfterJava11.SwitchExpressionUtils;
 import org.checkerframework.javacutil.TypesUtils;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import javax.annotation.processing.ProcessingEnvironment;
@@ -130,6 +133,9 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
     /** True if -Alint=redundantNullComparison was passed on the command line. */
     private final boolean redundantNullComparison;
 
+    /** True if -Alint=monotonicNonNullOnStatic was passed on the command line. */
+    private final boolean monotonicNonNullOnStatic;
+
     /** True if -Alint=noInitForMonotonicNonNull was passed on the command line. */
     private final boolean noInitForMonotonicNonNull;
 
@@ -167,6 +173,10 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
                 checker.getLintOption(
                         NullnessChecker.LINT_NOINITFORMONOTONICNONNULL,
                         NullnessChecker.LINT_DEFAULT_NOINITFORMONOTONICNONNULL);
+        monotonicNonNullOnStatic =
+                checker.getLintOption(
+                        NullnessChecker.LINT_MONOTONICNONNULLONSTATIC,
+                        NullnessChecker.LINT_DEFAULT_MONOTONICNONNULLONSTATIC);
     }
 
     @Override
@@ -290,6 +300,26 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
             }
         }
         return super.commonAssignmentCheck(varType, valueType, valueTree, errorKey, extraArgs);
+    }
+
+    @Override
+    public Void visitVariable(VariableTree tree, Void p) {
+        // Under -Alint=monotonicNonNullOnStatic, warn about @MonotonicNonNull on a static field,
+        // which the manual documents as a code smell that may indicate poor design. This is an
+        // opt-in style warning rather than default-on, because such a field functions correctly:
+        // the pattern is discouraged, not erroneous.
+        if (monotonicNonNullOnStatic) {
+            Element elt = TreeUtils.elementFromDeclaration(tree);
+            if (elt != null
+                    && elt.getKind() == ElementKind.FIELD
+                    && ElementUtils.isStatic(elt)
+                    && atypeFactory
+                            .getAnnotatedTypeLhs(tree)
+                            .hasEffectiveAnnotation(MONOTONIC_NONNULL)) {
+                checker.reportWarning(tree, "monotonic.on.static");
+            }
+        }
+        return super.visitVariable(tree, p);
     }
 
     /** Case 1: Check for null dereferencing. */
@@ -647,14 +677,6 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
 
     @Override
     public void processClassTree(ClassTree classTree) {
-        Tree extendsClause = classTree.getExtendsClause();
-        if (extendsClause != null) {
-            reportErrorIfSupertypeContainsNullnessAnnotation(extendsClause);
-        }
-        for (Tree implementsClause : classTree.getImplementsClause()) {
-            reportErrorIfSupertypeContainsNullnessAnnotation(implementsClause);
-        }
-
         if (classTree.getKind() == Tree.Kind.ENUM) {
             for (Tree member : classTree.getMembers()) {
                 if (member instanceof VariableTree
@@ -672,21 +694,6 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
         }
 
         super.processClassTree(classTree);
-    }
-
-    /**
-     * Report "nullness.on.supertype" error if a supertype has a nullness annotation.
-     *
-     * @param typeTree a supertype tree, from an {@code extends} or {@code implements} clause
-     */
-    private void reportErrorIfSupertypeContainsNullnessAnnotation(Tree typeTree) {
-        if (typeTree instanceof AnnotatedTypeTree) {
-            List<? extends AnnotationTree> annoTrees =
-                    ((AnnotatedTypeTree) typeTree).getAnnotations();
-            if (atypeFactory.containsNullnessAnnotation(annoTrees)) {
-                checker.reportError(typeTree, "nullness.on.supertype");
-            }
-        }
     }
 
     // ///////////// Utility methods //////////////////////////////
@@ -937,7 +944,10 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
                     break;
                 case PRIMITIVE_TYPE:
                     if (atypeFactory.containsNullnessAnnotation(annoTrees, t)) {
-                        checker.reportError(t, "nullness.on.primitive");
+                        checker.report(
+                                t,
+                                DiagMessage.error("nullness.on.primitive")
+                                        .withFixes(removeNullnessAnnotationFixes(annoTrees, t)));
                     }
                     t = null;
                     break;
@@ -946,7 +956,10 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
                     Tree underlying = at.getUnderlyingType();
                     if (underlying instanceof PrimitiveTypeTree) {
                         if (atypeFactory.containsNullnessAnnotation(null, at)) {
-                            checker.reportError(t, "nullness.on.primitive");
+                            checker.report(
+                                    t,
+                                    DiagMessage.error("nullness.on.primitive")
+                                            .withFixes(removeNullnessAnnotationFixes(null, at)));
                         }
                         t = null;
                     } else {
@@ -966,6 +979,61 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
         }
 
         super.visitAnnotatedType(annoTrees, typeTree);
+    }
+
+    /**
+     * Builds suggested fixes for a {@code nullness.on.primitive} finding: for each nullness
+     * annotation applied to the primitive type, a fix that removes just that annotation (so, e.g.,
+     * {@code @Nullable int x} becomes {@code int x}).
+     *
+     * <p>The fixes are expressed in the framework-agnostic {@link SuggestedFixData} representation
+     * (source-offset edits computed with javac's {@link com.sun.source.util.SourcePositions}), so a
+     * host such as the Error Prone plugin can offer them; standalone javac ignores them.
+     *
+     * <p>The returned fixes are alternatives, so in the rare case that a primitive type carries
+     * more than one nullness annotation, applying a single fix does not by itself resolve the
+     * finding.
+     *
+     * @param annoTrees extra annotation trees to consider (may be null), as passed to {@link
+     *     #visitAnnotatedType}
+     * @param typeTree the primitive (or annotated primitive) type tree
+     * @return one removal fix per offending nullness annotation (possibly empty)
+     */
+    private List<SuggestedFixData> removeNullnessAnnotationFixes(
+            @Nullable List<? extends AnnotationTree> annoTrees, Tree typeTree) {
+        List<SuggestedFixData> fixes = new ArrayList<>();
+        for (AnnotationTree annoTree : TreeUtils.getExplicitAnnotationTrees(annoTrees, typeTree)) {
+            AnnotationMirror am = TreeUtils.annotationFromAnnotationTree(annoTree);
+            // This condition must match
+            // NullnessNoInitAnnotatedTypeFactory#containsNullnessAnnotation,
+            // which decides when the nullness.on.primitive error fires: offer a removal fix for
+            // exactly the annotations that triggered the error.
+            if (atypeFactory.isNullnessAnnotation(am) && AnnotationUtils.isTypeUseAnnotation(am)) {
+                SuggestedFixData fix = SuggestedFixData.deleteTree(positions, root, annoTree);
+                if (fix != null) {
+                    fixes.add(fix);
+                }
+            }
+        }
+        return fixes;
+    }
+
+    @Override
+    protected void reportCommonAssignmentError(
+            AnnotatedTypeMirror varType,
+            AnnotatedTypeMirror valueType,
+            Tree valueTree,
+            @CompilerMessageKey String errorKey,
+            Object... extraArgs) {
+        super.reportCommonAssignmentError(varType, valueType, valueTree, errorKey, extraArgs);
+
+        if (valueTree instanceof MethodInvocationTree) {
+            String copyOfUnsafeReason =
+                    atypeFactory.getCopyOfUnsafeReason((MethodInvocationTree) valueTree);
+            if (copyOfUnsafeReason != null) {
+                checker.reportWarning(valueTree, copyOfUnsafeReason);
+            }
+        }
     }
 
     @Override

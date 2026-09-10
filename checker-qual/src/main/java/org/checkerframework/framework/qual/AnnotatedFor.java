@@ -2,6 +2,7 @@ package org.checkerframework.framework.qual;
 
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
+import java.lang.annotation.Repeatable;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
@@ -23,11 +24,25 @@ import java.lang.annotation.Target;
  * warnings. However, a class with a relevant {@code @AnnotatedFor} annotation is always defaulted
  * normally (typically using the CLIMB-to-top rule), and typechecking warnings are issued.
  *
+ * <p>An {@code @AnnotatedFor} on a package also applies to subpackages, unless the {@code
+ * applyToSubpackages} field is set to false. Setting it to false does not block an applicable
+ * {@code @AnnotatedFor} on an enclosing package.
+ *
+ * <p>You may write multiple {@code @AnnotatedFor} annotations at the same location, for example to
+ * give two type systems different {@code applyToSubpackages} settings on one package:
+ *
+ * <pre>
+ * &nbsp; {@literal @}AnnotatedFor(value = "nullness", applyToSubpackages = false)
+ * &nbsp; {@literal @}AnnotatedFor(value = "index", applyToSubpackages = true)
+ * &nbsp; package mypackage;
+ * </pre>
+ *
  * @checker_framework.manual #compiling-libraries Compiling partially-annotated libraries
  */
 @Documented
 @Retention(RetentionPolicy.SOURCE)
 @Target({ElementType.TYPE, ElementType.METHOD, ElementType.CONSTRUCTOR, ElementType.PACKAGE})
+@Repeatable(AnnotatedFor.List.class)
 public @interface AnnotatedFor {
     /**
      * Returns the type systems for which the class has been annotated. Legal arguments are any
@@ -39,4 +54,29 @@ public @interface AnnotatedFor {
      * @checker_framework.manual #shorthand-for-checkers Short names for built-in checkers
      */
     String[] value();
+
+    /**
+     * When used on a package, whether this annotation should also apply to subpackages.
+     *
+     * @return whether this annotation should be inherited by subpackages
+     */
+    boolean applyToSubpackages() default true;
+
+    /**
+     * A wrapper annotation that makes the {@link AnnotatedFor} annotation repeatable.
+     *
+     * <p>Programmers generally do not need to write this. It is created by Java when a programmer
+     * writes more than one {@link AnnotatedFor} annotation at the same location.
+     */
+    @Documented
+    @Retention(RetentionPolicy.SOURCE)
+    @Target({ElementType.TYPE, ElementType.METHOD, ElementType.CONSTRUCTOR, ElementType.PACKAGE})
+    public static @interface List {
+        /**
+         * Returns the repeatable annotations.
+         *
+         * @return the repeatable annotations
+         */
+        AnnotatedFor[] value();
+    }
 }

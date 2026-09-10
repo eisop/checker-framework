@@ -1,0 +1,12 @@
+TaintingVisitor about to test whether the class declaration annotation is a subtype of the extends clause annotation (at Issue1015.java:4:36): extends tree = IDENTIFIER Super1015
+     actual: @org.checkerframework.checker.tainting.qual.Untainted Issue1015
+   expected: @org.checkerframework.checker.tainting.qual.Untainted Super1015
+ success: class declaration annotation is subtype of extends clause annotation  (at Issue1015.java:4:36): extends tree = IDENTIFIER Super1015
+     actual: @org.checkerframework.checker.tainting.qual.Untainted Issue1015
+   expected: @org.checkerframework.checker.tainting.qual.Untainted Super1015
+TaintingVisitor about to test whether the class declaration annotation is a subtype of the implements clause annotation (at Issue1015.java:4:57): implements tree = IDENTIFIER Interface1015
+     actual: @org.checkerframework.checker.tainting.qual.Untainted Issue1015
+   expected: @org.checkerframework.checker.tainting.qual.Tainted Interface1015
+ success: class declaration annotation is subtype of implements clause annotation  (at Issue1015.java:4:57): implements tree = IDENTIFIER Interface1015
+     actual: @org.checkerframework.checker.tainting.qual.Untainted Issue1015
+   expected: @org.checkerframework.checker.tainting.qual.Tainted Interface1015

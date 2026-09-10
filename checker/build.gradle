@@ -35,10 +35,27 @@ tasks.named('sourcesJar') {
 }
 
 configurations {
-    implementation.extendsFrom(annotatedGuava)
     fatJar {
         canBeConsumed = true
         canBeResolved = false
+    }
+
+    // Resolves framework's stubifierTool configuration (JavaStubifier, BinaryStubWriter,
+    // BinaryStubFileGenerator) in isolation from "implementation"/"api", so shadowJar's
+    // "from(...)" below can merge its classesDir into checker.jar's content -- see that use.
+    //
+    // Do NOT instead register this configuration in shadowJar's "configurations" (e.g. via
+    // configurations.add(...)): Shadow 9.5.1's minimize() silently corrupts its reachability
+    // analysis for the *entire* jar as soon as "configurations" holds more than one entry, even
+    // when the second entry is unrelated to :framework (confirmed by swapping it for an
+    // unrelated external Maven dependency and observing the same corruption) -- this appears to
+    // be an upstream Shadow limitation, not something specific to this project dependency.
+    // Merging via "from(...)" avoids adding a second configuration; minimize() still analyzes
+    // the merged classes, so they are kept as roots via sourceSetsClassesDirs -- see the
+    // shadowJar block below.
+    stubifierToolForShadow {
+        canBeConsumed = false
+        canBeResolved = true
     }
 }
 
@@ -46,6 +63,12 @@ dependencies {
     // Use "api" instead of "implementation" to re-export sub-projects, making
     // sure "minimize()" does not remove those classes.
     api project(':framework')
+
+    // Guarantees the stubifier tool is always present in checker.jar, for external checkers to
+    // build their own binary annotated JDK or .astub files against (see framework/build.gradle's
+    // stubifierTool configuration doc comment, and the stubifierToolForShadow configuration's
+    // own comment above).
+    stubifierToolForShadow project(path: ':framework', configuration: 'stubifierTool')
 
     /* NO-AFU
      // AFU is an "includedBuild" imported in checker-framework/settings.gradle, so the version number doesn't matter.
@@ -64,6 +87,7 @@ dependencies {
 
     implementation ("org.plumelib:reflection-util:${versions.reflectionUtil}")
     implementation "org.plumelib:plume-util:${versions.plumeUtil}"
+    implementation "com.google.guava:guava:${versions.guava}"
 
     // Dependencies added to "shadow" appear as dependencies in Maven Central.
     shadow project(':checker-qual')
@@ -88,10 +112,22 @@ dependencies {
     testImplementation 'org.junit.jupiter:junit-jupiter-api:5.14.4'
     testImplementation 'org.apiguardian:apiguardian-api:1.1.2'
     // For tests that use JSpecify annotations
-    testImplementation 'org.jspecify:jspecify:1.0.0'
+    testImplementation 'org.jspecify:jspecify:1.0.1'
+    // For checker/tests/index/JavaxAnnotationNonnegative.java, which names
+    // javax.annotation.Nonnegative.  Previously this arrived only through Spark's transitive
+    // tree, so the test depended on a jar nothing declared.
+    testImplementation 'com.google.code.findbugs:jsr305:3.0.2'
     // To test for an obscure crash in CFG construction for try-with-resources;
     // see https://github.com/typetools/checker-framework/issues/6396
-    testImplementation 'org.apache.spark:spark-sql_2.12:3.3.2'
+    // Declared non-transitively, with only the artifacts SparkSession's own signature needs
+    // on the classpath: spark-core for org.apache.spark.internal.Logging and scala-library
+    // for scala.Serializable.  Spark's full transitive tree is ~100 jars (ZooKeeper, Avro,
+    // Netty, Jackson, Protobuf, ...) that appear in no published artifact but do generate
+    // Dependabot alerts, and none of them is needed to compile this one test.
+    def sparkVersion = '3.3.2'
+    testImplementation("org.apache.spark:spark-sql_2.12:${sparkVersion}") { transitive = false }
+    testImplementation("org.apache.spark:spark-core_2.12:${sparkVersion}") { transitive = false }
+    testImplementation 'org.scala-lang:scala-library:2.12.15'
 
     // Required for checker/tests/index-initializedfields/RequireJavadoc.java
     if (isJava8) {
@@ -244,9 +280,9 @@ tasks.register('checkerJar', ShadowJar) {
     group = 'Build'
     description = "Builds checker-${project.version}.jar with all dependencies except checker-qual and checker-util."
     includeEmptyDirs = false
-    base {
-        archivesName = 'checker'
-    }
+    // archiveBaseName sets the name for this task.  `base { archivesName = ... }` would
+    // instead resolve against the project and rename every archive in this subproject.
+    archiveBaseName = 'checker'
 
     from shadowJar.source
     configurations = shadowJar.configurations
@@ -258,6 +294,21 @@ tasks.register('checkerJar', ShadowJar) {
     exclude 'org/checkerframework/**/qual/*'
     exclude 'org/checkerframework/checker/**/util/*'
     relocators = shadowJar.getRelocators()
+
+    // Same reachability root as shadowJar's: BinaryStubFileGenerator is a build-time main class
+    // with no caller, so minimize() would prune it, and the stubifier tool is meant to ship in
+    // checker.jar for external checkers (see the stubifierToolForShadow configuration above).
+    // Registering the classesDir as a root keeps all three tool classes unconditionally.
+    // This appends to sourceSetsClassesDirs rather than adding a second entry to
+    // `configurations`, which would corrupt minimize()'s analysis for the whole jar; see the
+    // comment on shadowJar's own copy of this, and commit 8396efab63.
+    sourceSetsClassesDirs.from(project.configurations.stubifierToolForShadow.filter { it.isDirectory() })
+
+    // Without this the published artifact ships ~1240 classes, about 2 MB, that nothing in it
+    // can reach -- shadowJar has always minimized, and this jar differs from it only by the
+    // deliberately excluded checker-qual and checker-util classes, which are declared as
+    // dependencies instead.
+    minimize()
 }
 
 tasks.named('jar') {
@@ -275,9 +326,28 @@ tasks.named('shadowJar') {
     // doFirst { println sourceSets.main.runtimeClasspath.asPath }
     archiveClassifier = 'all'
 
+    // The stubifier tool's compiled classes (JavaStubifier, BinaryStubWriter,
+    // BinaryStubFileGenerator). Only the classesDir artifact is taken (not the configuration's
+    // transitive dependency jars, e.g. stubparser), since those already reach checker.jar
+    // through framework's own "api" dependency.
+    def stubifierClasses = project.configurations.stubifierToolForShadow.filter { it.isDirectory() }
+    // Copy those classes straight into the jar's content. See the stubifierToolForShadow
+    // configuration's own comment for why this must NOT go through configurations.add(...).
+    from(stubifierClasses)
+    // Also register the classesDir as a minimize() root, alongside checker's own source sets
+    // (this appends to sourceSetsClassesDirs' convention rather than replacing it). Without
+    // this, minimize() prunes BinaryStubFileGenerator: it is a build-time main class with no
+    // caller reachable from any root, so unlike JavaStubifier and BinaryStubWriter (kept only
+    // incidentally, because framework's RemoveAnnotationsForInference calls JavaStubifier) it
+    // would otherwise be dropped. Making the whole classesDir a root keeps all three
+    // unconditionally, without a synthetic keep-alive reference.
+    sourceSetsClassesDirs.from(stubifierClasses)
+
     minimize {
         // Keep all classes from checker-qual and checker-util rather than
         // relying on the `api` re-export to protect them from minimize().
+        exclude(dependency('io.github.eisop:checker-qual:.*'))
+        exclude(dependency('io.github.eisop:checker-util:.*'))
         exclude(dependency('org.checkerframework:checker-qual:.*'))
         exclude(dependency('org.checkerframework:checker-util:.*'))
     }
@@ -293,6 +363,12 @@ tasks.named('assemble') {
     dependsOn('shadowJar')
     dependsOn('checkerJar')
 }
+
+// checker.jar bundles framework, javacutil and dataflow as well, so scanning the two shaded
+// jars this project produces covers every Checker Framework class that gets relocated.
+rootProject.createCheckRelocatedStringsTask(
+project, [tasks.named('shadowJar'), tasks.named('checkerJar')])
+tasks.named('check') { dependsOn 'checkRelocatedStrings' }
 
 artifacts {
     fatJar(tasks.named('shadowJar'))
@@ -394,6 +470,14 @@ tasks.register('tutorialTests') {
 
 tasks.register('exampleTests', Exec) {
     dependsOn 'assembleForJavac'
+    // The eisop-errorprone example consumes locally-built jars in cfVersion=local mode.
+    // assembleForJavac already builds :checker:shadowJar and :checker-qual:jar; also build the
+    // framework-errorprone plugin jar here, so the example needs no nested Gradle invocation.
+    // framework-errorprone exists only on JDK 21+ (gated in settings.gradle); on older JDKs the
+    // example's own Makefile no-ops, so the dependency is added only when the module is present.
+    if (rootProject.ext.useJdkVersionInt >= 21) {
+        dependsOn ':framework-errorprone:jar'
+    }
     group = 'Verification'
     description = 'Run tests for the example programs.'
     executable 'make'
@@ -414,21 +498,6 @@ tasks.register('demosTests') {
         injected.execOps.exec {
             workingDir = demosDirFile
             commandLine 'ant', "-Dchecker.lib=${checkerLibPath}"
-        }
-    }
-}
-
-tasks.register('templateforaCheckerTests') {
-    dependsOn('assembleForJavac', ':getTemplateforaChecker')
-    group = 'Verification'
-    description = 'Test that the templatefora-checker is working as expected.'
-    def injected = project.objects.newInstance(InjectedExecOps)
-    def templateforaDir = file(rootProject.templateforaCheckerDir)
-
-    doLast {
-        injected.execOps.exec {
-            workingDir = templateforaDir
-            commandLine "./gradlew", "build"
         }
     }
 }
@@ -1150,11 +1219,22 @@ final checkerPom(publication) {
 // compile-time, and fails with "no matching variant" -- this is a known
 // Shadow plugin limitation, see https://github.com/GradleUp/shadow/issues/847.
 //
-// Register a `shadowApiElements` configuration that exposes the same
-// shadow jar for compile-time usage, and add it to `components.shadow` as
-// the missing compile-time variant, so the published Gradle Module
-// Metadata has both a runtime and a compile variant pointing at the
-// shadow jar.
+// Register a `shadowApiElements` configuration to supply that missing
+// compile-time variant, and point both variants at `checkerJar`
+// (checker-VERSION.jar) rather than at `shadowJar` (checker-VERSION-all.jar).
+//
+// Both variants must serve checkerJar, because the variants also carry the
+// `shadow` configuration's dependencies on checker-qual and checker-util.
+// shadowJar *bundles* those two, so serving it alongside those dependencies
+// puts every qualifier class on a Gradle consumer's classpath twice -- once
+// inside checker-VERSION-all.jar and once as its own jar -- while a Maven
+// consumer, who gets checker-VERSION.jar from the POM, sees them once.
+// checkerJar excludes checker-qual and checker-util for exactly this reason,
+// so serving it makes the two consumers agree.
+//
+// checker-VERSION-all.jar is still published, as a plain classified artifact
+// outside any variant: it is the self-contained download that
+// docs/manual/external-tools.tex points users at.
 import org.gradle.api.attributes.Bundling
 import org.gradle.api.attributes.Category
 import org.gradle.api.attributes.LibraryElements
@@ -1166,13 +1246,19 @@ configurations {
     shadowApiElements {
         canBeConsumed = true
         canBeResolved = false
+        // The Shadow plugin makes shadowRuntimeElements extend `shadow`, whose dependencies
+        // (checker-qual, checker-util) are the ones that appear in the POM. The compile-time
+        // variant needs them too: it serves checkerJar, which deliberately excludes those two,
+        // so without this a Gradle consumer compiling against `checker` would have no
+        // qualifier classes on its compile classpath.
+        extendsFrom configurations.shadow
         attributes {
             attribute(Usage.USAGE_ATTRIBUTE, objects.named(Usage, Usage.JAVA_API))
             attribute(Category.CATEGORY_ATTRIBUTE, objects.named(Category, Category.LIBRARY))
             attribute(LibraryElements.LIBRARY_ELEMENTS_ATTRIBUTE, objects.named(LibraryElements, LibraryElements.JAR))
             attribute(Bundling.BUNDLING_ATTRIBUTE, objects.named(Bundling, Bundling.SHADOWED))
         }
-        outgoing.artifact(tasks.named('shadowJar'))
+        outgoing.artifact(tasks.named('checkerJar'))
     }
 }
 
@@ -1192,6 +1278,23 @@ afterEvaluate {
     (components.shadow as AdhocComponentWithVariants).addVariantsFromConfiguration(configurations.shadowApiElements) {
         it.mapToMavenScope('compile')
     }
+
+    // Repoint the Shadow plugin's own runtime variant at checkerJar too; see above.
+    configurations.shadowRuntimeElements.outgoing.artifacts.clear()
+    configurations.shadowRuntimeElements.outgoing.artifact(tasks.named('checkerJar'))
+
+    // The java plugin's own variants advertise checker-VERSION-skinny.jar, from the `jar` task
+    // disabled above. That file is never produced, so a build that substitutes this project for
+    // the io.github.eisop:checker coordinate -- any consumer using --include-build -- resolves a
+    // path that does not exist and fails when it loads a class from it. Serve checkerJar, the
+    // artifact this project actually builds, from these variants as well.
+    ['apiElements', 'runtimeElements'].each { variantName ->
+        def variant = configurations.findByName(variantName)
+        if (variant != null) {
+            variant.outgoing.artifacts.clear()
+            variant.outgoing.artifact(tasks.named('checkerJar'))
+        }
+    }
 }
 
 publishing {
@@ -1199,7 +1302,8 @@ publishing {
         checker(MavenPublication) {
             from(components.shadow)
             checkerPom it
-            artifact tasks.named('checkerJar')
+            // checkerJar is the artifact of both variants above, so it needs no entry here.
+            artifact tasks.named('shadowJar')
             artifact tasks.named('allSourcesJar')
             artifact tasks.named('allJavadocJar')
         }

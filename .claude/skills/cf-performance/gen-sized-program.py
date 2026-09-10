@@ -68,8 +68,10 @@ def vararg(n: int) -> str:
             f"        List<String> xs{i} = Arrays.asList(s{i}, s{i}, s{i});",
             f"        List<String> ys{i} = Arrays.asList(s{i});",
             f'        String f{i} = String.format("%s %s", s{i}, s{i});',
-            f"        java.lang.reflect.Method mm{i} ="
-            f' Big.class.getMethod("m{i}", String.class);',
+            (
+                f"        java.lang.reflect.Method mm{i} ="
+                f' Big.class.getMethod("m{i}", String.class);'
+            ),
             "    }",
         ]
     lines.append("}")

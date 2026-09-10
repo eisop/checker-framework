@@ -1,21 +1,27 @@
 package org.checkerframework.checker.nullness;
 
 import com.sun.source.tree.AnnotationTree;
+import com.sun.source.tree.ArrayAccessTree;
 import com.sun.source.tree.BinaryTree;
 import com.sun.source.tree.CompoundAssignmentTree;
+import com.sun.source.tree.ConditionalExpressionTree;
 import com.sun.source.tree.ExpressionTree;
 import com.sun.source.tree.IdentifierTree;
+import com.sun.source.tree.LiteralTree;
 import com.sun.source.tree.MemberSelectTree;
 import com.sun.source.tree.MethodInvocationTree;
 import com.sun.source.tree.MethodTree;
 import com.sun.source.tree.NewArrayTree;
 import com.sun.source.tree.NewClassTree;
+import com.sun.source.tree.ParenthesizedTree;
 import com.sun.source.tree.ReturnTree;
 import com.sun.source.tree.Tree;
 import com.sun.source.tree.TypeCastTree;
 import com.sun.source.tree.UnaryTree;
 import com.sun.source.tree.VariableTree;
+import com.sun.source.util.SimpleTreeVisitor;
 
+import org.checkerframework.checker.compilermsgs.qual.CompilerMessageKey;
 import org.checkerframework.checker.initialization.InitializationFieldAccessAnnotatedTypeFactory;
 import org.checkerframework.checker.initialization.InitializationFieldAccessSubchecker;
 import org.checkerframework.checker.initialization.InitializationFieldAccessTreeAnnotator;
@@ -32,6 +38,7 @@ import org.checkerframework.dataflow.expression.LocalVariable;
 import org.checkerframework.dataflow.expression.ThisReference;
 import org.checkerframework.dataflow.util.NodeUtils;
 import org.checkerframework.framework.flow.CFAbstractAnalysis;
+import org.checkerframework.framework.qual.AnnotatedFor;
 import org.checkerframework.framework.qual.DefaultQualifier;
 import org.checkerframework.framework.qual.TypeUseLocation;
 import org.checkerframework.framework.type.AnnotatedTypeFactory;
@@ -113,6 +120,34 @@ public class NullnessNoInitAnnotatedTypeFactory
     private final ExecutableElement mapGet =
             TreeUtils.getMethod("java.util.Map", "get", 1, processingEnv);
 
+    /** The Collection.isEmpty method. */
+    private final ExecutableElement collectionIsEmpty =
+            TreeUtils.getMethod("java.util.Collection", "isEmpty", 0, processingEnv);
+
+    /** The Queue.poll method. */
+    private final ExecutableElement queuePoll =
+            TreeUtils.getMethod("java.util.Queue", "poll", 0, processingEnv);
+
+    /** The Queue.peek method. */
+    private final ExecutableElement queuePeek =
+            TreeUtils.getMethod("java.util.Queue", "peek", 0, processingEnv);
+
+    /** The Deque.pollFirst method. */
+    private final ExecutableElement dequePollFirst =
+            TreeUtils.getMethod("java.util.Deque", "pollFirst", 0, processingEnv);
+
+    /** The Deque.pollLast method. */
+    private final ExecutableElement dequePollLast =
+            TreeUtils.getMethod("java.util.Deque", "pollLast", 0, processingEnv);
+
+    /** The Deque.peekFirst method. */
+    private final ExecutableElement dequePeekFirst =
+            TreeUtils.getMethod("java.util.Deque", "peekFirst", 0, processingEnv);
+
+    /** The Deque.peekLast method. */
+    private final ExecutableElement dequePeekLast =
+            TreeUtils.getMethod("java.util.Deque", "peekLast", 0, processingEnv);
+
     // List is in alphabetical order.  If you update it, also update
     // ../../../../../../../../docs/manual/nullness-checker.tex
     // and make a pull request for variables NONNULL_ANNOTATIONS and BASE_COPYABLE_ANNOTATIONS in
@@ -191,7 +226,8 @@ public class NullnessNoInitAnnotatedTypeFactory
                     // https://source.chromium.org/chromium/chromium/src/+/main:build/android/java/src/org/chromium/build/annotations/OptimizeAsNonNull.java
                     "org.chromium.build.annotations.OptimizeAsNonNull",
                     // https://janino-compiler.github.io/janino/apidocs/org/codehaus/commons/nullanalysis/NotNull.html
-                    "org.codehaus.commons.nullanalysis.NotNull",
+                    // "org.codehaus.commons.nullanalysis.NotNull",
+                    "org.co".toString() + "dehaus.commons.nullanalysis.NotNull",
                     // https://help.eclipse.org/neon/index.jsp?topic=/org.eclipse.jdt.doc.isv/reference/api/org/eclipse/jdt/annotation/NonNull.html
                     // https://git.eclipse.org/c/jdt/eclipse.jdt.core.git/tree/org.eclipse.jdt.annotation/src/org/eclipse/jdt/annotation/NonNull.java
                     "org.eclipse.jdt.annotation.NonNull",
@@ -206,9 +242,6 @@ public class NullnessNoInitAnnotatedTypeFactory
                     "org.jmlspecs.annotation.NonNull",
                     // https://github.com/jspecify/jspecify/blob/main/src/main/java/org/jspecify/annotations/NonNull.java
                     "org.jspecify.annotations.NonNull",
-                    // 2022-11-17: Deprecated old package location, remove after some grace period
-                    // https://github.com/jspecify/jspecify/tree/main/src/main/java/org/jspecify/nullness
-                    "org.jspecify.nullness.NonNull",
                     // http://bits.netbeans.org/dev/javadoc/org-netbeans-api-annotations-common/org/netbeans/api/annotations/common/NonNull.html
                     "org.netbeans.api.annotations.common.NonNull",
                     // https://github.com/spring-projects/spring-framework/blob/master/spring-core/src/main/java/org/springframework/lang/NonNull.java
@@ -323,7 +356,8 @@ public class NullnessNoInitAnnotatedTypeFactory
                     // https://source.chromium.org/chromium/chromium/src/+/main:build/android/java/src/org/chromium/build/annotations/Nullable.java
                     "org.chromium.build.annotations.Nullable",
                     // https://janino-compiler.github.io/janino/apidocs/org/codehaus/commons/nullanalysis/Nullable.html
-                    "org.codehaus.commons.nullanalysis.Nullable",
+                    // "org.codehaus.commons.nullanalysis.Nullable",
+                    "org.co".toString() + "dehaus.commons.nullanalysis.Nullable",
                     // https://help.eclipse.org/neon/index.jsp?topic=/org.eclipse.jdt.doc.isv/reference/api/org/eclipse/jdt/annotation/Nullable.html
                     // https://git.eclipse.org/c/jdt/eclipse.jdt.core.git/tree/org.eclipse.jdt.annotation/src/org/eclipse/jdt/annotation/Nullable.java
                     "org.eclipse.jdt.annotation.Nullable",
@@ -338,10 +372,6 @@ public class NullnessNoInitAnnotatedTypeFactory
                     "org.jmlspecs.annotation.Nullable",
                     // https://github.com/jspecify/jspecify/blob/main/src/main/java/org/jspecify/annotations/Nullable.java
                     "org.jspecify.annotations.Nullable",
-                    // 2022-11-17: Deprecated old package location, remove after some grace period
-                    // https://github.com/jspecify/jspecify/tree/main/src/main/java/org/jspecify/nullness
-                    "org.jspecify.nullness.Nullable",
-                    "org.jspecify.nullness.NullnessUnspecified",
                     // http://bits.netbeans.org/dev/javadoc/org-netbeans-api-annotations-common/org/netbeans/api/annotations/common/CheckForNull.html
                     "org.netbeans.api.annotations.common.CheckForNull",
                     // http://bits.netbeans.org/dev/javadoc/org-netbeans-api-annotations-common/org/netbeans/api/annotations/common/NullAllowed.html
@@ -399,24 +429,60 @@ public class NullnessNoInitAnnotatedTypeFactory
                 MONOTONIC_NONNULL);
 
         if (checker.getUltimateParentChecker().getBooleanOption("jspecifyNullMarkedAlias", true)) {
-            AnnotationMirror nullMarkedDefaultQual =
+            AnnotationBuilder nullMarkedDefaultQualBuilder =
                     new AnnotationBuilder(processingEnv, DefaultQualifier.class)
                             .setValue("value", NonNull.class)
                             .setValue(
                                     "locations",
-                                    new TypeUseLocation[] {TypeUseLocation.UPPER_BOUND})
-                            .setValue("applyToSubpackages", false)
-                            .build();
+                                    new TypeUseLocation[] {TypeUseLocation.UPPER_BOUND});
+            // The applyToSubpackages element is an EISOP-specific addition to @DefaultQualifier;
+            // it is absent if the classpath resolves @DefaultQualifier from upstream typetools
+            // checker-qual instead of EISOP's fork. QualifierDefaults's constructor already warns
+            // about that mismatch once per checker run, so this site degrades silently: the built
+            // annotation simply carries no applyToSubpackages value, matching how any other
+            // @DefaultQualifier built or written without that element behaves.
+            if (TreeUtils.getMethodOrNull(
+                            DefaultQualifier.class, "applyToSubpackages", 0, processingEnv)
+                    != null) {
+                nullMarkedDefaultQualBuilder.setValue("applyToSubpackages", false);
+            }
+            AnnotationMirror nullMarkedDefaultQual = nullMarkedDefaultQualBuilder.build();
             addAliasedDeclAnnotation(
                     "org.jspecify.annotations.NullMarked",
                     DefaultQualifier.class.getCanonicalName(),
                     nullMarkedDefaultQual);
 
-            // 2022-11-17: Deprecated old package location, remove after some grace period
+            // Name the nullness-only subchecker ("nullnessnoinit", NullnessNoInitSubchecker's
+            // shorthand), not "nullness" (the composite NullnessChecker, which also runs the
+            // Initialization and KeyFor subcheckers). This alias is registered here, on
+            // NullnessNoInitAnnotatedTypeFactory alone, so its reach must not exceed what this
+            // factory actually is: "nullness" would resolve against the upstream-checker chain of
+            // every subchecker under NullnessChecker, including Initialization and KeyFor, whose
+            // own factories never see this registration, silently checking them for some elements
+            // and not others depending on unrelated details of how they got there. Scoping to the
+            // subchecker this registration lives on avoids that mismatch entirely, and matches
+            // JSpecify's own semantics, which do not define initialization or keyfor checking:
+            // -Amode=jspecify already excludes both (-AassumeInitialized -AassumeKeyFor), so
+            // @NullMarked should not imply them either. A written @AnnotatedFor("initialization")
+            // or @AnnotatedFor("keyfor") still composes normally alongside @NullMarked.
+            AnnotationBuilder nullMarkedAnnotatedForBuilder =
+                    new AnnotationBuilder(processingEnv, AnnotatedFor.class)
+                            .setValue("value", new String[] {"nullnessnoinit"});
+            // Opt out of subpackages for the same reason, and subject to the same classpath
+            // caveat, as the @DefaultQualifier half above.  Both halves must agree: if
+            // @AnnotatedFor reached subpackages while @DefaultQualifier did not, a class in a
+            // subpackage of a @NullMarked package would be type-checked without the defaults
+            // that @NullMarked is supposed to supply.  Unlike @DefaultQualifier,
+            // AnnotatedTypeFactory already resolves this element, so reuse its field rather
+            // than looking it up again.
+            if (annotatedForApplyToSubpackagesElement != null) {
+                nullMarkedAnnotatedForBuilder.setValue("applyToSubpackages", false);
+            }
+            AnnotationMirror nullMarkedAnnotatedFor = nullMarkedAnnotatedForBuilder.build();
             addAliasedDeclAnnotation(
-                    "org.jspecify.nullness.NullMarked",
-                    DefaultQualifier.class.getCanonicalName(),
-                    nullMarkedDefaultQual);
+                    "org.jspecify.annotations.NullMarked",
+                    AnnotatedFor.class.getCanonicalName(),
+                    nullMarkedAnnotatedFor);
         }
 
         boolean permitClearProperty =
@@ -755,24 +821,117 @@ public class NullnessNoInitAnnotatedTypeFactory
                 List<? extends ExpressionTree> args = tree.getArguments();
                 ExpressionTree lengthArg = args.get(1);
                 if (TreeUtils.isArrayLengthAccess(lengthArg)) {
-                    // TODO: This syntactic test may not be not correct if the array expression has
-                    // a side effect that affects the array length.  This code could require that
-                    // the expression has no method calls, assignments, etc.
                     ExpressionTree arrayArg = args.get(0);
-                    if (TreeUtils.sameTree(
-                            arrayArg, ((MemberSelectTree) lengthArg).getExpression())) {
+                    if (TreeUtils.sameTree(arrayArg, ((MemberSelectTree) lengthArg).getExpression())
+                            && Boolean.TRUE.equals(pureExpressionVisitor.visit(arrayArg, null))) {
                         AnnotatedArrayType arrayArgType =
                                 (AnnotatedArrayType) getAnnotatedType(arrayArg);
                         AnnotatedTypeMirror arrayArgComponentType = arrayArgType.getComponentType();
-                        // Maybe this call is only necessary if argNullness is @NonNull.
                         ((AnnotatedArrayType) type)
-                                .getComponentType()
-                                .replaceAnnotations(arrayArgComponentType.getAnnotations());
+                                .setComponentType(arrayArgComponentType.deepCopy());
                     }
                 }
             }
             return super.visitMethodInvocation(tree, type);
         }
+    }
+
+    /**
+     * A visitor that determines if an expression is pure (i.e. side-effect-free and deterministic).
+     * Used for safely optimizing Arrays.copyOf assignments when the length argument matches the
+     * array.
+     */
+    private final SimpleTreeVisitor<Boolean, Void> pureExpressionVisitor =
+            new SimpleTreeVisitor<Boolean, Void>(false) {
+                @Override
+                public Boolean visitIdentifier(IdentifierTree node, Void p) {
+                    return true;
+                }
+
+                @Override
+                public Boolean visitMemberSelect(MemberSelectTree node, Void p) {
+                    return visit(node.getExpression(), p);
+                }
+
+                @Override
+                public Boolean visitArrayAccess(ArrayAccessTree node, Void p) {
+                    return visit(node.getExpression(), p) && visit(node.getIndex(), p);
+                }
+
+                @Override
+                public Boolean visitLiteral(LiteralTree node, Void p) {
+                    return true;
+                }
+
+                @Override
+                public Boolean visitTypeCast(TypeCastTree node, Void p) {
+                    return visit(node.getExpression(), p);
+                }
+
+                @Override
+                public Boolean visitParenthesized(ParenthesizedTree node, Void p) {
+                    return visit(node.getExpression(), p);
+                }
+
+                @Override
+                public Boolean visitMethodInvocation(MethodInvocationTree node, Void p) {
+                    ExecutableElement methodElement = TreeUtils.elementFromUse(node);
+                    if (methodElement == null
+                            || !isDeterministic(methodElement)
+                            || !isSideEffectFree(methodElement)) {
+                        return false;
+                    }
+                    if (!visit(node.getMethodSelect(), p)) {
+                        return false;
+                    }
+                    for (Tree arg : node.getArguments()) {
+                        if (!visit(arg, p)) {
+                            return false;
+                        }
+                    }
+                    return true;
+                }
+
+                @Override
+                public Boolean visitConditionalExpression(ConditionalExpressionTree node, Void p) {
+                    return visit(node.getCondition(), p)
+                            && visit(node.getTrueExpression(), p)
+                            && visit(node.getFalseExpression(), p);
+                }
+            };
+
+    /**
+     * Returns the message key for why a call to Arrays.copyOf cannot return an array of
+     * {@code @NonNull} elements, or null if the call is safe or not applicable.
+     *
+     * @param tree the method invocation tree to analyze
+     * @return the diagnostic message key explaining why the copy is unsafe, or null if it's safe or
+     *     not an Arrays.copyOf call
+     */
+    public @Nullable @CompilerMessageKey String getCopyOfUnsafeReason(MethodInvocationTree tree) {
+        if (TreeUtils.isMethodInvocation(tree, copyOfMethods, processingEnv)) {
+            List<? extends ExpressionTree> args = tree.getArguments();
+            ExpressionTree arrayArg = args.get(0);
+            AnnotatedTypeMirror arrayArgType = getAnnotatedType(arrayArg);
+            if (arrayArgType instanceof AnnotatedArrayType) {
+                AnnotatedTypeMirror arrayArgComponentType =
+                        ((AnnotatedArrayType) arrayArgType).getComponentType();
+                if (arrayArgComponentType.hasEffectiveAnnotation(NonNull.class)) {
+                    ExpressionTree lengthArg = args.get(1);
+                    if (!TreeUtils.isArrayLengthAccess(lengthArg)) {
+                        return "arrays.copyof.size.mismatch";
+                    }
+                    if (!TreeUtils.sameTree(
+                            arrayArg, ((MemberSelectTree) lengthArg).getExpression())) {
+                        return "arrays.copyof.array.mismatch";
+                    }
+                    if (!Boolean.TRUE.equals(pureExpressionVisitor.visit(arrayArg, null))) {
+                        return "arrays.copyof.impure";
+                    }
+                }
+            }
+        }
+        return null;
     }
 
     @Override
@@ -858,6 +1017,9 @@ public class NullnessNoInitAnnotatedTypeFactory
     protected boolean containsNullnessAnnotation(List<? extends AnnotationTree> annoTrees) {
         for (AnnotationTree annoTree : annoTrees) {
             AnnotationMirror am = TreeUtils.annotationFromAnnotationTree(annoTree);
+            // If this condition changes, update
+            // NullnessNoInitVisitor#removeNullnessAnnotationFixes,
+            // which offers a removal fix for exactly the annotations this method flags.
             if (isNullnessAnnotation(am) && AnnotationUtils.isTypeUseAnnotation(am)) {
                 return true;
             }
@@ -1075,5 +1237,41 @@ public class NullnessNoInitAnnotatedTypeFactory
      */
     public boolean isMapGet(Node node) {
         return NodeUtils.isMethodInvocation(node, mapGet, getProcessingEnv());
+    }
+
+    /**
+     * Returns true if {@code node} is an invocation of Collection.isEmpty.
+     *
+     * @param node a CFG node
+     * @return true if {@code node} is an invocation of Collection.isEmpty
+     */
+    public boolean isCollectionIsEmpty(Node node) {
+        return NodeUtils.isMethodInvocation(node, collectionIsEmpty, getProcessingEnv());
+    }
+
+    /**
+     * Returns true if {@code node} is an invocation of Queue.poll, Deque.pollFirst, or
+     * Deque.pollLast.
+     *
+     * @param node a CFG node
+     * @return true if {@code node} is an invocation of a queue/deque poll method
+     */
+    public boolean isQueuePoll(Node node) {
+        return NodeUtils.isMethodInvocation(node, queuePoll, getProcessingEnv())
+                || NodeUtils.isMethodInvocation(node, dequePollFirst, getProcessingEnv())
+                || NodeUtils.isMethodInvocation(node, dequePollLast, getProcessingEnv());
+    }
+
+    /**
+     * Returns true if {@code node} is an invocation of Queue.peek, Deque.peekFirst, or
+     * Deque.peekLast.
+     *
+     * @param node a CFG node
+     * @return true if {@code node} is an invocation of a queue/deque peek method
+     */
+    public boolean isQueuePeek(Node node) {
+        return NodeUtils.isMethodInvocation(node, queuePeek, getProcessingEnv())
+                || NodeUtils.isMethodInvocation(node, dequePeekFirst, getProcessingEnv())
+                || NodeUtils.isMethodInvocation(node, dequePeekLast, getProcessingEnv());
     }
 }

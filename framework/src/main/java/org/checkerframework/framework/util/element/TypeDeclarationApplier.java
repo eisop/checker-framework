@@ -9,7 +9,7 @@ import org.checkerframework.framework.type.AnnotatedTypeFactory;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedDeclaredType;
 import org.checkerframework.framework.util.element.ElementAnnotationUtil.UnexpectedAnnotationLocationException;
-import org.checkerframework.javacutil.TypesUtils;
+import org.checkerframework.javacutil.ElementUtils;
 
 import java.util.List;
 
@@ -121,7 +121,7 @@ public class TypeDeclarationApplier extends TargetedElementAnnotationApplier {
     @Override
     protected void handleTargeted(List<TypeCompound> extendsAndImplementsAnnos)
             throws UnexpectedAnnotationLocationException {
-        if (TypesUtils.isAnonymous(typeSymbol.type)) {
+        if (ElementUtils.isAnonymous(typeSymbol)) {
             // If this is an anonymous class, then the annotations after "new" but before the class
             // name are stored as super class annotations. Treat them as annotations on the class.
             for (Attribute.TypeCompound anno : extendsAndImplementsAnnos) {

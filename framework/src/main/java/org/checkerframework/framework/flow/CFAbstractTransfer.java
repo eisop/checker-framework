@@ -78,7 +78,6 @@ import org.checkerframework.javacutil.TypesUtils;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumSet;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -619,23 +618,20 @@ public abstract class CFAbstractTransfer<
         // We work around this here by ensuring that we only add a final local value to a method's
         // store if that method is enclosed by the method where the local variables were declared.
         //
-        // Implementation note: previously this was an O(F * C) double loop (F final locals,
-        // C enclosing-chain depth) -- for each final local we walked the entire enclosing chain
-        // looking for a match.  We now precompute the enclosing chain once into a Set so each
-        // entry is a single set lookup, making the total O(F + C).
-        Map<VariableElement, V> finalLocals = analysis.atypeFactory.getFinalLocalValues();
-        if (finalLocals.isEmpty()) {
+        // Implementation note: previously this scanned every final local value accumulated for
+        // the whole compilation unit on each call (once per analyzed method/lambda/initializer),
+        // which is quadratic in the number of methods.  The factory maintains the same values
+        // indexed by declaring element, so we only walk the enclosing chain (short) and touch the
+        // final locals actually declared there.
+        if (analysis.atypeFactory.getFinalLocalValues().isEmpty()) {
             return;
         }
-        Set<Element> enclosingChain = new HashSet<>();
         for (Element e = enclosingElement; e != null; e = e.getEnclosingElement()) {
-            enclosingChain.add(e);
-        }
-        for (Map.Entry<VariableElement, V> e : finalLocals.entrySet()) {
-            VariableElement elem = e.getKey();
-            Element decl = elem.getEnclosingElement();
-            if (decl != null && enclosingChain.contains(decl)) {
-                store.insertValue(new LocalVariable(elem), e.getValue());
+            Map<VariableElement, V> declared = analysis.atypeFactory.getFinalLocalValues(e);
+            if (!declared.isEmpty()) {
+                for (Map.Entry<VariableElement, V> entry : declared.entrySet()) {
+                    store.insertValue(new LocalVariable(entry.getKey()), entry.getValue());
+                }
             }
         }
     }

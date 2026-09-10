@@ -31,9 +31,11 @@ cd ../jspecify
 
 cd ../jspecify-reference-checker
 
-# Delete the eisop/jdk that was already cloned...
-rm -r ../jdk
-# instead clone the jspecify/jdk.
-"$SCRIPT_DIR/.git-scripts/git-clone-related" jspecify jdk
+# Clone JSpecify's own annotated-JDK fork to a directory separate from '../jdk' (which stays as
+# this project's own eisop/jdk clone -- framework:copyAndMinimizeAnnotatedJdkFiles always needs
+# it, even when this composite build is only assembling jspecify-reference-checker). Pass the new
+# directory as jspecifyJdkHome so jspecify-reference-checker's own build looks there instead of
+# its default '../jdk' (requires a matching override in jspecify-reference-checker's build.gradle).
+"$SCRIPT_DIR/.git-scripts/git-clone-related" jspecify jdk ../jdk-jspecify
 
-JSPECIFY_CONFORMANCE_TEST_MODE=details ./gradlew build conformanceTests demoTest --console=plain --include-build "$CHECKERFRAMEWORK" --no-configuration-cache
+JSPECIFY_CONFORMANCE_TEST_MODE=details ./gradlew build conformanceTests demoTest --console=plain --include-build "$CHECKERFRAMEWORK" --no-configuration-cache -PjspecifyJdkHome="$CHECKERFRAMEWORK/../jdk-jspecify"

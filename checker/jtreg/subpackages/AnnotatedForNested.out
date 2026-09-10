@@ -1,0 +1,4 @@
+Deep.java:15:14: compiler.err.proc.messager: [argument.type.incompatible] incompatible argument for parameter nn of Deep.take.
+found   : @Nullable Object
+required: @NonNull Object
+1 error

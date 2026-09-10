@@ -376,6 +376,41 @@ but cost ≈10% wall clock (far more than its hit-rate delta implied). Cut
   guard is a counter on the code you changed — if it never fires, "no effect" is a workload
   bug, not a verdict on the change. Pair this with picking a workload that *maximizes* traffic
   through the target (the size-sweep / shape generators exist for this).
+- **Measure the *ceiling* before micro-optimizing a dispatch — profile the adversarial
+  workload, not the typical one.** When tempted to change *how* something is represented or
+  compared (string vs. `Name`, a "kind" tag, a second-level cache), first bound the maximum
+  possible win: build a workload that *maximizes* traffic through the target and check whether the
+  target's frames even appear above the sample floor. If they don't, no variant can help and you
+  stop in one profile instead of an A/B per variant. The String→`Name` annotation-name migration
+  (see *Tried and rejected*) died this way: an annotation-saturated, checker-bound workload (400
+  methods × 40 explicitly-annotated locals) at 2596 samples showed `annotationName` /
+  `annotationNameAsName` / `areSameByName` / `isSupportedQualifier` / `Name.toString` / `intern`
+  at **0 samples** — and the hot leaf that *did* surface (`IdentityHashMap.get` → `getQualifierKind`)
+  was itself an already-rejected target. The reason the ceiling was ~0: the hot representation
+  (`CheckerFrameworkAnnotationMirror`) already caches the decoded interned name, so the decode the
+  change "removed" was never happening. **Before optimizing a lookup, ask what the common carrier
+  already caches.**
+- **Caching a per-tree annotated type: stability ≠ cacheable, and two measurement traps.** The
+  pre-flow `getAnnotatedType` split-cache (June 2026, *Tried and rejected* → getAnnotatedType #2) is
+  the cautionary tale. **Stability ≠ cacheable:** even after correctly measuring value-leaf pre-flow
+  types as **0%** unstable, the built cache was rejected — it was unsound for checkers that override
+  `addComputedTypeAnnotations` (Index/Lock/Optional/Signedness add annotations after `super`, which a
+  `getAnnotatedType` cache hit bypasses → `IndexTest` failed), and flat-to-mixed on nullness where it
+  was correct. A framework-level type cache must **compose with subclass overrides**, and the per-hit
+  `deepCopy` can cancel the saved work — so validate correctness on the override-checkers, not just
+  nullness. Two traps nearly produced the *opposite* wrong verdict ("25–59% unstable, unsound") first:
+  1. **Compare PER HIERARCHY, never via `AnnotatedTypeMirror.toString()`.** `toString()` over-reports
+     instability by counting *cross-hierarchy completeness* — an `int` literal printing as `int` vs
+     `@Initialized int` is just the Initialization hierarchy's annotation absent vs present, harmless
+     to a per-hierarchy cache — as if it were a within-hierarchy disagreement. The right signature is
+     a map {hierarchy-top-name → annotation-in-that-hierarchy}, compared key-by-key. (`getTopAnnotations()`
+     order is *not* a hazard — it is a build-once `ArrayList`-backed `AnnotationMirrorSet` over a
+     `TreeMap`, already stable.)
+  2. **A checker runs SEVERAL `AnnotatedTypeFactory` instances — never key shared/`static` state on
+     `Tree`.** A `nullness` compile drives four GATFs (`NullnessNoInit`, `Initialization`,
+     `InitializationFieldAccess`, `KeyFor`), each with its own qualifier hierarchy. A `static`
+     per-`Tree` map (or cache) mixes one type system's result for a tree with another's. Keep such
+     state on the factory instance; confirm by logging `this.getClass().getSimpleName()`.
 
 ## Removing a defensive copy (the opposite of adding a cache)
 
@@ -499,6 +534,12 @@ In order of historical hit rate on this codebase:
 - Switching map implementations purely on micro-benchmark intuition —
   measure on a real workload.
 - Lock-removal changes without auditing all reachable threads.
+- Rerepresenting annotation *names* for dispatch (`String`→`Name` + `==`,
+  per-qualifier "kind" tags) or caching `getQualifierKind` — both measured
+  flat (see *Tried and rejected*). `CheckerFrameworkAnnotationMirror`
+  already caches the decoded interned name, so the decode you would remove
+  is not on the hot path; identity-comparing `Name`s is no cheaper than the
+  existing interned-`String` comparison.
 
 ## Producing the patch
 
@@ -515,11 +556,10 @@ Before submitting, always:
 1. `./gradlew assemble` — must succeed.
 2. `./gradlew :framework:test :javacutil:test :dataflow:test` — fast.
 3. The relevant checker test, e.g. `./gradlew :checker:NullnessTest`.
-4. Ideally `./gradlew alltests` — the canonical regression catch. If it fails *only*
-   on `:checker:jtregTests` / `:checker:jtregJdk11Tests` with `No java executable at
-   java`, that is an environment issue, **not a regression**: `JAVA_HOME` is unset. Set
-   it (`JAVA_HOME=$(dirname $(dirname $(readlink -f $(which java))))`) and re-run those
-   two tasks; the JUnit suites are unaffected.
+4. Ideally `./gradlew alltests` — the canonical regression catch. (See
+   `cf-patch-style`'s "Test requirements" for the `JAVA_HOME`/jtreg red
+   herring — `No java executable at java` there is an environment issue,
+   not a regression.)
 5. Re-capture JFR on the **full** workload (`./gradlew --no-daemon
    checknullness`, all subprojects — confirm `phase` shows no scope warning)
    and confirm the targeted metric moved. Report the **whole-worker sample

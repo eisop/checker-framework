@@ -144,6 +144,15 @@ public class ConstraintSet implements ReductionResult {
     }
 
     /**
+     * Returns the number of constraints in this set.
+     *
+     * @return the number of constraints in this set
+     */
+    public int size() {
+        return list.size();
+    }
+
+    /**
      * Removes and returns the first constraint that was added to this set.
      *
      * @return first constraint that was added to this set

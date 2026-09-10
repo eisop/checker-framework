@@ -4,6 +4,7 @@
  * @summary Test different defaults applied to unannotated code.
  * @compile/fail/ref=AnnotatedForWithUseNoFlag.out -XDrawDiagnostics -Xlint:unchecked -processor org.checkerframework.checker.nullness.NullnessChecker AnnotatedForWithUse.java
  * @compile/fail/ref=AnnotatedForWithUseOnlyAnnotatedFor.out -XDrawDiagnostics -Xlint:unchecked -processor org.checkerframework.checker.nullness.NullnessChecker -AonlyAnnotatedFor AnnotatedForWithUse.java
+ * @compile/fail/ref=AnnotatedForWithUseOnlyAnnotatedFor.out -XDrawDiagnostics -Xlint:unchecked -processor org.checkerframework.checker.nullness.NullnessChecker -Amode=jspecify AnnotatedForWithUse.java
  * @compile/fail/ref=AnnotatedForWithUseConservativeDefault.out -XDrawDiagnostics -Xlint:unchecked -processor org.checkerframework.checker.nullness.NullnessChecker -AuseConservativeDefaultsForUncheckedCode=source AnnotatedForWithUse.java
  */
 import org.checkerframework.checker.nullness.qual.NonNull;
@@ -26,6 +27,9 @@ public class AnnotatedForWithUse {
             // 1: OK, 2: OK, 3: Err
             @NonNull Object obj = u.o;
             // 1. Err, 2: Err, TODO want OK, 3:  OK, TODO want Err
+            // Case 3 (-AuseConservativeDefaultsForUncheckedCode=source) is unsound here:
+            // conservative defaults only protect field reads, not field writes.
+            // See https://github.com/eisop/checker-framework/issues/1358 .
             u.o = null;
             // 1: OK, 2: OK, 3: Err
             u.get().toString();

@@ -224,7 +224,7 @@ public class AinferTestAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
 
         @Override
         public AnnotationMirrorSet getBottomAnnotations() {
-            return new AnnotationMirrorSet(BOTTOM);
+            return AnnotationMirrorSet.singleton(BOTTOM);
         }
 
         @Override

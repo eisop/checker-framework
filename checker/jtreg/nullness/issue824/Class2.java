@@ -20,6 +20,10 @@ public class Class2<X> extends Class1<X> {
         class1.wildcardSuper(gen);
     }
 
+    // Class1's stub declares <T extends @NonNull Object>; this override's <T> widens the upper
+    // bound to the implicit @Nullable Object. That is a sound override of the type-parameter
+    // bound: this method's own body is still constrained by T's (unchanged, @NonNull) lower
+    // bound, so it cannot return a value the wider upper bound alone would not already permit.
     @Override
     public <T> T methodTypeParam(T t) {
         return super.methodTypeParam(t);

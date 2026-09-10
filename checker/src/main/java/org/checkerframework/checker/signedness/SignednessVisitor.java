@@ -389,7 +389,7 @@ public class SignednessVisitor extends BaseTypeVisitor<SignednessAnnotatedTypeFa
 
     @Override
     protected AnnotationMirrorSet getExceptionParameterLowerBoundAnnotations() {
-        return new AnnotationMirrorSet(atypeFactory.SIGNED);
+        return atypeFactory.SIGNED_SINGLETON;
     }
 
     @Override

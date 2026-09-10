@@ -6,13 +6,13 @@ import com.github.javaparser.ast.AccessSpecifier;
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.NodeList;
-import com.github.javaparser.ast.body.AnnotationDeclaration;
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import com.github.javaparser.ast.body.ConstructorDeclaration;
 import com.github.javaparser.ast.body.EnumDeclaration;
 import com.github.javaparser.ast.body.FieldDeclaration;
 import com.github.javaparser.ast.body.InitializerDeclaration;
 import com.github.javaparser.ast.body.MethodDeclaration;
+import com.github.javaparser.ast.body.TypeDeclaration;
 import com.github.javaparser.ast.expr.NormalAnnotationExpr;
 import com.github.javaparser.ast.nodeTypes.modifiers.NodeWithAccessModifiers;
 import com.github.javaparser.ast.stmt.BlockStmt;
@@ -24,12 +24,15 @@ import com.github.javaparser.utils.SourceRoot;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Optional;
 
 /**
- * Process Java source files in a directory to produce, in-place, minimal stub files.
+ * Process Java source files in a directory to produce, in-place, minimal stub files, and also
+ * generate the compressed binary stub file ({@link BinaryStubWriter#OUTPUT_FILENAME}) for the same
+ * directory from the same parsed compilation units.
  *
  * <p>To process a file means to remove:
  *
@@ -41,22 +44,77 @@ import java.util.Optional;
  *   <li>all initializer blocks,
  *   <li>attributes to the {@code Deprecated} annotation (to be Java 8 compatible).
  * </ol>
+ *
+ * <p>Usage: {@code JavaStubifier [--skipUnloadableAnnotations] <directory> [<directory> ...]}. By
+ * default, an annotation whose {@code @Target} cannot be read (because its class is missing from
+ * the stubifier's own build classpath) aborts the run with a message naming the annotation and the
+ * source file being processed; see {@link #SKIP_UNLOADABLE_ANNOTATIONS_FLAG} for the opt-in flag
+ * that trades that safety for being able to finish the run anyway.
+ *
+ * <p>Each directory is processed by its own {@link BinaryStubWriter} into its own output file (see
+ * {@link #process}). An interface and its implementer being in different directories does not
+ * weaken fake-override handling: a writer records every unannotated method it sees as a
+ * presence-only signature unconditionally ({@code BinaryStubWriter.addMethodRecord}), with no
+ * dependence on the interfaces that writer happened to see, and the fake-override match runs at
+ * read time over the real class hierarchy ({@code BinaryStubReader.applyFakeOverride}, {@code
+ * FakeOverrideResolver}).
  */
 public class JavaStubifier {
+    /**
+     * The language level used to parse both the annotated JDK sources (by this class) and the
+     * built-in {@code .astub} files (by {@link BinaryStubFileGenerator}, which reuses this
+     * constant). Intentionally duplicates {@code JavaParserUtil.DEFAULT_LANGUAGE_LEVEL}, which the
+     * text parser uses at checker runtime: {@code JavaParserUtil} lives in framework main, which
+     * this stubifier source set cannot depend on (the dependency runs the other way — framework
+     * main depends on this source set's output — and framework.jar ships no stubifier classes), so
+     * the constant can't be unified further.
+     */
     public static final LanguageLevel DEFAULT_LANGUAGE_LEVEL = LanguageLevel.JAVA_21;
+
+    /**
+     * Command-line flag that makes an unloadable annotation a dropped-and-warned event rather than
+     * a fatal error. When passed, {@link BinaryStubWriter} omits, from the binary stub output, any
+     * annotation whose {@code @Target} it cannot read -- printing one warning line to stderr naming
+     * the annotation and its source file -- and processing continues with the rest of the
+     * directory. Without the flag (the default), the same condition aborts the whole run; see
+     * {@link BinaryStubWriter#annotationTargets}.
+     *
+     * <p><b>Trade-off:</b> dropping such an annotation is not always safe. It could be a real type
+     * qualifier that a checker's own (wider) classpath would have resolved, in which case dropping
+     * it here silently removes it from the annotated JDK with no way for a later checker run to
+     * detect the omission. Pass this flag only when the unloadable annotation is known to be
+     * irrelevant to type-checking (e.g. a JUnit annotation on a stray test source file that ended
+     * up in the JDK source tree being stubified), not as a default way to push through classpath
+     * problems.
+     */
+    public static final String SKIP_UNLOADABLE_ANNOTATIONS_FLAG = "--skipUnloadableAnnotations";
 
     /**
      * Processes each provided command-line argument; see class documentation for details.
      *
-     * @param args command-line arguments: directories to process
+     * @param args command-line arguments: an optional {@link #SKIP_UNLOADABLE_ANNOTATIONS_FLAG},
+     *     followed by one or more directories to process
      */
     public static void main(String[] args) {
-        if (args.length < 1) {
-            System.err.println("Usage: provide one or more directory names to process");
+        boolean skipUnloadableAnnotations = false;
+        int dirCount = 0;
+        for (String arg : args) {
+            if (arg.equals(SKIP_UNLOADABLE_ANNOTATIONS_FLAG)) {
+                skipUnloadableAnnotations = true;
+            } else {
+                dirCount++;
+            }
+        }
+        if (dirCount < 1) {
+            System.err.printf(
+                    "Usage: JavaStubifier [%s] <directory> [<directory> ...]%n",
+                    SKIP_UNLOADABLE_ANNOTATIONS_FLAG);
             System.exit(1);
         }
         for (String arg : args) {
-            process(arg);
+            if (!arg.equals(SKIP_UNLOADABLE_ANNOTATIONS_FLAG)) {
+                process(arg, skipUnloadableAnnotations);
+            }
         }
     }
 
@@ -64,10 +122,23 @@ public class JavaStubifier {
      * Process each file in the given directory; see class documentation for details.
      *
      * @param dir directory to process
+     * @param skipUnloadableAnnotations whether to drop, rather than fail on, an annotation whose
+     *     {@code @Target} cannot be read; see {@link #SKIP_UNLOADABLE_ANNOTATIONS_FLAG}
      */
-    private static void process(String dir) {
+    private static void process(String dir, boolean skipUnloadableAnnotations) {
+        // Scoped to this call, not a shared/static field: main() may process several
+        // directories, and a BinaryStubWriter accumulates classes/pool state across every
+        // process(CompilationUnit) call with no reset, so reusing one across directories would
+        // make each directory's output file also contain every earlier directory's classes.
+        //
+        // omitUnannotatedMembers: this writer produces the annotated JDK, whose members the
+        // reader never marks with @FromStubFile, so a member record with no annotations has no
+        // effect and is not worth writing. BinaryStubFileGenerator, which produces the built-in
+        // stub files' binaries, must not pass this.
+        BinaryStubWriter binaryStubWriter =
+                new BinaryStubWriter(/* omitUnannotatedMembers= */ true, skipUnloadableAnnotations);
         Path root = dirnameToPath(dir);
-        MinimizerCallback mc = new MinimizerCallback();
+        MinimizerCallback mc = new MinimizerCallback(binaryStubWriter);
         CollectionStrategy strategy = new ParserCollectionStrategy();
         // Required to include directories that contain a module-info.java, which don't parse by
         // default.
@@ -84,6 +155,25 @@ public class JavaStubifier {
                                 System.err.println("IOException: " + e);
                             }
                         });
+
+        File outputFile = new File(dir, BinaryStubWriter.OUTPUT_FILENAME);
+        try {
+            binaryStubWriter.writeTo(outputFile);
+        } catch (IOException e) {
+            // Do not print and carry on. The checker prefers this file over the text stubs
+            // whenever it exists, so a truncated one -- or one an earlier run left behind --
+            // would ship and be applied in place of the JDK's real annotations, silently.
+            // BinaryStubFileGenerator makes the same file-level failure fatal for the same
+            // reason; it can afford to merely skip a stub file because that file then keeps its
+            // text parsing, whereas there is no text fallback for a half-written annotated JDK.
+            try {
+                Files.deleteIfExists(outputFile.toPath());
+            } catch (IOException cleanupFailure) {
+                throw new RuntimeException(
+                        "Could not delete incomplete binary stub " + outputFile, cleanupFailure);
+            }
+            throw new RuntimeException("Failed to write binary stub " + outputFile, e);
+        }
     }
 
     /**
@@ -117,9 +207,17 @@ public class JavaStubifier {
         /** The visitor instance. */
         private final MinimizerVisitor mv;
 
-        /** Create a MinimizerCallback instance. */
-        public MinimizerCallback() {
+        /** The writer used to generate the compressed binary stub file for this directory. */
+        private final BinaryStubWriter binaryStubWriter;
+
+        /**
+         * Create a MinimizerCallback instance.
+         *
+         * @param binaryStubWriter the writer to accumulate this directory's classes into
+         */
+        public MinimizerCallback(BinaryStubWriter binaryStubWriter) {
             this.mv = new MinimizerVisitor();
+            this.binaryStubWriter = binaryStubWriter;
         }
 
         @Override
@@ -134,13 +232,32 @@ public class JavaStubifier {
                 // removed.
                 cu.getAllContainedComments().forEach(Node::remove);
                 mv.visit(cu, null);
-                if (cu.findAll(ClassOrInterfaceDeclaration.class).isEmpty()
-                        && cu.findAll(AnnotationDeclaration.class).isEmpty()
-                        && cu.findAll(EnumDeclaration.class).isEmpty()
-                        && !absolutePath.endsWith("package-info.java")) {
+                // ClassOrInterfaceDeclaration, AnnotationDeclaration, EnumDeclaration, and
+                // RecordDeclaration all extend TypeDeclaration, so one findAll covers all four
+                // kinds with no predicate filter needed. package-info.java and module-info.java
+                // never have any TypeDeclaration but still carry declaration annotations
+                // (BinaryStubWriter.processTypes reads cu.getPackageDeclaration()/cu.getModule()),
+                // so both are kept even when otherwise "empty".
+                if (cu.findAll(TypeDeclaration.class).isEmpty()
+                        && !absolutePath.endsWith("package-info.java")
+                        && !absolutePath.endsWith("module-info.java")) {
                     // All content is removed, delete this file.
                     new File(absolutePath.toUri()).delete();
                     res = Result.DONT_SAVE;
+                } else {
+                    try {
+                        binaryStubWriter.process(cu);
+                    } catch (RuntimeException e) {
+                        // BinaryStubWriter's own failure messages (e.g. "cannot load annotation
+                        // ...") do not know which file was being processed -- it operates on a
+                        // CompilationUnit, and process(CompilationUnit) is also called directly by
+                        // tests with no file behind it at all. This layer is the first one that
+                        // does know the file for certain (it is a callback parameter), so it is
+                        // the simplest place to add that context to every failure that can escape
+                        // process(cu), not just the annotation-loading one.
+                        throw new RuntimeException(
+                                "Failed to process " + absolutePath + ": " + e.getMessage(), e);
+                    }
                 }
             }
             return res;

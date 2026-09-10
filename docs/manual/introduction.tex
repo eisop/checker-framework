@@ -406,11 +406,17 @@ Two concrete examples of using \code{-processor} to run the Nullness Checker are
 \noindent
 where \<javac> is as specified in Section~\ref{javac-wrapper}.
 
+If your project already uses \href{https://errorprone.info/}{Error Prone}, you can instead
+run the Checker Framework as an Error Prone plugin, so that its type systems run as part of
+your existing Error Prone compilation rather than as a separate annotation processor.  See
+Section~\ref{error-prone}.
+
 You can also run a checker from within your favorite IDE or build system.  See
-Chapter~\ref{external-tools} for details about build tools such as
+Chapter~\ref{external-tools} for details about tools such as
 Ant (Section~\ref{ant-task}),
 Bazel (Section~\ref{bazel}),
 Buck (Section~\ref{buck}),
+Error Prone (Section~\ref{error-prone}),
 Gradle (Section~\ref{gradle}),
 Maven (Section~\ref{maven}), and
 sbt (Section~\ref{sbt});
@@ -670,6 +676,11 @@ More sound (strict) checking: enable errors that are disabled by default
 
 Type-checking modes:  enable/disable functionality
 \begin{itemize}
+\item \<-Amode=\emph{mode}>
+  Enable a checker-defined group of options.  Each checker documents the modes it supports and
+  the options each one enables.  A mode only sets an option that you did not set yourself, so an
+  option you write keeps the value you gave it; but most options are on/off flags with no
+  negative form, so writing one cannot turn off what a mode enables.
 \item \<-Alint>
   Enable or disable optional checks; see Section~\ref{lint-options}.
 \item \<-AwarnRedundantAnnotations>
@@ -1497,6 +1508,23 @@ or, more generally, as
 
 Then, the specification is more informative, and the Checker Framework is
 able to do more precise checking, than if line 141 has an annotation.
+
+\noindent
+The annotations in \code{MyNullPermittingMultiset} and
+\code{MyNullProhibitingMultiset} are on type arguments of \code{Multiset},
+which is permitted.  By contrast, an annotation immediately before the class
+or interface name in an \code{extends} or \code{implements} clause is a main annotation
+on the supertype.  By default, the Checker Framework reports an
+\code{annotation.on.supertype} error for such an annotation.
+
+The Tainting Checker permits main annotations on supertypes because it
+tracks taintedness when a value of a subclass type is used as a value of a
+supertype.  For example, in
+\code{@Untainted class UntaintedBuffer extends @Untainted Buffer},
+the first \code{@Untainted} is a type-declaration bound of
+\code{UntaintedBuffer}, and the second is the main annotation on
+\code{Buffer}.  The Tainting Checker verifies that the former is a subtype of
+the latter.
 
 It is a pleasant feature of the Checker Framework that in many cases, no
 annotations at all are needed on type parameters such as \code{E} in \<MultiSet>.

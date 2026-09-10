@@ -15,10 +15,6 @@ PLUME_SCRIPTS="$SCRIPT_DIR/.plume-scripts"
 "$GIT_SCRIPTS/git-clone-related" eisop checker-framework.demos
 ./gradlew :checker:demosTests --console=plain --warning-mode=all
 
-## Checker Framework templatefora-checker
-"$GIT_SCRIPTS/git-clone-related" eisop templatefora-checker
-./gradlew :checker:templateforaCheckerTests --console=plain --warning-mode=all
-
 status=0
 
 ## Javadoc documentation
@@ -56,6 +52,9 @@ git diff --exit-code docs/manual/contributors.tex \
 
 # Check gradle tasks are configured properly
 ./gradlew tasks
+
+# Check subproject clean and build with configuration cache
+./gradlew :dataflow:clean :dataflow:build --console=plain --warning-mode=all
 
 ## Code style and formatting
 JAVA_VER=$(java -version 2>&1 | head -1 | cut -d'"' -f2 | sed '/^1\./s///' | cut -d'.' -f1 | sed 's/-ea//' | sed 's/-beta//')
