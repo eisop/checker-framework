@@ -220,8 +220,19 @@ command-line option.)
 \item
   \label{nullness-jspecifyNullMarkedAlias}%
   If you supply the \code{-AjspecifyNullMarkedAlias=false} command-line option, then the
-  checker will not treat \code{org.jspecify.annotations.NullMarked} as a defaulting
-  annotation. By default the \code{NullMarked} annotation is recognized.
+  checker will not recognize \code{org.jspecify.annotations.NullMarked}.
+  By default it is recognized, both as a defaulting
+  annotation and as an alias for \code{@AnnotatedFor}, scoped to nullness checking alone
+  (not initialization or \code{@KeyFor} checking, which JSpecify does not define and
+  which \code{-Amode=jspecify} already excludes) with \code{applyToSubpackages = false},
+  the latter so that \code{-AonlyAnnotatedFor} and
+  \code{-AuseConservativeDefaultsForUncheckedCode=source} type-check \code{@NullMarked}
+  code for nullness (Section~\ref{aonlyannotatedfor}).  A written
+  \code{@AnnotatedFor("initialization")} or \code{@AnnotatedFor("keyfor")} still composes
+  normally alongside \code{@NullMarked}.
+  As JSpecify specifies, a \code{@NullMarked} package does not cover its subpackages.
+  \code{@NullUnmarked} is not yet honored: nested code under it is still checked as if
+  the enclosing \code{@NullMarked} scope applied.
 \end{itemize}
 
 \end{enumerate}

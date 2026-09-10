@@ -38,6 +38,7 @@ import org.checkerframework.dataflow.expression.LocalVariable;
 import org.checkerframework.dataflow.expression.ThisReference;
 import org.checkerframework.dataflow.util.NodeUtils;
 import org.checkerframework.framework.flow.CFAbstractAnalysis;
+import org.checkerframework.framework.qual.AnnotatedFor;
 import org.checkerframework.framework.qual.DefaultQualifier;
 import org.checkerframework.framework.qual.TypeUseLocation;
 import org.checkerframework.framework.type.AnnotatedTypeFactory;
@@ -450,6 +451,38 @@ public class NullnessNoInitAnnotatedTypeFactory
                     "org.jspecify.annotations.NullMarked",
                     DefaultQualifier.class.getCanonicalName(),
                     nullMarkedDefaultQual);
+
+            // Name the nullness-only subchecker ("nullnessnoinit", NullnessNoInitSubchecker's
+            // shorthand), not "nullness" (the composite NullnessChecker, which also runs the
+            // Initialization and KeyFor subcheckers). This alias is registered here, on
+            // NullnessNoInitAnnotatedTypeFactory alone, so its reach must not exceed what this
+            // factory actually is: "nullness" would resolve against the upstream-checker chain of
+            // every subchecker under NullnessChecker, including Initialization and KeyFor, whose
+            // own factories never see this registration, silently checking them for some elements
+            // and not others depending on unrelated details of how they got there. Scoping to the
+            // subchecker this registration lives on avoids that mismatch entirely, and matches
+            // JSpecify's own semantics, which do not define initialization or keyfor checking:
+            // -Amode=jspecify already excludes both (-AassumeInitialized -AassumeKeyFor), so
+            // @NullMarked should not imply them either. A written @AnnotatedFor("initialization")
+            // or @AnnotatedFor("keyfor") still composes normally alongside @NullMarked.
+            AnnotationBuilder nullMarkedAnnotatedForBuilder =
+                    new AnnotationBuilder(processingEnv, AnnotatedFor.class)
+                            .setValue("value", new String[] {"nullnessnoinit"});
+            // Opt out of subpackages for the same reason, and subject to the same classpath
+            // caveat, as the @DefaultQualifier half above.  Both halves must agree: if
+            // @AnnotatedFor reached subpackages while @DefaultQualifier did not, a class in a
+            // subpackage of a @NullMarked package would be type-checked without the defaults
+            // that @NullMarked is supposed to supply.  Unlike @DefaultQualifier,
+            // AnnotatedTypeFactory already resolves this element, so reuse its field rather
+            // than looking it up again.
+            if (annotatedForApplyToSubpackagesElement != null) {
+                nullMarkedAnnotatedForBuilder.setValue("applyToSubpackages", false);
+            }
+            AnnotationMirror nullMarkedAnnotatedFor = nullMarkedAnnotatedForBuilder.build();
+            addAliasedDeclAnnotation(
+                    "org.jspecify.annotations.NullMarked",
+                    AnnotatedFor.class.getCanonicalName(),
+                    nullMarkedAnnotatedFor);
         }
 
         boolean permitClearProperty =
