@@ -8,26 +8,36 @@ import org.junit.runners.Parameterized.Parameters;
 import java.io.File;
 import java.util.List;
 
-/** JUnit tests for the Nullness checker. */
-public class NullnessNullMarkedTest extends CheckerFrameworkPerDirectoryTest {
+/**
+ * JUnit tests for the Nullness Checker's treatment of JSpecify's {@code @NullMarked} as an alias
+ * for {@code @AnnotatedFor("nullness")}. This is separate from {@link NullnessNullMarkedTest}
+ * because {@code -AonlyAnnotatedFor} suppresses every error outside an {@code @AnnotatedFor} scope,
+ * which would make the tests in that class vacuous.
+ */
+public class NullnessNullMarkedOnlyAnnotatedForTest extends CheckerFrameworkPerDirectoryTest {
 
     /**
-     * Create a NullnessNullMarkedTest.
+     * Create a NullnessNullMarkedOnlyAnnotatedForTest.
      *
      * @param testFiles the files containing test code, which will be type-checked
      */
-    public NullnessNullMarkedTest(List<File> testFiles) {
-        super(testFiles, org.checkerframework.checker.nullness.NullnessChecker.class, "nullness");
+    public NullnessNullMarkedOnlyAnnotatedForTest(List<File> testFiles) {
+        super(
+                testFiles,
+                org.checkerframework.checker.nullness.NullnessChecker.class,
+                "nullness",
+                "-AonlyAnnotatedFor");
     }
 
     /**
-     * This method returns the directories containing test code.
+     * This method returns the directories containing test code. Each directory will be type-checked
+     * with {@code -AonlyAnnotatedFor}.
      *
      * @return the directories containing test code
      */
     @Parameters
     public static String[] getTestDirs() {
-        return new String[] {"nullness-nullmarked"};
+        return new String[] {"nullness-nullmarked-onlyannotatedfor"};
     }
 
     @Override

@@ -38,12 +38,16 @@ public class EisopCheckerFrameworkPluginTest {
     /**
      * javac flags Error Prone requires. The --add-exports/--add-opens needed to run in-process are
      * supplied as JVM args by the module's build.gradle (they have no effect as compiler args).
+     * {@code -AnoJreVersionCheck} suppresses the Checker Framework's own NOTE about untested JRE
+     * versions, so that tests asserting an exact diagnostic count do not depend on which JDK runs
+     * the build (CI covers JDKs the Checker Framework does not consider "tested" yet, e.g. 24).
      */
     private static final List<String> BASE_ARGS =
             Arrays.asList(
                     "-XDcompilePolicy=simple",
                     "--should-stop=ifError=FLOW",
-                    "-XDaddTypeAnnotationsToSymbol=true");
+                    "-XDaddTypeAnnotationsToSymbol=true",
+                    "-AnoJreVersionCheck");
 
     /** A helper running the {@code eisopcf} plugin with the Nullness Checker selected. */
     private CompilationTestHelper helper;

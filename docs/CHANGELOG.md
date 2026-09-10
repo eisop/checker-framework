@@ -3,6 +3,40 @@ Version 3.49.5-eisop2 (June ?, 2026)
 
 **User-visible changes:**
 
+The Nullness Checker now treats JSpecify's `@NullMarked` as an alias for
+`@AnnotatedFor` scoped to nullness checking alone (not initialization or `@KeyFor`
+checking, which JSpecify does not define and which `-Amode=jspecify` already excludes),
+with `applyToSubpackages = false`, in addition to the existing `@DefaultQualifier` alias.
+Nullness-checking code under a `@NullMarked` element is therefore type-checked under
+`-AonlyAnnotatedFor` and `-AuseConservativeDefaultsForUncheckedCode=source` instead of
+being skipped. Because `@NullMarked` is retained in class files, this also applies to
+bytecode: a dependency compiled with `@NullMarked` is no longer treated as unchecked
+code under `-AuseConservativeDefaultsForUncheckedCode=bytecode`. A written
+`@AnnotatedFor("initialization")` or `@AnnotatedFor("keyfor")` still composes normally
+alongside `@NullMarked` (see below). `applyToSubpackages = false` matches JSpecify,
+which specifies that a `@NullMarked` package does not cover its subpackages, and
+matches the `@DefaultQualifier` alias. As before, `-AjspecifyNullMarkedAlias=false`
+disables all `@NullMarked` aliasing, now including this new alias. `@NullUnmarked` is
+not yet honored: nested code under it is still checked as if the enclosing
+`@NullMarked` scope applied.
+
+An `@AnnotatedFor` annotation written on an element now composes with any alias for
+`@AnnotatedFor` on that same element, rather than the written annotation hiding the alias.
+For example, `@AnnotatedFor("index") @NullMarked` is checked by both the Index Checker and
+the Nullness Checker. This composition is not something `@AnnotatedFor` being `@Repeatable`
+(below) could provide by itself: `@Repeatable` only lets javac collapse multiple literal
+instances of the same annotation type, and an alias produces an instance that was never
+written.
+
+The Nullness Checker no longer recognizes `org.jspecify.nullness.NonNull`,
+`org.jspecify.nullness.Nullable`, or `org.jspecify.nullness.NullMarked` -- JSpecify's
+original, pre-1.0 package, deprecated since 2022. Use the corresponding
+`org.jspecify.annotations` annotation, which JSpecify moved to years ago and which the
+checker has recognized the whole time. The Checker also no longer recognizes
+`org.jspecify.nullness.NullnessUnspecified`, which has no such replacement: JSpecify's
+1.0 release dropped it outright, and `org.jspecify.annotations` has only `NonNull`,
+`Nullable`, `NullMarked`, and `NullUnmarked`.
+
 When the Initialization Checker rejects a method call on a partially-initialized receiver, it
 now reports `initialization.method.invocation.invalid`, which names the fields that are still
 uninitialized at the call, instead of the framework's `method.invocation.invalid`.
@@ -15,6 +49,17 @@ Checker Framework reads a nullness annotation in five of those locations: a clas
 wildcard, and the root type of a local variable, of a cast, and of a method reference.
 `-Amode=jspecify` turns it on, since a mode that makes the checker behave as JSpecify specifies
 should also reject what JSpecify gives no meaning.
+
+`@AnnotatedFor` is now `@Repeatable`, so it may be written more than once at the same
+location. This lets different type systems be given different `applyToSubpackages`
+settings on one package, which its single `value()` array could not express on its own:
+```java
+@AnnotatedFor(value = "nullness", applyToSubpackages = false)
+@AnnotatedFor(value = "index", applyToSubpackages = true)
+package mypackage;
+```
+Listing multiple checker names in one `@AnnotatedFor`, as before, remains the right choice
+when they should share one `applyToSubpackages` setting.
 
 Two new Maven Central artifacts support writing a custom checker without
 depending on the whole `checker` artifact: `io.github.eisop:framework`, which
@@ -61,6 +106,25 @@ alternative to running it as a standalone annotation processor.  It is published
 `io.github.eisop:framework-errorprone` and requires JDK 21 or later.  See the manual's
 "Error Prone" section.
 
+Type argument inference no longer fails on a `? super` wildcard whose argument mentions
+the inferred type variable through `? extends`, as in
+`Function<? super Set<? extends K>, ?>`.  It reported
+`type.argument.inference.crashed` on code that javac accepts.
+
+The stubifier resolves a nested annotation named through its enclosing class, as
+the JDK's own `java.lang.invoke.VarHandle` writes `@MethodHandle.PolymorphicSignature`.
+Such a name is not loadable as written -- its binary name separates the nesting with
+`$` -- so the stubifier could not read the annotation's `@Target` and failed the whole
+file. That made every class using a signature-polymorphic method impossible to
+annotate; `VarHandle` and `MethodHandle` are the two in the JDK.
+
+The opt-in `sometimes-nullable.astub` now covers signature-polymorphic methods,
+where whether null is legal depends on the field or parameter type the handle was
+created for: the 19 `VarHandle` access modes a reference-typed field supports, and
+`MethodHandle`'s `invoke`, `invokeExact`, `invokeWithArguments` and `bindTo`
+arguments. `VarHandle`'s `getAndAdd` and `getAndBitwise` families are excluded,
+being defined only for numeric and bitwise types.
+
 `AnnotatedFor`, `HasQualifierParameter`, and `ReportUse` gain the
 `applyToSubpackages` element that `DefaultQualifier` already had. It says whether
 an annotation written on a package also applies to that package's subpackages,
@@ -90,6 +154,14 @@ class such as `class Rec<T extends Rec<T>>`, whose type graph points back at
 itself. `AbstractViewpointAdapter` now adapts and substitutes with
 `AnnotatedTypeCopier`, which copies each type once, instead of with its own
 recursion, which never reached the end of such a graph.
+
+A checker that viewpoint-adapts can now extend or implement a type whose declaration bound is
+receiver-dependent: the supertype's bound is adapted to the subtype's before the two are compared.
+`@A class Y extends X {}` was previously rejected when `X`'s bound was receiver-dependent.
+
+`ViewpointAdapter` gains `viewpointAdaptTypeDeclarationBounds`, and `AbstractViewpointAdapter` a new
+abstract `extractAnnotationMirror(AnnotationMirrorSet)` that every subclass must implement. It is
+the counterpart of the existing `extractAnnotationMirror(AnnotatedTypeMirror)`.
 
 The Nullness Checker now refines `Queue.poll()`, `Queue.peek()`,
 `Deque.pollFirst()`, `Deque.pollLast()`, `Deque.peekFirst()`, and
@@ -799,10 +871,11 @@ Other improvements and bug fixes:
 
 eisop#104, eisop#386, eisop#433, eisop#622, eisop#737, eisop#778, eisop#786,
 eisop#792, eisop#863, eisop#949, eisop#1015, eisop#1059, eisop#1074, eisop#1244,
-eisop#1315, eisop#1564, eisop#1592, eisop#1642, eisop#1653, eisop#1735,
-eisop#1801, eisop#1818, eisop#1819, eisop#1861, eisop#1862, eisop#1863,
-eisop#1865, eisop#1887, eisop#1965, eisop#1987, eisop#1990, eisop#1991,
-eisop#2020, typetools#399, typetools#3203.
+eisop#1299, eisop#1315, eisop#1564, eisop#1592, eisop#1642, eisop#1653,
+eisop#1735, eisop#1801, eisop#1818, eisop#1819, eisop#1861, eisop#1862,
+eisop#1863, eisop#1865, eisop#1887, eisop#1965, eisop#1986, eisop#1987,
+eisop#1990, eisop#1991, eisop#2020, eisop#2032, typetools#399,
+typetools#3203.
 
 
 Version 3.49.5-eisop1 (April 26, 2026)

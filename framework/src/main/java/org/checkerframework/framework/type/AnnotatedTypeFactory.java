@@ -174,6 +174,10 @@ import javax.lang.model.util.Types;
  */
 public class AnnotatedTypeFactory implements AnnotationProvider {
 
+    /** The fully-qualified name of {@link AnnotatedFor}. */
+    private static final @FullyQualifiedName String ANNOTATED_FOR_NAME =
+            AnnotatedFor.class.getCanonicalName();
+
     /** Whether to print verbose debugging messages about stub files. */
     private final boolean debugStubParser;
 
@@ -212,6 +216,14 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * {@code @AnnotatedFor} on a package always applies to subpackages.
      */
     protected final @Nullable ExecutableElement annotatedForApplyToSubpackagesElement;
+
+    /**
+     * The AnnotatedFor.List.value() field/element, for a location with two or more written
+     * {@code @AnnotatedFor} (which javac collapses into one {@code @AnnotatedFor.List}). Null if
+     * the version of {@code @AnnotatedFor} on the classpath predates the nested {@code List} type,
+     * in which case {@code @AnnotatedFor} could not have been written more than once there.
+     */
+    protected final @Nullable ExecutableElement annotatedForListValueElement;
 
     /** The EnsuresQualifier.expression field/element. */
     protected final ExecutableElement ensuresQualifierExpressionElement;
@@ -817,6 +829,17 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         annotatedForApplyToSubpackagesElement =
                 TreeUtils.getMethodOrNull(
                         AnnotatedFor.class, "applyToSubpackages", 0, processingEnv);
+        // AnnotatedFor.List is itself the newly-added type here (unlike applyToSubpackages, an
+        // element on a type that already existed), so it must not be referenced as a class
+        // literal before its absence is checked: evaluating "AnnotatedFor.List.class" resolves
+        // (links) that nested class immediately, throwing NoClassDefFoundError -- defeating the
+        // guard -- if an older checker-qual on the classpath lacks it. Using its canonical name
+        // as a literal string, instead of deriving it from the class, avoids linking it here.
+        @FullyQualifiedName String annotatedForListName = "org.checkerframework.framework.qual.AnnotatedFor.List";
+        annotatedForListValueElement =
+                elements.getTypeElement(annotatedForListName) == null
+                        ? null
+                        : TreeUtils.getMethod(annotatedForListName, "value", 0, processingEnv);
         ensuresQualifierExpressionElement =
                 TreeUtils.getMethod(EnsuresQualifier.class, "expression", 0, processingEnv);
         ensuresQualifierListValueElement =
@@ -1887,6 +1910,24 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         // adaptation replaces primary qualifiers without removing any, so the adapted type's
         // primary annotations are exactly the adapted bounds.
         return viewpointAdapter.viewpointAdaptType(useType, boundType).getAnnotations();
+    }
+
+    /**
+     * Returns the primary qualifiers of {@code declarationBoundType}, viewpoint-adapted from the
+     * viewpoint of {@code viewpointBounds}. Returns them unadapted if this type factory has no
+     * viewpoint adapter.
+     *
+     * @param viewpointBounds the type-declaration bounds that provide the viewpoint
+     * @param declarationBoundType the type whose declaration bounds to adapt
+     * @return the adapted declaration bounds
+     */
+    public AnnotationMirrorSet getViewpointAdaptedTypeDeclarationBounds(
+            AnnotationMirrorSet viewpointBounds, AnnotatedTypeMirror declarationBoundType) {
+        if (viewpointAdapter == null) {
+            return declarationBoundType.getAnnotations();
+        }
+        return viewpointAdapter.viewpointAdaptTypeDeclarationBounds(
+                viewpointBounds, declarationBoundType);
     }
 
     /**
@@ -6890,6 +6931,97 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
       }
     }
     */
+
+    /**
+     * Returns every declaration annotation named {@code annoName} on {@code elt}: the one written
+     * on it, if any, together with one for each of its declaration annotations that is an alias for
+     * {@code annoName}.
+     *
+     * <p>{@link #getDeclAnnotation(Element, Class)} cannot serve this purpose: it returns a single
+     * annotation and prefers a written annotation over an alias, so an explicit annotation hides an
+     * aliased one that should also apply. For example, on a class annotated
+     * {@code @AnnotatedFor("index") @NullMarked}, {@code getDeclAnnotation(elt,
+     * AnnotatedFor.class)} returns only {@code @AnnotatedFor("index")}, and the class would not be
+     * checked for nullness even though {@code @NullMarked} aliases to an {@code @AnnotatedFor} for
+     * it. This method returns both.
+     *
+     * <p>The result is an {@link AnnotationMirrorSet}, so two aliases that produce an identical
+     * mirror collapse, while two that differ in any element are both retained.
+     *
+     * <p>This does not unpack a {@code @Repeatable} annotation's {@code .List} container -- there
+     * is no way to derive {@code Foo.List.class} from {@code Foo.class} generically. A caller for a
+     * repeatable annotation must also look up its {@code .List} form itself and merge it in, the
+     * way {@link #getAnnotatedForAnnotations} does for {@code AnnotatedFor}/{@code
+     * AnnotatedFor.List} and {@link org.checkerframework.framework.util.defaults.QualifierDefaults}
+     * does for {@code DefaultQualifier}/{@code DefaultQualifier.List}.
+     *
+     * @param elt an element
+     * @param annoName the fully-qualified name of the declaration annotation to look for
+     * @return an unmodifiable set of the annotations named {@code annoName} on {@code elt}, written
+     *     or aliased; may be empty
+     */
+    public AnnotationMirrorSet getAllDeclAnnotations(
+            Element elt, @FullyQualifiedName String annoName) {
+        AnnotationMirrorSet declAnnos = getDeclAnnotations(elt);
+        Map<@FullyQualifiedName String, AnnotationMirror> aliases = declAliases.get(annoName);
+        // Allocate only if a match is actually found: most elements have none, and this can run
+        // for every element that might produce a warning.
+        AnnotationMirrorSet result = null;
+        for (int i = 0, n = declAnnos.size(); i < n; ++i) {
+            AnnotationMirror am = declAnnos.get(i);
+            // Unlike getDeclAnnotation, do not stop at the first match: a written annotation and
+            // an aliased one must both be collected.
+            AnnotationMirror match =
+                    AnnotationUtils.areSameByName(am, annoName)
+                            ? am
+                            : (aliases == null
+                                    ? null
+                                    : aliases.get(AnnotationUtils.annotationName(am)));
+            if (match != null) {
+                if (result == null) {
+                    result = new AnnotationMirrorSet();
+                }
+                result.add(match);
+            }
+        }
+        return result == null ? AnnotationMirrorSet.emptySet() : result.makeUnmodifiable();
+    }
+
+    /**
+     * Returns every {@link AnnotatedFor} annotation on {@code elt}: each one written on it (there
+     * may be more than one, since {@code @AnnotatedFor} is {@code @Repeatable}), together with one
+     * for each of its declaration annotations that is an alias for {@link AnnotatedFor}.
+     *
+     * <p>See {@link #getAllDeclAnnotations}, which this delegates to for the written-or-aliased
+     * part; this method additionally unpacks {@code @AnnotatedFor.List}, which is what javac
+     * exposes instead of individual {@code @AnnotatedFor} mirrors when two or more are written at
+     * the same location.
+     *
+     * @param elt an element
+     * @return an unmodifiable set of the {@link AnnotatedFor} annotations on {@code elt}; may be
+     *     empty
+     */
+    public AnnotationMirrorSet getAnnotatedForAnnotations(Element elt) {
+        AnnotationMirrorSet writtenOrAliased = getAllDeclAnnotations(elt, ANNOTATED_FOR_NAME);
+        if (annotatedForListValueElement == null) {
+            // The classpath's @AnnotatedFor predates the List type, so it could not have been
+            // written more than once here; nothing more to find.
+            return writtenOrAliased;
+        }
+        AnnotationMirror listAnno = getDeclAnnotation(elt, AnnotatedFor.List.class);
+        if (listAnno == null) {
+            return writtenOrAliased;
+        }
+        List<AnnotationMirror> repeated =
+                AnnotationUtils.getElementValueArray(
+                        listAnno, annotatedForListValueElement, AnnotationMirror.class);
+        if (repeated.isEmpty()) {
+            return writtenOrAliased;
+        }
+        AnnotationMirrorSet result = new AnnotationMirrorSet(writtenOrAliased);
+        result.addAll(repeated);
+        return result.makeUnmodifiable();
+    }
 
     /**
      * Does {@code annotatedForAnno}, which is an {@link
