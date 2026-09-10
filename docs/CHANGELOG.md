@@ -4,17 +4,21 @@ Version 3.49.5-eisop2 (June ?, 2026)
 **User-visible changes:**
 
 The Nullness Checker now treats JSpecify's `@NullMarked` as an alias for
-`@AnnotatedFor(value = "nullness", applyToSubpackages = false)`, in addition to the
-existing `@DefaultQualifier` alias. Code under a `@NullMarked` element is therefore
-type-checked under `-AonlyAnnotatedFor` and
-`-AuseConservativeDefaultsForUncheckedCode=source` instead of being skipped. Because
-`@NullMarked` is retained in class files, this also applies to bytecode: a dependency
-compiled with `@NullMarked` is no longer treated as unchecked code under
-`-AuseConservativeDefaultsForUncheckedCode=bytecode`.
-`applyToSubpackages = false` matches JSpecify, which specifies that a `@NullMarked`
-package does not cover its subpackages, and matches the `@DefaultQualifier` alias. As
-before, `-AjspecifyNullMarkedAlias=false` disables all `@NullMarked` aliasing, now
-including this new alias.
+`@AnnotatedFor` scoped to nullness checking alone (not initialization or `@KeyFor`
+checking, which JSpecify does not define and which `-Amode=jspecify` already excludes),
+with `applyToSubpackages = false`, in addition to the existing `@DefaultQualifier` alias.
+Nullness-checking code under a `@NullMarked` element is therefore type-checked under
+`-AonlyAnnotatedFor` and `-AuseConservativeDefaultsForUncheckedCode=source` instead of
+being skipped. Because `@NullMarked` is retained in class files, this also applies to
+bytecode: a dependency compiled with `@NullMarked` is no longer treated as unchecked
+code under `-AuseConservativeDefaultsForUncheckedCode=bytecode`. A written
+`@AnnotatedFor("initialization")` or `@AnnotatedFor("keyfor")` still composes normally
+alongside `@NullMarked` (see below). `applyToSubpackages = false` matches JSpecify,
+which specifies that a `@NullMarked` package does not cover its subpackages, and
+matches the `@DefaultQualifier` alias. As before, `-AjspecifyNullMarkedAlias=false`
+disables all `@NullMarked` aliasing, now including this new alias. `@NullUnmarked` is
+not yet honored: nested code under it is still checked as if the enclosing
+`@NullMarked` scope applied.
 
 An `@AnnotatedFor` annotation written on an element now composes with any alias for
 `@AnnotatedFor` on that same element, rather than the written annotation hiding the alias.

@@ -1,8 +1,9 @@
 import org.checkerframework.framework.qual.AnnotatedFor;
 import org.jspecify.annotations.NullMarked;
 
-// @AnnotatedFor is not repeatable, so an element can carry at most one written one.  The
-// @NullMarked alias composes with it rather than being hidden by it.
+// A written @AnnotatedFor -- whether a single instance or, since @AnnotatedFor is @Repeatable,
+// two or more written at the same location -- composes with the @NullMarked alias rather than
+// being hidden by it.
 public class NullMarkedWithExplicitAnnotatedFor {
 
     // @AnnotatedFor("index") does not name nullness, but the @NullMarked alias does, so this
@@ -32,6 +33,26 @@ public class NullMarkedWithExplicitAnnotatedFor {
     // An @AnnotatedFor that names neither nullness nor an alias leaves nullness suppressed.
     @AnnotatedFor("index")
     class OnlyIndex {
+        // No expected error: nothing here is annotated for nullness.
+        Object o = null;
+    }
+
+    // Two written @AnnotatedFor collapse into a single @AnnotatedFor.List, which has a
+    // different annotation name than @AnnotatedFor itself; the @NullMarked alias must still be
+    // found alongside it.
+    @AnnotatedFor("index")
+    @AnnotatedFor("regex")
+    @NullMarked
+    class TwoWrittenAndNullMarked {
+        // :: error: (assignment.type.incompatible)
+        Object o = null;
+    }
+
+    // Same as above, without @NullMarked: neither written @AnnotatedFor names nullness, so
+    // nullness stays suppressed.
+    @AnnotatedFor("index")
+    @AnnotatedFor("regex")
+    class TwoWrittenNeitherNullness {
         // No expected error: nothing here is annotated for nullness.
         Object o = null;
     }

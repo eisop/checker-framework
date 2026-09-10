@@ -741,8 +741,8 @@ which also applies conservative defaults for code outside the scope of an \code{
 \href{https://github.com/uber/NullAway}{NullAway} has a similar flag: \code{-XepOpt:NullAway:OnlyNullMarked=true}
 configures NullAway to only issue errors for code inside the scope of \code{@NullMarked} annotations.
 The Nullness Checker treats JSpecify's \code{@NullMarked} as an alias for
-\code{@AnnotatedFor(value = "nullness", applyToSubpackages = false)}, so
-\code{-AonlyAnnotatedFor} gives the same behavior for \code{@NullMarked} code
+\code{@AnnotatedFor}, scoped to nullness checking with \code{applyToSubpackages = false},
+so \code{-AonlyAnnotatedFor} gives the same behavior for \code{@NullMarked} code
 (see Section~\ref{nullness-jspecifyNullMarkedAlias}).
 A written \code{@AnnotatedFor} composes with an aliased one, so
 \code{@AnnotatedFor("index") @NullMarked} is checked by both the Index Checker and the

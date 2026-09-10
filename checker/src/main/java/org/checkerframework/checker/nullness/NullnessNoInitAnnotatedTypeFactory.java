@@ -452,9 +452,22 @@ public class NullnessNoInitAnnotatedTypeFactory
                     DefaultQualifier.class.getCanonicalName(),
                     nullMarkedDefaultQual);
 
+            // Name the nullness-only subchecker ("nullnessnoinit", NullnessNoInitSubchecker's
+            // shorthand), not "nullness" (the composite NullnessChecker, which also runs the
+            // Initialization and KeyFor subcheckers). This alias is registered here, on
+            // NullnessNoInitAnnotatedTypeFactory alone, so its reach must not exceed what this
+            // factory actually is: "nullness" would resolve against the upstream-checker chain of
+            // every subchecker under NullnessChecker, including Initialization and KeyFor, whose
+            // own factories never see this registration, silently checking them for some elements
+            // and not others depending on unrelated details of how they got there. Scoping to the
+            // subchecker this registration lives on avoids that mismatch entirely, and matches
+            // JSpecify's own semantics, which do not define initialization or keyfor checking:
+            // -Amode=jspecify already excludes both (-AassumeInitialized -AassumeKeyFor), so
+            // @NullMarked should not imply them either. A written @AnnotatedFor("initialization")
+            // or @AnnotatedFor("keyfor") still composes normally alongside @NullMarked.
             AnnotationBuilder nullMarkedAnnotatedForBuilder =
                     new AnnotationBuilder(processingEnv, AnnotatedFor.class)
-                            .setValue("value", new String[] {"nullness"});
+                            .setValue("value", new String[] {"nullnessnoinit"});
             // Opt out of subpackages for the same reason, and subject to the same classpath
             // caveat, as the @DefaultQualifier half above.  Both halves must agree: if
             // @AnnotatedFor reached subpackages while @DefaultQualifier did not, a class in a
