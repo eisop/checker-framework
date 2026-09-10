@@ -4,9 +4,7 @@ import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.checker.signature.qual.ClassGetName;
 import org.checkerframework.dataflow.cfg.visualize.CFGVisualizer;
-import org.checkerframework.framework.qual.AnnotatedFor;
 import org.checkerframework.framework.qual.SubtypeOf;
-import org.checkerframework.framework.qual.UnannotatedFor;
 import org.checkerframework.framework.source.SourceChecker;
 import org.checkerframework.framework.type.AnnotatedTypeFactory;
 import org.checkerframework.framework.type.GenericAnnotatedTypeFactory;
@@ -351,29 +349,36 @@ public abstract class BaseTypeChecker extends SourceChecker {
         }
 
         AnnotatedTypeFactory atypeFactory = getTypeFactory();
-        AnnotationMirror annotatedFor = atypeFactory.getDeclAnnotation(elt, AnnotatedFor.class);
-        boolean elementAnnotatedForThisChecker;
-        if (annotatedFor != null && atypeFactory.doesAnnotatedForApplyToThisChecker(annotatedFor)) {
-            elementAnnotatedForThisChecker = true;
-        } else if (isElementUnannotatedForThisChecker(elt)) {
-            // @UnannotatedFor only subtracts from an enclosing @AnnotatedFor scope, so it is
-            // consulted only when this element is not itself annotated for this checker, and it
-            // stops the walk to the enclosing element.
-            elementAnnotatedForThisChecker = false;
-        } else if (elt.getKind() == ElementKind.PACKAGE) {
-            // A package is covered by an enclosing package only if that package's annotation
-            // applies to subpackages.
-            elementAnnotatedForThisChecker =
-                    scopeReachingSubpackages(
-                                    ElementUtils.parentPackage(
-                                            (PackageElement) elt, atypeFactory.getElementUtils()))
-                            == PackageScope.ANNOTATED;
-        } else {
-            // A non-package element is inside its enclosing element rather than in a subpackage of
-            // it, so applyToSubpackages does not apply to this step.
-            Element parent = elt.getEnclosingElement();
-            elementAnnotatedForThisChecker =
-                    parent != null && isElementAnnotatedForThisCheckerOrUpstreamChecker(parent);
+        // An element may have both a written @AnnotatedFor and an aliased one (such as
+        // @NullMarked); any of them naming this checker is enough.
+        boolean elementAnnotatedForThisChecker = false;
+        for (AnnotationMirror annotatedFor : atypeFactory.getAnnotatedForAnnotations(elt)) {
+            if (atypeFactory.doesAnnotatedForApplyToThisChecker(annotatedFor)) {
+                elementAnnotatedForThisChecker = true;
+                break;
+            }
+        }
+
+        // @UnannotatedFor only subtracts from an enclosing @AnnotatedFor scope, so it is consulted
+        // only when this element is not itself annotated for this checker, and it stops the walk
+        // to the enclosing element.
+        if (!elementAnnotatedForThisChecker && !isElementUnannotatedForThisChecker(elt)) {
+            if (elt.getKind() == ElementKind.PACKAGE) {
+                // A package is covered by an enclosing package only if that package's annotation
+                // applies to subpackages.
+                elementAnnotatedForThisChecker =
+                        scopeReachingSubpackages(
+                                        ElementUtils.parentPackage(
+                                                (PackageElement) elt,
+                                                atypeFactory.getElementUtils()))
+                                == PackageScope.ANNOTATED;
+            } else {
+                // A non-package element is inside its enclosing element rather than in a
+                // subpackage of it, so applyToSubpackages does not apply to this step.
+                Element parent = elt.getEnclosingElement();
+                elementAnnotatedForThisChecker =
+                        parent != null && isElementAnnotatedForThisCheckerOrUpstreamChecker(parent);
+            }
         }
 
         elementAnnotatedForThisCheckerOrUpstreamCache.put(elt, elementAnnotatedForThisChecker);
@@ -390,9 +395,12 @@ public abstract class BaseTypeChecker extends SourceChecker {
      */
     private boolean isElementUnannotatedForThisChecker(Element elt) {
         AnnotatedTypeFactory atypeFactory = getTypeFactory();
-        AnnotationMirror unannotatedFor = atypeFactory.getDeclAnnotation(elt, UnannotatedFor.class);
-        return unannotatedFor != null
-                && atypeFactory.doesUnannotatedForApplyToThisChecker(unannotatedFor);
+        for (AnnotationMirror unannotatedFor : atypeFactory.getUnannotatedForAnnotations(elt)) {
+            if (atypeFactory.doesUnannotatedForApplyToThisChecker(unannotatedFor)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
@@ -428,18 +436,27 @@ public abstract class BaseTypeChecker extends SourceChecker {
         }
 
         AnnotatedTypeFactory atypeFactory = getTypeFactory();
-        PackageScope result;
-        AnnotationMirror annotatedFor = atypeFactory.getDeclAnnotation(pkg, AnnotatedFor.class);
-        AnnotationMirror unannotatedFor = atypeFactory.getDeclAnnotation(pkg, UnannotatedFor.class);
-        if (annotatedFor != null
-                && atypeFactory.doesAnnotatedForApplyToThisChecker(annotatedFor)
-                && atypeFactory.doesAnnotatedForApplyToSubpackages(annotatedFor)) {
-            result = PackageScope.ANNOTATED;
-        } else if (unannotatedFor != null
-                && atypeFactory.doesUnannotatedForApplyToThisChecker(unannotatedFor)
-                && atypeFactory.doesUnannotatedForApplyToSubpackages(unannotatedFor)) {
-            result = PackageScope.UNANNOTATED;
-        } else {
+        // As for the element walk above, any single annotation that both applies to this checker
+        // and reaches subpackages suffices; the two conditions must hold of the same annotation,
+        // but need not hold of the same one for every checker.
+        PackageScope result = PackageScope.NONE;
+        for (AnnotationMirror annotatedFor : atypeFactory.getAnnotatedForAnnotations(pkg)) {
+            if (atypeFactory.doesAnnotatedForApplyToThisChecker(annotatedFor)
+                    && atypeFactory.doesAnnotatedForApplyToSubpackages(annotatedFor)) {
+                result = PackageScope.ANNOTATED;
+                break;
+            }
+        }
+        if (result == PackageScope.NONE) {
+            for (AnnotationMirror unannotatedFor : atypeFactory.getUnannotatedForAnnotations(pkg)) {
+                if (atypeFactory.doesUnannotatedForApplyToThisChecker(unannotatedFor)
+                        && atypeFactory.doesUnannotatedForApplyToSubpackages(unannotatedFor)) {
+                    result = PackageScope.UNANNOTATED;
+                    break;
+                }
+            }
+        }
+        if (result == PackageScope.NONE) {
             result =
                     scopeReachingSubpackages(
                             ElementUtils.parentPackage(pkg, atypeFactory.getElementUtils()));

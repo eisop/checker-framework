@@ -2,6 +2,7 @@ package org.checkerframework.framework.qual;
 
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
+import java.lang.annotation.Repeatable;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
@@ -27,11 +28,21 @@ import java.lang.annotation.Target;
  * {@code @UnannotatedFor} on a package excludes its subpackages from an {@code @AnnotatedFor} on an
  * enclosing package, and vice versa.
  *
+ * <p>You may write multiple {@code @UnannotatedFor} annotations at the same location, for example
+ * to give two type systems different {@code applyToSubpackages} settings on one package:
+ *
+ * <pre>
+ * &nbsp; {@literal @}UnannotatedFor(value = "nullness", applyToSubpackages = false)
+ * &nbsp; {@literal @}UnannotatedFor(value = "index", applyToSubpackages = true)
+ * &nbsp; package mypackage;
+ * </pre>
+ *
  * @checker_framework.manual #compiling-libraries Compiling partially-annotated libraries
  */
 @Documented
 @Retention(RetentionPolicy.SOURCE)
 @Target({ElementType.TYPE, ElementType.METHOD, ElementType.CONSTRUCTOR, ElementType.PACKAGE})
+@Repeatable(UnannotatedFor.List.class)
 public @interface UnannotatedFor {
     /**
      * Returns the type systems for which the annotated element has not been annotated. Legal
@@ -50,4 +61,22 @@ public @interface UnannotatedFor {
      * @return whether this annotation should be inherited by subpackages
      */
     boolean applyToSubpackages() default true;
+
+    /**
+     * A wrapper annotation that makes the {@link UnannotatedFor} annotation repeatable.
+     *
+     * <p>Programmers generally do not need to write this. It is created by Java when a programmer
+     * writes more than one {@link UnannotatedFor} annotation at the same location.
+     */
+    @Documented
+    @Retention(RetentionPolicy.SOURCE)
+    @Target({ElementType.TYPE, ElementType.METHOD, ElementType.CONSTRUCTOR, ElementType.PACKAGE})
+    public static @interface List {
+        /**
+         * Returns the repeatable annotations.
+         *
+         * @return the repeatable annotations
+         */
+        UnannotatedFor[] value();
+    }
 }

@@ -243,9 +243,6 @@ public class NullnessNoInitAnnotatedTypeFactory
                     "org.jmlspecs.annotation.NonNull",
                     // https://github.com/jspecify/jspecify/blob/main/src/main/java/org/jspecify/annotations/NonNull.java
                     "org.jspecify.annotations.NonNull",
-                    // 2022-11-17: Deprecated old package location, remove after some grace period
-                    // https://github.com/jspecify/jspecify/tree/main/src/main/java/org/jspecify/nullness
-                    "org.jspecify.nullness.NonNull",
                     // http://bits.netbeans.org/dev/javadoc/org-netbeans-api-annotations-common/org/netbeans/api/annotations/common/NonNull.html
                     "org.netbeans.api.annotations.common.NonNull",
                     // https://github.com/spring-projects/spring-framework/blob/master/spring-core/src/main/java/org/springframework/lang/NonNull.java
@@ -376,10 +373,6 @@ public class NullnessNoInitAnnotatedTypeFactory
                     "org.jmlspecs.annotation.Nullable",
                     // https://github.com/jspecify/jspecify/blob/main/src/main/java/org/jspecify/annotations/Nullable.java
                     "org.jspecify.annotations.Nullable",
-                    // 2022-11-17: Deprecated old package location, remove after some grace period
-                    // https://github.com/jspecify/jspecify/tree/main/src/main/java/org/jspecify/nullness
-                    "org.jspecify.nullness.Nullable",
-                    "org.jspecify.nullness.NullnessUnspecified",
                     // http://bits.netbeans.org/dev/javadoc/org-netbeans-api-annotations-common/org/netbeans/api/annotations/common/CheckForNull.html
                     "org.netbeans.api.annotations.common.CheckForNull",
                     // http://bits.netbeans.org/dev/javadoc/org-netbeans-api-annotations-common/org/netbeans/api/annotations/common/NullAllowed.html
@@ -463,15 +456,44 @@ public class NullnessNoInitAnnotatedTypeFactory
                     DefaultQualifier.class.getCanonicalName(),
                     nullMarkedDefaultQual);
 
-            // 2022-11-17: Deprecated old package location, remove after some grace period
+            // Name the nullness-only subchecker ("nullnessnoinit", NullnessNoInitSubchecker's
+            // shorthand), not "nullness" (the composite NullnessChecker, which also runs the
+            // Initialization and KeyFor subcheckers). This alias is registered here, on
+            // NullnessNoInitAnnotatedTypeFactory alone, so its reach must not exceed what this
+            // factory actually is: "nullness" would resolve against the upstream-checker chain of
+            // every subchecker under NullnessChecker, including Initialization and KeyFor, whose
+            // own factories never see this registration, silently checking them for some elements
+            // and not others depending on unrelated details of how they got there. Scoping to the
+            // subchecker this registration lives on avoids that mismatch entirely, and matches
+            // JSpecify's own semantics, which do not define initialization or keyfor checking:
+            // -Amode=jspecify already excludes both (-AassumeInitialized -AassumeKeyFor), so
+            // @NullMarked should not imply them either. A written @AnnotatedFor("initialization")
+            // or @AnnotatedFor("keyfor") still composes normally alongside @NullMarked.
+            AnnotationBuilder nullMarkedAnnotatedForBuilder =
+                    new AnnotationBuilder(processingEnv, AnnotatedFor.class)
+                            .setValue("value", new String[] {"nullnessnoinit"});
+            // Opt out of subpackages for the same reason, and subject to the same classpath
+            // caveat, as the @DefaultQualifier half above.  Both halves must agree: if
+            // @AnnotatedFor reached subpackages while @DefaultQualifier did not, a class in a
+            // subpackage of a @NullMarked package would be type-checked without the defaults
+            // that @NullMarked is supposed to supply.  Unlike @DefaultQualifier,
+            // AnnotatedTypeFactory already resolves this element, so reuse its field rather
+            // than looking it up again.
+            if (annotatedForApplyToSubpackagesElement != null) {
+                nullMarkedAnnotatedForBuilder.setValue("applyToSubpackages", false);
+            }
+            AnnotationMirror nullMarkedAnnotatedFor = nullMarkedAnnotatedForBuilder.build();
             addAliasedDeclAnnotation(
-                    "org.jspecify.nullness.NullMarked",
-                    DefaultQualifier.class.getCanonicalName(),
-                    nullMarkedDefaultQual);
+                    "org.jspecify.annotations.NullMarked",
+                    AnnotatedFor.class.getCanonicalName(),
+                    nullMarkedAnnotatedFor);
 
-            // @NullUnmarked restores the unmarked upper-bound default inside a @NullMarked scope.
-            // Without this alias the enclosing @NullMarked's @DefaultQualifier keeps applying, so
-            // a type variable of a @NullUnmarked method would still be bounded by @NonNull.
+            // @NullUnmarked is the inverse of @NullMarked, so it aliases to the inverse of both
+            // halves above, with the same checker name and the same subpackage opt-out.
+            //
+            // The @DefaultQualifier half restores the unmarked upper-bound default: without it an
+            // enclosing @NullMarked's @DefaultQualifier keeps applying, so a type variable of a
+            // @NullUnmarked method would still be bounded by @NonNull.
             AnnotationBuilder nullUnmarkedDefaultQualBuilder =
                     new AnnotationBuilder(processingEnv, DefaultQualifier.class)
                             .setValue("value", Nullable.class)
@@ -486,49 +508,18 @@ public class NullnessNoInitAnnotatedTypeFactory
                     DefaultQualifier.class.getCanonicalName(),
                     nullUnmarkedDefaultQualBuilder.build());
 
-            // @NullMarked and @NullUnmarked also delimit the code that JSpecify specifies, which
-            // is what @AnnotatedFor and @UnannotatedFor delimit for this checker.  Alias them only
-            // in JSpecify mode: the mode is where "JSpecify's marked scope is the @AnnotatedFor
-            // scope" is declared, and it also turns off the initialization and map-key checks,
-            // whose factories do not see these aliases and would otherwise keep applying
-            // conservative defaults to code that the Nullness Checker had started checking.
-            if (NullnessChecker.MODE_JSPECIFY.equals(
-                    checker.getUltimateParentChecker().getOption("mode"))) {
-                AnnotationBuilder annotatedForNullnessBuilder =
-                        new AnnotationBuilder(processingEnv, AnnotatedFor.class)
-                                .setValue("value", new String[] {"nullness"});
-                // As above for @DefaultQualifier: applyToSubpackages is an EISOP-specific addition
-                // to @AnnotatedFor, absent if the classpath resolves it from upstream typetools
-                // checker-qual.  Without it, an @AnnotatedFor on a package always applies to
-                // subpackages, which is not what @NullMarked means, but it is the only behavior
-                // that checker-qual offers.
-                if (annotatedForApplyToSubpackagesElement != null) {
-                    annotatedForNullnessBuilder.setValue("applyToSubpackages", false);
-                }
-                AnnotationMirror annotatedForNullness = annotatedForNullnessBuilder.build();
+            // The @UnannotatedFor half subtracts from an enclosing @NullMarked scope.  Skipped
+            // when @UnannotatedFor is not on the classpath (an upstream typetools checker-qual);
+            // a null unannotatedForValueElement is how AnnotatedTypeFactory records that.
+            if (unannotatedForValueElement != null) {
+                AnnotationBuilder nullUnmarkedUnannotatedForBuilder =
+                        new AnnotationBuilder(processingEnv, UnannotatedFor.class)
+                                .setValue("value", new String[] {"nullnessnoinit"})
+                                .setValue("applyToSubpackages", false);
                 addAliasedDeclAnnotation(
-                        "org.jspecify.annotations.NullMarked",
-                        AnnotatedFor.class.getCanonicalName(),
-                        annotatedForNullness);
-                addAliasedDeclAnnotation(
-                        "org.jspecify.nullness.NullMarked",
-                        AnnotatedFor.class.getCanonicalName(),
-                        annotatedForNullness);
-
-                // @UnannotatedFor is EISOP-specific, so the whole annotation is absent -- not just
-                // an element of it -- when the classpath resolves checker-qual from upstream
-                // typetools.  A null unannotatedForValueElement is how the supertype records that.
-                if (unannotatedForValueElement != null) {
-                    AnnotationMirror unannotatedForNullness =
-                            new AnnotationBuilder(processingEnv, UnannotatedFor.class)
-                                    .setValue("value", new String[] {"nullness"})
-                                    .setValue("applyToSubpackages", false)
-                                    .build();
-                    addAliasedDeclAnnotation(
-                            "org.jspecify.annotations.NullUnmarked",
-                            UnannotatedFor.class.getCanonicalName(),
-                            unannotatedForNullness);
-                }
+                        "org.jspecify.annotations.NullUnmarked",
+                        UnannotatedFor.class.getCanonicalName(),
+                        nullUnmarkedUnannotatedForBuilder.build());
             }
         }
 
