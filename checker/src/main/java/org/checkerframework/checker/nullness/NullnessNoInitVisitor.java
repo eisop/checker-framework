@@ -354,6 +354,21 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
         return super.visitVariable(tree, p);
     }
 
+    // The checkJSpecifyLocation* methods below all report a jspecify.unrecognized.location.*
+    // message under -AjspecifyUnrecognizedLocations; they differ only in what the caller already
+    // has in hand to test.
+    //
+    //  - checkJSpecifyLocation(Tree, List, Tree, String): the caller has a type tree (and,
+    //    optionally, a declaration's own annotations) and wants only the type's ROOT tested.
+    //    Most callers, since most locations this option covers are a type's root.
+    //  - checkJSpecifyLocationAnyComponent: like the above, but every component of the type is
+    //    tested, not only its root, for the few locations JSpecify words as covering "any
+    //    component" of a type.
+    //  - checkJSpecifyLocation(Tree, List, String): the caller has already collected the
+    //    annotation mirrors to test -- typically because it needs that same list for another
+    //    purpose too, such as visitInstanceOf's root/component split or visitCase's pattern
+    //    handling -- so there is no tree left to derive them from.
+
     /**
      * If {@code -AjspecifyUnrecognizedLocations} was supplied and a nullness annotation is written
      * on the root of {@code typeTree} or appears in {@code annoTrees}, reports {@code messageKey},
@@ -366,6 +381,8 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
      * @param typeTree the type whose root annotations to test, or null to test only {@code
      *     annoTrees}
      * @param messageKey the {@code jspecify.unrecognized.location.*} message key to report
+     * @see #checkJSpecifyLocationAnyComponent
+     * @see #checkJSpecifyLocation(Tree, List, String)
      */
     private void checkJSpecifyLocation(
             Tree reportTree,
@@ -385,14 +402,15 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
     }
 
     /**
-     * Like {@link #checkJSpecifyLocation}, but tests every component of {@code typeTree} rather
-     * than only its root. The JSpecify specification words a few locations as covering "any
-     * component" of a type.
+     * Like {@link #checkJSpecifyLocation(Tree, List, Tree, String)}, but tests every component of
+     * {@code typeTree} rather than only its root. The JSpecify specification words a few locations
+     * as covering "any component" of a type.
      *
      * @param reportTree the tree at which to report
      * @param annoTrees annotations the parser attached to a declaration, or null if none
      * @param typeTree the type whose components to test
      * @param messageKey the {@code jspecify.unrecognized.location.*} message key to report
+     * @see #checkJSpecifyLocation(Tree, List, Tree, String)
      */
     private void checkJSpecifyLocationAnyComponent(
             Tree reportTree,
@@ -426,6 +444,34 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
                 }.scan(typeTree, null);
         if (Boolean.TRUE.equals(found)) {
             checker.reportError(reportTree, messageKey);
+        }
+    }
+
+    /**
+     * If {@code -AjspecifyUnrecognizedLocations} was supplied and any of {@code annotations} is a
+     * nullness annotation, reports {@code messageKey}, a {@code jspecify.unrecognized.location.*}
+     * message describing why JSpecify gives a nullness annotation no meaning there. Unlike {@link
+     * #checkJSpecifyLocation(Tree, List, Tree, String)}, which builds its own list of annotations
+     * to test, this overload takes an already-collected list, for a caller (such as {@link
+     * #visitCase}) that also needs those annotations for another purpose.
+     *
+     * @param reportTree the tree at which to report
+     * @param annotations annotation mirrors already collected from the location
+     * @param messageKey the {@code jspecify.unrecognized.location.*} message key to report
+     * @see #checkJSpecifyLocation(Tree, List, Tree, String)
+     */
+    private void checkJSpecifyLocation(
+            Tree reportTree,
+            List<AnnotationMirror> annotations,
+            @CompilerMessageKey String messageKey) {
+        if (!jspecifyUnrecognizedLocations) {
+            return;
+        }
+        for (AnnotationMirror am : annotations) {
+            if (atypeFactory.isNullnessAnnotation(am)) {
+                checker.reportError(reportTree, messageKey);
+                return;
+            }
         }
     }
 
@@ -697,33 +743,6 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
 
         // Don't call super because it will issue an incorrect instanceof.unsafe warning.
         return null;
-    }
-
-    /**
-     * If {@code -AjspecifyUnrecognizedLocations} was supplied and any of {@code annotations} is a
-     * nullness annotation, reports {@code messageKey}, a {@code jspecify.unrecognized.location.*}
-     * message describing why JSpecify gives a nullness annotation no meaning there. Unlike {@link
-     * #checkJSpecifyLocation(Tree, List, Tree, String)}, which builds its own list of annotations
-     * to test, this overload takes an already-collected list, for a caller (such as {@link
-     * #visitCase}) that also needs those annotations for another purpose.
-     *
-     * @param reportTree the tree at which to report
-     * @param annotations annotation mirrors already collected from the location
-     * @param messageKey the {@code jspecify.unrecognized.location.*} message key to report
-     */
-    private void checkJSpecifyLocation(
-            Tree reportTree,
-            List<AnnotationMirror> annotations,
-            @CompilerMessageKey String messageKey) {
-        if (!jspecifyUnrecognizedLocations) {
-            return;
-        }
-        for (AnnotationMirror am : annotations) {
-            if (atypeFactory.isNullnessAnnotation(am)) {
-                checker.reportError(reportTree, messageKey);
-                return;
-            }
-        }
     }
 
     /**
