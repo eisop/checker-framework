@@ -12,8 +12,8 @@ public class Issue6282 {
     public static void setAccessible(final AccessibleObject accessibleObject) {
         try {
             // MethodHandle.invokeExact's polymorphic-signature return is @Nullable on an
-            // annotated JDK; this code always throws before returning (see the class comment),
-            // so the cast can never actually unbox a null.
+            // annotated JDK. Class initialization calls setAccessible0_Method(), which always
+            // throws, before this line can ever run, so the cast can never actually unbox a null.
             @SuppressWarnings("cast.unsafe")
             boolean newFlag = (boolean) setAccessible0_Method.invokeExact(accessibleObject, true);
             assert newFlag;
