@@ -242,9 +242,6 @@ public class NullnessNoInitAnnotatedTypeFactory
                     "org.jmlspecs.annotation.NonNull",
                     // https://github.com/jspecify/jspecify/blob/main/src/main/java/org/jspecify/annotations/NonNull.java
                     "org.jspecify.annotations.NonNull",
-                    // 2022-11-17: Deprecated old package location, remove after some grace period
-                    // https://github.com/jspecify/jspecify/tree/main/src/main/java/org/jspecify/nullness
-                    "org.jspecify.nullness.NonNull",
                     // http://bits.netbeans.org/dev/javadoc/org-netbeans-api-annotations-common/org/netbeans/api/annotations/common/NonNull.html
                     "org.netbeans.api.annotations.common.NonNull",
                     // https://github.com/spring-projects/spring-framework/blob/master/spring-core/src/main/java/org/springframework/lang/NonNull.java
@@ -375,10 +372,6 @@ public class NullnessNoInitAnnotatedTypeFactory
                     "org.jmlspecs.annotation.Nullable",
                     // https://github.com/jspecify/jspecify/blob/main/src/main/java/org/jspecify/annotations/Nullable.java
                     "org.jspecify.annotations.Nullable",
-                    // 2022-11-17: Deprecated old package location, remove after some grace period
-                    // https://github.com/jspecify/jspecify/tree/main/src/main/java/org/jspecify/nullness
-                    "org.jspecify.nullness.Nullable",
-                    "org.jspecify.nullness.NullnessUnspecified",
                     // http://bits.netbeans.org/dev/javadoc/org-netbeans-api-annotations-common/org/netbeans/api/annotations/common/CheckForNull.html
                     "org.netbeans.api.annotations.common.CheckForNull",
                     // http://bits.netbeans.org/dev/javadoc/org-netbeans-api-annotations-common/org/netbeans/api/annotations/common/NullAllowed.html
@@ -456,12 +449,6 @@ public class NullnessNoInitAnnotatedTypeFactory
             AnnotationMirror nullMarkedDefaultQual = nullMarkedDefaultQualBuilder.build();
             addAliasedDeclAnnotation(
                     "org.jspecify.annotations.NullMarked",
-                    DefaultQualifier.class.getCanonicalName(),
-                    nullMarkedDefaultQual);
-
-            // 2022-11-17: Deprecated old package location, remove after some grace period
-            addAliasedDeclAnnotation(
-                    "org.jspecify.nullness.NullMarked",
                     DefaultQualifier.class.getCanonicalName(),
                     nullMarkedDefaultQual);
 

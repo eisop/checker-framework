@@ -10,4 +10,6 @@ public class Test<T> {
     public Object method3() {
         return "";
     }
+
+    public void method4(T t) {}
 }

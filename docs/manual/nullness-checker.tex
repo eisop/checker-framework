@@ -210,10 +210,9 @@ command-line option.)
 \item
   If you supply the \code{-Amode=jspecify} command-line option, then the Nullness
   Checker behaves as JSpecify specifies:  it checks only code in the scope of a
-  corresponding \code{@AnnotatedFor}, treats \code{@NullMarked} as a defaulting
-  annotation (both \code{org.jspecify.annotations.NullMarked} and the legacy
-  \code{org.jspecify.nullness.NullMarked}), and performs neither initialization
-  checking nor map-key checking, neither of which JSpecify specifies.
+  corresponding \code{@AnnotatedFor}, treats \code{org.jspecify.annotations.NullMarked}
+  as a defaulting annotation, and performs neither initialization checking nor
+  map-key checking, neither of which JSpecify specifies.
   This is a shorthand for \code{-AonlyAnnotatedFor -AassumeInitialized
   -AassumeKeyFor}.  Each of those is an on/off flag with no negative form, so there is
   currently no way to enable this mode but turn one of them back off.
@@ -221,9 +220,8 @@ command-line option.)
 \item
   \label{nullness-jspecifyNullMarkedAlias}%
   If you supply the \code{-AjspecifyNullMarkedAlias=false} command-line option, then the
-  checker will not recognize \code{org.jspecify.annotations.NullMarked}, nor its
-  deprecated former location \code{org.jspecify.nullness.NullMarked}.
-  By default both are recognized, both as a defaulting
+  checker will not recognize \code{org.jspecify.annotations.NullMarked}.
+  By default it is recognized, both as a defaulting
   annotation and as an alias for
   \code{@AnnotatedFor(value = "nullness", applyToSubpackages = false)}, the latter so that
   \code{-AonlyAnnotatedFor} and
@@ -1147,7 +1145,6 @@ Section~\ref{declaration-annotations-moved}.
  ~org.jetbrains.annotations.NotNull~ \\ \hline
  ~org.jmlspecs.annotation.NonNull~ \\ \hline
  ~org.jspecify.annotations.NonNull~ \\ \hline
- ~org.jspecify.nullness.NonNull~ \\ \hline
  ~org.netbeans.api.annotations.common.NonNull~ \\ \hline
  ~org.springframework.lang.NonNull~ \\ \hline
  ~reactor.util.annotation.NonNull~ \\ \hline
@@ -1221,8 +1218,6 @@ $\Rightarrow$
  ~org.jetbrains.annotations.UnknownNullability~ \\ \hline
  ~org.jmlspecs.annotation.Nullable~ \\ \hline
  ~org.jspecify.annotations.Nullable~ \\ \hline
- ~org.jspecify.nullness.Nullable~ \\ \hline
- ~org.jspecify.nullness.NullnessUnspecified~ \\ \hline
  ~org.netbeans.api.annotations.common.CheckForNull~ \\ \hline
  ~org.netbeans.api.annotations.common.NullAllowed~ \\ \hline
  ~org.netbeans.api.annotations.common.NullUnknown~ \\ \hline
