@@ -13,8 +13,8 @@
 // Uses the canonical annotation, not the org.jspecify.annotations alias used in
 // UnrecognizedLocations.java: instanceof.nullable, the diagnostic for a pattern reached through
 // instanceof (see UnrecognizedLocations.instanceOfAnyComponent), does not resolve aliases, while
-// jspecify.unrecognized.location, the diagnostic for a pattern reached through a switch label,
-// resolves either form equally well.
+// jspecify.unrecognized.location.pattern, the diagnostic for a pattern reached through a switch
+// label, resolves either form equally well.
 
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -39,7 +39,7 @@ public class UnrecognizedLocationsJava21 {
         switch (o) {
             // A pattern in a switch label carries the same rule as an instanceof pattern, but has
             // no existing CF-specific diagnostic to reuse.
-            // :: error: (jspecify.unrecognized.location)
+            // :: error: (jspecify.unrecognized.location.pattern)
             case @Nullable String[] a -> {}
             default -> {}
         }
@@ -47,7 +47,7 @@ public class UnrecognizedLocationsJava21 {
 
     void switchDeconstructionPattern(Object o) {
         switch (o) {
-            // :: error: (jspecify.unrecognized.location)
+            // :: error: (jspecify.unrecognized.location.pattern)
             case Box(@Nullable String s) -> {}
             default -> {}
         }

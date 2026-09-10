@@ -43,8 +43,11 @@ uninitialized at the call, instead of the framework's `method.invocation.invalid
 
 The Nullness Checker's new `-AjspecifyUnrecognizedLocations` command-line option reports an error
 for a nullness annotation written in a location to which JSpecify gives no meaning: a class declaration,
-an annotation interface member's return type, a wildcard, a type parameter, a thrown type, or the
-root type of a local variable, a cast, or a method reference. It is off by default, because the
+an annotation interface member's return type, a wildcard, a type parameter, a thrown type, a pattern,
+a type argument of a receiver parameter's type, or the root type of a local variable, a resource
+variable, a cast, or a method reference. Each location has its own `jspecify.unrecognized.location.*`
+diagnostic key (for example `jspecify.unrecognized.location.wildcard`), the same way the checker's
+other diagnostics distinguish one location from another. The option is off by default, because the
 Checker Framework reads a nullness annotation in five of those locations: a class declaration, a
 wildcard, and the root type of a local variable, of a cast, and of a method reference.
 `-Amode=jspecify` turns it on, since a mode that makes the checker behave as JSpecify specifies

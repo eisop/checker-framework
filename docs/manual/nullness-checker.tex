@@ -244,8 +244,12 @@ command-line option.)
   \code{-AjspecifyUnrecognizedLocations} command-line option, the checker reports
   an error for a nullness annotation written on a class declaration, on the return type
   of an annotation interface member, on a wildcard, before a type parameter, on a
-  thrown type, on the root type of a local variable, on the root type of a cast,
-  or on the root type of a method reference.
+  thrown type, on a pattern, on a type argument of a receiver parameter's type, or on
+  the root type of a local variable, of a resource variable, of a cast, or of a
+  method reference.  Each of these locations is reported under its own
+  \code{jspecify.unrecognized.location.*} message key (for example
+  \code{jspecify.unrecognized.location.wildcard}), the same way other diagnostics in
+  this manual distinguish one location from another.
 \end{itemize}
 
 \end{enumerate}
