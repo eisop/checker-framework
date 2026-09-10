@@ -6,7 +6,7 @@ import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedDeclared
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedExecutableType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedIntersectionType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedTypeVariable;
-import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedTypeVariable.TypeVariableUseKind;
+import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedTypeVariable.TypeVariableUsageKind;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedWildcardType;
 import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.ElementUtils;
@@ -378,15 +378,15 @@ public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
         /**
          * {@inheritDoc}
          *
-         * <p>A type variable's primary annotation belongs to the use rather than to the
+         * <p>A type variable's primary annotation belongs to the usage rather than to the
          * declaration, so it is adapted here rather than in {@link #maybeCopyPrimaryAnnotations}:
-         * {@link AnnotatedTypeCopier#visitTypeVariable} copies the use kind and the use-site
+         * {@link AnnotatedTypeCopier#visitTypeVariable} copies the usage kind and the usage-site
          * qualifiers from the original after building the copy, which would overwrite an adapted
          * qualifier written any earlier.
          *
-         * <p>A use written {@code @Q E} carries a qualifier of its own, so {@code @Q} is adapted
+         * <p>A usage written {@code @Q E} carries a qualifier of its own, so {@code @Q} is adapted
          * and the adapted qualifier recorded, and {@link TypeVariableSubstitutor} then keeps it in
-         * place of the type argument's. A use written bare takes its qualifier from the type
+         * place of the type argument's. A usage written bare takes its qualifier from the type
          * argument, so it is left alone.
          */
         @Override
@@ -399,12 +399,13 @@ public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
             AnnotatedTypeMirror copy = super.visitTypeVariable(original, originalToCopy);
             if (firstVisit
                     && copy instanceof AnnotatedTypeVariable
-                    && original.getTypeVariableUseKind() == TypeVariableUseKind.CONCRETE) {
+                    && original.getTypeVariableUsageKind() == TypeVariableUsageKind.REQUALIFYING) {
                 AnnotationMirror resultAnnotation =
                         combineAnnotationWithAnnotation(
                                 receiverAnnotation, extractAnnotationMirror(original));
                 copy.replaceAnnotation(resultAnnotation);
-                ((AnnotatedTypeVariable) copy).markAsConcreteTypeVariableUse(resultAnnotation);
+                ((AnnotatedTypeVariable) copy)
+                        .markAsRequalifyingTypeVariableUsage(resultAnnotation);
             }
             return copy;
         }
@@ -487,16 +488,17 @@ public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
         List<AnnotatedTypeMirror> tas = decltype.getTypeArguments();
         // return a copy, as we want to modify the type later.
         AnnotatedTypeMirror result = tas.get(foundindex).shallowCopy(true);
-        if (var.getTypeVariableUseKind() == TypeVariableUseKind.CONCRETE
+        if (var.getTypeVariableUsageKind() == TypeVariableUsageKind.REQUALIFYING
                 && result.getKind() != TypeKind.TYPEVAR) {
             // Requalifying replaces the argument's own head qualifier.  A type variable -- in
             // particular a capture of a wildcard argument -- has no head qualifier to replace;
             // writing one propagates into its bounds (fixupBoundAnnotations) and leaves a type
             // whose shape no longer matches its declaration, which the parallel type scanners
             // reached from adjustMethodReceiver then reject.
-            AnnotationMirrorSet concreteAnnotations = var.getConcreteTypeVariableUseAnnotations();
-            if (!concreteAnnotations.isEmpty()) {
-                result.replaceAnnotations(concreteAnnotations);
+            AnnotationMirrorSet requalifyingAnnotations =
+                    var.getRequalifyingTypeVariableUsageAnnotations();
+            if (!requalifyingAnnotations.isEmpty()) {
+                result.replaceAnnotations(requalifyingAnnotations);
             }
         }
         if (result.getKind() == TypeKind.WILDCARD) {

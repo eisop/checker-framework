@@ -1,7 +1,7 @@
 package org.checkerframework.framework.type;
 
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedTypeVariable;
-import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedTypeVariable.TypeVariableUseKind;
+import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedTypeVariable.TypeVariableUsageKind;
 import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.TypesUtils;
 
@@ -89,9 +89,9 @@ public class TypeVariableSubstitutor {
      * correct annotations.
      *
      * <p>To determine what primary annotations are correct for the substitute the following rules
-     * are used: if the type variable use represents {@code @Sub E}, use the annotations of the
-     * argument. If it represents {@code @Concrete q E}, apply the type variable use's primary
-     * annotations to the substitute.
+     * are used: if the type variable usage is written bare, as {@code E}, use the annotations of
+     * the argument. If it is written with a qualifier of its own, as {@code @q E}, apply that
+     * usage's qualifiers to the substitute.
      *
      * @param argument the argument to declaration (this will be a value in typeParamToArg)
      * @param use the use that is being replaced
@@ -103,10 +103,11 @@ public class TypeVariableSubstitutor {
     protected AnnotatedTypeMirror substituteTypeVariable(
             AnnotatedTypeMirror argument, AnnotatedTypeVariable use, boolean argumentIsInferred) {
         AnnotatedTypeMirror substitute = argument.deepCopy(true);
-        if (use.getTypeVariableUseKind() == TypeVariableUseKind.CONCRETE) {
-            AnnotationMirrorSet concreteAnnotations = use.getConcreteTypeVariableUseAnnotations();
-            if (!concreteAnnotations.isEmpty()) {
-                substitute.replaceAnnotations(concreteAnnotations);
+        if (use.getTypeVariableUsageKind() == TypeVariableUsageKind.REQUALIFYING) {
+            AnnotationMirrorSet requalifyingAnnotations =
+                    use.getRequalifyingTypeVariableUsageAnnotations();
+            if (!requalifyingAnnotations.isEmpty()) {
+                substitute.replaceAnnotations(requalifyingAnnotations);
             }
         }
         return substitute;

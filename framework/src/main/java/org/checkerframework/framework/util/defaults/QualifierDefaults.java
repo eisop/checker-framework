@@ -1186,14 +1186,15 @@ public class QualifierDefaults {
             if (type.getKind() != TypeKind.EXECUTABLE) {
                 if (type instanceof AnnotatedTypeVariable) {
                     AnnotatedTypeVariable typeVariable = (AnnotatedTypeVariable) type;
-                    AnnotatedTypeVariable.TypeVariableUseKind useKind =
-                            typeVariable.getTypeVariableUseKind();
-                    AnnotationMirrorSet concreteAnnotations =
+                    AnnotatedTypeVariable.TypeVariableUsageKind usageKind =
+                            typeVariable.getTypeVariableUsageKind();
+                    AnnotationMirrorSet requalifyingAnnotations =
                             new AnnotationMirrorSet(
-                                    typeVariable.getConcreteTypeVariableUseAnnotations());
+                                    typeVariable.getRequalifyingTypeVariableUsageAnnotations());
                     type.addMissingAnnotation(qual);
-                    typeVariable.setTypeVariableUseKind(useKind);
-                    typeVariable.setConcreteTypeVariableUseAnnotations(concreteAnnotations);
+                    typeVariable.setTypeVariableUsageKind(usageKind);
+                    typeVariable.setRequalifyingTypeVariableUsageAnnotations(
+                            requalifyingAnnotations);
                 } else {
                     type.addMissingAnnotation(qual);
                 }

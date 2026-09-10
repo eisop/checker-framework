@@ -2176,20 +2176,19 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
      */
     public static class AnnotatedTypeVariable extends AnnotatedTypeMirror {
 
-        /** How this type-variable use should be substituted. */
-        public enum TypeVariableUseKind {
+        /** How this type variable usage should be substituted. */
+        public enum TypeVariableUsageKind {
             /**
-             * Substitute the full actual type argument. This is the internal representation of
-             * {@code @Sub E}.
+             * Substitute the full actual type argument: the usage is written bare, as {@code E}, so
+             * it takes the type argument's qualifier. This is {@code @Sub E} in the formalization.
              */
-            SUB,
+            PLAIN,
 
             /**
-             * Substitute the actual type argument, but replace its top-level annotations with the
-             * annotations on this type-variable use. This is the internal representation of
-             * {@code @Concrete q E}.
+             * Substitute the actual type argument, but replace its head qualifier with this
+             * usage's: the usage is written {@code @q E}.
              */
-            CONCRETE
+            REQUALIFYING
         }
 
         /**
@@ -2219,11 +2218,15 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
         /** Whether this represents a type-variable declaration. */
         private boolean declaration;
 
-        /** How this type-variable use should be substituted. */
-        private TypeVariableUseKind useKind = TypeVariableUseKind.SUB;
+        /** How this type variable usage should be substituted. */
+        private TypeVariableUsageKind usageKind = TypeVariableUsageKind.PLAIN;
 
-        /** The explicitly written annotations for a {@link TypeVariableUseKind#CONCRETE} use. */
-        private AnnotationMirrorSet concreteTypeVariableUseAnnotations = new AnnotationMirrorSet();
+        /**
+         * The explicitly written annotations for a {@link TypeVariableUsageKind#REQUALIFYING}
+         * usage.
+         */
+        private AnnotationMirrorSet requalifyingTypeVariableUsageAnnotations =
+                new AnnotationMirrorSet();
 
         @Override
         public boolean isDeclaration() {
@@ -2231,75 +2234,75 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
         }
 
         /**
-         * Sets whether this type-variable use should be substituted as {@code @Sub E} or
-         * {@code @Concrete q E}.
+         * Sets whether this type variable usage is written bare, as {@code E}, or with a qualifier
+         * of its own, as {@code @q E}.
          *
-         * @param useKind how this type-variable use should be substituted
+         * @param usageKind how this type variable usage should be substituted
          */
-        public void setTypeVariableUseKind(TypeVariableUseKind useKind) {
-            this.useKind = useKind;
-            if (useKind == TypeVariableUseKind.SUB) {
-                concreteTypeVariableUseAnnotations.clear();
+        public void setTypeVariableUsageKind(TypeVariableUsageKind usageKind) {
+            this.usageKind = usageKind;
+            if (usageKind == TypeVariableUsageKind.PLAIN) {
+                requalifyingTypeVariableUsageAnnotations.clear();
             }
         }
 
         /**
-         * Returns whether this type-variable use should be substituted as {@code @Sub E} or
-         * {@code @Concrete q E}.
+         * Returns whether this type variable usage is written bare, as {@code E}, or with a
+         * qualifier of its own, as {@code @q E}.
          *
-         * @return how this type-variable use should be substituted
+         * @return how this type variable usage should be substituted
          */
-        public TypeVariableUseKind getTypeVariableUseKind() {
-            return useKind;
+        public TypeVariableUsageKind getTypeVariableUsageKind() {
+            return usageKind;
         }
 
-        /** Marks this type-variable use as {@code @Sub E}. */
-        public void markAsSubTypeVariableUse() {
-            setTypeVariableUseKind(TypeVariableUseKind.SUB);
+        /** Marks this type variable usage as written bare, as {@code E}. */
+        public void markAsPlainTypeVariableUsage() {
+            setTypeVariableUsageKind(TypeVariableUsageKind.PLAIN);
         }
 
         /**
-         * Marks this type-variable use as {@code @Concrete q E}.
+         * Marks this type variable usage as {@code @q E}.
          *
          * @param annotations the explicitly written annotations that are {@code q}
          */
-        public void markAsConcreteTypeVariableUse(
+        public void markAsRequalifyingTypeVariableUsage(
                 Collection<? extends AnnotationMirror> annotations) {
             AnnotationMirrorSet supportedAnnotations = new AnnotationMirrorSet();
             for (AnnotationMirror annotation : annotations) {
                 AnnotationMirror supportedAnnotation =
-                        canonicalSupportedTypeVariableUseAnnotation(annotation);
+                        canonicalSupportedTypeVariableUsageAnnotation(annotation);
                 if (supportedAnnotation != null) {
                     supportedAnnotations.add(supportedAnnotation);
                 }
             }
             if (!supportedAnnotations.isEmpty()) {
-                useKind = TypeVariableUseKind.CONCRETE;
-                concreteTypeVariableUseAnnotations = supportedAnnotations;
+                usageKind = TypeVariableUsageKind.REQUALIFYING;
+                requalifyingTypeVariableUsageAnnotations = supportedAnnotations;
             }
         }
 
         /**
-         * Marks this type-variable use as {@code @Concrete q E}.
+         * Marks this type variable usage as {@code @q E}.
          *
          * @param annotation the explicitly written annotation that is {@code q}
          */
-        public void markAsConcreteTypeVariableUse(AnnotationMirror annotation) {
+        public void markAsRequalifyingTypeVariableUsage(AnnotationMirror annotation) {
             AnnotationMirror supportedAnnotation =
-                    canonicalSupportedTypeVariableUseAnnotation(annotation);
+                    canonicalSupportedTypeVariableUsageAnnotation(annotation);
             if (supportedAnnotation == null) {
                 return;
             }
-            useKind = TypeVariableUseKind.CONCRETE;
+            usageKind = TypeVariableUsageKind.REQUALIFYING;
             AnnotationMirror previous =
                     atypeFactory
                             .getQualifierHierarchy()
                             .findAnnotationInSameHierarchy(
-                                    concreteTypeVariableUseAnnotations, supportedAnnotation);
+                                    requalifyingTypeVariableUsageAnnotations, supportedAnnotation);
             if (previous != null) {
-                concreteTypeVariableUseAnnotations.remove(previous);
+                requalifyingTypeVariableUsageAnnotations.remove(previous);
             }
-            concreteTypeVariableUseAnnotations.add(supportedAnnotation);
+            requalifyingTypeVariableUsageAnnotations.add(supportedAnnotation);
         }
 
         /**
@@ -2309,7 +2312,7 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
          * @param annotation an annotation
          * @return the supported canonical form of {@code annotation}, or null
          */
-        private @Nullable AnnotationMirror canonicalSupportedTypeVariableUseAnnotation(
+        private @Nullable AnnotationMirror canonicalSupportedTypeVariableUsageAnnotation(
                 AnnotationMirror annotation) {
             if (atypeFactory.isSupportedQualifier(annotation)) {
                 return annotation;
@@ -2319,29 +2322,31 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
         }
 
         /**
-         * Sets the explicitly written annotations for a {@link TypeVariableUseKind#CONCRETE} use.
+         * Sets the explicitly written annotations for a {@link TypeVariableUsageKind#REQUALIFYING}
+         * usage.
          *
          * @param annotations the explicitly written annotations
          */
-        public void setConcreteTypeVariableUseAnnotations(AnnotationMirrorSet annotations) {
-            concreteTypeVariableUseAnnotations = new AnnotationMirrorSet(annotations);
+        public void setRequalifyingTypeVariableUsageAnnotations(AnnotationMirrorSet annotations) {
+            requalifyingTypeVariableUsageAnnotations = new AnnotationMirrorSet(annotations);
         }
 
         /**
-         * Returns the explicitly written annotations for a {@link TypeVariableUseKind#CONCRETE}
-         * use.
+         * Returns the explicitly written annotations for a {@link
+         * TypeVariableUsageKind#REQUALIFYING} use.
          *
-         * @return the explicitly written annotations for a {@link TypeVariableUseKind#CONCRETE} use
+         * @return the explicitly written annotations for a {@link
+         *     TypeVariableUsageKind#REQUALIFYING} usage
          */
-        public AnnotationMirrorSet getConcreteTypeVariableUseAnnotations() {
-            return concreteTypeVariableUseAnnotations;
+        public AnnotationMirrorSet getRequalifyingTypeVariableUsageAnnotations() {
+            return requalifyingTypeVariableUsageAnnotations;
         }
 
         @Override
         public void addAnnotation(AnnotationMirror annotation) {
             super.addAnnotation(annotation);
             if (!isDeclaration()) {
-                markAsConcreteTypeVariableUse(annotation);
+                markAsRequalifyingTypeVariableUsage(annotation);
             }
             fixupBoundAnnotations();
         }

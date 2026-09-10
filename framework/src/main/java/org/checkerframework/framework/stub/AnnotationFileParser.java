@@ -1640,7 +1640,7 @@ public class AnnotationFileParser {
         // type variables, but doesn't hurt in other cases.
         atype.clearAnnotations();
         if (atype instanceof AnnotatedTypeVariable) {
-            ((AnnotatedTypeVariable) atype).markAsSubTypeVariableUse();
+            ((AnnotatedTypeVariable) atype).markAsPlainTypeVariableUsage();
         }
     }
 

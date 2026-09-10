@@ -126,7 +126,7 @@ public class VariableApplier extends TargetedElementAnnotationApplier {
             throws UnexpectedAnnotationLocationException {
         ElementAnnotationUtil.annotateViaTypeAnnoPosition(type, targeted);
         if (type instanceof AnnotatedTypeVariable && !targeted.isEmpty()) {
-            ((AnnotatedTypeVariable) type).markAsConcreteTypeVariableUse(targeted);
+            ((AnnotatedTypeVariable) type).markAsRequalifyingTypeVariableUsage(targeted);
         }
     }
 

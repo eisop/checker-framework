@@ -136,7 +136,7 @@ class TypeFromMemberVisitor extends TypeFromTreeVisitor {
             }
             if (!explicitTypeVariableUseAnnotations.isEmpty()) {
                 ((AnnotatedTypeVariable) innerType)
-                        .markAsConcreteTypeVariableUse(explicitTypeVariableUseAnnotations);
+                        .markAsRequalifyingTypeVariableUsage(explicitTypeVariableUseAnnotations);
             }
         }
 
@@ -173,7 +173,7 @@ class TypeFromMemberVisitor extends TypeFromTreeVisitor {
                             tree.getModifiers().getAnnotations(), tree.getReturnType());
             if (!explicitAnnotationTrees.isEmpty()) {
                 ((AnnotatedTypeVariable) result.getReturnType())
-                        .markAsConcreteTypeVariableUse(
+                        .markAsRequalifyingTypeVariableUsage(
                                 TreeUtils.annotationsFromTypeAnnotationTrees(
                                         explicitAnnotationTrees));
             }

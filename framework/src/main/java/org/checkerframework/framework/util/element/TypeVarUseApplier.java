@@ -164,7 +164,7 @@ public class TypeVarUseApplier {
             typeVariable.replaceAnnotation(annotation);
         }
         if (!typeVarAnnotations.isEmpty()) {
-            typeVariable.markAsConcreteTypeVariableUse(typeVarAnnotations);
+            typeVariable.markAsRequalifyingTypeVariableUsage(typeVarAnnotations);
         }
     }
 

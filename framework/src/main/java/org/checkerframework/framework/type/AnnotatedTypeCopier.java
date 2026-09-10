@@ -291,9 +291,9 @@ public class AnnotatedTypeCopier
         }
 
         AnnotatedTypeVariable copy = makeOrReturnCopy(original, originalToCopy);
-        copy.setTypeVariableUseKind(original.getTypeVariableUseKind());
-        copy.setConcreteTypeVariableUseAnnotations(
-                original.getConcreteTypeVariableUseAnnotations());
+        copy.setTypeVariableUsageKind(original.getTypeVariableUsageKind());
+        copy.setRequalifyingTypeVariableUsageAnnotations(
+                original.getRequalifyingTypeVariableUsageAnnotations());
 
         if (original.getUpperBoundField() != null) {
             copy.setUpperBound(visit(original.getUpperBoundField(), originalToCopy));
