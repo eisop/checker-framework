@@ -45,4 +45,16 @@ class TypeVariableUseRequalification {
         @A Object concreteA = methods.concreteA();
         @B Object bare = methods.bare();
     }
+
+    static class Captured<E> {
+        // The type argument is a capture of "? extends E": a type variable, which has no head
+        // qualifier for the requalifying use "@A E" to replace.
+        void requalifyingUseOfCapturedTypeArgument(Captured<? extends E> captured) {
+            captured.get();
+        }
+
+        Object get(Captured<@A E> this) {
+            return null;
+        }
+    }
 }

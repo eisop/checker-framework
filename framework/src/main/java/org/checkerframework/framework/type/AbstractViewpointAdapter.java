@@ -487,7 +487,13 @@ public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
         List<AnnotatedTypeMirror> tas = decltype.getTypeArguments();
         // return a copy, as we want to modify the type later.
         AnnotatedTypeMirror result = tas.get(foundindex).shallowCopy(true);
-        if (var.getTypeVariableUseKind() == TypeVariableUseKind.CONCRETE) {
+        if (var.getTypeVariableUseKind() == TypeVariableUseKind.CONCRETE
+                && result.getKind() != TypeKind.TYPEVAR) {
+            // Requalifying replaces the argument's own head qualifier.  A type variable -- in
+            // particular a capture of a wildcard argument -- has no head qualifier to replace;
+            // writing one propagates into its bounds (fixupBoundAnnotations) and leaves a type
+            // whose shape no longer matches its declaration, which the parallel type scanners
+            // reached from adjustMethodReceiver then reject.
             AnnotationMirrorSet concreteAnnotations = var.getConcreteTypeVariableUseAnnotations();
             if (!concreteAnnotations.isEmpty()) {
                 result.replaceAnnotations(concreteAnnotations);
