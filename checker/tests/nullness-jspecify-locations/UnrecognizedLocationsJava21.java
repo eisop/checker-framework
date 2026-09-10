@@ -1,11 +1,5 @@
 // @below-java21-jdk-skip-test
 
-// None of the WPI formats supports the new Java 21 languages features, so skip inference until they
-// do.
-// @infer-jaifs-skip-test
-// @infer-ajava-skip-test
-// @infer-stubs-skip-test
-
 // Test the locations at which JSpecify gives a nullness annotation no meaning that require Java 21
 // pattern matching to exercise: any component in a pattern, whether reached through instanceof or
 // a switch label, including inside a nested deconstruction pattern.

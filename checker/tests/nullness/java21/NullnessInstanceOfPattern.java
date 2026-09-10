@@ -1,11 +1,5 @@
 // @below-java21-jdk-skip-test
 
-// None of the WPI formats supports the new Java 21 languages features, so skip inference until they
-// do.
-// @infer-jaifs-skip-test
-// @infer-ajava-skip-test
-// @infer-stubs-skip-test
-
 // Nullness annotations in a deconstruction pattern, without -AjspecifyUnrecognizedLocations.  A
 // nested pattern binds a variable, and per JLS 14.30.2 null matches no type pattern, nested or
 // not, so an annotation on the root of such a variable's type is checked like one on the root of
