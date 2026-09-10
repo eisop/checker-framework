@@ -157,19 +157,23 @@ public class QualifierDefaults {
     private final IdentityHashMap<Element, DefaultSet> elementDefaults = new IdentityHashMap<>();
 
     /**
-     * For a package, the defaults it makes available to its own subpackages: its own direct
-     * defaults that have {@code applyToSubpackages = true}, plus whatever its own parent package
-     * makes available to it that a nearer, propagating default of its own does not replace. See
-     * {@link #propagatingDefaultsAt}, which computes and caches this.
-     *
-     * <p>This is deliberately a separate cache from {@link #elementDefaults}: a default that is
-     * shadowed for a package's own elements (by a nearer default for the same location and
-     * qualifier hierarchy) is not necessarily shadowed for that package's subpackages too. A
-     * shadowing default that does not itself have {@code applyToSubpackages = true} only wins
-     * locally; the default it shadowed must remain available here for deeper packages, or it is
-     * lost for them even though nothing there shadows it.
+     * For a package, the defaults it makes available to its own subpackages. This is not {@link
+     * #elementDefaults} filtered by {@code applyToSubpackages}; see {@link #propagatingDefaultsAt},
+     * which computes and caches this and explains why.
      */
     private final IdentityHashMap<PackageElement, DefaultSet> packagePropagatingDefaults =
+            new IdentityHashMap<>();
+
+    /**
+     * Defaults added via {@link #addElementDefault}, tracked separately from {@link
+     * #elementDefaults} so that {@link #defaultsAtDirect} can treat a programmatically-added
+     * default as part of an element's own direct contribution -- the same way it already treats a
+     * written {@code @DefaultQualifier} -- rather than it being visible only through {@link
+     * #elementDefaults}, which {@link #propagatingDefaultsAt} does not consult (see that method).
+     * Without this, a default added on a package would apply to that package's own elements (via
+     * {@link #elementDefaults}) but silently fail to reach any of its subpackages.
+     */
+    private final IdentityHashMap<Element, DefaultSet> programmaticElementDefaults =
             new IdentityHashMap<>();
 
     /** CLIMB locations whose standard default is top for a given type system. */
@@ -449,8 +453,14 @@ public class QualifierDefaults {
             prevset = new DefaultSet();
         }
         // TODO: expose applyToSubpackages
-        prevset.add(new Default(elementDefaultAnno, location, true));
+        Default d = new Default(elementDefaultAnno, location, true);
+        prevset.add(d);
         elementDefaults.put(elem, prevset);
+        // Also track this as part of elem's own direct contribution -- see
+        // programmaticElementDefaults and defaultsAtDirect -- so that if elem is a package,
+        // propagatingDefaultsAt sees it and this default reaches elem's subpackages, the same as
+        // a written @DefaultQualifier would.
+        programmaticElementDefaults.computeIfAbsent(elem, unused -> new DefaultSet()).add(d);
         // prevset may already be a key in the fused caches; its content just changed, so any
         // memoized fused list for it is now stale.
         invalidateFusedDefaults();
@@ -739,9 +749,7 @@ public class QualifierDefaults {
         DefaultSet qualifiers = defaultsAtDirect(elt);
         DefaultSet parentDefaults;
         if (elt.getKind() == ElementKind.PACKAGE) {
-            // Use what the parent package makes available to its subpackages (already filtered
-            // to applyToSubpackages, and already accounting for the parent's own shadowing), not
-            // the parent's own effective set: see propagatingDefaultsAt for why those can differ.
+            // Not defaultsAt(parent) filtered by applyToSubpackages; see propagatingDefaultsAt.
             PackageElement parent = ElementUtils.parentPackage((PackageElement) elt, elements);
             parentDefaults = propagatingDefaultsAt(parent);
         } else {
@@ -769,29 +777,18 @@ public class QualifierDefaults {
     }
 
     /**
-     * Returns the defaults that {@code pkg} makes available to its own subpackages: {@code pkg}'s
-     * own direct defaults that have {@code applyToSubpackages = true}, merged with what {@code
-     * pkg}'s own parent package makes available to it in turn.
+     * Returns the defaults that {@code pkg} makes available to its own subpackages: its own direct
+     * defaults with {@code applyToSubpackages = true}, merged with what its parent package makes
+     * available to it.
      *
-     * <p>This is not the same as filtering {@link #defaultsAt}({@code pkg}) by {@code
-     * applyToSubpackages}, and computing it that way is the bug this method exists to avoid (see <a
-     * href="https://github.com/eisop/checker-framework/issues/2037">eisop#2037</a>). {@link
-     * #defaultsAt} resolves, once and for all, which default wins <em>at {@code pkg} itself</em>
-     * for a given (location, qualifier hierarchy): a nearer default there permanently shadows a
-     * farther one, full stop. But a default that loses that competition at {@code pkg} has not
-     * necessarily lost it everywhere: if the default that shadowed it does not itself have {@code
-     * applyToSubpackages = true}, the shadowing default only ever applied at {@code pkg}, and the
-     * default it shadowed must remain available for {@code pkg}'s subpackages, which nothing there
-     * shadows. Folding shadowing and {@code applyToSubpackages}-filtering into one pass, the way
-     * {@link #defaultsAt} needs to for {@code pkg}'s own elements, permanently discards that
-     * shadowed default instead: it is not merely unavailable at {@code pkg}, it is gone.
-     *
-     * <p>So this method tracks a second, independent question -- what continues past {@code pkg} --
-     * by only letting a default permanently replace a farther one here if the nearer default itself
-     * also has {@code applyToSubpackages = true}; only then does it actually compete at the same
-     * depths the farther one did. A non-propagating nearer default still wins at {@code pkg} (via
-     * {@link #defaultsAt}, which merges {@code pkg}'s own defaults over this method's result), it
-     * just does not get to erase the farther default for everyone past {@code pkg}.
+     * <p>This is not {@link #defaultsAt}({@code pkg}) filtered by {@code applyToSubpackages};
+     * computing it that way is <a
+     * href="https://github.com/eisop/checker-framework/issues/2037">eisop#2037</a>. Shadowing is a
+     * statement about one scope: a nearer default that does not itself apply to subpackages wins at
+     * {@code pkg} only, so it must not discard the farther default it shadowed there -- deeper
+     * packages, where nothing shadows it, still need it. So a default replaces a farther one here
+     * only if it too has {@code applyToSubpackages = true}. It still wins at {@code pkg} itself,
+     * via {@link #defaultsAt}, which merges {@code pkg}'s own defaults over this method's result.
      *
      * @param pkg a package, or null for no package
      * @return the defaults {@code pkg} makes available to its own subpackages
@@ -828,11 +825,14 @@ public class QualifierDefaults {
     }
 
     /**
-     * Merges {@code farther} into {@code nearer}: every element of {@code nearer} is kept, and an
-     * element of {@code farther} is kept too unless {@code nearer} has an element for the same
-     * (location, qualifier hierarchy), which shadows it. Without this, both defaults would coexist
-     * in the (location, annotation)-ordered {@link DefaultSet} and the winner between them would be
-     * decided by annotation ordering rather than by scope distance.
+     * Returns {@code nearer} plus every element of {@code farther} whose (location, qualifier
+     * hierarchy) {@code nearer} does not already set -- {@code nearer}'s elements shadow {@code
+     * farther}'s for the same (location, hierarchy), rather than both coexisting in the (location,
+     * annotation)-ordered {@link DefaultSet} and the winner being decided by annotation ordering
+     * instead of scope distance.
+     *
+     * <p>Does not mutate either argument: the result may be one of them unchanged (when the other
+     * is empty) or a newly allocated set.
      *
      * @param nearer defaults at a nearer scope; every one of them is kept
      * @param farther defaults at a farther scope; kept only where {@code nearer} does not set the
@@ -870,7 +870,10 @@ public class QualifierDefaults {
 
     /**
      * Returns the defaults that apply directly to the given Element, without considering enclosing
-     * Elements.
+     * Elements. This includes both defaults derived from a written {@code @DefaultQualifier} (or
+     * {@code @DefaultQualifier.List}) annotation and any added programmatically via {@link
+     * #addElementDefault}: both are equally {@code elt}'s own direct contribution, just installed
+     * through different mechanisms.
      *
      * @param elt the element
      * @return the defaults
@@ -905,6 +908,16 @@ public class QualifierDefaults {
                 }
             }
         }
+
+        // Handle defaults added via addElementDefault.
+        DefaultSet programmatic = programmaticElementDefaults.get(elt);
+        if (programmatic != null) {
+            if (qualifiers == null) {
+                qualifiers = new DefaultSet();
+            }
+            qualifiers.addAll(programmatic);
+        }
+
         return qualifiers;
     }
 
