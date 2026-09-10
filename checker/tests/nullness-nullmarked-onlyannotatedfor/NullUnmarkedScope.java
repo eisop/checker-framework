@@ -1,3 +1,4 @@
+import org.checkerframework.framework.qual.UnannotatedFor;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.NullUnmarked;
 import org.jspecify.annotations.Nullable;
@@ -17,6 +18,14 @@ public class NullUnmarkedScope {
 
         @NullUnmarked
         void excluded(@Nullable Object nble) {
+            take(nble);
+        }
+
+        // A written @UnannotatedFor for another checker must not hide the @NullUnmarked alias:
+        // both are collected, so this method is still excluded for nullness.
+        @UnannotatedFor("index")
+        @NullUnmarked
+        void excludedAlongsideWritten(@Nullable Object nble) {
             take(nble);
         }
 

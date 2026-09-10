@@ -3087,15 +3087,9 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
         // isElementAnnotatedForThisCheckerOrUpstreamChecker already resolves the enclosing scope,
         // and asking about an enclosing element separately would ignore an @UnannotatedFor that
         // excludes the innermost declaration from that scope.
-        if (isElementAnnotatedForThisCheckerOrUpstreamChecker(innermostDecl)) {
-            return false;
-        } else if (useConservativeDefaultsSource || onlyAnnotatedFor) {
-            // If we got this far without hitting an @AnnotatedFor and returning
-            // false, we DO suppress the warning.
-            return true;
-        }
-
-        return false;
+        // The fast path above guarantees a flag is set here, so code outside an @AnnotatedFor scope
+        // has its warning suppressed.
+        return !isElementAnnotatedForThisCheckerOrUpstreamChecker(innermostDecl);
     }
 
     /**
@@ -3168,15 +3162,9 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
         // Ask only about elt: isElementAnnotatedForThisCheckerOrUpstreamChecker already resolves
         // the enclosing scope, and asking about an enclosing element separately would ignore an
         // @UnannotatedFor that excludes elt from that scope.
-        if (isElementAnnotatedForThisCheckerOrUpstreamChecker(elt)) {
-            return false;
-        } else if (useConservativeDefaultsSource || onlyAnnotatedFor) {
-            // If we got this far without hitting an @AnnotatedFor and returning
-            // false, we DO suppress the warning.
-            return true;
-        }
-
-        return false;
+        // The fast path above guarantees a flag is set here, so code outside an @AnnotatedFor scope
+        // has its warning suppressed.
+        return !isElementAnnotatedForThisCheckerOrUpstreamChecker(elt);
     }
 
     /**

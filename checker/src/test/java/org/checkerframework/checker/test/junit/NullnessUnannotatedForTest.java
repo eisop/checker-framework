@@ -6,11 +6,11 @@ import org.junit.runners.Parameterized.Parameters;
 import java.io.File;
 import java.util.List;
 
-/** JUnit tests for the Nullness checker. */
+/** JUnit tests for the Nullness Checker's treatment of {@code @UnannotatedFor}. */
 public class NullnessUnannotatedForTest extends CheckerFrameworkPerDirectoryTest {
 
     /**
-     * Create a NullnessNullMarkedTest.
+     * Create a NullnessUnannotatedForTest.
      *
      * @param testFiles the files containing test code, which will be type-checked
      */
