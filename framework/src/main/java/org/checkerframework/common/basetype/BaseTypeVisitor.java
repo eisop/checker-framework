@@ -1083,10 +1083,11 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         List<? extends AnnotationTree> annoTrees =
                 ((AnnotatedTypeTree) boundClause).getAnnotations();
         for (AnnotationTree annoTree : annoTrees) {
-            // The annotation is as written, so resolve an alias before asking whether this
-            // checker supports it.
+            // The annotation is as written, so it may need alias resolution before this checker
+            // recognizes it as supported; try the cheap check first, as elsewhere in this file.
             AnnotationMirror am = TreeUtils.annotationFromAnnotationTree(annoTree);
-            if (atypeFactory.isSupportedQualifier(atypeFactory.canonicalIfAlias(am))) {
+            if (atypeFactory.isSupportedQualifier(am)
+                    || atypeFactory.isSupportedQualifier(atypeFactory.canonicalIfAlias(am))) {
                 checker.reportError(boundClause, "annotation.on.supertype");
                 break;
             }
@@ -3406,7 +3407,9 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         for (AnnotationTree at : annoTrees) {
             AnnotationMirror anno = TreeUtils.annotationFromAnnotationTree(at);
             if (AnnotationUtils.isTypeUseAnnotation(anno)
-                    && atypeFactory.isSupportedQualifier(atypeFactory.canonicalIfAlias(anno))) {
+                    && (atypeFactory.isSupportedQualifier(anno)
+                            || atypeFactory.isSupportedQualifier(
+                                    atypeFactory.canonicalIfAlias(anno)))) {
                 result.add(at);
             }
         }
