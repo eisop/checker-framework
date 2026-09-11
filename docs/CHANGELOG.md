@@ -16,7 +16,10 @@ The Nullness Checker now also treats JSpecify's `@NullUnmarked` as the inverse o
 variable of a `@NullUnmarked` method was still bounded by `@NonNull` -- and it aliases to
 `@UnannotatedFor`, with the same checker name and the same `applyToSubpackages = false` as
 the `@NullMarked` aliases, so it subtracts its scope from an enclosing `@NullMarked` under
-`-AonlyAnnotatedFor` and `-AuseConservativeDefaultsForUncheckedCode=source`.
+`-AonlyAnnotatedFor` and `-AuseConservativeDefaultsForUncheckedCode=source`. Like `@NullMarked`,
+it is retained in class files, so this applies to bytecode too: a `@NullUnmarked` member of a
+`@NullMarked` dependency is again given conservative defaults under
+`-AuseConservativeDefaultsForUncheckedCode=bytecode`.
 
 The Nullness Checker now treats JSpecify's `@NullMarked` as an alias for
 `@AnnotatedFor` scoped to nullness checking alone (not initialization or `@KeyFor`

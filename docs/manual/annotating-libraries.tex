@@ -477,6 +477,20 @@ subtracts from an \emph{enclosing} scope.  \<@UnannotatedFor> has no effect in
 a stub file (Section~\ref{stub}), where \<@AnnotatedFor> only decides whether
 each declaration's annotations are read.
 
+Code in the scope of an \<@UnannotatedFor> gets the same defaults as code
+with no enclosing \<@AnnotatedFor>.  Under
+\<-AuseConservativeDefaultsForUncheckedCode=source>, those are the
+conservative defaults of Section~\ref{defaults-classfile}.  Under
+\<-AonlyAnnotatedFor> alone, they are the ordinary defaults for checked code,
+and only warnings are suppressed.  An explicit \<@DefaultQualifier> whose
+scope includes the code, written on the excluded element or on an enclosing
+one, still takes precedence over the conservative defaults for the type
+hierarchy and locations it names:  \<@UnannotatedFor> removes the
+\<@AnnotatedFor> scope, not the \<@DefaultQualifier>s around it.  That
+includes the \<@DefaultQualifier> that JSpecify's \<@NullMarked> stands for;
+\<@NullUnmarked> additionally undoes that one's upper-bound default
+(Section~\ref{nullness-jspecifyNullMarkedAlias}).
+
 \begin{sloppypar}
 Whenever you compile a class using the Checker Framework, including when
 using the \<-AuseConservativeDefaultsForUncheckedCode=source,bytecode> command-line

@@ -3319,7 +3319,8 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      * org.checkerframework.common.basetype.BaseTypeChecker} overrides it.
      *
      * @param elt the source code element to check, or null
-     * @return true if the element is annotated for this checker or an upstream checker
+     * @return true if the element is in the scope of an {@code @AnnotatedFor} for this checker or
+     *     an upstream checker
      */
     public boolean isElementAnnotatedForThisCheckerOrUpstreamChecker(@Nullable Element elt) {
         return false;
