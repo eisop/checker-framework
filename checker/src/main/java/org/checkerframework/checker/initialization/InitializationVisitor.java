@@ -219,8 +219,8 @@ public class InitializationVisitor extends BaseTypeVisitor<InitializationAnnotat
             // getExplicitAnnotationsOnConstructorResult is a javacutil-level utility with no
             // factory access, so it returns each annotation as written; resolve aliasing here,
             // via the same asSupportedQualifier used by AnnotatedTypeMirror#getExplicitAnnotations.
-            for (AnnotationMirror a : returnTypeAnnotations) {
-                if (atypeFactory.asSupportedQualifier(a) != null) {
+            for (AnnotationMirror am : returnTypeAnnotations) {
+                if (atypeFactory.asSupportedQualifier(am) != null) {
                     checker.reportError(tree, COMMITMENT_INVALID_CONSTRUCTOR_RETURN_TYPE, tree);
                     break;
                 }

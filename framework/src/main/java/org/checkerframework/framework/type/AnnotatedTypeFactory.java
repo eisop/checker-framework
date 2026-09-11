@@ -4336,20 +4336,20 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * factory operates. Null is never a supported qualifier; the parameter is nullable to allow the
      * result of canonicalAnnotation to be passed in directly.
      *
-     * <p>{@code a} is checked exactly as given: an alias for a supported qualifier fails this
+     * <p>{@code am} is checked exactly as given: an alias for a supported qualifier fails this
      * check. For an annotation as written, such as one read from an {@link
      * com.sun.source.tree.AnnotationTree}, use {@link #isSupportedQualifierOrAlias} instead.
      *
-     * @param a any annotation
+     * @param am any annotation
      * @return true if that annotation is part of the type system under which this type factory
      *     operates, false otherwise
      */
     @EnsuresNonNullIf(expression = "#1", result = true)
-    public boolean isSupportedQualifier(@Nullable AnnotationMirror a) {
-        if (a == null) {
+    public boolean isSupportedQualifier(@Nullable AnnotationMirror am) {
+        if (am == null) {
             return false;
         }
-        return isSupportedQualifier(AnnotationUtils.annotationName(a));
+        return isSupportedQualifier(AnnotationUtils.annotationName(am));
     }
 
     /**
@@ -4501,17 +4501,18 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * <p>A canonical annotation is the internal annotation that will be used by the Checker
      * Framework in the aliased annotation's place.
      *
-     * <p>Most callers do not want this method directly: it returns null both when {@code a} is
-     * already canonical and when {@code a} is unrelated to this checker, which a caller usually has
-     * to tell apart. Use {@link #canonicalAnnotationOrWritten} to resolve an annotation as written
-     * to what it stands for, or {@link #asSupportedQualifier}/{@link #isSupportedQualifierOrAlias}
-     * to also filter to this checker's supported qualifiers in the same step.
+     * <p>Most callers do not want this method directly: it returns null both when {@code am} is
+     * already canonical and when {@code am} is unrelated to this checker, which a caller usually
+     * has to tell apart. Use {@link #canonicalAnnotationOrWritten} to resolve an annotation as
+     * written to what it stands for, or {@link #asSupportedQualifier}/{@link
+     * #isSupportedQualifierOrAlias} to also filter to this checker's supported qualifiers in the
+     * same step.
      *
-     * @param a the qualifier to check for an alias
+     * @param am the qualifier to check for an alias
      * @return the canonical annotation, or null if none exists
      */
-    public @Nullable AnnotationMirror canonicalAnnotation(AnnotationMirror a) {
-        TypeElement elem = (TypeElement) a.getAnnotationType().asElement();
+    public @Nullable AnnotationMirror canonicalAnnotation(AnnotationMirror am) {
+        TypeElement elem = (TypeElement) am.getAnnotationType().asElement();
         String qualName = ElementUtils.getQualifiedName(elem);
         Alias alias = aliases.get(qualName);
         if (alias == null) {
@@ -4519,7 +4520,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         }
         if (alias.copyElements) {
             AnnotationBuilder builder = new AnnotationBuilder(processingEnv, alias.canonicalName);
-            builder.copyElementValuesFromAnnotation(a, alias.ignorableElements);
+            builder.copyElementValuesFromAnnotation(am, alias.ignorableElements);
             return builder.build();
         } else {
             return alias.canonical;
