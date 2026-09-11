@@ -887,6 +887,10 @@ Performance optimizations:
 - `AnnotatedTypeFactory.isFromByteCode(Element)` now caches its result per
   element, avoiding a repeated `Path.toUri()` call (URI construction and
   parsing) on every conservative-defaults check.
+- Made the `-AajavaChecks` test consistency check opt-in via the `ajavaChecks` property (e.g.
+  `-PajavaChecks`) instead of unconditionally running on every directory test. On Java < 21
+  (where JavaParser parsing and AST traversal run), this speeds up test suites by ~20% to ~38%.
+  Consistency testing is now performed in a dedicated CI job (`cftests-ajavachecks` on JDK 17).
 
 Other improvements and bug fixes:
 - `TreeUtils` has a new `inferredTypeArguments(ExpressionTree)` method to

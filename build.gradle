@@ -1860,3 +1860,17 @@ tasks.register('printJavaVersion') {
         println currentJvm
     }
 }
+
+tasks.register('checkAjavaChecksProperty') {
+    group = 'Verification'
+    description = 'Verifies that -PajavaChecks or -DajavaChecks is supplied.'
+    def hasProp = project.hasProperty('ajavaChecks') || Boolean.getBoolean('ajavaChecks')
+    inputs.property('hasProperty', hasProp)
+    doLast {
+        if (!hasProp) {
+            throw new GradleException(
+                'Expected -PajavaChecks or -DajavaChecks to be set, but neither was provided. '
+                + 'This check ensures consistency checking is not accidentally skipped.')
+        }
+    }
+}
