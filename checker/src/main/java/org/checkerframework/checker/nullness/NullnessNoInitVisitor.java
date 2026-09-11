@@ -736,10 +736,10 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
             collectAnnotationsInType(tree.getType(), rootAnnos, nestedAnnos);
         }
 
-        if (AnnotationUtils.containsSame(rootAnnos, NULLABLE)) {
+        if (atypeFactory.containsSameOrAlias(rootAnnos, NULLABLE)) {
             checker.reportError(tree, "instanceof.nullable");
         }
-        if (AnnotationUtils.containsSame(rootAnnos, NONNULL)) {
+        if (atypeFactory.containsSameOrAlias(rootAnnos, NONNULL)) {
             checker.reportWarning(tree, "instanceof.nonnull.redundant");
         }
 
@@ -753,7 +753,6 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
                 }
             }
         }
-
         // Don't call super because it will issue an incorrect instanceof.unsafe warning.
         return null;
     }
