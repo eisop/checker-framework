@@ -56,6 +56,8 @@ jobs:
           - {script: 'cftests-junit-jdk21',         java: {version: '25', experimental: false}}
           - {script: 'cftests-junit-jdk21',         java: {version: '17', experimental: false}}
           - {script: 'cftests-junit-jdk21',         java: {version: '11', experimental: false}}
+          # --- ajavaChecks consistency tests on JDK 17 ---
+          - {script: 'cftests-ajavachecks',         java: {version: '17', experimental: false}}
           # --- Downstream integration tests on Primary JDK 21 ---
           - {script: 'typecheck-part1',             java: {version: '21', experimental: false}}
           - {script: 'typecheck-part2',             java: {version: '21', experimental: false}}
