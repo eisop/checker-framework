@@ -21,7 +21,11 @@ import java.lang.annotation.Target;
  * warnings are suppressed, and under {@code -AuseConservativeDefaultsForUncheckedCode=source} it is
  * also defaulted using conservative defaults. ({@code -AonlyAnnotatedFor} suppresses warnings
  * without changing defaults, the same as for {@link AnnotatedFor}.) An {@code @AnnotatedFor} on a
- * nested element takes effect again for that element.
+ * nested element takes effect again for that element. Writing both an {@code @AnnotatedFor} and an
+ * {@code @UnannotatedFor} that name the same checker on one declaration is a warning ({@code
+ * conflicting.annotatedfor}), because the two contradict each other; if that warning is suppressed,
+ * the {@code @AnnotatedFor} wins, since {@code @UnannotatedFor} only subtracts from an
+ * <em>enclosing</em> scope.
  *
  * <p>An {@code @UnannotatedFor} on a package also applies to subpackages, unless the {@code
  * applyToSubpackages} field is set to false. The innermost package annotation wins: an

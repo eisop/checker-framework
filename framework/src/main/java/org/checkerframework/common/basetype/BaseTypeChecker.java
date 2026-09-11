@@ -23,6 +23,7 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.IdentityHashMap;
 import java.util.Set;
 
@@ -90,6 +91,14 @@ public abstract class BaseTypeChecker extends SourceChecker {
      */
     private final IdentityHashMap<PackageElement, Boolean> annotatedForReachesSubpackagesCache =
             new IdentityHashMap<>();
+
+    /**
+     * Declarations already reported for carrying both an {@code @AnnotatedFor} and an
+     * {@code @UnannotatedFor} that name this checker. Consulted through the ultimate parent
+     * checker, so the warning is issued once rather than once per subchecker that the annotations
+     * name.
+     */
+    private final Set<Element> conflictingAnnotatedForReported = new HashSet<>();
 
     /** An array containing just {@code BaseTypeChecker.class}. */
     protected static Class<?>[] baseTypeCheckerClassArray = new Class<?>[] {BaseTypeChecker.class};
@@ -452,5 +461,17 @@ public abstract class BaseTypeChecker extends SourceChecker {
             }
         }
         return false;
+    }
+
+    /**
+     * Returns true the first time it is called with {@code elt} for this checker hierarchy, so that
+     * a conflicting {@code @AnnotatedFor}/{@code @UnannotatedFor} pair on {@code elt} is reported
+     * once even though several subcheckers may see it.
+     *
+     * @param elt a declaration with a conflicting annotation pair
+     * @return true if the conflict on {@code elt} has not been reported yet
+     */
+    /*package-private*/ boolean shouldReportConflictingAnnotatedFor(Element elt) {
+        return getUltimateParentChecker().conflictingAnnotatedForReported.add(elt);
     }
 }

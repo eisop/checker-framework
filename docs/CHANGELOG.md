@@ -3,6 +3,10 @@ Version 3.49.5-eisop2 (June ?, 2026)
 
 **User-visible changes:**
 
+Writing both an `@AnnotatedFor` and an `@UnannotatedFor` that name the same checker on one
+declaration is now a `conflicting.annotatedfor` warning: the two contradict each other, and the
+`@AnnotatedFor` wins.
+
 New declaration annotation `@UnannotatedFor`, which excludes a package, class, method, or
 constructor from the scope of an enclosing `@AnnotatedFor` for the given checkers. Its scope is
 defaulted using conservative defaults and its warnings are suppressed, as if no enclosing
@@ -903,7 +907,7 @@ Other improvements and bug fixes:
 
 eisop#104, eisop#386, eisop#433, eisop#622, eisop#737, eisop#778, eisop#786,
 eisop#792, eisop#863, eisop#949, eisop#1015, eisop#1059, eisop#1074, eisop#1244,
-eisop#1292, eisop#1299, eisop#1315, eisop#1564, eisop#1592, eisop#1642,
+eisop#876, eisop#1292, eisop#1299, eisop#1315, eisop#1564, eisop#1592, eisop#1642,
 eisop#1653, eisop#1735, eisop#1801, eisop#1818, eisop#1819, eisop#1861,
 eisop#1862, eisop#1863, eisop#1865, eisop#1887, eisop#1965, eisop#1986,
 eisop#1987, eisop#1990, eisop#1991, eisop#2021, eisop#2032, typetools#399,
