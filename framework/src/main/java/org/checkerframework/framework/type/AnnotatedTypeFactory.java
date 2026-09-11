@@ -1859,9 +1859,9 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     /**
      * Determines the annotated type from a type in tree form.
      *
-     * <p>Note that we cannot decide from a Tree whether it is a type use or an expression.
-     * TreeUtils.isTypeTree is only an under-approximation. For example, an identifier can be either
-     * a type or an expression.
+     * <p>Note that we cannot decide from a Tree alone (without attribution) whether it is a type
+     * use or an expression. For example, an identifier can be either a type or an expression. See
+     * {@link TreeUtils#isTypeTree(Tree)}.
      *
      * @param tree the type tree
      * @return the annotated type of the type in the AST
@@ -1987,7 +1987,44 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         AnnotationMirrorSet bound = getTypeDeclarationBounds(fromTypeTree.getUnderlyingType());
         fromTypeTree.addMissingAnnotations(bound);
         addComputedTypeAnnotations(clause, fromTypeTree);
+        addAnonymousClassCreationAnnos(clause, fromTypeTree);
         return fromTypeTree;
+    }
+
+    /**
+     * If {@code clause} is the extends or implements clause of an anonymous class, adds the
+     * annotations written on the creation expression to {@code type}.
+     *
+     * <p>An anonymous class's supertype is annotated by its creation expression, as in {@code
+     * new @HERE Class() {}}. javac attaches that annotation to the anonymous class declaration's
+     * modifiers in Java 11 and lower, and to the clause itself in Java 12 and later; {@link
+     * #getExplicitNewClassAnnos} reconciles the two.
+     *
+     * <p>Call this after {@link #addComputedTypeAnnotations}, whose defaulting would otherwise
+     * overwrite the written annotation.
+     *
+     * @param clause an extends or implements clause
+     * @param type the type of {@code clause}, side-effected by this method
+     */
+    private void addAnonymousClassCreationAnnos(Tree clause, AnnotatedTypeMirror type) {
+        TreePath path = getPath(clause);
+        TreePath parentPath = path == null ? null : path.getParentPath();
+        Tree parent = parentPath == null ? null : parentPath.getLeaf();
+        // In javac's AST, an anonymous class's extends/implements clause is shared with
+        // NewClassTree.clazz. Depending on traversal or cache order, the clause's parent in the
+        // TreePath may be the NewClassTree directly or the anonymous ClassTree (with the
+        // NewClassTree as its parent).
+        NewClassTree newClassTree = null;
+        if (parent instanceof NewClassTree) {
+            newClassTree = (NewClassTree) parent;
+        } else if (parent instanceof ClassTree
+                && parentPath.getParentPath() != null
+                && parentPath.getParentPath().getLeaf() instanceof NewClassTree) {
+            newClassTree = (NewClassTree) parentPath.getParentPath().getLeaf();
+        }
+        if (newClassTree != null) {
+            type.replaceAnnotations(getExplicitNewClassAnnos(newClassTree));
+        }
     }
 
     // **********************************************************************
@@ -3873,12 +3910,15 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      */
     public AnnotationMirrorSet getExplicitNewClassAnnos(NewClassTree newClassTree) {
         if (newClassTree.getClassBody() != null) {
-            // In Java 17+, the annotations are on the identifier, so copy them.
+            // In Java 12+, the annotations are on the identifier, so copy them.
             AnnotatedTypeMirror identifierType = fromTypeTree(newClassTree.getIdentifier());
             // In Java 11 and lower, if newClassTree creates an anonymous class, then annotations in
             // this location:
             //   new @HERE Class() {}
             // are not on the identifier newClassTree, but rather on the modifier newClassTree.
+            // TODO: once the minimum supported JDK is 12, javac always attaches the annotation to
+            // the identifier and this reconciliation (the rest of this if-block, down to and
+            // including the addAnnotations call below) can be deleted.
             List<? extends AnnotationTree> annoTrees =
                     newClassTree.getClassBody().getModifiers().getAnnotations();
             // Add the annotations to an AnnotatedTypeMirror removes the annotations that are not

@@ -41,6 +41,11 @@ When the Initialization Checker rejects a method call on a partially-initialized
 now reports `initialization.method.invocation.invalid`, which names the fields that are still
 uninitialized at the call, instead of the framework's `method.invocation.invalid`.
 
+A type-use annotation written on an anonymous class creation expression, as in
+`new @A AClass() {}`, is now validated against the declaration bound of the class being extended
+on Java 8 through 11 as well. Previously this was checked only on Java 12 and later, so the same
+source checked differently depending on the compiler.
+
 The Nullness Checker's new `-AjspecifyUnrecognizedLocations` command-line option (also enabled by
 `-Amode=jspecify`) reports an error for a nullness annotation written where JSpecify gives it no
 meaning: a class declaration, a wildcard, a type parameter, a pattern, a type argument of a
@@ -918,7 +923,7 @@ eisop#792, eisop#863, eisop#949, eisop#1015, eisop#1059, eisop#1074, eisop#1244,
 eisop#1299, eisop#1315, eisop#1564, eisop#1592, eisop#1642, eisop#1653,
 eisop#1735, eisop#1801, eisop#1818, eisop#1819, eisop#1861, eisop#1862,
 eisop#1863, eisop#1865, eisop#1887, eisop#1965, eisop#1986, eisop#1987,
-eisop#1990, eisop#1991, eisop#2020, eisop#2021, eisop#2032, typetools#399,
+eisop#1990, eisop#1991, eisop#2009, eisop#2020, eisop#2021, eisop#2032, typetools#399,
 typetools#3203.
 
 
