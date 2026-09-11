@@ -149,11 +149,7 @@ public class QualifierDefaults {
     protected final IdentityHashMap<Element, BoundType> elementToBoundType =
             new IdentityHashMap<>();
 
-    /**
-     * Defaults that apply for a certain Element. On the one hand this is used for caching (an
-     * earlier name for the field was "qualifierCache"). It can also be used by type systems to set
-     * defaults for certain Elements.
-     */
+    /** Memoization cache for {@link #defaultsAt(Element)}. */
     private final IdentityHashMap<Element, DefaultSet> elementDefaults = new IdentityHashMap<>();
 
     /**
@@ -165,13 +161,10 @@ public class QualifierDefaults {
             new IdentityHashMap<>();
 
     /**
-     * Defaults added via {@link #addElementDefault}, tracked separately from {@link
-     * #elementDefaults} so that {@link #defaultsAtDirect} can treat a programmatically-added
-     * default as part of an element's own direct contribution -- the same way it already treats a
-     * written {@code @DefaultQualifier} -- rather than it being visible only through {@link
-     * #elementDefaults}, which {@link #propagatingDefaultsAt} does not consult (see that method).
-     * Without this, a default added on a package would apply to that package's own elements (via
-     * {@link #elementDefaults}) but silently fail to reach any of its subpackages.
+     * Defaults added via {@link #addElementDefault}, tracked separately from the {@link
+     * #elementDefaults} memoization cache so that {@link #defaultsAtDirect} can treat a
+     * programmatically-added default as part of an element's own direct contribution -- the same
+     * way it treats a written {@code @DefaultQualifier}.
      */
     private final IdentityHashMap<Element, DefaultSet> programmaticElementDefaults =
             new IdentityHashMap<>();
@@ -430,39 +423,28 @@ public class QualifierDefaults {
     /**
      * Sets the default annotations for a certain Element.
      *
+     * <p>This default is combined with any written {@code @DefaultQualifier} annotations on the
+     * element and inherits enclosing defaults, regardless of whether this method is called before
+     * or after defaults for the element are queried.
+     *
      * @param elem the scope to set the default within
      * @param elementDefaultAnno the default to set
      * @param location the location to apply the default to
      */
-    /*
-     * TODO(cpovirk): This method looks dangerous for a type system to call early: If it "adds" a
-     * default for an Element before defaultsAt runs for that Element, that looks like it would
-     * prevent any @DefaultQualifier or similar annotation from having any effect (because
-     * defaultsAt would short-circuit after discovering that an entry already exists for the
-     * Element). Maybe this method should run defaultsAt before inserting its own entry? Or maybe
-     * it's too early to run defaultsAt? Or maybe we'd see new problems in existing code because
-     * we'd start running checkDuplicates to look for overlap between the @DefaultQualifier defaults
-     * and addElementDefault defaults?
-     */
     public void addElementDefault(
             Element elem, AnnotationMirror elementDefaultAnno, TypeUseLocation location) {
-        DefaultSet prevset = elementDefaults.get(elem);
-        if (prevset != null) {
-            checkDuplicates(prevset, elementDefaultAnno, location);
+        DefaultSet progSet = programmaticElementDefaults.get(elem);
+        if (progSet != null) {
+            checkDuplicates(progSet, elementDefaultAnno, location);
         } else {
-            prevset = new DefaultSet();
+            progSet = new DefaultSet();
+            programmaticElementDefaults.put(elem, progSet);
         }
         // TODO: expose applyToSubpackages
         Default d = new Default(elementDefaultAnno, location, true);
-        prevset.add(d);
-        elementDefaults.put(elem, prevset);
-        // Also track this as part of elem's own direct contribution -- see
-        // programmaticElementDefaults and defaultsAtDirect -- so that if elem is a package,
-        // propagatingDefaultsAt sees it and this default reaches elem's subpackages, the same as
-        // a written @DefaultQualifier would.
-        programmaticElementDefaults.computeIfAbsent(elem, unused -> new DefaultSet()).add(d);
-        // prevset may already be a key in the fused caches; its content just changed, so any
-        // memoized fused list for it is now stale.
+        progSet.add(d);
+        elementDefaults.clear();
+        packagePropagatingDefaults.clear();
         invalidateFusedDefaults();
     }
 
@@ -915,7 +897,10 @@ public class QualifierDefaults {
             if (qualifiers == null) {
                 qualifiers = new DefaultSet();
             }
-            qualifiers.addAll(programmatic);
+            for (Default d : programmatic) {
+                checkDuplicates(qualifiers, d.anno, d.location);
+                qualifiers.add(d);
+            }
         }
 
         return qualifiers;
@@ -1011,9 +996,9 @@ public class QualifierDefaults {
      * object that is shared across every member of the scope, so identity keying hits well. As
      * JSpecify {@code @NullMarked}/{@code @NullUnmarked} annotations spread (each aliases to a
      * {@code @DefaultQualifier}), the non-empty case becomes the common one, and this cache — not
-     * the empty fast-path — carries the savings. Identity (not content) keying is required because
-     * a {@code DefaultSet} can be mutated in place after caching (see {@link #addElementDefault});
-     * both caches are cleared whenever any default changes.
+     * the empty fast-path — carries the savings. Identity (not content) keying is used because
+     * {@link #defaultsAt} caches and hands back a stable {@code DefaultSet} instance per scope,
+     * avoiding costly content-based hashing of the set.
      *
      * @param defaults the scope's defaults
      * @param conservative whether to include the unchecked-code defaults
