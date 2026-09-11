@@ -317,7 +317,7 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
      * <p>May return null if the receiver is a type variable or a wildcard without a primary
      * annotation, or if the receiver is not yet fully annotated.
      *
-     * @param annotation an annotation in the qualifier hierarchy to check for
+     * @param annotation an annotation in the qualifier hierarchy to check for, or an alias for one
      * @return the annotation mirror whose class is named {@code annoNAme} or null
      */
     // typetools: getPrimaryAnnotationInHierarchy
@@ -325,15 +325,10 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
         if (primaryAnnotations.isEmpty()) {
             return null;
         }
-        AnnotationMirror canonical;
-        if (atypeFactory.isSupportedQualifier(annotation)) {
-            canonical = annotation;
-        } else {
-            canonical = atypeFactory.canonicalAnnotation(annotation);
-            if (canonical == null || !atypeFactory.isSupportedQualifier(canonical)) {
-                // This can happen if annotation is unrelated to this AnnotatedTypeMirror.
-                return null;
-            }
+        // This can be null if annotation is unrelated to this AnnotatedTypeMirror.
+        AnnotationMirror canonical = atypeFactory.asSupportedQualifier(annotation);
+        if (canonical == null) {
+            return null;
         }
         QualifierHierarchy qualHierarchy = atypeFactory.getQualifierHierarchy();
         return qualHierarchy.findAnnotationInSameHierarchy(primaryAnnotations, canonical);
@@ -346,19 +341,14 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
      * <p>An effective annotation is the annotation on the type itself, or on the upper/extends
      * bound of a type variable/wildcard (recursively, until a class type is reached).
      *
-     * @param annotation an annotation in the qualifier hierarchy to check for
+     * @param annotation an annotation in the qualifier hierarchy to check for, or an alias for one
      * @return an annotation from the same hierarchy as {@code annotation} if present
      */
     public @Nullable AnnotationMirror getEffectiveAnnotationInHierarchy(
             AnnotationMirror annotation) {
-        AnnotationMirror canonical;
-        if (atypeFactory.isSupportedQualifier(annotation)) {
-            canonical = annotation;
-        } else {
-            canonical = atypeFactory.canonicalAnnotation(annotation);
-            if (canonical == null || !atypeFactory.isSupportedQualifier(canonical)) {
-                return null;
-            }
+        AnnotationMirror canonical = atypeFactory.asSupportedQualifier(annotation);
+        if (canonical == null) {
+            return null;
         }
         QualifierHierarchy qualHierarchy = this.atypeFactory.getQualifierHierarchy();
         return qualHierarchy.findAnnotationInSameHierarchy(getEffectiveAnnotations(), canonical);
@@ -477,12 +467,15 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
     }
 
     /**
-     * Returns the set of explicitly written annotations on this type that are supported by this
-     * checker. This is useful to check the validity of annotations explicitly present on a type, as
-     * flow inference might add annotations that were not previously present. Note that since
-     * AnnotatedTypeMirror instances are created for type uses, this method will return explicit
-     * annotations in type use locations but will not return explicit annotations that had an impact
-     * on defaulting, such as an explicit annotation on a class declaration. For example, given:
+     * Returns the set of explicitly written annotations on this type that this checker recognizes
+     * -- directly, or via an alias. An alias is replaced by its canonical form, since every caller
+     * of this method has needed the canonical form to compare against, and none has needed to
+     * recover which literal alias was written. This is useful to check the validity of annotations
+     * explicitly present on a type, as flow inference might add annotations that were not
+     * previously present. Note that since AnnotatedTypeMirror instances are created for type uses,
+     * this method will return explicit annotations in type use locations but will not return
+     * explicit annotations that had an impact on defaulting, such as an explicit annotation on a
+     * class declaration. For example, given:
      *
      * <p>{@code @MyExplicitAnno class MyClass {}; MyClass myClassInstance; }
      *
@@ -491,8 +484,8 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
      *
      * <p>will not contain {@code @MyExplicitAnno}.
      *
-     * @return the set of explicitly written annotations on this type that are supported by this
-     *     checker
+     * @return the set of explicitly written annotations on this type that this checker recognizes,
+     *     directly or via an alias; each in canonical form
      */
     public AnnotationMirrorSet getExplicitAnnotations() {
         // TODO JSR 308: The explicit type annotations should be always present
@@ -501,8 +494,12 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
                 this.getUnderlyingType().getAnnotationMirrors();
 
         for (AnnotationMirror explicitAnno : typeAnnotations) {
-            if (atypeFactory.isSupportedQualifier(explicitAnno)) {
-                explicitAnnotations.add(explicitAnno);
+            // explicitAnno comes from the underlying TypeMirror, not from addAnnotation, so it is
+            // as written and may be an alias; asSupportedQualifier resolves that in one step,
+            // rather than testing support and then discarding the resolved qualifier.
+            AnnotationMirror supported = atypeFactory.asSupportedQualifier(explicitAnno);
+            if (supported != null) {
+                explicitAnnotations.add(supported);
             }
         }
 
@@ -652,7 +649,7 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
      * Adds the canonical version of {@code annotation} as a primary annotation of this type and, in
      * the case of {@link AnnotatedTypeVariable}s, {@link AnnotatedWildcardType}s, and {@link
      * AnnotatedIntersectionType}s, adds it to all bounds. (The canonical version is found via
-     * {@link AnnotatedTypeFactory#canonicalAnnotation}.) If the canonical version of {@code
+     * {@link AnnotatedTypeFactory#asSupportedQualifier}.) If the canonical version of {@code
      * annotation} is not a supported qualifier, then no annotation is added. If this type already
      * has annotation in the same hierarchy as {@code annotation}, the behavior of this method is
      * undefined.
@@ -664,13 +661,9 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
             throw new BugInCF("AnnotatedTypeMirror.addAnnotation: null argument.");
         }
         checkMutable();
-        if (atypeFactory.isSupportedQualifier(annotation)) {
-            this.primaryAnnotations.add(annotation);
-        } else {
-            AnnotationMirror canonical = atypeFactory.canonicalAnnotation(annotation);
-            if (atypeFactory.isSupportedQualifier(canonical)) {
-                addAnnotation(canonical);
-            }
+        AnnotationMirror canonical = atypeFactory.asSupportedQualifier(annotation);
+        if (canonical != null) {
+            this.primaryAnnotations.add(canonical);
         }
     }
 

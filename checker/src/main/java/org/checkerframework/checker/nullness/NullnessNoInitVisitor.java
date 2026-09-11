@@ -531,10 +531,10 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
         }
 
         if (annotations != null) {
-            if (AnnotationUtils.containsSame(annotations, NULLABLE)) {
+            if (atypeFactory.containsSameOrAlias(annotations, NULLABLE)) {
                 checker.reportError(tree, "instanceof.nullable");
             }
-            if (AnnotationUtils.containsSame(annotations, NONNULL)) {
+            if (atypeFactory.containsSameOrAlias(annotations, NONNULL)) {
                 checker.reportWarning(tree, "instanceof.nonnull.redundant");
             }
         }

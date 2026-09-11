@@ -41,6 +41,31 @@ When the Initialization Checker rejects a method call on a partially-initialized
 now reports `initialization.method.invocation.invalid`, which names the fields that are still
 uninitialized at the call, instead of the framework's `method.invocation.invalid`.
 
+A check that reads an annotation from the source tree now resolves aliases first, so a written
+alias such as `org.jspecify.annotations.Nullable` or `@IndexFor` is treated as the qualifier it
+stands for. The `annotation.on.supertype`, `instanceof.nullable`, `instanceof.nonnull.redundant`,
+`invalid.polymorphic.qualifier`, `explicit.annotation.ignored`, and `anno.on.irrelevant`
+diagnostics were previously issued only for a checker's own annotation. So is the type of a
+constructor reference (`Foo::new`): an explicit annotation on the constructor's own declared type,
+written as an alias, is now recognized the same way its canonical form would be.
+
+`AnnotatedTypeMirror#getExplicitAnnotations` now returns an alias in its canonical form, rather
+than as written: every caller compares the result against a canonical qualifier, so returning the
+written form only meant every such caller had to remember to canonicalize it, and most did not.
+This fixes `redundant.anno`, `unique.location.forbidden`, `immutable.type.guardedby`, and
+`initialization.invalid.field.type`/`.constructor.return.type`, none of which resolved an alias
+before, for the same reason. A Whole Program Inference run also now correctly declines to
+overwrite a type the user explicitly annotated with an alias, rather than treating the (until now,
+alias-blind) explicit-annotation set as empty and overwriting it.
+
+`AnnotatedTypeFactory` has three new public methods for writing this kind of alias-aware check:
+`asSupportedQualifier(AnnotationMirror)`, which returns an annotation as written or its canonical
+form, whichever is a supported qualifier (or null if neither is);
+`isSupportedQualifierOrAlias(AnnotationMirror)`, the boolean form of the same question; and
+`canonicalAnnotationOrWritten(AnnotationMirror)`, which returns the canonical form of an
+annotation as written if it is an alias, and the annotation itself otherwise (regardless of
+whether either form is actually a supported qualifier).
+
 `@AnnotatedFor` is now `@Repeatable`, so it may be written more than once at the same
 location. This lets different type systems be given different `applyToSubpackages`
 settings on one package, which its single `value()` array could not express on its own:
@@ -865,7 +890,7 @@ eisop#792, eisop#863, eisop#949, eisop#1015, eisop#1059, eisop#1074, eisop#1244,
 eisop#1299, eisop#1315, eisop#1564, eisop#1592, eisop#1642, eisop#1653,
 eisop#1735, eisop#1801, eisop#1818, eisop#1819, eisop#1861, eisop#1862,
 eisop#1863, eisop#1865, eisop#1887, eisop#1965, eisop#1986, eisop#1987,
-eisop#1990, eisop#1991, eisop#2032, typetools#399, typetools#3203.
+eisop#1990, eisop#1991, eisop#2021, eisop#2032, typetools#399, typetools#3203.
 
 
 Version 3.49.5-eisop1 (April 26, 2026)
