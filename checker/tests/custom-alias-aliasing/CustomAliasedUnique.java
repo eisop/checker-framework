@@ -6,6 +6,8 @@ package customaliasingalias;
  * AliasingVisitor#visitVariable reads it via hasExplicitAnnotation(Class).
  */
 public class CustomAliasedUnique {
+    // Fully qualified: under -AajavaChecks on JDK < 21, TypeAnnotationMover looks up a simple name
+    // in the unnamed package, which re-reads Unique.java via -sourcepath ("duplicate class").
     // :: error: (unique.location.forbidden)
-    @Unique Object f;
+    @customaliasingalias.Unique Object f;
 }

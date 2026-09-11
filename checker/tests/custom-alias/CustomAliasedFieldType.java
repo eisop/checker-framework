@@ -7,6 +7,8 @@ package custom.alias;
  * aliasing.
  */
 public class CustomAliasedFieldType {
+    // Fully qualified: under -AajavaChecks on JDK < 21, TypeAnnotationMover looks up a simple name
+    // in the unnamed package, which re-reads Initialized.java via -sourcepath ("duplicate class").
     // :: error: (initialization.invalid.field.type)
-    @Initialized Object f = new Object();
+    @custom.alias.Initialized Object f = new Object();
 }
