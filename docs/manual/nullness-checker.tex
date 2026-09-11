@@ -213,9 +213,17 @@ command-line option.)
   corresponding \code{@AnnotatedFor}, treats \code{org.jspecify.annotations.NullMarked}
   as a defaulting annotation, and performs neither initialization checking nor
   map-key checking, neither of which JSpecify specifies.
+  It also reports a nullness annotation written where JSpecify gives it no meaning
+  (see \code{-AjspecifyUnrecognizedLocations} below): in some of those locations the
+  Checker Framework attaches its own meaning to the annotation, so silently accepting
+  it there would defeat the purpose of this mode.  A user relying on
+  \code{-Amode=jspecify} to behave as JSpecify specifies would otherwise have no way
+  to know that some of what they wrote was being interpreted by the checker's own
+  rules instead of JSpecify's.
   This is a shorthand for \code{-AonlyAnnotatedFor -AassumeInitialized
-  -AassumeKeyFor}.  Each of those is an on/off flag with no negative form, so there is
-  currently no way to enable this mode but turn one of them back off.
+  -AassumeKeyFor -AjspecifyUnrecognizedLocations}.  Each of those is an on/off flag with
+  no negative form, so there is currently no way to enable this mode but turn one of
+  them back off.
 
 \item
   \label{nullness-jspecifyNullMarkedAlias}%
@@ -233,6 +241,32 @@ command-line option.)
   As JSpecify specifies, a \code{@NullMarked} package does not cover its subpackages.
   \code{@NullUnmarked} is not yet honored: nested code under it is still checked as if
   the enclosing \code{@NullMarked} scope applied.
+
+\item
+  \label{nullness-jspecifyUnrecognizedLocations}%
+  JSpecify defines the locations at which a nullness annotation carries meaning
+  and gives an annotation written anywhere else none.  If you supply the
+  \code{-AjspecifyUnrecognizedLocations} command-line option, the checker reports
+  an error for a nullness annotation written on a class declaration, on a wildcard,
+  before a type parameter, on a pattern, on a type argument of a receiver parameter's
+  type, or on the root type of a local variable, of a resource variable, of a cast, or
+  of a method reference.  Each of these locations is reported under its own
+  \code{jspecify.unrecognized.location.*} message key (for example
+  \code{jspecify.unrecognized.location.wildcard}), the same way other diagnostics in
+  this manual distinguish one location from another.
+  Four related locations are reported whether or not you supply this option, because the
+  Checker Framework gives an annotation there no meaning either:  the root of the type
+  after \code{instanceof}, or of a type that a pattern binds, is reported as
+  \code{instanceof.nullable} or \code{instanceof.nonnull.redundant}; a component of
+  the type after an \code{instanceof} that binds no variable, as in
+  \code{o instanceof @Nullable String[]}, is reported as \code{instanceof.component};
+  a thrown type, as in \code{void m() throws @Nullable Exception}, is reported as
+  \code{nullness.on.throws}, since (unlike an exception parameter) it declares no
+  variable that a later reassignment could give a reason to annotate; and any component
+  of an annotation interface member's return type, as in \code{@Nullable String value();},
+  is reported as \code{nullness.on.annotation.member}, since an annotation element's
+  value must be a constant expression and \code{null} is never one, for any element
+  type, so no usage can ever supply one.
 \end{itemize}
 
 \end{enumerate}

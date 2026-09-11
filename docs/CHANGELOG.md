@@ -46,6 +46,59 @@ A type-use annotation written on an anonymous class creation expression, as in
 on Java 8 through 11 as well. Previously this was checked only on Java 12 and later, so the same
 source checked differently depending on the compiler.
 
+The Nullness Checker's new `-AjspecifyUnrecognizedLocations` command-line option (also enabled by
+`-Amode=jspecify`) reports an error for a nullness annotation written where JSpecify gives it no
+meaning: a class declaration, a wildcard, a type parameter, a pattern, a type argument of a
+receiver parameter's type, or the root type of a local variable, a resource variable, a cast, or a
+method reference. Each location has its own `jspecify.unrecognized.location.*` diagnostic key. The
+option is off by default because five of these locations -- a class declaration, a wildcard, and
+the root type of a local variable, a cast, and a method reference -- are meaningful to the Checker
+Framework itself.
+
+Two new `nullness.on.*` errors are issued unconditionally, not just under
+`-AjspecifyUnrecognizedLocations`, because in both locations no legitimate use is possible, not
+merely one JSpecify does not recognize: `nullness.on.throws`, for a nullness annotation on a
+thrown type, as in `void m() throws @Nullable Exception` (JLS 14.18: `throw null` throws a
+`NullPointerException` instead, so a thrown object is never null); and
+`nullness.on.annotation.member`, for one on any component of an annotation interface member's
+return type, as in `@Nullable String value();` (JLS 9.7.1: an annotation element's value must be a
+constant expression, and `null` is never one, for any element type, so no usage can ever supply
+one). Unlike `nullness.on.exception.parameter`'s catch side, neither location declares a variable
+that a later reassignment could give a legitimate reason to annotate, so both are errors rather
+than warnings.
+
+`instanceof` now distinguishes a nullness annotation on the root of the tested type, or of a
+pattern variable's type (including inside a deconstruction pattern), from one on a component, such
+as an array's element type. A root annotation is still reported by `instanceof.nullable` or
+`instanceof.nonnull.redundant`. A component annotation is reported by the new `instanceof.component`
+when no pattern variable is bound, and otherwise -- since the checker uses it to refine the bound
+variable -- only under `-AjspecifyUnrecognizedLocations`, as `jspecify.unrecognized.location.pattern`.
+
+A check that reads an annotation from the source tree now resolves aliases first, so a written
+alias such as `org.jspecify.annotations.Nullable` or `@IndexFor` is treated as the qualifier it
+stands for. The `annotation.on.supertype`, `instanceof.nullable`, `instanceof.nonnull.redundant`,
+`invalid.polymorphic.qualifier`, `explicit.annotation.ignored`, and `anno.on.irrelevant`
+diagnostics were previously issued only for a checker's own annotation. So is the type of a
+constructor reference (`Foo::new`): an explicit annotation on the constructor's own declared type,
+written as an alias, is now recognized the same way its canonical form would be.
+
+`AnnotatedTypeMirror#getExplicitAnnotations` now returns an alias in its canonical form, rather
+than as written: every caller compares the result against a canonical qualifier, so returning the
+written form only meant every such caller had to remember to canonicalize it, and most did not.
+This fixes `redundant.anno`, `unique.location.forbidden`, `immutable.type.guardedby`, and
+`initialization.invalid.field.type`/`.constructor.return.type`, none of which resolved an alias
+before, for the same reason. A Whole Program Inference run also now correctly declines to
+overwrite a type the user explicitly annotated with an alias, rather than treating the (until now,
+alias-blind) explicit-annotation set as empty and overwriting it.
+
+`AnnotatedTypeFactory` has three new public methods for writing this kind of alias-aware check:
+`asSupportedQualifier(AnnotationMirror)`, which returns an annotation as written or its canonical
+form, whichever is a supported qualifier (or null if neither is);
+`isSupportedQualifierOrAlias(AnnotationMirror)`, the boolean form of the same question; and
+`canonicalAnnotationOrWritten(AnnotationMirror)`, which returns the canonical form of an
+annotation as written if it is an alias, and the annotation itself otherwise (regardless of
+whether either form is actually a supported qualifier).
+
 `@AnnotatedFor` is now `@Repeatable`, so it may be written more than once at the same
 location. This lets different type systems be given different `applyToSubpackages`
 settings on one package, which its single `value()` array could not express on its own:
@@ -870,7 +923,11 @@ eisop#792, eisop#863, eisop#949, eisop#1015, eisop#1059, eisop#1074, eisop#1244,
 eisop#1299, eisop#1315, eisop#1564, eisop#1592, eisop#1642, eisop#1653,
 eisop#1735, eisop#1801, eisop#1818, eisop#1819, eisop#1861, eisop#1862,
 eisop#1863, eisop#1865, eisop#1887, eisop#1965, eisop#1986, eisop#1987,
+<<<<<<< HEAD
 eisop#1990, eisop#1991, eisop#2009, eisop#2032, typetools#399,
+=======
+eisop#1990, eisop#1991, eisop#2020, eisop#2021, eisop#2032, typetools#399,
+>>>>>>> origin/master
 typetools#3203.
 
 
