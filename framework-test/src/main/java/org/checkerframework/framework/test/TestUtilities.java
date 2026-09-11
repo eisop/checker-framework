@@ -596,6 +596,15 @@ public class TestUtilities {
     }
 
     /**
+     * Returns the value of system property "ajavaChecks".
+     *
+     * @return the value of system property "ajavaChecks"
+     */
+    public static boolean getShouldRunAjavaChecks() {
+        return SystemPlume.getBooleanSystemProperty("ajavaChecks");
+    }
+
+    /**
      * Adapt a string that uses Unix file and path separators to use the correct operating system
      * separator.
      *
