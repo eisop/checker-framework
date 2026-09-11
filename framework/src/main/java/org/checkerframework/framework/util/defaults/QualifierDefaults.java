@@ -461,6 +461,10 @@ public class QualifierDefaults {
         // propagatingDefaultsAt sees it and this default reaches elem's subpackages, the same as
         // a written @DefaultQualifier would.
         programmaticElementDefaults.computeIfAbsent(elem, unused -> new DefaultSet()).add(d);
+        if (elem instanceof PackageElement) {
+            // Invalidate cached propagating defaults so subpackage lookups see the new default.
+            packagePropagatingDefaults.clear();
+        }
         // prevset may already be a key in the fused caches; its content just changed, so any
         // memoized fused list for it is now stale.
         invalidateFusedDefaults();
