@@ -19,8 +19,16 @@ import javax.tools.JavaFileObject;
 import javax.tools.SimpleJavaFileObject;
 import javax.tools.ToolProvider;
 
+/** Tests for {@link TreeUtils#isTypeTree(Tree)}. */
 public class TreeUtilsIsTypeTreeTest {
 
+    /**
+     * Creates a {@link JavaFileObject} with the given class name and code.
+     *
+     * @param className the class name
+     * @param code the Java source code
+     * @return a {@link JavaFileObject} representing the source code
+     */
     private static JavaFileObject source(String className, String code) {
         return new SimpleJavaFileObject(
                 URI.create("string:///" + className + ".java"), JavaFileObject.Kind.SOURCE) {
@@ -31,6 +39,12 @@ public class TreeUtilsIsTypeTreeTest {
         };
     }
 
+    /**
+     * Tests that {@link TreeUtils#isTypeTree(Tree)} returns true for uses of type variables (e.g.
+     * {@code T field;}) and false for expressions (e.g. {@code field = null;}).
+     *
+     * @throws Exception if Java compilation fails
+     */
     @Test
     public void testTypeVariableUseIsTypeTree() throws Exception {
         String code =
