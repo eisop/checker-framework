@@ -23,6 +23,11 @@ public class AliasingCustomAliasTest extends CheckerFrameworkPerDirectoryTest {
                         + "customaliasingalias.Unique");
     }
 
+    /**
+     * Returns the directories containing test code.
+     *
+     * @return the directories containing test code
+     */
     @Parameters
     public static String[] getTestDirs() {
         return new String[] {"custom-alias-aliasing"};
