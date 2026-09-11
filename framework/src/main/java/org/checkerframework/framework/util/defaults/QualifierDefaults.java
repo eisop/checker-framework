@@ -156,6 +156,26 @@ public class QualifierDefaults {
      */
     private final IdentityHashMap<Element, DefaultSet> elementDefaults = new IdentityHashMap<>();
 
+    /**
+     * For a package, the defaults it makes available to its own subpackages. This is not {@link
+     * #elementDefaults} filtered by {@code applyToSubpackages}; see {@link #propagatingDefaultsAt},
+     * which computes and caches this and explains why.
+     */
+    private final IdentityHashMap<PackageElement, DefaultSet> packagePropagatingDefaults =
+            new IdentityHashMap<>();
+
+    /**
+     * Defaults added via {@link #addElementDefault}, tracked separately from {@link
+     * #elementDefaults} so that {@link #defaultsAtDirect} can treat a programmatically-added
+     * default as part of an element's own direct contribution -- the same way it already treats a
+     * written {@code @DefaultQualifier} -- rather than it being visible only through {@link
+     * #elementDefaults}, which {@link #propagatingDefaultsAt} does not consult (see that method).
+     * Without this, a default added on a package would apply to that package's own elements (via
+     * {@link #elementDefaults}) but silently fail to reach any of its subpackages.
+     */
+    private final IdentityHashMap<Element, DefaultSet> programmaticElementDefaults =
+            new IdentityHashMap<>();
+
     /** CLIMB locations whose standard default is top for a given type system. */
     public static final List<TypeUseLocation> STANDARD_CLIMB_DEFAULTS_TOP =
             Collections.unmodifiableList(
@@ -433,8 +453,18 @@ public class QualifierDefaults {
             prevset = new DefaultSet();
         }
         // TODO: expose applyToSubpackages
-        prevset.add(new Default(elementDefaultAnno, location, true));
+        Default d = new Default(elementDefaultAnno, location, true);
+        prevset.add(d);
         elementDefaults.put(elem, prevset);
+        // Also track this as part of elem's own direct contribution -- see
+        // programmaticElementDefaults and defaultsAtDirect -- so that if elem is a package,
+        // propagatingDefaultsAt sees it and this default reaches elem's subpackages, the same as
+        // a written @DefaultQualifier would.
+        programmaticElementDefaults.computeIfAbsent(elem, unused -> new DefaultSet()).add(d);
+        if (elem instanceof PackageElement) {
+            // Invalidate cached propagating defaults so subpackage lookups see the new default.
+            packagePropagatingDefaults.clear();
+        }
         // prevset may already be a key in the fused caches; its content just changed, so any
         // memoized fused list for it is now stale.
         invalidateFusedDefaults();
@@ -717,20 +747,9 @@ public class QualifierDefaults {
         DefaultSet qualifiers = defaultsAtDirect(elt);
         DefaultSet parentDefaults;
         if (elt.getKind() == ElementKind.PACKAGE) {
-            Element parent = ElementUtils.parentPackage((PackageElement) elt, elements);
-            DefaultSet origParentDefaults = defaultsAt(parent);
-            if (origParentDefaults.isEmpty()) {
-                // Nothing to filter; reuse the empty set rather than allocating one to copy
-                // zero elements into. Common case: no @DefaultQualifier anywhere in the chain.
-                parentDefaults = origParentDefaults;
-            } else {
-                parentDefaults = new DefaultSet();
-                for (Default d : origParentDefaults) {
-                    if (d.applyToSubpackages) {
-                        parentDefaults.add(d);
-                    }
-                }
-            }
+            // Not defaultsAt(parent) filtered by applyToSubpackages; see propagatingDefaultsAt.
+            PackageElement parent = ElementUtils.parentPackage((PackageElement) elt, elements);
+            parentDefaults = propagatingDefaultsAt(parent);
         } else {
             Element parent = elt.getEnclosingElement();
             parentDefaults = defaultsAt(parent);
@@ -739,29 +758,7 @@ public class QualifierDefaults {
         if (qualifiers == null || qualifiers.isEmpty()) {
             qualifiers = parentDefaults;
         } else {
-            // A default for a given (location, hierarchy) at a nearer scope shadows a default for
-            // the same (location, hierarchy) at an enclosing scope: only inherit an enclosing-scope
-            // default whose (location, hierarchy) the nearer scope does not itself set. Without
-            // this, both defaults would coexist in the (location, annotation)-ordered TreeSet and
-            // the winner between them would be decided by annotation ordering rather than by scope
-            // distance.
-            QualifierHierarchy qualHierarchy = atypeFactory.getQualifierHierarchy();
-            for (Default d : parentDefaults) {
-                boolean shadowed = false;
-                AnnotationMirror parentTop = qualHierarchy.getTopAnnotation(d.anno);
-                for (Default nearer : qualifiers) {
-                    if (nearer.location == d.location) {
-                        AnnotationMirror nearerTop = qualHierarchy.getTopAnnotation(nearer.anno);
-                        if (AnnotationUtils.areSame(parentTop, nearerTop)) {
-                            shadowed = true;
-                            break;
-                        }
-                    }
-                }
-                if (!shadowed) {
-                    qualifiers.add(d);
-                }
-            }
+            qualifiers = mergeShadowing(qualifiers, parentDefaults);
         }
 
         if (!qualifiers.isEmpty()) {
@@ -778,8 +775,103 @@ public class QualifierDefaults {
     }
 
     /**
+     * Returns the defaults that {@code pkg} makes available to its own subpackages: its own direct
+     * defaults with {@code applyToSubpackages = true}, merged with what its parent package makes
+     * available to it.
+     *
+     * <p>This is not {@link #defaultsAt}({@code pkg}) filtered by {@code applyToSubpackages};
+     * computing it that way is <a
+     * href="https://github.com/eisop/checker-framework/issues/2037">eisop#2037</a>. Shadowing is a
+     * statement about one scope: a nearer default that does not itself apply to subpackages wins at
+     * {@code pkg} only, so it must not discard the farther default it shadowed there -- deeper
+     * packages, where nothing shadows it, still need it. So a default replaces a farther one here
+     * only if it too has {@code applyToSubpackages = true}. It still wins at {@code pkg} itself,
+     * via {@link #defaultsAt}, which merges {@code pkg}'s own defaults over this method's result.
+     *
+     * @param pkg a package, or null for no package
+     * @return the defaults {@code pkg} makes available to its own subpackages
+     */
+    private DefaultSet propagatingDefaultsAt(@Nullable PackageElement pkg) {
+        if (pkg == null) {
+            return DefaultSet.EMPTY;
+        }
+
+        DefaultSet cached = packagePropagatingDefaults.get(pkg);
+        if (cached != null) {
+            return cached;
+        }
+
+        DefaultSet direct = defaultsAtDirect(pkg);
+        DefaultSet ownPropagating;
+        if (direct == null || direct.isEmpty()) {
+            ownPropagating = DefaultSet.EMPTY;
+        } else {
+            ownPropagating = new DefaultSet();
+            for (Default d : direct) {
+                if (d.applyToSubpackages) {
+                    ownPropagating.add(d);
+                }
+            }
+        }
+
+        PackageElement parent = ElementUtils.parentPackage(pkg, elements);
+        DefaultSet parentPropagating = propagatingDefaultsAt(parent);
+
+        DefaultSet result = mergeShadowing(ownPropagating, parentPropagating);
+        packagePropagatingDefaults.put(pkg, result);
+        return result;
+    }
+
+    /**
+     * Returns {@code nearer} plus every element of {@code farther} whose (location, qualifier
+     * hierarchy) {@code nearer} does not already set -- {@code nearer}'s elements shadow {@code
+     * farther}'s for the same (location, hierarchy), rather than both coexisting in the (location,
+     * annotation)-ordered {@link DefaultSet} and the winner being decided by annotation ordering
+     * instead of scope distance.
+     *
+     * <p>Does not mutate either argument: the result may be one of them unchanged (when the other
+     * is empty) or a newly allocated set.
+     *
+     * @param nearer defaults at a nearer scope; every one of them is kept
+     * @param farther defaults at a farther scope; kept only where {@code nearer} does not set the
+     *     same (location, qualifier hierarchy)
+     * @return the merged set
+     */
+    private DefaultSet mergeShadowing(DefaultSet nearer, DefaultSet farther) {
+        if (farther.isEmpty()) {
+            return nearer;
+        }
+        if (nearer.isEmpty()) {
+            return farther;
+        }
+        DefaultSet result = new DefaultSet();
+        result.addAll(nearer);
+        QualifierHierarchy qualHierarchy = atypeFactory.getQualifierHierarchy();
+        for (Default d : farther) {
+            boolean shadowed = false;
+            AnnotationMirror fartherTop = qualHierarchy.getTopAnnotation(d.anno);
+            for (Default n : nearer) {
+                if (n.location == d.location) {
+                    AnnotationMirror nearerTop = qualHierarchy.getTopAnnotation(n.anno);
+                    if (AnnotationUtils.areSame(fartherTop, nearerTop)) {
+                        shadowed = true;
+                        break;
+                    }
+                }
+            }
+            if (!shadowed) {
+                result.add(d);
+            }
+        }
+        return result;
+    }
+
+    /**
      * Returns the defaults that apply directly to the given Element, without considering enclosing
-     * Elements.
+     * Elements. This includes both defaults derived from a written {@code @DefaultQualifier} (or
+     * {@code @DefaultQualifier.List}) annotation and any added programmatically via {@link
+     * #addElementDefault}: both are equally {@code elt}'s own direct contribution, just installed
+     * through different mechanisms.
      *
      * @param elt the element
      * @return the defaults
@@ -814,6 +906,16 @@ public class QualifierDefaults {
                 }
             }
         }
+
+        // Handle defaults added via addElementDefault.
+        DefaultSet programmatic = programmaticElementDefaults.get(elt);
+        if (programmatic != null) {
+            if (qualifiers == null) {
+                qualifiers = new DefaultSet();
+            }
+            qualifiers.addAll(programmatic);
+        }
+
         return qualifiers;
     }
 
