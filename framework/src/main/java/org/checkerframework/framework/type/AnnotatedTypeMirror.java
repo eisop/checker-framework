@@ -468,8 +468,9 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
 
     /**
      * Returns the set of explicitly written annotations on this type that this checker recognizes
-     * -- directly, or via an alias. Each returned annotation is the one as written (an alias is not
-     * replaced by its canonical form). This is useful to check the validity of annotations
+     * -- directly, or via an alias. An alias is replaced by its canonical form, since every caller
+     * of this method has needed the canonical form to compare against, and none has needed to
+     * recover which literal alias was written. This is useful to check the validity of annotations
      * explicitly present on a type, as flow inference might add annotations that were not
      * previously present. Note that since AnnotatedTypeMirror instances are created for type uses,
      * this method will return explicit annotations in type use locations but will not return
@@ -484,7 +485,7 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
      * <p>will not contain {@code @MyExplicitAnno}.
      *
      * @return the set of explicitly written annotations on this type that this checker recognizes,
-     *     directly or via an alias; each as written, not canonicalized
+     *     directly or via an alias; each in canonical form
      */
     public AnnotationMirrorSet getExplicitAnnotations() {
         // TODO JSR 308: The explicit type annotations should be always present
@@ -494,10 +495,11 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
 
         for (AnnotationMirror explicitAnno : typeAnnotations) {
             // explicitAnno comes from the underlying TypeMirror, not from addAnnotation, so it is
-            // as written and may be an alias; the check must resolve aliasing, but the annotation
-            // added below must stay the one as written, per this method's contract.
-            if (atypeFactory.isSupportedQualifierOrAlias(explicitAnno)) {
-                explicitAnnotations.add(explicitAnno);
+            // as written and may be an alias; asSupportedQualifier resolves that in one step,
+            // rather than testing support and then discarding the resolved qualifier.
+            AnnotationMirror supported = atypeFactory.asSupportedQualifier(explicitAnno);
+            if (supported != null) {
+                explicitAnnotations.add(supported);
             }
         }
 

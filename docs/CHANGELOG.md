@@ -44,12 +44,19 @@ uninitialized at the call, instead of the framework's `method.invocation.invalid
 A check that reads an annotation from the source tree now resolves aliases first, so a written
 alias such as `org.jspecify.annotations.Nullable` or `@IndexFor` is treated as the qualifier it
 stands for. The `annotation.on.supertype`, `instanceof.nullable`, `instanceof.nonnull.redundant`,
-`invalid.polymorphic.qualifier`, `explicit.annotation.ignored`, `anno.on.irrelevant`, and
-`redundant.anno` diagnostics were previously issued only for a checker's own annotation. So is the
-type of a constructor reference (`Foo::new`): an explicit annotation on the constructor's own
-declared type, written as an alias, is now recognized the same way its canonical form would be.
-`AnnotatedTypeMirror#getExplicitAnnotations` also now recognizes an alias as one of the checker's
-own qualifiers, while still returning it in the form it was written.
+`invalid.polymorphic.qualifier`, `explicit.annotation.ignored`, and `anno.on.irrelevant`
+diagnostics were previously issued only for a checker's own annotation. So is the type of a
+constructor reference (`Foo::new`): an explicit annotation on the constructor's own declared type,
+written as an alias, is now recognized the same way its canonical form would be.
+
+`AnnotatedTypeMirror#getExplicitAnnotations` now returns an alias in its canonical form, rather
+than as written: every caller compares the result against a canonical qualifier, so returning the
+written form only meant every such caller had to remember to canonicalize it, and most did not.
+This fixes `redundant.anno`, `unique.location.forbidden`, `immutable.type.guardedby`, and
+`initialization.invalid.field.type`/`.constructor.return.type`, none of which resolved an alias
+before, for the same reason. A Whole Program Inference run also now correctly declines to
+overwrite a type the user explicitly annotated with an alias, rather than treating the (until now,
+alias-blind) explicit-annotation set as empty and overwriting it.
 
 `AnnotatedTypeFactory` has three new public methods for writing this kind of alias-aware check:
 `asSupportedQualifier(AnnotationMirror)`, which returns an annotation as written or its canonical

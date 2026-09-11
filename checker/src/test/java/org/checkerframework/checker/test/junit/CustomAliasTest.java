@@ -20,7 +20,9 @@ public class CustomAliasTest extends CheckerFrameworkPerDirectoryTest {
                 org.checkerframework.checker.nullness.NullnessChecker.class,
                 "custom-alias",
                 "-AaliasedTypeAnnos=org.checkerframework.checker.nullness.qual.NonNull:custom.alias.NonNull;"
-                        + "org.checkerframework.checker.nullness.qual.Nullable:custom.alias.Nullable",
+                        + "org.checkerframework.checker.nullness.qual.Nullable:custom.alias.Nullable;"
+                        + "org.checkerframework.checker.initialization.qual.Initialized:"
+                        + "custom.alias.Initialized",
                 "-AaliasedDeclAnnos=org.checkerframework.dataflow.qual.Pure:custom.alias.Pure",
                 "-AcheckPurityAnnotations");
     }
