@@ -102,4 +102,28 @@ public class AnonymousClassBounds {
         // :: error: (type.invalid.annotations.on.use)
         new @Top GClass<String>() {};
     }
+
+    @SuppressWarnings({"inconsistent.constructor.type", "super.invocation.invalid"})
+    @A static class GBoundedClass<T extends @A Object> {}
+
+    void testTypeArgumentBounds() {
+        new @A GBoundedClass<@A String>() {};
+
+        // :: error: (type.argument.type.incompatible)
+        new @A GBoundedClass<@B String>() {};
+
+        // :: error: (type.argument.type.incompatible)
+        new @A GBoundedClass<@Top String>() {};
+    }
+
+    void testNested() {
+        new @A AClass() {
+            void m() {
+                new @A AClass() {};
+                // :: warning: (cast.unsafe.constructor.invocation)
+                // :: error: (type.invalid.annotations.on.use)
+                new @B AClass() {};
+            }
+        };
+    }
 }

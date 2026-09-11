@@ -1859,9 +1859,9 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     /**
      * Determines the annotated type from a type in tree form.
      *
-     * <p>Note that we cannot decide from a Tree whether it is a type use or an expression.
-     * TreeUtils.isTypeTree is only an under-approximation. For example, an identifier can be either
-     * a type or an expression.
+     * <p>Note that we cannot decide from a Tree alone (without attribution) whether it is a type
+     * use or an expression. For example, an identifier can be either a type or an expression. See
+     * {@link TreeUtils#isTypeTree(Tree)}.
      *
      * @param tree the type tree
      * @return the annotated type of the type in the AST
@@ -2010,8 +2010,20 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         TreePath path = getPath(clause);
         TreePath parentPath = path == null ? null : path.getParentPath();
         Tree parent = parentPath == null ? null : parentPath.getLeaf();
+        // In javac's AST, an anonymous class's extends/implements clause is shared with
+        // NewClassTree.clazz. Depending on traversal or cache order, the clause's parent in the
+        // TreePath may be the NewClassTree directly or the anonymous ClassTree (with the
+        // NewClassTree as its parent).
+        NewClassTree newClassTree = null;
         if (parent instanceof NewClassTree) {
-            type.replaceAnnotations(getExplicitNewClassAnnos((NewClassTree) parent));
+            newClassTree = (NewClassTree) parent;
+        } else if (parent instanceof ClassTree
+                && parentPath.getParentPath() != null
+                && parentPath.getParentPath().getLeaf() instanceof NewClassTree) {
+            newClassTree = (NewClassTree) parentPath.getParentPath().getLeaf();
+        }
+        if (newClassTree != null) {
+            type.replaceAnnotations(getExplicitNewClassAnnos(newClassTree));
         }
     }
 
