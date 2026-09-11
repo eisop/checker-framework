@@ -18,6 +18,40 @@ public class AnonymousClassBounds {
     @SuppressWarnings({"inconsistent.constructor.type", "super.invocation.invalid"})
     @A static class GClass<T> {}
 
+    void testUnannotated() {
+        // Unannotated anonymous class creation defaults to the declaration bound of the
+        // supertype (@A), rather than @Top.
+        @A AClass a1 = new AClass() {};
+        @Top AClass a2 = new AClass() {};
+        // :: error: (assignment.type.incompatible)
+        @B AClass a3 = new AClass() {};
+
+        // Unannotated interface implementation
+        @A AIface i1 = new AIface() {};
+        @Top AIface i2 = new AIface() {};
+        // :: error: (assignment.type.incompatible)
+        @B AIface i3 = new AIface() {};
+
+        // Unannotated parameterized class
+        @A GClass<String> g1 = new GClass<String>() {};
+        // :: error: (assignment.type.incompatible)
+        @B GClass<String> g2 = new GClass<String>() {};
+
+        // Unannotated bounded parameterized class
+        @A GBoundedClass<@A String> gb1 = new GBoundedClass<@A String>() {};
+        // :: error: (assignment.type.incompatible)
+        @B GBoundedClass<@A String> gb2 = new GBoundedClass<@A String>() {};
+
+        // Unannotated nested anonymous class
+        new AClass() {
+            void m() {
+                @A AClass nested = new AClass() {};
+                // :: error: (assignment.type.incompatible)
+                @B AClass nestedBad = new AClass() {};
+            }
+        };
+    }
+
     void test() {
         // @A is AClass's declaration bound, so this use is valid.
         new @A AClass() {};
@@ -58,10 +92,7 @@ public class AnonymousClassBounds {
     // AnnotatedTypeFactory finding the annotation on the anonymous class body's modifiers) are
     // needed together here too.
     void testInterface() {
-        // @A is AIface's declaration bound, so this use is valid. (An anonymous class
-        // implementing an interface has no declared constructor to check consistency against,
-        // so this warning is issued regardless of whether the annotation matches the bound.)
-        // :: warning: (cast.unsafe.constructor.invocation)
+        // @A is AIface's declaration bound, so this use is valid.
         new @A AIface() {};
 
         // @B is a sibling of @A, so it is outside AIface's declaration bound.

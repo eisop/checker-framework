@@ -9,6 +9,7 @@ import org.checkerframework.framework.type.QualifierHierarchy;
 import org.checkerframework.javacutil.AnnotationBuilder;
 import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.AnnotationUtils;
+import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.TreeUtils;
 
 import java.util.IdentityHashMap;
@@ -19,6 +20,10 @@ import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Name;
+import javax.lang.model.element.TypeElement;
+import javax.lang.model.type.DeclaredType;
+import javax.lang.model.type.TypeKind;
+import javax.lang.model.type.TypeMirror;
 
 /**
  * Implements support for {@link DefaultQualifierForUse} and {@link NoDefaultQualifierForUse}. Adds
@@ -111,6 +116,30 @@ public class DefaultQualifierForUseTypeAnnotator extends TypeAnnotator {
                         qualHierarchy.findAnnotationInHierarchy(explictAnnos, top);
                 if (explict != null) {
                     annosToApply.add(explict);
+                }
+            }
+        }
+        if (ElementUtils.isAnonymous(element)) {
+            TypeElement typeElem = (TypeElement) element;
+            Element superElem = null;
+            if (!typeElem.getInterfaces().isEmpty()) {
+                TypeMirror iface = typeElem.getInterfaces().get(0);
+                if (iface.getKind() == TypeKind.DECLARED) {
+                    superElem = ((DeclaredType) iface).asElement();
+                }
+            } else if (typeElem.getSuperclass().getKind() == TypeKind.DECLARED) {
+                superElem = ((DeclaredType) typeElem.getSuperclass()).asElement();
+            }
+            if (superElem != null) {
+                AnnotationMirrorSet superDefaults = getDefaultAnnosForUses(superElem);
+                for (AnnotationMirror top : qualHierarchy.getTopAnnotations()) {
+                    if (qualHierarchy.findAnnotationInHierarchy(annosToApply, top) == null) {
+                        AnnotationMirror superDefault =
+                                qualHierarchy.findAnnotationInHierarchy(superDefaults, top);
+                        if (superDefault != null) {
+                            annosToApply.add(superDefault);
+                        }
+                    }
                 }
             }
         }

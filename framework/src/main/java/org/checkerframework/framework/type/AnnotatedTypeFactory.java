@@ -3809,14 +3809,31 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
                 p.addAll(superCon.getParameterTypes());
                 con.setParameterTypes(Collections.unmodifiableList(p));
             }
-            Set<? extends AnnotationMirror> lub =
-                    // TODO: should we use getAnnotationsField() even though it flows to the
-                    // QualifierHierarchy?
-                    qualHierarchy.leastUpperBoundsShallow(
-                            type.getAnnotations(),
-                            type.getUnderlyingType(),
-                            superCon.getReturnType().getAnnotations(),
-                            superCon.getReturnType().getUnderlyingType());
+            Set<? extends AnnotationMirror> lub;
+            if (TypesUtils.isObject(superCtor.getEnclosingElement().asType())) {
+                // When an anonymous class implements an interface (or extends Object), its super
+                // constructor is Object.<init>(), which does not carry the interface's
+                // annotations. The bound qualifiers should come from the interface (or supertype).
+                TypeElement anonElem =
+                        (TypeElement) TreeUtils.elementFromUse(tree).getEnclosingElement();
+                TypeMirror superType =
+                        !anonElem.getInterfaces().isEmpty()
+                                ? anonElem.getInterfaces().get(0)
+                                : anonElem.getSuperclass();
+                AnnotationMirrorSet bounds = getTypeDeclarationBounds(superType);
+                lub =
+                        qualHierarchy.leastUpperBoundsShallow(
+                                type.getAnnotations(), type.getUnderlyingType(), bounds, superType);
+            } else {
+                lub =
+                        // TODO: should we use getAnnotationsField() even though it flows to the
+                        // QualifierHierarchy?
+                        qualHierarchy.leastUpperBoundsShallow(
+                                type.getAnnotations(),
+                                type.getUnderlyingType(),
+                                superCon.getReturnType().getAnnotations(),
+                                superCon.getReturnType().getUnderlyingType());
+            }
             con.getReturnType().replaceAnnotations(lub);
         } else {
             // Store varargType before calling setParameterTypes, otherwise we may lose the
