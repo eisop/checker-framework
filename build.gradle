@@ -1396,14 +1396,8 @@ subprojects {
                         '-javacoptions:-ApermitMissingJdk'
                     ]
                 } else if (isChecker) {
-                    // The JSpecify artifact lets jtreg tests use @NullMarked / @NullUnmarked; it
-                    // is already a test dependency, but sourceSets.test.output holds only the
-                    // compiled test classes, not the jars they were compiled against.
-                    String jspecifyJars = configurations.testCompileClasspath
-                            .findAll { it.name.startsWith('jspecify-') }
-                            .join(File.pathSeparator)
                     args += [
-                        "-javacoptions:-classpath ${sourceSets.testannotations.output.asPath}${File.pathSeparator}${jspecifyJars}",
+                        "-javacoptions:-classpath ${sourceSets.testannotations.output.asPath}",
                     ]
                 }
 
