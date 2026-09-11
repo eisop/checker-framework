@@ -3,6 +3,21 @@ Version 3.49.5-eisop2 (June ?, 2026)
 
 **User-visible changes:**
 
+New declaration annotation `@UnannotatedFor`, which excludes a package, class, method, or
+constructor from the scope of an enclosing `@AnnotatedFor` for the given checkers. Its scope is
+defaulted using conservative defaults and its warnings are suppressed, as if no enclosing
+`@AnnotatedFor` were present; a nested `@AnnotatedFor` takes effect again. Like `@AnnotatedFor`,
+it has an `applyToSubpackages` element and is repeatable, and it has no effect unless
+`-AuseConservativeDefaultsForUncheckedCode=source` or `-AonlyAnnotatedFor` is supplied.
+
+The Nullness Checker now also treats JSpecify's `@NullUnmarked` as the inverse of
+`@NullMarked`, in both of the ways `@NullMarked` is recognized. It undoes the enclosing
+`@NullMarked`'s `@NonNull` upper-bound default within its scope -- without which a type
+variable of a `@NullUnmarked` method was still bounded by `@NonNull` -- and it aliases to
+`@UnannotatedFor`, with the same checker name and the same `applyToSubpackages = false` as
+the `@NullMarked` aliases, so it subtracts its scope from an enclosing `@NullMarked` under
+`-AonlyAnnotatedFor` and `-AuseConservativeDefaultsForUncheckedCode=source`.
+
 The Nullness Checker now treats JSpecify's `@NullMarked` as an alias for
 `@AnnotatedFor` scoped to nullness checking alone (not initialization or `@KeyFor`
 checking, which JSpecify does not define and which `-Amode=jspecify` already excludes),
@@ -131,21 +146,6 @@ The Nullness Checker supports `-Amode=jspecify`, which makes it behave as JSpeci
 specifies: it checks only code in the scope of an `@AnnotatedFor`, treats `@NullMarked`
 as a defaulting annotation, and performs neither initialization checking nor map-key
 checking.
-
-New declaration annotation `@UnannotatedFor`, which excludes a package, class, method, or
-constructor from the scope of an enclosing `@AnnotatedFor` for the given checkers. Its scope is
-defaulted using conservative defaults and its warnings are suppressed, as if no enclosing
-`@AnnotatedFor` were present; a nested `@AnnotatedFor` takes effect again. Like `@AnnotatedFor`,
-it has an `applyToSubpackages` element and is repeatable, and it has no effect unless
-`-AuseConservativeDefaultsForUncheckedCode=source` or `-AonlyAnnotatedFor` is supplied.
-
-The Nullness Checker now also treats JSpecify's `@NullUnmarked` as the inverse of
-`@NullMarked`, in both of the ways `@NullMarked` is recognized. It undoes the enclosing
-`@NullMarked`'s `@NonNull` upper-bound default within its scope -- without which a type
-variable of a `@NullUnmarked` method was still bounded by `@NonNull` -- and it aliases to
-`@UnannotatedFor`, with the same checker name and the same `applyToSubpackages = false` as
-the `@NullMarked` aliases, so it subtracts its scope from an enclosing `@NullMarked` under
-`-AonlyAnnotatedFor` and `-AuseConservativeDefaultsForUncheckedCode=source`.
 
 The Checker Framework now issues an `annotation.on.supertype` error when an annotation supported by
 the checker is written as a main annotation on the superclass or interface in an `extends` or
