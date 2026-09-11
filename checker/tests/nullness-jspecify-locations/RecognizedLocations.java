@@ -3,9 +3,11 @@
 
 import org.jspecify.annotations.Nullable;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
 public class RecognizedLocations {
 
@@ -20,6 +22,10 @@ public class RecognizedLocations {
         // A type argument nested inside a cast's root type.
         @SuppressWarnings("unchecked")
         Object cast = (List<@Nullable String>) local;
+
+        // An unannotated intersection-type cast. TreeUtils.getExplicitAnnotationTrees once threw
+        // BugInCF on any INTERSECTION_TYPE tree, so this crashed even with no annotation present.
+        Object intersection = (Supplier<String> & Serializable) () -> "";
 
         // A type argument of an object creation.
         Object created = new ArrayList<@Nullable String>();

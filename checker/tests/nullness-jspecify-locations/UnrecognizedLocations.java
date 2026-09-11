@@ -5,6 +5,7 @@
 import org.jspecify.annotations.Nullable;
 
 import java.io.InputStream;
+import java.io.Serializable;
 import java.util.List;
 import java.util.function.Supplier;
 
@@ -26,6 +27,10 @@ public class UnrecognizedLocations {
 
         // :: error: (jspecify.unrecognized.location.cast)
         Object cast = (@Nullable String) o;
+
+        // An intersection-type cast's root, same key as any other cast root.
+        // :: error: (jspecify.unrecognized.location.cast)
+        Object intersection = (@Nullable Supplier<String> & Serializable) () -> "";
 
         // The Checker Framework reads this location, so it also reports the reference as
         // returning @Nullable where @NonNull is required.

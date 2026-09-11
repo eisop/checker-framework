@@ -15,6 +15,7 @@ import com.sun.source.tree.ExpressionStatementTree;
 import com.sun.source.tree.ExpressionTree;
 import com.sun.source.tree.IdentifierTree;
 import com.sun.source.tree.InstanceOfTree;
+import com.sun.source.tree.IntersectionTypeTree;
 import com.sun.source.tree.LambdaExpressionTree;
 import com.sun.source.tree.LambdaExpressionTree.BodyKind;
 import com.sun.source.tree.LiteralTree;
@@ -2430,11 +2431,22 @@ public final class TreeUtils {
                 case UNION_TYPE:
                     List<? extends Tree> alternatives =
                             ((UnionTypeTree) typeTree).getTypeAlternatives();
-                    List<AnnotationTree> result = new ArrayList<>(alternatives.size());
+                    List<AnnotationTree> unionResult = new ArrayList<>(alternatives.size());
                     for (Tree alternative : alternatives) {
-                        result.addAll(getExplicitAnnotationTrees(null, alternative));
+                        unionResult.addAll(getExplicitAnnotationTrees(null, alternative));
                     }
-                    return result;
+                    return unionResult;
+                case INTERSECTION_TYPE:
+                    // Only reachable from a cast, as in "(@Nullable Supplier<String> &
+                    // Serializable) ...": a type parameter's bound never reaches this method
+                    // (TYPE_PARAMETER returns above), and no declaration can have an
+                    // intersection type.
+                    List<? extends Tree> bounds = ((IntersectionTypeTree) typeTree).getBounds();
+                    List<AnnotationTree> intersectionResult = new ArrayList<>(bounds.size());
+                    for (Tree bound : bounds) {
+                        intersectionResult.addAll(getExplicitAnnotationTrees(null, bound));
+                    }
+                    return intersectionResult;
                 default:
                     throw new BugInCF(
                             "TreeUtils.getExplicitAnnotationTrees: what typeTree? %s %s %s",
