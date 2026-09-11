@@ -13,29 +13,12 @@ public class UnrecognizedLocations {
     // :: error: (jspecify.unrecognized.location.class)
     @Nullable class ClassDeclaration {}
 
-    @interface AnnotationMemberRootType {
-        // An annotation member cannot return null, so the specification makes any component of
-        // this return type unrecognized.
-        // :: error: (jspecify.unrecognized.location.annotation.member)
-        @Nullable String value();
-    }
-
-    @interface AnnotationMemberComponent {
-        // "Any component", so the array component is reported even though an array component type
-        // is recognized elsewhere.
-        // :: error: (jspecify.unrecognized.location.annotation.member)
-        @Nullable String[] value();
-    }
-
     // The wildcard itself, as opposed to its bound.  The parameter's own root type is recognized.
     // :: error: (jspecify.unrecognized.location.wildcard)
     void wildcard(List<@Nullable ?> parameter) {}
 
     // :: error: (jspecify.unrecognized.location.typevar)
     <@Nullable T> void typeParameter() {}
-
-    // :: error: (jspecify.unrecognized.location.throws)
-    void thrownType() throws @Nullable Exception {}
 
     void body(Object o) {
         // :: error: (jspecify.unrecognized.location.local)

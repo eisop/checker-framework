@@ -247,20 +247,26 @@ command-line option.)
   JSpecify defines the locations at which a nullness annotation carries meaning
   and gives an annotation written anywhere else none.  If you supply the
   \code{-AjspecifyUnrecognizedLocations} command-line option, the checker reports
-  an error for a nullness annotation written on a class declaration, on the return type
-  of an annotation interface member, on a wildcard, before a type parameter, on a
-  thrown type, on a pattern, on a type argument of a receiver parameter's type, or on
-  the root type of a local variable, of a resource variable, of a cast, or of a
-  method reference.  Each of these locations is reported under its own
+  an error for a nullness annotation written on a class declaration, on a wildcard,
+  before a type parameter, on a pattern, on a type argument of a receiver parameter's
+  type, or on the root type of a local variable, of a resource variable, of a cast, or
+  of a method reference.  Each of these locations is reported under its own
   \code{jspecify.unrecognized.location.*} message key (for example
   \code{jspecify.unrecognized.location.wildcard}), the same way other diagnostics in
   this manual distinguish one location from another.
-  Two related locations are reported whether or not you supply this option, because the
+  Four related locations are reported whether or not you supply this option, because the
   Checker Framework gives an annotation there no meaning either:  the root of the type
   after \code{instanceof}, or of a type that a pattern binds, is reported as
-  \code{instanceof.nullable} or \code{instanceof.nonnull.redundant}, and a component of
+  \code{instanceof.nullable} or \code{instanceof.nonnull.redundant}; a component of
   the type after an \code{instanceof} that binds no variable, as in
-  \code{o instanceof @Nullable String[]}, is reported as \code{instanceof.component}.
+  \code{o instanceof @Nullable String[]}, is reported as \code{instanceof.component};
+  a thrown type, as in \code{void m() throws @Nullable Exception}, is reported as
+  \code{nullness.on.throws}, since (unlike an exception parameter) it declares no
+  variable that a later reassignment could give a reason to annotate; and any component
+  of an annotation interface member's return type, as in \code{@Nullable String value();},
+  is reported as \code{nullness.on.annotation.member}, since an annotation element's
+  value must be a constant expression and \code{null} is never one, for any element
+  type, so no usage can ever supply one.
 \end{itemize}
 
 \end{enumerate}

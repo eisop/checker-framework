@@ -43,12 +43,24 @@ uninitialized at the call, instead of the framework's `method.invocation.invalid
 
 The Nullness Checker's new `-AjspecifyUnrecognizedLocations` command-line option (also enabled by
 `-Amode=jspecify`) reports an error for a nullness annotation written where JSpecify gives it no
-meaning: a class declaration, an annotation interface member's return type, a wildcard, a type
-parameter, a thrown type, a pattern, a type argument of a receiver parameter's type, or the root
-type of a local variable, a resource variable, a cast, or a method reference. Each location has its
-own `jspecify.unrecognized.location.*` diagnostic key. The option is off by default because five of
-these locations -- a class declaration, a wildcard, and the root type of a local variable, a cast,
-and a method reference -- are meaningful to the Checker Framework itself.
+meaning: a class declaration, a wildcard, a type parameter, a pattern, a type argument of a
+receiver parameter's type, or the root type of a local variable, a resource variable, a cast, or a
+method reference. Each location has its own `jspecify.unrecognized.location.*` diagnostic key. The
+option is off by default because five of these locations -- a class declaration, a wildcard, and
+the root type of a local variable, a cast, and a method reference -- are meaningful to the Checker
+Framework itself.
+
+Two new `nullness.on.*` errors are issued unconditionally, not just under
+`-AjspecifyUnrecognizedLocations`, because in both locations no legitimate use is possible, not
+merely one JSpecify does not recognize: `nullness.on.throws`, for a nullness annotation on a
+thrown type, as in `void m() throws @Nullable Exception` (JLS 14.18: `throw null` throws a
+`NullPointerException` instead, so a thrown object is never null); and
+`nullness.on.annotation.member`, for one on any component of an annotation interface member's
+return type, as in `@Nullable String value();` (JLS 9.7.1: an annotation element's value must be a
+constant expression, and `null` is never one, for any element type, so no usage can ever supply
+one). Unlike `nullness.on.exception.parameter`'s catch side, neither location declares a variable
+that a later reassignment could give a legitimate reason to annotate, so both are errors rather
+than warnings.
 
 `instanceof` now distinguishes a nullness annotation on the root of the tested type, or of a
 pattern variable's type (including inside a deconstruction pattern), from one on a component, such

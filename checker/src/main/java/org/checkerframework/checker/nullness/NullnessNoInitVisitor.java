@@ -420,13 +420,28 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
         if (!jspecifyUnrecognizedLocations) {
             return;
         }
+        if (anyComponentHasNullnessAnnotation(annoTrees, typeTree)) {
+            checker.reportError(reportTree, messageKey);
+        }
+    }
+
+    /**
+     * Returns true if a nullness annotation is written on any component of {@code typeTree}, or
+     * appears in {@code annoTrees}.
+     *
+     * @param annoTrees annotations the parser attached to a declaration, or null if none
+     * @param typeTree the type whose components to test
+     * @return true if a nullness annotation is written on any component of {@code typeTree}, or
+     *     appears in {@code annoTrees}
+     */
+    private boolean anyComponentHasNullnessAnnotation(
+            @Nullable List<? extends AnnotationTree> annoTrees, Tree typeTree) {
         // A nullness annotation written before the return type is attached to the method's
         // modifiers, whichever component of the type it applies to, so test those directly rather
         // than through containsNullnessAnnotation, which associates an annotation with the type's
         // root.
         if (annoTrees != null && atypeFactory.containsNullnessAnnotation(annoTrees)) {
-            checker.reportError(reportTree, messageKey);
-            return;
+            return true;
         }
         // Scan for a nullness annotation written inside the type, as in "String @Nullable []".
         Boolean found =
@@ -442,9 +457,7 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
                         return Boolean.TRUE.equals(r1) || Boolean.TRUE.equals(r2);
                     }
                 }.scan(typeTree, null);
-        if (Boolean.TRUE.equals(found)) {
-            checker.reportError(reportTree, messageKey);
-        }
+        return Boolean.TRUE.equals(found);
     }
 
     /**
@@ -985,19 +998,28 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
             }
         }
 
+        // A thrown object is never null (JLS 14.18: "throw null" throws a NullPointerException
+        // instead), so a thrown type's own root has no variable to widen the way an exception
+        // parameter's declared type does -- unlike nullness.on.exception.parameter, there is no
+        // legitimate reason to write a nullness annotation here, so this is an error, not a
+        // warning, and unconditional rather than gated by -AjspecifyUnrecognizedLocations.
         for (Tree thrown : tree.getThrows()) {
-            checkJSpecifyLocation(thrown, null, thrown, "jspecify.unrecognized.location.throws");
+            if (atypeFactory.containsNullnessAnnotation(null, thrown)) {
+                checker.reportError(thrown, "nullness.on.throws");
+            }
         }
 
         ClassTree enclosingClass = TreePathUtil.enclosingClass(getCurrentPath());
         if (enclosingClass != null && enclosingClass.getKind() == Tree.Kind.ANNOTATION_TYPE) {
-            // The JSpecify specification makes *any component* of this return type unrecognized,
-            // not only its root, so scan the whole type rather than testing the root.
-            checkJSpecifyLocationAnyComponent(
-                    tree,
-                    tree.getModifiers().getAnnotations(),
-                    tree.getReturnType(),
-                    "jspecify.unrecognized.location.annotation.member");
+            // An annotation element's value must be a constant expression (JLS 9.7.1); null is
+            // never a constant expression, for any element type, so no usage can ever supply one,
+            // for any component of the type -- an array element included. Unconditional and an
+            // error, for the same reason as nullness.on.throws: there is no variable here that a
+            // later reassignment could give a legitimate reason to annotate.
+            if (anyComponentHasNullnessAnnotation(
+                    tree.getModifiers().getAnnotations(), tree.getReturnType())) {
+                checker.reportError(tree, "nullness.on.annotation.member");
+            }
         }
 
         super.processMethodTree(className, tree);
