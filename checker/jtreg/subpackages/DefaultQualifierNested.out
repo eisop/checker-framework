@@ -1,0 +1,7 @@
+InDq.java:8:9: compiler.err.proc.messager: [dereference.of.nullable] dereference of possibly-null reference f
+InDqSub.java:10:12: compiler.err.proc.messager: [initialization.field.uninitialized] the default constructor does not initialize field f
+Deep.java:13:9: compiler.err.proc.messager: [dereference.of.nullable] dereference of possibly-null reference f
+DeepProp.java:14:13: compiler.err.proc.messager: [assignment.type.incompatible] incompatible types in assignment.
+found   : @Nullable NullType
+required: @NonNull Object
+4 errors
