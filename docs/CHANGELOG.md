@@ -44,10 +44,10 @@ uninitialized at the call, instead of the framework's `method.invocation.invalid
 A check that reads an annotation from the source tree now resolves aliases first, so a written
 alias such as `org.jspecify.annotations.Nullable` or `@IndexFor` is treated as the qualifier it
 stands for. The `annotation.on.supertype`, `instanceof.nullable`, `instanceof.nonnull.redundant`,
-`invalid.polymorphic.qualifier`, `explicit.annotation.ignored`, and `anno.on.irrelevant`
-diagnostics were previously issued only for a checker's own annotation. So is the type of a
-constructor reference (`Foo::new`): an explicit annotation on the constructor's own declared type,
-written as an alias, is now recognized the same way its canonical form would be.
+`invalid.polymorphic.qualifier`, `explicit.annotation.ignored`, `anno.on.irrelevant`, and
+`redundant.anno` diagnostics were previously issued only for a checker's own annotation. So is the
+type of a constructor reference (`Foo::new`): an explicit annotation on the constructor's own
+declared type, written as an alias, is now recognized the same way its canonical form would be.
 `AnnotatedTypeMirror#getExplicitAnnotations` also now recognizes an alias as one of the checker's
 own qualifiers, while still returning it in the form it was written.
 

@@ -1958,7 +1958,12 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         AnnotatedTypeMirror defaultType = atypeFactory.getDefaultAnnotations(tree, type);
         for (AnnotationMirror explicitAnno : explicitAnnos) {
             AnnotationMirror defaultAM = defaultType.getAnnotationInHierarchy(explicitAnno);
-            if (AnnotationUtils.areSame(defaultAM, explicitAnno)) {
+            // explicitAnno is as written (getExplicitAnnotations()'s contract), so it may be an
+            // alias, while defaultAM is always canonical; canonicalize before comparing, or a
+            // redundant alias is never reported.
+            AnnotationMirror canonicalExplicitAnno =
+                    atypeFactory.canonicalAnnotationOrWritten(explicitAnno);
+            if (AnnotationUtils.areSame(defaultAM, canonicalExplicitAnno)) {
                 checker.reportWarning(tree, "redundant.anno", defaultAM);
             }
         }
