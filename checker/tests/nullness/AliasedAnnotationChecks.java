@@ -25,4 +25,22 @@ public class AliasedAnnotationChecks extends @Nullable AliasedAnnotationChecksBa
     <E extends Object & @Nullable MyList> void intersectionBound(E e) {
         e.toString();
     }
+
+    void instanceOfComponent(Object o) {
+        // :: error: (instanceof.component)
+        boolean b = o instanceof @Nullable String[];
+    }
+
+    void throwsClause()
+            throws
+                    // :: error: (nullness.on.throws)
+                    @Nullable Exception {}
+
+    @interface AnnoMember {
+        // :: error: (nullness.on.annotation.member)
+        @Nullable String value();
+
+        // :: error: (nullness.on.annotation.member)
+        @Nullable String[] arrayValue();
+    }
 }

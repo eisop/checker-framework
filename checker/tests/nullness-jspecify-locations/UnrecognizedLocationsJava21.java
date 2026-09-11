@@ -8,13 +8,7 @@
 // examines and is reported by the always-on instanceof.nullable, while a nested component of it
 // refines the bound variable and is reported only under -AjspecifyUnrecognizedLocations, which
 // gives no meaning to any component of a pattern.
-//
-// Uses the canonical annotation, not the org.jspecify.annotations alias used in
-// UnrecognizedLocations.java: instanceof.nullable, the diagnostic for the root of a pattern's
-// type, does not resolve aliases, while jspecify.unrecognized.location.pattern resolves either
-// form equally well.
-
-import org.checkerframework.checker.nullness.qual.Nullable;
+import org.jspecify.annotations.Nullable;
 
 public class UnrecognizedLocationsJava21 {
 

@@ -26,4 +26,19 @@ public class CustomAliasedAnnotations {
     @Pure
     // :: warning: (purity.deterministic.void.method)
     void setMutable2() {}
+
+    void instanceOfComponent(Object o) {
+        // :: error: (instanceof.component)
+        boolean b = o instanceof @Nullable String[];
+    }
+
+    void throwsClause()
+            throws
+                    // :: error: (nullness.on.throws)
+                    @Nullable Exception {}
+
+    @interface AnnoMember {
+        // :: error: (nullness.on.annotation.member)
+        @Nullable String value();
+    }
 }

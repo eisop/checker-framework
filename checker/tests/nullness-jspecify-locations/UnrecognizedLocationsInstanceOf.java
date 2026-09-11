@@ -3,13 +3,7 @@
 // reported by instanceof.component whether or not -AjspecifyUnrecognizedLocations was supplied
 // (see checker/tests/nullness/java17/NullnessInstanceOf.java for the same cases without the
 // option).
-//
-// Uses the canonical annotation, not the org.jspecify.annotations alias used in
-// UnrecognizedLocations.java: the instanceof diagnostics do not resolve aliases (see the existing
-// checker/tests/nullness/java17/NullnessInstanceOf.java, which uses the same canonical annotation
-// for the same reason).
-
-import org.checkerframework.checker.nullness.qual.Nullable;
+import org.jspecify.annotations.Nullable;
 
 public class UnrecognizedLocationsInstanceOf {
 
