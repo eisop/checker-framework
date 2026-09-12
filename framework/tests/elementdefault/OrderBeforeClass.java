@@ -11,6 +11,7 @@ import org.checkerframework.framework.testchecker.elementdefault.ElementDefaultB
  * (PARAMETER is Bottom). See eisop#2047.
  */
 @DefaultQualifier(value = ElementDefaultBottom.class, locations = TypeUseLocation.RETURN)
+@DefaultQualifier(value = ElementDefaultBottom.class, locations = TypeUseLocation.LOCAL_VARIABLE)
 public class OrderBeforeClass {
     // Inherited from addElementDefault on package elementdefault.pkg: FIELD is Bottom
     Object f;
@@ -19,6 +20,12 @@ public class OrderBeforeClass {
     Object getBottom() {
         // :: error: (return.type.incompatible)
         return new Object();
+    }
+
+    // Specified by a repeated @DefaultQualifier annotation: LOCAL_VARIABLE is Bottom
+    void testLocal() {
+        // :: error: (assignment.type.incompatible)
+        Object local = new Object();
     }
 
     // Specified by addElementDefault on this class: PARAMETER is Bottom

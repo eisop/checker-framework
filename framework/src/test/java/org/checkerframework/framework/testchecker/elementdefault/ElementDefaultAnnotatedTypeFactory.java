@@ -44,6 +44,16 @@ public class ElementDefaultAnnotatedTypeFactory extends BaseAnnotatedTypeFactory
         AnnotationMirror top = AnnotationBuilder.fromClass(elements, ElementDefaultTop.class);
         defs.addCheckedCodeDefault(top, TypeUseLocation.OTHERWISE);
 
+        PackageElement subPkg = elements.getPackageElement("elementdefault.pkg.sub");
+        if (subPkg != null) {
+            // Query defaults on the subpackage first (populating the packagePropagatingDefaults
+            // cache before adding the default to the parent package).
+            org.checkerframework.framework.type.AnnotatedTypeMirror dummy =
+                    org.checkerframework.framework.type.AnnotatedTypeMirror.createType(
+                            types.getNullType(), this, false);
+            defs.annotate(subPkg, dummy);
+        }
+
         PackageElement pkg = elements.getPackageElement("elementdefault.pkg");
         if (pkg != null) {
             AnnotationMirror bottom =
@@ -61,8 +71,13 @@ public class ElementDefaultAnnotatedTypeFactory extends BaseAnnotatedTypeFactory
                         AnnotationBuilder.fromClass(elements, ElementDefaultBottom.class);
                 defaults.addElementDefault(elem, bottom, TypeUseLocation.PARAMETER);
             } else if (elem.getSimpleName().contentEquals("OrderAfterClass")) {
-                // Query defaults first (populates elementDefaults memoization cache)
+                // Query defaults on the class and its child members first (populating the
+                // elementDefaults memoization cache in QualifierDefaults for both the class
+                // and its children prior to calling addElementDefault on the class).
                 defaults.annotate(elem, getAnnotatedType(classTree));
+                for (javax.lang.model.element.Element member : elem.getEnclosedElements()) {
+                    defaults.annotate(member, fromElement(member));
+                }
                 // Then call addElementDefault on the element
                 AnnotationMirror bottom =
                         AnnotationBuilder.fromClass(elements, ElementDefaultBottom.class);

@@ -444,10 +444,16 @@ public class QualifierDefaults {
             progSet = new DefaultSet();
             programmaticElementDefaults.put(elem, progSet);
         }
+        // TODO: expose applyToSubpackages
         Default d = new Default(elementDefaultAnno, location, true);
         progSet.add(d);
+        // Clear cached element defaults so subsequent queries recompute and merge with written
+        // annotations and enclosing/parent defaults.
         elementDefaults.clear();
-        packagePropagatingDefaults.clear();
+        if (elem instanceof PackageElement) {
+            // Invalidate cached propagating defaults so subpackage lookups see the new default.
+            packagePropagatingDefaults.clear();
+        }
         invalidateFusedDefaults();
     }
 
