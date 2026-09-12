@@ -29,6 +29,10 @@ import javax.lang.model.element.TypeElement;
  * interleaved with queries that populate {@code QualifierDefaults}' memoization caches, so that the
  * tests in {@code framework/tests/elementdefault} check that a programmatic default does not depend
  * on which defaults happened to be queried before it was added. See eisop#2037 and eisop#2047.
+ *
+ * <p>Every test that uses this checker must therefore compile all of {@code
+ * framework/tests/elementdefault}: the elements this factory annotates are resolved by name, and a
+ * name that does not resolve is an error rather than a silently skipped scenario.
  */
 public class ElementDefaultAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
 
@@ -59,23 +63,24 @@ public class ElementDefaultAnnotatedTypeFactory extends BaseAnnotatedTypeFactory
 
         AnnotationMirror bottom = AnnotationBuilder.fromClass(elements, ElementDefaultBottom.class);
 
-        PackageElement subPkg = elements.getPackageElement("elementdefault.pkg.sub");
-        if (subPkg != null) {
-            // Query defaults on the subpackage first, so that the propagating-defaults cache for
-            // it is already populated when the default is added to its parent package below.
-            defs.annotate(subPkg, dummyType());
-        }
+        // Query defaults on the subpackage first, so that the propagating-defaults cache for it is
+        // already populated when the default is added to its parent package below.
+        defs.annotate(requirePackage("elementdefault.pkg.sub"), dummyType());
 
-        PackageElement pkg = elements.getPackageElement("elementdefault.pkg");
-        if (pkg != null) {
-            defs.addElementDefault(pkg, bottom, TypeUseLocation.FIELD);
-        }
+        defs.addElementDefault(requirePackage("elementdefault.pkg"), bottom, TypeUseLocation.FIELD);
 
         // OrderBeforeClass: nothing queries the class's defaults before the programmatic default
         // is added.
-        TypeElement before = elements.getTypeElement("elementdefault.pkg.OrderBeforeClass");
-        if (before != null) {
-            defs.addElementDefault(before, bottom, TypeUseLocation.PARAMETER);
+        TypeElement before = requireType("elementdefault.pkg.OrderBeforeClass");
+        defs.addElementDefault(before, bottom, TypeUseLocation.PARAMETER);
+
+        if (checker.hasOption(CONFLICT_OPTION)) {
+            // OrderBeforeClass writes @DefaultQualifier(Bottom, RETURN). Registering Top for
+            // RETURN on the same class is a conflict: the two qualifiers are in one hierarchy and
+            // only one of them can be the default for a location. QualifierDefaults must report
+            // that rather than silently picking one; ElementDefaultConflictTest checks that it
+            // does.
+            defs.addElementDefault(before, top, TypeUseLocation.RETURN);
         }
 
         // OrderAfterClass: the defaults of the class *and* of one of its members are queried, and
@@ -85,29 +90,52 @@ public class ElementDefaultAnnotatedTypeFactory extends BaseAnnotatedTypeFactory
         // only the enclosing class's entry would leave the member's entry stale.
         // OrderAfterClass must nevertheless produce exactly the same diagnostics as
         // OrderBeforeClass.
-        if (checker.hasOption(CONFLICT_OPTION)) {
-            // ClassWithWrittenDq writes @DefaultQualifier(Bottom, RETURN). Registering Top for
-            // RETURN on the same class is a conflict: the two qualifiers are in one hierarchy and
-            // only one of them can be the default for a location. QualifierDefaults must report
-            // that rather than silently picking one; ElementDefaultConflictTest checks that it
-            // does.
-            TypeElement withWrittenDq =
-                    elements.getTypeElement("elementdefault.pkg.ClassWithWrittenDq");
-            if (withWrittenDq != null) {
-                defs.addElementDefault(withWrittenDq, top, TypeUseLocation.RETURN);
+        TypeElement after = requireType("elementdefault.pkg.OrderAfterClass");
+        defs.annotate(after, dummyType());
+        for (Element member : after.getEnclosedElements()) {
+            if (member.getKind() == ElementKind.CLASS) {
+                defs.annotate(member, dummyType());
             }
         }
+        defs.addElementDefault(after, bottom, TypeUseLocation.PARAMETER);
+    }
 
-        TypeElement after = elements.getTypeElement("elementdefault.pkg.OrderAfterClass");
-        if (after != null) {
-            defs.annotate(after, dummyType());
-            for (Element member : after.getEnclosedElements()) {
-                if (member.getKind() == ElementKind.CLASS) {
-                    defs.annotate(member, dummyType());
-                }
-            }
-            defs.addElementDefault(after, bottom, TypeUseLocation.PARAMETER);
+    /**
+     * Returns the package with the given canonical name, which the compilation under test must
+     * contain.
+     *
+     * @param name the canonical name of a package of {@code framework/tests/elementdefault}
+     * @return the package element for {@code name}
+     */
+    private PackageElement requirePackage(String name) {
+        PackageElement result = elements.getPackageElement(name);
+        if (result == null) {
+            throw new AssertionError(
+                    "ElementDefaultChecker: package "
+                            + name
+                            + " is not in the compilation, so the scenario it tests would be"
+                            + " silently skipped. Compile all of framework/tests/elementdefault.");
         }
+        return result;
+    }
+
+    /**
+     * Returns the type with the given canonical name, which the compilation under test must
+     * contain.
+     *
+     * @param name the canonical name of a class of {@code framework/tests/elementdefault}
+     * @return the type element for {@code name}
+     */
+    private TypeElement requireType(String name) {
+        TypeElement result = elements.getTypeElement(name);
+        if (result == null) {
+            throw new AssertionError(
+                    "ElementDefaultChecker: class "
+                            + name
+                            + " is not in the compilation, so the scenario it tests would be"
+                            + " silently skipped. Compile all of framework/tests/elementdefault.");
+        }
+        return result;
     }
 
     /**
@@ -127,7 +155,7 @@ public class ElementDefaultAnnotatedTypeFactory extends BaseAnnotatedTypeFactory
             TypeElement elem = TreeUtils.elementFromDeclaration(classTree);
             // Adding an element default here, rather than during initialization, is a type-system
             // error. ElementDefaultLateTest checks that it is reported as one.
-            if (elem != null && elem.getSimpleName().contentEquals("InPkg")) {
+            if (elem.getSimpleName().contentEquals("InPkg")) {
                 AnnotationMirror bottom =
                         AnnotationBuilder.fromClass(elements, ElementDefaultBottom.class);
                 defaults.addElementDefault(elem, bottom, TypeUseLocation.PARAMETER);

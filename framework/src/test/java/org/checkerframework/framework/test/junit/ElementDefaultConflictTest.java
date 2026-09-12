@@ -6,12 +6,12 @@ import static org.junit.Assert.assertTrue;
 import org.checkerframework.framework.test.CompilationResult;
 import org.checkerframework.framework.test.TestConfiguration;
 import org.checkerframework.framework.test.TestConfigurationBuilder;
+import org.checkerframework.framework.test.TestUtilities;
 import org.checkerframework.framework.test.TypecheckExecutor;
 import org.checkerframework.framework.testchecker.elementdefault.ElementDefaultAnnotatedTypeFactory;
 import org.checkerframework.framework.testchecker.elementdefault.ElementDefaultChecker;
 import org.junit.Test;
 
-import java.io.File;
 import java.util.Arrays;
 import java.util.Collections;
 
@@ -28,15 +28,14 @@ public class ElementDefaultConflictTest {
 
     /**
      * Runs the checker with the option that makes it register an element default conflicting with
-     * the {@code @DefaultQualifier} written on {@code ClassWithWrittenDq}.
+     * the {@code @DefaultQualifier} written on {@code OrderBeforeClass}.
      */
     @Test
     public void conflictWithWrittenDefaultQualifierIsATypeSystemError() {
-        File testFile = new File("tests/elementdefault/ClassWithWrittenDq.java");
         TestConfiguration config =
                 TestConfigurationBuilder.buildDefaultConfiguration(
                         "tests/elementdefault",
-                        Collections.singletonList(testFile),
+                        TestUtilities.findNestedJavaTestFiles("elementdefault"),
                         Collections.singletonList(ElementDefaultChecker.class.getName()),
                         Arrays.asList(
                                 "-A" + ElementDefaultAnnotatedTypeFactory.CONFLICT_OPTION,
@@ -56,6 +55,6 @@ public class ElementDefaultConflictTest {
                 outputString.contains("Conflicting defaults on CLASS"));
         assertTrue(
                 "Expected the conflicting declaration to be named, but got: " + outputString,
-                outputString.contains("elementdefault.pkg.ClassWithWrittenDq"));
+                outputString.contains("elementdefault.pkg.OrderBeforeClass"));
     }
 }

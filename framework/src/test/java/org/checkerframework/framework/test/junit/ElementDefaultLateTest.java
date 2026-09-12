@@ -6,12 +6,12 @@ import static org.junit.Assert.assertTrue;
 import org.checkerframework.framework.test.CompilationResult;
 import org.checkerframework.framework.test.TestConfiguration;
 import org.checkerframework.framework.test.TestConfigurationBuilder;
+import org.checkerframework.framework.test.TestUtilities;
 import org.checkerframework.framework.test.TypecheckExecutor;
 import org.checkerframework.framework.testchecker.elementdefault.ElementDefaultAnnotatedTypeFactory;
 import org.checkerframework.framework.testchecker.elementdefault.ElementDefaultChecker;
 import org.junit.Test;
 
-import java.io.File;
 import java.util.Arrays;
 import java.util.Collections;
 
@@ -29,11 +29,10 @@ public class ElementDefaultLateTest {
     /** Runs the checker with the option that makes it add an element default too late. */
     @Test
     public void addElementDefaultAfterCheckingBeginsIsATypeSystemError() {
-        File testFile = new File("tests/elementdefault/InPkg.java");
         TestConfiguration config =
                 TestConfigurationBuilder.buildDefaultConfiguration(
                         "tests/elementdefault",
-                        Collections.singletonList(testFile),
+                        TestUtilities.findNestedJavaTestFiles("elementdefault"),
                         Collections.singletonList(ElementDefaultChecker.class.getName()),
                         Arrays.asList(
                                 "-A" + ElementDefaultAnnotatedTypeFactory.LATE_OPTION,
