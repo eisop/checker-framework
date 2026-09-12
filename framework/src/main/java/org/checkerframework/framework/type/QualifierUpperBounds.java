@@ -106,8 +106,12 @@ public class QualifierUpperBounds {
     /**
      * Returns the set of qualifiers that are the upper bounds for a use of the type.
      *
+     * <p>The result is unmodifiable, and callers must not assume it is freshly allocated: an
+     * override of {@link AnnotatedTypeFactory#getTypeDeclarationBounds} may return a shared
+     * constant instead, as {@code InterningAnnotatedTypeFactory} does for enums.
+     *
      * @param type the TypeMirror
-     * @return the set of qualifiers that are the upper bounds for a use of the type
+     * @return the set of qualifiers that are the upper bounds for a use of the type; unmodifiable
      */
     public AnnotationMirrorSet getBoundQualifiers(TypeMirror type) {
         AnnotationMirrorSet bounds = new AnnotationMirrorSet();
@@ -146,7 +150,7 @@ public class QualifierUpperBounds {
         }
 
         addMissingAnnotations(bounds, atypeFactory.getDefaultTypeDeclarationBounds());
-        return bounds;
+        return bounds.makeUnmodifiable();
     }
 
     /**
