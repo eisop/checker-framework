@@ -203,24 +203,13 @@ public class QualifierDefaults {
                             TypeUseLocation.ALL));
 
     /** Standard unchecked default locations that should be top. */
-    // Fields are defaulted to top so that warnings are issued at field reads, which we believe are
-    // more common than field writes. Future work is to specify different defaults for field reads
-    // and field writes.  (When a field is written to, its type should be bottom.)
-    // This is the root cause of https://github.com/eisop/checker-framework/issues/1358 : because
-    // TypeUseLocation.FIELD does not distinguish reads from writes, a field write under
-    // conservative defaults is unsoundly checked against the same (read-oriented) top default as a
-    // field read, instead of requiring the bottom qualifier.
-    // GenericAnnotatedTypeFactory#isComputingAnnotatedTypeMirrorOfLhs() is reachable while
-    // defaulting a field write (getAnnotatedTypeLhs disables caching, so defaults are reapplied),
-    // but a sound fix needs a separate write-variant of the unchecked FIELD default rather than
-    // flipping any top FIELD default to bottom: an explicit @DefaultQualifier(locations=FIELD) must
-    // still apply to writes. See the issue for discussion.
     public static final List<TypeUseLocation> STANDARD_UNCHECKED_DEFAULTS_TOP =
             Collections.unmodifiableList(
-                    Arrays.asList(
-                            TypeUseLocation.RETURN,
-                            TypeUseLocation.FIELD,
-                            TypeUseLocation.UPPER_BOUND));
+                    Arrays.asList(TypeUseLocation.RETURN, TypeUseLocation.UPPER_BOUND));
+
+    /** Standard unchecked default locations that should be dynamic. */
+    public static final List<TypeUseLocation> STANDARD_UNCHECKED_DYNAMIC_DEFAULT =
+            Collections.singletonList(TypeUseLocation.FIELD);
 
     /** Standard unchecked default locations that should be bottom. */
     public static final List<TypeUseLocation> STANDARD_UNCHECKED_DEFAULTS_BOTTOM =
@@ -305,6 +294,7 @@ public class QualifierDefaults {
     public void addUncheckedStandardDefaults() {
         QualifierHierarchy qualHierarchy = this.atypeFactory.getQualifierHierarchy();
         AnnotationMirrorSet tops = qualHierarchy.getTopAnnotations();
+        AnnotationMirrorSet dynamicAnno = qualHierarchy.getDynamicAnnotations();
         AnnotationMirrorSet bottoms = qualHierarchy.getBottomAnnotations();
 
         for (TypeUseLocation loc : STANDARD_UNCHECKED_DEFAULTS_TOP) {
@@ -312,6 +302,16 @@ public class QualifierDefaults {
             for (AnnotationMirror top : tops) {
                 if (!conflictsWithExistingDefaults(uncheckedCodeDefaults, top, loc)) {
                     addUncheckedCodeDefault(top, loc);
+                }
+            }
+        }
+
+        for (AnnotationMirror dym : dynamicAnno) {
+            if (dym != null) {
+                for (TypeUseLocation loc : STANDARD_UNCHECKED_DYNAMIC_DEFAULT) {
+                    if (!conflictsWithExistingDefaults(uncheckedCodeDefaults, dym, loc)) {
+                        addUncheckedCodeDefault(dym, loc, false);
+                    }
                 }
             }
         }

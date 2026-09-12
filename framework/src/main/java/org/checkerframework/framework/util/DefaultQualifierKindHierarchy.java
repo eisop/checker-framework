@@ -11,6 +11,7 @@ import org.checkerframework.checker.signature.qual.CanonicalName;
 import org.checkerframework.dataflow.qual.Pure;
 import org.checkerframework.framework.qual.AnnotatedFor;
 import org.checkerframework.framework.qual.PolymorphicQualifier;
+import org.checkerframework.framework.qual.ReadWriteDynamicQualifier;
 import org.checkerframework.framework.qual.SubtypeOf;
 import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.TypeSystemError;
@@ -182,6 +183,7 @@ public class DefaultQualifierKindHierarchy implements QualifierKindHierarchy {
         this.tops = createTopsSet(directSuperMap);
         this.bottoms = createBottomsSet(directSuperMap);
         initializePolymorphicQualifiers();
+        initializeDynamicReadWriteQualifiers(directSuperMap);
         initializeQualifierKindFields(directSuperMap);
         this.lubs = createLubsMap();
         this.glbs = createGlbsMap();
@@ -202,6 +204,7 @@ public class DefaultQualifierKindHierarchy implements QualifierKindHierarchy {
             Map<DefaultQualifierKind, Set<DefaultQualifierKind>> directSuperMap) {
         for (DefaultQualifierKind qualifierKind : qualifierKinds) {
             boolean isPoly = qualifierKind.isPoly();
+            boolean isDynamic = qualifierKind.isDynamicAnnotation();
             boolean hasSubtypeOfAnno = directSuperMap.containsKey(qualifierKind);
             if (isPoly && hasSubtypeOfAnno) {
                 // Polymorphic qualifiers with upper and lower bounds are currently not supported.
@@ -210,7 +213,7 @@ public class DefaultQualifierKindHierarchy implements QualifierKindHierarchy {
                                 + qualifierKind
                                 + " is polymorphic and specifies super qualifiers.%nRemove the"
                                 + " @PolymorphicQualifier or @SubtypeOf annotation from it.");
-            } else if (!isPoly && !hasSubtypeOfAnno) {
+            } else if (!isPoly && !isDynamic && !hasSubtypeOfAnno) {
                 throw new TypeSystemError(
                         "AnnotatedTypeFactory: %s does not specify its super qualifiers.%nAdd an"
                                 + " @SubtypeOf or @PolymorphicQualifier annotation to it,%nor if it is"
@@ -285,7 +288,7 @@ public class DefaultQualifierKindHierarchy implements QualifierKindHierarchy {
             SubtypeOf subtypeOfMetaAnno =
                     qualifierKind.getAnnotationClass().getAnnotation(SubtypeOf.class);
             if (subtypeOfMetaAnno == null) {
-                // qualifierKind has no @SubtypeOf: it must be top or polymorphic
+                // qualifierKind has no @SubtypeOf: it must be top or polymorphic or read/write
                 continue;
             }
             Set<DefaultQualifierKind> directSupers = new TreeSet<>();
@@ -428,6 +431,101 @@ public class DefaultQualifierKindHierarchy implements QualifierKindHierarchy {
     }
 
     /**
+     * Sets {@link DefaultQualifierKind#dynamic}, {@link DefaultQualifierKind#top}, and {@link
+     * DefaultQualifierKind#strictSuperTypes} for every read-write dynamic qualifier kind, and sets
+     * {@link DefaultQualifierKind#dynamic} for the top of each such qualifier's hierarchy.
+     *
+     * <p>A read-write dynamic qualifier has no {@code @SubtypeOf} meta-annotation. Its hierarchy is
+     * determined by the qualifier named by {@link ReadWriteDynamicQualifier#value()}: the dynamic
+     * qualifier is placed directly under that qualifier's top.
+     *
+     * <p>Requires that tops has been initialized.
+     *
+     * @param directSuperMap a mapping from a {@link QualifierKind} to a set of its direct super
+     *     qualifier kinds; created by {@link #createDirectSuperMap()}
+     */
+    @RequiresNonNull({"this.nameToQualifierKind", "this.qualifierKinds", "this.tops"})
+    protected void initializeDynamicReadWriteQualifiers(
+            @UnderInitialization DefaultQualifierKindHierarchy this,
+            Map<DefaultQualifierKind, Set<DefaultQualifierKind>> directSuperMap) {
+        for (DefaultQualifierKind qualifierKind : qualifierKinds) {
+            Class<? extends Annotation> clazz = qualifierKind.getAnnotationClass();
+            ReadWriteDynamicQualifier rwMetaAnno =
+                    clazz.getAnnotation(ReadWriteDynamicQualifier.class);
+            if (rwMetaAnno == null) {
+                continue;
+            }
+            if (directSuperMap.containsKey(qualifierKind)) {
+                throw new TypeSystemError(
+                        "AnnotatedTypeFactory: %s is read-write dynamic and specifies super"
+                                + " qualifiers.%nRemove the @ReadWriteDynamicQualifier or @SubtypeOf"
+                                + " annotation from it.",
+                        qualifierKind);
+            }
+
+            qualifierKind.dynamic = qualifierKind;
+            qualifierKind.top = findDynamicTop(qualifierKind, rwMetaAnno, directSuperMap);
+            qualifierKind.strictSuperTypes = Collections.singleton(qualifierKind.top);
+            qualifierKind.top.dynamic = qualifierKind;
+        }
+    }
+
+    /**
+     * Returns the top of the hierarchy that {@code dynamicKind} belongs to, which is the top of the
+     * hierarchy containing the qualifier named by {@link ReadWriteDynamicQualifier#value()}.
+     *
+     * @param dynamicKind a read-write dynamic qualifier kind
+     * @param rwMetaAnno the {@link ReadWriteDynamicQualifier} meta-annotation on {@code
+     *     dynamicKind}
+     * @param directSuperMap a mapping from a {@link QualifierKind} to a set of its direct super
+     *     qualifier kinds; created by {@link #createDirectSuperMap()}
+     * @return the top qualifier kind of {@code dynamicKind}'s hierarchy
+     */
+    @RequiresNonNull({"this.nameToQualifierKind", "this.tops"})
+    private DefaultQualifierKind findDynamicTop(
+            @UnderInitialization DefaultQualifierKindHierarchy this,
+            DefaultQualifierKind dynamicKind,
+            ReadWriteDynamicQualifier rwMetaAnno,
+            Map<DefaultQualifierKind, Set<DefaultQualifierKind>> directSuperMap) {
+        String targetName = QualifierKindHierarchy.annotationClassName(rwMetaAnno.value());
+        DefaultQualifierKind target = nameToQualifierKind.get(targetName);
+        if (target == null) {
+            throw new TypeSystemError(
+                    "AnnotatedTypeFactory: %s is @ReadWriteDynamicQualifier(%s.class), but %s is not"
+                            + " a supported qualifier of this type system.",
+                    dynamicKind, rwMetaAnno.value().getSimpleName(), targetName);
+        }
+        if (tops.contains(target)) {
+            return target;
+        }
+        // findAllTheSupers requires its argument to be a key in directSuperMap.  Every qualifier
+        // that is not top and not polymorphic has a @SubtypeOf and so is a key.
+        if (!directSuperMap.containsKey(target)) {
+            throw new TypeSystemError(
+                    "AnnotatedTypeFactory: %s is @ReadWriteDynamicQualifier(%s.class), but %s"
+                            + " specifies no super qualifiers and is not a top qualifier.",
+                    dynamicKind, rwMetaAnno.value().getSimpleName(), target);
+        }
+        Set<QualifierKind> targetSupers = findAllTheSupers(target, directSuperMap);
+        DefaultQualifierKind result = null;
+        for (DefaultQualifierKind top : tops) {
+            if (targetSupers.contains(top)) {
+                if (result != null) {
+                    throw new TypeSystemError(
+                            "Multiple tops found for qualifier %s. Tops: %s and %s.",
+                            target, top, result);
+                }
+                result = top;
+            }
+        }
+        if (result == null) {
+            throw new TypeSystemError(
+                    "Qualifier %s isn't a subtype of any top. tops = %s", target, tops);
+        }
+        return result;
+    }
+
+    /**
      * For each qualifier kind in {@code directSuperMap}, initializes {@link
      * DefaultQualifierKind#strictSuperTypes}, {@link DefaultQualifierKind#top}, {@link
      * DefaultQualifierKind#bottom}, and {@link DefaultQualifierKind#poly}.
@@ -442,7 +540,7 @@ public class DefaultQualifierKindHierarchy implements QualifierKindHierarchy {
             @UnderInitialization DefaultQualifierKindHierarchy this,
             Map<DefaultQualifierKind, Set<DefaultQualifierKind>> directSuperMap) {
         for (DefaultQualifierKind qualifierKind : directSuperMap.keySet()) {
-            if (!qualifierKind.isPoly()) {
+            if (!(qualifierKind.isPoly() || qualifierKind.isDynamicAnnotation())) {
                 qualifierKind.strictSuperTypes = findAllTheSupers(qualifierKind, directSuperMap);
             }
         }
@@ -458,11 +556,15 @@ public class DefaultQualifierKindHierarchy implements QualifierKindHierarchy {
                     }
                 }
             }
-            if (qualifierKind.top == null) {
+            // Hoist into a local: assigning to qualifierKind.poly below invalidates dataflow's
+            // refinement of the qualifierKind.top field, but not that of a local.
+            DefaultQualifierKind qualifierKindTop = qualifierKind.top;
+            if (qualifierKindTop == null) {
                 throw new TypeSystemError(
                         "Qualifier %s isn't a subtype of any top. tops = %s", qualifierKind, tops);
             }
-            qualifierKind.poly = qualifierKind.top.poly;
+            qualifierKind.poly = qualifierKindTop.poly;
+            qualifierKind.dynamic = qualifierKindTop.dynamic;
         }
         for (DefaultQualifierKind qualifierKind : qualifierKinds) {
             for (DefaultQualifierKind bot : bottoms) {
@@ -476,7 +578,7 @@ public class DefaultQualifierKindHierarchy implements QualifierKindHierarchy {
                             "Multiple bottoms found for qualifier %s. Bottoms: %s and %s.",
                             qualifierKind, bot, qualifierKind.bottom);
                 }
-                if (qualifierKind.isPoly()) {
+                if (qualifierKind.isPoly() || qualifierKind.isDynamicAnnotation()) {
                     assert bot.strictSuperTypes != null
                             : "@AssumeAssertion(nullness): strictSuperTypes should be nonnull.";
                     bot.strictSuperTypes.add(qualifierKind);
@@ -738,6 +840,9 @@ public class DefaultQualifierKindHierarchy implements QualifierKindHierarchy {
         // Set while creating the QualifierKindHierarchy.
         protected @Nullable DefaultQualifierKind poly;
 
+        /** The dynamic read-write qualifier of the hierarchy to which this belongs. */
+        protected @Nullable DefaultQualifierKind dynamic;
+
         /**
          * All the qualifier kinds that are a strict super qualifier kind of this. Does not include
          * this qualifier kind itself.
@@ -755,6 +860,7 @@ public class DefaultQualifierKindHierarchy implements QualifierKindHierarchy {
             this.hasElements = clazz.getDeclaredMethods().length != 0;
             this.name = QualifierKindHierarchy.annotationClassName(clazz).intern();
             this.poly = null;
+            this.dynamic = null;
         }
 
         @Override
@@ -810,6 +916,12 @@ public class DefaultQualifierKindHierarchy implements QualifierKindHierarchy {
         @Override
         public boolean isPoly() {
             return this.poly == this;
+        }
+
+        @Pure
+        @Override
+        public boolean isDynamicAnnotation() {
+            return this.dynamic == this;
         }
 
         @Override

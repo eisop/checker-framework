@@ -1,8 +1,8 @@
 AnnotatedForWithUse.java:28:29: compiler.err.proc.messager: [jspecify.unrecognized.location.local] JSpecify gives a nullness annotation no meaning on the root type of a local variable
-AnnotatedForWithUse.java:33:19: compiler.err.proc.messager: [assignment.type.incompatible] incompatible types in assignment.
+AnnotatedForWithUse.java:30:19: compiler.err.proc.messager: [assignment.type.incompatible] incompatible types in assignment.
 found   : @Nullable NullType
 required: @NonNull Object
-AnnotatedForWithUse.java:37:19: compiler.err.proc.messager: [argument.type.incompatible] incompatible argument for parameter of of Unannotated.set.
+AnnotatedForWithUse.java:34:19: compiler.err.proc.messager: [argument.type.incompatible] incompatible argument for parameter of of Unannotated.set.
 found   : @Nullable NullType
 required: @NonNull Object
 3 errors

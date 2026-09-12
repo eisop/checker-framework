@@ -554,7 +554,23 @@ defaults, and only the latter was cached. Both now use the new
 `SourceChecker.isElementAnnotatedForThisCheckerOrUpstreamChecker(Element)`,
 which `BaseTypeChecker` implements with a cache.
 
+Under `-AuseConservativeDefaultsForUncheckedCode`, a write to a field of a class that is not
+annotated for the checker now requires the bottom qualifier, instead of accepting any value.
+Reads of such a field continue to yield the top qualifier.
+Previously the field was defaulted to the top qualifier in both positions, which is unsound for
+writes.
+For the Nullness Checker, writing `null` to an unannotated field is now an error.
+
 **Implementation details:**
+
+The new `@ReadWriteDynamicQualifier` meta-annotation marks a qualifier that means the top
+qualifier where the annotated expression is read and the bottom qualifier where it is written.
+A qualifier so marked has no `@SubtypeOf` meta-annotation; it is placed directly below the top of
+the hierarchy containing the qualifier named by `@ReadWriteDynamicQualifier`'s `value()` element.
+`QualifierHierarchy.getDynamicAnnotations()` returns such qualifiers, and returns the empty set by
+default, for type systems that have none.
+The Nullness Checker uses this for the new `@ReadWriteDynamicNull` qualifier, which is the
+unchecked-code default for fields; it is `@Target({})`, so a programmer cannot write it.
 
 `SourceChecker.printOrStoreMessage` no longer has the two `protected` overloads
 that took no suggested fixes (the four-argument form, and the five-argument form
@@ -931,7 +947,7 @@ Other improvements and bug fixes:
 
 eisop#104, eisop#386, eisop#433, eisop#622, eisop#737, eisop#778, eisop#786,
 eisop#792, eisop#863, eisop#949, eisop#1015, eisop#1059, eisop#1074, eisop#1244,
-eisop#1299, eisop#1315, eisop#1564, eisop#1592, eisop#1642, eisop#1653,
+eisop#1299, eisop#1315, eisop#1358, eisop#1564, eisop#1592, eisop#1642, eisop#1653,
 eisop#1735, eisop#1801, eisop#1818, eisop#1819, eisop#1861, eisop#1862,
 eisop#1863, eisop#1865, eisop#1887, eisop#1965, eisop#1986, eisop#1987,
 eisop#1990, eisop#1991, eisop#2009, eisop#2020, eisop#2021, eisop#2032,
