@@ -642,7 +642,8 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
      * @see #getExplicitAnnotations()
      */
     public boolean hasExplicitAnnotation(Class<? extends Annotation> a) {
-        return AnnotationUtils.containsSameByName(getExplicitAnnotations(), getAnnotation(a));
+        AnnotationMirror anno = getAnnotation(a);
+        return anno != null && AnnotationUtils.containsSameByName(getExplicitAnnotations(), anno);
     }
 
     /**
