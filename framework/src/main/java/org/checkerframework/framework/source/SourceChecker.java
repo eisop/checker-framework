@@ -204,13 +204,6 @@ import javax.tools.Diagnostic;
     // Whether to type check the enclosing expression of an inner class instantiation.
     "checkEnclosingExpr",
 
-    // Whether to use optimistic defaults for bytecode and/or source code.
-    // This option takes the same arguments as "useConservativeDefaultsForUncheckedCode", and like
-    // it, applies only outside the scope of an @AnnotatedFor.  It does not suppress warnings in
-    // that code; combine it with -AonlyAnnotatedFor to do that.  A given kind of code cannot be
-    // defaulted both optimistically and conservatively.
-    "useOptimisticDefaultsForUncheckedCode",
-
     // Whether to use conservative defaults for bytecode and/or source code.
     // This option takes arguments "source" and/or "bytecode".
     // The default is "-source,-bytecode" (eventually this will be changed to "-source,bytecode").
@@ -223,6 +216,13 @@ import javax.tools.Diagnostic;
     // but does not change the default qualifiers for source code.
     // org.checkerframework.framework.source.SourceChecker.useConservativeDefault
     "useConservativeDefaultsForUncheckedCode",
+
+    // Whether to use optimistic defaults for bytecode and/or source code.
+    // This option takes the same arguments as "useConservativeDefaultsForUncheckedCode", and like
+    // it, applies only outside the scope of an @AnnotatedFor.  It does not suppress warnings in
+    // that code; combine it with -AonlyAnnotatedFor to do that.  A given kind of code cannot be
+    // defaulted both optimistically and conservatively.
+    "useOptimisticDefaultsForUncheckedCode",
 
     // Whether to assume sound concurrent semantics or
     // simplified sequential semantics
@@ -3108,6 +3108,18 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     }
 
     /**
+     * Determine whether conservative defaults should be used for the kind of unchecked code
+     * indicated by the command line arguments.
+     *
+     * @param kindOfCode source or bytecode
+     * @return whether conservative defaults should be used
+     */
+    public boolean useConservativeDefault(String kindOfCode) {
+        // Preserve the legacy behavior of ignoring unrecognized conservative-default values.
+        return useUncheckedDefault("useConservativeDefaultsForUncheckedCode", kindOfCode, false);
+    }
+
+    /**
      * Determine whether optimistic defaults should be used for the kind of unchecked code indicated
      * by the command line arguments.
      *
@@ -3132,18 +3144,6 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
                                 + "; a kind of code can be defaulted only one way.");
             }
         }
-    }
-
-    /**
-     * Determine whether conservative defaults should be used for the kind of unchecked code
-     * indicated by the command line arguments.
-     *
-     * @param kindOfCode source or bytecode
-     * @return whether conservative defaults should be used
-     */
-    public boolean useConservativeDefault(String kindOfCode) {
-        // Preserve the legacy behavior of ignoring unrecognized conservative-default values.
-        return useUncheckedDefault("useConservativeDefaultsForUncheckedCode", kindOfCode, false);
     }
 
     /**
