@@ -170,6 +170,33 @@ explicitly in the PR description rather than implying it passed.
 
 ## CI checks that `assemble` and `alltests` do NOT run
 
+**Run the whole `misc` gate before proposing a push, not the part you
+suspect.** Checking one item off the list below and stopping is how a
+green local build still turns CI red. The checks are independent, so a
+clean result from one says nothing about the others:
+
+```
+# the import rule -- the only check here that hard-exits
+grep -n -r --exclude-dir=build --exclude-dir=examples --exclude-dir=jtreg \
+  --exclude-dir=tests --exclude="*.astub" --exclude="*.tex" \
+  '^\(import static \|import .*\*;$\)'
+./gradlew requireJavadoc javadocDoclintAll spotlessCheck
+make style-check          # shell + Python only; skip if no .sh/.py changed
+```
+
+Run the grep from the repo root, and ignore hits under untracked local
+directories -- a checkout parked in `.claude/worktrees/` will match, and
+CI never sees it. Only tracked files count.
+
+Ordering matters when reading a failed CI log: `requireJavadoc` and
+`javadocDoclintAll` run first and only accumulate a status, while the
+import grep does `exit 1` immediately. So a log that ends at the import
+error proves the Javadoc checks ran, but a log that ends *anywhere*
+proves nothing about the checks below it -- `make style-check` and
+`htmlValidate` never ran at all. Same shape as the `-Werror` trap
+elsewhere in this file: one truncated report is a sample, not the
+population.
+
 The `misc` CI job (`checker/bin-devel/test-misc.sh`) runs lint that a
 normal build skips. Two of its checks catch things that compile and test
 green but still fail CI:
