@@ -636,7 +636,9 @@ public abstract class GenericAnnotatedTypeFactory<
     }
 
     @Override
-    public AnnotationMirrorSet getDefaultAnnosForUses(Element element) {
+    protected AnnotationMirrorSet getDefaultAnnosForUses(Element element) {
+        // The annotator is created in postInit, so it is null while the type factory is still
+        // being constructed; a type queried that early has no default-for-use qualifiers yet.
         if (defaultQualifierForUseTypeAnnotator != null) {
             return defaultQualifierForUseTypeAnnotator.getDefaultAnnosForUses(element);
         }

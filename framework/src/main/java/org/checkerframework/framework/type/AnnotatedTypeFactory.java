@@ -1974,13 +1974,19 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     }
 
     /**
-     * Returns the set of qualifiers that should be applied to unannotated uses of the given element
-     * as specified by {@link org.checkerframework.framework.qual.DefaultQualifierForUse}.
+     * Returns the set of qualifiers that should be applied to unannotated uses of the given
+     * element, as specified by {@link org.checkerframework.framework.qual.DefaultQualifierForUse}.
+     *
+     * <p>This implementation always returns an empty set, because {@code @DefaultQualifierForUse}
+     * is implemented by {@link
+     * org.checkerframework.framework.type.typeannotator.DefaultQualifierForUseTypeAnnotator}, which
+     * only a {@link GenericAnnotatedTypeFactory} creates. {@code GenericAnnotatedTypeFactory}
+     * overrides this to consult that annotator.
      *
      * @param element the element
-     * @return the set of default-for-use qualifiers
+     * @return the set of default-for-use qualifiers; empty in this implementation
      */
-    public AnnotationMirrorSet getDefaultAnnosForUses(Element element) {
+    protected AnnotationMirrorSet getDefaultAnnosForUses(Element element) {
         return AnnotationMirrorSet.emptySet();
     }
 
