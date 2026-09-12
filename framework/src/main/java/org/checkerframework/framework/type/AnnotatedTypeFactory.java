@@ -1123,11 +1123,13 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     }
 
     /**
-     * Get the current CompilationUnitTree.
+     * Get the current CompilationUnitTree. It is null until the first compilation unit is handed to
+     * {@link #setRoot}, which happens after this factory has been fully initialized, so a null
+     * result also means that type checking has not begun yet.
      *
      * @return the current compilation unit being used, or null
      */
-    protected @Nullable CompilationUnitTree getRoot() {
+    public @Nullable CompilationUnitTree getRoot() {
         return root;
     }
 
@@ -1971,6 +1973,23 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      */
     protected AnnotationMirrorSet getDefaultTypeDeclarationBounds() {
         return qualHierarchy.getTopAnnotations();
+    }
+
+    /**
+     * Returns the set of qualifiers that should be applied to unannotated uses of the given
+     * element, as specified by {@link org.checkerframework.framework.qual.DefaultQualifierForUse}.
+     *
+     * <p>This implementation always returns an empty set, because {@code @DefaultQualifierForUse}
+     * is implemented by {@link
+     * org.checkerframework.framework.type.typeannotator.DefaultQualifierForUseTypeAnnotator}, which
+     * only a {@link GenericAnnotatedTypeFactory} creates. {@code GenericAnnotatedTypeFactory}
+     * overrides this to consult that annotator.
+     *
+     * @param element the element
+     * @return the set of default-for-use qualifiers; empty in this implementation
+     */
+    protected AnnotationMirrorSet getDefaultAnnosForUses(Element element) {
+        return AnnotationMirrorSet.emptySet();
     }
 
     /**
@@ -3809,14 +3828,46 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
                 p.addAll(superCon.getParameterTypes());
                 con.setParameterTypes(Collections.unmodifiableList(p));
             }
+            TypeElement anonElem =
+                    (TypeElement) TreeUtils.elementFromUse(tree).getEnclosingElement();
+            Set<? extends AnnotationMirror> superAnnos = superCon.getReturnType().getAnnotations();
+            TypeMirror superUnderlyingType = superCon.getReturnType().getUnderlyingType();
+            DeclaredType anonSuperType = ElementUtils.getAnonymousSupertype(anonElem);
+            if (anonSuperType != null && anonSuperType.asElement().getKind().isInterface()) {
+                // When an anonymous class implements an interface, its super constructor is
+                // Object.<init>(), which does not carry the interface's annotations. The bound
+                // qualifiers should come from the interface, adapted to this viewpoint.
+                // (An anonymous class that extends a class needs none of this: superCon's return
+                // type already carries that class's annotations.)
+                TypeMirror superType = anonSuperType;
+                Set<? extends AnnotationMirror> bounds = getTypeDeclarationBounds(superType);
+                AnnotationMirrorSet defaultUse = getDefaultAnnosForUses(anonSuperType.asElement());
+                if (!defaultUse.isEmpty()) {
+                    // Both constrain a use of the interface, so a use must satisfy both: take the
+                    // greatest lower bound rather than letting either one alone decide.
+                    bounds =
+                            qualHierarchy.greatestLowerBoundsShallow(
+                                    bounds, superType, defaultUse, superType);
+                }
+                if (viewpointAdapter != null) {
+                    AnnotatedDeclaredType ifaceType =
+                            (AnnotatedDeclaredType) toAnnotatedType(superType, false);
+                    ifaceType.replaceAnnotations(bounds);
+                    bounds = viewpointAdapter.viewpointAdaptType(type, ifaceType).getAnnotations();
+                }
+                superAnnos =
+                        qualHierarchy.greatestLowerBoundsShallow(
+                                superAnnos, superUnderlyingType, bounds, superType);
+                superUnderlyingType = superType;
+            }
             Set<? extends AnnotationMirror> lub =
                     // TODO: should we use getAnnotationsField() even though it flows to the
                     // QualifierHierarchy?
                     qualHierarchy.leastUpperBoundsShallow(
                             type.getAnnotations(),
                             type.getUnderlyingType(),
-                            superCon.getReturnType().getAnnotations(),
-                            superCon.getReturnType().getUnderlyingType());
+                            superAnnos,
+                            superUnderlyingType);
             con.getReturnType().replaceAnnotations(lub);
         } else {
             // Store varargType before calling setParameterTypes, otherwise we may lose the
