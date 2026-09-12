@@ -86,8 +86,12 @@ public class DefaultQualifierForUseTypeAnnotator extends TypeAnnotator {
      * Returns the set of qualifiers that should be applied to unannotated uses of the given
      * element.
      *
+     * <p>The result is unmodifiable and is shared: on a cache hit every caller is handed the same
+     * instance.
+     *
      * @param element the element for which to determine default qualifiers
-     * @return the set of qualifiers that should be applied to unannotated uses of {@code element}
+     * @return the set of qualifiers that should be applied to unannotated uses of {@code element};
+     *     unmodifiable
      */
     public AnnotationMirrorSet getDefaultAnnosForUses(Element element) {
         if (atypeFactory.shouldCache) {
@@ -141,6 +145,11 @@ public class DefaultQualifierForUseTypeAnnotator extends TypeAnnotator {
         // per cached element.
         if (annosToApply.isEmpty()) {
             annosToApply = AnnotationMirrorSet.emptySet();
+        } else {
+            // The cache below stores this very instance and hands it to every later caller, so
+            // freeze it: a caller that mutated the result would corrupt the defaults of every
+            // subsequent use of this element.
+            annosToApply.makeUnmodifiable();
         }
         // If parsing an annotation file, then the annosToApply is incomplete, so don't cache them.
         if (atypeFactory.shouldCache && !atypeFactory.isParsingAnnotationFile()) {
