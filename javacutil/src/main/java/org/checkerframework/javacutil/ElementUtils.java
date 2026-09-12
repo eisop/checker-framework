@@ -885,6 +885,25 @@ public class ElementUtils {
     }
 
     /**
+     * Returns the type that an anonymous class is created from: the interface it implements if it
+     * implements one, and otherwise its superclass.
+     *
+     * <p>An anonymous class names exactly one supertype -- {@code new Iface() {}} or {@code new
+     * AClass() {}} -- so it implements at most one interface, and {@code getInterfaces()} being
+     * non-empty is what distinguishes the two cases.
+     *
+     * @param anonClass an anonymous class
+     * @return the declared type {@code anonClass} is created from, or null if that supertype is not
+     *     a declared type
+     * @see #isAnonymous(Element)
+     */
+    public static @Nullable DeclaredType getAnonymousSupertype(TypeElement anonClass) {
+        List<? extends TypeMirror> interfaces = anonClass.getInterfaces();
+        TypeMirror superType = interfaces.isEmpty() ? anonClass.getSuperclass() : interfaces.get(0);
+        return superType.getKind() == TypeKind.DECLARED ? (DeclaredType) superType : null;
+    }
+
+    /**
      * Return true if the element is a constructor of an anonymous class.
      *
      * @param element the element to test

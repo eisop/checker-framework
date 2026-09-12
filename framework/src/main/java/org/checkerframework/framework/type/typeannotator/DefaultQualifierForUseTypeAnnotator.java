@@ -22,8 +22,6 @@ import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Name;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.type.DeclaredType;
-import javax.lang.model.type.TypeKind;
-import javax.lang.model.type.TypeMirror;
 
 /**
  * Implements support for {@link DefaultQualifierForUse} and {@link NoDefaultQualifierForUse}. Adds
@@ -121,18 +119,11 @@ public class DefaultQualifierForUseTypeAnnotator extends TypeAnnotator {
             }
         }
         if (ElementUtils.isAnonymous(element)) {
-            TypeElement typeElem = (TypeElement) element;
-            Element superElem = null;
-            if (!typeElem.getInterfaces().isEmpty()) {
-                TypeMirror iface = typeElem.getInterfaces().get(0);
-                if (iface.getKind() == TypeKind.DECLARED) {
-                    superElem = ((DeclaredType) iface).asElement();
-                }
-            } else if (typeElem.getSuperclass().getKind() == TypeKind.DECLARED) {
-                superElem = ((DeclaredType) typeElem.getSuperclass()).asElement();
-            }
-            if (superElem != null) {
-                AnnotationMirrorSet superDefaults = getDefaultAnnosForUses(superElem);
+            // An anonymous class cannot carry @DefaultQualifierForUse itself, so it inherits the
+            // defaults of the type it is created from, in each hierarchy it does not already set.
+            DeclaredType superType = ElementUtils.getAnonymousSupertype((TypeElement) element);
+            if (superType != null) {
+                AnnotationMirrorSet superDefaults = getDefaultAnnosForUses(superType.asElement());
                 for (AnnotationMirror top : qualHierarchy.getTopAnnotations()) {
                     if (qualHierarchy.findAnnotationInHierarchy(annosToApply, top) == null) {
                         AnnotationMirror superDefault =

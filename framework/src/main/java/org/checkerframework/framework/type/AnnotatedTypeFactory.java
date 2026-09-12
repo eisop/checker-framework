@@ -3831,22 +3831,24 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
                     (TypeElement) TreeUtils.elementFromUse(tree).getEnclosingElement();
             Set<? extends AnnotationMirror> superAnnos = superCon.getReturnType().getAnnotations();
             TypeMirror superUnderlyingType = superCon.getReturnType().getUnderlyingType();
-            if (!anonElem.getInterfaces().isEmpty()) {
+            DeclaredType anonSuperType = ElementUtils.getAnonymousSupertype(anonElem);
+            if (anonSuperType != null && anonSuperType.asElement().getKind().isInterface()) {
                 // When an anonymous class implements an interface, its super constructor is
                 // Object.<init>(), which does not carry the interface's annotations. The bound
                 // qualifiers should come from the interface, adapted to this viewpoint.
-                TypeMirror superType = anonElem.getInterfaces().get(0);
+                // (An anonymous class that extends a class needs none of this: superCon's return
+                // type already carries that class's annotations.)
+                TypeMirror superType = anonSuperType;
                 Set<? extends AnnotationMirror> bounds = getTypeDeclarationBounds(superType);
-                if (superType.getKind() == TypeKind.DECLARED) {
-                    Element superElem = ((DeclaredType) superType).asElement();
-                    AnnotationMirrorSet defaultUse = getDefaultAnnosForUses(superElem);
-                    if (!defaultUse.isEmpty()) {
-                        bounds =
-                                qualHierarchy.greatestLowerBoundsShallow(
-                                        bounds, superType, defaultUse, superType);
-                    }
+                AnnotationMirrorSet defaultUse = getDefaultAnnosForUses(anonSuperType.asElement());
+                if (!defaultUse.isEmpty()) {
+                    // Both constrain a use of the interface, so a use must satisfy both: take the
+                    // greatest lower bound rather than letting either one alone decide.
+                    bounds =
+                            qualHierarchy.greatestLowerBoundsShallow(
+                                    bounds, superType, defaultUse, superType);
                 }
-                if (viewpointAdapter != null && superType.getKind() == TypeKind.DECLARED) {
+                if (viewpointAdapter != null) {
                     AnnotatedDeclaredType ifaceType =
                             (AnnotatedDeclaredType) toAnnotatedType(superType, false);
                     ifaceType.replaceAnnotations(bounds);

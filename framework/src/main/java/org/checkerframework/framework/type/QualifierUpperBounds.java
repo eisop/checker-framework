@@ -117,12 +117,11 @@ public class QualifierUpperBounds {
             Element elem = declaredType.asElement();
             bounds.addAll(getAnnotationFromElement(elem));
             if (ElementUtils.isAnonymous(elem)) {
-                TypeElement typeElem = (TypeElement) elem;
-                TypeMirror superType =
-                        !typeElem.getInterfaces().isEmpty()
-                                ? typeElem.getInterfaces().get(0)
-                                : typeElem.getSuperclass();
-                if (superType != null && superType.getKind() == TypeKind.DECLARED) {
+                // An anonymous class carries no annotations of its own, so its bounds are those
+                // of the type it is created from.  Use addMissingAnnotations, not addAll, so that
+                // anything the element did contribute still wins.
+                DeclaredType superType = ElementUtils.getAnonymousSupertype((TypeElement) elem);
+                if (superType != null) {
                     addMissingAnnotations(bounds, getBoundQualifiers(superType));
                 }
             }
