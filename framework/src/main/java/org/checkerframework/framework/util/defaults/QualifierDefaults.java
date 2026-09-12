@@ -568,9 +568,10 @@ public class QualifierDefaults {
      * conflicts with {@code conflicting}, which {@code elt} already sets for the same location and
      * qualifier hierarchy.
      *
-     * <p>Reports each conflict on an element at most once: {@link #defaultsAtDirect} runs again for
+     * <p>Reports each conflict on an element at most once. {@link #defaultsAtDirect} runs again for
      * an element whenever {@link #elementDefaults} or {@link #packagePropagatingDefaults} has been
-     * cleared, and for a package it is called from both of that method's callers.
+     * cleared, and for a package it runs once per caller: {@link #defaultsAt} and {@link
+     * #propagatingDefaultsAt} both call it.
      *
      * @param elt the element whose {@code @DefaultQualifier} annotations conflict
      * @param newDefault the default that is discarded because of the conflict
