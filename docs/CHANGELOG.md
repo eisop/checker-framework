@@ -58,6 +58,16 @@ A type-use annotation written on an anonymous class creation expression, as in
 on Java 8 through 11 as well. Previously this was checked only on Java 12 and later, so the same
 source checked differently depending on the compiler.
 
+An unannotated anonymous class creation expression, as in `new AClass() {}`, now
+takes the declaration bound and the `@DefaultQualifierForUse` qualifiers of the class
+or interface being instantiated. Previously it was defaulted without reference to that
+supertype, which for most type systems meant the top qualifier.
+
+Relatedly, `new @A AIface() {}` no longer reports `cast.unsafe.constructor.invocation`
+when `@A` is the interface's declaration bound. An anonymous class implementing an
+interface has no declared constructor, so the warning was previously issued whether or
+not the annotation matched the bound.
+
 The Nullness Checker's new `-AjspecifyUnrecognizedLocations` command-line option (also enabled by
 `-Amode=jspecify`) reports an error for a nullness annotation written where JSpecify gives it no
 meaning: a class declaration, a wildcard, a type parameter, a pattern, a type argument of a
@@ -951,7 +961,7 @@ eisop#1299, eisop#1315, eisop#1564, eisop#1592, eisop#1642, eisop#1653,
 eisop#1735, eisop#1801, eisop#1818, eisop#1819, eisop#1861, eisop#1862,
 eisop#1863, eisop#1865, eisop#1887, eisop#1965, eisop#1986, eisop#1987,
 eisop#1990, eisop#1991, eisop#2009, eisop#2020, eisop#2021, eisop#2032,
-eisop#2037, eisop#2047, typetools#399, typetools#3203.
+eisop#2037, eisop#2047, eisop#2059, typetools#399, typetools#3203.
 
 
 Version 3.49.5-eisop1 (April 26, 2026)
