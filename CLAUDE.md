@@ -44,6 +44,10 @@ The Gradle subprojects matter; in rough dependency order:
   `units`, `interning`, `lock`, `i18n`, `i18nformatter`, `fenum`,
   `signedness`, `purity`, ...).
 - `checker-util/` — shared checker utilities.
+- `framework-errorprone/` — runs the Checker Framework as an Error Prone
+  plugin (the `eisopcf` check), as an alternative to standalone
+  annotation-processor mode. The only module that depends on Error Prone;
+  JDK 21+ only (gated in `settings.gradle`).
 
 ## Building and testing
 

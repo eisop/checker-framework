@@ -19,5 +19,6 @@ public class UseTest {
         test.method1(null);
         test.method2(null);
         @NonNull Object o = test.method3();
+        test.method4(null);
     }
 }

@@ -10,11 +10,221 @@ bounds, bottom for method returns, fields, and lower bounds.  It does not suppre
 code; combine it with `-AonlyAnnotatedFor` to do that.  A given kind of code cannot be defaulted
 both optimistically and conservatively.
 
+Fixed a bug where a `@DefaultQualifier` on a package could be lost for deeper subpackages.
+This happened when an intervening package shadowed it -- set a default for the same
+location and qualifier hierarchy -- and that shadowing default did not itself apply to
+subpackages. The intervening package's own default correctly stayed limited to that
+package, but the outer default, which nothing deeper actually shadowed, incorrectly
+stopped propagating too.
+
+The Nullness Checker now treats JSpecify's `@NullMarked` as an alias for
+`@AnnotatedFor` scoped to nullness checking alone (not initialization or `@KeyFor`
+checking, which JSpecify does not define and which `-Amode=jspecify` already excludes),
+with `applyToSubpackages = false`, in addition to the existing `@DefaultQualifier` alias.
+Nullness-checking code under a `@NullMarked` element is therefore type-checked under
+`-AonlyAnnotatedFor` and `-AuseConservativeDefaultsForUncheckedCode=source` instead of
+being skipped. Because `@NullMarked` is retained in class files, this also applies to
+bytecode: a dependency compiled with `@NullMarked` is no longer treated as unchecked
+code under `-AuseConservativeDefaultsForUncheckedCode=bytecode`. A written
+`@AnnotatedFor("initialization")` or `@AnnotatedFor("keyfor")` still composes normally
+alongside `@NullMarked` (see below). `applyToSubpackages = false` matches JSpecify,
+which specifies that a `@NullMarked` package does not cover its subpackages, and
+matches the `@DefaultQualifier` alias. As before, `-AjspecifyNullMarkedAlias=false`
+disables all `@NullMarked` aliasing, now including this new alias. `@NullUnmarked` is
+not yet honored: nested code under it is still checked as if the enclosing
+`@NullMarked` scope applied.
+
+An `@AnnotatedFor` annotation written on an element now composes with any alias for
+`@AnnotatedFor` on that same element, rather than the written annotation hiding the alias.
+For example, `@AnnotatedFor("index") @NullMarked` is checked by both the Index Checker and
+the Nullness Checker. This composition is not something `@AnnotatedFor` being `@Repeatable`
+(below) could provide by itself: `@Repeatable` only lets javac collapse multiple literal
+instances of the same annotation type, and an alias produces an instance that was never
+written.
+
+The Nullness Checker no longer recognizes `org.jspecify.nullness.NonNull`,
+`org.jspecify.nullness.Nullable`, or `org.jspecify.nullness.NullMarked` -- JSpecify's
+original, pre-1.0 package, deprecated since 2022. Use the corresponding
+`org.jspecify.annotations` annotation, which JSpecify moved to years ago and which the
+checker has recognized the whole time. The Checker also no longer recognizes
+`org.jspecify.nullness.NullnessUnspecified`, which has no such replacement: JSpecify's
+1.0 release dropped it outright, and `org.jspecify.annotations` has only `NonNull`,
+`Nullable`, `NullMarked`, and `NullUnmarked`.
+
+When the Initialization Checker rejects a method call on a partially-initialized receiver, it
+now reports `initialization.method.invocation.invalid`, which names the fields that are still
+uninitialized at the call, instead of the framework's `method.invocation.invalid`.
+
+A type-use annotation written on an anonymous class creation expression, as in
+`new @A AClass() {}`, is now validated against the declaration bound of the class being extended
+on Java 8 through 11 as well. Previously this was checked only on Java 12 and later, so the same
+source checked differently depending on the compiler.
+
+The Nullness Checker's new `-AjspecifyUnrecognizedLocations` command-line option (also enabled by
+`-Amode=jspecify`) reports an error for a nullness annotation written where JSpecify gives it no
+meaning: a class declaration, a wildcard, a type parameter, a pattern, a type argument of a
+receiver parameter's type, or the root type of a local variable, a resource variable, a cast, or a
+method reference. Each location has its own `jspecify.unrecognized.location.*` diagnostic key. The
+option is off by default because five of these locations -- a class declaration, a wildcard, and
+the root type of a local variable, a cast, and a method reference -- are meaningful to the Checker
+Framework itself.
+
+Two new `nullness.on.*` errors are issued unconditionally, not just under
+`-AjspecifyUnrecognizedLocations`, because in both locations no legitimate use is possible, not
+merely one JSpecify does not recognize: `nullness.on.throws`, for a nullness annotation on a
+thrown type, as in `void m() throws @Nullable Exception` (JLS 14.18: `throw null` throws a
+`NullPointerException` instead, so a thrown object is never null); and
+`nullness.on.annotation.member`, for one on any component of an annotation interface member's
+return type, as in `@Nullable String value();` (JLS 9.7.1: an annotation element's value must be a
+constant expression, and `null` is never one, for any element type, so no usage can ever supply
+one). Unlike `nullness.on.exception.parameter`'s catch side, neither location declares a variable
+that a later reassignment could give a legitimate reason to annotate, so both are errors rather
+than warnings.
+
+`instanceof` now distinguishes a nullness annotation on the root of the tested type, or of a
+pattern variable's type (including inside a deconstruction pattern), from one on a component, such
+as an array's element type. A root annotation is still reported by `instanceof.nullable` or
+`instanceof.nonnull.redundant`. A component annotation is reported by the new `instanceof.component`
+when no pattern variable is bound, and otherwise -- since the checker uses it to refine the bound
+variable -- only under `-AjspecifyUnrecognizedLocations`, as `jspecify.unrecognized.location.pattern`.
+
+A check that reads an annotation from the source tree now resolves aliases first, so a written
+alias such as `org.jspecify.annotations.Nullable` or `@IndexFor` is treated as the qualifier it
+stands for. The `annotation.on.supertype`, `instanceof.nullable`, `instanceof.nonnull.redundant`,
+`invalid.polymorphic.qualifier`, `explicit.annotation.ignored`, and `anno.on.irrelevant`
+diagnostics were previously issued only for a checker's own annotation. So is the type of a
+constructor reference (`Foo::new`): an explicit annotation on the constructor's own declared type,
+written as an alias, is now recognized the same way its canonical form would be.
+
+`AnnotatedTypeMirror#getExplicitAnnotations` now returns an alias in its canonical form, rather
+than as written: every caller compares the result against a canonical qualifier, so returning the
+written form only meant every such caller had to remember to canonicalize it, and most did not.
+This fixes `redundant.anno`, `unique.location.forbidden`, `immutable.type.guardedby`, and
+`initialization.invalid.field.type`/`.constructor.return.type`, none of which resolved an alias
+before, for the same reason. A Whole Program Inference run also now correctly declines to
+overwrite a type the user explicitly annotated with an alias, rather than treating the (until now,
+alias-blind) explicit-annotation set as empty and overwriting it.
+
+`AnnotatedTypeFactory` has three new public methods for writing this kind of alias-aware check:
+`asSupportedQualifier(AnnotationMirror)`, which returns an annotation as written or its canonical
+form, whichever is a supported qualifier (or null if neither is);
+`isSupportedQualifierOrAlias(AnnotationMirror)`, the boolean form of the same question; and
+`canonicalAnnotationOrWritten(AnnotationMirror)`, which returns the canonical form of an
+annotation as written if it is an alias, and the annotation itself otherwise (regardless of
+whether either form is actually a supported qualifier).
+
+`@AnnotatedFor` is now `@Repeatable`, so it may be written more than once at the same
+location. This lets different type systems be given different `applyToSubpackages`
+settings on one package, which its single `value()` array could not express on its own:
+```java
+@AnnotatedFor(value = "nullness", applyToSubpackages = false)
+@AnnotatedFor(value = "index", applyToSubpackages = true)
+package mypackage;
+```
+Listing multiple checker names in one `@AnnotatedFor`, as before, remains the right choice
+when they should share one `applyToSubpackages` setting.
+
+Two new Maven Central artifacts support writing a custom checker without
+depending on the whole `checker` artifact: `io.github.eisop:framework`, which
+declares its dependencies in its POM, and `io.github.eisop:framework-all`,
+which bundles them (relocated) into a single jar. `io.github.eisop:framework-test`
+now declares its dependency on `framework` and so can be used outside this
+repository. See the "Declaring dependencies for a custom checker" section of
+the manual.
+
+The `framework`, `javacutil` and `dataflow` artifacts no longer publish an
+unusable shadow (`-all.jar`) variant in their Gradle module metadata.
+
+The published artifacts no longer pull in `org.checkerframework:checker-qual`
+transitively (through Guava and plume-util), which previously put a second
+definition of every qualifier on the classpath alongside
+`io.github.eisop:checker-qual`.
+
+Gradle consumers of `io.github.eisop:checker` now resolve `checker-VERSION.jar`,
+the same artifact Maven consumers get from the POM. They previously resolved
+`checker-VERSION-all.jar`, which bundles checker-qual and checker-util while
+also depending on them, so every qualifier class appeared on the classpath
+twice. `checker-VERSION-all.jar` is still published as a classified artifact.
+Accordingly, `checker` now declares checker-qual and checker-util at `compile`
+scope rather than `runtime`, matching the jar it actually ships.
+
+Fixed five annotation names that ShadowJar rewrote when building `checker.jar`,
+so they never matched the annotations they name. The Nullness Checker now again
+recognizes `org.codehaus.commons.nullanalysis.NotNull` and `.Nullable` as
+aliases, the Called Methods Checker recognizes Lombok's
+`com.google.firebase.database.annotations.NotNull` and
+`org.codehaus.commons.nullanalysis.NotNull`, and whole-program inference again
+honors `@org.plumelib.options.Option`.
+
+The published `checker` artifact is about 2 MB smaller: it is now minimized, like
+the other shaded jars.
+
+The shaded jars no longer contain a `module-info.class` or jsr305's
+`javax.annotation` classes, neither of which described or belonged to them.
+Recognition of `javax.annotation.Nullable`, `@Nonnull` and `@CheckForNull` in
+user code is unaffected.
+
+The Checker Framework can now run as an Error Prone plugin (the `eisopcf` check), as an
+alternative to running it as a standalone annotation processor.  It is published as
+`io.github.eisop:framework-errorprone` and requires JDK 21 or later.  See the manual's
+"Error Prone" section.
+
+Type argument inference no longer fails on a `? super` wildcard whose argument mentions
+the inferred type variable through `? extends`, as in
+`Function<? super Set<? extends K>, ?>`.  It reported
+`type.argument.inference.crashed` on code that javac accepts.
+
+The stubifier resolves a nested annotation named through its enclosing class, as
+the JDK's own `java.lang.invoke.VarHandle` writes `@MethodHandle.PolymorphicSignature`.
+Such a name is not loadable as written -- its binary name separates the nesting with
+`$` -- so the stubifier could not read the annotation's `@Target` and failed the whole
+file. That made every class using a signature-polymorphic method impossible to
+annotate; `VarHandle` and `MethodHandle` are the two in the JDK.
+
+The opt-in `sometimes-nullable.astub` now covers signature-polymorphic methods,
+where whether null is legal depends on the field or parameter type the handle was
+created for: the 19 `VarHandle` access modes a reference-typed field supports, and
+`MethodHandle`'s `invoke`, `invokeExact`, `invokeWithArguments` and `bindTo`
+arguments. `VarHandle`'s `getAndAdd` and `getAndBitwise` families are excluded,
+being defined only for numeric and bitwise types.
+
+`AnnotatedFor`, `HasQualifierParameter`, and `ReportUse` gain the
+`applyToSubpackages` element that `DefaultQualifier` already had. It says whether
+an annotation written on a package also applies to that package's subpackages,
+and defaults to `true`, so existing code is unaffected. Setting it to false limits
+only that annotation; an applicable annotation on an enclosing package still
+applies.
+
+The new `-Amode=<mode>` option turns on a checker-defined group of options.  A mode
+only sets an option the user did not, so an option written on the command line keeps
+the value given there.  Note that most options are on/off flags with no negative form,
+so writing one cannot turn off what a mode enables.  A checker declares its modes with
+`@SupportedModes` and defines them by overriding `SourceChecker.addOptionsForMode`.
+
+The Nullness Checker supports `-Amode=jspecify`, which makes it behave as JSpecify
+specifies: it checks only code in the scope of an `@AnnotatedFor`, treats `@NullMarked`
+as a defaulting annotation, and performs neither initialization checking nor map-key
+checking.
+
 The Checker Framework now issues an `annotation.on.supertype` error when an annotation supported by
 the checker is written as a main annotation on the superclass or interface in an `extends` or
 `implements` clause. Annotations on the supertype's type arguments remain permitted. A checker
 that permits main annotations on supertypes, such as the Tainting Checker, can override
 `BaseTypeVisitor#checkAnnotationOnSupertype(Tree)`.
+
+A checker that viewpoint-adapts no longer crashes on a raw use of an F-bounded
+class such as `class Rec<T extends Rec<T>>`, whose type graph points back at
+itself. `AbstractViewpointAdapter` now adapts and substitutes with
+`AnnotatedTypeCopier`, which copies each type once, instead of with its own
+recursion, which never reached the end of such a graph.
+
+A checker that viewpoint-adapts can now extend or implement a type whose declaration bound is
+receiver-dependent: the supertype's bound is adapted to the subtype's before the two are compared.
+`@A class Y extends X {}` was previously rejected when `X`'s bound was receiver-dependent.
+
+`ViewpointAdapter` gains `viewpointAdaptTypeDeclarationBounds`, and `AbstractViewpointAdapter` a new
+abstract `extractAnnotationMirror(AnnotationMirrorSet)` that every subclass must implement. It is
+the counterpart of the existing `extractAnnotationMirror(AnnotatedTypeMirror)`.
 
 The Nullness Checker now refines `Queue.poll()`, `Queue.peek()`,
 `Deque.pollFirst()`, `Deque.pollLast()`, `Deque.peekFirst()`, and
@@ -353,6 +563,22 @@ which `BaseTypeChecker` implements with a cache.
 
 **Implementation details:**
 
+`SourceChecker.printOrStoreMessage` no longer has the two `protected` overloads
+that took no suggested fixes (the four-argument form, and the five-argument form
+taking a `StackTraceElement[]`). The framework now routes all diagnostics
+through fix-carrying overloads, which are `private`. Host-side interception of
+diagnostics is done by installing a `DiagnosticSink`, not by overriding
+`printOrStoreMessage`.
+
+Code that walks up the package chain looking for a package annotation must now gate
+each step to an enclosing package on that annotation's `applyToSubpackages` element;
+the annotated package itself is always in scope. There are two new methods for this:
+`AnnotationUtils.appliesToSubpackages(AnnotationMirror, ExecutableElement)`, and
+`AnnotatedTypeFactory.doesAnnotatedForApplyToSubpackages(AnnotationMirror)` for
+`@AnnotatedFor`. A null element, as in a `checker-qual` that predates it, is treated
+as true, so a package annotation from such an artifact applies to subpackages as it
+always did.
+
 `AnnotatedIntersectionType.summarizeBounds` computes the summary described
 above, reading each bound's qualifier, explicit or defaulted, uniformly,
 and folding
@@ -668,6 +894,10 @@ Performance optimizations:
 - `AnnotatedTypeFactory.isFromByteCode(Element)` now caches its result per
   element, avoiding a repeated `Path.toUri()` call (URI construction and
   parsing) on every conservative-defaults check.
+- Made the `-AajavaChecks` test consistency check opt-in via the `ajavaChecks` property (e.g.
+  `-PajavaChecks`) instead of unconditionally running on every directory test. On Java < 21
+  (where JavaParser parsing and AST traversal run), this speeds up test suites by ~20% to ~38%.
+  Consistency testing is now performed in a dedicated CI job (`cftests-ajavachecks` on JDK 17).
 
 Other improvements and bug fixes:
 - `TreeUtils` has a new `inferredTypeArguments(ExpressionTree)` method to
@@ -706,11 +936,13 @@ Other improvements and bug fixes:
 
 **Closed issues:**
 
-eisop#104, eisop#386, eisop#433, eisop#737, eisop#786, eisop#792, eisop#863,
-eisop#949, eisop#1015, eisop#1059, eisop#1074, eisop#1244, eisop#1315,
-eisop#1564, eisop#1592, eisop#1642, eisop#1653, eisop#1735, eisop#1801,
-eisop#1818, eisop#1819, eisop#1861, eisop#1862, eisop#1863, eisop#1865,
-eisop#1887, eisop#1965, eisop#1987, typetools#399, typetools#3203.
+eisop#104, eisop#386, eisop#433, eisop#622, eisop#737, eisop#778, eisop#786,
+eisop#792, eisop#863, eisop#949, eisop#1015, eisop#1059, eisop#1074, eisop#1244,
+eisop#1299, eisop#1315, eisop#1564, eisop#1592, eisop#1642, eisop#1653,
+eisop#1735, eisop#1801, eisop#1818, eisop#1819, eisop#1861, eisop#1862,
+eisop#1863, eisop#1865, eisop#1887, eisop#1965, eisop#1986, eisop#1987,
+eisop#1990, eisop#1991, eisop#2009, eisop#2020, eisop#2021, eisop#2032,
+eisop#2037, typetools#399, typetools#3203.
 
 
 Version 3.49.5-eisop1 (April 26, 2026)
