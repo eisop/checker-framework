@@ -36,6 +36,12 @@ public class ElementDefaultAnnotatedTypeFactory extends BaseAnnotatedTypeFactory
     public static final String LATE_OPTION = "lateElementDefault";
 
     /**
+     * Command-line option that makes this factory register a programmatic element default that
+     * conflicts with a {@code @DefaultQualifier} written on the same declaration.
+     */
+    public static final String CONFLICT_OPTION = "conflictingElementDefault";
+
+    /**
      * Creates a new ElementDefaultAnnotatedTypeFactory.
      *
      * @param checker the checker
@@ -79,6 +85,19 @@ public class ElementDefaultAnnotatedTypeFactory extends BaseAnnotatedTypeFactory
         // only the enclosing class's entry would leave the member's entry stale.
         // OrderAfterClass must nevertheless produce exactly the same diagnostics as
         // OrderBeforeClass.
+        if (checker.hasOption(CONFLICT_OPTION)) {
+            // ClassWithWrittenDq writes @DefaultQualifier(Bottom, RETURN). Registering Top for
+            // RETURN on the same class is a conflict: the two qualifiers are in one hierarchy and
+            // only one of them can be the default for a location. QualifierDefaults must report
+            // that rather than silently picking one; ElementDefaultConflictTest checks that it
+            // does.
+            TypeElement withWrittenDq =
+                    elements.getTypeElement("elementdefault.pkg.ClassWithWrittenDq");
+            if (withWrittenDq != null) {
+                defs.addElementDefault(withWrittenDq, top, TypeUseLocation.RETURN);
+            }
+        }
+
         TypeElement after = elements.getTypeElement("elementdefault.pkg.OrderAfterClass");
         if (after != null) {
             defs.annotate(after, dummyType());

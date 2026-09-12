@@ -11,7 +11,13 @@ import org.checkerframework.framework.source.SupportedOptions;
  * framework/tests/elementdefault}'s test sources.
  *
  * <p>With {@code -AlateElementDefault}, the factory instead calls that method after type checking
- * has begun, which must be reported as a type-system error.
+ * has begun, which must be reported as a type-system error. With {@code
+ * -AconflictingElementDefault}, it registers a default that conflicts with a
+ * {@code @DefaultQualifier} written on the same declaration, which must likewise be reported as a
+ * type-system error.
  */
-@SupportedOptions(ElementDefaultAnnotatedTypeFactory.LATE_OPTION)
+@SupportedOptions({
+    ElementDefaultAnnotatedTypeFactory.LATE_OPTION,
+    ElementDefaultAnnotatedTypeFactory.CONFLICT_OPTION
+})
 public final class ElementDefaultChecker extends BaseTypeChecker {}

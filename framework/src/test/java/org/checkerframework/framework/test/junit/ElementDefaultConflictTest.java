@@ -1,0 +1,61 @@
+package org.checkerframework.framework.test.junit;
+
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+
+import org.checkerframework.framework.test.CompilationResult;
+import org.checkerframework.framework.test.TestConfiguration;
+import org.checkerframework.framework.test.TestConfigurationBuilder;
+import org.checkerframework.framework.test.TypecheckExecutor;
+import org.checkerframework.framework.testchecker.elementdefault.ElementDefaultAnnotatedTypeFactory;
+import org.checkerframework.framework.testchecker.elementdefault.ElementDefaultChecker;
+import org.junit.Test;
+
+import java.io.File;
+import java.util.Arrays;
+import java.util.Collections;
+
+/**
+ * Tests that a default registered by {@link
+ * org.checkerframework.framework.util.defaults.QualifierDefaults#addElementDefault} which conflicts
+ * with a {@code @DefaultQualifier} written on the same declaration is reported as a type-system
+ * error, rather than the two being merged and the winner decided by annotation ordering.
+ */
+public class ElementDefaultConflictTest {
+
+    /** Creates a new ElementDefaultConflictTest. */
+    public ElementDefaultConflictTest() {}
+
+    /**
+     * Runs the checker with the option that makes it register an element default conflicting with
+     * the {@code @DefaultQualifier} written on {@code ClassWithWrittenDq}.
+     */
+    @Test
+    public void conflictWithWrittenDefaultQualifierIsATypeSystemError() {
+        File testFile = new File("tests/elementdefault/ClassWithWrittenDq.java");
+        TestConfiguration config =
+                TestConfigurationBuilder.buildDefaultConfiguration(
+                        "tests/elementdefault",
+                        Collections.singletonList(testFile),
+                        Collections.singletonList(ElementDefaultChecker.class.getName()),
+                        Arrays.asList(
+                                "-A" + ElementDefaultAnnotatedTypeFactory.CONFLICT_OPTION,
+                                "-AnoPrintErrorStack"),
+                        false);
+        CompilationResult result = new TypecheckExecutor().compile(config);
+
+        StringBuilder output = new StringBuilder(result.getJavacOutput());
+        result.getDiagnostics().forEach(d -> output.append(d.getMessage(null)).append('\n'));
+        String outputString = output.toString();
+
+        assertFalse(
+                "Compilation should have failed, but it succeeded. Output: " + outputString,
+                result.compiledWithoutError());
+        assertTrue(
+                "Expected a message about conflicting defaults, but got: " + outputString,
+                outputString.contains("Conflicting defaults on CLASS"));
+        assertTrue(
+                "Expected the conflicting declaration to be named, but got: " + outputString,
+                outputString.contains("elementdefault.pkg.ClassWithWrittenDq"));
+    }
+}

@@ -443,6 +443,12 @@ public class QualifierDefaults {
      * recomputed, and diagnostics that have already been issued cannot be retracted, so the new
      * default would apply to some of the program and not to the rest of it.
      *
+     * <p>If the registered default conflicts with a {@code @DefaultQualifier} written on {@code
+     * elem} -- same {@code location} and same qualifier hierarchy, but a different qualifier --
+     * then a {@link TypeSystemError} is thrown later, when {@code elem}'s defaults are computed.
+     * Only one qualifier from a hierarchy can be the default for a location, so a type system must
+     * not register one that contradicts what a user is permitted to write.
+     *
      * @param elem the scope to set the default within
      * @param elementDefaultAnno the default to set
      * @param location the location to apply the default to
@@ -524,17 +530,36 @@ public class QualifierDefaults {
      */
     private boolean conflictsWithExistingDefaults(
             DefaultSet previousDefaults, AnnotationMirror newAnno, TypeUseLocation newLoc) {
+        return findConflictingDefault(previousDefaults, newAnno, newLoc) != null;
+    }
+
+    /**
+     * Returns an element of {@code previousDefaults} that conflicts with making {@code newAnno} the
+     * default at {@code newLoc}, or null if there is none.
+     *
+     * <p>Two defaults conflict when they are for the same {@link TypeUseLocation} and the same
+     * qualifier hierarchy but are different qualifiers: only one qualifier from a hierarchy can be
+     * the default for a location. Two defaults that are the same qualifier are redundant, not
+     * conflicting, and are permitted.
+     *
+     * @param previousDefaults the previous defaults
+     * @param newAnno the new annotation
+     * @param newLoc the location of the type use
+     * @return a conflicting element of {@code previousDefaults}, or null if there is none
+     */
+    private @Nullable Default findConflictingDefault(
+            DefaultSet previousDefaults, AnnotationMirror newAnno, TypeUseLocation newLoc) {
         QualifierHierarchy qualHierarchy = atypeFactory.getQualifierHierarchy();
 
         for (Default previous : previousDefaults) {
             if (!AnnotationUtils.areSame(newAnno, previous.anno) && previous.location == newLoc) {
                 AnnotationMirror previousTop = qualHierarchy.getTopAnnotation(previous.anno);
                 if (qualHierarchy.isSubtypeQualifiersOnly(newAnno, previousTop)) {
-                    return true;
+                    return previous;
                 }
             }
         }
-        return false;
+        return null;
     }
 
     /**
@@ -927,7 +952,16 @@ public class QualifierDefaults {
                 qualifiers = new DefaultSet();
             }
             for (Default d : programmatic) {
-                checkDuplicates(qualifiers, d.anno, d.location);
+                Default conflicting = findConflictingDefault(qualifiers, d.anno, d.location);
+                if (conflicting != null) {
+                    throw new TypeSystemError(
+                            "Conflicting defaults on %s %s: %s, registered by this type system via"
+                                    + " QualifierDefaults.addElementDefault, conflicts with %s, which"
+                                    + " comes from a @DefaultQualifier written on that declaration."
+                                    + " Only one qualifier from a hierarchy can be the default for a"
+                                    + " location.",
+                            elt.getKind(), elt, d, conflicting);
+                }
                 qualifiers.add(d);
             }
         }
