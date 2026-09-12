@@ -10,10 +10,10 @@ subpackages. The intervening package's own default correctly stayed limited to t
 package, but the outer default, which nothing deeper actually shadowed, incorrectly
 stopped propagating too.
 
-Programmatic element defaults added via `QualifierDefaults.addElementDefault` now
-correctly take effect regardless of whether defaults on the target element or its
-enclosing or child elements were already queried, seamlessly merging with written
-`@DefaultQualifier` annotations and enclosing package defaults.
+A default that a checker registers with `QualifierDefaults.addElementDefault` now combines
+with the `@DefaultQualifier` annotations written on the same declaration and with the
+defaults of enclosing elements, instead of replacing them or being lost depending on the
+order in which defaults were first queried.
 
 The Nullness Checker now treats JSpecify's `@NullMarked` as an alias for
 `@AnnotatedFor` scoped to nullness checking alone (not initialization or `@KeyFor`
@@ -576,6 +576,17 @@ the annotated package itself is always in scope. There are two new methods for t
 `@AnnotatedFor`. A null element, as in a `checker-qual` that predates it, is treated
 as true, so a package annotation from such an artifact applies to subpackages as it
 always did.
+
+`QualifierDefaults.addElementDefault` is now an initialization-time API: calling it once
+type checking has begun throws a `TypeSystemError`, because already-computed types and
+dataflow results are never recomputed and already-issued diagnostics cannot be retracted,
+so the new default would reach only part of the program. Register element defaults from
+`createQualifierDefaults` or `addCheckedCodeDefaults`. A registered default that conflicts
+with a `@DefaultQualifier` written on the same declaration now throws a `TypeSystemError`
+naming that declaration, rather than a `BugInCF` asking the user to report a framework bug.
+`AnnotatedTypeFactory.getRoot()` is now `public` rather than `protected`, so that code
+outside the factory can ask whether type checking has begun; an override of it in a
+subclass must be widened to `public` too.
 
 `AnnotatedIntersectionType.summarizeBounds` computes the summary described
 above, reading each bound's qualifier, explicit or defaulted, uniformly,
