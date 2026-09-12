@@ -3,6 +3,13 @@ Version 3.49.5-eisop2 (June ?, 2026)
 
 **User-visible changes:**
 
+Fixed a bug where a `@DefaultQualifier` on a package could be lost for deeper subpackages.
+This happened when an intervening package shadowed it -- set a default for the same
+location and qualifier hierarchy -- and that shadowing default did not itself apply to
+subpackages. The intervening package's own default correctly stayed limited to that
+package, but the outer default, which nothing deeper actually shadowed, incorrectly
+stopped propagating too.
+
 The Nullness Checker now treats JSpecify's `@NullMarked` as an alias for
 `@AnnotatedFor` scoped to nullness checking alone (not initialization or `@KeyFor`
 checking, which JSpecify does not define and which `-Amode=jspecify` already excludes),
@@ -884,6 +891,10 @@ Performance optimizations:
 - `AnnotatedTypeFactory.isFromByteCode(Element)` now caches its result per
   element, avoiding a repeated `Path.toUri()` call (URI construction and
   parsing) on every conservative-defaults check.
+- Made the `-AajavaChecks` test consistency check opt-in via the `ajavaChecks` property (e.g.
+  `-PajavaChecks`) instead of unconditionally running on every directory test. On Java < 21
+  (where JavaParser parsing and AST traversal run), this speeds up test suites by ~20% to ~38%.
+  Consistency testing is now performed in a dedicated CI job (`cftests-ajavachecks` on JDK 17).
 
 Other improvements and bug fixes:
 - `TreeUtils` has a new `inferredTypeArguments(ExpressionTree)` method to
@@ -927,8 +938,8 @@ eisop#792, eisop#863, eisop#949, eisop#1015, eisop#1059, eisop#1074, eisop#1244,
 eisop#1299, eisop#1315, eisop#1564, eisop#1592, eisop#1642, eisop#1653,
 eisop#1735, eisop#1801, eisop#1818, eisop#1819, eisop#1861, eisop#1862,
 eisop#1863, eisop#1865, eisop#1887, eisop#1965, eisop#1986, eisop#1987,
-eisop#1990, eisop#1991, eisop#2009, eisop#2020, eisop#2021, eisop#2032, eisop#2059, typetools#399,
-typetools#3203.
+eisop#1990, eisop#1991, eisop#2009, eisop#2020, eisop#2021, eisop#2032,
+eisop#2037, eisop#2059, typetools#399, typetools#3203.
 
 
 Version 3.49.5-eisop1 (April 26, 2026)

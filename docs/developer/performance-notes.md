@@ -1939,7 +1939,25 @@ in `UBQualifier$LessThanLengthOf` — a null path yields an unparseable offset e
 layers from the cause. If this is revisited, the clear has to happen strictly before anything is
 cached for the new unit, and the Index Checker is the canary.
 
+### Opt-in `-AajavaChecks` and dedicated JDK 17 CI job (September 2026, PR #2057)
+
+`CheckerFrameworkPerDirectoryTest` previously hardcoded `-AajavaChecks` across all directory tests.
+In `BaseTypeVisitor`, `ajavaChecks` is only active when `release < 21` (because annotation insertion
+is disabled on Java 21+). On JDK 21+ (including the primary CI JDK 21), `-AajavaChecks` was an
+effective no-op. On JDK < 21 (such as JDK 11 and 17), however, every test file in every directory
+test underwent repeated JavaParser parsing, joint AST traversals, and annotation insertion checks.
+
+This added a ~20%–38% test runtime overhead across routine test executions on JDK < 21:
+for example, `InterningTest` took 25.15 s with `-AajavaChecks` enabled versus 15.66 s without it
+(~37.7% reduction in test execution time).
+
+The option was made opt-in via `-PajavaChecks` / `-DajavaChecks` (reflected in `build.gradle` and
+`TestUtilities.getShouldRunAjavaChecks()`). A dedicated CI matrix job (`cftests-ajavachecks` on
+JDK 17 running `checker/bin-devel/test-cftests-ajavachecks.sh`) preserves full consistency testing
+without paying the parsing and traversal overhead on routine or multi-JDK test runs.
+
 ---
+
 
 ## Tried and rejected
 
