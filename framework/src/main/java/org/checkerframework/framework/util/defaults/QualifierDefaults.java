@@ -174,6 +174,14 @@ public class QualifierDefaults {
     private final IdentityHashMap<Element, DefaultSet> programmaticElementDefaults =
             new IdentityHashMap<>();
 
+    /**
+     * For each element, the defaults for which {@link #reportConflictingWrittenDefaults} has
+     * already issued a {@code conflicting.defaults} error. Keeps a conflict from being reported
+     * more than once; see that method.
+     */
+    private final IdentityHashMap<Element, DefaultSet> reportedConflictingDefaults =
+            new IdentityHashMap<>();
+
     /** CLIMB locations whose standard default is top for a given type system. */
     public static final List<TypeUseLocation> STANDARD_CLIMB_DEFAULTS_TOP =
             Collections.unmodifiableList(
@@ -562,6 +570,30 @@ public class QualifierDefaults {
     }
 
     /**
+     * Reports that {@code newDefault}, from a {@code @DefaultQualifier} that {@code elt} carries,
+     * conflicts with {@code conflicting}, which {@code elt} already sets for the same location and
+     * qualifier hierarchy.
+     *
+     * <p>Reports each conflict on an element at most once: {@link #defaultsAtDirect} runs again for
+     * an element whenever {@link #elementDefaults} or {@link #packagePropagatingDefaults} has been
+     * cleared, and for a package it is called from both of that method's callers.
+     *
+     * @param elt the element whose {@code @DefaultQualifier} annotations conflict
+     * @param newDefault the default that is discarded because of the conflict
+     * @param conflicting the default it conflicts with, which stays in effect
+     */
+    private void reportConflictingWrittenDefaults(
+            Element elt, Default newDefault, Default conflicting) {
+        DefaultSet alreadyReported =
+                reportedConflictingDefaults.computeIfAbsent(elt, key -> new DefaultSet());
+        if (alreadyReported.add(newDefault)) {
+            atypeFactory
+                    .getChecker()
+                    .reportError(elt, "conflicting.defaults", elt, newDefault, conflicting);
+        }
+    }
+
+    /**
      * Returns an element of {@code previousDefaults} that conflicts with making {@code newAnno} the
      * default at {@code newLoc}, or null if there is none.
      *
@@ -939,6 +971,14 @@ public class QualifierDefaults {
      * #addElementDefault}: both are equally {@code elt}'s own direct contribution, just installed
      * through different mechanisms.
      *
+     * <p>Two of {@code elt}'s own defaults conflict if they set the same {@link TypeUseLocation} in
+     * the same qualifier hierarchy to different qualifiers. That is reported rather than merged,
+     * because merging leaves the winner to {@link DefaultSet}'s (location, annotation) ordering,
+     * which is arbitrary and silent. Written-against-written is a {@code conflicting.defaults}
+     * error on {@code elt} and the later default is discarded; written against {@link
+     * #addElementDefault} is a {@link TypeSystemError}, since only a type system, not a user, can
+     * cause it.
+     *
      * @param elt the element
      * @return the defaults that apply directly to {@code elt}, or null if it has none
      */
@@ -967,8 +1007,17 @@ public class QualifierDefaults {
             for (AnnotationMirror dqlAnno : values) {
                 Set<Default> p = fromDefaultQualifier(dqlAnno);
                 if (p != null) {
-                    // TODO(cpovirk): What should happen with conflicts?
-                    qualifiers.addAll(p);
+                    for (Default d : p) {
+                        Default conflicting =
+                                findConflictingDefault(qualifiers, d.anno, d.location);
+                        if (conflicting == null) {
+                            qualifiers.add(d);
+                        } else {
+                            // Discard the later default rather than adding it and letting
+                            // DefaultSet's (location, annotation) ordering pick the winner.
+                            reportConflictingWrittenDefaults(elt, d, conflicting);
+                        }
+                    }
                 }
             }
         }
