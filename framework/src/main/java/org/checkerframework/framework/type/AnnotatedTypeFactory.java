@@ -47,6 +47,7 @@ import org.checkerframework.common.reflection.ReflectionResolver;
 import org.checkerframework.common.reflection.qual.MethodVal;
 import org.checkerframework.dataflow.qual.SideEffectFree;
 import org.checkerframework.framework.qual.AnnotatedFor;
+import org.checkerframework.framework.qual.DefaultQualifier;
 import org.checkerframework.framework.qual.EnsuresQualifier;
 import org.checkerframework.framework.qual.EnsuresQualifierIf;
 import org.checkerframework.framework.qual.FieldInvariant;
@@ -178,6 +179,14 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     private static final @FullyQualifiedName String ANNOTATED_FOR_NAME =
             AnnotatedFor.class.getCanonicalName();
 
+    /** The fully-qualified name of {@link DefaultQualifier}. */
+    private static final @FullyQualifiedName String DEFAULT_QUALIFIER_NAME =
+            DefaultQualifier.class.getCanonicalName();
+
+    /** The fully-qualified name of {@link DefaultQualifier.List}. */
+    private static final @FullyQualifiedName String DEFAULT_QUALIFIER_LIST_NAME =
+            DefaultQualifier.List.class.getCanonicalName();
+
     /** Whether to print verbose debugging messages about stub files. */
     private final boolean debugStubParser;
 
@@ -224,6 +233,12 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * in which case {@code @AnnotatedFor} could not have been written more than once there.
      */
     protected final @Nullable ExecutableElement annotatedForListValueElement;
+
+    /**
+     * The DefaultQualifier.List.value() field/element, for a location with two or more written
+     * {@code @DefaultQualifier} (which javac collapses into one {@code @DefaultQualifier.List}).
+     */
+    protected final ExecutableElement defaultQualifierListValueElement;
 
     /** The EnsuresQualifier.expression field/element. */
     protected final ExecutableElement ensuresQualifierExpressionElement;
@@ -840,6 +855,8 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
                 elements.getTypeElement(annotatedForListName) == null
                         ? null
                         : TreeUtils.getMethod(annotatedForListName, "value", 0, processingEnv);
+        defaultQualifierListValueElement =
+                TreeUtils.getMethod(DefaultQualifier.List.class, "value", 0, processingEnv);
         ensuresQualifierExpressionElement =
                 TreeUtils.getMethod(EnsuresQualifier.class, "expression", 0, processingEnv);
         ensuresQualifierListValueElement =
@@ -7198,6 +7215,93 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         AnnotationMirrorSet result = new AnnotationMirrorSet(writtenOrAliased);
         result.addAll(repeated);
         return result.makeUnmodifiable();
+    }
+
+    /**
+     * Returns every {@link DefaultQualifier} annotation that applies to {@code elt}'s own
+     * declaration, in source order: each one written on it (there may be more than one, since
+     * {@code @DefaultQualifier} is {@code @Repeatable}), plus one for each of its declaration
+     * annotations that is an alias for {@code @DefaultQualifier} or for
+     * {@code @DefaultQualifier.List}.
+     *
+     * <p>Order is significant, unlike for {@link #getAnnotatedForAnnotations}: two
+     * {@code @DefaultQualifier} annotations can set the same {@link
+     * org.checkerframework.framework.qual.TypeUseLocation} in the same qualifier hierarchy to
+     * different qualifiers, and only one of them can win. {@link
+     * org.checkerframework.framework.util.defaults.QualifierDefaults}, the only caller, keeps the
+     * first and reports the rest as conflicts, so this returns an ordered {@link List} rather than
+     * an {@link AnnotationMirrorSet}.
+     *
+     * <p>The order is that of {@link #getDeclAnnotations}, which for {@code elt}'s own annotations
+     * is the source order that {@code javac} reports. Three consequences:
+     *
+     * <ul>
+     *   <li>An aliasing annotation contributes its target {@code @DefaultQualifier} at the aliasing
+     *       annotation's own position. For example, {@code @NullMarked} aliases to
+     *       {@code @DefaultQualifier(NonNull.class, locations = UPPER_BOUND)}, so writing
+     *       {@code @NullMarked} before or after a {@code @DefaultQualifier} decides which of the
+     *       two wins.
+     *   <li>Two or more written {@code @DefaultQualifier}s are reported by javac as a single
+     *       {@code @DefaultQualifier.List} positioned where the first of them was written, and its
+     *       {@code value()} array is in source order; this expands that container in place, so the
+     *       result is still in source order.
+     *   <li>Annotations contributed by a stub or ajava file, and annotations inherited from a
+     *       supertype or an overridden method, are appended by {@link #getDeclAnnotations} after
+     *       {@code elt}'s own, so they come last here and lose a conflict against an annotation
+     *       written on {@code elt} itself. (Neither {@code @DefaultQualifier} nor
+     *       {@code @DefaultQualifier.List} is {@code @Inherited}, so today only a stub or ajava
+     *       file can reach this case; {@code @Inherited} annotations are the one kind that {@code
+     *       Elements.getAllAnnotationMirrors} places <i>before</i> the element's own, which would
+     *       invert this precedence.)
+     * </ul>
+     *
+     * @param elt an element
+     * @return an unmodifiable list, in source order, of the {@code @DefaultQualifier} annotations
+     *     that apply to {@code elt}'s own declaration; may be empty
+     */
+    public List<AnnotationMirror> getDefaultQualifierAnnotations(Element elt) {
+        AnnotationMirrorSet declAnnos = getDeclAnnotations(elt);
+        Map<@FullyQualifiedName String, AnnotationMirror> singleAliases =
+                declAliases.get(DEFAULT_QUALIFIER_NAME);
+        Map<@FullyQualifiedName String, AnnotationMirror> listAliases =
+                declAliases.get(DEFAULT_QUALIFIER_LIST_NAME);
+        // Allocate only if a match is actually found: the overwhelming majority of elements have
+        // no @DefaultQualifier at all, and this runs on the QualifierDefaults cache-miss path for
+        // a large fraction of elements.
+        List<AnnotationMirror> result = null;
+        for (int i = 0, n = declAnnos.size(); i < n; ++i) {
+            AnnotationMirror am = declAnnos.get(i);
+            @FullyQualifiedName String amName = AnnotationUtils.annotationName(am);
+            // Unlike getDeclAnnotation, do not stop at the first match: a written annotation and
+            // an aliased one must both be collected, in the order they appear.
+            AnnotationMirror single =
+                    amName.equals(DEFAULT_QUALIFIER_NAME)
+                            ? am
+                            : (singleAliases == null ? null : singleAliases.get(amName));
+            if (single != null) {
+                if (result == null) {
+                    result = new ArrayList<>(2);
+                }
+                result.add(single);
+                continue;
+            }
+            AnnotationMirror listAnno =
+                    amName.equals(DEFAULT_QUALIFIER_LIST_NAME)
+                            ? am
+                            : (listAliases == null ? null : listAliases.get(amName));
+            if (listAnno != null) {
+                List<AnnotationMirror> repeated =
+                        AnnotationUtils.getElementValueArray(
+                                listAnno, defaultQualifierListValueElement, AnnotationMirror.class);
+                if (!repeated.isEmpty()) {
+                    if (result == null) {
+                        result = new ArrayList<>(repeated.size());
+                    }
+                    result.addAll(repeated);
+                }
+            }
+        }
+        return result == null ? Collections.emptyList() : Collections.unmodifiableList(result);
     }
 
     /**
