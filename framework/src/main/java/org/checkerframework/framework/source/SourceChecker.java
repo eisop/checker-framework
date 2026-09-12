@@ -217,6 +217,13 @@ import javax.tools.Diagnostic;
     // org.checkerframework.framework.source.SourceChecker.useConservativeDefault
     "useConservativeDefaultsForUncheckedCode",
 
+    // Whether to use optimistic defaults for bytecode and/or source code.
+    // This option takes the same arguments as "useConservativeDefaultsForUncheckedCode", and like
+    // it, applies only outside the scope of an @AnnotatedFor.  It does not suppress warnings in
+    // that code; combine it with -AonlyAnnotatedFor to do that.  A given kind of code cannot be
+    // defaulted both optimistically and conservatively.
+    "useOptimisticDefaultsForUncheckedCode",
+
     // Whether to assume sound concurrent semantics or
     // simplified sequential semantics
     // org.checkerframework.framework.flow.CFAbstractTransfer.sequentialSemantics
@@ -1214,6 +1221,8 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
         if (parentChecker == null) {
             validateMode(options);
         }
+
+        checkOptimisticAndConservativeDefaults();
 
         // Initialize all checkers and share supported lint options.
         for (SourceChecker checker : getSubcheckers()) {
@@ -3099,30 +3108,106 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     }
 
     /**
-     * Should conservative defaults be used for the kind of unchecked code indicated by the
-     * parameter?
+     * Determine whether conservative defaults should be used for the kind of unchecked code
+     * indicated by the command line arguments.
      *
      * @param kindOfCode source or bytecode
      * @return whether conservative defaults should be used
      */
     public boolean useConservativeDefault(String kindOfCode) {
-        boolean useUncheckedDefaultsForSource = false;
-        boolean useUncheckedDefaultsForByteCode = false;
-        for (String arg : this.getStringsOption("useConservativeDefaultsForUncheckedCode", ',')) {
-            boolean value = arg.indexOf("-") != 0;
-            arg = value ? arg : arg.substring(1);
-            if (arg.equals(kindOfCode)) {
-                return value;
+        // Preserve the legacy behavior of ignoring unrecognized conservative-default values.
+        return useUncheckedDefault("useConservativeDefaultsForUncheckedCode", kindOfCode, false);
+    }
+
+    /**
+     * Determine whether optimistic defaults should be used for the kind of unchecked code indicated
+     * by the command line arguments.
+     *
+     * @param kindOfCode source or bytecode
+     * @return whether optimistic defaults should be used
+     */
+    public boolean useOptimisticDefault(String kindOfCode) {
+        return useUncheckedDefault("useOptimisticDefaultsForUncheckedCode", kindOfCode, true);
+    }
+
+    /**
+     * Throws a {@link UserError} if a kind of code is to be defaulted both optimistically and
+     * conservatively. The two are opposites, so applying both is always a mistake.
+     */
+    private void checkOptimisticAndConservativeDefaults() {
+        for (String kindOfCode : new String[] {"source", "bytecode"}) {
+            if (useOptimisticDefault(kindOfCode) && useConservativeDefault(kindOfCode)) {
+                throw new UserError(
+                        "Both -AuseOptimisticDefaultsForUncheckedCode and"
+                                + " -AuseConservativeDefaultsForUncheckedCode were supplied for "
+                                + kindOfCode
+                                + "; a kind of code can be defaulted only one way.");
             }
         }
-        if (kindOfCode.equals("source")) {
-            return useUncheckedDefaultsForSource;
-        } else if (kindOfCode.equals("bytecode")) {
-            return useUncheckedDefaultsForByteCode;
-        } else {
-            throw new UserError(
-                    "SourceChecker: unexpected argument to useConservativeDefault: " + kindOfCode);
+    }
+
+    /**
+     * Returns whether an unchecked-code defaulting option enables defaults for a kind of code.
+     *
+     * @param optionName the option to parse
+     * @param kindOfCode source or bytecode
+     * @param validateValues whether to reject malformed and contradictory option values
+     * @return whether the option enables defaults for the kind of code
+     */
+    private boolean useUncheckedDefault(
+            String optionName, String kindOfCode, boolean validateValues) {
+        if (!kindOfCode.equals("source") && !kindOfCode.equals("bytecode")) {
+            throw new UserError("SourceChecker: unexpected kind of code: " + kindOfCode);
         }
+        if (!hasOption(optionName)) {
+            return false;
+        }
+
+        String optionValue = getOption(optionName);
+        if (optionValue == null) {
+            if (validateValues) {
+                throw new UserError("Option -A" + optionName + " requires a value.");
+            }
+            return false;
+        }
+
+        boolean found = false;
+        boolean result = false;
+        for (String rawArg : optionValue.split(",", -1)) {
+            if (rawArg.isEmpty()) {
+                if (validateValues) {
+                    throw new UserError("Option -A" + optionName + " contains an empty value.");
+                }
+                continue;
+            }
+            boolean value = rawArg.charAt(0) != '-';
+            String arg = value ? rawArg : rawArg.substring(1);
+            if (!arg.equals("source") && !arg.equals("bytecode")) {
+                if (validateValues) {
+                    throw new UserError(
+                            "Invalid value \""
+                                    + rawArg
+                                    + "\" for -A"
+                                    + optionName
+                                    + "; expected source, -source, bytecode, or -bytecode.");
+                }
+                continue;
+            }
+            if (arg.equals(kindOfCode)) {
+                if (!found) {
+                    found = true;
+                    result = value;
+                } else if (result != value && validateValues) {
+                    throw new UserError(
+                            "Option -A"
+                                    + optionName
+                                    + " contains conflicting values for "
+                                    + kindOfCode
+                                    + ".");
+                }
+            }
+        }
+        return result;
     }
 
     /**

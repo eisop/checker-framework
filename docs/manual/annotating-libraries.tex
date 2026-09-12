@@ -417,6 +417,13 @@ In code with a relevant \<@AnnotatedFor> annotation, warnings can be suppressed
 by an explicit \<@SuppressWarnings> annotation.
 \end{sloppypar}
 
+As an unsound alternative, use
+\<-AuseOptimisticDefaultsForUncheckedCode=source,bytecode> to trust code outside
+a relevant \<@AnnotatedFor> scope.  This applies optimistic defaults (see
+Section~\ref{defaults-classfile}) but continues to issue warnings.  Combine it
+with \<-AonlyAnnotatedFor> to suppress those warnings.  A kind of code cannot
+use both optimistic and conservative defaults.
+
 The \refqualclass{framework/qual}{AnnotatedFor} annotation, written on a
 class, indicates that the class has been annotated for certain type
 systems.  For example, \<@AnnotatedFor(\ttlcb"nullness", "regex"\ttrcb)> means that
