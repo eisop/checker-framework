@@ -1259,6 +1259,24 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         }
     }
 
+    /**
+     * Clears caches of fully-computed types (such as {@link #elementTypeCache}, {@link
+     * #classAndMethodTreeCache}, and {@link #methodAsMemberOfCache}) whose contents depend on
+     * defaulting. Called when element defaults are added dynamically (e.g. by {@link
+     * org.checkerframework.framework.util.defaults.QualifierDefaults#addElementDefault}).
+     */
+    public void clearComputedElementCaches() {
+        if (elementTypeCache != null) {
+            elementTypeCache.clear();
+        }
+        if (classAndMethodTreeCache != null) {
+            classAndMethodTreeCache.clear();
+        }
+        if (methodAsMemberOfCache != null) {
+            methodAsMemberOfCache.clear();
+        }
+    }
+
     @SideEffectFree
     @Override
     public String toString() {

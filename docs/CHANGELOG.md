@@ -10,6 +10,11 @@ subpackages. The intervening package's own default correctly stayed limited to t
 package, but the outer default, which nothing deeper actually shadowed, incorrectly
 stopped propagating too.
 
+Programmatic element defaults added via `QualifierDefaults.addElementDefault` now
+correctly take effect regardless of whether defaults on the target element or its
+enclosing or child elements were already queried, seamlessly merging with written
+`@DefaultQualifier` annotations and enclosing package defaults.
+
 The Nullness Checker now treats JSpecify's `@NullMarked` as an alias for
 `@AnnotatedFor` scoped to nullness checking alone (not initialization or `@KeyFor`
 checking, which JSpecify does not define and which `-Amode=jspecify` already excludes),
@@ -935,7 +940,7 @@ eisop#1299, eisop#1315, eisop#1564, eisop#1592, eisop#1642, eisop#1653,
 eisop#1735, eisop#1801, eisop#1818, eisop#1819, eisop#1861, eisop#1862,
 eisop#1863, eisop#1865, eisop#1887, eisop#1965, eisop#1986, eisop#1987,
 eisop#1990, eisop#1991, eisop#2009, eisop#2020, eisop#2021, eisop#2032,
-eisop#2037, typetools#399, typetools#3203.
+eisop#2037, eisop#2047, typetools#399, typetools#3203.
 
 
 Version 3.49.5-eisop1 (April 26, 2026)

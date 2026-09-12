@@ -455,6 +455,7 @@ public class QualifierDefaults {
             packagePropagatingDefaults.clear();
         }
         invalidateFusedDefaults();
+        atypeFactory.clearComputedElementCaches();
     }
 
     private void checkIsValidUncheckedCodeLocation(

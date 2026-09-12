@@ -73,11 +73,13 @@ public class ElementDefaultAnnotatedTypeFactory extends BaseAnnotatedTypeFactory
                 defaults.addElementDefault(elem, bottom, TypeUseLocation.PARAMETER);
             } else if (elem.getSimpleName().contentEquals("OrderAfterClass")) {
                 // Query defaults on the class and its child members first (populating the
-                // elementDefaults memoization cache in QualifierDefaults for both the class
-                // and its children prior to calling addElementDefault on the class).
+                // elementDefaults memoization cache in QualifierDefaults as well as the
+                // elementTypeCache and classAndMethodTreeCache in AnnotatedTypeFactory for both
+                // the class and its children prior to calling addElementDefault on the class).
                 defaults.annotate(elem, getAnnotatedType(classTree));
                 for (Element member : elem.getEnclosedElements()) {
                     defaults.annotate(member, fromElement(member));
+                    getAnnotatedType(member);
                 }
                 // Then call addElementDefault on the element
                 AnnotationMirror bottom =
