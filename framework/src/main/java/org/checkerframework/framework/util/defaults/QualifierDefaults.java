@@ -164,7 +164,11 @@ public class QualifierDefaults {
      * Defaults added via {@link #addElementDefault}, tracked separately from the {@link
      * #elementDefaults} memoization cache so that {@link #defaultsAtDirect} can treat a
      * programmatically-added default as part of an element's own direct contribution -- the same
-     * way it treats a written {@code @DefaultQualifier}.
+     * way it treats a written {@code @DefaultQualifier} -- rather than it being visible only
+     * through {@link #elementDefaults}, which {@link #propagatingDefaultsAt} does not consult (see
+     * that method). Without this, a default added on a package would apply to that package's own
+     * elements but silently fail to reach any of its subpackages, and adding a default on any
+     * element would bypass written annotations and parent defaults.
      */
     private final IdentityHashMap<Element, DefaultSet> programmaticElementDefaults =
             new IdentityHashMap<>();
@@ -440,7 +444,6 @@ public class QualifierDefaults {
             progSet = new DefaultSet();
             programmaticElementDefaults.put(elem, progSet);
         }
-        // TODO: expose applyToSubpackages
         Default d = new Default(elementDefaultAnno, location, true);
         progSet.add(d);
         elementDefaults.clear();
@@ -682,33 +685,27 @@ public class QualifierDefaults {
             return null;
         }
 
-        if (!atypeFactory.isSupportedQualifier(anno)) {
-            anno = atypeFactory.canonicalAnnotation(anno);
-        }
-
-        if (atypeFactory.isSupportedQualifier(anno)) {
-            TypeUseLocation[] locations =
-                    AnnotationUtils.getElementValueEnumArray(
-                            dq,
-                            defaultQualifierLocationsElement,
-                            TypeUseLocation.class,
-                            defaultQualifierValueDefault);
-            boolean applyToSubpackages =
-                    defaultQualifierApplyToSubpackagesElement == null
-                            || AnnotationUtils.getElementValue(
-                                    dq,
-                                    defaultQualifierApplyToSubpackagesElement,
-                                    Boolean.class,
-                                    true);
-
-            DefaultSet ret = new DefaultSet();
-            for (TypeUseLocation loc : locations) {
-                ret.add(new Default(anno, loc, applyToSubpackages));
-            }
-            return ret;
-        } else {
+        anno = atypeFactory.asSupportedQualifier(anno);
+        if (anno == null) {
             return null;
         }
+
+        TypeUseLocation[] locations =
+                AnnotationUtils.getElementValueEnumArray(
+                        dq,
+                        defaultQualifierLocationsElement,
+                        TypeUseLocation.class,
+                        defaultQualifierValueDefault);
+        boolean applyToSubpackages =
+                defaultQualifierApplyToSubpackagesElement == null
+                        || AnnotationUtils.getElementValue(
+                                dq, defaultQualifierApplyToSubpackagesElement, Boolean.class, true);
+
+        DefaultSet ret = new DefaultSet();
+        for (TypeUseLocation loc : locations) {
+            ret.add(new Default(anno, loc, applyToSubpackages));
+        }
+        return ret;
     }
 
     /**

@@ -1859,9 +1859,9 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     /**
      * Determines the annotated type from a type in tree form.
      *
-     * <p>Note that we cannot decide from a Tree whether it is a type use or an expression.
-     * TreeUtils.isTypeTree is only an under-approximation. For example, an identifier can be either
-     * a type or an expression.
+     * <p>Note that we cannot decide from a Tree alone (without attribution) whether it is a type
+     * use or an expression. For example, an identifier can be either a type or an expression. See
+     * {@link TreeUtils#isTypeTree(Tree)}.
      *
      * @param tree the type tree
      * @return the annotated type of the type in the AST
@@ -1987,7 +1987,44 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         AnnotationMirrorSet bound = getTypeDeclarationBounds(fromTypeTree.getUnderlyingType());
         fromTypeTree.addMissingAnnotations(bound);
         addComputedTypeAnnotations(clause, fromTypeTree);
+        addAnonymousClassCreationAnnos(clause, fromTypeTree);
         return fromTypeTree;
+    }
+
+    /**
+     * If {@code clause} is the extends or implements clause of an anonymous class, adds the
+     * annotations written on the creation expression to {@code type}.
+     *
+     * <p>An anonymous class's supertype is annotated by its creation expression, as in {@code
+     * new @HERE Class() {}}. javac attaches that annotation to the anonymous class declaration's
+     * modifiers in Java 11 and lower, and to the clause itself in Java 12 and later; {@link
+     * #getExplicitNewClassAnnos} reconciles the two.
+     *
+     * <p>Call this after {@link #addComputedTypeAnnotations}, whose defaulting would otherwise
+     * overwrite the written annotation.
+     *
+     * @param clause an extends or implements clause
+     * @param type the type of {@code clause}, side-effected by this method
+     */
+    private void addAnonymousClassCreationAnnos(Tree clause, AnnotatedTypeMirror type) {
+        TreePath path = getPath(clause);
+        TreePath parentPath = path == null ? null : path.getParentPath();
+        Tree parent = parentPath == null ? null : parentPath.getLeaf();
+        // In javac's AST, an anonymous class's extends/implements clause is shared with
+        // NewClassTree.clazz. Depending on traversal or cache order, the clause's parent in the
+        // TreePath may be the NewClassTree directly or the anonymous ClassTree (with the
+        // NewClassTree as its parent).
+        NewClassTree newClassTree = null;
+        if (parent instanceof NewClassTree) {
+            newClassTree = (NewClassTree) parent;
+        } else if (parent instanceof ClassTree
+                && parentPath.getParentPath() != null
+                && parentPath.getParentPath().getLeaf() instanceof NewClassTree) {
+            newClassTree = (NewClassTree) parentPath.getParentPath().getLeaf();
+        }
+        if (newClassTree != null) {
+            type.replaceAnnotations(getExplicitNewClassAnnos(newClassTree));
+        }
     }
 
     // **********************************************************************
@@ -3873,12 +3910,15 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      */
     public AnnotationMirrorSet getExplicitNewClassAnnos(NewClassTree newClassTree) {
         if (newClassTree.getClassBody() != null) {
-            // In Java 17+, the annotations are on the identifier, so copy them.
+            // In Java 12+, the annotations are on the identifier, so copy them.
             AnnotatedTypeMirror identifierType = fromTypeTree(newClassTree.getIdentifier());
             // In Java 11 and lower, if newClassTree creates an anonymous class, then annotations in
             // this location:
             //   new @HERE Class() {}
             // are not on the identifier newClassTree, but rather on the modifier newClassTree.
+            // TODO: once the minimum supported JDK is 12, javac always attaches the annotation to
+            // the identifier and this reconciliation (the rest of this if-block, down to and
+            // including the addAnnotations call below) can be deleted.
             List<? extends AnnotationTree> annoTrees =
                     newClassTree.getClassBody().getModifiers().getAnnotations();
             // Add the annotations to an AnnotatedTypeMirror removes the annotations that are not
@@ -4336,16 +4376,20 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * factory operates. Null is never a supported qualifier; the parameter is nullable to allow the
      * result of canonicalAnnotation to be passed in directly.
      *
-     * @param a any annotation
+     * <p>{@code am} is checked exactly as given: an alias for a supported qualifier fails this
+     * check. For an annotation as written, such as one read from an {@link
+     * com.sun.source.tree.AnnotationTree}, use {@link #isSupportedQualifierOrAlias} instead.
+     *
+     * @param am any annotation
      * @return true if that annotation is part of the type system under which this type factory
      *     operates, false otherwise
      */
     @EnsuresNonNullIf(expression = "#1", result = true)
-    public boolean isSupportedQualifier(@Nullable AnnotationMirror a) {
-        if (a == null) {
+    public boolean isSupportedQualifier(@Nullable AnnotationMirror am) {
+        if (am == null) {
             return false;
         }
-        return isSupportedQualifier(AnnotationUtils.annotationName(a));
+        return isSupportedQualifier(AnnotationUtils.annotationName(am));
     }
 
     /**
@@ -4497,11 +4541,18 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * <p>A canonical annotation is the internal annotation that will be used by the Checker
      * Framework in the aliased annotation's place.
      *
-     * @param a the qualifier to check for an alias
+     * <p>Most callers do not want this method directly: it returns null both when {@code am} is
+     * already canonical and when {@code am} is unrelated to this checker, which a caller usually
+     * has to tell apart. Use {@link #canonicalAnnotationOrWritten} to resolve an annotation as
+     * written to what it stands for, or {@link #asSupportedQualifier}/{@link
+     * #isSupportedQualifierOrAlias} to also filter to this checker's supported qualifiers in the
+     * same step.
+     *
+     * @param am the qualifier to check for an alias
      * @return the canonical annotation, or null if none exists
      */
-    public @Nullable AnnotationMirror canonicalAnnotation(AnnotationMirror a) {
-        TypeElement elem = (TypeElement) a.getAnnotationType().asElement();
+    public @Nullable AnnotationMirror canonicalAnnotation(AnnotationMirror am) {
+        TypeElement elem = (TypeElement) am.getAnnotationType().asElement();
         String qualName = ElementUtils.getQualifiedName(elem);
         Alias alias = aliases.get(qualName);
         if (alias == null) {
@@ -4509,11 +4560,92 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         }
         if (alias.copyElements) {
             AnnotationBuilder builder = new AnnotationBuilder(processingEnv, alias.canonicalName);
-            builder.copyElementValuesFromAnnotation(a, alias.ignorableElements);
+            builder.copyElementValuesFromAnnotation(am, alias.ignorableElements);
             return builder.build();
         } else {
             return alias.canonical;
         }
+    }
+
+    /**
+     * Returns the canonical form of {@code writtenAnno} if it is an alias, and {@code writtenAnno}
+     * itself otherwise.
+     *
+     * <p>Use this on an annotation as written, such as one read from an {@link
+     * com.sun.source.tree.AnnotationTree}, before comparing it against a canonical annotation.
+     * {@link #canonicalAnnotation} returns null for an annotation that is not an alias, which every
+     * such caller would otherwise have to undo.
+     *
+     * <p>If the comparison is instead against this checker's supported qualifiers -- the most
+     * common case -- use {@link #asSupportedQualifier} or {@link #isSupportedQualifierOrAlias}
+     * directly rather than this method plus a separate {@code isSupportedQualifier} check: {@code
+     * writtenAnno} may resolve to an annotation this checker does not support, which those two
+     * methods filter out and this one does not.
+     *
+     * @param writtenAnno an annotation as written, possibly an alias
+     * @return the annotation that {@code writtenAnno} stands for
+     */
+    public AnnotationMirror canonicalAnnotationOrWritten(AnnotationMirror writtenAnno) {
+        AnnotationMirror canonical = canonicalAnnotation(writtenAnno);
+        return canonical != null ? canonical : writtenAnno;
+    }
+
+    /**
+     * Returns {@code writtenAnno} if it is a supported qualifier, or its canonical form if that is
+     * a supported qualifier, or null if neither is.
+     *
+     * <p>Use this on an annotation as written when the caller needs the qualifier itself afterward,
+     * not just whether one exists -- for example, to add it to a type or to build a default from
+     * it. Unlike {@link #canonicalAnnotationOrWritten}, which returns a value regardless of whether
+     * it is actually supported, this filters to only a supported qualifier: {@code writtenAnno}
+     * might be neither this checker's qualifier nor an alias for one, in which case there is
+     * nothing this checker can use it for.
+     *
+     * @param writtenAnno an annotation as written, possibly an alias
+     * @return {@code writtenAnno} or its canonical form, whichever is a supported qualifier; null
+     *     if neither is
+     */
+    public @Nullable AnnotationMirror asSupportedQualifier(AnnotationMirror writtenAnno) {
+        if (isSupportedQualifier(writtenAnno)) {
+            return writtenAnno;
+        }
+        AnnotationMirror canonical = canonicalAnnotation(writtenAnno);
+        return isSupportedQualifier(canonical) ? canonical : null;
+    }
+
+    /**
+     * Returns true if {@code writtenAnno} is a supported qualifier, or an alias for one.
+     *
+     * <p>Use this on an annotation as written when the caller needs only the yes/no answer, such as
+     * whether to report a diagnostic about it; see {@link #asSupportedQualifier} when the qualifier
+     * itself is needed afterward.
+     *
+     * @param writtenAnno an annotation as written, possibly an alias
+     * @return true if {@code writtenAnno} is a supported qualifier or an alias for one
+     */
+    public boolean isSupportedQualifierOrAlias(AnnotationMirror writtenAnno) {
+        return asSupportedQualifier(writtenAnno) != null;
+    }
+
+    /**
+     * Returns true if some annotation in {@code writtenAnnos} is {@code target}, or an alias for
+     * it.
+     *
+     * <p>Use this rather than {@link AnnotationUtils#containsSame} when {@code writtenAnnos} holds
+     * annotations as written, such as ones read from a tree.
+     *
+     * @param writtenAnnos annotations as written, possibly aliases
+     * @param target a canonical annotation
+     * @return true if some annotation in {@code writtenAnnos} stands for {@code target}
+     */
+    public boolean containsSameOrAlias(
+            Collection<? extends AnnotationMirror> writtenAnnos, AnnotationMirror target) {
+        for (AnnotationMirror writtenAnno : writtenAnnos) {
+            if (AnnotationUtils.areSame(canonicalAnnotationOrWritten(writtenAnno), target)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
@@ -6933,9 +7065,9 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     */
 
     /**
-     * Returns every declaration annotation named {@code annoName} on {@code elt}: the one written
-     * on it, if any, together with one for each of its declaration annotations that is an alias for
-     * {@code annoName}.
+     * Returns every declaration annotation named {@code annoName} on {@code elt}: the one declared
+     * on it (including via a stub file or inheritance), if any, together with one for each of its
+     * declaration annotations that is an alias for {@code annoName}.
      *
      * <p>{@link #getDeclAnnotation(Element, Class)} cannot serve this purpose: it returns a single
      * annotation and prefers a written annotation over an alias, so an explicit annotation hides an
@@ -6945,22 +7077,16 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * checked for nullness even though {@code @NullMarked} aliases to an {@code @AnnotatedFor} for
      * it. This method returns both.
      *
-     * <p>The result is an {@link AnnotationMirrorSet}, so two aliases that produce an identical
-     * mirror collapse, while two that differ in any element are both retained.
-     *
-     * <p>This does not unpack a {@code @Repeatable} annotation's {@code .List} container -- there
-     * is no way to derive {@code Foo.List.class} from {@code Foo.class} generically. A caller for a
-     * repeatable annotation must also look up its {@code .List} form itself and merge it in, the
-     * way {@link #getAnnotatedForAnnotations} does for {@code AnnotatedFor}/{@code
-     * AnnotatedFor.List} and {@link org.checkerframework.framework.util.defaults.QualifierDefaults}
-     * does for {@code DefaultQualifier}/{@code DefaultQualifier.List}.
+     * <p>This does not unpack a {@code @Repeatable} annotation's {@code .List} container; see
+     * {@link #getAnnotatedForAnnotations}, the only caller, which does that for {@code
+     * AnnotatedFor}/{@code AnnotatedFor.List}.
      *
      * @param elt an element
      * @param annoName the fully-qualified name of the declaration annotation to look for
      * @return an unmodifiable set of the annotations named {@code annoName} on {@code elt}, written
      *     or aliased; may be empty
      */
-    public AnnotationMirrorSet getAllDeclAnnotations(
+    private AnnotationMirrorSet getAllDeclAnnotations(
             Element elt, @FullyQualifiedName String annoName) {
         AnnotationMirrorSet declAnnos = getDeclAnnotations(elt);
         Map<@FullyQualifiedName String, AnnotationMirror> aliases = declAliases.get(annoName);

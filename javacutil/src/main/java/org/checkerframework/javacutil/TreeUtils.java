@@ -15,6 +15,7 @@ import com.sun.source.tree.ExpressionStatementTree;
 import com.sun.source.tree.ExpressionTree;
 import com.sun.source.tree.IdentifierTree;
 import com.sun.source.tree.InstanceOfTree;
+import com.sun.source.tree.IntersectionTypeTree;
 import com.sun.source.tree.LambdaExpressionTree;
 import com.sun.source.tree.LambdaExpressionTree.BodyKind;
 import com.sun.source.tree.LiteralTree;
@@ -1237,16 +1238,36 @@ public final class TreeUtils {
     }
 
     /**
-     * Is the given tree a type instantiation?
+     * Does the given tree denote a type, rather than an expression or a declaration?
      *
-     * <p>TODO: this is an under-approximation: e.g. an identifier could be either a type use or an
-     * expression. How can we distinguish.
+     * <p>Every kind in {@link #typeTreeKinds} can only be a type, so it is recognized by its kind
+     * alone. An identifier cannot be: it is a type use in {@code class C extends Base {}} or {@code
+     * T x} but an expression in {@code base = null}. This method resolves that ambiguity by asking
+     * what the identifier refers to, so it requires an attributed tree.
+     *
+     * <p>A member select is ambiguous in the same way: {@code Outer.Inner} is a type in {@code
+     * Outer.Inner x} but an expression in {@code obj.field = 1}, and it is resolved the same way. A
+     * member select that names a package, as in the {@code java.util} within {@code
+     * java.util.List}, refers to a package rather than a type and so is not a type tree.
      *
      * @param tree the tree to test
-     * @return true, iff the given tree is a type
+     * @return true iff the given tree denotes a type
      */
     public static boolean isTypeTree(Tree tree) {
-        return typeTreeKinds().contains(tree.getKind());
+        if (typeTreeKinds().contains(tree.getKind())) {
+            return true;
+        }
+        switch (tree.getKind()) {
+            case IDENTIFIER:
+            case MEMBER_SELECT:
+                Element elt = elementFromTree(tree);
+                // An identifier or member select denotes a type if it resolves to a type
+                // declaration: a class/interface/enum/record/annotation or a type variable
+                // (as in a use like `T x`).
+                return elt != null && ElementUtils.isTypeDeclaration(elt);
+            default:
+                return false;
+        }
     }
 
     /**
@@ -2430,11 +2451,22 @@ public final class TreeUtils {
                 case UNION_TYPE:
                     List<? extends Tree> alternatives =
                             ((UnionTypeTree) typeTree).getTypeAlternatives();
-                    List<AnnotationTree> result = new ArrayList<>(alternatives.size());
+                    List<AnnotationTree> unionResult = new ArrayList<>(alternatives.size());
                     for (Tree alternative : alternatives) {
-                        result.addAll(getExplicitAnnotationTrees(null, alternative));
+                        unionResult.addAll(getExplicitAnnotationTrees(null, alternative));
                     }
-                    return result;
+                    return unionResult;
+                case INTERSECTION_TYPE:
+                    // Only reachable from a cast, as in "(@Nullable Supplier<String> &
+                    // Serializable) ...": a type parameter's bound never reaches this method
+                    // (TYPE_PARAMETER returns above), and no declaration can have an
+                    // intersection type.
+                    List<? extends Tree> bounds = ((IntersectionTypeTree) typeTree).getBounds();
+                    List<AnnotationTree> intersectionResult = new ArrayList<>(bounds.size());
+                    for (Tree bound : bounds) {
+                        intersectionResult.addAll(getExplicitAnnotationTrees(null, bound));
+                    }
+                    return intersectionResult;
                 default:
                     throw new BugInCF(
                             "TreeUtils.getExplicitAnnotationTrees: what typeTree? %s %s %s",

@@ -735,11 +735,11 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             new TreeScanner<Void, String>() {
                 @Override
                 public Void visitAnnotation(AnnotationTree annoTree, String location) {
-                    AnnotationMirror anno = TreeUtils.annotationFromAnnotationTree(annoTree);
-                    if (atypeFactory.isSupportedQualifier(anno)
-                            && qualHierarchy.isPolymorphicQualifier(anno)) {
+                    AnnotationMirror written = TreeUtils.annotationFromAnnotationTree(annoTree);
+                    AnnotationMirror anno = atypeFactory.asSupportedQualifier(written);
+                    if (anno != null && qualHierarchy.isPolymorphicQualifier(anno)) {
                         checker.reportError(
-                                annoTree, "invalid.polymorphic.qualifier", anno, location);
+                                annoTree, "invalid.polymorphic.qualifier", written, location);
                     }
                     return super.visitAnnotation(annoTree, location);
                 }
@@ -1064,8 +1064,8 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
 
     /**
      * Reports an {@code annotation.on.supertype} error if {@code boundClause} carries a type
-     * qualifier in this checker's hierarchy directly on the supertype. A checker that allows
-     * annotations directly on supertypes (e.g., {@link
+     * qualifier in this checker's hierarchy, or an alias for one, directly on the supertype. A
+     * checker that allows annotations directly on supertypes (e.g., {@link
      * org.checkerframework.checker.tainting.TaintingVisitor}) should override this method to do
      * nothing.
      *
@@ -1082,8 +1082,10 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         List<? extends AnnotationTree> annoTrees =
                 ((AnnotatedTypeTree) boundClause).getAnnotations();
         for (AnnotationTree annoTree : annoTrees) {
+            // The annotation is as written, so it may need alias resolution before this checker
+            // recognizes it as supported.
             AnnotationMirror am = TreeUtils.annotationFromAnnotationTree(annoTree);
-            if (atypeFactory.isSupportedQualifier(am)) {
+            if (atypeFactory.isSupportedQualifierOrAlias(am)) {
                 checker.reportError(boundClause, "annotation.on.supertype");
                 break;
             }
@@ -1852,7 +1854,8 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
 
     /**
      * Issues "explicit.annotation.ignored" warning if any explicit annotation on an intersection
-     * bound is not the same as the primary annotation of the given intersection type.
+     * bound -- or, if written as an alias, its canonical form -- is not the same as the primary
+     * annotation of the given intersection type.
      *
      * @param intersection type to use
      * @param boundTrees trees of {@code intersection} bounds
@@ -1863,18 +1866,19 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             if (!(boundTree instanceof AnnotatedTypeTree)) {
                 continue;
             }
-            List<? extends AnnotationMirror> explictAnnos =
+            List<? extends AnnotationMirror> explicitAnnos =
                     TreeUtils.annotationsFromTree((AnnotatedTypeTree) boundTree);
-            for (AnnotationMirror explictAnno : explictAnnos) {
-                if (atypeFactory.isSupportedQualifier(explictAnno)) {
-                    AnnotationMirror anno = intersection.getAnnotationInHierarchy(explictAnno);
-                    if (!AnnotationUtils.areSame(anno, explictAnno)) {
+            for (AnnotationMirror writtenAnno : explicitAnnos) {
+                AnnotationMirror explicitAnno = atypeFactory.asSupportedQualifier(writtenAnno);
+                if (explicitAnno != null) {
+                    AnnotationMirror anno = intersection.getAnnotationInHierarchy(explicitAnno);
+                    if (!AnnotationUtils.areSame(anno, explicitAnno)) {
                         checker.reportWarning(
                                 boundTree,
                                 "explicit.annotation.ignored",
-                                explictAnno,
+                                explicitAnno,
                                 anno,
-                                explictAnno,
+                                explicitAnno,
                                 anno);
                     }
                 }
@@ -3389,7 +3393,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
 
     /**
      * Returns a new list containing only the supported annotations from its argument -- that is,
-     * those that are part of the current type system.
+     * those that are part of the current type system, directly or via an alias.
      *
      * <p>This method ignores aliases of supported annotations that are declaration annotations,
      * because they may apply to inner types.
@@ -3402,7 +3406,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         for (AnnotationTree at : annoTrees) {
             AnnotationMirror anno = TreeUtils.annotationFromAnnotationTree(at);
             if (AnnotationUtils.isTypeUseAnnotation(anno)
-                    && atypeFactory.isSupportedQualifier(anno)) {
+                    && atypeFactory.isSupportedQualifierOrAlias(anno)) {
                 result.add(at);
             }
         }
