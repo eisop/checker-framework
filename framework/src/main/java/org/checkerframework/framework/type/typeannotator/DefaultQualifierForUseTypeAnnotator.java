@@ -125,6 +125,7 @@ public class DefaultQualifierForUseTypeAnnotator extends TypeAnnotator {
         if (ElementUtils.isAnonymous(element)) {
             // An anonymous class cannot carry @DefaultQualifierForUse itself, so it inherits the
             // defaults of the type it is created from, in each hierarchy it does not already set.
+            // Null only if the supertype did not resolve; see getAnonymousSupertype.
             DeclaredType superType = ElementUtils.getAnonymousSupertype((TypeElement) element);
             if (superType != null) {
                 AnnotationMirrorSet superDefaults = getDefaultAnnosForUses(superType.asElement());

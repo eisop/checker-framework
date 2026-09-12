@@ -124,6 +124,7 @@ public class QualifierUpperBounds {
                 // An anonymous class carries no annotations of its own, so its bounds are those
                 // of the type it is created from.  Use addMissingAnnotations, not addAll, so that
                 // anything the element did contribute still wins.
+                // Null only if the supertype did not resolve; see getAnonymousSupertype.
                 DeclaredType superType = ElementUtils.getAnonymousSupertype((TypeElement) elem);
                 if (superType != null) {
                     addMissingAnnotations(bounds, getBoundQualifiers(superType));
