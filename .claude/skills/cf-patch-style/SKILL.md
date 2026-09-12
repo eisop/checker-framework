@@ -180,13 +180,26 @@ clean result from one says nothing about the others:
 grep -n -r --exclude-dir=build --exclude-dir=examples --exclude-dir=jtreg \
   --exclude-dir=tests --exclude="*.astub" --exclude="*.tex" \
   '^\(import static \|import .*\*;$\)'
-./gradlew requireJavadoc javadocDoclintAll spotlessCheck
+./gradlew requireJavadoc javadocDoclintAll spotlessCheck --continue
 make style-check          # shell + Python only; skip if no .sh/.py changed
 ```
 
-Run the grep from the repo root, and ignore hits under untracked local
-directories -- a checkout parked in `.claude/worktrees/` will match, and
-CI never sees it. Only tracked files count.
+**`--continue` is not optional.** `requireJavadoc` fails on this repo
+unconditionally -- there are well over a thousand pre-existing violations --
+so without it Gradle stops there and `javadocDoclintAll` and `spotlessCheck`
+never run, which is the exact trap this section is about.
+
+**Read the result the way CI does: by line, not by exit code.** Both Javadoc
+tasks are wrapped in `|| true` in `test-misc.sh` and their output is piped
+through `ci-lint-diff`, which reports only findings on lines the diff
+*changed*. So a red `requireJavadoc` means nothing on its own; what matters is
+whether any finding falls inside your own added lines. Get those from
+`git diff -U0 origin/master...HEAD` and intersect. A finding in a file you
+touched, on a line you did not, is pre-existing -- do not chase it.
+
+Run the grep from the repo root over tracked files only (`git ls-files -z
+'*.java' | xargs -0 grep -n ...`); run plainly it also matches untracked
+checkouts parked under `.claude/worktrees/`, which CI never sees.
 
 Ordering matters when reading a failed CI log: `requireJavadoc` and
 `javadocDoclintAll` run first and only accumulate a status, while the
