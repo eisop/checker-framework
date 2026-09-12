@@ -5,6 +5,7 @@ import com.sun.source.tree.ClassTree;
 import org.checkerframework.common.basetype.BaseAnnotatedTypeFactory;
 import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.framework.qual.TypeUseLocation;
+import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.util.defaults.QualifierDefaults;
 import org.checkerframework.javacutil.AnnotationBuilder;
 import org.checkerframework.javacutil.TreeUtils;
@@ -15,6 +16,7 @@ import java.util.HashSet;
 import java.util.Set;
 
 import javax.lang.model.element.AnnotationMirror;
+import javax.lang.model.element.Element;
 import javax.lang.model.element.PackageElement;
 import javax.lang.model.element.TypeElement;
 
@@ -48,9 +50,8 @@ public class ElementDefaultAnnotatedTypeFactory extends BaseAnnotatedTypeFactory
         if (subPkg != null) {
             // Query defaults on the subpackage first (populating the packagePropagatingDefaults
             // cache before adding the default to the parent package).
-            org.checkerframework.framework.type.AnnotatedTypeMirror dummy =
-                    org.checkerframework.framework.type.AnnotatedTypeMirror.createType(
-                            types.getNullType(), this, false);
+            AnnotatedTypeMirror dummy =
+                    AnnotatedTypeMirror.createType(types.getNullType(), this, false);
             defs.annotate(subPkg, dummy);
         }
 
@@ -75,7 +76,7 @@ public class ElementDefaultAnnotatedTypeFactory extends BaseAnnotatedTypeFactory
                 // elementDefaults memoization cache in QualifierDefaults for both the class
                 // and its children prior to calling addElementDefault on the class).
                 defaults.annotate(elem, getAnnotatedType(classTree));
-                for (javax.lang.model.element.Element member : elem.getEnclosedElements()) {
+                for (Element member : elem.getEnclosedElements()) {
                     defaults.annotate(member, fromElement(member));
                 }
                 // Then call addElementDefault on the element
