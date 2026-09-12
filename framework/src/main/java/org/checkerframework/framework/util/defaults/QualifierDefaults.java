@@ -109,18 +109,17 @@ public class QualifierDefaults {
     private final DefaultSet checkedCodeDefaults = new DefaultSet();
 
     /** Conservative defaults for unchecked code. */
-    private final DefaultSet uncheckedCodeDefaults = new DefaultSet();
+    private final DefaultSet conservativeUncheckedCodeDefaults = new DefaultSet();
 
     /** Optimistic defaults for unchecked code. */
     private final DefaultSet optimisticUncheckedCodeDefaults = new DefaultSet();
 
     /**
-     * Which set of code defaults to fold in behind a scope's own defaults: none (checked code), the
-     * conservative unchecked defaults, or the optimistic ones. At most one applies to any element.
+     * Which set of unchecked-code defaults to fold in behind a scope's own defaults. A null mode
+     * means checked code, for which only the checked-code defaults apply. At most one of these sets
+     * applies to any element.
      */
     private enum DefaultsMode {
-        /** Checked code: only the checked-code defaults apply. */
-        CHECKED,
         /** Unchecked code, defaulted conservatively. */
         CONSERVATIVE,
         /** Unchecked code, defaulted optimistically. */
@@ -342,7 +341,7 @@ public class QualifierDefaults {
                 "Checked code defaults: ",
                 StringsPlume.joinLines(checkedCodeDefaults),
                 "Conservative unchecked code defaults: ",
-                StringsPlume.joinLines(uncheckedCodeDefaults),
+                StringsPlume.joinLines(conservativeUncheckedCodeDefaults),
                 "Optimistic unchecked code defaults: ",
                 StringsPlume.joinLines(optimisticUncheckedCodeDefaults),
                 "useConservativeDefaultsSource: " + useConservativeDefaultsSource,
@@ -366,21 +365,19 @@ public class QualifierDefaults {
     }
 
     /**
-     * Returns the code defaults for a mode.
+     * Returns the unchecked-code defaults for a mode.
      *
-     * @param mode the defaulting mode
-     * @return the mode's code defaults
+     * @param mode the unchecked defaulting mode
+     * @return the mode's unchecked-code defaults
      */
     private DefaultSet defaultsFor(DefaultsMode mode) {
         switch (mode) {
-            case CHECKED:
-                return checkedCodeDefaults;
             case CONSERVATIVE:
-                return uncheckedCodeDefaults;
+                return conservativeUncheckedCodeDefaults;
             case OPTIMISTIC:
                 return optimisticUncheckedCodeDefaults;
         }
-        throw new BugInCF("Unhandled defaults mode: " + mode);
+        throw new BugInCF("Unhandled unchecked defaults mode: " + mode);
     }
 
     /** Adds standard conservative and optimistic defaults for unchecked code. */
@@ -421,9 +418,6 @@ public class QualifierDefaults {
             DefaultsMode mode,
             List<TypeUseLocation> topLocations,
             List<TypeUseLocation> bottomLocations) {
-        if (mode == DefaultsMode.CHECKED) {
-            throw new BugInCF("Expected an unchecked defaults mode, but received " + mode);
-        }
         QualifierHierarchy qualHierarchy = this.atypeFactory.getQualifierHierarchy();
         addStandardDefaultsAtLocations(mode, qualHierarchy.getTopAnnotations(), topLocations);
         addStandardDefaultsAtLocations(mode, qualHierarchy.getBottomAnnotations(), bottomLocations);
@@ -447,17 +441,7 @@ public class QualifierDefaults {
                 if (conflictsWithExistingDefaults(defaults, qualifier, location)) {
                     continue;
                 }
-                switch (mode) {
-                    case CONSERVATIVE:
-                        addConservativeUncheckedCodeDefault(qualifier, location);
-                        break;
-                    case OPTIMISTIC:
-                        addOptimisticUncheckedCodeDefault(qualifier, location);
-                        break;
-                    case CHECKED:
-                        throw new BugInCF(
-                                "Expected an unchecked defaults mode, but received " + mode);
-                }
+                addUncheckedCodeDefault(mode, qualifier, location, true);
             }
         }
     }
@@ -615,9 +599,6 @@ public class QualifierDefaults {
             AnnotationMirror uncheckedDefaultAnno,
             TypeUseLocation location,
             boolean applyToSubpackages) {
-        if (mode == DefaultsMode.CHECKED) {
-            throw new BugInCF("Expected an unchecked defaults mode, but received " + mode);
-        }
         DefaultSet defaults = defaultsFor(mode);
         checkDuplicates(defaults, uncheckedDefaultAnno, location);
         checkIsValidUncheckedCodeLocation(uncheckedDefaultAnno, location);
@@ -1175,9 +1156,6 @@ public class QualifierDefaults {
             return false;
         }
 
-        if (mode == DefaultsMode.CHECKED) {
-            throw new BugInCF("Expected an unchecked defaults mode, but received " + mode);
-        }
         boolean useBytecode =
                 mode == DefaultsMode.CONSERVATIVE
                         ? useConservativeDefaultsBytecode
@@ -1245,16 +1223,22 @@ public class QualifierDefaults {
      * both caches are cleared whenever any default changes.
      *
      * @param defaults the scope's defaults
-     * @param mode which set of unchecked-code defaults, if any, to include
+     * @param mode which set of unchecked-code defaults to include, or null for none
      * @return the fused, ordered default list (shared and read-only; callers must not mutate it)
      */
-    private List<Default> fusedDefaultsFor(DefaultSet defaults, DefaultsMode mode) {
+    private List<Default> fusedDefaultsFor(DefaultSet defaults, @Nullable DefaultsMode mode) {
         // Every path below caches what it returns, so the caches are now non-empty (phase 2).
         fusedDefaultsCached = true;
         if (defaults.isEmpty()) {
             // The fused list for an empty scope is just the (unchecked-, per mode, then)
             // checked-code defaults: identical across every such call and constant until the code
             // defaults change. typeVarUseDef is false for an empty set, so no filtering applies.
+            if (mode == null) {
+                if (fusedEmptyChecked == null) {
+                    fusedEmptyChecked = buildFusedDefaults(defaults, mode);
+                }
+                return fusedEmptyChecked;
+            }
             switch (mode) {
                 case CONSERVATIVE:
                     if (fusedEmptyConservative == null) {
@@ -1266,24 +1250,23 @@ public class QualifierDefaults {
                         fusedEmptyOptimistic = buildFusedDefaults(defaults, mode);
                     }
                     return fusedEmptyOptimistic;
-                default:
-                    if (fusedEmptyChecked == null) {
-                        fusedEmptyChecked = buildFusedDefaults(defaults, mode);
-                    }
-                    return fusedEmptyChecked;
             }
+            throw new BugInCF("Unhandled unchecked defaults mode: " + mode);
         }
         IdentityHashMap<DefaultSet, List<Default>> cache;
-        switch (mode) {
-            case CONSERVATIVE:
-                cache = fusedConservativeCache;
-                break;
-            case OPTIMISTIC:
-                cache = fusedOptimisticCache;
-                break;
-            default:
-                cache = fusedCheckedCache;
-                break;
+        if (mode == null) {
+            cache = fusedCheckedCache;
+        } else {
+            switch (mode) {
+                case CONSERVATIVE:
+                    cache = fusedConservativeCache;
+                    break;
+                case OPTIMISTIC:
+                    cache = fusedOptimisticCache;
+                    break;
+                default:
+                    throw new BugInCF("Unhandled unchecked defaults mode: " + mode);
+            }
         }
         List<Default> cached = cache.get(defaults);
         if (cached == null) {
@@ -1298,10 +1281,10 @@ public class QualifierDefaults {
      * memoizes the result; call that, not this.
      *
      * @param defaults the scope's defaults
-     * @param mode which set of unchecked-code defaults, if any, to include
+     * @param mode which set of unchecked-code defaults to include, or null for none
      * @return the fused, ordered default list
      */
-    private List<Default> buildFusedDefaults(DefaultSet defaults, DefaultsMode mode) {
+    private List<Default> buildFusedDefaults(DefaultSet defaults, @Nullable DefaultsMode mode) {
         // If there is a default for type variable uses, do not also apply checked/unchecked code
         // defaults to type variables. Otherwise, the default in scope could decide not to annotate
         // the type variable use, whereas the checked/unchecked code default could add an
@@ -1314,12 +1297,8 @@ public class QualifierDefaults {
         for (Default def : defaults) {
             fused.add(def);
         }
-        DefaultSet uncheckedDefaults =
-                mode == DefaultsMode.CONSERVATIVE
-                        ? uncheckedCodeDefaults
-                        : mode == DefaultsMode.OPTIMISTIC ? optimisticUncheckedCodeDefaults : null;
-        if (uncheckedDefaults != null) {
-            for (Default def : uncheckedDefaults) {
+        if (mode != null) {
+            for (Default def : defaultsFor(mode)) {
                 if (!typeVarUseDef || def.location != TypeUseLocation.TYPE_VARIABLE_USE) {
                     fused.add(def);
                 }
@@ -1360,7 +1339,8 @@ public class QualifierDefaults {
         } else if (applyOptimisticDefaults(annotationScope)) {
             mode = DefaultsMode.OPTIMISTIC;
         } else {
-            mode = DefaultsMode.CHECKED;
+            // Checked code: fold in no unchecked-code defaults.
+            mode = null;
         }
 
         applier.applyDefaults(fusedDefaultsFor(defaults, mode));
