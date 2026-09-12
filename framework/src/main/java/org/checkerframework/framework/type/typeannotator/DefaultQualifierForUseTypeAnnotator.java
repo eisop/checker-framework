@@ -133,7 +133,13 @@ public class DefaultQualifierForUseTypeAnnotator extends TypeAnnotator {
                     if (qualHierarchy.findAnnotationInHierarchy(annosToApply, top) == null) {
                         AnnotationMirror superDefault =
                                 qualHierarchy.findAnnotationInHierarchy(superDefaults, top);
-                        if (superDefault != null) {
+                        // Do not inherit a polymorphic qualifier. It is resolved per use of the
+                        // type that declares it, and an anonymous class's own declaration gives
+                        // it nothing to resolve against, so copying it here would silently pick
+                        // one instantiation. A checker with polymorphic type declarations wants
+                        // the developer to be explicit on an anonymous subtype instead.
+                        if (superDefault != null
+                                && !qualHierarchy.isPolymorphicQualifier(superDefault)) {
                             annosToApply.add(superDefault);
                         }
                     }
