@@ -1123,11 +1123,13 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     }
 
     /**
-     * Get the current CompilationUnitTree.
+     * Get the current CompilationUnitTree. It is null until the first compilation unit is handed to
+     * {@link #setRoot}, which happens after this factory has been fully initialized, so a null
+     * result also means that type checking has not begun yet.
      *
      * @return the current compilation unit being used, or null
      */
-    protected @Nullable CompilationUnitTree getRoot() {
+    public @Nullable CompilationUnitTree getRoot() {
         return root;
     }
 
@@ -1256,24 +1258,6 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             }
         } else {
             currentFileAjavaTypes = null;
-        }
-    }
-
-    /**
-     * Clears caches of fully-computed types (such as {@link #elementTypeCache}, {@link
-     * #classAndMethodTreeCache}, and {@link #methodAsMemberOfCache}) whose contents depend on
-     * defaulting. Called when element defaults are added dynamically (e.g. by {@link
-     * org.checkerframework.framework.util.defaults.QualifierDefaults#addElementDefault}).
-     */
-    public void clearComputedElementCaches() {
-        if (elementTypeCache != null) {
-            elementTypeCache.clear();
-        }
-        if (classAndMethodTreeCache != null) {
-            classAndMethodTreeCache.clear();
-        }
-        if (methodAsMemberOfCache != null) {
-            methodAsMemberOfCache.clear();
         }
     }
 

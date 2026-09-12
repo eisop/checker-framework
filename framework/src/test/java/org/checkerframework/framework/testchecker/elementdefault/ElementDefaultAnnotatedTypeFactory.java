@@ -17,18 +17,23 @@ import java.util.Set;
 
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
+import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.PackageElement;
 import javax.lang.model.element.TypeElement;
 
 /**
- * Calls {@link QualifierDefaults#addElementDefault} directly on package {@code elementdefault.pkg},
- * defaulting its {@code FIELD} locations to {@link ElementDefaultBottom} -- the same way a written
- * {@code @DefaultQualifier(ElementDefaultBottom.class, TypeUseLocation.FIELD)} on that package's
- * package-info.java would, but through the programmatic API instead. See {@code
- * framework/tests/elementdefault} for what this is testing: that the default set this way still
- * reaches {@code elementdefault.pkg.sub}, a subpackage with no default of its own.
+ * Calls {@link QualifierDefaults#addElementDefault} directly on package {@code elementdefault.pkg}
+ * and on two of its classes, rather than through a written {@code @DefaultQualifier} annotation.
+ *
+ * <p>All the calls happen while this factory is being initialized, but they are deliberately
+ * interleaved with queries that populate {@code QualifierDefaults}' memoization caches, so that the
+ * tests in {@code framework/tests/elementdefault} check that a programmatic default does not depend
+ * on which defaults happened to be queried before it was added. See eisop#2037 and eisop#2047.
  */
 public class ElementDefaultAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
+
+    /** Command-line option that makes this factory add an element default too late. */
+    public static final String LATE_OPTION = "lateElementDefault";
 
     /**
      * Creates a new ElementDefaultAnnotatedTypeFactory.
@@ -46,42 +51,64 @@ public class ElementDefaultAnnotatedTypeFactory extends BaseAnnotatedTypeFactory
         AnnotationMirror top = AnnotationBuilder.fromClass(elements, ElementDefaultTop.class);
         defs.addCheckedCodeDefault(top, TypeUseLocation.OTHERWISE);
 
+        AnnotationMirror bottom = AnnotationBuilder.fromClass(elements, ElementDefaultBottom.class);
+
         PackageElement subPkg = elements.getPackageElement("elementdefault.pkg.sub");
         if (subPkg != null) {
-            // Query defaults on the subpackage first (populating the packagePropagatingDefaults
-            // cache before adding the default to the parent package).
-            AnnotatedTypeMirror dummy =
-                    AnnotatedTypeMirror.createType(types.getNullType(), this, false);
-            defs.annotate(subPkg, dummy);
+            // Query defaults on the subpackage first, so that the propagating-defaults cache for
+            // it is already populated when the default is added to its parent package below.
+            defs.annotate(subPkg, dummyType());
         }
 
         PackageElement pkg = elements.getPackageElement("elementdefault.pkg");
         if (pkg != null) {
-            AnnotationMirror bottom =
-                    AnnotationBuilder.fromClass(elements, ElementDefaultBottom.class);
             defs.addElementDefault(pkg, bottom, TypeUseLocation.FIELD);
         }
+
+        // OrderBeforeClass: nothing queries the class's defaults before the programmatic default
+        // is added.
+        TypeElement before = elements.getTypeElement("elementdefault.pkg.OrderBeforeClass");
+        if (before != null) {
+            defs.addElementDefault(before, bottom, TypeUseLocation.PARAMETER);
+        }
+
+        // OrderAfterClass: the defaults of the class *and* of one of its members are queried, and
+        // therefore memoized, before the programmatic default is added. The member is a nested
+        // class with a written @DefaultQualifier of its own, so QualifierDefaults memoizes a
+        // DefaultSet for it that is a distinct object from the enclosing class's; invalidating
+        // only the enclosing class's entry would leave the member's entry stale.
+        // OrderAfterClass must nevertheless produce exactly the same diagnostics as
+        // OrderBeforeClass.
+        TypeElement after = elements.getTypeElement("elementdefault.pkg.OrderAfterClass");
+        if (after != null) {
+            defs.annotate(after, dummyType());
+            for (Element member : after.getEnclosedElements()) {
+                if (member.getKind() == ElementKind.CLASS) {
+                    defs.annotate(member, dummyType());
+                }
+            }
+            defs.addElementDefault(after, bottom, TypeUseLocation.PARAMETER);
+        }
+    }
+
+    /**
+     * Returns a throwaway type to hand to {@link QualifierDefaults#annotate(Element,
+     * AnnotatedTypeMirror)}, whose only purpose here is to populate {@code QualifierDefaults}'
+     * memoization caches for the given element.
+     *
+     * @return a fresh type that the caller discards
+     */
+    private AnnotatedTypeMirror dummyType() {
+        return AnnotatedTypeMirror.createType(types.getNullType(), this, false);
     }
 
     @Override
     public void preProcessClassTree(ClassTree classTree) {
-        TypeElement elem = TreeUtils.elementFromDeclaration(classTree);
-        if (elem != null) {
-            if (elem.getSimpleName().contentEquals("OrderBeforeClass")) {
-                AnnotationMirror bottom =
-                        AnnotationBuilder.fromClass(elements, ElementDefaultBottom.class);
-                defaults.addElementDefault(elem, bottom, TypeUseLocation.PARAMETER);
-            } else if (elem.getSimpleName().contentEquals("OrderAfterClass")) {
-                // Query defaults on the class and its child members first (populating the
-                // elementDefaults memoization cache in QualifierDefaults as well as the
-                // elementTypeCache and classAndMethodTreeCache in AnnotatedTypeFactory for both
-                // the class and its children prior to calling addElementDefault on the class).
-                defaults.annotate(elem, getAnnotatedType(classTree));
-                for (Element member : elem.getEnclosedElements()) {
-                    defaults.annotate(member, fromElement(member));
-                    getAnnotatedType(member);
-                }
-                // Then call addElementDefault on the element
+        if (checker.hasOption(LATE_OPTION)) {
+            TypeElement elem = TreeUtils.elementFromDeclaration(classTree);
+            // Adding an element default here, rather than during initialization, is a type-system
+            // error. ElementDefaultLateTest checks that it is reported as one.
+            if (elem != null && elem.getSimpleName().contentEquals("InPkg")) {
                 AnnotationMirror bottom =
                         AnnotationBuilder.fromClass(elements, ElementDefaultBottom.class);
                 defaults.addElementDefault(elem, bottom, TypeUseLocation.PARAMETER);

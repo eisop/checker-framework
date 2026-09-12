@@ -35,6 +35,7 @@ import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.InternalUtils;
 import org.checkerframework.javacutil.TreeUtils;
+import org.checkerframework.javacutil.TypeSystemError;
 import org.checkerframework.javacutil.TypesUtils;
 import org.plumelib.util.StringsPlume;
 
@@ -428,15 +429,40 @@ public class QualifierDefaults {
      * Sets the default annotations for a certain Element.
      *
      * <p>This default is combined with any written {@code @DefaultQualifier} annotations on the
-     * element and inherits enclosing defaults, regardless of whether this method is called before
-     * or after defaults for the element are queried.
+     * element and inherits the defaults of enclosing elements, no matter in which order the
+     * defaults of {@code elem}, of its enclosing elements, or of its members were queried while the
+     * type factory was being initialized.
+     *
+     * <p>This is an initialization-time API: it must be called while the type factory is being
+     * created, such as from {@link
+     * org.checkerframework.framework.type.GenericAnnotatedTypeFactory#createQualifierDefaults} or
+     * {@link
+     * org.checkerframework.framework.type.GenericAnnotatedTypeFactory#addCheckedCodeDefaults}.
+     * Calling it after type checking has begun throws a {@link TypeSystemError}, because types that
+     * have already been computed and dataflow results that have already been produced are never
+     * recomputed, and diagnostics that have already been issued cannot be retracted, so the new
+     * default would apply to some of the program and not to the rest of it.
      *
      * @param elem the scope to set the default within
      * @param elementDefaultAnno the default to set
      * @param location the location to apply the default to
+     * @throws TypeSystemError if called after type checking has begun
      */
     public void addElementDefault(
             Element elem, AnnotationMirror elementDefaultAnno, TypeUseLocation location) {
+        if (atypeFactory.getRoot() != null) {
+            // getRoot() is null while the type factory is being constructed and initialized
+            // (including while annotation files are parsed) and becomes non-null when the first
+            // compilation unit is handed to AnnotatedTypeFactory#setRoot.
+            throw new TypeSystemError(
+                    "QualifierDefaults.addElementDefault(%s, %s, %s) was called after type"
+                            + " checking began. Programmatic element defaults must be registered"
+                            + " while the type factory is being initialized: already-computed"
+                            + " types and already-computed dataflow results are not recomputed"
+                            + " and already-issued diagnostics cannot be retracted, so a default"
+                            + " added now would apply to only part of the program.",
+                    elem, elementDefaultAnno, location);
+        }
         DefaultSet progSet = programmaticElementDefaults.get(elem);
         if (progSet != null) {
             checkDuplicates(progSet, elementDefaultAnno, location);
@@ -455,7 +481,6 @@ public class QualifierDefaults {
             packagePropagatingDefaults.clear();
         }
         invalidateFusedDefaults();
-        atypeFactory.clearComputedElementCaches();
     }
 
     private void checkIsValidUncheckedCodeLocation(

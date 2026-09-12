@@ -3,12 +3,16 @@ package elementdefault.pkg;
 import org.checkerframework.framework.qual.DefaultQualifier;
 import org.checkerframework.framework.qual.TypeUseLocation;
 import org.checkerframework.framework.testchecker.elementdefault.ElementDefaultBottom;
+import org.checkerframework.framework.testchecker.elementdefault.ElementDefaultTop;
 
 /**
- * Tests that calling {@code addElementDefault} on this class BEFORE {@code defaultsAt} runs
- * correctly preserves this class's written {@code @DefaultQualifier} (RETURN is Bottom) and
- * inherits the enclosing package default (FIELD is Bottom), while applying the programmatic default
- * (PARAMETER is Bottom). See eisop#2047.
+ * Tests that {@code addElementDefault} on this class, called before anything queries defaults for
+ * it, preserves this class's written {@code @DefaultQualifier}s (RETURN and LOCAL_VARIABLE are
+ * Bottom) and the enclosing package default (FIELD is Bottom), while applying the programmatic
+ * default (PARAMETER is Bottom).
+ *
+ * <p>This class and {@link OrderAfterClass} are identical apart from their names, and must produce
+ * identical diagnostics: that identity is the invariant under test. See eisop#2047.
  */
 @DefaultQualifier(value = ElementDefaultBottom.class, locations = TypeUseLocation.RETURN)
 @DefaultQualifier(value = ElementDefaultBottom.class, locations = TypeUseLocation.LOCAL_VARIABLE)
@@ -31,10 +35,29 @@ public class OrderBeforeClass {
     // Specified by addElementDefault on this class: PARAMETER is Bottom
     void takeBottom(Object param) {}
 
+    /**
+     * A member with a written {@code @DefaultQualifier} of its own, so that QualifierDefaults
+     * memoizes a default set for it that is a distinct object from the enclosing class's. The
+     * enclosing class's programmatic PARAMETER default must still reach it.
+     */
+    @DefaultQualifier(value = ElementDefaultTop.class, locations = TypeUseLocation.RETURN)
+    static class Nested {
+        // This class's own written @DefaultQualifier shadows the enclosing class's RETURN
+        // default, so returning an unqualified (Top) value is fine here.
+        Object getTop() {
+            return new Object();
+        }
+
+        // Inherited from addElementDefault on the enclosing class: PARAMETER is Bottom
+        void takeBottomNested(Object param) {}
+    }
+
     void use() {
         // :: error: (assignment.type.incompatible)
         f = new Object();
         // :: error: (argument.type.incompatible)
         takeBottom(new Object());
+        // :: error: (argument.type.incompatible)
+        new Nested().takeBottomNested(new Object());
     }
 }
