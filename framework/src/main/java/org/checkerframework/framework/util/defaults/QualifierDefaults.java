@@ -341,7 +341,7 @@ public class QualifierDefaults {
         return StringsPlume.joinLines(
                 "Checked code defaults: ",
                 StringsPlume.joinLines(checkedCodeDefaults),
-                "Unchecked code defaults: ",
+                "Conservative unchecked code defaults: ",
                 StringsPlume.joinLines(uncheckedCodeDefaults),
                 "Optimistic unchecked code defaults: ",
                 StringsPlume.joinLines(optimisticUncheckedCodeDefaults),
@@ -399,8 +399,9 @@ public class QualifierDefaults {
 
     /**
      * Add optimistic unchecked defaults that do not conflict with previously added optimistic
-     * defaults. These apply instead of the conservative ones when {@code
-     * -AuseOptimisticDefaultsForUncheckedCode} is supplied for the kind of code at hand.
+     * defaults. These apply instead of the conservative ones for a kind of code that {@code
+     * -AuseOptimisticDefaultsForUncheckedCode=source}, {@code ...=bytecode}, or {@code
+     * ...=source,bytecode} names.
      */
     public void addOptimisticUncheckedStandardDefaults() {
         addStandardDefaultsForUncheckedMode(
