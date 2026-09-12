@@ -1,8 +1,5 @@
 package org.checkerframework.framework.test.junit;
 
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-
 import org.checkerframework.framework.test.CompilationResult;
 import org.checkerframework.framework.test.TestConfiguration;
 import org.checkerframework.framework.test.TestConfigurationBuilder;
@@ -10,6 +7,7 @@ import org.checkerframework.framework.test.TestUtilities;
 import org.checkerframework.framework.test.TypecheckExecutor;
 import org.checkerframework.framework.testchecker.elementdefault.ElementDefaultAnnotatedTypeFactory;
 import org.checkerframework.framework.testchecker.elementdefault.ElementDefaultChecker;
+import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.Arrays;
@@ -44,10 +42,10 @@ public class ElementDefaultLateTest {
         result.getDiagnostics().forEach(d -> output.append(d.getMessage(null)).append('\n'));
         String outputString = output.toString();
 
-        assertFalse(
+        Assert.assertFalse(
                 "Compilation should have failed, but it succeeded. Output: " + outputString,
                 result.compiledWithoutError());
-        assertTrue(
+        Assert.assertTrue(
                 "Expected a message about addElementDefault being called too late, but got: "
                         + outputString,
                 outputString.contains("was called after type checking began"));
