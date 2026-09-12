@@ -318,6 +318,9 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
                 return false;
             }
         }
+        // An unannotated field is dynamic: resolve each side to the qualifier it stands for in
+        // that position, before comparing them.
+        atypeFactory.replaceRWNull(varType, valueType);
         return super.commonAssignmentCheck(varType, valueType, valueTree, errorKey, extraArgs);
     }
 

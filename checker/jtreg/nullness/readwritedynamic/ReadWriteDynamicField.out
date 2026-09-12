@@ -1,0 +1,13 @@
+ReadWriteDynamicField.java:25:34: compiler.err.proc.messager: [assignment.type.incompatible] incompatible types in assignment.
+found   : @Nullable Object
+required: @NonNull Object
+ReadWriteDynamicField.java:30:19: compiler.err.proc.messager: [assignment.type.incompatible] incompatible types in assignment.
+found   : @Nullable NullType
+required: @NonNull Object
+ReadWriteDynamicField.java:34:19: compiler.err.proc.messager: [assignment.type.incompatible] incompatible types in assignment.
+found   : @Nullable Object
+required: @NonNull Object
+ReadWriteDynamicField.java:45:20: compiler.err.proc.messager: [assignment.type.incompatible] incompatible types in assignment.
+found   : @Nullable Object
+required: @NonNull Object
+4 errors

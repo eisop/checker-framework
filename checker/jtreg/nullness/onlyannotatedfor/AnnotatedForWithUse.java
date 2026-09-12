@@ -26,10 +26,7 @@ public class AnnotatedForWithUse {
         void use(Unannotated u) {
             // 1: OK, 2: OK, 3: Err
             @NonNull Object obj = u.o;
-            // 1. Err, 2: Err, TODO want OK, 3:  OK, TODO want Err
-            // Case 3 (-AuseConservativeDefaultsForUncheckedCode=source) is unsound here:
-            // conservative defaults only protect field reads, not field writes.
-            // See https://github.com/eisop/checker-framework/issues/1358 .
+            // 1. Err, 2: Err, TODO want OK, 3: Err
             u.o = null;
             // 1: OK, 2: OK, 3: Err
             u.get().toString();

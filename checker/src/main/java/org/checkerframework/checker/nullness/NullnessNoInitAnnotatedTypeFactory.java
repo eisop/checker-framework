@@ -29,6 +29,7 @@ import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.checker.nullness.qual.PolyNull;
+import org.checkerframework.checker.nullness.qual.ReadWriteDynamicNull;
 import org.checkerframework.checker.signature.qual.FullyQualifiedName;
 import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.dataflow.cfg.node.Node;
@@ -405,11 +406,12 @@ public class NullnessNoInitAnnotatedTypeFactory
     public NullnessNoInitAnnotatedTypeFactory(BaseTypeChecker checker) {
         super(checker);
 
-        Set<Class<? extends Annotation>> tempNullnessAnnos = new LinkedHashSet<>(4);
+        Set<Class<? extends Annotation>> tempNullnessAnnos = new LinkedHashSet<>(5);
         tempNullnessAnnos.add(NonNull.class);
         tempNullnessAnnos.add(MonotonicNonNull.class);
         tempNullnessAnnos.add(Nullable.class);
         tempNullnessAnnos.add(PolyNull.class);
+        tempNullnessAnnos.add(ReadWriteDynamicNull.class);
         nullnessAnnos = Collections.unmodifiableSet(tempNullnessAnnos);
 
         NONNULL_ALIASES.forEach(annotation -> addAliasedTypeAnnotation(annotation, NONNULL));
@@ -515,7 +517,11 @@ public class NullnessNoInitAnnotatedTypeFactory
     protected Set<Class<? extends Annotation>> createSupportedTypeQualifiers() {
         return new LinkedHashSet<>(
                 Arrays.asList(
-                        Nullable.class, MonotonicNonNull.class, NonNull.class, PolyNull.class));
+                        Nullable.class,
+                        MonotonicNonNull.class,
+                        NonNull.class,
+                        PolyNull.class,
+                        ReadWriteDynamicNull.class));
     }
 
     /**
@@ -546,6 +552,32 @@ public class NullnessNoInitAnnotatedTypeFactory
                     lhsType.replaceAnnotation(NULLABLE);
                 }
             }
+        }
+    }
+
+    /**
+     * Replaces {@link ReadWriteDynamicNull} on either side of an assignment with the qualifier that
+     * it stands for in that position: {@link NonNull} on the left-hand side, which is written, and
+     * {@link Nullable} on the right-hand side, which is read.
+     *
+     * <p>{@link ReadWriteDynamicNull} is only ever applied as an unchecked-code default, and those
+     * defaults are only applied to an element that conservative defaulting covers -- see {@code
+     * QualifierDefaults#applyUncheckedCodeDefaults}. Its presence therefore already means that
+     * conservative treatment was requested for this element, whether it came from source or from
+     * bytecode, so no command-line option needs to be consulted here.
+     *
+     * <p>Both sides are resolved independently, because both can be dynamic at once, as in {@code
+     * a.f = b.g} where neither field is annotated.
+     *
+     * @param lhsType the left-hand side type; side-effected if it is dynamic
+     * @param rhsType the right-hand side type; side-effected if it is dynamic
+     */
+    protected void replaceRWNull(AnnotatedTypeMirror lhsType, AnnotatedTypeMirror rhsType) {
+        if (lhsType.hasAnnotation(ReadWriteDynamicNull.class)) {
+            lhsType.replaceAnnotation(NONNULL);
+        }
+        if (rhsType.hasAnnotation(ReadWriteDynamicNull.class)) {
+            rhsType.replaceAnnotation(NULLABLE);
         }
     }
 
