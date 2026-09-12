@@ -134,6 +134,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -699,9 +700,10 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         checkConflictingAnnotatedFor(classTree, classElt);
         if (classElt != null) {
             // A package-info.java declares no type, so the type processor never visits it; reach
-            // the package through a class in it instead, once per package.
+            // the package through a class in it instead, once per package rather than once per
+            // class in it.
             PackageElement pkgElt = ElementUtils.enclosingPackage(classElt);
-            if (pkgElt != null) {
+            if (pkgElt != null && packagesCheckedForConflictingAnnotatedFor.add(pkgElt)) {
                 checkConflictingAnnotatedFor(classTree, pkgElt);
             }
         }
@@ -6033,6 +6035,15 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         r = reduce(scan(identifierTree.getTypeDecls(), p), r);
         return r;
     }
+
+    /**
+     * Packages this visitor has already examined for a conflicting
+     * {@code @AnnotatedFor}/{@code @UnannotatedFor} pair, so that each is examined once rather than
+     * once per class in it. Separate from the checker-wide record of what has been
+     * <em>reported</em>: that one stops a second checker from repeating the warning, while this one
+     * stops the lookups from being repeated at all.
+     */
+    private final Set<PackageElement> packagesCheckedForConflictingAnnotatedFor = new HashSet<>();
 
     /**
      * Warns if {@code elt} has both an {@code @AnnotatedFor} and an {@code @UnannotatedFor} that
