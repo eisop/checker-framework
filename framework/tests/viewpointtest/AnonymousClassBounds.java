@@ -1,3 +1,5 @@
+import org.checkerframework.framework.qual.DefaultQualifierForUse;
+
 import viewpointtest.quals.*;
 
 /**
@@ -17,6 +19,13 @@ public class AnonymousClassBounds {
 
     @SuppressWarnings({"inconsistent.constructor.type", "super.invocation.invalid"})
     @A static class GClass<T> {}
+
+    @DefaultQualifierForUse(A.class)
+    interface UseDefIface {}
+
+    @SuppressWarnings({"inconsistent.constructor.type", "super.invocation.invalid"})
+    @DefaultQualifierForUse(A.class)
+    static class UseDefClass {}
 
     void testUnannotated() {
         // Unannotated anonymous class creation defaults to the declaration bound of the
@@ -50,6 +59,18 @@ public class AnonymousClassBounds {
                 @B AClass nestedBad = new AClass() {};
             }
         };
+
+        // Unannotated anonymous class with @DefaultQualifierForUse on interface
+        @A UseDefIface u1 = new UseDefIface() {};
+        @Top UseDefIface u2 = new UseDefIface() {};
+        // :: error: (assignment.type.incompatible)
+        @B UseDefIface u3 = new UseDefIface() {};
+
+        // Unannotated anonymous class with @DefaultQualifierForUse on class
+        @A UseDefClass uc1 = new UseDefClass() {};
+        @Top UseDefClass uc2 = new UseDefClass() {};
+        // :: error: (assignment.type.incompatible)
+        @B UseDefClass uc3 = new UseDefClass() {};
     }
 
     void test() {

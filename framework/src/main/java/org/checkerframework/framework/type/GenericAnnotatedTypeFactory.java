@@ -635,6 +635,14 @@ public abstract class GenericAnnotatedTypeFactory<
         return new DefaultQualifierForUseTypeAnnotator(this);
     }
 
+    @Override
+    public AnnotationMirrorSet getDefaultAnnosForUses(Element element) {
+        if (defaultQualifierForUseTypeAnnotator != null) {
+            return defaultQualifierForUseTypeAnnotator.getDefaultAnnosForUses(element);
+        }
+        return AnnotationMirrorSet.emptySet();
+    }
+
     /**
      * Creates an {@link DefaultForTypeAnnotator}.
      *

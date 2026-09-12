@@ -85,12 +85,13 @@ public class DefaultQualifierForUseTypeAnnotator extends TypeAnnotator {
     }
 
     /**
-     * Returns the set of qualifiers that should be applied to unannotated uses of the given element
+     * Returns the set of qualifiers that should be applied to unannotated uses of the given
+     * element.
      *
      * @param element the element for which to determine default qualifiers
      * @return the set of qualifiers that should be applied to unannotated uses of {@code element}
      */
-    protected AnnotationMirrorSet getDefaultAnnosForUses(Element element) {
+    public AnnotationMirrorSet getDefaultAnnosForUses(Element element) {
         if (atypeFactory.shouldCache) {
             AnnotationMirrorSet cached = elementToDefaults.get(element);
             if (cached != null) {
