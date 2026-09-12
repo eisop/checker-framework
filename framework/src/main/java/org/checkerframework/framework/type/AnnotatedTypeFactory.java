@@ -2675,13 +2675,6 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         // Add computed annotations to the type.
         addComputedTypeAnnotations(tree, type);
 
-        if (tree.getClassBody() != null && explicitAnnos.isEmpty()) {
-            AnnotationMirrorSet boundAnnos =
-                    getAnnotationOrTypeDeclarationBound(
-                            type.getUnderlyingType(), type.getAnnotations());
-            type.replaceAnnotations(boundAnnos);
-        }
-
         return type;
     }
 
