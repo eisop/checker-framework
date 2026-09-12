@@ -6057,29 +6057,16 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         if (elt == null) {
             return;
         }
-        boolean annotatedForThisChecker = false;
-        for (AnnotationMirror annotatedFor : atypeFactory.getAnnotatedForAnnotations(elt)) {
-            if (atypeFactory.doesAnnotatedForApplyToThisChecker(annotatedFor)) {
-                annotatedForThisChecker = true;
-                break;
-            }
-        }
-        if (!annotatedForThisChecker) {
-            return;
-        }
-        for (AnnotationMirror unannotatedFor : atypeFactory.getUnannotatedForAnnotations(elt)) {
-            if (atypeFactory.doesUnannotatedForApplyToThisChecker(unannotatedFor)) {
-                if (checker.shouldReportConflictingAnnotatedFor(elt)) {
-                    // A package's own declaration is in a package-info.java that the type
-                    // processor never visits, and a report is positioned against the file being
-                    // visited, so report on the element rather than on a tree in another file.
-                    checker.reportWarning(
-                            elt.getKind() == ElementKind.PACKAGE ? elt : tree,
-                            "conflicting.annotatedfor",
-                            elt);
-                }
-                return;
-            }
+        if (checker.hasApplicableAnnotatedFor(elt, false)
+                && checker.hasApplicableUnannotatedFor(elt, false)
+                && checker.shouldReportConflictingAnnotatedFor(elt)) {
+            // A package's own declaration is in a package-info.java that the type processor never
+            // visits, and a report is positioned against the file being visited, so report on the
+            // element rather than on a tree in another file.
+            checker.reportWarning(
+                    elt.getKind() == ElementKind.PACKAGE ? elt : tree,
+                    "conflicting.annotatedfor",
+                    elt);
         }
     }
 }
