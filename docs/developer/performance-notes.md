@@ -3170,12 +3170,19 @@ not single-leaf. Re-prioritized venues:
   returns one of two shared constant lists (the code defaults, ±unchecked) — covers the empty case
   with no map and no hashing; (2) non-empty scopes go through an **identity-keyed**
   `IdentityHashMap<DefaultSet, List<Default>>` (×2 for conservative). **Identity, not content,
-  keying:** a `DefaultSet` is mutated in place by `addElementDefault`, so a content/hashCode key would
-  corrupt the map; `defaultsAt` returns a stable per-scope object shared across a scope's members, so
-  identity hits well. All caches are cleared by `invalidateFusedDefaults()` from the three (and only)
+  keying:** `defaultsAt` returns a stable per-scope object shared across a scope's members, so
+  identity hits well, and a content key would pay a per-call hash of the set for no extra hits.
+  (An earlier version of this entry gave a different reason — that `addElementDefault` mutates a
+  `DefaultSet` in place, which a content key could not survive. That stopped being true in PR #2058:
+  the sets `addElementDefault` mutates live in `programmaticElementDefaults` and never reach these
+  caches, because `defaultsAtDirect` copies their contents into a set of its own. The invariant that
+  must be preserved is the general one: a `DefaultSet` that reaches the fused caches must not be
+  mutated afterwards.) All caches are cleared by `invalidateFusedDefaults()` from the three (and only)
   default-set mutators (`addCheckedCodeDefault`, `addUncheckedCodeDefault`, `addElementDefault`); a
   `fusedDefaultsCached` flag (set in `fusedDefaultsFor`) makes that a no-op while defaults are still
-  being registered, before any cache is populated. The returned lists are shared read-only (the
+  being registered, before any cache is populated. Since PR #2058 `addElementDefault` throws if
+  called once type checking has begun, so all three mutators are initialization-time only and that
+  no-op path is the normal one. The returned lists are shared read-only (the
   scanner only reads them). **Why the earlier reject was
   wrong:** the first attempt keyed on `DefaultSet` *identity* for *all* calls — useless, because the
   6,086 empty objects gave 6,086 keys; and a *content* key was dismissed as needing a per-call hash.
@@ -3216,6 +3223,10 @@ not single-leaf. Re-prioritized venues:
   plus `AnnotatedTypeScanner.visitDeclared`/`scan`/`reduce` are the biggest type-factory leaf group.
   Note `QualifierDefaults.elementDefaults` *already* caches the per-element *DefaultSet*; the profiled
   cost is the *application* — `applyDefaultsElement` scans the whole type tree once per `Default`.
+  (Since PR #2058 `elementDefaults` is *only* that memoization cache. It used to double as the
+  storage for defaults registered via `addElementDefault`, which is why a cache hit there could
+  formerly return a set that had never been merged with the element's written `@DefaultQualifier`
+  or its enclosing defaults.)
   Instrumented `applyDefaultsElement` on `:framework:checkNullness` (one fork, ≥3.0M calls, ~28M scans),
   keying each call on `(identityHashCode(scope), structural ATM.hashCode of the input type BEFORE
   mutation)` — a 64-bit composite, so hash-collision inflation is negligible at ~300k distinct keys:

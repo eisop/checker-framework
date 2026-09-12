@@ -10,6 +10,11 @@ subpackages. The intervening package's own default correctly stayed limited to t
 package, but the outer default, which nothing deeper actually shadowed, incorrectly
 stopped propagating too.
 
+A default that a checker registers with `QualifierDefaults.addElementDefault` now combines
+with the `@DefaultQualifier` annotations written on the same declaration and with the
+defaults of enclosing elements, instead of replacing them or being lost depending on the
+order in which defaults were first queried.
+
 The Nullness Checker now treats JSpecify's `@NullMarked` as an alias for
 `@AnnotatedFor` scoped to nullness checking alone (not initialization or `@KeyFor`
 checking, which JSpecify does not define and which `-Amode=jspecify` already excludes),
@@ -582,6 +587,17 @@ the annotated package itself is always in scope. There are two new methods for t
 as true, so a package annotation from such an artifact applies to subpackages as it
 always did.
 
+`QualifierDefaults.addElementDefault` is now an initialization-time API: calling it once
+type checking has begun throws a `TypeSystemError`, because already-computed types and
+dataflow results are never recomputed and already-issued diagnostics cannot be retracted,
+so the new default would reach only part of the program. Register element defaults from
+`createQualifierDefaults` or `addCheckedCodeDefaults`. A registered default that conflicts
+with a `@DefaultQualifier` written on the same declaration now throws a `TypeSystemError`
+naming that declaration, rather than a `BugInCF` asking the user to report a framework bug.
+`AnnotatedTypeFactory.getRoot()` is now `public` rather than `protected`, so that code
+outside the factory can ask whether type checking has begun; an override of it in a
+subclass must be widened to `public` too.
+
 `AnnotatedIntersectionType.summarizeBounds` computes the summary described
 above, reading each bound's qualifier, explicit or defaulted, uniformly,
 and folding
@@ -945,7 +961,7 @@ eisop#1299, eisop#1315, eisop#1564, eisop#1592, eisop#1642, eisop#1653,
 eisop#1735, eisop#1801, eisop#1818, eisop#1819, eisop#1861, eisop#1862,
 eisop#1863, eisop#1865, eisop#1887, eisop#1965, eisop#1986, eisop#1987,
 eisop#1990, eisop#1991, eisop#2009, eisop#2020, eisop#2021, eisop#2032,
-eisop#2037, eisop#2059, typetools#399, typetools#3203.
+eisop#2037, eisop#2047, eisop#2059, typetools#399, typetools#3203.
 
 
 Version 3.49.5-eisop1 (April 26, 2026)

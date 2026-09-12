@@ -35,6 +35,7 @@ import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.InternalUtils;
 import org.checkerframework.javacutil.TreeUtils;
+import org.checkerframework.javacutil.TypeSystemError;
 import org.checkerframework.javacutil.TypesUtils;
 import org.plumelib.util.StringsPlume;
 
@@ -149,11 +150,7 @@ public class QualifierDefaults {
     protected final IdentityHashMap<Element, BoundType> elementToBoundType =
             new IdentityHashMap<>();
 
-    /**
-     * Defaults that apply for a certain Element. On the one hand this is used for caching (an
-     * earlier name for the field was "qualifierCache"). It can also be used by type systems to set
-     * defaults for certain Elements.
-     */
+    /** Memoization cache for {@link #defaultsAt(Element)}. */
     private final IdentityHashMap<Element, DefaultSet> elementDefaults = new IdentityHashMap<>();
 
     /**
@@ -165,13 +162,14 @@ public class QualifierDefaults {
             new IdentityHashMap<>();
 
     /**
-     * Defaults added via {@link #addElementDefault}, tracked separately from {@link
-     * #elementDefaults} so that {@link #defaultsAtDirect} can treat a programmatically-added
-     * default as part of an element's own direct contribution -- the same way it already treats a
-     * written {@code @DefaultQualifier} -- rather than it being visible only through {@link
-     * #elementDefaults}, which {@link #propagatingDefaultsAt} does not consult (see that method).
-     * Without this, a default added on a package would apply to that package's own elements (via
-     * {@link #elementDefaults}) but silently fail to reach any of its subpackages.
+     * Defaults added via {@link #addElementDefault}, tracked separately from the {@link
+     * #elementDefaults} memoization cache so that {@link #defaultsAtDirect} can treat a
+     * programmatically-added default as part of an element's own direct contribution -- the same
+     * way it treats a written {@code @DefaultQualifier} -- rather than it being visible only
+     * through {@link #elementDefaults}, which {@link #propagatingDefaultsAt} does not consult (see
+     * that method). Without this, a default added on a package would apply to that package's own
+     * elements but silently fail to reach any of its subpackages, and adding a default on any
+     * element would bypass written annotations and parent defaults.
      */
     private final IdentityHashMap<Element, DefaultSet> programmaticElementDefaults =
             new IdentityHashMap<>();
@@ -412,7 +410,12 @@ public class QualifierDefaults {
         addUncheckedCodeDefault(uncheckedDefaultAnno, location, true);
     }
 
-    /** Sets the default annotation for unchecked elements, with specific locations. */
+    /**
+     * Adds a default annotation for unchecked elements, at each of the given locations.
+     *
+     * @param absoluteDefaultAnno the default annotation mirror
+     * @param locations the type use locations to apply the default to
+     */
     public void addUncheckedCodeDefaults(
             AnnotationMirror absoluteDefaultAnno, TypeUseLocation[] locations) {
         for (TypeUseLocation location : locations) {
@@ -420,6 +423,13 @@ public class QualifierDefaults {
         }
     }
 
+    /**
+     * Adds a default annotation, at each of the given locations. A programmer may override it by
+     * writing the @DefaultQualifier annotation on an element.
+     *
+     * @param absoluteDefaultAnno the default annotation mirror
+     * @param locations the type use locations to apply the default to
+     */
     public void addCheckedCodeDefaults(
             AnnotationMirror absoluteDefaultAnno, TypeUseLocation[] locations) {
         for (TypeUseLocation location : locations) {
@@ -430,46 +440,74 @@ public class QualifierDefaults {
     /**
      * Sets the default annotations for a certain Element.
      *
+     * <p>This default is combined with any written {@code @DefaultQualifier} annotations on the
+     * element and inherits the defaults of enclosing elements, no matter in which order the
+     * defaults of {@code elem}, of its enclosing elements, or of its members were queried while the
+     * type factory was being initialized.
+     *
+     * <p>This is an initialization-time API: it must be called while the type factory is being
+     * created, such as from {@link
+     * org.checkerframework.framework.type.GenericAnnotatedTypeFactory#createQualifierDefaults} or
+     * {@link
+     * org.checkerframework.framework.type.GenericAnnotatedTypeFactory#addCheckedCodeDefaults}.
+     * Calling it after type checking has begun throws a {@link TypeSystemError}, because types that
+     * have already been computed and dataflow results that have already been produced are never
+     * recomputed, and diagnostics that have already been issued cannot be retracted, so the new
+     * default would apply to some of the program and not to the rest of it.
+     *
+     * <p>If the registered default conflicts with a {@code @DefaultQualifier} written on {@code
+     * elem} -- same {@code location} and same qualifier hierarchy, but a different qualifier --
+     * then a {@link TypeSystemError} is thrown later, when {@code elem}'s defaults are computed.
+     * Only one qualifier from a hierarchy can be the default for a location, so a type system must
+     * not register one that contradicts what a user is permitted to write.
+     *
      * @param elem the scope to set the default within
      * @param elementDefaultAnno the default to set
      * @param location the location to apply the default to
-     */
-    /*
-     * TODO(cpovirk): This method looks dangerous for a type system to call early: If it "adds" a
-     * default for an Element before defaultsAt runs for that Element, that looks like it would
-     * prevent any @DefaultQualifier or similar annotation from having any effect (because
-     * defaultsAt would short-circuit after discovering that an entry already exists for the
-     * Element). Maybe this method should run defaultsAt before inserting its own entry? Or maybe
-     * it's too early to run defaultsAt? Or maybe we'd see new problems in existing code because
-     * we'd start running checkDuplicates to look for overlap between the @DefaultQualifier defaults
-     * and addElementDefault defaults?
+     * @throws TypeSystemError if called after type checking has begun
      */
     public void addElementDefault(
             Element elem, AnnotationMirror elementDefaultAnno, TypeUseLocation location) {
-        DefaultSet prevset = elementDefaults.get(elem);
-        if (prevset != null) {
-            checkDuplicates(prevset, elementDefaultAnno, location);
+        if (atypeFactory.getRoot() != null) {
+            // getRoot() is null while the type factory is being constructed and initialized
+            // (including while annotation files are parsed) and becomes non-null when the first
+            // compilation unit is handed to AnnotatedTypeFactory#setRoot.
+            throw new TypeSystemError(
+                    "QualifierDefaults.addElementDefault(%s, %s, %s) was called after type"
+                            + " checking began. Programmatic element defaults must be registered"
+                            + " while the type factory is being initialized: already-computed"
+                            + " types and already-computed dataflow results are not recomputed"
+                            + " and already-issued diagnostics cannot be retracted, so a default"
+                            + " added now would apply to only part of the program.",
+                    elem, elementDefaultAnno, location);
+        }
+        DefaultSet progSet = programmaticElementDefaults.get(elem);
+        if (progSet != null) {
+            checkDuplicates(progSet, elementDefaultAnno, location);
         } else {
-            prevset = new DefaultSet();
+            progSet = new DefaultSet();
+            programmaticElementDefaults.put(elem, progSet);
         }
         // TODO: expose applyToSubpackages
         Default d = new Default(elementDefaultAnno, location, true);
-        prevset.add(d);
-        elementDefaults.put(elem, prevset);
-        // Also track this as part of elem's own direct contribution -- see
-        // programmaticElementDefaults and defaultsAtDirect -- so that if elem is a package,
-        // propagatingDefaultsAt sees it and this default reaches elem's subpackages, the same as
-        // a written @DefaultQualifier would.
-        programmaticElementDefaults.computeIfAbsent(elem, unused -> new DefaultSet()).add(d);
+        progSet.add(d);
+        // Clear cached element defaults so subsequent queries recompute and merge with written
+        // annotations and enclosing/parent defaults.
+        elementDefaults.clear();
         if (elem instanceof PackageElement) {
             // Invalidate cached propagating defaults so subpackage lookups see the new default.
             packagePropagatingDefaults.clear();
         }
-        // prevset may already be a key in the fused caches; its content just changed, so any
-        // memoized fused list for it is now stale.
         invalidateFusedDefaults();
     }
 
+    /**
+     * Throws {@link BugInCF} if {@code location} is not one of {@link
+     * #validLocationsForUncheckedCodeDefaults}.
+     *
+     * @param uncheckedDefaultAnno the unchecked code default annotation, for the error message
+     * @param location the location to check
+     */
     private void checkIsValidUncheckedCodeLocation(
             AnnotationMirror uncheckedDefaultAnno, TypeUseLocation location) {
         boolean isValidUntypeLocation = false;
@@ -489,6 +527,15 @@ public class QualifierDefaults {
         }
     }
 
+    /**
+     * Throws {@link BugInCF} if making {@code newAnno} the default at {@code newLoc} would conflict
+     * with one of {@code previousDefaults}, as {@link #findConflictingDefault} defines conflict:
+     * only one qualifier from a hierarchy can be the default for a location.
+     *
+     * @param previousDefaults the defaults that {@code newAnno} is about to be added to
+     * @param newAnno the annotation to make the default
+     * @param newLoc the location to make it the default for
+     */
     private void checkDuplicates(
             DefaultSet previousDefaults, AnnotationMirror newAnno, TypeUseLocation newLoc) {
         if (conflictsWithExistingDefaults(previousDefaults, newAnno, newLoc)) {
@@ -511,17 +558,36 @@ public class QualifierDefaults {
      */
     private boolean conflictsWithExistingDefaults(
             DefaultSet previousDefaults, AnnotationMirror newAnno, TypeUseLocation newLoc) {
+        return findConflictingDefault(previousDefaults, newAnno, newLoc) != null;
+    }
+
+    /**
+     * Returns an element of {@code previousDefaults} that conflicts with making {@code newAnno} the
+     * default at {@code newLoc}, or null if there is none.
+     *
+     * <p>Two defaults conflict when they are for the same {@link TypeUseLocation} and the same
+     * qualifier hierarchy but are different qualifiers: only one qualifier from a hierarchy can be
+     * the default for a location. Two defaults that are the same qualifier are redundant, not
+     * conflicting, and are permitted.
+     *
+     * @param previousDefaults the previous defaults
+     * @param newAnno the new annotation
+     * @param newLoc the location of the type use
+     * @return a conflicting element of {@code previousDefaults}, or null if there is none
+     */
+    private @Nullable Default findConflictingDefault(
+            DefaultSet previousDefaults, AnnotationMirror newAnno, TypeUseLocation newLoc) {
         QualifierHierarchy qualHierarchy = atypeFactory.getQualifierHierarchy();
 
         for (Default previous : previousDefaults) {
             if (!AnnotationUtils.areSame(newAnno, previous.anno) && previous.location == newLoc) {
                 AnnotationMirror previousTop = qualHierarchy.getTopAnnotation(previous.anno);
                 if (qualHierarchy.isSubtypeQualifiersOnly(newAnno, previousTop)) {
-                    return true;
+                    return previous;
                 }
             }
         }
-        return false;
+        return null;
     }
 
     /**
@@ -874,9 +940,9 @@ public class QualifierDefaults {
      * through different mechanisms.
      *
      * @param elt the element
-     * @return the defaults
+     * @return the defaults that apply directly to {@code elt}, or null if it has none
      */
-    private DefaultSet defaultsAtDirect(Element elt) {
+    private @Nullable DefaultSet defaultsAtDirect(Element elt) {
         DefaultSet qualifiers = null;
 
         // Handle DefaultQualifier
@@ -913,7 +979,19 @@ public class QualifierDefaults {
             if (qualifiers == null) {
                 qualifiers = new DefaultSet();
             }
-            qualifiers.addAll(programmatic);
+            for (Default d : programmatic) {
+                Default conflicting = findConflictingDefault(qualifiers, d.anno, d.location);
+                if (conflicting != null) {
+                    throw new TypeSystemError(
+                            "Conflicting defaults on %s %s: %s, registered by this type system via"
+                                    + " QualifierDefaults.addElementDefault, conflicts with %s, which"
+                                    + " comes from a @DefaultQualifier written on that declaration."
+                                    + " Only one qualifier from a hierarchy can be the default for a"
+                                    + " location.",
+                            elt.getKind(), elt, d, conflicting);
+                }
+                qualifiers.add(d);
+            }
         }
 
         return qualifiers;
@@ -1009,9 +1087,14 @@ public class QualifierDefaults {
      * object that is shared across every member of the scope, so identity keying hits well. As
      * JSpecify {@code @NullMarked}/{@code @NullUnmarked} annotations spread (each aliases to a
      * {@code @DefaultQualifier}), the non-empty case becomes the common one, and this cache — not
-     * the empty fast-path — carries the savings. Identity (not content) keying is required because
-     * a {@code DefaultSet} can be mutated in place after caching (see {@link #addElementDefault});
-     * both caches are cleared whenever any default changes.
+     * the empty fast-path — carries the savings. Identity (not content) keying is used because
+     * {@link #defaultsAt} caches and hands back a stable {@code DefaultSet} instance per scope,
+     * avoiding costly content-based hashing of the set.
+     *
+     * <p>A {@code DefaultSet} that reaches this cache must never be mutated afterwards. The sets in
+     * {@link #programmaticElementDefaults} are mutated in place, by {@link #addElementDefault}, but
+     * they never reach it: {@link #defaultsAtDirect} copies their contents into a set of its own
+     * rather than handing one of them out.
      *
      * @param defaults the scope's defaults
      * @param conservative whether to include the unchecked-code defaults

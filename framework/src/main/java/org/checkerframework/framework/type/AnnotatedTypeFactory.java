@@ -1123,11 +1123,13 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     }
 
     /**
-     * Get the current CompilationUnitTree.
+     * Get the current CompilationUnitTree. It is null until the first compilation unit is handed to
+     * {@link #setRoot}, which happens after this factory has been fully initialized, so a null
+     * result also means that type checking has not begun yet.
      *
      * @return the current compilation unit being used, or null
      */
-    protected @Nullable CompilationUnitTree getRoot() {
+    public @Nullable CompilationUnitTree getRoot() {
         return root;
     }
 
