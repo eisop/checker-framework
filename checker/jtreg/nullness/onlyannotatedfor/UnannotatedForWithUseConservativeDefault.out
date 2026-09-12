@@ -1,11 +1,11 @@
-UnannotatedForWithUse.java:32:14: compiler.err.proc.messager: [dereference.of.nullable] dereference of possibly-null reference e.get()
-UnannotatedForWithUse.java:32:25: compiler.err.proc.messager: [method.invocation.invalid] call to toString() not allowed on the given receiver.
+UnannotatedForWithUse.java:35:14: compiler.err.proc.messager: [dereference.of.nullable] dereference of possibly-null reference e.get()
+UnannotatedForWithUse.java:35:25: compiler.err.proc.messager: [method.invocation.invalid] call to toString() not allowed on the given receiver.
 found   : @UnknownInitialization Object
 required: @Initialized Object
-UnannotatedForWithUse.java:36:15: compiler.err.proc.messager: [argument.type.incompatible] incompatible argument for parameter of of Excluded.set.
+UnannotatedForWithUse.java:39:15: compiler.err.proc.messager: [argument.type.incompatible] incompatible argument for parameter of of Excluded.set.
 found   : @UnknownKeyFor NullType
 required: @KeyForBottom Object
-UnannotatedForWithUse.java:36:15: compiler.err.proc.messager: [argument.type.incompatible] incompatible argument for parameter of of Excluded.set.
+UnannotatedForWithUse.java:39:15: compiler.err.proc.messager: [argument.type.incompatible] incompatible argument for parameter of of Excluded.set.
 found   : @Nullable NullType
 required: @NonNull Object
 4 errors
