@@ -4481,7 +4481,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      */
     protected void addAliasedTypeAnnotation(Class<?> aliasClass, AnnotationMirror canonicalAnno) {
         if (getSupportedTypeQualifiers().contains(aliasClass)) {
-            throw new BugInCF(
+            throw new TypeSystemError(
                     "AnnotatedTypeFactory: alias %s should not be in type hierarchy for %s",
                     aliasClass, this.getClass().getSimpleName());
         }
@@ -4504,6 +4504,16 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     // name of an external annotation is a canonical name.
     protected void addAliasedTypeAnnotation(
             @FullyQualifiedName String aliasName, AnnotationMirror canonicalAnno) {
+        if (isSupportedQualifier(aliasName)) {
+            throw new TypeSystemError(
+                    "AnnotatedTypeFactory: alias %s should not be in type hierarchy for %s",
+                    aliasName, this.getClass().getSimpleName());
+        }
+        if (!isSupportedQualifier(canonicalAnno)) {
+            throw new TypeSystemError(
+                    "AnnotatedTypeFactory: canonical annotation %s is not in type hierarchy for %s",
+                    canonicalAnno, this.getClass().getSimpleName());
+        }
         aliases.put(aliasName, new Alias(aliasName, canonicalAnno, false, null, null));
     }
 
@@ -4540,7 +4550,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             boolean copyElements,
             String... ignorableElements) {
         if (getSupportedTypeQualifiers().contains(aliasClass)) {
-            throw new BugInCF(
+            throw new TypeSystemError(
                     "AnnotatedTypeFactory: alias %s should not be in type hierarchy for %s",
                     aliasClass, this.getClass().getSimpleName());
         }
@@ -4574,6 +4584,16 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         // The copyElements argument disambiguates overloading.
         if (!copyElements) {
             throw new BugInCF("Do not call with false");
+        }
+        if (isSupportedQualifier(aliasName)) {
+            throw new TypeSystemError(
+                    "AnnotatedTypeFactory: alias %s should not be in type hierarchy for %s",
+                    aliasName, this.getClass().getSimpleName());
+        }
+        if (!isSupportedQualifier(canonicalAnno.getCanonicalName())) {
+            throw new TypeSystemError(
+                    "AnnotatedTypeFactory: canonical annotation %s is not in type hierarchy for %s",
+                    canonicalAnno.getCanonicalName(), this.getClass().getSimpleName());
         }
         aliases.put(
                 aliasName,
@@ -4643,7 +4663,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
 
     /**
      * Returns {@code writtenAnno} if it is a supported qualifier, or its canonical form if that is
-     * a supported qualifier, or null if neither is.
+     * an alias for a supported qualifier, or null if neither is.
      *
      * <p>Use this on an annotation as written when the caller needs the qualifier itself afterward,
      * not just whether one exists -- for example, to add it to a type or to build a default from
@@ -4660,8 +4680,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         if (isSupportedQualifier(writtenAnno)) {
             return writtenAnno;
         }
-        AnnotationMirror canonical = canonicalAnnotation(writtenAnno);
-        return isSupportedQualifier(canonical) ? canonical : null;
+        return canonicalAnnotation(writtenAnno);
     }
 
     /**
