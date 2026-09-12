@@ -134,6 +134,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -149,6 +150,7 @@ import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Modifier;
 import javax.lang.model.element.Name;
+import javax.lang.model.element.PackageElement;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.DeclaredType;
@@ -694,6 +696,17 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      * @param classTree class to check
      */
     public void processClassTree(ClassTree classTree) {
+        TypeElement classElt = TreeUtils.elementFromDeclaration(classTree);
+        checkConflictingAnnotatedFor(classTree, classElt);
+        if (classElt != null) {
+            // A package-info.java declares no type, so the type processor never visits it; reach
+            // the package through a class in it instead, once per package rather than once per
+            // class in it.
+            PackageElement pkgElt = ElementUtils.enclosingPackage(classElt);
+            if (pkgElt != null && packagesCheckedForConflictingAnnotatedFor.add(pkgElt)) {
+                checkConflictingAnnotatedFor(classTree, pkgElt);
+            }
+        }
         checkFieldInvariantDeclarations(classTree);
         if (!TreeUtils.hasExplicitConstructor(classTree)) {
             checkDefaultConstructor(classTree);
@@ -1233,6 +1246,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      * @param tree the method to type-check
      */
     public void processMethodTree(String className, MethodTree tree) {
+        checkConflictingAnnotatedFor(tree, TreeUtils.elementFromDeclaration(tree));
         // boilerplate
         long startMillis = System.currentTimeMillis();
         Tree startSlowTypeCheckingTree = slowTypecheckingTree;
@@ -6020,5 +6034,39 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         // r = reduce(scan(identifierTree.getImports(), p), r);
         r = reduce(scan(identifierTree.getTypeDecls(), p), r);
         return r;
+    }
+
+    /**
+     * Packages this visitor has already examined for a conflicting
+     * {@code @AnnotatedFor}/{@code @UnannotatedFor} pair, so that each is examined once rather than
+     * once per class in it. Separate from the checker-wide record of what has been
+     * <em>reported</em>: that one stops a second checker from repeating the warning, while this one
+     * stops the lookups from being repeated at all.
+     */
+    private final Set<PackageElement> packagesCheckedForConflictingAnnotatedFor = new HashSet<>();
+
+    /**
+     * Warns if {@code elt} has both an {@code @AnnotatedFor} and an {@code @UnannotatedFor} that
+     * apply to this checker. The two contradict each other; the {@code @AnnotatedFor} wins, so the
+     * {@code @UnannotatedFor} has no effect.
+     *
+     * @param tree the declaration to report the warning on
+     * @param elt the declaration's element, or null if it has none
+     */
+    private void checkConflictingAnnotatedFor(Tree tree, @Nullable Element elt) {
+        if (elt == null) {
+            return;
+        }
+        if (checker.hasApplicableAnnotatedFor(elt, false)
+                && checker.hasApplicableUnannotatedFor(elt, false)
+                && checker.shouldReportConflictingAnnotatedFor(elt)) {
+            // A package's own declaration is in a package-info.java that the type processor never
+            // visits, and a report is positioned against the file being visited, so report on the
+            // element rather than on a tree in another file.
+            checker.reportWarning(
+                    elt.getKind() == ElementKind.PACKAGE ? elt : tree,
+                    "conflicting.annotatedfor",
+                    elt);
+        }
     }
 }

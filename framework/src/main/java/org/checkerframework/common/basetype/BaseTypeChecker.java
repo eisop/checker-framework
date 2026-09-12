@@ -23,6 +23,7 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.IdentityHashMap;
 import java.util.Set;
 
@@ -75,7 +76,8 @@ public abstract class BaseTypeChecker extends SourceChecker {
 
     /**
      * A mapping from an element to whether it is in an {@code @AnnotatedFor} scope for this checker
-     * or an upstream checker.
+     * or an upstream checker. The value is the fully-resolved answer for the element: it accounts
+     * for enclosing elements and for {@code @UnannotatedFor} exclusions.
      */
     private final IdentityHashMap<Element, Boolean> elementAnnotatedForThisCheckerOrUpstreamCache =
             new IdentityHashMap<>();
@@ -89,6 +91,14 @@ public abstract class BaseTypeChecker extends SourceChecker {
      */
     private final IdentityHashMap<PackageElement, Boolean> annotatedForReachesSubpackagesCache =
             new IdentityHashMap<>();
+
+    /**
+     * Declarations already reported for carrying both an {@code @AnnotatedFor} and an
+     * {@code @UnannotatedFor} that name this checker. Consulted through the ultimate parent
+     * checker, so the warning is issued once rather than once per subchecker that the annotations
+     * name.
+     */
+    private final Set<Element> conflictingAnnotatedForReported = new HashSet<>();
 
     /** An array containing just {@code BaseTypeChecker.class}. */
     protected static Class<?>[] baseTypeCheckerClassArray = new Class<?>[] {BaseTypeChecker.class};
@@ -348,17 +358,12 @@ public abstract class BaseTypeChecker extends SourceChecker {
         }
 
         AnnotatedTypeFactory atypeFactory = getTypeFactory();
-        // An element may have both a written @AnnotatedFor and an aliased one (such as
-        // @NullMarked); any of them naming this checker is enough.
-        boolean elementAnnotatedForThisChecker = false;
-        for (AnnotationMirror annotatedFor : atypeFactory.getAnnotatedForAnnotations(elt)) {
-            if (atypeFactory.doesAnnotatedForApplyToThisChecker(annotatedFor)) {
-                elementAnnotatedForThisChecker = true;
-                break;
-            }
-        }
+        boolean elementAnnotatedForThisChecker = hasApplicableAnnotatedFor(elt, false);
 
-        if (!elementAnnotatedForThisChecker) {
+        // @UnannotatedFor only subtracts from an enclosing @AnnotatedFor scope, so it is consulted
+        // only when this element is not itself annotated for this checker, and it stops the walk
+        // to the enclosing element.
+        if (!elementAnnotatedForThisChecker && !hasApplicableUnannotatedFor(elt, false)) {
             if (elt.getKind() == ElementKind.PACKAGE) {
                 // A package is covered by an enclosing package only if that package's
                 // @AnnotatedFor applies to subpackages.
@@ -383,7 +388,9 @@ public abstract class BaseTypeChecker extends SourceChecker {
      * Returns true if the subpackages of {@code pkg} are covered by an {@code @AnnotatedFor} for
      * this checker or an upstream checker. Such an annotation may be written on {@code pkg} itself
      * or on any enclosing package: a package that opts out of subpackages does not shield its own
-     * subpackages from an enclosing package that opts in.
+     * subpackages from an enclosing package that opts in. An {@code @UnannotatedFor} that reaches
+     * subpackages does shield them: the innermost package whose annotation reaches subpackages
+     * decides.
      *
      * @param pkg a package, or null for no package
      * @return true if an {@code @AnnotatedFor} covers the subpackages of {@code pkg}
@@ -399,20 +406,10 @@ public abstract class BaseTypeChecker extends SourceChecker {
         }
 
         AnnotatedTypeFactory atypeFactory = getTypeFactory();
-        // Both conditions must hold of the same @AnnotatedFor, but they need not hold of the
-        // same one for every checker: a package annotated @AnnotatedFor("index") @NullMarked
-        // reaches subpackages for the Index Checker and not for the Nullness Checker, because
-        // the @NullMarked alias sets applyToSubpackages=false.  Any single @AnnotatedFor that
-        // both applies to this checker and reaches subpackages suffices.
-        boolean result = false;
-        for (AnnotationMirror annotatedFor : atypeFactory.getAnnotatedForAnnotations(pkg)) {
-            if (atypeFactory.doesAnnotatedForApplyToThisChecker(annotatedFor)
-                    && atypeFactory.doesAnnotatedForApplyToSubpackages(annotatedFor)) {
-                result = true;
-                break;
-            }
-        }
-        if (!result) {
+        boolean result = hasApplicableAnnotatedFor(pkg, true);
+        // An @UnannotatedFor on pkg that reaches subpackages cancels any enclosing @AnnotatedFor
+        // for them, so the walk stops here with the answer false.
+        if (!result && !hasApplicableUnannotatedFor(pkg, true)) {
             result =
                     doesAnnotatedForReachSubpackages(
                             ElementUtils.parentPackage(pkg, atypeFactory.getElementUtils()));
@@ -420,5 +417,71 @@ public abstract class BaseTypeChecker extends SourceChecker {
 
         annotatedForReachesSubpackagesCache.put(pkg, result);
         return result;
+    }
+
+    /**
+     * Does {@code elt} carry an {@code @AnnotatedFor} that applies to this checker or an upstream
+     * checker? Unlike {@link #isElementAnnotatedForThisCheckerOrUpstreamChecker} and {@link
+     * #doesAnnotatedForReachSubpackages}, this considers only {@code elt} itself, not enclosing
+     * elements or packages.
+     *
+     * <p>One element may carry several: {@code @AnnotatedFor} is repeatable, and an alias such as
+     * {@code @NullMarked} adds another. Any one of them naming this checker is enough. When {@code
+     * requireSubpackages} is true, both conditions must hold of the <em>same</em> annotation,
+     * though not of the same one for every checker: a package annotated
+     * {@code @AnnotatedFor("index") @NullMarked} reaches subpackages for the Index Checker and not
+     * for the Nullness Checker, because the {@code @NullMarked} alias sets {@code
+     * applyToSubpackages=false}.
+     *
+     * @param elt the element to check
+     * @param requireSubpackages if true, also require the annotation to apply to {@code elt}'s
+     *     subpackages; pass false to ask only whether it applies to {@code elt} itself
+     * @return true if such an annotation is written on, or aliased onto, {@code elt}
+     */
+    /*package-private*/ boolean hasApplicableAnnotatedFor(Element elt, boolean requireSubpackages) {
+        AnnotatedTypeFactory atypeFactory = getTypeFactory();
+        for (AnnotationMirror annotatedFor : atypeFactory.getAnnotatedForAnnotations(elt)) {
+            if (atypeFactory.doesAnnotatedForApplyToThisChecker(annotatedFor)
+                    && (!requireSubpackages
+                            || atypeFactory.doesAnnotatedForApplyToSubpackages(annotatedFor))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Does {@code elt} carry an {@code @UnannotatedFor} that applies to this checker or an upstream
+     * checker? The {@code @UnannotatedFor} counterpart of {@link #hasApplicableAnnotatedFor}; see
+     * that method, which this mirrors in every respect.
+     *
+     * @param elt the element to check
+     * @param requireSubpackages if true, also require the annotation to apply to {@code elt}'s
+     *     subpackages; pass false to ask only whether it applies to {@code elt} itself
+     * @return true if such an annotation is written on, or aliased onto, {@code elt}
+     */
+    /*package-private*/ boolean hasApplicableUnannotatedFor(
+            Element elt, boolean requireSubpackages) {
+        AnnotatedTypeFactory atypeFactory = getTypeFactory();
+        for (AnnotationMirror unannotatedFor : atypeFactory.getUnannotatedForAnnotations(elt)) {
+            if (atypeFactory.doesUnannotatedForApplyToThisChecker(unannotatedFor)
+                    && (!requireSubpackages
+                            || atypeFactory.doesUnannotatedForApplyToSubpackages(unannotatedFor))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Returns true the first time it is called with {@code elt} for this checker hierarchy, so that
+     * a conflicting {@code @AnnotatedFor}/{@code @UnannotatedFor} pair on {@code elt} is reported
+     * once even though several subcheckers may see it.
+     *
+     * @param elt a declaration with a conflicting annotation pair
+     * @return true if the conflict on {@code elt} has not been reported yet
+     */
+    /*package-private*/ boolean shouldReportConflictingAnnotatedFor(Element elt) {
+        return getUltimateParentChecker().conflictingAnnotatedForReported.add(elt);
     }
 }

@@ -459,6 +459,38 @@ same location.  This lets different type systems be given different
 this section, remains the right choice when they should share one
 \<applyToSubpackages> setting.)
 
+The \refqualclass{framework/qual}{UnannotatedFor} annotation is the inverse:
+it excludes a package, class, method, or constructor from the scope of an
+enclosing \<@AnnotatedFor>.  For example, if a package is
+\<@AnnotatedFor("nullness")> but one class in it has not been annotated, write
+\<@UnannotatedFor("nullness")> on that class; it is then treated as unchecked
+code, exactly as if the package had no \<@AnnotatedFor>.  An \<@AnnotatedFor>
+on a nested element takes effect again for that element.
+\refqualclass{framework/qual}{UnannotatedFor}'s arguments are checker names,
+in the same format as \refqualclass{framework/qual}{AnnotatedFor}'s; it has
+the same \<applyToSubpackages> element and is likewise repeatable.  Between
+two package annotations, the innermost one wins:  an \<@UnannotatedFor> on a
+package excludes its subpackages from an \<@AnnotatedFor> on an enclosing
+package, and vice versa.  When both are written on the same element and apply
+to the same checker, \<@AnnotatedFor> wins, since \<@UnannotatedFor> only
+subtracts from an \emph{enclosing} scope.  \<@UnannotatedFor> has no effect in
+a stub file (Section~\ref{stub}), where \<@AnnotatedFor> only decides whether
+each declaration's annotations are read.
+
+Code in the scope of an \<@UnannotatedFor> gets the same defaults as code
+with no enclosing \<@AnnotatedFor>.  Under
+\<-AuseConservativeDefaultsForUncheckedCode=source>, those are the
+conservative defaults of Section~\ref{defaults-classfile}.  Under
+\<-AonlyAnnotatedFor> alone, they are the ordinary defaults for checked code,
+and only warnings are suppressed.  An explicit \<@DefaultQualifier> whose
+scope includes the code, written on the excluded element or on an enclosing
+one, still takes precedence over the conservative defaults for the type
+hierarchy and locations it names:  \<@UnannotatedFor> removes the
+\<@AnnotatedFor> scope, not the \<@DefaultQualifier>s around it.  That
+includes the \<@DefaultQualifier> that JSpecify's \<@NullMarked> stands for;
+\<@NullUnmarked> additionally undoes that one's upper-bound default
+(Section~\ref{nullness-jspecifyNullMarkedAlias}).
+
 \begin{sloppypar}
 Whenever you compile a class using the Checker Framework, including when
 using the \<-AuseConservativeDefaultsForUncheckedCode=source,bytecode> command-line

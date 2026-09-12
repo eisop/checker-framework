@@ -3,6 +3,28 @@ Version 3.49.5-eisop2 (June ?, 2026)
 
 **User-visible changes:**
 
+Writing both an `@AnnotatedFor` and an `@UnannotatedFor` that name the same checker on one
+declaration is now a `conflicting.annotatedfor` warning: the two contradict each other, and the
+`@AnnotatedFor` wins.
+
+New declaration annotation `@UnannotatedFor`, which excludes a package, class, method, or
+constructor from the scope of an enclosing `@AnnotatedFor` for the given checkers. Its scope is
+defaulted using conservative defaults and its warnings are suppressed, as if no enclosing
+`@AnnotatedFor` were present; a nested `@AnnotatedFor` takes effect again. Like `@AnnotatedFor`,
+it has an `applyToSubpackages` element and is repeatable, and it has no effect unless
+`-AuseConservativeDefaultsForUncheckedCode=source` or `-AonlyAnnotatedFor` is supplied.
+
+The Nullness Checker now also treats JSpecify's `@NullUnmarked` as the inverse of
+`@NullMarked`, in both of the ways `@NullMarked` is recognized. It undoes the enclosing
+`@NullMarked`'s `@NonNull` upper-bound default within its scope -- without which a type
+variable of a `@NullUnmarked` method was still bounded by `@NonNull` -- and it aliases to
+`@UnannotatedFor`, with the same checker name and the same `applyToSubpackages = false` as
+the `@NullMarked` aliases, so it subtracts its scope from an enclosing `@NullMarked` under
+`-AonlyAnnotatedFor` and `-AuseConservativeDefaultsForUncheckedCode=source`. Like `@NullMarked`,
+it is retained in class files, so this applies to bytecode too: a `@NullUnmarked` member of a
+`@NullMarked` dependency is again given conservative defaults under
+`-AuseConservativeDefaultsForUncheckedCode=bytecode`.
+
 Fixed a bug where a `@DefaultQualifier` on a package could be lost for deeper subpackages.
 This happened when an intervening package shadowed it -- set a default for the same
 location and qualifier hierarchy -- and that shadowing default did not itself apply to
@@ -23,9 +45,7 @@ code under `-AuseConservativeDefaultsForUncheckedCode=bytecode`. A written
 alongside `@NullMarked` (see below). `applyToSubpackages = false` matches JSpecify,
 which specifies that a `@NullMarked` package does not cover its subpackages, and
 matches the `@DefaultQualifier` alias. As before, `-AjspecifyNullMarkedAlias=false`
-disables all `@NullMarked` aliasing, now including this new alias. `@NullUnmarked` is
-not yet honored: nested code under it is still checked as if the enclosing
-`@NullMarked` scope applied.
+disables all `@NullMarked` aliasing, now including this new alias.
 
 An `@AnnotatedFor` annotation written on an element now composes with any alias for
 `@AnnotatedFor` on that same element, rather than the written annotation hiding the alias.
@@ -931,11 +951,11 @@ Other improvements and bug fixes:
 
 eisop#104, eisop#386, eisop#433, eisop#622, eisop#737, eisop#778, eisop#786,
 eisop#792, eisop#863, eisop#949, eisop#1015, eisop#1059, eisop#1074, eisop#1244,
-eisop#1299, eisop#1315, eisop#1564, eisop#1592, eisop#1642, eisop#1653,
-eisop#1735, eisop#1801, eisop#1818, eisop#1819, eisop#1861, eisop#1862,
-eisop#1863, eisop#1865, eisop#1887, eisop#1965, eisop#1986, eisop#1987,
-eisop#1990, eisop#1991, eisop#2009, eisop#2020, eisop#2021, eisop#2032,
-eisop#2037, typetools#399, typetools#3203.
+eisop#876, eisop#1292, eisop#1299, eisop#1315, eisop#1564, eisop#1592,
+eisop#1642, eisop#1653, eisop#1735, eisop#1801, eisop#1818, eisop#1819,
+eisop#1861, eisop#1862, eisop#1863, eisop#1865, eisop#1887, eisop#1965,
+eisop#1986, eisop#1987, eisop#1990, eisop#1991, eisop#2009, eisop#2020,
+eisop#2021, eisop#2032, eisop#2037, typetools#399, typetools#3203.
 
 
 Version 3.49.5-eisop1 (April 26, 2026)
