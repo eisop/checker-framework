@@ -54,8 +54,14 @@ on Java 8 through 11 as well. Previously this was checked only on Java 12 and la
 source checked differently depending on the compiler.
 
 An unannotated anonymous class creation expression, as in `new AClass() {}`, now
-defaults to the declaration bound and default-use qualifiers of the class or
-interface being instantiated, rather than defaulting to top.
+takes the declaration bound and the `@DefaultQualifierForUse` qualifiers of the class
+or interface being instantiated. Previously it was defaulted without reference to that
+supertype, which for most type systems meant the top qualifier.
+
+Relatedly, `new @A AIface() {}` no longer reports `cast.unsafe.constructor.invocation`
+when `@A` is the interface's declaration bound. An anonymous class implementing an
+interface has no declared constructor, so the warning was previously issued whether or
+not the annotation matched the bound.
 
 The Nullness Checker's new `-AjspecifyUnrecognizedLocations` command-line option (also enabled by
 `-Amode=jspecify`) reports an error for a nullness annotation written where JSpecify gives it no
