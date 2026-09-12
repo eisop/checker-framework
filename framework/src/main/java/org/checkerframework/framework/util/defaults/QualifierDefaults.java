@@ -1363,7 +1363,20 @@ public class QualifierDefaults {
         protected void addAnnotation(AnnotatedTypeMirror type, AnnotationMirror qual) {
             // Add the default annotation, but only if no other annotation is present.
             if (type.getKind() != TypeKind.EXECUTABLE) {
-                type.addMissingAnnotation(qual);
+                if (type instanceof AnnotatedTypeVariable) {
+                    AnnotatedTypeVariable typeVariable = (AnnotatedTypeVariable) type;
+                    AnnotatedTypeVariable.TypeVariableUsageKind usageKind =
+                            typeVariable.getTypeVariableUsageKind();
+                    AnnotationMirrorSet requalifyingAnnotations =
+                            new AnnotationMirrorSet(
+                                    typeVariable.getRequalifyingTypeVariableUsageAnnotations());
+                    type.addMissingAnnotation(qual);
+                    typeVariable.setTypeVariableUsageKind(usageKind);
+                    typeVariable.setRequalifyingTypeVariableUsageAnnotations(
+                            requalifyingAnnotations);
+                } else {
+                    type.addMissingAnnotation(qual);
+                }
             }
         }
     }
