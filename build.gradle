@@ -1470,6 +1470,10 @@ subprojects {
                 systemProperties += ['emit.test.debug': 'true']
             }
 
+            if (project.hasProperty('ajavaChecks') || Boolean.getBoolean('ajavaChecks')) {
+                systemProperties += ['ajavaChecks': 'true']
+            }
+
             // The typeinference8 incorporation worklist confirms each fixed point with a full rescan
             // that, in production, silently self-heals if the worklist ever skipped needed work. Run
             // this project's own tests in strict mode instead, so such a skip throws and a worklist
@@ -1854,5 +1858,19 @@ tasks.register('printJavaVersion') {
         println "Java version used to run Gradle: ${System.getProperty('java.version')}"
         def currentJvm = org.gradle.internal.jvm.Jvm.current()
         println currentJvm
+    }
+}
+
+tasks.register('checkAjavaChecksProperty') {
+    group = 'Verification'
+    description = 'Verifies that -PajavaChecks or -DajavaChecks is supplied.'
+    def hasProp = project.hasProperty('ajavaChecks') || Boolean.getBoolean('ajavaChecks')
+    inputs.property('hasProperty', hasProp)
+    doLast {
+        if (!hasProp) {
+            throw new GradleException(
+                'Expected -PajavaChecks or -DajavaChecks to be set, but neither was provided. '
+                + 'This check ensures consistency checking is not accidentally skipped.')
+        }
     }
 }

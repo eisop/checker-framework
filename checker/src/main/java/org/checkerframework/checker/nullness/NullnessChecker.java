@@ -66,6 +66,7 @@ import javax.annotation.processing.SupportedOptions;
     "assumeKeyFor",
     "assumeInitialized",
     "jspecifyNullMarkedAlias",
+    "jspecifyUnrecognizedLocations",
     "conservativeArgumentNullnessAfterInvocation"
 })
 @StubFiles({"junit-assertions.astub", "log4j.astub"})
@@ -136,6 +137,7 @@ public class NullnessChecker extends InitializationChecker {
                 activeOptions.putIfAbsent("jspecifyNullMarkedAlias", "true");
                 activeOptions.putIfAbsent("assumeInitialized", null);
                 activeOptions.putIfAbsent("assumeKeyFor", null);
+                activeOptions.putIfAbsent("jspecifyUnrecognizedLocations", null);
                 break;
             default:
                 break;
