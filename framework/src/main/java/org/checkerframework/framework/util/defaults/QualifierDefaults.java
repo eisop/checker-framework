@@ -912,9 +912,9 @@ public class QualifierDefaults {
      * through different mechanisms.
      *
      * @param elt the element
-     * @return the defaults
+     * @return the defaults that apply directly to {@code elt}, or null if it has none
      */
-    private DefaultSet defaultsAtDirect(Element elt) {
+    private @Nullable DefaultSet defaultsAtDirect(Element elt) {
         DefaultSet qualifiers = null;
 
         // Handle DefaultQualifier
@@ -1062,6 +1062,11 @@ public class QualifierDefaults {
      * the empty fast-path — carries the savings. Identity (not content) keying is used because
      * {@link #defaultsAt} caches and hands back a stable {@code DefaultSet} instance per scope,
      * avoiding costly content-based hashing of the set.
+     *
+     * <p>A {@code DefaultSet} that reaches this cache must never be mutated afterwards. The sets in
+     * {@link #programmaticElementDefaults} are mutated in place, by {@link #addElementDefault}, but
+     * they never reach it: {@link #defaultsAtDirect} copies their contents into a set of its own
+     * rather than handing one of them out.
      *
      * @param defaults the scope's defaults
      * @param conservative whether to include the unchecked-code defaults
