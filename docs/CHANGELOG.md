@@ -563,6 +563,19 @@ which `BaseTypeChecker` implements with a cache.
 
 **Implementation details:**
 
+`QualifierDefaults` now keeps a second set of unchecked-code defaults, the optimistic ones, so
+the members that name the conservative set say so: `STANDARD_UNCHECKED_DEFAULTS_TOP` and
+`STANDARD_UNCHECKED_DEFAULTS_BOTTOM` are now `CONSERVATIVE_UNCHECKED_DEFAULTS_TOP` and
+`CONSERVATIVE_UNCHECKED_DEFAULTS_BOTTOM`, and `addUncheckedCodeDefault` and
+`addUncheckedCodeDefaults` are now `addConservativeUncheckedCodeDefault` and
+`addConservativeUncheckedCodeDefaults`. The optimistic counterparts are
+`OPTIMISTIC_UNCHECKED_DEFAULTS_TOP`, `OPTIMISTIC_UNCHECKED_DEFAULTS_BOTTOM`,
+`addOptimisticUncheckedCodeDefault`, and `addOptimisticUncheckedStandardDefaults`;
+`addUncheckedStandardDefaults` adds both sets, and at most one of them is ever applied to a given
+element. `QualifierDefaults.applyOptimisticDefaults(Element)` and
+`SourceChecker.useOptimisticDefault(String)` are the optimistic analogues of
+`applyConservativeDefaults` and `useConservativeDefault`.
+
 `SourceChecker.printOrStoreMessage` no longer has the two `protected` overloads
 that took no suggested fixes (the four-argument form, and the five-argument form
 taking a `StackTraceElement[]`). The framework now routes all diagnostics
@@ -937,12 +950,12 @@ Other improvements and bug fixes:
 **Closed issues:**
 
 eisop#104, eisop#386, eisop#433, eisop#622, eisop#737, eisop#778, eisop#786,
-eisop#792, eisop#863, eisop#949, eisop#1015, eisop#1059, eisop#1074, eisop#1244,
-eisop#1299, eisop#1315, eisop#1564, eisop#1592, eisop#1642, eisop#1653,
-eisop#1735, eisop#1801, eisop#1818, eisop#1819, eisop#1861, eisop#1862,
-eisop#1863, eisop#1865, eisop#1887, eisop#1965, eisop#1986, eisop#1987,
-eisop#1990, eisop#1991, eisop#2009, eisop#2020, eisop#2021, eisop#2032,
-eisop#2037, typetools#399, typetools#3203.
+eisop#792, eisop#863, eisop#949, eisop#1015, eisop#1059, eisop#1074,
+eisop#1244, eisop#1299, eisop#1315, eisop#1359, eisop#1564, eisop#1592,
+eisop#1642, eisop#1653, eisop#1735, eisop#1801, eisop#1818, eisop#1819,
+eisop#1861, eisop#1862, eisop#1863, eisop#1865, eisop#1887, eisop#1965,
+eisop#1986, eisop#1987, eisop#1990, eisop#1991, eisop#2009, eisop#2020,
+eisop#2021, eisop#2032, eisop#2037, typetools#399, typetools#3203.
 
 
 Version 3.49.5-eisop1 (April 26, 2026)
