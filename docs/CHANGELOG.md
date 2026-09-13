@@ -3,12 +3,16 @@ Version 3.49.5-eisop2 (June ?, 2026)
 
 **User-visible changes:**
 
-With `-AcheckCastElementType`, array component qualifiers are now required to be
-invariant in array casts and binding patterns, preventing unsound reads and
-writes through aliased array references. In addition, `instanceof` binding
-patterns are now checked under `-AcheckCastElementType`, and the Nullness
-Checker verifies element types while recognizing that the primary qualifier of
-the tested expression is dynamically checked to be `@NonNull`.
+`-AcheckCastElementType` is documented as requiring that "parameterized type
+arguments and array elements are the same" in a cast, but only the type-argument
+half was implemented. Array components are now required to be invariant too, in
+array casts and in `instanceof` binding patterns. This closes an unsoundness:
+array components are mutable and their qualifiers are not reified, so a cast
+cannot check them and two differently-qualified references can alias one array,
+allowing a value to be written through one and read back at the other's
+qualifier. `instanceof` binding patterns are now checked under this option at
+all; the Nullness Checker verifies their component types and type arguments
+while accounting for the runtime null check that `instanceof` itself performs.
 
 Fixed a bug where a `@DefaultQualifier` on a package could be lost for deeper subpackages.
 This happened when an intervening package shadowed it -- set a default for the same
