@@ -745,6 +745,7 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
 
         if (patternTree != null) {
             checkJSpecifyLocation(tree, nestedAnnos, "jspecify.unrecognized.location.pattern");
+            return super.visitInstanceOf(tree, p);
         } else {
             for (AnnotationMirror am : nestedAnnos) {
                 if (atypeFactory.isNullnessAnnotation(am)) {
@@ -752,9 +753,19 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
                     break;
                 }
             }
+            // Don't call super for non-pattern instanceof because it will issue an incorrect
+            // instanceof.unsafe warning when testing a @Nullable expression against a @NonNull
+            // type.
+            return null;
         }
-        // Don't call super because it will issue an incorrect instanceof.unsafe warning.
-        return null;
+    }
+
+    @Override
+    protected boolean isInstanceOfPatternSafe(
+            AnnotatedTypeMirror variableType, AnnotatedTypeMirror expType) {
+        AnnotatedTypeMirror expTypeNonNull = expType.deepCopy();
+        expTypeNonNull.replaceAnnotation(NONNULL);
+        return isTypeCastSafe(variableType, expTypeNonNull);
     }
 
     /**
