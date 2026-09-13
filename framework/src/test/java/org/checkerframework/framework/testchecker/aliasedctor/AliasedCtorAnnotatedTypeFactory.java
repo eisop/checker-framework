@@ -50,6 +50,12 @@ public class AliasedCtorAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
     public static final String ALIAS_IS_QUALIFIER_CLASS_OPTION = "aliasedCtorAliasIsQualifierClass";
 
     /**
+     * Command-line option that makes this factory declare a supported qualifier that has no
+     * {@code @Target} meta-annotation.
+     */
+    public static final String NO_TARGET_QUALIFIER_OPTION = "aliasedCtorNoTargetQualifier";
+
+    /**
      * Creates a new AliasedCtorAnnotatedTypeFactory.
      *
      * @param checker the checker
@@ -89,6 +95,11 @@ public class AliasedCtorAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
 
     @Override
     protected Set<Class<? extends Annotation>> createSupportedTypeQualifiers() {
-        return new HashSet<>(Arrays.asList(AliasedCtorTop.class, AliasedCtorBottom.class));
+        Set<Class<? extends Annotation>> result =
+                new HashSet<>(Arrays.asList(AliasedCtorTop.class, AliasedCtorBottom.class));
+        if (checker.hasOption(NO_TARGET_QUALIFIER_OPTION)) {
+            result.add(AliasedCtorNoTarget.class);
+        }
+        return result;
     }
 }

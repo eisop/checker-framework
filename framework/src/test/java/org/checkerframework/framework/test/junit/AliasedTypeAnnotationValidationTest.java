@@ -155,6 +155,20 @@ public class AliasedTypeAnnotationValidationTest {
     }
 
     /**
+     * Tests that a supported qualifier declared without a {@code @Target} meta-annotation is
+     * reported rather than dereferenced as null.
+     */
+    @Test
+    public void testSupportedQualifierWithoutTarget() {
+        String output =
+                compileWithOption(AliasedCtorAnnotatedTypeFactory.NO_TARGET_QUALIFIER_OPTION);
+        Assert.assertTrue(
+                "Expected TypeSystemError about a missing @Target, but got: " + output,
+                output.contains("AliasedCtorNoTarget")
+                        && output.contains("has no @Target meta-annotation"));
+    }
+
+    /**
      * Tests that {@code -AaliasedTypeAnnos} naming a canonical annotation that is a declaration
      * annotation rather than a type annotation is a UserError, not a TypeSystemError.
      */

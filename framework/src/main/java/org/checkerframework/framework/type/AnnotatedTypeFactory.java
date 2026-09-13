@@ -1009,15 +1009,17 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         }
         for (Class<? extends Annotation> annotationClass : supportedQuals) {
             // Check @Target values
-            ElementType[] targetValues = annotationClass.getAnnotation(Target.class).value();
-            List<ElementType> badTargetValues = new ArrayList<>(0);
-            for (ElementType element : targetValues) {
-                if (!(element == ElementType.TYPE_USE || element == ElementType.TYPE_PARAMETER)) {
-                    // if there's an ElementType with an enumerated value of something other
-                    // than TYPE_USE or TYPE_PARAMETER then it isn't a valid qualifier
-                    badTargetValues.add(element);
-                }
+            Target target = annotationClass.getAnnotation(Target.class);
+            if (target == null) {
+                throw new TypeSystemError(
+                        "The type qualifier "
+                                + annotationClass
+                                + " has no @Target meta-annotation, so it is applicable to every"
+                                + " declaration context. A type qualifier must declare"
+                                + " @Target({ElementType.TYPE_USE}) or"
+                                + " @Target({ElementType.TYPE_USE, ElementType.TYPE_PARAMETER}).");
             }
+            List<ElementType> badTargetValues = nonTypeUseTargets(target);
             if (!badTargetValues.isEmpty()) {
                 String msg =
                         "The @Target meta-annotation on type qualifier "

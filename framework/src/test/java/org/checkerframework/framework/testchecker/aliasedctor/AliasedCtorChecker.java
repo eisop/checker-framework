@@ -15,6 +15,7 @@ import org.checkerframework.framework.source.SupportedOptions;
     AliasedCtorAnnotatedTypeFactory.UNSUPPORTED_CANONICAL_MIRROR_OPTION,
     AliasedCtorAnnotatedTypeFactory.UNSUPPORTED_CANONICAL_CLASS_OPTION,
     AliasedCtorAnnotatedTypeFactory.ALIAS_IS_QUALIFIER_NAME_OPTION,
-    AliasedCtorAnnotatedTypeFactory.ALIAS_IS_QUALIFIER_CLASS_OPTION
+    AliasedCtorAnnotatedTypeFactory.ALIAS_IS_QUALIFIER_CLASS_OPTION,
+    AliasedCtorAnnotatedTypeFactory.NO_TARGET_QUALIFIER_OPTION
 })
 public final class AliasedCtorChecker extends BaseTypeChecker {}
