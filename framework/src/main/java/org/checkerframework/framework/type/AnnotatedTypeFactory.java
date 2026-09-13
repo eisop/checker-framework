@@ -47,6 +47,7 @@ import org.checkerframework.common.reflection.ReflectionResolver;
 import org.checkerframework.common.reflection.qual.MethodVal;
 import org.checkerframework.dataflow.qual.SideEffectFree;
 import org.checkerframework.framework.qual.AnnotatedFor;
+import org.checkerframework.framework.qual.DefaultQualifier;
 import org.checkerframework.framework.qual.EnsuresQualifier;
 import org.checkerframework.framework.qual.EnsuresQualifierIf;
 import org.checkerframework.framework.qual.FieldInvariant;
@@ -178,6 +179,14 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     private static final @FullyQualifiedName String ANNOTATED_FOR_NAME =
             AnnotatedFor.class.getCanonicalName();
 
+    /** The fully-qualified name of {@link DefaultQualifier}. */
+    private static final @FullyQualifiedName String DEFAULT_QUALIFIER_NAME =
+            DefaultQualifier.class.getCanonicalName();
+
+    /** The fully-qualified name of {@link DefaultQualifier.List}. */
+    private static final @FullyQualifiedName String DEFAULT_QUALIFIER_LIST_NAME =
+            DefaultQualifier.List.class.getCanonicalName();
+
     /** Whether to print verbose debugging messages about stub files. */
     private final boolean debugStubParser;
 
@@ -224,6 +233,12 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * in which case {@code @AnnotatedFor} could not have been written more than once there.
      */
     protected final @Nullable ExecutableElement annotatedForListValueElement;
+
+    /**
+     * The DefaultQualifier.List.value() field/element, for a location with two or more written
+     * {@code @DefaultQualifier} (which javac collapses into one {@code @DefaultQualifier.List}).
+     */
+    protected final ExecutableElement defaultQualifierListValueElement;
 
     /** The EnsuresQualifier.expression field/element. */
     protected final ExecutableElement ensuresQualifierExpressionElement;
@@ -742,8 +757,26 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             for (String alias : annos) {
                 IPair<Class<? extends Annotation>, @FullyQualifiedName String[]> aliasPair =
                         parseAliasesFromString(alias);
+                Class<? extends Annotation> canonical = aliasPair.first;
+                checkAliasedTypeAnnoIsTypeQualifier(canonical);
+                // -AaliasedTypeAnnos is one global option that every type factory in the checker
+                // hierarchy processes, so a canonical qualifier that this factory does not
+                // support is the normal case rather than a mistake: under the Nullness Checker,
+                // the KeyFor subchecker's factory also sees the aliases written for @NonNull.
+                // Skip those. Registering one would install an alias that could never resolve
+                // here, which is why addAliasedTypeAnnotation rejects it as a type-system error.
+                if (!isSupportedQualifier(canonical.getCanonicalName())) {
+                    continue;
+                }
                 for (@FullyQualifiedName String a : aliasPair.second) {
-                    addAliasedTypeAnnotation(a, aliasPair.first, true);
+                    if (isSupportedQualifier(a)) {
+                        throw new UserError(
+                                "-AaliasedTypeAnnos: %s cannot be an alias for %s, because %s is"
+                                        + " itself a qualifier of the type system being run. An alias"
+                                        + " must be an annotation from outside the type system.",
+                                a, canonical.getCanonicalName(), a);
+                    }
+                    addAliasedTypeAnnotation(a, canonical, true);
                 }
             }
         }
@@ -840,6 +873,8 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
                 elements.getTypeElement(annotatedForListName) == null
                         ? null
                         : TreeUtils.getMethod(annotatedForListName, "value", 0, processingEnv);
+        defaultQualifierListValueElement =
+                TreeUtils.getMethod(DefaultQualifier.List.class, "value", 0, processingEnv);
         ensuresQualifierExpressionElement =
                 TreeUtils.getMethod(EnsuresQualifier.class, "expression", 0, processingEnv);
         ensuresQualifierListValueElement =
@@ -929,6 +964,56 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     }
 
     /**
+     * Throws a {@link UserError} if {@code canonical}, named as the canonical annotation of a
+     * {@code -AaliasedTypeAnnos} argument, is not a type annotation.
+     *
+     * <p>Unlike a canonical qualifier that this particular factory does not support, which is
+     * expected because the option is global, an annotation that is not a type annotation at all
+     * cannot be the canonical form of a type annotation under any checker. Naming one is therefore
+     * a mistake in the option rather than an alias meant for a type system that is not running.
+     *
+     * @param canonical the canonical annotation class named in a {@code -AaliasedTypeAnnos}
+     *     argument
+     */
+    private void checkAliasedTypeAnnoIsTypeQualifier(Class<? extends Annotation> canonical) {
+        Target target = canonical.getAnnotation(Target.class);
+        if (target == null) {
+            throw new UserError(
+                    "-AaliasedTypeAnnos: the canonical annotation %s is not a type annotation,"
+                            + " because it has no @Target meta-annotation.",
+                    canonical.getCanonicalName());
+        }
+        List<ElementType> badTargetValues = nonTypeUseTargets(target);
+        if (!badTargetValues.isEmpty()) {
+            throw new UserError(
+                    "-AaliasedTypeAnnos: the canonical annotation %s is not a type annotation,"
+                            + " because its @Target meta-annotation contains %s. Use"
+                            + " -AaliasedDeclAnnos to alias a declaration annotation.",
+                    canonical.getCanonicalName(), StringsPlume.conjunction("and", badTargetValues));
+        }
+    }
+
+    /**
+     * Returns the values of {@code target} that keep the annotation it appears on from being a type
+     * qualifier: every value other than {@code TYPE_USE} and {@code TYPE_PARAMETER}.
+     *
+     * @param target the {@code @Target} meta-annotation of some annotation
+     * @return the values of {@code target} that are neither TYPE_USE nor TYPE_PARAMETER; empty if
+     *     there are none
+     */
+    private static List<ElementType> nonTypeUseTargets(Target target) {
+        List<ElementType> result = new ArrayList<>(0);
+        for (ElementType element : target.value()) {
+            if (!(element == ElementType.TYPE_USE || element == ElementType.TYPE_PARAMETER)) {
+                // if there's an ElementType with an enumerated value of something other
+                // than TYPE_USE or TYPE_PARAMETER then it isn't a valid qualifier
+                result.add(element);
+            }
+        }
+        return result;
+    }
+
+    /**
      * Requires that supportedQuals is non-null and non-empty and each element is a type qualifier.
      * That is, no element has a {@code @Target} meta-annotation that contains something besides
      * TYPE_USE or TYPE_PARAMETER. (@Target({}) is allowed.) @
@@ -941,15 +1026,17 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         }
         for (Class<? extends Annotation> annotationClass : supportedQuals) {
             // Check @Target values
-            ElementType[] targetValues = annotationClass.getAnnotation(Target.class).value();
-            List<ElementType> badTargetValues = new ArrayList<>(0);
-            for (ElementType element : targetValues) {
-                if (!(element == ElementType.TYPE_USE || element == ElementType.TYPE_PARAMETER)) {
-                    // if there's an ElementType with an enumerated value of something other
-                    // than TYPE_USE or TYPE_PARAMETER then it isn't a valid qualifier
-                    badTargetValues.add(element);
-                }
+            Target target = annotationClass.getAnnotation(Target.class);
+            if (target == null) {
+                throw new TypeSystemError(
+                        "The type qualifier "
+                                + annotationClass
+                                + " has no @Target meta-annotation, so it is applicable to every"
+                                + " declaration context. A type qualifier must declare"
+                                + " @Target({ElementType.TYPE_USE}) or"
+                                + " @Target({ElementType.TYPE_USE, ElementType.TYPE_PARAMETER}).");
             }
+            List<ElementType> badTargetValues = nonTypeUseTargets(target);
             if (!badTargetValues.isEmpty()) {
                 String msg =
                         "The @Target meta-annotation on type qualifier "
@@ -4480,11 +4567,6 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * @param canonicalAnno the canonical annotation
      */
     protected void addAliasedTypeAnnotation(Class<?> aliasClass, AnnotationMirror canonicalAnno) {
-        if (getSupportedTypeQualifiers().contains(aliasClass)) {
-            throw new BugInCF(
-                    "AnnotatedTypeFactory: alias %s should not be in type hierarchy for %s",
-                    aliasClass, this.getClass().getSimpleName());
-        }
         addAliasedTypeAnnotation(aliasClass.getCanonicalName(), canonicalAnno);
     }
 
@@ -4504,6 +4586,16 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     // name of an external annotation is a canonical name.
     protected void addAliasedTypeAnnotation(
             @FullyQualifiedName String aliasName, AnnotationMirror canonicalAnno) {
+        if (isSupportedQualifier(aliasName)) {
+            throw new TypeSystemError(
+                    "AnnotatedTypeFactory: alias %s should not be in type hierarchy for %s",
+                    aliasName, this.getClass().getSimpleName());
+        }
+        if (!isSupportedQualifier(canonicalAnno)) {
+            throw new TypeSystemError(
+                    "AnnotatedTypeFactory: canonical annotation %s is not in type hierarchy for %s",
+                    canonicalAnno, this.getClass().getSimpleName());
+        }
         aliases.put(aliasName, new Alias(aliasName, canonicalAnno, false, null, null));
     }
 
@@ -4539,11 +4631,6 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             Class<?> canonicalClass,
             boolean copyElements,
             String... ignorableElements) {
-        if (getSupportedTypeQualifiers().contains(aliasClass)) {
-            throw new BugInCF(
-                    "AnnotatedTypeFactory: alias %s should not be in type hierarchy for %s",
-                    aliasClass, this.getClass().getSimpleName());
-        }
         addAliasedTypeAnnotation(
                 aliasClass.getCanonicalName(), canonicalClass, copyElements, ignorableElements);
     }
@@ -4574,6 +4661,16 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         // The copyElements argument disambiguates overloading.
         if (!copyElements) {
             throw new BugInCF("Do not call with false");
+        }
+        if (isSupportedQualifier(aliasName)) {
+            throw new TypeSystemError(
+                    "AnnotatedTypeFactory: alias %s should not be in type hierarchy for %s",
+                    aliasName, this.getClass().getSimpleName());
+        }
+        if (!isSupportedQualifier(canonicalAnno.getCanonicalName())) {
+            throw new TypeSystemError(
+                    "AnnotatedTypeFactory: canonical annotation %s is not in type hierarchy for %s",
+                    canonicalAnno.getCanonicalName(), this.getClass().getSimpleName());
         }
         aliases.put(
                 aliasName,
@@ -4660,8 +4757,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         if (isSupportedQualifier(writtenAnno)) {
             return writtenAnno;
         }
-        AnnotationMirror canonical = canonicalAnnotation(writtenAnno);
-        return isSupportedQualifier(canonical) ? canonical : null;
+        return canonicalAnnotation(writtenAnno);
     }
 
     /**
@@ -7198,6 +7294,93 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         AnnotationMirrorSet result = new AnnotationMirrorSet(writtenOrAliased);
         result.addAll(repeated);
         return result.makeUnmodifiable();
+    }
+
+    /**
+     * Returns every {@link DefaultQualifier} annotation that applies to {@code elt}'s own
+     * declaration, in source order: each one written on it (there may be more than one, since
+     * {@code @DefaultQualifier} is {@code @Repeatable}), plus one for each of its declaration
+     * annotations that is an alias for {@code @DefaultQualifier} or for
+     * {@code @DefaultQualifier.List}.
+     *
+     * <p>Order is significant, unlike for {@link #getAnnotatedForAnnotations}: two
+     * {@code @DefaultQualifier} annotations can set the same {@link
+     * org.checkerframework.framework.qual.TypeUseLocation} in the same qualifier hierarchy to
+     * different qualifiers, and only one of them can win. {@link
+     * org.checkerframework.framework.util.defaults.QualifierDefaults}, the only caller, keeps the
+     * first and reports the rest as conflicts, so this returns an ordered {@link List} rather than
+     * an {@link AnnotationMirrorSet}.
+     *
+     * <p>The order is that of {@link #getDeclAnnotations}, which for {@code elt}'s own annotations
+     * is the source order that {@code javac} reports. Three consequences:
+     *
+     * <ul>
+     *   <li>An aliasing annotation contributes its target {@code @DefaultQualifier} at the aliasing
+     *       annotation's own position. For example, {@code @NullMarked} aliases to
+     *       {@code @DefaultQualifier(NonNull.class, locations = UPPER_BOUND)}, so writing
+     *       {@code @NullMarked} before or after a {@code @DefaultQualifier} decides which of the
+     *       two wins.
+     *   <li>Two or more written {@code @DefaultQualifier}s are reported by javac as a single
+     *       {@code @DefaultQualifier.List} positioned where the first of them was written, and its
+     *       {@code value()} array is in source order; this expands that container in place, so the
+     *       result is still in source order.
+     *   <li>Annotations contributed by a stub or ajava file, and annotations inherited from a
+     *       supertype or an overridden method, are appended by {@link #getDeclAnnotations} after
+     *       {@code elt}'s own, so they come last here and lose a conflict against an annotation
+     *       written on {@code elt} itself. (Neither {@code @DefaultQualifier} nor
+     *       {@code @DefaultQualifier.List} is {@code @Inherited}, so today only a stub or ajava
+     *       file can reach this case; {@code @Inherited} annotations are the one kind that {@code
+     *       Elements.getAllAnnotationMirrors} places <i>before</i> the element's own, which would
+     *       invert this precedence.)
+     * </ul>
+     *
+     * @param elt an element
+     * @return an unmodifiable list, in source order, of the {@code @DefaultQualifier} annotations
+     *     that apply to {@code elt}'s own declaration; may be empty
+     */
+    public List<AnnotationMirror> getDefaultQualifierAnnotations(Element elt) {
+        AnnotationMirrorSet declAnnos = getDeclAnnotations(elt);
+        Map<@FullyQualifiedName String, AnnotationMirror> singleAliases =
+                declAliases.get(DEFAULT_QUALIFIER_NAME);
+        Map<@FullyQualifiedName String, AnnotationMirror> listAliases =
+                declAliases.get(DEFAULT_QUALIFIER_LIST_NAME);
+        // Allocate only if a match is actually found: the overwhelming majority of elements have
+        // no @DefaultQualifier at all, and this runs on the QualifierDefaults cache-miss path for
+        // a large fraction of elements.
+        List<AnnotationMirror> result = null;
+        for (int i = 0, n = declAnnos.size(); i < n; ++i) {
+            AnnotationMirror am = declAnnos.get(i);
+            @FullyQualifiedName String amName = AnnotationUtils.annotationName(am);
+            // Unlike getDeclAnnotation, do not stop at the first match: a written annotation and
+            // an aliased one must both be collected, in the order they appear.
+            AnnotationMirror single =
+                    amName.equals(DEFAULT_QUALIFIER_NAME)
+                            ? am
+                            : (singleAliases == null ? null : singleAliases.get(amName));
+            if (single != null) {
+                if (result == null) {
+                    result = new ArrayList<>(2);
+                }
+                result.add(single);
+                continue;
+            }
+            AnnotationMirror listAnno =
+                    amName.equals(DEFAULT_QUALIFIER_LIST_NAME)
+                            ? am
+                            : (listAliases == null ? null : listAliases.get(amName));
+            if (listAnno != null) {
+                List<AnnotationMirror> repeated =
+                        AnnotationUtils.getElementValueArray(
+                                listAnno, defaultQualifierListValueElement, AnnotationMirror.class);
+                if (!repeated.isEmpty()) {
+                    if (result == null) {
+                        result = new ArrayList<>(repeated.size());
+                    }
+                    result.addAll(repeated);
+                }
+            }
+        }
+        return result == null ? Collections.emptyList() : Collections.unmodifiableList(result);
     }
 
     /**
