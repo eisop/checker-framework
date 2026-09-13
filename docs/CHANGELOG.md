@@ -10,6 +10,29 @@ subpackages. The intervening package's own default correctly stayed limited to t
 package, but the outer default, which nothing deeper actually shadowed, incorrectly
 stopped propagating too.
 
+Two `@DefaultQualifier` annotations on the same declaration that set the same
+`TypeUseLocation` in the same qualifier hierarchy to different qualifiers are now reported
+as a `conflicting.defaults` error, and the one written later in the source is ignored.
+Previously both were kept and which one took effect depended on the order of their
+annotation class names. Two that name the same qualifier are redundant, not conflicting,
+and remain legal.
+
+An annotation that a checker registers as an alias for `@DefaultQualifier`, such as
+JSpecify's `@NullMarked` for the Nullness Checker, now participates at its own position in
+the source, alongside the `@DefaultQualifier` annotations written on the same declaration.
+Two consequences. An alias is no longer dropped when a `@DefaultQualifier` is also written
+on the declaration; previously the written annotation hid it entirely, so on
+`@NullMarked @DefaultQualifier(value = Nullable.class, locations = FIELD)` the `@NullMarked`
+default for upper bounds was silently lost. And when an alias and a written
+`@DefaultQualifier` do conflict, source order decides: whichever appears first wins, so
+reordering the two annotations changes the result. Previously the alias always won against
+two or more written `@DefaultQualifier` annotations, and always lost against one.
+
+A default that a checker registers with `QualifierDefaults.addElementDefault` now combines
+with the `@DefaultQualifier` annotations written on the same declaration and with the
+defaults of enclosing elements, instead of replacing them or being lost depending on the
+order in which defaults were first queried.
+
 The Nullness Checker now treats JSpecify's `@NullMarked` as an alias for
 `@AnnotatedFor` scoped to nullness checking alone (not initialization or `@KeyFor`
 checking, which JSpecify does not define and which `-Amode=jspecify` already excludes),
@@ -52,6 +75,16 @@ A type-use annotation written on an anonymous class creation expression, as in
 `new @A AClass() {}`, is now validated against the declaration bound of the class being extended
 on Java 8 through 11 as well. Previously this was checked only on Java 12 and later, so the same
 source checked differently depending on the compiler.
+
+An unannotated anonymous class creation expression, as in `new AClass() {}`, now
+takes the declaration bound and the `@DefaultQualifierForUse` qualifiers of the class
+or interface being instantiated. Previously it was defaulted without reference to that
+supertype, which for most type systems meant the top qualifier.
+
+Relatedly, `new @A AIface() {}` no longer reports `cast.unsafe.constructor.invocation`
+when `@A` is the interface's declaration bound. An anonymous class implementing an
+interface has no declared constructor, so the warning was previously issued whether or
+not the annotation matched the bound.
 
 The Nullness Checker's new `-AjspecifyUnrecognizedLocations` command-line option (also enabled by
 `-Amode=jspecify`) reports an error for a nullness annotation written where JSpecify gives it no
@@ -105,6 +138,16 @@ form, whichever is a supported qualifier (or null if neither is);
 `canonicalAnnotationOrWritten(AnnotationMirror)`, which returns the canonical form of an
 annotation as written if it is an alias, and the annotation itself otherwise (regardless of
 whether either form is actually a supported qualifier).
+
+`AnnotatedTypeFactory#addAliasedTypeAnnotation` now validates that the canonical annotation is
+a supported qualifier of the checker and that the alias is not already in the type hierarchy,
+failing immediately with `TypeSystemError` rather than silently ignoring the alias.
+
+The `-AaliasedTypeAnnos` command-line option now reports a `UserError` if its canonical
+annotation is not a type annotation, or if its alias is itself a qualifier of the type system
+being run. A canonical qualifier that the running type system does not support is skipped
+rather than reported: the option is global, so each type factory in a checker hierarchy also
+receives the aliases written for the others.
 
 `@AnnotatedFor` is now `@Repeatable`, so it may be written more than once at the same
 location. This lets different type systems be given different `applyToSubpackages`
@@ -572,6 +615,17 @@ the annotated package itself is always in scope. There are two new methods for t
 as true, so a package annotation from such an artifact applies to subpackages as it
 always did.
 
+`QualifierDefaults.addElementDefault` is now an initialization-time API: calling it once
+type checking has begun throws a `TypeSystemError`, because already-computed types and
+dataflow results are never recomputed and already-issued diagnostics cannot be retracted,
+so the new default would reach only part of the program. Register element defaults from
+`createQualifierDefaults` or `addCheckedCodeDefaults`. A registered default that conflicts
+with a `@DefaultQualifier` written on the same declaration now throws a `TypeSystemError`
+naming that declaration, rather than a `BugInCF` asking the user to report a framework bug.
+`AnnotatedTypeFactory.getRoot()` is now `public` rather than `protected`, so that code
+outside the factory can ask whether type checking has begun; an override of it in a
+subclass must be widened to `public` too.
+
 `AnnotatedIntersectionType.summarizeBounds` computes the summary described
 above, reading each bound's qualifier, explicit or defaulted, uniformly,
 and folding
@@ -926,6 +980,11 @@ Other improvements and bug fixes:
   command-line flag that drops such an annotation from the binary stub
   output (with a warning naming the annotation and file) instead of
   aborting the run.
+- Fixed a crash in `AnnotatedTypeMirror#hasExplicitAnnotation(Class)` when
+  called on a type that has explicit annotations but none of the queried
+  annotation class.
+- Fixed a bug where a type annotation written on the first alternative of a
+  multi-catch clause was silently dropped.
 
 **Closed issues:**
 
@@ -935,7 +994,8 @@ eisop#1299, eisop#1315, eisop#1564, eisop#1592, eisop#1642, eisop#1653,
 eisop#1735, eisop#1801, eisop#1818, eisop#1819, eisop#1861, eisop#1862,
 eisop#1863, eisop#1865, eisop#1887, eisop#1965, eisop#1986, eisop#1987,
 eisop#1990, eisop#1991, eisop#2009, eisop#2020, eisop#2021, eisop#2032,
-eisop#2037, eisop#2074, typetools#399, typetools#3203.
+eisop#2037, eisop#2047, eisop#2048, eisop#2052, eisop#2056, eisop#2059,
+eisop#2061, eisop#2064, eisop#2074, typetools#399, typetools#3203.
 
 
 Version 3.49.5-eisop1 (April 26, 2026)

@@ -5,6 +5,7 @@ import org.checkerframework.framework.qual.UpperBoundFor;
 import org.checkerframework.javacutil.AnnotationBuilder;
 import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.BugInCF;
+import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.TypesUtils;
 
 import java.lang.annotation.Annotation;
@@ -15,6 +16,7 @@ import java.util.Set;
 
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
+import javax.lang.model.element.TypeElement;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
@@ -104,15 +106,30 @@ public class QualifierUpperBounds {
     /**
      * Returns the set of qualifiers that are the upper bounds for a use of the type.
      *
+     * <p>The result is unmodifiable, and callers must not assume it is freshly allocated: an
+     * override of {@link AnnotatedTypeFactory#getTypeDeclarationBounds} may return a shared
+     * constant instead, as {@code InterningAnnotatedTypeFactory} does for enums.
+     *
      * @param type the TypeMirror
-     * @return the set of qualifiers that are the upper bounds for a use of the type
+     * @return the set of qualifiers that are the upper bounds for a use of the type; unmodifiable
      */
     public AnnotationMirrorSet getBoundQualifiers(TypeMirror type) {
         AnnotationMirrorSet bounds = new AnnotationMirrorSet();
         String qname;
         if (type.getKind() == TypeKind.DECLARED) {
             DeclaredType declaredType = (DeclaredType) type;
-            bounds.addAll(getAnnotationFromElement(declaredType.asElement()));
+            Element elem = declaredType.asElement();
+            bounds.addAll(getAnnotationFromElement(elem));
+            if (ElementUtils.isAnonymous(elem)) {
+                // An anonymous class carries no annotations of its own, so its bounds are those
+                // of the type it is created from.  Use addMissingAnnotations, not addAll, so that
+                // anything the element did contribute still wins.
+                // Null only if the supertype did not resolve; see getAnonymousSupertype.
+                DeclaredType superType = ElementUtils.getAnonymousSupertype((TypeElement) elem);
+                if (superType != null) {
+                    addMissingAnnotations(bounds, getBoundQualifiers(superType));
+                }
+            }
             qname = TypesUtils.getQualifiedName(declaredType);
         } else if (type.getKind().isPrimitive()) {
             qname = type.toString();
@@ -134,7 +151,7 @@ public class QualifierUpperBounds {
         }
 
         addMissingAnnotations(bounds, atypeFactory.getDefaultTypeDeclarationBounds());
-        return bounds;
+        return bounds.makeUnmodifiable();
     }
 
     /**

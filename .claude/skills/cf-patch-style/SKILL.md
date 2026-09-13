@@ -170,6 +170,46 @@ explicitly in the PR description rather than implying it passed.
 
 ## CI checks that `assemble` and `alltests` do NOT run
 
+**Run the whole `misc` gate before proposing a push, not the part you
+suspect.** Checking one item off the list below and stopping is how a
+green local build still turns CI red. The checks are independent, so a
+clean result from one says nothing about the others:
+
+```
+# the import rule -- the only check here that hard-exits
+grep -n -r --exclude-dir=build --exclude-dir=examples --exclude-dir=jtreg \
+  --exclude-dir=tests --exclude="*.astub" --exclude="*.tex" \
+  '^\(import static \|import .*\*;$\)'
+./gradlew requireJavadoc javadocDoclintAll spotlessCheck --continue
+make style-check          # shell + Python only; skip if no .sh/.py changed
+```
+
+**`--continue` is not optional.** `requireJavadoc` fails on this repo
+unconditionally -- there are well over a thousand pre-existing violations --
+so without it Gradle stops there and `javadocDoclintAll` and `spotlessCheck`
+never run, which is the exact trap this section is about.
+
+**Read the result the way CI does: by line, not by exit code.** Both Javadoc
+tasks are wrapped in `|| true` in `test-misc.sh` and their output is piped
+through `ci-lint-diff`, which reports only findings on lines the diff
+*changed*. So a red `requireJavadoc` means nothing on its own; what matters is
+whether any finding falls inside your own added lines. Get those from
+`git diff -U0 origin/master...HEAD` and intersect. A finding in a file you
+touched, on a line you did not, is pre-existing -- do not chase it.
+
+Run the grep from the repo root over tracked files only (`git ls-files -z
+'*.java' | xargs -0 grep -n ...`); run plainly it also matches untracked
+checkouts parked under `.claude/worktrees/`, which CI never sees.
+
+Ordering matters when reading a failed CI log: `requireJavadoc` and
+`javadocDoclintAll` run first and only accumulate a status, while the
+import grep does `exit 1` immediately. So a log that ends at the import
+error proves the Javadoc checks ran, but a log that ends *anywhere*
+proves nothing about the checks below it -- `make style-check` and
+`htmlValidate` never ran at all. Same shape as the `-Werror` trap
+elsewhere in this file: one truncated report is a sample, not the
+population.
+
 The `misc` CI job (`checker/bin-devel/test-misc.sh`) runs lint that a
 normal build skips. Two of its checks catch things that compile and test
 green but still fail CI:
