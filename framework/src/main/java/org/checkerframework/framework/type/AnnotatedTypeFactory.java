@@ -4550,11 +4550,6 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * @param canonicalAnno the canonical annotation
      */
     protected void addAliasedTypeAnnotation(Class<?> aliasClass, AnnotationMirror canonicalAnno) {
-        if (getSupportedTypeQualifiers().contains(aliasClass)) {
-            throw new TypeSystemError(
-                    "AnnotatedTypeFactory: alias %s should not be in type hierarchy for %s",
-                    aliasClass, this.getClass().getSimpleName());
-        }
         addAliasedTypeAnnotation(aliasClass.getCanonicalName(), canonicalAnno);
     }
 
@@ -4619,11 +4614,6 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             Class<?> canonicalClass,
             boolean copyElements,
             String... ignorableElements) {
-        if (getSupportedTypeQualifiers().contains(aliasClass)) {
-            throw new TypeSystemError(
-                    "AnnotatedTypeFactory: alias %s should not be in type hierarchy for %s",
-                    aliasClass, this.getClass().getSimpleName());
-        }
         addAliasedTypeAnnotation(
                 aliasClass.getCanonicalName(), canonicalClass, copyElements, ignorableElements);
     }
