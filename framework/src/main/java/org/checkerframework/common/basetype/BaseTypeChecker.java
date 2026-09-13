@@ -4,7 +4,6 @@ import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.checker.signature.qual.ClassGetName;
 import org.checkerframework.dataflow.cfg.visualize.CFGVisualizer;
-import org.checkerframework.framework.qual.AnnotatedFor;
 import org.checkerframework.framework.qual.SubtypeOf;
 import org.checkerframework.framework.source.SourceChecker;
 import org.checkerframework.framework.type.AnnotatedTypeFactory;
@@ -79,6 +78,16 @@ public abstract class BaseTypeChecker extends SourceChecker {
      * or an upstream checker.
      */
     private final IdentityHashMap<Element, Boolean> elementAnnotatedForThisCheckerOrUpstreamCache =
+            new IdentityHashMap<>();
+
+    /**
+     * A mapping from a package to whether that package's subpackages are covered by an
+     * {@code @AnnotatedFor} for this checker or an upstream checker, written on it or on an
+     * enclosing package. Separate from {@link #elementAnnotatedForThisCheckerOrUpstreamCache}
+     * because an {@code @AnnotatedFor} that opts out of subpackages still covers its own package,
+     * so the two answers differ for the same package.
+     */
+    private final IdentityHashMap<PackageElement, Boolean> annotatedForReachesSubpackagesCache =
             new IdentityHashMap<>();
 
     /** An array containing just {@code BaseTypeChecker.class}. */
@@ -339,27 +348,77 @@ public abstract class BaseTypeChecker extends SourceChecker {
         }
 
         AnnotatedTypeFactory atypeFactory = getTypeFactory();
-        AnnotationMirror annotatedFor = atypeFactory.getDeclAnnotation(elt, AnnotatedFor.class);
-        boolean elementAnnotatedForThisChecker =
-                annotatedFor != null
-                        && atypeFactory.doesAnnotatedForApplyToThisChecker(annotatedFor);
+        // An element may have both a written @AnnotatedFor and an aliased one (such as
+        // @NullMarked); any of them naming this checker is enough.
+        boolean elementAnnotatedForThisChecker = false;
+        for (AnnotationMirror annotatedFor : atypeFactory.getAnnotatedForAnnotations(elt)) {
+            if (atypeFactory.doesAnnotatedForApplyToThisChecker(annotatedFor)) {
+                elementAnnotatedForThisChecker = true;
+                break;
+            }
+        }
 
         if (!elementAnnotatedForThisChecker) {
-            Element parent;
             if (elt.getKind() == ElementKind.PACKAGE) {
-                parent =
-                        ElementUtils.parentPackage(
-                                (PackageElement) elt, atypeFactory.getElementUtils());
+                // A package is covered by an enclosing package only if that package's
+                // @AnnotatedFor applies to subpackages.
+                elementAnnotatedForThisChecker =
+                        doesAnnotatedForReachSubpackages(
+                                ElementUtils.parentPackage(
+                                        (PackageElement) elt, atypeFactory.getElementUtils()));
             } else {
-                parent = elt.getEnclosingElement();
-            }
-
-            if (parent != null && isElementAnnotatedForThisCheckerOrUpstreamChecker(parent)) {
-                elementAnnotatedForThisChecker = true;
+                // A non-package element is inside its enclosing element rather than in a
+                // subpackage of it, so applyToSubpackages does not apply to this step.
+                Element parent = elt.getEnclosingElement();
+                elementAnnotatedForThisChecker =
+                        parent != null && isElementAnnotatedForThisCheckerOrUpstreamChecker(parent);
             }
         }
 
         elementAnnotatedForThisCheckerOrUpstreamCache.put(elt, elementAnnotatedForThisChecker);
         return elementAnnotatedForThisChecker;
+    }
+
+    /**
+     * Returns true if the subpackages of {@code pkg} are covered by an {@code @AnnotatedFor} for
+     * this checker or an upstream checker. Such an annotation may be written on {@code pkg} itself
+     * or on any enclosing package: a package that opts out of subpackages does not shield its own
+     * subpackages from an enclosing package that opts in.
+     *
+     * @param pkg a package, or null for no package
+     * @return true if an {@code @AnnotatedFor} covers the subpackages of {@code pkg}
+     */
+    private boolean doesAnnotatedForReachSubpackages(@Nullable PackageElement pkg) {
+        if (pkg == null) {
+            return false;
+        }
+
+        Boolean cached = annotatedForReachesSubpackagesCache.get(pkg);
+        if (cached != null) {
+            return cached;
+        }
+
+        AnnotatedTypeFactory atypeFactory = getTypeFactory();
+        // Both conditions must hold of the same @AnnotatedFor, but they need not hold of the
+        // same one for every checker: a package annotated @AnnotatedFor("index") @NullMarked
+        // reaches subpackages for the Index Checker and not for the Nullness Checker, because
+        // the @NullMarked alias sets applyToSubpackages=false.  Any single @AnnotatedFor that
+        // both applies to this checker and reaches subpackages suffices.
+        boolean result = false;
+        for (AnnotationMirror annotatedFor : atypeFactory.getAnnotatedForAnnotations(pkg)) {
+            if (atypeFactory.doesAnnotatedForApplyToThisChecker(annotatedFor)
+                    && atypeFactory.doesAnnotatedForApplyToSubpackages(annotatedFor)) {
+                result = true;
+                break;
+            }
+        }
+        if (!result) {
+            result =
+                    doesAnnotatedForReachSubpackages(
+                            ElementUtils.parentPackage(pkg, atypeFactory.getElementUtils()));
+        }
+
+        annotatedForReachesSubpackagesCache.put(pkg, result);
+        return result;
     }
 }

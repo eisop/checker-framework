@@ -66,7 +66,6 @@ tasks.named('jar') {
 
 configurations {
     implementation.extendsFrom(stubifierImplementation)
-    implementation.extendsFrom(annotatedGuava)
 
     // Exposes the stubifier tool (JavaStubifier, BinaryStubWriter, BinaryStubFileGenerator)
     // together with its runtime dependencies, for the generateBinaryStubFiles tasks that the
@@ -120,6 +119,11 @@ dependencies {
     implementation "org.plumelib:hashmap-util:${versions.hashmapUtil}"
     implementation "org.plumelib:plume-util:${versions.plumeUtil}"
     implementation "org.plumelib:reflection-util:${versions.reflectionUtil}"
+    // Guava is used from main sources on unconditional code paths (SourceChecker's
+    // Splitter/ImmutableSet uses and GenericAnnotatedTypeFactory's Ordering uses), so it must
+    // be an `implementation` dependency: it has to appear in this artifact's POM and on
+    // runtimeClasspath, which is what frameworkAllJar is built from.
+    implementation "com.google.guava:guava:${versions.guava}"
     // Add this dependency if needed to debug classpath issues.
     // implementation 'io.github.classgraph:classgraph:4.8.180'
 
@@ -226,9 +230,10 @@ tasks.named('processResources').configure { dependsOn 'copyAndMinimizeAnnotatedJ
 
 tasks.register('allSourcesJar', Jar) {
     group = 'Build'
-    description = 'Creates a sources jar that includes sources for all Checker Framework classes in framework.jar'
+    description = 'Creates a sources jar with the sources of every class in framework-all.jar'
     destinationDirectory = file("${projectDir}/dist")
     archiveFileName = 'framework-source.jar'
+    archiveClassifier = 'sources'
     from (project(':framework').sourceSets.main.java,
             project(':dataflow').sourceSets.main.allJava,
             project(':javacutil').sourceSets.main.allJava)
@@ -236,7 +241,7 @@ tasks.register('allSourcesJar', Jar) {
 
 tasks.register('allJavadocJar', Jar) {
     group = 'Build'
-    description = 'Creates javadoc jar include Javadoc for all of the framework'
+    description = 'Creates a javadoc jar with the Javadoc of every class in framework-all.jar'
     def javadocs = [
         ':framework',
         ':dataflow',
@@ -249,6 +254,7 @@ tasks.register('allJavadocJar', Jar) {
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
     destinationDirectory = file("${projectDir}/dist")
     archiveFileName = 'framework-javadoc.jar'
+    archiveClassifier = 'javadoc'
     from javadocs.collect {
         it.map { jd ->
             jd.destinationDir
@@ -328,4 +334,118 @@ if (skipDelombok) {
         args 'delombok', srcJava, '-d', srcDelomboked, '-c', delombokClasspath.asPath
     }
     tasks.named('test').configure { dependsOn 'delombok' }
+}
+
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+import org.gradle.api.component.AdhocComponentWithVariants
+
+tasks.register('frameworkAllJar', ShadowJar) {
+    dependsOn 'compileJava'
+    group = 'Build'
+    description = "Builds framework-all-${project.version}.jar with all dependencies except checker-qual."
+    includeEmptyDirs = false
+    // archiveBaseName sets the name for this task.  `base { archivesName = ... }` would
+    // instead resolve against the project and rename every archive in this subproject,
+    // including framework's own jar and sources jar.
+    archiveBaseName = 'framework-all'
+    archiveClassifier = ''
+    destinationDirectory = layout.buildDirectory.dir('shadow/frameworkAll')
+
+    from shadowJar.source
+    // runtimeClasspath, so every `implementation` dependency is bundled and relocated.
+    // A dependency declared `compileOnly` would silently be left out; see the guava
+    // comment in the dependencies block above.
+    configurations = shadowJar.configurations
+    relocators = shadowJar.getRelocators()
+    // The manifest (Automatic-Module-Name, Implementation-Version, Bundle-License) comes
+    // from the `tasks.withType(Jar)` block in ../build.gradle, which keys off archiveFileName.
+
+    // checker-qual is a normal published dependency of framework-all (added to its POM in
+    // configureFrameworkPom below), not bundled, so that a consumer gets one copy of the
+    // qualifiers rather than a relocated duplicate.
+    exclude 'org/checkerframework/**/qual/*'
+    minimize()
+}
+
+// `assemble` deliberately does not build frameworkAllJar: it is needed only when publishing,
+// and it costs a full shadow pass. `publish`/`publishToMavenLocal` pick it up through the
+// frameworkAll publication's artifact list. This mirrors the reasoning for allJavadocJar and
+// allSourcesJar, which are likewise kept off `assemble`.
+
+apply from: rootProject.file('gradle-mvn-push.gradle')
+
+/**
+ * Configures the parts of the POM that framework and framework-all share.
+ *
+ * @param publication the MavenPublication to configure
+ * @param artifactName the artifact this publication produces, named in the description
+ * @param extraDescriptionLines description lines to append, if any
+ */
+final configureFrameworkPom(
+MavenPublication publication, String artifactName, List<String> extraDescriptionLines = []) {
+    rootProject.sharedPublicationConfiguration(publication)
+    publication.pom {
+        description = String.join(System.lineSeparator(),
+                ['The Checker Framework enhances Java\'s type system to',
+                 'make it more powerful and useful. This lets software developers',
+                 'detect and prevent errors in their Java programs.',
+                 "The ${artifactName} artifact contains the core type checking infrastructure",
+                 'and permits you to write your own compiler plug-ins.']
+                + extraDescriptionLines)
+        licenses {
+            license {
+                name = 'GNU General Public License, version 2 (GPL2), with the classpath exception'
+                url = 'http://www.gnu.org/software/classpath/license.html'
+                distribution = 'repo'
+            }
+        }
+    }
+}
+
+// src/testFixtures is an internal support library: it exists so that the testchecker sources
+// are shared with :checker's tests (see the java-test-fixtures comment at the top of this file).
+// The java-test-fixtures plugin adds its two variants to `components.java`, which would publish
+// framework-VERSION-test-fixtures.jar and reference it from the Gradle Module Metadata -- an
+// artifact we do not support, invisible to Maven consumers, and describable in a POM only by
+// suppressing the warning that says so. Skip both variants instead.
+afterEvaluate {
+    def javaComponent = components.java as AdhocComponentWithVariants
+    ['testFixturesApiElements', 'testFixturesRuntimeElements'].each { name ->
+        def variant = configurations.findByName(name)
+        if (variant != null) {
+            javaComponent.withVariantsFromConfiguration(variant) { it.skip() }
+        }
+    }
+}
+
+publishing {
+    publications {
+        // The ordinary library: the framework classes, with its dependencies declared in the
+        // POM rather than bundled.
+        framework(MavenPublication) {
+            configureFrameworkPom(it, 'framework')
+            pom.name = 'Checker Framework Core Library'
+            from components.java
+        }
+
+        // The self-contained variant: one jar with every dependency bundled and relocated.
+        // It has no Gradle component (its jar is assembled by frameworkAllJar rather than by
+        // a configuration), so there is nothing for Gradle to derive POM dependencies from,
+        // and the single dependency it does have has to be written by hand.
+        frameworkAll(MavenPublication) {
+            configureFrameworkPom(it, 'framework-all',
+            ['Unlike the framework artifact, this artifact contains all its dependencies.'])
+            pom.name = 'Checker Framework Core Library (including all dependencies)'
+            artifactId = 'framework-all'
+            rootProject.addCheckerQualDependencyToPom(it, version)
+            artifact tasks.named('frameworkAllJar')
+            artifact tasks.named('allSourcesJar')
+            artifact tasks.named('allJavadocJar')
+        }
+    }
+}
+
+signing {
+    sign publishing.publications.framework
+    sign publishing.publications.frameworkAll
 }

@@ -36,9 +36,11 @@ def createDataflowShaded(shadedPkgName) {
         group = 'Build'
         description = "Builds dataflow-${shadedPkgName}.jar."
         includeEmptyDirs = false
-        base {
-            archivesName = "dataflow-${shadedPkgName}"
-        }
+        // archiveBaseName sets the name for this task.  A Jar task has no `base`, so
+        // `base { archivesName = ... }` would resolve against the project and rename every
+        // archive in this subproject; with this factory called once per shaded package, the
+        // last call would decide the name of dataflow's own jar.
+        archiveBaseName = "dataflow-${shadedPkgName}"
         dependencies {
             exclude(project(':checker-qual'))
         }
@@ -208,8 +210,7 @@ final dataflowPom(publication) {
  */
 final dataflowShadedPom(MavenPublication publication, String shadedPkgName) {
     rootProject.sharedPublicationConfiguration(publication)
-
-    def ver = version
+    rootProject.addCheckerQualDependencyToPom(publication, version)
 
     publication.artifactId = "dataflow-${shadedPkgName}"
     publication.pom {
@@ -218,7 +219,7 @@ final dataflowShadedPom(MavenPublication publication, String shadedPkgName) {
                 String.join(System.lineSeparator(),
                 "dataflow-${shadedPkgName} is a dataflow framework based on the javac compiler.",
                 '',
-                'It differs from the org.checkerframework:dataflow artifact in two ways.',
+                'It differs from the io.github.eisop:dataflow artifact in two ways.',
                 "First, the packages in this artifact have been renamed to org.checkerframework.${shadedPkgName}.*.",
                 'Second, unlike the dataflow artifact, this artifact contains the dependencies it requires.')
         licenses {
@@ -227,15 +228,6 @@ final dataflowShadedPom(MavenPublication publication, String shadedPkgName) {
                 url = 'http://www.gnu.org/software/classpath/license.html'
                 distribution = 'repo'
             }
-        }
-        withXml {
-            // This should just happen automatically, but I can't figure out how to make it happen with
-            // a custom Shadow task.
-            asNode().appendNode('dependencies').appendNode('dependency')
-            .appendNode('groupId', 'io.github.eisop').parent()
-            .appendNode('artifactId', 'checker-qual').parent()
-            .appendNode('version', ver).parent()
-            .appendNode('scope','runtime')
         }
     }
 }

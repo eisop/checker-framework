@@ -14,6 +14,10 @@
 #   2. The `checker` artifact's published component lacking a compile-time
 #      (java-api) variant, so `compileClasspath` resolution fails with
 #      "No matching variant" even when the JVM version matches.
+#   3. A published POM that omits a dependency the artifact needs at runtime.
+#      The in-repo test suite cannot see this, because it never runs off the
+#      published artifacts; the failure appears only when a consumer resolves
+#      the POM, or when a bundled jar is missing classes it needs at load time.
 #
 # Publishing goes to an isolated, throwaway Maven-local repository (a fresh
 # $HOME, so `~/.m2/repository` resolves underneath it) rather than the
@@ -46,9 +50,11 @@ if [ -z "${CHECKER_VERSION}" ]; then
 fi
 echo "Publishing and consuming version ${CHECKER_VERSION}"
 
-# Publish exactly the artifacts an external consumer of `checker` resolves:
-# checker itself, plus checker-qual and checker-util, which are declared as
-# regular (non-bundled) dependencies of the published `checker` artifact.
+# Publish exactly the artifacts an external consumer resolves: checker itself,
+# plus checker-qual and checker-util, which are declared as regular (non-bundled)
+# dependencies of the published `checker` artifact. The trailing `publishToMavenLocal`
+# covers every other subproject, which is where framework, framework-all and their
+# own dependencies (javacutil, dataflow) come from.
 HOME="${SMOKETEST_HOME}" ./gradlew --console=plain \
   -x javadoc -x allJavadoc \
   :checker-qual:publishToMavenLocal \
@@ -56,12 +62,26 @@ HOME="${SMOKETEST_HOME}" ./gradlew --console=plain \
   :checker:publishToMavenLocal \
   publishToMavenLocal
 
+# framework-errorprone is only part of the build on JDK 21+ (see the root settings.gradle), so
+# whether it was published depends on the JDK this ran under. Ask the build which projects it
+# has, rather than looking for the artifact on disk: Gradle's daemon keeps its own user.home, so
+# publishToMavenLocal does not necessarily write under $SMOKETEST_HOME.
+if HOME="${SMOKETEST_HOME}" ./gradlew -q projects | grep -q "':framework-errorprone'"; then
+  HAS_FRAMEWORK_ERRORPRONE=true
+else
+  HAS_FRAMEWORK_ERRORPRONE=false
+fi
+echo "framework-errorprone published: ${HAS_FRAMEWORK_ERRORPRONE}"
+
 # Run the standalone consumer build against the freshly published artifacts.
 # It has its own settings.gradle/build.gradle and is not part of this
 # project's Gradle build, matching how an external consumer would see it.
 cd "${CONSUMER_DIR}"
 HOME="${SMOKETEST_HOME}" "${REPO_ROOT}/gradlew" --console=plain \
   -PcheckerVersion="${CHECKER_VERSION}" \
-  clean compileJava
+  -PhasFrameworkErrorprone="${HAS_FRAMEWORK_ERRORPRONE}" \
+  clean smoketest
 
-echo "Publish smoke test passed: a Java 8 consumer build resolved and compiled against io.github.eisop:checker:${CHECKER_VERSION}."
+echo "Publish smoke test passed: a Java 8 consumer build resolved every published"
+echo "io.github.eisop artifact at version ${CHECKER_VERSION}, compiled against checker,"
+echo "and ran a checker out of the published framework-all artifact."

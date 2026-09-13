@@ -195,13 +195,22 @@ public class BinaryStubReader {
      */
     private static boolean isAnnotatedForThisChecker(
             AnnotationMirrorSet declAnnos, AnnotatedTypeFactory atypeFactory) {
+        // @AnnotatedFor is @Repeatable, so declAnnos can hold more than one -- this parser reads
+        // them from JavaParser source syntax rather than compiled bytecode, so they are never
+        // collapsed into a single AnnotatedFor.List the way javac's own Element view would
+        // collapse them. Applying (rather than the first entry alone) is what matches
+        // AnnotationFileParser.isAnnotatedForThisChecker.
+        boolean foundAnnotatedFor = false;
         for (AnnotationMirror am : declAnnos) {
             if (AnnotationUtils.annotationName(am)
                     == "org.checkerframework.framework.qual.AnnotatedFor") {
-                return atypeFactory.doesAnnotatedForApplyToThisChecker(am);
+                foundAnnotatedFor = true;
+                if (atypeFactory.doesAnnotatedForApplyToThisChecker(am)) {
+                    return true;
+                }
             }
         }
-        return true;
+        return !foundAnnotatedFor;
     }
 
     /**

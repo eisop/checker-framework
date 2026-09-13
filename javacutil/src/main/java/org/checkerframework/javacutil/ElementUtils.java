@@ -885,6 +885,34 @@ public class ElementUtils {
     }
 
     /**
+     * Returns the type that an anonymous class is created from: the interface it implements if it
+     * implements one, and otherwise its superclass.
+     *
+     * <p>An anonymous class names exactly one supertype -- {@code new Iface() {}} or {@code new
+     * AClass() {}} -- so it implements at most one interface, and {@code getInterfaces()} being
+     * non-empty is what distinguishes the two cases.
+     *
+     * <p>The result is null only if that supertype is not a declared type, which means it did not
+     * resolve: an anonymous class names exactly one supertype, and {@code getSuperclass()} is a
+     * {@code NoType} only for {@code java.lang.Object} and for interfaces, neither of which an
+     * anonymous class can be. Source that fails to resolve does not reach a checker -- {@link
+     * javax.annotation.processing.Processor} runs after attribution and {@code
+     * SourceChecker.typeProcess} returns early once javac has reported an error -- so a caller
+     * should treat null as an unresolvable supertype read from bytecode (an incomplete classpath)
+     * and skip, rather than report it as a bug in the checker.
+     *
+     * @param anonClass an anonymous class
+     * @return the declared type {@code anonClass} is created from, or null if that supertype did
+     *     not resolve
+     * @see #isAnonymous(Element)
+     */
+    public static @Nullable DeclaredType getAnonymousSupertype(TypeElement anonClass) {
+        List<? extends TypeMirror> interfaces = anonClass.getInterfaces();
+        TypeMirror superType = interfaces.isEmpty() ? anonClass.getSuperclass() : interfaces.get(0);
+        return superType.getKind() == TypeKind.DECLARED ? (DeclaredType) superType : null;
+    }
+
+    /**
      * Return true if the element is a constructor of an anonymous class.
      *
      * @param element the element to test

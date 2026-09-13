@@ -9,7 +9,18 @@ echo "SHELLOPTS=${SHELLOPTS}"
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &> /dev/null && pwd)"
 source "$SCRIPT_DIR"/clone-related.sh
 
-./gradlew assembleForJavac --console=plain -Dorg.gradle.internal.http.socketTimeout=60000 -Dorg.gradle.internal.http.connectionTimeout=60000
+# Publish this checkout to the local Maven repository, so the conformance project below can
+# resolve it by coordinate.  Resolving by coordinate means a missing or mis-scoped artifact
+# fails as a resolution error naming it, rather than as a compilation error in that project's
+# own source.  Javadoc is skipped: nothing here consumes it, and it is slow.
+./gradlew publishToMavenLocal -x javadoc -x allJavadoc --console=plain -Dorg.gradle.internal.http.socketTimeout=60000 -Dorg.gradle.internal.http.connectionTimeout=60000
+
+CF_VERSION="$(./gradlew -q :checker:properties | sed -n 's/^version: //p')"
+if [ -z "${CF_VERSION}" ]; then
+  echo "Could not determine the Checker Framework version; aborting." >&2
+  exit 1
+fi
+echo "Testing jspecify-conformance against io.github.eisop:*:${CF_VERSION}"
 
 "$SCRIPT_DIR/.git-scripts/git-clone-related" eisop jspecify-conformance
 "$SCRIPT_DIR/.git-scripts/git-clone-related" jspecify jspecify
@@ -47,6 +58,9 @@ SETTINGS
   --console=plain --warning-mode=all --init-script /tmp/publish-helper.gradle publishToMavenLocal
 
 cd ../jspecify-conformance
-# This does not use "-PcfVersion=local", because that project does not
-# use the CF gradle plugin.
-./gradlew test --console=plain --warning-mode=all -PcfLocal
+# -PcfVersion makes the project resolve io.github.eisop artifacts at this checkout's version;
+# its repositories list mavenLocal() first, so the artifacts published above are the ones used.
+# jspecify-conformance does not use the Checker Framework Gradle plugin and runs the checker off
+# a plain classpath, so it needs the shaded checker.jar; --include-build, which
+# test-templatefora-checker.sh uses, would supply :checker's ordinary jar variant instead.
+./gradlew test --console=plain --warning-mode=all -PcfVersion="${CF_VERSION}"

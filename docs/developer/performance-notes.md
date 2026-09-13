@@ -172,7 +172,9 @@ so small per-call wins paid back substantially.
   `addAll` got an `instanceof AnnotationMirrorSet` fast path; the two
   qualifier-hierarchy methods got an `instanceof` fast path; and
   `getDeclAnnotation`'s two loops (over an already-`AnnotationMirrorSet`-typed
-  local) became index loops. Re-measured on the same workload: `ArrayList$Itr`
+  local) became index loops (as do the later `getAllDeclAnnotations` and
+  `getDefaultQualifierAnnotations`, which walk the same set and must stay
+  index-based for the same reason). Re-measured on the same workload: `ArrayList$Itr`
   dropped to 3,172 events (1.81%), `AnnotationMirrorSet.iterator()` calls
   dropped 6,523 → 1,530 (−77%), and `AnnotationMirrorSet$ReadOnlyIter`
   (751 events) left the profile entirely. The `Object[]`/`IdentityHashMap`
@@ -1899,7 +1901,65 @@ overhead on a differently-loaded host: unconditional 90.3/92.1/91.8 s (avg 91.4 
 timeouts under full-suite parallel contention are the documented environmental flake — 94/94 pass
 run standalone) — all pass with the guard in place.
 
+### Error Prone host: pass the finding's `TreePath` instead of re-deriving it (September 2026)
+
+When the Checker Framework runs as an Error Prone plugin (`framework-errorprone`), the host needs
+each finding's `TreePath` to anchor its `Description` and to reconstruct Error Prone's
+descent-based suppression. It first re-derived it with
+`TreePathCacher.getPath(root, findingTree)`, on the assumption that the checkers had already
+cached that path while type-checking. **They had, and it was gone by then:** subcheckers reach a
+compilation unit before the checker itself does, and the main checker's `setRoot` clears the
+shared cacher — instrumentation showed the clear landing between the subcheckers' lookups and the
+flush of the stored messages, so the hit rate at the sink was **0 of 400**. Every finding then
+paid a scan of the whole compilation unit: `TreePathCacher.getPath` was in **199 of 669**
+`ExecutionSample`s (29.8%) of a 3200-finding compile, 98.5% of them under the plugin.
+
+The fix is to capture the path in `SourceChecker`'s 5-arg `printOrStoreMessage`, where the
+suppression check has just put it in the cacher, and carry it in `CheckerMessage` to
+`DiagnosticSink.report`. Skipped entirely when no sink is installed, so standalone mode pays one
+null check.
+
+A/B on a single class of N findings (median of 3; `epo` = Error Prone with only `eisopcf`
+enabled, so the delta excludes Error Prone's own checks):
+
+| findings | before (wall / alloc) | after | overhead vs. standalone, before → after |
+| --- | --- | --- | --- |
+| 800  | 4.17 s / 370 MB  | 4.15 s / 357 MB | +0.33 s / +63 MB → +0.31 s / +49 MB |
+| 3200 | 9.81 s / 1176 MB | 7.81 s / 996 MB | +2.31 s / +273 MB → +0.31 s / +93 MB |
+
+The marginal allocation overhead per finding is flat after the change and rises with N before it —
+the signature of the quadratic. Standalone `checknullness` is unaffected.
+
+*Tried and rejected — do not re-propose.* **Making the shared `TreePathCacher` survive the main
+checker's `setRoot`** (a `useUnit(CompilationUnitTree)` that clears only when the unit actually
+changes) reaches the same speedup and would help standalone mode too, but it is unsound as
+written: the paths of the artificial trees the CFG builder registers
+(`AnnotatedTypeFactory#setPathForArtificialTree`) are not recoverable by scanning the unit, so any
+clear that lands after they are registered loses them for good. Placing the guard at the cacher's
+own entry points made the first `getPath` of a unit clear them, and `IndexTest` failed with an NPE
+in `UBQualifier$LessThanLengthOf` — a null path yields an unparseable offset expression, several
+layers from the cause. If this is revisited, the clear has to happen strictly before anything is
+cached for the new unit, and the Index Checker is the canary.
+
+### Opt-in `-AajavaChecks` and dedicated JDK 17 CI job (September 2026, PR #2057)
+
+`CheckerFrameworkPerDirectoryTest` previously hardcoded `-AajavaChecks` across all directory tests.
+In `BaseTypeVisitor`, `ajavaChecks` is only active when `release < 21` (because annotation insertion
+is disabled on Java 21+). On JDK 21+ (including the primary CI JDK 21), `-AajavaChecks` was an
+effective no-op. On JDK < 21 (such as JDK 11 and 17), however, every test file in every directory
+test underwent repeated JavaParser parsing, joint AST traversals, and annotation insertion checks.
+
+This added a ~20%–38% test runtime overhead across routine test executions on JDK < 21:
+for example, `InterningTest` took 25.15 s with `-AajavaChecks` enabled versus 15.66 s without it
+(~37.7% reduction in test execution time).
+
+The option was made opt-in via `-PajavaChecks` / `-DajavaChecks` (reflected in `build.gradle` and
+`TestUtilities.getShouldRunAjavaChecks()`). A dedicated CI matrix job (`cftests-ajavachecks` on
+JDK 17 running `checker/bin-devel/test-cftests-ajavachecks.sh`) preserves full consistency testing
+without paying the parsing and traversal overhead on routine or multi-JDK test runs.
+
 ---
+
 
 ## Tried and rejected
 
@@ -3112,12 +3172,19 @@ not single-leaf. Re-prioritized venues:
   returns one of two shared constant lists (the code defaults, ±unchecked) — covers the empty case
   with no map and no hashing; (2) non-empty scopes go through an **identity-keyed**
   `IdentityHashMap<DefaultSet, List<Default>>` (×2 for conservative). **Identity, not content,
-  keying:** a `DefaultSet` is mutated in place by `addElementDefault`, so a content/hashCode key would
-  corrupt the map; `defaultsAt` returns a stable per-scope object shared across a scope's members, so
-  identity hits well. All caches are cleared by `invalidateFusedDefaults()` from the three (and only)
+  keying:** `defaultsAt` returns a stable per-scope object shared across a scope's members, so
+  identity hits well, and a content key would pay a per-call hash of the set for no extra hits.
+  (An earlier version of this entry gave a different reason — that `addElementDefault` mutates a
+  `DefaultSet` in place, which a content key could not survive. That stopped being true in PR #2058:
+  the sets `addElementDefault` mutates live in `programmaticElementDefaults` and never reach these
+  caches, because `defaultsAtDirect` copies their contents into a set of its own. The invariant that
+  must be preserved is the general one: a `DefaultSet` that reaches the fused caches must not be
+  mutated afterwards.) All caches are cleared by `invalidateFusedDefaults()` from the three (and only)
   default-set mutators (`addCheckedCodeDefault`, `addUncheckedCodeDefault`, `addElementDefault`); a
   `fusedDefaultsCached` flag (set in `fusedDefaultsFor`) makes that a no-op while defaults are still
-  being registered, before any cache is populated. The returned lists are shared read-only (the
+  being registered, before any cache is populated. Since PR #2058 `addElementDefault` throws if
+  called once type checking has begun, so all three mutators are initialization-time only and that
+  no-op path is the normal one. The returned lists are shared read-only (the
   scanner only reads them). **Why the earlier reject was
   wrong:** the first attempt keyed on `DefaultSet` *identity* for *all* calls — useless, because the
   6,086 empty objects gave 6,086 keys; and a *content* key was dismissed as needing a per-call hash.
@@ -3158,6 +3225,10 @@ not single-leaf. Re-prioritized venues:
   plus `AnnotatedTypeScanner.visitDeclared`/`scan`/`reduce` are the biggest type-factory leaf group.
   Note `QualifierDefaults.elementDefaults` *already* caches the per-element *DefaultSet*; the profiled
   cost is the *application* — `applyDefaultsElement` scans the whole type tree once per `Default`.
+  (Since PR #2058 `elementDefaults` is *only* that memoization cache. It used to double as the
+  storage for defaults registered via `addElementDefault`, which is why a cache hit there could
+  formerly return a set that had never been merged with the element's written `@DefaultQualifier`
+  or its enclosing defaults.)
   Instrumented `applyDefaultsElement` on `:framework:checkNullness` (one fork, ≥3.0M calls, ~28M scans),
   keying each call on `(identityHashCode(scope), structural ATM.hashCode of the input type BEFORE
   mutation)` — a 64-bit composite, so hash-collision inflation is negligible at ~300k distinct keys:

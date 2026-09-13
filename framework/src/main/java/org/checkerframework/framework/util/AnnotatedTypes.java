@@ -1749,7 +1749,10 @@ public class AnnotatedTypes {
      * Copies explicit annotations and annotations resulting from resolution of polymorphic
      * qualifiers from {@code constructor} to {@code returnType}. If {@code returnType} has an
      * annotation in the same hierarchy of an annotation to be copied, that annotation is not
-     * copied.
+     * copied. An annotation written on the constructor as an alias is recognized as explicit the
+     * same way its canonical form would be, though what is actually copied is the (already
+     * canonicalized) annotation from {@code constructorType}'s own return type, not the alias
+     * itself.
      *
      * @param atypeFactory type factory
      * @param returnType return type to copy annotations to
@@ -1787,9 +1790,14 @@ public class AnnotatedTypes {
             }
             if (atypeFactory.isSupportedQualifier(cta)) {
                 for (AnnotationMirror fromDecl : decret) {
-                    if (atypeFactory.isSupportedQualifier(fromDecl)
+                    // fromDecl comes from getRawTypeAttributes(), not from addAnnotation, so it
+                    // is as written and may be an alias; getTopAnnotation requires an already
+                    // supported qualifier, so resolve fromDecl before calling it.
+                    AnnotationMirror supportedFromDecl =
+                            atypeFactory.asSupportedQualifier(fromDecl);
+                    if (supportedFromDecl != null
                             && AnnotationUtils.areSame(
-                                    ctatop, qualHierarchy.getTopAnnotation(fromDecl))) {
+                                    ctatop, qualHierarchy.getTopAnnotation(supportedFromDecl))) {
                         returnType.addAnnotation(cta);
                         break;
                     }

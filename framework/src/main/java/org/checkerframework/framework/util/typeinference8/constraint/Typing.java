@@ -296,6 +296,15 @@ public class Typing extends TypeConstraint {
             return new Typing(this, S, T.getTypeVarLowerBound(), Kind.SUBTYPE);
         } else if (T.getTypeKind() == TypeKind.WILDCARD && T.isLowerBoundedWildcard()) {
             return new Typing(this, S, T.getWildcardLowerBound(), Kind.SUBTYPE);
+        } else if (S.getTypeKind() == TypeKind.TYPEVAR
+                && TypesUtils.isCapturedTypeVariable(S.getJavaType())) {
+            // JLS 18.2.3 lists only the three cases above and otherwise reduces to false, which is
+            // wrong for a capture variable: by the definition of capture conversion, a captured
+            // type variable is always a subtype of its own upper bound, whichever kind of wildcard
+            // -- "? extends X", "? super X", or unbounded -- it was captured from.  It therefore
+            // suffices for that upper bound to be a subtype of T.  This is a sound step, not an
+            // equivalence: it can turn a true constraint into a false one, never the reverse.
+            return new Typing(this, S.getTypeVarUpperBound(), T, Kind.SUBTYPE);
         } else {
             return ConstraintSet.FALSE;
         }
