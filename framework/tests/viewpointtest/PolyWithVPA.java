@@ -13,6 +13,8 @@ public class PolyWithVPA {
 
     // only poly annos in decl are resolved
     static void test2(@PolyVP PolyClass poly, @B Object bObj) {
+        // PolyVP |> ReceiverDependentQual == Lost
+        // :: error: (assignment.type.incompatible)
         @PolyVP Object polyObj = poly.foo(bObj);
         // :: error: (assignment.type.incompatible)
         @B Object anotherBObj = poly.foo(bObj);
