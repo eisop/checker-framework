@@ -468,6 +468,38 @@ is run.
 \end{sloppypar}
 
 
+\subsectionAndLabel{Read-write sensitivity for unannotated fields}{qualifier-read-write-sensitivity}
+
+A field of a class without \<@AnnotatedFor> has no user-written qualifier, so the
+checker must choose one.  No single choice is right for both uses of the field:
+a read should yield the top qualifier, so that the value is not trusted, but a
+write should require the bottom qualifier, so that nothing weaker is stored into
+the field.  Defaulting the field to the top qualifier in both positions, as the
+Checker Framework used to do, is unsound for writes.
+
+Such a field is therefore defaulted to a \emph{read-write dynamic} qualifier,
+which resolves to a different qualifier depending on the position in which it
+appears:  the top qualifier where the field is read, and the bottom qualifier
+where the field is written.  A read-write dynamic qualifier is used only as an
+unchecked-code default, so it is applied only where conservative defaulting
+already applies, and it always receives this sound interpretation.
+
+For the Nullness Checker the read-write dynamic qualifier is
+\refqualclass{checker/nullness/qual}{ReadWriteDynamicNull}.  Given a field
+\<u.o> of a class that is not annotated for the Nullness Checker, compiling
+with \<-AuseConservativeDefaultsForUncheckedCode=source> rejects both of these:
+
+\begin{Verbatim}
+  @NonNull Object obj = u.o;  // error: u.o is read, so it is @Nullable
+  u.o = null;                 // error: u.o is written, so it requires @NonNull
+\end{Verbatim}
+
+A programmer never writes a read-write dynamic qualifier; the checker applies it.
+A type system defines one by writing the
+\refqualclass{framework/qual}{ReadWriteDynamicQualifier} meta-annotation on a
+qualifier, in place of \<@SubtypeOf>.
+
+
 \sectionAndLabel{Using stub classes}{stub}
 
 You use a ``stub file'' to write annotations
