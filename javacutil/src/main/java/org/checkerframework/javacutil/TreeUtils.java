@@ -2452,8 +2452,10 @@ public final class TreeUtils {
                     List<? extends Tree> alternatives =
                             ((UnionTypeTree) typeTree).getTypeAlternatives();
                     List<AnnotationTree> unionResult = new ArrayList<>(alternatives.size());
-                    for (Tree alternative : alternatives) {
-                        unionResult.addAll(getExplicitAnnotationTrees(null, alternative));
+                    for (int i = 0; i < alternatives.size(); i++) {
+                        unionResult.addAll(
+                                getExplicitAnnotationTrees(
+                                        i == 0 ? annoTrees : null, alternatives.get(i)));
                     }
                     return unionResult;
                 case INTERSECTION_TYPE:

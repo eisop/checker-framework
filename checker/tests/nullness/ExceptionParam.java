@@ -27,4 +27,20 @@ public class ExceptionParam {
             @NonNull Object o = e;
         }
     }
+
+    void multiCatchLeading() {
+        try {
+            // :: warning: (nullness.on.exception.parameter)
+        } catch (@Nullable AssertionError | RuntimeException e) {
+            @NonNull Object o = e;
+        }
+    }
+
+    void multiCatchTrailing() {
+        try {
+            // :: warning: (nullness.on.exception.parameter)
+        } catch (AssertionError | @Nullable RuntimeException e) {
+            @NonNull Object o = e;
+        }
+    }
 }
