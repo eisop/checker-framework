@@ -125,6 +125,12 @@ whether either form is actually a supported qualifier).
 a supported qualifier of the checker and that the alias is not already in the type hierarchy,
 failing immediately with `TypeSystemError` rather than silently ignoring the alias.
 
+The `-AaliasedTypeAnnos` command-line option now reports a `UserError` if its canonical
+annotation is not a type annotation, or if its alias is itself a qualifier of the type system
+being run. A canonical qualifier that the running type system does not support is skipped
+rather than reported: the option is global, so each type factory in a checker hierarchy also
+receives the aliases written for the others.
+
 `@AnnotatedFor` is now `@Repeatable`, so it may be written more than once at the same
 location. This lets different type systems be given different `applyToSubpackages`
 settings on one package, which its single `value()` array could not express on its own:
