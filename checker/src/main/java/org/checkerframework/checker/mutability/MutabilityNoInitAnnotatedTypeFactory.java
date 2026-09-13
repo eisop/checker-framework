@@ -680,7 +680,7 @@ public class MutabilityNoInitAnnotatedTypeFactory
         }
 
         @Override
-        protected AnnotationMirrorSet getDefaultAnnosForUses(Element element) {
+        public AnnotationMirrorSet getDefaultAnnosForUses(Element element) {
             AnnotationMirrorSet defaults = super.getDefaultAnnosForUses(element);
             if (defaults.contains(mutabilityTypeFactory.MUTABLE)
                     || defaults.contains(mutabilityTypeFactory.IMMUTABLE)) {

@@ -3,6 +3,7 @@ package org.checkerframework.checker.mutability;
 import org.checkerframework.framework.type.AbstractViewpointAdapter;
 import org.checkerframework.framework.type.AnnotatedTypeFactory;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
+import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.BugInCF;
 
@@ -33,6 +34,13 @@ public class MutabilityViewpointAdapter extends AbstractViewpointAdapter {
     @Override
     protected AnnotationMirror extractAnnotationMirror(AnnotatedTypeMirror atm) {
         return atm.getAnnotationInHierarchy(mutabilityTypeFactory.READONLY);
+    }
+
+    @Override
+    protected AnnotationMirror extractAnnotationMirror(AnnotationMirrorSet annotations) {
+        return mutabilityTypeFactory
+                .getQualifierHierarchy()
+                .findAnnotationInHierarchy(annotations, mutabilityTypeFactory.READONLY);
     }
 
     @Override
