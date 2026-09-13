@@ -19,4 +19,43 @@ public class ConflictingWrittenDefaults {
         // :: error: (return.type.incompatible)
         return new Object();
     }
+
+    /**
+     * The same conflict as the enclosing class, written as an explicit
+     * {@code @DefaultQualifier.List} rather than as a repeated {@code @DefaultQualifier}. javac
+     * collapses the repeated form into exactly this container, so by the time {@code
+     * AnnotatedTypeFactory#getDefaultQualifierAnnotations} sees either one they are
+     * indistinguishable: this case cannot fail unless the enclosing class's does. It is here to
+     * document that the surface syntax a user writes is handled, not to cover a separate path. The
+     * case below, which reverses the order, is the one that pins which of the two wins.
+     */
+    @DefaultQualifier.List({
+        @DefaultQualifier(value = ElementDefaultBottom.class, locations = TypeUseLocation.RETURN),
+        @DefaultQualifier(value = ElementDefaultTop.class, locations = TypeUseLocation.RETURN)
+    })
+    // :: error: (conflicting.defaults)
+    static class ConflictingWrittenDefaultsWithList {
+        Object getBottom() {
+            // :: error: (return.type.incompatible)
+            return new Object();
+        }
+    }
+
+    /**
+     * The same two defaults in the other order, so Top is first and wins. Returning an unqualified
+     * (Top) value is therefore legal here, whereas it is an error in the two cases above: that
+     * difference is what shows the winner is decided by source order rather than by which qualifier
+     * happens to sort first.
+     */
+    @DefaultQualifier.List({
+        @DefaultQualifier(value = ElementDefaultTop.class, locations = TypeUseLocation.RETURN),
+        @DefaultQualifier(value = ElementDefaultBottom.class, locations = TypeUseLocation.RETURN)
+    })
+    // :: error: (conflicting.defaults)
+    static class ConflictingWrittenDefaultsWithListTopFirst {
+        // RETURN is Top, from the first @DefaultQualifier in the list; no error here.
+        Object getTop() {
+            return new Object();
+        }
+    }
 }
