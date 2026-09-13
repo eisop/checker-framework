@@ -1,3 +1,4 @@
+import org.checkerframework.common.aliasing.qual.MaybeAliased;
 import org.checkerframework.common.aliasing.qual.Unique;
 
 @Unique class UniqueData {
@@ -11,5 +12,10 @@ public class ExplicitAnnotationTest {
         UniqueData y = p; // @Unique p is leaked
         // :: error: (unique.leaked)
         Object z = p; // @Unique p is leaked
+    }
+
+    void issue2056(@MaybeAliased Object p) {
+        // :: error: (assignment.type.incompatible)
+        @Unique Object u = p;
     }
 }

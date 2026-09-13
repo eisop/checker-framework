@@ -757,8 +757,26 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             for (String alias : annos) {
                 IPair<Class<? extends Annotation>, @FullyQualifiedName String[]> aliasPair =
                         parseAliasesFromString(alias);
+                Class<? extends Annotation> canonical = aliasPair.first;
+                checkAliasedTypeAnnoIsTypeQualifier(canonical);
+                // -AaliasedTypeAnnos is one global option that every type factory in the checker
+                // hierarchy processes, so a canonical qualifier that this factory does not
+                // support is the normal case rather than a mistake: under the Nullness Checker,
+                // the KeyFor subchecker's factory also sees the aliases written for @NonNull.
+                // Skip those. Registering one would install an alias that could never resolve
+                // here, which is why addAliasedTypeAnnotation rejects it as a type-system error.
+                if (!isSupportedQualifier(canonical.getCanonicalName())) {
+                    continue;
+                }
                 for (@FullyQualifiedName String a : aliasPair.second) {
-                    addAliasedTypeAnnotation(a, aliasPair.first, true);
+                    if (isSupportedQualifier(a)) {
+                        throw new UserError(
+                                "-AaliasedTypeAnnos: %s cannot be an alias for %s, because %s is"
+                                        + " itself a qualifier of the type system being run. An alias"
+                                        + " must be an annotation from outside the type system.",
+                                a, canonical.getCanonicalName(), a);
+                    }
+                    addAliasedTypeAnnotation(a, canonical, true);
                 }
             }
         }
@@ -946,6 +964,56 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     }
 
     /**
+     * Throws a {@link UserError} if {@code canonical}, named as the canonical annotation of a
+     * {@code -AaliasedTypeAnnos} argument, is not a type annotation.
+     *
+     * <p>Unlike a canonical qualifier that this particular factory does not support, which is
+     * expected because the option is global, an annotation that is not a type annotation at all
+     * cannot be the canonical form of a type annotation under any checker. Naming one is therefore
+     * a mistake in the option rather than an alias meant for a type system that is not running.
+     *
+     * @param canonical the canonical annotation class named in a {@code -AaliasedTypeAnnos}
+     *     argument
+     */
+    private void checkAliasedTypeAnnoIsTypeQualifier(Class<? extends Annotation> canonical) {
+        Target target = canonical.getAnnotation(Target.class);
+        if (target == null) {
+            throw new UserError(
+                    "-AaliasedTypeAnnos: the canonical annotation %s is not a type annotation,"
+                            + " because it has no @Target meta-annotation.",
+                    canonical.getCanonicalName());
+        }
+        List<ElementType> badTargetValues = nonTypeUseTargets(target);
+        if (!badTargetValues.isEmpty()) {
+            throw new UserError(
+                    "-AaliasedTypeAnnos: the canonical annotation %s is not a type annotation,"
+                            + " because its @Target meta-annotation contains %s. Use"
+                            + " -AaliasedDeclAnnos to alias a declaration annotation.",
+                    canonical.getCanonicalName(), StringsPlume.conjunction("and", badTargetValues));
+        }
+    }
+
+    /**
+     * Returns the values of {@code target} that keep the annotation it appears on from being a type
+     * qualifier: every value other than {@code TYPE_USE} and {@code TYPE_PARAMETER}.
+     *
+     * @param target the {@code @Target} meta-annotation of some annotation
+     * @return the values of {@code target} that are neither TYPE_USE nor TYPE_PARAMETER; empty if
+     *     there are none
+     */
+    private static List<ElementType> nonTypeUseTargets(Target target) {
+        List<ElementType> result = new ArrayList<>(0);
+        for (ElementType element : target.value()) {
+            if (!(element == ElementType.TYPE_USE || element == ElementType.TYPE_PARAMETER)) {
+                // if there's an ElementType with an enumerated value of something other
+                // than TYPE_USE or TYPE_PARAMETER then it isn't a valid qualifier
+                result.add(element);
+            }
+        }
+        return result;
+    }
+
+    /**
      * Requires that supportedQuals is non-null and non-empty and each element is a type qualifier.
      * That is, no element has a {@code @Target} meta-annotation that contains something besides
      * TYPE_USE or TYPE_PARAMETER. (@Target({}) is allowed.) @
@@ -958,15 +1026,17 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         }
         for (Class<? extends Annotation> annotationClass : supportedQuals) {
             // Check @Target values
-            ElementType[] targetValues = annotationClass.getAnnotation(Target.class).value();
-            List<ElementType> badTargetValues = new ArrayList<>(0);
-            for (ElementType element : targetValues) {
-                if (!(element == ElementType.TYPE_USE || element == ElementType.TYPE_PARAMETER)) {
-                    // if there's an ElementType with an enumerated value of something other
-                    // than TYPE_USE or TYPE_PARAMETER then it isn't a valid qualifier
-                    badTargetValues.add(element);
-                }
+            Target target = annotationClass.getAnnotation(Target.class);
+            if (target == null) {
+                throw new TypeSystemError(
+                        "The type qualifier "
+                                + annotationClass
+                                + " has no @Target meta-annotation, so it is applicable to every"
+                                + " declaration context. A type qualifier must declare"
+                                + " @Target({ElementType.TYPE_USE}) or"
+                                + " @Target({ElementType.TYPE_USE, ElementType.TYPE_PARAMETER}).");
             }
+            List<ElementType> badTargetValues = nonTypeUseTargets(target);
             if (!badTargetValues.isEmpty()) {
                 String msg =
                         "The @Target meta-annotation on type qualifier "
@@ -4497,11 +4567,6 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * @param canonicalAnno the canonical annotation
      */
     protected void addAliasedTypeAnnotation(Class<?> aliasClass, AnnotationMirror canonicalAnno) {
-        if (getSupportedTypeQualifiers().contains(aliasClass)) {
-            throw new BugInCF(
-                    "AnnotatedTypeFactory: alias %s should not be in type hierarchy for %s",
-                    aliasClass, this.getClass().getSimpleName());
-        }
         addAliasedTypeAnnotation(aliasClass.getCanonicalName(), canonicalAnno);
     }
 
@@ -4521,6 +4586,16 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     // name of an external annotation is a canonical name.
     protected void addAliasedTypeAnnotation(
             @FullyQualifiedName String aliasName, AnnotationMirror canonicalAnno) {
+        if (isSupportedQualifier(aliasName)) {
+            throw new TypeSystemError(
+                    "AnnotatedTypeFactory: alias %s should not be in type hierarchy for %s",
+                    aliasName, this.getClass().getSimpleName());
+        }
+        if (!isSupportedQualifier(canonicalAnno)) {
+            throw new TypeSystemError(
+                    "AnnotatedTypeFactory: canonical annotation %s is not in type hierarchy for %s",
+                    canonicalAnno, this.getClass().getSimpleName());
+        }
         aliases.put(aliasName, new Alias(aliasName, canonicalAnno, false, null, null));
     }
 
@@ -4556,11 +4631,6 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             Class<?> canonicalClass,
             boolean copyElements,
             String... ignorableElements) {
-        if (getSupportedTypeQualifiers().contains(aliasClass)) {
-            throw new BugInCF(
-                    "AnnotatedTypeFactory: alias %s should not be in type hierarchy for %s",
-                    aliasClass, this.getClass().getSimpleName());
-        }
         addAliasedTypeAnnotation(
                 aliasClass.getCanonicalName(), canonicalClass, copyElements, ignorableElements);
     }
@@ -4591,6 +4661,16 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         // The copyElements argument disambiguates overloading.
         if (!copyElements) {
             throw new BugInCF("Do not call with false");
+        }
+        if (isSupportedQualifier(aliasName)) {
+            throw new TypeSystemError(
+                    "AnnotatedTypeFactory: alias %s should not be in type hierarchy for %s",
+                    aliasName, this.getClass().getSimpleName());
+        }
+        if (!isSupportedQualifier(canonicalAnno.getCanonicalName())) {
+            throw new TypeSystemError(
+                    "AnnotatedTypeFactory: canonical annotation %s is not in type hierarchy for %s",
+                    canonicalAnno.getCanonicalName(), this.getClass().getSimpleName());
         }
         aliases.put(
                 aliasName,
@@ -4677,8 +4757,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         if (isSupportedQualifier(writtenAnno)) {
             return writtenAnno;
         }
-        AnnotationMirror canonical = canonicalAnnotation(writtenAnno);
-        return isSupportedQualifier(canonical) ? canonical : null;
+        return canonicalAnnotation(writtenAnno);
     }
 
     /**
