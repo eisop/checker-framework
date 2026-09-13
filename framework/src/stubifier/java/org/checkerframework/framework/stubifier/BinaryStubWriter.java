@@ -815,6 +815,14 @@ public class BinaryStubWriter {
      */
     private final List<String> asteriskImportPackages = new ArrayList<>();
 
+    /**
+     * The package of the compilation unit currently being processed, or {@code ""} for the unnamed
+     * package. Used by {@link #fullyQualifyAnnotationName} to resolve the outer type of a
+     * nested-type annotation reference ({@code @Outer.Nested}) that is declared in the same package
+     * and therefore carries no import.
+     */
+    private String currentPackage = "";
+
     /** Cache for {@link #annotationInPackage}, keyed by {@code pkg + "." + name}. */
     private final Map<String, String> annotationInPackageCache = new HashMap<>();
 
@@ -840,7 +848,8 @@ public class BinaryStubWriter {
      */
     private String fullyQualifyAnnotationName(String name) {
         if (name.contains(".")) {
-            return name;
+            String nested = resolveNestedAnnotationName(name);
+            return nested != null ? nested : name;
         }
         String javaLang = annotationInPackage("java.lang", name);
         if (javaLang != null) {
@@ -857,6 +866,63 @@ public class BinaryStubWriter {
             }
         }
         return name;
+    }
+
+    /**
+     * Resolves a dotted annotation name that is a <em>nested-type reference</em>
+     * ({@code @Outer.Nested}) to the canonical name of the nested type ({@code pkg.Outer.Nested}),
+     * or returns {@code null} if {@code name} is not such a reference or cannot be resolved.
+     *
+     * <p>{@link #fullyQualifyAnnotationName} otherwise treats every dotted name as already fully
+     * qualified, which leaves a same-package nested reference unqualified: nothing supplies the
+     * enclosing {@code java.lang.invoke} for {@code @MethodHandle.PolymorphicSignature} (used 31
+     * times in {@code java/lang/invoke/VarHandle.java}) or {@code @LambdaForm.Compiled} (82 uses),
+     * so {@link #annotationTargets} cannot read their {@code @Target} and fails the stubifier
+     * outright.
+     *
+     * <p>The outer type is resolved the same way {@link #fullyQualify(String, CompilationUnit)}
+     * resolves a class literal: explicit imports first, then the compilation unit's own package
+     * (which is how both of the JDK cases above are written -- same package, no import), then
+     * {@code java.lang}, then asterisk imports.
+     *
+     * @param name a dotted annotation name as written in the source
+     * @return the canonical name of the nested annotation type, or {@code null}
+     */
+    private @Nullable String resolveNestedAnnotationName(String name) {
+        int lastDot = name.lastIndexOf('.');
+        String outer = name.substring(0, lastDot);
+        String nested = name.substring(lastDot + 1);
+        // A nested-type reference names a type, so by Java convention its first segment starts with
+        // an uppercase letter, whereas a package-qualified name starts with a lowercase package
+        // segment. Checking this keeps the lookups below off the overwhelmingly common
+        // already-fully-qualified case.
+        if (outer.isEmpty() || nested.isEmpty() || !Character.isUpperCase(name.charAt(0))) {
+            return null;
+        }
+        String outerFqn = simpleToFqn.get(outer);
+        if (outerFqn == null && !currentPackage.isEmpty()) {
+            outerFqn = classInPackage(currentPackage, outer);
+        }
+        if (outerFqn == null) {
+            outerFqn = classInPackage("java.lang", outer);
+        }
+        if (outerFqn == null) {
+            for (String pkg : asteriskImportPackages) {
+                outerFqn = classInPackage(pkg, outer);
+                if (outerFqn != null) {
+                    break;
+                }
+            }
+        }
+        if (outerFqn == null) {
+            return null;
+        }
+        // Return the canonical name (dots), not the binary name: this value is also written into
+        // the stub file as the annotation's name, and BinaryStubReader resolves it with
+        // Elements.getTypeElement, which accepts only canonical names. annotationTargetsByName
+        // handles the "." -> "$" translation needed to load the class.
+        String canonicalName = outerFqn + "." + nested;
+        return annotationTargetsByName(canonicalName) == NOT_LOADABLE ? null : canonicalName;
     }
 
     /**
@@ -958,13 +1024,47 @@ public class BinaryStubWriter {
         return annotationTargetsCache.computeIfAbsent(
                 fqn,
                 name -> {
-                    try {
-                        Target target = Class.forName(name).getAnnotation(Target.class);
-                        return target == null ? NO_TARGET : target.value();
-                    } catch (ClassNotFoundException | LinkageError e) {
+                    Class<?> cls = loadAnnotationClass(name);
+                    if (cls == null) {
                         return NOT_LOADABLE;
                     }
+                    Target target = cls.getAnnotation(Target.class);
+                    return target == null ? NO_TARGET : target.value();
                 });
+    }
+
+    /**
+     * Loads the class named by a <em>canonical</em> name, or returns {@code null} if it cannot be
+     * loaded.
+     *
+     * <p>{@code Class.forName} takes a binary name, which separates a nested type from its
+     * enclosing type with {@code $}, whereas a canonical name -- what appears in source, and what
+     * {@code Elements.getTypeElement} accepts on the reading side -- uses {@code .} throughout. So
+     * {@code "java.lang.invoke.MethodHandle.PolymorphicSignature"} does not load even though the
+     * annotation exists; {@code "java.lang.invoke.MethodHandle$PolymorphicSignature"} does. Since
+     * nothing in a canonical name says which dots are package separators and which are nesting,
+     * this retries with each trailing dot turned into {@code $}, rightmost first, so ordinary
+     * top-level names still load on the first attempt.
+     *
+     * @param canonicalName the canonical name of the class
+     * @return the class, or {@code null} if no such class can be loaded
+     */
+    private @Nullable Class<?> loadAnnotationClass(String canonicalName) {
+        StringBuilder candidate = new StringBuilder(canonicalName);
+        for (int dot = canonicalName.length();
+                (dot = canonicalName.lastIndexOf('.', dot - 1)) != -1; ) {
+            try {
+                return Class.forName(candidate.toString());
+            } catch (ClassNotFoundException | LinkageError e) {
+                // Not this split; turn the next dot leftward into a nesting separator and retry.
+                candidate.setCharAt(dot, '$');
+            }
+        }
+        try {
+            return Class.forName(candidate.toString());
+        } catch (ClassNotFoundException | LinkageError e) {
+            return null;
+        }
     }
 
     /**
@@ -1215,6 +1315,7 @@ public class BinaryStubWriter {
         simpleToFqn.clear();
         asteriskImportPackages.clear();
         staticImportedConstants.clear();
+        currentPackage = cu.getPackageDeclaration().map(pd -> pd.getNameAsString()).orElse("");
 
         for (ImportDeclaration imp : cu.getImports()) {
             if (imp.isStatic()) {
