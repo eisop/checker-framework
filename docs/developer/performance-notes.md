@@ -172,7 +172,9 @@ so small per-call wins paid back substantially.
   `addAll` got an `instanceof AnnotationMirrorSet` fast path; the two
   qualifier-hierarchy methods got an `instanceof` fast path; and
   `getDeclAnnotation`'s two loops (over an already-`AnnotationMirrorSet`-typed
-  local) became index loops. Re-measured on the same workload: `ArrayList$Itr`
+  local) became index loops (as do the later `getAllDeclAnnotations` and
+  `getDefaultQualifierAnnotations`, which walk the same set and must stay
+  index-based for the same reason). Re-measured on the same workload: `ArrayList$Itr`
   dropped to 3,172 events (1.81%), `AnnotationMirrorSet.iterator()` calls
   dropped 6,523 → 1,530 (−77%), and `AnnotationMirrorSet$ReadOnlyIter`
   (751 events) left the profile entirely. The `Object[]`/`IdentityHashMap`

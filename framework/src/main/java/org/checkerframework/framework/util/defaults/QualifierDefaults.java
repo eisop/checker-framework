@@ -44,7 +44,6 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.IdentityHashMap;
 import java.util.List;
-import java.util.Set;
 
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.AnnotationMirror;
@@ -98,9 +97,6 @@ public class QualifierDefaults {
      * of {@code @DefaultQualifier} on the classpath predates this element.
      */
     protected final @Nullable ExecutableElement defaultQualifierApplyToSubpackagesElement;
-
-    /** The value() element/field of a @DefaultQualifier.List annotation. */
-    protected final ExecutableElement defaultQualifierListValueElement;
 
     /** AnnotatedTypeFactory to use. */
     private final AnnotatedTypeFactory atypeFactory;
@@ -172,6 +168,14 @@ public class QualifierDefaults {
      * element would bypass written annotations and parent defaults.
      */
     private final IdentityHashMap<Element, DefaultSet> programmaticElementDefaults =
+            new IdentityHashMap<>();
+
+    /**
+     * For each element, the defaults for which {@link #reportConflictingWrittenDefaults} has
+     * already issued a {@code conflicting.defaults} error. Keeps a conflict from being reported
+     * more than once; see that method.
+     */
+    private final IdentityHashMap<Element, DefaultSet> reportedConflictingDefaults =
             new IdentityHashMap<>();
 
     /** CLIMB locations whose standard default is top for a given type system. */
@@ -269,8 +273,6 @@ public class QualifierDefaults {
                                     + " subpackages. Use the EISOP checker-qual artifact to control this"
                                     + " behavior.");
         }
-        this.defaultQualifierListValueElement =
-                TreeUtils.getMethod(DefaultQualifier.List.class, "value", 0, processingEnv);
     }
 
     @Override
@@ -559,6 +561,31 @@ public class QualifierDefaults {
     private boolean conflictsWithExistingDefaults(
             DefaultSet previousDefaults, AnnotationMirror newAnno, TypeUseLocation newLoc) {
         return findConflictingDefault(previousDefaults, newAnno, newLoc) != null;
+    }
+
+    /**
+     * Reports that {@code newDefault}, from a {@code @DefaultQualifier} that {@code elt} carries,
+     * conflicts with {@code conflicting}, which {@code elt} already sets for the same location and
+     * qualifier hierarchy.
+     *
+     * <p>Reports each conflict on an element at most once. {@link #defaultsAtDirect} runs again for
+     * an element whenever {@link #elementDefaults} or {@link #packagePropagatingDefaults} has been
+     * cleared, and for a package it runs once per caller: {@link #defaultsAt} and {@link
+     * #propagatingDefaultsAt} both call it.
+     *
+     * @param elt the element whose {@code @DefaultQualifier} annotations conflict
+     * @param newDefault the default that is discarded because of the conflict
+     * @param conflicting the default it conflicts with, which stays in effect
+     */
+    private void reportConflictingWrittenDefaults(
+            Element elt, Default newDefault, Default conflicting) {
+        DefaultSet alreadyReported =
+                reportedConflictingDefaults.computeIfAbsent(elt, key -> new DefaultSet());
+        if (alreadyReported.add(newDefault)) {
+            atypeFactory
+                    .getChecker()
+                    .reportError(elt, "conflicting.defaults", elt, newDefault, conflicting);
+        }
     }
 
     /**
@@ -939,36 +966,50 @@ public class QualifierDefaults {
      * #addElementDefault}: both are equally {@code elt}'s own direct contribution, just installed
      * through different mechanisms.
      *
+     * <p>Two of {@code elt}'s own defaults conflict if they set the same {@link TypeUseLocation} in
+     * the same qualifier hierarchy to different qualifiers. That is reported rather than merged,
+     * because merging leaves the winner to {@link DefaultSet}'s (location, annotation) ordering,
+     * which is arbitrary and silent. Written-against-written is a {@code conflicting.defaults}
+     * error on {@code elt}, resolved by source order: of the conflicting {@code @DefaultQualifier}
+     * annotations that apply to {@code elt}, the one appearing first in the source wins and each
+     * later one is discarded. An annotation that is an alias for {@code @DefaultQualifier} (such as
+     * {@code @NullMarked}) participates at its own source position, so reordering the annotations
+     * on a declaration changes which one wins. Written against {@link #addElementDefault} is a
+     * {@link TypeSystemError}, since only a type system, not a user, can cause it.
+     *
      * @param elt the element
      * @return the defaults that apply directly to {@code elt}, or null if it has none
      */
     private @Nullable DefaultSet defaultsAtDirect(Element elt) {
         DefaultSet qualifiers = null;
 
-        // Handle DefaultQualifier
-        AnnotationMirror dqAnno = atypeFactory.getDeclAnnotation(elt, DefaultQualifier.class);
-
-        if (dqAnno != null) {
-            // fromDefaultQualifier allocates a fresh DefaultSet (or returns null), so take
-            // ownership directly rather than allocating a second DefaultSet and copying.
-            qualifiers = fromDefaultQualifier(dqAnno);
-        }
-
-        // Handle DefaultQualifier.List
-        AnnotationMirror dqListAnno =
-                atypeFactory.getDeclAnnotation(elt, DefaultQualifier.List.class);
-        if (dqListAnno != null) {
-            if (qualifiers == null) {
-                qualifiers = new DefaultSet();
+        // Handle @DefaultQualifier, including the @DefaultQualifier.List container that javac
+        // produces for two or more written at the same location, and any alias for either.
+        // getDefaultQualifierAnnotations returns them all in source order, which is what decides
+        // a conflict below; getDeclAnnotation cannot be used here, since it returns at most one
+        // annotation and prefers a written one over an aliased one regardless of source order.
+        List<AnnotationMirror> dqAnnos = atypeFactory.getDefaultQualifierAnnotations(elt);
+        for (int i = 0, n = dqAnnos.size(); i < n; ++i) {
+            DefaultSet p = fromDefaultQualifier(dqAnnos.get(i));
+            if (p == null) {
+                continue;
             }
-            List<AnnotationMirror> values =
-                    AnnotationUtils.getElementValueArray(
-                            dqListAnno, defaultQualifierListValueElement, AnnotationMirror.class);
-            for (AnnotationMirror dqlAnno : values) {
-                Set<Default> p = fromDefaultQualifier(dqlAnno);
-                if (p != null) {
-                    // TODO(cpovirk): What should happen with conflicts?
-                    qualifiers.addAll(p);
+            if (qualifiers == null) {
+                // One @DefaultQualifier cannot conflict with itself: its locations are distinct
+                // and it names a single qualifier. fromDefaultQualifier allocates a fresh
+                // DefaultSet, so take ownership directly rather than allocating a second one and
+                // copying. This is the overwhelmingly common case: at most one @DefaultQualifier.
+                qualifiers = p;
+                continue;
+            }
+            for (Default d : p) {
+                Default conflicting = findConflictingDefault(qualifiers, d.anno, d.location);
+                if (conflicting == null) {
+                    qualifiers.add(d);
+                } else {
+                    // Discard the later default rather than adding it and letting DefaultSet's
+                    // (location, annotation) ordering pick the winner.
+                    reportConflictingWrittenDefaults(elt, d, conflicting);
                 }
             }
         }
