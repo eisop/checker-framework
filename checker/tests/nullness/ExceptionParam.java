@@ -43,4 +43,15 @@ public class ExceptionParam {
             @NonNull Object o = e;
         }
     }
+
+    // Both alternatives annotated: javac puts the leading @Nullable on the parameter's modifiers
+    // and leaves the trailing one on its own alternative, so the two are collected by different
+    // paths and neither is lost or double-counted.
+    void multiCatchBoth() {
+        try {
+            // :: warning: (nullness.on.exception.parameter)
+        } catch (@Nullable AssertionError | @Nullable RuntimeException e) {
+            @NonNull Object o = e;
+        }
+    }
 }
