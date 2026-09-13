@@ -10,6 +10,24 @@ subpackages. The intervening package's own default correctly stayed limited to t
 package, but the outer default, which nothing deeper actually shadowed, incorrectly
 stopped propagating too.
 
+Two `@DefaultQualifier` annotations on the same declaration that set the same
+`TypeUseLocation` in the same qualifier hierarchy to different qualifiers are now reported
+as a `conflicting.defaults` error, and the one written later in the source is ignored.
+Previously both were kept and which one took effect depended on the order of their
+annotation class names. Two that name the same qualifier are redundant, not conflicting,
+and remain legal.
+
+An annotation that a checker registers as an alias for `@DefaultQualifier`, such as
+JSpecify's `@NullMarked` for the Nullness Checker, now participates at its own position in
+the source, alongside the `@DefaultQualifier` annotations written on the same declaration.
+Two consequences. An alias is no longer dropped when a `@DefaultQualifier` is also written
+on the declaration; previously the written annotation hid it entirely, so on
+`@NullMarked @DefaultQualifier(value = Nullable.class, locations = FIELD)` the `@NullMarked`
+default for upper bounds was silently lost. And when an alias and a written
+`@DefaultQualifier` do conflict, source order decides: whichever appears first wins, so
+reordering the two annotations changes the result. Previously the alias always won against
+two or more written `@DefaultQualifier` annotations, and always lost against one.
+
 A default that a checker registers with `QualifierDefaults.addElementDefault` now combines
 with the `@DefaultQualifier` annotations written on the same declaration and with the
 defaults of enclosing elements, instead of replacing them or being lost depending on the
@@ -120,6 +138,16 @@ form, whichever is a supported qualifier (or null if neither is);
 `canonicalAnnotationOrWritten(AnnotationMirror)`, which returns the canonical form of an
 annotation as written if it is an alias, and the annotation itself otherwise (regardless of
 whether either form is actually a supported qualifier).
+
+`AnnotatedTypeFactory#addAliasedTypeAnnotation` now validates that the canonical annotation is
+a supported qualifier of the checker and that the alias is not already in the type hierarchy,
+failing immediately with `TypeSystemError` rather than silently ignoring the alias.
+
+The `-AaliasedTypeAnnos` command-line option now reports a `UserError` if its canonical
+annotation is not a type annotation, or if its alias is itself a qualifier of the type system
+being run. A canonical qualifier that the running type system does not support is skipped
+rather than reported: the option is global, so each type factory in a checker hierarchy also
+receives the aliases written for the others.
 
 `@AnnotatedFor` is now `@Repeatable`, so it may be written more than once at the same
 location. This lets different type systems be given different `applyToSubpackages`
@@ -964,7 +992,8 @@ eisop#1299, eisop#1315, eisop#1564, eisop#1592, eisop#1642, eisop#1653,
 eisop#1735, eisop#1801, eisop#1818, eisop#1819, eisop#1861, eisop#1862,
 eisop#1863, eisop#1865, eisop#1887, eisop#1965, eisop#1986, eisop#1987,
 eisop#1990, eisop#1991, eisop#2009, eisop#2020, eisop#2021, eisop#2032,
-eisop#2037, eisop#2047, eisop#2056, eisop#2059, typetools#399, typetools#3203.
+eisop#2037, eisop#2047, eisop#2048, eisop#2056, eisop#2059, eisop#2064,
+typetools#399, typetools#3203.
 
 
 Version 3.49.5-eisop1 (April 26, 2026)
