@@ -19,4 +19,27 @@ public class ConflictingWrittenDefaults {
         // :: error: (return.type.incompatible)
         return new Object();
     }
+
+    @DefaultQualifier.List({
+        @DefaultQualifier(value = ElementDefaultBottom.class, locations = TypeUseLocation.RETURN),
+        @DefaultQualifier(value = ElementDefaultTop.class, locations = TypeUseLocation.RETURN)
+    })
+    // :: error: (conflicting.defaults)
+    static class ConflictingWrittenDefaultsWithList {
+        Object getBottom() {
+            // :: error: (return.type.incompatible)
+            return new Object();
+        }
+    }
+
+    @DefaultQualifier.List({
+        @DefaultQualifier(value = ElementDefaultTop.class, locations = TypeUseLocation.RETURN),
+        @DefaultQualifier(value = ElementDefaultBottom.class, locations = TypeUseLocation.RETURN)
+    })
+    // :: error: (conflicting.defaults)
+    static class ConflictingWrittenDefaultsWithListTopFirst {
+        Object getTop() {
+            return new Object();
+        }
+    }
 }
