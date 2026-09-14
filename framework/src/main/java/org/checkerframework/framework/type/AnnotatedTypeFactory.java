@@ -7547,6 +7547,104 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     }
 
     /**
+     * Returns true if the {@code @AnnotatedFor} that applies to this checker on {@code elt} is
+     * written before the {@code @UnannotatedFor} that also applies to it.
+     *
+     * <p>Call this only for an element that carries both; it decides which one wins. The two
+     * contradict each other, and resolving that by source order is what {@code @DefaultQualifier}
+     * does for the same situation, which matters because one annotation can supply both kinds at
+     * once: JSpecify's {@code @NullUnmarked} aliases to an {@code @UnannotatedFor} and to a
+     * {@code @DefaultQualifier}. Were the two halves resolved by different rules, writing
+     * {@code @NullUnmarked @NullMarked} would leave the declaration in scope for checking while its
+     * upper-bound default came from the annotation that lost, a state neither annotation produces
+     * on its own.
+     *
+     * <p>The order is that of {@link #getDeclAnnotations}, which for {@code elt}'s own annotations
+     * is the source order that {@code javac} reports; an aliasing annotation contributes at its own
+     * position, and a {@code @Repeatable} container at the position of the first repeat.
+     *
+     * @param elt an element carrying an applicable {@code @AnnotatedFor} and an applicable
+     *     {@code @UnannotatedFor}
+     * @return true if the {@code @AnnotatedFor} comes first
+     */
+    public boolean annotatedForPrecedesUnannotatedFor(Element elt) {
+        AnnotationMirrorSet declAnnos = getDeclAnnotations(elt);
+        for (int i = 0, n = declAnnos.size(); i < n; ++i) {
+            AnnotationMirror am = declAnnos.get(i);
+            @FullyQualifiedName String amName = AnnotationUtils.annotationName(am);
+            if (contributesApplicableCheckerNames(
+                    am,
+                    amName,
+                    ANNOTATED_FOR_NAME,
+                    ANNOTATED_FOR_LIST_NAME,
+                    annotatedForListValueElement,
+                    annotatedForValueElement)) {
+                return true;
+            }
+            if (contributesApplicableCheckerNames(
+                    am,
+                    amName,
+                    UNANNOTATED_FOR_NAME,
+                    UNANNOTATED_FOR_LIST_NAME,
+                    unannotatedForListValueElement,
+                    unannotatedForValueElement)) {
+                return false;
+            }
+        }
+        // Unreachable for an element that carries both, which is this method's contract.  Keep the
+        // historical resolution, under which @AnnotatedFor won, for any caller that violates it.
+        return true;
+    }
+
+    /**
+     * Returns true if {@code am} is, aliases to, or is a {@code @Repeatable} container of, an
+     * annotation named {@code annoName} whose checker names apply to this checker.
+     *
+     * @param am a declaration annotation on some element
+     * @param amName {@code am}'s fully-qualified name, which the caller has already computed
+     * @param annoName the fully-qualified name of the annotation to look for
+     * @param listName the fully-qualified name of {@code annoName}'s {@code @Repeatable} container
+     * @param listValueElement the container's {@code value} element, or null if the container type
+     *     is not on the classpath
+     * @param valueElement {@code annoName}'s element holding the checker names, or null if its type
+     *     is not on the classpath
+     * @return true if {@code am} contributes such an annotation
+     */
+    private boolean contributesApplicableCheckerNames(
+            AnnotationMirror am,
+            @FullyQualifiedName String amName,
+            @FullyQualifiedName String annoName,
+            @FullyQualifiedName String listName,
+            @Nullable ExecutableElement listValueElement,
+            @Nullable ExecutableElement valueElement) {
+        Map<@FullyQualifiedName String, AnnotationMirror> aliases = declAliases.get(annoName);
+        AnnotationMirror single =
+                amName.equals(annoName) ? am : (aliases == null ? null : aliases.get(amName));
+        if (single != null) {
+            return appliesToThisChecker(single, valueElement);
+        }
+        if (listValueElement == null) {
+            return false;
+        }
+        Map<@FullyQualifiedName String, AnnotationMirror> listAliases = declAliases.get(listName);
+        AnnotationMirror listAnno =
+                amName.equals(listName)
+                        ? am
+                        : (listAliases == null ? null : listAliases.get(amName));
+        if (listAnno == null) {
+            return false;
+        }
+        for (AnnotationMirror repeated :
+                AnnotationUtils.getElementValueArray(
+                        listAnno, listValueElement, AnnotationMirror.class)) {
+            if (appliesToThisChecker(repeated, valueElement)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
      * Get the {@code expression} field/element of the given contract annotation.
      *
      * @param contractAnno a {@link RequiresQualifier}, {@link EnsuresQualifier}, or {@link

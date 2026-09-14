@@ -23,7 +23,7 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.HashSet;
+import java.util.Collections;
 import java.util.IdentityHashMap;
 import java.util.Set;
 
@@ -87,7 +87,9 @@ public abstract class BaseTypeChecker extends SourceChecker {
      * {@code @AnnotatedFor} for this checker or an upstream checker, written on it or on an
      * enclosing package. Separate from {@link #elementAnnotatedForThisCheckerOrUpstreamCache}
      * because an {@code @AnnotatedFor} that opts out of subpackages still covers its own package,
-     * so the two answers differ for the same package.
+     * so the two answers differ for the same package. The value accounts for
+     * {@code @UnannotatedFor} exclusions, as {@link #elementAnnotatedForThisCheckerOrUpstreamCache}
+     * does.
      */
     private final IdentityHashMap<PackageElement, Boolean> annotatedForReachesSubpackagesCache =
             new IdentityHashMap<>();
@@ -98,7 +100,8 @@ public abstract class BaseTypeChecker extends SourceChecker {
      * checker, so the warning is issued once rather than once per subchecker that the annotations
      * name.
      */
-    private final Set<Element> conflictingAnnotatedForReported = new HashSet<>();
+    private final Set<Element> conflictingAnnotatedForReported =
+            Collections.newSetFromMap(new IdentityHashMap<>());
 
     /** An array containing just {@code BaseTypeChecker.class}. */
     protected static Class<?>[] baseTypeCheckerClassArray = new Class<?>[] {BaseTypeChecker.class};
@@ -359,11 +362,19 @@ public abstract class BaseTypeChecker extends SourceChecker {
 
         AnnotatedTypeFactory atypeFactory = getTypeFactory();
         boolean elementAnnotatedForThisChecker = hasApplicableAnnotatedFor(elt, false);
+        boolean elementUnannotatedForThisChecker = hasApplicableUnannotatedFor(elt, false);
+        if (elementAnnotatedForThisChecker && elementUnannotatedForThisChecker) {
+            // The two contradict each other; the one written first wins.  See
+            // AnnotatedTypeFactory#annotatedForPrecedesUnannotatedFor for why source order rather
+            // than a fixed precedence.  BaseTypeVisitor warns about the pair separately.
+            elementAnnotatedForThisChecker = atypeFactory.annotatedForPrecedesUnannotatedFor(elt);
+            elementUnannotatedForThisChecker = !elementAnnotatedForThisChecker;
+        }
 
         // @UnannotatedFor only subtracts from an enclosing @AnnotatedFor scope, so it is consulted
         // only when this element is not itself annotated for this checker, and it stops the walk
         // to the enclosing element.
-        if (!elementAnnotatedForThisChecker && !hasApplicableUnannotatedFor(elt, false)) {
+        if (!elementAnnotatedForThisChecker && !elementUnannotatedForThisChecker) {
             if (elt.getKind() == ElementKind.PACKAGE) {
                 // A package is covered by an enclosing package only if that package's
                 // @AnnotatedFor applies to subpackages.
@@ -407,9 +418,16 @@ public abstract class BaseTypeChecker extends SourceChecker {
 
         AnnotatedTypeFactory atypeFactory = getTypeFactory();
         boolean result = hasApplicableAnnotatedFor(pkg, true);
+        boolean unannotated = hasApplicableUnannotatedFor(pkg, true);
+        if (result && unannotated) {
+            // Resolved the same way as on a non-package element; see
+            // isElementAnnotatedForThisCheckerOrUpstreamChecker.
+            result = atypeFactory.annotatedForPrecedesUnannotatedFor(pkg);
+            unannotated = !result;
+        }
         // An @UnannotatedFor on pkg that reaches subpackages cancels any enclosing @AnnotatedFor
         // for them, so the walk stops here with the answer false.
-        if (!result && !hasApplicableUnannotatedFor(pkg, true)) {
+        if (!result && !unannotated) {
             result =
                     doesAnnotatedForReachSubpackages(
                             ElementUtils.parentPackage(pkg, atypeFactory.getElementUtils()));

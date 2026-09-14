@@ -134,7 +134,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashMap;
-import java.util.HashSet;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -201,6 +201,16 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
 
     /** The {@link BaseTypeChecker} for error reporting. */
     protected final BaseTypeChecker checker;
+
+    /**
+     * Packages this visitor has already examined for a conflicting
+     * {@code @AnnotatedFor}/{@code @UnannotatedFor} pair, so that each is examined once rather than
+     * once per class in it. Separate from the checker-wide record of what has been
+     * <em>reported</em>: that one stops a second checker from repeating the warning, while this one
+     * stops the lookups from being repeated at all.
+     */
+    private final Set<PackageElement> packagesCheckedForConflictingAnnotatedFor =
+            Collections.newSetFromMap(new IdentityHashMap<>());
 
     /** The factory to use for obtaining "parsed" version of annotations. */
     protected final Factory atypeFactory;
@@ -6086,18 +6096,10 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
     }
 
     /**
-     * Packages this visitor has already examined for a conflicting
-     * {@code @AnnotatedFor}/{@code @UnannotatedFor} pair, so that each is examined once rather than
-     * once per class in it. Separate from the checker-wide record of what has been
-     * <em>reported</em>: that one stops a second checker from repeating the warning, while this one
-     * stops the lookups from being repeated at all.
-     */
-    private final Set<PackageElement> packagesCheckedForConflictingAnnotatedFor = new HashSet<>();
-
-    /**
      * Warns if {@code elt} has both an {@code @AnnotatedFor} and an {@code @UnannotatedFor} that
-     * apply to this checker. The two contradict each other; the {@code @AnnotatedFor} wins, so the
-     * {@code @UnannotatedFor} has no effect.
+     * apply to this checker. The two contradict each other, and the one written first decides
+     * whether {@code elt} is checked; see {@link
+     * org.checkerframework.framework.type.AnnotatedTypeFactory#annotatedForPrecedesUnannotatedFor}.
      *
      * @param tree the declaration to report the warning on
      * @param elt the declaration's element, or null if it has none
