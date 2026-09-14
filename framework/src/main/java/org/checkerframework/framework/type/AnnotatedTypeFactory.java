@@ -7308,28 +7308,36 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             @Nullable ExecutableElement listValueElement) {
         AnnotationMirrorSet declAnnos = getDeclAnnotations(elt);
         Map<@FullyQualifiedName String, AnnotationMirror> aliases = declAliases.get(annoName);
+        Map<@FullyQualifiedName String, AnnotationMirror> listAliases =
+                listValueElement == null ? null : declAliases.get(listName);
+        // One pass handles the annotation and its @Repeatable container together.  Looking the
+        // container up separately, with getDeclAnnotation, would walk declAnnos a second and third
+        // time -- once for its name and once for its aliases -- and recompute each mirror's name;
+        // this runs for every class and every method.
         // Allocate only if a match is actually found: most elements have none, and this can run
         // for every element that might produce a warning.
         AnnotationMirrorSet result = null;
         for (int i = 0, n = declAnnos.size(); i < n; ++i) {
             AnnotationMirror am = declAnnos.get(i);
+            @FullyQualifiedName String amName = AnnotationUtils.annotationName(am);
             // Unlike getDeclAnnotation, do not stop at the first match: a written annotation and
             // an aliased one must both be collected.
             AnnotationMirror match =
-                    AnnotationUtils.areSameByName(am, annoName)
-                            ? am
-                            : (aliases == null
-                                    ? null
-                                    : aliases.get(AnnotationUtils.annotationName(am)));
+                    amName.equals(annoName) ? am : (aliases == null ? null : aliases.get(amName));
             if (match != null) {
                 if (result == null) {
                     result = new AnnotationMirrorSet();
                 }
                 result.add(match);
+                continue;
             }
-        }
-        if (listValueElement != null) {
-            AnnotationMirror listAnno = getDeclAnnotation(elt, listName, true);
+            if (listValueElement == null) {
+                continue;
+            }
+            AnnotationMirror listAnno =
+                    amName.equals(listName)
+                            ? am
+                            : (listAliases == null ? null : listAliases.get(amName));
             if (listAnno != null) {
                 List<AnnotationMirror> repeated =
                         AnnotationUtils.getElementValueArray(
