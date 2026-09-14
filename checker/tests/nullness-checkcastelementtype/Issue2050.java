@@ -38,7 +38,8 @@ public class Issue2050 {
         nbls2[0] = null;
     }
 
-    // 3. Cast/pattern between arrays with differing component nullness.
+    // 3. Casts between arrays with differing component nullness.  The instanceof form of these
+    // is in Issue2050ArrayPatterns.java, which needs a newer JDK; see that file.
     void testArrayToArrayMismatchedComponents(
             @NonNull String[] nonNullStrings, @Nullable String[] nullableStrings) {
         // Widening component: @NonNull elements cast to @Nullable elements allows writing null
@@ -46,28 +47,18 @@ public class Issue2050 {
         // :: warning: (cast.unsafe)
         @Nullable String[] nbls = (@Nullable String[]) nonNullStrings;
 
-        // :: warning: (instanceof.pattern.unsafe)
-        if (nonNullStrings instanceof @Nullable String[] p1) {}
-
         // Narrowing component: @Nullable elements cast to @NonNull elements allows reading null as
         // non-null.
         // :: warning: (cast.unsafe)
         @NonNull String[] nns = (@NonNull String[]) nullableStrings;
-
-        // :: warning: (instanceof.pattern.unsafe)
-        if (nullableStrings instanceof String[] p2) {}
     }
 
-    // 4. Safe array casts/patterns where component nullness is preserved.
+    // 4. Safe array casts where component nullness is preserved.
     void testSafeArrayCast(@NonNull String[] nonNullStrings, @Nullable String[] nullableStrings) {
         // Upcast to Object[] with identical component nullness (@NonNull)
         @NonNull Object[] objs1 = (@NonNull Object[]) nonNullStrings;
 
-        if (nonNullStrings instanceof @NonNull Object[] p1) {}
-
         // Upcast to Object[] with identical component nullness (@Nullable)
         @Nullable Object[] objs2 = (@Nullable Object[]) nullableStrings;
-
-        if (nullableStrings instanceof @Nullable Object[] p2) {}
     }
 }
