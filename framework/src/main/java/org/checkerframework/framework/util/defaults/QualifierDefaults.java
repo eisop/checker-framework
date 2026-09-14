@@ -585,6 +585,8 @@ public class QualifierDefaults {
      * @param elt the element whose {@code @DefaultQualifier} annotations conflict
      * @param newDefault the default that is discarded because of the conflict
      * @param conflicting the default it conflicts with, which stays in effect
+     * @param isError whether to report an error rather than a warning; true for a declaration in
+     *     source, which the user can edit, and false for one read from bytecode
      */
     private void reportConflictingWrittenDefaults(
             Element elt, Default newDefault, Default conflicting, boolean isError) {
