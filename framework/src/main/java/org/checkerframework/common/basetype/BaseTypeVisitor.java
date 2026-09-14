@@ -716,6 +716,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      */
     public void processPackageTree(PackageTree tree, PackageElement elt) {
         checkConflictingAnnotatedFor(tree, elt);
+        atypeFactory.getQualifierDefaults().checkConflictingDefaults(elt);
     }
 
     /**
@@ -725,7 +726,11 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      * @param classTree class to check
      */
     public void processClassTree(ClassTree classTree) {
-        checkConflictingAnnotatedFor(classTree, TreeUtils.elementFromDeclaration(classTree));
+        TypeElement classElt = TreeUtils.elementFromDeclaration(classTree);
+        checkConflictingAnnotatedFor(classTree, classElt);
+        if (classElt != null) {
+            atypeFactory.getQualifierDefaults().checkConflictingDefaults(classElt);
+        }
         checkFieldInvariantDeclarations(classTree);
         if (!TreeUtils.hasExplicitConstructor(classTree)) {
             checkDefaultConstructor(classTree);
@@ -1265,7 +1270,11 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      * @param tree the method to type-check
      */
     public void processMethodTree(String className, MethodTree tree) {
-        checkConflictingAnnotatedFor(tree, TreeUtils.elementFromDeclaration(tree));
+        ExecutableElement methodElt = TreeUtils.elementFromDeclaration(tree);
+        checkConflictingAnnotatedFor(tree, methodElt);
+        if (methodElt != null) {
+            atypeFactory.getQualifierDefaults().checkConflictingDefaults(methodElt);
+        }
         // boilerplate
         long startMillis = System.currentTimeMillis();
         Tree startSlowTypeCheckingTree = slowTypecheckingTree;

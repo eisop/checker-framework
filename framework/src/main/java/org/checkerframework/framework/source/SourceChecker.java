@@ -202,6 +202,10 @@ import javax.tools.Diagnostic;
     // casting to an array or generic type. This will be the new default soon.
     "checkCastElementType",
 
+    // Warn about conflicting declaration annotations on elements read from bytecode.
+    // org.checkerframework.framework.util.defaults.QualifierDefaults
+    "warnBytecodeConflicts",
+
     // Whether to type check the enclosing expression of an inner class instantiation.
     "checkEnclosingExpr",
 
