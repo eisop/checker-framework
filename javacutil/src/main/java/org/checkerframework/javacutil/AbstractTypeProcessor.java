@@ -14,6 +14,7 @@ import com.sun.tools.javac.processing.JavacProcessingEnvironment;
 import com.sun.tools.javac.util.Context;
 import com.sun.tools.javac.util.Log;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.dataflow.qual.SideEffectFree;
 
 import java.util.HashSet;
@@ -23,6 +24,7 @@ import javax.annotation.processing.AbstractProcessor;
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.annotation.processing.Processor;
 import javax.annotation.processing.RoundEnvironment;
+import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.Name;
 import javax.lang.model.element.PackageElement;
@@ -234,20 +236,27 @@ public abstract class AbstractTypeProcessor extends AbstractProcessor {
     public void packageProcess(PackageElement element, TreePath tree) {}
 
     /**
-     * Returns the path to {@code cu}'s package declaration.
+     * Returns the path to {@code cu}'s package declaration if {@code cu} is a {@code
+     * package-info.java} -- a compilation unit that declares a package and no type -- and null
+     * otherwise.
      *
-     * <p>{@code Trees.getPath} returns null for the synthetic {@code package-info} type that the
-     * ANALYZE event carries, so the path is built from the compilation unit instead. Its leaf is
-     * the {@link PackageTree}, matching {@link #typeProcess}, whose path's leaf is the analyzed
-     * class's own declaration.
+     * <p>The compilation unit is what identifies such a file, rather than the type the ANALYZE
+     * event carries. That type is not the same across versions: javac 21 reports {@code
+     * <package>.package-info}, whose enclosing element is the package being declared, while javac
+     * 11 and 17 report an anonymous type in the unnamed package, from which neither the package nor
+     * its annotations can be reached. {@code Trees.getPath} returns null for it on every version,
+     * so the path is built here in any case, with the {@link PackageTree} as its leaf to match
+     * {@link #typeProcess}, whose path's leaf is the analyzed class's own declaration.
      *
-     * @param cu a {@code package-info.java} compilation unit
-     * @return the path to {@code cu}'s package declaration
+     * @param cu a compilation unit
+     * @return the path to {@code cu}'s package declaration, or null if {@code cu} declares a type
      */
-    private TreePath packageDeclarationPath(CompilationUnitTree cu) {
-        TreePath cuPath = new TreePath(cu);
+    private @Nullable TreePath packageDeclarationPath(CompilationUnitTree cu) {
         PackageTree pkgTree = cu.getPackage();
-        return pkgTree == null ? cuPath : new TreePath(cuPath, pkgTree);
+        if (pkgTree == null || !cu.getTypeDecls().isEmpty()) {
+            return null;
+        }
+        return new TreePath(new TreePath(cu), pkgTree);
     }
 
     /**
@@ -361,10 +370,12 @@ public abstract class AbstractTypeProcessor extends AbstractProcessor {
             // the guard below would drop the event, leaving no way for any processor to reach a
             // package declaration.  Dispatch it to packageProcess instead, keyed on the package
             // this compilation actually contains.
-            if (elem.getEnclosingElement().getKind() == ElementKind.PACKAGE) {
-                PackageElement pkg = (PackageElement) elem.getEnclosingElement();
-                if (packageElements.remove(pkg.getQualifiedName())) {
-                    packageProcess(pkg, packageDeclarationPath(e.getCompilationUnit()));
+            TreePath pkgPath = packageDeclarationPath(e.getCompilationUnit());
+            if (pkgPath != null) {
+                Element pkgEle = Trees.instance(processingEnv).getElement(pkgPath);
+                if (pkgEle instanceof PackageElement
+                        && packageElements.remove(((PackageElement) pkgEle).getQualifiedName())) {
+                    packageProcess((PackageElement) pkgEle, pkgPath);
                     maybeInvokeTypeProcessingOver();
                     return;
                 }
