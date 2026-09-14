@@ -41,7 +41,6 @@ import org.checkerframework.framework.flow.CFAbstractAnalysis;
 import org.checkerframework.framework.qual.AnnotatedFor;
 import org.checkerframework.framework.qual.DefaultQualifier;
 import org.checkerframework.framework.qual.TypeUseLocation;
-import org.checkerframework.framework.qual.UnannotatedFor;
 import org.checkerframework.framework.type.AnnotatedTypeFactory;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedArrayType;
@@ -513,12 +512,14 @@ public class NullnessNoInitAnnotatedTypeFactory
             // a null unannotatedForValueElement is how AnnotatedTypeFactory records that.
             if (unannotatedForValueElement != null) {
                 AnnotationBuilder nullUnmarkedUnannotatedForBuilder =
-                        new AnnotationBuilder(processingEnv, UnannotatedFor.class)
-                                .setValue("value", new String[] {"nullnessnoinit"})
-                                .setValue("applyToSubpackages", false);
+                        new AnnotationBuilder(processingEnv, UNANNOTATED_FOR_NAME)
+                                .setValue("value", new String[] {"nullnessnoinit"});
+                if (unannotatedForApplyToSubpackagesElement != null) {
+                    nullUnmarkedUnannotatedForBuilder.setValue("applyToSubpackages", false);
+                }
                 addAliasedDeclAnnotation(
                         "org.jspecify.annotations.NullUnmarked",
-                        UnannotatedFor.class.getCanonicalName(),
+                        UNANNOTATED_FOR_NAME,
                         nullUnmarkedUnannotatedForBuilder.build());
             }
         }

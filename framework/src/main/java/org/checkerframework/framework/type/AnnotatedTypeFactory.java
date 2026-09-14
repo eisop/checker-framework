@@ -193,7 +193,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * UnannotatedFor.class.getCanonicalName()}: the type is absent when the classpath resolves
      * {@code checker-qual} from upstream typetools, and a class literal would link it.
      */
-    private static final @FullyQualifiedName String UNANNOTATED_FOR_NAME =
+    protected static final @FullyQualifiedName String UNANNOTATED_FOR_NAME =
             "org.checkerframework.framework.qual.UnannotatedFor";
 
     /**
