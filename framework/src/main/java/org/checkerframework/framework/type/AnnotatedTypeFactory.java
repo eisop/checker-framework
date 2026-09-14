@@ -56,6 +56,7 @@ import org.checkerframework.framework.qual.HasQualifierParameter;
 import org.checkerframework.framework.qual.InheritedAnnotation;
 import org.checkerframework.framework.qual.NoQualifierParameter;
 import org.checkerframework.framework.qual.RequiresQualifier;
+import org.checkerframework.framework.qual.UnannotatedFor;
 import org.checkerframework.framework.stub.AnnotationFileElementTypes;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedArrayType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedDeclaredType;
@@ -179,6 +180,29 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     private static final @FullyQualifiedName String ANNOTATED_FOR_NAME =
             AnnotatedFor.class.getCanonicalName();
 
+    /**
+     * The fully-qualified name of {@link AnnotatedFor.List}. A literal string rather than a class
+     * literal: the type is absent from a {@code checker-qual} that predates it, and a class literal
+     * would link it.
+     */
+    private static final @FullyQualifiedName String ANNOTATED_FOR_LIST_NAME =
+            "org.checkerframework.framework.qual.AnnotatedFor.List";
+
+    /**
+     * The fully-qualified name of {@link UnannotatedFor}. A literal string rather than {@code
+     * UnannotatedFor.class.getCanonicalName()}: the type is absent when the classpath resolves
+     * {@code checker-qual} from upstream typetools, and a class literal would link it.
+     */
+    protected static final @FullyQualifiedName String UNANNOTATED_FOR_NAME =
+            "org.checkerframework.framework.qual.UnannotatedFor";
+
+    /**
+     * The fully-qualified name of {@link UnannotatedFor.List}. A literal string, for the reason
+     * given at {@link #UNANNOTATED_FOR_NAME}.
+     */
+    private static final @FullyQualifiedName String UNANNOTATED_FOR_LIST_NAME =
+            "org.checkerframework.framework.qual.UnannotatedFor.List";
+
     /** The fully-qualified name of {@link DefaultQualifier}. */
     private static final @FullyQualifiedName String DEFAULT_QUALIFIER_NAME =
             DefaultQualifier.class.getCanonicalName();
@@ -233,6 +257,26 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * in which case {@code @AnnotatedFor} could not have been written more than once there.
      */
     protected final @Nullable ExecutableElement annotatedForListValueElement;
+
+    /**
+     * The UnannotatedFor.value argument/element. Null if {@code @UnannotatedFor} is not on the
+     * classpath, which is the case for the upstream typetools {@code checker-qual}; no element can
+     * then be annotated with it, so it excludes nothing.
+     */
+    protected final @Nullable ExecutableElement unannotatedForValueElement;
+
+    /**
+     * The UnannotatedFor.applyToSubpackages() field/element. Null under the same condition as
+     * {@link #unannotatedForValueElement}.
+     */
+    protected final @Nullable ExecutableElement unannotatedForApplyToSubpackagesElement;
+
+    /**
+     * The UnannotatedFor.List.value() field/element, the {@code @UnannotatedFor} counterpart of
+     * {@link #annotatedForListValueElement}. Null under the same condition as {@link
+     * #unannotatedForValueElement}.
+     */
+    protected final @Nullable ExecutableElement unannotatedForListValueElement;
 
     /**
      * The DefaultQualifier.List.value() field/element, for a location with two or more written
@@ -868,11 +912,31 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         // (links) that nested class immediately, throwing NoClassDefFoundError -- defeating the
         // guard -- if an older checker-qual on the classpath lacks it. Using its canonical name
         // as a literal string, instead of deriving it from the class, avoids linking it here.
-        @FullyQualifiedName String annotatedForListName = "org.checkerframework.framework.qual.AnnotatedFor.List";
         annotatedForListValueElement =
-                elements.getTypeElement(annotatedForListName) == null
+                elements.getTypeElement(ANNOTATED_FOR_LIST_NAME) == null
                         ? null
-                        : TreeUtils.getMethod(annotatedForListName, "value", 0, processingEnv);
+                        : TreeUtils.getMethod(ANNOTATED_FOR_LIST_NAME, "value", 0, processingEnv);
+        // @UnannotatedFor is EISOP-specific, so the whole annotation -- not just an element of it
+        // -- is missing when the classpath resolves org.checkerframework.framework.qual from
+        // upstream typetools checker-qual. TreeUtils.getMethod and getMethodOrNull both throw a
+        // UserError for an absent type, so test for the type first; its name is a literal string
+        // rather than a class literal, for the reason given just above.
+        if (elements.getTypeElement(UNANNOTATED_FOR_NAME) == null) {
+            unannotatedForValueElement = null;
+            unannotatedForApplyToSubpackagesElement = null;
+            unannotatedForListValueElement = null;
+        } else {
+            unannotatedForValueElement =
+                    TreeUtils.getMethod(UNANNOTATED_FOR_NAME, "value", 0, processingEnv);
+            unannotatedForApplyToSubpackagesElement =
+                    TreeUtils.getMethod(
+                            UNANNOTATED_FOR_NAME, "applyToSubpackages", 0, processingEnv);
+            unannotatedForListValueElement =
+                    elements.getTypeElement(UNANNOTATED_FOR_LIST_NAME) == null
+                            ? null
+                            : TreeUtils.getMethod(
+                                    UNANNOTATED_FOR_LIST_NAME, "value", 0, processingEnv);
+        }
         defaultQualifierListValueElement =
                 TreeUtils.getMethod(DefaultQualifier.List.class, "value", 0, processingEnv);
         ensuresQualifierExpressionElement =
@@ -7224,37 +7288,66 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * checked for nullness even though {@code @NullMarked} aliases to an {@code @AnnotatedFor} for
      * it. This method returns both.
      *
-     * <p>This does not unpack a {@code @Repeatable} annotation's {@code .List} container; see
-     * {@link #getAnnotatedForAnnotations}, the only caller, which does that for {@code
-     * AnnotatedFor}/{@code AnnotatedFor.List}.
+     * <p>It also unpacks the annotation's {@code @Repeatable} container, whose name and {@code
+     * value} element the caller supplies, since neither can be derived from {@code annoName}: when
+     * two or more are written at one location, javac exposes only the container, not the individual
+     * mirrors.
      *
      * @param elt an element
      * @param annoName the fully-qualified name of the declaration annotation to look for
-     * @return an unmodifiable set of the annotations named {@code annoName} on {@code elt}, written
-     *     or aliased; may be empty
+     * @param listName the fully-qualified name of {@code annoName}'s {@code @Repeatable} container
+     * @param listValueElement the container's {@code value} element, or null if the container type
+     *     is not on the classpath, in which case the annotation cannot have been repeated
+     * @return an unmodifiable set of the annotations named {@code annoName} on {@code elt},
+     *     written, aliased, or repeated; may be empty
      */
     private AnnotationMirrorSet getAllDeclAnnotations(
-            Element elt, @FullyQualifiedName String annoName) {
+            Element elt,
+            @FullyQualifiedName String annoName,
+            @FullyQualifiedName String listName,
+            @Nullable ExecutableElement listValueElement) {
         AnnotationMirrorSet declAnnos = getDeclAnnotations(elt);
         Map<@FullyQualifiedName String, AnnotationMirror> aliases = declAliases.get(annoName);
+        Map<@FullyQualifiedName String, AnnotationMirror> listAliases =
+                listValueElement == null ? null : declAliases.get(listName);
+        // One pass handles the annotation and its @Repeatable container together.  Looking the
+        // container up separately, with getDeclAnnotation, would walk declAnnos a second and third
+        // time -- once for its name and once for its aliases -- and recompute each mirror's name;
+        // this runs for every class and every method.
         // Allocate only if a match is actually found: most elements have none, and this can run
         // for every element that might produce a warning.
         AnnotationMirrorSet result = null;
         for (int i = 0, n = declAnnos.size(); i < n; ++i) {
             AnnotationMirror am = declAnnos.get(i);
+            @FullyQualifiedName String amName = AnnotationUtils.annotationName(am);
             // Unlike getDeclAnnotation, do not stop at the first match: a written annotation and
             // an aliased one must both be collected.
             AnnotationMirror match =
-                    AnnotationUtils.areSameByName(am, annoName)
-                            ? am
-                            : (aliases == null
-                                    ? null
-                                    : aliases.get(AnnotationUtils.annotationName(am)));
+                    amName.equals(annoName) ? am : (aliases == null ? null : aliases.get(amName));
             if (match != null) {
                 if (result == null) {
                     result = new AnnotationMirrorSet();
                 }
                 result.add(match);
+                continue;
+            }
+            if (listValueElement == null) {
+                continue;
+            }
+            AnnotationMirror listAnno =
+                    amName.equals(listName)
+                            ? am
+                            : (listAliases == null ? null : listAliases.get(amName));
+            if (listAnno != null) {
+                List<AnnotationMirror> repeated =
+                        AnnotationUtils.getElementValueArray(
+                                listAnno, listValueElement, AnnotationMirror.class);
+                if (!repeated.isEmpty()) {
+                    if (result == null) {
+                        result = new AnnotationMirrorSet();
+                    }
+                    result.addAll(repeated);
+                }
             }
         }
         return result == null ? AnnotationMirrorSet.emptySet() : result.makeUnmodifiable();
@@ -7265,35 +7358,37 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * may be more than one, since {@code @AnnotatedFor} is {@code @Repeatable}), together with one
      * for each of its declaration annotations that is an alias for {@link AnnotatedFor}.
      *
-     * <p>See {@link #getAllDeclAnnotations}, which this delegates to for the written-or-aliased
-     * part; this method additionally unpacks {@code @AnnotatedFor.List}, which is what javac
-     * exposes instead of individual {@code @AnnotatedFor} mirrors when two or more are written at
-     * the same location.
+     * <p>See {@link #getAllDeclAnnotations}, which does the work, for why a plain {@link
+     * #getDeclAnnotation} call does not suffice.
      *
      * @param elt an element
      * @return an unmodifiable set of the {@link AnnotatedFor} annotations on {@code elt}; may be
      *     empty
      */
     public AnnotationMirrorSet getAnnotatedForAnnotations(Element elt) {
-        AnnotationMirrorSet writtenOrAliased = getAllDeclAnnotations(elt, ANNOTATED_FOR_NAME);
-        if (annotatedForListValueElement == null) {
-            // The classpath's @AnnotatedFor predates the List type, so it could not have been
-            // written more than once here; nothing more to find.
-            return writtenOrAliased;
-        }
-        AnnotationMirror listAnno = getDeclAnnotation(elt, AnnotatedFor.List.class);
-        if (listAnno == null) {
-            return writtenOrAliased;
-        }
-        List<AnnotationMirror> repeated =
-                AnnotationUtils.getElementValueArray(
-                        listAnno, annotatedForListValueElement, AnnotationMirror.class);
-        if (repeated.isEmpty()) {
-            return writtenOrAliased;
-        }
-        AnnotationMirrorSet result = new AnnotationMirrorSet(writtenOrAliased);
-        result.addAll(repeated);
-        return result.makeUnmodifiable();
+        return getAllDeclAnnotations(
+                elt, ANNOTATED_FOR_NAME, ANNOTATED_FOR_LIST_NAME, annotatedForListValueElement);
+    }
+
+    /**
+     * Returns every {@link UnannotatedFor} annotation on {@code elt}: each one written on it (there
+     * may be more than one, since {@code @UnannotatedFor} is {@code @Repeatable}), together with
+     * one for each of its declaration annotations that is an alias for {@link UnannotatedFor}.
+     *
+     * <p>The {@code @UnannotatedFor} counterpart of {@link #getAnnotatedForAnnotations}.
+     *
+     * @param elt an element
+     * @return an unmodifiable set of the {@link UnannotatedFor} annotations on {@code elt}; may be
+     *     empty
+     */
+    public AnnotationMirrorSet getUnannotatedForAnnotations(Element elt) {
+        // If @UnannotatedFor is not on the classpath, no element can carry it or an alias for it,
+        // and its null List element makes the lookup return an empty set.
+        return getAllDeclAnnotations(
+                elt,
+                UNANNOTATED_FOR_NAME,
+                UNANNOTATED_FOR_LIST_NAME,
+                unannotatedForListValueElement);
     }
 
     /**
@@ -7397,6 +7492,18 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     }
 
     /**
+     * Does {@code unannotatedForAnno}, which is an {@link UnannotatedFor} annotation written on a
+     * package, also apply to subpackages of that package?
+     *
+     * @param unannotatedForAnno an {@link UnannotatedFor} annotation written on a package
+     * @return whether {@code unannotatedForAnno} applies to subpackages
+     */
+    public boolean doesUnannotatedForApplyToSubpackages(AnnotationMirror unannotatedForAnno) {
+        return AnnotationUtils.appliesToSubpackages(
+                unannotatedForAnno, unannotatedForApplyToSubpackagesElement);
+    }
+
+    /**
      * Does {@code annotatedForAnno}, which is an {@link
      * org.checkerframework.framework.qual.AnnotatedFor} annotation, apply to this checker?
      *
@@ -7404,14 +7511,141 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * @return whether {@code annotatedForAnno} applies to this checker
      */
     public boolean doesAnnotatedForApplyToThisChecker(AnnotationMirror annotatedForAnno) {
-        List<String> annotatedForCheckers =
-                AnnotationUtils.getElementValueArray(
-                        annotatedForAnno, annotatedForValueElement, String.class);
+        return appliesToThisChecker(annotatedForAnno, annotatedForValueElement);
+    }
+
+    /**
+     * Does {@code unannotatedForAnno}, which is an {@link UnannotatedFor} annotation, apply to this
+     * checker?
+     *
+     * @param unannotatedForAnno an {@link UnannotatedFor} annotation
+     * @return whether {@code unannotatedForAnno} applies to this checker
+     */
+    public boolean doesUnannotatedForApplyToThisChecker(AnnotationMirror unannotatedForAnno) {
+        return appliesToThisChecker(unannotatedForAnno, unannotatedForValueElement);
+    }
+
+    /**
+     * Does {@code anno} apply to this checker, because its {@code checkerNamesElement} names this
+     * checker or an upstream checker? Both {@link AnnotatedFor} and {@link UnannotatedFor} take
+     * such a list of checker names.
+     *
+     * @param anno an annotation whose {@code checkerNamesElement} is an array of checker names
+     * @param checkerNamesElement the element of {@code anno} whose value is an array of checker
+     *     names, or null if {@code anno}'s type is not on the classpath, in which case nothing can
+     *     be annotated with it
+     * @return whether {@code anno} applies to this checker or an upstream checker
+     */
+    private boolean appliesToThisChecker(
+            AnnotationMirror anno, @Nullable ExecutableElement checkerNamesElement) {
+        if (checkerNamesElement == null) {
+            return false;
+        }
+        List<String> checkerNames =
+                AnnotationUtils.getElementValueArray(anno, checkerNamesElement, String.class);
         List<@FullyQualifiedName String> upstreamCheckerNames = checker.getUpstreamCheckerNames();
-        for (String annoForChecker : annotatedForCheckers) {
-            if (upstreamCheckerNames.contains(annoForChecker)
+        for (String checkerName : checkerNames) {
+            if (upstreamCheckerNames.contains(checkerName)
                     || CheckerMain.matchesFullyQualifiedProcessor(
-                            annoForChecker, upstreamCheckerNames, true)) {
+                            checkerName, upstreamCheckerNames, true)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Returns true if the {@code @AnnotatedFor} that applies to this checker on {@code elt} is
+     * written before the {@code @UnannotatedFor} that also applies to it.
+     *
+     * <p>Call this only for an element that carries both; it decides which one wins. The two
+     * contradict each other, and resolving that by source order is what {@code @DefaultQualifier}
+     * does for the same situation, which matters because one annotation can supply both kinds at
+     * once: JSpecify's {@code @NullUnmarked} aliases to an {@code @UnannotatedFor} and to a
+     * {@code @DefaultQualifier}. Were the two halves resolved by different rules, writing
+     * {@code @NullUnmarked @NullMarked} would leave the declaration in scope for checking while its
+     * upper-bound default came from the annotation that lost, a state neither annotation produces
+     * on its own.
+     *
+     * <p>The order is that of {@link #getDeclAnnotations}, which for {@code elt}'s own annotations
+     * is the source order that {@code javac} reports; an aliasing annotation contributes at its own
+     * position, and a {@code @Repeatable} container at the position of the first repeat.
+     *
+     * @param elt an element carrying an applicable {@code @AnnotatedFor} and an applicable
+     *     {@code @UnannotatedFor}
+     * @return true if the {@code @AnnotatedFor} comes first
+     */
+    public boolean annotatedForPrecedesUnannotatedFor(Element elt) {
+        AnnotationMirrorSet declAnnos = getDeclAnnotations(elt);
+        for (int i = 0, n = declAnnos.size(); i < n; ++i) {
+            AnnotationMirror am = declAnnos.get(i);
+            @FullyQualifiedName String amName = AnnotationUtils.annotationName(am);
+            if (contributesApplicableCheckerNames(
+                    am,
+                    amName,
+                    ANNOTATED_FOR_NAME,
+                    ANNOTATED_FOR_LIST_NAME,
+                    annotatedForListValueElement,
+                    annotatedForValueElement)) {
+                return true;
+            }
+            if (contributesApplicableCheckerNames(
+                    am,
+                    amName,
+                    UNANNOTATED_FOR_NAME,
+                    UNANNOTATED_FOR_LIST_NAME,
+                    unannotatedForListValueElement,
+                    unannotatedForValueElement)) {
+                return false;
+            }
+        }
+        // Unreachable for an element that carries both, which is this method's contract.  Keep the
+        // historical resolution, under which @AnnotatedFor won, for any caller that violates it.
+        return true;
+    }
+
+    /**
+     * Returns true if {@code am} is, aliases to, or is a {@code @Repeatable} container of, an
+     * annotation named {@code annoName} whose checker names apply to this checker.
+     *
+     * @param am a declaration annotation on some element
+     * @param amName {@code am}'s fully-qualified name, which the caller has already computed
+     * @param annoName the fully-qualified name of the annotation to look for
+     * @param listName the fully-qualified name of {@code annoName}'s {@code @Repeatable} container
+     * @param listValueElement the container's {@code value} element, or null if the container type
+     *     is not on the classpath
+     * @param valueElement {@code annoName}'s element holding the checker names, or null if its type
+     *     is not on the classpath
+     * @return true if {@code am} contributes such an annotation
+     */
+    private boolean contributesApplicableCheckerNames(
+            AnnotationMirror am,
+            @FullyQualifiedName String amName,
+            @FullyQualifiedName String annoName,
+            @FullyQualifiedName String listName,
+            @Nullable ExecutableElement listValueElement,
+            @Nullable ExecutableElement valueElement) {
+        Map<@FullyQualifiedName String, AnnotationMirror> aliases = declAliases.get(annoName);
+        AnnotationMirror single =
+                amName.equals(annoName) ? am : (aliases == null ? null : aliases.get(amName));
+        if (single != null) {
+            return appliesToThisChecker(single, valueElement);
+        }
+        if (listValueElement == null) {
+            return false;
+        }
+        Map<@FullyQualifiedName String, AnnotationMirror> listAliases = declAliases.get(listName);
+        AnnotationMirror listAnno =
+                amName.equals(listName)
+                        ? am
+                        : (listAliases == null ? null : listAliases.get(amName));
+        if (listAnno == null) {
+            return false;
+        }
+        for (AnnotationMirror repeated :
+                AnnotationUtils.getElementValueArray(
+                        listAnno, listValueElement, AnnotationMirror.class)) {
+            if (appliesToThisChecker(repeated, valueElement)) {
                 return true;
             }
         }

@@ -2950,6 +2950,13 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     }
 
     /**
+     * The message key of the warning that a declaration carries both an {@code @AnnotatedFor} and
+     * an {@code @UnannotatedFor} naming this checker. {@link #shouldSuppressWarnings} exempts it
+     * from {@code @AnnotatedFor}-scope suppression; see the comment there.
+     */
+    private static final String CONFLICTING_ANNOTATED_FOR_KEY = "conflicting.annotatedfor";
+
+    /**
      * Returns true if all the warnings pertaining to the given source should be suppressed. This
      * implementation just delegates to an overloaded, more specific version of {@code
      * shouldSuppressWarnings()}.
@@ -3040,7 +3047,9 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
             return true;
         }
 
-        boolean foundAnnotatedFor = false;
+        // The innermost declaration enclosing path.  The @AnnotatedFor scope question is asked
+        // about it once, after the loop.
+        Element innermostDecl = null;
 
         // iterate through the path; continue until path contains no declarations
         for (TreePath declPath = TreePathUtil.enclosingDeclarationPath(path);
@@ -3048,54 +3057,55 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
                 declPath = TreePathUtil.enclosingDeclarationPath(declPath.getParentPath())) {
             Tree decl = declPath.getLeaf();
 
+            Element elt;
             if (decl instanceof VariableTree) {
-                Element elt = TreeUtils.elementFromDeclaration((VariableTree) decl);
-                if (hasSuppressWarningsAnnotationForErrorKey(elt, errKey)) {
-                    return true;
-                }
+                elt = TreeUtils.elementFromDeclaration((VariableTree) decl);
             } else if (decl instanceof MethodTree) {
-                Element elt = TreeUtils.elementFromDeclaration((MethodTree) decl);
-                if (hasSuppressWarningsAnnotationForErrorKey(elt, errKey)) {
-                    return true;
-                }
-
-                if (!foundAnnotatedFor && isElementAnnotatedForThisCheckerOrUpstreamChecker(elt)) {
-                    foundAnnotatedFor = true;
-                }
+                elt = TreeUtils.elementFromDeclaration((MethodTree) decl);
             } else if (TreeUtils.classTreeKinds().contains(decl.getKind())) {
-                // A class tree
-                Element elt = TreeUtils.elementFromDeclaration((ClassTree) decl);
-                if (hasSuppressWarningsAnnotationForErrorKey(elt, errKey)) {
-                    return true;
-                }
-
-                if (!foundAnnotatedFor && isElementAnnotatedForThisCheckerOrUpstreamChecker(elt)) {
-                    foundAnnotatedFor = true;
-                }
-                Element packageElement = elt.getEnclosingElement();
-                if (packageElement != null && packageElement.getKind() == ElementKind.PACKAGE) {
-                    if (hasSuppressWarningsAnnotationForErrorKey(packageElement, errKey)) {
-                        return true;
-                    }
-                    if (!foundAnnotatedFor
-                            && isElementAnnotatedForThisCheckerOrUpstreamChecker(packageElement)) {
-                        foundAnnotatedFor = true;
-                    }
-                }
+                elt = TreeUtils.elementFromDeclaration((ClassTree) decl);
             } else {
                 throw new BugInCF("Unexpected declaration kind: " + decl.getKind() + " " + decl);
             }
+
+            if (hasSuppressWarningsAnnotationForErrorKey(elt, errKey)) {
+                return true;
+            }
+            if (innermostDecl == null) {
+                innermostDecl = elt;
+            }
+
+            Element packageElement = elt.getEnclosingElement();
+            if (packageElement != null
+                    && packageElement.getKind() == ElementKind.PACKAGE
+                    && hasSuppressWarningsAnnotationForErrorKey(packageElement, errKey)) {
+                return true;
+            }
         }
 
-        if (foundAnnotatedFor) {
+        // A diagnostic about the @AnnotatedFor/@UnannotatedFor pair itself must not be silenced
+        // by the scope those annotations define: when the @UnannotatedFor wins, the declaration is
+        // outside the scope, and suppressing here would leave the contradiction unreported in
+        // exactly one of its two orders. An explicit @SuppressWarnings, handled above, still
+        // silences it.
+        if (errKey.equals(CONFLICTING_ANNOTATED_FOR_KEY)) {
             return false;
-        } else if (useConservativeDefaultsSource || onlyAnnotatedFor) {
-            // If we got this far without hitting an @AnnotatedFor and returning
-            // false, we DO suppress the warning.
-            return true;
         }
 
-        return false;
+        // Fast path: both branches below return false when neither flag is set, so the
+        // @AnnotatedFor scope resolution -- a walk that reads declaration annotations off every
+        // enclosing element -- would be discarded. This method runs for every reported diagnostic.
+        if (!useConservativeDefaultsSource && !onlyAnnotatedFor) {
+            return false;
+        }
+
+        // Ask only about the innermost declaration:
+        // isElementAnnotatedForThisCheckerOrUpstreamChecker already resolves the enclosing scope,
+        // and asking about an enclosing element separately would ignore an @UnannotatedFor that
+        // excludes the innermost declaration from that scope.
+        // The fast path above guarantees a flag is set here, so code outside an @AnnotatedFor scope
+        // has its warning suppressed.
+        return !isElementAnnotatedForThisCheckerOrUpstreamChecker(innermostDecl);
     }
 
     /**
@@ -3154,25 +3164,32 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
             return true;
         }
 
-        boolean foundAnnotatedFor = false;
         for (Element currElt = elt; currElt != null; currElt = currElt.getEnclosingElement()) {
             if (hasSuppressWarningsAnnotationForErrorKey(currElt, errKey)) {
                 return true;
             }
-            if (!foundAnnotatedFor && isElementAnnotatedForThisCheckerOrUpstreamChecker(currElt)) {
-                foundAnnotatedFor = true;
-            }
         }
 
-        if (foundAnnotatedFor) {
+        // A diagnostic about the @AnnotatedFor/@UnannotatedFor pair itself must not be silenced
+        // by the scope those annotations define: when the @UnannotatedFor wins, the declaration is
+        // outside the scope, and suppressing here would leave the contradiction unreported in
+        // exactly one of its two orders. An explicit @SuppressWarnings, handled above, still
+        // silences it.
+        if (errKey.equals(CONFLICTING_ANNOTATED_FOR_KEY)) {
             return false;
-        } else if (useConservativeDefaultsSource || onlyAnnotatedFor) {
-            // If we got this far without hitting an @AnnotatedFor and returning
-            // false, we DO suppress the warning.
-            return true;
         }
 
-        return false;
+        // Fast path, as in the TreePath overload above.
+        if (!useConservativeDefaultsSource && !onlyAnnotatedFor) {
+            return false;
+        }
+
+        // Ask only about elt: isElementAnnotatedForThisCheckerOrUpstreamChecker already resolves
+        // the enclosing scope, and asking about an enclosing element separately would ignore an
+        // @UnannotatedFor that excludes elt from that scope.
+        // The fast path above guarantees a flag is set here, so code outside an @AnnotatedFor scope
+        // has its warning suppressed.
+        return !isElementAnnotatedForThisCheckerOrUpstreamChecker(elt);
     }
 
     /**
@@ -3316,15 +3333,19 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     }
 
     /**
-     * Returns true if the element has an {@code @AnnotatedFor} annotation for this checker or an
-     * upstream checker that called this one.
+     * Returns true if the element is in the scope of an {@code @AnnotatedFor} annotation for this
+     * checker or an upstream checker that called this one. The annotation may be on the element
+     * itself or on an enclosing element; an {@code @UnannotatedFor} that applies to this checker
+     * subtracts the element from an enclosing {@code @AnnotatedFor} scope, so this method returns
+     * false for such an element even though an enclosing element is annotated.
      *
      * <p>This implementation always returns false, which is correct for a checker that does not
      * type-check, such as an aggregate checker or one of the counting checkers. {@link
      * org.checkerframework.common.basetype.BaseTypeChecker} overrides it.
      *
      * @param elt the source code element to check, or null
-     * @return true if the element is annotated for this checker or an upstream checker
+     * @return true if the element is in the scope of an {@code @AnnotatedFor} for this checker or
+     *     an upstream checker
      */
     public boolean isElementAnnotatedForThisCheckerOrUpstreamChecker(@Nullable Element elt) {
         return false;

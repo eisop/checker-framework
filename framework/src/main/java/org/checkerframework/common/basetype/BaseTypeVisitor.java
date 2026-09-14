@@ -134,6 +134,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashMap;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -149,6 +150,7 @@ import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Modifier;
 import javax.lang.model.element.Name;
+import javax.lang.model.element.PackageElement;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.DeclaredType;
@@ -199,6 +201,16 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
 
     /** The {@link BaseTypeChecker} for error reporting. */
     protected final BaseTypeChecker checker;
+
+    /**
+     * Packages this visitor has already examined for a conflicting
+     * {@code @AnnotatedFor}/{@code @UnannotatedFor} pair, so that each is examined once rather than
+     * once per class in it. Separate from the checker-wide record of what has been
+     * <em>reported</em>: that one stops a second checker from repeating the warning, while this one
+     * stops the lookups from being repeated at all.
+     */
+    private final Set<PackageElement> packagesCheckedForConflictingAnnotatedFor =
+            Collections.newSetFromMap(new IdentityHashMap<>());
 
     /** The factory to use for obtaining "parsed" version of annotations. */
     protected final Factory atypeFactory;
@@ -694,6 +706,17 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      * @param classTree class to check
      */
     public void processClassTree(ClassTree classTree) {
+        TypeElement classElt = TreeUtils.elementFromDeclaration(classTree);
+        checkConflictingAnnotatedFor(classTree, classElt);
+        if (classElt != null) {
+            // A package-info.java declares no type, so the type processor never visits it; reach
+            // the package through a class in it instead, once per package rather than once per
+            // class in it.
+            PackageElement pkgElt = ElementUtils.enclosingPackage(classElt);
+            if (pkgElt != null && packagesCheckedForConflictingAnnotatedFor.add(pkgElt)) {
+                checkConflictingAnnotatedFor(classTree, pkgElt);
+            }
+        }
         checkFieldInvariantDeclarations(classTree);
         if (!TreeUtils.hasExplicitConstructor(classTree)) {
             checkDefaultConstructor(classTree);
@@ -1233,6 +1256,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      * @param tree the method to type-check
      */
     public void processMethodTree(String className, MethodTree tree) {
+        checkConflictingAnnotatedFor(tree, TreeUtils.elementFromDeclaration(tree));
         // boilerplate
         long startMillis = System.currentTimeMillis();
         Tree startSlowTypeCheckingTree = slowTypecheckingTree;
@@ -3108,6 +3132,43 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                     // cast cannot fail at run time.
                     return false;
                 }
+            } else if (newCastType.getKind() == TypeKind.ARRAY
+                    && newExprType.getKind() == TypeKind.ARRAY) {
+                // When -AcheckCastElementType is enabled, array components must be invariant,
+                // because arrays are mutable and component qualifiers are not reified at run
+                // time, so a cast cannot check them and two differently-qualified references can
+                // alias one array.  This is the same rule DefaultTypeHierarchy#visitArray_Array
+                // applies under -AinvariantArrays, but it cannot be delegated to the type
+                // hierarchy here.  That method's equality test, areEqualInHierarchy, is protected
+                // and depends on the visitor's currentTop, so it is not reachable through the
+                // TypeHierarchy interface, and the interface's isSubtype may only be called when
+                // the underlying Java types are already in a subtype relationship -- which two
+                // array components in a cast need not be, as in "(String[]) objectArray".  What
+                // the interface does offer for unrelated types is isSubtypeShallowEffective, so
+                // compare the components with it in both directions, one dimension at a time.
+                // Being shallow costs nothing here: a component that is itself structured, such
+                // as the type argument in "List<@Nullable String>[]", is already checked by the
+                // isSubtype call above, which the erased types of an array cast always reach.
+                AnnotatedTypeMirror castCurr = newCastType;
+                AnnotatedTypeMirror exprCurr = newExprType;
+                while (castCurr.getKind() == TypeKind.ARRAY
+                        && exprCurr.getKind() == TypeKind.ARRAY) {
+                    castCurr = ((AnnotatedArrayType) castCurr).getComponentType();
+                    exprCurr = ((AnnotatedArrayType) exprCurr).getComponentType();
+                    if (!typeHierarchy.isSubtypeShallowEffective(castCurr, exprCurr)
+                            || !typeHierarchy.isSubtypeShallowEffective(exprCurr, castCurr)) {
+                        return false;
+                    }
+                }
+                // Casting to more dimensions than the expression has, as in "(Object[][]) objArr",
+                // reaches an array component on the cast side whose qualifiers nothing on the
+                // expression side constrains, so reject it.  The opposite, casting away a
+                // dimension as in "(Object[]) objArrArr", is not rejected: every component
+                // compared above matched, and what remains is a Java typing question that the
+                // run time enforces with ArrayStoreException, not a qualifier question.
+                if (castCurr.getKind() == TypeKind.ARRAY && exprCurr.getKind() != TypeKind.ARRAY) {
+                    return false;
+                }
             } else if (newCastType.getKind() == TypeKind.DECLARED
                     && newExprType.getKind() == TypeKind.DECLARED) {
                 int castSize = ((AnnotatedDeclaredType) newCastType).getTypeArguments().size();
@@ -3229,7 +3290,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                     AnnotatedTypeMirror variableType = atypeFactory.getAnnotatedType(variableTree);
                     AnnotatedTypeMirror expType =
                             atypeFactory.getAnnotatedType(tree.getExpression());
-                    if (!isTypeCastSafe(variableType, expType)) {
+                    if (!isInstanceOfPatternSafe(variableType, expType)) {
                         checker.reportWarning(
                                 tree, "instanceof.pattern.unsafe", expType, variableTree);
                     }
@@ -3251,6 +3312,18 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         }
 
         return super.visitInstanceOf(tree, p);
+    }
+
+    /**
+     * Returns true if the instanceof binding pattern is safe.
+     *
+     * @param variableType annotated type of the pattern variable
+     * @param expType annotated type of the expression being tested
+     * @return true if the pattern is safe, false otherwise
+     */
+    protected boolean isInstanceOfPatternSafe(
+            AnnotatedTypeMirror variableType, AnnotatedTypeMirror expType) {
+        return isTypeCastSafe(variableType, expType);
     }
 
     /**
@@ -6020,5 +6093,31 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         // r = reduce(scan(identifierTree.getImports(), p), r);
         r = reduce(scan(identifierTree.getTypeDecls(), p), r);
         return r;
+    }
+
+    /**
+     * Warns if {@code elt} has both an {@code @AnnotatedFor} and an {@code @UnannotatedFor} that
+     * apply to this checker. The two contradict each other, and the one written first decides
+     * whether {@code elt} is checked; see {@link
+     * org.checkerframework.framework.type.AnnotatedTypeFactory#annotatedForPrecedesUnannotatedFor}.
+     *
+     * @param tree the declaration to report the warning on
+     * @param elt the declaration's element, or null if it has none
+     */
+    private void checkConflictingAnnotatedFor(Tree tree, @Nullable Element elt) {
+        if (elt == null) {
+            return;
+        }
+        if (checker.hasApplicableAnnotatedFor(elt, false)
+                && checker.hasApplicableUnannotatedFor(elt, false)
+                && checker.shouldReportConflictingAnnotatedFor(elt)) {
+            // A package's own declaration is in a package-info.java that the type processor never
+            // visits, and a report is positioned against the file being visited, so report on the
+            // element rather than on a tree in another file.
+            checker.reportWarning(
+                    elt.getKind() == ElementKind.PACKAGE ? elt : tree,
+                    "conflicting.annotatedfor",
+                    elt);
+        }
     }
 }
