@@ -14,7 +14,7 @@ import java.lang.annotation.Target;
  * {@code @Nullable} and friends, mark that class {@code @UnannotatedFor("nullness")}. The argument
  * to {@code UnannotatedFor} is not an annotation name, but a checker name.
  *
- * <p>This annotation has no effect unless the {@code
+ * <p>This annotation is retained in bytecode but has no effect unless the {@code
  * -AuseConservativeDefaultsForUncheckedCode=source} or the {@code -AonlyAnnotatedFor} command-line
  * argument is supplied. It only subtracts from the scope of an enclosing {@link AnnotatedFor}: an
  * element in its scope is treated as if no enclosing {@code @AnnotatedFor} were present, so its
@@ -44,7 +44,7 @@ import java.lang.annotation.Target;
  * @checker_framework.manual #compiling-libraries Compiling partially-annotated libraries
  */
 @Documented
-@Retention(RetentionPolicy.SOURCE)
+@Retention(RetentionPolicy.RUNTIME)
 @Target({ElementType.TYPE, ElementType.METHOD, ElementType.CONSTRUCTOR, ElementType.PACKAGE})
 @Repeatable(UnannotatedFor.List.class)
 public @interface UnannotatedFor {
@@ -73,7 +73,7 @@ public @interface UnannotatedFor {
      * writes more than one {@link UnannotatedFor} annotation at the same location.
      */
     @Documented
-    @Retention(RetentionPolicy.SOURCE)
+    @Retention(RetentionPolicy.RUNTIME)
     @Target({ElementType.TYPE, ElementType.METHOD, ElementType.CONSTRUCTOR, ElementType.PACKAGE})
     public static @interface List {
         /**

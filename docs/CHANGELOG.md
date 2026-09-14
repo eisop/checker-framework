@@ -27,6 +27,13 @@ suppressed, as if no enclosing `@AnnotatedFor` were present; a nested
 `-AuseConservativeDefaultsForUncheckedCode=source` or `-AonlyAnnotatedFor` is
 supplied.
 
+`@AnnotatedFor` and `@UnannotatedFor` now have `RUNTIME` retention instead of
+`SOURCE` retention, so they are stored in class files. Under
+`-AuseConservativeDefaultsForUncheckedCode=bytecode`, a class compiled with a
+relevant `@AnnotatedFor` is no longer treated as unchecked code, and an
+`@UnannotatedFor` in a dependency now excludes its scope. Run-time tools can
+also use `@AnnotatedFor` to tell which classes have been type-checked.
+
 The Nullness Checker now also treats JSpecify's `@NullUnmarked` as the inverse of
 `@NullMarked`, in both of the ways `@NullMarked` is recognized. It undoes the
 enclosing `@NullMarked`'s `@NonNull` upper-bound default within its scope -- without
@@ -1024,7 +1031,7 @@ Other improvements and bug fixes:
 
 eisop#104, eisop#386, eisop#433, eisop#622, eisop#737, eisop#778, eisop#786,
 eisop#792, eisop#863, eisop#876, eisop#949, eisop#1015, eisop#1059, eisop#1074,
-eisop#1244, eisop#1292, eisop#1299, eisop#1315, eisop#1564, eisop#1592,
+eisop#1244, eisop#1292, eisop#1299, eisop#1315, eisop#1481, eisop#1564, eisop#1592,
 eisop#1642, eisop#1653, eisop#1735, eisop#1801, eisop#1818, eisop#1819,
 eisop#1861, eisop#1862, eisop#1863, eisop#1865, eisop#1887, eisop#1965,
 eisop#1986, eisop#1987, eisop#1990, eisop#1991, eisop#2009, eisop#2020,
