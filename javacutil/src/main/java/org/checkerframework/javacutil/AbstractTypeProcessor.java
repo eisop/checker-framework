@@ -1,6 +1,8 @@
 package org.checkerframework.javacutil;
 
 import com.sun.source.tree.ClassTree;
+import com.sun.source.tree.CompilationUnitTree;
+import com.sun.source.tree.PackageTree;
 import com.sun.source.util.JavacTask;
 import com.sun.source.util.TaskEvent;
 import com.sun.source.util.TaskListener;
@@ -21,7 +23,9 @@ import javax.annotation.processing.AbstractProcessor;
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.annotation.processing.Processor;
 import javax.annotation.processing.RoundEnvironment;
+import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.Name;
+import javax.lang.model.element.PackageElement;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.util.ElementFilter;
 
@@ -75,6 +79,14 @@ public abstract class AbstractTypeProcessor extends AbstractProcessor {
      * instantiations.
      */
     private final Set<Name> elements = new HashSet<>();
+
+    /**
+     * The fully-qualified names of the packages whose {@code package-info.java} is in this
+     * compilation, and whose declaration should therefore be processed. Kept separately from {@link
+     * #elements} because javac reports such a file's root element as a {@link PackageElement}, not
+     * a {@link TypeElement}, so {@link ElementFilter#typesIn} does not see it.
+     */
+    private final Set<Name> packageElements = new HashSet<>();
 
     /**
      * Method {@link #typeProcessingStart()} must be invoked exactly once, before any invocation of
@@ -179,6 +191,9 @@ public abstract class AbstractTypeProcessor extends AbstractProcessor {
         for (TypeElement elem : ElementFilter.typesIn(roundEnv.getRootElements())) {
             elements.add(elem.getQualifiedName());
         }
+        for (PackageElement elem : ElementFilter.packagesIn(roundEnv.getRootElements())) {
+            packageElements.add(elem.getQualifiedName());
+        }
         return false;
     }
 
@@ -199,6 +214,56 @@ public abstract class AbstractTypeProcessor extends AbstractProcessor {
      * @param tree the tree path to the element, with the leaf being a {@link ClassTree}
      */
     public abstract void typeProcess(TypeElement element, TreePath tree);
+
+    /**
+     * Processes a fully-analyzed package declaration, that is, the {@code package} clause of a
+     * {@code package-info.java} in this compilation.
+     *
+     * <p>The {@code @Target} of an annotation may include {@link ElementKind#PACKAGE}, so a
+     * declaration annotation and its contradictions can appear here exactly as they can on a class.
+     * A {@code package-info.java} declares no type, however, so {@link #typeProcess} is never
+     * invoked for one; this is the corresponding hook.
+     *
+     * <p>Does nothing by default. A subclass that has nothing to check on a package declaration
+     * need not override it.
+     *
+     * @param element the analyzed package
+     * @param tree the tree path to the package declaration, with the leaf being a {@link
+     *     PackageTree}
+     */
+    public void packageProcess(PackageElement element, TreePath tree) {}
+
+    /**
+     * Returns the path to {@code cu}'s package declaration.
+     *
+     * <p>{@code Trees.getPath} returns null for the synthetic {@code package-info} type that the
+     * ANALYZE event carries, so the path is built from the compilation unit instead. Its leaf is
+     * the {@link PackageTree}, matching {@link #typeProcess}, whose path's leaf is the analyzed
+     * class's own declaration.
+     *
+     * @param cu a {@code package-info.java} compilation unit
+     * @return the path to {@code cu}'s package declaration
+     */
+    private TreePath packageDeclarationPath(CompilationUnitTree cu) {
+        TreePath cuPath = new TreePath(cu);
+        PackageTree pkgTree = cu.getPackage();
+        return pkgTree == null ? cuPath : new TreePath(cuPath, pkgTree);
+    }
+
+    /**
+     * Invokes {@link #typeProcessingOver()} if every element this compilation registered has now
+     * been processed.
+     *
+     * <p>Both sets must be empty: a compilation that contains classes and a {@code
+     * package-info.java} may analyze the classes first, and ending type processing then would drop
+     * the package declaration that has not been dispatched yet.
+     */
+    private void maybeInvokeTypeProcessingOver() {
+        if (!hasInvokedTypeProcessingOver && elements.isEmpty() && packageElements.isEmpty()) {
+            typeProcessingOver();
+            hasInvokedTypeProcessingOver = true;
+        }
+    }
 
     /**
      * A method to be called once all the classes are processed.
@@ -277,9 +342,8 @@ public abstract class AbstractTypeProcessor extends AbstractProcessor {
                 hasInvokedTypeProcessingStart = true;
             }
 
-            if (!hasInvokedTypeProcessingOver && elements.isEmpty()) {
-                typeProcessingOver();
-                hasInvokedTypeProcessingOver = true;
+            if (elements.isEmpty() && packageElements.isEmpty()) {
+                maybeInvokeTypeProcessingOver();
             }
 
             if (e.getTypeElement() == null) {
@@ -289,19 +353,32 @@ public abstract class AbstractTypeProcessor extends AbstractProcessor {
                 throw new BugInCF("event task without compilation unit");
             }
 
-            if (!elements.remove(e.getTypeElement().getQualifiedName())) {
+            TypeElement elem = e.getTypeElement();
+
+            // javac synthesizes a "<package>.package-info" type for a package-info.java that
+            // carries annotations, and fires ANALYZE for it.  That type was never a root element
+            // -- the root element was the PackageElement -- so it is absent from `elements` and
+            // the guard below would drop the event, leaving no way for any processor to reach a
+            // package declaration.  Dispatch it to packageProcess instead, keyed on the package
+            // this compilation actually contains.
+            if (elem.getEnclosingElement().getKind() == ElementKind.PACKAGE) {
+                PackageElement pkg = (PackageElement) elem.getEnclosingElement();
+                if (packageElements.remove(pkg.getQualifiedName())) {
+                    packageProcess(pkg, packageDeclarationPath(e.getCompilationUnit()));
+                    maybeInvokeTypeProcessingOver();
+                    return;
+                }
+            }
+
+            if (!elements.remove(elem.getQualifiedName())) {
                 return;
             }
 
-            TypeElement elem = e.getTypeElement();
             TreePath p = Trees.instance(processingEnv).getPath(elem);
 
             typeProcess(elem, p);
 
-            if (!hasInvokedTypeProcessingOver && elements.isEmpty()) {
-                typeProcessingOver();
-                hasInvokedTypeProcessingOver = true;
-            }
+            maybeInvokeTypeProcessingOver();
         }
 
         @Override
