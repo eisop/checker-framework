@@ -2950,6 +2950,13 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     }
 
     /**
+     * The message key of the warning that a declaration carries both an {@code @AnnotatedFor} and
+     * an {@code @UnannotatedFor} naming this checker. {@link #shouldSuppressWarnings} exempts it
+     * from {@code @AnnotatedFor}-scope suppression; see the comment there.
+     */
+    private static final String CONFLICTING_ANNOTATED_FOR_KEY = "conflicting.annotatedfor";
+
+    /**
      * Returns true if all the warnings pertaining to the given source should be suppressed. This
      * implementation just delegates to an overloaded, more specific version of {@code
      * shouldSuppressWarnings()}.
@@ -3076,6 +3083,15 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
             }
         }
 
+        // A diagnostic about the @AnnotatedFor/@UnannotatedFor pair itself must not be silenced
+        // by the scope those annotations define: when the @UnannotatedFor wins, the declaration is
+        // outside the scope, and suppressing here would leave the contradiction unreported in
+        // exactly one of its two orders. An explicit @SuppressWarnings, handled above, still
+        // silences it.
+        if (errKey.equals(CONFLICTING_ANNOTATED_FOR_KEY)) {
+            return false;
+        }
+
         // Fast path: both branches below return false when neither flag is set, so the
         // @AnnotatedFor scope resolution -- a walk that reads declaration annotations off every
         // enclosing element -- would be discarded. This method runs for every reported diagnostic.
@@ -3152,6 +3168,15 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
             if (hasSuppressWarningsAnnotationForErrorKey(currElt, errKey)) {
                 return true;
             }
+        }
+
+        // A diagnostic about the @AnnotatedFor/@UnannotatedFor pair itself must not be silenced
+        // by the scope those annotations define: when the @UnannotatedFor wins, the declaration is
+        // outside the scope, and suppressing here would leave the contradiction unreported in
+        // exactly one of its two orders. An explicit @SuppressWarnings, handled above, still
+        // silences it.
+        if (errKey.equals(CONFLICTING_ANNOTATED_FOR_KEY)) {
+            return false;
         }
 
         // Fast path, as in the TreePath overload above.
