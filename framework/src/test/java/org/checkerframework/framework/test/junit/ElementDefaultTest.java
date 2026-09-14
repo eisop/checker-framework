@@ -8,10 +8,11 @@ import java.io.File;
 import java.util.List;
 
 /**
- * Tests that a default added via {@link
- * org.checkerframework.framework.util.defaults.QualifierDefaults#addElementDefault} on a package
- * reaches that package's subpackages, the same way a written {@code @DefaultQualifier} would (see
- * eisop#2037).
+ * Tests {@link org.checkerframework.framework.util.defaults.QualifierDefaults#addElementDefault}:
+ * that a default added on a package reaches that package's subpackages, the same way a written
+ * {@code @DefaultQualifier} would (eisop#2037), and that a default added on a class merges with
+ * written {@code @DefaultQualifier} annotations and with enclosing defaults no matter which
+ * defaults were queried, and thereby memoized, before it was added (eisop#2047).
  */
 public class ElementDefaultTest extends CheckerFrameworkPerDirectoryTest {
 

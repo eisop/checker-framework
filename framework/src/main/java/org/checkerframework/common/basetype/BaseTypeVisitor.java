@@ -3122,6 +3122,43 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                     // cast cannot fail at run time.
                     return false;
                 }
+            } else if (newCastType.getKind() == TypeKind.ARRAY
+                    && newExprType.getKind() == TypeKind.ARRAY) {
+                // When -AcheckCastElementType is enabled, array components must be invariant,
+                // because arrays are mutable and component qualifiers are not reified at run
+                // time, so a cast cannot check them and two differently-qualified references can
+                // alias one array.  This is the same rule DefaultTypeHierarchy#visitArray_Array
+                // applies under -AinvariantArrays, but it cannot be delegated to the type
+                // hierarchy here.  That method's equality test, areEqualInHierarchy, is protected
+                // and depends on the visitor's currentTop, so it is not reachable through the
+                // TypeHierarchy interface, and the interface's isSubtype may only be called when
+                // the underlying Java types are already in a subtype relationship -- which two
+                // array components in a cast need not be, as in "(String[]) objectArray".  What
+                // the interface does offer for unrelated types is isSubtypeShallowEffective, so
+                // compare the components with it in both directions, one dimension at a time.
+                // Being shallow costs nothing here: a component that is itself structured, such
+                // as the type argument in "List<@Nullable String>[]", is already checked by the
+                // isSubtype call above, which the erased types of an array cast always reach.
+                AnnotatedTypeMirror castCurr = newCastType;
+                AnnotatedTypeMirror exprCurr = newExprType;
+                while (castCurr.getKind() == TypeKind.ARRAY
+                        && exprCurr.getKind() == TypeKind.ARRAY) {
+                    castCurr = ((AnnotatedArrayType) castCurr).getComponentType();
+                    exprCurr = ((AnnotatedArrayType) exprCurr).getComponentType();
+                    if (!typeHierarchy.isSubtypeShallowEffective(castCurr, exprCurr)
+                            || !typeHierarchy.isSubtypeShallowEffective(exprCurr, castCurr)) {
+                        return false;
+                    }
+                }
+                // Casting to more dimensions than the expression has, as in "(Object[][]) objArr",
+                // reaches an array component on the cast side whose qualifiers nothing on the
+                // expression side constrains, so reject it.  The opposite, casting away a
+                // dimension as in "(Object[]) objArrArr", is not rejected: every component
+                // compared above matched, and what remains is a Java typing question that the
+                // run time enforces with ArrayStoreException, not a qualifier question.
+                if (castCurr.getKind() == TypeKind.ARRAY && exprCurr.getKind() != TypeKind.ARRAY) {
+                    return false;
+                }
             } else if (newCastType.getKind() == TypeKind.DECLARED
                     && newExprType.getKind() == TypeKind.DECLARED) {
                 int castSize = ((AnnotatedDeclaredType) newCastType).getTypeArguments().size();
@@ -3243,7 +3280,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                     AnnotatedTypeMirror variableType = atypeFactory.getAnnotatedType(variableTree);
                     AnnotatedTypeMirror expType =
                             atypeFactory.getAnnotatedType(tree.getExpression());
-                    if (!isTypeCastSafe(variableType, expType)) {
+                    if (!isInstanceOfPatternSafe(variableType, expType)) {
                         checker.reportWarning(
                                 tree, "instanceof.pattern.unsafe", expType, variableTree);
                     }
@@ -3265,6 +3302,18 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         }
 
         return super.visitInstanceOf(tree, p);
+    }
+
+    /**
+     * Returns true if the instanceof binding pattern is safe.
+     *
+     * @param variableType annotated type of the pattern variable
+     * @param expType annotated type of the expression being tested
+     * @return true if the pattern is safe, false otherwise
+     */
+    protected boolean isInstanceOfPatternSafe(
+            AnnotatedTypeMirror variableType, AnnotatedTypeMirror expType) {
+        return isTypeCastSafe(variableType, expType);
     }
 
     /**

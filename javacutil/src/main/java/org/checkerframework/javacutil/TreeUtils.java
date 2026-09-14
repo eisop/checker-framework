@@ -2452,8 +2452,18 @@ public final class TreeUtils {
                     List<? extends Tree> alternatives =
                             ((UnionTypeTree) typeTree).getTypeAlternatives();
                     List<AnnotationTree> unionResult = new ArrayList<>(alternatives.size());
-                    for (Tree alternative : alternatives) {
-                        unionResult.addAll(getExplicitAnnotationTrees(null, alternative));
+                    // Only the first alternative gets annoTrees. In a multi-catch, javac attaches
+                    // an annotation written before the first alternative to the catch parameter's
+                    // modifiers -- which is what annoTrees holds -- and leaves that alternative a
+                    // bare identifier, so passing null here would drop it. An annotation on any
+                    // later alternative stays on that alternative's own tree, which arrives here
+                    // as an ANNOTATED_TYPE and needs nothing from annoTrees; passing annoTrees to
+                    // it as well would report the first alternative's annotation once per
+                    // alternative.
+                    for (int i = 0; i < alternatives.size(); i++) {
+                        unionResult.addAll(
+                                getExplicitAnnotationTrees(
+                                        i == 0 ? annoTrees : null, alternatives.get(i)));
                     }
                     return unionResult;
                 case INTERSECTION_TYPE:
