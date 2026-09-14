@@ -3,6 +3,27 @@ Version 3.49.5-eisop2 (June ?, 2026)
 
 **User-visible changes:**
 
+A checker can now examine a package declaration. `AbstractTypeProcessor` dropped the
+analysis event for a `package-info.java`, so no checker could ever visit one and a
+declaration annotation written on a `package` clause went unchecked. Three checks that
+apply to a package therefore did not run there, and now do:
+
+- A conflicting `@AnnotatedFor`/`@UnannotatedFor` pair on a package was reported only when
+  some class in that package was also compiled, because the check had to be reached
+  through one.
+- A conflicting `@DefaultQualifier` pair on a package was likewise reported only then, and
+  for the same reason: the diagnostic fell out of resolving the package's defaults, which
+  nothing does when no class in the package is compiled.
+- A conflicting `@HasQualifierParameter`/`@NoQualifierParameter` pair on a package, and a
+  `@HasQualifierParameter` whose argument is not a top qualifier, were never checked at
+  all. Both annotations' `@Target` includes `PACKAGE`.
+
+A conflicting `@DefaultQualifier` pair on an element read from bytecode is no longer an
+error. It is reported as a warning under the new `-AwarnBytecodeConflicts`, and not at all
+without it. Such a declaration is in a library the user cannot edit, and which bytecode
+elements get examined depends on what the compilation happens to touch, so the coverage was
+never complete enough to rely on.
+
 `-AcheckCastElementType` is documented as requiring that "parameterized type
 arguments and array elements are the same" in a cast, but only the type-argument
 half was implemented. Array components are now required to be invariant too, in

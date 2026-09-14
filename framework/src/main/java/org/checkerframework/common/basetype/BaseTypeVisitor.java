@@ -717,6 +717,36 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
     public void processPackageTree(PackageTree tree, PackageElement elt) {
         checkConflictingAnnotatedFor(tree, elt);
         atypeFactory.getQualifierDefaults().checkConflictingDefaults(elt);
+        checkQualifierParameterOnDeclaration(tree, elt);
+    }
+
+    /**
+     * Checks the {@code @HasQualifierParameter} and {@code @NoQualifierParameter} annotations
+     * written on {@code elt}, which may be a class or a package.
+     *
+     * <p>Both annotations' {@code @Target} includes {@code PACKAGE}, and
+     * {@code @HasQualifierParameter} has an {@code applyToSubpackages} element, so both are
+     * meaningful on a package; only the two checks that do not involve supertypes apply there.
+     * {@code missing.has.qual.param} is not among them: it asks whether a declaration inherits a
+     * qualifier parameter it does not itself declare, and a package extends nothing.
+     *
+     * @param tree the declaration to report on
+     * @param elt the declaration's element
+     */
+    private void checkQualifierParameterOnDeclaration(Tree tree, Element elt) {
+        for (AnnotationMirror top : qualHierarchy.getTopAnnotations()) {
+            if (!atypeFactory.hasExplicitQualifierParameterInHierarchy(elt, top)
+                    && atypeFactory.getDeclAnnotation(elt, HasQualifierParameter.class) != null) {
+                // The argument to a @HasQualifierParameter annotation must be the top type in the
+                // type system.
+                checker.reportError(tree, "invalid.qual.param", top);
+                break;
+            }
+            if (atypeFactory.hasExplicitQualifierParameterInHierarchy(elt, top)
+                    && atypeFactory.hasExplicitNoQualifierParameterInHierarchy(elt, top)) {
+                checker.reportError(tree, "conflicting.qual.param", top);
+            }
+        }
     }
 
     /**
