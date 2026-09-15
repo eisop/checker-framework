@@ -28,11 +28,15 @@ suppressed, as if no enclosing `@AnnotatedFor` were present; a nested
 supplied.
 
 `@AnnotatedFor` and `@UnannotatedFor` now have `RUNTIME` retention instead of
-`SOURCE` retention, so they are stored in class files. Under
-`-AuseConservativeDefaultsForUncheckedCode=bytecode`, a class compiled with a
-relevant `@AnnotatedFor` is no longer treated as unchecked code, and an
-`@UnannotatedFor` in a dependency now excludes its scope. Run-time tools can
-also use `@AnnotatedFor` to tell which classes have been type-checked.
+`SOURCE` retention, so they are stored in class files and available via
+reflection at run time. Under `-AuseConservativeDefaultsForUncheckedCode=bytecode`,
+a class compiled with a relevant `@AnnotatedFor` is no longer treated as
+unchecked code, and an `@UnannotatedFor` in a dependency now excludes its
+scope. A package annotation in a `package-info.class` on the classpath now
+also applies to separately compiled subpackages, unless it sets
+`applyToSubpackages = false`. Run-time tools can read `@AnnotatedFor` to see
+which classes their authors have annotated for a type system; it does not
+record whether a checker was run.
 
 The Nullness Checker now also treats JSpecify's `@NullUnmarked` as the inverse of
 `@NullMarked`, in both of the ways `@NullMarked` is recognized. It undoes the

@@ -17,12 +17,14 @@ import java.lang.annotation.Target;
  * using it in a fully-annotated library nor in an application that does not export APIs for
  * clients.
  *
- * <p>This annotation is retained in bytecode but has no effect unless the {@code
+ * <p>This annotation has no effect unless the {@code
  * -AuseConservativeDefaultsForUncheckedCode=source} command-line argument is supplied. Ordinarily,
  * the {@code -AuseConservativeDefaultsForUncheckedCode=source} command-line argument causes
  * unannotated locations to be defaulted using conservative defaults, and it suppresses all
  * warnings. However, a class with a relevant {@code @AnnotatedFor} annotation is always defaulted
  * normally (typically using the CLIMB-to-top rule), and typechecking warnings are issued.
+ *
+ * <p>This annotation is stored in class files and is available via reflection at run time.
  *
  * <p>An {@code @AnnotatedFor} on a package also applies to subpackages, unless the {@code
  * applyToSubpackages} field is set to false. Setting it to false does not block an applicable

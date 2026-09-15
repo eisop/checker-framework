@@ -14,7 +14,7 @@ import java.lang.annotation.Target;
  * {@code @Nullable} and friends, mark that class {@code @UnannotatedFor("nullness")}. The argument
  * to {@code UnannotatedFor} is not an annotation name, but a checker name.
  *
- * <p>This annotation is retained in bytecode but has no effect unless the {@code
+ * <p>This annotation has no effect unless the {@code
  * -AuseConservativeDefaultsForUncheckedCode=source} or the {@code -AonlyAnnotatedFor} command-line
  * argument is supplied. It only subtracts from the scope of an enclosing {@link AnnotatedFor}: an
  * element in its scope is treated as if no enclosing {@code @AnnotatedFor} were present, so its
@@ -26,6 +26,9 @@ import java.lang.annotation.Target;
  * conflicting.annotatedfor}), because the two contradict each other; if that warning is suppressed,
  * the {@code @AnnotatedFor} wins, since {@code @UnannotatedFor} only subtracts from an
  * <em>enclosing</em> scope.
+ *
+ * <p>Like {@link AnnotatedFor}, this annotation is stored in class files and is available via
+ * reflection at run time.
  *
  * <p>An {@code @UnannotatedFor} on a package also applies to subpackages, unless the {@code
  * applyToSubpackages} field is set to false. The innermost package annotation wins: an
