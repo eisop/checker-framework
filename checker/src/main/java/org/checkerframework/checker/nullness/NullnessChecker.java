@@ -125,7 +125,8 @@ public class NullnessChecker extends InitializationChecker {
      *
      * <p>{@link #MODE_JSPECIFY} restricts checking to code in the scope of an
      * {@code @AnnotatedFor}, treats {@code @NullMarked} as a defaulting annotation, and turns off
-     * the initialization and map-key checks, none of which JSpecify specifies.
+     * the initialization and map-key checks, none of which JSpecify specifies. It also assumes that
+     * every called method is pure and that assertions are enabled.
      */
     @Override
     protected void addOptionsForMode(String mode, Map<String, String> activeOptions) {
@@ -138,6 +139,12 @@ public class NullnessChecker extends InitializationChecker {
                 activeOptions.putIfAbsent("assumeInitialized", null);
                 activeOptions.putIfAbsent("assumeKeyFor", null);
                 activeOptions.putIfAbsent("jspecifyUnrecognizedLocations", null);
+                activeOptions.putIfAbsent("assumePure", null);
+                // Assuming assertions are both enabled and disabled is an error, so one written
+                // disabled on the command line wins, as any other command-line option does.
+                if (!activeOptions.containsKey("assumeAssertionsAreDisabled")) {
+                    activeOptions.putIfAbsent("assumeAssertionsAreEnabled", null);
+                }
                 break;
             default:
                 break;
