@@ -39,6 +39,15 @@ public class RecognizedLocations {
         // A formal parameter type of a lambda.
         Function<@Nullable String, String> lambda = (@Nullable String s) -> "";
 
+        // Method references whose qualifier is an expression rather than a type. These once
+        // crashed TreeUtils.getExplicitAnnotationTrees, which accepts only type trees.
+        Supplier<Integer> literalQualifier = "abc"::length;
+        Supplier<String> newQualifier = new Object()::toString;
+        Supplier<String> invocationQualifier = "abc".trim()::toString;
+        Supplier<Integer> parenthesizedQualifier = ("abc")::length;
+        String nonNullLocal = "";
+        Supplier<Integer> variableQualifier = nonNullLocal::length;
+
         return null;
     }
 
