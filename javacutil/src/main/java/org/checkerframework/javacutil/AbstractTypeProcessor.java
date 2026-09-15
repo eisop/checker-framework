@@ -310,6 +310,25 @@ public abstract class AbstractTypeProcessor extends AbstractProcessor {
     }
 
     /**
+     * Processes a package declaration on behalf of an external host (see {@link
+     * #externallyDriven}), handling the once-only {@link #typeProcessingStart()} invocation.
+     *
+     * <p>The counterpart of {@link #typeProcessExternally} for a {@code package-info.java}. A host
+     * needs it because the {@link TaskListener} that would otherwise dispatch the package
+     * declaration is not registered in externally-driven mode.
+     *
+     * @param element the package being processed
+     * @param tree the path to the package declaration, with the leaf being a {@link PackageTree}
+     */
+    public final void packageProcessExternally(PackageElement element, TreePath tree) {
+        if (!hasInvokedTypeProcessingStart) {
+            typeProcessingStart();
+            hasInvokedTypeProcessingStart = true;
+        }
+        packageProcess(element, tree);
+    }
+
+    /**
      * Signals, on behalf of an external host (see {@link #externallyDriven}), that all classes have
      * been processed. Invokes {@link #typeProcessingOver()} exactly once. Also invokes {@link
      * #typeProcessingStart()} first if it has not yet run (e.g. if no classes were processed).
