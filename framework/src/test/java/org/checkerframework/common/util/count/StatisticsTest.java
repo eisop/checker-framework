@@ -25,6 +25,13 @@ import javax.tools.ToolProvider;
  */
 public class StatisticsTest {
 
+    /**
+     * Returns an in-memory Java source file.
+     *
+     * @param className the qualified or simple name of the class, used to form the file URI
+     * @param code the source text of the file
+     * @return a {@link JavaFileObject} that yields {@code code} as its content
+     */
     private static JavaFileObject source(String className, String code) {
         return new SimpleJavaFileObject(
                 URI.create("string:///" + className.replace('.', '/') + ".java"),
@@ -36,6 +43,12 @@ public class StatisticsTest {
         };
     }
 
+    /**
+     * Tests running {@link AnnotationStatistics} on unannotated code.
+     *
+     * <p>Regression test for issue #2089: verifies that running {@code AnnotationStatistics} on
+     * classes without annotations succeeds without throwing a {@link NullPointerException}.
+     */
     @Test
     public void testAnnotationStatisticsOnUnannotatedCode() {
         JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
@@ -59,6 +72,12 @@ public class StatisticsTest {
         Assert.assertTrue(processor.annotationCount.isEmpty());
     }
 
+    /**
+     * Tests running {@link AnnotationStatistics} on annotated code.
+     *
+     * <p>Verifies that {@link AnnotationStatistics} correctly counts occurrences of annotations on
+     * classes and fields.
+     */
     @Test
     public void testAnnotationStatisticsCountsAnnotations() {
         JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
@@ -87,6 +106,12 @@ public class StatisticsTest {
         Assert.assertEquals(1, (int) processor.annotationCount.get("java.lang.SuppressWarnings"));
     }
 
+    /**
+     * Tests running {@link JavaCodeStatistics} on Java code.
+     *
+     * <p>Regression test for issue #2089: verifies that {@code JavaCodeStatistics} instantiates and
+     * counts code constructs without failing during initialization.
+     */
     @Test
     public void testJavaCodeStatistics() {
         JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
