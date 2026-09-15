@@ -21,6 +21,7 @@ import org.plumelib.util.DeepCopyable;
 
 import java.lang.annotation.Annotation;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -2168,6 +2169,28 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
      */
     public static class AnnotatedTypeVariable extends AnnotatedTypeMirror {
 
+        /** How this type variable usage should be substituted. */
+        public enum TypeVariableUsageKind {
+            /**
+             * Substitute the full actual type argument: the usage is written bare, as {@code E}, so
+             * it takes the type argument's qualifier. This is {@code @Sub E} in the formalization.
+             */
+            PLAIN,
+
+            /**
+             * Substitute the actual type argument, but replace its head qualifier with this
+             * usage's: the usage is written {@code @q E}.
+             */
+            REQUALIFYING
+        }
+
+        /**
+         * Creates a new {@link AnnotatedTypeVariable}.
+         *
+         * @param type the underlying type
+         * @param atypeFactory the type factory
+         * @param declaration whether this represents a type-variable declaration
+         */
         private AnnotatedTypeVariable(
                 TypeVariable type, AnnotatedTypeFactory atypeFactory, boolean declaration) {
             super(type, atypeFactory);
@@ -2185,16 +2208,139 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
         /** The upper bound of the type variable. */
         private AnnotatedTypeMirror upperBound;
 
+        /** Whether this represents a type-variable declaration. */
         private boolean declaration;
+
+        /** How this type variable usage should be substituted. */
+        private TypeVariableUsageKind usageKind = TypeVariableUsageKind.PLAIN;
+
+        /**
+         * The explicitly written annotations for a {@link TypeVariableUsageKind#REQUALIFYING}
+         * usage.
+         */
+        private AnnotationMirrorSet requalifyingTypeVariableUsageAnnotations =
+                new AnnotationMirrorSet();
 
         @Override
         public boolean isDeclaration() {
             return declaration;
         }
 
+        /**
+         * Sets whether this type variable usage is written bare, as {@code E}, or with a qualifier
+         * of its own, as {@code @q E}.
+         *
+         * @param usageKind how this type variable usage should be substituted
+         */
+        public void setTypeVariableUsageKind(TypeVariableUsageKind usageKind) {
+            this.usageKind = usageKind;
+            if (usageKind == TypeVariableUsageKind.PLAIN) {
+                requalifyingTypeVariableUsageAnnotations.clear();
+            }
+        }
+
+        /**
+         * Returns whether this type variable usage is written bare, as {@code E}, or with a
+         * qualifier of its own, as {@code @q E}.
+         *
+         * @return how this type variable usage should be substituted
+         */
+        public TypeVariableUsageKind getTypeVariableUsageKind() {
+            return usageKind;
+        }
+
+        /** Marks this type variable usage as written bare, as {@code E}. */
+        public void markAsPlainTypeVariableUsage() {
+            setTypeVariableUsageKind(TypeVariableUsageKind.PLAIN);
+        }
+
+        /**
+         * Marks this type variable usage as {@code @q E}.
+         *
+         * @param annotations the explicitly written annotations that are {@code q}
+         */
+        public void markAsRequalifyingTypeVariableUsage(
+                Collection<? extends AnnotationMirror> annotations) {
+            AnnotationMirrorSet supportedAnnotations = new AnnotationMirrorSet();
+            for (AnnotationMirror annotation : annotations) {
+                AnnotationMirror supportedAnnotation =
+                        canonicalSupportedTypeVariableUsageAnnotation(annotation);
+                if (supportedAnnotation != null) {
+                    supportedAnnotations.add(supportedAnnotation);
+                }
+            }
+            if (!supportedAnnotations.isEmpty()) {
+                usageKind = TypeVariableUsageKind.REQUALIFYING;
+                requalifyingTypeVariableUsageAnnotations = supportedAnnotations;
+            }
+        }
+
+        /**
+         * Marks this type variable usage as {@code @q E}.
+         *
+         * @param annotation the explicitly written annotation that is {@code q}
+         */
+        public void markAsRequalifyingTypeVariableUsage(AnnotationMirror annotation) {
+            AnnotationMirror supportedAnnotation =
+                    canonicalSupportedTypeVariableUsageAnnotation(annotation);
+            if (supportedAnnotation == null) {
+                return;
+            }
+            usageKind = TypeVariableUsageKind.REQUALIFYING;
+            AnnotationMirror previous =
+                    atypeFactory
+                            .getQualifierHierarchy()
+                            .findAnnotationInSameHierarchy(
+                                    requalifyingTypeVariableUsageAnnotations, supportedAnnotation);
+            if (previous != null) {
+                requalifyingTypeVariableUsageAnnotations.remove(previous);
+            }
+            requalifyingTypeVariableUsageAnnotations.add(supportedAnnotation);
+        }
+
+        /**
+         * Returns the supported canonical form of {@code annotation}, or null if it is not a
+         * qualifier for this type factory.
+         *
+         * @param annotation an annotation
+         * @return the supported canonical form of {@code annotation}, or null
+         */
+        private @Nullable AnnotationMirror canonicalSupportedTypeVariableUsageAnnotation(
+                AnnotationMirror annotation) {
+            if (atypeFactory.isSupportedQualifier(annotation)) {
+                return annotation;
+            }
+            AnnotationMirror canonical = atypeFactory.canonicalAnnotation(annotation);
+            return atypeFactory.isSupportedQualifier(canonical) ? canonical : null;
+        }
+
+        /**
+         * Sets the explicitly written annotations for a {@link TypeVariableUsageKind#REQUALIFYING}
+         * usage.
+         *
+         * @param annotations the explicitly written annotations
+         */
+        public void setRequalifyingTypeVariableUsageAnnotations(AnnotationMirrorSet annotations) {
+            requalifyingTypeVariableUsageAnnotations = new AnnotationMirrorSet(annotations);
+        }
+
+        /**
+         * Returns the explicitly written annotations for a {@link
+         * TypeVariableUsageKind#REQUALIFYING} use.
+         *
+         * @return the explicitly written annotations for a {@link
+         *     TypeVariableUsageKind#REQUALIFYING} usage
+         */
+        public AnnotationMirrorSet getRequalifyingTypeVariableUsageAnnotations() {
+            return requalifyingTypeVariableUsageAnnotations;
+        }
+
         @Override
         public void addAnnotation(AnnotationMirror annotation) {
             super.addAnnotation(annotation);
+            if (!isDeclaration()) {
+                markAsRequalifyingTypeVariableUsage(annotation);
+            }
             fixupBoundAnnotations();
         }
 
