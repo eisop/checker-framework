@@ -3,7 +3,6 @@ package org.checkerframework.dataflow.cfg.visualize;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 import java.io.File;
-import java.nio.file.Path;
 
 /**
  * Options for running analysis on files.
@@ -92,7 +91,7 @@ public class CFGVisualizeOptions {
             System.exit(1);
         }
         String input = args[0];
-        File file = Path.of(input).toFile();
+        File file = new File(input);
         if (!file.canRead()) {
             printError("Cannot read input file: " + file.getAbsolutePath());
             printUsage();

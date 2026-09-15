@@ -473,6 +473,17 @@ allprojects { currentProj ->
             failOnViolations = true
             includeTestClasses = true
             javaVersion = 8
+            exclusionPatterns = [
+                // StringTokenizer is used in parsers (e.g., TreeParser, StubGenerator) with returnDelims=true,
+                // where String.split/Scanner is not a drop-in replacement.
+                '.*StringTokenizer.*',
+                // Many internal and external APIs (including javac) require File instances. Converting
+                // Paths.get(...).toFile() is verbose and artificial (and Path.of is Java 11+).
+                'java/io/File\\."<init>".*',
+                // Files.createTempFile requires Path and does not directly support nullable directory arguments;
+                // converting via .toFile() adds awkward boilerplate across test harnesses.
+                'java/io/File\\.createTempFile.*',
+            ]
         }
         // Add the fat checker.jar to the classpath of every Javadoc task. This allows Javadoc in
         // any module to reference classes in any other module.

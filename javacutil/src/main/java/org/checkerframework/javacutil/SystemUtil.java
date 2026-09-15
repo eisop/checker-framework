@@ -9,7 +9,6 @@ import com.sun.tools.javac.util.Options;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 import java.io.File;
-import java.nio.file.Path;
 import java.util.Collections;
 import java.util.List;
 import java.util.regex.Matcher;
@@ -136,7 +135,7 @@ public class SystemUtil {
                 throw new Error("Can't infer Java home; java.home=" + javaHomeProperty);
             }
         }
-        File toolsJarFile = Path.of(javaHome, "lib", "tools.jar").toFile();
+        File toolsJarFile = new File(new File(javaHome, "lib"), "tools.jar");
         if (!toolsJarFile.exists()) {
             throw new Error(
                     String.format(

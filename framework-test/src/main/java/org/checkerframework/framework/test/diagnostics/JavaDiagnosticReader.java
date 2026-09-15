@@ -14,7 +14,6 @@ import java.io.IOException;
 import java.io.LineNumberReader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -209,7 +208,7 @@ public class JavaDiagnosticReader implements Iterator<TestDiagnosticLine>, Close
     private JavaDiagnosticReader(
             JavaFileObject toReadFileObject, StringToTestDiagnosticLine codec) {
         this.codec = codec;
-        this.filename = Paths.get(toReadFileObject.getName()).toFile().getName();
+        this.filename = new File(toReadFileObject.getName()).getName();
         LineNumberReader reader = null;
         try {
             reader = new LineNumberReader(toReadFileObject.openReader(true));

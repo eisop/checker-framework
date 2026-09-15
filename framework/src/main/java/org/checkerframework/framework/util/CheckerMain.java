@@ -22,7 +22,6 @@ import java.net.URLDecoder;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
-import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -66,7 +65,7 @@ public class CheckerMain {
      * @param args command-line arguments
      */
     public static void main(String[] args) {
-        File pathToThisJar = Paths.get(findPathTo(CheckerMain.class, false)).toFile();
+        File pathToThisJar = new File(findPathTo(CheckerMain.class, false));
         ArrayList<String> alargs = new ArrayList<>(Arrays.asList(args));
         CheckerMain program = new CheckerMain(pathToThisJar, alargs);
         int exitStatus = program.invokeCompiler();
@@ -140,25 +139,20 @@ public class CheckerMain {
     public CheckerMain(File checkerJar, List<String> args) {
 
         this.checkerJar = checkerJar;
-        Path searchPath = checkerJar.getParentFile().toPath();
+        File searchPath = checkerJar.getParentFile();
 
         replaceShorthandProcessor(args);
         argListFiles = collectArgFiles(args);
 
         this.checkerQualJar =
                 extractFileArg(
-                        CHECKER_QUAL_PATH_OPT,
-                        searchPath.resolve("checker-qual.jar").toFile(),
-                        args);
+                        CHECKER_QUAL_PATH_OPT, new File(searchPath, "checker-qual.jar"), args);
 
         this.checkerUtilJar =
                 extractFileArg(
-                        CHECKER_UTIL_PATH_OPT,
-                        searchPath.resolve("checker-util.jar").toFile(),
-                        args);
+                        CHECKER_UTIL_PATH_OPT, new File(searchPath, "checker-util.jar"), args);
 
-        this.javacJar =
-                extractFileArg(JAVAC_PATH_OPT, searchPath.resolve("javac.jar").toFile(), args);
+        this.javacJar = extractFileArg(JAVAC_PATH_OPT, new File(searchPath, "javac.jar"), args);
 
         this.compilationBootclasspath = createCompilationBootclasspath(args);
         this.runtimeClasspath = createRuntimeClasspath(args);
@@ -246,7 +240,7 @@ public class CheckerMain {
         List<File> argListFiles = new ArrayList<>();
         for (String arg : args) {
             if (arg.startsWith("@")) {
-                argListFiles.add(Paths.get(arg.substring(1)).toFile());
+                argListFiles.add(new File(arg.substring(1)));
             }
         }
 
@@ -292,7 +286,7 @@ public class CheckerMain {
         if (filePath == null) {
             return alternative;
         } else {
-            return Paths.get(filePath).toFile();
+            return new File(filePath);
         }
     }
 
@@ -560,7 +554,7 @@ public class CheckerMain {
      * @return all the .jar and .JAR files in the given directory
      */
     private List<String> jarFiles(String directory) {
-        File dir = Paths.get(directory).toFile();
+        File dir = new File(directory);
         String[] jarFiles = dir.list((d, name) -> name.endsWith(".jar") || name.endsWith(".JAR"));
         if (jarFiles == null) {
             return Collections.emptyList();
@@ -758,7 +752,7 @@ public class CheckerMain {
                     URLDecoder.decode(
                             uri.substring("jar:file:".length(), idx),
                             Charset.defaultCharset().name());
-            return Paths.get(fileName).toFile().getAbsolutePath();
+            return new File(fileName).getAbsolutePath();
         } catch (UnsupportedEncodingException e) {
             throw new BugInCF("Default charset doesn't exist. Your VM is borked.");
         }
