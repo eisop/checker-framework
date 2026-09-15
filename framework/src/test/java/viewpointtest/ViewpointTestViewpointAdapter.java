@@ -17,10 +17,17 @@ import viewpointtest.quals.Top;
 /** The viewpoint adapter for the Viewpoint Test Checker. */
 public class ViewpointTestViewpointAdapter extends AbstractViewpointAdapter {
 
-    /**
-     * The {@link Top}, {@link PolyVP}, {@link ReceiverDependentQual} and {@link Lost} annotation.
-     */
-    private final AnnotationMirror TOP, POLYVP, RECEIVERDEPENDENTQUAL, LOST;
+    /** The {@link Top} annotation. */
+    private final AnnotationMirror TOP;
+
+    /** The {@link PolyVP} annotation. */
+    private final AnnotationMirror POLYVP;
+
+    /** The {@link ReceiverDependentQual} annotation. */
+    private final AnnotationMirror RECEIVERDEPENDENTQUAL;
+
+    /** The {@link Lost} annotation. */
+    private final AnnotationMirror LOST;
 
     /**
      * The class constructor.
