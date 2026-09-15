@@ -27,6 +27,9 @@ import java.lang.annotation.Target;
  * the {@code @AnnotatedFor} wins, since {@code @UnannotatedFor} only subtracts from an
  * <em>enclosing</em> scope.
  *
+ * <p>Like {@link AnnotatedFor}, this annotation is stored in class files and is available via
+ * reflection at run time.
+ *
  * <p>An {@code @UnannotatedFor} on a package also applies to subpackages, unless the {@code
  * applyToSubpackages} field is set to false. The innermost package annotation wins: an
  * {@code @UnannotatedFor} on a package excludes its subpackages from an {@code @AnnotatedFor} on an
@@ -44,7 +47,7 @@ import java.lang.annotation.Target;
  * @checker_framework.manual #compiling-libraries Compiling partially-annotated libraries
  */
 @Documented
-@Retention(RetentionPolicy.SOURCE)
+@Retention(RetentionPolicy.RUNTIME)
 @Target({ElementType.TYPE, ElementType.METHOD, ElementType.CONSTRUCTOR, ElementType.PACKAGE})
 @Repeatable(UnannotatedFor.List.class)
 public @interface UnannotatedFor {
@@ -73,7 +76,7 @@ public @interface UnannotatedFor {
      * writes more than one {@link UnannotatedFor} annotation at the same location.
      */
     @Documented
-    @Retention(RetentionPolicy.SOURCE)
+    @Retention(RetentionPolicy.RUNTIME)
     @Target({ElementType.TYPE, ElementType.METHOD, ElementType.CONSTRUCTOR, ElementType.PACKAGE})
     public static @interface List {
         /**

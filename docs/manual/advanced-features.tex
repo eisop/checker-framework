@@ -603,8 +603,12 @@ If the checker was not run during the compiler execution that created the
 that the programmer wrote explicitly.  (Furthermore, there is no guarantee
 that these qualifiers are correct, since they have not been checked.)
 In this case, each checker decides what qualifier to use for the
-locations where the programmer did not write an annotation.  Unless otherwise noted, the
-choice is:
+locations where the programmer did not write an annotation.  (However, if the
+class or its package carries an applicable
+\refqualclass{framework/qual}{AnnotatedFor} annotation in bytecode, the code is
+treated as checked code and ordinary defaults apply instead; see
+Section~\ref{AuseConservativeDefaultsForUncheckedCodesource}.)  Unless otherwise
+noted, the choice is:
 
 \begin{itemize}
 \item

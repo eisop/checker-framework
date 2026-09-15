@@ -443,9 +443,22 @@ set the \<applyToSubpackages> element to false, as in
 \<@AnnotatedFor(value = "nullness", applyToSubpackages = false)>.
 This limits only that annotation; it does not block an applicable
 \<@AnnotatedFor> on an enclosing package.
-Because \<@AnnotatedFor> has source retention, a package annotation only
-affects compilation units that are compiled together with its
-\<package-info.java> file.
+\<@AnnotatedFor> and \<@UnannotatedFor> are stored in class files, so a
+package annotation also affects compilation units that are compiled
+separately from its \<package-info.java> file, as long as the compiled
+\<package-info.class> is on the classpath.  Likewise, under
+\<-AuseConservativeDefaultsForUncheckedCode=bytecode>, a class file whose
+class or package has a relevant \<@AnnotatedFor> is treated as checked code.
+
+\textbf{Limit package annotations to their own package.}  Because a package
+annotation is read from \<package-info.class>, one with the default
+\<applyToSubpackages = true> covers \emph{every} subpackage that is
+compiled against it, including subpackages in other libraries or projects
+whose authors never examined their code for that type system.  Such code is
+then type-checked and defaulted as if it had been annotated.  As a good
+practice, write \<applyToSubpackages = false> on a package-level
+\<@AnnotatedFor>, and annotate each subpackage separately, unless you
+control all of the subpackages.
 
 \<@AnnotatedFor> is repeatable, so it may be written more than once at the
 same location.  This lets different type systems be given different
