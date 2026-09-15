@@ -192,11 +192,9 @@ public class Typing extends TypeConstraint {
                 }
             }
             if (T.isUseOfVariable()) {
-                if (TypesUtils.isCapturedTypeVariable(S.getJavaType())) {
-                    ((UseOfVariable) T)
-                            .addBound(
-                                    this, VariableBounds.BoundKind.LOWER, S.getTypeVarUpperBound());
-                }
+                // Per JLS 18.2.3, S <: alpha reduces to exactly that bound, even if S is a capture
+                // variable.  Do not add S's upper bound as a lower bound of alpha as well: that
+                // over-constrains alpha.
                 ((UseOfVariable) T).addBound(this, VariableBounds.BoundKind.LOWER, S);
             }
             return ConstraintSet.TRUE;
