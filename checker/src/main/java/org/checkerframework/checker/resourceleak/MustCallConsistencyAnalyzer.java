@@ -1542,8 +1542,8 @@ public class MustCallConsistencyAnalyzer {
                         formatMissingMustCallMethods(mcValues),
                         "field " + lhsElement.getSimpleName().toString(),
                         lhsElement.asType().toString(),
-                        "field assignment outside method or declaration might overwrite field's"
-                                + " current value");
+                        "field assignment outside a method or declaration might overwrite the"
+                                + " field's current value");
                 return;
             }
         } else if (permitInitializationLeak && TreeUtils.isConstructor(enclosingMethodTree)) {
@@ -2047,9 +2047,9 @@ public class MustCallConsistencyAnalyzer {
                         // exit, but that doesn't seem to provide additional helpful
                         // information.
                         "regular method exit"
-                        : "possible exceptional exit before required method call, triggered by "
+                        : "possible exceptional exit before the required method call, if "
                                 + ((ExceptionBlock) currentBlock).getNode().getTree()
-                                + " throwing exception type "
+                                + " throws an exception of type "
                                 + exceptionType;
         // Computed outside the Obligation loop for efficiency.
         AccumulationStore regularStoreOfSuccessor = cmAtf.getInput(successor).getRegularStore();
