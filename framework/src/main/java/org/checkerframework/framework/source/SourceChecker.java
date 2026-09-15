@@ -878,7 +878,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
         visitor.setRoot(currentRoot);
         if (parentChecker == null) {
             // Only clear the path cache if this is the main checker.
-            treePathCacher.clear();
+            getTreePathCacher().clear();
         }
     }
 
