@@ -3,6 +3,9 @@ Version 3.49.5-eisop2 (June ?, 2026)
 
 **User-visible changes:**
 
+The EISOP Checker Framework runs under JDK 27 and under JDK 28 b15 early access
+builds -- that is, it runs on version 27 and 28 JVMs.
+
 A checker can now examine a package declaration. `AbstractTypeProcessor` dropped the
 analysis event for a `package-info.java`, so no checker could ever visit one and a
 declaration annotation written on a `package` clause went unchecked. Three checks that
