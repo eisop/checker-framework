@@ -11,6 +11,9 @@ import java.util.function.Supplier;
 
 public class RecognizedLocations {
 
+    /** Qualifier for a method reference whose qualifier is a field select. */
+    String fieldForMethodRef = "";
+
     // A field's root type.
     @Nullable String field;
 
@@ -38,6 +41,22 @@ public class RecognizedLocations {
 
         // A formal parameter type of a lambda.
         Function<@Nullable String, String> lambda = (@Nullable String s) -> "";
+
+        // Method references whose qualifier is an expression rather than a type. These once
+        // crashed TreeUtils.getExplicitAnnotationTrees, which accepts only type trees.  An
+        // annotation on a type qualifier is still reported; see UnrecognizedLocations's
+        // "@Nullable String::new".
+        Supplier<Integer> literalQualifier = "abc"::length;
+        Supplier<String> newQualifier = new Object()::toString;
+        Supplier<String> invocationQualifier = "abc".trim()::toString;
+        Supplier<Integer> parenthesizedQualifier = ("abc")::length;
+        String nonNullLocal = "";
+        Supplier<Integer> variableQualifier = nonNullLocal::length;
+        // A member select, the one kind whose classification depends on what it resolves to
+        // rather than on its kind: this one is a field, so it is an expression.  A member select
+        // that resolves to a type, such as "java.lang.String::valueOf", is a type qualifier and
+        // is checked.
+        Supplier<Integer> fieldSelectQualifier = fieldForMethodRef::length;
 
         return null;
     }
