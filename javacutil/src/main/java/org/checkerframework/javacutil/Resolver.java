@@ -15,6 +15,7 @@ import com.sun.tools.javac.comp.DeferredAttr;
 import com.sun.tools.javac.comp.Env;
 import com.sun.tools.javac.comp.Resolve;
 import com.sun.tools.javac.processing.JavacProcessingEnvironment;
+import com.sun.tools.javac.tree.JCTree;
 import com.sun.tools.javac.util.Context;
 import com.sun.tools.javac.util.JCDiagnostic.DiagnosticPosition;
 import com.sun.tools.javac.util.List;
@@ -172,7 +173,19 @@ public class Resolver {
             }
             FIND_IDENT.setAccessible(true);
 
-            if (atLeastJava13) {
+            if (atLeastJava28) {
+                // Changed in
+                // https://github.com/openjdk/jdk/commit/850c789a827e21cda3096276d9638f56fae76c3e
+                FIND_IDENT_IN_TYPE =
+                        Resolve.class.getDeclaredMethod(
+                                "findIdentInType",
+                                DiagnosticPosition.class,
+                                Env.class,
+                                Type.class,
+                                Name.class,
+                                KindSelector.class,
+                                JCTree.class);
+            } else if (atLeastJava13) {
                 FIND_IDENT_IN_TYPE =
                         Resolve.class.getDeclaredMethod(
                                 "findIdentInType",
@@ -360,7 +373,17 @@ public class Resolver {
         try {
             Env<AttrContext> env = getEnvForPath(path);
             final Element res;
-            if (atLeastJava13) {
+            if (atLeastJava28) {
+                res =
+                        resolve(
+                                FIND_IDENT_IN_TYPE,
+                                null,
+                                env,
+                                type,
+                                names.fromString(name),
+                                Kinds.KindSelector.VAR,
+                                null);
+            } else if (atLeastJava13) {
                 res =
                         resolve(
                                 FIND_IDENT_IN_TYPE,
