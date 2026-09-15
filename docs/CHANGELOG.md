@@ -35,8 +35,8 @@ unchecked code, and an `@UnannotatedFor` in a dependency now excludes its
 scope. A package annotation in a `package-info.class` on the classpath now
 also applies to separately compiled subpackages, unless it sets
 `applyToSubpackages = false`. Run-time tools can read `@AnnotatedFor` to see
-which classes their authors have annotated for a type system; it does not
-record whether a checker was run.
+which classes the authors have annotated for a type system; the annotation
+does not record whether a checker was run.
 
 The Nullness Checker now also treats JSpecify's `@NullUnmarked` as the inverse of
 `@NullMarked`, in both of the ways `@NullMarked` is recognized. It undoes the

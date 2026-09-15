@@ -653,7 +653,8 @@ More sound (strict) checking: enable errors that are disabled by default
   ``-source,-bytecode'' is the (unsound) default setting.
   \begin{itemize}
   \item
-  ``bytecode'' specifies
+  Outside the scope of any relevant
+  \refqualclass{framework/qual}{AnnotatedFor} annotation, ``bytecode'' specifies
   whether the checker should apply conservative defaults to
   bytecode (that is, to already-compiled libraries); see
   Section~\ref{defaults-classfile}.
