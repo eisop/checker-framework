@@ -4,11 +4,7 @@ import org.checkerframework.checker.interning.qual.InternedDistinct;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 import java.math.BigInteger;
-import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
-import java.util.Objects;
 
 import javax.lang.model.type.TypeKind;
 
@@ -257,7 +253,11 @@ public class Range {
 
     @Override
     public int hashCode() {
-        return Objects.hash(from, to);
+        // Hand-rolled to avoid the per-call boxing of two longs and the Object[] varargs
+        // allocation that Objects.hash(from, to) incurs. Range.hashCode is hot: Range objects
+        // are used as keys/values in many AnnotationMirror-related hash collections during
+        // type checking.
+        return Long.hashCode(from) * 31 + Long.hashCode(to);
     }
 
     /**
@@ -591,22 +591,27 @@ public class Range {
 
         // These bounds are adequate:  Integer.MAX_VALUE^2 is still a bit less than Long.MAX_VALUE.
         if (this.isWithinInteger() && right.isWithinInteger()) {
-            List<Long> possibleValues =
-                    Arrays.asList(
-                            from * right.from, from * right.to, to * right.from, to * right.to);
-            return create(possibleValues);
+            // Compute min/max over the four corner products directly, avoiding the
+            // Long boxing and Arrays.asList/iterator allocations of the previous version.
+            long ff = from * right.from;
+            long ft = from * right.to;
+            long tf = to * right.from;
+            long tt = to * right.to;
+            long resultFrom = Math.min(Math.min(ff, ft), Math.min(tf, tt));
+            long resultTo = Math.max(Math.max(ff, ft), Math.max(tf, tt));
+            return create(resultFrom, resultTo);
         } else {
             BigInteger bigLeftFrom = BigInteger.valueOf(from);
             BigInteger bigRightFrom = BigInteger.valueOf(right.from);
             BigInteger bigRightTo = BigInteger.valueOf(right.to);
             BigInteger bigLeftTo = BigInteger.valueOf(to);
-            List<BigInteger> bigPossibleValues =
-                    Arrays.asList(
-                            bigLeftFrom.multiply(bigRightFrom),
-                            bigLeftFrom.multiply(bigRightTo),
-                            bigLeftTo.multiply(bigRightFrom),
-                            bigLeftTo.multiply(bigRightTo));
-            return create(Collections.min(bigPossibleValues), Collections.max(bigPossibleValues));
+            BigInteger ff = bigLeftFrom.multiply(bigRightFrom);
+            BigInteger ft = bigLeftFrom.multiply(bigRightTo);
+            BigInteger tf = bigLeftTo.multiply(bigRightFrom);
+            BigInteger tt = bigLeftTo.multiply(bigRightTo);
+            BigInteger resultFrom = ff.min(ft).min(tf.min(tt));
+            BigInteger resultTo = ff.max(ft).max(tf.max(tt));
+            return create(resultFrom, resultTo);
         }
     }
 
@@ -1189,10 +1194,18 @@ public class Range {
      */
     public Range refineNotEqualTo(Range right) {
         if (right.isConstant()) {
+            // If this range is the same constant, the != branch is unreachable.
+            // Handling this case up front also avoids overflow in the trimming
+            // branches below when the shared constant is Long.MIN_VALUE
+            // (this.to - 1 would wrap to Long.MAX_VALUE) or Long.MAX_VALUE
+            // (this.from + 1 would wrap to Long.MIN_VALUE).
+            if (this.isConstant() && this.from == right.from) {
+                return NOTHING;
+            }
             if (this.to == right.to) {
-                return create(this.from, this.to - 1);
+                return createOrNothing(this.from, this.to - 1);
             } else if (this.from == right.from) {
-                return create(this.from + 1, this.to);
+                return createOrNothing(this.from + 1, this.to);
             }
         }
         return this;

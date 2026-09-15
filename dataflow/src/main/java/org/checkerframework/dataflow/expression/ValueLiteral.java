@@ -148,9 +148,12 @@ public class ValueLiteral extends JavaExpression {
             return false;
         }
         ValueLiteral other = (ValueLiteral) obj;
-        // TODO:  Can this string comparison be cleaned up?
-        // Cannot use Types.isSameType(type, other.type) because we don't have a Types object.
-        return type.toString().equals(other.type.toString()) && Objects.equals(value, other.value);
+        // Types#isSameType would be more correct, but no Types object is available here.
+        // TypeMirror.toString() produces a canonical source-form name, which is sufficient
+        // for structural equality checks in this context.
+        @SuppressWarnings("TypeToString")
+        boolean sameType = type.toString().equals(other.type.toString());
+        return sameType && Objects.equals(value, other.value);
     }
 
     @Override
@@ -172,7 +175,11 @@ public class ValueLiteral extends JavaExpression {
     @Override
     public int hashCode() {
         if (hashCodeCache == 0) {
-            hashCodeCache = Objects.hash(value, type.toString());
+            int h = 1;
+            h = 31 * h + (value != null ? value.hashCode() : 0);
+            String typeStr = type.toString();
+            h = 31 * h + (typeStr != null ? typeStr.hashCode() : 0);
+            hashCodeCache = h == 0 ? 1 : h;
         }
         return hashCodeCache;
     }

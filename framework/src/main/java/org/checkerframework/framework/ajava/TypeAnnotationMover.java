@@ -15,10 +15,10 @@ import java.lang.annotation.ElementType;
 import java.lang.annotation.Target;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
+import java.util.IdentityHashMap;
 import java.util.List;
-import java.util.Map;
 
+import javax.lang.model.element.Name;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.util.Elements;
 
@@ -38,7 +38,7 @@ public class TypeAnnotationMover extends VoidVisitorAdapter<Void> {
      * Annotations imported by the file, stored as a mapping from names to the TypeElements for the
      * annotations. Contains entries for the simple and fully qualified names of each annotation.
      */
-    private final Map<String, TypeElement> allAnnotations;
+    private final IdentityHashMap<Name, TypeElement> allAnnotations;
 
     /** Element utilities. */
     private final Elements elements;
@@ -51,8 +51,9 @@ public class TypeAnnotationMover extends VoidVisitorAdapter<Void> {
      *     name and its fully-qualified name both mapped to its TypeElement.
      * @param elements the Element utilities
      */
-    public TypeAnnotationMover(Map<String, TypeElement> allAnnotations, Elements elements) {
-        this.allAnnotations = new HashMap<>(allAnnotations);
+    public TypeAnnotationMover(
+            IdentityHashMap<Name, TypeElement> allAnnotations, Elements elements) {
+        this.allAnnotations = new IdentityHashMap<>(allAnnotations);
         this.elements = elements;
     }
 
@@ -129,7 +130,8 @@ public class TypeAnnotationMover extends VoidVisitorAdapter<Void> {
     private @Nullable TypeElement getAnnotationDeclaration(AnnotationExpr annotation) {
         @SuppressWarnings("signature") // https://tinyurl.com/cfissue/3094
         @FullyQualifiedName String annoNameFq = annotation.getNameAsString();
-        TypeElement annoTypeElt = allAnnotations.get(annoNameFq);
+        Name annoNameObj = elements.getName(annoNameFq);
+        TypeElement annoTypeElt = allAnnotations.get(annoNameObj);
         if (annoTypeElt == null) {
             annoTypeElt = elements.getTypeElement(annoNameFq);
             if (annoTypeElt == null) {

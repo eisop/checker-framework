@@ -41,10 +41,11 @@ import javax.lang.model.type.TypeKind;
  * check we also propagate the annotations to this constructor in constructorFromUse so that the
  * constructor call matches the type given to the NewClassTree.
  *
+ * <p>Note propagation only occurs between two AnnotatedDeclaredTypes. If either side is not an
+ * AnnotatedDeclaredType then this class does nothing.
+ *
  * @see
  *     org.checkerframework.checker.nullness.KeyForAnnotatedTypeFactory#constructorFromUse(com.sun.source.tree.NewClassTree)
- *     <p>Note propagation only occurs between two AnnotatedDeclaredTypes. If either side is not an
- *     AnnotatedDeclaredType then this class does nothing.
  */
 public class KeyForPropagationTreeAnnotator extends TreeAnnotator {
     private final KeyForPropagator keyForPropagator;

@@ -33,6 +33,9 @@ public class SystemUtil {
     /** A splitter that splits on colons. The result contains no empty strings. */
     public static final Splitter COLON_SPLITTER = Splitter.on(':').omitEmptyStrings();
 
+    /** Matches a Java version string of the form used since Java 9 (e.g. "11.0.1", "17-ea"). */
+    private static final Pattern NEW_VERSION_PATTERN = Pattern.compile("^(\\d+).*$");
+
     /**
      * A splitter that splits on {@code File.pathSeparator}. The result contains no empty strings.
      */
@@ -86,8 +89,7 @@ public class SystemUtil {
 
         // Since Java 9, from a version string like "11.0.1" or "11-ea" or "11u25", extract "11".
         // The format is described at http://openjdk.org/jeps/223 .
-        Pattern newVersionPattern = Pattern.compile("^(\\d+).*$");
-        Matcher newVersionMatcher = newVersionPattern.matcher(version);
+        Matcher newVersionMatcher = NEW_VERSION_PATTERN.matcher(version);
         if (newVersionMatcher.matches()) {
             String v = newVersionMatcher.group(1);
             assert v != null : "@AssumeAssertion(nullness): inspection";
@@ -126,7 +128,8 @@ public class SystemUtil {
         if (javaHome == null) {
             String javaHomeProperty = System.getProperty("java.home");
             if (javaHomeProperty.endsWith(File.separator + "jre")) {
-                javaHome = javaHomeProperty.substring(javaHomeProperty.length() - 4);
+                // Strip the trailing '/jre' (4 chars including the separator).
+                javaHome = javaHomeProperty.substring(0, javaHomeProperty.length() - 4);
             } else {
                 // Could also determine the location of javac on the path...
                 throw new Error("Can't infer Java home; java.home=" + javaHomeProperty);

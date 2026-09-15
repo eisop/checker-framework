@@ -48,6 +48,13 @@ public class ValueVisitor extends BaseTypeVisitor<ValueAnnotatedTypeFactory> {
         super(checker);
     }
 
+    @Override
+    protected boolean shouldCheckVarargs(Tree tree) {
+        // The Value Checker enforces container array annotations (such as @MinLen) on
+        // implicit empty arrays created for zero-argument varargs calls.
+        return true;
+    }
+
     /**
      * ValueVisitor overrides this method so that it does not have to check variables annotated with
      * the {@link IntRangeFromPositive} annotation, the {@link IntRangeFromNonNegative} annotation,
@@ -113,6 +120,14 @@ public class ValueVisitor extends BaseTypeVisitor<ValueAnnotatedTypeFactory> {
             AnnotatedTypeMirror.AnnotatedExecutableType overridden,
             AnnotatedTypeMirror.AnnotatedDeclaredType overriddenType) {
 
+        // replaceSpecialIntRangeAnnotations mutates the executable types in place; they may be
+        // shared frozen cache values (from getAnnotatedType on the method trees), so copy first.
+        if (overrider.isFrozen()) {
+            overrider = overrider.deepCopy();
+        }
+        if (overridden.isFrozen()) {
+            overridden = overridden.deepCopy();
+        }
         replaceSpecialIntRangeAnnotations(overrider);
         replaceSpecialIntRangeAnnotations(overridden);
 

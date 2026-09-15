@@ -6,7 +6,6 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.framework.util.JavaExpressionParseUtil.JavaExpressionParseException;
 import org.checkerframework.javacutil.BugInCF;
 
-import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -112,7 +111,10 @@ public class DependentTypesError {
 
     @Override
     public int hashCode() {
-        return Objects.hash(expression, error);
+        int h = 1;
+        h = 31 * h + (expression != null ? expression.hashCode() : 0);
+        h = 31 * h + (error != null ? error.hashCode() : 0);
+        return h;
     }
 
     @Override

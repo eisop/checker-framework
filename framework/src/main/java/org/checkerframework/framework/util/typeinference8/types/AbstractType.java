@@ -18,7 +18,6 @@ import org.checkerframework.javacutil.TypesUtils;
 import org.plumelib.util.IPair;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -155,11 +154,14 @@ public abstract class AbstractType {
     public abstract AnnotatedTypeMirror getAnnotatedType();
 
     /**
-     * Return a collection of all inference variables referenced by this type.
+     * Return a set of all inference variables referenced by this type.
      *
-     * @return a collection of all inference variables referenced by this type
+     * <p>The returned set might be mutable or immutable, and it might or might not be freshly
+     * allocated. Callers that need to mutate the result must copy it first.
+     *
+     * @return a set of all inference variables referenced by this type
      */
-    public abstract Collection<Variable> getInferenceVariables();
+    public abstract Set<Variable> getInferenceVariables();
 
     /**
      * Return a new type that is the same as this one except the variables in {@code instantiations}
@@ -389,10 +391,13 @@ public abstract class AbstractType {
      */
     public AbstractType replaceTypeArgs(List<AbstractType> args) {
         DeclaredType declaredType = (DeclaredType) getJavaType();
-        TypeMirror[] newArgs = new TypeMirror[args.size()];
+        int n = args.size();
+        TypeMirror[] newArgs = new TypeMirror[n];
+        List<AnnotatedTypeMirror> argTypes = new ArrayList<>(n);
         int i = 0;
         for (AbstractType t : args) {
             newArgs[i++] = t.getJavaType();
+            argTypes.add(t.getAnnotatedType());
         }
         TypeMirror newTypeJava =
                 context.env
@@ -403,10 +408,6 @@ public abstract class AbstractType {
                 (AnnotatedDeclaredType)
                         AnnotatedTypeMirror.createType(
                                 newTypeJava, typeFactory, getAnnotatedType().isDeclaration());
-        List<AnnotatedTypeMirror> argTypes = new ArrayList<>();
-        for (AbstractType arg : args) {
-            argTypes.add(arg.getAnnotatedType());
-        }
         newType.setTypeArguments(argTypes);
         newType.replaceAnnotations(getAnnotatedType().getAnnotations());
         return create(newType, newTypeJava, ignoreAnnotations);

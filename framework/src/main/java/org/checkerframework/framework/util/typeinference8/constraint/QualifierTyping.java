@@ -19,6 +19,10 @@ import javax.lang.model.element.AnnotationMirror;
  *   <li>{@link Kind#QUALIFIER_EQUALITY} {@code < Q = R >}: A qualifier Q is the same as a qualifier
  *       R.
  * </ul>
+ *
+ * <p>Do NOT override {@code equals} or {@code hashCode} in this class. The inference solver relies
+ * on identity equality to allow multiple identically-shaped constraints to coexist without being
+ * deduplicated by {@code ConstraintSet}.
  */
 public class QualifierTyping implements Constraint {
 

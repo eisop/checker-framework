@@ -292,16 +292,7 @@ public class DefaultContractsFromMethod implements ContractsFromMethod {
             anno = builder.build();
         }
 
-        if (atypeFactory.isSupportedQualifier(anno)) {
-            return anno;
-        } else {
-            AnnotationMirror aliasedAnno = atypeFactory.canonicalAnnotation(anno);
-            if (atypeFactory.isSupportedQualifier(aliasedAnno)) {
-                return aliasedAnno;
-            } else {
-                return null;
-            }
-        }
+        return atypeFactory.asSupportedQualifier(anno);
     }
 
     /**
