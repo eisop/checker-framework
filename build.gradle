@@ -103,19 +103,10 @@ ext {
 
 // Keep in sync with check in
 // framework/src/main/java/org/checkerframework/framework/source/SourceChecker.java .
-switch (JavaVersion.current()) {
-    case JavaVersion.VERSION_1_8:
-    case JavaVersion.VERSION_11:
-    case JavaVersion.VERSION_17:
-    case JavaVersion.VERSION_21:
-    case JavaVersion.VERSION_25:
-    case JavaVersion.VERSION_26:
-    case JavaVersion.VERSION_27:
-        break; // Supported versions
-    default:
-        logger.info('The Checker Framework is tested with JDK 8, 11, 17, 21, 25, 26, and 27-EA.' +
-        ' You are using JDK ' + JavaVersion.current().majorVersion + '.');
-        break;
+List<Integer> supportedJres = [8, 11, 17, 21, 25, 27, 28]
+if (!supportedJres.contains(currentRuntimeJavaVersion)) {
+    String supportedList = supportedJres[0..-2].join(', ') + ', and ' + supportedJres[-1] + '-EA'
+    logger.info("The Checker Framework is tested with JDK ${supportedList}. You are using JDK ${currentRuntimeJavaVersion}.")
 }
 
 // Git hooks are installed into the main worktree's .git directory.  'git worktree list' prints

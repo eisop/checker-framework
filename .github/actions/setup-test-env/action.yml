@@ -13,11 +13,11 @@ inputs:
   jdk-ea-major:
     description: 'Major version of current Early Access JDK'
     required: false
-    default: '27'
+    default: '28'
   jdk-ea-build:
     description: 'Build number of current Early Access JDK'
     required: false
-    default: '35'
+    default: '15'
   script:
     description: 'Test script name (e.g. cftests-nonjunit, guava, misc)'
     required: false

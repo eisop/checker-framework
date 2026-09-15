@@ -789,12 +789,18 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
 
         // Keep in sync with check in checker-framework/build.gradle .
         int jreVersion = SystemUtil.jreVersion;
-        List<Integer> supportedJres = Arrays.asList(8, 11, 17, 21, 25, 26, 27);
+        List<Integer> supportedJres = Arrays.asList(8, 11, 17, 21, 25, 27, 28);
         if (!hasOption("noJreVersionCheck") && !supportedJres.contains(jreVersion)) {
+            StringJoiner sj = new StringJoiner(", ");
+            for (int i = 0; i < supportedJres.size() - 1; i++) {
+                sj.add(String.valueOf(supportedJres.get(i)));
+            }
+            String supportedList =
+                    sj.toString() + ", and " + supportedJres.get(supportedJres.size() - 1) + "-EA";
             message(
                     Diagnostic.Kind.NOTE,
-                    "The Checker Framework is tested with JDK 8, 11, 17, 21, 25, 26, and 27-EA."
-                            + " You are using version %d.",
+                    "The Checker Framework is tested with JDK %s. You are using version %d.",
+                    supportedList,
                     jreVersion);
         }
 
