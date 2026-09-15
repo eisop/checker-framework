@@ -28,6 +28,7 @@ import com.sun.source.tree.MethodTree;
 import com.sun.source.tree.ModifiersTree;
 import com.sun.source.tree.NewArrayTree;
 import com.sun.source.tree.NewClassTree;
+import com.sun.source.tree.PackageTree;
 import com.sun.source.tree.ParameterizedTypeTree;
 import com.sun.source.tree.ReturnTree;
 import com.sun.source.tree.ThrowTree;
@@ -134,7 +135,6 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashMap;
-import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -201,16 +201,6 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
 
     /** The {@link BaseTypeChecker} for error reporting. */
     protected final BaseTypeChecker checker;
-
-    /**
-     * Packages this visitor has already examined for a conflicting
-     * {@code @AnnotatedFor}/{@code @UnannotatedFor} pair, so that each is examined once rather than
-     * once per class in it. Separate from the checker-wide record of what has been
-     * <em>reported</em>: that one stops a second checker from repeating the warning, while this one
-     * stops the lookups from being repeated at all.
-     */
-    private final Set<PackageElement> packagesCheckedForConflictingAnnotatedFor =
-            Collections.newSetFromMap(new IdentityHashMap<>());
 
     /** The factory to use for obtaining "parsed" version of annotations. */
     protected final Factory atypeFactory;
@@ -699,6 +689,66 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         }
     }
 
+    @Override
+    public Void visitPackage(PackageTree tree, Void p) {
+        PackageElement elt = TreeUtils.elementFromDeclaration(tree);
+        if (elt != null) {
+            processPackageTree(tree, elt);
+        }
+        // Scan the annotations, which are declaration annotations to be checked like those on any
+        // other declaration, but not the package name.  The name is this declaration's own, not a
+        // use of the package, and scanning it as an expression makes a checker that reports on
+        // uses -- the Report Checker, for one -- report the package as using itself.
+        return scan(tree.getAnnotations(), p);
+    }
+
+    /**
+     * Type-checks a package declaration, that is, the {@code package} clause of a {@code
+     * package-info.java}.
+     *
+     * <p>A package declaration contains no code, so unlike {@link #processClassTree} this sees only
+     * the declaration annotations written on the package. It is the hook for checking those: an
+     * annotation whose {@code @Target} includes {@code PACKAGE} can be written on a package and can
+     * contradict another one there exactly as it can on a class.
+     *
+     * @param tree the package declaration
+     * @param elt the package declared by {@code tree}
+     */
+    public void processPackageTree(PackageTree tree, PackageElement elt) {
+        checkConflictingAnnotatedFor(tree, elt);
+        atypeFactory.getQualifierDefaults().checkConflictingDefaults(elt);
+        checkQualifierParameterOnDeclaration(tree, elt);
+    }
+
+    /**
+     * Checks the {@code @HasQualifierParameter} and {@code @NoQualifierParameter} annotations
+     * written on {@code elt}, which may be a class or a package.
+     *
+     * <p>Both annotations' {@code @Target} includes {@code PACKAGE}, and
+     * {@code @HasQualifierParameter} has an {@code applyToSubpackages} element, so both are
+     * meaningful on a package; only the two checks that do not involve supertypes apply there.
+     * {@code missing.has.qual.param} is not among them: it asks whether a declaration inherits a
+     * qualifier parameter it does not itself declare, and a package extends nothing.
+     *
+     * @param tree the declaration to report on
+     * @param elt the declaration's element
+     */
+    private void checkQualifierParameterOnDeclaration(Tree tree, Element elt) {
+        for (AnnotationMirror top : qualHierarchy.getTopAnnotations()) {
+            if (!atypeFactory.hasExplicitQualifierParameterInHierarchy(elt, top)
+                    && atypeFactory.getDeclAnnotation(elt, HasQualifierParameter.class) != null) {
+                // The argument to a @HasQualifierParameter annotation must be the top type in the
+                // type system.
+                checker.reportError(tree, "invalid.qual.param", top);
+                break;
+            }
+            if (atypeFactory.hasExplicitQualifierParameterInHierarchy(elt, top)
+                    && atypeFactory.hasExplicitNoQualifierParameterInHierarchy(elt, top)) {
+                checker.reportError(tree, "conflicting.qual.param", top);
+            }
+        }
+    }
+
     /**
      * Type-check classTree. Subclasses should override this method instead of {@link
      * #visitClass(ClassTree, Void)}.
@@ -709,13 +759,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         TypeElement classElt = TreeUtils.elementFromDeclaration(classTree);
         checkConflictingAnnotatedFor(classTree, classElt);
         if (classElt != null) {
-            // A package-info.java declares no type, so the type processor never visits it; reach
-            // the package through a class in it instead, once per package rather than once per
-            // class in it.
-            PackageElement pkgElt = ElementUtils.enclosingPackage(classElt);
-            if (pkgElt != null && packagesCheckedForConflictingAnnotatedFor.add(pkgElt)) {
-                checkConflictingAnnotatedFor(classTree, pkgElt);
-            }
+            atypeFactory.getQualifierDefaults().checkConflictingDefaults(classElt);
         }
         checkFieldInvariantDeclarations(classTree);
         if (!TreeUtils.hasExplicitConstructor(classTree)) {
@@ -1256,7 +1300,11 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      * @param tree the method to type-check
      */
     public void processMethodTree(String className, MethodTree tree) {
-        checkConflictingAnnotatedFor(tree, TreeUtils.elementFromDeclaration(tree));
+        ExecutableElement methodElt = TreeUtils.elementFromDeclaration(tree);
+        checkConflictingAnnotatedFor(tree, methodElt);
+        if (methodElt != null) {
+            atypeFactory.getQualifierDefaults().checkConflictingDefaults(methodElt);
+        }
         // boilerplate
         long startMillis = System.currentTimeMillis();
         Tree startSlowTypeCheckingTree = slowTypecheckingTree;
@@ -6111,13 +6159,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         if (checker.hasApplicableAnnotatedFor(elt, false)
                 && checker.hasApplicableUnannotatedFor(elt, false)
                 && checker.shouldReportConflictingAnnotatedFor(elt)) {
-            // A package's own declaration is in a package-info.java that the type processor never
-            // visits, and a report is positioned against the file being visited, so report on the
-            // element rather than on a tree in another file.
-            checker.reportWarning(
-                    elt.getKind() == ElementKind.PACKAGE ? elt : tree,
-                    "conflicting.annotatedfor",
-                    elt);
+            checker.reportWarning(tree, "conflicting.annotatedfor", elt);
         }
     }
 }

@@ -614,4 +614,46 @@ public class EisopCheckerFrameworkPluginTest {
                         "}")
                 .doTest();
     }
+
+    /**
+     * A conflicting pair of declaration annotations on a package declaration is reported. A {@code
+     * package-info.java} declares no class, so Error Prone's scanner never offers a {@code
+     * ClassTree} for it and {@code matchClass} cannot reach it; the plugin drives the package
+     * declaration from {@code matchCompilationUnit} instead.
+     */
+    @Test
+    public void conflictingAnnotationsOnAPackageAreReported() {
+        helperWith("-XepOpt:eisopcf:checkers=" + NULLNESS_CHECKER)
+                .addSourceLines(
+                        "demo/package-info.java",
+                        "@DefaultQualifier(value = Nullable.class, locations = TypeUseLocation.FIELD)",
+                        "@DefaultQualifier(value = NonNull.class, locations = TypeUseLocation.FIELD)",
+                        "// BUG: Diagnostic contains: conflicting.defaults",
+                        "package demo;",
+                        "",
+                        "import org.checkerframework.checker.nullness.qual.NonNull;",
+                        "import org.checkerframework.checker.nullness.qual.Nullable;",
+                        "import org.checkerframework.framework.qual.DefaultQualifier;",
+                        "import org.checkerframework.framework.qual.TypeUseLocation;")
+                .doTest();
+    }
+
+    /**
+     * Control for {@link #conflictingAnnotationsOnAPackageAreReported}: a package declaration whose
+     * annotations do not conflict is accepted, so the new dispatch does not report on every {@code
+     * package-info.java} it now reaches.
+     */
+    @Test
+    public void aConsistentPackageDeclarationIsAccepted() {
+        helperWith("-XepOpt:eisopcf:checkers=" + NULLNESS_CHECKER)
+                .addSourceLines(
+                        "demo/package-info.java",
+                        "@DefaultQualifier(value = Nullable.class, locations = TypeUseLocation.FIELD)",
+                        "package demo;",
+                        "",
+                        "import org.checkerframework.checker.nullness.qual.Nullable;",
+                        "import org.checkerframework.framework.qual.DefaultQualifier;",
+                        "import org.checkerframework.framework.qual.TypeUseLocation;")
+                .doTest();
+    }
 }

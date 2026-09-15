@@ -640,6 +640,13 @@ More sound (strict) checking: enable errors that are disabled by default
   another only if they have exactly the same element type.  By default,
   the Checker Framework unsoundly permits covariant array subtyping, just
   as Java does.  See Section~\ref{invariant-arrays}.
+\item \<-AwarnBytecodeConflicts>
+  Warn about contradictory declaration annotations, such as two
+  \refqualclass{framework/qual}{DefaultQualifier} annotations that set the same
+  location in one hierarchy to different qualifiers, on a declaration read from
+  bytecode.  Such a declaration is in already-compiled code, and only those
+  elements that the compilation happens to examine are checked, so this is off
+  by default.
 \item \<-AcheckCastElementType>
   In a cast, require that parameterized type arguments and array elements
   are the same.  By default, the Checker Framework unsoundly permits them

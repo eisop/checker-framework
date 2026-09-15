@@ -1,0 +1,2 @@
+package-info.java:3:1: compiler.err.proc.messager: [conflicting.defaults] conflicting default qualifiers on pkg: ( FIELD => @org.checkerframework.checker.nullness.qual.NonNull applies to subpackages ) is ignored because it conflicts with ( FIELD => @org.checkerframework.checker.nullness.qual.Nullable applies to subpackages ). Only one qualifier from a hierarchy can be the default for a location.
+1 error
