@@ -22,7 +22,7 @@ plugins {
     // https://github.com/diffplug/spotless/tags ; see tags starting "gradle/"
     // Only works on JDK 11+ (even including the plugin crashes Gradle on JDK 8).
     id 'com.diffplug.spotless' version '8.10.2'
-    id 'com.github.andygoossens.modernizer' version '1.12.0'
+    id 'io.github.andygoossens.modernizer' version '2.0.0' apply false
 }
 
 // There is another `repositories { ... }` block below; if you change this one, change that one as well.
@@ -181,7 +181,7 @@ allprojects { currentProj ->
     apply plugin: 'com.gradleup.shadow'
     apply plugin: 'de.undercouch.download'
     apply plugin: 'net.ltgt.errorprone'
-    apply plugin: 'com.github.andygoossens.modernizer'
+    apply plugin: 'io.github.andygoossens.modernizer'
 
     java {
         // Using `options.release.set(8)` here leads to compilation
