@@ -1062,7 +1062,7 @@ eisop#1818, eisop#1819, eisop#1861, eisop#1862, eisop#1863, eisop#1865,
 eisop#1887, eisop#1958, eisop#1965, eisop#1986, eisop#1987, eisop#1990,
 eisop#1991, eisop#2009, eisop#2020, eisop#2021, eisop#2032, eisop#2037,
 eisop#2047, eisop#2048, eisop#2050, eisop#2052, eisop#2056, eisop#2059,
-eisop#2061, eisop#2064, eisop#2074, eisop#2081, typetools#399,
+eisop#2061, eisop#2064, eisop#2074, eisop#2081, eisop#2089, typetools#399,
 typetools#3203.
 
 
