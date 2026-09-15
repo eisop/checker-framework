@@ -62,6 +62,7 @@ import org.checkerframework.framework.util.JavaParserUtil;
 import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.ElementUtils;
+import org.checkerframework.javacutil.InternalUtils;
 import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TypeSystemError;
 import org.plumelib.util.ArraySet;
@@ -784,7 +785,7 @@ public class WholeProgramInferenceJavaParserStorage
                                 throw new BugInCF(
                                         "Missing getFullyQualifiedName() for " + javaParserClass);
                             }
-                            if ("".contentEquals(tree.getSimpleName())) {
+                            if (InternalUtils.sameName(tree.getSimpleName(), "")) {
                                 @SuppressWarnings(
                                         "signature:assignment" // computed from string concatenation
                                 )
@@ -816,9 +817,7 @@ public class WholeProgramInferenceJavaParserStorage
 
                         ClassOrInterfaceAnnos typeWrapper =
                                 new ClassOrInterfaceAnnos(className, javaParserNode);
-                        if (!classToAnnos.containsKey(className)) {
-                            classToAnnos.put(className, typeWrapper);
-                        }
+                        classToAnnos.putIfAbsent(className, typeWrapper);
 
                         sourceAnnos.types.add(typeWrapper);
                     }
@@ -856,12 +855,12 @@ public class WholeProgramInferenceJavaParserStorage
                         String className = ElementUtils.getEnclosingClassName(element);
                         ClassOrInterfaceAnnos enclosingClass = classToAnnos.get(className);
                         String executableSignature = JVMNames.getJVMMethodSignature(javacTree);
-                        if (!enclosingClass.callableDeclarations.containsKey(executableSignature)) {
-                            enclosingClass.callableDeclarations.put(
-                                    executableSignature,
-                                    new CallableDeclarationAnnos(
-                                            javacClass.getSimpleName().toString(), javaParserNode));
-                        }
+                        enclosingClass.callableDeclarations.computeIfAbsent(
+                                executableSignature,
+                                __ ->
+                                        new CallableDeclarationAnnos(
+                                                javacClass.getSimpleName().toString(),
+                                                javaParserNode));
                     }
 
                     @Override
@@ -904,9 +903,8 @@ public class WholeProgramInferenceJavaParserStorage
                         String enclosingClassName = ElementUtils.getEnclosingClassName(elt);
                         ClassOrInterfaceAnnos enclosingClass = classToAnnos.get(enclosingClassName);
                         String fieldName = javacTree.getName().toString();
-                        if (!enclosingClass.fields.containsKey(fieldName)) {
-                            enclosingClass.fields.put(fieldName, new FieldAnnos(javaParserNode));
-                        }
+                        enclosingClass.fields.computeIfAbsent(
+                                fieldName, __ -> new FieldAnnos(javaParserNode));
                     }
                 };
         visitor.visitClass(javacClass, javaParserClass);
@@ -1808,15 +1806,15 @@ public class WholeProgramInferenceJavaParserStorage
                 preconditions = new HashMap<>(4);
             }
 
-            if (!preconditions.containsKey(expression)) {
-                AnnotatedTypeMirror preconditionsType =
-                        AnnotatedTypeMirror.createType(
-                                declaredType.getUnderlyingType(), atf, false);
-                preconditions.put(
-                        expression, new InferredDeclared(preconditionsType, declaredType));
-            }
-
-            return preconditions.get(expression).inferred;
+            return preconditions.computeIfAbsent(
+                            expression,
+                            __ -> {
+                                AnnotatedTypeMirror preconditionsType =
+                                        AnnotatedTypeMirror.createType(
+                                                declaredType.getUnderlyingType(), atf, false);
+                                return new InferredDeclared(preconditionsType, declaredType);
+                            })
+                    .inferred;
         }
 
         /**
@@ -1844,17 +1842,15 @@ public class WholeProgramInferenceJavaParserStorage
                 postconditions = new HashMap<>(4);
             }
 
-            if (!postconditions.containsKey(expression)) {
-                AnnotatedTypeMirror postconditionsType =
-                        AnnotatedTypeMirror.createType(
-                                declaredType.getUnderlyingType(), atf, false);
-                postconditions.put(
-                        expression, new InferredDeclared(postconditionsType, declaredType));
-            }
-
-            InferredDeclared postAndDecl = postconditions.get(expression);
-            AnnotatedTypeMirror result = postAndDecl.inferred;
-            return result;
+            return postconditions.computeIfAbsent(
+                            expression,
+                            __ -> {
+                                AnnotatedTypeMirror postconditionsType =
+                                        AnnotatedTypeMirror.createType(
+                                                declaredType.getUnderlyingType(), atf, false);
+                                return new InferredDeclared(postconditionsType, declaredType);
+                            })
+                    .inferred;
         }
 
         /**

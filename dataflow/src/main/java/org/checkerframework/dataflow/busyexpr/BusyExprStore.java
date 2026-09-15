@@ -129,6 +129,9 @@ public class BusyExprStore implements Store<BusyExprStore> {
 
     @Override
     public boolean equals(@Nullable Object obj) {
+        if (this == obj) {
+            return true;
+        }
         if (!(obj instanceof BusyExprStore)) {
             return false;
         }

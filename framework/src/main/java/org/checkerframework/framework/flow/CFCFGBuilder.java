@@ -68,6 +68,11 @@ public class CFCFGBuilder extends CFGBuilder {
         }
 
         CFTreeBuilder builder = new CFTreeBuilder(env);
+        // Serve the body path from the checker's shared TreePathCacher (populated during visiting)
+        // instead of an uncached Trees.getPath full-tree search per body (the old hotspot at
+        // CFGTranslationPhaseOne.process / line 527).
+        TreePath bodyPath = checker.getTreePathCacher().getPath(root, underlyingAST.getCode());
+        assert bodyPath != null;
         PhaseOneResult phase1result =
                 new CFCFGTranslationPhaseOne(
                                 builder,
@@ -76,7 +81,7 @@ public class CFCFGBuilder extends CFGBuilder {
                                 assumeAssertionsEnabled,
                                 assumeAssertionsDisabled,
                                 env)
-                        .process(root, underlyingAST);
+                        .process(bodyPath, underlyingAST);
         ControlFlowGraph phase2result = CFGTranslationPhaseTwo.process(phase1result);
         ControlFlowGraph phase3result = CFGTranslationPhaseThree.process(phase2result);
         if (atypeFactory instanceof GenericAnnotatedTypeFactory) {

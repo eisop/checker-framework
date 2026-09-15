@@ -95,6 +95,14 @@ public class MethodValAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
     }
 
     @Override
+    protected boolean shouldCacheMethodAsMemberOf() {
+        // Reflection resolution makes a method's result type depend on the call's arguments (e.g.
+        // the String name passed to Class.getMethod), so it must not be cached on (method,
+        // receiver).
+        return false;
+    }
+
+    @Override
     protected Set<Class<? extends Annotation>> createSupportedTypeQualifiers() {
         return new HashSet<>(
                 Arrays.asList(MethodVal.class, MethodValBottom.class, UnknownMethod.class));

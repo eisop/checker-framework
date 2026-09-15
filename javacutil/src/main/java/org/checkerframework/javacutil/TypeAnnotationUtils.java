@@ -9,6 +9,7 @@ import com.sun.tools.javac.code.TypeAnnotationPosition;
 import com.sun.tools.javac.processing.JavacProcessingEnvironment;
 import com.sun.tools.javac.util.Context;
 import com.sun.tools.javac.util.List;
+import com.sun.tools.javac.util.ListBuffer;
 import com.sun.tools.javac.util.Name;
 import com.sun.tools.javac.util.Pair;
 
@@ -245,14 +246,14 @@ public class TypeAnnotationUtils {
     public static Attribute.Compound createCompoundFromAnnotationMirror(
             AnnotationMirror am, ProcessingEnvironment env) {
         // Create a new Attribute to match the AnnotationMirror.
-        List<Pair<Symbol.MethodSymbol, Attribute>> values = List.nil();
+        ListBuffer<Pair<Symbol.MethodSymbol, Attribute>> values = new ListBuffer<>();
         for (Map.Entry<? extends ExecutableElement, ? extends AnnotationValue> entry :
                 am.getElementValues().entrySet()) {
             Attribute attribute =
                     attributeFromAnnotationValue(entry.getKey(), entry.getValue(), env);
-            values = values.append(new Pair<>((Symbol.MethodSymbol) entry.getKey(), attribute));
+            values.append(new Pair<>((Symbol.MethodSymbol) entry.getKey(), attribute));
         }
-        return new Attribute.Compound((Type.ClassType) am.getAnnotationType(), values);
+        return new Attribute.Compound((Type.ClassType) am.getAnnotationType(), values.toList());
     }
 
     /**
@@ -265,14 +266,15 @@ public class TypeAnnotationUtils {
     public static Attribute.TypeCompound createTypeCompoundFromAnnotationMirror(
             AnnotationMirror am, TypeAnnotationPosition tapos, ProcessingEnvironment env) {
         // Create a new Attribute to match the AnnotationMirror.
-        List<Pair<Symbol.MethodSymbol, Attribute>> values = List.nil();
+        ListBuffer<Pair<Symbol.MethodSymbol, Attribute>> values = new ListBuffer<>();
         for (Map.Entry<? extends ExecutableElement, ? extends AnnotationValue> entry :
                 am.getElementValues().entrySet()) {
             Attribute attribute =
                     attributeFromAnnotationValue(entry.getKey(), entry.getValue(), env);
-            values = values.append(new Pair<>((Symbol.MethodSymbol) entry.getKey(), attribute));
+            values.append(new Pair<>((Symbol.MethodSymbol) entry.getKey(), attribute));
         }
-        return new Attribute.TypeCompound((Type.ClassType) am.getAnnotationType(), values, tapos);
+        return new Attribute.TypeCompound(
+                (Type.ClassType) am.getAnnotationType(), values.toList(), tapos);
     }
 
     /**
@@ -397,12 +399,13 @@ public class TypeAnnotationUtils {
         @Override
         public Attribute visitArray(java.util.List<? extends AnnotationValue> vals, Void p) {
             if (!vals.isEmpty()) {
-                List<Attribute> valAttrs = List.nil();
+                ListBuffer<Attribute> valAttrs = new ListBuffer<>();
                 for (AnnotationValue av : vals) {
-                    valAttrs = valAttrs.append(av.accept(this, p));
+                    valAttrs.append(av.accept(this, p));
                 }
-                ArrayType arrayType = modelTypes.getArrayType(valAttrs.get(0).type);
-                return new Attribute.Array((Type) arrayType, valAttrs);
+                List<Attribute> valAttrsList = valAttrs.toList();
+                ArrayType arrayType = modelTypes.getArrayType(valAttrsList.get(0).type);
+                return new Attribute.Array((Type) arrayType, valAttrsList);
             } else {
                 return new Attribute.Array((Type) meth.getReturnType(), List.nil());
             }

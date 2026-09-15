@@ -20,6 +20,15 @@ public class FileAnnotationFileResource implements AnnotationFileResource {
         this.file = file;
     }
 
+    /**
+     * Returns the underlying file.
+     *
+     * @return the underlying file
+     */
+    public File getFile() {
+        return file;
+    }
+
     @Override
     public String getDescription() {
         return file.getAbsolutePath();

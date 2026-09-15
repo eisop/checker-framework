@@ -34,8 +34,11 @@ import javax.lang.model.element.VariableElement;
 public class AnalysisResult<V extends AbstractValue<V>, S extends Store<S>> implements UniqueId {
 
     /**
-     * For efficiency, certain maps stored in the result are only copied lazily, when they need to
-     * be mutated. This flag tracks if the copying has occurred.
+     * Whether {@link #nodeValues}, {@link #treeLookup}, and {@link #postfixLookup} have been
+     * replaced with private mutable copies. They start out as read-only {@link
+     * UnmodifiableIdentityHashMap} views and are copied lazily, the first time {@link #combine}
+     * needs to mutate them, so a result that is only ever queried (never combined) keeps the cheap
+     * views.
      */
     private boolean mapsCopied = false;
 
@@ -165,7 +168,7 @@ public class AnalysisResult<V extends AbstractValue<V>, S extends Store<S>> impl
         finalLocalValues.putAll(other.finalLocalValues);
     }
 
-    /** Make copies of certain internal IdentityHashMaps, if they have not been copied already. */
+    /** Replace the read-only map views with private mutable copies, if not already done. */
     private void copyMapsIfNeeded() {
         if (!mapsCopied) {
             nodeValues = new IdentityHashMap<>(nodeValues);
@@ -279,10 +282,11 @@ public class AnalysisResult<V extends AbstractValue<V>, S extends Store<S>> impl
      *     or decrement tree
      */
     public BinaryTree getPostfixBinaryTree(UnaryTree postfixTree) {
-        if (!postfixLookup.containsKey(postfixTree)) {
+        BinaryTree result = postfixLookup.get(postfixTree);
+        if (result == null) {
             throw new BugInCF(postfixTree + " is not in postfixLookup");
         }
-        return postfixLookup.get(postfixTree);
+        return result;
     }
 
     /**
@@ -346,9 +350,8 @@ public class AnalysisResult<V extends AbstractValue<V>, S extends Store<S>> impl
                             nodeValues,
                             analysisCaches);
                 }
-            default:
-                throw new BugInCF("Unknown direction: " + analysis.getDirection());
         }
+        throw new BugInCF("Unknown direction: " + analysis.getDirection());
     }
 
     /**
@@ -388,9 +391,8 @@ public class AnalysisResult<V extends AbstractValue<V>, S extends Store<S>> impl
                 }
             case BACKWARD:
                 return transferInput.getRegularStore();
-            default:
-                throw new BugInCF("Unknown direction: " + analysis.getDirection());
         }
+        throw new BugInCF("Unknown direction: " + analysis.getDirection());
     }
 
     /**
@@ -448,12 +450,11 @@ public class AnalysisResult<V extends AbstractValue<V>, S extends Store<S>> impl
         if (transferInput == null) {
             return null;
         }
-        // Calling Analysis.runAnalysisFor() may mutate the internal nodeValues map inside an
-        // AbstractAnalysis object, and by default the AnalysisResult constructor just wraps this
-        // map without copying it.  So here the AnalysisResult maps must be copied, to preserve
-        // them.
-        // TODO: Wouldn't it be safer to do at the beginning of the called method?
-        copyMapsIfNeeded();
+        // No defensive copy of nodeValues is needed here. runAnalysisFor reaches
+        // AbstractAnalysis.setNodeValues, which rebuilds the analysis's nodeValues with
+        // `new IdentityHashMap<>(in)` and mutates only that fresh map; the map this
+        // AnalysisResult wraps (possibly an UnmodifiableIdentityHashMap view of the analysis's
+        // own nodeValues) is read but never mutated, so it is preserved as-is.
         return runAnalysisFor(node, preOrPost, transferInput, nodeValues, analysisCaches);
     }
 
