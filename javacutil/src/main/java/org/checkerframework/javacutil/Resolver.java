@@ -119,6 +119,9 @@ public class Resolver {
     /** Whether we are running on at least Java 23. */
     private static final boolean atLeastJava23 = sourceVersionNumber >= 23;
 
+    /** Whether we are running on at least Java 28. */
+    private static final boolean atLeastJava28 = sourceVersionNumber >= 28;
+
     static {
         try {
             FIND_METHOD =
@@ -133,7 +136,17 @@ public class Resolver {
                             boolean.class);
             FIND_METHOD.setAccessible(true);
 
-            if (atLeastJava23) {
+            if (atLeastJava28) {
+                // Changed in
+                // https://github.com/openjdk/jdk/commit/f1c7c3e9bc0c8794dbf16b4fdc31464d5abe473b
+                FIND_VAR =
+                        Resolve.class.getDeclaredMethod(
+                                "findVar",
+                                DiagnosticPosition.class,
+                                Env.class,
+                                Name.class,
+                                boolean.class);
+            } else if (atLeastJava23) {
                 // Changed in
                 // https://github.com/openjdk/jdk/commit/e227c7e37d4de0656f013f3a936b1acfa56cc2e0
                 FIND_VAR =
@@ -394,7 +407,10 @@ public class Resolver {
             Env<AttrContext> env = getEnvForPath(path);
             // Either a VariableElement or a SymbolNotFoundError.
             Element res;
-            if (atLeastJava23) {
+            if (atLeastJava28) {
+                DiagnosticPosition pos = (DiagnosticPosition) path.getLeaf();
+                res = resolve(FIND_VAR, pos, env, names.fromString(name), false);
+            } else if (atLeastJava23) {
                 DiagnosticPosition pos = (DiagnosticPosition) path.getLeaf();
                 res = resolve(FIND_VAR, pos, env, names.fromString(name));
             } else {
