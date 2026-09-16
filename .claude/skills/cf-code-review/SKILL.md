@@ -10,8 +10,9 @@ sessions. Each rule below is a mistake that was actually made and had to be
 called out. Read it before starting a review, not after.
 
 See also [`cf-patch-style`](../cf-patch-style/SKILL.md) for commit/push
-discipline (which applies in full to review fixes) and
-[`cf-performance`](../cf-performance/SKILL.md) for any perf claim.
+discipline (which applies in full to review fixes),
+[`cf-performance`](../cf-performance/SKILL.md) for any perf claim, and
+[`cf-jtreg`](../cf-jtreg/SKILL.md) when the change touches a jtreg test.
 
 ## Never fix only the instance — generalize the finding
 
@@ -45,6 +46,34 @@ including commits that landed earlier — "look through other duplication
 throughout this branch, **in your changes and already committed changes**."
 Do not scope a review to `git diff HEAD~1` when asked about a branch. Use
 `git diff master...HEAD` and read the resulting state, not only the patch.
+
+## Prove the test fails without the fix
+
+A test added alongside a fix is not evidence until it has been seen to fail.
+Revert only the source change, keep the test, and run it. This is cheap and it
+has repeatedly found tests that could never fail:
+
+- A nullness test asserted "the written `@DefaultQualifier` wins" using
+  `@Nullable`, which is *also* the default when no annotation applies at all.
+  The two outcomes were indistinguishable, so an implementation that discarded
+  both annotations would have passed. Rewriting the cases around
+  `@MonotonicNonNull`, which is neither, made them discriminate.
+- A `defaultsPersist` comparison checked that the expectation and actual lists
+  were the same length and that each expectation occurred *somewhere*, without
+  recording which actual satisfied which. Expecting `[A, A]` passed against
+  `[A, B]`.
+
+The same move works on a check you have just written: mutate it and confirm
+something fails. When the mutation changes nothing, the check is not checking.
+
+**A test can also be disabled rather than weak.** `@ignore` in jtreg and a
+`@Test` that returns early both produce a green run. Two `@ignore`s found this
+way were hiding real failures, one of them with no stated reason at all — and
+one of those failures turned out to be a wrong expectation that had been
+ignored for years rather than a defect in the code under test. Check what a
+suite actually ran, not just that it was green: jtreg prints
+`did not match keywords` and `did not meet platform requirements` counts, and
+each `.jtr` file records the `@requires` it evaluated.
 
 ## A hypothesis is not a finding
 
