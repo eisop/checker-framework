@@ -1057,10 +1057,6 @@ Other improvements and bug fixes:
 
 **Closed issues:**
 
-<!-- One issue per line: a PR that adds one then touches only its own line,
-     so two PRs in flight do not conflict over a reflowed paragraph.
-     Markdown joins the lines, so this renders exactly as a paragraph.
-     Reflow to filled lines when the release section is finalized. -->
 eisop#104,
 eisop#386,
 eisop#433,

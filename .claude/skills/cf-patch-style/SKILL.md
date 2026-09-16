@@ -238,9 +238,17 @@ Measured, adding two different numbers on two branches and merging:
 | filled paragraph | conflict | conflict |
 | one per line | clean | conflict |
 
-**Reflow to filled lines when the release section is finalized**, so released
-sections stay compact; the file carries a comment saying so. Leave already
-released sections alone.
+The format carries no marker in the file: once the list is one per line, the
+next entry is added the same way by imitation. Nothing needs re-adding when
+"Prep for next release" creates the next empty section, and nothing needs
+stripping at release — which is the point, since a note that has to be removed
+and restored on every release cycle is a note that will eventually be wrong.
+The convention is stated in `CLAUDE.md`'s changelog bullet instead.
+
+**Reflowing to filled lines when a release is finalized is optional**, and
+purely cosmetic: Markdown joins the lines either way, so a released section
+left one-per-line renders correctly and is not a defect to fix. Leave already
+released sections as they are.
 
 When the same-point conflict does happen, it is two lines: keep both, in
 ascending order. Check the whole list afterwards -- ascending, no duplicates,

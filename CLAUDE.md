@@ -109,7 +109,10 @@ don't run are only covered there. The short version:
   bullet in [`docs/CHANGELOG.md`](docs/CHANGELOG.md) under the next
   release. If the PR closes a GitHub issue, add its number (as `eisop#NNNN`,
   in ascending numeric order) to that release's **Closed issues:** list in
-  the same PR — don't leave it for a later backfill.
+  the same PR — don't leave it for a later backfill. That list is written
+  one issue per line while the release is unreleased, so that two PRs adding
+  a number do not conflict over a reflowed paragraph; Markdown joins the
+  lines, so it renders the same either way.
 - **Branch naming for perf/correctness audits:**
   `review-<package>` or `perf-<package>` matches recent practice
   (e.g., `Review of common/basetype package (#1721)`).
