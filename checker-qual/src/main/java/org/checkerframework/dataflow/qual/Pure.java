@@ -8,24 +8,15 @@ import java.lang.annotation.Target;
 
 /**
  * {@code Pure} is a method annotation that means both {@link SideEffectFree} and {@link
- * Deterministic}.
+ * Deterministic}. The more important of these, when performing pluggable type-checking, is usually
+ * {@link SideEffectFree}.
  *
- * <p>For pluggable type-checking, the two components play complementary roles:
- *
- * <ul>
- *   <li>{@link SideEffectFree} preserves facts <em>about heap</em> across the call: a
- *       property known about a field before the call is still known afterwards.
- *   <li>{@link Deterministic} ensures that, from the same starting state, the call always returns
- *       the same value. By itself this is not enough to assume a property checked on the result of
- *       one call also holds on the result of a subsequent call to the same method, because a
- *       deterministic method may make state changes that invalidate its own precondition on the
- *       second call (see {@link Deterministic} for an example).
- * </ul>
- *
- * Only {@code @Pure} provides both guarantees together: facts inferred from a {@code @Pure} call
- * survive across the call and across subsequent calls to the same method with the same arguments
- * and receiver, provided those subsequent calls begin in the same relevant starting state (that
- * is, with no intervening state changes that affect the method's result).
+ * <p>For pluggable type-checking, {@link SideEffectFree} lets flow-sensitive type refinement keep
+ * facts about the heap across a call to the method, and {@link Deterministic} lets it assume that a
+ * later invocation of the method, with the same arguments and in the same environment, returns the
+ * same value as an earlier one. Because a deterministic method that is not side-effect-free can
+ * change the environment itself, both are needed for a fact learned about the result of one
+ * invocation to hold for the result of the next; see {@link Deterministic} for an example.
  *
  * <p>For a discussion of the meaning of {@code Pure} on a constructor, see the documentation of
  * {@link Deterministic}.
