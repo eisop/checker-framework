@@ -302,7 +302,7 @@ renames long predate it. Under
 200 while `UnitsExtensionDemo.java` is 404; `README.md` is 404 at both the
 release folder and `/cf/`. Both entries are corrected here.
 
-### Two web pages nothing published
+### Two web pages nothing published, now both shipped
 
 `docs/checker-framework-webpage.html` and `docs/checker-framework-quick-start.html`
 are rewritten by `update-checker-framework-versions`, and the webpage is copied
@@ -332,24 +332,37 @@ the two, every difference in link targets is just the hosting layout
 difference was content, not layout: the port dropped the **Dataflow Framework**
 bullet. That is restored in eisop/eisop.github.io#103.
 
-The better resolution is the other direction, and it is being done in a
-follow-up PR: **ship this page in the release zip** and let the website use it
-as that release's page, retiring `cf-template.md`.
+The resolution is the other direction, and it is what this PR does: **ship this
+page in the release zip**, so the website can use it as that release's own page
+and retire `cf-template.md`.
 
-One template shared across every release is a standing mismatch — a link added
+One template shared across every release is a standing mismatch. A link added
 for content that arrives in release N is broken on the archived page of every
-release before N, permanently, not just until the next release. A page that
+release before N — permanently, not just until the next release. A page that
 travels with the release it describes cannot have that problem, and this file is
-already exactly that page: `release.xml` stamps the Checker Framework version
-and date *and* the AFU zip name and date into it, so it is self-contained at
-release time. It also has the Dataflow Framework bullet that the port to
+already exactly that page: `release.xml` stamps the Checker Framework version and
+date *and* the AFU zip name and date into it, so it is self-contained at release
+time. It also still has the Dataflow Framework bullet that the port to
 `cf-template.md` dropped.
 
-What that PR has to do is add the file to `checker-includes` and align its links,
-which are still the old typetools site layout (`manual/checker-framework-manual.pdf`,
-`api`, `annotation-file-utilities/`), to the layout the zip and the website
-share. It has to merge before the next release, since only a release built after
-it can carry the page.
+Its links were the old typetools site layout and are now aligned to the layout
+the zip and the website share. The page is served at two depths — as
+`cf/index.html` and as `cf/<release>/index.html` — so the scheme has to be
+mixed, the same trick `cf-template.md` already used for its download link:
+
+| | |
+| --- | --- |
+| relative | `manual/manual.html`, `manual/manual.pdf`, `tutorial/`, `api/checker-javadoc/`, `CHANGELOG.md`, `CFLogo.png` — all present at both depths |
+| absolute | `/cf/checker-framework-<ver>.zip`, `/cf/releases/releases.html`, `/afu/annotation-tools-<ver>.zip`, `/afu/annotation-file-utilities.html` — site singletons |
+
+Checked against the live site rather than assumed: `manual/manual.pdf` resolves
+at both depths while `manual/checker-framework-manual.pdf` exists only at `cf/`,
+which is why the page now names the former. The favicon it references existed
+nowhere on the site, so it ships too, beside the page.
+
+The website half — teaching the generator to use this page and retiring
+`cf-template.md` — needs no release and follows separately. Until it lands the
+page rides along in the zip unused, exactly as the quick-start guide does.
 
 **The quick-start guide is now shipped and surfaced.** It had no counterpart on
 the site at all. Rather than port it to a second website template, this PR adds

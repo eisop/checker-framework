@@ -194,6 +194,12 @@
             <zipfileset dir="${checkerframework}" prefix="checker-framework-${version}"
                         includes="checker/bin/javac" filemode="755"/>
 
+            <!-- The front page references the favicon next to itself; it lives under docs/logo,
+                 so give it the name and location the page expects. -->
+            <zipfileset dir="${checkerframework}"
+                        includes="docs/logo/Checkmark/CFCheckmark_favicon.png"
+                        fullpath="checker-framework-${version}/docs/favicon-checkerframework.png"/>
+
             <!-- release_build.py runs `make` in dataflow/manual, so dataflow.pdf exists by now.
                  Place it under docs/manual/ so the website generator, which lifts that whole
                  directory, surfaces it at cf/manual/checker-framework-dataflow-manual.pdf. -->
