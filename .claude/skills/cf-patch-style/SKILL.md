@@ -238,12 +238,13 @@ Measured, adding two different numbers on two branches and merging:
 | filled paragraph | conflict | conflict |
 | one per line | clean | conflict |
 
-The format carries no marker in the file: once the list is one per line, the
-next entry is added the same way by imitation. Nothing needs re-adding when
-"Prep for next release" creates the next empty section, and nothing needs
-stripping at release — which is the point, since a note that has to be removed
-and restored on every release cycle is a note that will eventually be wrong.
-The convention is stated in `CLAUDE.md`'s changelog bullet instead.
+The convention is documented in
+[`docs/developer/README-eisop.md`](../../../docs/developer/README-eisop.md),
+not as a comment inside `docs/CHANGELOG.md`: "Prep for next release" creates
+each section with an empty list, so a comment there would have to be re-added
+every prep and stripped every release, and a note that needs restoring on every
+cycle is one that eventually contradicts the file. None is needed — once the
+list is one per line, the next entry is added the same way by imitation.
 
 **Reflowing to filled lines when a release is finalized is optional**, and
 purely cosmetic: Markdown joins the lines either way, so a released section
