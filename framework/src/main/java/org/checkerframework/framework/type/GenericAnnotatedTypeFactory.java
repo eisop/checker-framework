@@ -451,6 +451,15 @@ public abstract class GenericAnnotatedTypeFactory<
     }
 
     /**
+     * Returns the {@link QualifierDefaults} this factory applies.
+     *
+     * @return the {@link QualifierDefaults} this factory applies
+     */
+    public QualifierDefaults getQualifierDefaults() {
+        return defaults;
+    }
+
+    /**
      * Performs flow-sensitive type refinement on {@code classTree} if this type factory is
      * configured to do so.
      *

@@ -70,6 +70,7 @@ import java.lang.annotation.Annotation;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
@@ -1530,7 +1531,7 @@ public class ValueAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
                 AnnotationUtils.getElementValueArray(intAnno, intValValueElement, Long.class);
         List<Character> charValues =
                 CollectionsPlume.mapList((Long i) -> (char) i.intValue(), intValues);
-        Collections.sort(charValues);
+        charValues.sort(Comparator.naturalOrder());
         // TODO: Should this be an unmodifiable list?
         return new ArrayList<>(charValues);
     }

@@ -11,6 +11,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import javax.annotation.processing.ProcessingEnvironment;
+import javax.lang.model.element.PackageElement;
 import javax.lang.model.element.TypeElement;
 
 /**
@@ -183,6 +184,19 @@ public final class CheckerFrameworkDriver {
     public void process(TypeElement element, TreePath path) {
         for (SourceChecker checker : checkers) {
             checker.typeProcessExternally(element, path);
+        }
+    }
+
+    /**
+     * Runs all selected checkers over one package declaration.
+     *
+     * @param element the package being processed
+     * @param path the tree path to the package declaration (leaf is a {@code PackageTree}), as the
+     *     Checker Framework expects
+     */
+    public void processPackage(PackageElement element, TreePath path) {
+        for (SourceChecker checker : checkers) {
+            checker.packageProcessExternally(element, path);
         }
     }
 

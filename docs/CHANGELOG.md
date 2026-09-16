@@ -3,6 +3,30 @@ Version 3.49.5-eisop2 (June ?, 2026)
 
 **User-visible changes:**
 
+The EISOP Checker Framework runs under JDK 27 and under JDK 28 b15 early access
+builds -- that is, it runs on version 27 and 28 JVMs.
+
+A checker can now examine a package declaration. `AbstractTypeProcessor` dropped the
+analysis event for a `package-info.java`, so no checker could ever visit one and a
+declaration annotation written on a `package` clause went unchecked. Three checks that
+apply to a package therefore did not run there, and now do:
+
+- A conflicting `@AnnotatedFor`/`@UnannotatedFor` pair on a package was reported only when
+  some class in that package was also compiled, because the check had to be reached
+  through one.
+- A conflicting `@DefaultQualifier` pair on a package was likewise reported only then, and
+  for the same reason: the diagnostic fell out of resolving the package's defaults, which
+  nothing does when no class in the package is compiled.
+- A conflicting `@HasQualifierParameter`/`@NoQualifierParameter` pair on a package, and a
+  `@HasQualifierParameter` whose argument is not a top qualifier, were never checked at
+  all. Both annotations' `@Target` includes `PACKAGE`.
+
+A conflicting `@DefaultQualifier` pair on an element read from bytecode is no longer an
+error. It is reported as a warning under the new `-AwarnBytecodeConflicts`, and not at all
+without it. Such a declaration is in a library the user cannot edit, and which bytecode
+elements get examined depends on what the compilation happens to touch, so the coverage was
+never complete enough to rely on.
+
 `-AcheckCastElementType` is documented as requiring that "parameterized type
 arguments and array elements are the same" in a cast, but only the type-argument
 half was implemented. Array components are now required to be invariant too, in
@@ -1041,15 +1065,16 @@ Other improvements and bug fixes:
 
 **Closed issues:**
 
-eisop#104, eisop#386, eisop#433, eisop#622, eisop#737, eisop#778, eisop#786,
-eisop#792, eisop#863, eisop#949, eisop#1015, eisop#1059, eisop#1074,
-eisop#1244, eisop#1292, eisop#1299, eisop#1315, eisop#1481, eisop#1564, eisop#1592,
-eisop#1642, eisop#1653, eisop#1735, eisop#1801, eisop#1818, eisop#1819,
-eisop#1861, eisop#1862, eisop#1863, eisop#1865, eisop#1887, eisop#1965,
-eisop#1986, eisop#1987, eisop#1990, eisop#1991, eisop#2009, eisop#2020,
-eisop#2021, eisop#2032, eisop#2037, eisop#2047, eisop#2048, eisop#2050,
-eisop#2052, eisop#2056, eisop#2059, eisop#2061, eisop#2064, eisop#2074,
-eisop#2083, typetools#399, typetools#3203.
+eisop#104, eisop#386, eisop#433, eisop#622, eisop#737, eisop#778,
+eisop#786, eisop#792, eisop#863, eisop#949, eisop#1015, eisop#1059,
+eisop#1074, eisop#1244, eisop#1292, eisop#1299, eisop#1315, eisop#1481,
+eisop#1564, eisop#1592, eisop#1642, eisop#1653, eisop#1735, eisop#1801,
+eisop#1818, eisop#1819, eisop#1861, eisop#1862, eisop#1863, eisop#1865,
+eisop#1887, eisop#1958, eisop#1965, eisop#1986, eisop#1987, eisop#1990,
+eisop#1991, eisop#2009, eisop#2020, eisop#2021, eisop#2032, eisop#2037,
+eisop#2047, eisop#2048, eisop#2050, eisop#2052, eisop#2056, eisop#2059,
+eisop#2061, eisop#2064, eisop#2074, eisop#2081, eisop#2083, eisop#2089,
+typetools#399, typetools#3203.
 
 
 Version 3.49.5-eisop1 (April 26, 2026)

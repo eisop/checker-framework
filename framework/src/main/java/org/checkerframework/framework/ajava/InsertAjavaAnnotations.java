@@ -30,7 +30,6 @@ import org.plumelib.util.CollectionsPlume;
 import org.plumelib.util.FilesPlume;
 
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.FileVisitResult;
@@ -551,7 +550,8 @@ public class InsertAjavaAnnotations {
             File javaFile = new File(javaFileName);
             String fileContents = FilesPlume.readString(Paths.get(javaFileName));
             String lineSeparator = FilesPlume.inferLineSeparator(annotationFileName);
-            try (FileInputStream annotationInputStream = new FileInputStream(annotationFileName)) {
+            try (InputStream annotationInputStream =
+                    Files.newInputStream(Paths.get(annotationFileName))) {
                 String result =
                         insertAnnotations(annotationInputStream, fileContents, lineSeparator);
                 FilesPlume.writeString(javaFile, result);
