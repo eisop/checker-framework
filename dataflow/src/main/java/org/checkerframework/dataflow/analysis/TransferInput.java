@@ -6,7 +6,6 @@ import org.checkerframework.dataflow.cfg.node.Node;
 import org.plumelib.util.StringsPlume;
 import org.plumelib.util.UniqueId;
 
-import java.util.Objects;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
@@ -279,6 +278,9 @@ public class TransferInput<V extends AbstractValue<V>, S extends Store<S>> imple
 
     @Override
     public boolean equals(@Nullable Object o) {
+        if (this == o) {
+            return true;
+        }
         if (o instanceof TransferInput) {
             @SuppressWarnings("unchecked")
             TransferInput<V, S> other = (TransferInput<V, S>) o;
@@ -298,7 +300,11 @@ public class TransferInput<V extends AbstractValue<V>, S extends Store<S>> imple
 
     @Override
     public int hashCode() {
-        return Objects.hash(this.analysis, this.node, this.store, this.thenStore, this.elseStore);
+        int h = 1;
+        h = 31 * h + (this.store != null ? this.store.hashCode() : 0);
+        h = 31 * h + (this.thenStore != null ? this.thenStore.hashCode() : 0);
+        h = 31 * h + (this.elseStore != null ? this.elseStore.hashCode() : 0);
+        return h;
     }
 
     @Override

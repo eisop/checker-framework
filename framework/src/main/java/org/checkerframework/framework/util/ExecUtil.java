@@ -16,6 +16,12 @@ public class ExecUtil {
         Redirection errRedirect = new Redirection(err, BLOCK_SIZE);
 
         try {
+            // Process implements AutoCloseable in JDK 26, but we compile against older JDKs where
+            // close() is not available.
+            @SuppressWarnings({
+                "resourceleak:required.method.not.called",
+                "resourceleak:unneeded.suppression"
+            })
             Process proc = Runtime.getRuntime().exec(cmd);
             outRedirect.redirect(proc.getInputStream());
             errRedirect.redirect(proc.getErrorStream());

@@ -58,10 +58,13 @@ public class NullChkNode extends Node {
 
     @Override
     public boolean equals(@Nullable Object obj) {
-        if (!(obj instanceof NumericalPlusNode)) {
+        if (this == obj) {
+            return true;
+        }
+        if (!(obj instanceof NullChkNode)) {
             return false;
         }
-        NumericalPlusNode other = (NumericalPlusNode) obj;
+        NullChkNode other = (NullChkNode) obj;
         return getOperand().equals(other.getOperand());
     }
 

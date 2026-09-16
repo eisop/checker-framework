@@ -3,12 +3,13 @@ package org.checkerframework.framework.test;
 import org.checkerframework.checker.initialization.qual.UnderInitialization;
 import org.junit.Assert;
 
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Scanner;
 
 import javax.annotation.processing.AbstractProcessor;
 
@@ -106,9 +107,9 @@ public abstract class CheckerFrameworkWPIPerDirectoryTest extends CheckerFramewo
      * @return whether {@code file} contains {@code skipComment}
      */
     public static boolean hasSkipComment(File file, String skipComment) {
-        try (Scanner in = new Scanner(file, StandardCharsets.UTF_8.name())) {
-            while (in.hasNext()) {
-                String nextLine = in.nextLine();
+        try (BufferedReader br = Files.newBufferedReader(file.toPath(), StandardCharsets.UTF_8)) {
+            String nextLine;
+            while ((nextLine = br.readLine()) != null) {
                 if (nextLine.contains(skipComment)) {
                     return true;
                 }

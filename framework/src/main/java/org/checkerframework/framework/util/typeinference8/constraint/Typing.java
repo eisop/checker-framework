@@ -12,9 +12,7 @@ import org.checkerframework.framework.util.typeinference8.util.Java8InferenceCon
 import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.TypesUtils;
 
-import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
@@ -116,21 +114,22 @@ public class Typing extends TypeConstraint {
     }
 
     @Override
-    public List<Variable> getInputVariables() {
-        return Collections.emptyList();
+    public Set<Variable> getInputVariables() {
+        return Collections.emptySet();
     }
 
     @Override
-    public List<Variable> getOutputVariables() {
-        return Collections.emptyList();
+    public Set<Variable> getOutputVariables() {
+        return Collections.emptySet();
     }
 
     @Override
-    public List<Variable> getInferenceVariables() {
-        Set<Variable> vars = new HashSet<>();
-        vars.addAll(T.getInferenceVariables());
-        vars.addAll(S.getInferenceVariables());
-        return new ArrayList<>(vars);
+    public Set<Variable> getInferenceVariables() {
+        // addAllLazily does not mutate its first argument.
+        Set<Variable> vars = Collections.emptySet();
+        vars = addAllLazily(vars, T.getInferenceVariables());
+        vars = addAllLazily(vars, S.getInferenceVariables());
+        return vars;
     }
 
     @Override
@@ -297,6 +296,15 @@ public class Typing extends TypeConstraint {
             return new Typing(this, S, T.getTypeVarLowerBound(), Kind.SUBTYPE);
         } else if (T.getTypeKind() == TypeKind.WILDCARD && T.isLowerBoundedWildcard()) {
             return new Typing(this, S, T.getWildcardLowerBound(), Kind.SUBTYPE);
+        } else if (S.getTypeKind() == TypeKind.TYPEVAR
+                && TypesUtils.isCapturedTypeVariable(S.getJavaType())) {
+            // JLS 18.2.3 lists only the three cases above and otherwise reduces to false, which is
+            // wrong for a capture variable: by the definition of capture conversion, a captured
+            // type variable is always a subtype of its own upper bound, whichever kind of wildcard
+            // -- "? extends X", "? super X", or unbounded -- it was captured from.  It therefore
+            // suffices for that upper bound to be a subtype of T.  This is a sound step, not an
+            // equivalence: it can turn a true constraint into a false one, never the reverse.
+            return new Typing(this, S.getTypeVarUpperBound(), T, Kind.SUBTYPE);
         } else {
             return ConstraintSet.FALSE;
         }
@@ -508,11 +516,17 @@ public class Typing extends TypeConstraint {
         return S.equals(typing.S) && kind == typing.kind;
     }
 
+    /** Cached hash code to prevent repeated recomputation of complex deep-hashes. */
+    private int cachedHashCode = 0;
+
     @Override
     public int hashCode() {
-        int result = super.hashCode();
-        result = 31 * result + S.hashCode();
-        result = 31 * result + kind.hashCode();
-        return result;
+        if (cachedHashCode == 0) {
+            int result = super.hashCode();
+            result = 31 * result + S.hashCode();
+            result = 31 * result + kind.hashCode();
+            cachedHashCode = result == 0 ? 1 : result;
+        }
+        return cachedHashCode;
     }
 }

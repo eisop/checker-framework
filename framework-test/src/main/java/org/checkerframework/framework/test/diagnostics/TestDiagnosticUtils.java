@@ -168,8 +168,16 @@ public class TestDiagnosticUtils {
                 kind = DiagnosticKind.Warning;
                 isFixable = false;
                 message = warningMatcher.group("message").trim();
-                if (lineNumber == null && diagnosticMatcher.group("linenogroup") != null) {
-                    lineNo = Long.parseLong(diagnosticMatcher.group("lineno"));
+                // The warningPattern may not define a "linenogroup" group (e.g.
+                // DIAGNOSTIC_WARNING_IN_JAVA_PATTERN), so guard the lookup.
+                if (lineNumber == null) {
+                    try {
+                        if (warningMatcher.group("linenogroup") != null) {
+                            lineNo = Long.parseLong(warningMatcher.group("lineno"));
+                        }
+                    } catch (IllegalArgumentException e) {
+                        // warningPattern does not define a "linenogroup" group.
+                    }
                 }
             } else if (diagnosticString.startsWith("warning:")) {
                 kind = DiagnosticKind.Warning;
@@ -213,11 +221,24 @@ public class TestDiagnosticUtils {
 
             // (3) the diagnostic position, given by the format (startPosition, endPosition);
             String pairParens = diagnosticStrings[lastAdditionalToken];
-            // remove the leading and trailing parentheses and spaces
-            String pair = pairParens.substring(2, pairParens.length() - 2);
-            String[] diagPositionString = pair.split(", ");
-            long startPosition = Long.parseLong(diagPositionString[0]);
-            long endPosition = Long.parseLong(diagPositionString[1]);
+            long startPosition = -1;
+            long endPosition = -1;
+            if (pairParens.length() >= 4) {
+                // remove the leading and trailing parentheses and spaces
+                String pair = pairParens.substring(2, pairParens.length() - 2);
+                // Splitting on the fixed two-character literal ", "; Pattern.quote prevents regex
+                // interpretation. Trailing empty strings cannot occur in "(start, end)" format.
+                @SuppressWarnings("StringSplitter")
+                String[] diagPositionString = pair.split(Pattern.quote(", "));
+                if (diagPositionString.length == 2) {
+                    try {
+                        startPosition = Long.parseLong(diagPositionString[0]);
+                        endPosition = Long.parseLong(diagPositionString[1]);
+                    } catch (NumberFormatException e) {
+                        // If parsing fails, leave positions at -1
+                    }
+                }
+            }
 
             // (4) the human-readable diagnostic message.
             String readableMessage = diagnosticStrings[lastAdditionalToken + 1];

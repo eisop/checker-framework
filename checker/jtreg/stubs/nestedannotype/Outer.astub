@@ -1,0 +1,15 @@
+import org.checkerframework.checker.nullness.qual.Nullable;
+
+// This nested annotation type declaration -- like the real annotated JDK's
+// com.sun.tools.javac.api.ClientCodeWrapper.Trusted and java.lang.invoke.LambdaForm.Compiled --
+// carries annotations that only the stub supplies. AnnotationFileParser's member-processing switch
+// (in processTypeDecl) handles ElementKind.ANNOTATION_TYPE so the nested declaration and its own
+// members are processed; without that case the nested declaration is ignored and the @Nullable
+// parameter type on Outer.Nested.Helper.m below is never applied.
+class Outer {
+    @interface Nested {
+        class Helper {
+            void m(@Nullable Object p);
+        }
+    }
+}
