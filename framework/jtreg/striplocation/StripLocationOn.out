@@ -1,0 +1,9 @@
+StripLocationTest.java:21:27: compiler.err.proc.messager: [type.invalid.annotations.on.location] annotation @org.checkerframework.framework.testchecker.striplocation.quals.StripUpperOnly used on prohibited locations LOWER_BOUND
+StripLocationTest.java:24:10: compiler.err.proc.messager: [type.invalid.annotations.on.location] annotation @org.checkerframework.framework.testchecker.striplocation.quals.StripUpperOnly used on prohibited locations SUPER_WILDCARD
+StripLocationTest.java:24:10: compiler.err.proc.messager: [type.invalid.annotations.on.location] annotation @org.checkerframework.framework.testchecker.striplocation.quals.StripUpperOnly used on prohibited locations SUPER_WILDCARD
+StripLocationTest.java:30:35: compiler.err.proc.messager: [explicit.striptop.on.lowerbound] (explicit.striptop.on.lowerbound)
+StripLocationTest.java:34:10: compiler.err.proc.messager: [explicit.striptop.on.lowerbound] (explicit.striptop.on.lowerbound)
+StripLocationTest.java:34:10: compiler.err.proc.messager: [explicit.striptop.on.lowerbound] (explicit.striptop.on.lowerbound)
+StripLocationTest.java:42:10: compiler.err.proc.messager: [explicit.striptop.on.lowerbound] (explicit.striptop.on.lowerbound)
+StripLocationTest.java:42:10: compiler.err.proc.messager: [explicit.striptop.on.lowerbound] (explicit.striptop.on.lowerbound)
+8 errors

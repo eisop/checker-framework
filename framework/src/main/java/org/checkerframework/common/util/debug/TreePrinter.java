@@ -55,7 +55,12 @@ public class TreePrinter extends AbstractTypeProcessor {
         System.out.println(out.toString());
     }
 
-    public static void main(String[] args) throws Exception {
+    /**
+     * Runs the Checker Framework as a javac annotation processor on the given source files.
+     *
+     * @param args source files to process
+     */
+    public static void main(String[] args) {
         String[] newArgs = new String[args.length + 3];
         newArgs[0] = "-processor";
         newArgs[1] = "org.checkerframework.common.util.debug.TreePrinter";

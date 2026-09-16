@@ -1,0 +1,10 @@
+import org.checkerframework.framework.testchecker.nontopdefault.qual.NTDTop;
+import org.checkerframework.framework.testchecker.nontopdefault.qual.NTDBottom;
+
+package java.util;
+class Map<K extends @NTDTop Object, V extends @NTDTop Object> {}
+class List<E extends @NTDBottom Object> {}
+
+package nontopdefault;
+class SourceWidenMe<E extends @NTDTop Object> {}
+class SourceNarrowMe<E extends @NTDBottom Object> {}

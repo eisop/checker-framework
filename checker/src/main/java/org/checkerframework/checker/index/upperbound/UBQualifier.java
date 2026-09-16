@@ -18,6 +18,7 @@ import org.plumelib.util.IPair;
 import java.lang.annotation.Annotation;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -430,8 +431,9 @@ public abstract class UBQualifier {
         private Map<String, Set<OffsetEquation>> copyMap() {
             Map<String, Set<OffsetEquation>> result =
                     new HashMap<>(CollectionsPlume.mapCapacity(map));
-            for (String sequenceName : map.keySet()) {
-                Set<OffsetEquation> oldEquations = map.get(sequenceName);
+            for (Map.Entry<String, Set<OffsetEquation>> entry : map.entrySet()) {
+                String sequenceName = entry.getKey();
+                Set<OffsetEquation> oldEquations = entry.getValue();
                 Set<OffsetEquation> newEquations =
                         new HashSet<>(CollectionsPlume.mapCapacity(oldEquations));
                 for (OffsetEquation offsetEquation : oldEquations) {
@@ -541,7 +543,7 @@ public abstract class UBQualifier {
         private static SequencesOffsetsAndClass mapToSequencesAndOffsets(
                 Map<String, Set<OffsetEquation>> map, boolean buildSubstringIndexAnnotation) {
             List<@KeyFor("map") String> sortedSequences = new ArrayList<>(map.keySet());
-            Collections.sort(sortedSequences);
+            sortedSequences.sort(Comparator.naturalOrder());
             List<String> sequences = new ArrayList<>();
             List<String> offsets = new ArrayList<>();
             boolean isLTEq = true;
@@ -554,7 +556,7 @@ public abstract class UBQualifier {
                     isLTOM = isLTOM && eq.equals(OffsetEquation.ONE);
                     thisOffsets.add(eq.toString());
                 }
-                Collections.sort(thisOffsets);
+                thisOffsets.sort(Comparator.naturalOrder());
                 for (String offset : thisOffsets) {
                     sequences.add(sequence);
                     offsets.add(offset);

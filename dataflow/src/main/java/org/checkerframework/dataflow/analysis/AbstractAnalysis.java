@@ -21,9 +21,9 @@ import org.checkerframework.dataflow.qual.Pure;
 import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.ElementUtils;
 
+import java.util.Collection;
+import java.util.Collections;
 import java.util.Comparator;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.IdentityHashMap;
 import java.util.Objects;
 import java.util.PriorityQueue;
@@ -61,17 +61,33 @@ public abstract class AbstractAnalysis<
     /**
      * The transfer inputs of every basic block; assumed to be 'no information' if not present. The
      * inputs are before blocks in forward analysis, and are after blocks in backward analysis.
+     *
+     * <p>This field is intentionally not final; it should only be re-assigned by {@link
+     * #initFields}.
      */
-    protected final IdentityHashMap<Block, TransferInput<V, S>> inputs = new IdentityHashMap<>();
+    protected IdentityHashMap<Block, TransferInput<V, S>> inputs = new IdentityHashMap<>();
 
     /** The worklist used for the fix-point iteration. */
     protected final Worklist worklist;
 
-    /** Abstract values of nodes. */
-    protected final IdentityHashMap<Node, V> nodeValues = new IdentityHashMap<>();
+    /**
+     * Abstract values of nodes.
+     *
+     * <p>This field is intentionally not final; it should only be re-assigned by {@link
+     * #initFields} or {@link #setNodeValues}.
+     */
+    protected IdentityHashMap<Node, V> nodeValues = new IdentityHashMap<>();
 
-    /** Map from (effectively final) local variable elements to their abstract value. */
-    protected final HashMap<VariableElement, V> finalLocalValues = new HashMap<>();
+    /** The last argument to {@link #setNodeValues}, or null if none yet (or invalidated). */
+    private @Nullable IdentityHashMap<Node, V> syncedFrom;
+
+    /**
+     * Map from (effectively final) local variable elements to their abstract value.
+     *
+     * <p>This field is intentionally not final; it should only be re-assigned by {@link
+     * #initFields}.
+     */
+    protected IdentityHashMap<VariableElement, V> finalLocalValues = new IdentityHashMap<>();
 
     /**
      * The node that is currently handled in the analysis (if it is running). The following
@@ -202,14 +218,40 @@ public abstract class AbstractAnalysis<
                     || (currentTree != null && currentTree == n.getTree())) {
                 return null;
             }
-            // check that 'n' is a subnode of 'currentNode'. Check immediate operands
-            // first for efficiency.
+            // Check that 'n' is a subnode of 'currentNode'. Check immediate operands
+            // first for efficiency, then walk transitive operands with early exit
+            // (vs. materializing the whole subtree as Node#getTransitiveOperands does).
             assert !n.isLValue() : "Did not expect an lvalue, but got " + n;
-            if (!currentNode.getOperands().contains(n)
-                    && !currentNode.getTransitiveOperands().contains(n)) {
-                return null;
+            // TODO: these membership tests use Collection#contains (structural Node#equals), but
+            // nodeValues (read below) is identity-keyed and equal Nodes can be distinct CFG nodes
+            // (see Node). The structural match only changes the GATE decision -- nodeValues.get(n)
+            // is by identity, so it always returns n's own value, never another node's. So the only
+            // risk is returning n's (possibly stale) value when n is not truly a subnode; this is
+            // empirically benign (every real divergence on the all-systems corpus is a
+            // constant-valued ClassNameNode, no diagnostic change). The whole check also allocates
+            // getOperands() per visited node: ~1.2% of allocation on realistic code but ~35% on
+            // deeply nested expressions. An identity test is more correct but regresses allocation
+            // (forces recomputation the structural match elided). The immediate-operands fast-path
+            // below is a measured no-op vs. a unified BFS (the one avoided ArrayDeque is in the
+            // noise) -- keep for clarity, not speed. See docs/developer/performance-notes.md
+            // (Tried and rejected).
+            Collection<Node> immediate = currentNode.getOperands();
+            if (!immediate.contains(n)) {
+                java.util.ArrayDeque<Node> queue = new java.util.ArrayDeque<>(immediate);
+                boolean found = false;
+                while (!queue.isEmpty()) {
+                    Collection<Node> ops = queue.removeFirst().getOperands();
+                    if (ops.contains(n)) {
+                        found = true;
+                        break;
+                    }
+                    queue.addAll(ops);
+                }
+                if (!found) {
+                    return null;
+                }
             }
-            // fall through when the current node is not 'n', and 'n' is not a subnode.
+            // Fall through when 'n' is a (transitive) subnode of currentNode.
         }
         return nodeValues.get(n);
     }
@@ -231,14 +273,26 @@ public abstract class AbstractAnalysis<
     @SuppressWarnings("interning:not.interned") // see comment about if-check below
     /*package-private*/ void setNodeValues(IdentityHashMap<Node, V> in) {
         assert !isRunning;
-        // The if-check below is not just an optimization.  Without it, this method misbehaves
-        // when `in` and `nodeValues` alias: the call to `clear()` clears BOTH objects.  There
-        // are some places where `this.nodeValues` flows to the `in` argument (through several
-        // other layers of abstraction).
-        if (nodeValues != in) {
-            nodeValues.clear();
-            nodeValues.putAll(in);
+        // Correctness here rests on copy-before-mutate, not on the if-check below: `in` may be an
+        // unmodifiable view of the current `nodeValues` (AnalysisResult wraps it via
+        // UnmodifiableIdentityHashMap and passes it back through getStoreBefore/getStoreAfter), so
+        // `new IdentityHashMap<>(in)` reads `in` fully before reassigning the field, which is safe
+        // even under that aliasing. (The previous in-place `nodeValues.clear(); putAll(in)` was
+        // not: clearing the field also emptied the aliased view, wiping every node value.)
+        //
+        // Both if-check arms are then pure optimizations that skip rebuilding a map that would
+        // already mirror `in`:
+        // `nodeValues == in`: `in` is already the field; nothing to do.
+        // `syncedFrom == in`: `nodeValues` was last rebuilt from this same `in`, and only
+        // initFields mutates it in between (and initFields resets syncedFrom), so a rebuild would
+        // be identical.
+        // Saves ~10% of total CPU on traces dominated by post-analysis spot queries (every
+        // getAnnotationFromTree query during type-checking lands here).
+        if (nodeValues == in || syncedFrom == in) {
+            return;
         }
+        nodeValues = new IdentityHashMap<>(in);
+        syncedFrom = in;
     }
 
     @Override
@@ -246,11 +300,8 @@ public abstract class AbstractAnalysis<
     @RequiresNonNull("cfg")
     public @Nullable S getRegularExitStore() {
         SpecialBlock regularExitBlock = cfg.getRegularExitBlock();
-        if (inputs.containsKey(regularExitBlock)) {
-            return inputs.get(regularExitBlock).getRegularStore();
-        } else {
-            return null;
-        }
+        TransferInput<V, S> input = inputs.get(regularExitBlock);
+        return input == null ? null : input.getRegularStore();
     }
 
     @Override
@@ -258,12 +309,8 @@ public abstract class AbstractAnalysis<
     @RequiresNonNull("cfg")
     public @Nullable S getExceptionalExitStore() {
         SpecialBlock exceptionalExitBlock = cfg.getExceptionalExitBlock();
-        if (inputs.containsKey(exceptionalExitBlock)) {
-            S exceptionalExitStore = inputs.get(exceptionalExitBlock).getRegularStore();
-            return exceptionalExitStore;
-        } else {
-            return null;
-        }
+        TransferInput<V, S> input = inputs.get(exceptionalExitBlock);
+        return input == null ? null : input.getRegularStore();
     }
 
     /**
@@ -393,8 +440,13 @@ public abstract class AbstractAnalysis<
         }
         transferInput.node = node;
         setCurrentNode(node);
-        TransferResult<V, S> transferResult = node.accept(transferFunction, transferInput);
-        setCurrentNode(null);
+        TransferResult<V, S> transferResult;
+        try {
+            transferResult = node.accept(transferFunction, transferInput);
+        } finally {
+            // Preserve invariant `!isRunning => currentNode == null` even on exception.
+            setCurrentNode(null);
+        }
         if (node instanceof AssignmentNode) {
             // store the flow-refined value effectively for final local variables
             AssignmentNode assignment = (AssignmentNode) node;
@@ -445,9 +497,10 @@ public abstract class AbstractAnalysis<
      */
     @EnsuresNonNull("this.cfg")
     protected void initFields(ControlFlowGraph cfg) {
-        inputs.clear();
-        nodeValues.clear();
-        finalLocalValues.clear();
+        inputs = new IdentityHashMap<>();
+        nodeValues = new IdentityHashMap<>();
+        syncedFrom = null;
+        finalLocalValues = new IdentityHashMap<>();
         this.cfg = cfg;
         getResultCache = null;
     }
@@ -478,11 +531,7 @@ public abstract class AbstractAnalysis<
      * @param b the block to add to {@link #worklist}
      */
     protected void addToWorklist(Block b) {
-        // TODO: This costs linear (!) time.  Use a more efficient way to check if b is already
-        // present.
-        // Two possibilities:
-        //  * add unconditionally, and detect duplicates when removing from the queue.
-        //  * maintain a HashSet of the elements that are already in the queue.
+        // Worklist.contains is O(1) via worklist.queueSet.
         if (!worklist.contains(b)) {
             worklist.add(b);
         }
@@ -494,8 +543,16 @@ public abstract class AbstractAnalysis<
      */
     protected static class Worklist {
 
-        /** Map all blocks in the CFG to their depth-first order. */
-        protected final IdentityHashMap<Block, Integer> depthFirstOrder = new IdentityHashMap<>();
+        /**
+         * Map all blocks in the CFG to their depth-first order, or null before the first {@link
+         * #process} call. Re-instantiated (not cleared) by {@link #process} for each CFG so the
+         * backing array grown for one very large method is not retained across all subsequent,
+         * possibly tiny, methods; has no initializer so {@link #process} need not discard one.
+         *
+         * <p>This field is intentionally not final; it should only be re-assigned by {@link
+         * #process}.
+         */
+        protected @MonotonicNonNull IdentityHashMap<Block, Integer> depthFirstOrder;
 
         /**
          * Comparators to allow priority queue to order blocks by their depth-first order, using by
@@ -505,10 +562,16 @@ public abstract class AbstractAnalysis<
             /** Creates a new ForwardDfoComparator. */
             public ForwardDfoComparator() {}
 
-            @SuppressWarnings("nullness:unboxing.of.nullable")
             @Override
             public int compare(Block b1, Block b2) {
-                return depthFirstOrder.get(b1) - depthFirstOrder.get(b2);
+                IdentityHashMap<Block, Integer> dfo = depthFirstOrder;
+                assert dfo != null
+                        : "@AssumeAssertion(nullness): set by process() before the worklist is used";
+                Integer o1 = dfo.get(b1);
+                Integer o2 = dfo.get(b2);
+                assert o1 != null && o2 != null
+                        : "@AssumeAssertion(nullness): blocks have been processed";
+                return Integer.compare(o1, o2);
             }
         }
 
@@ -520,10 +583,16 @@ public abstract class AbstractAnalysis<
             /** Creates a new BackwardDfoComparator. */
             public BackwardDfoComparator() {}
 
-            @SuppressWarnings("nullness:unboxing.of.nullable")
             @Override
             public int compare(Block b1, Block b2) {
-                return depthFirstOrder.get(b2) - depthFirstOrder.get(b1);
+                IdentityHashMap<Block, Integer> dfo = depthFirstOrder;
+                assert dfo != null
+                        : "@AssumeAssertion(nullness): set by process() before the worklist is used";
+                Integer o1 = dfo.get(b1);
+                Integer o2 = dfo.get(b2);
+                assert o1 != null && o2 != null
+                        : "@AssumeAssertion(nullness): blocks have been processed";
+                return Integer.compare(o2, o1);
             }
         }
 
@@ -541,10 +610,10 @@ public abstract class AbstractAnalysis<
         public Worklist(Direction direction) {
             if (direction == Direction.FORWARD) {
                 queue = new PriorityQueue<>(new ForwardDfoComparator());
-                queueSet = new HashSet<>();
+                queueSet = Collections.newSetFromMap(new IdentityHashMap<>());
             } else if (direction == Direction.BACKWARD) {
                 queue = new PriorityQueue<>(new BackwardDfoComparator());
-                queueSet = new HashSet<>();
+                queueSet = Collections.newSetFromMap(new IdentityHashMap<>());
             } else {
                 throw new BugInCF("Unexpected Direction: " + direction.name());
             }
@@ -558,8 +627,9 @@ public abstract class AbstractAnalysis<
          *
          * @param cfg the control flow graph to process
          */
+        @EnsuresNonNull("depthFirstOrder")
         public void process(ControlFlowGraph cfg) {
-            depthFirstOrder.clear();
+            depthFirstOrder = new IdentityHashMap<>();
             int count = 1;
             for (Block b : cfg.getDepthFirstOrderedBlocks()) {
                 depthFirstOrder.put(b, count++);

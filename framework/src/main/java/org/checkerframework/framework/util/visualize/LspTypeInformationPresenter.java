@@ -98,7 +98,9 @@ public class LspTypeInformationPresenter extends AbstractTypeInformationPresente
          * @return a message range corresponds to the tree
          */
         protected @Nullable TypeOccurrenceRange computeTypeOccurrenceRange(Tree tree) {
+            @SuppressWarnings("removal") // TODO: encapsulate methods
             long startPos = sourcePositions.getStartPosition(currentRoot, tree);
+            @SuppressWarnings("removal")
             long endPos = sourcePositions.getEndPosition(currentRoot, tree);
             if (startPos == Diagnostic.NOPOS || endPos == Diagnostic.NOPOS) {
                 // The tree doesn't exist in the source file.

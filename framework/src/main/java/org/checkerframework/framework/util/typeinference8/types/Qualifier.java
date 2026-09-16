@@ -4,7 +4,13 @@ import org.checkerframework.framework.util.typeinference8.util.Java8InferenceCon
 
 import javax.lang.model.element.AnnotationMirror;
 
-/** A wrapper around an {@link AnnotationMirror}. */
+/**
+ * A wrapper around an {@link AnnotationMirror}.
+ *
+ * <p>Do NOT override {@code equals} or {@code hashCode} in this class. The constraint inference
+ * engine relies on identity-based equality for {@code Qualifier} wrappers to properly track
+ * constraint graphs without inappropriately deduplicating them.
+ */
 public class Qualifier extends AbstractQualifier {
 
     /** The annotation. */

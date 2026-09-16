@@ -827,7 +827,9 @@ public class MustCallConsistencyAnalyzer {
             return false;
         }
         if (enclosingTarget instanceof ThisReference && target instanceof ThisReference) {
-            return enclosingTarget.getType().toString().equals(target.getType().toString());
+            return checker.getProcessingEnvironment()
+                    .getTypeUtils()
+                    .isSameType(enclosingTarget.getType(), target.getType());
         } else {
             return enclosingTarget.equals(target);
         }
@@ -1540,8 +1542,8 @@ public class MustCallConsistencyAnalyzer {
                         formatMissingMustCallMethods(mcValues),
                         "field " + lhsElement.getSimpleName().toString(),
                         lhsElement.asType().toString(),
-                        "Field assignment outside method or declaration might overwrite field's"
-                                + " current value");
+                        "field assignment outside a method or declaration might overwrite the"
+                                + " field's current value");
                 return;
             }
         } else if (permitInitializationLeak && TreeUtils.isConstructor(enclosingMethodTree)) {
@@ -1667,7 +1669,7 @@ public class MustCallConsistencyAnalyzer {
                         formatMissingMustCallMethods(mcValues),
                         "field " + lhsElement.getSimpleName().toString(),
                         lhsElement.asType().toString(),
-                        " Non-final owning field might be overwritten");
+                        "non-final owning field might be overwritten");
             }
         }
     }
@@ -2045,9 +2047,9 @@ public class MustCallConsistencyAnalyzer {
                         // exit, but that doesn't seem to provide additional helpful
                         // information.
                         "regular method exit"
-                        : "possible exceptional exit due to "
+                        : "possible exceptional exit before the required method call, if "
                                 + ((ExceptionBlock) currentBlock).getNode().getTree()
-                                + " with exception type "
+                                + " throws an exception of type "
                                 + exceptionType;
         // Computed outside the Obligation loop for efficiency.
         AccumulationStore regularStoreOfSuccessor = cmAtf.getInput(successor).getRegularStore();
@@ -2478,7 +2480,7 @@ public class MustCallConsistencyAnalyzer {
      */
     private void incrementMustCallImpl(TypeMirror type) {
         // only count uses of JDK classes, since that's what the paper reported
-        if (!isJdkClass(TypesUtils.getTypeElement(type).getQualifiedName().toString())) {
+        if (!isJdkClass(ElementUtils.getQualifiedName(TypesUtils.getTypeElement(type)))) {
             return;
         }
         checker.numMustCall++;

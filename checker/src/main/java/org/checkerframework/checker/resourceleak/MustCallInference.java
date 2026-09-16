@@ -574,16 +574,18 @@ public class MustCallInference {
         // those methods are called. This map is used to create a @EnsuresCalledMethods annotation
         // for each set of fields that share the same must-call obligation.
         Map<String, Set<String>> methodToFields = new LinkedHashMap<>();
-        for (VariableElement disposedField : disposedFields.keySet()) {
-            String mustCallValue = disposedFields.get(disposedField);
+        for (Map.Entry<VariableElement, String> entry : disposedFields.entrySet()) {
+            VariableElement disposedField = entry.getKey();
+            String mustCallValue = entry.getValue();
             String fieldName = "this." + disposedField.getSimpleName().toString();
             methodToFields
                     .computeIfAbsent(mustCallValue, k -> new LinkedHashSet<>())
                     .add(fieldName);
         }
 
-        for (String mustCallValue : methodToFields.keySet()) {
-            Set<String> fields = methodToFields.get(mustCallValue);
+        for (Map.Entry<String, Set<String>> entry : methodToFields.entrySet()) {
+            String mustCallValue = entry.getKey();
+            Set<String> fields = entry.getValue();
             AnnotationMirror am =
                     createEnsuresCalledMethods(
                             fields.toArray(new String[0]), new String[] {mustCallValue});

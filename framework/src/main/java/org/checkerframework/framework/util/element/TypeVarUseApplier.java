@@ -154,7 +154,7 @@ public class TypeVarUseApplier {
         if (arrayType != null) {
             // if the outer-most type is an array type then we want to ensure the outer annotations
             // are not applied as the type variables primary annotation
-            typeVarAnnotations = removeComponentAnnotations(arrayType, annotations);
+            typeVarAnnotations = partitionOutComponentAnnotations(arrayType, annotations);
             ElementAnnotationUtil.annotateViaTypeAnnoPosition(arrayType, annotations);
         } else {
             typeVarAnnotations = annotations;
@@ -166,27 +166,29 @@ public class TypeVarUseApplier {
     }
 
     /**
-     * Return the annotations that apply to the base component of the array and remove these
-     * annotations from the parameter.
+     * Partition annotations: those that apply to the base component of {@code arrayType} are
+     * returned; the remainder are left in {@code annotations} (the list is rewritten in place).
      *
      * @param arrayType the array type
-     * @param annotations the annotations to inspect and modify
+     * @param annotations the annotations to inspect; on return contains only the annotations that
+     *     do <em>not</em> apply to the base component
      * @return the annotations that apply to the base component of the array
      */
-    private static List<Attribute.TypeCompound> removeComponentAnnotations(
+    private static List<Attribute.TypeCompound> partitionOutComponentAnnotations(
             AnnotatedArrayType arrayType, List<Attribute.TypeCompound> annotations) {
         List<Attribute.TypeCompound> componentAnnotations = new ArrayList<>();
-
-        for (int i = 0; i < annotations.size(); ) {
+        int writeIdx = 0;
+        for (int i = 0, n = annotations.size(); i < n; ++i) {
             Attribute.TypeCompound anno = annotations.get(i);
             if (isBaseComponent(arrayType, anno)) {
                 componentAnnotations.add(anno);
-                annotations.remove(anno);
             } else {
-                i++;
+                annotations.set(writeIdx++, anno);
             }
         }
-
+        if (writeIdx < annotations.size()) {
+            annotations.subList(writeIdx, annotations.size()).clear();
+        }
         return componentAnnotations;
     }
 

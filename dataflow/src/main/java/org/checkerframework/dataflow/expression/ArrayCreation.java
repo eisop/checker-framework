@@ -6,7 +6,6 @@ import org.checkerframework.javacutil.TypesUtils;
 import org.plumelib.util.StringsPlume;
 
 import java.util.List;
-import java.util.Objects;
 
 import javax.lang.model.type.ArrayType;
 import javax.lang.model.type.TypeKind;
@@ -88,22 +87,41 @@ public class ArrayCreation extends JavaExpression {
         return true;
     }
 
+    /** Cache the hashCode. Recomputed if zero. */
+    private int hashCodeCache = 0;
+
     @Override
     public int hashCode() {
-        return Objects.hash(dimensions, initializers, getType().toString());
+        if (hashCodeCache == 0) {
+            int h = 1;
+            h = 31 * h + (dimensions != null ? dimensions.hashCode() : 0);
+            h = 31 * h + (initializers != null ? initializers.hashCode() : 0);
+            String typeStr = getType().toString();
+            h = 31 * h + (typeStr != null ? typeStr.hashCode() : 0);
+            hashCodeCache = h == 0 ? 1 : h;
+        }
+        return hashCodeCache;
     }
 
     @Override
     public boolean equals(@Nullable Object obj) {
+        if (this == obj) {
+            return true;
+        }
         if (!(obj instanceof ArrayCreation)) {
             return false;
         }
         ArrayCreation other = (ArrayCreation) obj;
-        return this.dimensions.equals(other.getDimensions())
-                && this.initializers.equals(other.getInitializers())
-                // It might be better to use Types.isSameType(getType(), other.getType()), but I
-                // don't have a Types object.
-                && getType().toString().equals(other.getType().toString());
+        // Types#isSameType would be more correct, but no Types object is available here.
+        // TypeMirror.toString() produces a canonical source-form name for array types,
+        // which is sufficient for structural equality checks in this context.
+        // The type comparison is last so the cheaper list comparisons short-circuit first.
+        @SuppressWarnings("TypeToString")
+        boolean result =
+                this.dimensions.equals(other.getDimensions())
+                        && this.initializers.equals(other.getInitializers())
+                        && getType().toString().equals(other.getType().toString());
+        return result;
     }
 
     @Override
@@ -112,9 +130,16 @@ public class ArrayCreation extends JavaExpression {
             return false;
         }
         ArrayCreation other = (ArrayCreation) je;
-        return JavaExpression.syntacticEqualsList(this.dimensions, other.dimensions)
-                && JavaExpression.syntacticEqualsList(this.initializers, other.initializers)
-                && getType().toString().equals(other.getType().toString());
+        // Types#isSameType would be more correct, but no Types object is available here.
+        // TypeMirror.toString() produces a canonical source-form name for array types,
+        // which is sufficient for structural equality checks in this context.
+        // The type comparison is last so the cheaper list comparisons short-circuit first.
+        @SuppressWarnings("TypeToString")
+        boolean result =
+                JavaExpression.syntacticEqualsList(this.dimensions, other.dimensions)
+                        && JavaExpression.syntacticEqualsList(this.initializers, other.initializers)
+                        && getType().toString().equals(other.getType().toString());
+        return result;
     }
 
     @Override

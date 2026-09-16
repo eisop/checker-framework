@@ -56,7 +56,34 @@ public class JavaExpressionOptimizer extends JavaExpressionConverter {
                     ValueCheckerUtils.getExactValue(
                             element, (ValueAnnotatedTypeFactory) atypeFactory);
             if (exactValue != null) {
-                return new ValueLiteral(localVarExpr.getType(), exactValue.intValue());
+                // The exact value is stored as a Long.  Narrow it back to the variable's
+                // declared primitive type before constructing the ValueLiteral; otherwise
+                // a 'long' variable would be replaced by a ValueLiteral whose Java type is
+                // long but whose runtime value is an Integer, which silently truncates
+                // values outside the int range and confuses consumers such as
+                // ValueLiteral.negate() that branch on the value's runtime class.
+                Object literalValue;
+                switch (localVarExpr.getType().getKind()) {
+                    case BYTE:
+                        literalValue = exactValue.byteValue();
+                        break;
+                    case SHORT:
+                        literalValue = exactValue.shortValue();
+                        break;
+                    case INT:
+                        literalValue = exactValue.intValue();
+                        break;
+                    case LONG:
+                        literalValue = exactValue;
+                        break;
+                    case CHAR:
+                        literalValue = (char) exactValue.longValue();
+                        break;
+                    default:
+                        // Don't optimize for boxed types, references, etc.
+                        return super.visitLocalVariable(localVarExpr, unused);
+                }
+                return new ValueLiteral(localVarExpr.getType(), literalValue);
             }
         }
         return super.visitLocalVariable(localVarExpr, unused);

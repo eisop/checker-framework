@@ -39,6 +39,9 @@ public class NumericalPlusNode extends UnaryOperationNode {
 
     @Override
     public boolean equals(@Nullable Object obj) {
+        if (this == obj) {
+            return true;
+        }
         if (!(obj instanceof NumericalPlusNode)) {
             return false;
         }
