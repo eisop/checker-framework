@@ -160,7 +160,8 @@ public class Fields {
 
         // In front of the wildcard (?) itself, as opposed to its bound.  Each hierarchy's bottom
         // qualifier appears here: the wildcard's own type is its lower bound, which defaults to
-        // the bottom.  For the KeyFor hierarchy that is KeyForBottom, not UnknownKeyFor.
+        // the bottom.  For KeyFor, java.util's package-info defines KeyForBottom as the default
+        // qualifier for lower bounds, which propagates to the wildcard's lower bound.
         @TADescription(
                 annotation = "org/checkerframework/checker/nullness/qual/NonNull",
                 type = "FIELD",
@@ -192,7 +193,8 @@ public class Fields {
 
         // In front of the wildcard (?) itself, as opposed to its bound.  Each hierarchy's bottom
         // qualifier appears here: the wildcard's own type is its lower bound, which defaults to
-        // the bottom.  For the KeyFor hierarchy that is KeyForBottom, not UnknownKeyFor.
+        // the bottom.  For KeyFor, java.util's package-info defines KeyForBottom as the default
+        // qualifier for lower bounds, which propagates to the wildcard's lower bound.
         @TADescription(
                 annotation = "org/checkerframework/checker/nullness/qual/NonNull",
                 type = "FIELD",
