@@ -22,8 +22,8 @@ env:
   USE_BAZEL_VERSION: "9.2.0"
   # Pinned pre-release JDK build, from jdk.java.net. Renovate bumps JDK_EA_BUILD;
   # JDK_EA_MAJOR changes by hand when the next feature release opens.
-  JDK_EA_MAJOR: "27"
-  JDK_EA_BUILD: "35"
+  JDK_EA_MAJOR: "28"
+  JDK_EA_BUILD: "15"
 
 jobs:
   # All Linux test suites across all supported JDKs in a single parallel matrix.
@@ -38,26 +38,6 @@ jobs:
           # --- Core tests on Primary JDK 21 ---
           - {script: 'cftests-junit',               java: {version: '21', experimental: false}}
           - {script: 'cftests-nonjunit',            java: {version: '21', experimental: false}}
-          # --- Core tests on other JDKs ---
-          - {script: 'cftests-junit',               java: {version: '27', experimental: true}}
-          - {script: 'cftests-junit',               java: {version: '26', experimental: false}}
-          - {script: 'cftests-junit',               java: {version: '25', experimental: false}}
-          - {script: 'cftests-junit',               java: {version: '17', experimental: false}}
-          - {script: 'cftests-junit',               java: {version: '11', experimental: false}}
-          - {script: 'cftests-junit',               java: {version: '8',  experimental: false}}
-          - {script: 'cftests-nonjunit',            java: {version: '27', experimental: true}}
-          - {script: 'cftests-nonjunit',            java: {version: '26', experimental: false}}
-          - {script: 'cftests-nonjunit',            java: {version: '25', experimental: false}}
-          - {script: 'cftests-nonjunit',            java: {version: '17', experimental: false}}
-          - {script: 'cftests-nonjunit',            java: {version: '11', experimental: false}}
-          - {script: 'cftests-nonjunit',            java: {version: '8',  experimental: false}}
-          - {script: 'cftests-junit-jdk21',         java: {version: '27', experimental: true}}
-          - {script: 'cftests-junit-jdk21',         java: {version: '26', experimental: false}}
-          - {script: 'cftests-junit-jdk21',         java: {version: '25', experimental: false}}
-          - {script: 'cftests-junit-jdk21',         java: {version: '17', experimental: false}}
-          - {script: 'cftests-junit-jdk21',         java: {version: '11', experimental: false}}
-          # --- ajavaChecks consistency tests on JDK 17 ---
-          - {script: 'cftests-ajavachecks',         java: {version: '17', experimental: false}}
           # --- Downstream integration tests on Primary JDK 21 ---
           - {script: 'typecheck-part1',             java: {version: '21', experimental: false}}
           - {script: 'typecheck-part2',             java: {version: '21', experimental: false}}
@@ -69,20 +49,43 @@ jobs:
           - {script: 'jspecify-reference-checker',  java: {version: '21', experimental: false}}
           - {script: 'templatefora-checker',        java: {version: '21', experimental: false}}
           - {script: 'misc',                        java: {version: '21', experimental: false}}
-          # --- Downstream integration tests on other JDKs ---
+          # --- JDK 8 ---
+          - {script: 'cftests-junit',               java: {version: '8',  experimental: false}}
+          - {script: 'cftests-nonjunit',            java: {version: '8',  experimental: false}}
           - {script: 'typecheck-part1',             java: {version: '8',  experimental: false}}
-          - {script: 'typecheck-part1',             java: {version: '26', experimental: false}}
           - {script: 'typecheck-part2',             java: {version: '8',  experimental: false}}
-          - {script: 'typecheck-part2',             java: {version: '26', experimental: false}}
           - {script: 'guava',                       java: {version: '8',  experimental: false}}
-          - {script: 'guava',                       java: {version: '26', experimental: false}}
-          - {script: 'plume-lib',                   java: {version: '26', experimental: false}}
-          - {script: 'misc',                        java: {version: '26', experimental: false}}
-          - {script: 'jspecify-conformance',        java: {version: '26', experimental: false}}
-          - {script: 'jspecify-reference-checker',  java: {version: '26', experimental: false}}
-          - {script: 'templatefora-checker',        java: {version: '26', experimental: false}}
+          # --- JDK 28 (experimental) ---
+          - {script: 'cftests-junit',               java: {version: '28', experimental: true}}
+          - {script: 'cftests-nonjunit',            java: {version: '28', experimental: true}}
+          - {script: 'cftests-junit-jdk21',         java: {version: '28', experimental: true}}
+          # --- JDK 27 ---
+          - {script: 'cftests-junit',               java: {version: '27', experimental: false}}
+          - {script: 'cftests-nonjunit',            java: {version: '27', experimental: false}}
+          - {script: 'cftests-junit-jdk21',         java: {version: '27', experimental: false}}
+          - {script: 'typecheck-part1',             java: {version: '27', experimental: false}}
+          - {script: 'typecheck-part2',             java: {version: '27', experimental: false}}
+          - {script: 'guava',                       java: {version: '27', experimental: false}}
+          - {script: 'plume-lib',                   java: {version: '27', experimental: false}}
+          - {script: 'misc',                        java: {version: '27', experimental: false}}
+          - {script: 'jspecify-conformance',        java: {version: '27', experimental: false}}
+          - {script: 'jspecify-reference-checker',  java: {version: '27', experimental: false}}
+          - {script: 'templatefora-checker',        java: {version: '27', experimental: false}}
+          # --- JDK 25 ---
+          - {script: 'cftests-junit',               java: {version: '25', experimental: false}}
+          - {script: 'cftests-nonjunit',            java: {version: '25', experimental: false}}
+          - {script: 'cftests-junit-jdk21',         java: {version: '25', experimental: false}}
+          # --- JDK 17 ---
+          - {script: 'cftests-junit',               java: {version: '17', experimental: false}}
+          - {script: 'cftests-nonjunit',            java: {version: '17', experimental: false}}
+          - {script: 'cftests-junit-jdk21',         java: {version: '17', experimental: false}}
+          - {script: 'cftests-ajavachecks',         java: {version: '17', experimental: false}}
           - {script: 'daikon-part1',                java: {version: '17', experimental: false}}
           - {script: 'daikon-part2',                java: {version: '17', experimental: false}}
+          # --- JDK 11 ---
+          - {script: 'cftests-junit',               java: {version: '11', experimental: false}}
+          - {script: 'cftests-nonjunit',            java: {version: '11', experimental: false}}
+          - {script: 'cftests-junit-jdk21',         java: {version: '11', experimental: false}}
     continue-on-error: ${{ matrix.java.experimental }}
     steps:
       # `misc` runs `ci-diff` which needs full history; everything else is shallow.

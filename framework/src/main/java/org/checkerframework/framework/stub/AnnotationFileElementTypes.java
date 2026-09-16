@@ -32,7 +32,6 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
@@ -813,7 +812,7 @@ public class AnnotationFileElementTypes {
         if (!bundleFile.isFile() || !looksLikeBundle(bundleFile)) {
             return null;
         }
-        try (InputStream in = new FileInputStream(bundleFile)) {
+        try (InputStream in = Files.newInputStream(bundleFile.toPath())) {
             return new BinaryStubBundle(in);
         } catch (IOException e) {
             noteCouldNotRead(bundleFile.toString(), "per-file binary stubs or text parsing", e);
@@ -868,7 +867,7 @@ public class AnnotationFileElementTypes {
      * @return true if {@code file} looks like a binary stub bundle
      */
     private static boolean looksLikeBundle(File file) {
-        try (DataInputStream in = new DataInputStream(new FileInputStream(file))) {
+        try (DataInputStream in = new DataInputStream(Files.newInputStream(file.toPath()))) {
             return in.readInt() == BinaryStubBundle.MAGIC;
         } catch (IOException e) {
             return false;
@@ -1343,7 +1342,7 @@ public class AnnotationFileElementTypes {
         if (sibling == null) {
             return null;
         }
-        try (InputStream in = new FileInputStream(sibling)) {
+        try (InputStream in = Files.newInputStream(sibling.toPath())) {
             return freshBinaryStub(
                     BinaryStubData.read(in), sourceBytes, sibling.getPath(), astubFile.getPath());
         } catch (IOException e) {
@@ -1665,7 +1664,7 @@ public class AnnotationFileElementTypes {
         SourceChecker checker = atypeFactory.getChecker();
         ProcessingEnvironment processingEnv = atypeFactory.getProcessingEnv();
         ++parsingCount;
-        try (InputStream in = new FileInputStream(ajavaPath)) {
+        try (InputStream in = Files.newInputStream(Paths.get(ajavaPath))) {
             if (stubDebug) {
                 AnnotationFileParser.stubDebugStatic(
                         processingEnv,
@@ -2454,7 +2453,7 @@ public class AnnotationFileElementTypes {
      */
     private void parseJdkStubFile(Path path) {
         ++parsingCount;
-        try (FileInputStream jdkStub = new FileInputStream(path.toFile())) {
+        try (InputStream jdkStub = Files.newInputStream(path)) {
             AnnotationFileParser.parseJdkFileAsStub(
                     path.toFile().getName(),
                     jdkStub,
@@ -2863,7 +2862,7 @@ public class AnnotationFileElementTypes {
             AnnotationFileAnnotations target) {
         Path path = pathsByItem.get(name);
         if (path != null) {
-            try (InputStream in = new FileInputStream(path.toFile())) {
+            try (InputStream in = Files.newInputStream(path)) {
                 parseJdkStreamInto(path.toFile().getName(), in, target);
             } catch (IOException e) {
                 throw new BugInCF("cannot open the jdk stub file " + path, e);

@@ -15,6 +15,7 @@ import org.checkerframework.javacutil.TreeUtils;
 import org.plumelib.util.IPair;
 
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -166,7 +167,7 @@ public class DefaultContractsFromMethod implements ContractsFromMethod {
                 continue;
             }
             List<String> expressions = atypeFactory.getContractExpressions(kind, anno);
-            Collections.sort(expressions);
+            expressions.sort(Comparator.naturalOrder());
             Boolean ensuresQualifierIfResult = atypeFactory.getEnsuresQualifierIfResult(kind, anno);
 
             for (String expr : expressions) {
@@ -208,7 +209,7 @@ public class DefaultContractsFromMethod implements ContractsFromMethod {
         }
 
         List<String> expressions = atypeFactory.getContractExpressions(contractAnnotation);
-        Collections.sort(expressions);
+        expressions.sort(Comparator.naturalOrder());
 
         Boolean ensuresQualifierIfResult =
                 atypeFactory.getEnsuresQualifierIfResult(kind, contractAnnotation);

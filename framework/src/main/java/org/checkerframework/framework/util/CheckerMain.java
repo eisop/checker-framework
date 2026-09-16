@@ -12,8 +12,8 @@ import org.plumelib.util.CollectionsPlume;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.io.UnsupportedEncodingException;
@@ -866,7 +866,7 @@ public class CheckerMain {
      */
     private List<@FullyQualifiedName String> getAllCheckerClassNames() {
         ArrayList<@FullyQualifiedName String> checkerClassNames = new ArrayList<>();
-        try (FileInputStream fis = new FileInputStream(checkerJar);
+        try (InputStream fis = Files.newInputStream(checkerJar.toPath());
                 JarInputStream checkerJarIs = new JarInputStream(fis)) {
             ZipEntry entry;
             while ((entry = checkerJarIs.getNextEntry()) != null) {
