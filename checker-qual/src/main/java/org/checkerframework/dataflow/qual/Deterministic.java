@@ -33,7 +33,8 @@ import java.lang.annotation.Target;
  * non-{@code @}{@link SideEffectFree} method, but also because of the first invocation itself:
  * determinism does not prevent a method from modifying the heap. For example, the following method
  * is deterministic according to the definition above, but it is not side-effect-free, and in the
- * code above its second invocation returns {@code null}:
+ * code above its second invocation returns {@code null} (assuming {@code this.f} was initially
+ * non-null):
  *
  * <pre>{@code
  * Object myDeterministicMethod() {
@@ -43,7 +44,7 @@ import java.lang.annotation.Target;
  * }
  * }</pre>
  *
- * Nevertheless, the Checker Framework currently assumes that repeated invocations of any
+ * <p>Nevertheless, the Checker Framework currently assumes that repeated invocations of any
  * {@code @Deterministic} method return the same value, even if the method is not
  * {@code @SideEffectFree}. This assumption is justified only when the annotation is checked,
  * because the checking rules below forbid side effects in a {@code @Deterministic} method, and
