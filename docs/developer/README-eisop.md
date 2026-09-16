@@ -35,6 +35,38 @@ To update EISOP with changes in a different Checker Framework fork, follow these
 1. Open a pull request (against eisop) merging `typetools-3.18.0-fixes` into `master` and
   merge without squashing.
 
+## Changelog
+
+Each entry goes under the next release section of
+[`docs/CHANGELOG.md`](../CHANGELOG.md), in the same PR as the change it
+describes. A PR that closes an issue adds its number to that section's
+**Closed issues:** list, rather than leaving it for a later backfill.
+
+While a release is unreleased, that list is written **one issue per line**:
+
+````
+eisop#2089,
+eisop#2095,
+typetools#399,
+typetools#3203.
+````
+
+Adding a number then touches only the line it adds, so two PRs in flight merge
+cleanly unless they happen to insert at the very same point. Written as a
+filled paragraph, adding one number reflows the whole paragraph and *every*
+concurrent pair conflicts -- which, in one busy week, meant resolving the same
+conflict by hand seven times.
+
+Markdown joins lines within a paragraph, so both forms render identically.
+Reflowing the list to filled lines when a release is finalized is therefore
+optional tidiness, not a required step: a released section left one per line is
+correct as it stands.
+
+Entries stay in ascending numeric order, `eisop#NNNN` before `typetools#NNNN`.
+Refer to another project's issue in prose as plain text -- "typetools issue
+2816" -- never as a link or as `typetools/checker-framework#2816`, both of
+which make GitHub post a cross-reference into that project's tracker.
+
 ## Release process
 
 TODO: the release process contains many buffalo-specific paths, which still needs to be cleaned up.

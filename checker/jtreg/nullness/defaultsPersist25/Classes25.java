@@ -7,6 +7,6 @@
  * expectations for both.
  *
  * @requires jdk.version.major >= 25
- * @compile ../PersistUtil25.java Driver.java ReferenceInfoUtil.java ../defaultsPersist/Classes.java
+ * @compile ../PersistUtil.java Driver.java ReferenceInfoUtil.java ../defaultsPersist/Classes.java
  * @run main Driver Classes
  */

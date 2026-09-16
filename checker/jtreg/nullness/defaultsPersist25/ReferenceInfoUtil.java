@@ -1,3 +1,6 @@
+// Keep somewhat in sync with
+// ../defaultsPersist/ReferenceInfoUtil.java and ../PersistUtil.java.
+
 import java.lang.classfile.AttributedElement;
 import java.lang.classfile.Attributes;
 import java.lang.classfile.ClassModel;
@@ -6,15 +9,41 @@ import java.lang.classfile.TypeAnnotation;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Utility class for extracting and comparing type annotations from a {@link ClassModel} using the
+ * {@code java.lang.classfile} API available in JDK 25 and later.
+ *
+ * <p>For JDK versions prior to 25, see the counterpart utility {@code
+ * checker/jtreg/nullness/defaultsPersist/ReferenceInfoUtil.java} which uses {@code
+ * com.sun.tools.classfile}.
+ *
+ * @see Driver
+ * @see PersistUtil
+ */
 public class ReferenceInfoUtil {
 
+    /** Sentinel value for ignored attributes or indices. */
     public static final int IGNORE_VALUE = -321;
+
+    /** Whether to ignore annotations on constructor methods. */
     private final boolean ignoreConstructors;
 
+    /**
+     * Constructs a utility instance with constructor filtering configuration.
+     *
+     * @param ignoreConstructors if true, constructors are ignored
+     */
     private ReferenceInfoUtil(boolean ignoreConstructors) {
         this.ignoreConstructors = ignoreConstructors;
     }
 
+    /**
+     * Extracts all type annotations from the given class model.
+     *
+     * @param cm the class model to inspect
+     * @param ignoreCtors whether to ignore constructor methods
+     * @return list of type annotations found
+     */
     public static List<TypeAnnotation> extendedAnnotationsOf(ClassModel cm, boolean ignoreCtors) {
         ReferenceInfoUtil self = new ReferenceInfoUtil(ignoreCtors);
         List<TypeAnnotation> out = new ArrayList<>();
@@ -22,6 +51,12 @@ public class ReferenceInfoUtil {
         return out;
     }
 
+    /**
+     * Collects type annotations from class, fields, methods, and code attributes into the sink.
+     *
+     * @param cm the class model to inspect
+     * @param sink the collection to append annotations to
+     */
     private void collect(ClassModel cm, List<TypeAnnotation> sink) {
         addAnno(cm, sink);
         cm.fields().forEach(f -> addAnno(f, sink));
@@ -34,6 +69,12 @@ public class ReferenceInfoUtil {
         }
     }
 
+    /**
+     * Extracts runtime visible and invisible type annotations from an attributed element.
+     *
+     * @param elt the attributed element
+     * @param sink the collection to append annotations to
+     */
     private static void addAnno(AttributedElement elt, List<TypeAnnotation> sink) {
         elt.findAttribute(Attributes.runtimeVisibleTypeAnnotations())
                 .ifPresent(a -> sink.addAll(a.annotations()));
@@ -98,6 +139,12 @@ public class ReferenceInfoUtil {
         return null;
     }
 
+    /**
+     * Converts expected annotation pairs into placeholder pairs for error reporting.
+     *
+     * @param src the expected annotation pairs
+     * @return list of placeholder pairs
+     */
     private static List<AnnoPosPair> dummy(List<Driver.AnnoTargetPair> src) {
         List<AnnoPosPair> r = new ArrayList<>(src.size());
         for (Driver.AnnoTargetPair p : src) r.add(AnnoPosPair.of(p.annoName, null));
@@ -105,31 +152,60 @@ public class ReferenceInfoUtil {
     }
 }
 
+/** Exception thrown when expected annotations do not match actual annotations found in bytecode. */
 class ComparisonException extends RuntimeException {
+    /** The list of expected annotations. */
     final List<AnnoPosPair> expected;
+
+    /** The list of actual annotations found. */
     final List<TypeAnnotation> found;
 
+    /**
+     * Constructs a ComparisonException with diagnostic details.
+     *
+     * @param m the error message
+     * @param e the expected annotations
+     * @param f the found annotations
+     */
     ComparisonException(String m, List<AnnoPosPair> e, List<TypeAnnotation> f) {
         super(m);
         expected = e;
         found = f;
     }
 
+    @Override
     public String toString() {
         return "%s%n  Expected(%d): %s%n  Found(%d): %s"
                 .formatted(super.toString(), expected.size(), expected, found.size(), found);
     }
 }
 
+/** Represents an annotation and its position or target details for comparison reporting. */
 class AnnoPosPair {
+    /** The annotation name. */
     final String first;
+
+    /** The target or position information. */
     final Object second;
 
+    /**
+     * Constructs an annotation-position pair.
+     *
+     * @param f the annotation name
+     * @param s the target or position information
+     */
     private AnnoPosPair(String f, Object s) {
         first = f;
         second = s;
     }
 
+    /**
+     * Factory method to create an annotation-position pair.
+     *
+     * @param f the annotation name
+     * @param s the target or position information
+     * @return a new pair
+     */
     static AnnoPosPair of(String f, Object s) {
         return new AnnoPosPair(f, s);
     }
