@@ -389,10 +389,14 @@ public class QualifierDefaults {
         throw new BugInCF("Unhandled unchecked defaults mode: " + mode);
     }
 
-    /** Adds standard conservative and optimistic defaults for unchecked code. */
+    /** Adds the standard unchecked-code defaults for each mode the command-line options enable. */
     public void addUncheckedStandardDefaults() {
-        addConservativeUncheckedStandardDefaults();
-        addOptimisticUncheckedStandardDefaults();
+        if (useConservativeDefaultsSource || useConservativeDefaultsBytecode) {
+            addConservativeUncheckedStandardDefaults();
+        }
+        if (useOptimisticDefaultsSource || useOptimisticDefaultsBytecode) {
+            addOptimisticUncheckedStandardDefaults();
+        }
     }
 
     /** Add standard conservative unchecked defaults that do not conflict with existing defaults. */

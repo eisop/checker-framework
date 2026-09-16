@@ -902,8 +902,8 @@ public abstract class GenericAnnotatedTypeFactory<
     }
 
     /**
-     * Adds standard conservative and optimistic defaults for unchecked code. Subclasses may
-     * override this method to customize unchecked-code defaults.
+     * Adds the standard unchecked-code defaults for each mode the command-line options enable.
+     * Subclasses may override this method to customize unchecked-code defaults.
      *
      * @param defs {@link QualifierDefaults} object to which defaults are added
      */
