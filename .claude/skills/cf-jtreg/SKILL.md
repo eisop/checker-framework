@@ -67,8 +67,7 @@ in the code under test.
 Always give the reason and a reference:
 
 ```java
- * @ignore This fails for Java 11. See
- * https://github.com/typetools/checker-framework/issues/2816
+ * @ignore This fails for Java 11. See typetools issue 2816.
 ```
 
 When you meet an existing `@ignore`, find out whether it is still true before

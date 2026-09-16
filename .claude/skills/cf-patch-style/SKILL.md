@@ -136,46 +136,40 @@ Do not include marketing adjectives ("blazingly", "dramatically",
   them to remove it (e.g. `git filter-branch --msg-filter
   "grep -v '^Claude-Session:'"` over the range).
 
-## Refer to a typetools issue with a link, not a bare number
+## Refer to a typetools issue in plain text, never as a link
 
-`eisop#1234` and `typetools#1234` are plain text: this repository has **no custom
-autolink references configured**, so neither form becomes a link anywhere on
-GitHub. Only a bare `#1234` autolinks, and it resolves to *this* repository —
-which for a typetools number silently points at an unrelated eisop issue.
+Write **`typetools issue 2816`**. Not `typetools/checker-framework#2816`, not a
+markdown link, not a bare URL to github.com/typetools.
 
-So a reader who wants "typetools issue 2816" has to go and find it by hand, and
-sometimes guesses the wrong repository. That has already cost a wrong reference
-in a committed test comment (`eisop#2816`, which does not exist; the real one is
-[typetools/checker-framework#2816](https://github.com/typetools/checker-framework/issues/2816)).
+GitHub turns the `owner/repo#number` form, and a pasted issue URL, into a
+cross-reference: it posts a backlink onto the typetools issue saying this
+repository referenced it. Done from commit messages, PR bodies and issue
+comments, that puts eisop's traffic into an upstream project's issue tracker,
+where it is noise for people who do not work on this fork. The last several
+hundred commits here contain no such reference, and that is deliberate.
 
-Where GitHub renders the text — **commit messages, PR titles and bodies, issue
-bodies and comments, code review comments** — use the cross-repository form,
-which GitHub does autolink:
+The plain-text form carries the same information to a human, who can find the
+issue in one search, and creates nothing upstream.
 
 ```
-typetools/checker-framework#2816
+    Fixes typetools issue 2816.
+
+ * @ignore This fails for Java 11. See typetools issue 2816.
 ```
 
-Where nothing autolinks — **source-code comments, `docs/manual/*.tex`, and any
-other file in the tree** — write the full URL, so the reference is usable from
-an editor:
+Two established exceptions:
 
-```java
-// See https://github.com/typetools/checker-framework/issues/2816
-```
+- The **`docs/CHANGELOG.md` "Closed issues:" list** uses the compact
+  `typetools#NNNN` form alongside `eisop#NNNN`. It is an index of numbers, and
+  with no custom autolink configured on this repository it is plain text too,
+  so it creates no cross-reference either.
+- Some **older files inherited from typetools** contain full URLs. Leave them;
+  a URL sitting in a tracked file creates no cross-reference. The rule is about
+  what you write, and above all about commit messages, PR and issue bodies, and
+  review comments, which GitHub does scan.
 
-Two exceptions, both deliberate:
-
-- The **`docs/CHANGELOG.md` "Closed issues:" list** keeps the compact
-  `eisop#NNNN` / `typetools#NNNN` form. It is an index of numbers, not prose,
-  and expanding it to URLs would make it unreadable.
-- An issue number that appears in a **jtreg `@summary`** must not start with
-  `@`; see the jtreg notes in `CLAUDE.md`.
-
-If a bare `typetools#NNNN` would be nicer to write, the repository can be given
-a custom autolink reference (Settings → Autolink references) mapping the
-`typetools#` prefix to typetools/checker-framework. That is a repository-wide
-setting, so propose it rather than assuming it.
+The same care applies to an eisop issue in a *typetools* context, and to any
+other repository this project does not own.
 
 ## Branch naming
 
