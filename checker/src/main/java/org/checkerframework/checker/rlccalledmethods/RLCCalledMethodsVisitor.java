@@ -515,16 +515,16 @@ public class RLCCalledMethodsVisitor extends CalledMethodsVisitor {
 
         if (enclosingMustCallValues == null) {
             error =
-                    " The enclosing element "
+                    "the enclosing element "
                             + ElementUtils.getQualifiedName(enclosingElement)
-                            + " doesn't have a @MustCall annotation";
+                            + " does not have a @MustCall annotation";
         } else if (enclosingMustCallValues.isEmpty()) {
             error =
-                    " The enclosing element "
+                    "the enclosing element "
                             + ElementUtils.getQualifiedName(enclosingElement)
                             + " has an empty @MustCall annotation";
         } else {
-            error = " [[checkOwningField() did not find a reason!]]"; // should be reassigned
+            error = "[[checkOwningField() did not find a reason!]]"; // should be reassigned
             List<? extends Element> siblingsOfOwningField = enclosingElement.getEnclosedElements();
             for (Element siblingElement : siblingsOfOwningField) {
                 if (siblingElement.getKind() == ElementKind.METHOD
@@ -582,7 +582,7 @@ public class RLCCalledMethodsVisitor extends CalledMethodsVisitor {
                         // This variable could be set immediately before reporting the error, but
                         // IMO it is more clear to set it here.
                         error =
-                                "Postconditions written on MustCall methods are missing: "
+                                "postconditions written on MustCall methods are missing: "
                                         + formatMissingMustCallMethodPostconditions(
                                                 field, unsatisfiedMustCallObligationsOfOwningField);
                     }
