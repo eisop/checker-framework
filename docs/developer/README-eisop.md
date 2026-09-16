@@ -37,6 +37,11 @@ To update EISOP with changes in a different Checker Framework fork, follow these
 
 ## Release process
 
+See [`maven-central-publishing.md`](maven-central-publishing.md) for how
+publishing is wired, why a release currently ends with a manual click on the
+Central Portal website, and what it would take to remove that step and to
+publish nightly snapshots.
+
 TODO: the release process contains many buffalo-specific paths, which still needs to be cleaned up.
 Most of the instructions can be followed, ignoring certain steps.
 
