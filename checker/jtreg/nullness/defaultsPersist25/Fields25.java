@@ -10,6 +10,6 @@
  * com.sun.tools.classfile harness, which ignores them for the same reason; see typetools issue 2816.
  *
  * @requires jdk.version.major >= 25
- * @compile ../PersistUtil25.java Driver.java ReferenceInfoUtil.java ../defaultsPersist/Fields.java
+ * @compile ../PersistUtil.java Driver.java ReferenceInfoUtil.java ../defaultsPersist/Fields.java
  * @run main Driver Fields
  */

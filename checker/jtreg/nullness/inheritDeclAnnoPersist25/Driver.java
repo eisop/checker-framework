@@ -1,12 +1,14 @@
 // Keep somewhat in sync with
-// ../defaultsPersist25/Driver.java and ../PersistUtil25.
+// ../defaultsPersist25/Driver.java and ../PersistUtil.
 
+import java.io.File;
 import java.io.PrintStream;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 import java.lang.classfile.Annotation;
+import java.lang.classfile.ClassFile;
 import java.lang.classfile.ClassModel;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -39,10 +41,11 @@ public class Driver {
 
             try {
                 String compact = (String) m.invoke(harness);
-                String fullSrc = PersistUtil25.wrap(compact);
-                String testCls = PersistUtil25.testClassOf(m);
+                String fullSrc = PersistUtil.wrap(compact);
+                String testCls = PersistUtil.testClassOf(m);
 
-                ClassModel cm = PersistUtil25.compileAndReturn(fullSrc, testCls);
+                File clazzFile = PersistUtil.compile(fullSrc, testCls);
+                ClassModel cm = ClassFile.of().parse(clazzFile.toPath());
 
                 List<Annotation> actual = ReferenceInfoUtil.extendedAnnotationsOf(cm);
 

@@ -1,8 +1,10 @@
+import java.io.File;
 import java.io.PrintStream;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
+import java.lang.classfile.ClassFile;
 import java.lang.classfile.ClassModel;
 import java.lang.classfile.TypeAnnotation;
 import java.lang.classfile.TypeAnnotation.TargetInfo;
@@ -36,12 +38,13 @@ public class Driver {
                         "Test method needs to return a string: " + method);
             }
 
-            String testClass = PersistUtil25.testClassOf(method);
+            String testClass = PersistUtil.testClassOf(method);
 
             try {
                 String compact = (String) method.invoke(harness);
-                String fullFile = PersistUtil25.wrap(compact);
-                ClassModel cm = PersistUtil25.compileAndReturn(fullFile, testClass);
+                String fullFile = PersistUtil.wrap(compact);
+                File clazzFile = PersistUtil.compile(fullFile, testClass);
+                ClassModel cm = ClassFile.of().parse(clazzFile.toPath());
 
                 boolean ignoreConstructors = !clazz.getName().equals("Constructors");
                 List<TypeAnnotation> actual =

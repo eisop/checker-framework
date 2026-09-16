@@ -4,6 +4,7 @@
 import com.sun.tools.classfile.Annotation;
 import com.sun.tools.classfile.ClassFile;
 
+import java.io.File;
 import java.io.PrintStream;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -47,7 +48,8 @@ public class Driver {
             try {
                 String compact = (String) method.invoke(object);
                 String fullFile = PersistUtil.wrap(compact);
-                ClassFile cf = PersistUtil.compileAndReturn(fullFile, testClass);
+                File clazzFile = PersistUtil.compile(fullFile, testClass);
+                ClassFile cf = ClassFile.read(clazzFile);
                 List<Annotation> actual = ReferenceInfoUtil.extendedAnnotationsOf(cf);
                 String diagnostic =
                         String.join(

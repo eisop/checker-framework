@@ -1382,10 +1382,10 @@ subprojects {
                     // Required for checker/jtreg/nullness/PersistUtil.java and other tests
                     "-vmoptions:-classpath ${tasks.shadowJar.archiveFile.get()}:${sourceSets.test.output.asPath}",
                 ]
-                // The com.sun.tools.classfile harness -- checker/jtreg/nullness/PersistUtil.java
-                // and the defaultsPersist and inheritDeclAnnoPersist directories -- needs the
-                // jdk.jdeps module opened to it.  JDK 25 removed that package, and passing
-                // --add-opens for a package that does not exist makes every test VM print
+                // The com.sun.tools.classfile harness -- the defaultsPersist and
+                // inheritDeclAnnoPersist directories -- needs the jdk.jdeps module opened
+                // to it.  JDK 25 removed that package, and passing --add-opens for a package
+                // that does not exist makes every test VM print
                 // "WARNING: package com.sun.tools.classfile not in jdk.jdeps".  Those tests are
                 // themselves guarded by "@requires jdk.version.major <= 24", and the
                 // java.lang.classfile harness that replaces them on 25+ needs no such flag, so

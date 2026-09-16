@@ -9,6 +9,7 @@ import com.sun.tools.classfile.ClassFile;
 import com.sun.tools.classfile.TypeAnnotation;
 import com.sun.tools.classfile.TypeAnnotation.TargetType;
 
+import java.io.File;
 import java.io.PrintStream;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -52,7 +53,8 @@ public class Driver {
             try {
                 String compact = (String) method.invoke(object);
                 String fullFile = PersistUtil.wrap(compact);
-                ClassFile cf = PersistUtil.compileAndReturn(fullFile, testClass);
+                File clazzFile = PersistUtil.compile(fullFile, testClass);
+                ClassFile cf = ClassFile.read(clazzFile);
                 boolean ignoreConstructors = !clazz.getName().equals("Constructors");
                 List<TypeAnnotation> actual =
                         ReferenceInfoUtil.extendedAnnotationsOf(cf, ignoreConstructors);
