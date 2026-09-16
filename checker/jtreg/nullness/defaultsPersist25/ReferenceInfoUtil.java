@@ -1,3 +1,6 @@
+// Keep somewhat in sync with
+// ../defaultsPersist/ReferenceInfoUtil.java and ../PersistUtil.java.
+
 import java.lang.classfile.AttributedElement;
 import java.lang.classfile.Attributes;
 import java.lang.classfile.ClassModel;
@@ -8,7 +11,14 @@ import java.util.List;
 
 /**
  * Utility class for extracting and comparing type annotations from a {@link ClassModel} using the
- * {@code java.lang.classfile} API.
+ * {@code java.lang.classfile} API available in JDK 25 and later.
+ *
+ * <p>For JDK versions prior to 25, see the counterpart utility {@code
+ * checker/jtreg/nullness/defaultsPersist/ReferenceInfoUtil.java} which uses {@code
+ * com.sun.tools.classfile}.
+ *
+ * @see Driver
+ * @see PersistUtil
  */
 public class ReferenceInfoUtil {
 

@@ -18,7 +18,14 @@ import java.util.List;
 
 /**
  * Utility class for extracting and comparing type annotations from a {@link ClassFile} using the
- * {@code com.sun.tools.classfile} API.
+ * legacy {@code com.sun.tools.classfile} API on JDK versions prior to 25.
+ *
+ * <p>For JDK 25 and later, see the counterpart utility {@code
+ * checker/jtreg/nullness/defaultsPersist25/ReferenceInfoUtil.java} which uses {@code
+ * java.lang.classfile}.
+ *
+ * @see Driver
+ * @see PersistUtil
  */
 public class ReferenceInfoUtil {
 

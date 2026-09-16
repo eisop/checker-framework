@@ -16,7 +16,14 @@ import java.util.StringJoiner;
 
 /**
  * Utility class for extracting and comparing declaration annotations from a {@link ClassFile} using
- * the {@code com.sun.tools.classfile} API.
+ * the legacy {@code com.sun.tools.classfile} API on JDK versions prior to 25.
+ *
+ * <p>For JDK 25 and later, see the counterpart utility {@code
+ * checker/jtreg/nullness/inheritDeclAnnoPersist25/ReferenceInfoUtil.java} which uses {@code
+ * java.lang.classfile}.
+ *
+ * @see Driver
+ * @see PersistUtil
  */
 public class ReferenceInfoUtil {
 

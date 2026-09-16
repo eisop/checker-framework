@@ -21,6 +21,11 @@ import java.util.StringJoiner;
  * Auxiliary methods to compile a Java snippet with the Nullness Checker and return the resulting
  * class file. Used by both the {@code com.sun.tools.classfile} (JDK &lt;= 24) and {@code
  * java.lang.classfile} (JDK &gt;= 25) bytecode test harnesses.
+ *
+ * <p>Used by the test drivers {@code checker/jtreg/nullness/defaultsPersist/Driver.java}, {@code
+ * checker/jtreg/nullness/defaultsPersist25/Driver.java}, {@code
+ * checker/jtreg/nullness/inheritDeclAnnoPersist/Driver.java}, and {@code
+ * checker/jtreg/nullness/inheritDeclAnnoPersist25/Driver.java}.
  */
 public class PersistUtil {
 
