@@ -3,6 +3,13 @@ Version 3.49.5-eisop2 (June ?, 2026)
 
 **User-visible changes:**
 
+The new command-line option `-AuseOptimisticDefaultsForUncheckedCode` takes `source` and/or
+`bytecode` arguments, like `-AuseConservativeDefaultsForUncheckedCode`, but applies optimistic
+defaults to code outside the scope of an `@AnnotatedFor`: top for method parameters and upper
+bounds, bottom for method returns, fields, and lower bounds.  It does not suppress warnings in that
+code; combine it with `-AonlyAnnotatedFor` to do that.  A given kind of code cannot be defaulted
+both optimistically and conservatively.
+
 The EISOP Checker Framework runs under JDK 27 and under JDK 28 b15 early access
 builds -- that is, it runs on version 27 and 28 JVMs.
 
@@ -668,6 +675,20 @@ which `BaseTypeChecker` implements with a cache.
 
 **Implementation details:**
 
+`QualifierDefaults` now keeps a second set of unchecked-code defaults, the optimistic ones, so
+the members that name the conservative set say so: `STANDARD_UNCHECKED_DEFAULTS_TOP` and
+`STANDARD_UNCHECKED_DEFAULTS_BOTTOM` are now `CONSERVATIVE_UNCHECKED_DEFAULTS_TOP` and
+`CONSERVATIVE_UNCHECKED_DEFAULTS_BOTTOM`, and `addUncheckedCodeDefault` and
+`addUncheckedCodeDefaults` are now `addConservativeUncheckedCodeDefault` and
+`addConservativeUncheckedCodeDefaults`. The optimistic counterparts are
+`OPTIMISTIC_UNCHECKED_DEFAULTS_TOP`, `OPTIMISTIC_UNCHECKED_DEFAULTS_BOTTOM`, and
+`addOptimisticUncheckedCodeDefault`. The new `addConservativeDefaultsForUncheckedCode` and
+`addOptimisticDefaultsForUncheckedCode` add each mode's built-in defaults, and
+`addUncheckedStandardDefaults` now calls each of them only if its command-line option is enabled.
+At most one mode's defaults are applied to a given element.
+`QualifierDefaults.applyOptimisticDefaults(Element)` and `SourceChecker.useOptimisticDefault(String)`
+are the optimistic analogues of `applyConservativeDefaults` and `useConservativeDefault`.
+
 The jtreg tests that verify which annotations the Checker Framework writes into
 bytecode now run on JDK 25 and later. They used `com.sun.tools.classfile`, which
 JDK 25 removed; there are now parallel suites written against the `java.lang.classfile`
@@ -1082,6 +1103,7 @@ eisop#1244,
 eisop#1292,
 eisop#1299,
 eisop#1315,
+eisop#1359,
 eisop#1481,
 eisop#1542,
 eisop#1564,
