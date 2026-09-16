@@ -302,15 +302,15 @@ renames long predate it. Under
 200 while `UnitsExtensionDemo.java` is 404; `README.md` is 404 at both the
 release folder and `/cf/`. Both entries are corrected here.
 
-### Two web pages nothing publishes
+### Two web pages nothing published
 
 `docs/checker-framework-webpage.html` and `docs/checker-framework-quick-start.html`
-are still rewritten by `update-checker-framework-versions`, and the webpage is
-copied by the `checker-framework-website-docs` target into the interm site
-directory, where a symlink makes it the site's `index.html`. Nothing publishes
-that directory for eisop:
+are rewritten by `update-checker-framework-versions`, and the webpage is copied
+by the `checker-framework-website-docs` target into the interm site directory,
+where a symlink makes it the site's `index.html`. Nothing published that
+directory for eisop:
 
-- neither file is in `checker-includes`, so neither ships in the release zip;
+- neither file was in `checker-includes`, so neither shipped in the release zip;
 - `site-copy-includes` covers only `annotation-file-utilities/**` and the JSR 308
   specification;
 - `DEV_SITE_DIR` / `LIVE_SITE_DIR` are local `/tmp/$USER` directories, and
@@ -322,37 +322,61 @@ that directory for eisop:
 Confirmed: `/cf/checker-framework-webpage.html` and
 `/cf/checker-framework-quick-start.html` are both 404 on the live site.
 
-They are leftovers from the typetools `checkerframework.org` pipeline.
+**The main page has already been ported.** `cf-template.md` is a Markdown
+rendering of `checker-framework-webpage.html`, with the same headline, the same
+introductory paragraphs word for word, the same bullet structure and the same
+"Support and community" / "Bug reports" / "Mailing lists" sections. Comparing
+the two, every difference in link targets is just the hosting layout
+(`manual/checker-framework-manual.pdf` versus `manual/manual.pdf`, `api` versus
+`api/checker-javadoc/`, `annotation-file-utilities/` versus `../afu/`). One
+difference was content, not layout: the port dropped the **Dataflow Framework**
+bullet. That is restored in eisop/eisop.github.io#103.
 
-`checker-framework-webpage.html` has in fact already been ported: the website
-repository's `cf-template.md` is a Markdown rendering of it, with the same
-headline, the same introductory paragraphs word for word, the same bullet
-structure and the same "Support and community" / "Bug reports" / "Mailing
-lists" sections, and with the version, date and download link filled in from
-the GitHub releases API. Comparing the two, every difference in link targets is
-just the hosting layout (`manual/checker-framework-manual.pdf` versus
-`manual/manual.pdf`, `api` versus `api/checker-javadoc/`,
-`annotation-file-utilities/` versus `../afu/`). One difference is content, not
-layout: the port dropped the **Dataflow Framework** bullet, which the page here
-still has. The PDF that bullet links to is a 404 on the site anyway, since
-`dataflow/manual/dataflow.pdf` is not in `checker-includes` either.
+The better resolution is the other direction, and it is being done in a
+follow-up PR: **ship this page in the release zip** and let the website use it
+as that release's page, retiring `cf-template.md`.
 
-`checker-framework-quick-start.html` has no counterpart on the site at all; the
-template's "Quick start" points at `manual/manual.html#installation`.
+One template shared across every release is a standing mismatch — a link added
+for content that arrives in release N is broken on the archived page of every
+release before N, permanently, not just until the next release. A page that
+travels with the release it describes cannot have that problem, and this file is
+already exactly that page: `release.xml` stamps the Checker Framework version
+and date *and* the AFU zip name and date into it, so it is self-contained at
+release time. It also has the Dataflow Framework bullet that the port to
+`cf-template.md` dropped.
 
-Adding either to `checker-includes` would not by itself surface them. The
-generator extracts the zip to `cf/<release>/` and then lifts only `examples`,
-`manual`, `tutorial`, `CHANGELOG.md` and the javadoc out of `docs/` — confirmed
-live: `/cf/<release>/manual/manual.html` and `/cf/<release>/CHANGELOG.md` are
-200 while `/cf/<release>/docs/` is a 404. A file left under `docs/` would land
-where nothing links to it. Surfacing the quick-start page would need a change in
-the website repository too.
+What that PR has to do is add the file to `checker-includes` and align its links,
+which are still the old typetools site layout (`manual/checker-framework-manual.pdf`,
+`api`, `annotation-file-utilities/`), to the layout the zip and the website
+share. It has to merge before the next release, since only a release built after
+it can carry the page.
 
-So the options are: delete both here (and retire `checker-framework-website-docs`
-and the dev-site/live-site copy steps that reference them), or port the
-quick-start page to the website repository the way the main page already was.
-Either way the Dataflow bullet should be restored to `cf-template.md` first, or
-consciously dropped. Kept correct but unresolved here; worth deciding separately.
+**The quick-start guide is now shipped and surfaced.** It had no counterpart on
+the site at all. Rather than port it to a second website template, this PR adds
+it to `checker-includes`, so it travels in the release zip like the manual, the
+tutorial and the CHANGELOG, and stays version-correct through the same Ant
+target that already rewrote it. eisop/eisop.github.io#103 lifts it to
+`cf/quick-start.html` using the same three-step pattern the generator already
+applies to `docs/CHANGELOG.md`, and links it from the front page. Its
+`https://eisop.github.io/cf/manual/#anchor` links — which worked only through
+the 404 page's JavaScript redirect — are now site-relative, so they resolve
+directly both at `cf/quick-start.html` and in an archived
+`cf/<release>/quick-start.html`.
+
+### The dataflow manual was built every release and thrown away
+
+`release_build.py` runs `make` in `dataflow/manual`, producing `dataflow.pdf`,
+and `checker-framework-website-docs` copies it to the interm site directory as
+`checker-framework-dataflow-manual.pdf` — the exact name the Dataflow bullet on
+the old webpage linked to. Since that directory is never published, the PDF was
+built and discarded at every release, and the link was dead.
+
+It is now added to the release zip, placed at
+`docs/manual/checker-framework-dataflow-manual.pdf` via a `fullpath` zipfileset
+(the same mechanism already used for `CFLogo.png`). The generator lifts
+`docs/manual` wholesale, so it lands at
+`cf/manual/checker-framework-dataflow-manual.pdf` with no generator change, and
+the restored bullet points at it.
 
 ### The website is a release behind
 

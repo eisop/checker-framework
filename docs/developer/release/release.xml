@@ -194,6 +194,13 @@
             <zipfileset dir="${checkerframework}" prefix="checker-framework-${version}"
                         includes="checker/bin/javac" filemode="755"/>
 
+            <!-- release_build.py runs `make` in dataflow/manual, so dataflow.pdf exists by now.
+                 Place it under docs/manual/ so the website generator, which lifts that whole
+                 directory, surfaces it at cf/manual/checker-framework-dataflow-manual.pdf. -->
+            <zipfileset dir="${checkerframework}"
+                        includes="dataflow/manual/dataflow.pdf"
+                        fullpath="checker-framework-${version}/docs/manual/checker-framework-dataflow-manual.pdf"/>
+
             <zipfileset dir="${checkerframework}"
                         includes="docs/logo/Logo/CFLogo.png" fullpath="checker-framework-${version}/docs/manual/CFLogo.png"/>
 
