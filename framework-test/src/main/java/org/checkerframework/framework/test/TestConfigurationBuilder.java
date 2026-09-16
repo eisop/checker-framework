@@ -322,7 +322,9 @@ public class TestConfigurationBuilder {
      * @return the current object {@code this}
      */
     public TestConfigurationBuilder addDiagnosticFiles(Iterable<File> diagnostics) {
-        this.diagnosticFiles = catListAndIterable(diagnosticFiles, diagnostics);
+        for (File f : diagnostics) {
+            this.diagnosticFiles.add(f);
+        }
         return this;
     }
 
@@ -355,7 +357,9 @@ public class TestConfigurationBuilder {
      * @return the current object {@code this}
      */
     public TestConfigurationBuilder addSourceFiles(Iterable<File> sourceFiles) {
-        this.testSourceFiles = catListAndIterable(testSourceFiles, sourceFiles);
+        for (File f : sourceFiles) {
+            this.testSourceFiles.add(f);
+        }
         return this;
     }
 
@@ -547,7 +551,7 @@ public class TestConfigurationBuilder {
 
         throw new BugInCF(
                 "Attempted to build invalid test configuration:%n" + "Errors:%n%s%n%s%n",
-                String.join("%n", errors), this);
+                String.join(System.lineSeparator(), errors), this);
     }
 
     /**
@@ -567,25 +571,6 @@ public class TestConfigurationBuilder {
                 "processors=" + String.join(", ", processors),
                 "options=" + String.join(", ", options.getOptionsAsList()),
                 "shouldEmitDebugInfo=" + shouldEmitDebugInfo);
-    }
-
-    /**
-     * Returns a list that first has the items from parameter list then the items from iterable.
-     *
-     * @param <T> the type of the elements in the resulting list
-     * @param list a list
-     * @param iterable an iterable
-     * @return a list that first has the items from parameter list then the items from iterable
-     */
-    private static <T> List<T> catListAndIterable(
-            List<? extends T> list, Iterable<? extends T> iterable) {
-        List<T> newList = new ArrayList<>(list);
-
-        for (T iterObject : iterable) {
-            newList.add(iterObject);
-        }
-
-        return newList;
     }
 
     /** The output directory for tests. */

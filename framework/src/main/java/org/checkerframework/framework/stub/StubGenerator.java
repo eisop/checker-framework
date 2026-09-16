@@ -286,9 +286,11 @@ public class StubGenerator {
      * Helper method that outputs the field declaration for the given field.
      *
      * <p>It indicates whether the field is {@code protected}.
+     *
+     * @param field the field to print
      */
     private void printFieldDecl(VariableElement field) {
-        if ("class".equals(field.getSimpleName().toString())) {
+        if (field.getSimpleName().contentEquals("class")) {
             error("Cannot write class literals in stub files.");
             return;
         }
@@ -417,11 +419,11 @@ public class StubGenerator {
 
         while (tokenizer.hasMoreTokens()) {
             String token = tokenizer.nextToken();
-            if (token.length() == 1 || token.lastIndexOf('.') == -1) {
+            int index = token.length() == 1 ? -1 : token.lastIndexOf('.');
+            if (index == -1) {
                 sb.append(token);
             } else {
-                int index = token.lastIndexOf('.');
-                sb.append(token.substring(index + 1));
+                sb.append(token, index + 1, token.length());
             }
         }
         return sb.toString();

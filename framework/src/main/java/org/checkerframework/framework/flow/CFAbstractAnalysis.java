@@ -244,8 +244,8 @@ public abstract class CFAbstractAnalysis<
         TransferResult<V, S> result;
         try {
             result = super.callTransferFunction(node, input);
-        } catch (Throwable t) {
-            throw new BugInCF(node.getTree(), t);
+        } catch (Exception e) {
+            throw new BugInCF(node.getTree(), e);
         }
         return result;
     }
