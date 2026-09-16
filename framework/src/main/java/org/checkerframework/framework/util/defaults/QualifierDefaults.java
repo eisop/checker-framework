@@ -1377,12 +1377,29 @@ public class QualifierDefaults {
             return false;
         }
 
-        // During annotation-file parsing, the type factory is not yet installed on the checker.
-        // Calling isElementAnnotatedForThisCheckerOrUpstreamChecker would cause an initialization
-        // cycle and a NullPointerException. Once parsing is complete, stub-file elements continue
-        // to be treated as checked code.
-        if (atypeFactory.isParsingAnnotationFile()
-                || atypeFactory.isFromStubFile(annotationScope)) {
+        // Skip the unchecked-defaults check while annotation files are being parsed, to
+        // avoid an initialization cycle. During GenericAnnotatedTypeFactory.postInit(),
+        // parseAnnotationFiles() runs the stub/ajava parser, which asks the type factory for
+        // defaulted types. That reaches here and would call
+        // checker.isElementAnnotatedForThisCheckerOrUpstreamChecker(...), which routes through
+        // BaseTypeChecker.getTypeFactory() -- but the visitor (and thus the type factory) is not
+        // yet installed on the checker, causing an NPE. Eagerly-parsed annotation files (checker
+        // @StubFiles, command-line stubs, ajava files, annotated-JDK package-info.java) are the
+        // risky cases; most JDK class stubs are only parsed lazily after init completes.
+        // Stub-file elements are still treated as checked code by the isFromStubFile check below
+        // once parsing has finished.
+        if (atypeFactory.isParsingAnnotationFile()) {
+            return false;
+        }
+
+        // TODO: Types in stub files not annotated for a particular checker should be
+        // treated as unchecked bytecode.  For now, all types in stub files are treated as
+        // checked code. Eventually, @AnnotatedFor("checker") will be programmatically added
+        // to methods in stub files supplied via the @StubFiles annotation.  Stub files will
+        // be treated like unchecked code except for methods in the scope of an @AnnotatedFor.
+        // This check must precede the isFromByteCode test below: isFromByteCode is false for a
+        // stub-file element, which would therefore be defaulted as source code.
+        if (atypeFactory.isFromStubFile(annotationScope)) {
             return false;
         }
 
