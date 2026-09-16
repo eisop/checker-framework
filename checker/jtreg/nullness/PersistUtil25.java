@@ -3,7 +3,6 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
-import java.io.UncheckedIOException;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -11,10 +10,19 @@ import java.lang.annotation.Target;
 import java.lang.classfile.ClassFile;
 import java.lang.classfile.ClassModel;
 import java.lang.reflect.Method;
-import java.nio.file.Files;
-import java.nio.file.StandardCopyOption;
 import java.util.StringJoiner;
 
+/**
+ * The {@code java.lang.classfile} counterpart of {@link PersistUtil}, for JDK 25 and later, where
+ * {@code com.sun.tools.classfile} no longer exists. It compiles a test snippet and returns the
+ * result as a {@link ClassModel} rather than a {@code ClassFile}; everything else about the
+ * workflow is the same, including that {@code -processor
+ * org.checkerframework.checker.nullness.NullnessChecker} is added to the compiler invocation here
+ * rather than by the caller.
+ *
+ * <p>Each test is selected for exactly one of the two harnesses by a {@code @requires
+ * jdk.version.major} guard, so the two never run against the same JDK.
+ */
 final class PersistUtil25 {
 
     static String testClassOf(Method m) {
@@ -50,18 +58,6 @@ final class PersistUtil25 {
 
         File out = new File(src.getParent(), testClass + ".class");
 
-        if (false) {
-            try {
-                File tmp = new File(System.getProperty("java.io.tmpdir"));
-                File srcCopy = File.createTempFile("SrcCopy", ".java", tmp);
-                File classCopy = File.createTempFile("ClassCopy", ".class", tmp);
-                Files.copy(src.toPath(), srcCopy.toPath(), StandardCopyOption.REPLACE_EXISTING);
-                Files.copy(out.toPath(), classCopy.toPath(), StandardCopyOption.REPLACE_EXISTING);
-                System.out.printf("compileTestFile: copied to %s %s%n", srcCopy, classCopy);
-            } catch (IOException ex) {
-                throw new UncheckedIOException(ex);
-            }
-        }
         return out;
     }
 
