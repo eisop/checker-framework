@@ -192,27 +192,37 @@ release section in [`docs/CHANGELOG.md`](../../../docs/CHANGELOG.md).
 Match the existing style: one line, ends with the PR number once it's
 opened.
 
-**The "Closed issues:" list conflicts on almost every PR**, because each PR
-inserts a number into the same paragraph. Resolve it as the *union* of both
-sides — never by taking one side, which drops the other PR's issue — then
-re-wrap, since the entries are reflowed to about 72 columns:
+**The "Closed issues:" list is one issue per line** while a release section is
+unreleased:
 
-```python
-import io, re, textwrap
-p = "docs/CHANGELOG.md"; s = io.open(p, encoding="utf-8").read()
-m = re.search(r"<<<<<<< HEAD\n(.*?)=======\n(.*?)>>>>>>> origin/master\n", s, re.S)
-items = lambda t: [x.strip() for x in t.replace("\n", " ").strip().rstrip(".").split(",") if x.strip()]
-allx = items(m.group(1)) + items(m.group(2))
-key = lambda x: int(x.split("#")[1])
-eis = sorted({x for x in allx if x.startswith("eisop#")}, key=key)
-typ = sorted({x for x in allx if x.startswith("typetools#")}, key=key)
-s = s[:m.start()] + textwrap.fill(", ".join(eis + typ), width=72) + ".\n" + s[m.end():]
-io.open(p, "w", encoding="utf-8").write(s)
+```
+eisop#2089,
+eisop#2095,
+typetools#399,
+typetools#3203.
 ```
 
-Then check the result: strictly ascending, no duplicates, and both PRs' numbers
-present. A conflict that starts mid-list only shows part of it, so verify the
-whole paragraph rather than the block that conflicted.
+A PR that adds a number then touches only its own line, so two PRs in flight
+merge cleanly unless they insert at the very same point. The old filled-paragraph
+form conflicted on *every* concurrent pair, because adding one number reflows
+the whole paragraph. Markdown joins the lines, so the rendered changelog is
+identical either way -- the difference is only in what git sees.
+
+Measured, adding two different numbers on two branches and merging:
+
+| form | different points | same point |
+| --- | --- | --- |
+| filled paragraph | conflict | conflict |
+| one per line | clean | conflict |
+
+**Reflow to filled lines when the release section is finalized**, so released
+sections stay compact; the file carries a comment saying so. Leave already
+released sections alone.
+
+When the same-point conflict does happen, it is two lines: keep both, in
+ascending order. Check the whole list afterwards -- ascending, no duplicates,
+both PRs' numbers present -- since a conflict that starts mid-list shows only
+part of it.
 
 ## What not to touch in a perf patch
 
