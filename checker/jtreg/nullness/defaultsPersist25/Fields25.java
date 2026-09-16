@@ -6,9 +6,6 @@
  * this file only selects the JDK and the driver, and ../defaultsPersist/Fields.java holds the
  * expectations for both.
  *
- * @ignore The wildcards1 and wildcards2 cases fail here as they do in the
- * com.sun.tools.classfile harness, which ignores them for the same reason; see typetools#2816.
- *
  * @requires jdk.version.major >= 25
  * @compile ../PersistUtil25.java Driver.java ReferenceInfoUtil.java ../defaultsPersist/Fields.java
  * @run main Driver Fields
