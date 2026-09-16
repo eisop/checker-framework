@@ -1035,6 +1035,9 @@ Other improvements and bug fixes:
   required by JLS 18.2.3. The extra bound inferred types that differ from
   javac's and caused a crash for a lambda over a wildcard array list such as
   `new ArrayList<>(List<? extends int[]>).forEach((int[] b) -> {})`.
+  Resolving an inference variable to a captured type variable now also handles
+  a lower bound that is a type variable annotated in only some qualifier
+  hierarchies, as in the capture of `? super T`.
 
 **Closed issues:**
 
