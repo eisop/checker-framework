@@ -77,6 +77,7 @@ fully-qualified type name?
 \\ \ref{faq-implicit-bounds}: Why are explicit and implicit bounds defaulted differently?
 \\ \ref{faq-writing-generics}: How should I annotate code that uses generics?
 \\ \ref{faq-runtime-retention}: Why are type annotations declared with \<@Retention(RetentionPolicy.RUNTIME)>?
+\\ \ref{faq-annotatedfor-runtime-retention}: Why are \<@AnnotatedFor> and \<@UnannotatedFor> declared with \<@Retention(RetentionPolicy.RUNTIME)>?
 
 \faqtocpara{\ref{faq-create-a-checker-section}: Creating a new checker}
 \\ \ref{faq-create-a-checker}: How do I create a new checker?
@@ -1638,6 +1639,23 @@ retention would not be sufficient, because of separate compilation: when
 type-checking a class, the compiler needs to read the annotations on
 libraries that it uses, and separately-compiled libraries are available to
 the compiler only as class files.
+
+\subsectionAndLabel{Why are \<@AnnotatedFor> and \<@UnannotatedFor> declared with \<@Retention(RetentionPolicy.RUNTIME)>?}{faq-annotatedfor-runtime-retention}
+
+\refqualclass{framework/qual}{AnnotatedFor} and
+\refqualclass{framework/qual}{UnannotatedFor} are declaration annotations,
+not type annotations, but they are retained at run time for similar
+reasons.  They record which code the authors have annotated for which type
+systems.  Because of separate compilation, the compiler can see that
+information for a library only if it is stored in class files:  under
+\<-AuseConservativeDefaultsForUncheckedCode=bytecode>, a class compiled with a
+relevant \<@AnnotatedFor> is treated as checked code rather than being given
+conservative defaults
+(Section~\ref{AuseConservativeDefaultsForUncheckedCodesource}).
+\<RUNTIME> rather than \<CLASS> retention also lets run-time tools, such as
+ones that instrument bytecode, read that information.  The annotation
+reflects the authors' claim, not a record that a checker was run:  \<javac>
+stores the annotation whether or not any checker processed the code.
 
 
 \sectionAndLabel{Creating a new checker}{faq-create-a-checker-section}

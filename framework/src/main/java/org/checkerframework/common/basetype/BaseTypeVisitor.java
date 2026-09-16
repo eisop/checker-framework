@@ -28,6 +28,7 @@ import com.sun.source.tree.MethodTree;
 import com.sun.source.tree.ModifiersTree;
 import com.sun.source.tree.NewArrayTree;
 import com.sun.source.tree.NewClassTree;
+import com.sun.source.tree.PackageTree;
 import com.sun.source.tree.ParameterizedTypeTree;
 import com.sun.source.tree.ReturnTree;
 import com.sun.source.tree.ThrowTree;
@@ -149,6 +150,7 @@ import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Modifier;
 import javax.lang.model.element.Name;
+import javax.lang.model.element.PackageElement;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.DeclaredType;
@@ -687,6 +689,66 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         }
     }
 
+    @Override
+    public Void visitPackage(PackageTree tree, Void p) {
+        PackageElement elt = TreeUtils.elementFromDeclaration(tree);
+        if (elt != null) {
+            processPackageTree(tree, elt);
+        }
+        // Scan the annotations, which are declaration annotations to be checked like those on any
+        // other declaration, but not the package name.  The name is this declaration's own, not a
+        // use of the package, and scanning it as an expression makes a checker that reports on
+        // uses -- the Report Checker, for one -- report the package as using itself.
+        return scan(tree.getAnnotations(), p);
+    }
+
+    /**
+     * Type-checks a package declaration, that is, the {@code package} clause of a {@code
+     * package-info.java}.
+     *
+     * <p>A package declaration contains no code, so unlike {@link #processClassTree} this sees only
+     * the declaration annotations written on the package. It is the hook for checking those: an
+     * annotation whose {@code @Target} includes {@code PACKAGE} can be written on a package and can
+     * contradict another one there exactly as it can on a class.
+     *
+     * @param tree the package declaration
+     * @param elt the package declared by {@code tree}
+     */
+    public void processPackageTree(PackageTree tree, PackageElement elt) {
+        checkConflictingAnnotatedFor(tree, elt);
+        atypeFactory.getQualifierDefaults().checkConflictingDefaults(elt);
+        checkQualifierParameterOnDeclaration(tree, elt);
+    }
+
+    /**
+     * Checks the {@code @HasQualifierParameter} and {@code @NoQualifierParameter} annotations
+     * written on {@code elt}, which may be a class or a package.
+     *
+     * <p>Both annotations' {@code @Target} includes {@code PACKAGE}, and
+     * {@code @HasQualifierParameter} has an {@code applyToSubpackages} element, so both are
+     * meaningful on a package; only the two checks that do not involve supertypes apply there.
+     * {@code missing.has.qual.param} is not among them: it asks whether a declaration inherits a
+     * qualifier parameter it does not itself declare, and a package extends nothing.
+     *
+     * @param tree the declaration to report on
+     * @param elt the declaration's element
+     */
+    private void checkQualifierParameterOnDeclaration(Tree tree, Element elt) {
+        for (AnnotationMirror top : qualHierarchy.getTopAnnotations()) {
+            if (!atypeFactory.hasExplicitQualifierParameterInHierarchy(elt, top)
+                    && atypeFactory.getDeclAnnotation(elt, HasQualifierParameter.class) != null) {
+                // The argument to a @HasQualifierParameter annotation must be the top type in the
+                // type system.
+                checker.reportError(tree, "invalid.qual.param", top);
+                break;
+            }
+            if (atypeFactory.hasExplicitQualifierParameterInHierarchy(elt, top)
+                    && atypeFactory.hasExplicitNoQualifierParameterInHierarchy(elt, top)) {
+                checker.reportError(tree, "conflicting.qual.param", top);
+            }
+        }
+    }
+
     /**
      * Type-check classTree. Subclasses should override this method instead of {@link
      * #visitClass(ClassTree, Void)}.
@@ -694,6 +756,11 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      * @param classTree class to check
      */
     public void processClassTree(ClassTree classTree) {
+        TypeElement classElt = TreeUtils.elementFromDeclaration(classTree);
+        checkConflictingAnnotatedFor(classTree, classElt);
+        if (classElt != null) {
+            atypeFactory.getQualifierDefaults().checkConflictingDefaults(classElt);
+        }
         checkFieldInvariantDeclarations(classTree);
         if (!TreeUtils.hasExplicitConstructor(classTree)) {
             checkDefaultConstructor(classTree);
@@ -1233,6 +1300,11 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      * @param tree the method to type-check
      */
     public void processMethodTree(String className, MethodTree tree) {
+        ExecutableElement methodElt = TreeUtils.elementFromDeclaration(tree);
+        checkConflictingAnnotatedFor(tree, methodElt);
+        if (methodElt != null) {
+            atypeFactory.getQualifierDefaults().checkConflictingDefaults(methodElt);
+        }
         // boilerplate
         long startMillis = System.currentTimeMillis();
         Tree startSlowTypeCheckingTree = slowTypecheckingTree;
@@ -3108,6 +3180,43 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                     // cast cannot fail at run time.
                     return false;
                 }
+            } else if (newCastType.getKind() == TypeKind.ARRAY
+                    && newExprType.getKind() == TypeKind.ARRAY) {
+                // When -AcheckCastElementType is enabled, array components must be invariant,
+                // because arrays are mutable and component qualifiers are not reified at run
+                // time, so a cast cannot check them and two differently-qualified references can
+                // alias one array.  This is the same rule DefaultTypeHierarchy#visitArray_Array
+                // applies under -AinvariantArrays, but it cannot be delegated to the type
+                // hierarchy here.  That method's equality test, areEqualInHierarchy, is protected
+                // and depends on the visitor's currentTop, so it is not reachable through the
+                // TypeHierarchy interface, and the interface's isSubtype may only be called when
+                // the underlying Java types are already in a subtype relationship -- which two
+                // array components in a cast need not be, as in "(String[]) objectArray".  What
+                // the interface does offer for unrelated types is isSubtypeShallowEffective, so
+                // compare the components with it in both directions, one dimension at a time.
+                // Being shallow costs nothing here: a component that is itself structured, such
+                // as the type argument in "List<@Nullable String>[]", is already checked by the
+                // isSubtype call above, which the erased types of an array cast always reach.
+                AnnotatedTypeMirror castCurr = newCastType;
+                AnnotatedTypeMirror exprCurr = newExprType;
+                while (castCurr.getKind() == TypeKind.ARRAY
+                        && exprCurr.getKind() == TypeKind.ARRAY) {
+                    castCurr = ((AnnotatedArrayType) castCurr).getComponentType();
+                    exprCurr = ((AnnotatedArrayType) exprCurr).getComponentType();
+                    if (!typeHierarchy.isSubtypeShallowEffective(castCurr, exprCurr)
+                            || !typeHierarchy.isSubtypeShallowEffective(exprCurr, castCurr)) {
+                        return false;
+                    }
+                }
+                // Casting to more dimensions than the expression has, as in "(Object[][]) objArr",
+                // reaches an array component on the cast side whose qualifiers nothing on the
+                // expression side constrains, so reject it.  The opposite, casting away a
+                // dimension as in "(Object[]) objArrArr", is not rejected: every component
+                // compared above matched, and what remains is a Java typing question that the
+                // run time enforces with ArrayStoreException, not a qualifier question.
+                if (castCurr.getKind() == TypeKind.ARRAY && exprCurr.getKind() != TypeKind.ARRAY) {
+                    return false;
+                }
             } else if (newCastType.getKind() == TypeKind.DECLARED
                     && newExprType.getKind() == TypeKind.DECLARED) {
                 int castSize = ((AnnotatedDeclaredType) newCastType).getTypeArguments().size();
@@ -3229,7 +3338,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                     AnnotatedTypeMirror variableType = atypeFactory.getAnnotatedType(variableTree);
                     AnnotatedTypeMirror expType =
                             atypeFactory.getAnnotatedType(tree.getExpression());
-                    if (!isTypeCastSafe(variableType, expType)) {
+                    if (!isInstanceOfPatternSafe(variableType, expType)) {
                         checker.reportWarning(
                                 tree, "instanceof.pattern.unsafe", expType, variableTree);
                     }
@@ -3251,6 +3360,18 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         }
 
         return super.visitInstanceOf(tree, p);
+    }
+
+    /**
+     * Returns true if the instanceof binding pattern is safe.
+     *
+     * @param variableType annotated type of the pattern variable
+     * @param expType annotated type of the expression being tested
+     * @return true if the pattern is safe, false otherwise
+     */
+    protected boolean isInstanceOfPatternSafe(
+            AnnotatedTypeMirror variableType, AnnotatedTypeMirror expType) {
+        return isTypeCastSafe(variableType, expType);
     }
 
     /**
@@ -6020,5 +6141,25 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         // r = reduce(scan(identifierTree.getImports(), p), r);
         r = reduce(scan(identifierTree.getTypeDecls(), p), r);
         return r;
+    }
+
+    /**
+     * Warns if {@code elt} has both an {@code @AnnotatedFor} and an {@code @UnannotatedFor} that
+     * apply to this checker. The two contradict each other, and the one written first decides
+     * whether {@code elt} is checked; see {@link
+     * org.checkerframework.framework.type.AnnotatedTypeFactory#annotatedForPrecedesUnannotatedFor}.
+     *
+     * @param tree the declaration to report the warning on
+     * @param elt the declaration's element, or null if it has none
+     */
+    private void checkConflictingAnnotatedFor(Tree tree, @Nullable Element elt) {
+        if (elt == null) {
+            return;
+        }
+        if (checker.hasApplicableAnnotatedFor(elt, false)
+                && checker.hasApplicableUnannotatedFor(elt, false)
+                && checker.shouldReportConflictingAnnotatedFor(elt)) {
+            checker.reportWarning(tree, "conflicting.annotatedfor", elt);
+        }
     }
 }
