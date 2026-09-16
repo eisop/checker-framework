@@ -18,7 +18,7 @@ third-party publishing plugin. The namespace is `io.github.eisop`.
 A release is made with
 
 ````bash
-./gradlew publish -Prelease=true --no-parallel -Psigning.gnupg.keyName=...
+./gradlew publish -Prelease=true --no-parallel
 ````
 
 which uploads to a staging repository, and then **a human opens
@@ -30,6 +30,46 @@ Two things already work in our favour:
   snapshot publishing needs no new publishing configuration at all.
 - Snapshots are deliberately unsigned (`tasks.withType(Sign) { onlyIf { !isSnapshot && ... } }`),
   so a snapshot job needs no GPG key in CI.
+
+## Signing: any maintainer can sign a release
+
+Maven Central does not pin a signing key to a namespace. It checks that each
+artifact's detached signature verifies against a public key it can fetch from a
+public keyserver — so several maintainers can each sign with their own key, and
+nothing needs to change in this repository when a new one starts releasing.
+
+What each maintainer needs, once:
+
+1. A GPG key, with the public half uploaded to a keyserver Central queries
+   (`keys.openpgp.org` or `keyserver.ubuntu.com`), and not expired.
+2. Publish rights on the `io.github.eisop` namespace in the Central Portal.
+3. Their own Portal user token in `~/.gradle/gradle.properties`, as
+   `SONATYPE_NEXUS_USERNAME` / `SONATYPE_NEXUS_PASSWORD`.
+
+The key belongs in the same per-user file, not on the command line and not in
+this repository:
+
+```properties
+signing.gnupg.keyName=<your key id or email>
+```
+
+The release command then names no key at all:
+
+```bash
+./gradlew publish -Prelease=true --no-parallel
+```
+
+`gradle-mvn-push.gradle` calls `useGpgCmd()`, so signing goes through the local
+`gpg` (and `gpg-agent`, so the passphrase is entered once rather than once per
+artifact). It now also fails with an explicit message if
+`signing.gnupg.keyName` is unset on a release publish: without it `gpg` would
+quietly sign with whichever secret key happens to be its default, which may not
+be one Central can verify.
+
+Snapshots are unsigned here, so the nightly workflow needs no key. If signed
+CI publishing is ever wanted, the way to do it is an in-memory ASCII-armored
+key (`signing.key` / `signing.password`) from a dedicated project key held in
+repository secrets — not a maintainer's personal key.
 
 ## Why the manual click exists
 
@@ -128,9 +168,9 @@ one to revisit.
 
 Found while tracing the above; none is caused by the Portal migration alone.
 
-### `release_push.py` still describes the retired Nexus UI
+### `release_push.py` described the retired Nexus UI (fixed here)
 
-Steps 5b and 5c tell the releaser to
+Steps 5b and 5c told the releaser to
 
 > click on iogithubeisop-XXXX … Click "close" at the top … Copy the URL of the
 > closed artifacts (in the bottom pane)
@@ -138,45 +178,215 @@ Steps 5b and 5c tell the releaser to
 and then paste that URL back into the script. That is the OSSRH Nexus staging
 UI, with its top and bottom panes and its close-then-release two-step. The
 Central Portal has neither: a deployment is validated and then published, in
-one step. Anyone following the script today gets stuck looking for a button
-that is gone.
+one step. Anyone following the script got stuck looking for a button that is
+gone.
 
-If the one-call automation above is adopted, these two steps do not need
-rewording — they disappear, along with the prompt that asks a human to paste a
-repository URL into the release.
+Worse, the staging step it ran was dead on arrival for eisop: it read the
+signing passphrase from `/projects/swlab1/checker-framework/hosting-info/`, a
+University of Washington path that does not exist here, and signed with
+`checker-framework-dev@googlegroups.com` rather than the releaser's own key.
 
-### A release bumps the version in 34 places
+Since Maven Central publishing is in practice a separate `./gradlew publish`
+invocation, this PR removes those steps from `release_push.py` rather than
+rewording them, and renumbers the remaining GitHub/website steps. Removing
+step 5c also retired the only caller that passed a staging repository URL, so
+`maven_sanity_check`'s `repo_url` parameter and `add_repo_information` — which
+still edited poms to point at `org/checkerframework` artifacts — went with it.
 
-`build.gradle` holds the authoritative version, but the last released version
-is also written into 12 other files — the five `docs/examples/*/build.gradle`,
-two `docs/examples/*/pom.xml`, `docs/manual/external-tools.tex`,
-`introduction.tex`, `manual.tex`, `docs/checker-framework-webpage.html`, and
-`docs/developer/performance-notes.md` — 34 occurrences in all.
+### The version-bump automation had silently drifted (fixed here)
 
-They are consistent right now (`build.gradle` on the next `-SNAPSHOT`, the rest
-on the last release, which is correct: examples should show a version a reader
-can actually resolve). Keeping them consistent is manual, and a missed one
-leaves the manual telling readers to depend on a version that is no longer the
-newest. Worth either a script or a CI check that every non-CHANGELOG
-occurrence of a release version matches the last released version.
+`build.gradle` holds the authoritative version, and the last released version is
+also written into a number of other tracked files. That bump is *not* manual:
+the Ant target `update-checker-framework-versions` in
+`docs/developer/release/release.xml` does it. But the target had drifted from
+the tree, and it failed quietly.
+
+Four of its file references no longer resolved:
+
+| Referenced | Actual |
+| --- | --- |
+| `docs/manual/checkerframework.gradle` | gone |
+| `build-common.properties` | gone |
+| `checker/build.properties` | gone |
+| `docs/manual/checker-framework-quick-start.html` | the file is at `docs/checker-framework-quick-start.html` |
+
+Ant's `<replaceregexp>` — which the target's `update` macro also wraps — only
+prints `The following file is missing: …` for a path that does not exist; the
+build still reports `BUILD SUCCESSFUL`. So nothing ever flagged this. The
+symptom is in the tree: `docs/checker-framework-quick-start.html` still
+advertised `checker-framework-2.1.7.zip`, many releases later, because the
+target had been rewriting a path that does not exist. (No reader saw that —
+see [Two web pages nothing publishes](#two-web-pages-nothing-publishes) — but
+it is an accurate gauge of how long the breakage went unnoticed.)
+
+There is a second way the same target skips silently. Most rewrites key off a
+marker comment (`<!-- checker-framework-version -->` and friends, defined in
+`release.properties`), and if a page drops or renames a marker the regex simply
+matches nothing. Two rules were in that state: the `checker-framework-version`
+and `compiler-version` updates to `docs/checker-framework-webpage.html`, neither
+of which marker exists on that page any more.
+
+This PR therefore:
+
+- drops the three rules for deleted files and the two rules for absent markers;
+- points `checkerQuickStartPage` at the real location, and brings
+  `docs/checker-framework-quick-start.html` up to the current release;
+- adds `require-file` and `require-marker` macros that assert, before anything
+  is rewritten, that every file exists and every marker is present.
+
+Verified against a scratch copy, with the real AFU `build.properties`: on the
+happy path all five files are rewritten and the AFU date and zip name update;
+removing a file gives `BUILD FAILED ... file to update does not exist`, and
+renaming a marker gives `BUILD FAILED ... marker not found`. Both abort before
+any file is changed.
+
+The `docs/examples/` builds are no longer touched by the target at all —
+see [Who bumps the version in the examples](#who-bumps-the-version-in-the-examples).
+(`docs/developer/performance-notes.md` also names a version, but it cites the
+release a measurement was taken on, so it should not be bumped. `BazelExample`
+is a further exception: its files carry checksums, so it is re-pinned instead.)
+
+### Who bumps the version in the examples
+
+Renovate owns this, and the release scripts now stay out of it. Two things had
+to change for that to actually work.
+
+**The two mechanisms were fighting.** Renovate rewrites a pom property in place
+and drops any marker comments around it — it did exactly that to
+`MavenExample-framework-all/pom.xml` in #2017, turning
+`<checkerFrameworkVersion><!-- checker-framework-version -->…` into a plain
+value. The Ant target keyed off those same markers, both to bump
+`MavenExample/pom.xml` at release time and, in `update-and-copy-maven-example`,
+to set the version on the copy used by the Maven sanity check. Had Renovate
+reached `MavenExample/pom.xml` first, that sanity check would have gone on
+compiling against the *previous* release and still passed. So
+`update-and-copy-maven-example` now matches the `<checkerFrameworkVersion>`
+element itself rather than marker comments, and the vestigial markers are gone.
+
+**Renovate probably could not see the Gradle examples.** Those builds hold the
+version in a variable — an `ext.versions` map entry, or a plain `def` in
+`eisop-errorprone`. Every Renovate edit ever made to these files was a *plugin*
+version (`id 'net.ltgt.errorprone' version '…'`); the eisop version in them was
+last bumped by Dependabot, which was removed in #1997. Rather than guess at
+Renovate's Gradle variable resolution, `renovate.json` now carries an explicit
+`customManagers` regex for `eisopVersion`, matching the repository's existing
+practice for Bazel, the JDK EA build, and ruff. Verified that its file pattern
+and both match strings select all five example builds and extract the current
+version.
+
+Finally, the repository-wide `minimumReleaseAge: 7 days` made no sense for our
+own artifact: it delayed the examples a week behind every release. A package
+rule now sets `minimumReleaseAge: 0 days` for `io.github.eisop:*` and gives it
+its own PR rather than the grouped `docs/examples` one.
+
+### The release zip shipped a broken example and no README
+
+`checker-includes`, the list of paths that go into `checker-framework-X.Y.Z.zip`,
+had drifted the same way, and Ant does not complain about an include pattern
+that matches nothing either.
+
+- `README.html` was renamed to `README.txt` in 2015 and is now `README.md`. The
+  list still said `README.html`, so **no README shipped in the distribution at
+  all.**
+- "Make class name and file name the same" (2020) moved the units-extension
+  qualifiers into `qual/` and renamed `Demo.java` to `UnitsExtensionDemo.java`.
+  The list still named the old paths, so the example shipped with its
+  `Makefile`, `README` and `Expected.txt` — and **not one Java source file**.
+  The shipped `Makefile` refers to `qual/Frequency.java` and friends, none of
+  which are there.
+
+Confirmed on the published site rather than inferred. Note that the site's
+newest release is 3.49.3-eisop1, not 3.49.5-eisop1 — see below — and both
+renames long predate it. Under
+`/cf/checker-framework-3.49.3-eisop1/examples/units-extension/`, `README` is
+200 while `UnitsExtensionDemo.java` is 404; `README.md` is 404 at both the
+release folder and `/cf/`. Both entries are corrected here.
+
+### Two web pages nothing publishes
+
+`docs/checker-framework-webpage.html` and `docs/checker-framework-quick-start.html`
+are still rewritten by `update-checker-framework-versions`, and the webpage is
+copied by the `checker-framework-website-docs` target into the interm site
+directory, where a symlink makes it the site's `index.html`. Nothing publishes
+that directory for eisop:
+
+- neither file is in `checker-includes`, so neither ships in the release zip;
+- `site-copy-includes` covers only `annotation-file-utilities/**` and the JSR 308
+  specification;
+- `DEV_SITE_DIR` / `LIVE_SITE_DIR` are local `/tmp/$USER` directories, and
+  `https://eisop.github.io/cf/dev` is a 404;
+- `https://eisop.github.io/cf/index.html` is generated by `EisopSiteGenerator`
+  in the `eisop.github.io` repository from `cf-template.md`, filled in from the
+  GitHub releases API — not from either of these files.
+
+Confirmed: `/cf/checker-framework-webpage.html` and
+`/cf/checker-framework-quick-start.html` are both 404 on the live site.
+
+They are leftovers from the typetools `checkerframework.org` pipeline.
+
+`checker-framework-webpage.html` has in fact already been ported: the website
+repository's `cf-template.md` is a Markdown rendering of it, with the same
+headline, the same introductory paragraphs word for word, the same bullet
+structure and the same "Support and community" / "Bug reports" / "Mailing
+lists" sections, and with the version, date and download link filled in from
+the GitHub releases API. Comparing the two, every difference in link targets is
+just the hosting layout (`manual/checker-framework-manual.pdf` versus
+`manual/manual.pdf`, `api` versus `api/checker-javadoc/`,
+`annotation-file-utilities/` versus `../afu/`). One difference is content, not
+layout: the port dropped the **Dataflow Framework** bullet, which the page here
+still has. The PDF that bullet links to is a 404 on the site anyway, since
+`dataflow/manual/dataflow.pdf` is not in `checker-includes` either.
+
+`checker-framework-quick-start.html` has no counterpart on the site at all; the
+template's "Quick start" points at `manual/manual.html#installation`.
+
+Adding either to `checker-includes` would not by itself surface them. The
+generator extracts the zip to `cf/<release>/` and then lifts only `examples`,
+`manual`, `tutorial`, `CHANGELOG.md` and the javadoc out of `docs/` — confirmed
+live: `/cf/<release>/manual/manual.html` and `/cf/<release>/CHANGELOG.md` are
+200 while `/cf/<release>/docs/` is a 404. A file left under `docs/` would land
+where nothing links to it. Surfacing the quick-start page would need a change in
+the website repository too.
+
+So the options are: delete both here (and retire `checker-framework-website-docs`
+and the dev-site/live-site copy steps that reference them), or port the
+quick-start page to the website repository the way the main page already was.
+Either way the Dataflow bullet should be restored to `cf-template.md` first, or
+consciously dropped. Kept correct but unresolved here; worth deciding separately.
+
+### The website is a release behind
+
+`https://eisop.github.io/cf/` still offers `checker-framework-3.49.3-eisop1.zip`
+(released 6 May 2025). 3.49.5-eisop1 was published on 26 Apr 2026 and does not
+appear on the site at all: `/cf/checker-framework-3.49.5-eisop1/` is a 404, and
+the release archive lists 28 entries against the 29 the API reports.
+
+Nothing publishes the site automatically — `EisopSiteGenerator` is run by hand
+against a `gh-pages` checkout, as its README describes, and the release scripts
+here do not mention it. Whatever else is decided above, "re-run the website
+generator" belongs in the release checklist.
 
 ### The published artifacts are only smoke-tested locally
 
-`docs/examples/publish-smoketest/` builds against artifacts from
-`publishToMavenLocal`, via `:checker:exampleTests` in
-`test-cftests-nonjunit.sh`. That checks the artifacts the build *would*
-publish, which is most of the value, but not that the deployment itself
-arrived intact.
+`docs/examples/publish-smoketest/` is thorough about the artifacts themselves.
+It resolves every one of the eleven published coordinates — plus
+`framework-errorprone` when the build JDK is 21 or newer — through its published
+Gradle module metadata, asserts that each resolves to its own jar with exactly
+one `checker-qual` on the classpath, pins `io.github.eisop` to `mavenLocal()`
+with a repository content filter so a previously released artifact of the same
+version cannot mask a broken local publish, and type-checks a source set with
+the Value Checker loaded out of the published `framework-all` jar. That last
+part is what catches a POM missing a dependency the artifact needs at run time,
+which no in-repo test can see.
+
+What it does not check is the *deployment*: it runs against
+`publishToMavenLocal` output, via `:checker:exampleTests` in
+`test-cftests-nonjunit.sh`. So it verifies the artifacts the build would
+publish, not that what reached Central is what the build produced.
 
 Once nightly snapshots exist, pointing the same smoke test at the published
 snapshot repository would close that gap, and would fail on the day a
 publication breaks rather than at the next release.
-
-### The documented release command hardcodes one maintainer's key
-
-`README-eisop.md` shows `-Psigning.gnupg.keyName=wdietl@gmail.com`. Fine as an
-example, but it reads as the value to use rather than as the releaser's own
-key; worth saying so explicitly.
 
 ## Open questions
 

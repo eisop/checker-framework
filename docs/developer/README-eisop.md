@@ -48,11 +48,16 @@ Most of the instructions can be followed, ignoring certain steps.
 Without using the release scripts, you can make a Maven Central release using:
 
 ````bash
-./gradlew publish -Prelease=true --no-parallel -Psigning.gnupg.keyName=<your-gpg-key>
+./gradlew publish -Prelease=true --no-parallel
 ````
 
-`signing.gnupg.keyName` is the releaser's own key, identified by email or key
-id; the build signs releases and refuses to publish unsigned ones.
+The build signs releases and refuses to publish unsigned ones.  Any maintainer
+may sign with their own key: put `signing.gnupg.keyName=<your key id or email>`
+in `~/.gradle/gradle.properties`, next to your `SONATYPE_NEXUS_USERNAME` and
+`SONATYPE_NEXUS_PASSWORD` Portal tokens.  The publish fails with an explicit
+message if that property is unset.  See
+[`maven-central-publishing.md`](maven-central-publishing.md#signing-any-maintainer-can-sign-a-release)
+for what a new releaser has to set up.
 
 That uploads to a staging repository. The release is **not** live until it is
 published from the Central Portal, which today means opening
@@ -60,10 +65,13 @@ published from the Central Portal, which today means opening
 [`maven-central-publishing.md`](maven-central-publishing.md) describes the
 single API call that would remove that step.
 
-A release also updates the version in files other than `build.gradle` -- the
-examples under `docs/examples/`, and several places in the manual -- so that
-what readers are told to depend on is the version just released. See the same
-document for the list.
+A release also updates the version in files other than `build.gradle` -- two of
+the examples under `docs/examples/`, and several places in the manual -- so that
+what readers are told to depend on is the version just released.  That is done
+by the Ant target `update-checker-framework-versions` in
+`docs/developer/release/release.xml`, which lists the files it rewrites and
+fails if one of them has moved.  The remaining `docs/examples/` versions are
+bumped by Renovate once the release is on Maven Central.
 
 If there are problems with the configuration cache, pass `--no-configuration-cache`.
 
