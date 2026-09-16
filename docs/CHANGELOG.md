@@ -681,12 +681,13 @@ the members that name the conservative set say so: `STANDARD_UNCHECKED_DEFAULTS_
 `CONSERVATIVE_UNCHECKED_DEFAULTS_BOTTOM`, and `addUncheckedCodeDefault` and
 `addUncheckedCodeDefaults` are now `addConservativeUncheckedCodeDefault` and
 `addConservativeUncheckedCodeDefaults`. The optimistic counterparts are
-`OPTIMISTIC_UNCHECKED_DEFAULTS_TOP`, `OPTIMISTIC_UNCHECKED_DEFAULTS_BOTTOM`,
-`addOptimisticUncheckedCodeDefault`, and `addOptimisticUncheckedStandardDefaults`;
-`addUncheckedStandardDefaults` adds both sets, and at most one of them is ever applied to a given
-element. `QualifierDefaults.applyOptimisticDefaults(Element)` and
-`SourceChecker.useOptimisticDefault(String)` are the optimistic analogues of
-`applyConservativeDefaults` and `useConservativeDefault`.
+`OPTIMISTIC_UNCHECKED_DEFAULTS_TOP`, `OPTIMISTIC_UNCHECKED_DEFAULTS_BOTTOM`, and
+`addOptimisticUncheckedCodeDefault`. The new `addConservativeDefaultsForUncheckedCode` and
+`addOptimisticDefaultsForUncheckedCode` add each mode's built-in defaults, and
+`addUncheckedStandardDefaults` now calls each of them only if its command-line option is enabled.
+At most one mode's defaults are applied to a given element.
+`QualifierDefaults.applyOptimisticDefaults(Element)` and `SourceChecker.useOptimisticDefault(String)`
+are the optimistic analogues of `applyConservativeDefaults` and `useConservativeDefault`.
 
 The jtreg tests that verify which annotations the Checker Framework writes into
 bytecode now run on JDK 25 and later. They used `com.sun.tools.classfile`, which
