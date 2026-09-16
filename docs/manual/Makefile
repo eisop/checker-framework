@@ -33,6 +33,7 @@ reflection-checker.tex \
 reflection-inference-rules.tex \
 initialized-fields-checker.tex \
 aliasing-checker.tex \
+mutability-checker.tex \
 subtyping-checker.tex \
 external-checkers.tex \
 typestate-checker.tex \
