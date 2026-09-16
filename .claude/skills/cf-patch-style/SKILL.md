@@ -45,6 +45,39 @@ not by assuming from local state.
 - A force-push needs its **own** explicit OK, separate from a normal-push OK, and
   even then default to avoiding it unless the maintainer asks for it.
 
+## Two git commands that quietly discard work
+
+- **`git checkout -- <file>` reverts to HEAD.** After an experiment on a file
+  that also holds uncommitted work — reverting a fix to confirm a test catches
+  it, say — this throws the uncommitted work away too, with no warning and no
+  reflog entry. Copy the file aside first (`cp f /tmp/f.bak`), or commit before
+  experimenting. This has silently undone a finished change twice.
+- **`git commit` after `git add -A` sweeps in more than you described.** Stage
+  the specific paths for the commit you are writing. A commit whose message
+  describes one change and whose diff contains two has to be split afterwards,
+  which is only safe while it is still unpushed.
+
+## Deleting merged branches: `is-ancestor` lies here
+
+This repository **squash-merges**, so a merged branch's tip is never an ancestor
+of `master`. `git branch -d` refuses it and
+`git merge-base --is-ancestor <branch> origin/master` reports it unmerged —
+for every merged branch, so neither is usable as the test.
+
+`git diff origin/master..<branch>` is no better: a branch that is merely
+*behind* master shows master's newer commits as removals, which reads as
+unmerged work.
+
+Ask GitHub what happened, then compare the branch against the squash commit
+itself:
+
+```bash
+mc=$(gh pr view <N> --json mergeCommit --jq '.mergeCommit.oid')
+git diff --stat "<branch>" "$mc"        # empty  =>  content is in master
+```
+
+Empty means the branch's content is in master and `git branch -D` is safe.
+
 ## One logical change per commit
 
 Series of three or four narrow commits are preferred over a single
@@ -103,6 +136,47 @@ Do not include marketing adjectives ("blazingly", "dramatically",
   them to remove it (e.g. `git filter-branch --msg-filter
   "grep -v '^Claude-Session:'"` over the range).
 
+## Refer to a typetools issue with a link, not a bare number
+
+`eisop#1234` and `typetools#1234` are plain text: this repository has **no custom
+autolink references configured**, so neither form becomes a link anywhere on
+GitHub. Only a bare `#1234` autolinks, and it resolves to *this* repository —
+which for a typetools number silently points at an unrelated eisop issue.
+
+So a reader who wants "typetools issue 2816" has to go and find it by hand, and
+sometimes guesses the wrong repository. That has already cost a wrong reference
+in a committed test comment (`eisop#2816`, which does not exist; the real one is
+[typetools/checker-framework#2816](https://github.com/typetools/checker-framework/issues/2816)).
+
+Where GitHub renders the text — **commit messages, PR titles and bodies, issue
+bodies and comments, code review comments** — use the cross-repository form,
+which GitHub does autolink:
+
+```
+typetools/checker-framework#2816
+```
+
+Where nothing autolinks — **source-code comments, `docs/manual/*.tex`, and any
+other file in the tree** — write the full URL, so the reference is usable from
+an editor:
+
+```java
+// See https://github.com/typetools/checker-framework/issues/2816
+```
+
+Two exceptions, both deliberate:
+
+- The **`docs/CHANGELOG.md` "Closed issues:" list** keeps the compact
+  `eisop#NNNN` / `typetools#NNNN` form. It is an index of numbers, not prose,
+  and expanding it to URLs would make it unreadable.
+- An issue number that appears in a **jtreg `@summary`** must not start with
+  `@`; see the jtreg notes in `CLAUDE.md`.
+
+If a bare `typetools#NNNN` would be nicer to write, the repository can be given
+a custom autolink reference (Settings → Autolink references) mapping the
+`typetools#` prefix to typetools/checker-framework. That is a repository-wide
+setting, so propose it rather than assuming it.
+
 ## Branch naming
 
 - Performance/correctness audits of a package: `review-<package>` or
@@ -117,6 +191,28 @@ Every user-visible or perf-relevant change adds a bullet to the next
 release section in [`docs/CHANGELOG.md`](../../../docs/CHANGELOG.md).
 Match the existing style: one line, ends with the PR number once it's
 opened.
+
+**The "Closed issues:" list conflicts on almost every PR**, because each PR
+inserts a number into the same paragraph. Resolve it as the *union* of both
+sides — never by taking one side, which drops the other PR's issue — then
+re-wrap, since the entries are reflowed to about 72 columns:
+
+```python
+import io, re, textwrap
+p = "docs/CHANGELOG.md"; s = io.open(p, encoding="utf-8").read()
+m = re.search(r"<<<<<<< HEAD\n(.*?)=======\n(.*?)>>>>>>> origin/master\n", s, re.S)
+items = lambda t: [x.strip() for x in t.replace("\n", " ").strip().rstrip(".").split(",") if x.strip()]
+allx = items(m.group(1)) + items(m.group(2))
+key = lambda x: int(x.split("#")[1])
+eis = sorted({x for x in allx if x.startswith("eisop#")}, key=key)
+typ = sorted({x for x in allx if x.startswith("typetools#")}, key=key)
+s = s[:m.start()] + textwrap.fill(", ".join(eis + typ), width=72) + ".\n" + s[m.end():]
+io.open(p, "w", encoding="utf-8").write(s)
+```
+
+Then check the result: strictly ascending, no duplicates, and both PRs' numbers
+present. A conflict that starts mid-list only shows part of it, so verify the
+whole paragraph rather than the block that conflicted.
 
 ## What not to touch in a perf patch
 
@@ -167,6 +263,79 @@ git checkout - && git branch -D verify
 
 If `alltests` is impractical (e.g., no local JDK matrix), say so
 explicitly in the PR description rather than implying it passed.
+
+## A green run on one JDK says nothing about the others
+
+CI runs the matrix; a development machine usually runs one JDK. Twice in one
+session a change verified as green locally failed CI on a JDK that was never
+tried:
+
+- A jtreg test used an `instanceof` pattern whose expression type is already a
+  subtype of the pattern type. javac accepted it on 21 and rejected it as an
+  unconditional pattern on 17 and 20, which the test's
+  `@below-java17-jdk-skip-test` marker did not exclude.
+- `AbstractTypeProcessor` was keyed on the synthetic type that javac's ANALYZE
+  event carries for a `package-info.java`. javac 21 reports
+  `<package>.package-info`; **javac 11 and 17 report an anonymous type in the
+  unnamed package**, from which neither the package nor its annotations can be
+  reached. The dispatch silently did nothing on those versions.
+
+Both were invisible to `./gradlew test` on JDK 21.
+
+**Run the other JDKs when the change touches anything version-sensitive** —
+`javacutil`, anything reading `com.sun.*` or `javax.lang.model`, the language
+features a test source uses, or a `@requires`/skip marker:
+
+```
+ORG_GRADLE_PROJECT_useJdkVersion=11 ./gradlew :checker:jtregTests
+ORG_GRADLE_PROJECT_useJdkVersion=25 ./gradlew :checker:jtregTests
+```
+
+Two traps in that command:
+
+- **Gradle itself needs JDK 17+.** Keep `JAVA_HOME` on a modern JDK and let
+  `useJdkVersion` select the target; setting `JAVA_HOME` to 11 fails with
+  "Gradle requires JVM 17 or later to run".
+- **`useJdkVersion` does not always change jtreg's `testJDK`.** Check what
+  actually ran: `grep -h '^testJDK' checker/build/jtreg/all/work/**/*.jtr`. A
+  `.jtr` file also records the `@requires` expression it evaluated, so it tells
+  you whether a test ran, was filtered, or was never selected.
+- The jtreg **work directory accumulates across runs**, so `report/text/summary.txt`
+  can show two mutually exclusive suites both "Passed" — they passed on
+  different JDKs. `rm -rf checker/build/jtreg` before a run whose results you
+  intend to read.
+
+When a JDK cannot be run locally (no toolchain for it), say so rather than
+implying the matrix was covered.
+
+## Do not declare a lint gate clean from truncated output
+
+`requireJavadoc` and `javadocDoclintAll` emit hundreds of pre-existing findings,
+so the only question is whether any falls on a line **this diff added**. Piping
+the log through `head` and seeing nothing relevant is not an answer: a real
+`no @param for isError` finding sat below a `head -6` cutoff, was reported as
+clean, and failed the `misc` job.
+
+Intersect the *complete* finding list against the *complete* added-line set:
+
+```bash
+./gradlew requireJavadoc javadocDoclintAll spotlessCheck --continue > /tmp/gate.log 2>&1
+for f in $(git diff --name-only origin/master...HEAD -- '*.java'); do
+  base=$(basename $f)
+  added=$(git diff -U0 origin/master...HEAD -- "$f" \
+      | awk '/^@@/{split($3,a,","); s=substr(a[1],2); n=(a[2]==""?1:a[2]);
+                   for(i=0;i<n;i++) print s+i}')
+  while IFS= read -r line; do
+    ln=$(echo "$line" | grep -oE "$base:[0-9]+" | head -1 | cut -d: -f2)
+    [ -z "$ln" ] && continue
+    echo "$added" | grep -qx "$ln" && echo "HIT: $line"
+  done < <(grep "/$base:" /tmp/gate.log)
+done
+```
+
+No `HIT` lines means clean. This is the same rule as the `-Werror` and
+closed-issues lessons in [`cf-code-review`](../cf-code-review/SKILL.md): one
+truncated report is a sample, not the population.
 
 ## CI checks that `assemble` and `alltests` do NOT run
 
