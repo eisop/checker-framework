@@ -124,6 +124,60 @@ which is the same URL this repository already lists in its own
 If the publications are ever simplified, `com.vanniktech.maven.publish` is the
 one to revisit.
 
+## Other things worth fixing in the release process
+
+Found while tracing the above; none is caused by the Portal migration alone.
+
+### `release_push.py` still describes the retired Nexus UI
+
+Steps 5b and 5c tell the releaser to
+
+> click on iogithubeisop-XXXX … Click "close" at the top … Copy the URL of the
+> closed artifacts (in the bottom pane)
+
+and then paste that URL back into the script. That is the OSSRH Nexus staging
+UI, with its top and bottom panes and its close-then-release two-step. The
+Central Portal has neither: a deployment is validated and then published, in
+one step. Anyone following the script today gets stuck looking for a button
+that is gone.
+
+If the one-call automation above is adopted, these two steps do not need
+rewording — they disappear, along with the prompt that asks a human to paste a
+repository URL into the release.
+
+### A release bumps the version in 34 places
+
+`build.gradle` holds the authoritative version, but the last released version
+is also written into 12 other files — the five `docs/examples/*/build.gradle`,
+two `docs/examples/*/pom.xml`, `docs/manual/external-tools.tex`,
+`introduction.tex`, `manual.tex`, `docs/checker-framework-webpage.html`, and
+`docs/developer/performance-notes.md` — 34 occurrences in all.
+
+They are consistent right now (`build.gradle` on the next `-SNAPSHOT`, the rest
+on the last release, which is correct: examples should show a version a reader
+can actually resolve). Keeping them consistent is manual, and a missed one
+leaves the manual telling readers to depend on a version that is no longer the
+newest. Worth either a script or a CI check that every non-CHANGELOG
+occurrence of a release version matches the last released version.
+
+### The published artifacts are only smoke-tested locally
+
+`docs/examples/publish-smoketest/` builds against artifacts from
+`publishToMavenLocal`, via `:checker:exampleTests` in
+`test-cftests-nonjunit.sh`. That checks the artifacts the build *would*
+publish, which is most of the value, but not that the deployment itself
+arrived intact.
+
+Once nightly snapshots exist, pointing the same smoke test at the published
+snapshot repository would close that gap, and would fail on the day a
+publication breaks rather than at the next release.
+
+### The documented release command hardcodes one maintainer's key
+
+`README-eisop.md` shows `-Psigning.gnupg.keyName=wdietl@gmail.com`. Fine as an
+example, but it reads as the value to use rather than as the releaser's own
+key; worth saying so explicitly.
+
 ## Open questions
 
 - Should the nightly job run only when master has moved since the last

@@ -48,8 +48,22 @@ Most of the instructions can be followed, ignoring certain steps.
 Without using the release scripts, you can make a Maven Central release using:
 
 ````bash
-./gradlew publish -Prelease=true --no-parallel -Psigning.gnupg.keyName=wdietl@gmail.com
+./gradlew publish -Prelease=true --no-parallel -Psigning.gnupg.keyName=<your-gpg-key>
 ````
+
+`signing.gnupg.keyName` is the releaser's own key, identified by email or key
+id; the build signs releases and refuses to publish unsigned ones.
+
+That uploads to a staging repository. The release is **not** live until it is
+published from the Central Portal, which today means opening
+<https://central.sonatype.com/publishing/deployments> and clicking Publish.
+[`maven-central-publishing.md`](maven-central-publishing.md) describes the
+single API call that would remove that step.
+
+A release also updates the version in files other than `build.gradle` -- the
+examples under `docs/examples/`, and several places in the manual -- so that
+what readers are told to depend on is the version just released. See the same
+document for the list.
 
 If there are problems with the configuration cache, pass `--no-configuration-cache`.
 
