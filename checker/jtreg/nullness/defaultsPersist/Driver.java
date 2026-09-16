@@ -111,7 +111,7 @@ public class Driver {
         String annoName = d.annotation();
 
         TypeAnnotation.Position p = new TypeAnnotation.Position();
-        p.type = d.type();
+        p.type = TargetType.valueOf(d.type());
         if (d.offset() != NOT_SET) {
             p.offset = d.offset();
         }
@@ -192,7 +192,14 @@ class AnnoPosPair {
 @interface TADescription {
     String annotation();
 
-    TargetType type();
+    /**
+     * The target type, as the name of a {@code TypeAnnotation.TargetType} constant, for example
+     * {@code "METHOD_RETURN"}. A name rather than the enum itself, so that one copy of the test
+     * data serves both the {@code com.sun.tools.classfile} harness and the {@code
+     * java.lang.classfile} one; the two enums declare the same constants but are different types,
+     * and only one of them exists on any given JDK.
+     */
+    String type();
 
     int offset() default Driver.NOT_SET;
 

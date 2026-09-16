@@ -43,7 +43,7 @@ public class Driver {
                 String fullFile = PersistUtil25.wrap(compact);
                 ClassModel cm = PersistUtil25.compileAndReturn(fullFile, testClass);
 
-                boolean ignoreConstructors = !clazz.getName().equals("Constructors25");
+                boolean ignoreConstructors = !clazz.getName().equals("Constructors");
                 List<TypeAnnotation> actual =
                         ReferenceInfoUtil.extendedAnnotationsOf(cm, ignoreConstructors);
 
@@ -90,7 +90,7 @@ public class Driver {
 
     private AnnoTargetPair toPair(TADescription d) {
         TargetInfo t;
-        switch (d.type()) {
+        switch (TargetType.valueOf(d.type())) {
             case FIELD -> t = TargetInfo.ofField();
             case METHOD_RETURN -> t = TargetInfo.ofMethodReturn();
             case METHOD_RECEIVER -> t = TargetInfo.ofMethodReceiver();
@@ -108,10 +108,30 @@ public class Driver {
 
         List<TypePathComponent> path = new ArrayList<>();
         int[] loc = d.genericLocation();
-        for (int i = 0; i + 1 < loc.length; i += 2)
-            path.add(TypePathComponent.of(TypePathComponent.Kind.values()[loc[i]], loc[i + 1]));
+        for (int i = 0; i + 1 < loc.length; i += 2) {
+            path.add(TypePathComponent.of(kindForTag(loc[i]), loc[i + 1]));
+        }
 
         return AnnoTargetPair.of(d.annotation(), t, path);
+    }
+
+    /**
+     * Returns the type-path component kind whose JVMS {@code type_path_kind} is {@code tag}.
+     *
+     * <p>The constants are looked up by {@link TypePathComponent.Kind#tag()} rather than by
+     * ordinal. The two agree today, but the declaration order of an enum is not part of its
+     * contract, whereas the tag is fixed by the class file format.
+     *
+     * @param tag a JVMS {@code type_path_kind} value
+     * @return the corresponding kind
+     */
+    private static TypePathComponent.Kind kindForTag(int tag) {
+        for (TypePathComponent.Kind k : TypePathComponent.Kind.values()) {
+            if (k.tag() == tag) {
+                return k;
+            }
+        }
+        throw new IllegalArgumentException("no TypePathComponent.Kind has tag " + tag);
     }
 
     static final class AnnoTargetPair {
@@ -136,7 +156,14 @@ public class Driver {
 @interface TADescription {
     String annotation();
 
-    TargetType type();
+    /**
+     * The target type, as the name of a {@code TypeAnnotation.TargetType} constant, for example
+     * {@code "METHOD_RETURN"}. A name rather than the enum itself, so that one copy of the test
+     * data serves both the {@code com.sun.tools.classfile} harness and the {@code
+     * java.lang.classfile} one; the two enums declare the same constants but are different types,
+     * and only one of them exists on any given JDK.
+     */
+    String type();
 
     int offset() default Driver.NOT_SET;
 

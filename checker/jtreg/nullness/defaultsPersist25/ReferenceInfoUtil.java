@@ -41,19 +41,51 @@ public class ReferenceInfoUtil {
                 .ifPresent(a -> sink.addAll(a.annotations()));
     }
 
+    /**
+     * Checks that {@code actual} contains exactly the annotations {@code expect} describes, with no
+     * extras and no expectation matched twice.
+     *
+     * <p>Each match is removed from the working copy of {@code actual}, so two identical
+     * expectations require two identical annotations. Comparing only sizes and then asking whether
+     * each expectation occurs somewhere would accept {@code [A, B]} for {@code [A, A]}: the two
+     * lookups of {@code A} would both find the same annotation, and {@code B} would never be
+     * examined.
+     *
+     * @param expect the annotations the test declares, from its {@code @TADescription}s
+     * @param actual the annotations read from the compiled class
+     * @param where a description of the test, for the failure message
+     * @return true if they correspond; never returns false, since a mismatch throws
+     */
     public static boolean compare(
             List<Driver.AnnoTargetPair> expect, List<TypeAnnotation> actual, String where) {
 
-        if (actual.size() != expect.size())
-            throw new ComparisonException("count mismatch @" + where, dummy(expect), actual);
-
-        for (Driver.AnnoTargetPair e : expect)
-            if (find(e, actual) == null)
+        List<TypeAnnotation> unmatched = new ArrayList<>(actual);
+        for (Driver.AnnoTargetPair e : expect) {
+            TypeAnnotation found = find(e, unmatched);
+            if (found == null) {
                 throw new ComparisonException(
-                        "missing " + e.annoName + " @" + where, dummy(expect), actual);
+                        "expected but not found: " + e.annoName + " @" + where,
+                        dummy(expect),
+                        actual);
+            }
+            unmatched.remove(found);
+        }
+        if (!unmatched.isEmpty()) {
+            throw new ComparisonException(
+                    unmatched.size() + " unexpected annotation(s) @" + where,
+                    dummy(expect),
+                    actual);
+        }
         return true;
     }
 
+    /**
+     * Returns an annotation in {@code pool} that {@code want} describes, or null if there is none.
+     *
+     * @param want the expectation to satisfy
+     * @param pool the annotations still unmatched
+     * @return a matching annotation, or null
+     */
     private static TypeAnnotation find(Driver.AnnoTargetPair want, List<TypeAnnotation> pool) {
 
         String desc = "L" + want.annoName + ";";
