@@ -1054,6 +1054,14 @@ Other improvements and bug fixes:
   annotation class.
 - Fixed a bug where a type annotation written on the first alternative of a
   multi-catch clause was silently dropped.
+- Type argument inference no longer adds the upper bound of a captured type
+  variable as an extra lower bound when reducing a subtyping constraint, as
+  required by JLS 18.2.3. The extra bound inferred types that differ from
+  javac's and caused a crash for a lambda over a wildcard array list such as
+  `new ArrayList<>(List<? extends int[]>).forEach((int[] b) -> {})`.
+  Resolving an inference variable to a captured type variable now also handles
+  a lower bound that is a type variable annotated in only some qualifier
+  hierarchies, as in the capture of `? super T`.
 
 **Closed issues:**
 
@@ -1065,8 +1073,8 @@ eisop#1818, eisop#1819, eisop#1861, eisop#1862, eisop#1863, eisop#1865,
 eisop#1887, eisop#1958, eisop#1965, eisop#1986, eisop#1987, eisop#1990,
 eisop#1991, eisop#2009, eisop#2020, eisop#2021, eisop#2032, eisop#2037,
 eisop#2047, eisop#2048, eisop#2050, eisop#2052, eisop#2056, eisop#2059,
-eisop#2061, eisop#2064, eisop#2074, eisop#2081, eisop#2089, typetools#399,
-typetools#3203.
+eisop#2061, eisop#2064, eisop#2074, eisop#2081, eisop#2083, eisop#2089,
+typetools#399, typetools#3203.
 
 
 Version 3.49.5-eisop1 (April 26, 2026)

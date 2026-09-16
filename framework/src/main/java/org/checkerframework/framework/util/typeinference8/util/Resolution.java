@@ -1,7 +1,9 @@
 package org.checkerframework.framework.util.typeinference8.util;
 
+import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedTypeVariable;
 import org.checkerframework.framework.type.QualifierHierarchy;
+import org.checkerframework.framework.util.AnnotatedTypes;
 import org.checkerframework.framework.util.typeinference8.bound.BoundSet;
 import org.checkerframework.framework.util.typeinference8.types.AbstractQualifier;
 import org.checkerframework.framework.util.typeinference8.types.AbstractType;
@@ -10,6 +12,8 @@ import org.checkerframework.framework.util.typeinference8.types.ProperType;
 import org.checkerframework.framework.util.typeinference8.types.Variable;
 import org.checkerframework.framework.util.typeinference8.types.VariableBounds;
 import org.checkerframework.framework.util.typeinference8.types.VariableBounds.BoundKind;
+import org.checkerframework.javacutil.AnnotationMirrorSet;
+import org.checkerframework.javacutil.AnnotationUtils;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -354,13 +358,20 @@ public class Resolution {
                                 lubAnnos, lubProperType.getAnnotatedType().getAnnotations());
                 lubProperType.getAnnotatedType().replaceAnnotations(newLubAnnos);
             } else {
-
                 AnnotatedTypeVariable lubTV =
                         (AnnotatedTypeVariable) lubProperType.getAnnotatedType();
+                // The lower bound may itself be a type variable, such as the T in the capture of ?
+                // super T, whose primary annotations are absent or missing a hierarchy, so use its
+                // effective annotations.  Write them back only if the lub differs: annotating a
+                // type variable makes it exact and changes its upper bound, too.
+                AnnotatedTypeMirror lubLowerBound = lubTV.getLowerBound();
+                AnnotationMirrorSet effective =
+                        AnnotatedTypes.findEffectiveLowerBoundAnnotations(qh, lubLowerBound);
                 Set<? extends AnnotationMirror> newLubAnnos =
-                        qh.leastUpperBoundsQualifiersOnly(
-                                lubAnnos, lubTV.getLowerBound().getAnnotations());
-                lubTV.getLowerBound().replaceAnnotations(newLubAnnos);
+                        qh.leastUpperBoundsQualifiersOnly(lubAnnos, effective);
+                if (!AnnotationUtils.areSame(newLubAnnos, effective)) {
+                    lubLowerBound.replaceAnnotations(newLubAnnos);
+                }
             }
         }
         ai.getBounds().addBound(null, BoundKind.EQUAL, lubProperType);
@@ -412,10 +423,16 @@ public class Resolution {
                     } else {
                         AnnotatedTypeVariable lubTV =
                                 (AnnotatedTypeVariable) lowerBound.getAnnotatedType();
+                        // See the comment in resolveWithLowerBounds.
+                        AnnotatedTypeMirror lubLowerBound = lubTV.getLowerBound();
+                        AnnotationMirrorSet effective =
+                                AnnotatedTypes.findEffectiveLowerBoundAnnotations(
+                                        qh, lubLowerBound);
                         Set<? extends AnnotationMirror> newLubAnnos =
-                                qh.leastUpperBoundsQualifiersOnly(
-                                        lowerBoundAnnos, lubTV.getLowerBound().getAnnotations());
-                        lubTV.getLowerBound().replaceAnnotations(newLubAnnos);
+                                qh.leastUpperBoundsQualifiersOnly(lowerBoundAnnos, effective);
+                        if (!AnnotationUtils.areSame(newLubAnnos, effective)) {
+                            lubLowerBound.replaceAnnotations(newLubAnnos);
+                        }
                         lowerBoundAnnos = newLubAnnos;
                     }
                 }
