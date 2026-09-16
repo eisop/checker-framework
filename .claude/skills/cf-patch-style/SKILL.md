@@ -45,17 +45,46 @@ not by assuming from local state.
 - A force-push needs its **own** explicit OK, separate from a normal-push OK, and
   even then default to avoiding it unless the maintainer asks for it.
 
-## Two git commands that quietly discard work
+## Setting an experiment aside without losing work
 
-- **`git checkout -- <file>` reverts to HEAD.** After an experiment on a file
-  that also holds uncommitted work — reverting a fix to confirm a test catches
-  it, say — this throws the uncommitted work away too, with no warning and no
-  reflog entry. Copy the file aside first (`cp f /tmp/f.bak`), or commit before
-  experimenting. This has silently undone a finished change twice.
+Reverting a change to confirm something — that a test really fails without the
+fix, that a guard is load-bearing — is routine. Three ways to lose the work you
+are standing on while doing it:
+
+- **`git checkout -- <file>` reverts to HEAD.** On a file that also holds
+  uncommitted work, it throws that away too, with no warning and no reflog
+  entry. This silently undid a finished change twice in one session.
 - **`git commit` after `git add -A` sweeps in more than you described.** Stage
   the specific paths for the commit you are writing. A commit whose message
-  describes one change and whose diff contains two has to be split afterwards,
+  describes one change and whose diff holds two has to be split afterwards,
   which is only safe while it is still unpushed.
+- **`git stash` shares one stack across every worktree of the repository**, and
+  this project uses worktrees. Verified: stash in one worktree, and
+  `git stash list` in another shows the same entry; a bare `git stash pop`
+  there consumes and drops it, leaving the first worktree's changes in the
+  second worktree's files. Another session working in parallel loses its
+  experiment with no error.
+
+What to do instead, cheapest first:
+
+- **Copy the file aside**: `cp Foo.java /tmp/Foo.bak`, experiment, `cp` back.
+  Adequate for the one- or two-file reverts that most experiments need, and it
+  cannot be disturbed by anything else in the repository.
+- **Commit first, then experiment.** A throwaway commit is recoverable from the
+  reflog even if the working tree is later clobbered, and `git reset --soft
+  HEAD~1` unwinds it. Prefer this when the experiment spans several files.
+- **If you do stash**, never bare `git stash` / `git stash pop`. Tag the entry
+  and restore it by identity:
+
+  ```bash
+  git stash push -u -m "cf-2079-experiment"
+  git stash list --format='%H %gs'          # note YOUR entry's SHA
+  git stash apply <sha>                     # apply, not pop
+  git stash drop <its current stash@{n}>    # find it again by tag first
+  ```
+
+  `apply` leaves the entry in place, so a concurrent `pop` elsewhere cannot
+  strand you; drop it yourself when finished.
 
 ## Deleting merged branches: `is-ancestor` lies here
 
