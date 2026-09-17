@@ -242,8 +242,11 @@ public class Expression extends TypeConstraint {
         if (compileTimeDecl.isVoid()) {
             return ConstraintSet.TRUE;
         }
+        // https://docs.oracle.com/javase/specs/jls/se8/html/jls-18.html#jls-18.2.1-300-D-B-A
+        // "If the function type's result is void, the constraint reduces to true."
+        // getFunctionTypeReturnType() signals a void result by returning null.
         AbstractType r = T.getFunctionTypeReturnType();
-        if (r.getTypeKind() == TypeKind.VOID) {
+        if (r == null) {
             return ConstraintSet.TRUE;
         }
 
