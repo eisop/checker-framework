@@ -1,16 +1,7 @@
 // Keep somewhat in sync with
-// langtools/test/tools/javac/annotations/typeAnnotations/referenceinfos/Driver.java,
-// ../defaultsPersist25/Driver.java,
-// ../inheritDeclAnnoPersist/Driver.java, and
+// ../defaultsPersist/Driver.java,
+// ../inheritDeclAnnoPersist25/Driver.java, and
 // ../PersistUtil.java.
-
-// I removed some unnecessary code, e.g. declarations of @TA.
-// I changed expected logic to handle multiple appearances
-// of the same qualifier in different positions.
-
-import com.sun.tools.classfile.ClassFile;
-import com.sun.tools.classfile.TypeAnnotation;
-import com.sun.tools.classfile.TypeAnnotation.TargetType;
 
 import java.io.File;
 import java.io.PrintStream;
@@ -18,73 +9,79 @@ import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
+import java.lang.classfile.ClassFile;
+import java.lang.classfile.ClassModel;
+import java.lang.classfile.TypeAnnotation;
+import java.lang.classfile.TypeAnnotation.TargetInfo;
+import java.lang.classfile.TypeAnnotation.TargetType;
+import java.lang.classfile.TypeAnnotation.TypePathComponent;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
 
 /**
  * Test driver for verifying type annotations written into bytecode by the Nullness Checker, using
- * the legacy {@code com.sun.tools.classfile} API on JDK versions prior to 25.
+ * the {@code java.lang.classfile} API available in JDK 25 and later.
  *
- * <p>For JDK 25 and later, see the counterpart driver {@code
- * checker/jtreg/nullness/defaultsPersist25/Driver.java} which uses the standard {@code
- * java.lang.classfile} API. For declaration annotation persistence testing, see {@code
- * checker/jtreg/nullness/inheritDeclAnnoPersist/Driver.java} (JDK &lt; 25) and {@code
- * checker/jtreg/nullness/inheritDeclAnnoPersist25/Driver.java} (JDK &gt;= 25).
+ * <p>For JDK versions prior to 25, see the counterpart driver {@code
+ * checker/jtreg/nullness/defaultsPersist/Driver.java} which uses {@code com.sun.tools.classfile}.
+ * For declaration annotation persistence testing, see {@code
+ * checker/jtreg/nullness/inheritDeclAnnoPersist25/Driver.java} (JDK &gt;= 25) and {@code
+ * checker/jtreg/nullness/inheritDeclAnnoPersist/Driver.java} (JDK &lt; 25).
  *
  * @see ReferenceInfoUtil
  * @see PersistUtil
  */
 public class Driver {
+    /** Sentinel value indicating an unset field in {@link TADescription}. */
+    public static final int NOT_SET = -888;
 
     private static final PrintStream out = System.out;
 
     /**
      * Entry point to run test methods of the specified test class.
      *
-     * @param args command-line arguments specifying the test class name
+     * @param a command-line arguments specifying the test class name
      * @throws Exception if reflection, compilation, or test execution fails
      */
-    public static void main(String[] args) throws Exception {
-        if (args.length != 1) {
-            throw new IllegalArgumentException("Usage: java Driver <test-name>");
-        }
-        String name = args[0];
-        Class<?> clazz = Class.forName(name);
-        new Driver().runDriver(clazz.newInstance());
+    public static void main(String[] a) throws Exception {
+        if (a.length != 1) throw new IllegalArgumentException("java Driver <HarnessClass>");
+        Object h = Class.forName(a[0]).getDeclaredConstructor().newInstance();
+        new Driver().runDriver(h);
     }
 
     /**
      * Runs all test methods defined on the given test instance.
      *
-     * @param object the test suite instance
+     * @param harness the test suite instance
      * @throws Exception if test execution fails
      */
-    protected void runDriver(Object object) throws Exception {
+    private void runDriver(Object harness) throws Exception {
         int passed = 0, failed = 0;
-        Class<?> clazz = object.getClass();
+        Class<?> clazz = harness.getClass();
         out.println("Tests for " + clazz.getName());
 
-        // Find methods
         for (Method method : clazz.getMethods()) {
-            List<AnnoPosPair> expected = expectedOf(method);
-            if (expected == null) {
-                continue;
-            }
+            List<AnnoTargetPair> expected = expectedOf(method);
+            if (expected == null) continue;
+
             if (method.getReturnType() != String.class) {
                 throw new IllegalArgumentException(
                         "Test method needs to return a string: " + method);
             }
+
             String testClass = PersistUtil.testClassOf(method);
 
             try {
-                String compact = (String) method.invoke(object);
+                String compact = (String) method.invoke(harness);
                 String fullFile = PersistUtil.wrap(compact);
                 File clazzFile = PersistUtil.compile(fullFile, testClass);
-                ClassFile cf = ClassFile.read(clazzFile);
+                ClassModel cm = ClassFile.of().parse(clazzFile.toPath());
+
                 boolean ignoreConstructors = !clazz.getName().equals("Constructors");
                 List<TypeAnnotation> actual =
-                        ReferenceInfoUtil.extendedAnnotationsOf(cf, ignoreConstructors);
+                        ReferenceInfoUtil.extendedAnnotationsOf(cm, ignoreConstructors);
+
                 String diagnostic =
                         String.join(
                                 "; ",
@@ -92,7 +89,9 @@ public class Driver {
                                 "compact=" + compact,
                                 "fullFile=" + fullFile,
                                 "testClass=" + testClass);
-                ReferenceInfoUtil.compare(expected, actual, cf, diagnostic);
+
+                ReferenceInfoUtil.compare(expected, actual, diagnostic);
+
                 out.println("PASSED:  " + method.getName());
                 ++passed;
             } catch (Throwable e) {
@@ -117,121 +116,106 @@ public class Driver {
      * Extracts the expected type annotations declared on the given method.
      *
      * @param m the test method
-     * @return the list of expected annotations with their target positions, or null if unannotated
+     * @return the list of expected annotations with their targets and paths, or null if unannotated
      */
-    private List<AnnoPosPair> expectedOf(Method m) {
-        TADescription ta = m.getAnnotation(TADescription.class);
-        TADescriptions tas = m.getAnnotation(TADescriptions.class);
+    private List<AnnoTargetPair> expectedOf(Method m) {
+        TADescription one = m.getAnnotation(TADescription.class);
+        TADescriptions many = m.getAnnotation(TADescriptions.class);
+        if (one == null && many == null) return null;
 
-        if (ta == null && tas == null) {
-            return null;
-        }
-
-        List<AnnoPosPair> result = new ArrayList<>();
-
-        if (ta != null) {
-            result.add(expectedOf(ta));
-        }
-
-        if (tas != null) {
-            for (TADescription a : tas.value()) {
-                result.add(expectedOf(a));
-            }
-        }
-
-        return result;
+        List<AnnoTargetPair> L = new ArrayList<>();
+        if (one != null) L.add(toPair(one));
+        if (many != null) for (TADescription d : many.value()) L.add(toPair(d));
+        return L;
     }
 
     /**
-     * Converts a {@link TADescription} annotation into an {@link AnnoPosPair}.
+     * Converts a {@link TADescription} annotation into an {@link AnnoTargetPair}.
      *
      * @param d the description annotation
-     * @return the annotation name and position pair
+     * @return the annotation name, target info, and type path
      */
-    private AnnoPosPair expectedOf(TADescription d) {
-        String annoName = d.annotation();
-
-        TypeAnnotation.Position p = new TypeAnnotation.Position();
-        p.type = TargetType.valueOf(d.type());
-        if (d.offset() != NOT_SET) {
-            p.offset = d.offset();
-        }
-        if (d.lvarOffset().length != 0) {
-            p.lvarOffset = d.lvarOffset();
-        }
-        if (d.lvarLength().length != 0) {
-            p.lvarLength = d.lvarLength();
-        }
-        if (d.lvarIndex().length != 0) {
-            p.lvarIndex = d.lvarIndex();
-        }
-        if (d.boundIndex() != NOT_SET) {
-            p.bound_index = d.boundIndex();
-        }
-        if (d.paramIndex() != NOT_SET) {
-            p.parameter_index = d.paramIndex();
-        }
-        if (d.typeIndex() != NOT_SET) {
-            p.type_index = d.typeIndex();
-        }
-        if (d.exceptionIndex() != NOT_SET) {
-            p.exception_index = d.exceptionIndex();
-        }
-        if (d.genericLocation().length != 0) {
-            p.location =
-                    TypeAnnotation.Position.getTypePathFromBinary(
-                            wrapIntArray(d.genericLocation()));
+    private AnnoTargetPair toPair(TADescription d) {
+        TargetInfo t;
+        switch (TargetType.valueOf(d.type())) {
+            case FIELD -> t = TargetInfo.ofField();
+            case METHOD_RETURN -> t = TargetInfo.ofMethodReturn();
+            case METHOD_RECEIVER -> t = TargetInfo.ofMethodReceiver();
+            case METHOD_FORMAL_PARAMETER -> t = TargetInfo.ofMethodFormalParameter(d.paramIndex());
+            case THROWS -> t = TargetInfo.ofThrows(d.typeIndex());
+            case CLASS_TYPE_PARAMETER -> t = TargetInfo.ofClassTypeParameter(d.paramIndex());
+            case METHOD_TYPE_PARAMETER -> t = TargetInfo.ofMethodTypeParameter(d.paramIndex());
+            case CLASS_TYPE_PARAMETER_BOUND ->
+                    t = TargetInfo.ofClassTypeParameterBound(d.paramIndex(), d.boundIndex());
+            case METHOD_TYPE_PARAMETER_BOUND ->
+                    t = TargetInfo.ofMethodTypeParameterBound(d.paramIndex(), d.boundIndex());
+            case LOCAL_VARIABLE -> t = TargetInfo.ofLocalVariable(List.of());
+            default -> throw new UnsupportedOperationException("Unhandled " + d.type());
         }
 
-        return AnnoPosPair.of(annoName, p);
+        List<TypePathComponent> path = new ArrayList<>();
+        int[] loc = d.genericLocation();
+        for (int i = 0; i + 1 < loc.length; i += 2) {
+            path.add(TypePathComponent.of(kindForTag(loc[i]), loc[i + 1]));
+        }
+
+        return AnnoTargetPair.of(d.annotation(), t, path);
     }
 
     /**
-     * Wraps an array of primitive ints into a list of Integers.
+     * Returns the type-path component kind whose JVMS {@code type_path_kind} is {@code tag}.
      *
-     * @param ints the array of integers
-     * @return list of integers
+     * <p>The constants are looked up by {@link TypePathComponent.Kind#tag()} rather than by
+     * ordinal. The two agree today, but the declaration order of an enum is not part of its
+     * contract, whereas the tag is fixed by the class file format.
+     *
+     * @param tag a JVMS {@code type_path_kind} value
+     * @return the corresponding kind
      */
-    private List<Integer> wrapIntArray(int[] ints) {
-        List<Integer> list = new ArrayList<>(ints.length);
-        for (int i : ints) {
-            list.add(i);
+    private static TypePathComponent.Kind kindForTag(int tag) {
+        for (TypePathComponent.Kind k : TypePathComponent.Kind.values()) {
+            if (k.tag() == tag) {
+                return k;
+            }
         }
-        return list;
+        throw new IllegalArgumentException("no TypePathComponent.Kind has tag " + tag);
     }
 
-    /** Sentinel value indicating an unset field in {@link TADescription}. */
-    public static final int NOT_SET = -888;
-}
+    /** A tuple of an annotation name, target information, and type path components. */
+    static final class AnnoTargetPair {
+        /** The expected annotation name. */
+        final String annoName;
 
-/** A pair of an annotation name and a position. */
-class AnnoPosPair {
-    /** The first element of the pair. */
-    public final String first;
+        /** The target information. */
+        final TargetInfo target;
 
-    /** The second element of the pair. */
-    public final TypeAnnotation.Position second;
+        /** The type path component list. */
+        final List<TypePathComponent> path;
 
-    /**
-     * Creates a new immutable pair. Clients should use {@link #of}.
-     *
-     * @param first the first element of the pair
-     * @param second the second element of the pair
-     */
-    private AnnoPosPair(String first, TypeAnnotation.Position second) {
-        this.first = first;
-        this.second = second;
-    }
+        /**
+         * Constructs an AnnoTargetPair.
+         *
+         * @param n the annotation name
+         * @param t the target info
+         * @param p the type path
+         */
+        private AnnoTargetPair(String n, TargetInfo t, List<TypePathComponent> p) {
+            annoName = n;
+            target = t;
+            path = p;
+        }
 
-    /**
-     * Creates a new immutable pair.
-     *
-     * @param first first argument
-     * @param second second argument
-     * @return a pair of the values (first, second)
-     */
-    public static AnnoPosPair of(String first, TypeAnnotation.Position second) {
-        return new AnnoPosPair(first, second);
+        /**
+         * Factory method to create an {@link AnnoTargetPair}.
+         *
+         * @param n the annotation name
+         * @param t the target info
+         * @param p the type path
+         * @return a new pair
+         */
+        static AnnoTargetPair of(String n, TargetInfo t, List<TypePathComponent> p) {
+            return new AnnoTargetPair(n, t, p);
+        }
     }
 }
 

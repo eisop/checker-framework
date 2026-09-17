@@ -1041,7 +1041,7 @@ Calling a method twice might have different results, so facts known about
 one call cannot be relied upon at another call.
 The \refqualclass{dataflow/qual}{Deterministic} annotation indicates that
 the method returns the same result every time it is called on the same
-arguments.
+arguments and in the same environment.
 
 \refqualclass{dataflow/qual}{Pure} means both
 \refqualclass{dataflow/qual}{SideEffectFree} and
@@ -1165,10 +1165,20 @@ declaration of \code{getField}.  The Nullness Checker cannot assume that
 that it returned non-null on the first call.
 
 To indicate that a method returns the same value each time it is called on
-the same arguments, use the \refqualclass{dataflow/qual}{Deterministic} annotation.
+the same arguments and in the same environment, use the
+\refqualclass{dataflow/qual}{Deterministic} annotation.
 Actually, it is necessary to use \refqualclass{dataflow/qual}{Pure} which
-means both \<@Deterministic> and \<@SideEffectFree>, because otherwise the
-first call might change a value that the method depends on.
+means both \<@Deterministic> and \<@SideEffectFree>, because determinism
+alone does not prevent a method from modifying the heap (or having an
+intervening method do so), which may cause subsequent calls to return a
+different value.
+
+(Currently, the Checker Framework optimistically assumes that repeated invocations
+of any \<@Deterministic> method return the same value even if the method is not
+\<@SideEffectFree>. This assumption is sound only when purity checking is enabled
+via \<-AcheckPurityAnnotations>, because purity checking forbids side effects in
+\<@Deterministic> methods. Therefore, do not write \<@Deterministic> on a method
+that has side effects; write \<@Pure> instead.)
 
 If you change the declaration of \code{getField} to
 

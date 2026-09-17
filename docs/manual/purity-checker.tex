@@ -29,11 +29,17 @@ whole-program inference.
 
 \item[\refqualclass{dataflow/qual}{Deterministic}]
   indicates that if the method is called multiple times with identical
-  arguments, then it returns the identical result according to \<==>
-  (not just according to \<equals()>).
+  arguments and in the same environment (the Java heap, including all
+  fields of all objects and static variables), then it returns the
+  identical result according to \<==> (not just according to \<equals()>).
+  Determinism alone does not prevent a method from modifying the heap;
+  repeated calls to a deterministic method may return different results if
+  the heap changed in between (including changes made by the method itself).
 
 \item[\refqualclass{dataflow/qual}{Pure}]
   indicates that the method is both \<@SideEffectFree> and \<@Deterministic>.
+  To guarantee that repeated calls return the same value, a method must be
+  \<@Pure>.
 
 \end{description}
 
@@ -45,6 +51,13 @@ methods affect type-checking of client code.  However, you can make a
 mistake by writing \<@SideEffectFree> on the declaration of a method that
 is not actually side-effect-free or by writing \<@Deterministic> on the
 declaration of a method that is not actually deterministic.
+
+Furthermore, the Checker Framework currently assumes repeated calls to
+any \<@Deterministic> method return the same value even if the method is not
+\<@SideEffectFree>. This assumption is sound only when purity checking is enabled
+(via \<-AcheckPurityAnnotations>), because purity checking forbids side effects in
+\<@Deterministic> methods. Therefore, you should not write \<@Deterministic> on a
+method that has side effects; write \<@Pure> instead.
 
 To enable
 checking of the annotations, supply the command-line option

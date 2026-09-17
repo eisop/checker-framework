@@ -45,6 +45,68 @@ not by assuming from local state.
 - A force-push needs its **own** explicit OK, separate from a normal-push OK, and
   even then default to avoiding it unless the maintainer asks for it.
 
+## Setting an experiment aside without losing work
+
+Reverting a change to confirm something — that a test really fails without the
+fix, that a guard is load-bearing — is routine. Three ways to lose the work you
+are standing on while doing it:
+
+- **`git checkout -- <file>` reverts to HEAD.** On a file that also holds
+  uncommitted work, it throws that away too, with no warning and no reflog
+  entry. This silently undid a finished change twice in one session.
+- **`git commit` after `git add -A` sweeps in more than you described.** Stage
+  the specific paths for the commit you are writing. A commit whose message
+  describes one change and whose diff holds two has to be split afterwards,
+  which is only safe while it is still unpushed.
+- **`git stash` shares one stack across every worktree of the repository**, and
+  this project uses worktrees. Verified: stash in one worktree, and
+  `git stash list` in another shows the same entry; a bare `git stash pop`
+  there consumes and drops it, leaving the first worktree's changes in the
+  second worktree's files. Another session working in parallel loses its
+  experiment with no error.
+
+What to do instead, cheapest first:
+
+- **Copy the file aside**: `cp Foo.java /tmp/Foo.bak`, experiment, `cp` back.
+  Adequate for the one- or two-file reverts that most experiments need, and it
+  cannot be disturbed by anything else in the repository.
+- **Commit first, then experiment.** A throwaway commit is recoverable from the
+  reflog even if the working tree is later clobbered, and `git reset --soft
+  HEAD~1` unwinds it. Prefer this when the experiment spans several files.
+- **If you do stash**, never bare `git stash` / `git stash pop`. Tag the entry
+  and restore it by identity:
+
+  ```bash
+  git stash push -u -m "cf-2079-experiment"
+  git stash list --format='%H %gs'          # note YOUR entry's SHA
+  git stash apply <sha>                     # apply, not pop
+  git stash drop <its current stash@{n}>    # find it again by tag first
+  ```
+
+  `apply` leaves the entry in place, so a concurrent `pop` elsewhere cannot
+  strand you; drop it yourself when finished.
+
+## Deleting merged branches: `is-ancestor` lies here
+
+This repository **squash-merges**, so a merged branch's tip is never an ancestor
+of `master`. `git branch -d` refuses it and
+`git merge-base --is-ancestor <branch> origin/master` reports it unmerged —
+for every merged branch, so neither is usable as the test.
+
+`git diff origin/master..<branch>` is no better: a branch that is merely
+*behind* master shows master's newer commits as removals, which reads as
+unmerged work.
+
+Ask GitHub what happened, then compare the branch against the squash commit
+itself:
+
+```bash
+mc=$(gh pr view <N> --json mergeCommit --jq '.mergeCommit.oid')
+git diff --stat "<branch>" "$mc"        # empty  =>  content is in master
+```
+
+Empty means the branch's content is in master and `git branch -D` is safe.
+
 ## One logical change per commit
 
 Series of three or four narrow commits are preferred over a single
@@ -103,6 +165,41 @@ Do not include marketing adjectives ("blazingly", "dramatically",
   them to remove it (e.g. `git filter-branch --msg-filter
   "grep -v '^Claude-Session:'"` over the range).
 
+## Refer to a typetools issue in plain text, never as a link
+
+Write **`typetools issue 2816`**. Not `typetools/checker-framework#2816`, not a
+markdown link, not a bare URL to github.com/typetools.
+
+GitHub turns the `owner/repo#number` form, and a pasted issue URL, into a
+cross-reference: it posts a backlink onto the typetools issue saying this
+repository referenced it. Done from commit messages, PR bodies and issue
+comments, that puts eisop's traffic into an upstream project's issue tracker,
+where it is noise for people who do not work on this fork. The last several
+hundred commits here contain no such reference, and that is deliberate.
+
+The plain-text form carries the same information to a human, who can find the
+issue in one search, and creates nothing upstream.
+
+```
+    Fixes typetools issue 2816.
+
+ * @ignore This fails for Java 11. See typetools issue 2816.
+```
+
+Two established exceptions:
+
+- The **`docs/CHANGELOG.md` "Closed issues:" list** uses the compact
+  `typetools#NNNN` form alongside `eisop#NNNN`. It is an index of numbers, and
+  with no custom autolink configured on this repository it is plain text too,
+  so it creates no cross-reference either.
+- Some **older files inherited from typetools** contain full URLs. Leave them;
+  a URL sitting in a tracked file creates no cross-reference. The rule is about
+  what you write, and above all about commit messages, PR and issue bodies, and
+  review comments, which GitHub does scan.
+
+The same care applies to an eisop issue in a *typetools* context, and to any
+other repository this project does not own.
+
 ## Branch naming
 
 - Performance/correctness audits of a package: `review-<package>` or
@@ -117,6 +214,47 @@ Every user-visible or perf-relevant change adds a bullet to the next
 release section in [`docs/CHANGELOG.md`](../../../docs/CHANGELOG.md).
 Match the existing style: one line, ends with the PR number once it's
 opened.
+
+**The "Closed issues:" list is one issue per line** while a release section is
+unreleased:
+
+```
+eisop#2089,
+eisop#2095,
+typetools#399,
+typetools#3203.
+```
+
+A PR that adds a number then touches only its own line, so two PRs in flight
+merge cleanly unless they insert at the very same point. The old filled-paragraph
+form conflicted on *every* concurrent pair, because adding one number reflows
+the whole paragraph. Markdown joins the lines, so the rendered changelog is
+identical either way -- the difference is only in what git sees.
+
+Measured, adding two different numbers on two branches and merging:
+
+| form | different points | same point |
+| --- | --- | --- |
+| filled paragraph | conflict | conflict |
+| one per line | clean | conflict |
+
+The convention is documented in
+[`docs/developer/README-eisop.md`](../../../docs/developer/README-eisop.md),
+not as a comment inside `docs/CHANGELOG.md`: "Prep for next release" creates
+each section with an empty list, so a comment there would have to be re-added
+every prep and stripped every release, and a note that needs restoring on every
+cycle is one that eventually contradicts the file. None is needed — once the
+list is one per line, the next entry is added the same way by imitation.
+
+**Reflowing to filled lines when a release is finalized is optional**, and
+purely cosmetic: Markdown joins the lines either way, so a released section
+left one-per-line renders correctly and is not a defect to fix. Leave already
+released sections as they are.
+
+When the same-point conflict does happen, it is two lines: keep both, in
+ascending order. Check the whole list afterwards -- ascending, no duplicates,
+both PRs' numbers present -- since a conflict that starts mid-list shows only
+part of it.
 
 ## What not to touch in a perf patch
 
@@ -167,6 +305,79 @@ git checkout - && git branch -D verify
 
 If `alltests` is impractical (e.g., no local JDK matrix), say so
 explicitly in the PR description rather than implying it passed.
+
+## A green run on one JDK says nothing about the others
+
+CI runs the matrix; a development machine usually runs one JDK. Twice in one
+session a change verified as green locally failed CI on a JDK that was never
+tried:
+
+- A jtreg test used an `instanceof` pattern whose expression type is already a
+  subtype of the pattern type. javac accepted it on 21 and rejected it as an
+  unconditional pattern on 17 and 20, which the test's
+  `@below-java17-jdk-skip-test` marker did not exclude.
+- `AbstractTypeProcessor` was keyed on the synthetic type that javac's ANALYZE
+  event carries for a `package-info.java`. javac 21 reports
+  `<package>.package-info`; **javac 11 and 17 report an anonymous type in the
+  unnamed package**, from which neither the package nor its annotations can be
+  reached. The dispatch silently did nothing on those versions.
+
+Both were invisible to `./gradlew test` on JDK 21.
+
+**Run the other JDKs when the change touches anything version-sensitive** —
+`javacutil`, anything reading `com.sun.*` or `javax.lang.model`, the language
+features a test source uses, or a `@requires`/skip marker:
+
+```
+ORG_GRADLE_PROJECT_useJdkVersion=11 ./gradlew :checker:jtregTests
+ORG_GRADLE_PROJECT_useJdkVersion=25 ./gradlew :checker:jtregTests
+```
+
+Two traps in that command:
+
+- **Gradle itself needs JDK 17+.** Keep `JAVA_HOME` on a modern JDK and let
+  `useJdkVersion` select the target; setting `JAVA_HOME` to 11 fails with
+  "Gradle requires JVM 17 or later to run".
+- **`useJdkVersion` does not always change jtreg's `testJDK`.** Check what
+  actually ran: `grep -h '^testJDK' checker/build/jtreg/all/work/**/*.jtr`. A
+  `.jtr` file also records the `@requires` expression it evaluated, so it tells
+  you whether a test ran, was filtered, or was never selected.
+- The jtreg **work directory accumulates across runs**, so `report/text/summary.txt`
+  can show two mutually exclusive suites both "Passed" — they passed on
+  different JDKs. `rm -rf checker/build/jtreg` before a run whose results you
+  intend to read.
+
+When a JDK cannot be run locally (no toolchain for it), say so rather than
+implying the matrix was covered.
+
+## Do not declare a lint gate clean from truncated output
+
+`requireJavadoc` and `javadocDoclintAll` emit hundreds of pre-existing findings,
+so the only question is whether any falls on a line **this diff added**. Piping
+the log through `head` and seeing nothing relevant is not an answer: a real
+`no @param for isError` finding sat below a `head -6` cutoff, was reported as
+clean, and failed the `misc` job.
+
+Intersect the *complete* finding list against the *complete* added-line set:
+
+```bash
+./gradlew requireJavadoc javadocDoclintAll spotlessCheck --continue > /tmp/gate.log 2>&1
+for f in $(git diff --name-only origin/master...HEAD -- '*.java'); do
+  base=$(basename $f)
+  added=$(git diff -U0 origin/master...HEAD -- "$f" \
+      | awk '/^@@/{split($3,a,","); s=substr(a[1],2); n=(a[2]==""?1:a[2]);
+                   for(i=0;i<n;i++) print s+i}')
+  while IFS= read -r line; do
+    ln=$(echo "$line" | grep -oE "$base:[0-9]+" | head -1 | cut -d: -f2)
+    [ -z "$ln" ] && continue
+    echo "$added" | grep -qx "$ln" && echo "HIT: $line"
+  done < <(grep "/$base:" /tmp/gate.log)
+done
+```
+
+No `HIT` lines means clean. This is the same rule as the `-Werror` and
+closed-issues lessons in [`cf-code-review`](../cf-code-review/SKILL.md): one
+truncated report is a sample, not the population.
 
 ## CI checks that `assemble` and `alltests` do NOT run
 
