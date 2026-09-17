@@ -63,7 +63,6 @@ public class NullnessNoInitSubchecker extends BaseTypeChecker {
         result.add("nullnessonly");
         result.add("nullnesskeyfor");
         result.add("nullnessinitialization");
-        result.add("nullness");
         return result;
     }
 

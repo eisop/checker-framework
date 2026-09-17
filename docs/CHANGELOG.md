@@ -62,6 +62,14 @@ also applies to separately compiled subpackages, unless it sets
 which classes the authors have annotated for a type system; the annotation
 does not record whether a checker was run.
 
+A checker without a `@SuppressWarningsPrefix` annotation now accepts as a
+`@SuppressWarnings` prefix the default prefix of every checker that runs it as a
+subchecker, in addition to the prefix derived from its own class name. These are the
+checkers returned by `SourceChecker.getUpstreamCheckerNames()`, which also determines
+which `@AnnotatedFor` annotations apply to it. For example, `@SuppressWarnings("index")`
+now suppresses Constant Value Checker errors reported while running the Index Checker,
+and `@SuppressWarnings("nonempty")` now also suppresses Optional Checker errors.
+
 The Nullness Checker now also treats JSpecify's `@NullUnmarked` as the inverse of
 `@NullMarked`, in both of the ways `@NullMarked` is recognized. It undoes the
 enclosing `@NullMarked`'s `@NonNull` upper-bound default within its scope -- without
@@ -1074,6 +1082,7 @@ eisop#786,
 eisop#792,
 eisop#863,
 eisop#949,
+eisop#1011,
 eisop#1015,
 eisop#1059,
 eisop#1074,
