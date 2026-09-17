@@ -15,6 +15,7 @@ import java.util.Collection;
 import java.util.List;
 
 import javax.lang.model.element.AnnotationMirror;
+import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.type.TypeMirror;
 
 /** The qualifier hierarchy for the Value type system. */
@@ -500,14 +501,29 @@ final class ValueQualifierHierarchy extends ElementQualifierHierarchy {
                 return subValues.containsAll(superValues);
             } else {
                 // The annotations have the same name, which is one of:
-                // ArrayLen, BoolVal, DoubleVal, EnumVal, StringVal, MatchesRegex.
-                @SuppressWarnings("deprecation") // concrete annotation class is not known
-                List<Object> superValues =
-                        AnnotationUtils.getElementValueArray(
-                                superAnno, "value", Object.class, false);
-                @SuppressWarnings("deprecation") // concrete annotation class is not known
-                List<Object> subValues =
-                        AnnotationUtils.getElementValueArray(subAnno, "value", Object.class, false);
+                // ArrayLen, BoolVal, DoubleVal, EnumVal, IntVal, StringVal, MatchesRegex.
+                ExecutableElement valueElement = atypeFactory.valueElementForName(subQualName);
+                List<Object> superValues;
+                List<Object> subValues;
+                if (valueElement != null) {
+                    superValues =
+                            AnnotationUtils.getElementValueArray(
+                                    superAnno, valueElement, Object.class);
+                    subValues =
+                            AnnotationUtils.getElementValueArray(
+                                    subAnno, valueElement, Object.class);
+                } else {
+                    @SuppressWarnings("deprecation") // concrete annotation class is not known
+                    List<Object> superValuesTmp =
+                            AnnotationUtils.getElementValueArray(
+                                    superAnno, "value", Object.class, false);
+                    @SuppressWarnings("deprecation") // concrete annotation class is not known
+                    List<Object> subValuesTmp =
+                            AnnotationUtils.getElementValueArray(
+                                    subAnno, "value", Object.class, false);
+                    superValues = superValuesTmp;
+                    subValues = subValuesTmp;
+                }
                 return superValues.containsAll(subValues);
             }
         }

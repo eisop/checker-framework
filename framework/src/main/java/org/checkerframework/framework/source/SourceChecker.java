@@ -33,7 +33,6 @@ import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.common.reflection.MethodValChecker;
 import org.checkerframework.framework.qual.AnnotatedFor;
 import org.checkerframework.framework.type.AnnotatedTypeFactory;
-import org.checkerframework.framework.util.CheckerMain;
 import org.checkerframework.framework.util.OptionConfiguration;
 import org.checkerframework.framework.util.TreePathCacher;
 import org.checkerframework.javacutil.AbstractTypeProcessor;
@@ -72,6 +71,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.IdentityHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
@@ -95,6 +95,7 @@ import javax.annotation.processing.SupportedAnnotationTypes;
 import javax.lang.model.SourceVersion;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
+import javax.lang.model.element.PackageElement;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
@@ -152,7 +153,7 @@ import javax.tools.Diagnostic;
     // only issue errors for code inside the scope of `@NullMarked` annotations.
     // See
     // https://github.com/uber/NullAway/wiki/Configuration#only-nullmarked-version-0123-and-after.
-    // org.checkerframework.framework.source.SourceChecker.isAnnotatedForThisCheckerOrUpstreamChecker
+    // org.checkerframework.framework.source.SourceChecker.isElementAnnotatedForThisCheckerOrUpstreamChecker
     "onlyAnnotatedFor",
 
     // Unsoundly assume all methods have no side effects, are deterministic, or both.
@@ -201,6 +202,10 @@ import javax.tools.Diagnostic;
     // casting to an array or generic type. This will be the new default soon.
     "checkCastElementType",
 
+    // Warn about conflicting declaration annotations on elements read from bytecode.
+    // org.checkerframework.framework.util.defaults.QualifierDefaults
+    "warnBytecodeConflicts",
+
     // Whether to type check the enclosing expression of an inner class instantiation.
     "checkEnclosingExpr",
 
@@ -229,6 +234,9 @@ import javax.tools.Diagnostic;
     //
     // Type-checking modes:  enable/disable functionality
     //
+
+    // Enable a checker-defined group of options.
+    "mode",
 
     // Lint options
     // org.checkerframework.framework.source.SourceChecker.getSupportedLintOptions() and similar
@@ -408,6 +416,12 @@ import javax.tools.Diagnostic;
     // org.checkerframework.framework.stub.AnnotationFileParser.debugAnnotationFileParser
     "stubDebug",
 
+    // Test-only: compare the binary JDK stub path against the text parser for every class in
+    // the binary stub and report any disagreement as an error. Requires
+    // org.checkerframework.framework.stub.BinaryStubDiffChecker, which ships in the framework-test
+    // artifact rather than in checker.jar.
+    "binaryStubDiffCheck",
+
     // Progress tracing
 
     // Output file names before checking
@@ -485,7 +499,14 @@ import javax.tools.Diagnostic;
     // Converts type argument inference crashes into errors. By default, this option is true.
     // Use "-AconvertTypeArgInferenceCrashToWarning=false" to turn this option off and allow type
     // argument inference crashes to crash the type checker.
-    "convertTypeArgInferenceCrashToWarning"
+    "convertTypeArgInferenceCrashToWarning",
+
+    // The Java 8 type-argument-inference bound-incorporation work budget: a deeply nested generic
+    // invocation whose incorporation exceeds this many units is abandoned with a
+    // type.argument.inference.budget error. Defaults to
+    // Java8InferenceContext.MAX_INCORPORATION_WORK. Raise it for legitimate machine-generated code
+    // that hits the budget; lower it (e.g. in tests) to trigger the budget on a shallow invocation.
+    "inferenceWorkBudget"
 })
 public abstract class SourceChecker extends AbstractTypeProcessor implements OptionConfiguration {
 
@@ -555,6 +576,14 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      * messageStore is null and messages will be printed as they are issued by this checker.
      */
     protected @MonotonicNonNull TreeSet<CheckerMessage> messageStore;
+
+    /**
+     * An optional destination for this checker's diagnostics. When non-null, findings are reported
+     * to this sink instead of being printed through javac's {@code Trees}. Used by hosts that embed
+     * the Checker Framework (e.g. the Error Prone plugin) to translate findings into their own
+     * diagnostic representation. See {@link #setDiagnosticSink}.
+     */
+    private @Nullable DiagnosticSink diagnosticSink = null;
 
     /**
      * Exceptions to {@code -AwarnUnneededSuppressions} processing. No warning about unneeded
@@ -632,6 +661,9 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
 
     /** The supported lint options. */
     private @MonotonicNonNull Set<String> supportedLints;
+
+    /** The supported values for the {@code -Amode} option. */
+    private @MonotonicNonNull Set<String> supportedModes;
 
     /** The enabled lint options. Is set in {@link #initChecker}. */
     private Set<String> activeLints;
@@ -731,6 +763,27 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     /** Creates a source checker. */
     protected SourceChecker() {}
 
+    /**
+     * Installs a {@link DiagnosticSink} to receive this checker's findings, instead of printing
+     * them through javac's {@code Trees}. Pass {@code null} to restore the default (print to
+     * javac).
+     *
+     * <p>Intended for hosts that embed the Checker Framework (such as the Error Prone plugin) and
+     * want to translate findings into their own diagnostic representation. When several checkers
+     * run together under one parent (e.g. an {@code AggregateChecker} or subcheckers), all findings
+     * are flushed through the parent checker, so installing the sink on the checker that the host
+     * drives is sufficient.
+     *
+     * <p>The sink receives only tree-positioned findings; findings positioned at an {@code Element}
+     * or with no source position still go through javac's {@code Messager} (see {@link
+     * DiagnosticSink}).
+     *
+     * @param sink the diagnostic sink, or {@code null} to print to javac
+     */
+    public void setDiagnosticSink(@Nullable DiagnosticSink sink) {
+        this.diagnosticSink = sink;
+    }
+
     // Also see initChecker().
     @Override
     public final synchronized void init(ProcessingEnvironment env) {
@@ -741,15 +794,18 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
 
         // Keep in sync with check in checker-framework/build.gradle .
         int jreVersion = SystemUtil.jreVersion;
-        if (!hasOption("noJreVersionCheck")
-                && jreVersion != 8
-                && jreVersion != 11
-                && jreVersion != 17
-                && jreVersion != 21) {
+        List<Integer> supportedJres = Arrays.asList(8, 11, 17, 21, 25, 27, 28);
+        if (!hasOption("noJreVersionCheck") && !supportedJres.contains(jreVersion)) {
+            StringJoiner sj = new StringJoiner(", ");
+            for (int i = 0; i < supportedJres.size() - 1; i++) {
+                sj.add(String.valueOf(supportedJres.get(i)));
+            }
+            String supportedList =
+                    sj.toString() + ", and " + supportedJres.get(supportedJres.size() - 1) + "-EA";
             message(
                     Diagnostic.Kind.NOTE,
-                    "The Checker Framework is tested with JDK 8, 11, 17, and 21."
-                            + " You are using version %d.",
+                    "The Checker Framework is tested with JDK %s. You are using version %d.",
+                    supportedList,
                     jreVersion);
         }
 
@@ -828,7 +884,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
         visitor.setRoot(currentRoot);
         if (parentChecker == null) {
             // Only clear the path cache if this is the main checker.
-            treePathCacher.clear();
+            getTreePathCacher().clear();
         }
     }
 
@@ -920,7 +976,9 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      * @return the active options for this checker, not including those passed only to subcheckers
      */
     public Map<String, String> getOptionsNoSubcheckers() {
-        return createActiveOptions(processingEnv.getOptions());
+        Map<String, String> options = createActiveOptions(processingEnv.getOptions());
+        addModeOptions(options);
+        return options;
     }
 
     /**
@@ -1175,7 +1233,10 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
         this.messagesProperties = getMessagesProperties();
 
         // Set the active options for this checker and all subcheckers.
-        getOptions();
+        Map<String, String> options = getOptions();
+        if (parentChecker == null) {
+            validateMode(options);
+        }
 
         // Initialize all checkers and share supported lint options.
         for (SourceChecker checker : getSubcheckers()) {
@@ -1192,6 +1253,15 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
 
         if (!getSubcheckers().isEmpty() && parentChecker == null) {
             messageStore = new TreeSet<>();
+        }
+
+        Collection<String> prefixes = getSuppressWarningsPrefixes();
+        if (prefixes.isEmpty()
+                || (prefixes.size() == 1 && prefixes.contains(SUPPRESS_ALL_PREFIX))) {
+            throw new BugInCF(
+                    "Checker must provide a SuppressWarnings prefix."
+                            + " SourceChecker#getSuppressWarningsPrefixes was not overridden"
+                            + " correctly.");
         }
 
         // Validate the lint flags, if they haven't been used already.
@@ -1294,6 +1364,10 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
             }
             instance.setParentChecker(this);
             immediateSubcheckers.add(instance);
+            // Inherit the parent's lifecycle ownership: a host that drives this checker drives
+            // its subcheckers too, since they are run from this checker's typeProcess.  Must
+            // precede setProcessingEnvironment, which setExternallyDriven refuses to follow.
+            instance.setExternallyDriven(this.isExternallyDriven());
             instance.setProcessingEnvironment(this.processingEnv);
             instance.treePathCacher = this.getTreePathCacher();
             // Prevent the new checker from storing non-immediate subcheckers
@@ -1367,6 +1441,10 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
         for (SourceChecker subchecker : getSubcheckers()) {
             subchecker.errsOnLastExit = numErrorsOfAllPreviousCheckers;
             subchecker.messageStore = messageStore;
+            // Subcheckers store their findings in the shared messageStore, which this checker
+            // flushes to the sink; they need to know a host is listening so that they capture each
+            // finding's path while they are still visiting it.
+            subchecker.diagnosticSink = diagnosticSink;
             int errorsBeforeTypeChecking = log.nerrors;
 
             subchecker.typeProcess(e, p);
@@ -1392,6 +1470,77 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
                     "Refusing to process empty TreePath in TypeElement: " + e);
             return;
         }
+
+        visitDeclaration(p);
+    }
+
+    /**
+     * Type-checks a package declaration: the {@code package} clause of a {@code package-info.java}.
+     *
+     * <p>The counterpart of {@link #typeProcess} for a compilation unit that declares no type, and
+     * which {@link org.checkerframework.javacutil.AbstractTypeProcessor} therefore never dispatches
+     * to {@code typeProcess}. It mirrors that method: subcheckers run first and in order, the
+     * message store and error bookkeeping behave the same, and the visitor is driven the same way.
+     * A package declaration contains no code, so the visitor reaches only the declaration
+     * annotations written on it.
+     *
+     * @param e the package being processed
+     * @param p the path to the package declaration
+     */
+    @Override
+    public void packageProcess(PackageElement e, TreePath p) {
+        if (messageStore != null && parentChecker == null) {
+            messageStore.clear();
+        }
+
+        Context context = ((JavacProcessingEnvironment) processingEnv).getContext();
+        Log log = Log.instance(context);
+
+        int numErrorsOfAllPreviousCheckers = this.errsOnLastExit;
+        for (SourceChecker subchecker : getSubcheckers()) {
+            subchecker.errsOnLastExit = numErrorsOfAllPreviousCheckers;
+            subchecker.messageStore = messageStore;
+            subchecker.diagnosticSink = diagnosticSink;
+            int errorsBeforeTypeChecking = log.nerrors;
+
+            subchecker.packageProcess(e, p);
+
+            int errorsAfterTypeChecking = log.nerrors;
+            numErrorsOfAllPreviousCheckers += errorsAfterTypeChecking - errorsBeforeTypeChecking;
+        }
+
+        this.errsOnLastExit = numErrorsOfAllPreviousCheckers;
+
+        if (javacErrored) {
+            return;
+        }
+
+        if (e == null) {
+            messager.printMessage(
+                    Diagnostic.Kind.ERROR, "Refusing to process empty PackageElement");
+            return;
+        }
+        if (p == null) {
+            messager.printMessage(
+                    Diagnostic.Kind.ERROR,
+                    "Refusing to process empty TreePath in PackageElement: " + e);
+            return;
+        }
+
+        visitDeclaration(p);
+    }
+
+    /**
+     * Runs the visitor over the declaration that {@code p} leads to, with the bookkeeping that both
+     * {@link #typeProcess} and {@link #packageProcess} need: the one-time environment warnings, the
+     * guard against an unattributable compilation unit, {@link #setRoot}, and the reporting of
+     * stored messages.
+     *
+     * @param p the path to the declaration to visit
+     */
+    private void visitDeclaration(TreePath p) {
+        Context context = ((JavacProcessingEnvironment) processingEnv).getContext();
+        Log log = Log.instance(context);
 
         if (!warnedAboutGarbageCollection) {
             String gcUsageMessage = SystemPlume.gcUsageMessage(.25, 60);
@@ -1419,7 +1568,17 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
             warnedAboutSourceLevel = true;
         }
 
-        if (log.nerrors > this.errsOnLastExit) {
+        // Skip a compilation unit that javac could not attribute: type-checking a broken AST
+        // produces noise, not findings.  Log.nerrors is the signal for that in standalone mode,
+        // where the only errors are javac's own.
+        //
+        // It is not a usable signal when a host drives the lifecycle.  Error Prone reports every
+        // check's findings as javac diagnostics, so an ERROR from any check -- including this
+        // checker's own findings, and unrelated checks such as SelfAssignment -- raises
+        // Log.nerrors and would suppress checking of every compilation unit that follows.  A host
+        // decides which classes to hand over, and javac's --should-stop=ifError=FLOW already keeps
+        // an unattributable unit from reaching the host.
+        if (!isExternallyDriven() && log.nerrors > this.errsOnLastExit) {
             this.errsOnLastExit = log.nerrors;
             javacErrored = true;
             return;
@@ -1463,7 +1622,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
         } catch (BugInCF ce) {
             logBugInCF(ce);
         } catch (Throwable t) {
-            logBugInCF(wrapThrowableAsBugInCF("SourceChecker.typeProcess", t, p));
+            logBugInCF(wrapThrowableAsBugInCF("SourceChecker.visitDeclaration", t, p));
         } finally {
             // Also add possibly deferred diagnostics, which will get published back in
             // AbstractTypeProcessor.
@@ -1483,23 +1642,31 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     /**
      * Reports an error. By default, prints it to the screen via the compiler's internal messager.
      *
-     * @param source the source position information; may be an Element or a Tree
+     * @param source the source position information; may be an Element or a Tree. Null means the
+     *     error has no source position -- for example, it is issued while the checker is
+     *     initializing, before any source file is processed -- and is reported against the
+     *     compilation as a whole.
      * @param messageKey the message key
      * @param args arguments for interpolation in the string corresponding to the given message key
      */
-    public void reportError(Object source, @CompilerMessageKey String messageKey, Object... args) {
+    public void reportError(
+            @Nullable Object source, @CompilerMessageKey String messageKey, Object... args) {
         report(source, Diagnostic.Kind.ERROR, messageKey, args);
     }
 
     /**
      * Reports a warning. By default, prints it to the screen via the compiler's internal messager.
      *
-     * @param source the source position information; may be an Element or a Tree
+     * @param source the source position information; may be an Element or a Tree. Null means the
+     *     warning has no source position -- for example, it is issued while the checker is
+     *     initializing, before any source file is processed. Such a warning cannot be suppressed by
+     *     a {@code @SuppressWarnings} annotation, because there is no declaration to write one on;
+     *     only the {@code -AsuppressWarnings} command-line option suppresses it.
      * @param messageKey the message key
      * @param args arguments for interpolation in the string corresponding to the given message key
      */
     public void reportWarning(
-            Object source, @CompilerMessageKey String messageKey, Object... args) {
+            @Nullable Object source, @CompilerMessageKey String messageKey, Object... args) {
         report(source, Diagnostic.Kind.MANDATORY_WARNING, messageKey, args);
     }
 
@@ -1510,37 +1677,62 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      * <p>It is rare to use this method. Most clients should use {@link #reportError} or {@link
      * #reportWarning}.
      *
-     * @param source the source position information; may be an Element or a Tree
+     * @param source the source position information; may be an Element or a Tree. Null means the
+     *     message has no source position -- for example, it is issued while the checker is
+     *     initializing, before any source file is processed -- and is reported against the
+     *     compilation as a whole.
      * @param d the diagnostic message
      */
-    public void report(Object source, DiagMessage d) {
-        report(source, d.getKind(), d.getMessageKey(), d.getArgs());
+    public void report(@Nullable Object source, DiagMessage d) {
+        report(source, d.getKind(), d.getMessageKey(), d.getFixes(), d.getArgs());
     }
 
     /**
      * Reports a diagnostic message. By default, it prints it to the screen via the compiler's
      * internal messager; however, it might also store it for later output.
      *
-     * @param source the source position information; may be an Element or a Tree
+     * @param source the source position information; may be an Element or a Tree. Null means the
+     *     message has no source position -- for example, it is issued while the checker is
+     *     initializing, before any source file is processed. Such a message is reported against the
+     *     compilation as a whole, and only the {@code -AsuppressWarnings} command-line option can
+     *     suppress it: a {@code @SuppressWarnings} annotation cannot, because there is no
+     *     declaration to write one on.
      * @param kind the type of message
      * @param messageKey the message key
      * @param args arguments for interpolation in the string corresponding to the given message key
      */
-    // Not a format method.  However, messageKey should be either a format string for `args`, or a
-    // property key that maps to a format string for `args`.
-    // @FormatMethod
-    @SuppressWarnings("formatter:format.string.invalid") // arg is a format string or a property key
     private void report(
-            Object source,
+            @Nullable Object source,
             Diagnostic.Kind kind,
             @CompilerMessageKey String messageKey,
+            Object... args) {
+        report(source, kind, messageKey, Collections.emptyList(), args);
+    }
+
+    /**
+     * Reports a diagnostic message, possibly with suggested fixes. See {@link #report(Object,
+     * Diagnostic.Kind, String, Object...)}; this overload additionally carries {@code fixes}, which
+     * a host (e.g. the Error Prone plugin) may offer and which standalone javac ignores.
+     *
+     * @param source the source position information; may be an Element or a Tree, or null
+     * @param kind the type of message
+     * @param messageKey the message key
+     * @param fixes machine-applicable suggested fixes for this diagnostic (possibly empty)
+     * @param args arguments for interpolation in the string corresponding to the given message key
+     */
+    @SuppressWarnings("formatter:format.string.invalid") // arg is a format string or a property key
+    private void report(
+            @Nullable Object source,
+            Diagnostic.Kind kind,
+            @CompilerMessageKey String messageKey,
+            List<SuggestedFixData> fixes,
             Object... args) {
         assert messagesProperties != null : "null messagesProperties";
 
         if (shouldSuppressWarnings(source, messageKey)) {
             return;
         }
-        Object preciseSource = getSourceWithPrecisePosition(source);
+        Object preciseSource = source == null ? null : getSourceWithPrecisePosition(source);
 
         for (int i = 0; i < args.length; ++i) {
             args[i] = processErrorMessageArg(args[i]);
@@ -1581,10 +1773,13 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
             kind = Diagnostic.Kind.MANDATORY_WARNING;
         }
 
-        if (preciseSource instanceof Element) {
+        if (preciseSource == null) {
+            // The message has no source position; report it against the compilation as a whole.
+            messager.printMessage(kind, messageText);
+        } else if (preciseSource instanceof Element) {
             messager.printMessage(kind, messageText, (Element) preciseSource);
         } else if (preciseSource instanceof Tree) {
-            printOrStoreMessage(kind, messageText, (Tree) preciseSource, currentRoot);
+            printOrStoreMessage(kind, messageText, (Tree) preciseSource, currentRoot, fixes);
         } else {
             throw new BugInCF(
                     "invalid position source of class "
@@ -1618,7 +1813,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
             return tree;
         }
 
-        TreePath path = getTreePathCacher().getPath(currentRoot, tree);
+        TreePath path = pathToTree(tree);
         if (path == null) {
             return tree;
         }
@@ -1697,31 +1892,42 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     }
 
     /**
-     * Do not call this method. Call {@link #reportError} or {@link #reportWarning} instead.
+     * Internal implementation of diagnostic reporting; callers use {@link #reportError} or {@link
+     * #reportWarning}.
      *
-     * <p>This method exists so that the BaseTypeChecker can override it. For compound checkers, it
-     * stores all messages and sorts them by location before outputting them.
+     * <p>Stores the message (for compound checkers, which sort all messages by location before
+     * outputting them) or prints it. Carries machine-applicable suggested fixes, which a host (e.g.
+     * the Error Prone plugin) may offer and which standalone javac ignores.
      *
      * @param kind the kind of message to print
      * @param message the message text
      * @param source the source code position of the diagnostic message
      * @param root the compilation unit
+     * @param fixes suggested fixes for this diagnostic (possibly empty)
      */
-    protected void printOrStoreMessage(
+    private void printOrStoreMessage(
             javax.tools.Diagnostic.Kind kind,
             String message,
             Tree source,
-            CompilationUnitTree root) {
+            CompilationUnitTree root,
+            List<SuggestedFixData> fixes) {
         assert this.currentRoot == root;
         // Thread.currentThread().getStackTrace() walks the entire JVM stack and allocates a
         // StackTraceElement[] on every reported diagnostic.  The trace is only consulted by
         // printStackTrace() when -AdumpOnErrors is set, so skip the capture in the common case.
         StackTraceElement[] trace =
                 dumpOnErrors ? Thread.currentThread().getStackTrace() : EMPTY_STACK_TRACE;
+        // A host needs the finding's path; capture it here, while the visitor is still at the
+        // finding and the path cache holds it (the suppression check just looked it up).  Messages
+        // are flushed after the visit, by which point the same lookup rescans the whole
+        // compilation unit -- quadratic in the number of findings in a file.  javac needs no path,
+        // so this is skipped when no host is listening.
+        TreePath path = diagnosticSink == null ? null : pathToTree(source);
         if (messageStore == null) {
-            printOrStoreMessage(kind, message, source, root, trace);
+            printOrStoreMessage(kind, message, source, root, path, trace, fixes);
         } else {
-            CheckerMessage checkerMessage = new CheckerMessage(kind, message, source, this, trace);
+            CheckerMessage checkerMessage =
+                    new CheckerMessage(kind, message, source, path, this, trace, fixes);
             messageStore.add(checkerMessage);
         }
     }
@@ -1730,24 +1936,38 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     private static final StackTraceElement[] EMPTY_STACK_TRACE = new StackTraceElement[0];
 
     /**
-     * Do not call this method. Call {@link #reportError} or {@link #reportWarning} instead.
+     * Internal implementation of diagnostic reporting; callers use {@link #reportError} or {@link
+     * #reportWarning}.
      *
-     * <p>This method exists so that the BaseTypeChecker can override it. For compound checkers, it
-     * stores all messages and sorts them by location before outputting them.
+     * <p>Prints or hands off the message together with machine-applicable suggested fixes. When a
+     * {@link DiagnosticSink} is installed, the message and fixes are passed to it via {@link
+     * DiagnosticSink#report}; otherwise (standalone javac) the message is printed through javac's
+     * {@code Trees} and the fixes are ignored.
      *
      * @param kind the kind of message to print
      * @param message the message text
      * @param source the source code position of the diagnostic message
      * @param root the compilation unit
-     * @param trace the stack trace where the checker encountered an error. It is printed when the
-     *     dumpOnErrors option is enabled.
+     * @param path the path to {@code source}, or null; only a {@link DiagnosticSink} uses it
+     * @param trace the stack trace where the checker encountered an error; printed under {@code
+     *     -AdumpOnErrors}
+     * @param fixes suggested fixes for this diagnostic (possibly empty)
      */
-    protected void printOrStoreMessage(
+    private void printOrStoreMessage(
             javax.tools.Diagnostic.Kind kind,
             String message,
             Tree source,
             CompilationUnitTree root,
-            StackTraceElement[] trace) {
+            @Nullable TreePath path,
+            StackTraceElement[] trace,
+            List<SuggestedFixData> fixes) {
+        if (diagnosticSink != null) {
+            // A host (e.g. the Error Prone plugin) is intercepting findings; hand off the neutral
+            // (kind, message, source, root, path, fixes) values instead of printing through javac's
+            // Trees.  A host with no fix pipeline simply ignores the fixes.
+            diagnosticSink.report(kind, message, source, root, path, fixes);
+            return;
+        }
         Trees.instance(processingEnv).printMessage(kind, message, source, root);
         printStackTrace(trace);
     }
@@ -2151,8 +2371,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      *
      * <p>Though each checker is run on a whole compilation unit before the next checker is run,
      * error and warning messages are collected and sorted based on the location in the source file
-     * before being printed. (See {@link #printOrStoreMessage(Diagnostic.Kind, String, Tree,
-     * CompilationUnitTree)}.)
+     * before being printed (see {@code printOrStoreMessage}).
      *
      * <p>WARNING: Circular dependencies are not supported. (In other words, if checker A depends on
      * checker B, checker B cannot depend on checker A.) The Checker Framework does not check for
@@ -2258,6 +2477,45 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
         supportedLints = newLints;
     }
 
+    /**
+     * Returns the values of {@code -Amode} that this checker and its subcheckers recognize. Each
+     * names a group of options; see {@link #addOptionsForMode}.
+     *
+     * @return an unmodifiable set of supported mode names
+     */
+    public Set<String> getSupportedModes() {
+        if (supportedModes == null) {
+            supportedModes = Collections.unmodifiableSet(createSupportedModes());
+        }
+        return supportedModes;
+    }
+
+    /**
+     * Computes the result of {@link #getSupportedModes}, from the {@link SupportedModes}
+     * annotations on this checker's class hierarchy and from its subcheckers.
+     *
+     * @return the supported mode names
+     */
+    protected Set<String> createSupportedModes() {
+        Set<String> result = new HashSet<>();
+        // Walk the hierarchy rather than relying on @Inherited, which yields only the nearest
+        // annotation: a subclass that declares its own modes still supports its superclass's,
+        // because its addOptionsForMode calls super.
+        for (Class<?> clazz = getClass();
+                clazz != null && SourceChecker.class.isAssignableFrom(clazz);
+                clazz = clazz.getSuperclass()) {
+            SupportedModes annotation = clazz.getDeclaredAnnotation(SupportedModes.class);
+            if (annotation != null) {
+                Collections.addAll(result, annotation.value());
+            }
+        }
+
+        for (SourceChecker checker : getSubcheckers()) {
+            result.addAll(checker.createSupportedModes());
+        }
+        return result;
+    }
+
     // ///////////////////////////////////////////////////////////////////////////
     // Regular (non-lint) options ("-Axxxx")
     //
@@ -2280,7 +2538,10 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
             String key = opt.getKey();
             String value = opt.getValue();
 
-            String[] split = key.split(OPTION_SEPARATOR);
+            // Use limit -1 so a trailing separator (e.g. "CheckerName_") produces an empty
+            // token; we explicitly check for this rather than silently using "" as an
+            // option key.
+            String[] split = key.split(OPTION_SEPARATOR, -1);
 
             switch (split.length) {
                 case 1:
@@ -2288,6 +2549,13 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
                     activeOpts.put(key, value);
                     break;
                 case 2:
+                    if (split[1].isEmpty()) {
+                        // Trailing separator. Option might be for another processor. Add option
+                        // anyways. javac will warn if no processor supports the option.
+                        activeOpts.put(key, value);
+                        break;
+                    }
+
                     Class<?> clazz = this.getClass();
 
                     do {
@@ -2316,13 +2584,73 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
         return activeOpts;
     }
 
+    /**
+     * Adds to {@code activeOptions} the options that the active mode enables, both this checker's
+     * and those of the checkers that this one is a subchecker of. A subchecker needs its parents'
+     * mode options because a mode is named for what the whole checker should do, and the options it
+     * turns on are read by whichever checker owns them.
+     *
+     * @param activeOptions the active options, to which mode options are added
+     */
+    private void addModeOptions(Map<String, String> activeOptions) {
+        if (parentChecker != null) {
+            parentChecker.addModeOptions(activeOptions);
+        }
+
+        String mode = activeOptions.get("mode");
+        if (mode == null || mode.isEmpty()) {
+            // An absent or empty mode is diagnosed by validateMode, which runs after the options
+            // are built.
+            return;
+        }
+
+        addOptionsForMode(mode, activeOptions);
+    }
+
+    /**
+     * Adds to {@code activeOptions} the options that {@code mode} enables for this checker. The
+     * default implementation adds none; a checker that declares modes with {@link SupportedModes}
+     * overrides this, calls {@code super}, and ignores a mode it does not recognize (another
+     * checker in the same run may define it).
+     *
+     * <p>Use {@link Map#putIfAbsent}: {@code activeOptions} already holds the options written on
+     * the command line, which take precedence over the mode.
+     *
+     * @param mode the value of the {@code -Amode} option
+     * @param activeOptions the active options, to which mode options are added
+     */
+    protected void addOptionsForMode(String mode, Map<String, String> activeOptions) {}
+
+    /**
+     * Throws a {@link UserError} if the {@code -Amode} command-line option, when given, does not
+     * name a mode that this checker or one of its subcheckers supports.
+     *
+     * @param activeOptions the active options, whose mode to validate
+     */
+    private void validateMode(Map<String, String> activeOptions) {
+        if (!activeOptions.containsKey("mode")) {
+            return;
+        }
+        String mode = activeOptions.get("mode");
+        if (mode == null || mode.isEmpty()) {
+            throw new UserError("The -Amode option requires a value.");
+        }
+        Set<String> modes = getSupportedModes();
+        if (!modes.contains(mode)) {
+            throw new UserError(
+                    String.format(
+                            "Unsupported mode %s for %s; supported modes: %s.",
+                            mode, getClass().getSimpleName(), new TreeSet<>(modes)));
+        }
+    }
+
     @Override
     public Map<String, String> getOptions() {
         if (activeOptions == null) {
-            activeOptions = createActiveOptions(processingEnv.getOptions());
+            activeOptions = getOptionsNoSubcheckers();
 
             for (SourceChecker subchecker : getSubcheckers()) {
-                activeOptions.putAll(subchecker.createActiveOptions(processingEnv.getOptions()));
+                activeOptions.putAll(subchecker.getOptionsNoSubcheckers());
             }
             activeOptions = Collections.unmodifiableMap(activeOptions);
         }
@@ -2437,7 +2765,8 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
             return;
         }
         for (CheckerMessage msg : messageStore) {
-            printOrStoreMessage(msg.kind, msg.message, msg.source, unit, msg.trace);
+            printOrStoreMessage(
+                    msg.kind, msg.message, msg.source, unit, msg.path, msg.trace, msg.fixes);
         }
     }
 
@@ -2715,18 +3044,30 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     }
 
     /**
+     * The message key of the warning that a declaration carries both an {@code @AnnotatedFor} and
+     * an {@code @UnannotatedFor} naming this checker. {@link #shouldSuppressWarnings} exempts it
+     * from {@code @AnnotatedFor}-scope suppression; see the comment there.
+     */
+    private static final String CONFLICTING_ANNOTATED_FOR_KEY = "conflicting.annotatedfor";
+
+    /**
      * Returns true if all the warnings pertaining to the given source should be suppressed. This
      * implementation just delegates to an overloaded, more specific version of {@code
      * shouldSuppressWarnings()}.
      *
-     * @param src the position object to test; may be an Element, a Tree, or a TreePath
+     * @param src the position object to test; may be an Element, a Tree, or a TreePath. Null means
+     *     the message has no source position, so no {@code @SuppressWarnings} annotation can apply
+     *     to it and only {@code -AsuppressWarnings} can suppress it.
      * @param errKey the error key the checker is emitting
      * @return true if all warnings pertaining to the given source should be suppressed
      * @see #shouldSuppressWarnings(Element, String)
      * @see #shouldSuppressWarnings(Tree, String)
      */
-    private boolean shouldSuppressWarnings(Object src, String errKey) {
-        if (src instanceof Element) {
+    private boolean shouldSuppressWarnings(@Nullable Object src, String errKey) {
+        if (src == null) {
+            // There is no declaration on which a @SuppressWarnings annotation could be written.
+            return shouldSuppress(getSuppressWarningsStringsFromOption(), errKey);
+        } else if (src instanceof Element) {
             return shouldSuppressWarnings((Element) src, errKey);
         } else if (src instanceof Tree) {
             return shouldSuppressWarnings((Tree) src, errKey);
@@ -2752,25 +3093,29 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      *     otherwise
      */
     public boolean shouldSuppressWarnings(Tree tree, String errKey) {
-        Collection<String> prefixes = getSuppressWarningsPrefixes();
-        if (prefixes.isEmpty()
-                || (prefixes.contains(SUPPRESS_ALL_PREFIX) && prefixes.size() == 1)) {
-            throw new BugInCF(
-                    "Checker must provide a SuppressWarnings prefix."
-                            + " SourceChecker#getSuppressWarningsPrefixes was not overridden"
-                            + " correctly.");
-        }
-
-        if (shouldSuppress(getSuppressWarningsStringsFromOption(), errKey)) {
-            // If the error key matches a warning string in the -AsuppressWarnings, then suppress
-            // the warning.
-            return true;
-        }
-
         assert this.currentRoot != null : "this.currentRoot == null";
-        TreePath path = getTreePathCacher().getPath(currentRoot, tree);
+        TreePath path = pathToTree(tree);
 
         return shouldSuppressWarnings(path, errKey);
+    }
+
+    /**
+     * Returns the path to {@code tree} within the current compilation unit. Uses the visitor's
+     * current path as a search-start hint when available, so the lookup is local rather than
+     * rescanning the whole compilation unit from its root. {@code tree} is almost always at or
+     * under the tree the visitor is currently processing (e.g. when reporting a warning on it), so
+     * the hint avoids an O(compilation unit) scan; without it, reporting many warnings is quadratic
+     * in the file size.
+     *
+     * @param tree a tree in the current compilation unit
+     * @return the path to {@code tree}, or null if it is not in the current compilation unit
+     */
+    private @Nullable TreePath pathToTree(Tree tree) {
+        TreePath hint = visitor == null ? null : visitor.getCurrentPath();
+        if (hint != null && hint.getCompilationUnit() == currentRoot) {
+            return getTreePathCacher().getPath(hint, tree);
+        }
+        return getTreePathCacher().getPath(currentRoot, tree);
     }
 
     /**
@@ -2778,70 +3123,83 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      * Returns true if the path is within the scope of a @SuppressWarnings annotation, one of whose
      * values suppresses the checker's warning.
      *
+     * <p>This overload also accounts for source-position-based suppression from unchecked code: if
+     * no matching {@code @SuppressWarnings} is found, then warnings outside a relevant {@link
+     * AnnotatedFor} scope are suppressed when {@code
+     * -AuseConservativeDefaultsForUncheckedCode=source} or {@code -AonlyAnnotatedFor} is in effect.
+     *
      * @param path the TreePath that might be a source of, or related to, a warning
      * @param errKey the error key the checker is emitting
-     * @return true if no warning should be emitted for the given path because it is contained by a
-     *     declaration with an appropriately-valued {@code @SuppressWarnings} annotation; false
+     * @return true if no warning should be emitted for the given path, either because it is
+     *     contained by a declaration with an appropriately-valued {@code @SuppressWarnings}
+     *     annotation, because it is suppressed by command-line arguments, or because it is outside
+     *     an {@link AnnotatedFor} scope when source-based conservative defaults are enabled; false
      *     otherwise
      */
     public boolean shouldSuppressWarnings(TreePath path, String errKey) {
+        if (shouldSuppress(getSuppressWarningsStringsFromOption(), errKey)) {
+            return true;
+        }
+
+        // The innermost declaration enclosing path.  The @AnnotatedFor scope question is asked
+        // about it once, after the loop.
+        Element innermostDecl = null;
+
         // iterate through the path; continue until path contains no declarations
         for (TreePath declPath = TreePathUtil.enclosingDeclarationPath(path);
                 declPath != null;
                 declPath = TreePathUtil.enclosingDeclarationPath(declPath.getParentPath())) {
             Tree decl = declPath.getLeaf();
 
+            Element elt;
             if (decl instanceof VariableTree) {
-                Element elt = TreeUtils.elementFromDeclaration((VariableTree) decl);
-                if (shouldSuppressWarnings(elt, errKey)) {
-                    return true;
-                }
+                elt = TreeUtils.elementFromDeclaration((VariableTree) decl);
             } else if (decl instanceof MethodTree) {
-                Element elt = TreeUtils.elementFromDeclaration((MethodTree) decl);
-                if (shouldSuppressWarnings(elt, errKey)) {
-                    return true;
-                }
-
-                if (isAnnotatedForThisCheckerOrUpstreamChecker(elt)) {
-                    // Return false immediately. Do NOT check for AnnotatedFor in the enclosing
-                    // elements as the closest AnnotatedFor is already found.
-                    return false;
-                }
+                elt = TreeUtils.elementFromDeclaration((MethodTree) decl);
             } else if (TreeUtils.classTreeKinds().contains(decl.getKind())) {
-                // A class tree
-                Element elt = TreeUtils.elementFromDeclaration((ClassTree) decl);
-                if (shouldSuppressWarnings(elt, errKey)) {
-                    return true;
-                }
-
-                if (isAnnotatedForThisCheckerOrUpstreamChecker(elt)) {
-                    // Return false immediately. Do NOT check for AnnotatedFor in the enclosing
-                    // elements as the closest AnnotatedFor is already found.
-                    return false;
-                }
-                Element packageElement = elt.getEnclosingElement();
-                if (packageElement != null && packageElement.getKind() == ElementKind.PACKAGE) {
-                    if (shouldSuppressWarnings(packageElement, errKey)) {
-                        return true;
-                    }
-                    if (isAnnotatedForThisCheckerOrUpstreamChecker(packageElement)) {
-                        // Return false immediately. Do NOT check for AnnotatedFor in the enclosing
-                        // elements as the closest AnnotatedFor is already found.
-                        return false;
-                    }
-                }
+                elt = TreeUtils.elementFromDeclaration((ClassTree) decl);
             } else {
                 throw new BugInCF("Unexpected declaration kind: " + decl.getKind() + " " + decl);
             }
+
+            if (hasSuppressWarningsAnnotationForErrorKey(elt, errKey)) {
+                return true;
+            }
+            if (innermostDecl == null) {
+                innermostDecl = elt;
+            }
+
+            Element packageElement = elt.getEnclosingElement();
+            if (packageElement != null
+                    && packageElement.getKind() == ElementKind.PACKAGE
+                    && hasSuppressWarningsAnnotationForErrorKey(packageElement, errKey)) {
+                return true;
+            }
         }
 
-        if (useConservativeDefaultsSource || onlyAnnotatedFor) {
-            // If we got this far without hitting an @AnnotatedFor and returning
-            // false, we DO suppress the warning.
-            return true;
+        // A diagnostic about the @AnnotatedFor/@UnannotatedFor pair itself must not be silenced
+        // by the scope those annotations define: when the @UnannotatedFor wins, the declaration is
+        // outside the scope, and suppressing here would leave the contradiction unreported in
+        // exactly one of its two orders. An explicit @SuppressWarnings, handled above, still
+        // silences it.
+        if (errKey.equals(CONFLICTING_ANNOTATED_FOR_KEY)) {
+            return false;
         }
 
-        return false;
+        // Fast path: both branches below return false when neither flag is set, so the
+        // @AnnotatedFor scope resolution -- a walk that reads declaration annotations off every
+        // enclosing element -- would be discarded. This method runs for every reported diagnostic.
+        if (!useConservativeDefaultsSource && !onlyAnnotatedFor) {
+            return false;
+        }
+
+        // Ask only about the innermost declaration:
+        // isElementAnnotatedForThisCheckerOrUpstreamChecker already resolves the enclosing scope,
+        // and asking about an enclosing element separately would ignore an @UnannotatedFor that
+        // excludes the innermost declaration from that scope.
+        // The fast path above guarantees a flag is set here, so code outside an @AnnotatedFor scope
+        // has its warning suppressed.
+        return !isElementAnnotatedForThisCheckerOrUpstreamChecker(innermostDecl);
     }
 
     /**
@@ -2882,10 +3240,17 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      * true if the element is within the scope of a @SuppressWarnings annotation, one of whose
      * values suppresses all the checker's warnings.
      *
+     * <p>This overload also accounts for source-position-based suppression from unchecked code: if
+     * no matching {@code @SuppressWarnings} is found, then warnings outside a relevant {@link
+     * AnnotatedFor} scope are suppressed when {@code
+     * -AuseConservativeDefaultsForUncheckedCode=source} or {@code -AonlyAnnotatedFor} is in effect.
+     *
      * @param elt the Element that might be a source of, or related to, a warning
      * @param errKey the error key the checker is emitting
-     * @return true if no warning should be emitted for the given Element because it is contained by
-     *     a declaration with an appropriately-valued {@code @SuppressWarnings} annotation; false
+     * @return true if no warning should be emitted for the given Element, either because it is
+     *     contained by a declaration with an appropriately-valued {@code @SuppressWarnings}
+     *     annotation, because it is suppressed by command-line arguments, or because it is outside
+     *     an {@link AnnotatedFor} scope when source-based conservative defaults are enabled; false
      *     otherwise
      */
     public boolean shouldSuppressWarnings(Element elt, String errKey) {
@@ -2894,20 +3259,50 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
         }
 
         for (Element currElt = elt; currElt != null; currElt = currElt.getEnclosingElement()) {
-            SuppressWarnings suppressWarningsAnno = currElt.getAnnotation(SuppressWarnings.class);
-            if (suppressWarningsAnno != null) {
-                String[] suppressWarningsStrings = suppressWarningsAnno.value();
-                if (shouldSuppress(suppressWarningsStrings, errKey)) {
-                    if (warnUnneededSuppressions) {
-                        elementsWithSuppressedWarnings.add(currElt);
-                    }
-                    return true;
-                }
+            if (hasSuppressWarningsAnnotationForErrorKey(currElt, errKey)) {
+                return true;
             }
-            if (isAnnotatedForThisCheckerOrUpstreamChecker(elt)) {
-                // Return false immediately. Do NOT check for AnnotatedFor in the
-                // enclosing elements, because they may not have an @AnnotatedFor.
-                return false;
+        }
+
+        // A diagnostic about the @AnnotatedFor/@UnannotatedFor pair itself must not be silenced
+        // by the scope those annotations define: when the @UnannotatedFor wins, the declaration is
+        // outside the scope, and suppressing here would leave the contradiction unreported in
+        // exactly one of its two orders. An explicit @SuppressWarnings, handled above, still
+        // silences it.
+        if (errKey.equals(CONFLICTING_ANNOTATED_FOR_KEY)) {
+            return false;
+        }
+
+        // Fast path, as in the TreePath overload above.
+        if (!useConservativeDefaultsSource && !onlyAnnotatedFor) {
+            return false;
+        }
+
+        // Ask only about elt: isElementAnnotatedForThisCheckerOrUpstreamChecker already resolves
+        // the enclosing scope, and asking about an enclosing element separately would ignore an
+        // @UnannotatedFor that excludes elt from that scope.
+        // The fast path above guarantees a flag is set here, so code outside an @AnnotatedFor scope
+        // has its warning suppressed.
+        return !isElementAnnotatedForThisCheckerOrUpstreamChecker(elt);
+    }
+
+    /**
+     * Returns true if the given element has a {@code @SuppressWarnings} annotation that suppresses
+     * the given error key.
+     *
+     * @param elt the element whose annotations to check
+     * @param errKey the error key the checker is emitting
+     * @return true if {@code elt} has a corresponding {@code @SuppressWarnings} annotation
+     */
+    private boolean hasSuppressWarningsAnnotationForErrorKey(Element elt, String errKey) {
+        SuppressWarnings suppressWarningsAnno = elt.getAnnotation(SuppressWarnings.class);
+        if (suppressWarningsAnno != null) {
+            String[] suppressWarningsStrings = suppressWarningsAnno.value();
+            if (shouldSuppress(suppressWarningsStrings, errKey)) {
+                if (warnUnneededSuppressions) {
+                    elementsWithSuppressedWarnings.add(elt);
+                }
+                return true;
             }
         }
         return false;
@@ -2975,8 +3370,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
                 if (prefixes.contains(currentSuppressWarningsInEffect)) {
                     // The value in the @SuppressWarnings is exactly a prefix.
                     // Suppress the warning unless its message key is "unneeded.suppression".
-                    boolean result =
-                            !currentSuppressWarningsInEffect.equals(UNNEEDED_SUPPRESSION_KEY);
+                    boolean result = !messageKey.equals(UNNEEDED_SUPPRESSION_KEY);
                     return result;
                 } else if (requirePrefixInWarningSuppressions) {
                     // A prefix is required, but this SuppressWarnings string does not have a
@@ -2985,8 +3379,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
                 } else if (currentSuppressWarningsInEffect.equals(SUPPRESS_ALL_MESSAGE_KEY)) {
                     // Prefixes aren't required and the SuppressWarnings string is "all".
                     // Suppress the warning unless its message key is "unneeded.suppression".
-                    boolean result =
-                            !currentSuppressWarningsInEffect.equals(UNNEEDED_SUPPRESSION_KEY);
+                    boolean result = !messageKey.equals(UNNEEDED_SUPPRESSION_KEY);
                     return result;
                 }
                 // The currentSuppressWarningsInEffect is not a prefix or a prefix:message-key, so
@@ -3034,37 +3427,21 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     }
 
     /**
-     * Return true if the element has an {@code @AnnotatedFor} annotation, for this checker or an
-     * upstream checker that called this one.
+     * Returns true if the element is in the scope of an {@code @AnnotatedFor} annotation for this
+     * checker or an upstream checker that called this one. The annotation may be on the element
+     * itself or on an enclosing element; an {@code @UnannotatedFor} that applies to this checker
+     * subtracts the element from an enclosing {@code @AnnotatedFor} scope, so this method returns
+     * false for such an element even though an enclosing element is annotated.
+     *
+     * <p>This implementation always returns false, which is correct for a checker that does not
+     * type-check, such as an aggregate checker or one of the counting checkers. {@link
+     * org.checkerframework.common.basetype.BaseTypeChecker} overrides it.
      *
      * @param elt the source code element to check, or null
-     * @return true if the element is annotated for this checker or an upstream checker
+     * @return true if the element is in the scope of an {@code @AnnotatedFor} for this checker or
+     *     an upstream checker
      */
-    private boolean isAnnotatedForThisCheckerOrUpstreamChecker(@Nullable Element elt) {
-        // Return false if elt is null, or if neither useConservativeDefaultsSource nor
-        // issueErrorsForOnlyAnnotatedForScope is set, since the @AnnotatedFor status is irrelevant
-        // in that case.
-        // TODO: Refactor SourceChecker and QualifierDefaults to use a cache for determining if an
-        // element is annotated for.
-        if (elt == null || (!useConservativeDefaultsSource && !onlyAnnotatedFor)) {
-            return false;
-        }
-
-        AnnotatedFor anno = elt.getAnnotation(AnnotatedFor.class);
-
-        String[] userAnnotatedFors = (anno == null ? null : anno.value());
-
-        if (userAnnotatedFors != null) {
-            List<@FullyQualifiedName String> upstreamCheckerNames = getUpstreamCheckerNames();
-
-            for (String userAnnotatedFor : userAnnotatedFors) {
-                if (CheckerMain.matchesCheckerOrSubcheckerFromList(
-                        userAnnotatedFor, upstreamCheckerNames)) {
-                    return true;
-                }
-            }
-        }
-
+    public boolean isElementAnnotatedForThisCheckerOrUpstreamChecker(@Nullable Element elt) {
         return false;
     }
 
@@ -3175,10 +3552,17 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     //
 
     /**
-     * Tests whether the class owner of the passed element is an unannotated class and matches the
-     * pattern specified in the {@code checker.skipUses} property.
+     * Cache for {@link #shouldSkipUses(Element)}. Maps the qualified name of an enclosing class to
+     * whether its uses should be skipped.
+     */
+    private final IdentityHashMap<javax.lang.model.element.Name, Boolean> shouldSkipUsesCache =
+            new IdentityHashMap<>();
+
+    /**
+     * Tests whether the class owner of the passed element matches the pattern specified in the
+     * {@code checker.skipUses} property.
      *
-     * @param element an element
+     * @param element the element
      * @return true iff the enclosing class of element should be skipped
      */
     public final boolean shouldSkipUses(@Nullable Element element) {
@@ -3190,11 +3574,19 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
             throw new BugInCF(
                     "enclosingTypeElement(%s [%s]) => null%n", element, element.getClass());
         }
+        javax.lang.model.element.Name qualifiedName = typeElement.getQualifiedName();
+        Boolean cached = shouldSkipUsesCache.get(qualifiedName);
+        if (cached != null) {
+            return cached;
+        }
+
         @SuppressWarnings("signature:assignment.type.incompatible" // TypeElement.toString():
         // @FullyQualifiedName
         )
         @FullyQualifiedName String name = typeElement.toString();
-        return shouldSkipUses(name);
+        boolean result = shouldSkipUses(name);
+        shouldSkipUsesCache.put(qualifiedName, result);
+        return result;
     }
 
     /**
@@ -3754,6 +4146,12 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
         final @InternedDistinct Tree source;
 
         /**
+         * The path to {@link #source}, or null. Captured when the message is created, while the
+         * path cache still holds it; only a {@link DiagnosticSink} consumes it.
+         */
+        final @Nullable TreePath path;
+
+        /**
          * The checker that issued this message. The compound checker that depends on this checker
          * uses this to sort the messages.
          */
@@ -3761,6 +4159,9 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
 
         /** The stack trace when the message was created. */
         final StackTraceElement[] trace;
+
+        /** Machine-applicable suggested fixes for this message (possibly empty). */
+        final List<SuggestedFixData> fixes;
 
         /**
          * Create a new CheckerMessage.
@@ -3777,11 +4178,35 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
                 @FindDistinct Tree source,
                 @FindDistinct SourceChecker checker,
                 StackTraceElement[] trace) {
+            this(kind, message, source, null, checker, trace, Collections.emptyList());
+        }
+
+        /**
+         * Create a new CheckerMessage with suggested fixes.
+         *
+         * @param kind kind of diagnostic, for example, error or warning
+         * @param message error message that needs to be printed
+         * @param source tree node causing the error
+         * @param path the path to {@code source}, or null
+         * @param checker the type-checker in use
+         * @param trace the stack trace when the message is created
+         * @param fixes machine-applicable suggested fixes (possibly empty)
+         */
+        protected CheckerMessage(
+                Diagnostic.Kind kind,
+                String message,
+                @FindDistinct Tree source,
+                @Nullable TreePath path,
+                @FindDistinct SourceChecker checker,
+                StackTraceElement[] trace,
+                List<SuggestedFixData> fixes) {
             this.kind = kind;
             this.message = message;
             this.source = source;
+            this.path = path;
             this.checker = checker;
             this.trace = trace;
+            this.fixes = fixes;
         }
 
         @Override

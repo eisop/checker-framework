@@ -248,10 +248,8 @@ public class ReflectiveEvaluator {
      *
      * @param ele a method or constructor
      * @return the classes of the given method's formal parameters
-     * @throws ClassNotFoundException if the class cannot be found
      */
-    private List<Class<?>> getParameterClasses(ExecutableElement ele)
-            throws ClassNotFoundException {
+    private List<Class<?>> getParameterClasses(ExecutableElement ele) {
         return CollectionsPlume.mapList(
                 (Element e) -> TypesUtils.getClassFromType(ElementUtils.getType(e)),
                 ele.getParameters());
@@ -370,8 +368,16 @@ public class ReflectiveEvaluator {
         return results;
     }
 
+    /**
+     * Returns the constructor object for the given {@code tree} and {@code typeToCreate}.
+     *
+     * @param tree a {@code new} expression
+     * @param typeToCreate the type to create
+     * @return the constructor object
+     * @throws NoSuchMethodException if the constructor cannot be found
+     */
     private Constructor<?> getConstructorObject(NewClassTree tree, TypeMirror typeToCreate)
-            throws ClassNotFoundException, NoSuchMethodException {
+            throws NoSuchMethodException {
         ExecutableElement ele = TreeUtils.elementFromUse(tree);
         List<Class<?>> paramClasses = getParameterClasses(ele);
         Class<?> recClass = boxPrimitives(TypesUtils.getClassFromType(typeToCreate));

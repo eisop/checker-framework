@@ -6,7 +6,7 @@ public class MethodInvocation {
     String s;
 
     public MethodInvocation() {
-        // :: error: (method.invocation.invalid)
+        // :: error: (initialization.method.invocation.invalid)
         a();
         b();
         c();
@@ -14,7 +14,7 @@ public class MethodInvocation {
     }
 
     public MethodInvocation(boolean p) {
-        // :: error: (method.invocation.invalid)
+        // :: error: (initialization.method.invocation.invalid)
         a(); // still not okay to be initialized
         s = "abc";
     }

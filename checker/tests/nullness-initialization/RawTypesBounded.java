@@ -10,9 +10,9 @@ public class RawTypesBounded {
         @NonNull String field;
 
         public Bad() {
-            // :: error: (method.invocation.invalid)
+            // :: error: (initialization.method.invocation.invalid)
             this.init(); // error
-            // :: error: (method.invocation.invalid)
+            // :: error: (initialization.method.invocation.invalid)
             init(); // error
 
             this.field = "field"; // valid

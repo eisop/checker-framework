@@ -1,5 +1,6 @@
 package org.checkerframework.framework.type.visitor;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedArrayType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedDeclaredType;
@@ -10,7 +11,7 @@ import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedUnionTyp
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedWildcardType;
 import org.checkerframework.javacutil.BugInCF;
 
-import java.util.Iterator;
+import java.util.List;
 
 /**
  * An {@link AnnotatedTypeScanner} that scans two {@link AnnotatedTypeMirror}s simultaneously and
@@ -57,52 +58,53 @@ public abstract class DoubleAnnotatedTypeScanner<R>
     protected abstract R defaultAction(AnnotatedTypeMirror type, AnnotatedTypeMirror p);
 
     /**
-     * Scans {@code types1} and {@code types2}. If they are empty, then {@link #defaultResult} is
-     * returned.
+     * Scans {@code types1} and {@code types2} in parallel and returns the reduced result. Uses
+     * index-based access to avoid allocating iterators over the (typically unmodifiable) lists.
      *
-     * @param types1 types
-     * @param types2 types
-     * @return the result of scanning and reducing all the types in {@code types1} and {@code
-     *     types2} or {@link #defaultResult} if they are empty
+     * @param types1 types; may be null
+     * @param types2 types; may be null
+     * @return the result of scanning and reducing all paired types, or {@link #defaultResult} if
+     *     either list is null or both lists are empty
      */
     protected R scan(
-            Iterable<? extends AnnotatedTypeMirror> types1,
-            Iterable<? extends AnnotatedTypeMirror> types2) {
+            @Nullable List<? extends AnnotatedTypeMirror> types1,
+            @Nullable List<? extends AnnotatedTypeMirror> types2) {
         if (types1 == null || types2 == null) {
             return defaultResult;
         }
-        R r = defaultResult;
-        boolean first = true;
-        Iterator<? extends AnnotatedTypeMirror> iter1 = types1.iterator();
-        Iterator<? extends AnnotatedTypeMirror> iter2 = types2.iterator();
-        while (iter1.hasNext() && iter2.hasNext()) {
-            r =
-                    (first
-                            ? scan(iter1.next(), iter2.next())
-                            : scanAndReduce(iter1.next(), iter2.next(), r));
-            first = false;
+        int n = Math.min(types1.size(), types2.size());
+        if (n == 0) {
+            return defaultResult;
+        }
+        R r = scan(types1.get(0), types2.get(0));
+        for (int i = 1; i < n; ++i) {
+            r = scanAndReduce(types1.get(i), types2.get(i), r);
         }
         return r;
     }
 
     /**
-     * Run {@link #scan} on types and p, then run {@link #reduce} on the result (plus r) to return a
-     * single element.
+     * Scans {@code types1} and {@code types2} in parallel and reduces the result with {@code r}.
+     *
+     * @param types1 types; may be null
+     * @param types2 types; may be null
+     * @param r result to combine with the result of scanning the paired types
+     * @return the combination of {@code r} with the result of scanning all paired types
      */
     protected R scanAndReduce(
-            Iterable<? extends AnnotatedTypeMirror> types,
-            Iterable<? extends AnnotatedTypeMirror> p,
+            @Nullable List<? extends AnnotatedTypeMirror> types1,
+            @Nullable List<? extends AnnotatedTypeMirror> types2,
             R r) {
-        return reduce(scan(types, p), r);
+        return reduce(scan(types1, types2), r);
     }
 
     @Override
     protected final R scanAndReduce(
-            Iterable<? extends AnnotatedTypeMirror> types, AnnotatedTypeMirror p, R r) {
+            List<? extends AnnotatedTypeMirror> types, AnnotatedTypeMirror p, R r) {
         throw new BugInCF(
                 "DoubleAnnotatedTypeScanner.scanAndReduce: "
                         + p
-                        + " is not Iterable<? extends AnnotatedTypeMirror>");
+                        + " is not List<? extends AnnotatedTypeMirror>");
     }
 
     @Override
@@ -147,46 +149,46 @@ public abstract class DoubleAnnotatedTypeScanner<R>
 
     @Override
     public R visitTypeVariable(AnnotatedTypeVariable type, AnnotatedTypeMirror p) {
-        if (visitedNodes.containsKey(type)) {
-            return visitedNodes.get(type);
+        if (hasVisited(type)) {
+            return getVisited(type);
         }
-        visitedNodes.put(type, null);
+        markVisited(type, null);
 
         R r;
         if (p instanceof AnnotatedTypeVariable) {
             AnnotatedTypeVariable tv = (AnnotatedTypeVariable) p;
             r = scan(type.getLowerBound(), tv.getLowerBound());
-            visitedNodes.put(type, r);
+            markVisited(type, r);
             r = scanAndReduce(type.getUpperBound(), tv.getUpperBound(), r);
-            visitedNodes.put(type, r);
+            markVisited(type, r);
         } else {
             r = scan(type.getLowerBound(), p.getErased());
-            visitedNodes.put(type, r);
+            markVisited(type, r);
             r = scanAndReduce(type.getUpperBound(), p.getErased(), r);
-            visitedNodes.put(type, r);
+            markVisited(type, r);
         }
         return r;
     }
 
     @Override
     public R visitWildcard(AnnotatedWildcardType type, AnnotatedTypeMirror p) {
-        if (visitedNodes.containsKey(type)) {
-            return visitedNodes.get(type);
+        if (hasVisited(type)) {
+            return getVisited(type);
         }
-        visitedNodes.put(type, null);
+        markVisited(type, null);
 
         R r;
         if (p instanceof AnnotatedWildcardType) {
             AnnotatedWildcardType w = (AnnotatedWildcardType) p;
             r = scan(type.getExtendsBound(), w.getExtendsBound());
-            visitedNodes.put(type, r);
+            markVisited(type, r);
             r = scanAndReduce(type.getSuperBound(), w.getSuperBound(), r);
-            visitedNodes.put(type, r);
+            markVisited(type, r);
         } else {
             r = scan(type.getExtendsBound(), p.getErased());
-            visitedNodes.put(type, r);
+            markVisited(type, r);
             r = scanAndReduce(type.getSuperBound(), p.getErased(), r);
-            visitedNodes.put(type, r);
+            markVisited(type, r);
         }
         return r;
     }
@@ -195,10 +197,10 @@ public abstract class DoubleAnnotatedTypeScanner<R>
     public R visitIntersection(AnnotatedIntersectionType type, AnnotatedTypeMirror p) {
         assert p instanceof AnnotatedIntersectionType : p;
 
-        if (visitedNodes.containsKey(type)) {
-            return visitedNodes.get(type);
+        if (hasVisited(type)) {
+            return getVisited(type);
         }
-        visitedNodes.put(type, null);
+        markVisited(type, null);
         R r = scan(type.getBounds(), ((AnnotatedIntersectionType) p).getBounds());
         return r;
     }
@@ -206,10 +208,10 @@ public abstract class DoubleAnnotatedTypeScanner<R>
     @Override
     public R visitUnion(AnnotatedUnionType type, AnnotatedTypeMirror p) {
         assert p instanceof AnnotatedUnionType : p;
-        if (visitedNodes.containsKey(type)) {
-            return visitedNodes.get(type);
+        if (hasVisited(type)) {
+            return getVisited(type);
         }
-        visitedNodes.put(type, null);
+        markVisited(type, null);
         R r = scan(type.getAlternatives(), ((AnnotatedUnionType) p).getAlternatives());
         return r;
     }

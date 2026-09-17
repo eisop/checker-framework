@@ -10,7 +10,7 @@ public class TypeFrames3 {
     }
 
     public TypeFrames3(int dummy) {
-        // :: error: (method.invocation.invalid)
+        // :: error: (initialization.method.invocation.invalid)
         foo();
         f = new Object();
     }

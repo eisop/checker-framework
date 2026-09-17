@@ -120,11 +120,8 @@ abstract class TypeParamElementAnnotationApplier extends IndexedElementAnnotatio
         List<TypeCompound> lowerBoundAnnos = new ArrayList<>();
 
         for (TypeCompound anno : targeted) {
-            AnnotationMirror aliasedAnno = atypeFactory.canonicalAnnotation(anno);
-            AnnotationMirror canonicalAnno = (aliasedAnno != null) ? aliasedAnno : anno;
-
             if (anno.position.parameter_index != paramIndex
-                    || !atypeFactory.isSupportedQualifier(canonicalAnno)) {
+                    || !atypeFactory.isSupportedQualifierOrAlias(anno)) {
                 continue;
             }
 
@@ -175,7 +172,8 @@ abstract class TypeParamElementAnnotationApplier extends IndexedElementAnnotatio
 
                     bounds.get(boundIndex).replaceAnnotation(anno); // TODO: WHY NOT ADD?
                 }
-                ((AnnotatedIntersectionType) upperBoundType).copyIntersectionBoundAnnotations();
+                // Do not summarize the bounds here: see the matching comment in
+                // TypeFromTypeTreeVisitor#visitTypeParameter.
 
             } else {
                 upperBoundType.addAnnotations(upperBounds);

@@ -1022,10 +1022,10 @@ public class DependentTypesHelper {
         public Void visitTypeVariable(
                 AnnotatedTypeMirror.AnnotatedTypeVariable type,
                 Function<AnnotationMirror, AnnotationMirror> func) {
-            if (visitedNodes.containsKey(type)) {
+            if (hasVisited(type)) {
                 return null;
             }
-            visitedNodes.put(type, null);
+            markVisited(type, null);
 
             // If the type variable has a primary annotation, then it is viewpoint-adapted before
             // this method is called.  The viewpoint-adapted primary annotation was already copied
@@ -1036,19 +1036,19 @@ public class DependentTypesHelper {
             type.getLowerBound().removeAnnotations(primarys);
             Void r = scan(type.getLowerBound(), func);
             type.getLowerBound().addAnnotations(primarys);
-            visitedNodes.put(type, r);
+            markVisited(type, r);
 
             type.getUpperBound().removeAnnotations(primarys);
             r = scanAndReduce(type.getUpperBound(), func, r);
             type.getUpperBound().addAnnotations(primarys);
-            visitedNodes.put(type, r);
+            markVisited(type, r);
             return r;
         }
 
         @Override
         protected Void scan(
                 AnnotatedTypeMirror type, Function<AnnotationMirror, AnnotationMirror> func) {
-            if (visitedNodes.containsKey(type)) {
+            if (hasVisited(type)) {
                 return null;
             }
             AnnotationMirrorSet primary = type.getAnnotations();

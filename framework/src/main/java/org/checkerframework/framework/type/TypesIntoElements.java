@@ -368,12 +368,12 @@ public final class TypesIntoElements {
         @Override
         public List<TypeCompound> visitDeclared(
                 AnnotatedDeclaredType type, TypeAnnotationPosition tapos) {
-            List<TypeCompound> cached = visitedNodes.get(type);
+            List<TypeCompound> cached = getVisited(type);
             if (cached != null) {
                 return cached;
             }
             // Hack for termination
-            visitedNodes.put(type, List.nil());
+            markVisited(type, List.nil());
             List<Attribute.TypeCompound> res;
 
             TypeAnnotationPosition oldpos = TypeAnnotationUtils.copyTAPosition(tapos);
@@ -403,7 +403,7 @@ public final class TypesIntoElements {
                 // use original tapos
                 res = scanAndReduce(encl, oldpos, res);
             }
-            visitedNodes.put(type, res);
+            markVisited(type, res);
             return res;
         }
 
@@ -436,11 +436,11 @@ public final class TypesIntoElements {
         @Override
         public List<TypeCompound> visitIntersection(
                 AnnotatedIntersectionType type, TypeAnnotationPosition tapos) {
-            List<TypeCompound> cached = visitedNodes.get(type);
+            List<TypeCompound> cached = getVisited(type);
             if (cached != null) {
                 return cached;
             }
-            visitedNodes.put(type, List.nil());
+            markVisited(type, List.nil());
             List<Attribute.TypeCompound> res;
             res = directAnnotations(type, tapos);
 
@@ -453,7 +453,7 @@ public final class TypesIntoElements {
                 res = scanAndReduce(bound, newpos, res);
                 ++arg;
             }
-            visitedNodes.put(type, res);
+            markVisited(type, res);
             return res;
         }
 
@@ -497,12 +497,12 @@ public final class TypesIntoElements {
         @Override
         public List<TypeCompound> visitWildcard(
                 AnnotatedWildcardType type, TypeAnnotationPosition tapos) {
-            if (this.visitedNodes.containsKey(type)) {
+            if (this.hasVisited(type)) {
                 return List.nil();
             }
             // Hack for termination, otherwise we'll visit one type too far (the same recursive
             // wildcard twice and generate extra type annos)
-            visitedNodes.put(type, List.nil());
+            markVisited(type, List.nil());
             List<Attribute.TypeCompound> res;
 
             // Note: By default, an Unbound wildcard will return true for both isExtendsBound and
@@ -526,7 +526,7 @@ public final class TypesIntoElements {
                     res = scanAndReduce(sup, newpos, res);
                 }
             }
-            visitedNodes.put(type, res);
+            markVisited(type, res);
             return res;
         }
     }

@@ -14,6 +14,7 @@ import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.ElementAnnotationApplier;
 import org.checkerframework.framework.util.element.ElementAnnotationUtil.UnexpectedAnnotationLocationException;
 import org.checkerframework.javacutil.BugInCF;
+import org.checkerframework.javacutil.InternalUtils;
 import org.plumelib.util.IPair;
 
 import java.util.ArrayList;
@@ -270,7 +271,7 @@ public class ParamApplier extends IndexedElementAnnotationApplier {
      */
     private boolean isReceiver(Element element) {
         return element.getKind() == ElementKind.PARAMETER
-                && element.getSimpleName().contentEquals("this");
+                && InternalUtils.isThisName(element.getSimpleName());
     }
 
     @Override

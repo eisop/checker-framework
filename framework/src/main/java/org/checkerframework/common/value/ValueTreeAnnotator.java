@@ -284,10 +284,10 @@ class ValueTreeAnnotator extends TreeAnnotator {
                                 oldAnno, newType, isUnsigned, atypeFactory);
                 newAnno = atypeFactory.createResultingAnnotation(atm.getUnderlyingType(), values);
             }
-            atm.addMissingAnnotations(Collections.singleton(newAnno));
+            atm.addMissingAnnotation(newAnno);
         } else if (atm.getKind() == TypeKind.ARRAY) {
             if (tree.getExpression().getKind() == Tree.Kind.NULL_LITERAL) {
-                atm.addMissingAnnotations(Collections.singleton(atypeFactory.BOTTOMVAL));
+                atm.addMissingAnnotation(atypeFactory.BOTTOMVAL);
             }
         }
         return null;

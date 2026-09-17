@@ -23,6 +23,7 @@ public class ReturnsReceiverLombokTest extends CheckerFrameworkPerDirectoryTest 
     }
 
     @Override
+    @SuppressWarnings("JUnitMethodInvoked")
     public void run() {
         // Only run if delomboked codes have been created.
         if (!new File("tests/returnsreceiverdelomboked/").exists()) {

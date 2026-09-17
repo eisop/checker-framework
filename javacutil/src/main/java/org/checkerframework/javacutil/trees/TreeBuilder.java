@@ -26,6 +26,7 @@ import com.sun.tools.javac.util.Name;
 import com.sun.tools.javac.util.Names;
 
 import org.checkerframework.javacutil.BugInCF;
+import org.checkerframework.javacutil.InternalUtils;
 import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TypesUtils;
 import org.plumelib.util.CollectionsPlume;
@@ -510,7 +511,7 @@ public class TreeBuilder {
 
         for (ExecutableElement method :
                 ElementFilter.methodsIn(elements.getAllMembers(boxedElement))) {
-            if (method.getSimpleName().contentEquals(primValueName)
+            if (InternalUtils.sameName(method.getSimpleName(), primValueName)
                     && method.getParameters().isEmpty()) {
                 primValueMethod = (Symbol.MethodSymbol) method;
             }

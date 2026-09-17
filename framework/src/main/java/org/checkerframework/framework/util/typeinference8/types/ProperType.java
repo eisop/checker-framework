@@ -36,6 +36,14 @@ public class ProperType extends AbstractType {
     private final int hashCode;
 
     /**
+     * Cached result of {@link #getErased()}. A proper type is immutable, so its erasure is stable;
+     * caching it avoids recomputing the erasure (a new annotated type plus a javac erasure call) on
+     * every {@link #isSubType} check, which runs repeatedly during bound incorporation. {@code
+     * null} until first computed.
+     */
+    private AbstractType erased = null;
+
+    /**
      * Creates a proper type.
      *
      * @param type the annotated type
@@ -248,7 +256,8 @@ public class ProperType extends AbstractType {
         }
     }
 
-    @SuppressWarnings("interning:not.interned") // Checking for exact object.
+    // Checking for exact object.
+    @SuppressWarnings({"interning:not.interned", "TypeEquals"})
     @Override
     public boolean equals(Object o) {
         if (this == o) {
@@ -282,7 +291,16 @@ public class ProperType extends AbstractType {
      * @return the hash code
      */
     private int computeHashCode() {
-        int hc = properType.toString().hashCode();
+        int hc = properType.getKind().hashCode();
+        javax.lang.model.element.Element elt = null;
+        if (properType instanceof javax.lang.model.type.DeclaredType) {
+            elt = ((javax.lang.model.type.DeclaredType) properType).asElement();
+        } else if (properType instanceof javax.lang.model.type.TypeVariable) {
+            elt = ((javax.lang.model.type.TypeVariable) properType).asElement();
+        }
+        if (elt != null) {
+            hc = 31 * hc + elt.getSimpleName().hashCode();
+        }
         hc = 31 * hc + Kind.PROPER.hashCode();
         return hc;
     }
@@ -320,6 +338,14 @@ public class ProperType extends AbstractType {
     @Override
     public AbstractType applyInstantiations() {
         return this;
+    }
+
+    @Override
+    public AbstractType getErased() {
+        if (erased == null) {
+            erased = super.getErased();
+        }
+        return erased;
     }
 
     @Override

@@ -4,8 +4,6 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.dataflow.analysis.Store;
 import org.checkerframework.javacutil.AnnotationProvider;
 
-import java.util.Objects;
-
 import javax.lang.model.type.TypeMirror;
 
 /** An array access. */
@@ -113,7 +111,10 @@ public class ArrayAccess extends JavaExpression {
     @Override
     public int hashCode() {
         if (hashCodeCache == 0) {
-            hashCodeCache = Objects.hash(array, index);
+            int h = 1;
+            h = 31 * h + (array != null ? array.hashCode() : 0);
+            h = 31 * h + (index != null ? index.hashCode() : 0);
+            hashCodeCache = h == 0 ? 1 : h;
         }
         return hashCodeCache;
     }
