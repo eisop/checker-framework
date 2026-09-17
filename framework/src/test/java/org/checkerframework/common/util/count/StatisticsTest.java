@@ -59,7 +59,7 @@ public class StatisticsTest {
                         new StringWriter(),
                         null,
                         diagnostics,
-                        Arrays.asList("-proc:only", "-Aannotations"),
+                        Arrays.asList("-proc:only", "-Aannotations", "-AnoJreVersionCheck"),
                         null,
                         Collections.singletonList(
                                 source(
@@ -68,7 +68,9 @@ public class StatisticsTest {
         task.setProcessors(Collections.singletonList(processor));
         boolean success = task.call();
         Assert.assertTrue("Compilation should succeed", success);
-        Assert.assertTrue(diagnostics.getDiagnostics().isEmpty());
+        Assert.assertTrue(
+                "Expected no diagnostics, but got: " + diagnostics.getDiagnostics(),
+                diagnostics.getDiagnostics().isEmpty());
         Assert.assertTrue(processor.annotationCount.isEmpty());
     }
 
@@ -88,7 +90,7 @@ public class StatisticsTest {
                         new StringWriter(),
                         null,
                         diagnostics,
-                        Arrays.asList("-proc:only", "-Aannotations"),
+                        Arrays.asList("-proc:only", "-Aannotations", "-AnoJreVersionCheck"),
                         null,
                         Collections.singletonList(
                                 source(
@@ -122,7 +124,7 @@ public class StatisticsTest {
                         new StringWriter(),
                         null,
                         diagnostics,
-                        Collections.singletonList("-proc:only"),
+                        Arrays.asList("-proc:only", "-AnoJreVersionCheck"),
                         null,
                         Collections.singletonList(
                                 source(

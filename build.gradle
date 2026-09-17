@@ -1382,12 +1382,22 @@ subprojects {
                     // Required for checker/jtreg/nullness/PersistUtil.java and other tests
                     "-vmoptions:-classpath ${tasks.shadowJar.archiveFile.get()}:${sourceSets.test.output.asPath}",
                 ]
+                // The com.sun.tools.classfile harness -- the defaultsPersist and
+                // inheritDeclAnnoPersist directories -- needs the jdk.jdeps module opened
+                // to it.  JDK 25 removed that package, and passing --add-opens for a package
+                // that does not exist makes every test VM print
+                // "WARNING: package com.sun.tools.classfile not in jdk.jdeps".  Those tests are
+                // themselves guarded by "@requires jdk.version.major <= 24", and the
+                // java.lang.classfile harness that replaces them on 25+ needs no such flag, so
+                // pass these only where they apply.
+                if (useJdkVersionInt <= 24) {
+                    args += [
+                        '-javacoptions:--add-modules jdk.jdeps',
+                        '-javacoptions:--add-exports=jdk.jdeps/com.sun.tools.classfile=ALL-UNNAMED',
+                        '-vmoptions:--add-opens=jdk.jdeps/com.sun.tools.classfile=ALL-UNNAMED',
+                    ]
+                }
                 args += [
-                    // checker/jtreg/nullness/defaultsPersist/ReferenceInfoUtil.java
-                    // uses the jdk.jdeps module.
-                    '-javacoptions:--add-modules jdk.jdeps',
-                    '-javacoptions:--add-exports=jdk.jdeps/com.sun.tools.classfile=ALL-UNNAMED',
-                    '-vmoptions:--add-opens=jdk.jdeps/com.sun.tools.classfile=ALL-UNNAMED',
                     '-vmoptions:--add-opens=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED',
                     '-vmoptions:--add-opens=jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED',
                     '-vmoptions:--add-opens=jdk.compiler/com.sun.tools.javac.comp=ALL-UNNAMED',
