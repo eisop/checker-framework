@@ -360,18 +360,7 @@ public class Resolution {
             } else {
                 AnnotatedTypeVariable lubTV =
                         (AnnotatedTypeVariable) lubProperType.getAnnotatedType();
-                // The lower bound may itself be a type variable, such as the T in the capture of ?
-                // super T, whose primary annotations are absent or missing a hierarchy, so use its
-                // effective annotations.  Write them back only if the lub differs: annotating a
-                // type variable makes it exact and changes its upper bound, too.
-                AnnotatedTypeMirror lubLowerBound = lubTV.getLowerBound();
-                AnnotationMirrorSet effective =
-                        AnnotatedTypes.findEffectiveLowerBoundAnnotations(qh, lubLowerBound);
-                Set<? extends AnnotationMirror> newLubAnnos =
-                        qh.leastUpperBoundsQualifiersOnly(lubAnnos, effective);
-                if (!AnnotationUtils.areSame(newLubAnnos, effective)) {
-                    lubLowerBound.replaceAnnotations(newLubAnnos);
-                }
+                lubIntoLowerBound(qh, lubTV, lubAnnos);
             }
         }
         ai.getBounds().addBound(null, BoundKind.EQUAL, lubProperType);
@@ -423,17 +412,7 @@ public class Resolution {
                     } else {
                         AnnotatedTypeVariable lubTV =
                                 (AnnotatedTypeVariable) lowerBound.getAnnotatedType();
-                        // See the comment in resolveWithLowerBounds.
-                        AnnotatedTypeMirror lubLowerBound = lubTV.getLowerBound();
-                        AnnotationMirrorSet effective =
-                                AnnotatedTypes.findEffectiveLowerBoundAnnotations(
-                                        qh, lubLowerBound);
-                        Set<? extends AnnotationMirror> newLubAnnos =
-                                qh.leastUpperBoundsQualifiersOnly(lowerBoundAnnos, effective);
-                        if (!AnnotationUtils.areSame(newLubAnnos, effective)) {
-                            lubLowerBound.replaceAnnotations(newLubAnnos);
-                        }
-                        lowerBoundAnnos = newLubAnnos;
+                        lowerBoundAnnos = lubIntoLowerBound(qh, lubTV, lowerBoundAnnos);
                     }
                 }
             } else {
@@ -478,5 +457,35 @@ public class Resolution {
 
         boundSet.incorporateToFixedPoint(resolvedBoundSet);
         return boundSet;
+    }
+
+    /**
+     * Merges {@code annos} into the lower bound of {@code typeVariable}, and returns the merged
+     * qualifiers.
+     *
+     * <p>The lower bound may itself be a type variable, such as the {@code T} in the capture of
+     * {@code ? super T}, whose primary annotations are absent or present in only some hierarchies.
+     * This therefore reads its <em>effective</em> annotations, and writes them back only when the
+     * least upper bound differs from them: annotating a type variable makes it exact, which would
+     * replace its upper bound as well.
+     *
+     * @param qualHierarchy the qualifier hierarchy
+     * @param typeVariable the type variable whose lower bound to merge into
+     * @param annos the qualifiers to merge into that lower bound
+     * @return the least upper bound of {@code annos} and the lower bound's effective annotations
+     */
+    private static Set<? extends AnnotationMirror> lubIntoLowerBound(
+            QualifierHierarchy qualHierarchy,
+            AnnotatedTypeVariable typeVariable,
+            Set<? extends AnnotationMirror> annos) {
+        AnnotatedTypeMirror lowerBound = typeVariable.getLowerBound();
+        AnnotationMirrorSet effective =
+                AnnotatedTypes.findEffectiveLowerBoundAnnotations(qualHierarchy, lowerBound);
+        Set<? extends AnnotationMirror> newAnnos =
+                qualHierarchy.leastUpperBoundsQualifiersOnly(annos, effective);
+        if (!AnnotationUtils.areSame(newAnnos, effective)) {
+            lowerBound.replaceAnnotations(newAnnos);
+        }
+        return newAnnos;
     }
 }
