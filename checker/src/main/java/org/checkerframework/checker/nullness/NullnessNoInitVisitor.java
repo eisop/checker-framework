@@ -48,6 +48,7 @@ import org.checkerframework.common.basetype.BaseTypeValidator;
 import org.checkerframework.common.basetype.BaseTypeVisitor;
 import org.checkerframework.common.basetype.TypeValidator;
 import org.checkerframework.framework.flow.CFCFGBuilder;
+import org.checkerframework.framework.source.AssumeAssertions;
 import org.checkerframework.framework.source.DiagMessage;
 import org.checkerframework.framework.source.SuggestedFixData;
 import org.checkerframework.framework.type.AnnotatedTypeFactory;
@@ -130,11 +131,8 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
     /** True if checked code may clear system properties. */
     private final boolean permitClearProperty;
 
-    /** True if -AassumeAssertionsAreEnabled was passed on the command line. */
-    private final boolean assumeAssertionsAreEnabled;
-
-    /** True if -AassumeAssertionsAreDisabled was passed on the command line. */
-    private final boolean assumeAssertionsAreDisabled;
+    /** What to assume about whether assertions are enabled, from {@code -AassumeAssertions}. */
+    private final AssumeAssertions assumeAssertions;
 
     /** True if -Alint=redundantNullComparison was passed on the command line. */
     private final boolean redundantNullComparison;
@@ -180,8 +178,7 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
                 checker.getLintOption(
                         NullnessChecker.LINT_PERMITCLEARPROPERTY,
                         NullnessChecker.LINT_DEFAULT_PERMITCLEARPROPERTY);
-        assumeAssertionsAreEnabled = checker.hasOption("assumeAssertionsAreEnabled");
-        assumeAssertionsAreDisabled = checker.hasOption("assumeAssertionsAreDisabled");
+        assumeAssertions = checker.getAssumeAssertions();
         redundantNullComparison =
                 checker.getLintOption(
                         NullnessChecker.LINT_REDUNDANTNULLCOMPARISON,
@@ -674,21 +671,13 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
         // See also
         // org.checkerframework.dataflow.cfg.builder.CFGBuilder.CFGTranslationPhaseOne.visitAssert
 
-        // In cases where neither assumeAssertionsAreEnabled nor assumeAssertionsAreDisabled are
-        // turned on and @AssumeAssertions is not used, checkForNullability is still called since
-        // the CFGBuilder will have generated one branch for which asserts are assumed to be
-        // enabled.
+        // In cases where neither assumption is made about assertions and @AssumeAssertions is not
+        // used, checkForNullability is still called since the CFGBuilder will have generated one
+        // branch for which asserts are assumed to be enabled.
 
-        boolean doVisitAssert;
-        if (assumeAssertionsAreEnabled
-                || CFCFGBuilder.assumeAssertionsActivatedForAssertTree(checker, tree)) {
-            doVisitAssert = true;
-        } else if (assumeAssertionsAreDisabled) {
-            doVisitAssert = false;
-        } else {
-            // no option given -> visit
-            doVisitAssert = true;
-        }
+        boolean doVisitAssert =
+                assumeAssertions != AssumeAssertions.DISABLED
+                        || CFCFGBuilder.assumeAssertionsActivatedForAssertTree(checker, tree);
 
         if (doVisitAssert) {
             checkForNullability(tree.getCondition(), CONDITION_NULLABLE);

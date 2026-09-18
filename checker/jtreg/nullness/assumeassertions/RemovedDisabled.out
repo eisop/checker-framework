@@ -1,0 +1,2 @@
+- compiler.err.proc.messager: The -AassumeAssertionsAreDisabled option has been removed; use -AassumeAssertions=disabled instead.
+1 error

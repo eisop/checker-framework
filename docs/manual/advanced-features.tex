@@ -1210,16 +1210,17 @@ enabled or disabled via the \<-ea>, \<-enableassertions>, \<-da>, or
 By default, the Checker Framework outputs warnings about any error that
 could happen at run time, whether assertions are enabled or disabled.
 
-If you supply the \<-AassumeAssertionsAreEnabled> command-line option, then
+If you supply the \<-AassumeAssertions=enabled> command-line option, then
 the Checker Framework assumes assertions (that is, Java \<assert>
 statements) are enabled, as if Java is run with the \<-ea> or
-\<-enableassertions> command-line argument.  If you supply the
-\<-AassumeAssertionsAreDisabled> command-line option, then the Checker
+\<-enableassertions> command-line argument.  If you supply
+\<-AassumeAssertions=disabled>, then the Checker
 Framework assumes assertions are disabled, as if Java is run with the
-\<-da> or \<-disableassertions> command-line argument.  You may not supply
-both command-line options.  It is uncommon to supply either one.
+\<-da> or \<-disableassertions> command-line argument.
+\<-AassumeAssertions=neither> is the default behavior described above.  It is
+uncommon to supply the option.
 
-These command-line arguments have no effect on processing of \<assert>
+This command-line option has no effect on processing of \<assert>
 statements whose message contains the text \<@AssumeAssertion>; see
 Section~\ref{assumeassertion}.
 
@@ -1660,11 +1661,11 @@ class @Marsupial-Animal {
 % LocalWords:  getPouchSize TerminatesExecution myvar myField getField m1
 % LocalWords:  computeValue arg myInt Anno Im InheritedAnnotation package2
 % LocalWords:  AcheckPurityAnnotations AassumeSideEffectFree iMplicit m2
-% LocalWords:  AassumeAssertionsAreEnabled myArray vals propkey forName
+% LocalWords:  AassumeAssertions myArray vals propkey forName
 % LocalWords:  fenum i18n RequiresQualifier EnsuresQualifier ClassName
 % LocalWords:  EnsuresQualifierIf AsuppressWarnings AinvariantArrays asts
 % LocalWords:  formatter ocals nstanceof plicit ounds wildcard's da
-% LocalWords:  wildcards guieffect AassumeAssertionsAreDisabled readLine
+% LocalWords:  wildcards guieffect readLine
 % LocalWords:  AssumeAssertion AsafeDefaultsForUnannotatedBytecode
 % LocalWords:  I18nFormatFor AunsafeDefaultsForUnannotatedBytecode
 % LocalWords:  AuseConservativeDefaultsForUncheckedCode DefaultFor TypeUseLocation

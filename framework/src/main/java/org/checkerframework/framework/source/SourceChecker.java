@@ -163,8 +163,15 @@ import javax.tools.Diagnostic;
     // Unsoundly assume getter methods have no side effects and are deterministic.
     "assumePureGetters",
 
-    // Whether to assume that assertions are enabled or disabled
-    // org.checkerframework.framework.flow.CFCFGBuilder.CFCFGBuilder
+    // Whether to assume that assertions are enabled at run time: "enabled", "disabled", or
+    // "neither" (the default), in which case both cases are accounted for.
+    // org.checkerframework.framework.source.SourceChecker.getAssumeAssertions
+    "assumeAssertions",
+
+    // Replaced by "assumeAssertions=enabled" and "assumeAssertions=disabled".  Supported so that
+    // passing one is an error that says so, rather than an unmatched-option warning that silently
+    // drops it.
+    // org.checkerframework.framework.source.SourceChecker.validateAssumeAssertionsOption
     "assumeAssertionsAreEnabled",
     "assumeAssertionsAreDisabled",
 
@@ -664,6 +671,9 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
 
     /** The supported values for the {@code -Amode} option. */
     private @MonotonicNonNull Set<String> supportedModes;
+
+    /** The value of {@code -AassumeAssertions}, set by {@link #getAssumeAssertions()}. */
+    private @MonotonicNonNull AssumeAssertions assumeAssertions;
 
     /** The enabled lint options. Is set in {@link #initChecker}. */
     private Set<String> activeLints;
@@ -1224,6 +1234,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
         Map<String, String> options = getOptions();
         if (parentChecker == null) {
             validateMode(options);
+            validateAssumeAssertionsOption(options);
         }
 
         // Initialize all checkers and share supported lint options.
@@ -2630,6 +2641,68 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
                             "Unsupported mode %s for %s; supported modes: %s.",
                             mode, getClass().getSimpleName(), new TreeSet<>(modes)));
         }
+    }
+
+    /**
+     * Throws a {@link UserError} if the {@code -AassumeAssertions} command-line option has an
+     * invalid value, or if an option that it replaced was supplied.
+     *
+     * @param activeOptions the active options
+     */
+    private void validateAssumeAssertionsOption(Map<String, String> activeOptions) {
+        if (activeOptions.containsKey("assumeAssertionsAreEnabled")) {
+            throw new UserError(
+                    "The -AassumeAssertionsAreEnabled option has been removed;"
+                            + " use -AassumeAssertions=enabled instead.");
+        }
+        if (activeOptions.containsKey("assumeAssertionsAreDisabled")) {
+            throw new UserError(
+                    "The -AassumeAssertionsAreDisabled option has been removed;"
+                            + " use -AassumeAssertions=disabled instead.");
+        }
+        // Parses and caches the value, throwing a UserError if it is invalid.
+        getAssumeAssertions();
+    }
+
+    /**
+     * Returns what to assume about whether assertions are enabled at run time, as selected by the
+     * {@code -AassumeAssertions} command-line option.
+     *
+     * @return what to assume about whether assertions are enabled at run time
+     */
+    public final AssumeAssertions getAssumeAssertions() {
+        if (assumeAssertions == null) {
+            assumeAssertions = parseAssumeAssertions();
+        }
+        return assumeAssertions;
+    }
+
+    /**
+     * Computes the result of {@link #getAssumeAssertions()} from the {@code -AassumeAssertions}
+     * command-line option.
+     *
+     * @return what to assume about whether assertions are enabled at run time
+     */
+    private AssumeAssertions parseAssumeAssertions() {
+        if (!hasOption("assumeAssertions")) {
+            return AssumeAssertions.NEITHER;
+        }
+        String value = getOption("assumeAssertions");
+        if (value == null || value.isEmpty()) {
+            throw new UserError(
+                    "The -AassumeAssertions option requires a value: enabled, disabled, or"
+                            + " neither.");
+        }
+        for (AssumeAssertions candidate : AssumeAssertions.values()) {
+            if (candidate.name().toLowerCase(Locale.ROOT).equals(value)) {
+                return candidate;
+            }
+        }
+        throw new UserError(
+                String.format(
+                        "The -AassumeAssertions option must be enabled, disabled, or neither, but"
+                                + " is \"%s\".",
+                        value));
     }
 
     @Override

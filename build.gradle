@@ -1318,7 +1318,7 @@ subprojects {
                 [
                     // to avoid having to annotate JavaParser
                     '-AassumePureGetters',
-                    '-AassumeAssertionsAreEnabled',
+                    '-AassumeAssertions=enabled',
                 ])
         rootProject.createCheckTypeTask(project.name,'Purity',
                 'org.checkerframework.framework.util.PurityChecker')

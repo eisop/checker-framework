@@ -10,6 +10,14 @@ building it.  See the "Development jars without building" section of the manual.
 The EISOP Checker Framework runs under JDK 27 and under JDK 28 b15 early access
 builds -- that is, it runs on version 27 and 28 JVMs.
 
+New command-line option `-AassumeAssertions=enabled|disabled|neither` states what to assume
+about whether assertions are enabled at run time. `neither`, the default, accounts for both
+cases, as before. It replaces `-AassumeAssertionsAreEnabled` and
+`-AassumeAssertionsAreDisabled`, which have been removed; passing either is an error that
+names its replacement. The old options could not state the default explicitly, and passing
+both was an error, so a checker-defined group of options such as `-Amode` could not set an
+assertion default that the command line overrides.
+
 A checker can now examine a package declaration. `AbstractTypeProcessor` dropped the
 analysis event for a `package-info.java`, so no checker could ever visit one and a
 declaration annotation written on a `package` clause went unchecked. Three checks that
@@ -1125,6 +1133,7 @@ eisop#2064,
 eisop#2074,
 eisop#2081,
 eisop#2089,
+eisop#2091,
 typetools#399,
 typetools#2816,
 typetools#3203.
