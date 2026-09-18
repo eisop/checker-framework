@@ -61,14 +61,14 @@ import org.checkerframework.framework.type.GenericAnnotatedTypeFactory;
 import org.checkerframework.framework.util.JavaParserUtil;
 import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.BugInCF;
+import org.checkerframework.javacutil.DeepCopyable;
 import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.InternalUtils;
+import org.checkerframework.javacutil.Pair;
 import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TypeSystemError;
 import org.plumelib.util.ArraySet;
 import org.plumelib.util.CollectionsPlume;
-import org.plumelib.util.DeepCopyable;
-import org.plumelib.util.IPair;
 import org.plumelib.util.UtilPlume;
 
 import java.io.File;
@@ -1529,7 +1529,7 @@ public class WholeProgramInferenceJavaParserStorage
         private @MonotonicNonNull List<@Nullable AnnotatedTypeMirror> parameterTypes = null;
 
         /** Declaration annotations on the parameters. */
-        private @MonotonicNonNull Set<IPair<Integer, AnnotationMirror>> paramsDeclAnnos = null;
+        private @MonotonicNonNull Set<Pair<Integer, AnnotationMirror>> paramsDeclAnnos = null;
 
         /**
          * Annotations on the callable declaration. This does not include preconditions and
@@ -1650,7 +1650,7 @@ public class WholeProgramInferenceJavaParserStorage
                 paramsDeclAnnos = new ArraySet<>(4);
             }
 
-            return paramsDeclAnnos.add(IPair.of(index_1based, annotation));
+            return paramsDeclAnnos.add(Pair.of(index_1based, annotation));
         }
 
         /**
@@ -1878,7 +1878,7 @@ public class WholeProgramInferenceJavaParserStorage
             }
 
             if (paramsDeclAnnos != null) {
-                for (IPair<Integer, AnnotationMirror> pair : paramsDeclAnnos) {
+                for (Pair<Integer, AnnotationMirror> pair : paramsDeclAnnos) {
                     Parameter param = declaration.getParameter(pair.first - 1);
                     param.addAnnotation(
                             AnnotationMirrorToAnnotationExprConversion

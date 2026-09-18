@@ -20,7 +20,7 @@ import org.checkerframework.framework.util.element.TypeVarUseApplier;
 import org.checkerframework.framework.util.element.VariableApplier;
 import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.ElementUtils;
-import org.plumelib.util.IPair;
+import org.checkerframework.javacutil.Pair;
 
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
@@ -210,14 +210,14 @@ public final class ElementAnnotationApplier {
      * @return a LambdaExpressionTree if the varEle represents a parameter in a lambda expression,
      *     otherwise null
      */
-    public static @Nullable IPair<VariableTree, LambdaExpressionTree> getParamAndLambdaTree(
+    public static @Nullable Pair<VariableTree, LambdaExpressionTree> getParamAndLambdaTree(
             VariableElement varEle, AnnotatedTypeFactory typeFactory) {
         VariableTree paramDecl = (VariableTree) typeFactory.declarationFromElement(varEle);
 
         if (paramDecl != null) {
             Tree parentTree = typeFactory.getPath(paramDecl).getParentPath().getLeaf();
             if (parentTree instanceof LambdaExpressionTree) {
-                return IPair.of(paramDecl, (LambdaExpressionTree) parentTree);
+                return Pair.of(paramDecl, (LambdaExpressionTree) parentTree);
             }
         }
 
