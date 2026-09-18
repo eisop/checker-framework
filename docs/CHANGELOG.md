@@ -1070,9 +1070,13 @@ Other improvements and bug fixes:
   required by JLS 18.2.3. The extra bound inferred types that differ from
   javac's and caused a crash for a lambda over a wildcard array list such as
   `new ArrayList<>(List<? extends int[]>).forEach((int[] b) -> {})`.
-  Resolving an inference variable to a captured type variable now also handles
-  a lower bound that is a type variable annotated in only some qualifier
-  hierarchies, as in the capture of `? super T`.
+  When the type an inference variable resolves to lacks a required qualifier,
+  as for `pick(null, t)` with `t` of type `T`, resolution now instantiates the
+  variable to a requalified copy of that type, such as `@Nullable T`, instead
+  of writing the qualifier onto the type's lower bound, which produced a type
+  that no source can express. Diagnostics can now show a captured type
+  variable, such as `capture#01 extends @Nullable String`, where they
+  previously showed its bound, such as `@Nullable String`.
 
 **Closed issues:**
 

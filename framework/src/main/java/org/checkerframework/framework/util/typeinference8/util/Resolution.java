@@ -8,12 +8,14 @@ import org.checkerframework.framework.util.typeinference8.bound.BoundSet;
 import org.checkerframework.framework.util.typeinference8.types.AbstractQualifier;
 import org.checkerframework.framework.util.typeinference8.types.AbstractType;
 import org.checkerframework.framework.util.typeinference8.types.Dependencies;
+import org.checkerframework.framework.util.typeinference8.types.InferenceFactory;
 import org.checkerframework.framework.util.typeinference8.types.ProperType;
 import org.checkerframework.framework.util.typeinference8.types.Variable;
 import org.checkerframework.framework.util.typeinference8.types.VariableBounds;
 import org.checkerframework.framework.util.typeinference8.types.VariableBounds.BoundKind;
 import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.AnnotationUtils;
+import org.checkerframework.javacutil.BugInCF;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -352,16 +354,7 @@ public class Resolution {
         if (!qualifierLowerBounds.isEmpty()) {
             QualifierHierarchy qh = context.typeFactory.getQualifierHierarchy();
             Set<AnnotationMirror> lubAnnos = AbstractQualifier.lub(qualifierLowerBounds, context);
-            if (lubProperType.getAnnotatedType().getKind() != TypeKind.TYPEVAR) {
-                Set<? extends AnnotationMirror> newLubAnnos =
-                        qh.leastUpperBoundsQualifiersOnly(
-                                lubAnnos, lubProperType.getAnnotatedType().getAnnotations());
-                lubProperType.getAnnotatedType().replaceAnnotations(newLubAnnos);
-            } else {
-                AnnotatedTypeVariable lubTV =
-                        (AnnotatedTypeVariable) lubProperType.getAnnotatedType();
-                lubIntoLowerBound(qh, lubTV, lubAnnos);
-            }
+            lubProperType = raiseToQualifiers(qh, lubProperType, lubAnnos);
         }
         ai.getBounds().addBound(null, BoundKind.EQUAL, lubProperType);
     }
@@ -402,18 +395,7 @@ public class Resolution {
                 QualifierHierarchy qh = context.typeFactory.getQualifierHierarchy();
                 lowerBoundAnnos = AbstractQualifier.lub(qualifierLowerBounds, context);
                 if (lowerBound != null) {
-                    if (lowerBound.getAnnotatedType().getKind() != TypeKind.TYPEVAR) {
-                        Set<? extends AnnotationMirror> newLubAnnos =
-                                qh.leastUpperBoundsQualifiersOnly(
-                                        lowerBoundAnnos,
-                                        lowerBound.getAnnotatedType().getAnnotations());
-                        lowerBound.getAnnotatedType().replaceAnnotations(newLubAnnos);
-                        lowerBoundAnnos = newLubAnnos;
-                    } else {
-                        AnnotatedTypeVariable lubTV =
-                                (AnnotatedTypeVariable) lowerBound.getAnnotatedType();
-                        lowerBoundAnnos = lubIntoLowerBound(qh, lubTV, lowerBoundAnnos);
-                    }
+                    lowerBound = raiseToQualifiers(qh, lowerBound, lowerBoundAnnos);
                 }
             } else {
                 lowerBoundAnnos = Collections.emptySet();
@@ -460,32 +442,71 @@ public class Resolution {
     }
 
     /**
-     * Merges {@code annos} into the lower bound of {@code typeVariable}, and returns the merged
-     * qualifiers.
+     * Returns the least type above {@code type} whose qualifiers are at least {@code quals}. That
+     * is {@code type} itself if it already has them. Otherwise it is built on a copy of {@code
+     * type}: for a declared type, the copy's primary qualifiers are raised to the least upper bound
+     * with {@code quals}; for a use of a type variable, the copy is requalified, in each hierarchy
+     * whose qualifier it lacks, to the least upper bound of the required qualifier and the use's
+     * upper bound, so that the use is still a subtype of the result.
      *
-     * <p>The lower bound may itself be a type variable, such as the {@code T} in the capture of
-     * {@code ? super T}, whose primary annotations are absent or present in only some hierarchies.
-     * This therefore reads its <em>effective</em> annotations, and writes them back only when the
-     * least upper bound differs from them: annotating a type variable makes it exact, which would
-     * replace its upper bound as well.
+     * <p>A type variable use may be the {@code T} in the capture of {@code ? super T}, whose
+     * primary annotations are absent or present in only some hierarchies, so this reads its
+     * effective annotations. Nothing is written to {@code type} or its bounds: a qualifier written
+     * onto a type variable's lower bound would give a type that no source can express, and {@code
+     * type} may be an argument's own type, which {@link InferenceFactory#lub(Set)} returns as is
+     * when it is the only lower bound.
      *
      * @param qualHierarchy the qualifier hierarchy
-     * @param typeVariable the type variable whose lower bound to merge into
-     * @param annos the qualifiers to merge into that lower bound
-     * @return the least upper bound of {@code annos} and the lower bound's effective annotations
+     * @param type a proper type, the least upper bound of an inference variable's lower bounds
+     * @param quals qualifiers the result must have at least, at most one per hierarchy
+     * @return {@code type}, or a copy of it with raised qualifiers
      */
-    private static Set<? extends AnnotationMirror> lubIntoLowerBound(
+    private static ProperType raiseToQualifiers(
             QualifierHierarchy qualHierarchy,
-            AnnotatedTypeVariable typeVariable,
-            Set<? extends AnnotationMirror> annos) {
-        AnnotatedTypeMirror lowerBound = typeVariable.getLowerBound();
-        AnnotationMirrorSet effective =
-                AnnotatedTypes.findEffectiveLowerBoundAnnotations(qualHierarchy, lowerBound);
-        Set<? extends AnnotationMirror> newAnnos =
-                qualHierarchy.leastUpperBoundsQualifiersOnly(annos, effective);
-        if (!AnnotationUtils.areSame(newAnnos, effective)) {
-            lowerBound.replaceAnnotations(newAnnos);
+            ProperType type,
+            Set<? extends AnnotationMirror> quals) {
+        AnnotatedTypeMirror atm = type.getAnnotatedType();
+        AnnotatedTypeMirror raised = null;
+        if (atm.getKind() != TypeKind.TYPEVAR) {
+            AnnotationMirrorSet current = atm.getAnnotations();
+            Set<? extends AnnotationMirror> merged =
+                    qualHierarchy.leastUpperBoundsQualifiersOnly(quals, current);
+            if (!AnnotationUtils.areSame(merged, current)) {
+                raised = atm.deepCopy();
+                raised.replaceAnnotations(merged);
+            }
+        } else {
+            AnnotatedTypeVariable typeVariable = (AnnotatedTypeVariable) atm;
+            AnnotationMirrorSet effectiveLower =
+                    AnnotatedTypes.findEffectiveLowerBoundAnnotations(qualHierarchy, typeVariable);
+            for (AnnotationMirror qual : quals) {
+                AnnotationMirror lower =
+                        qualHierarchy.findAnnotationInSameHierarchy(effectiveLower, qual);
+                if (lower == null) {
+                    throw new BugInCF(
+                            "No annotation in the hierarchy of %s on %s", qual, typeVariable);
+                }
+                if (qualHierarchy.isSubtypeQualifiersOnly(qual, lower)) {
+                    continue;
+                }
+                AnnotationMirror upper = typeVariable.getEffectiveAnnotationInHierarchy(qual);
+                AnnotationMirror requalified =
+                        upper == null
+                                ? null
+                                : qualHierarchy.leastUpperBoundQualifiersOnly(qual, upper);
+                if (requalified == null) {
+                    throw new BugInCF(
+                            "No annotation in the hierarchy of %s on %s", qual, typeVariable);
+                }
+                if (raised == null) {
+                    raised = typeVariable.deepCopy();
+                }
+                raised.replaceAnnotation(requalified);
+            }
         }
-        return newAnnos;
+        if (raised == null) {
+            return type;
+        }
+        return (ProperType) type.create(raised, type.getJavaType(), type.ignoreAnnotations);
     }
 }
