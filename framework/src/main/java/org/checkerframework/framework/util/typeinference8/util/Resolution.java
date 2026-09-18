@@ -354,7 +354,7 @@ public class Resolution {
         if (!qualifierLowerBounds.isEmpty()) {
             QualifierHierarchy qh = context.typeFactory.getQualifierHierarchy();
             Set<AnnotationMirror> lubAnnos = AbstractQualifier.lub(qualifierLowerBounds, context);
-            lubProperType = raiseToQualifiers(qh, lubProperType, lubAnnos);
+            lubProperType = boundQualifiers(qh, lubProperType, lubAnnos, BoundKind.LOWER);
         }
         ai.getBounds().addBound(null, BoundKind.EQUAL, lubProperType);
     }
@@ -388,14 +388,14 @@ public class Resolution {
             Set<ProperType> lowerBounds = ai.getBounds().findProperLowerBounds();
             ProperType lowerBound = context.inferenceTypeFactory.lub(lowerBounds);
 
+            QualifierHierarchy qh = context.typeFactory.getQualifierHierarchy();
             Set<? extends AnnotationMirror> lowerBoundAnnos;
             Set<AbstractQualifier> qualifierLowerBounds =
                     ai.getBounds().qualifierBounds.get(BoundKind.LOWER);
             if (!qualifierLowerBounds.isEmpty()) {
-                QualifierHierarchy qh = context.typeFactory.getQualifierHierarchy();
                 lowerBoundAnnos = AbstractQualifier.lub(qualifierLowerBounds, context);
                 if (lowerBound != null) {
-                    lowerBound = raiseToQualifiers(qh, lowerBound, lowerBoundAnnos);
+                    lowerBound = boundQualifiers(qh, lowerBound, lowerBoundAnnos, BoundKind.LOWER);
                 }
             } else {
                 lowerBoundAnnos = Collections.emptySet();
@@ -409,13 +409,7 @@ public class Resolution {
             if (!qualifierUpperBounds.isEmpty()) {
                 upperBoundAnnos = AbstractQualifier.glb(qualifierUpperBounds, context);
                 if (upperBound != null) {
-                    upperBoundAnnos =
-                            context.typeFactory
-                                    .getQualifierHierarchy()
-                                    .greatestLowerBoundsQualifiersOnly(
-                                            upperBoundAnnos,
-                                            upperBound.getAnnotatedType().getAnnotations());
-                    upperBound.getAnnotatedType().replaceAnnotations(upperBoundAnnos);
+                    upperBound = boundQualifiers(qh, upperBound, upperBoundAnnos, BoundKind.UPPER);
                 }
             } else {
                 upperBoundAnnos = Collections.emptySet();
@@ -442,71 +436,96 @@ public class Resolution {
     }
 
     /**
-     * Returns the least type above {@code type} whose qualifiers are at least {@code quals}. That
-     * is {@code type} itself if it already has them. Otherwise it is built on a copy of {@code
-     * type}: for a declared type, the copy's primary qualifiers are raised to the least upper bound
+     * Returns the nearest type to {@code type} that has {@code quals} as lower bounds, if {@code
+     * kind} is {@link BoundKind#LOWER}, or as upper bounds, if it is {@link BoundKind#UPPER}: the
+     * least type above {@code type} whose qualifiers are at least {@code quals}, or the greatest
+     * type below it whose qualifiers are at most {@code quals}. That is {@code type} itself if its
+     * qualifiers already satisfy {@code quals}. Otherwise it is built on a copy of {@code type}:
+     * for a declared type, the copy's primary qualifiers are the least upper (greatest lower) bound
      * with {@code quals}; for a use of a type variable, the copy is requalified, in each hierarchy
-     * whose qualifier it lacks, to the least upper bound of the required qualifier and the use's
-     * upper bound, so that the use is still a subtype of the result.
+     * whose qualifier does not satisfy {@code quals}, to the least upper bound of the required
+     * qualifier and the use's upper bound (the greatest lower bound with its lower bound), which is
+     * the nearest requalified use that keeps the use a subtype (supertype) of the result.
      *
      * <p>A type variable use may be the {@code T} in the capture of {@code ? super T}, whose
      * primary annotations are absent or present in only some hierarchies, so this reads its
      * effective annotations. Nothing is written to {@code type} or its bounds: a qualifier written
-     * onto a type variable's lower bound would give a type that no source can express, and {@code
+     * onto a bound of a type variable would give a type that no source can express, and {@code
      * type} may be an argument's own type, which {@link InferenceFactory#lub(Set)} returns as is
      * when it is the only lower bound.
      *
      * @param qualHierarchy the qualifier hierarchy
-     * @param type a proper type, the least upper bound of an inference variable's lower bounds
-     * @param quals qualifiers the result must have at least, at most one per hierarchy
-     * @return {@code type}, or a copy of it with raised qualifiers
+     * @param type the least upper bound of an inference variable's lower bounds, or the greatest
+     *     lower bound of its upper bounds
+     * @param quals qualifiers that the result must have as lower or upper bounds, at most one per
+     *     hierarchy
+     * @param kind {@link BoundKind#LOWER} if {@code quals} are lower bounds, {@link
+     *     BoundKind#UPPER} if they are upper bounds
+     * @param <T> the kind of type
+     * @return {@code type}, or a copy of it with adjusted qualifiers
      */
-    private static ProperType raiseToQualifiers(
+    @SuppressWarnings("unchecked") // create() returns the receiver's own class
+    private static <T extends AbstractType> T boundQualifiers(
             QualifierHierarchy qualHierarchy,
-            ProperType type,
-            Set<? extends AnnotationMirror> quals) {
+            T type,
+            Set<? extends AnnotationMirror> quals,
+            BoundKind kind) {
+        boolean lower = kind == BoundKind.LOWER;
         AnnotatedTypeMirror atm = type.getAnnotatedType();
-        AnnotatedTypeMirror raised = null;
+        AnnotatedTypeMirror adjusted = null;
         if (atm.getKind() != TypeKind.TYPEVAR) {
             AnnotationMirrorSet current = atm.getAnnotations();
             Set<? extends AnnotationMirror> merged =
-                    qualHierarchy.leastUpperBoundsQualifiersOnly(quals, current);
+                    lower
+                            ? qualHierarchy.leastUpperBoundsQualifiersOnly(quals, current)
+                            : qualHierarchy.greatestLowerBoundsQualifiersOnly(quals, current);
             if (!AnnotationUtils.areSame(merged, current)) {
-                raised = atm.deepCopy();
-                raised.replaceAnnotations(merged);
+                adjusted = atm.deepCopy();
+                adjusted.replaceAnnotations(merged);
             }
         } else {
             AnnotatedTypeVariable typeVariable = (AnnotatedTypeVariable) atm;
+            // The qualifiers of the use that quals must be below (above), and, if they are not,
+            // the qualifiers of the use that the requalification must stay above (below).
             AnnotationMirrorSet effectiveLower =
                     AnnotatedTypes.findEffectiveLowerBoundAnnotations(qualHierarchy, typeVariable);
+            AnnotationMirrorSet effectiveUpper =
+                    AnnotatedTypes.findEffectiveAnnotations(qualHierarchy, typeVariable);
+            AnnotationMirrorSet satisfying = lower ? effectiveLower : effectiveUpper;
+            AnnotationMirrorSet limiting = lower ? effectiveUpper : effectiveLower;
             for (AnnotationMirror qual : quals) {
-                AnnotationMirror lower =
-                        qualHierarchy.findAnnotationInSameHierarchy(effectiveLower, qual);
-                if (lower == null) {
+                AnnotationMirror have =
+                        qualHierarchy.findAnnotationInSameHierarchy(satisfying, qual);
+                AnnotationMirror limit =
+                        qualHierarchy.findAnnotationInSameHierarchy(limiting, qual);
+                if (have == null || limit == null) {
                     throw new BugInCF(
                             "No annotation in the hierarchy of %s on %s", qual, typeVariable);
                 }
-                if (qualHierarchy.isSubtypeQualifiersOnly(qual, lower)) {
+                boolean satisfied =
+                        lower
+                                ? qualHierarchy.isSubtypeQualifiersOnly(qual, have)
+                                : qualHierarchy.isSubtypeQualifiersOnly(have, qual);
+                if (satisfied) {
                     continue;
                 }
-                AnnotationMirror upper = typeVariable.getEffectiveAnnotationInHierarchy(qual);
                 AnnotationMirror requalified =
-                        upper == null
-                                ? null
-                                : qualHierarchy.leastUpperBoundQualifiersOnly(qual, upper);
+                        lower
+                                ? qualHierarchy.leastUpperBoundQualifiersOnly(qual, limit)
+                                : qualHierarchy.greatestLowerBoundQualifiersOnly(qual, limit);
                 if (requalified == null) {
                     throw new BugInCF(
                             "No annotation in the hierarchy of %s on %s", qual, typeVariable);
                 }
-                if (raised == null) {
-                    raised = typeVariable.deepCopy();
+                if (adjusted == null) {
+                    adjusted = typeVariable.deepCopy();
                 }
-                raised.replaceAnnotation(requalified);
+                adjusted.replaceAnnotation(requalified);
             }
         }
-        if (raised == null) {
+        if (adjusted == null) {
             return type;
         }
-        return (ProperType) type.create(raised, type.getJavaType(), type.ignoreAnnotations);
+        return (T) type.create(adjusted, type.getJavaType(), type.ignoreAnnotations);
     }
 }
