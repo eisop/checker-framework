@@ -155,3 +155,35 @@ jobs:
       - name: Run test script checker/bin-devel/test-${{ matrix.script }}
         shell: bash
         run: ./checker/bin-devel/test-${{ matrix.script }}.sh
+
+  # Build the jars that a release ships and attach them to the run, so that a
+  # branch can be tried out without building it.  Not gated on the test jobs:
+  # the jars of a branch whose tests fail are exactly the ones a bug report
+  # wants to attach.
+  dev-jars:
+    name: Development jars
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+
+      - name: Set up test environment
+        uses: ./.github/actions/setup-test-env
+        with:
+          primary-jdk: ${{ env.PRIMARY_JDK }}
+          target-jdk: ${{ env.PRIMARY_JDK }}
+          jdk-ea-major: ${{ env.JDK_EA_MAJOR }}
+          jdk-ea-build: ${{ env.JDK_EA_BUILD }}
+          cache-read-only: ${{ github.ref != 'refs/heads/master' }}
+
+      - name: Build the jars
+        run: ./gradlew assembleForJavac
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: checker-framework-jars
+          path: checker/dist/*.jar
+          if-no-files-found: error
+          retention-days: 30
