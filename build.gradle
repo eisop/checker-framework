@@ -22,6 +22,7 @@ plugins {
     // https://github.com/diffplug/spotless/tags ; see tags starting "gradle/"
     // Only works on JDK 11+ (even including the plugin crashes Gradle on JDK 8).
     id 'com.diffplug.spotless' version '8.10.2'
+    id 'io.github.andygoossens.modernizer' version '2.0.0' apply false
 }
 
 // There is another `repositories { ... }` block below; if you change this one, change that one as well.
@@ -103,19 +104,10 @@ ext {
 
 // Keep in sync with check in
 // framework/src/main/java/org/checkerframework/framework/source/SourceChecker.java .
-switch (JavaVersion.current()) {
-    case JavaVersion.VERSION_1_8:
-    case JavaVersion.VERSION_11:
-    case JavaVersion.VERSION_17:
-    case JavaVersion.VERSION_21:
-    case JavaVersion.VERSION_25:
-    case JavaVersion.VERSION_26:
-    case JavaVersion.VERSION_27:
-        break; // Supported versions
-    default:
-        logger.info('The Checker Framework is tested with JDK 8, 11, 17, 21, 25, 26, and 27-EA.' +
-        ' You are using JDK ' + JavaVersion.current().majorVersion + '.');
-        break;
+List<Integer> supportedJres = [8, 11, 17, 21, 25, 27, 28]
+if (!supportedJres.contains(currentRuntimeJavaVersion)) {
+    String supportedList = supportedJres[0..-2].join(', ') + ', and ' + supportedJres[-1] + '-EA'
+    logger.info("The Checker Framework is tested with JDK ${supportedList}. You are using JDK ${currentRuntimeJavaVersion}.")
 }
 
 // Git hooks are installed into the main worktree's .git directory.  'git worktree list' prints
@@ -173,14 +165,14 @@ allprojects { currentProj ->
     //   * backward-incompatible changes have been made to APIs or elsewhere.
     // To make a snapshot release, version should end in "-SNAPSHOT", then: ./gradlew publish
     version = '3.49.5-eisop2-SNAPSHOT'
+    group = 'io.github.eisop'
 
     apply plugin: 'java'
     apply plugin: 'eclipse'
     apply plugin: 'com.gradleup.shadow'
     apply plugin: 'de.undercouch.download'
     apply plugin: 'net.ltgt.errorprone'
-
-    group = 'io.github.eisop'
+    apply plugin: 'io.github.andygoossens.modernizer'
 
     java {
         // Using `options.release.set(8)` here leads to compilation
@@ -468,6 +460,22 @@ allprojects { currentProj ->
             checkerFatJar(project(path: ':checker', configuration: 'fatJar'))
         }
 
+        modernizer {
+            failOnViolations = true
+            includeTestClasses = true
+            javaVersion = 8
+            exclusionPatterns = [
+                // StringTokenizer is used in parsers (e.g., TreeParser, StubGenerator) with returnDelims=true,
+                // where String.split/Scanner is not a drop-in replacement.
+                '.*StringTokenizer.*',
+                // Many internal and external APIs (including javac) require File instances. Converting
+                // Paths.get(...).toFile() is verbose and artificial (and Path.of is Java 11+).
+                'java/io/File\\."<init>".*',
+                // Files.createTempFile requires Path and does not directly support nullable directory arguments;
+                // converting via .toFile() adds awkward boilerplate across test harnesses.
+                'java/io/File\\.createTempFile.*',
+            ]
+        }
         // Add the fat checker.jar to the classpath of every Javadoc task. This allows Javadoc in
         // any module to reference classes in any other module.
         // Also, build and use ManualTaglet as a taglet.
@@ -1374,12 +1382,22 @@ subprojects {
                     // Required for checker/jtreg/nullness/PersistUtil.java and other tests
                     "-vmoptions:-classpath ${tasks.shadowJar.archiveFile.get()}:${sourceSets.test.output.asPath}",
                 ]
+                // The com.sun.tools.classfile harness -- the defaultsPersist and
+                // inheritDeclAnnoPersist directories -- needs the jdk.jdeps module opened
+                // to it.  JDK 25 removed that package, and passing --add-opens for a package
+                // that does not exist makes every test VM print
+                // "WARNING: package com.sun.tools.classfile not in jdk.jdeps".  Those tests are
+                // themselves guarded by "@requires jdk.version.major <= 24", and the
+                // java.lang.classfile harness that replaces them on 25+ needs no such flag, so
+                // pass these only where they apply.
+                if (useJdkVersionInt <= 24) {
+                    args += [
+                        '-javacoptions:--add-modules jdk.jdeps',
+                        '-javacoptions:--add-exports=jdk.jdeps/com.sun.tools.classfile=ALL-UNNAMED',
+                        '-vmoptions:--add-opens=jdk.jdeps/com.sun.tools.classfile=ALL-UNNAMED',
+                    ]
+                }
                 args += [
-                    // checker/jtreg/nullness/defaultsPersist/ReferenceInfoUtil.java
-                    // uses the jdk.jdeps module.
-                    '-javacoptions:--add-modules jdk.jdeps',
-                    '-javacoptions:--add-exports=jdk.jdeps/com.sun.tools.classfile=ALL-UNNAMED',
-                    '-vmoptions:--add-opens=jdk.jdeps/com.sun.tools.classfile=ALL-UNNAMED',
                     '-vmoptions:--add-opens=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED',
                     '-vmoptions:--add-opens=jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED',
                     '-vmoptions:--add-opens=jdk.compiler/com.sun.tools.javac.comp=ALL-UNNAMED',

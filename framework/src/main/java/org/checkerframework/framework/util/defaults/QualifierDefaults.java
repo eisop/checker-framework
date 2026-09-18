@@ -101,6 +101,14 @@ public class QualifierDefaults {
     /** AnnotatedTypeFactory to use. */
     private final AnnotatedTypeFactory atypeFactory;
 
+    /**
+     * Whether {@code -AwarnBytecodeConflicts} was supplied. It makes a conflict among the
+     * {@code @DefaultQualifier} annotations on an element read from bytecode a warning; without it
+     * such a conflict is silent, since the declaration is not one the user can edit and the set of
+     * bytecode elements examined depends on what this compilation happens to touch.
+     */
+    private final boolean warnBytecodeConflicts;
+
     /** Defaults for checked code. */
     private final DefaultSet checkedCodeDefaults = new DefaultSet();
 
@@ -251,6 +259,7 @@ public class QualifierDefaults {
     public QualifierDefaults(Elements elements, AnnotatedTypeFactory atypeFactory) {
         this.elements = elements;
         this.atypeFactory = atypeFactory;
+        this.warnBytecodeConflicts = atypeFactory.getChecker().hasOption("warnBytecodeConflicts");
         this.useConservativeDefaultsBytecode =
                 atypeFactory.getChecker().useConservativeDefault("bytecode");
         this.useConservativeDefaultsSource =
@@ -576,15 +585,63 @@ public class QualifierDefaults {
      * @param elt the element whose {@code @DefaultQualifier} annotations conflict
      * @param newDefault the default that is discarded because of the conflict
      * @param conflicting the default it conflicts with, which stays in effect
+     * @param isError whether to report an error rather than a warning; true for a declaration in
+     *     source, which the user can edit, and false for one read from bytecode
      */
     private void reportConflictingWrittenDefaults(
-            Element elt, Default newDefault, Default conflicting) {
+            Element elt, Default newDefault, Default conflicting, boolean isError) {
         DefaultSet alreadyReported =
                 reportedConflictingDefaults.computeIfAbsent(elt, key -> new DefaultSet());
-        if (alreadyReported.add(newDefault)) {
+        if (!alreadyReported.add(newDefault)) {
+            return;
+        }
+        if (isError) {
             atypeFactory
                     .getChecker()
                     .reportError(elt, "conflicting.defaults", elt, newDefault, conflicting);
+        } else {
+            atypeFactory
+                    .getChecker()
+                    .reportWarning(elt, "conflicting.defaults", elt, newDefault, conflicting);
+        }
+    }
+
+    /**
+     * Reports each pair of {@code elt}'s own written {@code @DefaultQualifier} annotations that set
+     * the same {@link TypeUseLocation} in the same qualifier hierarchy to different qualifiers.
+     *
+     * <p>Called by the visitor for a declaration in source, so that the diagnostic does not depend
+     * on whether anything happened to ask for {@code elt}'s defaults: {@link #defaultsAtDirect}
+     * runs on a cache miss, and for a package whose {@code package-info.java} is the only file
+     * compiled it never runs at all. The winner is decided by source order, as it is there.
+     *
+     * @param elt a declaration in source
+     */
+    public void checkConflictingDefaults(Element elt) {
+        List<AnnotationMirror> dqAnnos = atypeFactory.getDefaultQualifierAnnotations(elt);
+        if (dqAnnos.size() < 2) {
+            // A single @DefaultQualifier cannot conflict with itself: its locations are distinct
+            // and it names one qualifier.
+            return;
+        }
+        DefaultSet qualifiers = null;
+        for (int i = 0, n = dqAnnos.size(); i < n; ++i) {
+            DefaultSet p = fromDefaultQualifier(dqAnnos.get(i));
+            if (p == null) {
+                continue;
+            }
+            if (qualifiers == null) {
+                qualifiers = p;
+                continue;
+            }
+            for (Default d : p) {
+                Default conflicting = findConflictingDefault(qualifiers, d.anno, d.location);
+                if (conflicting == null) {
+                    qualifiers.add(d);
+                } else {
+                    reportConflictingWrittenDefaults(elt, d, conflicting, true);
+                }
+            }
         }
     }
 
@@ -1008,8 +1065,14 @@ public class QualifierDefaults {
                     qualifiers.add(d);
                 } else {
                     // Discard the later default rather than adding it and letting DefaultSet's
-                    // (location, annotation) ordering pick the winner.
-                    reportConflictingWrittenDefaults(elt, d, conflicting);
+                    // (location, annotation) ordering pick the winner.  Reporting is not done
+                    // here: for an element in source the visitor calls checkConflictingDefaults,
+                    // which reports with a source position and does not depend on whether this
+                    // method happens to run.  An element read from bytecode has no declaration to
+                    // visit, so it is reported here instead, and only when asked for.
+                    if (warnBytecodeConflicts && !ElementUtils.isElementFromSourceCode(elt)) {
+                        reportConflictingWrittenDefaults(elt, d, conflicting, false);
+                    }
                 }
             }
         }

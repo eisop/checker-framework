@@ -696,6 +696,34 @@ the Checker Framework, rather than an official release.
 The Checker Framework can be built and runs under any JDK version 8 or later.
 
 
+\subsectionAndLabel{Development jars without building}{development-jars}
+
+If you only want to \emph{run} the latest development version --- say, to
+check whether a bug you reported is already fixed --- you do not have to
+build it.  Every continuous integration run of the
+\ahreforurl{https://github.com/eisop/checker-framework/actions/workflows/ci.yml}{CI
+tests} workflow attaches the jars it built to the run, under ``Artifacts''
+at the bottom of the run's summary page.  The archive contains
+\<checker.jar>, \<checker-qual.jar>, \<checker-util.jar> and \<javac.jar>,
+the same jars that the release distribution puts in its \<checker/dist>
+directory, so a \<-processorpath> that names \<checker.jar> works the same
+way as with a release.
+
+Runs happen on every pull request as well as on every change to the master
+branch, so there is an artifact for a proposed fix as well as for the
+development version.  With the
+\ahreforurl{https://cli.github.com/}{GitHub CLI}, the newest master build is
+
+\begin{Verbatim}
+gh run download --repo eisop/checker-framework --branch master \
+  --name checker-framework-jars
+\end{Verbatim}
+
+Two limitations are worth knowing:  GitHub serves these artifacts only to
+signed-in users, so they cannot be fetched anonymously or named as a
+dependency in a build file, and it deletes them 30 days after the run.
+
+
 \subsectionAndLabel{Install prerequisites}{building-prerequisites}
 
 You need to install several packages in order to build the Checker

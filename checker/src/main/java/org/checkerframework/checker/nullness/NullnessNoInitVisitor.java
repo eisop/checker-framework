@@ -511,11 +511,13 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
 
     @Override
     public Void visitMemberReference(MemberReferenceTree tree, Void p) {
-        checkJSpecifyLocation(
-                tree,
-                null,
-                tree.getQualifierExpression(),
-                "jspecify.unrecognized.location.methodref");
+        // Only a type qualifier, as in "@Nullable String::new", can carry an annotation; an
+        // expression qualifier, as in `"abc"::length` or `o::toString`, cannot.
+        ExpressionTree qualifier = tree.getQualifierExpression();
+        if (TreeUtils.isTypeTree(qualifier)) {
+            checkJSpecifyLocation(
+                    tree, null, qualifier, "jspecify.unrecognized.location.methodref");
+        }
         return super.visitMemberReference(tree, p);
     }
 

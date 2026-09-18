@@ -13,11 +13,11 @@ inputs:
   jdk-ea-major:
     description: 'Major version of current Early Access JDK'
     required: false
-    default: '27'
+    default: '28'
   jdk-ea-build:
     description: 'Build number of current Early Access JDK'
     required: false
-    default: '35'
+    default: '15'
   script:
     description: 'Test script name (e.g. cftests-nonjunit, guava, misc)'
     required: false
@@ -31,14 +31,14 @@ runs:
   using: composite
   steps:
     - name: Set up primary JDK ${{ inputs.primary-jdk }}
-      uses: actions/setup-java@v6.0.0
+      uses: actions/setup-java@v6.0.1
       with:
         java-version: ${{ inputs.primary-jdk }}
         distribution: 'zulu'
 
     - name: Set up stable target JDK ${{ inputs.target-jdk }}
       if: ${{ inputs.target-jdk != inputs.primary-jdk && inputs.target-jdk != inputs.jdk-ea-major }}
-      uses: actions/setup-java@v6.0.0
+      uses: actions/setup-java@v6.0.1
       with:
         java-version: ${{ inputs.target-jdk }}
         distribution: 'zulu'

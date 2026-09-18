@@ -199,7 +199,8 @@ distribution.  The Checker Framework release contains everything that you
 need, both to run checkers and to write your own checkers.
 \item
 Alternately, you can build the latest development version from source
-(Section~\refwithpage{build-source}).
+(Section~\refwithpage{build-source}), or download jars that continuous
+integration built from it (Section~\refwithpage{development-jars}).
 \end{itemize}
 
 
@@ -486,7 +487,7 @@ This special syntax only works for ``\<checker.jar>''.
 % .)
 
 The annotated libraries that are provided as class files appear in
-\href{https://search.maven.org/search?q=org.checkerframework.annotatedlib}{the
+\href{https://central.sonatype.com/search?q=org.checkerframework.annotatedlib}{the
   \<org.checkerframework.annotatedlib> group in the Maven Central Repository}.
 The annotated library has \emph{identical} behavior to the upstream,
 unannotated version; the source code is identical other than added
@@ -506,7 +507,7 @@ To use an annotated library:
 \begin{itemize}
 \item
 If your project stores \<.jar> files locally, then
-\href{https://search.maven.org/search?q=org.checkerframework.annotatedlib}{download
+\href{https://central.sonatype.com/search?q=org.checkerframework.annotatedlib}{download
   the \<.jar> file from the Maven Central Repository}.
 
 \item
@@ -640,6 +641,13 @@ More sound (strict) checking: enable errors that are disabled by default
   another only if they have exactly the same element type.  By default,
   the Checker Framework unsoundly permits covariant array subtyping, just
   as Java does.  See Section~\ref{invariant-arrays}.
+\item \<-AwarnBytecodeConflicts>
+  Warn about contradictory declaration annotations, such as two
+  \refqualclass{framework/qual}{DefaultQualifier} annotations that set the same
+  location in one hierarchy to different qualifiers, on a declaration read from
+  bytecode.  Such a declaration is in already-compiled code, and only those
+  elements that the compilation happens to examine are checked, so this is off
+  by default.
 \item \<-AcheckCastElementType>
   In a cast, require that parameterized type arguments and array elements
   are the same.  By default, the Checker Framework unsoundly permits them

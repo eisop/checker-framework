@@ -95,6 +95,7 @@ import javax.annotation.processing.SupportedAnnotationTypes;
 import javax.lang.model.SourceVersion;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
+import javax.lang.model.element.PackageElement;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
@@ -200,6 +201,10 @@ import javax.tools.Diagnostic;
     // TODO:  Temporary option to make casts stricter, in particular when
     // casting to an array or generic type. This will be the new default soon.
     "checkCastElementType",
+
+    // Warn about conflicting declaration annotations on elements read from bytecode.
+    // org.checkerframework.framework.util.defaults.QualifierDefaults
+    "warnBytecodeConflicts",
 
     // Whether to type check the enclosing expression of an inner class instantiation.
     "checkEnclosingExpr",
@@ -789,12 +794,18 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
 
         // Keep in sync with check in checker-framework/build.gradle .
         int jreVersion = SystemUtil.jreVersion;
-        List<Integer> supportedJres = Arrays.asList(8, 11, 17, 21, 25, 26, 27);
+        List<Integer> supportedJres = Arrays.asList(8, 11, 17, 21, 25, 27, 28);
         if (!hasOption("noJreVersionCheck") && !supportedJres.contains(jreVersion)) {
+            StringJoiner sj = new StringJoiner(", ");
+            for (int i = 0; i < supportedJres.size() - 1; i++) {
+                sj.add(String.valueOf(supportedJres.get(i)));
+            }
+            String supportedList =
+                    sj.toString() + ", and " + supportedJres.get(supportedJres.size() - 1) + "-EA";
             message(
                     Diagnostic.Kind.NOTE,
-                    "The Checker Framework is tested with JDK 8, 11, 17, 21, 25, 26, and 27-EA."
-                            + " You are using version %d.",
+                    "The Checker Framework is tested with JDK %s. You are using version %d.",
+                    supportedList,
                     jreVersion);
         }
 
@@ -873,7 +884,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
         visitor.setRoot(currentRoot);
         if (parentChecker == null) {
             // Only clear the path cache if this is the main checker.
-            treePathCacher.clear();
+            getTreePathCacher().clear();
         }
     }
 
@@ -1448,6 +1459,77 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
             return;
         }
 
+        visitDeclaration(p);
+    }
+
+    /**
+     * Type-checks a package declaration: the {@code package} clause of a {@code package-info.java}.
+     *
+     * <p>The counterpart of {@link #typeProcess} for a compilation unit that declares no type, and
+     * which {@link org.checkerframework.javacutil.AbstractTypeProcessor} therefore never dispatches
+     * to {@code typeProcess}. It mirrors that method: subcheckers run first and in order, the
+     * message store and error bookkeeping behave the same, and the visitor is driven the same way.
+     * A package declaration contains no code, so the visitor reaches only the declaration
+     * annotations written on it.
+     *
+     * @param e the package being processed
+     * @param p the path to the package declaration
+     */
+    @Override
+    public void packageProcess(PackageElement e, TreePath p) {
+        if (messageStore != null && parentChecker == null) {
+            messageStore.clear();
+        }
+
+        Context context = ((JavacProcessingEnvironment) processingEnv).getContext();
+        Log log = Log.instance(context);
+
+        int numErrorsOfAllPreviousCheckers = this.errsOnLastExit;
+        for (SourceChecker subchecker : getSubcheckers()) {
+            subchecker.errsOnLastExit = numErrorsOfAllPreviousCheckers;
+            subchecker.messageStore = messageStore;
+            subchecker.diagnosticSink = diagnosticSink;
+            int errorsBeforeTypeChecking = log.nerrors;
+
+            subchecker.packageProcess(e, p);
+
+            int errorsAfterTypeChecking = log.nerrors;
+            numErrorsOfAllPreviousCheckers += errorsAfterTypeChecking - errorsBeforeTypeChecking;
+        }
+
+        this.errsOnLastExit = numErrorsOfAllPreviousCheckers;
+
+        if (javacErrored) {
+            return;
+        }
+
+        if (e == null) {
+            messager.printMessage(
+                    Diagnostic.Kind.ERROR, "Refusing to process empty PackageElement");
+            return;
+        }
+        if (p == null) {
+            messager.printMessage(
+                    Diagnostic.Kind.ERROR,
+                    "Refusing to process empty TreePath in PackageElement: " + e);
+            return;
+        }
+
+        visitDeclaration(p);
+    }
+
+    /**
+     * Runs the visitor over the declaration that {@code p} leads to, with the bookkeeping that both
+     * {@link #typeProcess} and {@link #packageProcess} need: the one-time environment warnings, the
+     * guard against an unattributable compilation unit, {@link #setRoot}, and the reporting of
+     * stored messages.
+     *
+     * @param p the path to the declaration to visit
+     */
+    private void visitDeclaration(TreePath p) {
+        Context context = ((JavacProcessingEnvironment) processingEnv).getContext();
+        Log log = Log.instance(context);
+
         if (!warnedAboutGarbageCollection) {
             String gcUsageMessage = SystemPlume.gcUsageMessage(.25, 60);
             if (gcUsageMessage != null) {
@@ -1528,7 +1610,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
         } catch (BugInCF ce) {
             logBugInCF(ce);
         } catch (Throwable t) {
-            logBugInCF(wrapThrowableAsBugInCF("SourceChecker.typeProcess", t, p));
+            logBugInCF(wrapThrowableAsBugInCF("SourceChecker.visitDeclaration", t, p));
         } finally {
             // Also add possibly deferred diagnostics, which will get published back in
             // AbstractTypeProcessor.
