@@ -69,14 +69,41 @@ which make GitHub post a cross-reference into that project's tracker.
 
 ## Release process
 
+See [`maven-central-publishing.md`](maven-central-publishing.md) for how
+publishing is wired, why a release currently ends with a manual click on the
+Central Portal website, and what it would take to remove that step and to
+publish nightly snapshots.
+
 TODO: the release process contains many buffalo-specific paths, which still needs to be cleaned up.
 Most of the instructions can be followed, ignoring certain steps.
 
 Without using the release scripts, you can make a Maven Central release using:
 
 ````bash
-./gradlew publish -Prelease=true --no-parallel -Psigning.gnupg.keyName=wdietl@gmail.com
+./gradlew publish -Prelease=true --no-parallel
 ````
+
+The build signs releases and refuses to publish unsigned ones.  Any maintainer
+may sign with their own key: put `signing.gnupg.keyName=<your key id or email>`
+in `~/.gradle/gradle.properties`, next to your `SONATYPE_NEXUS_USERNAME` and
+`SONATYPE_NEXUS_PASSWORD` Portal tokens.  The publish fails with an explicit
+message if that property is unset.  See
+[`maven-central-publishing.md`](maven-central-publishing.md#signing-any-maintainer-can-sign-a-release)
+for what a new releaser has to set up.
+
+That uploads to a staging repository. The release is **not** live until it is
+published from the Central Portal, which today means opening
+<https://central.sonatype.com/publishing/deployments> and clicking Publish.
+[`maven-central-publishing.md`](maven-central-publishing.md) describes the
+single API call that would remove that step.
+
+A release also updates the version in files other than `build.gradle` -- two of
+the examples under `docs/examples/`, and several places in the manual -- so that
+what readers are told to depend on is the version just released.  That is done
+by the Ant target `update-checker-framework-versions` in
+`docs/developer/release/release.xml`, which lists the files it rewrites and
+fails if one of them has moved.  The remaining `docs/examples/` versions are
+bumped by Renovate once the release is on Maven Central.
 
 If there are problems with the configuration cache, pass `--no-configuration-cache`.
 
