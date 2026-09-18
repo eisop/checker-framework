@@ -3,6 +3,10 @@ Version 3.49.5-eisop2 (June ?, 2026)
 
 **User-visible changes:**
 
+Every continuous integration run now attaches the jars it built to the run, so
+the latest development version, or a proposed fix, can be tried out without
+building it.  See the "Development jars without building" section of the manual.
+
 The EISOP Checker Framework runs under JDK 27 and under JDK 28 b15 early access
 builds -- that is, it runs on version 27 and 28 JVMs.
 
@@ -1080,10 +1084,12 @@ eisop#737,
 eisop#778,
 eisop#786,
 eisop#792,
+eisop#833,
 eisop#863,
 eisop#949,
 eisop#1015,
 eisop#1059,
+eisop#1060,
 eisop#1074,
 eisop#1198,
 eisop#1244,

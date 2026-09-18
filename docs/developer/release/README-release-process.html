@@ -191,12 +191,10 @@ TreeAnnotator
       The <code>framework-errorprone</code> subproject (the Checker Framework as an
       Error Prone plugin) is part of the build only when the build JDK is 21 or newer
       (it is gated in <code>settings.gradle</code>).  The Maven-publish step
-      (<code>release_push</code>, which runs <code>./gradlew publish</code>) therefore
+      (<code>./gradlew publish</code>, below) therefore
       must run on <b>JDK 21 or later</b>; otherwise that artifact is silently excluded
       and not published.  No per-artifact change is needed, since <code>publish</code>
       picks up every subproject that has a publishing block.
-      (<code>release_vars.py</code> sets <code>JAVA_HOME</code> to
-      <code>JAVA_21_HOME</code>, which satisfies this.)
   </li>
   <li>
       <strong>In a user-specific temporary directory, clone/update the Checker Framework repository (it contains the release scripts).</strong><br/>
@@ -217,7 +215,7 @@ TreeAnnotator
       to be built but more work still needs to be done.  Just pass &quot;all&quot; for now.
   </li>
   <li>
-      <strong>Run release_push</strong> to run a few tests and move release artifacts from the development website to the live site and to Maven Central <br/>
+      <strong>Run release_push</strong> to run a few tests and move release artifacts from the development website to the live site<br/>
       <code>python3 release_push.py release</code><br/><br/>
       <div class="alert alert-danger">
         <strong>Note:</strong> The &quot;<strong>release</strong>&quot; argument states that you intend
@@ -228,6 +226,15 @@ TreeAnnotator
       If you get an obscure error about permissions, try running the release_push script several times
       in a row. This will sometimes update the repository permissions such that the script can proceed
       further each time.
+  </li>
+  <li>
+      <strong>Publish to Maven Central.</strong>  The release scripts do not do this.  In a
+      checkout of the release commit, on JDK 21 or later, run<br/>
+      <code>./gradlew publish -Prelease=true --no-parallel</code><br/><br/>
+      Then log in to
+      <a href="https://central.sonatype.com/publishing/deployments">https://central.sonatype.com/publishing/deployments</a>
+      and publish the deployment.  See
+      <a href="../maven-central-publishing.md">Maven Central publishing</a> for details.
   </li>
   <li> <strong>Update list of qualifiers in Project Lombok.</strong>
     Follow the instructions in <a href="https://github.com/projectlombok/lombok/blob/master/src/core/lombok/core/handlers/HandlerUtil.java#L108">HandlerUtil.java</a>.
@@ -365,12 +372,13 @@ configurations.all({
     </tr>
     <tr>
       <td>2.</td>
-      <td><strong>Import the Checker Framework signing key for PGP</strong><br/>
-        SSH into tern and run the following command:<br/>
-        <code>gpg --allow-secret-key-import --import /projects/swlab1/checker-framework/hosting-info/release-private.key<br/><br/></code>
-        Note:  The password for this key is located in the file<br/>
-        <code>/projects/swlab1/checker-framework/hosting-info/release-private.password<br/></code>
-        and is used by the release_push script to sign Maven artifacts.<br/>
+      <td><strong>Set up a PGP signing key</strong><br/>
+        Maven Central requires signed artifacts, but does not pin a key to a namespace: each
+        maintainer signs with their own.  Have a GPG key whose public half is published to a
+        keyserver Central queries (<code>keys.openpgp.org</code> or <code>keyserver.ubuntu.com</code>),
+        and name it in <code>~/.gradle/gradle.properties</code>:<br/>
+        <pre>signing.gnupg.keyName=your_key_id_or_email</pre>
+        See <a href="../maven-central-publishing.md">Maven Central publishing</a>.<br/>
       </td>
     <tr>
       <td>3.</td>
@@ -551,7 +559,6 @@ git config --global user.email you@example.com</pre>
           is correct through scripts and manual steps.  When the user is satisfied the website
           is correct it deploys the website to the live website:
           <a href="https://checkerframework.org/">https://checkerframework.org/</a>.
-          It also pushes Maven artifacts to Maven central.
           This script is thoroughly documented in code comments located in its <code>main()</code> function.
         </td>
       </tr>
@@ -657,12 +664,11 @@ git config --global user.email you@example.com</pre>
     </ul>
 
   <h2 id="backing_out">Backing Out an Uncommitted Release</h2>
-  <p>At the time of this writing, there are 2 steps that cannot be reverted.</p>
-  <ol>
-    <li>The push from the interm repositories to the GitHub (release) repositories</li>
-    <li>The release of the staged Maven artifacts</li>
-  </ol>
-  <p> If you have executed either of these steps and then realized there is a breaking error, you should do another
+  <p>At the time of this writing, one step of these scripts cannot be reverted:
+    the push from the interm repositories to the GitHub (release) repositories.
+    (Publishing to Maven Central is also irreversible, but it is not done by
+    these scripts; see <a href="../maven-central-publishing.md">Maven Central publishing</a>.)</p>
+  <p> If you have executed either of those and then realized there is a breaking error, you should do another
     release.  The release script will allow you to do a point release like &quot;1.8.0.1&quot; when a version
     &quot;1.8.0&quot; already exists.<br/>
     <br/>
@@ -672,12 +678,10 @@ git config --global user.email you@example.com</pre>
   </p>
   <h3 id="backing_out_steps">Manual Steps to Back Out a Release</h3>
   <ul>
-    <li><strong>Drop the artifacts from Central</strong><br/>
-      You may have staged and then closed the artifacts in the Sonatype Central repository.  Drop (do NOT release)
-      these artifacts.  See
-      <a href="https://docs.sonatype.org/display/Repository/Sonatype+OSS+Maven+Repository+Usage+Guide#SonatypeOSSMavenRepositoryUsageGuide-DroppingaStagingRepository%28i.e.WhattoDoifYourStagingRepositoryHasErrors%29">
-        the Sonatype OSS Repository Usage Guidelines.
-      </a>
+    <li><strong>Drop the deployment from Central</strong><br/>
+      If you have already run <code>./gradlew publish -Prelease=true</code> but have not released the
+      deployment, drop it (do NOT publish it) at
+      <a href="https://central.sonatype.com/publishing/deployments">https://central.sonatype.com/publishing/deployments</a>.
     </li>
     <!-- <li><strong>Drop the Maven Artifacts from our Maven repo *** currently unneeded ***</strong>
       <p class="alert alert-warning"><strong>Note:</strong> The procedure below is NOT recommended
