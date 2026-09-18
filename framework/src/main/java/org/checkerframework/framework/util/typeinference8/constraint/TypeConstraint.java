@@ -19,8 +19,6 @@ import java.util.List;
 import java.util.Set;
 import java.util.StringJoiner;
 
-import javax.lang.model.type.TypeKind;
-
 /**
  * Constraints are between either an expression and a type, two types, or an expression and a thrown
  * type. Defined in <a
@@ -199,7 +197,7 @@ public abstract class TypeConstraint implements Constraint {
                         }
                     }
                     AbstractType R = this.T.getFunctionTypeReturnType();
-                    if (R == null || R.getTypeKind() == TypeKind.NONE) {
+                    if (R == null) {
                         return inputs;
                     }
                     for (ExpressionTree e : TreeUtils.getReturnedExpressions(lambdaTree)) {
