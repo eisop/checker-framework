@@ -16,7 +16,7 @@ import java.util.Objects;
  * @param <V2> the type of the second element of the pair
  */
 // TODO: as class is immutable, use @Covariant annotation.
-public final class Pair<V1 extends @Nullable Object, V2 extends @Nullable Object> {
+public final class Pair<V1, V2> {
     /** The first element of the pair. */
     public final V1 first;
 
@@ -28,8 +28,7 @@ public final class Pair<V1 extends @Nullable Object, V2 extends @Nullable Object
         this.second = second;
     }
 
-    public static <T1 extends @Nullable Object, T2 extends @Nullable Object> Pair<T1, T2> of(
-            T1 first, T2 second) {
+    public static <T1, T2> Pair<T1, T2> of(T1 first, T2 second) {
         return new Pair<>(first, second);
     }
 
@@ -47,8 +46,8 @@ public final class Pair<V1 extends @Nullable Object, V2 extends @Nullable Object
      * @return a copy of {@code orig}, with all elements cloned
      */
     // This method is static so that the pair element types can be constrained to be Cloneable.
-    public static <T1 extends @Nullable Cloneable, T2 extends @Nullable Cloneable>
-            Pair<T1, T2> cloneElements(Pair<T1, T2> orig) {
+    public static <T1 extends Cloneable, T2 extends Cloneable> Pair<T1, T2> cloneElements(
+            Pair<T1, T2> orig) {
 
         T1 oldFirst = orig.first;
         T1 newFirst = oldFirst == null ? oldFirst : UtilPlume.clone(oldFirst);
@@ -67,8 +66,8 @@ public final class Pair<V1 extends @Nullable Object, V2 extends @Nullable Object
      * @return a deep copy of {@code orig}
      */
     // This method is static so that the pair element types can be constrained to be DeepCopyable.
-    public static <T1 extends @Nullable DeepCopyable<T1>, T2 extends @Nullable DeepCopyable<T2>>
-            Pair<T1, T2> deepCopy(Pair<T1, T2> orig) {
+    public static <T1 extends DeepCopyable<T1>, T2 extends DeepCopyable<T2>> Pair<T1, T2> deepCopy(
+            Pair<T1, T2> orig) {
         return of(
                 DeepCopyable.deepCopyOrNull(orig.first), DeepCopyable.deepCopyOrNull(orig.second));
     }
@@ -83,8 +82,7 @@ public final class Pair<V1 extends @Nullable Object, V2 extends @Nullable Object
      * @param orig a pair
      * @return a copy of {@code orig}, where the first element is a deep copy
      */
-    public static <T1 extends @Nullable DeepCopyable<T1>, T2 extends @Nullable Object>
-            Pair<T1, T2> deepCopyFirst(Pair<T1, T2> orig) {
+    public static <T1 extends DeepCopyable<T1>, T2> Pair<T1, T2> deepCopyFirst(Pair<T1, T2> orig) {
         return of(DeepCopyable.deepCopyOrNull(orig.first), orig.second);
     }
 
@@ -98,8 +96,7 @@ public final class Pair<V1 extends @Nullable Object, V2 extends @Nullable Object
      * @param orig a pair
      * @return a copy of {@code orig}, where the second element is a deep copy
      */
-    public static <T1 extends @Nullable Object, T2 extends @Nullable DeepCopyable<T2>>
-            Pair<T1, T2> deepCopySecond(Pair<T1, T2> orig) {
+    public static <T1, T2 extends DeepCopyable<T2>> Pair<T1, T2> deepCopySecond(Pair<T1, T2> orig) {
         return of(orig.first, DeepCopyable.deepCopyOrNull(orig.second));
     }
 
