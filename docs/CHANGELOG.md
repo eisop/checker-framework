@@ -279,6 +279,14 @@ the inferred type variable through `? extends`, as in
 `Function<? super Set<? extends K>, ?>`.  It reported
 `type.argument.inference.crashed` on code that javac accepts.
 
+Type argument inference no longer fails on a generic call returned by a lambda that is
+itself an argument to a generic method, as in `run(() -> arr(new String[0]))`.  Finding
+the qualifiers of the new array restarted inference of `arr(...)` while it was still being
+inferred as part of `run(...)`, and that second inference used `run`'s not-yet-inferred
+type variable as its target.  With default options the failure was silently discarded;
+with `-AconvertTypeArgInferenceCrashToWarning=false`, as the test harness passes, the
+Checker Framework crashed on code that javac accepts.
+
 The stubifier resolves a nested annotation named through its enclosing class, as
 the JDK's own `java.lang.invoke.VarHandle` writes `@MethodHandle.PolymorphicSignature`.
 Such a name is not loadable as written -- its binary name separates the nesting with
@@ -1119,6 +1127,7 @@ eisop#2061,
 eisop#2064,
 eisop#2074,
 eisop#2081,
+eisop#2086,
 eisop#2089,
 typetools#399,
 typetools#2816,
