@@ -1,4 +1,33 @@
 <!DOCTYPE html>
+<!--
+This page ships in the release zip, as docs/checker-framework-webpage.html, and
+the website generator makes it that release's own page: it is served both as
+/cf/index.html, for the newest release, and as /cf/<release>/index.html.  Being
+served at two depths is what fixes the link scheme, so do not "simplify" it:
+
+  relative  what exists beside the page at both depths.  manual/manual.html,
+            manual/manual.pdf, manual/checker-framework-dataflow-manual.pdf,
+            tutorial/, api/checker-javadoc/, CHANGELOG.md, quick-start.html,
+            CFLogo.png, favicon-checkerframework.png
+  absolute  site singletons, which exist only under /cf/ or /afu/.  The two
+            zip downloads, /cf/releases/releases.html,
+            /afu/annotation-file-utilities.html
+
+Making these all relative breaks the singletons at release depth; making them
+all absolute breaks every archived release, which would then link the newest
+release's manual rather than its own.
+
+Three of the relative targets are produced by the website generator rather than
+carried in the zip, so they resolve on the website but not when this page is
+opened from an unzipped release: quick-start.html (the zip has
+docs/checker-framework-quick-start.html, which the generator renames),
+api/checker-javadoc/ (the zip has checker/dist/checker-javadoc.jar, which the
+generator unpacks), and CFLogo.png (the generator copies it up from tutorial/).
+
+The version and date, and the AFU zip name and date, are stamped in at release
+time by update-checker-framework-versions in docs/developer/release/release.xml,
+which keys off the marker comments below.  Do not remove a marker.
+-->
 <html>
 <head><link rel="icon" type="image/png" href="favicon-checkerframework.png" />
   <title>The Checker Framework</title>
