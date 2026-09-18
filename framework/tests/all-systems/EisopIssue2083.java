@@ -26,7 +26,7 @@ public class EisopIssue2083<T> {
     // The lower bound of the capture of ? super T is a type variable without primary annotations.
 
     static class Token<X> {
-        static <X> Token<X> of(Class<X> c) {
+        static <Y> Token<Y> of(Class<Y> c) {
             return new Token<>();
         }
     }
