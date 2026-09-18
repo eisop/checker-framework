@@ -43,6 +43,24 @@ See below for EISOP Checker Framework development notes.
    2 errors
    ```
 
+### Development jars without building
+
+If you only want to run the latest development version rather than modify it,
+every [CI run](https://github.com/eisop/checker-framework/actions/workflows/ci.yml)
+attaches the jars it built to the run, under "Artifacts" on the run's summary
+page.  The archive holds `checker.jar`, `checker-qual.jar`, `checker-util.jar`
+and `javac.jar` -- the contents of `checker/dist` after a build.  Runs happen on
+every pull request as well as on master, so there is an artifact for a proposed
+fix too.  With the [GitHub CLI](https://cli.github.com/):
+
+```
+gh run download --repo eisop/checker-framework --branch master \
+  --name checker-framework-jars
+```
+
+GitHub serves these only to signed-in users and deletes them 30 days after the
+run, so they are for trying a build out, not for depending on.
+
 There is a lot more to explore!
 
 Please see the EISOP Checker Framework manual
