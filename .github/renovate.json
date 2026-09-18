@@ -21,6 +21,12 @@
       "groupName": "docs/examples dependencies"
     },
     {
+      "description": "Bump the Checker Framework version in the examples as soon as a release reaches Maven Central, in its own PR. Must come after the docs/examples grouping rule so it wins.",
+      "matchPackageNames": ["/^io\\.github\\.eisop:/"],
+      "minimumReleaseAge": "0 days",
+      "groupName": "Checker Framework version in docs/examples"
+    },
+    {
       "description": "Group non-major GitHub Actions updates",
       "matchManagers": ["github-actions"],
       "matchUpdateTypes": ["minor", "patch", "pin", "digest"],
@@ -53,6 +59,17 @@
     }
   ],
   "customManagers": [
+    {
+      "customType": "regex",
+      "description": "Update the Checker Framework version in the docs/examples Gradle builds. Renovate's Gradle manager is not relied on here: these builds hold the version in a variable (an `ext.versions` map entry, or a plain `def`), and the only Renovate edits ever seen in these files were plugin versions.",
+      "managerFilePatterns": ["/^docs/examples/[^/]+/build\\.gradle$/"],
+      "matchStrings": [
+        "eisopVersion: '(?<currentValue>[^']+)'",
+        "def eisopVersion = '(?<currentValue>[^']+)'"
+      ],
+      "datasourceTemplate": "maven",
+      "depNameTemplate": "io.github.eisop:checker-qual"
+    },
     {
       "customType": "regex",
       "description": "Update USE_BAZEL_VERSION in GitHub Actions",

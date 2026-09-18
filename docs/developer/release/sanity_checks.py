@@ -19,7 +19,6 @@ from release_utils import (
     download_binary,
     ensure_user_access,
     execute_write_to_file,
-    insert_before_line,
     os,
     wget_file,
 )
@@ -119,10 +118,10 @@ def javac_sanity_check(checker_framework_website, release_version):
     )
 
 
-def maven_sanity_check(sub_sanity_dir_name, repo_url, release_version):
+def maven_sanity_check(sub_sanity_dir_name, release_version):
     """
-    Run the Maven sanity check with the local artifacts or from the repo at
-    repo_url.
+    Run the Maven sanity check against the artifacts that release_build.py
+    deployed to the local Maven repository.
     """
     checker_dir = os.path.join(CHECKER_FRAMEWORK, "checker")
     maven_sanity_dir = os.path.join(SANITY_DIR, sub_sanity_dir_name)
@@ -138,26 +137,9 @@ def maven_sanity_check(sub_sanity_dir_name, repo_url, release_version):
     get_example_dir_cmd = f"ant -f {ant_release_script} update-and-copy-maven-example -Dchecker={checker_dir} -Dversion={release_version} -Ddest.dir={maven_sanity_dir}"
 
     execute(get_example_dir_cmd)
-    path_to_artifacts = os.path.join(
-        os.path.expanduser("~"), ".m2", "repository", "org", "checkerframework"
-    )
-    if repo_url != "":
-        print(
-            "This script will now delete your Maven Checker Framework artifacts.\n"
-            + "See README-release-process.html#Maven-Plugin dependencies.  These artifacts "
-            + "will need to be re-downloaded the next time you need them.  This will be "
-            + "done automatically by Maven next time you use the plugin."
-        )
-
-        if os.path.isdir(path_to_artifacts):
-            delete_path(path_to_artifacts)
-        maven_example_pom = os.path.join(maven_example_dir, "pom.xml")
-        add_repo_information(maven_example_pom, repo_url)
 
     os.environ["JAVA_HOME"] = os.environ["JAVA_21_HOME"]
     execute_write_to_file("mvn compile", output_log, False, maven_example_dir)
-    if repo_url != "":
-        delete_path(path_to_artifacts)
 
 
 def check_results(title, output_log, expected_errors):
@@ -180,29 +162,3 @@ def check_results(title, output_log, expected_errors):
         )
     else:
         print(f"{title} check: passed!\n")
-
-
-def add_repo_information(pom, repo_url):
-    """Adds development maven repo to pom file so that the artifacts used are
-    the development artifacts"""
-    to_insert = f"""
-        <repositories>
-              <repository>
-                  <id>checker-framework-repo</id>
-                  <url>{repo_url}</url>
-              </repository>
-        </repositories>
-
-        <pluginRepositories>
-              <pluginRepository>
-                    <id>checker-framework-repo</id>
-                    <url>{repo_url}</url>
-              </pluginRepository>
-        </pluginRepositories>
-        """
-
-    result_str = execute(f'grep -nm 1 "<build>" {pom}', True, True).decode()
-    line_no_str = result_str.split(":")[0]
-    line_no = int(line_no_str)
-    print(" LINE_NO: " + line_no_str)
-    insert_before_line(to_insert, pom, line_no)

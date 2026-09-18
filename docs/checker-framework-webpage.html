@@ -1,4 +1,33 @@
 <!DOCTYPE html>
+<!--
+This page ships in the release zip, as docs/checker-framework-webpage.html, and
+the website generator makes it that release's own page: it is served both as
+/cf/index.html, for the newest release, and as /cf/<release>/index.html.  Being
+served at two depths is what fixes the link scheme, so do not "simplify" it:
+
+  relative  what exists beside the page at both depths.  manual/manual.html,
+            manual/manual.pdf, manual/checker-framework-dataflow-manual.pdf,
+            tutorial/, api/checker-javadoc/, CHANGELOG.md, quick-start.html,
+            CFLogo.png, favicon-checkerframework.png
+  absolute  site singletons, which exist only under /cf/ or /afu/.  The two
+            zip downloads, /cf/releases/releases.html,
+            /afu/annotation-file-utilities.html
+
+Making these all relative breaks the singletons at release depth; making them
+all absolute breaks every archived release, which would then link the newest
+release's manual rather than its own.
+
+Three of the relative targets are produced by the website generator rather than
+carried in the zip, so they resolve on the website but not when this page is
+opened from an unzipped release: quick-start.html (the zip has
+docs/checker-framework-quick-start.html, which the generator renames),
+api/checker-javadoc/ (the zip has checker/dist/checker-javadoc.jar, which the
+generator unpacks), and CFLogo.png (the generator copies it up from tutorial/).
+
+The version and date, and the AFU zip name and date, are stamped in at release
+time by update-checker-framework-versions in docs/developer/release/release.xml,
+which keys off the marker comments below.  Do not remove a marker.
+-->
 <html>
 <head><link rel="icon" type="image/png" href="favicon-checkerframework.png" />
   <title>The Checker Framework</title>
@@ -27,14 +56,15 @@ to write your own compiler plug-ins.
 <ul>
   <li>
     Quick start:  see the
-    <a href="manual/#installation"><b>Installation instructions and tutorial</b></a>.
+    <a href="quick-start.html"><b>quick start guide</b></a>, or the
+    <a href="manual/manual.html#installation"><b>installation instructions and tutorial</b></a>.
   </li>
   <li>
-    Download: <a href="checker-framework-3.49.5-eisop1.zip"><!-- checker-framework-zip-version -->checker-framework-3.49.5-eisop1.zip<!-- /checker-framework-zip-version --></a>
+    Download: <a href="/cf/checker-framework-3.49.5-eisop1.zip"><!-- checker-framework-zip-version -->checker-framework-3.49.5-eisop1.zip<!-- /checker-framework-zip-version --></a>
     (<!-- checker-framework-date -->22 Apr 2026<!-- /checker-framework-date -->);
     includes source, platform-independent binary, tests, and documentation.<br/>
     Then, see the <a
-    href="manual/#installation"><b>installation
+    href="manual/manual.html#installation"><b>installation
     instructions and tutorial</b></a>.
   </li>
 
@@ -43,13 +73,13 @@ to write your own compiler plug-ins.
     <!-- Keep this in sync with the list below. -->
     <ul>
       <li>
-        <a href="manual/">Checker Framework Manual (HTML)</a>
+        <a href="manual/manual.html">Checker Framework Manual (HTML)</a>
       </li>
       <li>
-        <a href="manual/checker-framework-manual.pdf">Checker Framework Manual (PDF)</a>
+        <a href="manual/manual.pdf">Checker Framework Manual (PDF)</a>
       </li>
       <li>
-        <a href="manual/#installation">Installation instructions</a><br/>
+        <a href="manual/manual.html#installation">Installation instructions</a><br/>
         or, try it without installation at the
         <a href="http://eisop.uwaterloo.ca/live/">Checker Framework Live Demo</a>
         webpage
@@ -59,20 +89,23 @@ to write your own compiler plug-ins.
         (There is also an older external <a href="https://github.com/glts/safer-spring-petclinic/wiki">Nullness Checker tutorial</a> whose setup information is out of date.)
       </li>
       <li>
-        <a href="manual/#faq">FAQ (Frequently Asked Questions with answers)</a>
+        <a href="manual/manual.html#faq">FAQ (Frequently Asked Questions with answers)</a>
       </li>
       <li>
-        <a href="api/">Javadoc</a> API documentation
+        <a href="api/checker-javadoc/">Javadoc</a> API documentation
       </li>
       <li>
         <a href="CHANGELOG.md">Changelog</a>
+      </li>
+      <li>
+        <a href="quick-start.html">Quick start guide</a>
       </li>
     </ul>
   </li>
 
   <li>
     Source code repository (at GitHub):  <a href="https://github.com/eisop/checker-framework/">https://github.com/eisop/checker-framework/</a><br/>
-    The Checker Framework Manual contains <a href="manual/#build-source">instructions on building from source</a>.<br/>
+    The Checker Framework Manual contains <a href="manual/manual.html#build-source">instructions on building from source</a>.<br/>
     Also see the <a href="https://htmlpreview.github.io/?https://github.com/eisop/checker-framework/master/docs/developer/developer-manual.html">Developer manual</a>.
   </li>
 
@@ -80,12 +113,12 @@ to write your own compiler plug-ins.
   <li>
     Inference tools automatically add annotations to your code,
     making it even easier to start using the checkers.  The Checker Framework manual contains <a
-href="manual/#type-inference-tools">a list of inference tools</a>.
+href="manual/manual.html#type-inference-tools">a list of inference tools</a>.
   </li>
 
   <li>Optional related tools:
     <ul>
-      <li>The <a href="annotation-file-utilities/"><b>Annotation File Utilities</b></a>
+      <li>The <a href="/afu/annotation-file-utilities.html"><b>Annotation File Utilities</b></a>
           extract annotations from, and write annotations to,
           <code>.java</code> and <code>.class</code> files.
           It also provides a representation (called
@@ -93,16 +126,16 @@ href="manual/#type-inference-tools">a list of inference tools</a>.
           the <code>.class</code> file.  The tools support both Java 5
           declaration annotations and Java 8 type annotations.
         <ul>
-          <li><a href="annotation-file-utilities/annotation-tools-3.49.5-eisop1.zip"><!-- annotation-tools-zip-version -->annotation-tools-3.49.5-eisop1.zip<!-- /annotation-tools-zip-version --></a> (<!-- afu-date -->22 Apr 2026<!-- /afu-date -->)
+          <li><a href="/afu/annotation-tools-3.49.5-eisop1.zip"><!-- annotation-tools-zip-version -->annotation-tools-3.49.5-eisop1.zip<!-- /annotation-tools-zip-version --></a> (<!-- afu-date -->22 Apr 2026<!-- /afu-date -->)
           </li>
           <li><a href="https://github.com/eisop/annotation-tools/">source code repository</a>
           </li>
-          <li><a href="annotation-file-utilities/">Documentation</a>
+          <li><a href="/afu/annotation-file-utilities.html">Documentation</a>
               is included in the zip archive and in the repository.
           </li>
         </ul>
       </li>
-      <li>The <a href="https://eisop.github.io/cf/manual/checker-framework-dataflow-manual.pdf"><b>Dataflow
+      <li>The <a href="manual/checker-framework-dataflow-manual.pdf"><b>Dataflow
         Framework</b></a> is an industrial-strength dataflow framework for
         Java.  The Dataflow Framework is used in the Checker Framework, Google’s
         Error Prone, Uber’s NullAway, Meta’s Nullsafe, and in other contexts.
@@ -112,12 +145,12 @@ href="manual/#type-inference-tools">a list of inference tools</a>.
   </li>
 
   <li>
-    <a href="releases/">Archive of previous releases</a> of the Checker Framework
+    <a href="/cf/releases/releases.html">Archive of previous releases</a> of the Checker Framework
   </li>
 
   <li>
     Research papers:  See the <a
-href="manual/#publications">Checker Framework manual</a>
+href="manual/manual.html#publications">Checker Framework manual</a>
   </li>
 
 </ul>
@@ -141,10 +174,10 @@ If none of those documents answers your question, then use one of the
     <!-- Keep this in sync with the list above. -->
     <ul>
       <li>
-        Checker Framework Manual (<a href="manual/checker-framework-manual.pdf">PDF</a>, <a href="manual/">HTML</a>)
+        Checker Framework Manual (<a href="manual/manual.pdf">PDF</a>, <a href="manual/manual.html">HTML</a>)
       </li>
       <li>
-        <a href="manual/#installation">Installation instructions</a>
+        <a href="manual/manual.html#installation">Installation instructions</a>
       <br/>
         or, try it without installation at the
         <a href="http://eisop.uwaterloo.ca/live/">Checker Framework Live Demo</a>
@@ -160,13 +193,16 @@ If none of those documents answers your question, then use one of the
         </ul>
       </li>
       <li>
-        <a href="manual/#faq">FAQ (Frequently Asked Questions with answers)</a>
+        <a href="manual/manual.html#faq">FAQ (Frequently Asked Questions with answers)</a>
       </li>
       <li>
-        <a href="api/">Javadoc</a> API documentation
+        <a href="api/checker-javadoc/">Javadoc</a> API documentation
       </li>
       <li>
         <a href="CHANGELOG.md">Changelog</a>
+      </li>
+      <li>
+        <a href="quick-start.html">Quick start guide</a>
       </li>
     </ul>
 
@@ -176,7 +212,7 @@ If none of those documents answers your question, then use one of the
 <p>
 If you encounter a problem, please submit a bug report so that we can fix it.
 To submit a bug report, read these
-<a href="manual/#reporting-bugs">instructions</a>, and then use the <a href="https://github.com/eisop/checker-framework/issues">Checker Framework issue tracker</a>.
+<a href="manual/manual.html#reporting-bugs">instructions</a>, and then use the <a href="https://github.com/eisop/checker-framework/issues">Checker Framework issue tracker</a>.
 </p>
 
 
