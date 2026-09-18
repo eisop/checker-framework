@@ -161,7 +161,7 @@ jobs:
   # the jars of a branch whose tests fail are exactly the ones a bug report
   # wants to attach.
   dev-jars:
-    name: Development jars on JDK ${{ env.PRIMARY_JDK }}
+    name: Development jars
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
