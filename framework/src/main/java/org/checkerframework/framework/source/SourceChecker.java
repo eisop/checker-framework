@@ -813,18 +813,9 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
         // exception", with a stack trace, rather than as a diagnostic.
         try {
             initOptions();
-        } catch (UserError ce) {
+        } catch (RuntimeException | Error t) {
             initFailed = true;
-            logUserError(ce);
-        } catch (TypeSystemError ce) {
-            initFailed = true;
-            logTypeSystemError(ce);
-        } catch (BugInCF ce) {
-            initFailed = true;
-            logBugInCF(ce);
-        } catch (Throwable t) {
-            initFailed = true;
-            logBugInCF(wrapThrowableAsBugInCF("SourceChecker.init", t, null));
+            logThrowable("SourceChecker.init", t, null);
         }
     }
 
@@ -1290,14 +1281,8 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
                         Diagnostic.Kind.NOTE, "Checker Framework " + getCheckerVersion());
                 printedVersion = true;
             }
-        } catch (UserError ce) {
-            logUserError(ce);
-        } catch (TypeSystemError ce) {
-            logTypeSystemError(ce);
-        } catch (BugInCF ce) {
-            logBugInCF(ce);
-        } catch (Throwable t) {
-            logBugInCF(wrapThrowableAsBugInCF("SourceChecker.typeProcessingStart", t, null));
+        } catch (RuntimeException | Error t) {
+            logThrowable("SourceChecker.typeProcessingStart", t, null);
         }
     }
 
@@ -1713,14 +1698,8 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
         try {
             visitor.visit(p);
             warnUnneededSuppressions();
-        } catch (UserError ce) {
-            logUserError(ce);
-        } catch (TypeSystemError ce) {
-            logTypeSystemError(ce);
-        } catch (BugInCF ce) {
-            logBugInCF(ce);
-        } catch (Throwable t) {
-            logBugInCF(wrapThrowableAsBugInCF("SourceChecker.visitDeclaration", t, p));
+        } catch (RuntimeException | Error t) {
+            logThrowable("SourceChecker.visitDeclaration", t, p);
         } finally {
             // Also add possibly deferred diagnostics, which will get published back in
             // AbstractTypeProcessor.
@@ -4020,6 +3999,38 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
         }
 
         printMessage(msg.toString());
+    }
+
+    /**
+     * Reports {@code t}, thrown by {@code methodName}, as a compiler diagnostic rather than letting
+     * it propagate out of the annotation processor.
+     *
+     * @param methodName the name of the method that threw {@code t}
+     * @param t the throwable that {@code methodName} threw
+     * @param p the path to the tree being processed, or null if none is being processed
+     */
+    private void logThrowable(String methodName, Throwable t, @Nullable TreePath p) {
+        if (t instanceof UserError) {
+            logUserError((UserError) t);
+        } else if (t instanceof TypeSystemError) {
+            logTypeSystemError((TypeSystemError) t);
+        } else if (t instanceof BugInCF) {
+            logBugInCF((BugInCF) t);
+        } else {
+            logBugInCF(wrapThrowableAsBugInCF(methodName, t, p));
+        }
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Reports the throwable as a compiler diagnostic. {@link #typeProcessingOver()} is
+     * overridable, and five checkers override it, so {@link AbstractTypeProcessor} wrapping the
+     * call is what puts their work under this handler.
+     */
+    @Override
+    protected void handleProcessingError(String methodName, Throwable t) {
+        logThrowable("SourceChecker." + methodName, t, null);
     }
 
     /**
