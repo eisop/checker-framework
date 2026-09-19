@@ -609,7 +609,8 @@ Unsound checking: ignore some errors
   Section~\ref{type-refinement-purity}.
 \item \<-AassumeAssertions=enabled|disabled|neither>
   Whether to assume that assertions (Java \<assert> statements) are enabled
-  or disabled; see Section~\ref{type-refinement-assertions}.
+  or disabled.  The default, \<neither>, accounts for both cases; see
+  Section~\ref{type-refinement-assertions}.
 \item \<-AignoreRangeOverflow>
   Ignore the possibility of overflow for range annotations such as
   \<@IntRange>; see Section~\ref{value-checker-overflow}.
