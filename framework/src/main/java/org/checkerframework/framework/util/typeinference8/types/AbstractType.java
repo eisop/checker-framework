@@ -3,6 +3,7 @@ package org.checkerframework.framework.util.typeinference8.types;
 import com.sun.tools.javac.code.Type;
 import com.sun.tools.javac.code.Type.WildcardType;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.framework.type.AnnotatedTypeFactory;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedArrayType;
@@ -277,12 +278,17 @@ public abstract class AbstractType {
     }
 
     /**
-     * If this type is a functional interface, then this method returns the return type of the
-     * function type of that functional interface. Otherwise, returns null.
+     * If this type is a functional interface whose function type returns a value, then this method
+     * returns that return type. Otherwise, returns null: null is returned both when this type is
+     * not a functional interface and when its function type's result is void. A void result is
+     * signaled by null rather than by a type of kind {@link TypeKind#VOID} because an AbstractType
+     * never represents void, an invariant that {@link ProperType} asserts. The returned type is
+     * therefore never of kind {@link TypeKind#VOID}.
      *
-     * @return the return type of the function type of this type or null if one doesn't exist
+     * @return the return type of the function type of this type, or null if this type is not a
+     *     functional interface or its function type's result is void
      */
-    public AbstractType getFunctionTypeReturnType() {
+    public @Nullable AbstractType getFunctionTypeReturnType() {
         if (TypesUtils.isFunctionalInterface(getJavaType(), context.env)) {
             Pair<AnnotatedExecutableType, ExecutableType> pair = getFunctionType();
             ExecutableType elementType = pair.second;
