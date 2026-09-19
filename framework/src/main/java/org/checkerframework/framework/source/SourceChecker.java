@@ -974,8 +974,42 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      */
     public Map<String, String> getOptionsNoSubcheckers() {
         Map<String, String> options = createActiveOptions(processingEnv.getOptions());
+        // Before the mode's options are added, so that a deprecated option written on the command
+        // line suppresses an "assumeAssertions" that the mode would otherwise add.
+        normalizeDeprecatedAssumeAssertionsOptions(options);
         addModeOptions(options);
         return options;
+    }
+
+    /**
+     * If {@code activeOptions} contains a deprecated {@code -AassumeAssertionsAreEnabled} or {@code
+     * -AassumeAssertionsAreDisabled} option but no {@code -AassumeAssertions} option, adds the
+     * {@code -AassumeAssertions} value that the deprecated option selects. The deprecated option is
+     * left in place, so that {@link #validateAssumeAssertionsOption} can warn about it.
+     *
+     * <p>This runs before the options of {@code -Amode} are added, so a deprecated option written
+     * on the command line takes precedence over a mode, exactly as {@code -AassumeAssertions} does.
+     *
+     * @param activeOptions the active options, to which an {@code -AassumeAssertions} value is
+     *     added
+     */
+    private void normalizeDeprecatedAssumeAssertionsOptions(Map<String, String> activeOptions) {
+        if (activeOptions.containsKey("assumeAssertions")) {
+            // parseAssumeAssertions validates the value, and diagnoses a deprecated option that
+            // contradicts it.
+            return;
+        }
+        boolean enabled = activeOptions.containsKey("assumeAssertionsAreEnabled");
+        boolean disabled = activeOptions.containsKey("assumeAssertionsAreDisabled");
+        if (enabled && disabled) {
+            // parseAssumeAssertions reports this.
+            return;
+        }
+        if (enabled) {
+            activeOptions.put("assumeAssertions", "enabled");
+        } else if (disabled) {
+            activeOptions.put("assumeAssertions", "disabled");
+        }
     }
 
     /**
