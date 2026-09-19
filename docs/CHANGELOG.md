@@ -1070,6 +1070,18 @@ Other improvements and bug fixes:
   annotation class.
 - Fixed a bug where a type annotation written on the first alternative of a
   multi-catch clause was silently dropped.
+- Type argument inference no longer adds the upper bound of a captured type
+  variable as an extra lower bound when reducing a subtyping constraint, as
+  required by JLS 18.2.3. The extra bound inferred types that differ from
+  javac's and caused a crash for a lambda over a wildcard array list such as
+  `new ArrayList<>(List<? extends int[]>).forEach((int[] b) -> {})`.
+  When the type an inference variable resolves to lacks a required qualifier,
+  as for `pick(null, t)` with `t` of type `T`, resolution now instantiates the
+  variable to a requalified copy of that type, such as `@Nullable T`, instead
+  of writing the qualifier onto the type's lower bound, which produced a type
+  that no source can express. Diagnostics can now show a captured type
+  variable, such as `capture#01 extends @Nullable String`, where they
+  previously showed its bound, such as `@Nullable String`.
 
 **Closed issues:**
 
@@ -1129,6 +1141,7 @@ eisop#2061,
 eisop#2064,
 eisop#2074,
 eisop#2081,
+eisop#2083,
 eisop#2089,
 eisop#2105,
 typetools#399,
