@@ -36,10 +36,10 @@ import org.checkerframework.dataflow.util.PurityUtils;
 import org.checkerframework.framework.type.AnnotatedTypeFactory;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedDeclaredType;
+import org.checkerframework.javacutil.Pair;
 import org.checkerframework.javacutil.TreePathUtil;
 import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TypesUtils;
-import org.plumelib.util.IPair;
 
 import java.util.Arrays;
 import java.util.Collection;
@@ -200,7 +200,7 @@ public class OptionalImplVisitor
      *     Optional.isPresent} or to {@code Optional.isEmpty}) and its receiver; or null if not a
      *     call to either of the methods
      */
-    private @Nullable IPair<Boolean, @Nullable ExpressionTree> isCallToIsPresent(
+    private @Nullable Pair<Boolean, @Nullable ExpressionTree> isCallToIsPresent(
             ExpressionTree expression) {
         ProcessingEnvironment env = checker.getProcessingEnvironment();
         boolean negate = false;
@@ -215,10 +215,10 @@ public class OptionalImplVisitor
                     break;
                 case METHOD_INVOCATION:
                     if (TreeUtils.isMethodInvocation(expression, optionalIsPresent, env)) {
-                        return IPair.of(!negate, TreeUtils.getReceiverTree(expression));
+                        return Pair.of(!negate, TreeUtils.getReceiverTree(expression));
                     } else if (optionalIsEmpty != null
                             && TreeUtils.isMethodInvocation(expression, optionalIsEmpty, env)) {
-                        return IPair.of(negate, TreeUtils.getReceiverTree(expression));
+                        return Pair.of(negate, TreeUtils.getReceiverTree(expression));
                     } else {
                         return null;
                     }
@@ -285,7 +285,7 @@ public class OptionalImplVisitor
     public void handleTernaryIsPresentGet(ConditionalExpressionTree tree) {
 
         ExpressionTree condExpr = TreeUtils.withoutParens(tree.getCondition());
-        IPair<Boolean, ExpressionTree> isPresentCall = isCallToIsPresent(condExpr);
+        Pair<Boolean, ExpressionTree> isPresentCall = isCallToIsPresent(condExpr);
         if (isPresentCall == null) {
             return;
         }
@@ -393,7 +393,7 @@ public class OptionalImplVisitor
     public void handleConditionalStatementIsPresentGet(IfTree tree) {
 
         ExpressionTree condExpr = TreeUtils.withoutParens(tree.getCondition());
-        IPair<Boolean, ExpressionTree> isPresentCall = isCallToIsPresent(condExpr);
+        Pair<Boolean, ExpressionTree> isPresentCall = isCallToIsPresent(condExpr);
         if (isPresentCall == null) {
             return;
         }
@@ -530,7 +530,7 @@ public class OptionalImplVisitor
     private void checkConditionalStatementIsPresentGetCall(
             IfTree tree,
             MethodInvocationTree invok,
-            IPair<Boolean, ExpressionTree> isPresentCall,
+            Pair<Boolean, ExpressionTree> isPresentCall,
             @CompilerMessageKey String messageKey) {
         List<? extends ExpressionTree> invokArgs = invok.getArguments();
         if (invokArgs.size() != 1) {

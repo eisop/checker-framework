@@ -1,7 +1,7 @@
 package org.checkerframework.framework.type;
 
 import org.checkerframework.javacutil.AnnotationMirrorSet;
-import org.plumelib.util.IPair;
+import org.checkerframework.javacutil.Pair;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -29,7 +29,7 @@ public class SubtypeVisitHistory {
      * The keys are pairs of types; the value is the set of qualifier hierarchy roots for which the
      * key is in a subtype relationship.
      */
-    private final Map<IPair<AnnotatedTypeMirror, AnnotatedTypeMirror>, AnnotationMirrorSet> visited;
+    private final Map<Pair<AnnotatedTypeMirror, AnnotatedTypeMirror>, AnnotationMirrorSet> visited;
 
     /** Creates a new SubtypeVisitHistory. */
     public SubtypeVisitHistory() {
@@ -66,18 +66,18 @@ public class SubtypeVisitHistory {
             // Only store information about subtype relations that hold.
             return;
         }
-        putKey(IPair.of(type1, type2), currentTop);
+        putKey(Pair.of(type1, type2), currentTop);
     }
 
     /**
      * Like {@link #put}, but accepts a pre-built key and always records the pair. Package-private
      * so that {@link StructuralEqualityVisitHistory} can reuse a single key across its two
-     * underlying histories without allocating two equal {@link IPair}s per call.
+     * underlying histories without allocating two equal {@link Pair}s per call.
      *
      * @param key the (type1, type2) pair
      * @param currentTop the top of the relevant qualifier hierarchy
      */
-    void putKey(IPair<AnnotatedTypeMirror, AnnotatedTypeMirror> key, AnnotationMirror currentTop) {
+    void putKey(Pair<AnnotatedTypeMirror, AnnotatedTypeMirror> key, AnnotationMirror currentTop) {
         AnnotationMirrorSet hit = visited.get(key);
         if (hit != null) {
             hit.add(currentTop);
@@ -97,7 +97,7 @@ public class SubtypeVisitHistory {
      */
     public void remove(
             AnnotatedTypeMirror type1, AnnotatedTypeMirror type2, AnnotationMirror currentTop) {
-        removeKey(IPair.of(type1, type2), currentTop);
+        removeKey(Pair.of(type1, type2), currentTop);
     }
 
     /**
@@ -107,7 +107,7 @@ public class SubtypeVisitHistory {
      * @param currentTop the top qualifier of the current hierarchy
      */
     void removeKey(
-            IPair<AnnotatedTypeMirror, AnnotatedTypeMirror> key, AnnotationMirror currentTop) {
+            Pair<AnnotatedTypeMirror, AnnotatedTypeMirror> key, AnnotationMirror currentTop) {
         AnnotationMirrorSet hit = visited.get(key);
         if (hit != null) {
             hit.remove(currentTop);
@@ -128,7 +128,7 @@ public class SubtypeVisitHistory {
      */
     public boolean contains(
             AnnotatedTypeMirror type1, AnnotatedTypeMirror type2, AnnotationMirror currentTop) {
-        return containsKey(IPair.of(type1, type2), currentTop);
+        return containsKey(Pair.of(type1, type2), currentTop);
     }
 
     /**
@@ -139,7 +139,7 @@ public class SubtypeVisitHistory {
      * @return true if an equivalent pair has already been added to the history
      */
     boolean containsKey(
-            IPair<AnnotatedTypeMirror, AnnotatedTypeMirror> key, AnnotationMirror currentTop) {
+            Pair<AnnotatedTypeMirror, AnnotatedTypeMirror> key, AnnotationMirror currentTop) {
         AnnotationMirrorSet hit = visited.get(key);
         return hit != null && hit.contains(currentTop);
     }

@@ -236,7 +236,7 @@ public class PerfRegressionTest {
     /**
      * The package-private {@code putKey}/{@code removeKey}/{@code containsKey} methods on {@link
      * SubtypeVisitHistory} exist to let {@code StructuralEqualityVisitHistory} share one {@code
-     * IPair} across both inner histories per public call. Removing them would halve the allocation
+     * Pair} across both inner histories per public call. Removing them would halve the allocation
      * reduction shipped in PR #1719.
      */
     @Test

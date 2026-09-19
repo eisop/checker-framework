@@ -20,7 +20,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.checker.signature.qual.FullyQualifiedName;
 import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.ElementUtils;
-import org.plumelib.util.IPair;
+import org.checkerframework.javacutil.Pair;
 
 import java.io.File;
 import java.io.IOException;
@@ -253,12 +253,11 @@ public class AnnotationFileUtil {
      * @return a pair of the type name and the field name
      */
     @SuppressWarnings("signature") // string parsing
-    public static IPair<@FullyQualifiedName String, String> partitionQualifiedName(
-            String imported) {
+    public static Pair<@FullyQualifiedName String, String> partitionQualifiedName(String imported) {
         int lastDot = imported.lastIndexOf('.');
         @FullyQualifiedName String typeName = imported.substring(0, lastDot);
         String name = imported.substring(lastDot + 1);
-        IPair<String, String> typeParts = IPair.of(typeName, name);
+        Pair<String, String> typeParts = Pair.of(typeName, name);
         return typeParts;
     }
 
