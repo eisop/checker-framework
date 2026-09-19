@@ -678,6 +678,11 @@ defaults, and only the latter was cached. Both now use the new
 `SourceChecker.isElementAnnotatedForThisCheckerOrUpstreamChecker(Element)`,
 which `BaseTypeChecker` implements with a cache.
 
+Type argument inference no longer fails on an inexact method reference to a
+value-returning method that is passed where a functional interface whose method
+returns `void` is expected, so that the returned value is discarded.  It reported
+`type.argument.inference.crashed` on code that javac accepts.
+
 **Implementation details:**
 
 The jtreg tests that verify which annotations the Checker Framework writes into
@@ -1134,6 +1139,7 @@ eisop#2074,
 eisop#2081,
 eisop#2086,
 eisop#2089,
+eisop#2105,
 typetools#399,
 typetools#2816,
 typetools#3203.

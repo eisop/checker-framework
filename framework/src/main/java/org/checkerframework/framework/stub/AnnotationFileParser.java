@@ -83,11 +83,11 @@ import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.InternalUtils;
+import org.checkerframework.javacutil.Pair;
 import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TypesUtils;
 import org.checkerframework.javacutil.UserError;
 import org.plumelib.util.ArrayMap;
-import org.plumelib.util.IPair;
 import org.plumelib.util.SystemPlume;
 
 import java.io.File;
@@ -325,7 +325,7 @@ public class AnnotationFileParser {
          * fake overrides are always in subtypes of {@code ee.getEnclosingElement()}, which is the
          * same as {@code ee.getReceiverType()}.
          */
-        public final Map<ExecutableElement, List<IPair<TypeMirror, AnnotatedTypeMirror>>>
+        public final Map<ExecutableElement, List<Pair<TypeMirror, AnnotatedTypeMirror>>>
                 fakeOverrides = new HashMap<>(4);
 
         /** Maps fully-qualified record name to information in the stub file. */
@@ -648,7 +648,7 @@ public class AnnotationFileParser {
                         stubWarnNotFound(importDecl, "imported type not found: " + imported);
                     } else if (importType == null) {
                         // Static import of field or method.
-                        IPair<@FullyQualifiedName String, String> typeParts =
+                        Pair<@FullyQualifiedName String, String> typeParts =
                                 AnnotationFileUtil.partitionQualifiedName(imported);
                         String type = typeParts.first;
                         String fieldName = typeParts.second;
@@ -1190,7 +1190,7 @@ public class AnnotationFileParser {
             putMergeRecords(recordDecl.getFullyQualifiedName().get(), new RecordStub(byName));
         }
 
-        IPair<Map<Element, BodyDeclaration<?>>, Map<Element, List<BodyDeclaration<?>>>> members =
+        Pair<Map<Element, BodyDeclaration<?>>, Map<Element, List<BodyDeclaration<?>>>> members =
                 getMembers(typeDecl, typeElt, typeDecl);
         for (Map.Entry<Element, BodyDeclaration<?>> entry : members.first.entrySet()) {
             Element elt = entry.getKey();
@@ -2175,7 +2175,7 @@ public class AnnotationFileParser {
      *     elements to fake overrides of them
      * @param astNode where to report errors
      */
-    private IPair<Map<Element, BodyDeclaration<?>>, Map<Element, List<BodyDeclaration<?>>>>
+    private Pair<Map<Element, BodyDeclaration<?>>, Map<Element, List<BodyDeclaration<?>>>>
             getMembers(TypeDeclaration<?> typeDecl, TypeElement typeElt, NodeWithRange<?> astNode) {
         assert (typeElt.getSimpleName().contentEquals(typeDecl.getNameAsString())
                         || typeDecl.getNameAsString().endsWith("$" + typeElt.getSimpleName()))
@@ -2208,7 +2208,7 @@ public class AnnotationFileParser {
             }
         }
 
-        return IPair.of(elementsToDecl, fakeOverrideDecls);
+        return Pair.of(elementsToDecl, fakeOverrideDecls);
     }
 
     // Used only by getMembers().
@@ -2518,10 +2518,10 @@ public class AnnotationFileParser {
                 annotations,
                 decl);
 
-        List<IPair<TypeMirror, AnnotatedTypeMirror>> l =
+        List<Pair<TypeMirror, AnnotatedTypeMirror>> l =
                 annotationFileAnnos.fakeOverrides.computeIfAbsent(
                         element, __ -> new ArrayList<>(1));
-        l.add(IPair.of(fakeLocation.asType(), methodType));
+        l.add(Pair.of(fakeLocation.asType(), methodType));
     }
 
     /**
@@ -3245,7 +3245,7 @@ public class AnnotationFileParser {
         VariableElement res = null;
         boolean importFound = false;
         for (String imp : importedConstants) {
-            IPair<@FullyQualifiedName String, String> partitionedName =
+            Pair<@FullyQualifiedName String, String> partitionedName =
                     AnnotationFileUtil.partitionQualifiedName(imp);
             String typeName = partitionedName.first;
             String fieldName = partitionedName.second;

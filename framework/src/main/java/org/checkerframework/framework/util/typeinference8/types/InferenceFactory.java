@@ -42,6 +42,7 @@ import org.checkerframework.framework.util.typeinference8.util.Java8InferenceCon
 import org.checkerframework.framework.util.typeinference8.util.Theta;
 import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.ElementUtils;
+import org.checkerframework.javacutil.Pair;
 import org.checkerframework.javacutil.SwitchExpressionScanner;
 import org.checkerframework.javacutil.SwitchExpressionScanner.FunctionalSwitchExpressionScanner;
 import org.checkerframework.javacutil.TreePathUtil;
@@ -49,7 +50,6 @@ import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TreeUtils.MemberReferenceKind;
 import org.checkerframework.javacutil.TypeAnnotationUtils;
 import org.checkerframework.javacutil.TypesUtils;
-import org.plumelib.util.IPair;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -900,8 +900,7 @@ public class InferenceFactory {
      * @return the pair of {@code a} as the least upper bound of {@code a} and {@code b} and *
      *     {@code b} as the least upper bound of {@code a} and {@code b}
      */
-    public IPair<AbstractType, AbstractType> getParameterizedSupers(
-            AbstractType a, AbstractType b) {
+    public Pair<AbstractType, AbstractType> getParameterizedSupers(AbstractType a, AbstractType b) {
         TypeMirror aTypeMirror = a.getJavaType();
         TypeMirror bTypeMirror = b.getJavaType();
         // com.sun.tools.javac.comp.Infer#getParameterizedSupers
@@ -913,7 +912,7 @@ public class InferenceFactory {
         Type asSuperOfA = context.types.asSuper((Type) aTypeMirror, ((Type) lubResult).asElement());
         Type asSuperOfB = context.types.asSuper((Type) bTypeMirror, ((Type) lubResult).asElement());
 
-        return IPair.of(a.asSuper(asSuperOfA), b.asSuper(asSuperOfB));
+        return Pair.of(a.asSuper(asSuperOfA), b.asSuper(asSuperOfB));
     }
 
     /**

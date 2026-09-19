@@ -9,7 +9,7 @@ import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedTypeVari
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedWildcardType;
 import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.ElementUtils;
-import org.plumelib.util.IPair;
+import org.checkerframework.javacutil.Pair;
 
 import java.util.IdentityHashMap;
 import java.util.List;
@@ -441,7 +441,7 @@ public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
      */
     private AnnotatedTypeMirror getTypeVariableSubstitution(
             AnnotatedDeclaredType type, AnnotatedTypeVariable var) {
-        IPair<AnnotatedDeclaredType, Integer> res = findDeclType(type, var);
+        Pair<AnnotatedDeclaredType, Integer> res = findDeclType(type, var);
 
         if (res == null) {
             return var;
@@ -475,7 +475,7 @@ public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
      * @param var formal type parameter
      * @return index(position) of this type variable from type
      */
-    private IPair<AnnotatedDeclaredType, Integer> findDeclType(
+    private Pair<AnnotatedDeclaredType, Integer> findDeclType(
             AnnotatedDeclaredType type, AnnotatedTypeVariable var) {
         Element varelem = var.getUnderlyingType().asElement();
 
@@ -495,7 +495,7 @@ public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
         if (foundindex >= tparams.size()) {
             // Didn't find the desired type => Head for super type of "type"!
             for (AnnotatedDeclaredType sup : type.directSupertypes()) {
-                IPair<AnnotatedDeclaredType, Integer> res = findDeclType(sup, var);
+                Pair<AnnotatedDeclaredType, Integer> res = findDeclType(sup, var);
                 if (res != null) {
                     return res;
                 }
@@ -505,6 +505,6 @@ public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
             return null;
         }
 
-        return IPair.of(type, foundindex);
+        return Pair.of(type, foundindex);
     }
 }
