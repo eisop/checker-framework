@@ -671,6 +671,12 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     /** The supported values for the {@code -Amode} option. */
     private @MonotonicNonNull Set<String> supportedModes;
 
+    /**
+     * True if {@link #init} reported an error. This checker is not initialized, so it must not
+     * process anything; the error it reported already fails the compilation.
+     */
+    private boolean initFailed = false;
+
     /** The value of {@code -AassumeAssertions}, set by {@link #getAssumeAssertions()}. */
     private @MonotonicNonNull AssumeAssertions assumeAssertions;
 
@@ -801,6 +807,32 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
         // Sets processing enviroment and other related fields.
         setProcessingEnvironment(unwrappedEnv);
 
+        // Everything that can fail because of what the user wrote on the command line runs here,
+        // where an error is reported as a compiler error.  javac calls init() itself, so an
+        // exception thrown out of it is reported as "An annotation processor threw an uncaught
+        // exception", with a stack trace, rather than as a diagnostic.
+        try {
+            initOptions();
+        } catch (UserError ce) {
+            initFailed = true;
+            logUserError(ce);
+        } catch (TypeSystemError ce) {
+            initFailed = true;
+            logTypeSystemError(ce);
+        } catch (BugInCF ce) {
+            initFailed = true;
+            logBugInCF(ce);
+        } catch (Throwable t) {
+            initFailed = true;
+            logBugInCF(wrapThrowableAsBugInCF("SourceChecker.init", t, null));
+        }
+    }
+
+    /**
+     * Reads the command-line options that {@link #init} acts on. Called by {@link #init}, which
+     * reports a {@link UserError} thrown here as a compiler error.
+     */
+    private void initOptions() {
         // Keep in sync with check in checker-framework/build.gradle .
         int jreVersion = SystemUtil.jreVersion;
         List<Integer> supportedJres = Arrays.asList(8, 11, 17, 21, 25, 27, 28);
@@ -1174,6 +1206,9 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      */
     @Override
     public void typeProcessingStart() {
+        if (initFailed) {
+            return;
+        }
         try {
             super.typeProcessingStart();
             initChecker();
@@ -1419,6 +1454,10 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      */
     @Override
     public void typeProcess(TypeElement e, TreePath p) {
+        if (initFailed) {
+            // typeProcessingStart did not run, so this checker has no visitor.
+            return;
+        }
         if (messageStore != null && parentChecker == null) {
             messageStore.clear();
         }
