@@ -18,11 +18,11 @@ import org.checkerframework.framework.util.typeinference8.types.Variable;
 import org.checkerframework.framework.util.typeinference8.util.Java8InferenceContext;
 import org.checkerframework.framework.util.typeinference8.util.Theta;
 import org.checkerframework.javacutil.BugInCF;
+import org.checkerframework.javacutil.Pair;
 import org.checkerframework.javacutil.SwitchExpressionScanner;
 import org.checkerframework.javacutil.SwitchExpressionScanner.FunctionalSwitchExpressionScanner;
 import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TreeUtils.MemberReferenceKind;
-import org.plumelib.util.IPair;
 
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -290,7 +290,7 @@ public class Expression extends TypeConstraint {
     // See https://docs.oracle.com/javase/specs/jls/se8/html/jls-18.html#jls-18.2.1-200
     private ReductionResultPair reduceLambda(Java8InferenceContext context) {
         LambdaExpressionTree lambda = (LambdaExpressionTree) expression;
-        IPair<AbstractType, BoundSet> pair = getGroundTargetType(T, lambda, context);
+        Pair<AbstractType, BoundSet> pair = getGroundTargetType(T, lambda, context);
         AbstractType tPrime = pair.first;
         BoundSet boundSet = pair.second == null ? new BoundSet(context) : pair.second;
 
@@ -348,10 +348,10 @@ public class Expression extends TypeConstraint {
      * @param context the context
      * @return the ground target type
      */
-    private IPair<AbstractType, BoundSet> getGroundTargetType(
+    private Pair<AbstractType, BoundSet> getGroundTargetType(
             AbstractType t, LambdaExpressionTree lambda, Java8InferenceContext context) {
         if (!t.isWildcardParameterizedType()) {
-            return IPair.of(t, null);
+            return Pair.of(t, null);
         }
         // 15.27.3:
         // If T is a wildcard-parameterized functional interface type and the lambda expression is
@@ -363,7 +363,7 @@ public class Expression extends TypeConstraint {
             // is implicitly typed, then the ground target type is the non-wildcard parameterization
             // (9.9) of T.
             // https://docs.oracle.com/javase/specs/jls/se8/html/jls-9.html#jls-9.9-200-C
-            return IPair.of(nonWildcardParameterization(t, context), null);
+            return Pair.of(nonWildcardParameterization(t, context), null);
         }
     }
 
@@ -407,7 +407,7 @@ public class Expression extends TypeConstraint {
      * @param context the context
      * @return a pair of the type of the lambda and the bound set that needs to be resolved
      */
-    private IPair<AbstractType, BoundSet> explicitlyTypedLambdaWithWildcard(
+    private Pair<AbstractType, BoundSet> explicitlyTypedLambdaWithWildcard(
             AbstractType t, LambdaExpressionTree lambda, Java8InferenceContext context) {
         // Where a lambda expression with explicit parameter types P1, ..., Pn targets a functional
         // interface type F<A1, ..., Am> with at least one wildcard type argument, then a
@@ -464,9 +464,9 @@ public class Expression extends TypeConstraint {
 
         AbstractType target = t.replaceTypeArgs(APrimes);
         if (hasWildcard) {
-            return IPair.of(nonWildcardParameterization(target, context), b);
+            return Pair.of(nonWildcardParameterization(target, context), b);
         }
-        return IPair.of(target, b);
+        return Pair.of(target, b);
     }
 
     @Override

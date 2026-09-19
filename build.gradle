@@ -1756,6 +1756,10 @@ final createCheckRelocatedStringsTask(Project project, List jarTasks) {
     }
 }
 
+// Helper task to ensure no relocated shadowed types leak into public/protected API of shaded jars
+apply from: rootProject.file('gradle/check-public-api.gradle')
+
+
 /**
  * Registers a task that fails if a task configuration closure configures project-wide state.
  *

@@ -7,8 +7,8 @@ import org.checkerframework.framework.util.typeinference8.constraint.QualifierTy
 import org.checkerframework.framework.util.typeinference8.constraint.TypeConstraint;
 import org.checkerframework.framework.util.typeinference8.constraint.Typing;
 import org.checkerframework.framework.util.typeinference8.util.Java8InferenceContext;
+import org.checkerframework.javacutil.Pair;
 import org.checkerframework.javacutil.TypesUtils;
-import org.plumelib.util.IPair;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -447,7 +447,7 @@ public class VariableBounds {
     private List<Typing> getConstraintsFromParameterized(AbstractType s, AbstractType t) {
         String source = "Constraint from parameterized bound.";
 
-        IPair<AbstractType, AbstractType> pair =
+        Pair<AbstractType, AbstractType> pair =
                 context.inferenceTypeFactory.getParameterizedSupers(s, t);
 
         if (pair == null) {
@@ -754,7 +754,7 @@ public class VariableBounds {
             AbstractType s1 = parameteredTypes.get(i);
             for (int j = i + 1; j < parameteredTypes.size(); j++) {
                 AbstractType s2 = parameteredTypes.get(j);
-                IPair<AbstractType, AbstractType> supers =
+                Pair<AbstractType, AbstractType> supers =
                         context.inferenceTypeFactory.getParameterizedSupers(s1, s2);
                 if (supers == null) {
                     continue;

@@ -15,7 +15,7 @@ import org.checkerframework.framework.type.ElementAnnotationApplier;
 import org.checkerframework.framework.util.element.ElementAnnotationUtil.UnexpectedAnnotationLocationException;
 import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.InternalUtils;
-import org.plumelib.util.IPair;
+import org.checkerframework.javacutil.Pair;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -84,7 +84,7 @@ public class ParamApplier extends IndexedElementAnnotationApplier {
             isLambdaParam = false;
             lambdaParamIndex = null;
         } else {
-            IPair<VariableTree, LambdaExpressionTree> paramToEnclosingLambda =
+            Pair<VariableTree, LambdaExpressionTree> paramToEnclosingLambda =
                     ElementAnnotationApplier.getParamAndLambdaTree(element, atypeFactory);
 
             if (paramToEnclosingLambda != null) {

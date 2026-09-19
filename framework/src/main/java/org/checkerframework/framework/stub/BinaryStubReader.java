@@ -19,9 +19,9 @@ import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.InternalUtils;
+import org.checkerframework.javacutil.Pair;
 import org.checkerframework.javacutil.TypesUtils;
 import org.checkerframework.javacutil.UserError;
-import org.plumelib.util.IPair;
 
 import java.lang.annotation.Target;
 import java.util.ArrayList;
@@ -915,7 +915,7 @@ public class BinaryStubReader {
                 aet.getReturnType(), returnTypeAnnos, className, data, atypeFactory, elementTypes);
         target.fakeOverrides
                 .computeIfAbsent(overridden, k -> new ArrayList<>(1))
-                .add(IPair.of(typeElt.asType(), aet));
+                .add(Pair.of(typeElt.asType(), aet));
     }
 
     /**

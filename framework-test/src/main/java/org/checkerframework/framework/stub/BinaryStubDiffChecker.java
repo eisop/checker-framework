@@ -16,7 +16,7 @@ import org.checkerframework.framework.type.visitor.SimpleAnnotatedTypeScanner;
 import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.ElementUtils;
-import org.plumelib.util.IPair;
+import org.checkerframework.javacutil.Pair;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -657,12 +657,12 @@ public class BinaryStubDiffChecker {
             return;
         }
         boolean stored = false;
-        List<IPair<TypeMirror, AnnotatedTypeMirror>> entries =
+        List<Pair<TypeMirror, AnnotatedTypeMirror>> entries =
                 binaryAnnos.fakeOverrides.get(overridden);
         if (entries != null) {
             Types types = atypeFactory.getProcessingEnv().getTypeUtils();
             TypeMirror location = typeElt.asType();
-            for (IPair<TypeMirror, AnnotatedTypeMirror> pair : entries) {
+            for (Pair<TypeMirror, AnnotatedTypeMirror> pair : entries) {
                 if (types.isSameType(pair.first, location)) {
                     stored = true;
                     break;
@@ -808,17 +808,17 @@ public class BinaryStubDiffChecker {
     private static void compareFakeOverrideLocations(
             String className,
             String fromSide,
-            Map<ExecutableElement, List<IPair<TypeMirror, AnnotatedTypeMirror>>> from,
-            Map<ExecutableElement, List<IPair<TypeMirror, AnnotatedTypeMirror>>> to,
+            Map<ExecutableElement, List<Pair<TypeMirror, AnnotatedTypeMirror>>> from,
+            Map<ExecutableElement, List<Pair<TypeMirror, AnnotatedTypeMirror>>> to,
             Types types,
             List<String> reports) {
-        for (Map.Entry<ExecutableElement, List<IPair<TypeMirror, AnnotatedTypeMirror>>> entry :
+        for (Map.Entry<ExecutableElement, List<Pair<TypeMirror, AnnotatedTypeMirror>>> entry :
                 from.entrySet()) {
-            List<IPair<TypeMirror, AnnotatedTypeMirror>> toEntries = to.get(entry.getKey());
-            for (IPair<TypeMirror, AnnotatedTypeMirror> fromEntry : entry.getValue()) {
+            List<Pair<TypeMirror, AnnotatedTypeMirror>> toEntries = to.get(entry.getKey());
+            for (Pair<TypeMirror, AnnotatedTypeMirror> fromEntry : entry.getValue()) {
                 boolean found = false;
                 if (toEntries != null) {
-                    for (IPair<TypeMirror, AnnotatedTypeMirror> toEntry : toEntries) {
+                    for (Pair<TypeMirror, AnnotatedTypeMirror> toEntry : toEntries) {
                         if (types.isSameType(toEntry.first, fromEntry.first)) {
                             found = true;
                             break;
