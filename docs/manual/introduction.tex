@@ -607,9 +607,10 @@ Unsound checking: ignore some errors
   both; or that every getter method is pure.
   See Section~\ref{purity-suppress-warnings} and
   Section~\ref{type-refinement-purity}.
-\item \<-AassumeAssertionsAreEnabled>, \<-AassumeAssertionsAreDisabled>
+\item \<-AassumeAssertions=enabled|disabled|neither>
   Whether to assume that assertions (Java \<assert> statements) are enabled
-  or disabled; see Section~\ref{type-refinement-assertions}.
+  or disabled.  The default, \<neither>, accounts for both cases; see
+  Section~\ref{type-refinement-assertions}.
 \item \<-AignoreRangeOverflow>
   Ignore the possibility of overflow for range annotations such as
   \<@IntRange>; see Section~\ref{value-checker-overflow}.
@@ -1764,7 +1765,7 @@ or suppress warnings.
 % LocalWords:  bootclasspath AonlyUses AskipDefs AonlyDefs AcheckPurityAnnotations
 % LocalWords:  AsuppressWarnings AassumeSideEffectFree Adetailedmsgtext m2
 % LocalWords:  AignoreRawTypeArguments AsuggestPureMethods ApermitMissingJdk
-% LocalWords:  AassumeAssertionsAreEnabled AassumeAssertionsAreDisabled
+% LocalWords:  AassumeAssertions
 % LocalWords:  AconcurrentSemantics AstubWarnIfNotFound AnoPrintErrorStack
 % LocalWords:  AprintAllQualifiers Aignorejdkastub AstubDebug Aflowdotdir
 % LocalWords:  AresourceStats jls r78 JDKs i18n AignoreRangeOverflow L129

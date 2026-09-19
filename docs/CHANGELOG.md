@@ -10,6 +10,12 @@ building it.  See the "Development jars without building" section of the manual.
 The EISOP Checker Framework runs under JDK 27 and under JDK 28 b15 early access
 builds -- that is, it runs on version 27 and 28 JVMs.
 
+New command-line option `-AassumeAssertions=enabled|disabled|neither` states what to assume
+about whether assertions are enabled at run time. `neither`, the default, accounts for both
+cases, as before. It replaces `-AassumeAssertionsAreEnabled` and
+`-AassumeAssertionsAreDisabled`, which are deprecated: each is still honored, but passing one
+issues a warning that names its replacement.
+
 A checker can now examine a package declaration. `AbstractTypeProcessor` dropped the
 analysis event for a `package-info.java`, so no checker could ever visit one and a
 declaration annotation written on a `package` clause went unchecked. Three checks that
@@ -282,6 +288,14 @@ Type argument inference no longer fails on a `? super` wildcard whose argument m
 the inferred type variable through `? extends`, as in
 `Function<? super Set<? extends K>, ?>`.  It reported
 `type.argument.inference.crashed` on code that javac accepts.
+
+Type argument inference no longer fails on a generic call returned by a lambda that is
+itself an argument to a generic method, as in `run(() -> arr(new String[0]))`.  Finding
+the qualifiers of the new array restarted inference of `arr(...)` while it was still being
+inferred as part of `run(...)`, and that second inference used `run`'s not-yet-inferred
+type variable as its target.  With default options the failure was silently discarded;
+with `-AconvertTypeArgInferenceCrashToWarning=false`, as the test harness passes, the
+Checker Framework crashed on code that javac accepts.
 
 The stubifier resolves a nested annotation named through its enclosing class, as
 the JDK's own `java.lang.invoke.VarHandle` writes `@MethodHandle.PolymorphicSignature`.
@@ -671,6 +685,11 @@ implemented twice, once for warning suppression and once for conservative
 defaults, and only the latter was cached. Both now use the new
 `SourceChecker.isElementAnnotatedForThisCheckerOrUpstreamChecker(Element)`,
 which `BaseTypeChecker` implements with a cache.
+
+Type argument inference no longer fails on an inexact method reference to a
+value-returning method that is passed where a functional interface whose method
+returns `void` is expected, so that the returned value is discarded.  It reported
+`type.argument.inference.crashed` on code that javac accepts.
 
 **Implementation details:**
 
@@ -1126,7 +1145,10 @@ eisop#2061,
 eisop#2064,
 eisop#2074,
 eisop#2081,
+eisop#2086,
 eisop#2089,
+eisop#2091,
+eisop#2105,
 typetools#399,
 typetools#2816,
 typetools#3203.

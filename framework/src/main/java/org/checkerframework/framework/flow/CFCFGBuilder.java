@@ -16,12 +16,12 @@ import org.checkerframework.dataflow.cfg.builder.CFGTranslationPhaseOne;
 import org.checkerframework.dataflow.cfg.builder.CFGTranslationPhaseThree;
 import org.checkerframework.dataflow.cfg.builder.CFGTranslationPhaseTwo;
 import org.checkerframework.dataflow.cfg.builder.PhaseOneResult;
+import org.checkerframework.framework.source.AssumeAssertions;
 import org.checkerframework.framework.type.AnnotatedTypeFactory;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.GenericAnnotatedTypeFactory;
 import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.TreeUtils;
-import org.checkerframework.javacutil.UserError;
 
 import java.util.Collection;
 
@@ -47,12 +47,9 @@ public class CFCFGBuilder extends CFGBuilder {
             BaseTypeChecker checker,
             AnnotatedTypeFactory atypeFactory,
             ProcessingEnvironment env) {
-        boolean assumeAssertionsEnabled = checker.hasOption("assumeAssertionsAreEnabled");
-        boolean assumeAssertionsDisabled = checker.hasOption("assumeAssertionsAreDisabled");
-        if (assumeAssertionsEnabled && assumeAssertionsDisabled) {
-            throw new UserError(
-                    "Assertions cannot be assumed to be enabled and disabled at the same time.");
-        }
+        AssumeAssertions assumeAssertions = checker.getAssumeAssertions();
+        boolean assumeAssertionsEnabled = assumeAssertions == AssumeAssertions.ENABLED;
+        boolean assumeAssertionsDisabled = assumeAssertions == AssumeAssertions.DISABLED;
 
         // Subcheckers with dataflow share control-flow graph structure to
         // allow a super-checker to query the stores of a subchecker.

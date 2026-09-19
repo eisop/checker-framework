@@ -91,6 +91,7 @@ import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.ElementUtils;
+import org.checkerframework.javacutil.Pair;
 import org.checkerframework.javacutil.TreePathUtil;
 import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TypeSystemError;
@@ -98,7 +99,6 @@ import org.checkerframework.javacutil.TypesUtils;
 import org.checkerframework.javacutil.UserError;
 import org.plumelib.reflection.Signatures;
 import org.plumelib.util.CollectionsPlume;
-import org.plumelib.util.IPair;
 import org.plumelib.util.SystemPlume;
 
 import java.lang.annotation.Annotation;
@@ -1065,11 +1065,11 @@ public abstract class GenericAnnotatedTypeFactory<
      * @return the JavaExpression and offset for the given expression
      * @throws JavaExpressionParseException thrown if the expression cannot be parsed
      */
-    public IPair<JavaExpression, String> getExpressionAndOffsetFromJavaExpressionString(
+    public Pair<JavaExpression, String> getExpressionAndOffsetFromJavaExpressionString(
             String expression, TreePath currentPath) throws JavaExpressionParseException {
-        IPair<String, String> p = getExpressionAndOffset(expression);
+        Pair<String, String> p = getExpressionAndOffset(expression);
         JavaExpression r = parseJavaExpressionString(p.first, currentPath);
-        return IPair.of(r, p.second);
+        return Pair.of(r, p.second);
     }
 
     /**
@@ -1189,7 +1189,7 @@ public abstract class GenericAnnotatedTypeFactory<
      * <p>This field is intentionally not final; it should only be re-assigned by {@link
      * #performFlowAnalysis}.
      */
-    protected IdentityHashMap<MethodTree, List<IPair<ReturnNode, TransferResult<Value, Store>>>>
+    protected IdentityHashMap<MethodTree, List<Pair<ReturnNode, TransferResult<Value, Store>>>>
             returnStatementStores;
 
     /**
@@ -1233,7 +1233,7 @@ public abstract class GenericAnnotatedTypeFactory<
      * @return a list of all return statements of {@code method} paired with their corresponding
      *     {@link TransferResult} or an empty list if {@code method} has no return statements
      */
-    public List<IPair<ReturnNode, TransferResult<Value, Store>>> getReturnStatementStores(
+    public List<Pair<ReturnNode, TransferResult<Value, Store>>> getReturnStatementStores(
             MethodTree methodTree) {
         assert returnStatementStores.containsKey(methodTree);
         return returnStatementStores.get(methodTree);
@@ -1457,14 +1457,14 @@ public abstract class GenericAnnotatedTypeFactory<
         }
 
         // class trees and their initial stores
-        Queue<IPair<ClassTree, Store>> classQueue = new ArrayDeque<>();
+        Queue<Pair<ClassTree, Store>> classQueue = new ArrayDeque<>();
         List<FieldInitialValue<Value>> fieldValues = new ArrayList<>();
 
         // No captured store for top-level classes.
-        classQueue.add(IPair.of(classTree, null));
+        classQueue.add(Pair.of(classTree, null));
 
         while (!classQueue.isEmpty()) {
-            IPair<ClassTree, Store> qel = classQueue.remove();
+            Pair<ClassTree, Store> qel = classQueue.remove();
             ClassTree ct = qel.first;
             Store capturedStore = qel.second;
             scannedClasses.put(ct, ScanState.IN_PROGRESS);
@@ -1479,7 +1479,7 @@ public abstract class GenericAnnotatedTypeFactory<
             initializationStore = capturedStore;
 
             // The store is null if the lambda is unreachable.
-            Queue<IPair<LambdaExpressionTree, @Nullable Store>> lambdaQueue = new ArrayDeque<>();
+            Queue<Pair<LambdaExpressionTree, @Nullable Store>> lambdaQueue = new ArrayDeque<>();
 
             // Queue up classes (for top-level `while` loop) and methods (for within this `try`
             // construct); analyze top-level blocks and variable initializers as they are
@@ -1501,7 +1501,7 @@ public abstract class GenericAnnotatedTypeFactory<
                         case ENUM:
                             // Visit inner and nested class trees.
                             // TODO: Use no store for them? What can be captured?
-                            classQueue.add(IPair.of((ClassTree) m, capturedStore));
+                            classQueue.add(Pair.of((ClassTree) m, capturedStore));
                             break;
                         case METHOD:
                             MethodTree mt = (MethodTree) m;
@@ -1591,7 +1591,7 @@ public abstract class GenericAnnotatedTypeFactory<
                 }
 
                 while (!lambdaQueue.isEmpty()) {
-                    IPair<LambdaExpressionTree, @Nullable Store> lambdaPair = lambdaQueue.poll();
+                    Pair<LambdaExpressionTree, @Nullable Store> lambdaPair = lambdaQueue.poll();
                     MethodTree mt =
                             (MethodTree)
                                     TreePathUtil.enclosingOfKind(
@@ -1668,8 +1668,8 @@ public abstract class GenericAnnotatedTypeFactory<
      * @see #postAnalyze(org.checkerframework.dataflow.cfg.ControlFlowGraph)
      */
     protected void analyze(
-            Queue<IPair<ClassTree, Store>> classQueue,
-            Queue<IPair<LambdaExpressionTree, Store>> lambdaQueue,
+            Queue<Pair<ClassTree, Store>> classQueue,
+            Queue<Pair<LambdaExpressionTree, Store>> lambdaQueue,
             UnderlyingAST ast,
             List<FieldInitialValue<Value>> fieldValues,
             ClassTree currentClass,
@@ -1799,11 +1799,11 @@ public abstract class GenericAnnotatedTypeFactory<
 
         // add classes declared in CFG
         for (ClassTree cls : cfg.getDeclaredClasses()) {
-            classQueue.add(IPair.of(cls, getStoreBefore(cls)));
+            classQueue.add(Pair.of(cls, getStoreBefore(cls)));
         }
         // add lambdas declared in CFG
         for (LambdaExpressionTree lambda : cfg.getDeclaredLambdas()) {
-            lambdaQueue.add(IPair.of(lambda, getStoreBefore(lambda)));
+            lambdaQueue.add(Pair.of(lambda, getStoreBefore(lambda)));
         }
 
         postAnalyze(cfg);

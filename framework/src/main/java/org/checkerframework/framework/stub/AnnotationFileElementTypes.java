@@ -20,11 +20,11 @@ import org.checkerframework.javacutil.AnnotationBuilder;
 import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.ElementUtils;
+import org.checkerframework.javacutil.Pair;
 import org.checkerframework.javacutil.SystemUtil;
 import org.checkerframework.javacutil.TypesUtils;
 import org.checkerframework.javacutil.UserError;
 import org.plumelib.util.CollectionsPlume;
-import org.plumelib.util.IPair;
 import org.plumelib.util.SystemPlume;
 
 import java.io.BufferedInputStream;
@@ -2045,7 +2045,7 @@ public class AnnotationFileElementTypes {
 
         // This is a list of pairs of (where defined, method type) for fake overrides.  The second
         // element of each pair is currently always an AnnotatedExecutableType.
-        List<IPair<TypeMirror, AnnotatedTypeMirror>> candidates =
+        List<Pair<TypeMirror, AnnotatedTypeMirror>> candidates =
                 annotationFileAnnos.fakeOverrides.get(method);
 
         if (candidates == null || candidates.isEmpty()) {
@@ -2057,7 +2057,7 @@ public class AnnotationFileElementTypes {
         // A list of fake receiver types.
         List<TypeMirror> applicableClasses = new ArrayList<>();
         List<TypeMirror> applicableInterfaces = new ArrayList<>();
-        for (IPair<TypeMirror, AnnotatedTypeMirror> candidatePair : candidates) {
+        for (Pair<TypeMirror, AnnotatedTypeMirror> candidatePair : candidates) {
             TypeMirror fakeLocation = candidatePair.first;
             AnnotatedExecutableType candidate = (AnnotatedExecutableType) candidatePair.second;
             if (atypeFactory.types.isSameType(receiverTypeMirror, fakeLocation)) {
@@ -2104,7 +2104,7 @@ public class AnnotationFileElementTypes {
             throw new BugInCF(message.toString());
         }
 
-        for (IPair<TypeMirror, AnnotatedTypeMirror> candidatePair : candidates) {
+        for (Pair<TypeMirror, AnnotatedTypeMirror> candidatePair : candidates) {
             TypeMirror candidateReceiverType = candidatePair.first;
             if (atypeFactory.types.isSameType(fakeReceiverType, candidateReceiverType)) {
                 return refreshFakeOverride(method, (AnnotatedExecutableType) candidatePair.second);

@@ -145,6 +145,7 @@ import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.InternalUtils;
+import org.checkerframework.javacutil.Pair;
 import org.checkerframework.javacutil.SystemUtil;
 import org.checkerframework.javacutil.TreePathUtil;
 import org.checkerframework.javacutil.TreeUtils;
@@ -161,7 +162,6 @@ import org.checkerframework.javacutil.trees.TreeBuilder;
 import org.plumelib.util.ArrayMap;
 import org.plumelib.util.ArraySet;
 import org.plumelib.util.CollectionsPlume;
-import org.plumelib.util.IPair;
 import org.plumelib.util.IdentityArraySet;
 
 import java.util.ArrayList;
@@ -2918,7 +2918,7 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
         extendWithExtendedNode(new UnconditionalJump(merge));
 
         addLabelForNextNode(merge);
-        IPair<IdentifierTree, LocalVariableNode> treeAndLocalVarNode =
+        Pair<IdentifierTree, LocalVariableNode> treeAndLocalVarNode =
                 buildVarUseNode(condExprVarTree);
         Node node =
                 new TernaryExpressionNode(
@@ -2939,7 +2939,7 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
      */
     private void extendWithAssignmentForConditionalExpr(
             VariableTree condExprVarTree, ExpressionTree caseExprTree, Node caseExprNode) {
-        IPair<IdentifierTree, LocalVariableNode> treeAndLocalVarNode =
+        Pair<IdentifierTree, LocalVariableNode> treeAndLocalVarNode =
                 buildVarUseNode(condExprVarTree);
 
         AssignmentTree assign =
@@ -2961,13 +2961,13 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
      * @return a pair whose first element is the synthetic {@link IdentifierTree} for the use, and
      *     whose second element is the {@link LocalVariableNode} representing the use
      */
-    private IPair<IdentifierTree, LocalVariableNode> buildVarUseNode(VariableTree varTree) {
+    private Pair<IdentifierTree, LocalVariableNode> buildVarUseNode(VariableTree varTree) {
         IdentifierTree condExprVarUseTree = treeBuilder.buildVariableUse(varTree);
         handleArtificialTree(condExprVarUseTree);
         LocalVariableNode condExprVarUseNode = new LocalVariableNode(condExprVarUseTree);
         condExprVarUseNode.setInSource(false);
         // Do not actually add the node to the CFG.
-        return IPair.of(condExprVarUseTree, condExprVarUseNode);
+        return Pair.of(condExprVarUseTree, condExprVarUseNode);
     }
 
     @Override
@@ -3808,10 +3808,10 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
                         "start of try statement #" + TreeUtils.treeUids.get(tree),
                         env.getTypeUtils()));
 
-        List<IPair<TypeMirror, Label>> catchLabels =
+        List<Pair<TypeMirror, Label>> catchLabels =
                 CollectionsPlume.mapList(
                         (CatchTree c) ->
-                                IPair.of(TreeUtils.typeOf(c.getParameter().getType()), new Label()),
+                                Pair.of(TreeUtils.typeOf(c.getParameter().getType()), new Label()),
                         catches);
 
         // Store return/break/continue labels, just in case we need them for a finally block.

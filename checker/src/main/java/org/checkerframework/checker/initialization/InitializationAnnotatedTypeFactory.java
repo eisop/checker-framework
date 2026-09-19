@@ -29,9 +29,9 @@ import org.checkerframework.framework.type.GenericAnnotatedTypeFactory;
 import org.checkerframework.framework.util.AnnotatedTypes;
 import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.ElementUtils;
+import org.checkerframework.javacutil.Pair;
 import org.checkerframework.javacutil.TreePathUtil;
 import org.checkerframework.javacutil.TreeUtils;
-import org.plumelib.util.IPair;
 
 import java.lang.annotation.Annotation;
 import java.util.Collection;
@@ -112,7 +112,7 @@ public class InitializationAnnotatedTypeFactory extends InitializationParentAnno
     }
 
     @Override
-    public List<IPair<ReturnNode, TransferResult<CFValue, InitializationStore>>>
+    public List<Pair<ReturnNode, TransferResult<CFValue, InitializationStore>>>
             getReturnStatementStores(MethodTree methodTree) {
         return getFieldAccessFactory().getReturnStatementStores(methodTree);
     }

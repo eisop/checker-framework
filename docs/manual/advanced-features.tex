@@ -1208,18 +1208,34 @@ enabled or disabled via the \<-ea>, \<-enableassertions>, \<-da>, or
 \<-disableassertions> command-line options to \<java>.
 
 By default, the Checker Framework outputs warnings about any error that
-could happen at run time, whether assertions are enabled or disabled.
+could happen at run time, whether assertions are enabled or disabled.  The
+\<-AassumeAssertions> command-line option states what to assume instead.  It
+takes one of three values:
 
-If you supply the \<-AassumeAssertionsAreEnabled> command-line option, then
-the Checker Framework assumes assertions (that is, Java \<assert>
-statements) are enabled, as if Java is run with the \<-ea> or
-\<-enableassertions> command-line argument.  If you supply the
-\<-AassumeAssertionsAreDisabled> command-line option, then the Checker
-Framework assumes assertions are disabled, as if Java is run with the
-\<-da> or \<-disableassertions> command-line argument.  You may not supply
-both command-line options.  It is uncommon to supply either one.
+\begin{itemize}
+  \item
+  \<-AassumeAssertions=enabled> assumes that assertions (that is, Java
+  \<assert> statements) are enabled, as if Java is run with the \<-ea> or
+  \<-enableassertions> command-line argument.
+  \item
+  \<-AassumeAssertions=disabled> assumes that assertions are disabled, as if
+  Java is run with the \<-da> or \<-disableassertions> command-line argument.
+  \item
+  \<-AassumeAssertions=neither> makes neither assumption.  It accounts for
+  both possibilities, warning about any error that could happen under either
+  one.  This is the default, so supplying \<-AassumeAssertions=neither> is
+  equivalent to supplying no \<-AassumeAssertions> option at all.
+\end{itemize}
 
-These command-line arguments have no effect on processing of \<assert>
+\noindent
+It is uncommon to supply the option.
+
+The \<-AassumeAssertionsAreEnabled> and \<-AassumeAssertionsAreDisabled>
+command-line options are deprecated in favor of \<-AassumeAssertions=enabled>
+and \<-AassumeAssertions=disabled>.  Each is still honored, but supplying one
+issues a warning, and they will be removed in a future release.
+
+This command-line option has no effect on processing of \<assert>
 statements whose message contains the text \<@AssumeAssertion>; see
 Section~\ref{assumeassertion}.
 
@@ -1660,11 +1676,12 @@ class @Marsupial-Animal {
 % LocalWords:  getPouchSize TerminatesExecution myvar myField getField m1
 % LocalWords:  computeValue arg myInt Anno Im InheritedAnnotation package2
 % LocalWords:  AcheckPurityAnnotations AassumeSideEffectFree iMplicit m2
-% LocalWords:  AassumeAssertionsAreEnabled myArray vals propkey forName
+% LocalWords:  AassumeAssertions myArray vals propkey forName
+% LocalWords:  AassumeAssertionsAreEnabled AassumeAssertionsAreDisabled
 % LocalWords:  fenum i18n RequiresQualifier EnsuresQualifier ClassName
 % LocalWords:  EnsuresQualifierIf AsuppressWarnings AinvariantArrays asts
 % LocalWords:  formatter ocals nstanceof plicit ounds wildcard's da
-% LocalWords:  wildcards guieffect AassumeAssertionsAreDisabled readLine
+% LocalWords:  wildcards guieffect readLine
 % LocalWords:  AssumeAssertion AsafeDefaultsForUnannotatedBytecode
 % LocalWords:  I18nFormatFor AunsafeDefaultsForUnannotatedBytecode
 % LocalWords:  AuseConservativeDefaultsForUncheckedCode DefaultFor TypeUseLocation

@@ -109,6 +109,7 @@ import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.InternalUtils;
+import org.checkerframework.javacutil.Pair;
 import org.checkerframework.javacutil.SwitchExpressionScanner;
 import org.checkerframework.javacutil.SwitchExpressionScanner.FunctionalSwitchExpressionScanner;
 import org.checkerframework.javacutil.SystemUtil;
@@ -122,7 +123,6 @@ import org.plumelib.util.ArrayMap;
 import org.plumelib.util.ArraySet;
 import org.plumelib.util.ArraysPlume;
 import org.plumelib.util.CollectionsPlume;
-import org.plumelib.util.IPair;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -1612,16 +1612,16 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             } else {
                 msgKeyPrefix = "purity.not.deterministic.not.sideeffectfree.";
             }
-            for (IPair<Tree, String> r : result.getNotBothReasons()) {
+            for (Pair<Tree, String> r : result.getNotBothReasons()) {
                 reportPurityError(msgKeyPrefix, r);
             }
             if (violations.contains(Pure.Kind.SIDE_EFFECT_FREE)) {
-                for (IPair<Tree, String> r : result.getNotSEFreeReasons()) {
+                for (Pair<Tree, String> r : result.getNotSEFreeReasons()) {
                     reportPurityError("purity.not.sideeffectfree.", r);
                 }
             }
             if (violations.contains(Pure.Kind.DETERMINISTIC)) {
-                for (IPair<Tree, String> r : result.getNotDetReasons()) {
+                for (Pair<Tree, String> r : result.getNotDetReasons()) {
                     reportPurityError("purity.not.deterministic.", r);
                 }
             }
@@ -1634,7 +1634,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      * @param msgKeyPrefix the prefix of the message key to use when reporting
      * @param r the result to report
      */
-    private void reportPurityError(String msgKeyPrefix, IPair<Tree, String> r) {
+    private void reportPurityError(String msgKeyPrefix, Pair<Tree, String> r) {
         String reason = r.second;
         @SuppressWarnings("compilermessages")
         @CompilerMessageKey String msgKey = msgKeyPrefix + reason;
@@ -1865,7 +1865,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             return;
         }
 
-        for (IPair<ReturnNode, ?> pair : atypeFactory.getReturnStatementStores(methodTree)) {
+        for (Pair<ReturnNode, ?> pair : atypeFactory.getReturnStatementStores(methodTree)) {
             ReturnNode returnStmt = pair.first;
 
             Node retValNode = returnStmt.getResult();
@@ -4827,7 +4827,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
     protected boolean checkMethodReferenceAsOverride(
             MemberReferenceTree memberReferenceTree, Void p) {
 
-        IPair<AnnotatedTypeMirror, AnnotatedExecutableType> result =
+        Pair<AnnotatedTypeMirror, AnnotatedExecutableType> result =
                 atypeFactory.getFnInterfaceFromTree(memberReferenceTree);
         // The type to which the member reference is assigned -- also known as the target type of
         // the reference.
@@ -5086,9 +5086,9 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             // Check preconditions
             Set<Precondition> superPre = contractsUtils.getPreconditions(overridden.getElement());
             Set<Precondition> subPre = contractsUtils.getPreconditions(overrider.getElement());
-            Set<IPair<JavaExpression, AnnotationMirror>> superPre2 =
+            Set<Pair<JavaExpression, AnnotationMirror>> superPre2 =
                     parseAndLocalizeContracts(superPre, overridden);
-            Set<IPair<JavaExpression, AnnotationMirror>> subPre2 =
+            Set<Pair<JavaExpression, AnnotationMirror>> subPre2 =
                     parseAndLocalizeContracts(subPre, overrider);
             @SuppressWarnings("compilermessages")
             @CompilerMessageKey String premsg = "contracts.precondition." + msgKey + ".invalid";
@@ -5099,9 +5099,9 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             Set<Postcondition> superPost =
                     contractsUtils.getPostconditions(overridden.getElement());
             Set<Postcondition> subPost = contractsUtils.getPostconditions(overrider.getElement());
-            Set<IPair<JavaExpression, AnnotationMirror>> superPost2 =
+            Set<Pair<JavaExpression, AnnotationMirror>> superPost2 =
                     parseAndLocalizeContracts(superPost, overridden);
-            Set<IPair<JavaExpression, AnnotationMirror>> subPost2 =
+            Set<Pair<JavaExpression, AnnotationMirror>> subPost2 =
                     parseAndLocalizeContracts(subPost, overrider);
             @SuppressWarnings("compilermessages")
             @CompilerMessageKey String postmsg = "contracts.postcondition." + msgKey + ".invalid";
@@ -5117,9 +5117,9 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             // consider only 'true' postconditions
             Set<Postcondition> superCPostTrue = filterConditionalPostconditions(superCPost, true);
             Set<Postcondition> subCPostTrue = filterConditionalPostconditions(subCPost, true);
-            Set<IPair<JavaExpression, AnnotationMirror>> superCPostTrue2 =
+            Set<Pair<JavaExpression, AnnotationMirror>> superCPostTrue2 =
                     parseAndLocalizeContracts(superCPostTrue, overridden);
-            Set<IPair<JavaExpression, AnnotationMirror>> subCPostTrue2 =
+            Set<Pair<JavaExpression, AnnotationMirror>> subCPostTrue2 =
                     parseAndLocalizeContracts(subCPostTrue, overrider);
             @SuppressWarnings("compilermessages")
             @CompilerMessageKey String posttruemsg = "contracts.conditional.postcondition.true." + msgKey + ".invalid";
@@ -5134,9 +5134,9 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
             // consider only 'false' postconditions
             Set<Postcondition> superCPostFalse = filterConditionalPostconditions(superCPost, false);
             Set<Postcondition> subCPostFalse = filterConditionalPostconditions(subCPost, false);
-            Set<IPair<JavaExpression, AnnotationMirror>> superCPostFalse2 =
+            Set<Pair<JavaExpression, AnnotationMirror>> superCPostFalse2 =
                     parseAndLocalizeContracts(superCPostFalse, overridden);
-            Set<IPair<JavaExpression, AnnotationMirror>> subCPostFalse2 =
+            Set<Pair<JavaExpression, AnnotationMirror>> subCPostFalse2 =
                     parseAndLocalizeContracts(subCPostFalse, overrider);
             @SuppressWarnings("compilermessages")
             @CompilerMessageKey String postfalsemsg =
@@ -5726,15 +5726,15 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
     private boolean checkContractsSubset(
             AnnotatedTypeMirror overriderType,
             AnnotatedDeclaredType overriddenType,
-            Set<IPair<JavaExpression, AnnotationMirror>> mustSubset,
-            Set<IPair<JavaExpression, AnnotationMirror>> set,
+            Set<Pair<JavaExpression, AnnotationMirror>> mustSubset,
+            Set<Pair<JavaExpression, AnnotationMirror>> set,
             @CompilerMessageKey String messageKey) {
         boolean result = true;
-        for (IPair<JavaExpression, AnnotationMirror> weak : mustSubset) {
+        for (Pair<JavaExpression, AnnotationMirror> weak : mustSubset) {
             JavaExpression jexpr = weak.first;
             boolean found = false;
 
-            for (IPair<JavaExpression, AnnotationMirror> strong : set) {
+            for (Pair<JavaExpression, AnnotationMirror> strong : set) {
                 // are we looking at a contract of the same receiver?
                 if (jexpr.equals(strong.first)) {
                     // check subtyping relationship of annotations
@@ -5767,7 +5767,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                 // These are the annotations that are too weak.
                 StringJoiner strongRelevantAnnos =
                         new StringJoiner(" ").setEmptyValue("no information");
-                for (IPair<JavaExpression, AnnotationMirror> strong : set) {
+                for (Pair<JavaExpression, AnnotationMirror> strong : set) {
                     if (jexpr.equals(strong.first)) {
                         strongRelevantAnnos.add(strong.second.toString());
                     }
@@ -5813,7 +5813,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      * @param methodType the type of the method that the contracts are for
      * @return pairs of (expression, AnnotationMirror), which are localized contracts
      */
-    private Set<IPair<JavaExpression, AnnotationMirror>> parseAndLocalizeContracts(
+    private Set<Pair<JavaExpression, AnnotationMirror>> parseAndLocalizeContracts(
             Set<? extends Contract> contractSet, AnnotatedExecutableType methodType) {
         if (contractSet.isEmpty()) {
             return Collections.emptySet();
@@ -5834,7 +5834,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                     return javaExpr.atMethodBody(methodTree);
                 };
 
-        Set<IPair<JavaExpression, AnnotationMirror>> result =
+        Set<Pair<JavaExpression, AnnotationMirror>> result =
                 ArraySet.newArraySetOrHashSet(contractSet.size());
         for (Contract p : contractSet) {
             String expressionString = p.expressionString;
@@ -5852,7 +5852,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
                 checker.report(methodTree, e.getDiagMessage());
                 continue;
             }
-            result.add(IPair.of(exprJe, annotation));
+            result.add(Pair.of(exprJe, annotation));
         }
         return result;
     }
