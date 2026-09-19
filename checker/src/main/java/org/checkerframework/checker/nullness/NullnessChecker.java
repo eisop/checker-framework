@@ -140,11 +140,7 @@ public class NullnessChecker extends InitializationChecker {
                 activeOptions.putIfAbsent("assumeKeyFor", null);
                 activeOptions.putIfAbsent("jspecifyUnrecognizedLocations", null);
                 activeOptions.putIfAbsent("assumePure", null);
-                // Assuming assertions are both enabled and disabled is an error, so one written
-                // disabled on the command line wins, as any other command-line option does.
-                if (!activeOptions.containsKey("assumeAssertionsAreDisabled")) {
-                    activeOptions.putIfAbsent("assumeAssertionsAreEnabled", null);
-                }
+                activeOptions.putIfAbsent("assumeAssertions", "enabled");
                 break;
             default:
                 break;

@@ -2,8 +2,7 @@ import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
 // -Amode=jspecify assumes that every called method is pure (-AassumePure) and that assertions are
-// enabled (-AassumeAssertionsAreEnabled). Without those options, both dereferences below are
-// errors.
+// enabled (-AassumeAssertions=enabled). Without those options, both dereferences below are errors.
 @NullMarked
 public class JSpecifyModeAssumptions {
     @Nullable Object f;

@@ -328,8 +328,8 @@ The Nullness Checker supports `-Amode=jspecify`, which makes it behave as JSpeci
 specifies: it checks only code in the scope of an `@AnnotatedFor`, treats `@NullMarked`
 as a defaulting annotation, and performs neither initialization checking nor map-key
 checking.  It also assumes that every called method is pure and that assertions are
-enabled, as if `-AassumePure` and `-AassumeAssertionsAreEnabled` were supplied;
-`-AassumeAssertionsAreDisabled` written alongside the mode takes precedence.
+enabled, as if `-AassumePure` and `-AassumeAssertions=enabled` were supplied; an
+`-AassumeAssertions` value written alongside the mode takes precedence.
 
 The Checker Framework now issues an `annotation.on.supertype` error when an annotation supported by
 the checker is written as a main annotation on the superclass or interface in an `extends` or

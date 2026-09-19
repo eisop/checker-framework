@@ -225,11 +225,12 @@ command-line option.)
   (Section~\ref{type-refinement-assertions}).
   This is a shorthand for \code{-AonlyAnnotatedFor -AassumeInitialized
   -AassumeKeyFor -AjspecifyUnrecognizedLocations -AassumePure
-  -AassumeAssertionsAreEnabled}.  Most of those are on/off flags with no negative form,
-  so there is currently no way to enable this mode but turn one of them back off.  The
-  exception is \code{-AassumeAssertionsAreEnabled}:  supplying
-  \code{-AassumeAssertionsAreDisabled} together with \code{-Amode=jspecify} makes the
-  checker assume that assertions are disabled instead.
+  -AassumeAssertions=enabled}.  All but the last are on/off flags with no negative form,
+  so there is currently no way to enable this mode but turn one of them back off.
+  \code{-AassumeAssertions} takes a value, so writing one together with
+  \code{-Amode=jspecify} overrides what the mode assumes; for example,
+  \code{-AassumeAssertions=neither} restores the default treatment of \code{assert}
+  statements (Section~\ref{type-refinement-assertions}).
 
 \item
   \label{nullness-jspecifyNullMarkedAlias}%
