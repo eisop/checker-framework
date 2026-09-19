@@ -13,10 +13,8 @@ builds -- that is, it runs on version 27 and 28 JVMs.
 New command-line option `-AassumeAssertions=enabled|disabled|neither` states what to assume
 about whether assertions are enabled at run time. `neither`, the default, accounts for both
 cases, as before. It replaces `-AassumeAssertionsAreEnabled` and
-`-AassumeAssertionsAreDisabled`, which have been removed; passing either is an error that
-names its replacement. The old options could not state the default explicitly, and passing
-both was an error, so a checker-defined group of options such as `-Amode` could not set an
-assertion default that the command line overrides.
+`-AassumeAssertionsAreDisabled`, which are deprecated: each is still honored, but passing one
+issues a warning that names its replacement.
 
 A checker can now examine a package declaration. `AbstractTypeProcessor` dropped the
 analysis event for a `package-info.java`, so no checker could ever visit one and a

@@ -1220,6 +1220,11 @@ Framework assumes assertions are disabled, as if Java is run with the
 \<-AassumeAssertions=neither> is the default behavior described above.  It is
 uncommon to supply the option.
 
+The \<-AassumeAssertionsAreEnabled> and \<-AassumeAssertionsAreDisabled>
+command-line options are deprecated in favor of \<-AassumeAssertions=enabled>
+and \<-AassumeAssertions=disabled>.  Each is still honored, but supplying one
+issues a warning, and they will be removed in a future release.
+
 This command-line option has no effect on processing of \<assert>
 statements whose message contains the text \<@AssumeAssertion>; see
 Section~\ref{assumeassertion}.
@@ -1662,6 +1667,7 @@ class @Marsupial-Animal {
 % LocalWords:  computeValue arg myInt Anno Im InheritedAnnotation package2
 % LocalWords:  AcheckPurityAnnotations AassumeSideEffectFree iMplicit m2
 % LocalWords:  AassumeAssertions myArray vals propkey forName
+% LocalWords:  AassumeAssertionsAreEnabled AassumeAssertionsAreDisabled
 % LocalWords:  fenum i18n RequiresQualifier EnsuresQualifier ClassName
 % LocalWords:  EnsuresQualifierIf AsuppressWarnings AinvariantArrays asts
 % LocalWords:  formatter ocals nstanceof plicit ounds wildcard's da

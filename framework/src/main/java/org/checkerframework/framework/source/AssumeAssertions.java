@@ -11,5 +11,5 @@ public enum AssumeAssertions {
     /** Assume assertions are disabled, as if Java is run with {@code -disableassertions}. */
     DISABLED,
     /** Make neither assumption, and account for both cases. This is the default. */
-    NEITHER;
+    NEITHER
 }

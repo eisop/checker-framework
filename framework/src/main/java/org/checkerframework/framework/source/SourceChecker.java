@@ -168,9 +168,8 @@ import javax.tools.Diagnostic;
     // org.checkerframework.framework.source.SourceChecker.getAssumeAssertions
     "assumeAssertions",
 
-    // Replaced by "assumeAssertions=enabled" and "assumeAssertions=disabled".  Supported so that
-    // passing one is an error that says so, rather than an unmatched-option warning that silently
-    // drops it.
+    // Deprecated aliases for "assumeAssertions=enabled" and "assumeAssertions=disabled".  Passing
+    // one warns and is honored; they will be removed in a future release.
     // org.checkerframework.framework.source.SourceChecker.validateAssumeAssertionsOption
     "assumeAssertionsAreEnabled",
     "assumeAssertionsAreDisabled",
@@ -2645,23 +2644,37 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
 
     /**
      * Throws a {@link UserError} if the {@code -AassumeAssertions} command-line option has an
-     * invalid value, or if an option that it replaced was supplied.
+     * invalid value, and issues a warning if a deprecated option that it replaced was supplied.
      *
      * @param activeOptions the active options
      */
     private void validateAssumeAssertionsOption(Map<String, String> activeOptions) {
+        // Parses and caches the value, throwing a UserError if the options are inconsistent or the
+        // value is invalid.
+        getAssumeAssertions();
+
         if (activeOptions.containsKey("assumeAssertionsAreEnabled")) {
-            throw new UserError(
-                    "The -AassumeAssertionsAreEnabled option has been removed;"
-                            + " use -AassumeAssertions=enabled instead.");
+            warnDeprecatedAssumeAssertionsOption("assumeAssertionsAreEnabled", "enabled");
         }
         if (activeOptions.containsKey("assumeAssertionsAreDisabled")) {
-            throw new UserError(
-                    "The -AassumeAssertionsAreDisabled option has been removed;"
-                            + " use -AassumeAssertions=disabled instead.");
+            warnDeprecatedAssumeAssertionsOption("assumeAssertionsAreDisabled", "disabled");
         }
-        // Parses and caches the value, throwing a UserError if it is invalid.
-        getAssumeAssertions();
+    }
+
+    /**
+     * Issues a warning that {@code option} is deprecated in favor of {@code
+     * -AassumeAssertions=value}, which is what it is treated as.
+     *
+     * @param option the deprecated option that was supplied, without its {@code -A} prefix
+     * @param value the {@code -AassumeAssertions} value that {@code option} is treated as
+     */
+    private void warnDeprecatedAssumeAssertionsOption(String option, String value) {
+        message(
+                Diagnostic.Kind.WARNING,
+                "The -A%s option is deprecated and will be removed;"
+                        + " it is treated as -AassumeAssertions=%s.",
+                option,
+                value);
     }
 
     /**
@@ -2679,13 +2692,14 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
 
     /**
      * Computes the result of {@link #getAssumeAssertions()} from the {@code -AassumeAssertions}
-     * command-line option.
+     * command-line option and from the deprecated options that it replaced.
      *
      * @return what to assume about whether assertions are enabled at run time
      */
     private AssumeAssertions parseAssumeAssertions() {
+        AssumeAssertions fromDeprecated = assumeAssertionsFromDeprecatedOptions();
         if (!hasOption("assumeAssertions")) {
-            return AssumeAssertions.NEITHER;
+            return fromDeprecated == null ? AssumeAssertions.NEITHER : fromDeprecated;
         }
         String value = getOption("assumeAssertions");
         if (value == null || value.isEmpty()) {
@@ -2695,6 +2709,13 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
         }
         for (AssumeAssertions candidate : AssumeAssertions.values()) {
             if (candidate.name().toLowerCase(Locale.ROOT).equals(value)) {
+                if (fromDeprecated != null && fromDeprecated != candidate) {
+                    throw new UserError(
+                            String.format(
+                                    "The -AassumeAssertions=%s option contradicts the deprecated"
+                                            + " -A%s option.",
+                                    value, deprecatedAssumeAssertionsOption(fromDeprecated)));
+                }
                 return candidate;
             }
         }
@@ -2703,6 +2724,46 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
                         "The -AassumeAssertions option must be enabled, disabled, or neither, but"
                                 + " is \"%s\".",
                         value));
+    }
+
+    /**
+     * Returns what the deprecated {@code -AassumeAssertionsAreEnabled} and {@code
+     * -AassumeAssertionsAreDisabled} options select, or null if neither was supplied.
+     *
+     * @return what the deprecated assertion options select, or null if neither was supplied
+     */
+    private @Nullable AssumeAssertions assumeAssertionsFromDeprecatedOptions() {
+        boolean enabled = hasOption("assumeAssertionsAreEnabled");
+        boolean disabled = hasOption("assumeAssertionsAreDisabled");
+        if (enabled && disabled) {
+            throw new UserError(
+                    "Assertions cannot be assumed to be enabled and disabled at the same time.");
+        }
+        if (enabled) {
+            return AssumeAssertions.ENABLED;
+        }
+        if (disabled) {
+            return AssumeAssertions.DISABLED;
+        }
+        return null;
+    }
+
+    /**
+     * Returns the name of the deprecated option that selects {@code assumeAssertions}, without its
+     * {@code -A} prefix.
+     *
+     * @param assumeAssertions {@link AssumeAssertions#ENABLED} or {@link AssumeAssertions#DISABLED}
+     * @return the name of the deprecated option that selects {@code assumeAssertions}
+     */
+    private String deprecatedAssumeAssertionsOption(AssumeAssertions assumeAssertions) {
+        switch (assumeAssertions) {
+            case ENABLED:
+                return "assumeAssertionsAreEnabled";
+            case DISABLED:
+                return "assumeAssertionsAreDisabled";
+            default:
+                throw new BugInCF("No deprecated option selects " + assumeAssertions + ".");
+        }
     }
 
     @Override
