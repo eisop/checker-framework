@@ -1022,9 +1022,10 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      *
      * <p>This runs before the options of {@code -Amode} are added, so a deprecated option written
      * on the command line takes precedence over a mode, exactly as {@code -AassumeAssertions} does.
-     * It runs from {@link #init}, before a {@link UserError} would be reported as a compiler error
-     * rather than propagate out of the processor, so it never throws; {@link
-     * #validateAssumeAssertionsOption} reports every way these options can be inconsistent.
+     * It only maps one spelling to the other and never throws. {@link #getOptionsNoSubcheckers} is
+     * recomputed on every call, so this runs many times per compilation, whereas {@link
+     * #validateAssumeAssertionsOption} runs once from {@link #initChecker} and is where every way
+     * these options can be inconsistent is reported.
      *
      * @param activeOptions the active options, to which an {@code -AassumeAssertions} value is
      *     added
