@@ -11,9 +11,9 @@ import org.checkerframework.dataflow.qual.Pure;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.javacutil.AnnotationBuilder;
 import org.checkerframework.javacutil.AnnotationUtils;
+import org.checkerframework.javacutil.Pair;
 import org.checkerframework.javacutil.TypeSystemError;
 import org.plumelib.util.CollectionsPlume;
-import org.plumelib.util.IPair;
 
 import java.lang.annotation.Annotation;
 import java.util.ArrayList;
@@ -930,7 +930,7 @@ public abstract class UBQualifier {
                     || !containsSame(other.map.keySet(), lubMap.keySet())) {
                 return;
             }
-            List<IPair<String, OffsetEquation>> remove = new ArrayList<>();
+            List<Pair<String, OffsetEquation>> remove = new ArrayList<>();
             for (Map.Entry<String, Set<OffsetEquation>> entry : lubMap.entrySet()) {
                 String sequence = entry.getKey();
                 Set<OffsetEquation> lubOffsets = entry.getValue();
@@ -945,7 +945,7 @@ public abstract class UBQualifier {
                         int thisInt = OffsetEquation.getIntOffsetEquation(thisOffsets).getInt();
                         int otherInt = OffsetEquation.getIntOffsetEquation(otherOffsets).getInt();
                         if (thisInt != otherInt) {
-                            remove.add(IPair.of(sequence, lubEq));
+                            remove.add(Pair.of(sequence, lubEq));
                         }
                     } else if (thisOffsets.contains(lubEq) && otherOffsets.contains(lubEq)) {
                         //  continue;
@@ -954,7 +954,7 @@ public abstract class UBQualifier {
                     }
                 }
             }
-            for (IPair<String, OffsetEquation> pair : remove) {
+            for (Pair<String, OffsetEquation> pair : remove) {
                 String sequence = pair.first;
                 Set<OffsetEquation> offsets = lubMap.get(sequence);
                 offsets.remove(pair.second);
