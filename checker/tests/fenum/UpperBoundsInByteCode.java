@@ -6,9 +6,7 @@ public class UpperBoundsInByteCode {
     UncheckedByteCode<@Fenum("Bar") Object> bar;
 
     void typeVarWithNonObjectUpperBound(@Fenum("A") int a) {
-        // Boxing `a` to satisfy the `T extends Number` bound calls Integer.valueOf, whose
-        // parameter is not @PolyFenum, so the fenum value cannot be boxed.
-        // :: error: (type.arguments.not.inferred) :: error: (argument.type.incompatible)
+        // :: error: (type.arguments.not.inferred)
         UncheckedByteCode.methodWithTypeVarBoundedByNumber(a);
         UncheckedByteCode.methodWithTypeVarBoundedByNumber(1);
     }

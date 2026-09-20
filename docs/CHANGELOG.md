@@ -22,8 +22,9 @@ try-with-resources are now type-checked.  Previously a type system's declaration
 explicit call and ignored for the conversion that desugars to it, so a type system could not
 constrain which values may be converted.
 
-One new error appears in the existing tests: the Fenum Checker rejects boxing a `@Fenum` value,
-because `Integer.valueOf` is not annotated `@PolyFenum`.
+The Fenum Checker now preserves a fake enum across boxing and unboxing.  The wrapper classes'
+`valueOf` and `xxxValue` methods are annotated `@PolyFenum`, so a `@Fenum` value can be boxed
+and unboxed without laundering it into a different fake enum.
 
 Every continuous integration run now attaches the jars it built to the run, so
 the latest development version, or a proposed fix, can be tried out without
