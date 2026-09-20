@@ -3,6 +3,10 @@ Version 3.49.5-eisop2 (June ?, 2026)
 
 **User-visible changes:**
 
+A value that a boxing conversion produced is no longer used as the argument to the `valueOf`
+call that produces it.  The argument and the result of the conversion now have distinct trees,
+so the pre-conversion and post-conversion values cannot be mixed up.
+
 A bad argument to a command-line option that the checker reads as it starts up is now
 reported as an ordinary compiler error.  Previously `-AwarnUnneededSuppressionsExceptions`
 without an argument, or with one that is not a regular expression, was reported as
