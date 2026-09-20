@@ -7,52 +7,52 @@
  * explicit form, which is checked, followed by the conversion that desugars to it, which is not.
  * See https://github.com/eisop/checker-framework/pull/208.
  *
- * @compile/fail/ref=BoxingArgs.out -XDrawDiagnostics -processor org.checkerframework.framework.testchecker.boxing.BoxingChecker -Astubs=boxing.astub BoxingArgs.java
+ * @compile/fail/ref=BoxingArgs.out -XDrawDiagnostics -processor org.checkerframework.framework.testchecker.h1h2checker.H1H2Checker -Astubs=boxing.astub BoxingArgs.java
  */
 
-import org.checkerframework.framework.testchecker.boxing.qual.Alpha;
-import org.checkerframework.framework.testchecker.boxing.qual.Beta;
+import org.checkerframework.framework.testchecker.h1h2checker.quals.H1S1;
+import org.checkerframework.framework.testchecker.h1h2checker.quals.H1S2;
 
 import java.util.List;
 
 public class BoxingArgs {
-    void explicitBox(@Beta int b) {
+    void explicitBox(@H1S2 int b) {
         Integer boxed = Integer.valueOf(b);
     }
 
-    void implicitBox(@Beta int b) {
+    void implicitBox(@H1S2 int b) {
         Integer boxed = b;
     }
 
-    void explicitUnbox(@Beta Integer b) {
+    void explicitUnbox(@H1S2 Integer b) {
         int i = b.intValue();
     }
 
-    void implicitUnbox(@Beta Integer b) {
+    void implicitUnbox(@H1S2 Integer b) {
         int i = b;
     }
 
-    void explicitIterator(@Beta List<String> l) {
+    void explicitIterator(@H1S2 List<String> l) {
         java.util.Iterator<String> it = l.iterator();
     }
 
-    void enhancedFor(@Beta List<String> l) {
+    void enhancedFor(@H1S2 List<String> l) {
         for (String s : l) {}
     }
 
-    void explicitClose(@Beta Resource r) throws Exception {
+    void explicitClose(@H1S2 Resource r) throws Exception {
         r.close();
     }
 
     // try-with-resources desugars to the same close() call, on the resource variable.
-    void tryWithResources(@Beta Resource r) throws Exception {
-        try (@Beta Resource r2 = r) {}
+    void tryWithResources(@H1S2 Resource r) throws Exception {
+        try (@H1S2 Resource r2 = r) {}
     }
 
     static class Resource implements AutoCloseable {
         // The narrowed receiver is the point of the test; AutoCloseable.close() has no such bound.
         @Override
-        @SuppressWarnings("override.receiver.invalid")
-        public void close(@Alpha Resource this) {}
+        @SuppressWarnings({"override.receiver.invalid", "super.invocation"})
+        public void close(@H1S1 Resource this) {}
     }
 }

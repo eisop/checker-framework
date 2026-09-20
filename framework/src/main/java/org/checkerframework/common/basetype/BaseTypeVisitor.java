@@ -4521,14 +4521,17 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
 
     /**
      * Returns true if invoking {@code method} on a receiver of type {@code receiverType} would be
-     * reported as a {@code method.invocation.invalid} error.
+     * reported as a {@code method.invocation.invalid} error. It answers the question that {@link
+     * #checkMethodInvocability} answers, without reporting anything, which is what lets a synthetic
+     * invocation be tested against two candidate receiver types and reported only if neither admits
+     * the call.
      *
      * @param method the type of the invoked method
      * @param tree the method invocation tree
      * @param receiverType the type of the receiver
      * @return true if the invocation would be reported as an error
      */
-    protected boolean isInvocabilityError(
+    private boolean isInvocabilityError(
             AnnotatedExecutableType method,
             MethodInvocationTree tree,
             AnnotatedTypeMirror receiverType) {
