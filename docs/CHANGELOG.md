@@ -7,9 +7,11 @@ A checker that resolves a tree from `postAnalyze` no longer poisons the tree-pat
 `AnnotatedTypeFactory.getPath` caches a failed lookup, and `postAnalyze` ran with the visitor
 tree path of whatever the visitor last set rather than of the code being analyzed.
 
-A value that a boxing conversion produced is no longer used as the argument to the `valueOf`
-call that produces it.  The argument and the result of the conversion now have distinct trees,
-so the pre-conversion and post-conversion values cannot be mixed up.
+New command-line option `-AseparateBoxingArgument` gives the argument of a boxing conversion
+its own temporary variable in the control flow graph, so that the value before the conversion
+and the value after it are not conflated.  It is off by default: it matters only to a type
+system in which boxing changes the qualifier, and it makes boxing-heavy code measurably slower
+to check.
 
 A bad argument to a command-line option that the checker reads as it starts up is now
 reported as an ordinary compiler error.  Previously `-AwarnUnneededSuppressionsExceptions`

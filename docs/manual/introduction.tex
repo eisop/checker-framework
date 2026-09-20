@@ -637,6 +637,14 @@ More sound (strict) checking: enable errors that are disabled by default
   to ensure the method satisfies the annotation.  By default,
   the Checker Framework unsoundly trusts the method annotation.  See
   Section~\ref{type-refinement-purity}.
+\item \<-AseparateBoxingArgument>
+  Give the argument of a boxing conversion its own temporary variable in the
+  control flow graph, so that the value before the conversion and the value
+  after it are not conflated.  By default they share a tree, and the dataflow
+  analysis can return the boxed value where the primitive one is meant.  This
+  matters only to a type system in which boxing changes the qualifier; where the
+  qualifier is preserved, the two values are the same.  The option makes
+  boxing-heavy code measurably slower to check, so it is off by default.
 \item \<-AinvariantArrays>
   Make array subtyping invariant; that is, two arrays are subtypes of one
   another only if they have exactly the same element type.  By default,
@@ -1766,6 +1774,7 @@ or suppress warnings.
 % LocalWords:  AsuppressWarnings AassumeSideEffectFree Adetailedmsgtext m2
 % LocalWords:  AignoreRawTypeArguments AsuggestPureMethods ApermitMissingJdk
 % LocalWords:  AassumeAssertions
+% LocalWords:  AseparateBoxingArgument
 % LocalWords:  AconcurrentSemantics AstubWarnIfNotFound AnoPrintErrorStack
 % LocalWords:  AprintAllQualifiers Aignorejdkastub AstubDebug Aflowdotdir
 % LocalWords:  AresourceStats jls r78 JDKs i18n AignoreRangeOverflow L129

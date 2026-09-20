@@ -163,6 +163,12 @@ import javax.tools.Diagnostic;
     // Unsoundly assume getter methods have no side effects and are deterministic.
     "assumePureGetters",
 
+    // Give the argument of a boxing conversion its own temporary variable in the CFG, so that the
+    // pre-conversion and post-conversion values are not conflated.  Only matters to a type system
+    // in which boxing changes the qualifier; it makes boxing-heavy code slower to check.
+    // org.checkerframework.dataflow.cfg.builder.CFGTranslationPhaseOne.separateBoxingArgument
+    "separateBoxingArgument",
+
     // Whether to assume that assertions are enabled at run time: "enabled", "disabled", or
     // "neither" (the default), in which case both cases are accounted for.
     // org.checkerframework.framework.source.SourceChecker.getAssumeAssertions

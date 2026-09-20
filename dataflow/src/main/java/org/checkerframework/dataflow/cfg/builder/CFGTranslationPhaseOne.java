@@ -950,7 +950,7 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
     protected Node box(Node node) {
         // For boxing conversion, see JLS 5.1.7
         if (TypesUtils.isPrimitive(node.getType())) {
-            Node valueOfArgument = buildValueOfArgument(node);
+            Node valueOfArgument = separateBoxingArgument() ? buildValueOfArgument(node) : node;
             // Use the following to not generate a new node for the valueOf argument
             // Node valueOfArgument = node;
 
@@ -990,6 +990,23 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
         } else {
             return node;
         }
+    }
+
+    /**
+     * Returns true if the argument of a synthetic {@code valueOf} call should be a separate
+     * temporary variable, so that the argument and the result of the boxing conversion have
+     * distinct trees.
+     *
+     * <p>False by default, because the temporary variable adds four nodes to the CFG for every
+     * boxing conversion and so makes the analysis of boxing-heavy code measurably slower. It
+     * matters only to a type system in which boxing changes the qualifier; for one in which the
+     * qualifier is preserved, the pre-conversion and post-conversion values are the same and
+     * conflating them is harmless.
+     *
+     * @return true if the valueOf argument should be a separate temporary variable
+     */
+    protected boolean separateBoxingArgument() {
+        return false;
     }
 
     /**

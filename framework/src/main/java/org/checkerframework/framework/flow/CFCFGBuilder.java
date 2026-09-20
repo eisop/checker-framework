@@ -157,6 +157,16 @@ public class CFCFGBuilder extends CFGBuilder {
         /**
          * {@inheritDoc}
          *
+         * <p>Enabled by the {@code -AseparateBoxingArgument} command-line option.
+         */
+        @Override
+        protected boolean separateBoxingArgument() {
+            return checker.hasOption("separateBoxingArgument");
+        }
+
+        /**
+         * {@inheritDoc}
+         *
          * <p>Assigns a path to the artificial tree.
          *
          * @param tree the newly created Tree
