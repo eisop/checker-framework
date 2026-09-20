@@ -4558,7 +4558,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      * @param method the type of the invoked method
      * @param tree the method invocation tree
      */
-    protected void checkMethodInvocability(
+    protected final void checkMethodInvocability(
             AnnotatedExecutableType method, MethodInvocationTree tree) {
         checkMethodInvocability(method, tree, null);
     }
@@ -4566,7 +4566,13 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
     /**
      * Like {@link #checkMethodInvocability(AnnotatedExecutableType, MethodInvocationTree)}, but
      * uses {@code receiverType} as the type of the receiver instead of asking the type factory for
-     * the type of {@code tree}'s receiver.
+     * the type of {@code tree}'s receiver. A synthetic invocation, whose receiver is often a local
+     * or a resource variable whose declared type is the top qualifier under CLIMB-to-top, passes
+     * the type that dataflow refined it to.
+     *
+     * <p>This is the method to override: it is the one both callers reach, whereas the two-argument
+     * version is final and only delegates here. Overriding only the two-argument version would
+     * leave a synthetic invocation unaffected by the override.
      *
      * @param method the type of the invoked method
      * @param tree the method invocation tree
