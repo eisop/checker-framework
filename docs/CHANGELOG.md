@@ -3,6 +3,10 @@ Version 3.49.5-eisop2 (June ?, 2026)
 
 **User-visible changes:**
 
+A binary stub file is no longer packaged after the `.astub` file it was generated from is
+renamed or deleted.  The stale `.bin.gz` shipped in the jar and was read in preference to the
+text stub that no longer existed, so the removed annotations kept being applied.
+
 A bad argument to a command-line option that the checker reads as it starts up is now
 reported as an ordinary compiler error.  Previously `-AwarnUnneededSuppressionsExceptions`
 without an argument, or with one that is not a regular expression, was reported as

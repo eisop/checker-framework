@@ -1160,6 +1160,17 @@ subprojects {
             args(binaryStubFilesDir.get().asFile.absolutePath,
                     file('src/main/java').absolutePath,
                     file('src/main/resources').absolutePath)
+
+            // The generator only writes binary stubs; it never removes one. Gradle does not
+            // clean a task's output directory either, so after an .astub file is renamed or
+            // deleted its .bin.gz stays behind, is packaged into the jar, and is read in
+            // preference to the text stub that no longer exists. Empty the directory first, so
+            // that what it holds is exactly what the current .astub files produce.
+            def injectedFiles = project.objects.newInstance(InjectedFileOps)
+            def staleOutputDir = binaryStubFilesDir.get().asFile
+            doFirst {
+                injectedFiles.fs.delete { delete(staleOutputDir) }
+            }
         }
         sourceSets.main.resources.srcDir(binaryStubFilesDir)
         tasks.named('processResources').configure { dependsOn 'generateBinaryStubFiles' }
