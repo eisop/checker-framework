@@ -1,0 +1,14 @@
+import org.checkerframework.framework.testchecker.boxing.qual.Alpha;
+
+package java.lang;
+
+class Integer {
+    static @Alpha Integer valueOf(@Alpha int i);
+    int intValue(@Alpha Integer this);
+}
+
+package java.util;
+
+interface List<E> {
+    Iterator<E> iterator(@Alpha List<E> this);
+}

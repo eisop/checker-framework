@@ -13,6 +13,18 @@ without an argument, or with one that is not a regular expression, was reported 
 "An annotation processor threw an uncaught exception", followed by a stack trace.
 An error from a checker's `typeProcessingOver` is now reported the same way.
 
+A diagnostic reported on a tree that the CFG synthesized for a conversion now points at the
+construct the conversion came from, rather than at the first character of the file.
+
+The method invocations that the CFG synthesizes for boxing, unboxing, enhanced for loops and
+try-with-resources are now type-checked.  Previously a type system's declaration of
+`Integer.valueOf`, `Integer.intValue`, `Iterable.iterator` or `close` was enforced for an
+explicit call and ignored for the conversion that desugars to it, so a type system could not
+constrain which values may be converted.
+
+One new error appears in the existing tests: the Fenum Checker rejects boxing a `@Fenum` value,
+because `Integer.valueOf` is not annotated `@PolyFenum`.
+
 Every continuous integration run now attaches the jars it built to the run, so
 the latest development version, or a proposed fix, can be tried out without
 building it.  See the "Development jars without building" section of the manual.

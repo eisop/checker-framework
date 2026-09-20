@@ -1,0 +1,25 @@
+BoxingArgs.java:24:25: compiler.err.proc.messager: [argument.type.incompatible] incompatible argument for parameter i of Integer.valueOf.
+found   : @Beta int
+required: @Alpha int
+BoxingArgs.java:32:13: compiler.err.proc.messager: [method.invocation.invalid] call to intValue() not allowed on the given receiver.
+found   : @Beta Integer
+required: @Alpha Integer
+BoxingArgs.java:40:9: compiler.err.proc.messager: [method.invocation.invalid] call to iterator() not allowed on the given receiver.
+found   : @Beta List<@BoxUnknown String>
+required: @Alpha List<@BoxUnknown String>
+BoxingArgs.java:49:9: compiler.err.proc.messager: [method.invocation.invalid] call to close() not allowed on the given receiver.
+found   : @Beta Resource
+required: @Alpha Resource
+BoxingArgs.java:20:41: compiler.err.proc.messager: [argument.type.incompatible] incompatible argument for parameter i of Integer.valueOf.
+found   : @Beta int
+required: @Alpha int
+BoxingArgs.java:28:27: compiler.err.proc.messager: [method.invocation.invalid] call to intValue() not allowed on the given receiver.
+found   : @Beta Integer
+required: @Alpha Integer
+BoxingArgs.java:36:51: compiler.err.proc.messager: [method.invocation.invalid] call to iterator() not allowed on the given receiver.
+found   : @Beta List<@BoxUnknown String>
+required: @Alpha List<@BoxUnknown String>
+BoxingArgs.java:44:16: compiler.err.proc.messager: [method.invocation.invalid] call to close() not allowed on the given receiver.
+found   : @Beta Resource
+required: @Alpha Resource
+8 errors
