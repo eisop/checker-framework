@@ -9,13 +9,15 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * This is a declaration annotation that applies to type declarations and packages. On a type, it
- * means that the class conceptually takes a type qualifier parameter, though there is nowhere to
- * write it because the class hard-codes a Java basetype rather than taking a type parameter.
- * Writing {@code HasQualifierParameter} on a package is the same as writing it on each class in
- * that package.
+ * This is a declaration annotation that applies to type declarations and packages. On a
+ * <b>type</b>, it means that the class conceptually takes a type qualifier parameter, though there
+ * is nowhere to write it because the class hard-codes a Java basetype rather than taking a type
+ * parameter. Writing {@code HasQualifierParameter} on a <b>package</b> is the same as writing it on
+ * each class in that package.
  *
- * <p>Writing {@code @HasQualifierParameter} on a type declaration has two effects.
+ * <h2>Written on a type declaration</h2>
+ *
+ * <p>Writing {@code @HasQualifierParameter} on a <b>type declaration</b> has two effects.
  *
  * <ol>
  *   <li>Invariant subtyping is used for occurrences of the type: no two occurrences of the type
@@ -55,12 +57,17 @@ import java.lang.annotation.Target;
  *                    {@code @Untainted} MyStringBuffer
  * </pre>
  *
- * <p>When a class is {@code @HasQualifierParameter}, all its subclasses are as well.
+ * <p>When a type is {@code @HasQualifierParameter}, all its subtypes are as well. That is, the
+ * {@code @HasQualifierParameter} annotation is inherited by subtypes.
+ *
+ * <h2>Written on a package</h2>
  *
  * <p>When {@code @HasQualifierParameter} is written on a package, it is equivalent to writing that
- * annotation on each class in the package or in a sub-package. It can be disabled on a specific
- * class and its subclasses by writing {@code @NoQualifierParameter} on that class. This annotation
- * may not be written on the same class as {@code NoQualifierParameter} for the same hierarchy.
+ * annotation on each class in the package or in a sub-package. Set the {@code applyToSubpackages}
+ * field to false to limit it to the package itself; doing so does not block an applicable
+ * {@code @HasQualifierParameter} on an enclosing package. It can be disabled on a specific class
+ * and its subclasses by writing {@code @NoQualifierParameter} on that class. This annotation may
+ * not be written on the same class as {@code @NoQualifierParameter} for the same hierarchy.
  *
  * @see NoQualifierParameter
  */
@@ -76,4 +83,11 @@ public @interface HasQualifierParameter {
      * @return the value
      */
     Class<? extends Annotation>[] value();
+
+    /**
+     * When used on a package, whether this annotation should also apply to subpackages.
+     *
+     * @return whether this annotation should be inherited by subpackages
+     */
+    boolean applyToSubpackages() default true;
 }

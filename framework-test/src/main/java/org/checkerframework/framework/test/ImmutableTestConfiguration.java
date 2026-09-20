@@ -23,12 +23,13 @@ public class ImmutableTestConfiguration implements TestConfiguration {
      *
      * <pre>{@code
      * Map(
-     *   "-AprintAllQualifiers" => null
-     *    "-classpath" => "myDir1:myDir2"
+     *     "-AprintAllQualifiers" => null
+     *     "-classpath" => "myDir1:myDir2"
      * )
      * }</pre>
      */
     private final Map<String, @Nullable String> options;
+
     /**
      * These files contain diagnostics that should be returned by Javac. If this list is empty, the
      * diagnostics are instead read from comments in the Java file itself
@@ -63,9 +64,9 @@ public class ImmutableTestConfiguration implements TestConfiguration {
             List<@BinaryName String> processors,
             Map<String, @Nullable String> options,
             boolean shouldEmitDebugInfo) {
-        this.diagnosticFiles = Collections.unmodifiableList(diagnosticFiles);
+        this.diagnosticFiles = Collections.unmodifiableList(new ArrayList<>(diagnosticFiles));
         this.testSourceFiles = Collections.unmodifiableList(new ArrayList<>(testSourceFiles));
-        this.processors = new ArrayList<>(processors);
+        this.processors = Collections.unmodifiableList(new ArrayList<>(processors));
         this.options =
                 Collections.unmodifiableMap(new LinkedHashMap<String, @Nullable String>(options));
         this.shouldEmitDebugInfo = shouldEmitDebugInfo;

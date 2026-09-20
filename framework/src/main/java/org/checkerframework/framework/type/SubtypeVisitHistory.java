@@ -1,11 +1,10 @@
 package org.checkerframework.framework.type;
 
+import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.Pair;
 
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
-import java.util.Set;
 
 import javax.lang.model.element.AnnotationMirror;
 
@@ -24,18 +23,27 @@ import javax.lang.model.element.AnnotationMirror;
  * Serializable<T>} and {@code @C Serializable<?>}, then isSubtype is first called one those types
  * and then on {@code @B Serializable<T>} and {@code @C Serializable<?>}.
  */
-// TODO: do we need to clear the history sometimes?
 public class SubtypeVisitHistory {
 
     /**
      * The keys are pairs of types; the value is the set of qualifier hierarchy roots for which the
      * key is in a subtype relationship.
      */
-    private final Map<Pair<AnnotatedTypeMirror, AnnotatedTypeMirror>, Set<AnnotationMirror>>
-            visited;
+    private final Map<Pair<AnnotatedTypeMirror, AnnotatedTypeMirror>, AnnotationMirrorSet> visited;
 
+    /** Creates a new SubtypeVisitHistory. */
     public SubtypeVisitHistory() {
         this.visited = new HashMap<>();
+    }
+
+    /**
+     * Removes all entries. Must be called once per top-level subtype check (for example, between
+     * independent top-level subtype checks) so the map does not grow unboundedly across a
+     * compilation. Clearing is safe because the history is only needed to break cycles within a
+     * single subtype check, not across independent checks.
+     */
+    public void clear() {
+        visited.clear();
     }
 
     /**
@@ -50,33 +58,57 @@ public class SubtypeVisitHistory {
      *     does nothing
      */
     public void put(
-            final AnnotatedTypeMirror type1,
-            final AnnotatedTypeMirror type2,
+            AnnotatedTypeMirror type1,
+            AnnotatedTypeMirror type2,
             AnnotationMirror currentTop,
             boolean isSubtype) {
         if (!isSubtype) {
             // Only store information about subtype relations that hold.
             return;
         }
-        Pair<AnnotatedTypeMirror, AnnotatedTypeMirror> key = Pair.of(type1, type2);
-        Set<AnnotationMirror> hit = visited.get(key);
+        putKey(Pair.of(type1, type2), currentTop);
+    }
 
+    /**
+     * Like {@link #put}, but accepts a pre-built key and always records the pair. Package-private
+     * so that {@link StructuralEqualityVisitHistory} can reuse a single key across its two
+     * underlying histories without allocating two equal {@link Pair}s per call.
+     *
+     * @param key the (type1, type2) pair
+     * @param currentTop the top of the relevant qualifier hierarchy
+     */
+    void putKey(Pair<AnnotatedTypeMirror, AnnotatedTypeMirror> key, AnnotationMirror currentTop) {
+        AnnotationMirrorSet hit = visited.get(key);
         if (hit != null) {
             hit.add(currentTop);
         } else {
-            hit = new HashSet<>();
+            hit = new AnnotationMirrorSet();
             hit.add(currentTop);
             this.visited.put(key, hit);
         }
     }
 
-    /** Remove {@code type1} and {@code type2}. */
+    /**
+     * Remove {@code type1} and {@code type2}.
+     *
+     * @param type1 the first type
+     * @param type2 the second type
+     * @param currentTop the top qualifier of the current hierarchy
+     */
     public void remove(
-            final AnnotatedTypeMirror type1,
-            final AnnotatedTypeMirror type2,
-            AnnotationMirror currentTop) {
-        Pair<AnnotatedTypeMirror, AnnotatedTypeMirror> key = Pair.of(type1, type2);
-        Set<AnnotationMirror> hit = visited.get(key);
+            AnnotatedTypeMirror type1, AnnotatedTypeMirror type2, AnnotationMirror currentTop) {
+        removeKey(Pair.of(type1, type2), currentTop);
+    }
+
+    /**
+     * Like {@link #remove}, but accepts a pre-built key. See {@link #putKey}.
+     *
+     * @param key the pair of types
+     * @param currentTop the top qualifier of the current hierarchy
+     */
+    void removeKey(
+            Pair<AnnotatedTypeMirror, AnnotatedTypeMirror> key, AnnotationMirror currentTop) {
+        AnnotationMirrorSet hit = visited.get(key);
         if (hit != null) {
             hit.remove(currentTop);
             if (hit.isEmpty()) {
@@ -89,14 +121,26 @@ public class SubtypeVisitHistory {
      * Returns true if type1 and type2 (or an equivalent pair) have been passed to the put method
      * previously.
      *
+     * @param type1 the first type
+     * @param type2 the second type
+     * @param currentTop the top qualifier of the current hierarchy
      * @return true if an equivalent pair has already been added to the history
      */
     public boolean contains(
-            final AnnotatedTypeMirror type1,
-            final AnnotatedTypeMirror type2,
-            AnnotationMirror currentTop) {
-        Pair<AnnotatedTypeMirror, AnnotatedTypeMirror> key = Pair.of(type1, type2);
-        Set<AnnotationMirror> hit = visited.get(key);
+            AnnotatedTypeMirror type1, AnnotatedTypeMirror type2, AnnotationMirror currentTop) {
+        return containsKey(Pair.of(type1, type2), currentTop);
+    }
+
+    /**
+     * Like {@link #contains}, but accepts a pre-built key. See {@link #putKey}.
+     *
+     * @param key the pair of types
+     * @param currentTop the top qualifier of the current hierarchy
+     * @return true if an equivalent pair has already been added to the history
+     */
+    boolean containsKey(
+            Pair<AnnotatedTypeMirror, AnnotatedTypeMirror> key, AnnotationMirror currentTop) {
+        AnnotationMirrorSet hit = visited.get(key);
         return hit != null && hit.contains(currentTop);
     }
 

@@ -4,6 +4,8 @@ import com.sun.source.tree.ExpressionTree;
 import com.sun.source.tree.Tree;
 
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.SideEffectFree;
+import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.TreeUtils;
 
 import java.util.Collection;
@@ -13,26 +15,45 @@ import java.util.Objects;
 import javax.lang.model.element.ExecutableElement;
 
 /**
- * A node for a method access, including a method accesses:
+ * A node for a method access, including a receiver:
  *
  * <pre>
  *   <em>expression</em> . <em>method</em> ()
  * </pre>
  */
 public class MethodAccessNode extends Node {
-
+    /** The tree of the method access. */
     protected final ExpressionTree tree;
+
+    /** The element of the accessed method. */
     protected final ExecutableElement method;
+
+    /** The receiver node of the method access. */
     protected final Node receiver;
 
-    // TODO: add method to get modifiers (static, access level, ..)
-
+    /**
+     * Create a new MethodAccessNode.
+     *
+     * @param tree the expression that is a method access
+     * @param receiver the receiver
+     */
     public MethodAccessNode(ExpressionTree tree, Node receiver) {
+        this(tree, (ExecutableElement) TreeUtils.elementFromUse(tree), receiver);
+    }
+
+    /**
+     * Create a new MethodAccessNode.
+     *
+     * @param tree the expression that is a method access
+     * @param method the element for the method
+     * @param receiver the receiver
+     */
+    public MethodAccessNode(ExpressionTree tree, ExecutableElement method, Node receiver) {
         super(TreeUtils.typeOf(tree));
         assert TreeUtils.isMethodAccess(tree);
         this.tree = tree;
         assert TreeUtils.isUseOfElement(tree) : "@AssumeAssertion(nullness): tree kind";
-        this.method = (ExecutableElement) TreeUtils.elementFromUse(tree);
+        this.method = method;
         this.receiver = receiver;
     }
 
@@ -61,6 +82,9 @@ public class MethodAccessNode extends Node {
 
     @Override
     public boolean equals(@Nullable Object obj) {
+        if (this == obj) {
+            return true;
+        }
         if (!(obj instanceof MethodAccessNode)) {
             return false;
         }
@@ -74,7 +98,17 @@ public class MethodAccessNode extends Node {
     }
 
     @Override
+    @SideEffectFree
     public Collection<Node> getOperands() {
         return Collections.singletonList(receiver);
+    }
+
+    /**
+     * Determine whether the method is static or not.
+     *
+     * @return whether the method is static or not
+     */
+    public boolean isStatic() {
+        return ElementUtils.isStatic(getMethod());
     }
 }

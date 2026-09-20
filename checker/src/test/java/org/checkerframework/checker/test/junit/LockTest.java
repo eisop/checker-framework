@@ -18,13 +18,14 @@ public class LockTest extends CheckerFrameworkPerDirectoryTest {
                 testFiles,
                 org.checkerframework.checker.lock.LockChecker.class,
                 "lock",
-                "-Anomsgtext");
+                // Ignore the test suite's usage of qualifiers in illegal locations.
+                "-AignoreTargetLocations");
     }
 
     @Parameters
     public static String[] getTestDirs() {
         // Check for JDK 16+ without using a library:
-        if (System.getProperty("java.version").matches("^(1[6-9]|[2-9][0-9])")) {
+        if (System.getProperty("java.version").matches("^(1[6-9]|[2-9][0-9])(\\..*)?")) {
             return new String[] {"lock", "lock-records", "all-systems"};
         } else {
             return new String[] {"lock", "all-systems"};

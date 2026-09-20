@@ -1,7 +1,7 @@
 package org.checkerframework.checker.test.junit.ainferrunners;
 
 import org.checkerframework.checker.testchecker.ainfer.AinferTestChecker;
-import org.checkerframework.framework.test.CheckerFrameworkPerDirectoryTest;
+import org.checkerframework.framework.test.AinferValidatePerDirectoryTest;
 import org.junit.experimental.categories.Category;
 import org.junit.runners.Parameterized.Parameters;
 
@@ -13,29 +13,22 @@ import java.util.List;
  * that with the ajava files in place, the errors that those annotations remove are no longer
  * issued.
  */
-@Category(AinferTestCheckerAjavaTest.class)
-public class AinferTestCheckerAjavaValidationTest extends CheckerFrameworkPerDirectoryTest {
+@Category(AinferTestCheckerAjavaGenerationTest.class)
+public class AinferTestCheckerAjavaValidationTest extends AinferValidatePerDirectoryTest {
 
-    /** @param testFiles the files containing test code, which will be type-checked */
+    /**
+     * @param testFiles the files containing test code, which will be type-checked
+     */
     public AinferTestCheckerAjavaValidationTest(List<File> testFiles) {
         super(
                 testFiles,
                 AinferTestChecker.class,
+                "testchecker",
                 "ainfer-testchecker/annotated",
-                "-Anomsgtext",
-                "-Aajava=tests/ainfer-testchecker/inference-output",
+                AinferTestCheckerAjavaGenerationTest.class,
+                ajavaArgFromFiles(testFiles, "testchecker"),
+                "-AcheckPurityAnnotations",
                 "-Awarns");
-    }
-
-    @Override
-    public void run() {
-        // Only run if annotated files have been created.
-        // See ainferTest task.
-        if (!new File("tests/ainfer-testchecker/annotated/").exists()) {
-            throw new RuntimeException(
-                    AinferTestCheckerAjavaTest.class + " must be run before this test.");
-        }
-        super.run();
     }
 
     @Parameters

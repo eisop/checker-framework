@@ -13,13 +13,16 @@ import java.util.List;
  */
 public class AccumulationTest extends CheckerFrameworkPerDirectoryTest {
 
-    /** @param testFiles the files containing test code, which will be type-checked */
+    /**
+     * @param testFiles the files containing test code, which will be type-checked
+     */
     public AccumulationTest(List<File> testFiles) {
         super(
                 testFiles,
                 TestAccumulationChecker.class,
                 "accumulation",
-                "-Anomsgtext",
+                // Ignore the test suite's usage of qualifiers in illegal locations.
+                "-AignoreTargetLocations",
                 "-encoding",
                 "UTF-8");
     }

@@ -10,13 +10,16 @@ import java.util.List;
 /** Tests conservative defaults for the constant value propagation type system. */
 public class ValueUncheckedDefaultsTest extends CheckerFrameworkPerDirectoryTest {
 
-    /** @param testFiles the files containing test code, which will be type-checked */
+    /**
+     * @param testFiles the files containing test code, which will be type-checked
+     */
     public ValueUncheckedDefaultsTest(List<File> testFiles) {
         super(
                 testFiles,
                 ValueChecker.class,
                 "value",
-                "-Anomsgtext",
+                // Ignore the test suite's usage of qualifiers in illegal locations.
+                "-AignoreTargetLocations",
                 "-AuseConservativeDefaultsForUncheckedCode=btyecode",
                 "-A" + ValueChecker.REPORT_EVAL_WARNS);
     }

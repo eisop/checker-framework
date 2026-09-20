@@ -3,12 +3,12 @@ package org.checkerframework.javacutil;
 import com.sun.source.tree.AnnotationTree;
 import com.sun.source.tree.MethodTree;
 import com.sun.source.tree.ModifiersTree;
-import com.sun.tools.javac.code.Symbol.VarSymbol;
 import com.sun.tools.javac.code.Type;
 import com.sun.tools.javac.model.JavacElements;
 
 import org.checkerframework.checker.interning.qual.CompareToMethod;
 import org.checkerframework.checker.interning.qual.EqualsMethod;
+import org.checkerframework.checker.interning.qual.Interned;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.checker.signature.qual.BinaryName;
@@ -16,6 +16,7 @@ import org.checkerframework.checker.signature.qual.CanonicalName;
 import org.checkerframework.dataflow.qual.Pure;
 import org.checkerframework.dataflow.qual.SideEffectFree;
 import org.checkerframework.javacutil.AnnotationBuilder.CheckerFrameworkAnnotationMirror;
+import org.plumelib.util.ArrayMap;
 import org.plumelib.util.CollectionsPlume;
 
 import java.lang.annotation.Annotation;
@@ -25,20 +26,12 @@ import java.lang.annotation.Target;
 import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.EnumSet;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.NavigableSet;
 import java.util.Objects;
-import java.util.Set;
 import java.util.StringJoiner;
-import java.util.TreeMap;
-import java.util.TreeSet;
 
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.AnnotationValue;
@@ -50,7 +43,11 @@ import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.util.ElementFilter;
 
-/** A utility class for working with annotations. */
+/**
+ * A utility class for working with annotations.
+ *
+ * <p>Note: {@code AnnotationMirror}s are immutable.
+ */
 public class AnnotationUtils {
 
     // Class cannot be instantiated.
@@ -67,17 +64,21 @@ public class AnnotationUtils {
     /**
      * Returns the fully-qualified name of an annotation as a String.
      *
+     * <p>This method is efficient for {@code AnnotationBuilder.CheckerFrameworkAnnotationMirror},
+     * for which it looks up the name. For other subclasses of {@code AnnotationMirror}, the result
+     * is cached.
+     *
      * @param annotation the annotation whose name to return
      * @return the fully-qualified name of an annotation as a String
      */
-    public static final @CanonicalName String annotationName(AnnotationMirror annotation) {
+    public static final @CanonicalName @Interned String annotationName(
+            AnnotationMirror annotation) {
         if (annotation instanceof AnnotationBuilder.CheckerFrameworkAnnotationMirror) {
             return ((AnnotationBuilder.CheckerFrameworkAnnotationMirror) annotation).annotationName;
         }
-        final DeclaredType annoType = annotation.getAnnotationType();
-        final TypeElement elm = (TypeElement) annoType.asElement();
-        @SuppressWarnings("signature:assignment.type.incompatible") // JDK needs annotations
-        @CanonicalName String name = elm.getQualifiedName().toString();
+        DeclaredType annoType = annotation.getAnnotationType();
+        TypeElement elm = (TypeElement) annoType.asElement();
+        @CanonicalName @Interned String name = ElementUtils.getQualifiedName(elm);
         return name;
     }
 
@@ -88,9 +89,26 @@ public class AnnotationUtils {
      * @return the binary name of an annotation as a String
      */
     public static final @BinaryName String annotationBinaryName(AnnotationMirror annotation) {
-        final DeclaredType annoType = annotation.getAnnotationType();
-        final TypeElement elm = (TypeElement) annoType.asElement();
+        DeclaredType annoType = annotation.getAnnotationType();
+        TypeElement elm = (TypeElement) annoType.asElement();
         return ElementUtils.getBinaryName(elm);
+    }
+
+    /**
+     * Returns the fully-qualified name of an annotation as a javac {@link Name}.
+     *
+     * <p>Unlike {@link #annotationName}, this method never calls {@link Name#toString()} and
+     * therefore never allocates a String. It is used internally where only identity comparison or
+     * hashing is needed, not a String value.
+     *
+     * <p>{@link Name} objects produced by the same {@link javax.lang.model.util.Elements} instance
+     * (i.e., within one javac invocation) are guaranteed to be comparable by identity ({@code ==}).
+     *
+     * @param annotation the annotation whose name to return
+     * @return the fully-qualified name as a {@link Name}
+     */
+    public static Name annotationNameAsName(AnnotationMirror annotation) {
+        return ((TypeElement) annotation.getAnnotationType().asElement()).getQualifiedName();
     }
 
     /**
@@ -118,15 +136,61 @@ public class AnnotationUtils {
     }
 
     /**
+     * Return -1, 0, or 1 depending on whether the name of a1 is less, equal to, or greater than
+     * that of a2 (lexicographically).
+     *
+     * @param a1 the first AnnotationMirror to compare
+     * @param a2 the second AnnotationMirror to compare
+     * @return a negative integer, zero, or a positive integer if the name of a1 is less than, equal
+     *     to, or greater than the name of a2
+     * @see #areSame(AnnotationMirror, AnnotationMirror)
+     * @see #areSameByName(AnnotationMirror, AnnotationMirror)
+     */
+    @CompareToMethod
+    public static int compareByName(AnnotationMirror a1, AnnotationMirror a2) {
+        if (areSameByName(a1, a2)) {
+            return 0;
+        } else {
+            return annotationName(a1).compareTo(annotationName(a2));
+        }
+    }
+
+    /**
+     * Compute a hashCode for the AnnotationMirror that is compatible with areSame.
+     *
+     * @param a the AnnotationMirror to hash
+     * @return the hash code
+     */
+    public static int hashCode(AnnotationMirror a) {
+        // Use annotationNameAsName to avoid toString(): Name.hashCode() is computed over the
+        // backing byte array by javac, with no String allocation.
+        // For CFAM the field is a String and String.hashCode() is cached, so both paths are fast.
+        int h =
+                (a instanceof CheckerFrameworkAnnotationMirror)
+                        ? ((CheckerFrameworkAnnotationMirror) a).annotationName.hashCode()
+                        : annotationNameAsName(a).hashCode();
+        Map<? extends ExecutableElement, ? extends AnnotationValue> vals = a.getElementValues();
+        for (AnnotationValue av : vals.values()) {
+            // Ignore ordering of annotation values.
+            // TODO: should we break down the annotation values?
+            h += av.hashCode();
+        }
+        return h;
+    }
+
+    /**
      * Return true iff a1 and a2 have the same annotation type.
      *
      * @param a1 the first AnnotationMirror to compare
      * @param a2 the second AnnotationMirror to compare
      * @return true iff a1 and a2 have the same annotation name
      * @see #areSame(AnnotationMirror, AnnotationMirror)
+     * @see #compareByName(AnnotationMirror, AnnotationMirror)
      */
     @EqualsMethod
     public static boolean areSameByName(AnnotationMirror a1, AnnotationMirror a2) {
+        // Conceptually, this is like `compareByName(a1, a2) == 0`, but this implementation avoids
+        // String allocations.
         if (a1 == a2) {
             return true;
         }
@@ -134,13 +198,18 @@ public class AnnotationUtils {
             throw new BugInCF("Unexpected null argument:  areSameByName(%s, %s)", a1, a2);
         }
 
+        // Fast path for CF-produced mirrors: the name is already an interned String.
         if (a1 instanceof CheckerFrameworkAnnotationMirror
                 && a2 instanceof CheckerFrameworkAnnotationMirror) {
-            return ((CheckerFrameworkAnnotationMirror) a1).annotationName
-                    == ((CheckerFrameworkAnnotationMirror) a2).annotationName;
+            @Interned @CanonicalName String name1 = ((CheckerFrameworkAnnotationMirror) a1).annotationName;
+            @Interned @CanonicalName String name2 = ((CheckerFrameworkAnnotationMirror) a2).annotationName;
+            return name1 == name2;
         }
-
-        return annotationName(a1).equals(annotationName(a2));
+        // At least one is not a CheckerFrameworkAnnotationMirror.
+        Name n1 = annotationNameAsName(a1);
+        Name n2 = annotationNameAsName(a2);
+        // Names are interned for a run. Do not use n1.contentEquals(n2).
+        return n1 == n2;
     }
 
     /**
@@ -156,7 +225,7 @@ public class AnnotationUtils {
     }
 
     /**
-     * Checks that the annotation {@code am} has the name of {@code annoClass}. Values are ignored.
+     * Checks that the annotation {@code am} has class {@code annoClass}. Values are ignored.
      *
      * <p>This method is not very efficient. It is more efficient to use {@code
      * AnnotatedTypeFactory#areSameByClass} or {@link #areSameByName}.
@@ -191,18 +260,9 @@ public class AnnotationUtils {
             return areSame(c1.iterator().next(), c2.iterator().next());
         }
 
-        // while loop depends on SortedSet implementation.
-        NavigableSet<AnnotationMirror> s1 = createAnnotationSet();
-        NavigableSet<AnnotationMirror> s2 = createAnnotationSet();
-        s1.addAll(c1);
-        s2.addAll(c2);
-        Iterator<AnnotationMirror> iter1 = s1.iterator();
-        Iterator<AnnotationMirror> iter2 = s2.iterator();
-
-        while (iter1.hasNext()) {
-            AnnotationMirror anno1 = iter1.next();
-            AnnotationMirror anno2 = iter2.next();
-            if (!areSame(anno1, anno2)) {
+        // For each annotation in c1, look for a matching annotation in c2 by `areSame`.
+        for (AnnotationMirror a : c1) {
+            if (!containsSame(c2, a)) {
                 return false;
             }
         }
@@ -341,26 +401,38 @@ public class AnnotationUtils {
     }
 
     /**
-     * Provide ordering for {@link AnnotationMirror}s. AnnotationMirrors are first compared by their
-     * fully-qualified names, then by their element values in order of the name of the element.
+     * Comparator used by {@link #compareAnnotationMirrors} to sort an annotation type's element
+     * methods by simple signature, hoisted to a static constant so the lambda is allocated once.
+     */
+    private static final Comparator<ExecutableElement> SIMPLE_SIGNATURE_COMPARATOR =
+            Comparator.comparing(ElementUtils::getSimpleSignature);
+
+    /**
+     * Provide an ordering for {@link AnnotationMirror}s. AnnotationMirrors are first compared by
+     * their fully-qualified names, then by their element values in order of the name of the
+     * element.
      *
      * @param a1 the first annotation
      * @param a2 the second annotation
      * @return an ordering over AnnotationMirrors based on their name and values
      */
     public static int compareAnnotationMirrors(AnnotationMirror a1, AnnotationMirror a2) {
-        if (!AnnotationUtils.areSameByName(a1, a2)) {
-            return annotationName(a1).compareTo(annotationName(a2));
+        int nameComparison = compareByName(a1, a2);
+        if (nameComparison != 0) {
+            return nameComparison;
         }
 
-        // The annotations have the same name, but different values, so compare values.
+        // The annotations have the same name, but possibly different values, so compare values.
         Map<? extends ExecutableElement, ? extends AnnotationValue> vals1 = a1.getElementValues();
         Map<? extends ExecutableElement, ? extends AnnotationValue> vals2 = a2.getElementValues();
-        Set<ExecutableElement> sortedElements =
-                new TreeSet<>(Comparator.comparing(ElementUtils::getSimpleSignature));
-        sortedElements.addAll(
-                ElementFilter.methodsIn(a1.getAnnotationType().asElement().getEnclosedElements()));
+        // Sort method elements once into an ArrayList.
+        List<ExecutableElement> sortedElements =
+                new ArrayList<>(
+                        ElementFilter.methodsIn(
+                                a1.getAnnotationType().asElement().getEnclosedElements()));
+        sortedElements.sort(SIMPLE_SIGNATURE_COMPARATOR);
 
+        // getDefaultValue() returns null if the method is not an annotation interface element.
         for (ExecutableElement meth : sortedElements) {
             AnnotationValue aval1 = vals1.get(meth);
             if (aval1 == null) {
@@ -379,11 +451,11 @@ public class AnnotationUtils {
     }
 
     /**
-     * Return 0 iff the two AnnotationValue objects are the same.
+     * Compare the two AnnotationValue objects for order.
      *
      * @param av1 the first AnnotationValue to compare
      * @param av2 the second AnnotationValue to compare
-     * @return 0 if the two annotation values are the same
+     * @return -1 if the first is lesser, 0 if they are the same, or 1 if the first is greater
      */
     @CompareToMethod
     private static int compareAnnotationValue(AnnotationValue av1, AnnotationValue av2) {
@@ -426,7 +498,7 @@ public class AnnotationUtils {
             // Don't compare setwise, because order can matter. These mean different things:
             //   @LTLengthOf(value={"a1","a2"}, offest={"0", "1"})
             //   @LTLengthOf(value={"a2","a1"}, offest={"0", "1"})
-            for (int i = 0; i < list1.size(); i++) {
+            for (int i = 0; i < list1.size(); ++i) {
                 Object v1 = list1.get(i);
                 Object v2 = list2.get(i);
                 int result = compareAnnotationValueValue(v1, v2);
@@ -444,8 +516,9 @@ public class AnnotationUtils {
         }
 
         if ((val1 instanceof Type.ClassType) && (val2 instanceof Type.ClassType)) {
-            // Type.ClassType does not override equals
-            if (TypesUtils.areSameDeclaredTypes((Type.ClassType) val1, (Type.ClassType) val2)) {
+            // Type.ClassType does not override equals. Annotation element values of type
+            // Class<?> cannot carry type arguments, so raw type identity is sufficient.
+            if (TypesUtils.areSameRawDeclaredType((Type.ClassType) val1, (Type.ClassType) val2)) {
                 return 0;
             }
         }
@@ -454,68 +527,10 @@ public class AnnotationUtils {
         }
         int result = val1.toString().compareTo(val2.toString());
         if (result == 0) {
+            // Unintuitive, but recommended style.
             result = -1;
         }
         return result;
-    }
-
-    /**
-     * Create a map suitable for storing {@link AnnotationMirror} as keys.
-     *
-     * <p>It can store one instance of {@link AnnotationMirror} of a given declared type, regardless
-     * of the annotation element values.
-     *
-     * @param <V> the value of the map
-     * @return a new map with {@link AnnotationMirror} as key
-     */
-    public static <V> Map<AnnotationMirror, V> createAnnotationMap() {
-        return new TreeMap<>(AnnotationUtils::compareAnnotationMirrors);
-    }
-
-    /**
-     * Constructs a {@link Set} for storing {@link AnnotationMirror}s.
-     *
-     * <p>It stores at most once instance of {@link AnnotationMirror} of a given type, regardless of
-     * the annotation element values.
-     *
-     * @return a sorted new set to store {@link AnnotationMirror} as element
-     */
-    public static NavigableSet<AnnotationMirror> createAnnotationSet() {
-        return new TreeSet<>(AnnotationUtils::compareAnnotationMirrors);
-    }
-
-    /**
-     * Constructs a {@link Set} for storing {@link AnnotationMirror}s contain all the annotations in
-     * {@code annos}.
-     *
-     * <p>It stores at most once instance of {@link AnnotationMirror} of a given type, regardless of
-     * the annotation element values.
-     *
-     * @param annos a Collection of AnnotationMirrors to put in the created set
-     * @return a sorted new set to store {@link AnnotationMirror} as element
-     */
-    public static NavigableSet<AnnotationMirror> createAnnotationSet(
-            Collection<AnnotationMirror> annos) {
-        TreeSet<AnnotationMirror> set = new TreeSet<>(AnnotationUtils::compareAnnotationMirrors);
-        set.addAll(annos);
-        return set;
-    }
-
-    /**
-     * Constructs an unmodifiable {@link Set} for storing {@link AnnotationMirror}s contain all the
-     * annotations in {@code annos}.
-     *
-     * <p>It stores at most once instance of {@link AnnotationMirror} of a given type, regardless of
-     * the annotation element values.
-     *
-     * @param annos a Collection of AnnotationMirrors to put in the created set
-     * @return a sorted, unmodifiable, new set to store {@link AnnotationMirror} as element
-     */
-    public static NavigableSet<AnnotationMirror> createUnmodifiableAnnotationSet(
-            Collection<AnnotationMirror> annos) {
-        TreeSet<AnnotationMirror> set = new TreeSet<>(AnnotationUtils::compareAnnotationMirrors);
-        set.addAll(annos);
-        return Collections.unmodifiableNavigableSet(set);
     }
 
     /**
@@ -597,6 +612,54 @@ public class AnnotationUtils {
     // **********************************************************************
 
     /**
+     * Get the element with the name {@code elementName} of the annotation {@code anno}. The result
+     * has type {@code expectedType}. If there is no value for {@code elementName}, {@code
+     * defaultValue} is returned
+     *
+     * <p>This method is intended only for use when the class of the annotation is not on the user's
+     * classpath. This is for users of the Dataflow Framework that do not use the rest of the
+     * Checker Framework. Type-checkers can assume that checker-qual.jar is on the classpath and
+     * should use {@link #getElementValue(AnnotationMirror, ExecutableElement, Class)} or {@link
+     * #getElementValue(AnnotationMirror, ExecutableElement, Class, Object)}.
+     *
+     * @param anno the annotation whose element to access
+     * @param elementName the name of the element to access
+     * @param expectedType the type of the element and the return value
+     * @param defaultValue the value to return if the element is not present
+     * @param <T> the class of the type
+     * @return the value of the element with the given name
+     */
+    public static <T> T getElementValueNotOnClasspath(
+            AnnotationMirror anno,
+            CharSequence elementName,
+            Class<T> expectedType,
+            T defaultValue) {
+        Map<? extends ExecutableElement, ? extends AnnotationValue> valmap =
+                anno.getElementValues();
+
+        for (Map.Entry<? extends ExecutableElement, ? extends AnnotationValue> entry :
+                valmap.entrySet()) {
+            ExecutableElement elem = entry.getKey();
+            if (InternalUtils.sameName(elem.getSimpleName(), elementName)) {
+                AnnotationValue val = entry.getValue();
+                try {
+                    return expectedType.cast(val.getValue());
+                } catch (ClassCastException e) {
+                    throw new BugInCF(
+                            "getElementValueNotOnClasspath(%s, %s, %s): val=%s, val.getValue()=%s [%s]",
+                            anno,
+                            elementName,
+                            expectedType,
+                            val,
+                            val.getValue(),
+                            val.getValue().getClass());
+                }
+            }
+        }
+        return defaultValue;
+    }
+
+    /**
      * Returns the values of an annotation's elements, including defaults. The method with the same
      * name in JavacElements cannot be used directly, because it includes a cast to
      * Attribute.Compound, which doesn't hold for annotations generated by the Checker Framework.
@@ -608,12 +671,11 @@ public class AnnotationUtils {
      * @see JavacElements#getElementValuesWithDefaults(AnnotationMirror)
      * @param ad annotation to examine
      * @return the values of the annotation's elements, including defaults
-     * @deprecated use a method that takes an {@link ExecutableElement}
      */
-    @Deprecated // 2021-03-29; do not remove, just make private
-    public static Map<? extends ExecutableElement, ? extends AnnotationValue>
+    private static Map<? extends ExecutableElement, ? extends AnnotationValue>
             getElementValuesWithDefaults(AnnotationMirror ad) {
-        Map<ExecutableElement, AnnotationValue> valMap = new HashMap<>();
+        // Most annotations have no elements.
+        Map<ExecutableElement, AnnotationValue> valMap = new ArrayMap<>(0);
         if (ad.getElementValues() != null) {
             valMap.putAll(ad.getElementValues());
         }
@@ -625,30 +687,6 @@ public class AnnotationUtils {
             }
         }
         return valMap;
-    }
-
-    /**
-     * Verify whether the element with the name {@code elementName} exists in the annotation {@code
-     * anno}.
-     *
-     * <p>This method is intended for use only by the framework. Clients should use a method that
-     * takes an {@link ExecutableElement}.
-     *
-     * @param anno the annotation to examine
-     * @param elementName the name of the element
-     * @return whether the element exists in anno
-     * @deprecated use a method that takes an {@link ExecutableElement}
-     */
-    @Deprecated // 2021-03-30
-    public static boolean hasElementValue(AnnotationMirror anno, CharSequence elementName) {
-        Map<? extends ExecutableElement, ? extends AnnotationValue> valmap =
-                anno.getElementValues();
-        for (ExecutableElement elem : valmap.keySet()) {
-            if (elem.getSimpleName().contentEquals(elementName)) {
-                return true;
-            }
-        }
-        return false;
     }
 
     /**
@@ -672,7 +710,7 @@ public class AnnotationUtils {
      * @deprecated use {@link #getElementValue(AnnotationMirror, ExecutableElement, Class)} or
      *     {@link #getElementValue(AnnotationMirror, ExecutableElement, Class, Object)}
      */
-    @Deprecated // for use only by the framework
+    @Deprecated // for use only by the framework, not by clients
     public static <T> T getElementValue(
             AnnotationMirror anno,
             CharSequence elementName,
@@ -680,10 +718,6 @@ public class AnnotationUtils {
             boolean useDefaults) {
         Map<? extends ExecutableElement, ? extends AnnotationValue> valmap;
         if (useDefaults) {
-            @SuppressWarnings(
-                    "deprecation" // remove when getElementValuesWithDefaults is made private and
-            // non-deprecated
-            )
             Map<? extends ExecutableElement, ? extends AnnotationValue> valmapTmp =
                     getElementValuesWithDefaults(anno);
             valmap = valmapTmp;
@@ -692,7 +726,8 @@ public class AnnotationUtils {
         }
         for (Map.Entry<? extends ExecutableElement, ? extends AnnotationValue> entry :
                 valmap.entrySet()) {
-            if (entry.getKey().getSimpleName().contentEquals(elementName)) {
+            ExecutableElement elem = entry.getKey();
+            if (InternalUtils.sameName(elem.getSimpleName(), elementName)) {
                 AnnotationValue val = entry.getValue();
                 try {
                     return expectedType.cast(val.getValue());
@@ -727,7 +762,7 @@ public class AnnotationUtils {
          * @param message the detail message
          */
         @Pure
-        public NoSuchElementException(String message) {
+        NoSuchElementException(String message) {
             super(message);
         }
     }
@@ -751,7 +786,7 @@ public class AnnotationUtils {
             CharSequence elementName,
             Class<T> expectedType,
             boolean useDefaults) {
-        // This implementation permits getElementValue a more detailed error message than if
+        // This implementation permits getElementValue to give a more detailed error message than if
         // getElementValue called getElementValueOrNull and threw an error if the result was null.
         try {
             return getElementValue(anno, elementName, expectedType, useDefaults);
@@ -779,41 +814,13 @@ public class AnnotationUtils {
             CharSequence elementName,
             Class<T> expectedType,
             boolean useDefaults) {
-        // This implementation permits getElementValue a more detailed error message than if
+        // This implementation permits getElementValue to give a more detailed error message than if
         // getElementValue called getElementValueOrNull and threw an error if the result was null.
         try {
             return getElementValueArray(anno, elementName, expectedType, useDefaults);
         } catch (NoSuchElementException e) {
             return null;
         }
-    }
-
-    /**
-     * Get the element with the name {@code name} of the annotation {@code anno}. The result is an
-     * enum of type {@code T}.
-     *
-     * <p>This method is intended only for use by the framework. A checker implementation should use
-     * {@link #getElementValueEnum(AnnotationMirror, ExecutableElement, Class)} or {@link
-     * #getElementValueEnum(AnnotationMirror, ExecutableElement, Class, Enum)}.
-     *
-     * @param anno the annotation to disassemble
-     * @param elementName the name of the element to access
-     * @param expectedType the type of the element and the return value, an enum
-     * @param <T> the class of the type
-     * @param useDefaults whether to apply default values to the element
-     * @return the value of the element with the given name
-     * @deprecated use {@link #getElementValueEnum(AnnotationMirror, ExecutableElement, Class)} or
-     *     {@link #getElementValueEnum(AnnotationMirror, ExecutableElement, Class, Enum)}
-     */
-    @Deprecated // 2021-03-29
-    public static <T extends Enum<T>> T getElementValueEnum(
-            AnnotationMirror anno,
-            CharSequence elementName,
-            Class<T> expectedType,
-            boolean useDefaults) {
-        VarSymbol vs = getElementValue(anno, elementName, VarSymbol.class, useDefaults);
-        T value = Enum.valueOf(expectedType, vs.getSimpleName().toString());
-        return value;
     }
 
     /**
@@ -875,35 +882,6 @@ public class AnnotationUtils {
     }
 
     /**
-     * Get the element with the name {@code elementName} of the annotation {@code anno}, or the
-     * default value if no element is present explicitly, where the element has an array type and
-     * the elements are {@code Enum}s. One element of the result has type {@code expectedType}.
-     *
-     * <p>This method is intended only for use by the framework. A checker implementation should use
-     * {@link #getElementValueEnumArray(AnnotationMirror, ExecutableElement, Class)} or {@link
-     * #getElementValueEnumArray(AnnotationMirror, ExecutableElement, Class, Enum[])}.
-     *
-     * @param anno the annotation to disassemble
-     * @param elementName the name of the element to access
-     * @param expectedType the component type of the element and of the return type, an enum
-     * @param <T> the class of the type
-     * @param useDefaults whether to apply default values to the element
-     * @return the value of the element with the given name
-     * @deprecated use {@link #getElementValueEnumArray(AnnotationMirror, ExecutableElement, Class)}
-     *     or {@link #getElementValueEnumArray(AnnotationMirror, ExecutableElement, Class, Enum[])}
-     */
-    @Deprecated // 2021-03-29
-    public static <T extends Enum<T>> T[] getElementValueEnumArray(
-            AnnotationMirror anno,
-            CharSequence elementName,
-            Class<T> expectedType,
-            boolean useDefaults) {
-        @SuppressWarnings("unchecked")
-        List<AnnotationValue> la = getElementValue(anno, elementName, List.class, useDefaults);
-        return annotationValueListToEnumArray(la, expectedType);
-    }
-
-    /**
      * Get the Name of the class that is referenced by element {@code elementName}.
      *
      * <p>This is a convenience method for the most common use-case. It is like {@code
@@ -920,35 +898,13 @@ public class AnnotationUtils {
      *     empty name, for a local or anonymous class
      * @deprecated use an ExecutableElement
      */
-    @Deprecated // permitted for use by the framework
+    @Deprecated // for use only by the framework
     public static @CanonicalName Name getElementValueClassName(
             AnnotationMirror anno, CharSequence elementName, boolean useDefaults) {
         Type.ClassType ct = getElementValue(anno, elementName, Type.ClassType.class, useDefaults);
         // TODO:  Is it a problem that this returns the type parameters too?  Should I cut them off?
         @CanonicalName Name result = ct.asElement().getQualifiedName();
         return result;
-    }
-
-    /**
-     * Get the list of Names of the classes that are referenced by element {@code elementName}. It
-     * fails if the class wasn't found.
-     *
-     * <p>This method is intended only for use by the framework. A checker implementation should use
-     * {@link #getElementValueClassNames(AnnotationMirror, ExecutableElement)}.
-     *
-     * @param anno the annotation whose field to access; it must be present in the annotation
-     * @param annoElement the element/field of {@code anno} whose content is a list of classes
-     * @param useDefaults whether to apply default values to the element
-     * @return the names of classes in {@code anno.annoElement}
-     * @deprecated use {@link #getElementValueClassNames(AnnotationMirror,ExecutableElement)}
-     */
-    @Deprecated // 2021-03-29
-    public static List<@CanonicalName Name> getElementValueClassNames(
-            AnnotationMirror anno, CharSequence annoElement, boolean useDefaults) {
-        List<Type.ClassType> la =
-                getElementValueArray(anno, annoElement, Type.ClassType.class, useDefaults);
-        return CollectionsPlume.<Type.ClassType, @CanonicalName Name>mapList(
-                (Type.ClassType classType) -> classType.asElement().getQualifiedName(), la);
     }
 
     // **********************************************************************
@@ -972,7 +928,7 @@ public class AnnotationUtils {
      * @param <T> the class of the type
      * @return the value of the element with the given name
      */
-    public static <T> @Nullable T getElementValue(
+    public static <T> T getElementValue(
             AnnotationMirror anno, ExecutableElement element, Class<T> expectedType) {
         AnnotationValue av = anno.getElementValues().get(element);
         if (av == null) {
@@ -999,7 +955,7 @@ public class AnnotationUtils {
      * @param defaultValue the value to return if the element is not present
      * @return the value of the element with the given name
      */
-    public static <T> @Nullable T getElementValue(
+    public static <T> T getElementValue(
             AnnotationMirror anno,
             ExecutableElement element,
             Class<T> expectedType,
@@ -1010,6 +966,23 @@ public class AnnotationUtils {
         } else {
             return expectedType.cast(av.getValue());
         }
+    }
+
+    /**
+     * Returns whether an annotation written on a package also applies to that package's
+     * subpackages.
+     *
+     * @param anno an annotation written on a package
+     * @param applyToSubpackagesElement {@code anno}'s own {@code applyToSubpackages} element, or
+     *     null if the {@code checker-qual} on the classpath predates that element
+     * @return true if {@code anno} applies to subpackages
+     */
+    public static boolean appliesToSubpackages(
+            AnnotationMirror anno, @Nullable ExecutableElement applyToSubpackagesElement) {
+        // A checker-qual without the element gives no way to opt out, so an annotation from it
+        // applies to subpackages, as it always did.
+        return applyToSubpackagesElement == null
+                || getElementValue(anno, applyToSubpackagesElement, Boolean.class, true);
     }
 
     /**
@@ -1187,7 +1160,7 @@ public class AnnotationUtils {
         if (av == null) {
             throw new BugInCF("getElementValueArray(%s, %s, ...)", anno, element);
         }
-        return AnnotationUtils.annotationValueToList(av, expectedType);
+        return annotationValueToList(av, expectedType);
     }
 
     /**
@@ -1211,7 +1184,7 @@ public class AnnotationUtils {
         if (av == null) {
             return defaultValue;
         } else {
-            return AnnotationUtils.annotationValueToList(av, expectedType);
+            return annotationValueToList(av, expectedType);
         }
     }
 
@@ -1243,7 +1216,7 @@ public class AnnotationUtils {
         int size = la.size();
         @SuppressWarnings("unchecked")
         T[] result = (T[]) Array.newInstance(expectedType, size);
-        for (int i = 0; i < size; i++) {
+        for (int i = 0; i < size; ++i) {
             AnnotationValue a = la.get(i);
             T value = Enum.valueOf(expectedType, a.getValue().toString());
             result[i] = value;
@@ -1309,9 +1282,32 @@ public class AnnotationUtils {
         if (am1 == am2) {
             return true;
         }
-
         Map<? extends ExecutableElement, ? extends AnnotationValue> vals1 = am1.getElementValues();
         Map<? extends ExecutableElement, ? extends AnnotationValue> vals2 = am2.getElementValues();
+        if (vals1.isEmpty() && vals2.isEmpty()) {
+            return true; // no-element annotations: nothing to compare
+        }
+        // Fast path: when both annotations have an explicit value for the same set of methods,
+        // we don't need to enumerate all annotation methods (and pay an
+        // ElementFilter.methodsIn list allocation) just to handle defaults.
+        if (vals1.size() == vals2.size() && vals1.keySet().equals(vals2.keySet())) {
+            for (Map.Entry<? extends ExecutableElement, ? extends AnnotationValue> e :
+                    vals1.entrySet()) {
+                AnnotationValue aval1 = e.getValue();
+                // From the earlier check we know e.getKey() is a key in vals2.
+                @SuppressWarnings("nullness")
+                @NonNull AnnotationValue aval2 = vals2.get(e.getKey());
+                @SuppressWarnings("interning:not.interned") // optimization via equality test
+                boolean identical = aval1 == aval2;
+                if (identical) {
+                    continue;
+                }
+                if (!sameAnnotationValue(aval1, aval2)) {
+                    return false;
+                }
+            }
+            return true;
+        }
         for (ExecutableElement meth :
                 ElementFilter.methodsIn(
                         am1.getAnnotationType().asElement().getEnclosedElements())) {
@@ -1436,7 +1432,7 @@ public class AnnotationUtils {
      * <p>To test containment, use {@link #annotationValueContains(AnnotationValue, String)} or
      * {@link #annotationValueContainsToString(AnnotationValue, String)}.
      *
-     * @param avList an AnnotationValue that is null or a list of Strings
+     * @param avList an AnnotationValue that is a list of Strings
      * @param expectedType the component type of the argument and of the return type, an enum
      * @param <T> the class of the type
      * @return the annotation value, converted to a list
@@ -1496,9 +1492,8 @@ public class AnnotationUtils {
      * @param <T> the key type
      */
     public static <T extends @NonNull Object> void updateMappingToImmutableSet(
-            Map<T, Set<AnnotationMirror>> map, T key, Set<AnnotationMirror> newQual) {
-
-        Set<AnnotationMirror> result = AnnotationUtils.createAnnotationSet();
+            Map<T, AnnotationMirrorSet> map, T key, AnnotationMirrorSet newQual) {
+        AnnotationMirrorSet result = new AnnotationMirrorSet();
         // TODO: if T is also an AnnotationMirror, should we use areSame?
         if (!map.containsKey(key)) {
             result.addAll(newQual);
@@ -1506,7 +1501,8 @@ public class AnnotationUtils {
             result.addAll(map.get(key));
             result.addAll(newQual);
         }
-        map.put(key, Collections.unmodifiableSet(result));
+        result.makeUnmodifiable();
+        map.put(key, result);
     }
 
     /**
@@ -1516,9 +1512,9 @@ public class AnnotationUtils {
      * @param constructorDeclaration declaration tree of constructor
      * @return set of annotations explicit on the resulting type of the constructor
      */
-    public static Set<AnnotationMirror> getExplicitAnnotationsOnConstructorResult(
+    public static AnnotationMirrorSet getExplicitAnnotationsOnConstructorResult(
             MethodTree constructorDeclaration) {
-        Set<AnnotationMirror> annotationSet = AnnotationUtils.createAnnotationSet();
+        AnnotationMirrorSet annotationSet = new AnnotationMirrorSet();
         ModifiersTree modifiersTree = constructorDeclaration.getModifiers();
         if (modifiersTree != null) {
             List<? extends AnnotationTree> annotationTrees = modifiersTree.getAnnotations();
@@ -1528,25 +1524,38 @@ public class AnnotationUtils {
     }
 
     /**
-     * Returns true if anno is a declaration annotation. In other words, returns true if anno cannot
-     * be written on uses of types.
+     * Returns true if {@code anno} is not a type use annotation, that is, it cannot be written on
+     * uses of types.
+     *
+     * @param anno the AnnotationMirror
+     * @return true if anno is a declaration annotation
+     * @deprecated use {@link #isTypeUseAnnotation(AnnotationMirror)} instead
+     */
+    @Deprecated // 2024-01-06
+    public static boolean isDeclarationAnnotation(AnnotationMirror anno) {
+        return !isTypeUseAnnotation(anno);
+    }
+
+    /**
+     * Returns true if {@code anno} is a type use annotation, that is, it can be written on uses of
+     * types.
      *
      * @param anno the AnnotationMirror
      * @return true if anno is a declaration annotation
      */
-    public static boolean isDeclarationAnnotation(AnnotationMirror anno) {
+    public static boolean isTypeUseAnnotation(AnnotationMirror anno) {
         TypeElement elem = (TypeElement) anno.getAnnotationType().asElement();
         Target t = elem.getAnnotation(Target.class);
         if (t == null) {
-            return true;
+            return false;
         }
 
         for (ElementType elementType : t.value()) {
             if (elementType == ElementType.TYPE_USE) {
-                return false;
+                return true;
             }
         }
-        return true;
+        return false;
     }
 
     /**
@@ -1590,7 +1599,7 @@ public class AnnotationUtils {
      * @return the string representation, using simple (not fully-qualified) names
      */
     @SideEffectFree
-    public static String toStringSimple(Set<AnnotationMirror> annos) {
+    public static String toStringSimple(AnnotationMirrorSet annos) {
         StringJoiner result = new StringJoiner(" ");
         for (AnnotationMirror am : annos) {
             result.add(toStringSimple(am));
@@ -1630,7 +1639,7 @@ public class AnnotationUtils {
             if (args.size() == 1) {
                 Map.Entry<ExecutableElement, AnnotationValue> first =
                         args.entrySet().iterator().next();
-                if (first.getKey().getSimpleName().contentEquals("value")) {
+                if (InternalUtils.isValueName(first.getKey().getSimpleName())) {
                     formatAnnotationMirrorArg(first.getValue(), sb);
                     oneValue = true;
                 }
@@ -1643,7 +1652,7 @@ public class AnnotationUtils {
                             sb.append(", ");
                         }
                         notfirst = true;
-                        sb.append(arg.getKey().getSimpleName() + "=");
+                        sb.append(arg.getKey().getSimpleName()).append("=");
                         formatAnnotationMirrorArg(arg.getValue(), sb);
                     }
                 }
@@ -1661,12 +1670,12 @@ public class AnnotationUtils {
      */
     private static Map<ExecutableElement, AnnotationValue> removeDefaultValues(
             Map<? extends ExecutableElement, ? extends AnnotationValue> elementValues) {
-        Map<ExecutableElement, AnnotationValue> nonDefaults = new LinkedHashMap<>();
+        // Most annotations have no elements.
+        Map<ExecutableElement, AnnotationValue> nonDefaults = new ArrayMap<>(0);
         elementValues.forEach(
                 (element, value) -> {
-                    if (element.getDefaultValue() == null
-                            || !Objects.equals(
-                                    value.getValue(), element.getDefaultValue().getValue())) {
+                    AnnotationValue dflt = element.getDefaultValue();
+                    if (dflt == null || !Objects.equals(value.getValue(), dflt.getValue())) {
                         nonDefaults.put(element, value);
                     }
                 });
@@ -1682,7 +1691,7 @@ public class AnnotationUtils {
      */
     private static void formatAnnotationMirrorArg(AnnotationValue av, StringBuilder sb) {
         Object val = av.getValue();
-        if (List.class.isAssignableFrom(val.getClass())) {
+        if (val instanceof List) {
             @SuppressWarnings("unchecked")
             List<AnnotationValue> vallist = (List<AnnotationValue>) val;
             if (vallist.size() == 1) {
@@ -1699,9 +1708,11 @@ public class AnnotationUtils {
                 }
                 sb.append('}');
             }
-        } else if (VariableElement.class.isAssignableFrom(val.getClass())) {
+        } else if (val instanceof VariableElement) {
             VariableElement ve = (VariableElement) val;
-            sb.append(ve.getEnclosingElement().getSimpleName() + "." + ve.getSimpleName());
+            sb.append(ve.getEnclosingElement().getSimpleName())
+                    .append('.')
+                    .append(ve.getSimpleName());
         } else {
             sb.append(av.toString());
         }

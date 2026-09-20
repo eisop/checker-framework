@@ -3,13 +3,14 @@ package org.checkerframework.dataflow.cfg.node;
 import com.sun.source.tree.ExpressionTree;
 
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.SideEffectFree;
 import org.checkerframework.javacutil.TreeUtils;
 
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Objects;
 
-/** A node for the single expression body of a single expression lambda. */
+/** A node for the single expression body of a single-expression lambda. */
 public class LambdaResultExpressionNode extends Node {
 
     /** Tree for the lambda expression body. */
@@ -64,6 +65,9 @@ public class LambdaResultExpressionNode extends Node {
 
     @Override
     public boolean equals(@Nullable Object obj) {
+        if (this == obj) {
+            return true;
+        }
         // No need to compare tree, since in a well-formed LambdaResultExpressionNode, result will
         // be the same only when tree is the same (this is similar to ReturnNode).
         if (!(obj instanceof LambdaResultExpressionNode)) {
@@ -81,6 +85,7 @@ public class LambdaResultExpressionNode extends Node {
     }
 
     @Override
+    @SideEffectFree
     public Collection<Node> getOperands() {
         return Collections.singletonList(result);
     }

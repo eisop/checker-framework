@@ -25,6 +25,7 @@ public class FormatUtil {
     private static class Conversion {
         /** The index in the argument list. */
         private final int index;
+
         /** The conversion category. */
         private final ConversionCategory cath;
 
@@ -34,7 +35,7 @@ public class FormatUtil {
          * @param index the index in the argument list
          * @param c the conversion character
          */
-        public Conversion(char c, int index) {
+        Conversion(char c, int index) {
             this.index = index;
             this.cath = ConversionCategory.fromConversionChar(c);
         }
@@ -93,14 +94,22 @@ public class FormatUtil {
      * @throws IllegalFormatException if the format string is invalid
      */
     public static void tryFormatSatisfiability(String format) throws IllegalFormatException {
-        @SuppressWarnings({
-            "unused", // called for side effect, to see if it throws an exception
-            "nullness:argument.type.incompatible", // it's not documented, but String.format permits
-            // a null array, which it treats as matching any format string (null is supplied to each
-            // format specifier).
-            "formatter:format.string.invalid", // this is a test of format string validity
-        })
-        String unused = String.format(format, (Object[]) null);
+        try {
+            @SuppressWarnings({
+                "unused", // called for side effect, to see if it throws an exception
+                "nullness:argument.type.incompatible", // it's not documented, but String.format
+                // permits a null array, which it treats as matching any format string (null is
+                // supplied to each format specifier).
+                "formatter:format.string.invalid", // this is a test of format string validity
+            })
+            String unused = String.format(format, (Object[]) null);
+        } catch (OutOfMemoryError e) {
+            throw new Error(
+                    "OOM while calling String.format on (length "
+                            + format.length()
+                            + "): "
+                            + format);
+        }
     }
 
     /**
@@ -153,7 +162,7 @@ public class FormatUtil {
 
     /**
      * A regex that matches a format specifier. Its syntax is specified in the See <a
-     * href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/Formatter.html#syntax">{@code
+     * href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/util/Formatter.html#syntax">{@code
      * Formatter} documentation</a>.
      *
      * <pre>
@@ -166,8 +175,10 @@ public class FormatUtil {
      */
     private static final @Regex(6) String formatSpecifier =
             "%(\\d+\\$)?([-#+ 0,(\\<]*)?(\\d+)?(\\.\\d+)?([tT])?([a-zA-Z%])";
+
     /** The capturing group for the optional {@code t} character. */
     private static final int formatSpecifierT = 5;
+
     /**
      * The capturing group for the last character in a format specifier, which is the conversion
      * character unless the {@code t} character was given.
@@ -225,7 +236,7 @@ public class FormatUtil {
      * Return the conversion character that is in the given format specifier.
      *
      * @param formatSpecifier a <a
-     *     href="https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/Formatter.html#syntax">format
+     *     href="https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/util/Formatter.html#syntax">format
      *     specifier</a>
      * @return the conversion character that is in the given format specifier
      * @deprecated This method is public only for testing. Use private method {@code
@@ -257,7 +268,7 @@ public class FormatUtil {
                     cs.add(new Conversion(c, indexFromFormat(m)));
             }
         }
-        return cs.toArray(new Conversion[cs.size()]);
+        return cs.toArray(new Conversion[0]);
     }
 
     public static class ExcessiveOrMissingFormatArgumentException

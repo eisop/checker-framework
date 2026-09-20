@@ -6,6 +6,7 @@ import com.sun.source.tree.MethodTree;
 import com.sun.source.tree.Tree;
 import com.sun.source.tree.VariableTree;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedDeclaredType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedExecutableType;
 import org.checkerframework.framework.util.AnnotatedTypes;
@@ -24,7 +25,9 @@ import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeKind;
 
 /**
- * Converts a field or methods tree into an AnnotatedTypeMirror.
+ * Converts a field or methods tree into an AnnotatedTypeMirror. Using addAnnotations for innerType
+ * can add multiple annotations from the same hierarchy, which is required to get the desired error
+ * messages about duplicate annotations.
  *
  * @see org.checkerframework.framework.type.TypeFromTree
  */
@@ -35,12 +38,27 @@ class TypeFromMemberVisitor extends TypeFromTreeVisitor {
         Element elt = TreeUtils.elementFromDeclaration(variableTree);
 
         // Create the ATM and add non-primary annotations
-        // (variableTree.getType() does not include the annotation before the type, so those
-        // are added to the type below).
-        AnnotatedTypeMirror result = TypeFromTree.fromTypeTree(f, variableTree.getType());
-
-        // See comment in visitMethod
-        ElementAnnotationApplier.apply(result, elt, f);
+        AnnotatedTypeMirror result;
+        // Propagate initializer annotated type to variable if declared using var.
+        // Skip propagation of annotations when initializer can be null.
+        // E.g.
+        // for (var i : list) {}
+        if (variableTree.getInitializer() != null
+                && TreeUtils.isVariableTreeDeclaredUsingVar(variableTree)) {
+            // BaseTypeVisitor#visitVariable does not need to check the type of `var` declarations.
+            result = f.getAnnotatedType(variableTree.getInitializer());
+            // Let normal defaulting happen for the primary annotation.
+            result.clearAnnotations();
+        } else if (variableTree.getType() == null
+                || TreeUtils.isVariableTreeDeclaredUsingVar(variableTree)) {
+            // VariableTree#getType returns null for binding variables from a
+            // DeconstructionPatternTree.
+            result = f.type(variableTree);
+        } else {
+            // (variableTree.getType() does not include the annotation before the type, so those
+            // are added to the type below).
+            result = TypeFromTree.fromTypeTree(f, variableTree.getType());
+        }
 
         // Handle any annotations in variableTree.getModifiers().
         List<AnnotationMirror> modifierAnnos;
@@ -51,32 +69,41 @@ class TypeFromMemberVisitor extends TypeFromTreeVisitor {
             modifierAnnos = Collections.emptyList();
         }
 
+        if (result.getKind() != TypeKind.TYPEVAR || modifierAnnos.isEmpty()) {
+            // See comment in visitMethod
+            ElementAnnotationApplier.apply(result, elt, f);
+        }
+
         if (result.getKind() == TypeKind.DECLARED
                 &&
                 // Annotations on enum constants are not in the TypeMirror and always apply to the
                 // innermost type, so handle them in the else block.
                 elt.getKind() != ElementKind.ENUM_CONSTANT) {
-
             // Decode the annotations from the type mirror because the annotations are already in
             // the correct place for enclosing types.  The annotations in
-            // variableTree.getModifiers()
-            // might apply to the enclosing type or the type itself. For example, @Tainted
-            // Outer.Inner y and @Tainted
-            // Inner x.  @Tainted is stored in variableTree.getModifiers() of the variable tree
-            // corresponding to both x and y, but @Tainted applies to different types.
+            // variableTree.getModifiers() might apply to the enclosing type or the type itself.
+            // For example, @Tainted Outer.Inner y and @Tainted Inner x.
+            // @Tainted is stored in variableTree.getModifiers() of the variable tree corresponding
+            // to both x and y, but @Tainted applies to different types.
             AnnotatedDeclaredType annotatedDeclaredType = (AnnotatedDeclaredType) result;
             // The underlying type of result does not have all annotations, but the TypeMirror of
             // variableTree.getType() does.
-            DeclaredType declaredType = (DeclaredType) TreeUtils.typeOf(variableTree.getType());
-            AnnotatedTypes.applyAnnotationsFromDeclaredType(annotatedDeclaredType, declaredType);
+            // VariableTree#getType returns null for binding variables from a
+            // DeconstructionPatternTree.
+            if (variableTree.getType() != null
+                    && !TreeUtils.isVariableTreeDeclaredUsingVar(variableTree)) {
+                DeclaredType declaredType = (DeclaredType) TreeUtils.typeOf(variableTree.getType());
+                AnnotatedTypes.applyAnnotationsFromDeclaredType(
+                        annotatedDeclaredType, declaredType);
+            }
 
             // Handle declaration annotations
             for (AnnotationMirror anno : modifierAnnos) {
-                if (AnnotationUtils.isDeclarationAnnotation(anno)) {
+                if (!AnnotationUtils.isTypeUseAnnotation(anno)) {
                     // This does not treat Checker Framework compatqual annotations differently,
                     // because it's not clear whether the annotation should apply to the outermost
                     // enclosing type or the innermost.
-                    result.replaceAnnotation(anno);
+                    result.addAnnotation(anno);
                 }
                 // If anno is not a declaration annotation, it should have been applied in the call
                 // to applyAnnotationsFromDeclaredType above.
@@ -87,15 +114,15 @@ class TypeFromMemberVisitor extends TypeFromTreeVisitor {
             for (AnnotationMirror anno : modifierAnnos) {
                 // The code here is similar to
                 // org.checkerframework.framework.util.element.ElementAnnotationUtil.addDeclarationAnnotationsFromElement.
-                if (AnnotationUtils.isDeclarationAnnotation(anno)
+                if (AnnotationUtils.isTypeUseAnnotation(anno)
                         // Always treat Checker Framework annotations as type annotations.
-                        && !AnnotationUtils.annotationName(anno)
+                        || AnnotationUtils.annotationName(anno)
                                 .startsWith("org.checkerframework")) {
-                    // Declaration annotations apply to the outer type.
-                    result.replaceAnnotation(anno);
-                } else {
                     // Type annotations apply to the innermost type.
-                    innerType.replaceAnnotation(anno);
+                    innerType.addAnnotation(anno);
+                } else {
+                    // Declaration annotations apply to the outer type.
+                    result.addAnnotation(anno);
                 }
             }
         }
@@ -108,12 +135,14 @@ class TypeFromMemberVisitor extends TypeFromTreeVisitor {
     }
 
     @Override
-    public AnnotatedTypeMirror visitMethod(MethodTree node, AnnotatedTypeFactory f) {
-        ExecutableElement elt = TreeUtils.elementFromDeclaration(node);
+    public AnnotatedTypeMirror visitMethod(MethodTree tree, AnnotatedTypeFactory f) {
+        ExecutableElement elt = TreeUtils.elementFromDeclaration(tree);
 
         AnnotatedExecutableType result =
                 (AnnotatedExecutableType) f.toAnnotatedType(elt.asType(), false);
         result.setElement(elt);
+        f.initializeAtm(result);
+
         // Make sure the return type field gets initialized... otherwise
         // some code throws NPE. This should be cleaned up.
         result.getReturnType();
@@ -133,7 +162,7 @@ class TypeFromMemberVisitor extends TypeFromTreeVisitor {
      *
      * @return the type of the lambda parameter, or null if paramElement is not a lambda parameter
      */
-    private static AnnotatedTypeMirror inferLambdaParamAnnotations(
+    private static @Nullable AnnotatedTypeMirror inferLambdaParamAnnotations(
             AnnotatedTypeFactory f, AnnotatedTypeMirror lambdaParam, Element paramElement) {
         if (paramElement.getKind() != ElementKind.PARAMETER
                 || f.declarationFromElement(paramElement) == null
@@ -144,33 +173,23 @@ class TypeFromMemberVisitor extends TypeFromTreeVisitor {
         }
         Tree declaredInTree =
                 f.getPath(f.declarationFromElement(paramElement)).getParentPath().getLeaf();
-        if (declaredInTree.getKind() == Tree.Kind.LAMBDA_EXPRESSION) {
+        if (declaredInTree instanceof LambdaExpressionTree
+                && TreeUtils.isImplicitlyTypedLambda(declaredInTree)) {
             LambdaExpressionTree lambdaDecl = (LambdaExpressionTree) declaredInTree;
             int index = lambdaDecl.getParameters().indexOf(f.declarationFromElement(paramElement));
             AnnotatedExecutableType functionType = f.getFunctionTypeFromTree(lambdaDecl);
             AnnotatedTypeMirror funcTypeParam = functionType.getParameterTypes().get(index);
-            if (TreeUtils.isImplicitlyTypedLambda(declaredInTree)) {
-                // The Java types should be exactly the same, but because invocation type
-                // inference (#979) isn't implement, check first. Use the erased types because the
-                // type arguments are not substituted when the annotated type arguments are.
-                if (TypesUtils.isErasedSubtype(
-                        funcTypeParam.underlyingType, lambdaParam.underlyingType, f.types)) {
-                    return AnnotatedTypes.asSuper(f, funcTypeParam, lambdaParam);
-                }
-                lambdaParam.addMissingAnnotations(funcTypeParam.getAnnotations());
-                return lambdaParam;
-
-            } else {
-                // The lambda expression is explicitly typed, so the parameters have declared types:
-                // (String s) -> ...
-                // The declared type may or may not have explicit annotations.
-                // If it does not have an annotation for a hierarchy, then copy the annotation from
-                // the function type rather than use usual defaulting rules.
-                // Note lambdaParam is a super type of funcTypeParam, so only primary annotations
-                // can be copied.
-                lambdaParam.addMissingAnnotations(funcTypeParam.getAnnotations());
-                return lambdaParam;
+            // During type argument inference, the type of the parameters is assumed to be the
+            // same as the function parameter.
+            // (https://docs.oracle.com/javase/specs/jls/se11/html/jls-18.html#jls-18.2.1).  So if
+            // the underlying types are not the same type, then assume the lambda parameter is the
+            // same as the function type. (Use the erased types because the type arguments are not
+            // substituted when the annotated type arguments are.)
+            if (TypesUtils.isErasedSubtype(
+                    funcTypeParam.underlyingType, lambdaParam.underlyingType, f.types)) {
+                return AnnotatedTypes.asSuper(f, funcTypeParam, lambdaParam);
             }
+            return funcTypeParam;
         }
         return null;
     }

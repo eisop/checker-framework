@@ -10,10 +10,12 @@ build system, or from an IDE\@.  You can skip to the appropriate section:
 \item Android (Section~\ref{android})
 \item Android Gradle Plugin (Section~\ref{android-gradle})
 \item Ant (Section~\ref{ant-task})
+\item Bazel (Section~\ref{bazel})
 \item Buck (Section~\ref{buck})
 \item Command line, via Checker Framework javac wrapper (Section~\ref{javac-wrapper})
 \item Command line, via JDK javac (Section~\ref{javac})
 \item Eclipse (Section~\ref{eclipse})
+\item Error Prone (Section~\ref{error-prone})
 \item Gradle (Section~\ref{gradle})
 \item IntelliJ IDEA (Section~\ref{intellij})
 \item javac Diagnostics Wrapper (Section~\ref{javac-diagnostics-wrapper})
@@ -30,9 +32,8 @@ documentation to learn how to
 customize it, adapting the instructions for javac in Section~\ref{javac}.
 If you make another tool support running a checker, please
 inform us via the
-\href{https://groups.google.com/forum/#!forum/checker-framework-discuss}{mailing
-  list} or
-\href{https://github.com/typetools/checker-framework/issues}{issue tracker} so
+\href{https://github.com/eisop/checker-framework/discussions}{discussion forum} or
+the \href{https://github.com/eisop/checker-framework/issues}{issue tracker} so
 we can add it to this manual.
 
 All examples in this chapter are in the public domain, with no copyright nor
@@ -118,11 +119,11 @@ configurations {
 \begin{Verbatim}
 dependencies {
     ... existing dependencies...
-    ext.checkerFrameworkVersion = '3.21.4'
-    implementation "org.checkerframework:checker-qual-android:${checkerFrameworkVersion}"
+    ext.checkerFrameworkVersion = '3.49.5-eisop1'
+    implementation "io.github.eisop:checker-qual-android:${checkerFrameworkVersion}"
     // or if you use no annotations in source code the above line could be
-    // compileOnly "org.checkerframework:checker-qual-android:${checkerFrameworkVersion}"
-    annotationProcessor "org.checkerframework:checker:${checkerFrameworkVersion}"
+    // compileOnly "io.github.eisop:checker-qual-android:${checkerFrameworkVersion}"
+    annotationProcessor "io.github.eisop:checker:${checkerFrameworkVersion}"
     errorproneJavac 'com.google.errorprone:javac:9+181-r4173-1'
 }
 \end{Verbatim}
@@ -149,9 +150,9 @@ gradlew assembleCheckTypes
 \end{Verbatim}
 \end{enumerate}
 
-\subsectionAndLabel{JDK 11}{android-jdk11}
-This section shows what changes to make if you are using JDK 11.  They should work for JDK 9+, but
-we have only tested them with JDK 11.
+\subsectionAndLabel{JDK 11+}{android-jdk11}
+This section shows what changes to make if you are using JDK 11 or later.
+% We have tested them with JDK 11.
 
 \begin{enumerate}
 
@@ -191,11 +192,11 @@ android {
 \begin{Verbatim}
 dependencies {
     ... existing dependencies...
-    ext.checkerFrameworkVersion = '3.21.4'
-    implementation "org.checkerframework:checker-qual-android:${checkerFrameworkVersion}"
+    ext.checkerFrameworkVersion = '3.49.5-eisop1'
+    implementation "io.github.eisop:checker-qual-android:${checkerFrameworkVersion}"
     // or if you use no annotations in source code the above line could be
-    // compileOnly "org.checkerframework:checker-qual-android:${checkerFrameworkVersion}"
-    annotationProcessor "org.checkerframework:checker:${checkerFrameworkVersion}"
+    // compileOnly "io.github.eisop:checker-qual-android:${checkerFrameworkVersion}"
+    annotationProcessor "io.github.eisop:checker:${checkerFrameworkVersion}"
 }
 \end{Verbatim}
 \end{mysmall}
@@ -210,7 +211,7 @@ gradlew assembleCheckTypes
 
 \sectionAndLabel{Ant task}{ant-task}
 
-If you use the \href{http://ant.apache.org/}{Ant} build tool to compile
+If you use the \href{https://ant.apache.org/}{Ant} build tool to compile
 your software, then you can add an Ant task that runs a checker.  We assume
 that your Ant file already contains a compilation target that uses the
 \code{javac} task, and that the \<CHECKERFRAMEWORK> environment variable is set.
@@ -316,9 +317,21 @@ run.  You can supply additional arguments to the checker as well.
 \end{enumerate}
 
 
+\sectionAndLabel{Bazel}{bazel}
+
+\href{https://bazel.build/}{Bazel} is a build system maintained by Google.
+
+See the directory \code{docs/examples/BazelExample/} for examples of the use of
+Bazel build files.
+
+%% This SO answer isn't really helpful.
+% To run the Checker Framework, see Stack Overflow discussion 48555320
+% ({\codesize\url{https://stackoverflow.com/questions/48555320/}}).
+
+
 \sectionAndLabel{Buck}{buck}
 
-Buck is a build system maintained by Facebook.
+Buck is a build system maintained by Meta.
 
 Buck has support for annotation processors, but that support is
 undocumented because the Buck maintainers may change the syntax in the
@@ -341,13 +354,13 @@ file showing how to enable the Checker Framework:
 \begin{Verbatim}
 prebuilt_jar(
     name = 'checker-framework',
-    binary_jar = 'checker-3.21.4.jar',
+    binary_jar = 'checker-3.49.5-eisop1.jar',
     visibility = [ 'PUBLIC' ]
 )
 
 prebuilt_jar(
     name = 'checker-qual',
-    binary_jar = 'checker-qual-3.21.4.jar',
+    binary_jar = 'checker-qual-3.49.5-eisop1.jar',
     visibility = [ 'PUBLIC' ]
 )
 
@@ -411,21 +424,21 @@ one of them.  However, if you are using the Windows command shell, you must
 use the last one.
 % Is the last one required for Cygwin, as well as for the Windows command shell?
 Adjust the pathnames if you have installed the Checker Framework somewhere
-other than \<\${HOME}/checker-framework-3.21.4/>.
+other than \<\${HOME}/checker-framework-3.49.5-eisop1/>.
 
 
 \begin{itemize}
   \item
     Option 1:
     Add directory
-    \code{.../checker-framework-3.21.4/checker/bin} to your path, \emph{before} any other
+    \code{.../checker-framework-3.49.5-eisop1/checker/bin} to your path, \emph{before} any other
     directory that contains a \<javac> executable.
 
     If you are
     using the bash shell, a way to do this is to add the following to your
     \verb|~/.profile| (or alternately \verb|~/.bash_profile| or \verb|~/.bashrc|) file:
 \begin{Verbatim}
-  export CHECKERFRAMEWORK=${HOME}/checker-framework-3.21.4
+  export CHECKERFRAMEWORK=${HOME}/checker-framework-3.49.5-eisop1
   export PATH=${CHECKERFRAMEWORK}/checker/bin:${PATH}
 \end{Verbatim}
 
@@ -446,7 +459,7 @@ other than \<\${HOME}/checker-framework-3.21.4/>.
     file:
 % No Windows example because this doesn't work under Windows.
 \begin{Verbatim}
-  export CHECKERFRAMEWORK=${HOME}/checker-framework-3.21.4
+  export CHECKERFRAMEWORK=${HOME}/checker-framework-3.49.5-eisop1
   alias javacheck='$CHECKERFRAMEWORK/checker/bin/javac'
 \end{Verbatim}
 
@@ -468,11 +481,11 @@ other than \<\${HOME}/checker-framework-3.21.4/>.
 
 \begin{Verbatim}
   # Unix
-  export CHECKERFRAMEWORK=${HOME}/checker-framework-3.21.4
+  export CHECKERFRAMEWORK=${HOME}/checker-framework-3.49.5-eisop1
   alias javacheck='java -jar "$CHECKERFRAMEWORK/checker/dist/checker.jar"'
 
   # Windows
-  set CHECKERFRAMEWORK = C:\Program Files\checker-framework-3.21.4\
+  set CHECKERFRAMEWORK = C:\Program Files\checker-framework-3.49.5-eisop1\
   doskey javacheck=java -jar "%CHECKERFRAMEWORK%\checker\dist\checker.jar" $*
 \end{Verbatim}
 
@@ -550,11 +563,20 @@ the environment variable \<CHECKERFRAMEWORK> to point to the unzipped directory.
 Alternately, you can get all of the jars mentioned in this section from Maven Central:
 
 \begin{itemize}
-\item \<javac.jar>: \url{https://search.maven.org/artifact/com.google.errorprone/javac/9%2B181-r4173-1/jar}
-\item \<checker-qual.jar>: \url{https://repo1.maven.org/maven2/org/checkerframework/checker-qual/3.21.4/checker-qual-3.21.4.jar}
-\item \<checker-util.jar>: \url{https://repo1.maven.org/maven2/org/checkerframework/checker-util/3.21.4/checker-util-3.21.4.jar}
-\item \<checker.jar>: \url{https://repo1.maven.org/maven2/org/checkerframework/checker/3.21.4/checker-3.21.4-all.jar}
+\item \<javac.jar>: \url{https://central.sonatype.com/artifact/com.google.errorprone/javac/9%2B181-r4173-1}
+\item \<checker-qual.jar>: \url{https://repo1.maven.org/maven2/io/github/eisop/checker-qual/3.49.5-eisop1/checker-qual-3.49.5-eisop1.jar}
+\item \<checker-util.jar>: \url{https://repo1.maven.org/maven2/io/github/eisop/checker-util/3.49.5-eisop1/checker-util-3.49.5-eisop1.jar}
+\item \<checker.jar>: \url{https://repo1.maven.org/maven2/io/github/eisop/checker/3.49.5-eisop1/checker-3.49.5-eisop1-all.jar}
 \end{itemize}
+
+Note the \<-all> classifier on that last URL.  On Maven Central,
+\<checker-\emph{version}-all.jar> is the self-contained jar, and it is the one
+that corresponds to \<checker/dist/checker.jar> in the release zip.  The plain
+\<checker-\emph{version}.jar> artifact is \emph{not} self-contained: it omits the
+qualifier and utility classes, declaring \<checker-qual> and \<checker-util> as
+Maven dependencies instead, so on its own it does not work as a processor path.
+Build tools that read the Maven metadata resolve those dependencies for you; a
+manual download does not.
 
 Different arguments to \<javac> are required for JDK 8
 (Section~\ref{javac-jdk8}) and for JDK 9+ (Section~\ref{javac-jdk11}).
@@ -620,8 +642,9 @@ source code is Java 8 and that Java 8 bytecode is created.
 This section shows what arguments to pass to the OpenJDK or OracleJDK
 \<javac> (\emph{not} the \<javac> wrapper script of
 Section~\ref{javac-wrapper}) to run the Checker
-Framework, if you are using JDK 9 or later.  These
-instructions should work on JDK 9 or later, but we only test with JDK 11 and JDK 17.
+Framework.  These
+instructions should work on JDK 9 or later, but we only test with supported
+versions of Java: JDK 11, JDK 17, and JDK 21.
 
 
 \subsubsectionAndLabel{Non-modularized code}{javac-jdk11-non-modularized}
@@ -647,7 +670,7 @@ javac \
 -processor org.checkerframework.checker.nullness.NullnessChecker
 \end{Verbatim}
 
-The arguments are explained above, except for two of them:.
+The arguments are explained above, except for two of them:
 \begin{enumerate}
 
 \item \<-J--add-opens=jdk.compiler/com.sun.tools.javac.comp=ALL-UNNAMED> which
@@ -660,7 +683,7 @@ required with JDK 16+ because the Checker Framework accesses non-exported member
 
 \end{enumerate}
 
-If this option is missing, \<javac> may issue the following warning:
+If this option is missing, \<javac> may issue one of the below warnings:
 \begin{Verbatim}
 WARNING: An illegal reflective access operation has occurred
 WARNING: Illegal reflective access by org.checkerframework.javacutil.Resolver
@@ -668,6 +691,13 @@ WARNING: Illegal reflective access by org.checkerframework.javacutil.Resolver
 WARNING: Please consider reporting this to the maintainers of org.checkerframework.javacutil.Resolver
 WARNING: Use --illegal-access=warn to enable warnings of further illegal reflective access operations
 WARNING: All illegal access operations will be denied in a future release
+\end{Verbatim}
+
+\begin{Verbatim}
+java.lang.IllegalAccessError: class org.checkerframework.javacutil.AbstractTypeProcessor
+  (in unnamed module ...) cannot access class com.sun.tools.javac.processing.JavacProcessingEnvironment
+  (in module jdk.compiler) because module jdk.compiler does not export com.sun.tools.javac.processing
+  to unnamed module ...
 \end{Verbatim}
 
 
@@ -727,7 +757,7 @@ Ant, but other build systems are similar.
 Add an Ant target as described in Section~\ref{ant-task}.  You can
 run the Ant target by executing the following steps
 (instructions copied from
-{\codesize\url{http://help.eclipse.org/luna/index.jsp?topic=%2Forg.eclipse.platform.doc.user%2FgettingStarted%2Fqs-84_run_ant.htm}}):
+{\codesize\url{https://help.eclipse.org/luna/index.jsp?topic=%2Forg.eclipse.platform.doc.user%2FgettingStarted%2Fqs-84_run_ant.htm}}):
 
 \begin{enumerate}
 
@@ -767,6 +797,195 @@ Annotations $\rightarrow$ Unhandled Token in '@SuppressWarnings',''
 and set it to ignore.
 
 
+\sectionAndLabel{Error Prone}{error-prone}
+
+The Checker Framework and \href{https://errorprone.info/}{Error Prone} can be combined in
+two ways:
+
+\begin{enumerate}
+\item \textbf{Side by side.}  Run the Checker Framework as a standalone annotation
+  processor and Error Prone as a compiler plugin in the same compilation; each operates
+  independently.  This works with the standard setup described elsewhere in this manual
+  plus Error Prone's own setup.  Directory \code{docs/examples/errorprone/} contains an
+  example Gradle project.
+\item \textbf{Checker Framework as an Error Prone plugin.}  Run one or more Checker
+  Framework type systems as a single Error Prone check named \<eisopcf>, so they run
+  \emph{within} your Error Prone compilation rather than as a separate annotation
+  processor.  Directory \code{docs/examples/eisop-errorprone/} contains an example Gradle
+  project.  The rest of this section describes this mode.
+\end{enumerate}
+
+Running the Checker Framework as an Error Prone plugin turns its findings into Error Prone
+diagnostics, so they honor Error Prone's severity configuration, its suppression mechanism,
+and its suggested-fix and patch pipeline.  This is useful if you already use Error Prone and
+want to enable Checker Framework type systems through your existing Error Prone
+configuration.  Running the Checker Framework standalone (mode 1 above, or without Error
+Prone at all) remains fully supported and finds the same errors; only how they are reported
+and configured differs.
+
+Running as an Error Prone plugin requires JDK 21 or later, because Error Prone itself
+requires JDK 21 or later.
+
+\subsectionAndLabel{Enabling the plugin}{error-prone-enabling}
+
+Put Error Prone, the Checker Framework Error Prone plugin, and the checkers you want to
+run all on Error Prone's annotation processor path.  The plugin loads each selected checker
+by name, so any Checker Framework checker on the path can be run.
+
+The plugin is published to Maven Central as \code{io.github.eisop:framework-errorprone},
+with the same version as the other Checker Framework artifacts; replace \<VERSION> below
+with that version (currently \ReleaseVersion{}).
+
+For example, with the
+\href{https://github.com/tbroyer/gradle-errorprone-plugin}{Gradle Error Prone plugin}, add
+to your \<build.gradle> file:
+\begin{Verbatim}
+plugins {
+    id 'java'
+    id 'net.ltgt.errorprone' version '5.1.0'
+}
+
+dependencies {
+    // Annotations used in your code, e.g. @Nullable.
+    compileOnly     "io.github.eisop:checker-qual:VERSION"
+
+    // Error Prone, the eisopcf plugin, and the checkers to run.
+    errorprone      "com.google.errorprone:error_prone_core:2.50.0"
+    errorprone      "io.github.eisop:framework-errorprone:VERSION"
+    errorprone      "io.github.eisop:checker:VERSION"
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.errorprone.enabled = true
+    // Select the type system(s) to run; see below.
+    options.errorprone.option(
+            'eisopcf:checkers',
+            'org.checkerframework.checker.nullness.NullnessChecker')
+
+    // javac options that Error Prone (and the Checker Framework) require.
+    options.compilerArgs += [
+        '-XDcompilePolicy=simple',
+        '--should-stop=ifError=FLOW',
+        '-XDaddTypeAnnotationsToSymbol=true',
+    ]
+}
+\end{Verbatim}
+
+Because the Checker Framework accesses \<com.sun.tools.javac> internals, the compiler
+process additionally needs the module exports and opens listed in
+Section~\ref{javac-jdk11-non-modularized} (the same ones the standalone Checker Framework
+uses on JDK~9+), plus \<-{}-add-exports jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED>
+which Error Prone requires.
+
+\subsectionAndLabel{Selecting type systems}{error-prone-selecting}
+
+Choose the type system(s) to run with the \<eisopcf:checkers> Error Prone option: a
+comma-separated list of fully-qualified checker class names.
+\begin{Verbatim}
+-XepOpt:eisopcf:checkers=org.checkerframework.checker.nullness.NullnessChecker
+\end{Verbatim}
+Several type systems can run together over a single compilation.  The list is a single
+command-line argument, so it must not contain spaces:
+\begin{Verbatim}
+-XepOpt:eisopcf:checkers=org.checkerframework.checker.nullness.NullnessChecker,\
+org.checkerframework.checker.interning.InterningChecker
+\end{Verbatim}
+As when running standalone with \<javac -processor A,B>, the selected type systems share
+the compilation's AST, and each builds its own control-flow graph.
+
+The option is required.  Enabling \<eisopcf> without it is a compile error, not a
+no-op, because a build that looks like it is type-checking and is not is worse than one
+that fails:
+\begin{Verbatim}
+error: The eisopcf check is enabled but no Checker Framework checker is selected, so
+nothing was type-checked. ...
+\end{Verbatim}
+A name that does not resolve to a Checker Framework checker is reported the same way,
+since it too leaves nothing type-checked:
+\begin{Verbatim}
+error: Checker class not found on the classpath: com.example.NoSuchChecker. ...
+\end{Verbatim}
+Both are errors whatever \<-Xep:eisopcf:> severity is in effect:  the severity scales
+the importance of findings, and these are statements that there will be none.  To have
+the plugin on the processorpath without running it, turn the check off with
+\<-Xep:eisopcf:OFF>.
+
+\subsectionAndLabel{Command-line options for checkers}{error-prone-options}
+
+Pass Checker Framework command-line options exactly as when running standalone: with
+javac \<-A> options.  This includes both common options such as
+\<-Astubs=\ldots{}> and \<-AsuppressWarnings=\ldots{}>, and checker-specific options
+written \<-ACheckerName\_option=value>.  Do \emph{not} use \<-XepOpt:> for Checker Framework
+options; \<-XepOpt:eisopcf:\ldots{}> configures only the plugin itself (currently just
+\<checkers>).
+
+\subsectionAndLabel{Severity}{error-prone-severity}
+
+\<eisopcf> is a single Error Prone check, so its severity is configured per check, not per
+finding.  It defaults to a warning.  Override it with the standard Error Prone mechanism:
+\begin{Verbatim}
+-Xep:eisopcf:ERROR
+-Xep:eisopcf:OFF
+\end{Verbatim}
+All findings from all selected type systems share the \<eisopcf> severity; the Checker
+Framework's own error-versus-warning distinction is preserved textually, by prefixing the
+message of a Checker Framework warning with \<[warning]>.
+
+\subsectionAndLabel{Suppressing warnings}{error-prone-suppression}
+
+There are two ways to suppress findings.
+
+\begin{itemize}
+\item
+  \textbf{Per type system.}  Use the Checker Framework's own \<@SuppressWarnings> keys,
+  such as \<@SuppressWarnings("nullness")>, \<@SuppressWarnings("interning")>,
+  \<@SuppressWarnings("allcheckers")>, or a specific message key such as
+  \<@SuppressWarnings("nullness:dereference.of.nullable")>.  These suppress only the named
+  type system's findings, and work on any declaration (local variable, field, method,
+  class, \ldots{}).  This is the recommended way to suppress specific findings, and it
+  works identically to standalone mode.
+\item
+  \textbf{Whole plugin.}  \<@SuppressWarnings("eisopcf")> suppresses all Checker Framework
+  findings.  Like any Error Prone check, it takes effect on any enclosing declaration, so
+  the common idiom of extracting a value into a local variable and annotating just that
+  declaration works:
+\begin{Verbatim}
+int m(@Nullable String s, @Nullable String t) {
+    @SuppressWarnings("eisopcf")  // suppresses only the finding on this declaration
+    int lenS = s.length();
+    int lenT = t.length();        // still reported
+    return lenS + lenT;
+}
+\end{Verbatim}
+\end{itemize}
+
+The per-type-system keys work because the Checker Framework applies its own suppression
+before a finding becomes an Error Prone diagnostic, so a suppressed finding never reaches
+Error Prone.
+
+\subsectionAndLabel{Suggested fixes and patching}{error-prone-fixes}
+
+Checker Framework findings participate in Error Prone's suggested-fix and patch workflow.
+Every \<eisopcf> finding offers an ``add \<@SuppressWarnings("eisopcf")>'' fix, just as
+Error Prone's own checks do.  In addition, a type system can supply its own fix for a
+specific finding, which is offered ahead of the suppression fix.  For example, the Nullness
+Checker reports a nullness annotation on a primitive type (such as \<@Nullable int x>) and
+offers a fix that removes the annotation, so running Error Prone in patch mode rewrites
+\<@Nullable int x> to \<int x>.
+
+\subsectionAndLabel{Limitations}{error-prone-limitations}
+
+Almost every Checker Framework finding is positioned at a source-code construct and becomes
+an \<eisopcf> Error Prone diagnostic as described above.  A finding that is instead positioned
+at a program element with no corresponding source tree (for example, an error about a
+declaration in a different, already-compiled file), or that has no source position at all, is
+reported directly by \<javac> rather than through Error Prone.  Such a finding appears as an
+ordinary \<javac> diagnostic: it is not an \<eisopcf> diagnostic, so it is not affected by the
+\<eisopcf> severity setting and is not suppressed by \<@SuppressWarnings("eisopcf")> (a Checker
+Framework suppression key such as \<@SuppressWarnings("nullness")> still suppresses it).  In
+practice these findings are rare.
+
+
 \sectionAndLabel{Gradle}{gradle}
 
 To run a checker
@@ -775,6 +994,45 @@ use the
 \ahreforurl{https://github.com/kelloggm/checkerframework-gradle-plugin}{Checker
   Framework Gradle plugin}.  Its documentation explains how to use it.
 
+For example, to use Gradle with the EISOP Checker Framework Nullness Checker,
+add the following configuration to your \<build.gradle> file.
+\begin{Verbatim}
+plugins {
+    // Checker Framework pluggable type-checking
+    id 'org.checkerframework' version '0.6.44'
+}
+
+apply plugin: 'org.checkerframework'
+
+checkerFramework {
+  checkers = [
+    'org.checkerframework.checker.nullness.NullnessChecker',
+  ]
+}
+
+ext {
+    versions = [
+        eisopVersion: '3.49.5-eisop1',
+    ]
+}
+
+dependencies {
+    compileOnly "io.github.eisop:checker-qual:${versions.eisopVersion}"
+    testCompileOnly "io.github.eisop:checker-qual:${versions.eisopVersion}"
+    checkerFramework "io.github.eisop:checker-qual:${versions.eisopVersion}"
+    checkerFramework "io.github.eisop:checker:${versions.eisopVersion}"
+}
+\end{Verbatim}
+
+The following directories contain complete example Gradle projects:
+\begin{itemize}
+\item \code{docs/examples/errorprone/}:  running the Checker Framework and Error Prone
+  side by side (Section~\ref{error-prone}).
+\item \code{docs/examples/eisop-errorprone/}:  running the Checker Framework as an Error
+  Prone plugin (Section~\ref{error-prone}).
+\item \code{docs/examples/lombok/}:  using the Checker Framework together with Lombok
+  (Section~\ref{lombok}).
+\end{itemize}
 
 \sectionAndLabel{IntelliJ IDEA}{intellij}
 
@@ -797,7 +1055,7 @@ to run a checker within IntelliJ IDEA on every compile:
 
 \begin{enumerate}
 
-\item Change the project SDK to 11, as explained at
+\item Change the project SDK to 11 or later, as explained at
   \url{https://www.jetbrains.com/help/idea/sdk.html#change-project-sdk}.
 
 \item Make sure the language level for your project is 8 or higher, as explained at
@@ -809,7 +1067,8 @@ When configuring the profile:
 \item Add \<.../checker-framework/checker/dist/checker.jar> to the processor path.
 \item Add checkers to be run during compilation by writing the
   fully-qualified name of the checker in the ``Processor FQ Name''
-  section.
+  section.  An example of a fully-qualified checker name is
+  ``org.checkerframework.checker.nullness.NullnessChecker''.
 \end{enumerate}
 
 \item Add \<.../checker-framework/checker/dist/checker-qual.jar>, as a dependency to all
@@ -915,17 +1174,29 @@ Checker Framework on that.  The
   Framework Gradle plugin} does this for you automatically.
 
 
+\subsectionAndLabel{Maven Projects using Lombok}{lombok-maven}
+
+\href{http://anthonywhitford.com/lombok.maven/lombok-maven-plugin/}{Lombok Maven Plugin}
+can be used to delombok source code for Maven projects. The
+\href{http://anthonywhitford.com/lombok.maven/lombok-maven-plugin/faq.html#alt-src-setup}
+{Lombok Maven Plugin FAQ} discusses how to configure the plugin when code
+using Lombok is mixed with standard Java code. Once the Lombok Maven plugin
+is configured correctly, the Checker Framework Maven configuration can be added
+independently.
+
+
 \sectionAndLabel{Maven}{maven}
 
-If you use the \href{http://maven.apache.org/}{Maven} tool,
+If you use the \href{https://maven.apache.org/}{Maven} tool,
 then you can enable Checker Framework checkers by following the
-instructions below.
+instructions below.  These instructions have been tested with
+Maven 3.9.3, and they should work with any 3.x version of Maven.
 
 See the directory \code{docs/examples/MavenExample/} for examples of the use of
 Maven build files.
 This example can be used to verify that
 Maven is correctly downloading the Checker Framework from the
-\href{https://search.maven.org/search?q=org.checkerframework}{Maven
+\href{https://central.sonatype.com/search?q=io.github.eisop}{Maven
   Central Repository} and executing it.
 
 Please note that the \<-AoutputArgsToFile> command-line option
@@ -939,21 +1210,19 @@ checker as an annotation processor directly.
 
 Debugging your Maven configuration can be tricky because of a
 \ahreforurl{https://issues.apache.org/jira/browse/MCOMPILER-434}{bug in
-  Maven}: Maven does not report annotation processor exceptions, even when
+  maven-compiler-plugin versions before 3.10.1, and still affecting some
+  users with 3.11.0}: Maven does not report
+annotation processor exceptions, even when
 the \<-X> command-line argument is passed.
 
 
 \begin{enumerate}
 
-\item Declare a dependency on the Checker Framework artifacts, either from
-  Maven Central or from a local directory.  Find the
+\item Declare a dependency on the Checker Framework artifacts from
+  Maven Central.  Find the
   existing \code{<dependencies>} section (not within
   \code{<dependencyManagement>}, but somewhere else) and add the following new
   \code{<dependency>} items:
-
-\begin{enumerate}
-\item
-  To obtain artifacts from Maven Central:
 
 \begin{alltt}
   <dependencies>
@@ -961,69 +1230,31 @@ the \<-X> command-line argument is passed.
 
     <!-- Annotations from the Checker Framework: nullness, interning, locking, ... -->
     <dependency>
-      <groupId>org.checkerframework</groupId>
+      <groupId>io.github.eisop</groupId>
       <artifactId>checker-qual</artifactId>
       <version>\ReleaseVersion{}</version>
-    </dependency>
-    <dependency>
-      <groupId>com.google.errorprone</groupId>
-      <artifactId>javac</artifactId>
-      <version>9+181-r4173-1</version>
     </dependency>
   </dependencies>
 \end{alltt}
 
-Java 11 and later do not need the \<com.google.errorprone:javac>
-dependency.  If you will never use Java 8, you can omit it.
-The need for the \<com.google.errorprone:javac> artifact when running under
-JDK 8 is explained in Section~\ref{javac-jdk8}.
-
 Periodically update to the most recent version, to obtain the
 latest bug fixes and new features:
 \begin{Verbatim}
-  mvn versions:use-latest-versions -Dincludes="org.checkerframework:*"
+  mvn versions:use-latest-versions -Dincludes="io.github.eisop:*"
 \end{Verbatim}
-
-\end{enumerate}
-
-\item If using JDK 8, use a Maven property to hold the location of the
-  Error Prone \<javac.jar>.  They were declared as Maven dependencies above.
-To set the value of these properties automatically, you will use the Maven Dependency plugin.
-
-First, create the property in the \code{properties} section of the POM:
-
-\begin{alltt}
-<properties>
-  <!-- These properties will be set by the Maven Dependency plugin -->
-  <errorProneJavac>$\{com.google.errorprone:javac:jar\}</errorProneJavac>
-</properties>
-\end{alltt}
-
-Change the reference to the \code{maven-dependency-plugin} within the \code{<plugins>}
-section, or add it if it is not present.
-
-\begin{alltt}
-  <plugin>
-    <!-- This plugin will set properties values using dependency information -->
-    <groupId>org.apache.maven.plugins</groupId>
-    <artifactId>maven-dependency-plugin</artifactId>
-    <executions>
-      <execution>
-        <goals>
-          <goal>properties</goal>
-        </goals>
-      </execution>
-    </executions>
-  </plugin>
-\end{alltt}
 
 \item Direct the Maven compiler plugin to use the desired checkers by
   creating three new profiles as shown below (the example uses the Nullness
-  Checker).  If your POM file does not already use the
+  Checker).  If you do not use Java 8, then you only need two of the
+  profiles, or you can combine them into one profile.
+
+  If your POM file does not already use the
   \code{maven-compiler-plugin} plugin, you can use the text below as is.
   If your POM file
   already uses the plugin, copy and edit the first profile to incorporate the
   existing configuration.
+  If the existing configuration uses \<proc:none>, you need to remove that
+  or comment it out.
 
 %% TODO: Is this comment still accurate?
 %              <!-- Without showWarnings and verbose, maven-compiler-plugin may not show output. -->
@@ -1035,6 +1266,7 @@ section, or add it if it is not present.
   <profiles>
     <profile>
       <id>checkerframework</id>
+      <!-- If you omit the activation block, run mvn with "-P checkerframework" to run checkers. -->
       <activation>
         <jdk>[1.8,)</jdk>
       </activation>
@@ -1042,16 +1274,12 @@ section, or add it if it is not present.
         <plugins>
           <plugin>
             <artifactId>maven-compiler-plugin</artifactId>
-            <version>3.8.1</version>
+            <version>3.11.0</version>
             <configuration>
               <fork>true</fork> <!-- Must fork or else JVM arguments are ignored. -->
-              <compilerArguments>
-                <Xmaxerrs>10000</Xmaxerrs>
-                <Xmaxwarns>10000</Xmaxwarns>
-              </compilerArguments>
               <annotationProcessorPaths>
                 <path>
-                  <groupId>org.checkerframework</groupId>
+                  <groupId>io.github.eisop</groupId>
                   <artifactId>checker</artifactId>
                   <version>\ReleaseVersion{}</version>
                 </path>
@@ -1061,19 +1289,16 @@ section, or add it if it is not present.
                 <annotationProcessor>org.checkerframework.checker.nullness.NullnessChecker</annotationProcessor>
               </annotationProcessors>
               <compilerArgs>
+                <arg>-Xmaxerrs</arg>
+                <arg>10000</arg>
+                <arg>-Xmaxwarns</arg>
+                <arg>10000</arg>
                 <!-- <arg>-Awarns</arg> --> <!-- -Awarns turns type-checking errors into warnings. -->
               </compilerArgs>
             </configuration>
           </plugin>
         </plugins>
       </build>
-      <dependencies>
-        <dependency>
-          <groupId>org.checkerframework</groupId>
-          <artifactId>checker</artifactId>
-          <version>\ReleaseVersion{}</version>
-        </dependency>
-      </dependencies>
     </profile>
 
     <profile>
@@ -1085,22 +1310,33 @@ section, or add it if it is not present.
       <properties>
         <javac.version>9+181-r4173-1</javac.version>
       </properties>
-      <dependencies>
-        <dependency>
-          <groupId>com.google.errorprone</groupId>
-          <artifactId>javac</artifactId>
-          <version>9+181-r4173-1</version>
-        </dependency>
-      </dependencies>
       <build>
         <plugins>
+          <plugin>
+            <!-- This plugin execution will copy the com.google.errorprone:javac jar file to
+                 your project's output directory without adding that jar as an explicit
+                 dependency. -->
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-dependency-plugin</artifactId>
+            <executions>
+              <execution>
+                <goals>
+                  <goal>copy</goal>
+                </goals>
+                <phase>process-sources</phase>
+                <configuration>
+                  <artifact>com.google.errorprone:javac:\$\{javac.version\}:jar</artifact>
+                  <outputDirectory>\$\{project.build.directory\}/javac</outputDirectory>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
           <plugin>
             <groupId>org.apache.maven.plugins</groupId>
             <artifactId>maven-compiler-plugin</artifactId>
             <configuration>
-              <fork>true</fork>
               <compilerArgs combine.children="append">
-                <arg>-J-Xbootclasspath/p:$\{settings.localRepository\}/com/google/errorprone/javac/$\{javac.version\}/javac-$\{javac.version\}.jar</arg>
+                <arg>-J-Xbootclasspath/p:\$\{project.build.directory\}/javac/javac-\$\{javac.version\}.jar</arg>
               </compilerArgs>
             </configuration>
           </plugin>
@@ -1119,7 +1355,6 @@ section, or add it if it is not present.
             <groupId>org.apache.maven.plugins</groupId>
             <artifactId>maven-compiler-plugin</artifactId>
             <configuration>
-              <fork>true</fork>
               <compilerArgs combine.children="append">
                 <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED</arg>
                 <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED</arg>
@@ -1135,14 +1370,13 @@ section, or add it if it is not present.
           </plugin>
         </plugins>
       </build>
-      <properties>
-        <!-- Needed for animal-sniffer-maven-plugin version 1.19 (version 1.20 is fixed). -->
-        <animal.sniffer.skip>true</animal.sniffer.skip>
-      </properties>
     </profile>
   </profiles>
 \end{alltt}
 \end{mysmall}
+
+The need for the \<com.google.errorprone:javac> artifact when running under
+JDK 8 is explained in Section~\ref{javac-jdk8}.
 
 Now, building with Maven will run the checkers during every compilation
 that uses JDK 8 or higher.
@@ -1160,7 +1394,7 @@ tests, wrap the \code{<configuration>...</configuration>} within
 \end{Verbatim}
 
 To compile without using the Checker Framework, pass
-\<-P !checkerframework>
+\<-P '!checkerframework'>
 on the Maven command line.
 %% Per GitHub user danibs in
 %% https://github.com/typetools/checker-framework/issues/5086,
@@ -1184,6 +1418,20 @@ may suppress warnings from the stub parser.
 
 \end{enumerate}
 
+If you use \<animal-sniffer-maven-plugin>, you must upgrade to version 1.20
+or later.  Version 1.19 and earlier are broken.  If necessary, you can
+disable animal sniffer by modifying your POM file's properties:
+
+\begin{mysmall}
+\begin{alltt}
+  <properties>
+    ... existing <property> items ...
+
+    <!-- Needed for animal-sniffer-maven-plugin version 1.19 which is broken (version 1.20 is fixed). -->
+    <animal.sniffer.skip>true</animal.sniffer.skip>
+  </properties>
+\end{alltt}
+\end{mysmall}
 
 \subsectionAndLabel{Maven, with a locally-built version of the Checker Framework}{maven-locally-built}
 
@@ -1361,7 +1609,7 @@ will not appear in the editor.
 
 \sectionAndLabel{sbt}{sbt}
 
-\ahref{https://www.scala-sbt.org/}{sbt} is a build tool for
+\href{https://www.scala-sbt.org/}{sbt} is a build tool for
 Scala, Java, and more.
 
 Adjust the \<-processor> command-line argument for the processor(s)
@@ -1381,7 +1629,7 @@ javacOptions ++= Seq(
 \end{Verbatim}
 
 
-\subsectionAndLabel{JDK 11, for non-modularized code}{sbt-jdk11-nonmodularized-code}
+\subsectionAndLabel{JDK 11 and later, for non-modularized code}{sbt-jdk11-nonmodularized-code}
 
 % Keep list of --add-opens and --add-exports in sync with the "maven" and "javac-jdk11-non-modularized" sections,
 % the method CheckerMain#getExecArguments, checker-framework/build.gradle in compilerArgsForRunningCFs,

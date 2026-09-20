@@ -47,17 +47,6 @@ public class DefaultsSignedness {
 
         // :: error: (assignment.type.incompatible)
         botLong = testLong;
-
-        // Test chars with literal values
-        @SignednessGlb char conChar;
-        @SignednessBottom char botChar;
-
-        char testChar = 'a';
-
-        conChar = testChar;
-
-        // :: error: (assignment.type.incompatible)
-        botChar = testChar;
     }
 
     public void SignedTest(
@@ -129,7 +118,7 @@ public class DefaultsSignedness {
 
         sinBoxedByte = testBoxedByte;
 
-        //// :: error: (assignment.type.incompatible)
+        // // :: error: (assignment.type.incompatible)
         conBoxedByte = testBoxedByte;
 
         // Test boxed shorts
@@ -138,7 +127,7 @@ public class DefaultsSignedness {
 
         sinBoxedShort = testBoxedShort;
 
-        //// :: error: (assignment.type.incompatible)
+        // // :: error: (assignment.type.incompatible)
         conBoxedShort = testBoxedShort;
 
         // Test boxed Integers
@@ -147,7 +136,7 @@ public class DefaultsSignedness {
 
         sinBoxedInteger = testBoxedInteger;
 
-        //// :: error: (assignment.type.incompatible)
+        // // :: error: (assignment.type.incompatible)
         conBoxedInteger = testBoxedInteger;
 
         // Test boxed Longs
@@ -156,7 +145,7 @@ public class DefaultsSignedness {
 
         sinBoxedLong = testBoxedLong;
 
-        //// :: error: (assignment.type.incompatible)
+        // // :: error: (assignment.type.incompatible)
         conBoxedLong = testBoxedLong;
         */
     }
@@ -183,5 +172,10 @@ public class DefaultsSignedness {
 
     public void booleanProblem(@Unsigned int unsigned, @Signed int signed) {
         boolean testBool = unsigned == 1 || signed > 1;
+    }
+
+    void method(Object[] obj_tags, int field_num) {
+        Object o = new DefaultsSignedness();
+        obj_tags[field_num] = o;
     }
 }

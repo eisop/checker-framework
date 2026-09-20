@@ -9,7 +9,7 @@ import org.checkerframework.framework.type.AnnotatedTypeFactory;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedDeclaredType;
 import org.checkerframework.framework.util.element.ElementAnnotationUtil.UnexpectedAnnotationLocationException;
-import org.checkerframework.javacutil.TypesUtils;
+import org.checkerframework.javacutil.ElementUtils;
 
 import java.util.List;
 
@@ -18,12 +18,18 @@ import javax.lang.model.element.Element;
 /** Apply annotations to a declared type based on its declaration. */
 public class TypeDeclarationApplier extends TargetedElementAnnotationApplier {
 
+    /**
+     * Apply annotations from {@code element} to {@code type}.
+     *
+     * @param type the type to annotate
+     * @param element the corresponding element
+     * @param atypeFactory the type factory
+     * @throws UnexpectedAnnotationLocationException if there is trouble
+     */
     public static void apply(
-            final AnnotatedTypeMirror type,
-            final Element element,
-            final AnnotatedTypeFactory typeFactory)
+            final AnnotatedTypeMirror type, Element element, AnnotatedTypeFactory atypeFactory)
             throws UnexpectedAnnotationLocationException {
-        new TypeDeclarationApplier(type, element, typeFactory).extractAndApply();
+        new TypeDeclarationApplier(type, element, atypeFactory).extractAndApply();
     }
 
     /**
@@ -39,46 +45,64 @@ public class TypeDeclarationApplier extends TargetedElementAnnotationApplier {
      * @param element an element
      * @return true if type is an annotated declared type and element is a ClassSymbol
      */
-    public static boolean accepts(final AnnotatedTypeMirror type, final Element element) {
+    public static boolean accepts(AnnotatedTypeMirror type, Element element) {
         return type instanceof AnnotatedDeclaredType && element instanceof Symbol.ClassSymbol;
     }
 
-    private final AnnotatedTypeFactory typeFactory;
+    /** The type factory to use. */
+    private final AnnotatedTypeFactory atypeFactory;
+
+    /** The type symbol. */
     private final Symbol.ClassSymbol typeSymbol;
+
+    /** The declared type. */
     private final AnnotatedDeclaredType declaredType;
 
-    TypeDeclarationApplier(
-            final AnnotatedTypeMirror type,
-            final Element element,
-            final AnnotatedTypeFactory typeFactory) {
+    /**
+     * Constructor.
+     *
+     * @param type the type to annotate
+     * @param element the corresponding element
+     * @param atypeFactory the type factory
+     */
+    /*package-private*/ TypeDeclarationApplier(
+            AnnotatedTypeMirror type, Element element, AnnotatedTypeFactory atypeFactory) {
         super(type, element);
-        this.typeFactory = typeFactory;
+        this.atypeFactory = atypeFactory;
         this.typeSymbol = (Symbol.ClassSymbol) element;
         this.declaredType = (AnnotatedDeclaredType) type;
     }
 
-    @Override
-    protected TargetType[] validTargets() {
-        return new TargetType[] {
-            TargetType.RESOURCE_VARIABLE,
-            TargetType.EXCEPTION_PARAMETER,
-            TargetType.NEW,
-            TargetType.CAST,
-            TargetType.INSTANCEOF,
-            TargetType.METHOD_INVOCATION_TYPE_ARGUMENT,
-            TargetType.CONSTRUCTOR_INVOCATION_TYPE_ARGUMENT,
-            TargetType.METHOD_REFERENCE,
-            TargetType.CONSTRUCTOR_REFERENCE,
-            TargetType.METHOD_REFERENCE_TYPE_ARGUMENT,
-            TargetType.CONSTRUCTOR_REFERENCE_TYPE_ARGUMENT,
-            TargetType.CLASS_TYPE_PARAMETER,
-            TargetType.CLASS_TYPE_PARAMETER_BOUND
-        };
-    }
+    /** The annotated targets. */
+    private static final TargetType[] annotatedTargets =
+            new TargetType[] {TargetType.CLASS_EXTENDS};
 
     @Override
     protected TargetType[] annotatedTargets() {
-        return new TargetType[] {TargetType.CLASS_EXTENDS};
+        return annotatedTargets;
+    }
+
+    /** The valid targets. */
+    private static final TargetType[] validTargets =
+            new TargetType[] {
+                TargetType.RESOURCE_VARIABLE,
+                TargetType.EXCEPTION_PARAMETER,
+                TargetType.NEW,
+                TargetType.CAST,
+                TargetType.INSTANCEOF,
+                TargetType.METHOD_INVOCATION_TYPE_ARGUMENT,
+                TargetType.CONSTRUCTOR_INVOCATION_TYPE_ARGUMENT,
+                TargetType.METHOD_REFERENCE,
+                TargetType.CONSTRUCTOR_REFERENCE,
+                TargetType.METHOD_REFERENCE_TYPE_ARGUMENT,
+                TargetType.CONSTRUCTOR_REFERENCE_TYPE_ARGUMENT,
+                TargetType.CLASS_TYPE_PARAMETER,
+                TargetType.CLASS_TYPE_PARAMETER_BOUND
+            };
+
+    @Override
+    protected TargetType[] validTargets() {
+        return validTargets;
     }
 
     /** All TypeCompounds (annotations) on the ClassSymbol. */
@@ -97,10 +121,10 @@ public class TypeDeclarationApplier extends TargetedElementAnnotationApplier {
     @Override
     protected void handleTargeted(List<TypeCompound> extendsAndImplementsAnnos)
             throws UnexpectedAnnotationLocationException {
-        if (TypesUtils.isAnonymous(typeSymbol.type)) {
+        if (ElementUtils.isAnonymous(typeSymbol)) {
             // If this is an anonymous class, then the annotations after "new" but before the class
             // name are stored as super class annotations. Treat them as annotations on the class.
-            for (final Attribute.TypeCompound anno : extendsAndImplementsAnnos) {
+            for (Attribute.TypeCompound anno : extendsAndImplementsAnnos) {
                 if (anno.position.type_index >= SUPERCLASS_INDEX
                         && anno.position.location.isEmpty()) {
                     type.addAnnotation(anno);
@@ -120,7 +144,7 @@ public class TypeDeclarationApplier extends TargetedElementAnnotationApplier {
         type.addAnnotations(typeSymbol.getAnnotationMirrors());
 
         ElementAnnotationUtil.applyAllElementAnnotations(
-                declaredType.getTypeArguments(), typeSymbol.getTypeParameters(), typeFactory);
+                declaredType.getTypeArguments(), typeSymbol.getTypeParameters(), atypeFactory);
     }
 
     @Override

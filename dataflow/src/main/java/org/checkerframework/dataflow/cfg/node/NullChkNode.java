@@ -3,6 +3,7 @@ package org.checkerframework.dataflow.cfg.node;
 import com.sun.source.tree.Tree;
 
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.SideEffectFree;
 import org.checkerframework.javacutil.TreeUtils;
 
 import java.util.Collection;
@@ -19,6 +20,7 @@ import java.util.Objects;
 public class NullChkNode extends Node {
     /** The entire tree of the null check */
     protected final Tree tree;
+
     /** The operand of the null check */
     protected final Node operand;
 
@@ -56,10 +58,13 @@ public class NullChkNode extends Node {
 
     @Override
     public boolean equals(@Nullable Object obj) {
-        if (!(obj instanceof NumericalPlusNode)) {
+        if (this == obj) {
+            return true;
+        }
+        if (!(obj instanceof NullChkNode)) {
             return false;
         }
-        NumericalPlusNode other = (NumericalPlusNode) obj;
+        NullChkNode other = (NullChkNode) obj;
         return getOperand().equals(other.getOperand());
     }
 
@@ -69,6 +74,7 @@ public class NullChkNode extends Node {
     }
 
     @Override
+    @SideEffectFree
     public Collection<Node> getOperands() {
         return Collections.singletonList(getOperand());
     }

@@ -21,7 +21,6 @@ public class NullnessRecordsTest extends CheckerFrameworkPerDirectoryTest {
                 NullnessChecker.class,
                 "nullness-records",
                 "-AcheckPurityAnnotations",
-                "-Anomsgtext",
                 "-Xlint:deprecation");
     }
 
@@ -29,7 +28,7 @@ public class NullnessRecordsTest extends CheckerFrameworkPerDirectoryTest {
     public static String[] getTestDirs() {
         // Check for JDK 16+ without using a library:
         // There is no decimal point in the JDK 17 version number.
-        if (System.getProperty("java.version").matches("^(1[6-9]|[2-9][0-9])")) {
+        if (System.getProperty("java.version").matches("^(1[6-9]|[2-9][0-9])(\\..*)?")) {
             return new String[] {"nullness-records"};
         } else {
             return new String[] {};

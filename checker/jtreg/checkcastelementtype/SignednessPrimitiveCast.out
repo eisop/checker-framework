@@ -1,0 +1,2 @@
+SignednessPrimitiveCast.java:34:16: compiler.warn.proc.messager: [cast.unsafe] cast from "@UnknownVal Object" to "@UnknownVal int @UnknownVal []" cannot be statically verified
+1 warning

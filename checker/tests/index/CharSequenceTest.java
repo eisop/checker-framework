@@ -16,6 +16,7 @@ public class CharSequenceTest {
         // :: error: (assignment.type.incompatible)
         @MinLen(10) CharSequence sb = new StringBuilder("0123456789");
     }
+
     // Tests the subSequence method
     void testSubSequence() {
         // Local variable used because of https://github.com/kelloggm/checker-framework/issues/165
@@ -36,6 +37,7 @@ public class CharSequenceTest {
         // :: error: (argument.type.incompatible)
         sink(sb, 8);
     }
+
     // Tests forwardning sequences as CharSequence
     void agumentForwarding(String s, @IndexOrHigh("#1") int i) {
         sink(s, i);

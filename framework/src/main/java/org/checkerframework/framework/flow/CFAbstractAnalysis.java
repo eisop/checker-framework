@@ -3,7 +3,10 @@ package org.checkerframework.framework.flow;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.dataflow.analysis.ForwardAnalysisImpl;
+import org.checkerframework.dataflow.analysis.TransferInput;
+import org.checkerframework.dataflow.analysis.TransferResult;
 import org.checkerframework.dataflow.cfg.ControlFlowGraph;
+import org.checkerframework.dataflow.cfg.node.Node;
 import org.checkerframework.dataflow.expression.FieldAccess;
 import org.checkerframework.framework.source.SourceChecker;
 import org.checkerframework.framework.type.AnnotatedTypeFactory;
@@ -14,12 +17,12 @@ import org.checkerframework.framework.type.GenericAnnotatedTypeFactory;
 import org.checkerframework.framework.type.QualifierHierarchy;
 import org.checkerframework.framework.type.TypeHierarchy;
 import org.checkerframework.framework.util.dependenttypes.DependentTypesHelper;
-import org.checkerframework.javacutil.AnnotationUtils;
+import org.checkerframework.javacutil.AnnotationMirrorSet;
+import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.TypesUtils;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
 
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.AnnotationMirror;
@@ -44,7 +47,7 @@ public abstract class CFAbstractAnalysis<
                 T extends CFAbstractTransfer<V, S, T>>
         extends ForwardAnalysisImpl<V, S, T> {
     /** The qualifier hierarchy for which to track annotations. */
-    protected final QualifierHierarchy qualifierHierarchy;
+    protected final QualifierHierarchy qualHierarchy;
 
     /** The type hierarchy. */
     protected final TypeHierarchy typeHierarchy;
@@ -72,8 +75,10 @@ public abstract class CFAbstractAnalysis<
 
         /** A field access that corresponds to the declaration of a field. */
         public final FieldAccess fieldDecl;
+
         /** The value corresponding to the annotations on the declared type of the field. */
         public final V declared;
+
         /** The value of the initializer of the field, or null if no initializer exists. */
         public final @Nullable V initializer;
 
@@ -109,6 +114,7 @@ public abstract class CFAbstractAnalysis<
      * @param factory an annotated type factory to introduce type and dataflow rules
      * @param maxCountBeforeWidening number of times a block can be analyzed before widening
      */
+    @SuppressWarnings("this-escape")
     protected CFAbstractAnalysis(
             BaseTypeChecker checker,
             GenericAnnotatedTypeFactory<V, S, T, ? extends CFAbstractAnalysis<V, S, T>> factory,
@@ -116,7 +122,7 @@ public abstract class CFAbstractAnalysis<
         super(maxCountBeforeWidening);
         env = checker.getProcessingEnvironment();
         types = env.getTypeUtils();
-        qualifierHierarchy = factory.getQualifierHierarchy();
+        qualHierarchy = factory.getQualifierHierarchy();
         typeHierarchy = factory.getTypeHierarchy();
         dependentTypesHelper = factory.getDependentTypesHelper();
         this.atypeFactory = factory;
@@ -191,7 +197,7 @@ public abstract class CFAbstractAnalysis<
      * @return an abstract value containing the given annotated {@code type}
      */
     public @Nullable V createAbstractValue(AnnotatedTypeMirror type) {
-        Set<AnnotationMirror> annos;
+        AnnotationMirrorSet annos;
         if (type.getKind() == TypeKind.WILDCARD) {
             annos = ((AnnotatedWildcardType) type).getExtendsBound().getAnnotations();
         } else if (TypesUtils.isCapturedTypeVariable(type.getUnderlyingType())) {
@@ -206,17 +212,19 @@ public abstract class CFAbstractAnalysis<
      * Returns an abstract value containing the given {@code annotations} and {@code
      * underlyingType}. Returns null if the annotation set has missing annotations.
      *
+     * @param annotations the annotations for the result annotated type
+     * @param underlyingType the unannotated type for the result annotated type
      * @return an abstract value containing the given {@code annotations} and {@code underlyingType}
      */
     public abstract @Nullable V createAbstractValue(
-            Set<AnnotationMirror> annotations, TypeMirror underlyingType);
+            AnnotationMirrorSet annotations, TypeMirror underlyingType);
 
-    /** Default implementation for {@link #createAbstractValue(Set, TypeMirror)}. */
-    public CFValue defaultCreateAbstractValue(
+    /** Default implementation for {@link #createAbstractValue(AnnotationMirrorSet, TypeMirror)}. */
+    public @Nullable CFValue defaultCreateAbstractValue(
             CFAbstractAnalysis<CFValue, ?, ?> analysis,
-            Set<AnnotationMirror> annotations,
+            AnnotationMirrorSet annotations,
             TypeMirror underlyingType) {
-        if (!CFAbstractValue.validateSet(annotations, underlyingType, qualifierHierarchy)) {
+        if (!CFAbstractValue.validateSet(annotations, underlyingType, atypeFactory)) {
             return null;
         }
         return new CFValue(analysis, annotations, underlyingType);
@@ -231,13 +239,28 @@ public abstract class CFAbstractAnalysis<
         return atypeFactory;
     }
 
+    @Override
+    protected TransferResult<V, S> callTransferFunction(Node node, TransferInput<V, S> input) {
+        TransferResult<V, S> result;
+        try {
+            result = super.callTransferFunction(node, input);
+        } catch (Exception e) {
+            throw new BugInCF(node.getTree(), e);
+        }
+        return result;
+    }
+
     /**
      * Returns an abstract value containing an annotated type with the annotation {@code anno}, and
      * 'top' for all other hierarchies. The underlying type is {@code underlyingType}.
+     *
+     * @param anno the annotation for the result annotated type
+     * @param underlyingType the unannotated type for the result annotated type
+     * @return an abstract value with {@code anno} and {@code underlyingType}
      */
     public V createSingleAnnotationValue(AnnotationMirror anno, TypeMirror underlyingType) {
         QualifierHierarchy hierarchy = getTypeFactory().getQualifierHierarchy();
-        Set<AnnotationMirror> annos = AnnotationUtils.createAnnotationSet();
+        AnnotationMirrorSet annos = new AnnotationMirrorSet();
         annos.addAll(hierarchy.getTopAnnotations());
         AnnotationMirror f = hierarchy.findAnnotationInSameHierarchy(annos, anno);
         annos.remove(f);

@@ -46,6 +46,7 @@ import java.lang.annotation.Target;
  * calling {@code shiftIndex(x)}, {@code end} has an annotation that allows the {@code end + x} to
  * be accepted as {@code @LTLengthOf("array")}.
  *
+ * @see EnsuresLTLengthOfIf
  * @see LTLengthOf
  * @checker_framework.manual #index-checker Index Checker
  */
@@ -95,7 +96,7 @@ public @interface EnsuresLTLengthOf {
     @Target({ElementType.METHOD, ElementType.CONSTRUCTOR})
     @PostconditionAnnotation(qualifier = LTLengthOf.class)
     @InheritedAnnotation
-    @interface List {
+    public static @interface List {
         /**
          * Return the repeatable annotations.
          *

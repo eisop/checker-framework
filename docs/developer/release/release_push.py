@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# encoding: utf-8
 """
 release_push.py
 
@@ -11,44 +10,47 @@ Copyright (c) 2013-2016 University of Washington. All rights reserved.
 # See README-release-process.html for more information
 
 import os
+import sys
 from os.path import expanduser
 
-from release_vars import AFU_LIVE_RELEASES_DIR
-from release_vars import CF_VERSION
-from release_vars import CHECKER_FRAMEWORK
-from release_vars import CHECKER_LIVE_RELEASES_DIR
-from release_vars import CHECKLINK
-from release_vars import DEV_SITE_DIR
-from release_vars import DEV_SITE_URL
-from release_vars import INTERM_ANNO_REPO
-from release_vars import INTERM_CHECKER_REPO
-from release_vars import LIVE_SITE_DIR
-from release_vars import LIVE_SITE_URL
-from release_vars import RELEASE_BUILD_COMPLETED_FLAG_FILE
-from release_vars import SANITY_DIR
-from release_vars import SCRIPTS_DIR
-from release_vars import TMP_DIR
-
-from release_vars import execute
-
-from release_utils import continue_or_exit
-from release_utils import current_distribution_by_website
-from release_utils import delete_if_exists
-from release_utils import delete_path
-from release_utils import ensure_group_access
-from release_utils import get_announcement_email
-from release_utils import print_step
-from release_utils import prompt_to_continue
-from release_utils import prompt_yes_no
-from release_utils import push_changes_prompt_if_fail
-from release_utils import read_command_line_option
-from release_utils import read_first_line
-from release_utils import set_umask
-from release_utils import subprocess
-from release_utils import version_number_to_array
+from release_errors import ReleaseError
+from release_utils import (
+    continue_or_exit,
+    current_distribution_by_website,
+    delete_if_exists,
+    delete_path,
+    delete_path_if_exists,
+    ensure_group_access,
+    get_announcement_email,
+    has_command_line_option,
+    print_step,
+    prompt_yes_no,
+    push_changes_prompt_if_fail,
+    set_umask,
+    subprocess,
+    version_number_to_array,
+)
+from release_vars import (
+    AFU_LIVE_RELEASES_DIR,
+    ANNO_FILE_UTILITIES,
+    CF_VERSION,
+    CHECKER_FRAMEWORK,
+    CHECKER_LIVE_API_DIR,
+    CHECKER_LIVE_RELEASES_DIR,
+    CHECKLINK,
+    DEV_SITE_DIR,
+    DEV_SITE_URL,
+    INTERM_ANNO_REPO,
+    INTERM_CHECKER_REPO,
+    LIVE_SITE_DIR,
+    LIVE_SITE_URL,
+    RELEASE_BUILD_COMPLETED_FLAG_FILE,
+    SANITY_DIR,
+    SCRIPTS_DIR,
+    TMP_DIR,
+    execute,
+)
 from sanity_checks import javac_sanity_check, maven_sanity_check
-
-import sys
 
 
 def check_release_version(previous_release, new_release):
@@ -57,7 +59,7 @@ def check_release_version(previous_release, new_release):
     if version_number_to_array(previous_release) >= version_number_to_array(
         new_release
     ):
-        raise Exception(
+        raise ReleaseError(
             "Previous release version ("
             + previous_release
             + ") should be less than "
@@ -79,15 +81,12 @@ def copy_release_dir(path_to_dev_releases, path_to_live_releases, release_versio
         delete_path(dest_location)
 
     if os.path.exists(dest_location):
-        raise Exception("Destination location exists: " + dest_location)
+        raise ReleaseError("Destination location exists: " + dest_location)
 
     # The / at the end of the source location is necessary so that
     # rsync copies the files in the source directory to the destination directory
     # rather than a subdirectory of the destination directory.
-    cmd = "rsync --omit-dir-times --recursive --links --quiet %s/ %s" % (
-        source_location,
-        dest_location,
-    )
+    cmd = f"rsync --no-group --omit-dir-times --recursive --links --quiet {source_location}/ {dest_location}"
     execute(cmd)
 
     return dest_location
@@ -100,7 +99,7 @@ def promote_release(path_to_releases, release_version):
     from_dir = os.path.join(path_to_releases, release_version)
     to_dir = os.path.join(path_to_releases, "..")
     # Trailing slash is crucial.
-    cmd = "rsync -aJ --omit-dir-times %s/ %s" % (from_dir, to_dir)
+    cmd = f"rsync -aJ --no-group --omit-dir-times {from_dir}/ {to_dir}"
     execute(cmd)
 
 
@@ -108,7 +107,9 @@ def copy_htaccess():
     "Copy the .htaccess file from the dev site to the live site."
     LIVE_HTACCESS = os.path.join(LIVE_SITE_DIR, ".htaccess")
     execute(
-        "rsync --times %s %s" % (os.path.join(DEV_SITE_DIR, ".htaccess"), LIVE_HTACCESS)
+        "rsync --times {} {}".format(
+            os.path.join(DEV_SITE_DIR, ".htaccess"), LIVE_HTACCESS
+        )
     )
     ensure_group_access(LIVE_HTACCESS)
 
@@ -118,6 +119,7 @@ def copy_releases_to_live_site(cf_version):
     Framework from the dev site to the live site."""
     CHECKER_INTERM_RELEASES_DIR = os.path.join(DEV_SITE_DIR, "releases")
     copy_release_dir(CHECKER_INTERM_RELEASES_DIR, CHECKER_LIVE_RELEASES_DIR, cf_version)
+    delete_path_if_exists(CHECKER_LIVE_API_DIR)
     promote_release(CHECKER_LIVE_RELEASES_DIR, cf_version)
     AFU_INTERM_RELEASES_DIR = os.path.join(
         DEV_SITE_DIR, "annotation-file-utilities", "releases"
@@ -132,24 +134,6 @@ def ensure_group_access_to_releases():
     Checker Framework."""
     ensure_group_access(AFU_LIVE_RELEASES_DIR)
     ensure_group_access(CHECKER_LIVE_RELEASES_DIR)
-
-
-def stage_maven_artifacts_in_maven_central(new_cf_version):
-    """Stages the Checker Framework artifacts on Maven Central. After the
-    artifacts are staged, the user can then close them, which makes them
-    available for testing purposes but does not yet release them on Maven
-    Central. This is a reversible step, since artifacts that have not been
-    released can be dropped, which for our purposes is equivalent to never
-    having staged them."""
-    gnupgPassphrase = read_first_line(
-        "/projects/swlab1/checker-framework/hosting-info/release-private.password"
-    )
-    # When bufalo uses gpg2 version 2.2+, then remove signing.gnupg.useLegacyGpg=true
-    execute(
-        "./gradlew publish -Prelease=true --no-parallel -Psigning.gnupg.useLegacyGpg=true -Psigning.gnupg.keyName=checker-framework-dev@googlegroups.com -Psigning.gnupg.passphrase=%s"
-        % gnupgPassphrase,
-        working_dir=CHECKER_FRAMEWORK,
-    )
 
 
 def is_file_empty(filename):
@@ -169,26 +153,22 @@ def run_link_checker(site, output, additional_param=""):
         cmd = ["sh", check_links_script, additional_param, site]
     env = {"CHECKLINK": CHECKLINK}
 
-    out_file = open(output, "w+")
-
     print(
-        (
-            "Executing: "
-            + " ".join("%s=%r" % (key2, val2) for (key2, val2) in list(env.items()))
-            + " "
-            + " ".join(cmd)
-        )
+        "Executing: "
+        + " ".join(f"{key2}={val2!r}" for (key2, val2) in list(env.items()))
+        + " "
+        + " ".join(cmd)
     )
-    process = subprocess.Popen(cmd, env=env, stdout=out_file, stderr=out_file)
-    process.communicate()
-    process.wait()
-    out_file.close()
+    with open(output, "w+") as out_file:
+        process = subprocess.Popen(cmd, env=env, stdout=out_file, stderr=out_file)
+        process.communicate()
+        process.wait()
 
     if process.returncode != 0:
-        raise Exception(
-            "Non-zero return code (%s; see output in %s) while executing %s"
-            % (process.returncode, output, cmd)
-        )
+        msg = f"Non-zero return code ({process.returncode}; see output in {output}) while executing {cmd}"
+        print(msg + "\n")
+        if not prompt_yes_no("Continue despite link checker results?", True):
+            raise ReleaseError(msg)
 
     return output
 
@@ -232,16 +212,20 @@ def check_all_links(
         print("\t" + afuCheck + "\n")
     if not is_checkerCheck_empty:
         print("\t" + checkerCheck + "\n")
-    if errors_reported:
+    if errors_reported and not prompt_yes_no(
+        "Continue despite link checker results?", True
+    ):
         release_option = ""
         if not test_mode:
             release_option = " release"
-        raise Exception(
+        raise ReleaseError(
             "The link checker reported errors.  Please fix them by committing changes to the mainline\n"
-            + 'repository and pushing them to GitHub, running "python release_build.py all" again\n'
-            + '(in order to update the development site), and running "python release_push'
+            + "repository and pushing them to GitHub, then updating the development and live sites by\n"
+            + "running\n"
+            + "  python3 release_build.py all\n"
+            + "  python3 release_push"
             + release_option
-            + '" again.'
+            + "\n"
         )
 
 
@@ -258,45 +242,45 @@ def validate_args(argv):
     criteria issued in print_usage."""
     if len(argv) > 3:
         print_usage()
-        raise Exception("Invalid arguments. " + ",".join(argv))
+        raise ReleaseError("Invalid arguments. " + ",".join(argv))
     for i in range(1, len(argv)):
         if argv[i] != "release":
             print_usage()
-            raise Exception("Invalid arguments. " + ",".join(argv))
+            raise ReleaseError("Invalid arguments. " + ",".join(argv))
 
 
 def print_usage():
     """Print instructions on how to use this script, and in particular how to
     set test or release mode."""
     print(
-        (
-            "Usage: python3 release_build.py [release]\n"
-            + 'If the "release" argument is '
-            + "NOT specified then the script will execute all steps that checking and prompting "
-            + "steps but will NOT actually perform a release.  This is for testing the script."
-        )
+        "Usage: python3 release_build.py [release]\n"
+        + 'If the "release" argument is '
+        + "NOT specified then the script will execute all steps that checking and prompting "
+        + "steps but will NOT actually perform a release.  This is for testing the script."
     )
 
 
 def main(argv):
     """The release_push script is mainly responsible for copying the artifacts
     (for the AFU and the Checker Framework) from the
-    development web site to Maven Central and to
-    the live site. It also performs link checking on the live site, pushes
-    the release to GitHub repositories, and guides the user to
-    perform manual steps such as sending the
-    release announcement e-mail."""
+    development web site to the live site. It also performs link checking on
+    the live site, pushes the release to GitHub repositories, and guides the
+    user to perform manual steps such as sending the
+    release announcement e-mail.
+
+    This script does not publish to Maven Central; that is a separate step.
+    See docs/developer/maven-central-publishing.md."""
     # MANUAL Indicates a manual step
     # AUTO Indicates the step is fully automated.
 
     set_umask()
 
     validate_args(argv)
-    test_mode = not read_command_line_option(argv, "release")
+    test_mode = not has_command_line_option(argv, "release")
 
     m2_settings = expanduser("~") + "/.m2/settings.xml"
     if not os.path.exists(m2_settings):
-        raise Exception("File does not exist: " + m2_settings)
+        raise ReleaseError("File does not exist: " + m2_settings)
 
     if test_mode:
         msg = (
@@ -336,8 +320,7 @@ def main(argv):
     check_release_version(current_cf_version, new_cf_version)
 
     print(
-        "Checker Framework and AFU:  current-version=%s    new-version=%s"
-        % (current_cf_version, new_cf_version)
+        f"Checker Framework and AFU:  current-version={current_cf_version}    new-version={new_cf_version}"
     )
 
     # Runs the link the checker on all websites at:
@@ -362,14 +345,13 @@ def main(argv):
 
     print_step("Push Step 3: Run development sanity tests")  # SEMIAUTO
     if prompt_yes_no("Perform this step?", True):
-
         print_step("3a: Run javac sanity test on development release.")
         if prompt_yes_no("Run javac sanity test on development release?", True):
             javac_sanity_check(dev_checker_website, new_cf_version)
 
         print_step("3b: Run Maven sanity test on development release.")
         if prompt_yes_no("Run Maven sanity test on development repo?", True):
-            maven_sanity_check("maven-dev", "", new_cf_version)
+            maven_sanity_check("maven-dev", new_cf_version)
 
     # Runs all tests on the development release.
 
@@ -378,50 +360,8 @@ def main(argv):
         ant_cmd = "./gradlew allTests"
         execute(ant_cmd, True, False, CHECKER_FRAMEWORK)
 
-    # The Central repository is a repository of build artifacts for build programs like Maven and Ivy.
-    # This step stages (but doesn't release) the Checker Framework's Maven artifacts in the Sonatypes
-    # Central Repository.
-
-    # Once staging is complete, there are manual steps to log into Sonatypes Central and "close" the
-    # staging repository. Closing allows us to test the artifacts.
-
-    # This step deploys the artifacts to the Central repository and prompts the user to close the
-    # artifacts. Later, you will be prompted to release the staged artifacts after we push the
-    # release to our GitHub repositories.
-
-    # For more information on deploying to the Central Repository see:
-    # https://docs.sonatype.org/display/Repository/Sonatype+OSS+Maven+Repository+Usage+Guide
-
-    print_step("Push Step 5: Stage Maven artifacts in Central")  # SEMIAUTO
-
-    print_step("5a: Stage the artifacts at Maven central.")
-    if (not test_mode) or prompt_yes_no(
-        "Stage Maven artifacts in Maven Central?", not test_mode
-    ):
-        stage_maven_artifacts_in_maven_central(new_cf_version)
-
-        print_step("5b: Close staged artifacts at Maven central.")
-        continue_or_exit(
-            "Maven artifacts have been staged!  Please 'close' (but don't release) the artifacts.\n"
-            + " * Browse to https://oss.sonatype.org/#stagingRepositories\n"
-            + " * Log in using your Sonatype credentials\n"
-            + ' * In the search box at upper right, type "checker"\n'
-            + " * In the top pane, click on orgcheckerframework-XXXX\n"
-            + ' * Click "close" at the top\n'
-            + " * For the close message, enter:  Checker Framework release "
-            + new_cf_version
-            + "\n"
-            + " * Click the Refresh button near the top of the page until the bottom pane has:\n"
-            + '   "Activity   Last operation completed successfully".\n'
-            + " * Copy the URL of the closed artifacts (in the bottom pane) for use in the next step\n"
-            "(You can also see the instructions at: http://central.sonatype.org/pages/releasing-the-deployment.html)\n"
-        )
-
-        print_step("5c: Run Maven sanity test on Maven central artifacts.")
-        if prompt_yes_no("Run Maven sanity test on Maven central artifacts?", True):
-            repo_url = input("Please enter the repo URL of the closed artifacts:\n")
-
-            maven_sanity_check("maven-staging", repo_url, new_cf_version)
+        ant_cmd = "./gradlew test"
+        execute(ant_cmd, True, False, ANNO_FILE_UTILITIES)
 
     # This step copies the development release directories to the live release directories.
     # It then adds the appropriate permissions to the release. Symlinks need to be updated to point
@@ -429,7 +369,7 @@ def main(argv):
     # will NOT update the symlinks.
 
     print_step(
-        "Push Step 6. Copy dev current release website to live website"
+        "Push Step 5. Copy dev current release website to live website"
     )  # SEMIAUTO
     if not test_mode:
         if prompt_yes_no("Copy release to the live website?"):
@@ -443,7 +383,7 @@ def main(argv):
     # This step downloads the checker-framework-X.Y.Z.zip file of the newly live release and ensures we
     # can run the Nullness Checker. If this step fails, you should backout the release.
 
-    print_step("Push Step 7: Run javac sanity tests on the live release.")  # SEMIAUTO
+    print_step("Push Step 6: Run javac sanity tests on the live release.")  # SEMIAUTO
     if not test_mode:
         if prompt_yes_no("Run javac sanity test on live release?", True):
             javac_sanity_check(live_checker_website, new_cf_version)
@@ -461,7 +401,7 @@ def main(argv):
         print("Test mode: Skipping javac sanity tests on the live release.")
 
     # Runs the link the checker on all websites at:
-    # https://checkerframework.org/
+    # https://eisop.github.io/
     # The output of the link checker is written to files in the /tmp/$USER/cf-release directory whose locations
     # will be output at the command prompt. Review the link checker output.
 
@@ -471,7 +411,7 @@ def main(argv):
     # live site (the previous release). After step 5, these links point to the current
     # release and may be broken.
 
-    print_step("Push Step 8. Check live site links")  # SEMIAUTO
+    print_step("Push Step 7. Check live site links")  # SEMIAUTO
     if not test_mode:
         if prompt_yes_no("Run link checker on LIVE site?", True):
             check_all_links(live_afu_website, live_checker_website, "live", test_mode)
@@ -482,7 +422,7 @@ def main(argv):
     # repositories. This is the first irreversible change. After this point, you can no longer
     # backout changes and should do another release in case of critical errors.
 
-    print_step("Push Step 9. Push changes to repositories")  # SEMIAUTO
+    print_step("Push Step 8. Push changes to repositories")  # SEMIAUTO
     # This step could be performed without asking for user input but I think we should err on the side of caution.
     if not test_mode:
         if prompt_yes_no(
@@ -493,35 +433,6 @@ def main(argv):
     else:
         print("Test mode: Skipping push to GitHub!")
 
-    # This is a manual step that releases the staged Maven artifacts to the actual Central repository.
-    # This is also an irreversible step. Once you have released these artifacts they will be forever
-    # available to the Java community through the Central repository. Follow the prompts. The Maven
-    # artifacts (such as checker-qual.jar) are still needed, but the Maven plug-in is no longer maintained.
-
-    print_step("Push Step 10. Release staged artifacts in Central repository.")  # MANUAL
-    if test_mode:
-        msg = (
-            "Test Mode: You are in test_mode.  Please 'DROP' the artifacts. "
-            + "To drop, log into https://oss.sonatype.org using your "
-            + "Sonatype credentials and follow the 'DROP' instructions at: "
-            + "http://central.sonatype.org/pages/releasing-the-deployment.html"
-        )
-    else:
-        msg = (
-            "Please 'release' the artifacts.\n"
-            + "First log into https://oss.sonatype.org using your Sonatype credentials. Go to Staging Repositories and "
-            + "locate the orgcheckerframework repository and click on it.\n"
-            + "If you have a permissions problem, try logging out and back in.\n"
-            + "Finally, click on the Release button at the top of the page. In the dialog box that pops up, "
-            + 'leave the "Automatically drop" box checked. For the description, write '
-            + "Checker Framework release "
-            + new_cf_version
-            + "\n\n"
-        )
-
-    print(msg)
-    prompt_to_continue()
-
     if test_mode:
         print("Test complete")
     else:
@@ -529,29 +440,29 @@ def main(argv):
         # Please fill out the email and announce the release.
 
         print_step(
-            "Push Step 11. Post the Checker Framework and Annotation File Utilities releases on GitHub."
+            "Push Step 9. Post the Checker Framework and Annotation File Utilities releases on GitHub."
         )  # MANUAL
 
         msg = (
             "\n"
-            + "* Download the following files to your local machine."
+            + "Download the following files to your local machine."
             + "\n"
-            + "https://checkerframework.org/checker-framework-"
+            + "  https://eisop.github.io/cf/checker-framework-"
             + new_cf_version
             + ".zip\n"
-            + "https://checkerframework.org/annotation-file-utilities/annotation-tools-"
+            + "  https://eisop.github.io/afu/annotation-tools-"
             + new_cf_version
             + ".zip\n"
             + "\n"
             + "To post the Checker Framework release on GitHub:\n"
             + "\n"
-            + "* Go to https://github.com/eisop/checker-framework/releases/new?tag=checker-framework-"
+            + "* Browse to https://github.com/eisop/checker-framework/releases/new?tag=checker-framework-"
             + new_cf_version
             + "\n"
             + "* For the release title, enter: Checker Framework "
             + new_cf_version
             + "\n"
-            + "* For the description, insert the latest Checker Framework changelog entry (available at https://checkerframework.org/CHANGELOG.md). Please include the first line with the release version and date.\n"
+            + "* For the description, insert the latest Checker Framework changelog entry (available at https://eisop.github.io/cf/CHANGELOG.md). Please include the first line with the release version and date.\n"
             + '* Find the link below "Attach binaries by dropping them here or selecting them." Click on "selecting them" and upload checker-framework-'
             + new_cf_version
             + ".zip from your machine.\n"
@@ -559,49 +470,54 @@ def main(argv):
             + "\n"
             + "To post the Annotation File Utilities release on GitHub:\n"
             + "\n"
-            + "* Go to https://github.com/eisop/annotation-tools/releases/new?tag="
+            + "* Browse to https://github.com/eisop/annotation-tools/releases/new?tag="
             + new_cf_version
             + "\n"
             + "* For the release title, enter: Annotation File Utilities "
             + new_cf_version
             + "\n"
-            + "* For the description, insert the latest Annotation File Utilities changelog entry (available at https://checkerframework.org/annotation-file-utilities/changelog.html). Please include the first line with the release version and date. For bullet points, use the * Markdown character.\n"
+            + "* For the description, insert the latest Annotation File Utilities changelog entry (available at https://eisop.github.io/afu/changelog.html). Please include the first line with the release version and date. For bullet points, use the * Markdown character.\n"
             + '* Find the link below "Attach binaries by dropping them here or selecting them." Click on "selecting them" and upload annotation-tools-'
             + new_cf_version
             + ".zip from your machine.\n"
             + '* Click on the green "Publish release" button.\n'
         )
 
-        print(msg)
+        continue_or_exit(msg)
 
-        print_step("Push Step 12. Announce the release.")  # MANUAL
+        print_step("Push Step 10. Announce the release.")  # MANUAL
         continue_or_exit(
             "Please announce the release using the email structure below.\n"
             + get_announcement_email(new_cf_version)
         )
 
+        print_step("Push Step 11. Prep for next Checker Framework release.")  # MANUAL
+        continue_or_exit(
+            "Change the patch level (last number) of the Checker Framework version\nin build.gradle:  increment it and add -SNAPSHOT\n"
+        )
+
         print_step(
-            "Push Step 13. Update the Checker Framework Gradle plugin."
+            "Push Step 12. Update the Checker Framework Gradle plugin."
         )  # MANUAL
+        print("You might have to wait for Maven Central to propagate changes.\n")
         continue_or_exit(
             "Please update the Checker Framework Gradle plugin:\n"
             + "https://github.com/kelloggm/checkerframework-gradle-plugin/blob/master/RELEASE.md#updating-the-checker-framework-version\n"
         )
         continue_or_exit(
             "Make a pull request to the Checker Framework that\n"
-            + "updates the version number of the Checker Framework"
-            + "Gradle Plugin in docs/example/lombok and docs/example/errorprone .\n"
+            + "updates the version number of the Checker Framework\n"
+            + "Gradle Plugin in docs/examples/lombok and docs/examples/errorprone .\n"
             + "The pull request's tests will fail; you will merge it in a day."
         )
-
-        print_step("Push Step 14. Prep for next Checker Framework release.")  # MANUAL
         continue_or_exit(
-            "Change the patch level (last number) of the Checker Framework version\nin build.gradle:  increment it and add -SNAPSHOT\n"
+            "Make a pull request to the Checker Framework that\n"
+            + "updates the CF version number in the BazelExample, by re-pinning the versions."
         )
 
     delete_if_exists(RELEASE_BUILD_COMPLETED_FLAG_FILE)
 
-    print("Done with release_push.py")
+    print("Done with release_push.py.\n")
 
 
 if __name__ == "__main__":

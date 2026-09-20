@@ -1,8 +1,12 @@
 package org.checkerframework.checker.index;
 
+import com.sun.source.tree.IdentifierTree;
+import com.sun.source.tree.MemberSelectTree;
 import com.sun.source.tree.Tree;
+import com.sun.source.tree.VariableTree;
 
 import org.checkerframework.checker.index.qual.HasSubsequence;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.dataflow.expression.FieldAccess;
 import org.checkerframework.dataflow.expression.JavaExpression;
 import org.checkerframework.framework.source.SourceChecker;
@@ -20,8 +24,10 @@ public class Subsequence {
 
     /** Name of the Subsequence. */
     public final String array;
+
     /** First index of the subsequence in the backing sequence. */
     public final String from;
+
     /** Last index of the subsequence in the backing sequence. */
     public final String to;
 
@@ -42,12 +48,12 @@ public class Subsequence {
      * @param factory an AnnotatedTypeFactory
      * @return null or a new Subsequence from the declaration of {@code varTree}
      */
-    public static Subsequence getSubsequenceFromTree(
+    public static @Nullable Subsequence getSubsequenceFromTree(
             Tree varTree, BaseAnnotatedTypeFactoryForIndexChecker factory) {
 
-        if (!(varTree.getKind() == Tree.Kind.IDENTIFIER
-                || varTree.getKind() == Tree.Kind.MEMBER_SELECT
-                || varTree.getKind() == Tree.Kind.VARIABLE)) {
+        if (!(varTree instanceof IdentifierTree
+                || varTree instanceof MemberSelectTree
+                || varTree instanceof VariableTree)) {
             return null;
         }
 
@@ -63,7 +69,7 @@ public class Subsequence {
      * @param factory the type factory
      * @return a new Subsequence object representing {@code hasSub} or null
      */
-    private static Subsequence createSubsequence(
+    private static @Nullable Subsequence createSubsequence(
             AnnotationMirror hasSub, BaseAnnotatedTypeFactoryForIndexChecker factory) {
         if (hasSub == null) {
             return null;
@@ -83,7 +89,7 @@ public class Subsequence {
      * @param factory an AnnotatedTypeFactory
      * @return null or a new Subsequence from the declaration of {@code varTree}
      */
-    public static Subsequence getSubsequenceFromReceiver(
+    public static @Nullable Subsequence getSubsequenceFromReceiver(
             JavaExpression expr, BaseAnnotatedTypeFactoryForIndexChecker factory) {
         if (!(expr instanceof FieldAccess)) {
             return null;

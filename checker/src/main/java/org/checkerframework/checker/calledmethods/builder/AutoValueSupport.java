@@ -4,11 +4,13 @@ import com.sun.source.tree.NewClassTree;
 
 import org.checkerframework.checker.calledmethods.CalledMethodsAnnotatedTypeFactory;
 import org.checkerframework.checker.calledmethods.qual.CalledMethods;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedExecutableType;
 import org.checkerframework.framework.util.AnnotatedTypes;
 import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.ElementUtils;
+import org.checkerframework.javacutil.InternalUtils;
 import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TypesUtils;
 import org.checkerframework.javacutil.UserError;
@@ -16,6 +18,7 @@ import org.plumelib.util.ArraysPlume;
 
 import java.beans.Introspector;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
@@ -40,7 +43,7 @@ import javax.lang.model.type.TypeMirror;
 public class AutoValueSupport implements BuilderFrameworkSupport {
 
     /** The type factory. */
-    private CalledMethodsAnnotatedTypeFactory atypeFactory;
+    private final CalledMethodsAnnotatedTypeFactory atypeFactory;
 
     /**
      * Create a new AutoValueSupport.
@@ -56,7 +59,7 @@ public class AutoValueSupport implements BuilderFrameworkSupport {
      * of the AutoValue toBuilder method, and has no effect if {@code tree} is a call to any other
      * constructor.
      *
-     * @param tree AST for a constructor call
+     * @param tree an AST for a constructor call
      * @param type type of the call expression
      */
     @Override
@@ -108,21 +111,12 @@ public class AutoValueSupport implements BuilderFrameworkSupport {
                 createCalledMethodsForAutoValueClass(builderElement, autoValueClassElement);
         // Only add the new @CalledMethods annotation if there is not already a @CalledMethods
         // annotation present.
-        AnnotationMirror explicitCalledMethodsAnno =
-                builderBuildType
-                        .getReceiverType()
-                        .getAnnotationInHierarchy(
-                                atypeFactory
-                                        .getQualifierHierarchy()
-                                        .getTopAnnotation(newCalledMethodsAnno));
-        if (explicitCalledMethodsAnno == null) {
-            builderBuildType.getReceiverType().addAnnotation(newCalledMethodsAnno);
-        }
+        builderBuildType.getReceiverType().addMissingAnnotation(newCalledMethodsAnno);
     }
 
     @Override
     public boolean isToBuilderMethod(ExecutableElement candidateToBuilderElement) {
-        if (!"toBuilder".equals(candidateToBuilderElement.getSimpleName().toString())) {
+        if (!InternalUtils.sameName(candidateToBuilderElement.getSimpleName(), "toBuilder")) {
             return false;
         }
 
@@ -177,7 +171,7 @@ public class AutoValueSupport implements BuilderFrameworkSupport {
      *
      * @param type type to update
      * @param builderType type of abstract @AutoValue.Builder class
-     * @param classElement AutoValue class corresponding to {@code type}
+     * @param classElement an AutoValue class corresponding to {@code type}
      */
     private void handleToBuilderType(
             AnnotatedTypeMirror type, TypeMirror builderType, TypeElement classElement) {
@@ -214,7 +208,7 @@ public class AutoValueSupport implements BuilderFrameworkSupport {
      * @return a @CalledMethods annotation that indicates all the given properties have been set
      */
     private AnnotationMirror createCalledMethodsForAutoValueProperties(
-            final List<String> propertyNames, Set<String> avBuilderSetterNames) {
+            List<String> propertyNames, Set<String> avBuilderSetterNames) {
         List<String> calledMethodNames =
                 propertyNames.stream()
                         .map(prop -> autoValuePropToBuilderSetterName(prop, avBuilderSetterNames))
@@ -228,9 +222,9 @@ public class AutoValueSupport implements BuilderFrameworkSupport {
      *
      * @param prop the property (i.e., field) name
      * @param builderSetterNames names of all methods in the builder class
-     * @return the name of the setter for prop
+     * @return the name of the setter for prop, or null if it cannot be found
      */
-    private static String autoValuePropToBuilderSetterName(
+    private static @Nullable String autoValuePropToBuilderSetterName(
             String prop, Set<String> builderSetterNames) {
         String[] possiblePropNames;
         if (prop.startsWith("get") && prop.length() > 3 && Character.isUpperCase(prop.charAt(3))) {
@@ -269,12 +263,16 @@ public class AutoValueSupport implements BuilderFrameworkSupport {
      * @return a list of required property names
      */
     private List<String> getAutoValueRequiredProperties(
-            final TypeElement autoValueClassElement, Set<String> avBuilderSetterNames) {
+            TypeElement autoValueClassElement, Set<String> avBuilderSetterNames) {
         return getAllAbstractMethods(autoValueClassElement).stream()
                 .filter(member -> isAutoValueRequiredProperty(member, avBuilderSetterNames))
                 .map(e -> e.getSimpleName().toString())
                 .collect(Collectors.toList());
     }
+
+    /** Method names for {@link #isAutoValueRequiredProperty} to ignore. */
+    private final Set<String> isAutoValueRequiredPropertyIgnored =
+            new HashSet<>(Arrays.asList("equals", "hashCode", "toString", "<init>", "toBuilder"));
 
     /**
      * Does member represent a required property of an AutoValue class?
@@ -283,19 +281,17 @@ public class AutoValueSupport implements BuilderFrameworkSupport {
      * @param avBuilderSetterNames names of all setters in corresponding AutoValue builder class
      * @return true if {@code member} is required
      */
-    private boolean isAutoValueRequiredProperty(Element member, Set<String> avBuilderSetterNames) {
+    private boolean isAutoValueRequiredProperty(
+            ExecutableElement member, Set<String> avBuilderSetterNames) {
         String name = member.getSimpleName().toString();
         // Ignore java.lang.Object overrides, constructors, and toBuilder methods in AutoValue
         // classes.
         // Strictly speaking, this code should check return types, etc. to handle strange
         // overloads and other corner cases. They seem unlikely enough that we are skipping for now.
-        if (ArraysPlume.indexOf(
-                        new String[] {"equals", "hashCode", "toString", "<init>", "toBuilder"},
-                        name)
-                != -1) {
+        if (isAutoValueRequiredPropertyIgnored.contains(name)) {
             return false;
         }
-        TypeMirror returnType = ((ExecutableElement) member).getReturnType();
+        TypeMirror returnType = member.getReturnType();
         if (returnType.getKind() == TypeKind.VOID) {
             return false;
         }
@@ -326,7 +322,7 @@ public class AutoValueSupport implements BuilderFrameworkSupport {
     }
 
     /**
-     * This list of classes that AutoValue considers "optional" comes from AutoValue's source code.
+     * Classes that AutoValue considers "optional". This list comes from AutoValue's source code.
      */
     private static final String[] optionalClassNames =
             new String[] {
@@ -354,7 +350,7 @@ public class AutoValueSupport implements BuilderFrameworkSupport {
         TypeElement typeElement = (TypeElement) declaredType.asElement();
         return typeElement.getTypeParameters().size() == declaredType.getTypeArguments().size()
                 && ArraysPlume.indexOf(
-                                optionalClassNames, typeElement.getQualifiedName().toString())
+                                optionalClassNames, ElementUtils.getQualifiedName(typeElement))
                         != -1;
     }
 
@@ -393,8 +389,8 @@ public class AutoValueSupport implements BuilderFrameworkSupport {
                             .getReturnType()
                             .getUnderlyingType();
         }
-        // either the return type should be the builder itself, or it should be a Guava immutable
-        // type
+        // Either the return type should be the builder itself, or it should be a Guava immutable
+        // type.
         return BuilderFrameworkSupportUtils.isGuavaImmutableType(retType)
                 || builderElement.equals(TypesUtils.getTypeElement(retType));
     }

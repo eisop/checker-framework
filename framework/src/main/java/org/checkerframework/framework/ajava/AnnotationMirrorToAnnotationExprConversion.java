@@ -22,15 +22,17 @@ import com.github.javaparser.ast.expr.SingleMemberAnnotationExpr;
 import com.github.javaparser.ast.expr.StringLiteralExpr;
 import com.github.javaparser.ast.expr.UnaryExpr;
 import com.github.javaparser.ast.type.ClassOrInterfaceType;
+import com.github.javaparser.utils.StringEscapeUtils;
 
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.BugInCF;
+import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.TypesUtils;
 
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.AnnotationValue;
@@ -80,7 +82,7 @@ public class AnnotationMirrorToAnnotationExprConversion {
      * @see #annotationMirrorToAnnotationExpr
      */
     public static NodeList<AnnotationExpr> annotationMirrorSetToAnnotationExprList(
-            Set<AnnotationMirror> annotationMirrors) {
+            AnnotationMirrorSet annotationMirrors) {
         NodeList<AnnotationExpr> result = new NodeList<>();
         for (AnnotationMirror am : annotationMirrors) {
             result.add(annotationMirrorToAnnotationExpr(am));
@@ -120,6 +122,8 @@ public class AnnotationMirrorToAnnotationExprConversion {
      * @return a JavaParser {@code Name} holding {@code name}
      */
     private static Name createQualifiedName(String name) {
+        // split on "." to decompose a fully qualified name; trailing empty strings cannot occur.
+        @SuppressWarnings("StringSplitter")
         String[] components = name.split("\\.");
         Name result = new Name(components[0]);
         for (int i = 1; i < components.length; i++) {
@@ -184,7 +188,9 @@ public class AnnotationMirrorToAnnotationExprConversion {
         public Expression visitEnumConstant(VariableElement value, Void p) {
             // The enclosing element of an enum constant is the enum type itself.
             TypeElement enumElt = (TypeElement) value.getEnclosingElement();
-            String[] components = enumElt.getQualifiedName().toString().split("\\.");
+            // Splitting a fully-qualified name on "."; trailing empty strings cannot occur.
+            @SuppressWarnings("StringSplitter")
+            String[] components = ElementUtils.getQualifiedName(enumElt).split("\\.");
             Expression enumName = new NameExpr(components[0]);
             for (int i = 1; i < components.length; i++) {
                 enumName = new FieldAccessExpr(enumName, components[i]);
@@ -207,10 +213,10 @@ public class AnnotationMirrorToAnnotationExprConversion {
         public Expression visitLong(long value, Void p) {
             if (value < 0) {
                 return new UnaryExpr(
-                        new LongLiteralExpr(Long.toString(-value)), UnaryExpr.Operator.MINUS);
+                        new LongLiteralExpr(Long.toString(-value) + "L"), UnaryExpr.Operator.MINUS);
             }
 
-            return new LongLiteralExpr(Long.toString(value));
+            return new LongLiteralExpr(Long.toString(value) + "L");
         }
 
         @Override
@@ -222,7 +228,7 @@ public class AnnotationMirrorToAnnotationExprConversion {
 
         @Override
         public Expression visitString(String value, Void p) {
-            return new StringLiteralExpr(value);
+            return new StringLiteralExpr(StringEscapeUtils.escapeJava(value));
         }
 
         @Override

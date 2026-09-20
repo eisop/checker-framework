@@ -4,11 +4,7 @@ import org.checkerframework.checker.interning.qual.InternedDistinct;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 import java.math.BigInteger;
-import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
-import java.util.Objects;
 
 import javax.lang.model.type.TypeKind;
 
@@ -49,17 +45,39 @@ public class Range {
     /** A range containing all possible 64-bit values. */
     public static final Range LONG_EVERYTHING = create(Long.MIN_VALUE, Long.MAX_VALUE);
 
+    /** Long.MIN_VALUE, as a BigInteger. */
+    private static final BigInteger BIG_LONG_MIN_VALUE = BigInteger.valueOf(Long.MIN_VALUE);
+
+    /** Long.MAX_VALUE, as a BigInteger. */
+    private static final BigInteger BIG_LONG_MAX_VALUE = BigInteger.valueOf(Long.MAX_VALUE);
+
+    /** The number of Long values, as a BigInteger. */
+    private static final BigInteger BIG_LONG_WIDTH =
+            BIG_LONG_MAX_VALUE.subtract(BIG_LONG_MIN_VALUE).add(BigInteger.ONE);
+
     /** A range containing all possible 32-bit values. */
     public static final Range INT_EVERYTHING = create(Integer.MIN_VALUE, Integer.MAX_VALUE);
+
+    /** The number of values representable in 32 bits: 2^32 or {@code 1<<32}. */
+    private static final long INT_WIDTH = INT_EVERYTHING.width();
 
     /** A range containing all possible 16-bit values. */
     public static final Range SHORT_EVERYTHING = create(Short.MIN_VALUE, Short.MAX_VALUE);
 
+    /** The number of values representable in 16 bits: 2^16 or 1&lt;&lt;16. */
+    private static final long SHORT_WIDTH = SHORT_EVERYTHING.width();
+
     /** A range containing all possible char values. */
     public static final Range CHAR_EVERYTHING = create(Character.MIN_VALUE, Character.MAX_VALUE);
 
+    /** The number of values representable in char: */
+    private static final long CHAR_WIDTH = CHAR_EVERYTHING.width();
+
     /** A range containing all possible 8-bit values. */
     public static final Range BYTE_EVERYTHING = create(Byte.MIN_VALUE, Byte.MAX_VALUE);
+
+    /** The number of values representable in 8 bits: 2^8 or 1&lt;&lt;8. */
+    private static final long BYTE_WIDTH = BYTE_EVERYTHING.width();
 
     /** The empty range. This is the only Range object that contains nothing */
     @SuppressWarnings(
@@ -144,14 +162,6 @@ public class Range {
                                 + typeKind);
         }
     }
-
-    /** Long.MIN_VALUE, as a BigInteger. */
-    private static final BigInteger BIG_LONG_MIN_VALUE = BigInteger.valueOf(Long.MIN_VALUE);
-    /** Long.MAX_VALUE, as a BigInteger. */
-    private static final BigInteger BIG_LONG_MAX_VALUE = BigInteger.valueOf(Long.MAX_VALUE);
-    /** The number of Long values, as a BigInteger. */
-    private static final BigInteger BIG_LONG_WIDTH =
-            BIG_LONG_MAX_VALUE.subtract(BIG_LONG_MIN_VALUE).add(BigInteger.ONE);
 
     /**
      * Creates a range using BigInteger type bounds.
@@ -243,7 +253,11 @@ public class Range {
 
     @Override
     public int hashCode() {
-        return Objects.hash(from, to);
+        // Hand-rolled to avoid the per-call boxing of two longs and the Object[] varargs
+        // allocation that Objects.hash(from, to) incurs. Range.hashCode is hot: Range objects
+        // are used as keys/values in many AnnotationMirror-related hash collections during
+        // type checking.
+        return Long.hashCode(from) * 31 + Long.hashCode(to);
     }
 
     /**
@@ -287,9 +301,6 @@ public class Range {
         return this == NOTHING;
     }
 
-    /** The number of values representable in 32 bits: 2^32 or {@code 1<<32}. */
-    private static final long INT_WIDTH = INT_EVERYTHING.width();
-
     /**
      * Converts this range to a 32-bit integral range.
      *
@@ -302,7 +313,10 @@ public class Range {
      * <p>If {@link #ignoreOverflow} is false and the bounds of this range are not representable as
      * 32-bit integers, convert the bounds to Integer type in accordance with Java twos-complement
      * overflow rules, e.g., Integer.MAX_VALUE + 1 is converted to Integer.MIN_VALUE.
+     *
+     * @return this range, converted to a 32-bit integral range
      */
+    @SuppressWarnings("UnnecessaryLongToIntConversion")
     public Range intRange() {
         if (this.isNothing()) {
             return this;
@@ -319,9 +333,6 @@ public class Range {
         return createOrElse((int) this.from, (int) this.to, INT_EVERYTHING);
     }
 
-    /** The number of values representable in 16 bits: 2^16 or 1&lt;&lt;16. */
-    private static final long SHORT_WIDTH = SHORT_EVERYTHING.width();
-
     /**
      * Converts a this range to a 16-bit short range.
      *
@@ -334,6 +345,8 @@ public class Range {
      * <p>If {@link #ignoreOverflow} is false and the bounds of this range are not representable as
      * 16-bit integers, convert the bounds to Short type in accordance with Java twos-complement
      * overflow rules, e.g., Short.MAX_VALUE + 1 is converted to Short.MIN_VALUE.
+     *
+     * @return this range, converted to a 16-bit short range
      */
     public Range shortRange() {
         if (this.isNothing()) {
@@ -351,9 +364,6 @@ public class Range {
         }
         return createOrElse((short) this.from, (short) this.to, SHORT_EVERYTHING);
     }
-
-    /** The number of values representable in char: */
-    private static final long CHAR_WIDTH = CHAR_EVERYTHING.width();
 
     /**
      * Converts this range to a char range.
@@ -385,11 +395,8 @@ public class Range {
         return createOrElse((char) this.from, (char) this.to, CHAR_EVERYTHING);
     }
 
-    /** The number of values representable in 8 bits: 2^8 or 1&lt;&lt;8. */
-    private static final long BYTE_WIDTH = BYTE_EVERYTHING.width();
-
     /**
-     * Converts this range to a 8-bit byte range.
+     * Converts this range to an 8-bit byte range.
      *
      * <p>If {@link #ignoreOverflow} is true and one of the bounds is outside the Byte range, then
      * that bound is set to the bound of the Byte range.
@@ -400,6 +407,8 @@ public class Range {
      * <p>If {@link #ignoreOverflow} is false and the bounds of this range are not representable as
      * 8-bit integers, convert the bounds to Byte type in accordance with Java twos-complement
      * overflow rules, e.g., Byte.MAX_VALUE + 1 is converted to Byte.MIN_VALUE.
+     *
+     * @return this range, converted to an 8-bit byte range
      */
     public Range byteRange() {
         if (this.isNothing()) {
@@ -582,22 +591,27 @@ public class Range {
 
         // These bounds are adequate:  Integer.MAX_VALUE^2 is still a bit less than Long.MAX_VALUE.
         if (this.isWithinInteger() && right.isWithinInteger()) {
-            List<Long> possibleValues =
-                    Arrays.asList(
-                            from * right.from, from * right.to, to * right.from, to * right.to);
-            return create(possibleValues);
+            // Compute min/max over the four corner products directly, avoiding the
+            // Long boxing and Arrays.asList/iterator allocations of the previous version.
+            long ff = from * right.from;
+            long ft = from * right.to;
+            long tf = to * right.from;
+            long tt = to * right.to;
+            long resultFrom = Math.min(Math.min(ff, ft), Math.min(tf, tt));
+            long resultTo = Math.max(Math.max(ff, ft), Math.max(tf, tt));
+            return create(resultFrom, resultTo);
         } else {
-            final BigInteger bigLeftFrom = BigInteger.valueOf(from);
-            final BigInteger bigRightFrom = BigInteger.valueOf(right.from);
-            final BigInteger bigRightTo = BigInteger.valueOf(right.to);
-            final BigInteger bigLeftTo = BigInteger.valueOf(to);
-            List<BigInteger> bigPossibleValues =
-                    Arrays.asList(
-                            bigLeftFrom.multiply(bigRightFrom),
-                            bigLeftFrom.multiply(bigRightTo),
-                            bigLeftTo.multiply(bigRightFrom),
-                            bigLeftTo.multiply(bigRightTo));
-            return create(Collections.min(bigPossibleValues), Collections.max(bigPossibleValues));
+            BigInteger bigLeftFrom = BigInteger.valueOf(from);
+            BigInteger bigRightFrom = BigInteger.valueOf(right.from);
+            BigInteger bigRightTo = BigInteger.valueOf(right.to);
+            BigInteger bigLeftTo = BigInteger.valueOf(to);
+            BigInteger ff = bigLeftFrom.multiply(bigRightFrom);
+            BigInteger ft = bigLeftFrom.multiply(bigRightTo);
+            BigInteger tf = bigLeftTo.multiply(bigRightFrom);
+            BigInteger tt = bigLeftTo.multiply(bigRightTo);
+            BigInteger resultFrom = ff.min(ft).min(tf.min(tt));
+            BigInteger resultTo = ff.max(ft).max(tf.max(tt));
+            return create(resultFrom, resultTo);
         }
     }
 
@@ -768,7 +782,7 @@ public class Range {
         }
 
         // Shifting operations in Java are depending on the type of the left-hand operand:
-        // If the left-hand operand is int  type, only the 5 lowest-order bits of the right-hand
+        // If the left-hand operand is int type, only the 5 lowest-order bits of the right-hand
         // operand are used.
         // If the left-hand operand is long type, only the 6 lowest-order bits of the right-hand
         // operand are used.
@@ -780,7 +794,7 @@ public class Range {
         // 1. create different methods for int type and long type and use them accordingly
         // 2. add an additional boolean parameter to indicate the type of the left-hand operand
         //
-        // see https://docs.oracle.com/javase/specs/jls/se11/html/jls-15.html#jls-15.19 for more
+        // see https://docs.oracle.com/javase/specs/jls/se17/html/jls-15.html#jls-15.19 for more
         // detail.
         if (right.isWithin(0, 31)) {
             if (this.isWithinInteger()) {
@@ -1180,17 +1194,25 @@ public class Range {
      */
     public Range refineNotEqualTo(Range right) {
         if (right.isConstant()) {
+            // If this range is the same constant, the != branch is unreachable.
+            // Handling this case up front also avoids overflow in the trimming
+            // branches below when the shared constant is Long.MIN_VALUE
+            // (this.to - 1 would wrap to Long.MAX_VALUE) or Long.MAX_VALUE
+            // (this.from + 1 would wrap to Long.MIN_VALUE).
+            if (this.isConstant() && this.from == right.from) {
+                return NOTHING;
+            }
             if (this.to == right.to) {
-                return create(this.from, this.to - 1);
+                return createOrNothing(this.from, this.to - 1);
             } else if (this.from == right.from) {
-                return create(this.from + 1, this.to);
+                return createOrNothing(this.from + 1, this.to);
             }
         }
         return this;
     }
 
     /**
-     * Determines if the range is wider than a given value, i.e., if the number of possible values
+     * Returns true if the range is wider than a given value, i.e., if the number of possible values
      * enclosed by this range is more than the given value.
      *
      * @param value the value to compare with
@@ -1211,13 +1233,17 @@ public class Range {
         }
     }
 
-    /** Determines if this range represents a constant value. */
+    /**
+     * Returns true if this range represents a constant value.
+     *
+     * @return true if this range represents a constant value
+     */
     public boolean isConstant() {
         return from == to;
     }
 
     /**
-     * Determines if this range is completely contained in the range specified by the given lower
+     * Returns true if this range is completely contained in the range specified by the given lower
      * bound inclusive and upper bound inclusive.
      *
      * @param lb lower bound for the range that might contain this one
@@ -1230,7 +1256,7 @@ public class Range {
     }
 
     /**
-     * Determines if this range is contained inclusively between Long.MIN_VALUE/2 and
+     * Returns true if this range is contained inclusively between Long.MIN_VALUE/2 and
      * Long.MAX_VALUE/2. Note: Long.MIN_VALUE/2 != -Long.MAX_VALUE/2
      */
     private boolean isWithinHalfLong() {
@@ -1238,7 +1264,7 @@ public class Range {
     }
 
     /**
-     * Determines if this range is completely contained in the scope of the Integer type.
+     * Returns true if this range is completely contained in the scope of the Integer type.
      *
      * @return true if the range is contained within the Integer range inclusive
      */

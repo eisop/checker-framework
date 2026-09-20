@@ -32,7 +32,7 @@ public class SystemGetPropertyHandler {
     private final ProcessingEnvironment env;
 
     /** The factory for constructing and looking up types. */
-    private final NullnessAnnotatedTypeFactory factory;
+    private final NullnessNoInitAnnotatedTypeFactory factory;
 
     /** The System.getProperty(String) method. */
     private final ExecutableElement systemGetProperty;
@@ -43,7 +43,7 @@ public class SystemGetPropertyHandler {
     /**
      * System properties that are defined at startup on every JVM.
      *
-     * <p>This list is from the Javadoc of System.getProperties, for Java 11.
+     * <p>This list is from the Javadoc of System.getProperties, for Java 17.
      */
     public static final Collection<String> predefinedSystemProperties =
             new HashSet<>(
@@ -61,6 +61,7 @@ public class SystemGetPropertyHandler {
                             "java.vm.vendor",
                             "java.vm.name",
                             "java.specification.version",
+                            "java.specification.maintenance.version",
                             "java.specification.vendor",
                             "java.specification.name",
                             "java.class.version",
@@ -76,7 +77,15 @@ public class SystemGetPropertyHandler {
                             "line.separator",
                             "user.name",
                             "user.home",
-                            "user.dir"));
+                            "user.dir",
+                            "native.encoding",
+                            "stdout.encoding",
+                            "stderr.encoding",
+                            "jdk.module.path",
+                            "jdk.module.upgrade.path",
+                            "jdk.module.main",
+                            "jdk.module.main.class",
+                            "file.encoding"));
 
     /**
      * Creates a SystemGetPropertyHandler.
@@ -88,7 +97,7 @@ public class SystemGetPropertyHandler {
      */
     public SystemGetPropertyHandler(
             ProcessingEnvironment env,
-            NullnessAnnotatedTypeFactory factory,
+            NullnessNoInitAnnotatedTypeFactory factory,
             boolean permitClearProperty) {
         this.env = env;
         this.factory = factory;
@@ -110,7 +119,7 @@ public class SystemGetPropertyHandler {
         }
         if (TreeUtils.isMethodInvocation(tree, systemGetProperty, env)
                 || TreeUtils.isMethodInvocation(tree, systemSetProperty, env)) {
-            String literal = NullnessVisitor.literalFirstArgument(tree);
+            String literal = NullnessNoInitVisitor.literalFirstArgument(tree);
             if (literal != null && predefinedSystemProperties.contains(literal)) {
                 AnnotatedTypeMirror type = method.getReturnType();
                 type.replaceAnnotation(factory.NONNULL);

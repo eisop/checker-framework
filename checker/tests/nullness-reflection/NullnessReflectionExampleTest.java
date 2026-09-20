@@ -12,8 +12,11 @@ public class NullnessReflectionExampleTest {
     }
 
     String getCurrentCity()
-            throws NoSuchMethodException, SecurityException, IllegalAccessException,
-                    IllegalArgumentException, InvocationTargetException {
+            throws NoSuchMethodException,
+                    SecurityException,
+                    IllegalAccessException,
+                    IllegalArgumentException,
+                    InvocationTargetException {
         @MethodVal(
                 className = "NullnessReflectionExampleTest",
                 methodName = "getCurrentLocation",

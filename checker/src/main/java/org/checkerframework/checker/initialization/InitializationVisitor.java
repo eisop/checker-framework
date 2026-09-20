@@ -1,6 +1,8 @@
 package org.checkerframework.checker.initialization;
 
+import com.sun.source.tree.AssignmentTree;
 import com.sun.source.tree.BlockTree;
+import com.sun.source.tree.CatchTree;
 import com.sun.source.tree.ClassTree;
 import com.sun.source.tree.CompilationUnitTree;
 import com.sun.source.tree.ExpressionTree;
@@ -8,29 +10,23 @@ import com.sun.source.tree.MethodInvocationTree;
 import com.sun.source.tree.MethodTree;
 import com.sun.source.tree.NewClassTree;
 import com.sun.source.tree.Tree;
-import com.sun.source.tree.TypeCastTree;
 import com.sun.source.tree.VariableTree;
+import com.sun.source.util.TreePath;
 
 import org.checkerframework.checker.compilermsgs.qual.CompilerMessageKey;
 import org.checkerframework.checker.nullness.NullnessChecker;
 import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.common.basetype.BaseTypeVisitor;
-import org.checkerframework.dataflow.expression.ClassName;
-import org.checkerframework.dataflow.expression.FieldAccess;
-import org.checkerframework.dataflow.expression.JavaExpression;
-import org.checkerframework.dataflow.expression.LocalVariable;
-import org.checkerframework.dataflow.expression.ThisReference;
 import org.checkerframework.framework.flow.CFAbstractAnalysis.FieldInitialValue;
 import org.checkerframework.framework.flow.CFAbstractStore;
-import org.checkerframework.framework.flow.CFAbstractValue;
+import org.checkerframework.framework.flow.CFValue;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedDeclaredType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedExecutableType;
-import org.checkerframework.framework.util.AnnotationFormatter;
-import org.checkerframework.framework.util.DefaultAnnotationFormatter;
+import org.checkerframework.framework.type.GenericAnnotatedTypeFactory;
+import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.ElementUtils;
-import org.checkerframework.javacutil.Pair;
 import org.checkerframework.javacutil.TreeUtils;
 
 import java.lang.annotation.Annotation;
@@ -38,12 +34,11 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
-import java.util.Set;
 import java.util.StringJoiner;
 
 import javax.lang.model.element.AnnotationMirror;
-import javax.lang.model.element.Element;
 import javax.lang.model.element.ExecutableElement;
+import javax.lang.model.element.VariableElement;
 
 /* NO-AFU
    import org.checkerframework.common.wholeprograminference.WholeProgramInference;
@@ -54,17 +49,9 @@ import javax.lang.model.element.ExecutableElement;
  * type-system and this class are abstract and need to be combined with another type-system whose
  * safe initialization should be tracked. For an example, see the {@link NullnessChecker}.
  */
-public class InitializationVisitor<
-                Factory extends InitializationAnnotatedTypeFactory<Value, Store, ?, ?>,
-                Value extends CFAbstractValue<Value>,
-                Store extends InitializationStore<Value, Store>>
-        extends BaseTypeVisitor<Factory> {
-
-    protected final AnnotationFormatter annoFormatter;
+public class InitializationVisitor extends BaseTypeVisitor<InitializationAnnotatedTypeFactory> {
 
     // Error message keys
-    private static final @CompilerMessageKey String COMMITMENT_INVALID_CAST =
-            "initialization.invalid.cast";
     private static final @CompilerMessageKey String COMMITMENT_INVALID_FIELD_TYPE =
             "initialization.invalid.field.type";
     private static final @CompilerMessageKey String COMMITMENT_INVALID_CONSTRUCTOR_RETURN_TYPE =
@@ -75,18 +62,42 @@ public class InitializationVisitor<
     private static final @CompilerMessageKey String COMMITMENT_INVALID_FIELD_WRITE_INITIALIZED =
             "initialization.invalid.field.write.initialized";
 
+    /** List of fields in the current compilation unit that have been initialized. */
+    protected final List<VariableTree> initializedFields;
+
+    /** The value of the assumeInitialized option. */
+    protected final boolean assumeInitialized;
+
+    /**
+     * Create an InitializationVisitor.
+     *
+     * @param checker the initialization checker
+     */
     public InitializationVisitor(BaseTypeChecker checker) {
         super(checker);
-        annoFormatter = new DefaultAnnotationFormatter();
         initializedFields = new ArrayList<>();
+        assumeInitialized = checker.hasOption("assumeInitialized");
     }
 
     @Override
-    public void setRoot(CompilationUnitTree root) {
+    protected InitializationAnnotatedTypeFactory createTypeFactory() {
+        return new InitializationAnnotatedTypeFactory(checker);
+    }
+
+    @Override
+    public void visit(TreePath path) {
+        // This visitor does nothing if init checking is turned off.
+        if (!assumeInitialized) {
+            super.visit(path);
+        }
+    }
+
+    @Override
+    public void setRoot(CompilationUnitTree newRoot) {
         // Clean up the cache of initialized fields once per compilation unit.
         // Alternatively, but harder to determine, this could be done once per top-level class.
         initializedFields.clear();
-        super.setRoot(root);
+        super.setRoot(newRoot);
     }
 
     @Override
@@ -109,273 +120,259 @@ public class InitializationVisitor<
     }
 
     @Override
-    protected void commonAssignmentCheck(
+    protected boolean commonAssignmentCheck(
             Tree varTree,
-            ExpressionTree valueExp,
+            ExpressionTree valueExpTree,
             @CompilerMessageKey String errorKey,
             Object... extraArgs) {
         // field write of the form x.f = y
         if (TreeUtils.isFieldAccess(varTree)) {
             // cast is safe: a field access can only be an IdentifierTree or MemberSelectTree
             ExpressionTree lhs = (ExpressionTree) varTree;
-            ExpressionTree y = valueExp;
-            Element el = TreeUtils.elementFromUse(lhs);
-            AnnotatedTypeMirror xType = atypeFactory.getReceiverType(lhs);
-            AnnotatedTypeMirror yType = atypeFactory.getAnnotatedType(y);
+            VariableElement el = TreeUtils.variableElementFromUse(lhs);
+            AnnotatedTypeMirror lhsReceiverType = atypeFactory.getReceiverType(lhs);
+            AnnotatedTypeMirror valueExpType = atypeFactory.getAnnotatedType(valueExpTree);
             // the special FBC rules do not apply if there is an explicit
             // UnknownInitialization annotation
-            Set<AnnotationMirror> fieldAnnotations =
-                    atypeFactory.getAnnotatedType(TreeUtils.elementFromUse(lhs)).getAnnotations();
+            AnnotationMirrorSet fieldAnnotations =
+                    atypeFactory.getAnnotatedType(el).getAnnotations();
             if (!AnnotationUtils.containsSameByName(
                     fieldAnnotations, atypeFactory.UNKNOWN_INITIALIZATION)) {
                 if (!ElementUtils.isStatic(el)
-                        && !(atypeFactory.isInitialized(yType)
-                                || atypeFactory.isUnderInitialization(xType)
-                                || atypeFactory.isFbcBottom(yType))) {
+                        && !(atypeFactory.isInitialized(valueExpType)
+                                || atypeFactory.isUnderInitialization(lhsReceiverType)
+                                || atypeFactory.isFbcBottom(valueExpType))) {
                     @CompilerMessageKey String err;
-                    if (atypeFactory.isInitialized(xType)) {
+                    if (atypeFactory.isInitialized(lhsReceiverType)) {
                         err = COMMITMENT_INVALID_FIELD_WRITE_INITIALIZED;
                     } else {
                         err = COMMITMENT_INVALID_FIELD_WRITE_UNKNOWN_INITIALIZATION;
                     }
                     checker.reportError(varTree, err, varTree);
-                    return; // prevent issuing another errow about subtyping
+                    return false; // prevent issuing another error about subtyping
                 }
             }
         }
-        super.commonAssignmentCheck(varTree, valueExp, errorKey, extraArgs);
+        return super.commonAssignmentCheck(varTree, valueExpTree, errorKey, extraArgs);
     }
 
     @Override
-    public Void visitVariable(VariableTree node, Void p) {
-        // is this a field (and not a local variable)?
-        if (TreeUtils.elementFromDeclaration(node).getKind().isField()) {
-            Set<AnnotationMirror> annotationMirrors =
-                    atypeFactory.getAnnotatedType(node).getExplicitAnnotations();
-            // Fields cannot have commitment annotations.
-            for (Class<? extends Annotation> c : atypeFactory.getInitializationAnnotations()) {
-                for (AnnotationMirror a : annotationMirrors) {
-                    if (atypeFactory.isUnknownInitialization(a)) {
-                        continue; // unknown initialization is allowed
-                    }
-                    if (atypeFactory.areSameByClass(a, c)) {
-                        checker.reportError(node, COMMITMENT_INVALID_FIELD_TYPE, node);
-                        break;
-                    }
-                }
-            }
-        }
-        return super.visitVariable(node, p);
+    protected void checkExceptionParameter(CatchTree node) {
+        // TODO Issue 363
+        // https://github.com/eisop/checker-framework/issues/363
     }
 
     @Override
-    protected boolean checkContract(
-            JavaExpression expr,
-            AnnotationMirror necessaryAnnotation,
-            AnnotationMirror inferredAnnotation,
-            CFAbstractStore<?, ?> store) {
-        // also use the information about initialized fields to check contracts
-        final AnnotationMirror invariantAnno = atypeFactory.getFieldInvariantAnnotation();
-
-        if (!atypeFactory.getQualifierHierarchy().isSubtype(invariantAnno, necessaryAnnotation)
-                || !(expr instanceof FieldAccess)) {
-            return super.checkContract(expr, necessaryAnnotation, inferredAnnotation, store);
-        }
-        if (expr.containsUnknown()) {
-            return false;
-        }
-
-        FieldAccess fa = (FieldAccess) expr;
-        if (fa.getReceiver() instanceof ThisReference || fa.getReceiver() instanceof ClassName) {
-            @SuppressWarnings("unchecked")
-            Store s = (Store) store;
-            if (s.isFieldInitialized(fa.getField())) {
-                AnnotatedTypeMirror fieldType = atypeFactory.getAnnotatedType(fa.getField());
-                // is this an invariant-field?
-                if (AnnotationUtils.containsSame(fieldType.getAnnotations(), invariantAnno)) {
-                    return true;
-                }
-            }
-        } else {
-            @SuppressWarnings("unchecked")
-            Value value = (Value) store.getValue(fa.getReceiver());
-
-            Set<AnnotationMirror> receiverAnnoSet;
-            if (value != null) {
-                receiverAnnoSet = value.getAnnotations();
-            } else if (fa.getReceiver() instanceof LocalVariable) {
-                Element elem = ((LocalVariable) fa.getReceiver()).getElement();
-                AnnotatedTypeMirror receiverType = atypeFactory.getAnnotatedType(elem);
-                receiverAnnoSet = receiverType.getAnnotations();
-            } else {
-                // Is there anything better we could do?
-                return false;
-            }
-
-            boolean isReceiverInitialized = false;
-            for (AnnotationMirror anno : receiverAnnoSet) {
-                if (atypeFactory.isInitialized(anno)) {
-                    isReceiverInitialized = true;
-                }
-            }
-
-            AnnotatedTypeMirror fieldType = atypeFactory.getAnnotatedType(fa.getField());
-            // The receiver is fully initialized and the field type
-            // has the invariant type.
-            if (isReceiverInitialized
-                    && AnnotationUtils.containsSame(fieldType.getAnnotations(), invariantAnno)) {
-                return true;
-            }
-        }
-        return super.checkContract(expr, necessaryAnnotation, inferredAnnotation, store);
-    }
-
-    @Override
-    public Void visitTypeCast(TypeCastTree node, Void p) {
-        AnnotatedTypeMirror exprType = atypeFactory.getAnnotatedType(node.getExpression());
-        AnnotatedTypeMirror castType = atypeFactory.getAnnotatedType(node);
-        AnnotationMirror exprAnno = null, castAnno = null;
-
-        // find commitment annotation
-        for (Class<? extends Annotation> a : atypeFactory.getInitializationAnnotations()) {
-            if (castType.hasAnnotation(a)) {
-                assert castAnno == null;
-                castAnno = castType.getAnnotation(a);
-            }
-            if (exprType.hasAnnotation(a)) {
-                assert exprAnno == null;
-                exprAnno = exprType.getAnnotation(a);
-            }
-        }
-
-        // TODO: this is most certainly unsafe!! (and may be hiding some problems)
-        // If we don't find a commitment annotation, then we just assume that
-        // the subtyping is alright.
-        // The case that has come up is with wildcards not getting a type for
-        // some reason, even though the default is @Initialized.
-        boolean isSubtype;
-        if (exprAnno == null || castAnno == null) {
-            isSubtype = true;
-        } else {
-            assert exprAnno != null && castAnno != null;
-            isSubtype = atypeFactory.getQualifierHierarchy().isSubtype(exprAnno, castAnno);
-        }
-
-        if (!isSubtype) {
-            checker.reportError(
-                    node,
-                    COMMITMENT_INVALID_CAST,
-                    annoFormatter.formatAnnotationMirror(exprAnno),
-                    annoFormatter.formatAnnotationMirror(castAnno));
-            return p; // suppress cast.unsafe warning
-        }
-
-        return super.visitTypeCast(node, p);
-    }
-
-    protected final List<VariableTree> initializedFields;
-
-    @Override
-    public void processClassTree(ClassTree node) {
+    public void processClassTree(ClassTree tree) {
         // go through all members and look for initializers.
         // save all fields that are initialized and do not report errors about
         // them later when checking constructors.
-        for (Tree member : node.getMembers()) {
-            if (member.getKind() == Tree.Kind.BLOCK && !((BlockTree) member).isStatic()) {
+        for (Tree member : tree.getMembers()) {
+            if (member instanceof BlockTree && !((BlockTree) member).isStatic()) {
                 BlockTree block = (BlockTree) member;
-                Store store = atypeFactory.getRegularExitStore(block);
+                InitializationStore store = atypeFactory.getRegularExitStore(block);
 
                 // Add field values for fields with an initializer.
-                for (FieldInitialValue<Value> fieldInitialValue :
+                for (FieldInitialValue<CFValue> fieldInitialValue :
                         store.getAnalysis().getFieldInitialValues()) {
                     if (fieldInitialValue.initializer != null) {
                         store.addInitializedField(fieldInitialValue.fieldDecl.getField());
                     }
                 }
-                final List<VariableTree> init =
-                        atypeFactory.getInitializedInvariantFields(store, getCurrentPath());
+                List<VariableTree> init =
+                        atypeFactory.getInitializedFields(store, getCurrentPath());
                 initializedFields.addAll(init);
             }
         }
 
-        super.processClassTree(node);
+        super.processClassTree(tree);
 
         // Warn about uninitialized static fields.
-        Tree.Kind nodeKind = node.getKind();
+        Tree.Kind nodeKind = tree.getKind();
         // Skip interfaces (and annotations, which are interfaces).  In an interface, every static
-        // field must be initialized.  Java forbids uninitialized variables and static initalizer
+        // field must be initialized.  Java forbids uninitialized variables and static initializer
         // blocks.
         if (nodeKind != Tree.Kind.INTERFACE && nodeKind != Tree.Kind.ANNOTATION_TYPE) {
-            boolean isStatic = true;
             // See GenericAnnotatedTypeFactory.performFlowAnalysis for why we use
             // the regular exit store of the class here.
-            Store store = atypeFactory.getRegularExitStore(node);
-            // Add field values for fields with an initializer.
-            for (FieldInitialValue<Value> fieldInitialValue :
-                    store.getAnalysis().getFieldInitialValues()) {
-                if (fieldInitialValue.initializer != null) {
-                    store.addInitializedField(fieldInitialValue.fieldDecl.getField());
+            InitializationStore store = atypeFactory.getRegularExitStore(tree);
+            if (store != null) {
+                // Add field values for fields with an initializer.
+                for (FieldInitialValue<CFValue> fieldInitialValue :
+                        store.getAnalysis().getFieldInitialValues()) {
+                    if (fieldInitialValue.initializer != null) {
+                        store.addInitializedField(fieldInitialValue.fieldDecl.getField());
+                    }
                 }
             }
 
             List<AnnotationMirror> receiverAnnotations = Collections.emptyList();
-            checkFieldsInitialized(node, isStatic, store, receiverAnnotations);
+            checkFieldsInitialized(tree, true, store, receiverAnnotations);
         }
     }
 
     @Override
-    public Void visitMethod(MethodTree node, Void p) {
-        if (TreeUtils.isConstructor(node)) {
+    public void processMethodTree(String className, MethodTree tree) {
+        if (TreeUtils.isConstructor(tree)) {
             Collection<? extends AnnotationMirror> returnTypeAnnotations =
-                    AnnotationUtils.getExplicitAnnotationsOnConstructorResult(node);
-            // check for invalid constructor return type
-            for (Class<? extends Annotation> c :
-                    atypeFactory.getInvalidConstructorReturnTypeAnnotations()) {
-                for (AnnotationMirror a : returnTypeAnnotations) {
-                    if (atypeFactory.areSameByClass(a, c)) {
-                        checker.reportError(node, COMMITMENT_INVALID_CONSTRUCTOR_RETURN_TYPE, node);
-                        break;
-                    }
+                    AnnotationUtils.getExplicitAnnotationsOnConstructorResult(tree);
+            // getExplicitAnnotationsOnConstructorResult is a javacutil-level utility with no
+            // factory access, so it returns each annotation as written; resolve aliasing here,
+            // via the same asSupportedQualifier used by AnnotatedTypeMirror#getExplicitAnnotations.
+            for (AnnotationMirror am : returnTypeAnnotations) {
+                if (atypeFactory.asSupportedQualifier(am) != null) {
+                    checker.reportError(tree, COMMITMENT_INVALID_CONSTRUCTOR_RETURN_TYPE, tree);
+                    break;
                 }
             }
 
             // Check that all fields have been initialized at the end of the constructor.
             boolean isStatic = false;
-            Store store = atypeFactory.getRegularExitStore(node);
-            List<? extends AnnotationMirror> receiverAnnotations = getAllReceiverAnnotations(node);
-            checkFieldsInitialized(node, isStatic, store, receiverAnnotations);
+
+            InitializationStore store = atypeFactory.getRegularExitStore(tree);
+            List<? extends AnnotationMirror> receiverAnnotations = getAllReceiverAnnotations(tree);
+            checkFieldsInitialized(tree, isStatic, store, receiverAnnotations);
         }
-        return super.visitMethod(node, p);
+        super.processMethodTree(className, tree);
     }
 
-    /** Returns the full list of annotations on the receiver. */
-    private List<? extends AnnotationMirror> getAllReceiverAnnotations(MethodTree node) {
+    /**
+     * The assignment/variable/method invocation tree currently being checked.
+     *
+     * <p>In the case that the right-hand side is an object, this is used by {@link
+     * #reportCommonAssignmentError(AnnotatedTypeMirror, AnnotatedTypeMirror, Tree, String,
+     * Object...)} to get the correct store value for the right-hand side's fields and check whether
+     * they are initialized according to the target checker.
+     */
+    protected Tree commonAssignmentTree;
+
+    @Override
+    public Void visitVariable(VariableTree tree, Void p) {
+        Tree oldCommonAssignmentTree = commonAssignmentTree;
+        commonAssignmentTree = tree;
+        // is this a field (and not a local variable)?
+        if (TreeUtils.elementFromDeclaration(tree).getKind().isField()) {
+            AnnotationMirrorSet annotationMirrors =
+                    atypeFactory.getAnnotatedType(tree).getExplicitAnnotations();
+            // Fields cannot have commitment annotations.  Iterate the (typically tiny)
+            // explicit-annotation set in the outer loop and short-circuit on the first match,
+            // rather than scanning all supported qualifiers and only breaking the inner loop.
+            outer:
+            for (AnnotationMirror a : annotationMirrors) {
+                if (atypeFactory.isUnknownInitialization(a)) {
+                    continue; // unknown initialization is allowed
+                }
+                for (Class<? extends Annotation> c : atypeFactory.getSupportedTypeQualifiers()) {
+                    if (atypeFactory.areSameByClass(a, c)) {
+                        checker.reportError(tree, COMMITMENT_INVALID_FIELD_TYPE, tree);
+                        break outer;
+                    }
+                }
+            }
+        }
+        super.visitVariable(tree, p);
+        commonAssignmentTree = oldCommonAssignmentTree;
+        return null;
+    }
+
+    @Override
+    public Void visitAssignment(AssignmentTree node, Void p) {
+        Tree oldCommonAssignmentTree = commonAssignmentTree;
+        commonAssignmentTree = node;
+        super.visitAssignment(node, p);
+        commonAssignmentTree = oldCommonAssignmentTree;
+        return null;
+    }
+
+    @Override
+    public Void visitMethodInvocation(MethodInvocationTree node, Void p) {
+        Tree oldCommonAssignmentTree = commonAssignmentTree;
+        commonAssignmentTree = node;
+        super.visitMethodInvocation(node, p);
+        commonAssignmentTree = oldCommonAssignmentTree;
+        return null;
+    }
+
+    @Override
+    protected void reportMethodInvocabilityError(
+            MethodInvocationTree tree, AnnotatedTypeMirror found, AnnotatedTypeMirror expected) {
+        // Field initialization is tracked only for the current receiver, so the fields cannot be
+        // named for a call on anything else.
+        if (!TreeUtils.isSelfAccess(tree)) {
+            super.reportMethodInvocabilityError(tree, found, expected);
+            return;
+        }
+
+        GenericAnnotatedTypeFactory<?, ?, ?, ?> targetFactory =
+                checker.getTypeFactoryOfSubcheckerOrNull(
+                        ((InitializationChecker) checker).getTargetCheckerClass());
+        InitializationStore initStore = atypeFactory.getStoreBefore(tree);
+        CFAbstractStore<?, ?> targetStore = targetFactory.getStoreBefore(tree);
+        if (initStore == null) {
+            // Without a store, which fields are initialized cannot be determined.
+            super.reportMethodInvocabilityError(tree, found, expected);
+            return;
+        }
+
+        List<VariableTree> uninitializedFields =
+                targetStore != null
+                        ? atypeFactory.getUninitializedFields(
+                                initStore,
+                                targetStore,
+                                getCurrentPath(),
+                                false,
+                                Collections.emptyList())
+                        : atypeFactory.getUninitializedFields(
+                                initStore, getCurrentPath(), false, Collections.emptyList());
+        uninitializedFields.removeAll(initializedFields);
+        if (uninitializedFields.isEmpty()) {
+            // There is nothing to add to the message the superclass issues.
+            super.reportMethodInvocabilityError(tree, found, expected);
+            return;
+        }
+
+        StringJoiner fields = new StringJoiner(", ");
+        for (VariableTree f : uninitializedFields) {
+            fields.add(f.getName());
+        }
+        checker.reportError(
+                tree,
+                "initialization.method.invocation.invalid",
+                TreeUtils.elementFromUse(tree),
+                fields.toString(),
+                found.toString(),
+                expected.toString());
+    }
+
+    /**
+     * Returns the full list of annotations on the receiver.
+     *
+     * @param tree a method declaration
+     * @return all the annotations on the method's receiver
+     */
+    private List<? extends AnnotationMirror> getAllReceiverAnnotations(MethodTree tree) {
         // TODO: get access to a Types instance and use it to get receiver type
         // Or, extend ExecutableElement with such a method.
         // Note that we cannot use the receiver type from AnnotatedExecutableType, because that
         // would only have the nullness annotations; here we want to see all annotations on the
         // receiver.
-        List<? extends AnnotationMirror> rcvannos = null;
-        if (TreeUtils.isConstructor(node)) {
+        if (TreeUtils.isConstructor(tree)) {
             com.sun.tools.javac.code.Symbol meth =
-                    (com.sun.tools.javac.code.Symbol) TreeUtils.elementFromDeclaration(node);
-            rcvannos = meth.getRawTypeAttributes();
-            if (rcvannos == null) {
-                rcvannos = Collections.emptyList();
-            }
+                    (com.sun.tools.javac.code.Symbol) TreeUtils.elementFromDeclaration(tree);
+            return meth.getRawTypeAttributes();
         }
-        return rcvannos;
+        return Collections.emptyList();
     }
 
     /**
-     * Checks that all fields (all static fields if {@code staticFields} is true) are initialized in
-     * the given store.
+     * Checks that all fields (all static fields if {@code staticFields} is true) are initialized at
+     * the end of a given constructor or static class initializer.
      *
-     * @param node a {@link ClassTree} if {@code staticFields} is true; a {@link MethodTree} for a
+     * @param tree a {@link ClassTree} if {@code staticFields} is true; a {@link MethodTree} for a
      *     constructor if {@code staticFields} is false. This is where errors are reported, if they
      *     are not reported at the fields themselves
      * @param staticFields whether to check static fields or instance fields
-     * @param store the store
+     * @param initExitStore the initialization exit store for the constructor or static initializer
      * @param receiverAnnotations the annotations on the receiver
      */
     // TODO: the code for checking if fields are initialized should be re-written,
@@ -385,93 +382,86 @@ public class InitializationVisitor<
     // GenericAnnotatedTypeFactory.initializationStaticStore and
     // GenericAnnotatedTypeFactory.initializationStore.
     protected void checkFieldsInitialized(
-            Tree node,
+            Tree tree,
             boolean staticFields,
-            Store store,
+            InitializationStore initExitStore,
             List<? extends AnnotationMirror> receiverAnnotations) {
         // If the store is null, then the constructor cannot terminate successfully
-        if (store == null) {
+        if (initExitStore == null) {
             return;
         }
 
         // Compact canonical record constructors do not generate visible assignments in the source,
         // but by definition they assign to all the record's fields so we don't need to
         // check for uninitialized fields in them:
-        if (node.getKind() == Tree.Kind.METHOD
-                && TreeUtils.isCompactCanonicalRecordConstructor((MethodTree) node)) {
+        if (tree instanceof MethodTree
+                && TreeUtils.isCompactCanonicalRecordConstructor((MethodTree) tree)) {
             return;
         }
 
-        Pair<List<VariableTree>, List<VariableTree>> uninitializedFields =
+        GenericAnnotatedTypeFactory<?, ?, ?, ?> targetFactory =
+                checker.getTypeFactoryOfSubcheckerOrNull(
+                        ((InitializationChecker) checker).getTargetCheckerClass());
+        // The target checker's store corresponding to initExitStore
+        CFAbstractStore<?, ?> targetExitStore = targetFactory.getRegularExitStore(tree);
+        List<VariableTree> uninitializedFields =
                 atypeFactory.getUninitializedFields(
-                        store, getCurrentPath(), staticFields, receiverAnnotations);
-        List<VariableTree> violatingFields = uninitializedFields.first;
-        List<VariableTree> nonviolatingFields = uninitializedFields.second;
-
-        // Remove fields that have already been initialized by an initializer block.
-        if (staticFields) {
-            violatingFields.removeAll(initializedFields);
-            nonviolatingFields.removeAll(initializedFields);
-        } else {
-            violatingFields.removeAll(initializedFields);
-            nonviolatingFields.removeAll(initializedFields);
-        }
+                        initExitStore,
+                        targetExitStore,
+                        getCurrentPath(),
+                        staticFields,
+                        receiverAnnotations);
+        uninitializedFields.removeAll(initializedFields);
 
         // Errors are issued at the field declaration if the field is static or if the constructor
         // is the default constructor.
         // Errors are issued at the constructor declaration if the field is non-static and the
         // constructor is non-default.
-        boolean errorAtField = staticFields || TreeUtils.isSynthetic((MethodTree) node);
+        boolean errorAtField = staticFields || TreeUtils.isSynthetic((MethodTree) tree);
 
-        String FIELDS_UNINITIALIZED_KEY =
+        String errorMsg =
                 (staticFields
                         ? "initialization.static.field.uninitialized"
                         : errorAtField
                                 ? "initialization.field.uninitialized"
                                 : "initialization.fields.uninitialized");
 
-        // Remove fields with a relevant @SuppressWarnings annotation.
-        violatingFields.removeIf(
-                f ->
-                        checker.shouldSuppressWarnings(
-                                TreeUtils.elementFromTree(f), FIELDS_UNINITIALIZED_KEY));
-        nonviolatingFields.removeIf(
-                f ->
-                        checker.shouldSuppressWarnings(
-                                TreeUtils.elementFromTree(f), FIELDS_UNINITIALIZED_KEY));
+        // Remove fields with a relevant @SuppressWarnings annotation
+        uninitializedFields.removeIf(
+                f -> checker.shouldSuppressWarnings(TreeUtils.elementFromDeclaration(f), errorMsg));
 
-        if (!violatingFields.isEmpty()) {
+        if (!uninitializedFields.isEmpty()) {
             if (errorAtField) {
                 // Issue each error at the relevant field
-                for (VariableTree f : violatingFields) {
-                    checker.reportError(f, FIELDS_UNINITIALIZED_KEY, f.getName());
+                for (VariableTree f : uninitializedFields) {
+                    checker.reportError(f, errorMsg, f.getName());
                 }
             } else {
                 // Issue all the errors at the relevant constructor
                 StringJoiner fieldsString = new StringJoiner(", ");
-                for (VariableTree f : violatingFields) {
+                for (VariableTree f : uninitializedFields) {
                     fieldsString.add(f.getName());
                 }
-                checker.reportError(node, FIELDS_UNINITIALIZED_KEY, fieldsString);
+                checker.reportError(tree, errorMsg, fieldsString);
             }
         }
 
         /* NO-AFU
-               // Support -Ainfer command-line argument.
-               WholeProgramInference wpi = atypeFactory.getWholeProgramInference();
-               if (wpi != null) {
-                   // For each uninitialized field, treat it as if the default value is assigned to it.
-                   List<VariableTree> uninitFields = new ArrayList<>(violatingFields);
-                   uninitFields.addAll(nonviolatingFields);
-                   for (VariableTree fieldTree : uninitFields) {
-                       Element elt = TreeUtils.elementFromTree(fieldTree);
-                       wpi.updateFieldFromType(
-                               fieldTree,
-                               elt,
-                               fieldTree.getName().toString(),
-                               atypeFactory.getDefaultValueAnnotatedType(elt.asType()));
-                   }
-               }
+        // Support -Ainfer command-line argument.
+        WholeProgramInference wpi = atypeFactory.getWholeProgramInference();
+        if (wpi != null) {
+          // For each uninitialized field, treat it as if the default value is assigned to it.
+          List<VariableTree> uninitFields = new ArrayList<>(violatingFields);
+          uninitFields.addAll(nonviolatingFields);
+          for (VariableTree fieldTree : uninitFields) {
+            Element elt = TreeUtils.elementFromDeclaration(fieldTree);
+            wpi.updateFieldFromType(
+                fieldTree,
+                elt,
+                fieldTree.getName().toString(),
+                atypeFactory.getDefaultValueAnnotatedType(elt.asType()));
+          }
+        }
         */
     }
 }

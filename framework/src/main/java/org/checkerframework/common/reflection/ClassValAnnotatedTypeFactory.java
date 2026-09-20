@@ -8,6 +8,7 @@ import com.sun.tools.javac.code.Type;
 import com.sun.tools.javac.code.Type.ArrayType;
 import com.sun.tools.javac.code.Type.UnionClassType;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.common.basetype.BaseAnnotatedTypeFactory;
 import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.common.reflection.qual.ClassBound;
@@ -30,15 +31,14 @@ import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.TreePathUtil;
 import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TypesUtils;
+import org.plumelib.util.CollectionsPlume;
 
 import java.lang.annotation.Annotation;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.TreeSet;
 
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.ExecutableElement;
@@ -46,6 +46,7 @@ import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.util.Elements;
 
+/** A type factory for the @ClassVal and @ClassBound annotations. */
 public class ClassValAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
 
     protected final AnnotationMirror CLASSVAL_TOP =
@@ -54,6 +55,7 @@ public class ClassValAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
     /** The ClassBound.value argument/element. */
     private final ExecutableElement classBoundValueElement =
             TreeUtils.getMethod(ClassBound.class, "value", 0, processingEnv);
+
     /** The ClassVal.value argument/element. */
     private final ExecutableElement classValValueElement =
             TreeUtils.getMethod(ClassVal.class, "value", 0, processingEnv);
@@ -63,6 +65,7 @@ public class ClassValAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
      *
      * @param checker the type-checker associated with this factory
      */
+    @SuppressWarnings("this-escape")
     public ClassValAnnotatedTypeFactory(BaseTypeChecker checker) {
         super(checker);
 
@@ -138,7 +141,7 @@ public class ClassValAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
          */
         public ClassValQualifierHierarchy(
                 Set<Class<? extends Annotation>> qualifierClasses, Elements elements) {
-            super(qualifierClasses, elements);
+            super(qualifierClasses, elements, ClassValAnnotatedTypeFactory.this);
         }
 
         /*
@@ -147,52 +150,52 @@ public class ClassValAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
          * obtained by combining the values of both annotations.
          */
         @Override
-        public AnnotationMirror leastUpperBound(AnnotationMirror a1, AnnotationMirror a2) {
+        public @Nullable AnnotationMirror leastUpperBoundQualifiers(
+                AnnotationMirror a1, AnnotationMirror a2) {
             if (!AnnotationUtils.areSameByName(getTopAnnotation(a1), getTopAnnotation(a2))) {
                 return null;
-            } else if (isSubtype(a1, a2)) {
+            } else if (isSubtypeQualifiers(a1, a2)) {
                 return a2;
-            } else if (isSubtype(a2, a1)) {
+            } else if (isSubtypeQualifiers(a2, a1)) {
                 return a1;
             } else {
                 List<String> a1ClassNames = getClassNamesFromAnnotation(a1);
                 List<String> a2ClassNames = getClassNamesFromAnnotation(a2);
-                Set<String> lubClassNames = new TreeSet<>();
-                lubClassNames.addAll(a1ClassNames);
-                lubClassNames.addAll(a2ClassNames);
+                // There are usually few arguments/elements of @ClassBound and @ClassVal.
+                List<String> lubClassNames = CollectionsPlume.listUnion(a1ClassNames, a2ClassNames);
 
                 // If either annotation is a ClassBound, the lub must also be a class bound.
                 if (areSameByClass(a1, ClassBound.class) || areSameByClass(a2, ClassBound.class)) {
-                    return createClassBound(new ArrayList<>(lubClassNames));
+                    return createClassBound(lubClassNames);
                 } else {
-                    return createClassVal(new ArrayList<>(lubClassNames));
+                    return createClassVal(lubClassNames);
                 }
             }
         }
 
         @Override
-        public AnnotationMirror greatestLowerBound(AnnotationMirror a1, AnnotationMirror a2) {
+        public @Nullable AnnotationMirror greatestLowerBoundQualifiers(
+                AnnotationMirror a1, AnnotationMirror a2) {
             if (!AnnotationUtils.areSameByName(getTopAnnotation(a1), getTopAnnotation(a2))) {
                 return null;
-            } else if (isSubtype(a1, a2)) {
+            } else if (isSubtypeQualifiers(a1, a2)) {
                 return a1;
-            } else if (isSubtype(a2, a1)) {
+            } else if (isSubtypeQualifiers(a2, a1)) {
                 return a2;
             } else {
                 List<String> a1ClassNames = getClassNamesFromAnnotation(a1);
                 List<String> a2ClassNames = getClassNamesFromAnnotation(a2);
-                Set<String> glbClassNames = new TreeSet<>();
-                glbClassNames.addAll(a1ClassNames);
-                glbClassNames.retainAll(a2ClassNames);
+                List<String> glbClassNames =
+                        CollectionsPlume.listIntersection(a1ClassNames, a2ClassNames);
 
                 // If either annotation is a ClassVal, the glb must also be a ClassVal.
                 // For example:
                 // GLB( @ClassVal(a,b), @ClassBound(a,c)) is @ClassVal(a)
                 // because @ClassBound(a) is not a subtype of @ClassVal(a,b)
                 if (areSameByClass(a1, ClassVal.class) || areSameByClass(a2, ClassVal.class)) {
-                    return createClassVal(new ArrayList<>(glbClassNames));
+                    return createClassVal(glbClassNames);
                 } else {
-                    return createClassBound(new ArrayList<>(glbClassNames));
+                    return createClassBound(glbClassNames);
                 }
             }
         }
@@ -203,7 +206,7 @@ public class ClassValAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
          * a subtype of lhs iff lhs contains  every element of rhs.
          */
         @Override
-        public boolean isSubtype(AnnotationMirror subAnno, AnnotationMirror superAnno) {
+        public boolean isSubtypeQualifiers(AnnotationMirror subAnno, AnnotationMirror superAnno) {
             if (AnnotationUtils.areSame(subAnno, superAnno)
                     || areSameByClass(superAnno, UnknownClass.class)
                     || areSameByClass(subAnno, ClassValBottom.class)) {
@@ -266,7 +269,6 @@ public class ClassValAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
 
         @Override
         public Void visitMethodInvocation(MethodInvocationTree tree, AnnotatedTypeMirror type) {
-
             if (isForNameMethodInvocation(tree)) {
                 // Class.forName(name): @ClassVal("name")
                 ExpressionTree arg = tree.getArguments().get(0);
@@ -293,21 +295,27 @@ public class ClassValAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
 
         /**
          * Return true if this is an invocation of a method annotated with @ForName. An example of
-         * such a method is Class.forName.
+         * such a method is {@link Class#forName}.
+         *
+         * @param tree a method invocation
+         * @return true if this is an invocation of a method annotated with @ForName
          */
         private boolean isForNameMethodInvocation(MethodInvocationTree tree) {
-            return getDeclAnnotation(TreeUtils.elementFromTree(tree), ForName.class) != null;
+            return getDeclAnnotation(TreeUtils.elementFromUse(tree), ForName.class) != null;
         }
 
         /**
          * Return true if this is an invocation of a method annotated with @GetClass. An example of
-         * such a method is Object.getClassName.
+         * such a method is {@link Object#getClass}.
+         *
+         * @param tree a method invocation
+         * @return true if this is an invocation of a method annotated with @GetClass
          */
         private boolean isGetClassMethodInvocation(MethodInvocationTree tree) {
-            return getDeclAnnotation(TreeUtils.elementFromTree(tree), GetClass.class) != null;
+            return getDeclAnnotation(TreeUtils.elementFromUse(tree), GetClass.class) != null;
         }
 
-        private List<String> getStringValues(ExpressionTree arg) {
+        private @Nullable List<String> getStringValues(ExpressionTree arg) {
             ValueAnnotatedTypeFactory valueATF = getTypeFactoryOfSubchecker(ValueChecker.class);
             AnnotationMirror annotation = valueATF.getAnnotationMirror(arg, StringVal.class);
             if (annotation == null) {
@@ -320,29 +328,46 @@ public class ClassValAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
         // TODO: This looks like it returns a @BinaryName. Verify that fact and add a type
         // qualifier.
         /**
-         * Return String representation of class name. This will not return the correct name for
-         * anonymous classes.
+         * Return a binary name String representation of the given type. For anonymous classes this
+         * method returns the name of the implemented interface or the extended class.
+         *
+         * @param type the type to convert
+         * @return the binary name representation of the given type
          */
-        private String getClassNameFromType(Type classType) {
-            switch (classType.getKind()) {
+        private String getClassNameFromType(Type type) {
+            switch (type.getKind()) {
                 case ARRAY:
                     String array = "";
-                    while (classType.getKind() == TypeKind.ARRAY) {
-                        classType = ((ArrayType) classType).getComponentType();
+                    while (type.getKind() == TypeKind.ARRAY) {
+                        type = ((ArrayType) type).getComponentType();
                         array += "[]";
                     }
-                    return getClassNameFromType(classType) + array;
+                    return getClassNameFromType(type) + array;
                 case DECLARED:
+                    if (type.tsym.isAnonymous()) {
+                        // An anonymous class either directly extends a class or directly implements
+                        // an interface.
+                        // A supertype_field will always be present, but it's just Object if an
+                        // interface is implemented.
+                        // Check for an interface first, otherwise use the super class.
+                        Type.ClassType asClassType = (Type.ClassType) type;
+                        if (asClassType.interfaces_field.nonEmpty()) {
+                            // There can only be one implemented interface, so this introduces no
+                            // ambiguity.
+                            return getClassNameFromType(asClassType.interfaces_field.get(0));
+                        } else {
+                            return getClassNameFromType(asClassType.supertype_field);
+                        }
+                    }
                     StringBuilder className =
-                            new StringBuilder(
-                                    TypesUtils.getQualifiedName((DeclaredType) classType));
-                    if (classType.getEnclosingType() != null) {
-                        while (classType.getEnclosingType().getKind() != TypeKind.NONE) {
-                            classType = classType.getEnclosingType();
-                            int last = className.lastIndexOf(".");
-                            if (last > -1) {
-                                className.replace(last, last + 1, "$");
-                            }
+                            new StringBuilder(TypesUtils.getQualifiedName((DeclaredType) type));
+                    // Convert the separators for enclosing types from "." to "$".
+                    // TODO: should this variant be in TypesUtils?
+                    while (type.getEnclosingType().getKind() != TypeKind.NONE) {
+                        type = type.getEnclosingType();
+                        int last = className.lastIndexOf(".");
+                        if (last > -1) {
+                            className.replace(last, last + 1, "$");
                         }
                     }
                     return className.toString();
@@ -352,12 +377,12 @@ public class ClassValAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
                 case NULL:
                     return "java.lang.Object";
                 case UNION:
-                    classType = ((UnionClassType) classType).getLub();
-                    return getClassNameFromType(classType);
+                    type = ((UnionClassType) type).getLub();
+                    return getClassNameFromType(type);
                 case TYPEVAR:
                 case WILDCARD:
-                    classType = classType.getUpperBound();
-                    return getClassNameFromType(classType);
+                    type = type.getUpperBound();
+                    return getClassNameFromType(type);
                 case INT:
                     return int.class.getCanonicalName();
                 case LONG:
@@ -378,8 +403,8 @@ public class ClassValAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
                     return "void";
                 default:
                     throw new BugInCF(
-                            "ClassValAnnotatedTypeFactory.getClassname: did not expect "
-                                    + classType.getKind());
+                            "ClassValTreeAnnotator.getClassNameFromType: did not expect "
+                                    + type.getKind());
             }
         }
     }

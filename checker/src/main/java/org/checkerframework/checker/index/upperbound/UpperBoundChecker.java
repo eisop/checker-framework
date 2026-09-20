@@ -15,11 +15,12 @@ import org.checkerframework.checker.signature.qual.FullyQualifiedName;
 import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.common.value.ValueChecker;
 import org.checkerframework.framework.qual.RelevantJavaTypes;
+import org.checkerframework.framework.source.SourceChecker;
 import org.checkerframework.framework.source.SuppressWarningsPrefix;
 import org.checkerframework.javacutil.TreeUtils;
 
 import java.util.HashSet;
-import java.util.LinkedHashSet;
+import java.util.Set;
 
 import javax.lang.model.element.ExecutableElement;
 
@@ -44,17 +45,22 @@ import javax.lang.model.element.ExecutableElement;
 public class UpperBoundChecker extends BaseTypeChecker {
     /** The SubstringIndexFor.value argument/element. */
     public @MonotonicNonNull ExecutableElement substringIndexForValueElement;
+
     /** The SubstringIndexFor.offset argument/element. */
     public @MonotonicNonNull ExecutableElement substringIndexForOffsetElement;
 
     /** The LTLengthOf.value argument/element. */
     public @MonotonicNonNull ExecutableElement ltLengthOfValueElement;
+
     /** The LTLengthOf.offset argument/element. */
     public @MonotonicNonNull ExecutableElement ltLengthOfOffsetElement;
+
     /** The LTEqLengthOf.value argument/element. */
     public @MonotonicNonNull ExecutableElement ltEqLengthOfValueElement;
+
     /** The LTOMLengthOf.value argument/element. */
     public @MonotonicNonNull ExecutableElement ltOMLengthOfValueElement;
+
     /** The UpperBoundLiteral.value element/field. */
     public @MonotonicNonNull ExecutableElement upperBoundLiteralValueElement;
 
@@ -62,7 +68,7 @@ public class UpperBoundChecker extends BaseTypeChecker {
      * These collection classes have some subtypes whose length can change and some subtypes whose
      * length cannot change. Warnings are skipped at uses of them.
      */
-    private HashSet<String> collectionBaseTypeNames;
+    private final HashSet<String> collectionBaseTypeNames;
 
     /** Create a new UpperBoundChecker. */
     public UpperBoundChecker() {
@@ -102,9 +108,8 @@ public class UpperBoundChecker extends BaseTypeChecker {
     }
 
     @Override
-    protected LinkedHashSet<Class<? extends BaseTypeChecker>> getImmediateSubcheckerClasses() {
-        LinkedHashSet<Class<? extends BaseTypeChecker>> checkers =
-                super.getImmediateSubcheckerClasses();
+    protected Set<Class<? extends SourceChecker>> getImmediateSubcheckerClasses() {
+        Set<Class<? extends SourceChecker>> checkers = super.getImmediateSubcheckerClasses();
         checkers.add(SubstringIndexChecker.class);
         checkers.add(SearchIndexChecker.class);
         checkers.add(SameLenChecker.class);

@@ -5,7 +5,6 @@ import org.junit.runner.Runner;
 import org.junit.runner.notification.RunNotifier;
 import org.junit.runners.BlockJUnit4ClassRunner;
 import org.junit.runners.Parameterized.Parameters;
-import org.junit.runners.Suite;
 import org.junit.runners.model.FrameworkMethod;
 import org.junit.runners.model.InitializationError;
 import org.junit.runners.model.Statement;
@@ -36,8 +35,9 @@ import java.util.StringJoiner;
  * test against OR a {@code String []} where each String in the array is a directory in the tests
  * directory.
  */
-public class PerFileSuite extends Suite {
+public class PerFileSuite extends RootedSuite {
 
+    /** Name */
     @Retention(RetentionPolicy.RUNTIME)
     @Target(ElementType.METHOD)
     public @interface Name {}
@@ -54,15 +54,20 @@ public class PerFileSuite extends Suite {
      *
      * @param klass the class whose tests to run
      */
-    @SuppressWarnings("nullness") // JUnit needs to be annotated
+    @SuppressWarnings({
+        "nullness", // JUnit needs to be annotated
+        "this-escape"
+    })
     public PerFileSuite(Class<?> klass) throws Throwable {
         super(klass, Collections.emptyList());
-        final TestClass testClass = getTestClass();
-        final Class<?> javaTestClass = testClass.getJavaClass();
-        final List<Object[]> parametersList = getParametersList(testClass);
+        TestClass testClass = getTestClass();
+        Class<?> javaTestClass = testClass.getJavaClass();
+        List<Object[]> parametersList = getParametersList(testClass);
 
         for (Object[] parameters : parametersList) {
-            runners.add(new PerParameterSetTestRunner(javaTestClass, parameters));
+            runners.add(
+                    new PerParameterSetTestRunner(
+                            javaTestClass, resolveTestDirectory(), parameters));
         }
     }
 
@@ -82,7 +87,7 @@ public class PerFileSuite extends Suite {
         }
         if (method.getReturnType().isArray()) {
             String[] dirs = (String[]) method.invokeExplosively(null);
-            javaFiles = TestUtilities.findNestedJavaTestFiles(dirs);
+            javaFiles = TestUtilities.findRelativeNestedJavaFiles(resolveTestDirectory(), dirs);
         } else {
             javaFiles = (List<File>) method.invokeExplosively(null);
         }
@@ -95,8 +100,7 @@ public class PerFileSuite extends Suite {
 
     /** Returns method annotated @Parameters, typically the getTestDirs or getTestFiles method. */
     private FrameworkMethod getParametersMethod(TestClass testClass) {
-        final List<FrameworkMethod> parameterMethods =
-                testClass.getAnnotatedMethods(Parameters.class);
+        List<FrameworkMethod> parameterMethods = testClass.getAnnotatedMethods(Parameters.class);
         if (parameterMethods.size() != 1) {
             // Construct error message
 
@@ -161,10 +165,24 @@ public class PerFileSuite extends Suite {
 
     /** Runs the test class for the set of parameters passed in the constructor. */
     private static class PerParameterSetTestRunner extends BlockJUnit4ClassRunner {
+        /** A directory prefix to remove from the test name. */
+        private final File directoryPrefix;
+
+        /** The parameters, java source file(s) under {@link #directoryPrefix}. */
         private final Object[] parameters;
 
-        PerParameterSetTestRunner(Class<?> type, Object[] parameters) throws InitializationError {
+        /**
+         * Creates a PerParameterSetTestRunner for the test class {@code type}.
+         *
+         * @param type the test class
+         * @param directoryPrefix directory prefix to remove from the test name
+         * @param parameters java source file(s) under {@link #directoryPrefix}
+         * @throws InitializationError if the test class is malformed
+         */
+        PerParameterSetTestRunner(Class<?> type, File directoryPrefix, Object[] parameters)
+                throws InitializationError {
             super(type);
+            this.directoryPrefix = directoryPrefix;
             this.parameters = parameters;
         }
 
@@ -173,12 +191,17 @@ public class PerFileSuite extends Suite {
             return getTestClass().getOnlyConstructor().newInstance(parameters);
         }
 
+        /**
+         * Returns the test case's name.
+         *
+         * @return the test case's name
+         */
         String testCaseName() {
             File file = (File) parameters[0];
             String name =
                     file.getPath()
                             .replace(".java", "")
-                            .replace("tests" + System.getProperty("file.separator"), "");
+                            .replace(directoryPrefix.getPath() + File.separator, "");
             return name;
         }
 
@@ -188,7 +211,7 @@ public class PerFileSuite extends Suite {
         }
 
         @Override
-        protected String testName(final FrameworkMethod method) {
+        protected String testName(FrameworkMethod method) {
             return String.format("%s[%s]", method.getName(), testCaseName());
         }
 

@@ -3,6 +3,7 @@ package org.checkerframework.dataflow.cfg.node;
 import com.sun.source.tree.CaseTree;
 
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.SideEffectFree;
 import org.plumelib.util.StringsPlume;
 
 import java.util.ArrayList;
@@ -37,6 +38,9 @@ public class CaseNode extends Node {
      */
     protected final List<Node> caseExprs;
 
+    /** The guard (the expression in the {@code when} clause) for this case. */
+    protected final @Nullable Node guard;
+
     /**
      * Create a new CaseNode.
      *
@@ -44,17 +48,20 @@ public class CaseNode extends Node {
      * @param selectorExprAssignment the Node for the assignment of the switch selector expression
      *     to a synthetic local variable
      * @param caseExprs the case expression(s) to match the switch expression against
+     * @param guard the guard expression or null
      * @param types a factory of utility methods for operating on types
      */
     public CaseNode(
             CaseTree tree,
             AssignmentNode selectorExprAssignment,
             List<Node> caseExprs,
+            @Nullable Node guard,
             Types types) {
         super(types.getNoType(TypeKind.NONE));
         this.tree = tree;
         this.selectorExprAssignment = selectorExprAssignment;
         this.caseExprs = caseExprs;
+        this.guard = guard;
     }
 
     /**
@@ -77,6 +84,15 @@ public class CaseNode extends Node {
         return caseExprs;
     }
 
+    /**
+     * Gets the node for the guard (the expression in the {@code when} clause).
+     *
+     * @return the node for the guard
+     */
+    public @Nullable Node getGuard() {
+        return guard;
+    }
+
     @Override
     public CaseTree getTree() {
         return tree;
@@ -94,6 +110,9 @@ public class CaseNode extends Node {
 
     @Override
     public boolean equals(@Nullable Object obj) {
+        if (this == obj) {
+            return true;
+        }
         if (!(obj instanceof CaseNode)) {
             return false;
         }
@@ -108,10 +127,12 @@ public class CaseNode extends Node {
     }
 
     @Override
+    @SideEffectFree
     public Collection<Node> getOperands() {
-        ArrayList<Node> operands = new ArrayList<>();
+        List<Node> caseOperands = getCaseOperands();
+        ArrayList<Node> operands = new ArrayList<>(caseOperands.size() + 1);
         operands.add(getSwitchOperand());
-        operands.addAll(getCaseOperands());
+        operands.addAll(caseOperands);
         return operands;
     }
 }

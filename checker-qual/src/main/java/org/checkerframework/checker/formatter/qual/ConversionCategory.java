@@ -2,7 +2,6 @@ package org.checkerframework.checker.formatter.qual;
 
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.dataflow.qual.Pure;
-import org.checkerframework.framework.qual.AnnotatedFor;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
@@ -35,7 +34,6 @@ import java.util.StringJoiner;
  * @checker_framework.manual #formatter-checker Format String Checker
  */
 @SuppressWarnings("unchecked") // ".class" expressions in varargs position
-@AnnotatedFor("nullness")
 public enum ConversionCategory {
     /** Use if the parameter can be of any type. Applicable for conversions b, B, h, H, s, S. */
     GENERAL("bBhHsS", (Class<?>[]) null /* everything */),
@@ -146,7 +144,7 @@ public enum ConversionCategory {
                     typesWithPrimitives.add(unwrapped);
                 }
             }
-            this.types = typesWithPrimitives.toArray(new Class<?>[typesWithPrimitives.size()]);
+            this.types = typesWithPrimitives.toArray(new Class<?>[0]);
         }
     }
 
@@ -186,6 +184,13 @@ public enum ConversionCategory {
     }
 
     /**
+     * The conversion categories that have a corresponding conversion character. This lacks UNUSED,
+     * TIME_AND_INT, etc.
+     */
+    private static final ConversionCategory[] conversionCategoriesWithChar =
+            new ConversionCategory[] {GENERAL, CHAR, INT, FLOAT, TIME};
+
+    /**
      * Converts a conversion character to a category. For example:
      *
      * <pre>{@code
@@ -197,7 +202,7 @@ public enum ConversionCategory {
      */
     @SuppressWarnings("nullness:dereference.of.nullable") // `chars` field is non-null for these
     public static ConversionCategory fromConversionChar(char c) {
-        for (ConversionCategory v : new ConversionCategory[] {GENERAL, CHAR, INT, FLOAT, TIME}) {
+        for (ConversionCategory v : conversionCategoriesWithChar) {
             if (v.chars.contains(String.valueOf(c))) {
                 return v;
             }
@@ -212,6 +217,10 @@ public enum ConversionCategory {
     public static boolean isSubsetOf(ConversionCategory a, ConversionCategory b) {
         return intersect(a, b) == a;
     }
+
+    /** Conversion categories that need to be considered by {@link #intersect}. */
+    private static final ConversionCategory[] conversionCategoriesForIntersect =
+            new ConversionCategory[] {CHAR, INT, FLOAT, TIME, CHAR_AND_INT, INT_AND_TIME, NULL};
 
     /**
      * Returns the intersection of two categories. This is seldomly needed.
@@ -251,13 +260,11 @@ public enum ConversionCategory {
         // GENERAL
         Set<Class<?>> bs = arrayToSet(b.types);
         as.retainAll(bs); // intersection
-        for (ConversionCategory v :
-                new ConversionCategory[] {
-                    CHAR, INT, FLOAT, TIME, CHAR_AND_INT, INT_AND_TIME, NULL
-                }) {
+        for (ConversionCategory v : conversionCategoriesForIntersect) {
             @SuppressWarnings(
-                    "nullness:argument.type.incompatible") // `types` field is null only for UNUSED
+                    "nullness:argument.type.incompatible" // `types` field is null only for UNUSED
             // and GENERAL
+            )
             Set<Class<?>> vs = arrayToSet(v.types);
             if (vs.equals(as)) {
                 return v;
@@ -265,6 +272,10 @@ public enum ConversionCategory {
         }
         throw new RuntimeException();
     }
+
+    /** Conversion categories that need to be considered by {@link #union}. */
+    private static final ConversionCategory[] conversionCategoriesForUnion =
+            new ConversionCategory[] {NULL, CHAR_AND_INT, INT_AND_TIME, CHAR, INT, FLOAT, TIME};
 
     /**
      * Returns the union of two categories. This is seldomly needed.
@@ -304,13 +315,11 @@ public enum ConversionCategory {
         // GENERAL
         Set<Class<?>> bs = arrayToSet(b.types);
         as.addAll(bs); // union
-        for (ConversionCategory v :
-                new ConversionCategory[] {
-                    NULL, CHAR_AND_INT, INT_AND_TIME, CHAR, INT, FLOAT, TIME
-                }) {
+        for (ConversionCategory v : conversionCategoriesForUnion) {
             @SuppressWarnings(
-                    "nullness:argument.type.incompatible") // `types` field is null only for UNUSED
+                    "nullness:argument.type.incompatible" // `types` field is null only for UNUSED
             // and GENERAL
+            )
             Set<Class<?>> vs = arrayToSet(v.types);
             if (vs.equals(as)) {
                 return v;

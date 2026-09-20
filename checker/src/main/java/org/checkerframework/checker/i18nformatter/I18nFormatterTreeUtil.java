@@ -31,6 +31,8 @@ import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedExecutab
 import org.checkerframework.framework.util.JavaExpressionParseUtil;
 import org.checkerframework.javacutil.AnnotationBuilder;
 import org.checkerframework.javacutil.AnnotationUtils;
+import org.checkerframework.javacutil.BugInCF;
+import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.TreeUtils;
 
 import java.util.List;
@@ -59,13 +61,16 @@ import javax.lang.model.util.SimpleTypeVisitor8;
 public class I18nFormatterTreeUtil {
     /** The checker. */
     public final BaseTypeChecker checker;
+
     /** The processing environment. */
     public final ProcessingEnvironment processingEnv;
 
     /** The value() element/field of an @I18nFormat annotation. */
     protected final ExecutableElement i18nFormatValueElement;
+
     /** The value() element/field of an @I18nFormatFor annotation. */
     protected final ExecutableElement i18nFormatForValueElement;
+
     /** The value() element/field of an @I18nInvalidFormat annotation. */
     protected final ExecutableElement i18nInvalidFormatValueElement;
 
@@ -119,8 +124,7 @@ public class I18nFormatterTreeUtil {
      * @param anno an I18nInvalidFormat annotation
      * @return its value() element/field, or null if it does not have one
      */
-    /*package-private*/
-    @Nullable String getI18nInvalidFormatValue(AnnotationMirror anno) {
+    /*package-private*/ @Nullable String getI18nInvalidFormatValue(AnnotationMirror anno) {
         return AnnotationUtils.getElementValue(
                 anno, i18nInvalidFormatValueElement, String.class, null);
     }
@@ -221,7 +225,8 @@ public class I18nFormatterTreeUtil {
         checker.reportWarning(res.location, msgKey, args);
     }
 
-    private I18nConversionCategory[] asFormatCallCategoriesLowLevel(MethodInvocationNode node) {
+    private I18nConversionCategory @Nullable [] asFormatCallCategoriesLowLevel(
+            MethodInvocationNode node) {
         Node vararg = node.getArgument(1);
         if (vararg instanceof ArrayCreationNode) {
             List<Node> convs = ((ArrayCreationNode) vararg).getInitializers();
@@ -296,12 +301,16 @@ public class I18nFormatterTreeUtil {
 
         /** The AST node for the call. */
         private final MethodInvocationTree tree;
+
         /** The format string argument. */
         private ExpressionTree formatArg;
+
         /** The type factory. */
         private final AnnotatedTypeFactory atypeFactory;
+
         /** The arguments to the format string. */
         private List<? extends ExpressionTree> args;
+
         /** Extra description for error messages. */
         private String invalidMessage;
 
@@ -314,6 +323,7 @@ public class I18nFormatterTreeUtil {
          * @param tree method invocation tree
          * @param atypeFactory type factory
          */
+        @SuppressWarnings("nullness:initialization.fields.uninitialized")
         public I18nFormatCall(MethodInvocationTree tree, AnnotatedTypeFactory atypeFactory) {
             this.tree = tree;
             this.atypeFactory = atypeFactory;
@@ -397,10 +407,11 @@ public class I18nFormatterTreeUtil {
                     type = FormatType.I18NFORMATFOR;
                 } else {
                     type = FormatType.I18NINVALID;
-                    invalidMessage = "(is a @I18nFormat annotation missing?)";
                     AnnotationMirror inv = formatAnno.getAnnotation(I18nInvalidFormat.class);
                     if (inv != null) {
                         invalidMessage = getI18nInvalidFormatValue(inv);
+                    } else {
+                        invalidMessage = "(is a @I18nFormat annotation missing?)";
                     }
                 }
             } else {
@@ -428,7 +439,7 @@ public class I18nFormatterTreeUtil {
             InvocationType type = InvocationType.VARARG;
 
             if (args.size() == 1) {
-                final ExpressionTree first = args.get(0);
+                ExpressionTree first = args.get(0);
                 TypeMirror argType = atypeFactory.getAnnotatedType(first).getUnderlyingType();
                 // figure out if argType is an array
                 type =
@@ -450,18 +461,18 @@ public class I18nFormatterTreeUtil {
                                                         InvocationType, Class<Void>>() {
                                                     @Override
                                                     protected InvocationType defaultAction(
-                                                            Tree node, Class<Void> p) {
+                                                            Tree tree, Class<Void> p) {
                                                         // just a normal array
                                                         return InvocationType.ARRAY;
                                                     }
 
                                                     @Override
                                                     public InvocationType visitTypeCast(
-                                                            TypeCastTree node, Class<Void> p) {
+                                                            TypeCastTree tree, Class<Void> p) {
                                                         // it's a (Object[])null
                                                         return atypeFactory
                                                                                 .getAnnotatedType(
-                                                                                        node
+                                                                                        tree
                                                                                                 .getExpression())
                                                                                 .getUnderlyingType()
                                                                                 .getKind()
@@ -548,7 +559,7 @@ public class I18nFormatterTreeUtil {
                 case DOUBLE:
                     return Double.class;
                 default:
-                    return null;
+                    throw new BugInCF("unknown primitive type " + t);
             }
         }
 
@@ -559,16 +570,16 @@ public class I18nFormatterTreeUtil {
                             new SimpleElementVisitor8<Class<? extends Object>, Class<Void>>() {
                                 @Override
                                 public Class<? extends Object> visitType(
-                                        TypeElement e, Class<Void> v) {
+                                        TypeElement te, Class<Void> v) {
                                     try {
                                         @SuppressWarnings(
                                                 "signature") // https://tinyurl.com/cfissue/658:
                                         // Name.toString should be @PolySignature
-                                        @BinaryName String cname = e.getQualifiedName().toString();
+                                        @BinaryName String cname = ElementUtils.getQualifiedName(te);
                                         return Class.forName(cname);
-                                    } catch (ClassNotFoundException e1) {
-                                        return null; // the lookup should work for all
-                                        // the classes we care about
+                                    } catch (ClassNotFoundException e) {
+                                        // The lookup should work for all the classes we care about.
+                                        throw new Error(e);
                                     }
                                 }
                             },
@@ -586,7 +597,7 @@ public class I18nFormatterTreeUtil {
      * @param type a TypeMirror
      * @return the class corresponding to the argument
      */
-    private static final Class<? extends Object> typeMirrorToClass(final TypeMirror type) {
+    private static Class<? extends Object> typeMirrorToClass(TypeMirror type) {
         return type.accept(typeMirrorToClassVisitor, Void.TYPE);
     }
 }

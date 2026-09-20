@@ -10,13 +10,16 @@ import java.util.List;
 /** Tests the constant value propagation type system without overflow. */
 public class ValueIgnoreRangeOverflowTest extends CheckerFrameworkPerDirectoryTest {
 
-    /** @param testFiles the files containing test code, which will be type-checked */
+    /**
+     * @param testFiles the files containing test code, which will be type-checked
+     */
     public ValueIgnoreRangeOverflowTest(List<File> testFiles) {
         super(
                 testFiles,
                 org.checkerframework.common.value.ValueChecker.class,
                 "value",
-                "-Anomsgtext",
+                // Ignore the test suite's usage of qualifiers in illegal locations.
+                "-AignoreTargetLocations",
                 "-A" + ValueChecker.REPORT_EVAL_WARNS,
                 "-A" + ValueChecker.IGNORE_RANGE_OVERFLOW);
     }

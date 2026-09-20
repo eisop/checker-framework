@@ -8,9 +8,7 @@ import org.checkerframework.javacutil.AnnotationProvider;
 import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.TypesUtils;
 
-import java.util.Objects;
-
-import javax.lang.model.element.Element;
+import javax.lang.model.element.VariableElement;
 
 /**
  * A local variable.
@@ -20,7 +18,7 @@ import javax.lang.model.element.Element;
  */
 public class LocalVariable extends JavaExpression {
     /** The element for this local variable. */
-    protected final Element element;
+    protected final VariableElement element;
 
     /**
      * Creates a new LocalVariable.
@@ -33,17 +31,20 @@ public class LocalVariable extends JavaExpression {
     }
 
     /**
-     * Creates a LocalVariable
+     * Creates a new LocalVariable.
      *
      * @param element the element for the local variable
      */
-    public LocalVariable(Element element) {
+    public LocalVariable(VariableElement element) {
         super(ElementUtils.getType(element));
         this.element = element;
     }
 
     @Override
     public boolean equals(@Nullable Object obj) {
+        if (this == obj) {
+            return true;
+        }
         if (!(obj instanceof LocalVariable)) {
             return false;
         }
@@ -59,7 +60,7 @@ public class LocalVariable extends JavaExpression {
      * @param element2 the second element to compare
      * @return true if the two elements are the same
      */
-    protected static boolean sameElement(Element element1, Element element2) {
+    protected static boolean sameElement(VariableElement element1, VariableElement element2) {
         VarSymbol vs1 = (VarSymbol) element1;
         VarSymbol vs2 = (VarSymbol) element2;
         // If a LocalVariable is created via JavaExpressionParseUtil#parse, then `vs1.equals(vs2)`
@@ -75,14 +76,24 @@ public class LocalVariable extends JavaExpression {
      *
      * @return the element for this variable
      */
-    public Element getElement() {
+    public VariableElement getElement() {
         return element;
     }
 
+    /** Cache the hashCode. Recomputed if zero. */
+    private int hashCodeCache = 0;
+
     @Override
     public int hashCode() {
-        VarSymbol vs = (VarSymbol) element;
-        return Objects.hash(vs.pos, vs.name, vs.owner);
+        if (hashCodeCache == 0) {
+            VarSymbol vs = (VarSymbol) element;
+            int h = 1;
+            h = 31 * h + Integer.hashCode(vs.pos);
+            h = 31 * h + (vs.name != null ? vs.name.hashCode() : 0);
+            h = 31 * h + (vs.owner != null ? vs.owner.hashCode() : 0);
+            hashCodeCache = h == 0 ? 1 : h;
+        }
+        return hashCodeCache;
     }
 
     @Override
@@ -95,9 +106,10 @@ public class LocalVariable extends JavaExpression {
         return super.toStringDebug() + " [owner=" + ((VarSymbol) element).owner + "]";
     }
 
+    @SuppressWarnings("unchecked") // generic cast
     @Override
-    public boolean containsOfClass(Class<? extends JavaExpression> clazz) {
-        return getClass() == clazz;
+    public <T extends JavaExpression> @Nullable T containedOfClass(Class<T> clazz) {
+        return getClass() == clazz ? (T) this : null;
     }
 
     @Override
@@ -120,13 +132,13 @@ public class LocalVariable extends JavaExpression {
     }
 
     @Override
-    public boolean isUnassignableByOtherCode() {
-        return true;
+    public boolean isAssignableByOtherCode() {
+        return false;
     }
 
     @Override
-    public boolean isUnmodifiableByOtherCode() {
-        return TypesUtils.isImmutableTypeInJdk(((VarSymbol) element).type);
+    public boolean isModifiableByOtherCode() {
+        return !TypesUtils.isImmutableTypeInJdk(((VarSymbol) element).type);
     }
 
     @Override

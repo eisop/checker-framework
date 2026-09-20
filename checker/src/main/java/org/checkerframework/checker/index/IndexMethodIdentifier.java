@@ -11,6 +11,7 @@ import org.checkerframework.framework.type.AnnotatedTypeFactory;
 import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.TreeUtils;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import javax.annotation.processing.ProcessingEnvironment;
@@ -26,26 +27,37 @@ public class IndexMethodIdentifier {
 
     /** The {@code java.lang.Math#random()} method. */
     private final ExecutableElement mathRandom;
+
     /** The {@code java.util.Random#nextDouble()} method. */
     private final ExecutableElement randomNextDouble;
+
     /** The {@code java.util.Random#nextInt()} method. */
     private final ExecutableElement randomNextInt;
+
     /** The {@code java.lang.String#length()} method. */
     private final ExecutableElement stringLength;
+
     /** The {@code java.lang.Math#min()} methods. */
     private final List<ExecutableElement> mathMinMethods;
+
     /** The {@code java.lang.Math#max()} methods. */
     private final List<ExecutableElement> mathMaxMethods;
 
     /** The LengthOf.value argument/element. */
     private final ExecutableElement lengthOfValueElement;
 
-    /** The type factory. */
-    private final AnnotatedTypeFactory factory;
+    /**
+     * The {@code java.lang.String#indexOf} and {@code #lastIndexOf} methods that take a string as a
+     * non-receiver parameter.
+     */
+    private final List<ExecutableElement> indexOfStringMethods;
 
-    public IndexMethodIdentifier(AnnotatedTypeFactory factory) {
-        this.factory = factory;
-        ProcessingEnvironment processingEnv = factory.getProcessingEnv();
+    /** The type factory. */
+    private final AnnotatedTypeFactory atypeFactory;
+
+    public IndexMethodIdentifier(AnnotatedTypeFactory atypeFactory) {
+        this.atypeFactory = atypeFactory;
+        ProcessingEnvironment processingEnv = atypeFactory.getProcessingEnv();
         mathRandom = TreeUtils.getMethod("java.lang.Math", "random", 0, processingEnv);
         randomNextDouble = TreeUtils.getMethod("java.util.Random", "nextDouble", 0, processingEnv);
         randomNextInt = TreeUtils.getMethod("java.util.Random", "nextInt", 1, processingEnv);
@@ -55,18 +67,54 @@ public class IndexMethodIdentifier {
         mathMinMethods = TreeUtils.getMethods("java.lang.Math", "min", 2, processingEnv);
         mathMaxMethods = TreeUtils.getMethods("java.lang.Math", "max", 2, processingEnv);
 
+        indexOfStringMethods = new ArrayList<>(4);
+        indexOfStringMethods.add(
+                TreeUtils.getMethod(
+                        "java.lang.String", "indexOf", processingEnv, "java.lang.String"));
+        indexOfStringMethods.add(
+                TreeUtils.getMethod(
+                        "java.lang.String", "indexOf", processingEnv, "java.lang.String", "int"));
+        indexOfStringMethods.add(
+                TreeUtils.getMethod(
+                        "java.lang.String", "lastIndexOf", processingEnv, "java.lang.String"));
+        indexOfStringMethods.add(
+                TreeUtils.getMethod(
+                        "java.lang.String",
+                        "lastIndexOf",
+                        processingEnv,
+                        "java.lang.String",
+                        "int"));
+
         lengthOfValueElement = TreeUtils.getMethod(LengthOf.class, "value", 0, processingEnv);
     }
 
-    /** Returns true iff the argument is an invocation of Math.min. */
+    /**
+     * Returns true iff the argument is an invocation of String#indexOf or String#lastIndexOf that
+     * takes a string parameter.
+     *
+     * @param methodTree the method invocation tree to be tested
+     * @return true iff the argument is an invocation of one of String's indexOf or lastIndexOf
+     *     methods that takes another string as a parameter
+     */
+    public boolean isIndexOfString(Tree methodTree) {
+        ProcessingEnvironment processingEnv = atypeFactory.getProcessingEnv();
+        return TreeUtils.isMethodInvocation(methodTree, indexOfStringMethods, processingEnv);
+    }
+
+    /**
+     * Returns true iff the argument is an invocation of Math.min.
+     *
+     * @param methodTree the method invocation tree to be tested
+     * @return true iff the argument is an invocation of Math.min()
+     */
     public boolean isMathMin(Tree methodTree) {
-        ProcessingEnvironment processingEnv = factory.getProcessingEnv();
+        ProcessingEnvironment processingEnv = atypeFactory.getProcessingEnv();
         return TreeUtils.isMethodInvocation(methodTree, mathMinMethods, processingEnv);
     }
 
     /** Returns true iff the argument is an invocation of Math.max. */
     public boolean isMathMax(Tree methodTree) {
-        ProcessingEnvironment processingEnv = factory.getProcessingEnv();
+        ProcessingEnvironment processingEnv = atypeFactory.getProcessingEnv();
         return TreeUtils.isMethodInvocation(methodTree, mathMaxMethods, processingEnv);
     }
 
@@ -93,7 +141,7 @@ public class IndexMethodIdentifier {
      *     this}
      */
     public boolean isLengthOfMethodInvocation(Tree tree) {
-        if (tree.getKind() != Tree.Kind.METHOD_INVOCATION) {
+        if (!(tree instanceof MethodInvocationTree)) {
             return false;
         }
         return isLengthOfMethodInvocation(TreeUtils.elementFromUse((MethodInvocationTree) tree));
@@ -112,7 +160,7 @@ public class IndexMethodIdentifier {
             return true;
         }
 
-        AnnotationMirror lengthOfAnno = factory.getDeclAnnotation(ele, LengthOf.class);
+        AnnotationMirror lengthOfAnno = atypeFactory.getDeclAnnotation(ele, LengthOf.class);
         if (lengthOfAnno == null) {
             return false;
         }

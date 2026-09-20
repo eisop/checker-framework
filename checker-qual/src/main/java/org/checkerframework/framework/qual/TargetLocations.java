@@ -7,31 +7,37 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * NOTE: This meta-annotation is <a
- * href="https://github.com/typetools/checker-framework/issues/1919"><b>not currently
- * enforced</b></a>.
- *
- * <p>A meta-annotation that restricts the type-use locations where a type qualifier may be written.
+ * A meta-annotation that restricts the type-use locations where a type qualifier may be applied.
  * When written together with {@code @Target({ElementType.TYPE_USE})}, the given type qualifier may
- * be written only at locations listed in the {@code @TargetLocations(...)} meta-annotation.
+ * be applied only at locations listed in the {@code @TargetLocations(...)} meta-annotation.
  * {@code @Target({ElementType.TYPE_USE})} together with no {@code @TargetLocations(...)} means that
- * the qualifier can be written on any type use.
+ * the qualifier can be applied to any type use. {@code @TargetLocations({})} means that the
+ * qualifier should not be used in source code. The same goal can be achieved by writing
+ * {@code @Target({})}, which is enforced by javac itself. {@code @TargetLocations({...})} is
+ * enforced by the checker. The resulting errors from the checker can either be suppressed using
+ * {@code @SuppressWarnings("type.invalid.annotations.on.location")} or can be ignored by providing
+ * the {@code -AignoreTargetLocations} option.
  *
- * <p>This enables a type system designer to permit a qualifier to be written only in certain
+ * <p>This enables a type system designer to permit a qualifier to be applied only in certain
  * locations. For example, some type systems' top and bottom qualifier (such as {@link
- * org.checkerframework.checker.nullness.qual.KeyForBottom}) should only be written on an explicit
+ * org.checkerframework.checker.regex.qual.RegexBottom}) should only be written on an explicit
  * wildcard upper or lower bound. This meta-annotation is a declarative, coarse-grained approach to
  * enable that. For finer-grained control, override {@code visit*} methods that visit trees in
  * BaseTypeVisitor.
  *
- * <p>This annotation does not prevent the type system from defaulting, inferring, or computing the
- * given type annotation at the given location. It only prevents users from writing an explicit
- * annotation at the given location.
+ * <p>{@code @TargetLocations} are used for all appearances of qualifiers regardless of whether they
+ * are provided explicitly or implicitly (inferred or computed). Therefore, only use type-use
+ * locations {@code LOWER_BOUND/UPPER_BOUND} instead of the {@code IMPLICIT_XX/EXPLICIT_XX}
+ * alternatives.
  */
 @Documented
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.ANNOTATION_TYPE)
 public @interface TargetLocations {
-    /** Type uses at which the qualifier is permitted to be written in source code. */
+    /**
+     * Type uses at which the qualifier is permitted to be applied in source code.
+     *
+     * @return type-use locations declared in this meta-annotation
+     */
     TypeUseLocation[] value();
 }

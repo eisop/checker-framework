@@ -13,6 +13,7 @@ import org.checkerframework.checker.index.qual.Positive;
 import org.checkerframework.checker.index.qual.SubstringIndexFor;
 import org.checkerframework.checker.index.upperbound.UBQualifier.LessThanLengthOf;
 import org.checkerframework.checker.index.upperbound.UBQualifier.UpperBoundUnknownQualifier;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.common.value.ValueCheckerUtils;
 import org.checkerframework.dataflow.analysis.RegularTransferResult;
 import org.checkerframework.dataflow.analysis.TransferInput;
@@ -38,12 +39,12 @@ import org.checkerframework.framework.flow.CFStore;
 import org.checkerframework.framework.flow.CFValue;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.QualifierHierarchy;
+import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.AnnotationUtils;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Set;
 
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.type.TypeKind;
@@ -144,7 +145,7 @@ public class UpperBoundTransfer extends IndexAbstractTransfer {
         // null if right-hand-side is not an array creation expression
         ArrayCreationNode acNode =
                 (expNodeSansCast instanceof ArrayCreationNode)
-                        ? acNode = (ArrayCreationNode) expNodeSansCast
+                        ? (ArrayCreationNode) expNodeSansCast
                         : null;
 
         if (acNode != null) {
@@ -174,10 +175,16 @@ public class UpperBoundTransfer extends IndexAbstractTransfer {
      * {@code node} is known to be {@code typeOfNode}. If the node is a plus or a minus then the
      * types of the left and right operands can be refined to include offsets. If the node is a
      * multiplication, its operands can also be refined. See {@link
-     * #propagateToAdditionOperand(LessThanLengthOf, Node, Node, TransferInput, CFStore)}, {@link
-     * #propagateToSubtractionOperands(LessThanLengthOf, NumericalSubtractionNode, TransferInput,
-     * CFStore)}, and {@link #propagateToMultiplicationOperand(LessThanLengthOf, Node, Node,
-     * TransferInput, CFStore)} for details.
+     * #propagateToAdditionOperand(UBQualifier.LessThanLengthOf, Node, Node, TransferInput,
+     * CFStore)}, {@link #propagateToSubtractionOperands(UBQualifier.LessThanLengthOf,
+     * NumericalSubtractionNode, TransferInput, CFStore)}, and {@link
+     * #propagateToMultiplicationOperand(UBQualifier.LessThanLengthOf, Node, Node, TransferInput,
+     * CFStore)} for details.
+     *
+     * @param typeOfNode type of node
+     * @param node the node
+     * @param in the TransferInput before propagate to this operand
+     * @param store location to store the refined type
      */
     private void propagateToOperands(
             LessThanLengthOf typeOfNode,
@@ -233,10 +240,10 @@ public class UpperBoundTransfer extends IndexAbstractTransfer {
      *
      * <p>This means that the left node is less than or equal to the length of the array when the
      * right node is subtracted from the left node. Note that unlike {@link
-     * #propagateToAdditionOperand(LessThanLengthOf, Node, Node, TransferInput, CFStore)} and {@link
-     * #propagateToMultiplicationOperand(LessThanLengthOf, Node, Node, TransferInput, CFStore)},
-     * this method takes the NumericalSubtractionNode instead of the two operand nodes. This
-     * implements case 4.
+     * #propagateToAdditionOperand(UBQualifier.LessThanLengthOf, Node, Node, TransferInput,
+     * CFStore)} and {@link #propagateToMultiplicationOperand(UBQualifier.LessThanLengthOf, Node,
+     * Node, TransferInput, CFStore)}, this method takes the NumericalSubtractionNode instead of the
+     * two operand nodes. This implements case 4.
      *
      * @param typeOfSubtraction type of node
      * @param node subtraction node that has typeOfSubtraction
@@ -528,7 +535,7 @@ public class UpperBoundTransfer extends IndexAbstractTransfer {
     @Override
     public TransferResult<CFValue, CFStore> visitNumericalAddition(
             NumericalAdditionNode n, TransferInput<CFValue, CFStore> in) {
-        // type of leftNode + rightNode  is  glb(t, s) where
+        // type of  leftNode + rightNode  is  glb(t, s) where
         // t = minusOffset(type(leftNode), rightNode) and
         // s = minusOffset(type(rightNode), leftNode)
 
@@ -684,7 +691,7 @@ public class UpperBoundTransfer extends IndexAbstractTransfer {
      *
      * @param n sequence length access node
      */
-    private TransferResult<CFValue, CFStore> visitLengthAccess(
+    private @Nullable TransferResult<CFValue, CFStore> visitLengthAccess(
             Node n,
             TransferInput<CFValue, CFStore> in,
             JavaExpression sequenceJe,
@@ -837,7 +844,7 @@ public class UpperBoundTransfer extends IndexAbstractTransfer {
         if (value == null) {
             return UpperBoundUnknownQualifier.UNKNOWN;
         }
-        Set<AnnotationMirror> set = value.getAnnotations();
+        AnnotationMirrorSet set = value.getAnnotations();
         AnnotationMirror anno = hierarchy.findAnnotationInHierarchy(set, atypeFactory.UNKNOWN);
         if (anno == null) {
             return UpperBoundUnknownQualifier.UNKNOWN;
@@ -848,8 +855,7 @@ public class UpperBoundTransfer extends IndexAbstractTransfer {
     private TransferResult<CFValue, CFStore> createTransferResult(
             Node n, TransferInput<CFValue, CFStore> in, UBQualifier qualifier) {
         AnnotationMirror newAnno = atypeFactory.convertUBQualifierToAnnotation(qualifier);
-        CFValue value = analysis.createSingleAnnotationValue(newAnno, n.getType());
-        return createTransferResult(value, in);
+        return createTransferResult(newAnno, n.getType(), in);
     }
 
     @Override
@@ -885,7 +891,7 @@ public class UpperBoundTransfer extends IndexAbstractTransfer {
             default:
                 return result;
         }
-        CFValue c = new CFValue(analysis, Collections.singleton(newAnno), intTM);
+        CFValue c = new CFValue(analysis, AnnotationMirrorSet.singleton(newAnno), intTM);
         return new RegularTransferResult<>(c, result.getRegularStore());
     }
 }

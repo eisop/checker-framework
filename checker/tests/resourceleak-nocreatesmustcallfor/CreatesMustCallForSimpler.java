@@ -1,11 +1,12 @@
-// A simpler test that @CreatesMustCallFor works as intended wrt the Object Construction Checker.
+// A simpler test that @CreatesMustCallFor works as intended wrt the Resource Leak Checker.
 
 // This test has been modified to expect that CreatesMustCallFor is feature-flagged to off.
 
 import org.checkerframework.checker.calledmethods.qual.*;
 import org.checkerframework.checker.mustcall.qual.*;
 
-@MustCall("a") class CreatesMustCallForSimpler {
+@InheritableMustCall("a")
+class CreatesMustCallForSimpler {
 
     @CreatesMustCallFor
     void reset() {}

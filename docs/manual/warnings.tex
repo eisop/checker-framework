@@ -51,6 +51,8 @@ You can suppress warnings throughout the codebase by using the following mechani
 \item
   the \code{-AskipDefs} and \code{-AonlyDefs} command-line options (Section~\ref{askipdefs}),
 \item
+  the \code{-AskipFiles} and \code{-AonlyFiles} command-line options (Section~\ref{askipfiles}),
+\item
   the \code{-AuseConservativeDefaultsForUncheckedCode=source} command-line
   option (Section~\ref{compiling-libraries}),
 \item
@@ -151,7 +153,7 @@ recommended, except for messages common to all checkers such as
 purity-related messages when using \<-AcheckPurityAnnotations>.  If you use
 \<"allcheckers">, you run some checker that does not issue any warnings,
 and you suply the \<-AwarnUnneededSuppressions> command-line argument, then
-the Checker Framework will issue an unsuppressable \<unneeded.suppression>
+the Checker Framework will issue an \<unneeded.suppression>
 warning.
 
 The special messagekey ``\<all>'' means to suppress all warnings.
@@ -190,12 +192,24 @@ warnings.
 
 \<@SuppressWarnings> is a declaration annotation, so it may be placed on
 program declarations such as a local variable declaration, a method, or a
-class.  It cannot be used on statements, expressions, or types.
-(\<assert> plus \<@AssumeAssertion> can be used between statements and can
-affect arbitrary expressions; see Section~\ref{assumeassertion}.)
+class.
 
-Always write a \<@SuppressWarnings> annotation on the smallest possible
-scope.  To reduce the scope of a \<@SuppressWarnings> annotation, it is
+\<@SuppressWarnings> cannot be used on \textbf{statements, expressions, or types}.
+To work around this, you can
+\begin{itemize}
+\item
+  extract an expression into a local variable
+  and suppress a warning on its declaration,
+\item
+  write \<assert> plus \<@AssumeAssertion> between statements; it can
+  affect arbitrary expressions (see Section~\ref{assumeassertion}), or
+\item
+  use a type-system-specific method call, such as
+  \refmethod{checker/nullness/util}{NullnessUtil}{castNonNull}{(T)}.
+\end{itemize}
+
+Always write a \<@SuppressWarnings> annotation on the \textbf{smallest possible
+scope}.  To reduce the scope of a \<@SuppressWarnings> annotation, it is
 sometimes desirable to refactor the code.  You might extract an expression
 into a local variable, so that warnings can be suppressed just for that
 local variable's initializer expression.  Likewise, you might extract some
@@ -387,13 +401,13 @@ as for \<@SuppressWarnings> annotations, such as writing a comment
 justifying why the assumption is safe
 (Section~\ref{suppresswarnings-best-practices}).
 
-The \<-AassumeAssertionsAreEnabled> and \<-AassumeAssertionsAreDisabled>
-command-line options (Section~\ref{type-refinement-assertions}) do not
+The \<-AassumeAssertions>
+command-line option (Section~\ref{type-refinement-assertions}) does not
 affect processing of \<assert> statements that have \<@AssumeAssertion> in
 their message.  Writing \<@AssumeAssertion> means that the assertion would
 succeed if it were executed, and the Checker Framework makes use of that
-information regardless of the \<-AassumeAssertionsAreEnabled> and
-\<-AassumeAssertionsAreDisabled> command-line options.
+information regardless of the \<-AassumeAssertions>
+command-line option.
 
 
 %% Redundant.
@@ -447,7 +461,7 @@ A non-standard use for annotations is to document facts that a programmer
 has independently verified to be true.  The Checker Framework can
 leverage these assertions in order to avoid issuing false positive
 warnings.  The programmer marks such assertions with the \<@AssumeAssertion>
-string in the \<assert> message (see Section~\ref{assumeassertion}.  Only
+string in the \<assert> message (see Section~\ref{assumeassertion}).  Only
 do so if you are sure that the assertion always succeeds at run time.
 
 \label{assertion-methods}
@@ -468,16 +482,26 @@ warnings:  write specifications or suppress
 warnings; see below for an explanation of each approach.
 
 The method
-\refmethod{checker/nullness/util}{NullnessUtil}{castNonNull}{-T-} is not an
+\refmethod{checker/nullness/util}{NullnessUtil}{castNonNull}{(T)} is not an
 assertion method.  It is a warning suppression method.
 
-Note that some libraries have an imprecise specification of their assertion
-methods.  For example, Guava's \<Verify.verifyNotNull> is imprecisely
+Note that some libraries have an imprecise/incorrect specification of their assertion
+methods.  For example, Guava's \<Verify.verifyNotNull> is imprecisely/incorrectly
 specified to have a \<@Nullable> formal parameter.  In a correct execution,
 \<null> never flows there, so its type can and should be annotated as
 \<@NonNull>.  That annotation allows the Nullness Checker to warn about
-programs that crash due to passing \<null> to \<verifyNotNull>.  You can
-use a version of Guava with a small change to your build file.  Where the
+programs that crash due to passing \<null> to \<verifyNotNull>.
+(A comment in Guava's \<Preconditions.java> agrees with this reasoning:
+``the first parameter to \<checkNotNull> \emph{should} be annotated to
+require it to be non-null.''  The comment goes on to say ``I had hoped to
+take a principled stand on this'' (that, is, write the annotation
+\<@NonNull>), but Guava annotates it as \<@Nullable> to accommodate misuses
+within the Google codebase.)
+
+By default, the Checker Framework uses Guava's annotations as written.  If
+you wish to  take the principled stand in order to prevent \emph{all}
+\<NullPointerException>s, you can
+use a different version of Guava with a small change to your build file.  Where the
 build file refers to Maven Central's \<guava> artifact, change the group
 name from ``com.google.guava'' to ``org.checkerframework.annotatedlib''.
 (The code is identical; the only difference is annotations.)
@@ -510,7 +534,7 @@ guarantee that your code is correct and will not fail at run time.
 \begin{itemize}
 \item
   If the method is defined in your source code, annotate its definition just as
-  \refmethod{checker/nullness/util}{NullnessUtil}{castNonNull}{-T-} is
+  \refmethod{checker/nullness/util}{NullnessUtil}{castNonNull}{(T)} is
   annotated; see its Javadoc or the source code for the Checker Framework.
   Also, be sure to document the intention in the method's Javadoc, so that
   programmers do not
@@ -519,6 +543,11 @@ guarantee that your code is correct and will not fail at run time.
   If the method is defined in an external library, write a stub file that
   changes the method's annotations, or use \<-AskipUses> to make the
   Checker Framework ignore all calls to an entire class.
+
+  As a special case, if you want the Nullness Checker to prevent most null
+  pointer exceptions in your code, but to \emph{permit} null pointer
+  exceptions at nullness assertion methods, you can pass
+  \<-Astubs=permit-nullness-assertion-exception.astub>.
 \end{itemize}
 
 
@@ -533,21 +562,58 @@ list of warning suppression strings, as in
 When possible, it is better to write a \<@SuppressWarnings> annotation with a
 smaller scope, rather than using the \<-AsuppressWarnings> command-line option.
 
+A few warnings are issued before any source file is processed, so they have no
+source position:  there is no declaration on which a \<@SuppressWarnings>
+annotation could be written, and \<-AsuppressWarnings> is the only way to
+suppress them.  They warn that an annotation file is being text-parsed rather
+than read from a binary stub file, which is slower
+(Section~\ref{annotating-jdk}):
+
+\begin{itemize}
+\item
+  \<-AsuppressWarnings=text.parsing.jdk>:  the annotated JDK has no binary stub
+  file, or it could not be read.
+\item
+  \<-AsuppressWarnings=text.parsing.jdk.class>:  a class of the annotated JDK is
+  missing from the binary stub file that was read.
+\item
+  \<-AsuppressWarnings=text.parsing.stub>:  a stub file that a checker
+  distributes has no binary stub file.
+\item
+  \<-AsuppressWarnings=text.parsing.command.line.stub>:  a \<-Astubs> location has
+  an incomplete binary stub setup -- some, but not all, of its \<.astub> files
+  were read from a pre-parsed binary form (Section~\ref{stub-using-binary}).
+\item
+  \<-AsuppressWarnings=stale.binary.stub>:  a \<-Astubs> file's binary stub does
+  not match the file's current content, so the file was text-parsed instead
+  (Section~\ref{stub-using-binary}).
+\end{itemize}
+
+\noindent
+\<-AsuppressWarnings=text.parsing> suppresses the first four, but not
+\<stale.binary.stub>, whose key does not share that prefix.  Rather than
+suppressing these warnings, it is usually better to generate the missing or
+stale binary stub file, as described in Sections~\ref{annotating-jdk},
+\ref{stub-distributing}, and~\ref{stub-using-binary}.
+
 
 \sectionAndLabel{\code{-AskipUses} and \code{-AonlyUses} command-line options}{askipuses}
 
 You can suppress all errors and warnings at all \emph{uses} of a given
 class, or suppress all errors and warnings \emph{except} those at uses of a given
 class.  (The class itself is still type-checked, unless you also use
-the \code{-AskipDefs} or \code{-AonlyDefs} command-line option, see~\ref{askipdefs}).
+the \code{-AskipDefs}, \code{-AonlyDefs}, \code{-AskipFiles}, or \code{-AonlyFiles}
+command-line option, see~\ref{askipdefs}).
 You can also use these options to affect entire packages or directories/folders.
 
 Set the \code{-AskipUses} command-line option to a
-regular expression that matches class names (not file names) for which warnings and errors
+regular expression that matches fully-qualified class names (not file names) for which errors and warnings
 should be suppressed.
 Or, set the \code{-AonlyUses} command-line option to a
-regular expression that matches class names (not file names) for which warnings and errors
+regular expression that matches fully-qualified class names (not file names) for which errors and warnings
 should be emitted; warnings about uses of all other classes will be suppressed.
+The regular expressions are unanchored, unless you anchor them yourself
+with ``\codesize\verb|^|'' and/or ``\codesize\verb|$|''.
 
 For example, suppose that you use
 ``{\codesize\verb|-AskipUses=^java\.|}'' on the command line
@@ -593,13 +659,17 @@ see~\ref{askipuses}.)
 You can also use these options to affect entire packages or directories/folders.
 
 Set the \code{-AskipDefs} command-line option to a
-regular expression that matches class names (not file names) in whose definition warnings and errors
+regular expression that matches fully-qualified class names (not file names) in whose definition errors and warnings
 should be suppressed.
 Or, set the \code{-AonlyDefs} command-line option to a
-regular expression that matches class names (not file names) whose
+regular expression that matches fully-qualified class names (not file names) whose
 definitions should be type-checked.
 (This is somewhat similar to NullAway's
 \<-XepOpt:NullAway:AnnotatedPackages> command-line argument.)
+(For file names, use \code{-AskipFiles} and \code{-AonlyFiles} instead; see
+Section~\ref{askipfiles}.)
+The regular expressions are unanchored, unless you anchor them yourself
+with ``\codesize\verb|^|'' and/or ``\codesize\verb|$|''.
 
 For example, if you use
 ``{\codesize\verb|-AskipDefs=^mypackage\.|}'' on the command line
@@ -627,6 +697,60 @@ most important parts, you can incrementally check more classes until you
 are type-checking the whole thing.
 
 
+\sectionAndLabel{\code{-AskipFiles} and \code{-AonlyFiles} command-line options}{askipfiles}
+
+You can suppress all errors and warnings originating from classes that are
+located in a given file or directory/folder, or all those that are \emph{not} in a
+given file or directory/folder.
+
+Set the \code{-AskipFiles} command-line option to a
+regular expression that matches the path to files or directories/folders containing
+classes for which errors and warnings should be suppressed.
+Similarly, \code{-AonlyFiles} suppresses warnings everywhere
+\emph{except} in the given files.
+The regular expressions are unanchored, unless you anchor them yourself
+with ``\codesize\verb|^|'' and/or ``\codesize\verb|$|''.
+
+For example, if you use
+``{\codesize\verb|-AskipFiles=/build/generated/|}'' on the command line
+when invoking
+\code{javac}, then the definitions of classes located in any
+\codesize\verb|/build/generated| directory will not be checked.
+
+If you supply both \code{-AskipFiles} and \code{-AonlyFiles}, then
+\code{-AskipFiles} takes precedence.
+
+A common scenario for using this argument is when you want to exclude certain
+directories/folders (such as those containing generated or legacy code) from
+type-checking.
+Another scenario is when a file contains multiple top-level classes, only
+one of which has a name that corresponds to the file name.
+
+\sectionAndLabel{\code{-AonlyAnnotatedFor} command-line option}{aonlyannotatedfor}
+
+You can suppress all errors and warnings for code outside of a corresponding
+\code{@AnnotatedFor} by applying this command-line option.
+Note that the \code{@AnnotatedFor} annotation must include the checker's name to
+enable warnings from that checker.
+An explicit \code{@SuppressWarnings} annotation can suppress warnings in
+\code{@AnnotatedFor} code and code outside the scope of a corresponding
+\code{@AnnotatedFor} annotation.
+For example, use \code{@AnnotatedFor("nullness")} for the Nullness Checker.
+This flag only suppresses warnings, compared to \code{-AuseConservativeDefaultsForUncheckedCode=source},
+which also applies conservative defaults for code outside the scope of an \code{@AnnotatedFor} annotation.
+\href{https://github.com/uber/NullAway}{NullAway} has a similar flag: \code{-XepOpt:NullAway:OnlyNullMarked=true}
+configures NullAway to only issue errors for code inside the scope of \code{@NullMarked} annotations.
+The Nullness Checker treats JSpecify's \code{@NullMarked} as an alias for
+\code{@AnnotatedFor}, and \code{@NullUnmarked} as an alias for \code{@UnannotatedFor},
+both scoped to nullness checking with \code{applyToSubpackages = false},
+so \code{-AonlyAnnotatedFor} gives the same behavior for \code{@NullMarked} code
+(see Section~\ref{nullness-jspecifyNullMarkedAlias}).
+A written \code{@AnnotatedFor} composes with an aliased one, so
+\code{@AnnotatedFor("index") @NullMarked} is checked by both the Index Checker and the
+Nullness Checker.
+You can exclude an element from an enclosing \code{@AnnotatedFor} scope with
+\refqualclass{framework/qual}{UnannotatedFor}; see Section~\ref{compiling-libraries}.
+
 \sectionAndLabel{\code{-Alint} command-line option\label{lint-options}}{alint}
 
 The \code{-Alint} option enables or disables optional checks, analogously to
@@ -645,12 +769,11 @@ options (and possibly more, see the checker's documentation):
 
 \item
   \code{cast:unsafe} (default: on) warn about unsafe casts that are not
-  checked at run time, as in \code{((@NonNull String) myref)}.  Such casts
-  are generally not necessary because of type refinement
-  (Section~\ref{type-refinement}).
+  checked at run time, as in \code{((@NonNull String) myref)}.
+  Such casts are unsafe as the type qualifiers are ignored at run time.
 
 \item
-  \code{cast:redundant} (default: on) warn about redundant
+  \code{cast:redundant} (default: off) warn about redundant
   casts that are guaranteed to succeed at run time,
   as in \code{((@NonNull String) "m")}.  Such casts are not necessary,
   because the target expression of the cast already has the given type
@@ -658,6 +781,14 @@ options (and possibly more, see the checker's documentation):
 
 \item
   \code{cast} Enable or disable all cast-related warnings.
+
+\item
+  \code{instanceof:unsafe} (default: on) warn about unsafe instanceof tests
+  that are not checked at run time, as in \code{o instanceof @Untainted String}.
+  Such instanceof tests are unsafe as the type qualifiers are ignored at run time.
+
+\item
+  \code{instanceof} Enable or disable instanceof-related warnings.
 
 \item
 \begin{sloppypar}
@@ -715,6 +846,12 @@ class Objects {
 }
 \end{Verbatim}
 
+This particular stub file already exists.
+If you want the Nullness Checker to prevent most null
+pointer exceptions in your code, but to \emph{permit} null pointer
+exceptions at nullness assertion methods, you can pass
+\<-Astubs=permit-nullness-assertion-exception.astub>.
+
 
 \sectionAndLabel{Don't run the processor}{no-processor}
 
@@ -746,17 +883,17 @@ suppressing warnings issued by the Fenum Checker
 % LocalWords:  checkername util myref nulltest html ESC buildfile mynifty Fenum
 % LocalWords:  MyNiftyChecker messagekey basetype uncommenting Anomsgtext
 % LocalWords:  AskipDefs mypackage Makefile PLXCOMP expr
-%  LocalWords:  TODO AsuppressWarnings AssumeAssertion AonlyUses AonlyDefs
-%  LocalWords:  ing warningkey redundantNullComparison qual proc Decl
-%  LocalWords:  lastsinglesuppression classfiles AwarnUnneededSuppressions
-%%  LocalWords:  AshowSuppressWarningsStrings NullableType NonNullType JUnit's
-%%  LocalWords:  PolyNullType MonotonicNonNullType KeyForType NullableDecl
-%%  LocalWords:  NonNullDecl PolyNullDecl MonotonicNonNullDecl KeyForDecl
-%%  LocalWords:  refactored AassumeAssertionsAreEnabled assertNotNull
-%%  LocalWords:  AassumeAssertionsAreDisabled NullnessUtil checkNotNull
-%%  LocalWords:  ElementType AuseSafeDefaultsForUnannotatedSourceCode
+% LocalWords:  TODO AsuppressWarnings AssumeAssertion AonlyUses AonlyDefs
+% LocalWords:  ing warningkey redundantNullComparison qual proc Decl
+% LocalWords:  lastsinglesuppression classfiles AwarnUnneededSuppressions
+% LocalWords:  AshowSuppressWarningsStrings NullableType NonNullType JUnit's
+% LocalWords:  PolyNullType MonotonicNonNullType KeyForType NullableDecl
+% LocalWords:  NonNullDecl PolyNullDecl MonotonicNonNullDecl KeyForDecl
+% LocalWords:  refactored AassumeAssertions assertNotNull
+% LocalWords:  NullnessUtil checkNotNull
+% LocalWords:  ElementType AuseSafeDefaultsForUnannotatedSourceCode
 % LocalWords:  AuseConservativeDefaultsForUncheckedCode checkerframework askipuses
-%%  LocalWords:  suppresswarnings ArequirePrefixInWarningSuppressions
-%%  LocalWords:  assumeassertion askipdefs alint compat substring myGet
+% LocalWords:  suppresswarnings ArequirePrefixInWarningSuppressions
+% LocalWords:  assumeassertion askipdefs alint compat substring myGet
 % LocalWords:  AcheckPurityAnnotations allcheckers requireNonNull
 % LocalWords:  verifyNotNull subcheckers subchecker

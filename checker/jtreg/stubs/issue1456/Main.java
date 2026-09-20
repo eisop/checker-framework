@@ -1,15 +1,15 @@
 /*
  * @test
  * @summary Test case for Issue 1456 https://github.com/typetools/checker-framework/issues/1456
- * @compile -XDrawDiagnostics -Xlint:unchecked ../issue1456lib/Lib.java
+ * @compile -Xlint:unchecked ../issue1456lib/Lib.java
  * @compile/fail/ref=WithStub.out -XDrawDiagnostics -Xlint:unchecked -processor org.checkerframework.checker.tainting.TaintingChecker -Anomsgtext Main.java -Astubs=Lib.astub -AstubWarnIfNotFound -Werror
  * @compile/fail/ref=WithoutStub.out -XDrawDiagnostics -Xlint:unchecked -processor org.checkerframework.checker.tainting.TaintingChecker -Anomsgtext Main.java -AstubWarnIfNotFound -Werror
  */
 package issue1456;
 
-import issue1456lib.Lib;
-
 import org.checkerframework.checker.tainting.qual.Untainted;
+
+import issue1456lib.Lib;
 
 public class Main {
 

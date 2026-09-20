@@ -1,6 +1,7 @@
 package org.checkerframework.framework.util.element;
 
 import com.sun.tools.javac.code.Attribute;
+import com.sun.tools.javac.code.TargetType;
 
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
 
@@ -32,29 +33,37 @@ abstract class IndexedElementAnnotationApplier extends TargetedElementAnnotation
      * @param anno an annotation we might wish to apply
      * @return the index value this applier compares against the getElementIndex
      */
-    public abstract int getTypeCompoundIndex(final Attribute.TypeCompound anno);
+    public abstract int getTypeCompoundIndex(Attribute.TypeCompound anno);
 
     @Override
     protected Map<TargetClass, List<Attribute.TypeCompound>> sift(
             Iterable<Attribute.TypeCompound> typeCompounds) {
-        final Map<TargetClass, List<Attribute.TypeCompound>> targetClassToAnnos =
+        Map<TargetClass, List<Attribute.TypeCompound>> targetClassToAnnos =
                 super.sift(typeCompounds);
 
-        final List<Attribute.TypeCompound> targeted = targetClassToAnnos.get(TargetClass.TARGETED);
-        final List<Attribute.TypeCompound> valid = targetClassToAnnos.get(TargetClass.VALID);
+        List<Attribute.TypeCompound> targeted = targetClassToAnnos.get(TargetClass.TARGETED);
+        List<Attribute.TypeCompound> valid = targetClassToAnnos.get(TargetClass.VALID);
 
-        final int paramIndex = getElementIndex();
+        int paramIndex = getElementIndex();
 
-        // filter out annotations in targeted that don't have the correct parameter index. (i.e the
-        // one's that are on the same method but don't pertain to the parameter element being
-        // processed, see class comments ).  Place these annotations into the valid list.
-        int i = 0;
-        while (i < targeted.size()) {
-            if (getTypeCompoundIndex(targeted.get(i)) != paramIndex) {
-                valid.add(targeted.remove(i));
+        // Filter out annotations in targeted that don't have the correct parameter index (i.e.
+        // the ones that are on the same method but don't pertain to the parameter element being
+        // processed, see class comments). Place these annotations into the valid list.
+        // Single-pass partition: rebuild `targeted` in place to avoid O(n^2) ArrayList.remove(i).
+        int writeIdx = 0;
+        for (int i = 0, n = targeted.size(); i < n; ++i) {
+            Attribute.TypeCompound target = targeted.get(i);
+            // Annotations on parameters to record constructors are marked as fields so
+            // getTypeCompoundIndex does not return paramIndex.
+            if (target.position.type != TargetType.FIELD
+                    && getTypeCompoundIndex(target) != paramIndex) {
+                valid.add(target);
             } else {
-                ++i;
+                targeted.set(writeIdx++, target);
             }
+        }
+        if (writeIdx < targeted.size()) {
+            targeted.subList(writeIdx, targeted.size()).clear();
         }
 
         return targetClassToAnnos;

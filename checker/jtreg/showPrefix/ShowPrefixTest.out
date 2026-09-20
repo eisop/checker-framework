@@ -1,0 +1,4 @@
+ShowPrefixTest.java:12:16: compiler.err.proc.messager: [nullness:return.type.incompatible] incompatible types in return.
+type of expression: @Nullable Object
+method return type: @NonNull Object
+1 error

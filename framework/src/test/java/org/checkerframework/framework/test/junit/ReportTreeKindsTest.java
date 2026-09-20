@@ -8,13 +8,14 @@ import java.util.List;
 
 public class ReportTreeKindsTest extends CheckerFrameworkPerDirectoryTest {
 
-    /** @param testFiles the files containing test code, which will be type-checked */
+    /**
+     * @param testFiles the files containing test code, which will be type-checked
+     */
     public ReportTreeKindsTest(List<File> testFiles) {
         super(
                 testFiles,
                 org.checkerframework.common.util.report.ReportChecker.class,
                 "report",
-                "-Anomsgtext",
                 "-AreportTreeKinds=WHILE_LOOP,CONDITIONAL_AND");
     }
 

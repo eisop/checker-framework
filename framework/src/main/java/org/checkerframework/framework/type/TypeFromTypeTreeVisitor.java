@@ -52,31 +52,39 @@ import javax.lang.model.type.TypeVariable;
  */
 class TypeFromTypeTreeVisitor extends TypeFromTreeVisitor {
 
-    private final Map<Tree, AnnotatedTypeMirror> visitedBounds = new HashMap<>();
+    /** Creates a TypeFromTypeTreeVisitor. */
+    public TypeFromTypeTreeVisitor() {}
+
+    /**
+     * A mapping from TypeParameterTree to its type. This is used to correctly initialize recursive
+     * type variables.
+     */
+    private final Map<TypeParameterTree, AnnotatedTypeVariable> visitedTypeParameter =
+            new HashMap<>();
 
     @Override
-    public AnnotatedTypeMirror visitAnnotatedType(AnnotatedTypeTree node, AnnotatedTypeFactory f) {
-        AnnotatedTypeMirror type = visit(node.getUnderlyingType(), f);
+    public AnnotatedTypeMirror visitAnnotatedType(AnnotatedTypeTree tree, AnnotatedTypeFactory f) {
+        AnnotatedTypeMirror type = visit(tree.getUnderlyingType(), f);
         if (type == null) { // e.g., for receiver type
             type = f.toAnnotatedType(f.types.getNoType(TypeKind.NONE), false);
         }
         assert AnnotatedTypeFactory.validAnnotatedType(type);
-        List<? extends AnnotationMirror> annos = TreeUtils.annotationsFromTree(node);
+        List<? extends AnnotationMirror> annos = TreeUtils.annotationsFromTree(tree);
 
         if (type.getKind() == TypeKind.WILDCARD) {
             // Work-around for https://github.com/eisop/checker-framework/issues/17
-            // For an annotated wildcard tree node, the type attached to the
-            // node is a WildcardType with a correct bound (set to the type
+            // For an annotated wildcard tree tree, the type attached to the
+            // tree is a WildcardType with a correct bound (set to the type
             // variable which the wildcard instantiates). The underlying type is
             // also a WildcardType but with a bound of null. Here we update the
             // bound of the underlying WildcardType to be consistent.
-            WildcardType wildcardAttachedToNode = (WildcardType) TreeUtils.typeOf(node);
+            WildcardType wildcardAttachedToNode = (WildcardType) TreeUtils.typeOf(tree);
             WildcardType underlyingWildcard = (WildcardType) type.getUnderlyingType();
             underlyingWildcard.withTypeVar(wildcardAttachedToNode.bound);
             // End of work-around
 
-            final AnnotatedWildcardType wctype = ((AnnotatedWildcardType) type);
-            final ExpressionTree underlyingTree = node.getUnderlyingType();
+            AnnotatedWildcardType wctype = ((AnnotatedWildcardType) type);
+            ExpressionTree underlyingTree = tree.getUnderlyingType();
 
             if (underlyingTree.getKind() == Tree.Kind.UNBOUNDED_WILDCARD) {
                 // primary annotations on unbounded wildcard types apply to both bounds
@@ -88,8 +96,8 @@ class TypeFromTypeTreeVisitor extends TypeFromTreeVisitor {
                 wctype.getExtendsBound().addAnnotations(annos);
             } else {
                 throw new BugInCF(
-                        "Unexpected kind for type.  node="
-                                + node
+                        "Unexpected kind for type.  tree="
+                                + tree
                                 + " type="
                                 + type
                                 + " kind="
@@ -103,10 +111,10 @@ class TypeFromTypeTreeVisitor extends TypeFromTreeVisitor {
     }
 
     @Override
-    public AnnotatedTypeMirror visitArrayType(ArrayTypeTree node, AnnotatedTypeFactory f) {
-        AnnotatedTypeMirror component = visit(node.getType(), f);
+    public AnnotatedTypeMirror visitArrayType(ArrayTypeTree tree, AnnotatedTypeFactory f) {
+        AnnotatedTypeMirror component = visit(tree.getType(), f);
 
-        AnnotatedTypeMirror result = f.type(node);
+        AnnotatedTypeMirror result = f.type(tree);
         assert result instanceof AnnotatedArrayType;
         ((AnnotatedArrayType) result).setComponentType(component);
         return result;
@@ -114,23 +122,22 @@ class TypeFromTypeTreeVisitor extends TypeFromTreeVisitor {
 
     @Override
     public AnnotatedTypeMirror visitParameterizedType(
-            ParameterizedTypeTree node, AnnotatedTypeFactory f) {
-
-        ClassSymbol baseType = (ClassSymbol) TreeUtils.elementFromTree(node.getType());
-        updateWildcardBounds(node.getTypeArguments(), baseType.getTypeParameters());
+            ParameterizedTypeTree tree, AnnotatedTypeFactory f) {
+        ClassSymbol baseType = (ClassSymbol) TreeUtils.elementFromTree(tree.getType());
+        updateWildcardBounds(tree.getTypeArguments(), baseType.getTypeParameters());
 
         List<AnnotatedTypeMirror> args =
-                CollectionsPlume.mapList((Tree t) -> visit(t, f), node.getTypeArguments());
+                CollectionsPlume.mapList((Tree t) -> visit(t, f), tree.getTypeArguments());
 
-        AnnotatedTypeMirror result = f.type(node); // use creator?
-        AnnotatedTypeMirror atype = visit(node.getType(), f);
-        result.addAnnotations(atype.getAnnotations());
+        AnnotatedTypeMirror result = f.type(tree); // use creator?
+        AnnotatedTypeMirror atype = visit(tree.getType(), f);
+        result.addAnnotations(atype.getAnnotationsField());
         // new ArrayList<>() type is AnnotatedExecutableType for some reason
 
         // Don't initialize the type arguments if they are empty. The type arguments might be a
         // diamond which should be inferred.
         if (result instanceof AnnotatedDeclaredType && !args.isEmpty()) {
-            assert result instanceof AnnotatedDeclaredType : node + " --> " + result;
+            assert result instanceof AnnotatedDeclaredType : tree + " --> " + result;
             ((AnnotatedDeclaredType) result).setTypeArguments(args);
         }
         return result;
@@ -186,29 +193,30 @@ class TypeFromTypeTreeVisitor extends TypeFromTreeVisitor {
     }
 
     @Override
-    public AnnotatedTypeMirror visitPrimitiveType(PrimitiveTypeTree node, AnnotatedTypeFactory f) {
-        return f.type(node);
+    public AnnotatedTypeMirror visitPrimitiveType(PrimitiveTypeTree tree, AnnotatedTypeFactory f) {
+        return f.type(tree);
     }
 
     @Override
     public AnnotatedTypeVariable visitTypeParameter(
-            TypeParameterTree node, @FindDistinct AnnotatedTypeFactory f) {
-
-        List<AnnotatedTypeMirror> bounds = new ArrayList<>(node.getBounds().size());
-        for (Tree t : node.getBounds()) {
-            AnnotatedTypeMirror bound;
-            if (visitedBounds.containsKey(t) && f == visitedBounds.get(t).atypeFactory) {
-                bound = visitedBounds.get(t);
-            } else {
-                visitedBounds.put(t, f.type(t));
-                bound = visit(t, f);
-                visitedBounds.remove(t);
-            }
-            bounds.add(bound);
+            TypeParameterTree tree, @FindDistinct AnnotatedTypeFactory f) {
+        AnnotatedTypeVariable cached = visitedTypeParameter.get(tree);
+        if (cached != null) {
+            return cached;
         }
 
-        AnnotatedTypeVariable result = (AnnotatedTypeVariable) f.type(node);
-        List<? extends AnnotationMirror> annotations = TreeUtils.annotationsFromTree(node);
+        AnnotatedTypeVariable result = (AnnotatedTypeVariable) f.type(tree);
+        // If this type parameter is recursive and it is found again while visiting the bounds, then
+        // use the same AnnotateTypeVariable object.
+        visitedTypeParameter.put(tree, result);
+
+        List<AnnotatedTypeMirror> bounds = new ArrayList<>(tree.getBounds().size());
+        for (Tree t : tree.getBounds()) {
+            bounds.add(visit(t, f));
+        }
+        visitedTypeParameter.remove(tree);
+
+        List<? extends AnnotationMirror> annotations = TreeUtils.annotationsFromTree(tree);
         result.getLowerBound().addAnnotations(annotations);
 
         switch (bounds.size()) {
@@ -221,27 +229,31 @@ class TypeFromTypeTreeVisitor extends TypeFromTreeVisitor {
                 AnnotatedIntersectionType intersection =
                         (AnnotatedIntersectionType) result.getUpperBound();
                 intersection.setBounds(bounds);
-                intersection.copyIntersectionBoundAnnotations();
+                // Do not summarize the bounds here: doing so now, from only their explicit
+                // annotations, would homogenize an explicitly annotated bound onto the others
+                // before defaulting has run, pre-empting a bare bound's own default (e.g.
+                // @DefaultQualifierForUse) even in a hierarchy that bound doesn't conflict in.
+                // QualifierDefaults calls AnnotatedIntersectionType#summarizeBounds instead, after
+                // each bound has been defaulted on its own.
         }
 
         return result;
     }
 
     @Override
-    public AnnotatedTypeMirror visitWildcard(WildcardTree node, AnnotatedTypeFactory f) {
-
-        AnnotatedTypeMirror bound = visit(node.getBound(), f);
-
-        AnnotatedTypeMirror result = f.type(node);
+    public AnnotatedTypeMirror visitWildcard(WildcardTree tree, AnnotatedTypeFactory f) {
+        AnnotatedTypeMirror bound = visit(tree.getBound(), f);
+        AnnotatedTypeMirror result = f.type(tree);
         assert result instanceof AnnotatedWildcardType;
+        f.initializeAtm(result);
 
         // for wildcards unlike type variables there are bounds that differ in type from
         // result.  These occur for RAW types.  In this case, use the newly created bound
         // rather than merging into result
-        if (node.getKind() == Tree.Kind.SUPER_WILDCARD) {
+        if (tree.getKind() == Tree.Kind.SUPER_WILDCARD) {
             ((AnnotatedWildcardType) result).setSuperBound(bound);
 
-        } else if (node.getKind() == Tree.Kind.EXTENDS_WILDCARD) {
+        } else if (tree.getKind() == Tree.Kind.EXTENDS_WILDCARD) {
             ((AnnotatedWildcardType) result).setExtendsBound(bound);
         }
         return result;
@@ -265,7 +277,11 @@ class TypeFromTypeTreeVisitor extends TypeFromTreeVisitor {
         Element elt = tpe.getGenericElement();
         if (elt instanceof TypeElement) {
             TypeElement typeElt = (TypeElement) elt;
-            int idx = typeElt.getTypeParameters().indexOf(tpe);
+            List<? extends TypeParameterElement> typeParameters = typeElt.getTypeParameters();
+            int idx = typeParameters.indexOf(tpe);
+            if (idx == -1) {
+                idx = findIndex(typeParameters, tpe);
+            }
             ClassTree cls = (ClassTree) f.declarationFromElement(typeElt);
             if (cls == null || cls.getTypeParameters().isEmpty()) {
                 // The type parameters in the source tree were already erased. The element already
@@ -275,16 +291,19 @@ class TypeFromTypeTreeVisitor extends TypeFromTreeVisitor {
 
             // `forTypeVariable` is called for Identifier, MemberSelect and UnionType trees,
             // none of which are declarations.  But `cls.getTypeParameters()` returns a list
-            // of type parameter declarations (`TypeParameterTree`), so this  call
+            // of type parameter declarations (`TypeParameterTree`), so this call
             // will return a declaration ATV.  So change it to a use.
             return visitTypeParameter(cls.getTypeParameters().get(idx), f).asUse();
         } else if (elt instanceof ExecutableElement) {
             ExecutableElement exElt = (ExecutableElement) elt;
-            int idx = exElt.getTypeParameters().indexOf(tpe);
+            List<? extends TypeParameterElement> typeParameters = exElt.getTypeParameters();
+            int idx = typeParameters.indexOf(tpe);
+            if (idx == -1) {
+                idx = findIndex(typeParameters, tpe);
+            }
             MethodTree meth = (MethodTree) f.declarationFromElement(exElt);
             if (meth == null) {
-                // throw new BugInCF("TypeFromTree.forTypeVariable: did not find source for: "
-                //                   + elt);
+                // meth can be null when no source code was found for it.
                 return type.asUse();
             }
             // This works the same as the case above.  Even though `meth` itself is not a
@@ -302,33 +321,143 @@ class TypeFromTypeTreeVisitor extends TypeFromTreeVisitor {
         }
     }
 
-    @Override
-    public AnnotatedTypeMirror visitIdentifier(IdentifierTree node, AnnotatedTypeFactory f) {
+    /**
+     * Finds the index of {@code type} in {@code typeParameters} using {@link
+     * TypesUtils#areSame(TypeVariable, TypeVariable)} instead of {@link Object#equals(Object)}.
+     *
+     * @param typeParameters a list of type parameters
+     * @param type a type parameter
+     * @return the index of {@code type} in {@code typeParameters} using {@link
+     *     TypesUtils#areSame(TypeVariable, TypeVariable)} or -1 if it does not exist
+     */
+    private int findIndex(
+            List<? extends TypeParameterElement> typeParameters, TypeParameterElement type) {
+        TypeVariable typeVariable = (TypeVariable) type.asType();
 
-        AnnotatedTypeMirror type = f.type(node);
+        for (int i = 0; i < typeParameters.size(); i++) {
+            TypeVariable typeVariable1 = (TypeVariable) typeParameters.get(i).asType();
+            if (TypesUtils.areSame(typeVariable1, typeVariable)) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    @Override
+    public AnnotatedTypeMirror visitIdentifier(IdentifierTree tree, AnnotatedTypeFactory f) {
+        AnnotatedTypeMirror type = f.type(tree);
 
         if (type.getKind() == TypeKind.TYPEVAR) {
             return getTypeVariableFromDeclaration((AnnotatedTypeVariable) type, f);
         }
+        refineEnclosingTypeVariableBounds(type, f);
 
         return type;
     }
 
     @Override
-    public AnnotatedTypeMirror visitMemberSelect(MemberSelectTree node, AnnotatedTypeFactory f) {
-
-        AnnotatedTypeMirror type = f.type(node);
+    public AnnotatedTypeMirror visitMemberSelect(MemberSelectTree tree, AnnotatedTypeFactory f) {
+        AnnotatedTypeMirror type = f.type(tree);
 
         if (type.getKind() == TypeKind.TYPEVAR) {
             return getTypeVariableFromDeclaration((AnnotatedTypeVariable) type, f);
         }
+        restoreWrittenEnclosingType(type, tree, f);
+        refineEnclosingTypeVariableBounds(type, f);
 
         return type;
     }
 
+    /**
+     * Restores the annotations written on the type arguments of an explicitly-written enclosing
+     * type of a qualified type, for example the {@code Outer<@Anno String>} part of {@code
+     * Outer<@Anno String>.Inner}.
+     *
+     * <p>{@link AnnotatedTypeFactory#type(Tree)} derives the enclosing type from the underlying
+     * javac type, whose enclosing type arguments carry defaulted annotations rather than the ones
+     * written in the source (see <a
+     * href="https://github.com/eisop/checker-framework/issues/737">issue #737</a>). For a field or
+     * method parameter, {@code ElementAnnotationApplier} later recovers the written annotations
+     * from the element, but a local-variable element does not retain them and an extends/implements
+     * clause has no element at all, so for those positions the written enclosing-argument
+     * annotation would otherwise be lost. This method rebuilds the enclosing type from its own
+     * subtree (a {@link ParameterizedTypeTree} or a nested {@link MemberSelectTree}), which visits
+     * the written type-argument trees and so preserves their annotations, and transplants it onto
+     * {@code type}.
+     *
+     * @param type the type produced for {@code tree}, side-effected in place
+     * @param tree the member-select tree that {@code type} was produced from
+     * @param f the annotated type factory
+     */
+    private void restoreWrittenEnclosingType(
+            AnnotatedTypeMirror type, MemberSelectTree tree, AnnotatedTypeFactory f) {
+        if (type.getKind() != TypeKind.DECLARED) {
+            return;
+        }
+        AnnotatedDeclaredType declaredType = (AnnotatedDeclaredType) type;
+        if (declaredType.getEnclosingType() == null) {
+            return;
+        }
+        // Only an enclosing type written with explicit type arguments (a ParameterizedTypeTree), or
+        // a further-qualified name that may contain one (a MemberSelectTree), can carry written
+        // annotations to restore. A simple-name enclosing type (IdentifierTree) has none.
+        ExpressionTree enclosingTree = tree.getExpression();
+        if (!(enclosingTree instanceof ParameterizedTypeTree
+                || enclosingTree instanceof MemberSelectTree)) {
+            return;
+        }
+        AnnotatedTypeMirror enclosing = visit(enclosingTree, f);
+        if (enclosing != null && enclosing.getKind() == TypeKind.DECLARED) {
+            declaredType.setEnclosingType((AnnotatedDeclaredType) enclosing);
+        }
+    }
+
+    /**
+     * Refines the bounds of type-variable type arguments in the enclosing types of {@code type} to
+     * the bounds written on their declaration.
+     *
+     * <p>The type produced by {@link AnnotatedTypeFactory#type(Tree)} for a nested type derives its
+     * enclosing types from the underlying javac type, whose type-variable type arguments carry
+     * defaulted bounds rather than the bounds written on the type-variable declaration (see <a
+     * href="https://github.com/eisop/checker-framework/issues/737">issue #737</a>). For a type
+     * variable written directly (e.g., as a top-level type argument in a {@link
+     * ParameterizedTypeTree}), {@link #getTypeVariableFromDeclaration} already restores the
+     * declared bounds; this method does the same for type variables that appear only in an
+     * enclosing type, which has no corresponding subtree to visit (e.g., the implicit {@code
+     * Outer<XXX>} enclosing {@code Inner} in {@code class Sub extends Inner}).
+     *
+     * @param type a type whose enclosing types' type-variable arguments are refined in place
+     * @param f the annotated type factory
+     */
+    private void refineEnclosingTypeVariableBounds(
+            AnnotatedTypeMirror type, AnnotatedTypeFactory f) {
+        if (type.getKind() != TypeKind.DECLARED) {
+            return;
+        }
+        AnnotatedDeclaredType enclosing = ((AnnotatedDeclaredType) type).getEnclosingType();
+        while (enclosing != null) {
+            List<AnnotatedTypeMirror> typeArgs = enclosing.getTypeArguments();
+            List<AnnotatedTypeMirror> refinedArgs = null;
+            for (int i = 0; i < typeArgs.size(); i++) {
+                AnnotatedTypeMirror arg = typeArgs.get(i);
+                if (arg.getKind() == TypeKind.TYPEVAR) {
+                    if (refinedArgs == null) {
+                        refinedArgs = new ArrayList<>(typeArgs);
+                    }
+                    refinedArgs.set(
+                            i, getTypeVariableFromDeclaration((AnnotatedTypeVariable) arg, f));
+                }
+            }
+            if (refinedArgs != null) {
+                enclosing.setTypeArguments(refinedArgs);
+            }
+            enclosing = enclosing.getEnclosingType();
+        }
+    }
+
     @Override
-    public AnnotatedTypeMirror visitUnionType(UnionTypeTree node, AnnotatedTypeFactory f) {
-        AnnotatedTypeMirror type = f.type(node);
+    public AnnotatedTypeMirror visitUnionType(UnionTypeTree tree, AnnotatedTypeFactory f) {
+        AnnotatedTypeMirror type = f.type(tree);
 
         if (type.getKind() == TypeKind.TYPEVAR) {
             return getTypeVariableFromDeclaration((AnnotatedTypeVariable) type, f);
@@ -339,15 +468,17 @@ class TypeFromTypeTreeVisitor extends TypeFromTreeVisitor {
 
     @Override
     public AnnotatedTypeMirror visitIntersectionType(
-            IntersectionTypeTree node, AnnotatedTypeFactory f) {
+            IntersectionTypeTree tree, AnnotatedTypeFactory f) {
         // This method is only called for IntersectionTypes in casts.  There is no
         // IntersectionTypeTree
         // for a type variable bound that is an intersection.  See #visitTypeParameter.
-        AnnotatedIntersectionType type = (AnnotatedIntersectionType) f.type(node);
+        AnnotatedIntersectionType type = (AnnotatedIntersectionType) f.type(tree);
         List<AnnotatedTypeMirror> bounds =
-                CollectionsPlume.mapList((Tree boundTree) -> visit(boundTree, f), node.getBounds());
+                CollectionsPlume.mapList((Tree boundTree) -> visit(boundTree, f), tree.getBounds());
         type.setBounds(bounds);
-        type.copyIntersectionBoundAnnotations();
+        // A cast target's unannotated hierarchies are filled from the cast operand, not from
+        // defaulting; see summarizeBounds's Javadoc.
+        type.summarizeBounds();
         return type;
     }
 }

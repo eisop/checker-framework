@@ -14,8 +14,9 @@ public class CalledMethodsTest extends CheckerFrameworkPerDirectoryTest {
                 testFiles,
                 CalledMethodsChecker.class,
                 "calledmethods",
-                "-Anomsgtext",
                 "-nowarn",
+                // Ignore the test suite's usage of qualifiers in illegal locations.
+                "-AignoreTargetLocations",
                 "-encoding",
                 "UTF-8");
     }

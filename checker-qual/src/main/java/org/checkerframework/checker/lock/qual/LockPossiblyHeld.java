@@ -6,6 +6,7 @@ import org.checkerframework.framework.qual.InvisibleQualifier;
 import org.checkerframework.framework.qual.LiteralKind;
 import org.checkerframework.framework.qual.QualifierForLiterals;
 import org.checkerframework.framework.qual.SubtypeOf;
+import org.checkerframework.framework.qual.TargetLocations;
 import org.checkerframework.framework.qual.TypeUseLocation;
 
 import java.lang.annotation.Documented;
@@ -16,8 +17,8 @@ import java.lang.annotation.Target;
 /**
  * Indicates that an expression is not known to be {@link LockHeld}.
  *
- * <p>This annotation may not be written in source code; it is an implementation detail of the
- * checker.
+ * <p>It is usually not necessary to write this annotation in source code. It is an implementation
+ * detail of the checker.
  *
  * @see LockHeld
  * @checker_framework.manual #lock-checker Lock Checker
@@ -26,8 +27,9 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.RUNTIME)
 @Target({})
 @InvisibleQualifier
-@SubtypeOf({}) // The top type in the hierarchy
+@SubtypeOf({})
 @DefaultQualifierInHierarchy
 @DefaultFor(value = TypeUseLocation.LOWER_BOUND, types = Void.class)
+@TargetLocations({TypeUseLocation.ALL})
 @QualifierForLiterals(LiteralKind.NULL)
 public @interface LockPossiblyHeld {}

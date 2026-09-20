@@ -35,6 +35,21 @@ import com.github.javaparser.ast.type.VoidType;
 import com.github.javaparser.ast.type.WildcardType;
 import com.github.javaparser.ast.visitor.GenericVisitorAdapter;
 
+import org.checkerframework.afu.scenelib.annotations.Annotation;
+import org.checkerframework.afu.scenelib.annotations.el.AClass;
+import org.checkerframework.afu.scenelib.annotations.el.ADeclaration;
+import org.checkerframework.afu.scenelib.annotations.el.AElement;
+import org.checkerframework.afu.scenelib.annotations.el.AField;
+import org.checkerframework.afu.scenelib.annotations.el.AMethod;
+import org.checkerframework.afu.scenelib.annotations.el.AScene;
+import org.checkerframework.afu.scenelib.annotations.el.ATypeElement;
+import org.checkerframework.afu.scenelib.annotations.el.AnnotationDef;
+import org.checkerframework.afu.scenelib.annotations.el.BoundLocation;
+import org.checkerframework.afu.scenelib.annotations.el.DefException;
+import org.checkerframework.afu.scenelib.annotations.el.LocalLocation;
+import org.checkerframework.afu.scenelib.annotations.el.TypePathEntry;
+import org.checkerframework.afu.scenelib.annotations.io.IndexFileParser;
+import org.checkerframework.afu.scenelib.annotations.io.IndexFileWriter;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.checker.signature.qual.BinaryName;
 import org.checkerframework.checker.signature.qual.ClassGetName;
@@ -44,22 +59,8 @@ import org.checkerframework.framework.util.JavaParserUtil;
 import org.checkerframework.javacutil.BugInCF;
 import org.plumelib.reflection.Signatures;
 
-import scenelib.annotations.Annotation;
-import scenelib.annotations.el.AClass;
-import scenelib.annotations.el.ADeclaration;
-import scenelib.annotations.el.AElement;
-import scenelib.annotations.el.AField;
-import scenelib.annotations.el.AMethod;
-import scenelib.annotations.el.AScene;
-import scenelib.annotations.el.ATypeElement;
-import scenelib.annotations.el.AnnotationDef;
-import scenelib.annotations.el.BoundLocation;
-import scenelib.annotations.el.DefException;
-import scenelib.annotations.el.LocalLocation;
-import scenelib.annotations.el.TypePathEntry;
-import scenelib.annotations.io.IndexFileParser;
-import scenelib.annotations.io.IndexFileWriter;
-
+import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
 import java.io.BufferedWriter;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -68,6 +69,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -87,7 +89,8 @@ public class ToIndexFileConverter extends GenericVisitorAdapter<Void, AElement> 
     // The possessive modifiers "*+" are for efficiency only.
     // private static Pattern packagePattern =
     //         Pattern.compile("\\bpackage *+((?:[^.]*+[.] *+)*+[^ ]*) *+;");
-    private static Pattern importPattern =
+    /** A pattern that matches an import statement. */
+    private static final Pattern importPattern =
             Pattern.compile("\\bimport *+((?:[^.]*+[.] *+)*+[^ ]*) *+;");
 
     /**
@@ -95,14 +98,18 @@ public class ToIndexFileConverter extends GenericVisitorAdapter<Void, AElement> 
      * declarations are encountered.
      */
     private final @DotSeparatedIdentifiers String pkgName;
+
     /** Imports that appear in the stub file. */
     private final List<String> imports;
+
     /** A scene read from the input JAIF file, and will be written to the output JAIF file. */
     private final AScene scene;
 
     /**
-     * @param pkgDecl AST node for package declaration
-     * @param importDecls AST nodes for import declarations
+     * Creates a new ToIndexFileConverter.
+     *
+     * @param pkgDecl the AST node for package declaration
+     * @param importDecls the AST nodes for import declarations
      * @param scene scene for visitor methods to fill in
      */
     @SuppressWarnings("signature") // https://tinyurl.com/cfissue/658 for getNameAsString
@@ -160,12 +167,12 @@ public class ToIndexFileConverter extends GenericVisitorAdapter<Void, AElement> 
                 String f0 = args[i];
                 String f1 =
                         (f0.endsWith(".astub") ? f0.substring(0, f0.length() - 6) : f0) + ".jaif";
-                try (InputStream in = new FileInputStream(f0);
-                        OutputStream out = new FileOutputStream(f1); ) {
+                try (InputStream in = new BufferedInputStream(new FileInputStream(f0));
+                        OutputStream out = new BufferedOutputStream(new FileOutputStream(f1)); ) {
                     convert(new AScene(scene), in, out);
                 }
             }
-        } catch (Throwable e) {
+        } catch (Exception e) {
             e.printStackTrace();
             System.exit(1);
         }
@@ -177,7 +184,7 @@ public class ToIndexFileConverter extends GenericVisitorAdapter<Void, AElement> 
      *
      * @param scene the initial scene
      * @param in stubfile contents
-     * @param out JAIF representing augmented scene
+     * @param out the output stream for the JAIF file that holds the augmented scene
      * @throws ParseException if the stub file cannot be parsed
      * @throws DefException if two different definitions of the same annotation cannot be unified
      * @throws IOException if there is trouble with file reading or writing
@@ -196,7 +203,7 @@ public class ToIndexFileConverter extends GenericVisitorAdapter<Void, AElement> 
                             + e.getMessage());
         }
         extractScene(iu, scene);
-        try (Writer w = new BufferedWriter(new OutputStreamWriter(out))) {
+        try (Writer w = new BufferedWriter(new OutputStreamWriter(out, StandardCharsets.UTF_8))) {
             IndexFileWriter.write(scene, w);
         }
     }
@@ -232,7 +239,7 @@ public class ToIndexFileConverter extends GenericVisitorAdapter<Void, AElement> 
      * Builds simplified annotation from its declaration. Only the name is included, because
      * stubfiles do not generally have access to the full definitions of annotations.
      */
-    private static Annotation extractAnnotation(AnnotationExpr expr) {
+    private static @Nullable Annotation extractAnnotation(AnnotationExpr expr) {
         String exprName = expr.toString().substring(1); // leave off leading '@'
 
         // Eliminate jdk.Profile+Annotation, a synthetic annotation that
@@ -447,7 +454,7 @@ public class ToIndexFileConverter extends GenericVisitorAdapter<Void, AElement> 
     }
 
     /** Copies information from an AST type node to an {@link ATypeElement}. */
-    private Void visitType(Type type, final ATypeElement elem) {
+    private Void visitType(Type type, ATypeElement elem) {
         List<AnnotationExpr> exprs = type.getAnnotations();
         if (exprs != null) {
             for (AnnotationExpr expr : exprs) {
@@ -464,10 +471,10 @@ public class ToIndexFileConverter extends GenericVisitorAdapter<Void, AElement> 
     /**
      * Copies information from an AST type node's inner type nodes to an {@link ATypeElement}.
      *
-     * @param type AST Type node to inspect
+     * @param type the AST Type node to inspect
      * @param elem destination type element
      */
-    private static Void visitInnerTypes(Type type, final ATypeElement elem) {
+    private static Void visitInnerTypes(Type type, ATypeElement elem) {
         return type.accept(
                 new GenericVisitorAdapter<Void, List<TypePathEntry>>() {
                     @Override
@@ -627,7 +634,7 @@ public class ToIndexFileConverter extends GenericVisitorAdapter<Void, AElement> 
      * @return fully qualified name of class that {@code className} identifies in the current
      *     context, or null if resolution fails
      */
-    private @BinaryName String resolve(@BinaryName String className) {
+    private @Nullable @BinaryName String resolve(@BinaryName String className) {
 
         if (pkgName != null) {
             String qualifiedName = Signatures.addPackage(pkgName, className);
@@ -667,7 +674,8 @@ public class ToIndexFileConverter extends GenericVisitorAdapter<Void, AElement> 
      * @return fully qualified class name if resolution succeeds, null otherwise
      */
     @SuppressWarnings("signature") // string manipulation of signature strings
-    private static @BinaryName String mergeImport(String importName, @BinaryName String className) {
+    private static @Nullable @BinaryName String mergeImport(
+            String importName, @BinaryName String className) {
         if (importName.isEmpty() || importName.equals(className)) {
             return className;
         }
@@ -692,12 +700,12 @@ public class ToIndexFileConverter extends GenericVisitorAdapter<Void, AElement> 
     }
 
     /**
-     * Finds {@link Class} corresponding to a name.
+     * Finds the {@link Class} corresponding to a name.
      *
      * @param className a class name
-     * @return {@link Class} object corresponding to className, or null if none found
+     * @return the {@link Class} object corresponding to {@code className}, or null if none found
      */
-    private static Class<?> loadClass(@ClassGetName String className) {
+    private static @Nullable Class<?> loadClass(@ClassGetName String className) {
         assert className != null;
         try {
             return Class.forName(className, false, null);

@@ -11,12 +11,13 @@ import org.checkerframework.dataflow.cfg.builder.ExtendedNode.ExtendedNodeType;
 import org.checkerframework.dataflow.cfg.node.Node;
 import org.checkerframework.dataflow.cfg.node.ReturnNode;
 
-import java.util.ArrayList;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.StringJoiner;
+
+import javax.lang.model.util.Types;
 
 /** A wrapper object to pass around the result of phase one. */
 public class PhaseOneResult {
@@ -28,22 +29,22 @@ public class PhaseOneResult {
      * Maps from AST {@link Tree}s to sets of {@link Node}s. Every Tree that produces a value will
      * have at least one corresponding Node. Trees that undergo conversions, such as boxing or
      * unboxing, can map to two distinct Nodes. The Node for the pre-conversion value is stored in
-     * the treeLookupMap, while the Node for the post-conversion value is stored in the
-     * convertedTreeLookupMap.
+     * the treeToCfgNodes, while the Node for the post-conversion value is stored in the
+     * treeToConvertedCfgNodes.
      */
-    /*package-private*/ final IdentityHashMap<Tree, Set<Node>> treeLookupMap;
+    /*package-private*/ final IdentityHashMap<Tree, Set<Node>> treeToCfgNodes;
 
     /** Map from AST {@link Tree}s to post-conversion sets of {@link Node}s. */
-    /*package-private*/ final IdentityHashMap<Tree, Set<Node>> convertedTreeLookupMap;
+    /*package-private*/ final IdentityHashMap<Tree, Set<Node>> treeToConvertedCfgNodes;
 
     /**
      * Map from postfix increment or decrement trees that are AST {@link UnaryTree}s to the
      * synthetic tree that is {@code v + 1} or {@code v - 1}.
      */
-    /*package-private*/ final IdentityHashMap<UnaryTree, BinaryTree> postfixLookupMap;
+    /*package-private*/ final IdentityHashMap<UnaryTree, BinaryTree> postfixTreeToCfgNodes;
 
     /** The list of extended nodes. */
-    /*package-private*/ final ArrayList<ExtendedNode> nodeList;
+    /*package-private*/ final List<ExtendedNode> nodeList;
 
     /** The bindings of labels to positions (i.e., indices) in the {@code nodeList}. */
     /*package-private*/ final Map<Label, Integer> bindings;
@@ -75,23 +76,44 @@ public class PhaseOneResult {
      */
     /*package-private*/ final List<LambdaExpressionTree> declaredLambdas;
 
+    /** The javac type utilities. */
+    /*package-private*/ final Types types;
+
+    /**
+     * Create a PhaseOneResult with the given data.
+     *
+     * @param underlyingAST the underlying AST
+     * @param treeToCfgNodes the tree to nodes mapping
+     * @param treeToConvertedCfgNodes the tree to converted nodes mapping
+     * @param postfixTreeToCfgNodes the postfix tree to nodes mapping
+     * @param nodeList the list of nodes
+     * @param bindings the label bindings
+     * @param leaders the leaders
+     * @param returnNodes the return nodes
+     * @param regularExitLabel the regular exit labels
+     * @param exceptionalExitLabel the exceptional exit labels
+     * @param declaredClasses the declared classes
+     * @param declaredLambdas the declared lambdas
+     * @param types the javac type utilities
+     */
     public PhaseOneResult(
             UnderlyingAST underlyingAST,
-            IdentityHashMap<Tree, Set<Node>> treeLookupMap,
-            IdentityHashMap<Tree, Set<Node>> convertedTreeLookupMap,
-            IdentityHashMap<UnaryTree, BinaryTree> postfixLookupMap,
-            ArrayList<ExtendedNode> nodeList,
+            IdentityHashMap<Tree, Set<Node>> treeToCfgNodes,
+            IdentityHashMap<Tree, Set<Node>> treeToConvertedCfgNodes,
+            IdentityHashMap<UnaryTree, BinaryTree> postfixTreeToCfgNodes,
+            List<ExtendedNode> nodeList,
             Map<Label, Integer> bindings,
             Set<Integer> leaders,
             List<ReturnNode> returnNodes,
             Label regularExitLabel,
             Label exceptionalExitLabel,
             List<ClassTree> declaredClasses,
-            List<LambdaExpressionTree> declaredLambdas) {
+            List<LambdaExpressionTree> declaredLambdas,
+            Types types) {
         this.underlyingAST = underlyingAST;
-        this.treeLookupMap = treeLookupMap;
-        this.convertedTreeLookupMap = convertedTreeLookupMap;
-        this.postfixLookupMap = postfixLookupMap;
+        this.treeToCfgNodes = treeToCfgNodes;
+        this.treeToConvertedCfgNodes = treeToConvertedCfgNodes;
+        this.postfixTreeToCfgNodes = postfixTreeToCfgNodes;
         this.nodeList = nodeList;
         this.bindings = bindings;
         this.leaders = leaders;
@@ -100,6 +122,7 @@ public class PhaseOneResult {
         this.exceptionalExitLabel = exceptionalExitLabel;
         this.declaredClasses = declaredClasses;
         this.declaredLambdas = declaredLambdas;
+        this.types = types;
     }
 
     @Override
@@ -168,9 +191,9 @@ public class PhaseOneResult {
                         String.format("%n  "),
                         String.format("PhaseOneResult{%n  "),
                         String.format("%n  }"));
-        result.add("treeLookupMap=" + mapToString(treeLookupMap));
-        result.add("convertedTreeLookupMap=" + mapToString(convertedTreeLookupMap));
-        result.add("postfixLookupMap=" + mapToString(postfixLookupMap));
+        result.add("treeToCfgNodes=" + mapToString(treeToCfgNodes));
+        result.add("treeToConvertedCfgNodes=" + mapToString(treeToConvertedCfgNodes));
+        result.add("postfixTreeToCfgNodes=" + mapToString(postfixTreeToCfgNodes));
         result.add("underlyingAST=" + underlyingAST);
         result.add("bindings=" + bindings);
         result.add("nodeList=" + CFGBuilder.extendedNodeCollectionToStringDebug(nodeList));

@@ -19,6 +19,6 @@ import java.lang.annotation.Target;
 @Documented
 @Retention(RetentionPolicy.RUNTIME)
 @Target({}) // empty target prevents programmers from writing this in a program
-@DefaultQualifierInHierarchy
 @SubtypeOf({})
+@DefaultQualifierInHierarchy
 public @interface SignatureUnknown {}

@@ -14,16 +14,22 @@ class ValueMethodIdentifier {
 
     /** String.length() method. */
     private final ExecutableElement lengthMethod;
+
     /** Array.getLength() method. */
     private final ExecutableElement getLengthMethod;
+
     /** String.startsWith(String) method. */
     private final ExecutableElement startsWithMethod;
+
     /** String.endsWith(String) method. */
     private final ExecutableElement endsWithMethod;
+
     /** The {@code java.lang.Math#min()} methods. */
     private final List<ExecutableElement> mathMinMethods;
+
     /** The {@code java.lang.Math#max()} methods. */
     private final List<ExecutableElement> mathMaxMethods;
+
     /** Arrays.copyOf() methods. */
     private final List<ExecutableElement> copyOfMethods;
 
@@ -66,13 +72,19 @@ class ValueMethodIdentifier {
         return TreeUtils.isMethodInvocation(methodTree, mathMaxMethods, processingEnv);
     }
 
-    /** Determines whether a tree is an invocation of the {@code String.length()} method. */
+    /**
+     * Returns true if a tree is an invocation of the {@code String.length()} method.
+     *
+     * @param tree a tree
+     * @param processingEnv the processing environment
+     * @return true if a tree is an invocation of the {@code String.length()} method
+     */
     public boolean isStringLengthInvocation(Tree tree, ProcessingEnvironment processingEnv) {
         return TreeUtils.isMethodInvocation(tree, lengthMethod, processingEnv);
     }
 
     /**
-     * Determines whether a tree is an invocation of the {@code Array.getLength()} method.
+     * Returns true if a tree is an invocation of the {@code Array.getLength()} method.
      *
      * @param tree tree to check
      * @param processingEnv the processing environment
@@ -83,7 +95,7 @@ class ValueMethodIdentifier {
     }
 
     /**
-     * Determines whether a method is the {@code String.length()} method.
+     * Returns true if a method is the {@code String.length()} method.
      *
      * @param method the element to check
      * @return true iff the argument methid is {@code String.length()} method
@@ -94,7 +106,7 @@ class ValueMethodIdentifier {
     }
 
     /**
-     * Determines whether a method is the {@code Array.getLength()} method.
+     * Returns true if a method is the {@code Array.getLength()} method.
      *
      * @param method the element to check
      * @return true iff the argument method is {@code Array.getLength()} method
@@ -105,7 +117,7 @@ class ValueMethodIdentifier {
     }
 
     /**
-     * Determines whether a method is the {@code String.startsWith(String)} method.
+     * Returns true if a method is the {@code String.startsWith(String)} method.
      *
      * @param method the element to check
      * @return true iff the argument method is {@code String.startsWith(String)} method
@@ -114,14 +126,20 @@ class ValueMethodIdentifier {
         // equals (rather than ElementUtils.ismethod) because String.length cannot be overridden
         return method.equals(startsWithMethod);
     }
-    /** Determines whether a method is the {@code String.endsWith(String)} method. */
+
+    /**
+     * Returns true if a method is the {@code String.endsWith(String)} method.
+     *
+     * @param method a method
+     * @return true if the method is {@code String.endsWith(String)}
+     */
     public boolean isEndsWithMethod(ExecutableElement method) {
         // equals (rather than ElementUtils.ismethod) because String.length cannot be overridden
         return method.equals(endsWithMethod);
     }
 
     /**
-     * Determines whether a tree is an invocation of the {@code Arrays.copyOf()} method.
+     * Returns true if a tree is an invocation of the {@code Arrays.copyOf()} method.
      *
      * @param tree tree to check
      * @param processingEnv the processing environment

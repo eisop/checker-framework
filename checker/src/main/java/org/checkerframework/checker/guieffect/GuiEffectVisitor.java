@@ -2,6 +2,7 @@ package org.checkerframework.checker.guieffect;
 
 import com.sun.source.tree.AssignmentTree;
 import com.sun.source.tree.ClassTree;
+import com.sun.source.tree.CompilationUnitTree;
 import com.sun.source.tree.ExpressionTree;
 import com.sun.source.tree.LambdaExpressionTree;
 import com.sun.source.tree.MethodInvocationTree;
@@ -28,16 +29,14 @@ import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedDeclared
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedExecutableType;
 import org.checkerframework.framework.util.AnnotatedTypes;
 import org.checkerframework.javacutil.AnnotationBuilder;
+import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.TreePathUtil;
 import org.checkerframework.javacutil.TreeUtils;
-import org.checkerframework.javacutil.TypesUtils;
 
 import java.util.ArrayDeque;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.ExecutableElement;
@@ -49,6 +48,7 @@ import javax.lang.model.type.DeclaredType;
 public class GuiEffectVisitor extends BaseTypeVisitor<GuiEffectTypeFactory> {
     /** The type of the class currently being visited. */
     private @Nullable AnnotatedDeclaredType classType = null;
+
     /** The receiver type of the enclosing method tree. */
     private @Nullable AnnotatedDeclaredType receiverType = null;
 
@@ -81,7 +81,7 @@ public class GuiEffectVisitor extends BaseTypeVisitor<GuiEffectTypeFactory> {
     //       for any UI instantiations, safe otherwise
     @Override
     protected void checkMethodInvocability(
-            AnnotatedExecutableType method, MethodInvocationTree node) {
+            AnnotatedExecutableType method, MethodInvocationTree tree) {
         // The inherited version of this complains about invoking methods of @UI instantiations of
         // classes, which by default are annotated @AlwaysSafe, which for data type qualifiers is
         // reasonable, but it not what we want, since we want .
@@ -200,8 +200,9 @@ public class GuiEffectVisitor extends BaseTypeVisitor<GuiEffectTypeFactory> {
     }
 
     @Override
-    protected Set<? extends AnnotationMirror> getExceptionParameterLowerBoundAnnotations() {
-        return Collections.singleton(AnnotationBuilder.fromClass(elements, AlwaysSafe.class));
+    protected AnnotationMirrorSet getExceptionParameterLowerBoundAnnotations() {
+        return AnnotationMirrorSet.singleton(
+                AnnotationBuilder.fromClass(elements, AlwaysSafe.class));
     }
 
     @Override
@@ -235,15 +236,15 @@ public class GuiEffectVisitor extends BaseTypeVisitor<GuiEffectTypeFactory> {
 
     @Override
     @SuppressWarnings("interning:not.interned") // comparing AST nodes
-    public Void visitLambdaExpression(LambdaExpressionTree node, Void p) {
-        Void v = super.visitLambdaExpression(node, p);
+    public Void visitLambdaExpression(LambdaExpressionTree tree, Void p) {
+        Void v = super.visitLambdaExpression(tree, p);
         // If this is a lambda inferred to be @UI, scan up the path and re-check any assignments
         // involving it.
-        if (atypeFactory.isDirectlyMarkedUIThroughInference(node)) {
+        if (atypeFactory.isDirectlyMarkedUIThroughInference(tree)) {
             // Backtrack path to the lambda expression itself
             TreePath path = getCurrentPath();
-            while (path.getLeaf() != node) {
-                assert path.getLeaf().getKind() != Tree.Kind.COMPILATION_UNIT;
+            while (path.getLeaf() != tree) {
+                assert !(path.getLeaf() instanceof CompilationUnitTree);
                 path = path.getParentPath();
             }
             scanUp(path);
@@ -252,7 +253,7 @@ public class GuiEffectVisitor extends BaseTypeVisitor<GuiEffectTypeFactory> {
     }
 
     @Override
-    protected void checkExtendsImplements(ClassTree classTree) {
+    protected void checkExtendsAndImplements(ClassTree classTree) {
         // Skip this check
     }
 
@@ -263,19 +264,19 @@ public class GuiEffectVisitor extends BaseTypeVisitor<GuiEffectTypeFactory> {
     }
 
     @Override
-    protected void checkForPolymorphicQualifiers(ClassTree classTree) {
+    protected void warnInvalidPolymorphicQualifier(ClassTree classTree) {
         // Polymorphic qualifiers are legal on classes, so skip this check.
     }
 
     // Check that the invoked effect is <= permitted effect (effStack.peek())
     @Override
-    public Void visitMethodInvocation(MethodInvocationTree node, Void p) {
+    public Void visitMethodInvocation(MethodInvocationTree tree, Void p) {
         if (debugSpew) {
-            System.err.println("For invocation " + node + " in " + currentMethods.peek().getName());
+            System.err.println("For invocation " + tree + " in " + currentMethods.peek().getName());
         }
 
         // Target method annotations
-        ExecutableElement methodElt = TreeUtils.elementFromUse(node);
+        ExecutableElement methodElt = TreeUtils.elementFromUse(tree);
         if (debugSpew) {
             System.err.println("methodElt found");
         }
@@ -286,30 +287,30 @@ public class GuiEffectVisitor extends BaseTypeVisitor<GuiEffectTypeFactory> {
             if (debugSpew) {
                 System.err.println("No enclosing method: likely static initializer");
             }
-            return super.visitMethodInvocation(node, p);
+            return super.visitMethodInvocation(tree, p);
         }
         if (debugSpew) {
             System.err.println("callerTree found: " + callerTree.getKind());
         }
 
         Effect targetEffect =
-                atypeFactory.getComputedEffectAtCallsite(node, receiverType, methodElt);
+                atypeFactory.getComputedEffectAtCallsite(tree, receiverType, methodElt);
 
         Effect callerEffect = null;
-        if (callerTree.getKind() == Tree.Kind.METHOD) {
+        if (callerTree instanceof MethodTree) {
             ExecutableElement callerElt = TreeUtils.elementFromDeclaration((MethodTree) callerTree);
             if (debugSpew) {
                 System.err.println("callerElt found");
             }
 
             callerEffect = atypeFactory.getDeclaredEffect(callerElt);
-            final DeclaredType callerReceiverType = classType.getUnderlyingType();
+            DeclaredType callerReceiverType = classType.getUnderlyingType();
             assert callerReceiverType != null;
-            final TypeElement callerReceiverElt = (TypeElement) callerReceiverType.asElement();
+            TypeElement callerReceiverElt = (TypeElement) callerReceiverType.asElement();
             // Note: All these checks should be fast in the common case, but happen for every method
             // call inside the anonymous class. Consider a cache here if profiling surfaces this as
             // taking too long.
-            if (TypesUtils.isAnonymous(callerReceiverType)
+            if (ElementUtils.isAnonymous(callerReceiverElt)
                     // Skip if already inferred @UI
                     && !effStack.peek().isUI()
                     // Ignore if explicitly annotated
@@ -353,7 +354,7 @@ public class GuiEffectVisitor extends BaseTypeVisitor<GuiEffectTypeFactory> {
             // Field initializers inside anonymous inner classes show up with a null current-method
             // --- the traversal goes straight from the class to the initializer.
             assert (currentMethods.peek() == null || callerEffect.equals(effStack.peek()));
-        } else if (callerTree.getKind() == Tree.Kind.LAMBDA_EXPRESSION) {
+        } else if (callerTree instanceof LambdaExpressionTree) {
             callerEffect =
                     atypeFactory.getInferedEffectForLambdaExpression(
                             (LambdaExpressionTree) callerTree);
@@ -367,21 +368,21 @@ public class GuiEffectVisitor extends BaseTypeVisitor<GuiEffectTypeFactory> {
         assert callerEffect != null;
 
         if (!Effect.lessThanOrEqualTo(targetEffect, callerEffect)) {
-            checker.reportError(node, "call.invalid.ui", targetEffect, callerEffect);
+            checker.reportError(tree, "call.invalid.ui", targetEffect, callerEffect);
             if (debugSpew) {
-                System.err.println("Issuing error for node: " + node);
+                System.err.println("Issuing error for tree: " + tree);
             }
         }
         if (debugSpew) {
             System.err.println(
-                    "Successfully finished main non-recursive checkinv of invocation " + node);
+                    "Successfully finished main non-recursive checkinv of invocation " + tree);
         }
-        return super.visitMethodInvocation(node, p);
+        return super.visitMethodInvocation(tree, p);
     }
 
     @Override
-    public Void visitMethod(MethodTree node, Void p) {
-        AnnotatedExecutableType methodType = atypeFactory.getAnnotatedType(node).deepCopy();
+    public void processMethodTree(String className, MethodTree tree) {
+        AnnotatedExecutableType methodType = atypeFactory.getAnnotatedType(tree).deepCopy();
         AnnotatedDeclaredType previousReceiverType = receiverType;
         receiverType = methodType.getReceiverType();
 
@@ -399,14 +400,13 @@ public class GuiEffectVisitor extends BaseTypeVisitor<GuiEffectTypeFactory> {
         // Need to write down |- t for this system!  And the judgments for method overrides and
         // inheritance!  Those are actually the hardest part of the system.
 
-        ExecutableElement methElt = TreeUtils.elementFromDeclaration(node);
+        ExecutableElement methElt = TreeUtils.elementFromDeclaration(tree);
         if (debugSpew) {
             System.err.println(
                     "Visiting method " + methElt + " of " + methElt.getEnclosingElement());
         }
 
         // Check for conflicting (multiple) annotations
-        assert (methElt != null);
         // TypeMirror scratch = methElt.getReturnType();
         AnnotationMirror targetUIP = atypeFactory.getDeclAnnotation(methElt, UIEffect.class);
         AnnotationMirror targetSafeP = atypeFactory.getDeclAnnotation(methElt, SafeEffect.class);
@@ -415,13 +415,13 @@ public class GuiEffectVisitor extends BaseTypeVisitor<GuiEffectTypeFactory> {
 
         if ((targetUIP != null && (targetSafeP != null || targetPolyP != null))
                 || (targetSafeP != null && targetPolyP != null)) {
-            checker.reportError(node, "annotations.conflicts");
+            checker.reportError(tree, "annotations.conflicts");
         }
         if (targetPolyP != null && !atypeFactory.isPolymorphicType(targetClassElt)) {
-            checker.reportError(node, "polymorphism.invalid");
+            checker.reportError(tree, "polymorphism.invalid");
         }
         if (targetUIP != null && atypeFactory.isUIType(targetClassElt)) {
-            checker.reportWarning(node, "effects.redundant.uitype");
+            checker.reportWarning(tree, "effects.redundant.uitype");
         }
 
         // TODO: Report an error for polymorphic method bodies??? Until we fix the receiver
@@ -429,7 +429,7 @@ public class GuiEffectVisitor extends BaseTypeVisitor<GuiEffectTypeFactory> {
         @SuppressWarnings("unused") // call has side effects
         Effect.EffectRange range =
                 atypeFactory.findInheritedEffectRange(
-                        ((TypeElement) methElt.getEnclosingElement()), methElt, true, node);
+                        ((TypeElement) methElt.getEnclosingElement()), methElt, true, tree);
         // if (targetUIP == null && targetSafeP == null && targetPolyP == null) {
         // implicitly annotate this method with the LUB of the effects of the methods it overrides
         // atypeFactory.fromElement(methElt).addAnnotation(range != null ? range.min.getAnnot()
@@ -438,7 +438,7 @@ public class GuiEffectVisitor extends BaseTypeVisitor<GuiEffectTypeFactory> {
         // TODO: This line does nothing! AnnotatedTypeMirror.addAnnotation
         // silently ignores non-qualifier annotations!
         // System.err.println("ERROR: TREE ANNOTATOR SHOULD HAVE ADDED EXPLICIT ANNOTATION! ("
-        //     +node.getName()+")");
+        //     +tree.getName()+")");
         // atypeFactory
         //         .fromElement(methElt)
         //         .addAnnotation(atypeFactory.getDeclaredEffect(methElt).getAnnot());
@@ -446,7 +446,7 @@ public class GuiEffectVisitor extends BaseTypeVisitor<GuiEffectTypeFactory> {
 
         // We hang onto the current method here for ease.  We back up the old
         // current method because this code is reentrant when we traverse methods of an inner class
-        currentMethods.addFirst(node);
+        currentMethods.addFirst(tree);
         // effStack.push(targetSafeP != null ? new Effect(AlwaysSafe.class) :
         //                (targetPolyP != null ? new Effect(PolyUI.class) :
         //                   (targetUIP != null ? new Effect(UI.class) :
@@ -459,24 +459,23 @@ public class GuiEffectVisitor extends BaseTypeVisitor<GuiEffectTypeFactory> {
                     "Pushing " + effStack.peek() + " onto the stack when checking " + methElt);
         }
 
-        Void ret = super.visitMethod(node, p);
+        super.processMethodTree(className, tree);
         currentMethods.removeFirst();
         effStack.removeFirst();
         receiverType = previousReceiverType;
-        return ret;
     }
 
     @Override
     @SuppressWarnings("interning:not.interned") // comparing AST nodes
-    public Void visitNewClass(NewClassTree node, Void p) {
-        Void v = super.visitNewClass(node, p);
+    public Void visitNewClass(NewClassTree tree, Void p) {
+        Void v = super.visitNewClass(tree, p);
         // If this is an anonymous inner class inferred to be @UI, scan up the path and re-check any
         // assignments involving it.
-        if (atypeFactory.isDirectlyMarkedUIThroughInference(node)) {
+        if (atypeFactory.isDirectlyMarkedUIThroughInference(tree)) {
             // Backtrack path to the new class expression itself
             TreePath path = getCurrentPath();
-            while (path.getLeaf() != node) {
-                assert path.getLeaf().getKind() != Tree.Kind.COMPILATION_UNIT;
+            while (path.getLeaf() != tree) {
+                assert !(path.getLeaf() instanceof CompilationUnitTree);
                 path = path.getParentPath();
             }
             scanUp(getCurrentPath().getParentPath());
@@ -486,11 +485,11 @@ public class GuiEffectVisitor extends BaseTypeVisitor<GuiEffectTypeFactory> {
 
     /**
      * This method is called to traverse the path back up from any anonymous inner class or lambda
-     * which has been inferred to be UI affecting and re-run {@code commonAssignmentCheck} as needed
-     * on places where the class declaration or lambda expression are being assigned to a variable,
-     * passed as a parameter or returned from a method. This is necessary because the normal visitor
-     * traversal only checks assignments on the way down the AST, before inference has had a chance
-     * to run.
+     * which has been inferred to be UI affecting and re-run {@code commonAssignmentCheck()} as
+     * needed on places where the class declaration or lambda expression are being assigned to a
+     * variable, passed as a parameter or returned from a method. This is necessary because the
+     * normal visitor traversal only checks assignments on the way down the AST, before inference
+     * has had a chance to run.
      *
      * @param path the path to traverse up from a UI-affecting class
      */
@@ -519,14 +518,12 @@ public class GuiEffectVisitor extends BaseTypeVisitor<GuiEffectTypeFactory> {
                 ParameterizedExecutableType mType = atypeFactory.methodFromUse(invocationTree);
                 AnnotatedExecutableType invokedMethod = mType.executableType;
                 ExecutableElement method = invokedMethod.getElement();
-                CharSequence methodName = ElementUtils.getSimpleNameOrDescription(method);
+                CharSequence methodName = ElementUtils.getSimpleDescription(method);
                 List<? extends VariableElement> methodParams = method.getParameters();
-                List<AnnotatedTypeMirror> paramTypes =
-                        AnnotatedTypes.expandVarArgsParameters(
-                                atypeFactory, invokedMethod, invocationTree.getArguments());
+                List<AnnotatedTypeMirror> paramTypes = invokedMethod.getParameterTypes();
                 for (int i = 0; i < args.size(); ++i) {
-                    if (args.get(i).getKind() == Tree.Kind.NEW_CLASS
-                            || args.get(i).getKind() == Tree.Kind.LAMBDA_EXPRESSION) {
+                    if (args.get(i) instanceof NewClassTree
+                            || args.get(i) instanceof LambdaExpressionTree) {
                         commonAssignmentCheck(
                                 paramTypes.get(i),
                                 atypeFactory.getAnnotatedType(args.get(i)),
@@ -539,11 +536,11 @@ public class GuiEffectVisitor extends BaseTypeVisitor<GuiEffectTypeFactory> {
                 break;
             case RETURN:
                 ReturnTree returnTree = (ReturnTree) tree;
-                if (returnTree.getExpression().getKind() == Tree.Kind.NEW_CLASS
-                        || returnTree.getExpression().getKind() == Tree.Kind.LAMBDA_EXPRESSION) {
+                if (returnTree.getExpression() instanceof NewClassTree
+                        || returnTree.getExpression() instanceof LambdaExpressionTree) {
                     Tree enclosing = TreePathUtil.enclosingMethodOrLambda(path);
                     AnnotatedTypeMirror ret = null;
-                    if (enclosing.getKind() == Tree.Kind.METHOD) {
+                    if (enclosing instanceof MethodTree) {
                         MethodTree enclosingMethod = (MethodTree) enclosing;
                         boolean valid = validateTypeOf(enclosing);
                         if (valid) {
@@ -580,17 +577,17 @@ public class GuiEffectVisitor extends BaseTypeVisitor<GuiEffectTypeFactory> {
     }
 
     // @Override
-    // public Void visitMemberSelect(MemberSelectTree node, Void p) {
+    // public Void visitMemberSelect(MemberSelectTree tree, Void p) {
     // TODO: Same effect checks as for methods
-    // return super.visitMemberSelect(node, p);
+    // return super.visitMemberSelect(tree, p);
     // }
 
     // @Override
-    // public void processClassTree(ClassTree node) {
+    // public void processClassTree(ClassTree tree) {
     // TODO: Check constraints on this class decl vs. parent class decl., and interfaces
     // TODO: This has to wait for now: maybe this will be easier with the isValidUse on the
     // TypeFactory.
-    // AnnotatedTypeMirror.AnnotatedDeclaredType atype = atypeFactory.fromClass(node);
+    // AnnotatedTypeMirror.AnnotatedDeclaredType atype = atypeFactory.fromClass(tree);
 
     // Push a null method and UI effect onto the stack for static field initialization
     // TODO: Figure out if this is safe! For static data, almost certainly,
@@ -598,7 +595,7 @@ public class GuiEffectVisitor extends BaseTypeVisitor<GuiEffectTypeFactory> {
     // are implicitly moved into each constructor, which must then be @UI.
     // currentMethods.addFirst(null);
     // effStack.addFirst(new Effect(UIEffect.class));
-    // super.processClassTree(node);
+    // super.processClassTree(tree);
     // currentMethods.removeFirst();
     // effStack.removeFirst();
     // }

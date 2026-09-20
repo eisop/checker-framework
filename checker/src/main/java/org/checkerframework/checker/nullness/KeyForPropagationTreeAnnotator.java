@@ -41,10 +41,11 @@ import javax.lang.model.type.TypeKind;
  * check we also propagate the annotations to this constructor in constructorFromUse so that the
  * constructor call matches the type given to the NewClassTree.
  *
+ * <p>Note propagation only occurs between two AnnotatedDeclaredTypes. If either side is not an
+ * AnnotatedDeclaredType then this class does nothing.
+ *
  * @see
  *     org.checkerframework.checker.nullness.KeyForAnnotatedTypeFactory#constructorFromUse(com.sun.source.tree.NewClassTree)
- *     <p>Note propagation only occurs between two AnnotatedDeclaredTypes. If either side is not an
- *     AnnotatedDeclaredType then this class does nothing.
  */
 public class KeyForPropagationTreeAnnotator extends TreeAnnotator {
     private final KeyForPropagator keyForPropagator;
@@ -78,12 +79,11 @@ public class KeyForPropagationTreeAnnotator extends TreeAnnotator {
 
         // This should only happen on Map.keySet();
         if (type.getKind() == TypeKind.DECLARED) {
-            final ExpressionTree initializer = variableTree.getInitializer();
+            ExpressionTree initializer = variableTree.getInitializer();
 
             if (isCallToKeyset(initializer)) {
-                final AnnotatedDeclaredType variableType = (AnnotatedDeclaredType) type;
-                final AnnotatedTypeMirror initializerType =
-                        atypeFactory.getAnnotatedType(initializer);
+                AnnotatedDeclaredType variableType = (AnnotatedDeclaredType) type;
+                AnnotatedTypeMirror initializerType = atypeFactory.getAnnotatedType(initializer);
 
                 // Propagate just for declared (class) types, not for array types, boxed primitives,
                 // etc.
@@ -102,9 +102,9 @@ public class KeyForPropagationTreeAnnotator extends TreeAnnotator {
 
     /** Transfers annotations to type if the left hand side is a variable declaration. */
     @Override
-    public Void visitNewClass(NewClassTree node, AnnotatedTypeMirror type) {
+    public Void visitNewClass(NewClassTree tree, AnnotatedTypeMirror type) {
         keyForPropagator.propagateNewClassTree(
-                node, type, (KeyForAnnotatedTypeFactory) atypeFactory);
-        return super.visitNewClass(node, type);
+                tree, type, (KeyForAnnotatedTypeFactory) atypeFactory);
+        return super.visitNewClass(tree, type);
     }
 }

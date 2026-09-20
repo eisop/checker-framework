@@ -2,7 +2,7 @@
 
 Thank you for contributing to the Checker Framework!  This project is a
 community effort of [more than 110
-developers](https://checkerframework.org/manual/#credits), plus countless
+developers](https://eisop.github.io/cf/manual/#credits), plus countless
 more people who have contributed bug reports and feature suggestions.  We
 couldn't do it without your help.
 
@@ -10,7 +10,7 @@ couldn't do it without your help.
 ## Reporting bugs
 
 Please see the [bug
-reporting](https://checkerframework.org/manual/#reporting-bugs) section of
+reporting](https://eisop.github.io/cf/manual/#reporting-bugs) section of
 the Checker Framework manual.
 
 If the documentation is incorrect, incomplete, or confusing, that is a
@@ -45,4 +45,4 @@ existing [license](LICENSE.txt), usually GPL2 or MIT License.
 ## Code of conduct
 
 When interacting with other people, please abide by the [Contributor
-Covenant](https://www.contributor-covenant.org/version/2/0/code_of_conduct).
+Covenant](https://www.contributor-covenant.org/version/2/1/code_of_conduct).

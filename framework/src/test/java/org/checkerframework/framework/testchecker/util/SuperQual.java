@@ -7,7 +7,7 @@ import java.lang.annotation.ElementType;
 import java.lang.annotation.Target;
 
 /** A supertype of SubQual. */
+@Target({ElementType.TYPE_USE, ElementType.TYPE_PARAMETER})
 @SubtypeOf({})
 @DefaultQualifierInHierarchy
-@Target({ElementType.TYPE_USE, ElementType.TYPE_PARAMETER})
 public @interface SuperQual {}

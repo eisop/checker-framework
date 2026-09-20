@@ -3,11 +3,12 @@ package org.checkerframework.checker.nullness;
 import org.checkerframework.checker.initialization.InitializationChecker;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.common.basetype.BaseTypeChecker;
-import org.checkerframework.common.basetype.BaseTypeVisitor;
+import org.checkerframework.framework.qual.StubFiles;
 import org.checkerframework.framework.source.SupportedLintOptions;
+import org.checkerframework.framework.source.SupportedModes;
 
-import java.util.LinkedHashSet;
-import java.util.SortedSet;
+import java.util.Map;
+import java.util.NavigableSet;
 
 import javax.annotation.processing.SupportedOptions;
 
@@ -16,6 +17,31 @@ import javax.annotation.processing.SupportedOptions;
  * safe initialization. It uses freedom-before-commitment, augmented by type frames (which are
  * crucial to obtain acceptable precision), as its initialization type system.
  *
+ * <p>This checker uses the {@link NullnessNoInitSubchecker} to check for nullness and extends the
+ * {@link InitializationChecker} to also check that all non-null fields are properly initialized.
+ *
+ * <p>You can use the following {@link SuppressWarnings} prefixes with this checker:
+ *
+ * <ul>
+ *   <li>{@code @SuppressWarnings("nullness")} suppresses warnings from the Nullness,
+ *       Initialization, and KeyFor Checkers
+ *   <li>{@code @SuppressWarnings("nullnessinitialization")} suppresses warnings from the Nullness
+ *       and Initialization Checkers only, warnings from the KeyFor Checker are not suppressed
+ *   <li>{@code @SuppressWarnings("nullnesskeyfor")} suppresses warnings from the Nullness and
+ *       KeyFor Checkers only, warnings from the Initialization Checker are not suppressed
+ *       {@code @SuppressWarnings("nullnessnoinit")} has the same effect as
+ *       {@code @SuppressWarnings("nullnesskeyfor")}
+ *   <li>{@code @SuppressWarnings("nullnessonly")} suppresses warnings from the Nullness Checker
+ *       only, warnings from the Initialization and KeyFor Checkers are not suppressed
+ *   <li>{@code @SuppressWarnings("initialization")} suppresses warnings from the Initialization
+ *       Checker only, warnings from the Nullness and KeyFor Checkers are not suppressed
+ *   <li>{@code @SuppressWarnings("keyfor")} suppresses warnings from the KeyFor Checker only,
+ *       warnings from the Nullness and Initialization Checkers are not suppressed
+ * </ul>
+ *
+ * @see KeyForSubchecker
+ * @see InitializationChecker
+ * @see NullnessNoInitSubchecker
  * @checker_framework.manual #nullness-checker Nullness Checker
  */
 @SupportedLintOptions({
@@ -24,7 +50,7 @@ import javax.annotation.processing.SupportedOptions;
     // Temporary option to forbid non-null array component types, which is allowed by default.
     // Forbidding is sound and will eventually be the default.
     // Allowing is unsound, as described in Section 3.3.4, "Nullness and arrays":
-    //     https://checkerframework.org/manual/#nullness-arrays
+    //     https://eisop.github.io/cf/manual/#nullness-arrays
     // It is the default temporarily, until we improve the analysis to reduce false positives or we
     // learn what advice to give programmers about avoid false positive warnings.
     // See issue #986: https://github.com/typetools/checker-framework/issues/986
@@ -33,9 +59,21 @@ import javax.annotation.processing.SupportedOptions;
     "forbidnonnullarraycomponents",
     NullnessChecker.LINT_TRUSTARRAYLENZERO,
     NullnessChecker.LINT_PERMITCLEARPROPERTY,
+    NullnessChecker.LINT_MONOTONICNONNULLONSTATIC,
 })
-@SupportedOptions({"assumeKeyFor", "jspecifyNullMarkedAlias"})
+@SupportedModes(NullnessChecker.MODE_JSPECIFY)
+@SupportedOptions({
+    "assumeKeyFor",
+    "assumeInitialized",
+    "jspecifyNullMarkedAlias",
+    "jspecifyUnrecognizedLocations",
+    "conservativeArgumentNullnessAfterInvocation"
+})
+@StubFiles({"junit-assertions.astub", "log4j.astub"})
 public class NullnessChecker extends InitializationChecker {
+
+    /** The JSpecify compatibility mode. */
+    public static final String MODE_JSPECIFY = "jspecify";
 
     /** Should we be strict about initialization of {@link MonotonicNonNull} variables? */
     public static final String LINT_NOINITFORMONOTONICNONNULL = "noInitForMonotonicNonNull";
@@ -70,25 +108,60 @@ public class NullnessChecker extends InitializationChecker {
     /** Default for {@link #LINT_PERMITCLEARPROPERTY}. */
     public static final boolean LINT_DEFAULT_PERMITCLEARPROPERTY = false;
 
+    /**
+     * Warn when {@code @MonotonicNonNull} is written on a {@code static} field, which the manual
+     * documents as a code smell that may indicate poor design.
+     */
+    public static final String LINT_MONOTONICNONNULLONSTATIC = "monotonicNonNullOnStatic";
+
+    /** Default for {@link #LINT_MONOTONICNONNULLONSTATIC}. */
+    public static final boolean LINT_DEFAULT_MONOTONICNONNULLONSTATIC = false;
+
+    /** Default constructor for NullnessChecker. */
+    public NullnessChecker() {}
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p>{@link #MODE_JSPECIFY} restricts checking to code in the scope of an
+     * {@code @AnnotatedFor}, treats {@code @NullMarked} as a defaulting annotation, and turns off
+     * the initialization and map-key checks, none of which JSpecify specifies. It also assumes that
+     * every called method is pure and that assertions are enabled.
+     */
     @Override
-    protected LinkedHashSet<Class<? extends BaseTypeChecker>> getImmediateSubcheckerClasses() {
-        LinkedHashSet<Class<? extends BaseTypeChecker>> checkers =
-                super.getImmediateSubcheckerClasses();
-        if (!hasOptionNoSubcheckers("assumeKeyFor")) {
-            checkers.add(KeyForSubchecker.class);
+    protected void addOptionsForMode(String mode, Map<String, String> activeOptions) {
+        super.addOptionsForMode(mode, activeOptions);
+        switch (mode) {
+            case MODE_JSPECIFY:
+                activeOptions.putIfAbsent("onlyAnnotatedFor", null);
+                // Already the default; named here so the mode states the behavior it relies on.
+                activeOptions.putIfAbsent("jspecifyNullMarkedAlias", "true");
+                activeOptions.putIfAbsent("assumeInitialized", null);
+                activeOptions.putIfAbsent("assumeKeyFor", null);
+                activeOptions.putIfAbsent("jspecifyUnrecognizedLocations", null);
+                activeOptions.putIfAbsent("assumePure", null);
+                activeOptions.putIfAbsent("assumeAssertions", "enabled");
+                break;
+            default:
+                break;
         }
-        return checkers;
     }
 
     @Override
-    public SortedSet<String> getSuppressWarningsPrefixes() {
-        SortedSet<String> result = super.getSuppressWarningsPrefixes();
-        result.add("nullness");
+    public boolean checkPrimitives() {
+        return false;
+    }
+
+    @Override
+    public Class<? extends BaseTypeChecker> getTargetCheckerClass() {
+        return NullnessNoInitSubchecker.class;
+    }
+
+    @Override
+    public NavigableSet<String> getSuppressWarningsPrefixes() {
+        NavigableSet<String> result = super.getSuppressWarningsPrefixes();
+        // The prefix to suppress both nullness and initialization warnings.
+        result.add("nullnessinitialization");
         return result;
-    }
-
-    @Override
-    protected BaseTypeVisitor<?> createSourceVisitor() {
-        return new NullnessVisitor(this);
     }
 }

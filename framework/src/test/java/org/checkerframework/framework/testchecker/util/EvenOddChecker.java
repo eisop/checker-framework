@@ -87,8 +87,8 @@ class TestAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
     }
 
     @Override
-    public QualifierHierarchy createQualifierHierarchy() {
-        return new NoElementQualifierHierarchy(getSupportedTypeQualifiers(), elements) {
+    protected QualifierHierarchy createQualifierHierarchy() {
+        return new NoElementQualifierHierarchy(getSupportedTypeQualifiers(), elements, this) {
             @Override
             protected QualifierKindHierarchy createQualifierKindHierarchy(
                     Collection<Class<? extends Annotation>> qualifierClasses) {

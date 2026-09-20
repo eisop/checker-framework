@@ -10,7 +10,7 @@ If you want to present the tutorial when Internet is not available, try this:
 
 mkdir cf-tutorial
 cd cf-tutorial
-wget -r -k -np https://checkerframework.org/tutorial/
-wget -r -k -np https://checkerframework.org/manual/
+wget -r -k -np https://eisop.github.io/cf/tutorial/
+wget -r -k -np https://eisop.github.io/cf/manual/
 cd ..
 zip -r cf-tutorial cf-tutorial

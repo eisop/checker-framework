@@ -4,6 +4,7 @@ import com.sun.source.tree.ArrayTypeTree;
 import com.sun.source.tree.Tree;
 
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.SideEffectFree;
 import org.checkerframework.javacutil.TreeUtils;
 
 import java.util.Collection;
@@ -13,7 +14,7 @@ import java.util.Objects;
 import javax.lang.model.util.Types;
 
 /**
- * A node representing a array type used in an expression such as a field access.
+ * A node representing an array type used in an expression such as a field access.
  *
  * <p><em>type</em> .class
  */
@@ -47,6 +48,9 @@ public class ArrayTypeNode extends Node {
 
     @Override
     public boolean equals(@Nullable Object obj) {
+        if (this == obj) {
+            return true;
+        }
         if (!(obj instanceof ArrayTypeNode)) {
             return false;
         }
@@ -60,6 +64,7 @@ public class ArrayTypeNode extends Node {
     }
 
     @Override
+    @SideEffectFree
     public Collection<Node> getOperands() {
         return Collections.emptyList();
     }

@@ -5,6 +5,7 @@ import org.checkerframework.framework.test.diagnostics.TestDiagnosticUtils;
 import org.plumelib.util.StringsPlume;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -111,13 +112,13 @@ public class TypecheckResult {
         if (!unexpectedDiagnostics.isEmpty()) {
             int numUnexpected = unexpectedDiagnostics.size();
             if (numUnexpected == 1) {
-                summaryBuilder.add("1 unexpected diagnostic was found");
+                summaryBuilder.add("1 unexpected diagnostic was found:");
             } else {
-                summaryBuilder.add(numUnexpected + " unexpected diagnostics were found");
+                summaryBuilder.add(numUnexpected + " unexpected diagnostics were found:");
             }
 
             for (TestDiagnostic unexpected : unexpectedDiagnostics) {
-                summaryBuilder.add(unexpected.toString());
+                summaryBuilder.add("  " + unexpected.toString());
             }
         }
 
@@ -130,13 +131,15 @@ public class TypecheckResult {
                             + " not found:");
 
             for (TestDiagnostic missing : missingDiagnostics) {
-                summaryBuilder.add(missing.toString());
+                summaryBuilder.add("  " + missing.toString());
             }
         }
 
+        // This used to call `TestUtilities.summarizeSourceFiles`. It may be nicer to move the logic
+        // there.
         summaryBuilder.add(
-                "While type-checking "
-                        + TestUtilities.summarizeSourceFiles(configuration.getTestSourceFiles()));
+                "While type-checking " + configuration.getTestSourceFiles().size() + " files.");
+
         return summaryBuilder.toString();
     }
 
@@ -145,16 +148,17 @@ public class TypecheckResult {
             CompilationResult result,
             List<TestDiagnostic> expectedDiagnostics) {
 
-        boolean usingAnomsgtxt = configuration.getOptions().containsKey("-Anomsgtext");
-        final Set<TestDiagnostic> actualDiagnostics =
-                TestDiagnosticUtils.fromJavaxDiagnosticList(
-                        result.getDiagnostics(), usingAnomsgtxt);
+        Set<TestDiagnostic> actualDiagnostics =
+                TestDiagnosticUtils.fromJavaxToolsDiagnosticList(result.getDiagnostics());
 
-        final Set<TestDiagnostic> unexpectedDiagnostics = new LinkedHashSet<>();
-        unexpectedDiagnostics.addAll(actualDiagnostics);
-        unexpectedDiagnostics.removeAll(expectedDiagnostics);
+        // Wrap expectedDiagnostics in a HashSet so the removeAll call below gets O(1)
+        // membership tests.
+        Set<TestDiagnostic> expectedSet = new HashSet<>(expectedDiagnostics);
 
-        final List<TestDiagnostic> missingDiagnostics = new ArrayList<>(expectedDiagnostics);
+        Set<TestDiagnostic> unexpectedDiagnostics = new LinkedHashSet<>(actualDiagnostics);
+        unexpectedDiagnostics.removeAll(expectedSet);
+
+        List<TestDiagnostic> missingDiagnostics = new ArrayList<>(expectedDiagnostics);
         missingDiagnostics.removeAll(actualDiagnostics);
 
         return new TypecheckResult(

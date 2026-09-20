@@ -17,6 +17,7 @@ index-checker.tex \
 called-methods-checker.tex \
 fenum-checker.tex \
 tainting-checker.tex \
+sql-quotes-checker.tex \
 regex-checker.tex \
 formatter-checker.tex \
 i18n-format-checker.tex \
@@ -73,14 +74,17 @@ manual.html: manual.pdf CFLogo.png favicon-checkerframework.png ../api
 # Add CSS styling for some links, since \ahrefloc doesn't permit styling
 	sed -i -e 's%\(<a href="#[^"]*"\)\(><span style="font-size:small">&\#X1F517;</span></a>\)%\1 style="color:inherit; text-decoration:none"\2%g' manual.html
 
+../../checker/bin-devel/.git-scripts:
+	cd ../.. && ./gradlew --stacktrace getGitScripts
+
 ../../checker/bin-devel/.plume-scripts:
-	cd ../.. && ./gradlew getPlumeScripts -q
+	cd ../.. && ./gradlew --stacktrace getPlumeScripts
 
 .PHONY: contributors.tex
 contributors.tex:
-# Update plume-scripts even if it is already cloned
-	cd ../.. && ./gradlew getPlumeScripts -q
-	../../checker/bin-devel/.plume-scripts/git-authors --latex --punctuation > contributors.tex
+# Update git-scripts even if it is already cloned
+	cd ../.. && (./gradlew --stacktrace getGitScripts || (sleep 60 && ./gradlew --stacktrace getGitScripts))
+	../../checker/bin-devel/.git-scripts/git-authors --latex --punctuation > contributors.tex
 
 ../api:
 	cd ../.. && ./gradlew allJavadoc
@@ -98,21 +102,22 @@ check-labels:
 
 export BIBINPUTS = $BIBINPUTS:.:plume-bib
 plume-bib:
-	(git clone --depth 1 -q https://github.com/mernst/plume-bib.git || git clone --depth 1 -q https://github.com/mernst/plume-bib.git)
+	(git clone --depth=1 -q https://github.com/eisop-plume-lib/plume-bib.git || git clone --depth=1 -q https://github.com/eisop-plume-lib/plume-bib.git)
 .PHONY: plume-bib-update
 plume-bib-update: plume-bib
 # Even if this command fails, it does not terminate the make job.
 # However, to skip it, invoke make as:  make NOGIT=1 ...
 ifndef NOGIT
-	-(cd plume-bib && git pull && make)
+	-(cd plume-bib && (timeout 10s git pull || true) && make)
 endif
 
 # Leaves manual.html, and .svg files that it references.
 clean:
 	@\rm -f *.aux *.blg *.dvi *.haux *.htoc *.idx *.ilg *.ind *.log *.out *.pdf *.ps *.toc manual.image.tex
 
+very-clean: very_clean
 very_clean: clean
-	@\rm -f manual.html CFLogo.png
+	@\rm -f manual.html CFLogo.png manual001.png favicon-checkerframework.png *.svg
 
 .PHONY: checklink
 checklink:
@@ -120,7 +125,7 @@ checklink:
 
 .PHONY: checklink-via-file
 checklink-via-file:
-	${CHECKLINK}/checklink -q -e `grep -v '^#' ${CHECKLINK}/checklink-args.txt` manual.html
+	${CHECKLINK}/checklink -q -e $(grep -v '^#' ${CHECKLINK}/checklink-args.txt) manual.html
 
 # Example invocation:
 #   CHECKLINK=$HOME/bin/src/checklink make checklink-via-http

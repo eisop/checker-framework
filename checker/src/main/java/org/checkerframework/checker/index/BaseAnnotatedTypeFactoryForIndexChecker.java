@@ -17,9 +17,11 @@ public abstract class BaseAnnotatedTypeFactoryForIndexChecker extends BaseAnnota
     /** The from() element/field of a @HasSubsequence annotation. */
     protected final ExecutableElement hasSubsequenceFromElement =
             TreeUtils.getMethod(HasSubsequence.class, "from", 0, processingEnv);
+
     /** The to() element/field of a @HasSubsequence annotation. */
     protected final ExecutableElement hasSubsequenceToElement =
             TreeUtils.getMethod(HasSubsequence.class, "to", 0, processingEnv);
+
     /** The subsequence() element/field of a @HasSubsequence annotation. */
     protected final ExecutableElement hasSubsequenceSubsequenceElement =
             TreeUtils.getMethod(HasSubsequence.class, "subsequence", 0, processingEnv);
@@ -40,7 +42,10 @@ public abstract class BaseAnnotatedTypeFactoryForIndexChecker extends BaseAnnota
      * @return its from() element/field
      */
     public String hasSubsequenceFromValue(AnnotationMirror anno) {
-        return AnnotationUtils.getElementValue(anno, hasSubsequenceFromElement, String.class);
+        String result =
+                AnnotationUtils.getElementValue(anno, hasSubsequenceFromElement, String.class);
+        assert result != null : "@AssumeAssertion(nullness)";
+        return result;
     }
 
     /**
@@ -50,7 +55,10 @@ public abstract class BaseAnnotatedTypeFactoryForIndexChecker extends BaseAnnota
      * @return its to() element/field
      */
     public String hasSubsequenceToValue(AnnotationMirror anno) {
-        return AnnotationUtils.getElementValue(anno, hasSubsequenceToElement, String.class);
+        String result =
+                AnnotationUtils.getElementValue(anno, hasSubsequenceToElement, String.class);
+        assert result != null : "@AssumeAssertion(nullness)";
+        return result;
     }
 
     /**
@@ -60,7 +68,10 @@ public abstract class BaseAnnotatedTypeFactoryForIndexChecker extends BaseAnnota
      * @return its subsequence() element/field
      */
     public String hasSubsequenceSubsequenceValue(AnnotationMirror anno) {
-        return AnnotationUtils.getElementValue(
-                anno, hasSubsequenceSubsequenceElement, String.class);
+        String result =
+                AnnotationUtils.getElementValue(
+                        anno, hasSubsequenceSubsequenceElement, String.class);
+        assert result != null : "@AssumeAssertion(nullness)";
+        return result;
     }
 }

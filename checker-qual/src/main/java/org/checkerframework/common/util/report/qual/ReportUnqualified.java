@@ -12,7 +12,7 @@ import java.lang.annotation.Target;
 
 /**
  * An annotation intended solely for representing an unqualified type in the qualifier hierarchy for
- * the Report Checker.
+ * the Report Checker. This is the only type qualifier in the type hierarchy.
  */
 @Documented
 @Retention(RetentionPolicy.SOURCE) // do not store in class file

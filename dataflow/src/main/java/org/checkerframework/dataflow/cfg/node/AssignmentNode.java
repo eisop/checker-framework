@@ -7,6 +7,8 @@ import com.sun.source.tree.UnaryTree;
 import com.sun.source.tree.VariableTree;
 
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
+import org.checkerframework.dataflow.qual.SideEffectFree;
 import org.checkerframework.javacutil.TreeUtils;
 
 import java.util.Arrays;
@@ -31,19 +33,27 @@ import java.util.Objects;
  * <p>String concatenation compound assignments are desugared to an assignment and a string
  * concatenation.
  *
+ * <p>Assignments desugared from an enhanced-for-loop over an array are marked as such for special
+ * casing.
+ *
  * <p>Numeric compound assignments are desugared to an assignment and a numeric operation.
  */
 public class AssignmentNode extends Node {
 
     /** The underlying assignment tree. */
     protected final Tree tree;
+
     /** The node for the LHS of the assignment tree. */
     protected final Node lhs;
+
     /** The node for the RHS of the assignment tree. */
     protected final Node rhs;
 
     /** Whether the assignment node is synthetic */
     protected final boolean synthetic;
+
+    /** Whether the assignment node is desugared from an enhanced-for-loop over an array. */
+    protected boolean desugaredFromEnhancedArrayForLoop;
 
     /**
      * Create a (non-synthetic) AssignmentNode.
@@ -77,6 +87,7 @@ public class AssignmentNode extends Node {
         this.lhs = target;
         this.rhs = expression;
         this.synthetic = synthetic;
+        this.desugaredFromEnhancedArrayForLoop = false;
     }
 
     /**
@@ -84,15 +95,23 @@ public class AssignmentNode extends Node {
      *
      * @return the left-hand-side of the assignment
      */
+    @Pure
     public Node getTarget() {
         return lhs;
     }
 
+    /**
+     * Returns the right-hand-side of the assignment.
+     *
+     * @return the right-hand-side of the assignment
+     */
+    @Pure
     public Node getExpression() {
         return rhs;
     }
 
     @Override
+    @Pure
     public Tree getTree() {
         return tree;
     }
@@ -103,8 +122,23 @@ public class AssignmentNode extends Node {
      *
      * @return true if the assignment node is synthetic
      */
+    @Pure
     public boolean isSynthetic() {
         return synthetic;
+    }
+
+    /**
+     * Check if the assignment node is desugared from an enhanced-for-loop over an array.
+     *
+     * @return true if the assignment node is desugared
+     */
+    public boolean isDesugaredFromEnhancedArrayForLoop() {
+        return desugaredFromEnhancedArrayForLoop;
+    }
+
+    /** Set the assignment node as desugared from an enhanced-for-loop over an array. */
+    public void setDesugaredFromEnhancedArrayForLoop() {
+        desugaredFromEnhancedArrayForLoop = true;
     }
 
     @Override
@@ -113,12 +147,17 @@ public class AssignmentNode extends Node {
     }
 
     @Override
+    @Pure
     public String toString() {
         return getTarget() + " = " + getExpression() + (synthetic ? " (synthetic)" : "");
     }
 
     @Override
+    @Pure
     public boolean equals(@Nullable Object obj) {
+        if (this == obj) {
+            return true;
+        }
         if (!(obj instanceof AssignmentNode)) {
             return false;
         }
@@ -128,11 +167,13 @@ public class AssignmentNode extends Node {
     }
 
     @Override
+    @Pure
     public int hashCode() {
         return Objects.hash(getTarget(), getExpression());
     }
 
     @Override
+    @SideEffectFree
     public Collection<Node> getOperands() {
         return Arrays.asList(getTarget(), getExpression());
     }

@@ -5,9 +5,6 @@ import com.sun.source.tree.Tree;
 
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-import java.util.Collection;
-import java.util.Collections;
-
 /**
  * A node for the null literal.
  *
@@ -47,10 +44,5 @@ public class NullLiteralNode extends ValueLiteralNode {
         }
         // super method compares values
         return super.equals(obj);
-    }
-
-    @Override
-    public Collection<Node> getOperands() {
-        return Collections.emptyList();
     }
 }

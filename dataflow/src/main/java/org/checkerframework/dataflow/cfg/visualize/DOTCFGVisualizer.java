@@ -31,9 +31,12 @@ import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.UserError;
 
 import java.io.BufferedWriter;
-import java.io.FileWriter;
 import java.io.IOException;
-import java.util.Collections;
+import java.io.Writer;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
 import java.util.HashMap;
 import java.util.IdentityHashMap;
 import java.util.List;
@@ -80,22 +83,33 @@ public class DOTCFGVisualizer<
     }
 
     @Override
-    public @Nullable Map<String, Object> visualize(
+    public Map<String, Object> visualize(
             ControlFlowGraph cfg, Block entry, @Nullable Analysis<V, S, T> analysis) {
-
         String dotGraph = visualizeGraph(cfg, entry, analysis);
+
+        Map<String, Object> vis = new HashMap<>(4);
+        vis.put("dotGraph", dotGraph);
+        return vis;
+    }
+
+    @Override
+    public Map<String, Object> visualizeWithAction(
+            ControlFlowGraph cfg, Block entry, @Nullable Analysis<V, S, T> analysis) {
+        Map<String, Object> vis = visualize(cfg, entry, analysis);
+        String dotGraph = (String) vis.get("dotGraph");
+        if (dotGraph == null) {
+            throw new BugInCF("dotGraph key missing in visualize result!");
+        }
         String dotFileName = dotOutputFileName(cfg.underlyingAST);
 
-        try {
-            FileWriter fStream = new FileWriter(dotFileName);
-            BufferedWriter out = new BufferedWriter(fStream);
+        try (BufferedWriter out =
+                Files.newBufferedWriter(Paths.get(dotFileName), StandardCharsets.UTF_8)) {
             out.write(dotGraph);
-            out.close();
         } catch (IOException e) {
             throw new UserError("Error creating dot file (is the path valid?): " + dotFileName, e);
         }
-
-        return Collections.singletonMap("dotFileName", dotFileName);
+        vis.put("dotFileName", dotFileName);
+        return vis;
     }
 
     @SuppressWarnings("keyfor:enhancedfor.type.incompatible")
@@ -143,12 +157,18 @@ public class DOTCFGVisualizer<
 
     @Override
     protected String visualizeEdge(Object sId, Object eId, String flowRule) {
-        return "    " + format(sId) + " -> " + format(eId) + " [label=\"" + flowRule + "\"];";
+        return "    "
+                + escapeString(sId)
+                + " -> "
+                + escapeString(eId)
+                + " [label=\""
+                + flowRule
+                + "\"];";
     }
 
     @Override
     public String visualizeBlock(Block bb, @Nullable Analysis<V, S, T> analysis) {
-        return super.visualizeBlockHelper(bb, analysis, getSeparator());
+        return super.visualizeBlockWithSeparator(bb, analysis, getSeparator());
     }
 
     @Override
@@ -182,9 +202,7 @@ public class DOTCFGVisualizer<
      */
     protected String dotOutputFileName(UnderlyingAST ast) {
         StringBuilder srcLoc = new StringBuilder();
-        StringBuilder outFile = new StringBuilder(outDir);
-
-        outFile.append("/");
+        StringBuilder outFile = new StringBuilder();
 
         if (ast.getKind() == UnderlyingAST.Kind.ARBITRARY_CODE) {
             CFGStatement cfgStatement = (CFGStatement) ast;
@@ -260,17 +278,17 @@ public class DOTCFGVisualizer<
         }
         outFile.append(".dot");
 
+        // make path safe for Linux
+        if (outFile.length() > 255) {
+            outFile.setLength(255);
+        }
         // make path safe for Windows
-        String outFileName = outFile.toString().replace("<", "_").replace(">", "");
+        String outFileBaseName = outFile.toString().replace("<", "_").replace(">", "");
+        String outFileName = outDir + "/" + outFileBaseName;
 
         generated.put(srcLoc.toString(), outFileName);
 
         return outFileName;
-    }
-
-    @Override
-    protected String format(Object obj) {
-        return escapeString(obj);
     }
 
     @Override
@@ -314,18 +332,9 @@ public class DOTCFGVisualizer<
      * @param str the string to be escaped
      * @return the escaped version of the string
      */
-    private static String escapeString(final String str) {
+    @Override
+    protected String escapeString(String str) {
         return str.replace("\"", "\\\"").replace("\r", "\\\\r").replace("\n", "\\\\n");
-    }
-
-    /**
-     * Escape the double quotes from the string representation of the given object.
-     *
-     * @param obj an object
-     * @return an escaped version of the string representation of the object
-     */
-    private static String escapeString(final Object obj) {
-        return escapeString(String.valueOf(obj));
     }
 
     /**
@@ -334,17 +343,20 @@ public class DOTCFGVisualizer<
      */
     @Override
     public void shutdown() {
-        try {
-            // Open for append, in case of multiple sub-checkers.
-            FileWriter fstream = new FileWriter(outDir + "/methods.txt", true);
-            BufferedWriter out = new BufferedWriter(fstream);
+        // Open for append, in case of multiple sub-checkers.
+        try (Writer fstream =
+                        Files.newBufferedWriter(
+                                Paths.get(outDir, "methods.txt"),
+                                StandardCharsets.UTF_8,
+                                StandardOpenOption.CREATE,
+                                StandardOpenOption.APPEND);
+                BufferedWriter out = new BufferedWriter(fstream)) {
             for (Map.Entry<String, String> kv : generated.entrySet()) {
                 out.write(kv.getKey());
                 out.append("\t");
                 out.write(kv.getValue());
                 out.append(lineSeparator);
             }
-            out.close();
         } catch (IOException e) {
             throw new UserError(
                     "Error creating methods.txt file in: " + outDir + "; ensure the path is valid",

@@ -12,6 +12,7 @@ import org.checkerframework.framework.testchecker.h1h2checker.quals.H1S1;
 import org.checkerframework.framework.testchecker.h1h2checker.quals.H1S2;
 import org.checkerframework.framework.testchecker.h1h2checker.quals.H1Top;
 import org.checkerframework.framework.testchecker.h1h2checker.quals.H2Bot;
+import org.checkerframework.framework.testchecker.h1h2checker.quals.H2OnlyOnLB;
 import org.checkerframework.framework.testchecker.h1h2checker.quals.H2Poly;
 import org.checkerframework.framework.testchecker.h1h2checker.quals.H2S1;
 import org.checkerframework.framework.testchecker.h1h2checker.quals.H2S2;
@@ -28,6 +29,12 @@ public class H1H2AnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
 
     AnnotationMirror H1S2;
 
+    /**
+     * Creates a new H1H2AnnotatedTypeFactory.
+     *
+     * @param checker the checker
+     */
+    @SuppressWarnings("this-escape")
     public H1H2AnnotatedTypeFactory(BaseTypeChecker checker) {
         super(checker);
         this.postInit();
@@ -47,14 +54,14 @@ public class H1H2AnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
                 H2Bot.class,
                 H1Poly.class,
                 H2Poly.class,
+                H2OnlyOnLB.class,
                 H1Invalid.class);
     }
 
     @Override
-    protected void addComputedTypeAnnotations(
-            Tree tree, AnnotatedTypeMirror type, boolean iUseFlow) {
-        super.addComputedTypeAnnotations(tree, type, iUseFlow);
-        if (tree.getKind() == Tree.Kind.VARIABLE
+    protected void addComputedTypeAnnotations(Tree tree, AnnotatedTypeMirror type) {
+        super.addComputedTypeAnnotations(tree, type);
+        if (tree instanceof VariableTree
                 && ((VariableTree) tree).getName().toString().contains("addH1S2")) {
             type.replaceAnnotation(H1S2);
         }

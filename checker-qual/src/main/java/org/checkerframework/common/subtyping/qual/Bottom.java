@@ -19,15 +19,15 @@ import java.lang.annotation.Target;
  * introduce a top and bottom qualifier that gets stored in bytecode.
  *
  * <p>To use this qualifier, the type system designer needs to use methods like {@code
- * org.checkerframework.framework.type.treeannotator.ImplicitsTreeAnnotator#addTreeKind(com.sun.source.tree.Tree.Kind,
- * javax.lang.model.element.AnnotationMirror)} to add default annotations and needs to manually add
- * the bottom qualifier to the qualifier hierarchy.
+ * ImplicitsTreeAnnotator.addTreeKind()} to add default annotations and needs to manually add the
+ * bottom qualifier to the qualifier hierarchy.
  *
- * @see org.checkerframework.framework.type.QualifierHierarchy#getBottomAnnotations()
+ * <p>See {@code QualifierHierarchy.getBottomAnnotations()}
+ *
  * @checker_framework.manual #subtyping-checker Subtyping Checker
  */
 @Documented
 @SubtypeOf({})
 @Target({ElementType.TYPE_USE, ElementType.TYPE_PARAMETER})
-@TargetLocations({TypeUseLocation.EXPLICIT_LOWER_BOUND, TypeUseLocation.EXPLICIT_UPPER_BOUND})
+@TargetLocations({TypeUseLocation.LOWER_BOUND, TypeUseLocation.UPPER_BOUND})
 public @interface Bottom {}

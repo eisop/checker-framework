@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# encoding: utf-8
 """
 release_vars.py
 
@@ -14,9 +13,10 @@ Copyright (c) 2014 University of Washington. All rights reserved.
 
 import os
 import pwd
-import subprocess
 import shlex
+import subprocess
 
+from release_errors import ReleaseError
 
 # ---------------------------------------------------------------------------------
 # The only methods that should go here are methods that help define global release
@@ -38,12 +38,13 @@ def getAndAppend(name, append):
 def execute(command_args, halt_if_fail=True, capture_output=False, working_dir=None):
     """Execute the given command.
     If capture_output is true, then return the output (and ignore the halt_if_fail argument).
-    If capture_output is not true, return the return code of the subprocess call."""
+    If capture_output is not true, return the return code of the subprocess call (0 for success).
+    """
 
     if working_dir is not None:
-        print("Executing in %s: %s" % (working_dir, command_args))
+        print(f"Executing in {working_dir}: {command_args}")
     else:
-        print("Executing: %s" % (command_args))
+        print(f"Executing: {command_args}")
     args = shlex.split(command_args) if isinstance(command_args, str) else command_args
 
     if capture_output:
@@ -55,7 +56,9 @@ def execute(command_args, halt_if_fail=True, capture_output=False, working_dir=N
     else:
         result = subprocess.call(args, cwd=working_dir)
         if halt_if_fail and result:
-            raise Exception("Error %s while executing %s" % (result, args))
+            raise ReleaseError(
+                f"Error {result} while executing {args} in {working_dir}"
+            )
         return result
 
 
@@ -85,10 +88,10 @@ INTERM_ANNO_REPO = os.path.join(INTERM_REPO_ROOT, "annotation-tools")
 # The central repositories for Checker Framework related projects
 LIVE_ANNO_REPO = "git@github.com:eisop/annotation-tools.git"
 LIVE_CHECKER_REPO = "git@github.com:eisop/checker-framework.git"
+GIT_SCRIPTS_REPO = "https://github.com/eisop-plume-lib/git-scripts"
 PLUME_SCRIPTS_REPO = "https://github.com/eisop-plume-lib/plume-scripts"
 CHECKLINK_REPO = "https://github.com/eisop-plume-lib/checklink"
-PLUME_BIB_REPO = "https://github.com/mernst/plume-bib"
-STUBPARSER_REPO = "https://github.com/eisop/stubparser"
+PLUME_BIB_REPO = "https://github.com/eisop-plume-lib/plume-bib"
 
 # Location of the project directories in which we will build the actual projects.
 # When we build these projects are pushed to the INTERM repositories.
@@ -109,10 +112,10 @@ CF_VERSION = (
 ANNO_TOOLS = os.path.join(BUILD_DIR, "annotation-tools")
 ANNO_FILE_UTILITIES = os.path.join(ANNO_TOOLS, "annotation-file-utilities")
 
+GIT_SCRIPTS = os.path.join(BUILD_DIR, "git-scripts")
 PLUME_SCRIPTS = os.path.join(BUILD_DIR, "plume-scripts")
 CHECKLINK = os.path.join(BUILD_DIR, "checklink")
 PLUME_BIB = os.path.join(BUILD_DIR, "plume-bib")
-STUBPARSER = os.path.join(BUILD_DIR, "stubparser")
 
 BUILD_REPOS = (CHECKER_FRAMEWORK, ANNO_TOOLS)
 INTERM_REPOS = (INTERM_CHECKER_REPO, INTERM_ANNO_REPO)
@@ -141,6 +144,7 @@ AFU_LIVE_SITE = os.path.join(LIVE_SITE_DIR, "annotation-file-utilities")
 AFU_LIVE_RELEASES_DIR = os.path.join(AFU_LIVE_SITE, "releases")
 
 CHECKER_LIVE_RELEASES_DIR = os.path.join(LIVE_SITE_DIR, "releases")
+CHECKER_LIVE_API_DIR = os.path.join(LIVE_SITE_DIR, "api")
 
 os.environ["PARENT_DIR"] = BUILD_DIR
 os.environ["CHECKERFRAMEWORK"] = CHECKER_FRAMEWORK
@@ -149,9 +153,8 @@ os.environ["PLUME_SCRIPTS"] = PLUME_SCRIPTS
 os.environ["CHECKLINK"] = CHECKLINK
 os.environ["BIBINPUTS"] = ".:" + PLUME_BIB
 os.environ["TEXINPUTS"] = ".:..:"
-# Still needed for santiy checks
-os.environ["JAVA_8_HOME"] = "/usr/lib/jvm/java-8-openjdk-amd64/"
-os.environ["JAVA_HOME"] = os.environ["JAVA_8_HOME"]
+os.environ["JAVA_21_HOME"] = "/usr/lib/jvm/java-21-openjdk/"
+os.environ["JAVA_HOME"] = os.environ["JAVA_21_HOME"]
 
 EDITOR = os.getenv("EDITOR")
 if EDITOR is None:
@@ -166,4 +169,14 @@ PATH = PATH + ":."
 os.environ["PATH"] = PATH
 
 # Tools that must be on your PATH (besides common Unix ones like grep)
-TOOLS = ["hevea", "perl", "java", "latex", "mvn", "hg", "git", "html5validator", "dot", EDITOR]
+TOOLS = [
+    "hevea",
+    "perl",
+    "java",
+    "latex",
+    "mvn",
+    "git",
+    "html5validator",
+    "dot",
+    EDITOR,
+]

@@ -18,7 +18,8 @@ public class SignednessTest extends CheckerFrameworkPerDirectoryTest {
                 testFiles,
                 org.checkerframework.checker.signedness.SignednessChecker.class,
                 "signedness",
-                "-Anomsgtext");
+                // Ignore the test suite's usage of qualifiers in illegal locations.
+                "-AignoreTargetLocations");
     }
 
     @Parameters

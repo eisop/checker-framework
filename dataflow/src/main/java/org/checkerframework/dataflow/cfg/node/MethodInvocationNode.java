@@ -1,11 +1,13 @@
 package org.checkerframework.dataflow.cfg.node;
 
+import com.sun.source.tree.EnhancedForLoopTree;
 import com.sun.source.tree.ExpressionTree;
 import com.sun.source.tree.MethodInvocationTree;
 import com.sun.source.tree.Tree;
 import com.sun.source.util.TreePath;
 
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.SideEffectFree;
 import org.checkerframework.javacutil.TreeUtils;
 import org.plumelib.util.StringsPlume;
 
@@ -46,8 +48,19 @@ public class MethodInvocationNode extends Node {
      * If this MethodInvocationNode is a node for an {@link Iterator#next()} desugared from an
      * enhanced for loop, then the {@code iterExpression} field is the expression in the for loop,
      * e.g., {@code iter} in {@code for(Object o: iter}.
+     *
+     * <p>Is set by {@link #setIterableExpression}.
      */
     protected @Nullable ExpressionTree iterableExpression;
+
+    /**
+     * If this MethodInvocationNode is a node for an {@link Iterator#next()} desugared from an
+     * enhanced for loop, then the {@code enhancedForLoop} field is the {@code EnhancedForLoopTree}
+     * AST node.
+     *
+     * <p>Is set by {@link #setEnhancedForLoop}.
+     */
+    protected @Nullable EnhancedForLoopTree enhancedForLoop;
 
     /**
      * Create a MethodInvocationNode.
@@ -102,6 +115,18 @@ public class MethodInvocationNode extends Node {
     }
 
     /**
+     * If this MethodInvocationNode is a node for an {@link Iterator#next()} desugared from an
+     * enhanced for loop, then return the corresponding {@code EnhancedForLoopTree} AST node.
+     * Otherwise, return null.
+     *
+     * @return the {@code EnhancedForLoopTree}, or null if this is not a {@link Iterator#next()}
+     *     from an enhanced for loop
+     */
+    public @Nullable EnhancedForLoopTree getEnhancedForLoop() {
+        return enhancedForLoop;
+    }
+
+    /**
      * Set the iterable expression from a for loop.
      *
      * @param iterableExpression iterable expression
@@ -109,6 +134,16 @@ public class MethodInvocationNode extends Node {
      */
     public void setIterableExpression(@Nullable ExpressionTree iterableExpression) {
         this.iterableExpression = iterableExpression;
+    }
+
+    /**
+     * Set the enhanced for loop for which {@code this} is the desugared loop update.
+     *
+     * @param enhancedForLoop the {@code EnhancedForLoopTree}
+     * @see #getEnhancedForLoop()
+     */
+    public void setEnhancedForLoop(@Nullable EnhancedForLoopTree enhancedForLoop) {
+        this.enhancedForLoop = enhancedForLoop;
     }
 
     @Override
@@ -128,6 +163,9 @@ public class MethodInvocationNode extends Node {
 
     @Override
     public boolean equals(@Nullable Object obj) {
+        if (this == obj) {
+            return true;
+        }
         if (!(obj instanceof MethodInvocationNode)) {
             return false;
         }
@@ -142,6 +180,7 @@ public class MethodInvocationNode extends Node {
     }
 
     @Override
+    @SideEffectFree
     public Collection<Node> getOperands() {
         List<Node> list = new ArrayList<>(1 + arguments.size());
         list.add(target);

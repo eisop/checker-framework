@@ -1,9 +1,9 @@
 package org.checkerframework.dataflow.cfg.builder;
 
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.plumelib.util.ArrayMap;
 
 import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.Map;
 
 import javax.lang.model.element.Name;
@@ -20,7 +20,7 @@ import javax.lang.model.element.Name;
 
     /** Create a new TryFinallyScopeMap. */
     protected TryFinallyScopeMap() {
-        this.accessedNames = new LinkedHashMap<>(2);
+        this.accessedNames = new ArrayMap<>(2);
     }
 
     @Override

@@ -39,7 +39,7 @@ public class SimpleAnnotatedTypeScanner<R, P> extends AnnotatedTypeScanner<R, P>
         /**
          * The action to perform on every type.
          *
-         * @param type AnnotatedTypeMirror on which to perform some action
+         * @param type a type on which to perform some action
          * @param p argument to pass to the action
          * @return result of the action
          */
@@ -77,7 +77,7 @@ public class SimpleAnnotatedTypeScanner<R, P> extends AnnotatedTypeScanner<R, P>
     }
 
     /**
-     * Creates a scanner without specifing the default action. Subclasses may only use this
+     * Creates a scanner without specifying the default action. Subclasses may only use this
      * constructor if they also override {@link #defaultAction(AnnotatedTypeMirror, Object)}.
      */
     protected SimpleAnnotatedTypeScanner() {
@@ -85,7 +85,7 @@ public class SimpleAnnotatedTypeScanner<R, P> extends AnnotatedTypeScanner<R, P>
     }
 
     /**
-     * Creates a scanner without specifing the default action. Subclasses may only use this
+     * Creates a scanner without specifying the default action. Subclasses may only use this
      * constructor if they also override {@link #defaultAction(AnnotatedTypeMirror, Object)}.
      *
      * @param reduce function used to combine results
@@ -122,7 +122,7 @@ public class SimpleAnnotatedTypeScanner<R, P> extends AnnotatedTypeScanner<R, P>
     @Override
     public final R visitDeclared(AnnotatedDeclaredType type, P p) {
         R r = defaultAction(type, p);
-        return reduce(super.visitDeclared(type, p), r);
+        return reduce(r, super.visitDeclared(type, p));
     }
 
     /**
@@ -135,7 +135,7 @@ public class SimpleAnnotatedTypeScanner<R, P> extends AnnotatedTypeScanner<R, P>
     @Override
     public final R visitExecutable(AnnotatedExecutableType type, P p) {
         R r = defaultAction(type, p);
-        return reduce(super.visitExecutable(type, p), r);
+        return reduce(r, super.visitExecutable(type, p));
     }
 
     /**
@@ -148,7 +148,7 @@ public class SimpleAnnotatedTypeScanner<R, P> extends AnnotatedTypeScanner<R, P>
     @Override
     public final R visitArray(AnnotatedArrayType type, P p) {
         R r = defaultAction(type, p);
-        return reduce(super.visitArray(type, p), r);
+        return reduce(r, super.visitArray(type, p));
     }
 
     /**
@@ -161,7 +161,7 @@ public class SimpleAnnotatedTypeScanner<R, P> extends AnnotatedTypeScanner<R, P>
     @Override
     public final R visitTypeVariable(AnnotatedTypeVariable type, P p) {
         R r = defaultAction(type, p);
-        return reduce(super.visitTypeVariable(type, p), r);
+        return reduce(r, super.visitTypeVariable(type, p));
     }
 
     /**
@@ -210,6 +210,6 @@ public class SimpleAnnotatedTypeScanner<R, P> extends AnnotatedTypeScanner<R, P>
     @Override
     public final R visitWildcard(AnnotatedWildcardType type, P p) {
         R r = defaultAction(type, p);
-        return reduce(super.visitWildcard(type, p), r);
+        return reduce(r, super.visitWildcard(type, p));
     }
 }

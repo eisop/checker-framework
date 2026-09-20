@@ -26,6 +26,7 @@ import org.checkerframework.framework.type.treeannotator.TreeAnnotator;
 import org.checkerframework.javacutil.AnnotationBuilder;
 import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.TreeUtils;
+import org.plumelib.util.CollectionsPlume;
 
 import java.lang.annotation.Annotation;
 import java.util.ArrayList;
@@ -48,7 +49,7 @@ public class MethodValAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
     private final AnnotationMirror UNKNOWN_METHOD =
             AnnotationBuilder.fromClass(elements, UnknownMethod.class);
 
-    /** An arary length that represents that the length is unknown. */
+    /** An array length that represents that the length is unknown. */
     private static final int UNKNOWN_PARAM_LENGTH = -1;
 
     /** A list containing just {@link #UNKNOWN_PARAM_LENGTH}. */
@@ -67,12 +68,15 @@ public class MethodValAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
     /** The ArrayLen.value argument/element. */
     public final ExecutableElement arrayLenValueElement =
             TreeUtils.getMethod(ArrayLen.class, "value", 0, processingEnv);
+
     /** The ClassBound.value argument/element. */
     public final ExecutableElement classBoundValueElement =
             TreeUtils.getMethod(ClassBound.class, "value", 0, processingEnv);
+
     /** The ClassVal.value argument/element. */
     public final ExecutableElement classValValueElement =
             TreeUtils.getMethod(ClassVal.class, "value", 0, processingEnv);
+
     /** The StringVal.value argument/element. */
     public final ExecutableElement stringValValueElement =
             TreeUtils.getMethod(StringVal.class, "value", 0, processingEnv);
@@ -82,11 +86,20 @@ public class MethodValAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
      *
      * @param checker the type-checker associated with this factory
      */
+    @SuppressWarnings("this-escape")
     public MethodValAnnotatedTypeFactory(BaseTypeChecker checker) {
         super(checker);
         if (this.getClass() == MethodValAnnotatedTypeFactory.class) {
             this.postInit();
         }
+    }
+
+    @Override
+    protected boolean shouldCacheMethodAsMemberOf() {
+        // Reflection resolution makes a method's result type depend on the call's arguments (e.g.
+        // the String name passed to Class.getMethod), so it must not be cached on (method,
+        // receiver).
+        return false;
     }
 
     @Override
@@ -130,7 +143,7 @@ public class MethodValAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
      * @param sigs the method signatures that the result should represent
      * @return a {@code @MethodVal} annotation that represents {@code sigs}
      */
-    private AnnotationMirror createMethodVal(Set<MethodSignature> sigs) {
+    private AnnotationMirror createMethodVal(Collection<MethodSignature> sigs) {
         int size = sigs.size();
         List<String> classNames = new ArrayList<>(size);
         List<String> methodNames = new ArrayList<>(size);
@@ -150,7 +163,7 @@ public class MethodValAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
     /**
      * Returns a list of class names for the given tree using the Class Val Checker.
      *
-     * @param tree ExpressionTree whose class names are requested
+     * @param tree an ExpressionTree whose class names are requested
      * @param mustBeExact whether @ClassBound may be read to produce the result; if false,
      *     only @ClassVal may be read
      * @return list of class names or the empty list if no class names were found
@@ -177,11 +190,12 @@ public class MethodValAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
             return Collections.emptyList();
         }
     }
+
     /**
      * Returns the string values for the argument passed. The String Values are estimated using the
      * Value Checker.
      *
-     * @param arg ExpressionTree whose string values are sought
+     * @param arg an ExpressionTree whose string values are sought
      * @return string values of arg or the empty list if no values were found
      */
     private List<String> getMethodNamesFromStringArg(ExpressionTree arg) {
@@ -212,7 +226,7 @@ public class MethodValAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
          */
         protected MethodValQualifierHierarchy(
                 Collection<Class<? extends Annotation>> qualifierClasses, Elements elements) {
-            super(qualifierClasses, elements);
+            super(qualifierClasses, elements, MethodValAnnotatedTypeFactory.this);
         }
 
         /*
@@ -221,21 +235,18 @@ public class MethodValAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
          * concatenating all value lists of a1 and a2.
          */
         @Override
-        public @Nullable AnnotationMirror leastUpperBound(
+        public @Nullable AnnotationMirror leastUpperBoundQualifiers(
                 AnnotationMirror a1, AnnotationMirror a2) {
             if (!AnnotationUtils.areSameByName(getTopAnnotation(a1), getTopAnnotation(a2))) {
                 return null;
-            } else if (isSubtype(a1, a2)) {
+            } else if (isSubtypeQualifiers(a1, a2)) {
                 return a2;
-            } else if (isSubtype(a2, a1)) {
+            } else if (isSubtypeQualifiers(a2, a1)) {
                 return a1;
             } else if (AnnotationUtils.areSameByName(a1, a2)) {
                 List<MethodSignature> a1Sigs = getListOfMethodSignatures(a1);
                 List<MethodSignature> a2Sigs = getListOfMethodSignatures(a2);
-
-                Set<MethodSignature> lubSigs = new HashSet<>(a1Sigs);
-                lubSigs.addAll(a2Sigs); // union
-
+                List<MethodSignature> lubSigs = CollectionsPlume.listUnion(a1Sigs, a2Sigs);
                 AnnotationMirror result = createMethodVal(lubSigs);
                 return result;
             }
@@ -243,21 +254,18 @@ public class MethodValAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
         }
 
         @Override
-        public @Nullable AnnotationMirror greatestLowerBound(
+        public @Nullable AnnotationMirror greatestLowerBoundQualifiers(
                 AnnotationMirror a1, AnnotationMirror a2) {
             if (!AnnotationUtils.areSameByName(getTopAnnotation(a1), getTopAnnotation(a2))) {
                 return null;
-            } else if (isSubtype(a1, a2)) {
+            } else if (isSubtypeQualifiers(a1, a2)) {
                 return a1;
-            } else if (isSubtype(a2, a1)) {
+            } else if (isSubtypeQualifiers(a2, a1)) {
                 return a2;
             } else if (AnnotationUtils.areSameByName(a1, a2)) {
                 List<MethodSignature> a1Sigs = getListOfMethodSignatures(a1);
                 List<MethodSignature> a2Sigs = getListOfMethodSignatures(a2);
-
-                Set<MethodSignature> lubSigs = new HashSet<>(a1Sigs);
-                lubSigs.retainAll(a2Sigs); // intersection
-
+                List<MethodSignature> lubSigs = CollectionsPlume.listIntersection(a1Sigs, a2Sigs);
                 AnnotationMirror result = createMethodVal(lubSigs);
                 return result;
             }
@@ -265,7 +273,7 @@ public class MethodValAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
         }
 
         @Override
-        public boolean isSubtype(AnnotationMirror subAnno, AnnotationMirror superAnno) {
+        public boolean isSubtypeQualifiers(AnnotationMirror subAnno, AnnotationMirror superAnno) {
             if (AnnotationUtils.areSame(subAnno, superAnno)
                     || areSameByClass(superAnno, UnknownMethod.class)
                     || areSameByClass(subAnno, MethodValBottom.class)) {
@@ -335,9 +343,12 @@ public class MethodValAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
                 return null;
             }
 
-            Set<MethodSignature> methodSigs = new HashSet<>();
+            Set<MethodSignature> methodSigs =
+                    new HashSet<>(
+                            CollectionsPlume.mapCapacity(
+                                    methodNames.size() * classNames.size() * params.size()));
             // The possible method signatures are the Cartesian product of all
-            // found class, method, and parameter lengths
+            // found class, method, and parameter lengths.
             for (String methodName : methodNames) {
                 for (String className : classNames) {
                     for (Integer param : params) {
@@ -353,18 +364,24 @@ public class MethodValAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
 
         /**
          * Returns true if the method being invoked is annotated with @GetConstructor. An example of
-         * such a method is Class.getConstructor.
+         * such a method is {@link Class#getConstructor}.
+         *
+         * @param tree a method invocation
+         * @return true if the method being invoked is annotated with @GetConstructor
          */
         private boolean isGetConstructorMethodInvocation(MethodInvocationTree tree) {
-            return getDeclAnnotation(TreeUtils.elementFromTree(tree), GetConstructor.class) != null;
+            return getDeclAnnotation(TreeUtils.elementFromUse(tree), GetConstructor.class) != null;
         }
 
         /**
          * Returns true if the method being invoked is annotated with @GetMethod. An example of such
-         * a method is Class.getMethod.
+         * a method is {@link Class#getMethod}.
+         *
+         * @param tree a method invocation
+         * @return true if the method being invoked is annotated with @GetMethod
          */
         private boolean isGetMethodMethodInvocation(MethodInvocationTree tree) {
-            return getDeclAnnotation(TreeUtils.elementFromTree(tree), GetMethod.class) != null;
+            return getDeclAnnotation(TreeUtils.elementFromUse(tree), GetMethod.class) != null;
         }
 
         /**
@@ -402,7 +419,7 @@ public class MethodValAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
         }
 
         /**
-         * if getMethod(Object receiver, Object... params) or getConstrutor(Object... params) have
+         * If getMethod(Object receiver, Object... params) or getConstructor(Object... params) have
          * one argument for params, then the number of parameters in the underlying method or
          * constructor must be:
          *
@@ -415,7 +432,7 @@ public class MethodValAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
          * </ul>
          *
          * @param argument the single argument in a call to {@code getMethod} or {@code
-         *     getConstrutor}
+         *     getConstructor}
          * @return a list, each of whose elementts is a possible the number of parameters; it is
          *     often, but not always, a singleton list
          */

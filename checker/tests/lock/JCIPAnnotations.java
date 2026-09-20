@@ -1,8 +1,8 @@
-import net.jcip.annotations.GuardedBy;
-
 import org.checkerframework.checker.lock.qual.GuardSatisfied;
 import org.checkerframework.checker.lock.qual.Holding;
 import org.checkerframework.checker.lock.qual.LockingFree;
+
+import net.jcip.annotations.GuardedBy;
 
 // Smoke test for supporting JCIP and Javax annotations.
 // Note that JCIP and Javax @GuardedBy can only be written on fields and methods.

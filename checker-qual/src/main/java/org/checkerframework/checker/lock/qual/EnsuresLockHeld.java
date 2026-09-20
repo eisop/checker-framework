@@ -30,7 +30,7 @@ public @interface EnsuresLockHeld {
      *
      * @return Java expressions whose values are locks that are held after successful method
      *     termination
-     * @see <a href="https://checkerframework.org/manual/#java-expressions-as-arguments">Syntax of
+     * @see <a href="https://eisop.github.io/cf/manual/#java-expressions-as-arguments">Syntax of
      *     Java expressions</a>
      */
     String[] value();
@@ -46,7 +46,7 @@ public @interface EnsuresLockHeld {
     @Target({ElementType.METHOD, ElementType.CONSTRUCTOR})
     @PostconditionAnnotation(qualifier = LockHeld.class)
     @InheritedAnnotation
-    @interface List {
+    public static @interface List {
         /**
          * Return the repeatable annotations.
          *

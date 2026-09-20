@@ -1,5 +1,6 @@
 package org.checkerframework.common.value;
 
+import com.sun.source.tree.AnnotationTree;
 import com.sun.source.tree.ConditionalExpressionTree;
 import com.sun.source.tree.ExpressionTree;
 import com.sun.source.tree.IdentifierTree;
@@ -11,6 +12,7 @@ import com.sun.source.tree.NewClassTree;
 import com.sun.source.tree.Tree;
 import com.sun.source.tree.TypeCastTree;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.checker.signature.qual.BinaryName;
 import org.checkerframework.checker.signature.qual.Identifier;
 import org.checkerframework.common.value.qual.ArrayLen;
@@ -27,17 +29,15 @@ import org.checkerframework.javacutil.TypeSystemError;
 import org.checkerframework.javacutil.TypesUtils;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.Name;
 import javax.lang.model.element.VariableElement;
+import javax.lang.model.type.ArrayType;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
 
@@ -47,32 +47,6 @@ class ValueTreeAnnotator extends TreeAnnotator {
     /** The type factory to use. Shadows the field from the superclass with a more specific type. */
     @SuppressWarnings("HidingField")
     protected final ValueAnnotatedTypeFactory atypeFactory;
-
-    /**
-     * The domain of the Constant Value Checker: the types for which it estimates possible values.
-     */
-    protected static final Set<String> COVERED_CLASS_STRINGS =
-            Collections.unmodifiableSet(
-                    new HashSet<>(
-                            Arrays.asList(
-                                    "int",
-                                    "java.lang.Integer",
-                                    "double",
-                                    "java.lang.Double",
-                                    "byte",
-                                    "java.lang.Byte",
-                                    "java.lang.String",
-                                    "char",
-                                    "java.lang.Character",
-                                    "float",
-                                    "java.lang.Float",
-                                    "boolean",
-                                    "java.lang.Boolean",
-                                    "long",
-                                    "java.lang.Long",
-                                    "short",
-                                    "java.lang.Short",
-                                    "char[]")));
 
     /**
      * Create a ValueTreeAnnotator.
@@ -86,7 +60,6 @@ class ValueTreeAnnotator extends TreeAnnotator {
 
     @Override
     public Void visitNewArray(NewArrayTree tree, AnnotatedTypeMirror type) {
-
         List<? extends ExpressionTree> dimensions = tree.getDimensions();
         List<? extends ExpressionTree> initializers = tree.getInitializers();
 
@@ -126,7 +99,7 @@ class ValueTreeAnnotator extends TreeAnnotator {
      *
      * @param dimensions a list of ExpressionTrees where each ExpressionTree is a specifier of the
      *     size of that dimension
-     * @param type the AnnotatedTypeMirror of the array
+     * @param type the AnnotatedTypeMirror of the array, which is side-effected by this method
      */
     private void handleDimensions(
             List<? extends ExpressionTree> dimensions,
@@ -173,7 +146,6 @@ class ValueTreeAnnotator extends TreeAnnotator {
     private void handleInitializers(
             List<? extends ExpressionTree> initializers,
             AnnotatedTypeMirror.AnnotatedArrayType type) {
-
         type.replaceAnnotation(
                 atypeFactory.createArrayLenAnnotation(
                         Collections.singletonList(initializers.size())));
@@ -236,7 +208,7 @@ class ValueTreeAnnotator extends TreeAnnotator {
     }
 
     /** Convert a char array to a String. Return null if unable to convert. */
-    private String getCharArrayStringVal(List<? extends ExpressionTree> initializers) {
+    private @Nullable String getCharArrayStringVal(List<? extends ExpressionTree> initializers) {
         boolean allLiterals = true;
         StringBuilder stringVal = new StringBuilder();
         for (ExpressionTree e : initializers) {
@@ -261,6 +233,7 @@ class ValueTreeAnnotator extends TreeAnnotator {
         return null;
     }
 
+    // Side-effects the `atm` formal parameter.
     @Override
     public Void visitTypeCast(TypeCastTree tree, AnnotatedTypeMirror atm) {
         if (handledByValueChecker(atm)) {
@@ -271,15 +244,26 @@ class ValueTreeAnnotator extends TreeAnnotator {
             if (oldAnno == null) {
                 return null;
             }
+
+            // I would like to call
+            //   ((AnnotatedTypeTree) castTree).hasAnnotation(Unsigned.class),
+            // but `Unsigned` is in the checker package and this code is in the common package.
+            List<? extends AnnotationTree> annoTrees =
+                    TreeUtils.getExplicitAnnotationTrees(null, tree.getType());
+            List<AnnotationMirror> annos = TreeUtils.annotationsFromTypeAnnotationTrees(annoTrees);
+            boolean isUnsigned =
+                    AnnotationUtils.containsSameByName(
+                            annos, "org.checkerframework.checker.signedness.qual.Unsigned");
+
             TypeMirror newType = atm.getUnderlyingType();
             AnnotationMirror newAnno;
-            Range range;
 
             if (TypesUtils.isString(newType) || newType.getKind() == TypeKind.ARRAY) {
                 // Strings and arrays do not allow conversions
                 newAnno = oldAnno;
             } else if (atypeFactory.isIntRange(oldAnno)
-                    && (range = atypeFactory.getRange(oldAnno))
+                    && atypeFactory
+                            .getRange(oldAnno)
                             .isWiderThan(ValueAnnotatedTypeFactory.MAX_VALUES)) {
                 Class<?> newClass = TypesUtils.getClassFromType(newType);
                 if (newClass == String.class) {
@@ -288,29 +272,52 @@ class ValueTreeAnnotator extends TreeAnnotator {
                     throw new UnsupportedOperationException(
                             "ValueAnnotatedTypeFactory: can't convert int to boolean");
                 } else {
+                    // This re-computes a value from the condition above, but the code is easier to
+                    // read like this.
                     newAnno =
                             atypeFactory.createIntRangeAnnotation(
-                                    NumberUtils.castRange(newType, range));
+                                    NumberUtils.castRange(newType, atypeFactory.getRange(oldAnno)));
                 }
             } else {
                 List<?> values =
-                        ValueCheckerUtils.getValuesCastedToType(oldAnno, newType, atypeFactory);
+                        ValueCheckerUtils.getValuesCastedToType(
+                                oldAnno, newType, isUnsigned, atypeFactory);
                 newAnno = atypeFactory.createResultingAnnotation(atm.getUnderlyingType(), values);
             }
-            atm.addMissingAnnotations(Collections.singleton(newAnno));
+            atm.addMissingAnnotation(newAnno);
         } else if (atm.getKind() == TypeKind.ARRAY) {
             if (tree.getExpression().getKind() == Tree.Kind.NULL_LITERAL) {
-                atm.addMissingAnnotations(Collections.singleton(atypeFactory.BOTTOMVAL));
+                atm.addMissingAnnotation(atypeFactory.BOTTOMVAL);
             }
         }
         return null;
     }
 
     /**
-     * Get the "value" field of the given annotation, casted to the given type. Empty list means no
-     * value is possible (dead code). Null means no information is known -- any value is possible.
+     * Get the "value" element/field of the annotation on {@code type}, casted to the given type.
+     * Empty list means no value is possible (dead code). Null means no information is known -- any
+     * value is possible.
+     *
+     * @param type the type with a Value Checker annotation
+     * @param castTo the type to cast to
+     * @return the Value Checker annotation's value, casted to the given type
      */
-    private List<?> getValues(AnnotatedTypeMirror type, TypeMirror castTo) {
+    private @Nullable List<?> getValues(AnnotatedTypeMirror type, TypeMirror castTo) {
+        return getValues(type, castTo, false);
+    }
+
+    /**
+     * Get the "value" element/field of the annotation on {@code type}, casted to the given type.
+     * Empty list means no value is possible (dead code). Null means no information is known -- any
+     * value is possible.
+     *
+     * @param type the type with a Value Checker annotation
+     * @param castTo the type to cast to
+     * @param isUnsigned if true, treat {@code castTo} as unsigned
+     * @return the Value Checker annotation's value, casted to the given type
+     */
+    private @Nullable List<?> getValues(
+            AnnotatedTypeMirror type, TypeMirror castTo, boolean isUnsigned) {
         AnnotationMirror anno = type.getAnnotationInHierarchy(atypeFactory.UNKNOWNVAL);
         if (anno == null) {
             // If type is an AnnotatedTypeVariable (or other type without a primary annotation)
@@ -319,7 +326,7 @@ class ValueTreeAnnotator extends TreeAnnotator {
             // unknown.  AnnotatedTypes.findEffectiveAnnotationInHierarchy(, toSearch, top)
             return null;
         }
-        return ValueCheckerUtils.getValuesCastedToType(anno, castTo, atypeFactory);
+        return ValueCheckerUtils.getValuesCastedToType(anno, castTo, isUnsigned, atypeFactory);
     }
 
     @Override
@@ -378,7 +385,7 @@ class ValueTreeAnnotator extends TreeAnnotator {
      * @return the Range of the Math.min or Math.max method, or null if the argument is none of
      *     these methods or their arguments are not annotated in ValueChecker hierarchy
      */
-    private Range getRangeForMathMinMax(MethodInvocationTree tree) {
+    private @Nullable Range getRangeForMathMinMax(MethodInvocationTree tree) {
         if (atypeFactory.getMethodIdentifier().isMathMin(tree, atypeFactory.getProcessingEnv())) {
             AnnotatedTypeMirror arg1 = atypeFactory.getAnnotatedType(tree.getArguments().get(0));
             AnnotatedTypeMirror arg2 = atypeFactory.getAnnotatedType(tree.getArguments().get(1));
@@ -570,7 +577,7 @@ class ValueTreeAnnotator extends TreeAnnotator {
             return;
         }
 
-        VariableElement fieldElement = (VariableElement) TreeUtils.elementFromTree(tree);
+        VariableElement fieldElement = TreeUtils.variableElementFromTree(tree);
         Object value = fieldElement.getConstantValue();
         if (value != null) {
             // The field is a compile-time constant.
@@ -602,25 +609,27 @@ class ValueTreeAnnotator extends TreeAnnotator {
                 return;
             }
         }
-
-        return;
     }
 
-    /** Returns true iff the given type is in the domain of the Constant Value Checker. */
+    /**
+     * Returns true iff the given type is in the domain of the Constant Value Checker, that is,
+     * whether it estimates possible values for the type.
+     *
+     * @param type the type to test
+     * @return whether the type is handled by the Constant Value Checker
+     */
     private boolean handledByValueChecker(AnnotatedTypeMirror type) {
         TypeMirror tm = type.getUnderlyingType();
-        /* TODO: compare performance to the more readable.
         return TypesUtils.isPrimitive(tm)
                 || TypesUtils.isBoxedPrimitive(tm)
                 || TypesUtils.isString(tm)
-                || tm.toString().equals("char[]"); // Why?
-        */
-        return COVERED_CLASS_STRINGS.contains(tm.toString());
+                || (tm.getKind() == TypeKind.ARRAY
+                        && ((ArrayType) tm).getComponentType().getKind() == TypeKind.CHAR);
     }
 
     @Override
     public Void visitConditionalExpression(
-            ConditionalExpressionTree node, AnnotatedTypeMirror annotatedTypeMirror) {
+            ConditionalExpressionTree tree, AnnotatedTypeMirror annotatedTypeMirror) {
         // Work around for https://github.com/typetools/checker-framework/issues/602.
         annotatedTypeMirror.replaceAnnotation(atypeFactory.UNKNOWNVAL);
         return null;
@@ -644,7 +653,7 @@ class ValueTreeAnnotator extends TreeAnnotator {
      * @param type the type of that tree
      */
     private void visitEnumConstant(ExpressionTree tree, AnnotatedTypeMirror type) {
-        Element decl = TreeUtils.elementFromTree(tree);
+        Element decl = TreeUtils.elementFromUse(tree);
         if (decl.getKind() != ElementKind.ENUM_CONSTANT) {
             return;
         }

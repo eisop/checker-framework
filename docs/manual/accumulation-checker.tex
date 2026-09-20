@@ -38,7 +38,7 @@ Define 2 or 3 type qualifiers.
 \begin{itemize}
 \item
 The ``accumulator'' type qualifier has a single argument: a \<String[]> named
-\<value> that defaults to the an empty array.  Note that the Checker Framework's
+\<value> that defaults to an empty array.  Note that the Checker Framework's
 support for accumulation analysis requires you to accumulate a string representation
 of whatever you are accumulating. For example, when accumulating which methods have
 been called, you might choose to accumulate method names.
@@ -89,10 +89,10 @@ you defined a predicate annotation).
 Define a class that extends \refclass{common/accumulation}{AccumulationTransfer}.
 To update the estimate of what has been accumulated, override some method in
 \refclass{framework/flow}{CFAbstractTransfer} to call
-\refmethodterse{common/accumulation}{AccumulationTransfer}{accumulate}{-org.checkerframework.dataflow.cfg.node.Node-org.checkerframework.dataflow.analysis.TransferResult-java.lang.String...-}.
+\refmethodterse{common/accumulation}{AccumulationTransfer}{accumulate}{(org.checkerframework.dataflow.cfg.node.Node,org.checkerframework.dataflow.analysis.TransferResult,java.lang.String...)}.
 
 For example, to accumulate the names of methods called, a checker would override
-\refmethod{framework/flow}{CFAbstractTransfer}{visitMethodInvocation}{-org.checkerframework.dataflow.cfg.node.MethodInvocationNode-org.checkerframework.dataflow.analysis.TransferInput-} to:
+\refmethod{framework/flow}{CFAbstractTransfer}{visitMethodInvocation}{(org.checkerframework.dataflow.cfg.node.MethodInvocationNode,org.checkerframework.dataflow.analysis.TransferInput)} to:
 call \<super> to get a \<TransferResult>, compute the method name from the \<MethodInvocationNode>,
 and then call \<accumulate>.
 
@@ -107,8 +107,22 @@ Te enforce properties in the code being type-checked, write type rules
 system.
 
 
+\sectionAndLabel{Publications}{accumulation-publications}
+
+The paper
+\href{https://homes.cs.washington.edu/~mernst/pubs/accumulation-analysis-ecoop2022.pdf}{``Accumulation
+  Analysis''}~\cite{KelloggSSE2022} describes theoretical properties of
+accumulation analysis.  The papers
+\href{https://homes.cs.washington.edu/~mernst/pubs/object-construction-icse2020.pdf}{``Verifying
+  Object Construction''}~\cite{KelloggRSSE2020} and
+\href{https://homes.cs.washington.edu/~mernst/pubs/resource-leak-esecfse2021.pdf}{``Lightweight
+  and modular resource leak verification''}~\cite{KelloggSSE2021} describe
+specific accumulation analyses.
+
+
 % LocalWords:  SubtypeOf TestAccumulation TestAccumulationBottom
-% LocalWords:  TestAccumulationPredicate AccumulationChecker
+% LocalWords:  TestAccumulationPredicate AccumulationChecker Analysis''
 % LocalWords:  AccumulationAnnotatedTypeFactory BaseTypeChecker
 % LocalWords:  AccumulationTransfer CFAbstractTransfer TransferResult
-% LocalWords:  visitMethodInvocation MethodInvocationNode
+% LocalWords:  visitMethodInvocation MethodInvocationNode Construction''
+% LocalWords:  verification''

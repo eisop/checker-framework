@@ -1,8 +1,6 @@
 // Test case for issue #979:
 // https://github.com/typetools/checker-framework/issues/979
 
-// @skip-test until the bug is fixed
-
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 import java.util.List;
@@ -11,6 +9,12 @@ import java.util.stream.Stream;
 
 public class CollectorsToList {
 
+    // See checker/tests/i18n-formatter/I18nFormatCollectorsToList.java
+    @SuppressWarnings({
+        "i18n:methodref.param", // true postive, see
+        // checker/tests/i18n-formatter/I18nFormatCollectorsToList.java
+        "lock:methodref.receiver.bound"
+    })
     void m(List<String> strings) {
         Stream<String> s = strings.stream();
 

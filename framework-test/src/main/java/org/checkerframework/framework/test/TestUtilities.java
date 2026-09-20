@@ -9,17 +9,16 @@ import org.plumelib.util.CollectionsPlume;
 import org.plumelib.util.StringsPlume;
 import org.plumelib.util.SystemPlume;
 
+import java.io.BufferedReader;
 import java.io.BufferedWriter;
-import java.io.ByteArrayOutputStream;
 import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileWriter;
 import java.io.IOException;
-import java.io.OutputStream;
 import java.io.PrintWriter;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
@@ -27,58 +26,92 @@ import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Scanner;
 import java.util.Set;
 import java.util.StringJoiner;
 
 import javax.tools.Diagnostic;
-import javax.tools.JavaCompiler;
 import javax.tools.JavaFileObject;
-import javax.tools.ToolProvider;
 
 /** Utilities for testing. */
 public class TestUtilities {
 
     /** True if the JVM is version 9 or above. */
-    public static final boolean IS_AT_LEAST_9_JVM = SystemUtil.getJreVersion() >= 9;
+    public static final boolean IS_AT_LEAST_9_JVM = SystemUtil.jreVersion >= 9;
+
+    /** True if the JVM is version 10 or above. */
+    public static final boolean IS_AT_LEAST_10_JVM = SystemUtil.jreVersion >= 10;
+
     /** True if the JVM is version 11 or above. */
-    public static final boolean IS_AT_LEAST_11_JVM = SystemUtil.getJreVersion() >= 11;
+    public static final boolean IS_AT_LEAST_11_JVM = SystemUtil.jreVersion >= 11;
+
     /** True if the JVM is version 11 or lower. */
-    public static final boolean IS_AT_MOST_11_JVM = SystemUtil.getJreVersion() <= 11;
+    public static final boolean IS_AT_MOST_11_JVM = SystemUtil.jreVersion <= 11;
+
     /** True if the JVM is version 14 or above. */
-    public static final boolean IS_AT_LEAST_14_JVM = SystemUtil.getJreVersion() >= 14;
+    public static final boolean IS_AT_LEAST_14_JVM = SystemUtil.jreVersion >= 14;
+
     /** True if the JVM is version 14 or lower. */
-    public static final boolean IS_AT_MOST_14_JVM = SystemUtil.getJreVersion() <= 14;
+    public static final boolean IS_AT_MOST_14_JVM = SystemUtil.jreVersion <= 14;
+
     /** True if the JVM is version 16 or above. */
-    public static final boolean IS_AT_LEAST_16_JVM = SystemUtil.getJreVersion() >= 16;
+    public static final boolean IS_AT_LEAST_16_JVM = SystemUtil.jreVersion >= 16;
+
     /** True if the JVM is version 16 or lower. */
-    public static final boolean IS_AT_MOST_16_JVM = SystemUtil.getJreVersion() <= 16;
+    public static final boolean IS_AT_MOST_16_JVM = SystemUtil.jreVersion <= 16;
+
     /** True if the JVM is version 17 or above. */
-    public static final boolean IS_AT_LEAST_17_JVM = SystemUtil.getJreVersion() >= 17;
+    public static final boolean IS_AT_LEAST_17_JVM = SystemUtil.jreVersion >= 17;
+
     /** True if the JVM is version 17 or lower. */
-    public static final boolean IS_AT_MOST_17_JVM = SystemUtil.getJreVersion() <= 17;
+    public static final boolean IS_AT_MOST_17_JVM = SystemUtil.jreVersion <= 17;
 
-    static {
-        JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
-        OutputStream err = new ByteArrayOutputStream();
-        compiler.run(null, null, err, "-version");
-    }
+    /** True if the JVM is version 18 or above. */
+    public static final boolean IS_AT_LEAST_18_JVM = SystemUtil.jreVersion >= 18;
 
+    /** True if the JVM is version 18 or lower. */
+    public static final boolean IS_AT_MOST_18_JVM = SystemUtil.jreVersion <= 18;
+
+    /** True if the JVM is version 21 or above. */
+    public static final boolean IS_AT_LEAST_21_JVM = SystemUtil.jreVersion >= 21;
+
+    /** True if the JVM is version 22 or above. */
+    public static final boolean IS_AT_LEAST_22_JVM = SystemUtil.jreVersion >= 22;
+
+    /**
+     * Find test java sources within currentDir/tests.
+     *
+     * @param dirNames subdirectories of currentDir/tests
+     * @return found files
+     */
     public static List<File> findNestedJavaTestFiles(String... dirNames) {
         return findRelativeNestedJavaFiles(new File("tests"), dirNames);
     }
 
+    /**
+     * Find test java sources within {@code parent}.
+     *
+     * @param parent directory to search within
+     * @param dirNames subdirectories of {@code parent}
+     * @return found files
+     */
     public static List<File> findRelativeNestedJavaFiles(String parent, String... dirNames) {
         return findRelativeNestedJavaFiles(new File(parent), dirNames);
     }
 
+    /**
+     * Find test java sources within {@code parent}.
+     *
+     * @param parent directory to search within
+     * @param dirNames subdirectories of {@code parent}
+     * @return found files
+     */
     public static List<File> findRelativeNestedJavaFiles(File parent, String... dirNames) {
         File[] dirs = new File[dirNames.length];
 
         int i = 0;
         for (String dirName : dirNames) {
             dirs[i] = new File(parent, dirName);
-            i += 1;
+            ++i;
         }
 
         return getJavaFilesAsArgumentList(dirs);
@@ -103,22 +136,51 @@ public class TestUtilities {
                     "test parent directory is not a directory: %s %s",
                     parent, parent.getAbsoluteFile());
         }
-
         List<List<File>> filesPerDirectory = new ArrayList<>();
 
         for (String dirName : dirNames) {
             File dir = new File(parent, dirName).toPath().toAbsolutePath().normalize().toFile();
-            if (!dir.isDirectory()) {
-                // For "ainfer-*" tests, their sources do not necessarily
-                // exist yet but will be created by a test that runs earlier than they do.
-                if (!(dir.getName().equals("annotated")
-                        && dir.getParentFile() != null
-                        && dir.getParentFile().getName().startsWith("ainfer-"))) {
-                    throw new BugInCF("test directory does not exist: %s", dir);
-                }
-            }
             if (dir.isDirectory()) {
                 filesPerDirectory.addAll(findJavaTestFilesInDirectory(dir));
+            } else {
+                // `dir` is not an existing directory.
+                // If delombok does not yet work on a given JDK, this directory does not exist.
+                if (dir.getName().contains("delomboked")) {
+                    continue;
+                }
+                // For "ainfer-*" tests, their sources do not necessarily
+                // exist yet but will be created by a test that runs earlier than they do.
+                if (dir.getName().equals("annotated")
+                        && dir.getParentFile() != null
+                        && dir.getParentFile().getName().startsWith("ainfer-")) {
+                    continue;
+                }
+                // When this reaches a sym-linked dir like all-system, Windows needs to explicitly
+                // read the content recorded in this file, which is the path to the real dir.
+                // Without this check Windows will treat the file as a meaningless one and skip it.
+                if (dir.isFile()) {
+                    File p = dir;
+                    try (BufferedReader br =
+                            Files.newBufferedReader(dir.toPath(), StandardCharsets.UTF_8)) {
+                        String allSystemPath = br.readLine();
+                        if (allSystemPath == null) {
+                            throw new BugInCF("test directory does not exist: %s", dir);
+                        }
+                        p =
+                                new File(parent, allSystemPath.replace("/", File.separator))
+                                        .toPath()
+                                        .toAbsolutePath()
+                                        .normalize()
+                                        .toFile();
+
+                    } catch (IOException e) {
+                        throw new BugInCF("file is not readable: %s", dir);
+                    }
+                    filesPerDirectory.addAll(findJavaTestFilesInDirectory(p));
+                    continue;
+                }
+
+                throw new BugInCF("test directory does not exist: %s", dir);
             }
         }
 
@@ -201,14 +263,7 @@ public class TestUtilities {
 
         @SuppressWarnings("nullness") // checked above that it's a directory
         File @NonNull [] in = directory.listFiles();
-        Arrays.sort(
-                in,
-                new Comparator<File>() {
-                    @Override
-                    public int compare(File o1, File o2) {
-                        return o1.getName().compareTo(o2.getName());
-                    }
-                });
+        Arrays.sort(in, Comparator.comparing(File::getName));
         for (File file : in) {
             if (file.isDirectory()) {
                 javaFiles.addAll(deeplyEnclosedJavaTestFiles(file));
@@ -229,37 +284,50 @@ public class TestUtilities {
             return false;
         }
 
-        Scanner in = null;
-        try {
-            in = new Scanner(file);
-        } catch (FileNotFoundException e) {
+        try (BufferedReader br = Files.newBufferedReader(file.toPath(), StandardCharsets.UTF_8)) {
+            String nextLine;
+            while ((nextLine = br.readLine()) != null) {
+                // Fast path: every skip marker contains "skip-test". Avoid running ~14
+                // String#contains calls on every line of every test file.
+                if (!nextLine.contains("skip-test")) {
+                    continue;
+                }
+                if (nextLine.contains("@skip-test")
+                        || (!IS_AT_LEAST_9_JVM && nextLine.contains("@below-java9-jdk-skip-test"))
+                        || (!IS_AT_LEAST_10_JVM && nextLine.contains("@below-java10-jdk-skip-test"))
+                        || (!IS_AT_LEAST_11_JVM && nextLine.contains("@below-java11-jdk-skip-test"))
+                        || (!IS_AT_MOST_11_JVM && nextLine.contains("@above-java11-jdk-skip-test"))
+                        || (!IS_AT_LEAST_14_JVM && nextLine.contains("@below-java14-jdk-skip-test"))
+                        || (!IS_AT_MOST_14_JVM && nextLine.contains("@above-java14-jdk-skip-test"))
+                        || (!IS_AT_LEAST_16_JVM && nextLine.contains("@below-java16-jdk-skip-test"))
+                        || (!IS_AT_MOST_16_JVM && nextLine.contains("@above-java16-jdk-skip-test"))
+                        || (!IS_AT_LEAST_17_JVM && nextLine.contains("@below-java17-jdk-skip-test"))
+                        || (!IS_AT_MOST_17_JVM && nextLine.contains("@above-java17-jdk-skip-test"))
+                        || (!IS_AT_LEAST_18_JVM && nextLine.contains("@below-java18-jdk-skip-test"))
+                        || (!IS_AT_MOST_18_JVM && nextLine.contains("@above-java18-jdk-skip-test"))
+                        || (!IS_AT_LEAST_21_JVM && nextLine.contains("@below-java21-jdk-skip-test"))
+                        || (!IS_AT_LEAST_22_JVM
+                                && nextLine.contains("@below-java22-jdk-skip-test"))) {
+
+                    return false;
+                }
+            }
+        } catch (IOException e) {
             throw new RuntimeException(e);
         }
 
-        while (in.hasNext()) {
-            String nextLine = in.nextLine();
-            if (nextLine.contains("@skip-test")
-                    || (!IS_AT_LEAST_9_JVM && nextLine.contains("@below-java9-jdk-skip-test"))
-                    || (!IS_AT_LEAST_11_JVM && nextLine.contains("@below-java11-jdk-skip-test"))
-                    || (!IS_AT_MOST_11_JVM && nextLine.contains("@above-java11-jdk-skip-test"))
-                    || (!IS_AT_LEAST_14_JVM && nextLine.contains("@below-java14-jdk-skip-test"))
-                    || (!IS_AT_MOST_14_JVM && nextLine.contains("@above-java14-jdk-skip-test"))
-                    || (!IS_AT_LEAST_16_JVM && nextLine.contains("@below-java16-jdk-skip-test"))
-                    || (!IS_AT_MOST_16_JVM && nextLine.contains("@above-java16-jdk-skip-test"))
-                    || (!IS_AT_LEAST_17_JVM && nextLine.contains("@below-java17-jdk-skip-test"))
-                    || (!IS_AT_MOST_17_JVM && nextLine.contains("@above-java17-jdk-skip-test"))) {
-                in.close();
-                return false;
-            }
-        }
-
-        in.close();
         return true;
     }
 
+    /**
+     * Convert a compiler diagnostic to a string.
+     *
+     * @param diagnostic the compiler diagnostic
+     * @param usingAnomsgtxt whether message text should be excluded or not
+     * @return the compiler message string or null for certain lint warnings
+     */
     public static @Nullable String diagnosticToString(
-            final Diagnostic<? extends JavaFileObject> diagnostic, boolean usingAnomsgtxt) {
-
+            Diagnostic<? extends JavaFileObject> diagnostic, boolean usingAnomsgtxt) {
         String result = diagnostic.toString().trim();
 
         // suppress Xlint warnings
@@ -293,7 +361,7 @@ public class TestUtilities {
     }
 
     public static Set<String> diagnosticsToStrings(
-            final Iterable<Diagnostic<? extends JavaFileObject>> actualDiagnostics,
+            Iterable<Diagnostic<? extends JavaFileObject>> actualDiagnostics,
             boolean usingAnomsgtxt) {
         Set<String> actualDiagnosticsStr = new LinkedHashSet<>();
         for (Diagnostic<? extends JavaFileObject> diagnostic : actualDiagnostics) {
@@ -325,28 +393,44 @@ public class TestUtilities {
     }
 
     public static File findComparisonFile(File testFile) {
-        final File comparisonFile =
+        File comparisonFile =
                 new File(testFile.getParent(), testFile.getName().replace(".java", ".out"));
         return comparisonFile;
     }
 
+    /**
+     * Given an option map, return a list of option names.
+     *
+     * @param options an option map
+     * @return return a list of option names
+     */
     public static List<String> optionMapToList(Map<String, @Nullable String> options) {
         List<String> optionList = new ArrayList<>(options.size() * 2);
 
-        for (Map.Entry<String, @Nullable String> opt : options.entrySet()) {
-            optionList.add(opt.getKey());
+        for (Map.Entry<String, @Nullable String> optEntry : options.entrySet()) {
+            optionList.add(optEntry.getKey());
 
-            if (opt.getValue() != null) {
-                optionList.add(opt.getValue());
+            if (optEntry.getValue() != null) {
+                optionList.add(optEntry.getValue());
             }
         }
 
         return optionList;
     }
 
+    /**
+     * Write all the lines in the given Iterable to the given File.
+     *
+     * @param file where to write the lines
+     * @param lines what lines to write
+     */
     public static void writeLines(File file, Iterable<?> lines) {
-        try {
-            final BufferedWriter bw = new BufferedWriter(new FileWriter(file, true));
+        try (BufferedWriter bw =
+                Files.newBufferedWriter(
+                        file.toPath(),
+                        StandardCharsets.UTF_8,
+                        StandardOpenOption.CREATE,
+                        StandardOpenOption.APPEND)) {
             Iterator<?> iter = lines.iterator();
             while (iter.hasNext()) {
                 Object next = iter.next();
@@ -358,8 +442,6 @@ public class TestUtilities {
                 bw.newLine();
             }
             bw.flush();
-            bw.close();
-
         } catch (IOException io) {
             throw new RuntimeException(io);
         }
@@ -374,7 +456,13 @@ public class TestUtilities {
             List<String> missing,
             boolean usingNoMsgText,
             boolean testFailed) {
-        try (PrintWriter pw = new PrintWriter(new BufferedWriter(new FileWriter(file, true)))) {
+        try (PrintWriter pw =
+                new PrintWriter(
+                        Files.newBufferedWriter(
+                                file.toPath(),
+                                StandardCharsets.UTF_8,
+                                StandardOpenOption.CREATE,
+                                StandardOpenOption.APPEND))) {
             pw.println("File: " + testFile.getAbsolutePath());
             pw.println("TestFailed: " + testFailed);
             pw.println("Using nomsgtxt: " + usingNoMsgText);
@@ -399,21 +487,28 @@ public class TestUtilities {
             pw.println();
             pw.println();
             pw.flush();
-
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
     }
 
+    /**
+     * Append a test configuration to the end of a file.
+     *
+     * @param file the file to write to
+     * @param config the configuration to append to the end of the file
+     */
     public static void writeTestConfiguration(File file, TestConfiguration config) {
-        try {
-            final BufferedWriter bw = new BufferedWriter(new FileWriter(file, true));
+        try (BufferedWriter bw =
+                Files.newBufferedWriter(
+                        file.toPath(),
+                        StandardCharsets.UTF_8,
+                        StandardOpenOption.CREATE,
+                        StandardOpenOption.APPEND)) {
             bw.write(config.toString());
             bw.newLine();
             bw.newLine();
             bw.flush();
-            bw.close();
-
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -424,7 +519,13 @@ public class TestUtilities {
             Iterable<? extends JavaFileObject> files,
             Iterable<String> options,
             Iterable<String> processors) {
-        try (PrintWriter pw = new PrintWriter(new BufferedWriter(new FileWriter(file, true)))) {
+        try (PrintWriter pw =
+                new PrintWriter(
+                        Files.newBufferedWriter(
+                                file.toPath(),
+                                StandardCharsets.UTF_8,
+                                StandardOpenOption.CREATE,
+                                StandardOpenOption.APPEND))) {
             pw.println("Files:");
             for (JavaFileObject f : files) {
                 pw.println("    " + f.getName());
@@ -492,5 +593,25 @@ public class TestUtilities {
      */
     public static boolean getShouldEmitDebugInfo() {
         return SystemPlume.getBooleanSystemProperty("emit.test.debug");
+    }
+
+    /**
+     * Returns the value of system property "ajavaChecks".
+     *
+     * @return the value of system property "ajavaChecks"
+     */
+    public static boolean getShouldRunAjavaChecks() {
+        return SystemPlume.getBooleanSystemProperty("ajavaChecks");
+    }
+
+    /**
+     * Adapt a string that uses Unix file and path separators to use the correct operating system
+     * separator.
+     *
+     * @param input a path with Unix file and path separators
+     * @return a path with the correct operating system separator
+     */
+    public static String adapt(String input) {
+        return input.replace("/", File.separator).replace(":", File.pathSeparator);
     }
 }

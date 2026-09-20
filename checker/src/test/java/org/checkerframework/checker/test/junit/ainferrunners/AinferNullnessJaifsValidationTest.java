@@ -12,20 +12,23 @@ import java.util.List;
  * Tests whole-program type inference with the aid of .jaif files. This test is the second pass,
  * which ensures that with the annotations inserted, the errors are no longer issued.
  */
-@Category(AinferNullnessJaifsTest.class)
+@Category(AinferNullnessJaifsGenerationTest.class)
 public class AinferNullnessJaifsValidationTest extends CheckerFrameworkPerDirectoryTest {
-    /** @param testFiles the files containing test code, which will be type-checked */
+    /**
+     * @param testFiles the files containing test code, which will be type-checked
+     */
     public AinferNullnessJaifsValidationTest(List<File> testFiles) {
-        super(testFiles, NullnessChecker.class, "nullness", "-Anomsgtext");
+        super(testFiles, NullnessChecker.class, "nullness");
     }
 
+    @SuppressWarnings("JUnitMethodInvoked")
     @Override
     public void run() {
         // Only run if annotated files have been created.
         // See ainferTest task.
         if (!new File("tests/ainfer-nullness/annotated/").exists()) {
             throw new RuntimeException(
-                    AinferNullnessJaifsTest.class + " must be run before this test.");
+                    AinferNullnessJaifsGenerationTest.class + " must be run before this test.");
         }
         super.run();
     }

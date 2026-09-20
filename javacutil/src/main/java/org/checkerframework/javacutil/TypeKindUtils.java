@@ -1,13 +1,38 @@
 package org.checkerframework.javacutil;
 
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.checker.signature.qual.FullyQualifiedName;
 
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.Map;
+
+import javax.lang.model.element.Element;
+import javax.lang.model.element.Name;
+import javax.lang.model.element.TypeElement;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
 
 /** A utility class that helps with {@link TypeKind}s. */
 public final class TypeKindUtils {
+
+    /** Map of a boxed primitive type's fully-qualified name to its primitive {@link TypeKind}. */
+    private static final Map<@FullyQualifiedName String, TypeKind> boxedToPrimitiveType;
+
+    static {
+        Map<@FullyQualifiedName String, TypeKind> map = new LinkedHashMap<>();
+        // Keep consistent with checks in `isPossiblyBoxedSimpleName`.
+        map.put("java.lang.Byte", TypeKind.BYTE);
+        map.put("java.lang.Boolean", TypeKind.BOOLEAN);
+        map.put("java.lang.Character", TypeKind.CHAR);
+        map.put("java.lang.Double", TypeKind.DOUBLE);
+        map.put("java.lang.Float", TypeKind.FLOAT);
+        map.put("java.lang.Integer", TypeKind.INT);
+        map.put("java.lang.Long", TypeKind.LONG);
+        map.put("java.lang.Short", TypeKind.SHORT);
+        boxedToPrimitiveType = Collections.unmodifiableMap(map);
+    }
 
     /** This class cannot be instantiated. */
     private TypeKindUtils() {
@@ -26,6 +51,25 @@ public final class TypeKindUtils {
             case SHORT:
             case BYTE:
             case CHAR:
+            case LONG:
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    /**
+     * Return true if the argument is one of INT, SHORT, BYTE, LONG.
+     *
+     * @param typeKind the TypeKind to inspect
+     * @return true if typeKind is a primitive integral type kind, excluding CHAR which does not
+     *     print as an integer
+     */
+    public static boolean isIntegralNumeric(TypeKind typeKind) {
+        switch (typeKind) {
+            case INT:
+            case SHORT:
+            case BYTE:
             case LONG:
                 return true;
             default:
@@ -80,40 +124,70 @@ public final class TypeKindUtils {
      * @return a primitive type kind, or null
      */
     public static @Nullable TypeKind primitiveOrBoxedToTypeKind(TypeMirror type) {
-        final TypeKind typeKind = type.getKind();
+        TypeKind typeKind = type.getKind();
         if (typeKind.isPrimitive()) {
             return typeKind;
         }
 
-        if (!(type instanceof DeclaredType)) {
+        return boxedToTypeKind(type);
+    }
+
+    /**
+     * Given a boxed primitive type, return the corresponding primitive type kind. Otherwise, return
+     * null.
+     *
+     * @param type a boxed primitive type
+     * @return a primitive type kind, or null
+     */
+    public static @Nullable TypeKind boxedToTypeKind(TypeMirror type) {
+        if (type.getKind() != TypeKind.DECLARED) {
             return null;
         }
 
-        final String typeString = TypesUtils.getQualifiedName((DeclaredType) type).toString();
+        // Fast reject: all boxed primitives are in java.lang and have short names.
+        // A DeclaredType whose asElement is not a TypeElement, or whose simple name
+        // doesn't match one of 8 known short names, can't be boxed.
+        Element e = ((DeclaredType) type).asElement();
+        if (!(e instanceof TypeElement)) {
+            return null;
+        }
+        Name simple = e.getSimpleName();
+        // Simple-name compare is MUCH cheaper than qualified-name extraction:
+        // javac's Name.contentEquals uses byte-level compare on the shared name table.
+        if (!isPossiblyBoxedSimpleName(simple)) {
+            return null;
+        }
+        // Only now pay for getQualifiedName:
+        String typeString = TypesUtils.getQualifiedName((DeclaredType) type);
+        return boxedToPrimitiveType.get(typeString);
+    }
 
-        switch (typeString) {
-            case "java.lang.Byte":
-                return TypeKind.BYTE;
-            case "java.lang.Boolean":
-                return TypeKind.BOOLEAN;
-            case "java.lang.Character":
-                return TypeKind.CHAR;
-            case "java.lang.Double":
-                return TypeKind.DOUBLE;
-            case "java.lang.Float":
-                return TypeKind.FLOAT;
-            case "java.lang.Integer":
-                return TypeKind.INT;
-            case "java.lang.Long":
-                return TypeKind.LONG;
-            case "java.lang.Short":
-                return TypeKind.SHORT;
+    /**
+     * Is the simple name n possibly a boxed primitive?
+     *
+     * @param n the simple name of the type
+     * @return whether the simple name matches the boxed primitive types
+     */
+    private static boolean isPossiblyBoxedSimpleName(Name n) {
+        // Keep consistent with keys in `boxedToPrimitiveType`.
+        // Decode the Name once, then dispatch via String switch (compiles to
+        // hashCode + targeted equals — short-circuits on length mismatch).
+        switch (n.toString()) {
+            case "Byte":
+            case "Boolean":
+            case "Character":
+            case "Double":
+            case "Float":
+            case "Integer":
+            case "Long":
+            case "Short":
+                return true;
             default:
-                return null;
+                return false;
         }
     }
 
-    // No overload that takes AnnotatedTypeMirror becasue javacutil cannot depend on framework.
+    // No overload that takes AnnotatedTypeMirror because javacutil cannot depend on framework.
     /**
      * Returns the widened numeric type for an arithmetic operation performed on a value of the left
      * type and the right type. Defined in JLS 5.6.2. We return a {@link TypeKind} because creating
@@ -244,10 +318,10 @@ public final class TypeKindUtils {
     }
 
     /**
-     * Returns the minimum value representable by the given ingetgral primitive type.
+     * Returns the minimum value representable by the given integral primitive type.
      *
      * @param tk a primitive type kind
-     * @return the minimum value representable by the given integral primitive type.
+     * @return the minimum value representable by the given integral primitive type
      */
     public static long minValue(TypeKind tk) {
         switch (tk) {
@@ -273,7 +347,7 @@ public final class TypeKindUtils {
      * Returns the maximum value representable by the given integral primitive type.
      *
      * @param tk a primitive type kind
-     * @return the maximum value representable by the given integral primitive type.
+     * @return the maximum value representable by the given integral primitive type
      */
     public static long maxValue(TypeKind tk) {
         switch (tk) {

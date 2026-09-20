@@ -11,6 +11,7 @@ import org.checkerframework.framework.type.GenericAnnotatedTypeFactory;
 import org.checkerframework.framework.type.QualifierHierarchy;
 import org.checkerframework.framework.type.typeannotator.DefaultForTypeAnnotator;
 import org.checkerframework.javacutil.AnnotationBuilder;
+import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.BugInCF;
 import org.plumelib.util.StringsPlume;
 
@@ -25,6 +26,7 @@ import java.util.Set;
 import java.util.regex.Pattern;
 
 import javax.lang.model.element.AnnotationMirror;
+import javax.lang.model.type.TypeMirror;
 
 /**
  * Adds annotations to a type based on the contents of a tree. This class applies annotations
@@ -46,12 +48,15 @@ public class LiteralTreeAnnotator extends TreeAnnotator {
      * at most one element.
      */
     /** Maps AST kind to the set of AnnotationMirrors that should be defaulted. */
-    private final Map<Tree.Kind, Set<AnnotationMirror>> treeKinds;
-    /** Maps AST class to the set of AnnotationMirrors that should be defaulted. */
-    private final Map<Class<?>, Set<AnnotationMirror>> treeClasses;
-    /** Maps String literal pattern to the set of AnnotationMirrors that should be defaulted. */
-    private final IdentityHashMap<Pattern, Set<AnnotationMirror>> stringPatterns;
+    private final Map<Tree.Kind, AnnotationMirrorSet> treeKinds;
 
+    /** Maps AST class to the set of AnnotationMirrors that should be defaulted. */
+    private final Map<Class<?>, AnnotationMirrorSet> treeClasses;
+
+    /** Maps String literal pattern to the set of AnnotationMirrors that should be defaulted. */
+    private final IdentityHashMap<Pattern, AnnotationMirrorSet> stringPatterns;
+
+    /** The qualifier hierarchy. */
     protected final QualifierHierarchy qualHierarchy;
 
     /**
@@ -78,6 +83,7 @@ public class LiteralTreeAnnotator extends TreeAnnotator {
      *
      * @param atypeFactory the type factory to make an annotator for
      */
+    @SuppressWarnings("this-escape")
     public LiteralTreeAnnotator(AnnotatedTypeFactory atypeFactory) {
         super(atypeFactory);
         this.treeKinds = new EnumMap<>(Tree.Kind.class);
@@ -103,8 +109,8 @@ public class LiteralTreeAnnotator extends TreeAnnotator {
                 addLiteralKind(literalKind, theQual);
             }
 
-            for (String pattern : forLiterals.stringPatterns()) {
-                addStringPattern(pattern, theQual);
+            for (String regex : forLiterals.stringPatterns()) {
+                addStringPattern(regex, theQual);
             }
 
             if (forLiterals.value().length == 0 && forLiterals.stringPatterns().length == 0) {
@@ -128,8 +134,8 @@ public class LiteralTreeAnnotator extends TreeAnnotator {
             }
             return this;
         }
-        Set<? extends AnnotationMirror> tops = qualHierarchy.getTopAnnotations();
-        Set<AnnotationMirror> defaultForNull = treeKinds.get(Tree.Kind.NULL_LITERAL);
+        AnnotationMirrorSet tops = qualHierarchy.getTopAnnotations();
+        AnnotationMirrorSet defaultForNull = treeKinds.get(Tree.Kind.NULL_LITERAL);
         if (tops.size() == defaultForNull.size()) {
             return this;
         }
@@ -184,13 +190,34 @@ public class LiteralTreeAnnotator extends TreeAnnotator {
     /**
      * Added a rule for all String literals that match the given pattern.
      *
-     * @param pattern pattern to match Strings against
-     * @param theQual {@code AnnotationMirror} to apply to Strings that match the pattern
+     * @param regex regex to match Strings against
+     * @param theQual {@code AnnotationMirror} to apply to Strings that match the regex
+     * @see #addStringPattern(Pattern,AnnotationMirror)
      */
-    public void addStringPattern(String pattern, AnnotationMirror theQual) {
+    public void addStringPattern(String regex, AnnotationMirror theQual) {
         boolean res =
                 qualHierarchy.updateMappingToMutableSet(
-                        stringPatterns, Pattern.compile(pattern), theQual);
+                        stringPatterns, Pattern.compile(regex), theQual);
+        if (!res) {
+            throw new BugInCF(
+                    "LiteralTreeAnnotator: invalid update of stringPatterns "
+                            + stringPatterns
+                            + " at "
+                            + regex
+                            + " with "
+                            + theQual);
+        }
+    }
+
+    /**
+     * Added a rule for all String literals that match the given pattern.
+     *
+     * @param pattern pattern to match Strings against
+     * @param theQual {@code AnnotationMirror} to apply to Strings that match the pattern
+     * @see #addStringPattern(String,AnnotationMirror)
+     */
+    public void addStringPattern(Pattern pattern, AnnotationMirror theQual) {
+        boolean res = qualHierarchy.updateMappingToMutableSet(stringPatterns, pattern, theQual);
         if (!res) {
             throw new BugInCF(
                     "LiteralTreeAnnotator: invalid update of stringPatterns "
@@ -212,20 +239,20 @@ public class LiteralTreeAnnotator extends TreeAnnotator {
 
         // If this tree's class or any of its interfaces are in treeClasses, annotate the type, and
         // if it was an interface add a mapping for it to treeClasses.
-        if (treeKinds.containsKey(tree.getKind())) {
-            Set<AnnotationMirror> fnd = treeKinds.get(tree.getKind());
-            type.addMissingAnnotations(fnd);
+        AnnotationMirrorSet fromKind = treeKinds.get(tree.getKind());
+        if (fromKind != null) {
+            type.addMissingAnnotations(fromKind);
         } else if (!treeClasses.isEmpty()) {
             Class<? extends Tree> t = tree.getClass();
-            if (treeClasses.containsKey(t)) {
-                Set<AnnotationMirror> fnd = treeClasses.get(t);
-                type.addMissingAnnotations(fnd);
+            AnnotationMirrorSet fromClass = treeClasses.get(t);
+            if (fromClass != null) {
+                type.addMissingAnnotations(fromClass);
             }
             for (Class<?> c : t.getInterfaces()) {
-                if (treeClasses.containsKey(c)) {
-                    Set<AnnotationMirror> fnd = treeClasses.get(c);
-                    type.addMissingAnnotations(fnd);
-                    treeClasses.put(t, treeClasses.get(c));
+                AnnotationMirrorSet fromIface = treeClasses.get(c);
+                if (fromIface != null) {
+                    type.addMissingAnnotations(fromIface);
+                    treeClasses.put(t, fromIface);
                 }
             }
         }
@@ -240,22 +267,24 @@ public class LiteralTreeAnnotator extends TreeAnnotator {
             List<Set<? extends AnnotationMirror>> nonMatches = new ArrayList<>();
 
             String string = (String) tree.getValue();
-            for (Map.Entry<Pattern, Set<AnnotationMirror>> entry : stringPatterns.entrySet()) {
-                Set<AnnotationMirror> sam = entry.getValue();
-                if (entry.getKey().matcher(string).matches()) {
+            for (Map.Entry<Pattern, AnnotationMirrorSet> entry : stringPatterns.entrySet()) {
+                Pattern pattern = entry.getKey();
+                AnnotationMirrorSet sam = entry.getValue();
+                if (pattern.matcher(string).matches()) {
                     matches.add(sam);
                 } else {
                     nonMatches.add(sam);
                 }
             }
             if (!matches.isEmpty()) {
+                TypeMirror tm = type.getUnderlyingType();
                 Set<? extends AnnotationMirror> res = matches.get(0);
                 for (Set<? extends AnnotationMirror> sam : matches) {
-                    res = qualHierarchy.greatestLowerBounds(res, sam);
+                    res = qualHierarchy.greatestLowerBoundsShallow(res, tm, sam, tm);
                 }
                 // Verify that res is not a subtype of any type in nonMatches
                 for (Set<? extends AnnotationMirror> sam : nonMatches) {
-                    if (qualHierarchy.isSubtype(res, sam)) {
+                    if (qualHierarchy.isSubtypeShallow(res, sam, tm)) {
                         String matchesOnePerLine = "";
                         for (Set<? extends AnnotationMirror> match : matches) {
                             matchesOnePerLine += System.lineSeparator() + "     " + match;

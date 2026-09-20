@@ -20,6 +20,12 @@ import java.util.Set;
 
 public class AnotherCompoundCheckerAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
 
+    /**
+     * Creates a new AnotherCompoundCheckerAnnotatedTypeFactory.
+     *
+     * @param checker the checker
+     */
+    @SuppressWarnings("this-escape")
     public AnotherCompoundCheckerAnnotatedTypeFactory(BaseTypeChecker checker) {
         super(checker);
         this.postInit();
@@ -37,18 +43,18 @@ public class AnotherCompoundCheckerAnnotatedTypeFactory extends BaseAnnotatedTyp
                 super.createTreeAnnotator(),
                 new TreeAnnotator(this) {
                     @Override
-                    protected Void defaultAction(Tree node, AnnotatedTypeMirror p) {
+                    protected Void defaultAction(Tree tree, AnnotatedTypeMirror p) {
                         // Just access the subchecker type factories to make
                         // sure they were created properly
                         GenericAnnotatedTypeFactory<?, ?, ?, ?> aliasingATF =
                                 getTypeFactoryOfSubchecker(AliasingChecker.class);
                         @SuppressWarnings("unused")
-                        AnnotatedTypeMirror aliasing = aliasingATF.getAnnotatedType(node);
+                        AnnotatedTypeMirror aliasing = aliasingATF.getAnnotatedType(tree);
                         GenericAnnotatedTypeFactory<?, ?, ?, ?> valueATF =
                                 getTypeFactoryOfSubchecker(ValueChecker.class);
                         @SuppressWarnings("unused")
-                        AnnotatedTypeMirror value = valueATF.getAnnotatedType(node);
-                        return super.defaultAction(node, p);
+                        AnnotatedTypeMirror value = valueATF.getAnnotatedType(tree);
+                        return super.defaultAction(tree, p);
                     }
                 });
     }

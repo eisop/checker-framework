@@ -1,0 +1,2 @@
+- compiler.err.proc.messager: The -AassumeAssertions=disabled option contradicts the deprecated -AassumeAssertionsAreEnabled option.
+1 error

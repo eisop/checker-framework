@@ -1,11 +1,9 @@
-import org.checkerframework.checker.regex.qual.*;
-import org.checkerframework.framework.type.AnnotatedTypeMirror;
+import org.checkerframework.checker.regex.qual.Regex;
 
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 
 public class InvariantTypes {
     String[] sa = {"a"};
@@ -25,7 +23,7 @@ public class InvariantTypes {
     List<String> ls = Arrays.asList("alice", "bob", "carol");
     List<@Regex String> lrs = Arrays.asList("alice", "bob", "carol");
     List<String> lnrs = Arrays.asList("(alice", "bob", "carol");
-    // :: error: (assignment.type.incompatible)
+    // :: error: (type.arguments.not.inferred)
     List<@Regex String> lrserr = Arrays.asList("(alice", "bob", "carol");
 
     void unqm(String[] sa) {}
@@ -81,7 +79,7 @@ public class InvariantTypes {
         lunqm(Arrays.asList("alice", "bob", "carol"));
         lrem(Arrays.asList("alice", "bob", "carol"));
         lunqm(Arrays.asList("(alice", "bob", "carol"));
-        // :: error: (argument.type.incompatible)
+        // :: error: (type.arguments.not.inferred)
         lrem(Arrays.asList("(alice", "bob", "carol"));
     }
 
@@ -95,7 +93,7 @@ public class InvariantTypes {
         new ReTests(Arrays.asList("alice", "bob", "carol"), 0);
         new ReTests(Arrays.asList("alice", "bob", "carol"));
         new ReTests(Arrays.asList("(alice", "bob", "carol"), 0);
-        // :: error: (argument.type.incompatible)
+        // :: error: (type.arguments.not.inferred)
         new ReTests(Arrays.asList("(alice", "bob", "carol"));
     }
 
@@ -105,14 +103,6 @@ public class InvariantTypes {
 
     String s1 = join(" ", Arrays.asList("1", "2", "3"));
     String s2 = "xxx" + join(" ", Arrays.asList("1", "2", "3"));
-
-    <K extends AnnotatedTypeMirror, V extends AnnotatedTypeMirror> V mapGetHelper(
-            Map<K, V> mappings) {
-        return null;
-    }
-
-    Map<? extends AnnotatedTypeMirror, ? extends AnnotatedTypeMirror> mappings;
-    AnnotatedTypeMirror found = mapGetHelper(mappings);
 
     class TV<T> {
         List<List<T>> emptylist = Collections.emptyList();

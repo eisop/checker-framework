@@ -1,5 +1,5 @@
 This is a test of the "checker shorthand" feature.
-See: https://checkerframework.org/manual/#shorthand-for-checkers
+See: https://eisop.github.io/cf/manual/#shorthand-for-checkers
 This test is not Nullness specific.
 
 We have placed this test in this location because it has two preconditions:

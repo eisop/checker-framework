@@ -11,6 +11,7 @@ import org.checkerframework.checker.tainting.qual.Untainted;
 abstract class TypeInvalid {
     // :: error: (type.invalid.conflicting.annos)
     static @Untainted @Tainted class Inner {}
+
     // Duplication forbidden
     // :: error: (type.invalid.conflicting.annos)
     void bad(@Tainted @Untainted TypeInvalid c) {

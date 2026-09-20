@@ -14,7 +14,7 @@ public abstract class JavaExpressionScanner<P> extends JavaExpressionVisitor<Voi
     /**
      * Scans the JavaExpression.
      *
-     * @param javaExpression the expression to scan.
+     * @param javaExpression the expression to scan
      * @param p parameter to pass
      */
     public void scan(JavaExpression javaExpression, P p) {
@@ -86,6 +86,11 @@ public abstract class JavaExpressionScanner<P> extends JavaExpressionVisitor<Voi
 
     @Override
     protected Void visitThisReference(ThisReference thisExpr, P p) {
+        return null;
+    }
+
+    @Override
+    protected Void visitSuperReference(SuperReference superExpr, P p) {
         return null;
     }
 

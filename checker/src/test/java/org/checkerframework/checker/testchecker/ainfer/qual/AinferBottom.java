@@ -11,10 +11,12 @@ import java.lang.annotation.Target;
 /**
  * Toy type system for testing field inference.
  *
- * @see Sibling1, Sibling2, Parent
+ * @see AinferSibling1
+ * @see AinferSibling2
+ * @see AinferParent
  */
-@SubtypeOf({ImplicitAnno.class})
+@SubtypeOf({AinferImplicitAnno.class})
 @Target({ElementType.TYPE_USE, ElementType.TYPE_PARAMETER})
-@TargetLocations({TypeUseLocation.EXPLICIT_LOWER_BOUND, TypeUseLocation.EXPLICIT_UPPER_BOUND})
+@TargetLocations({TypeUseLocation.LOWER_BOUND, TypeUseLocation.UPPER_BOUND})
 @DefaultFor(TypeUseLocation.LOWER_BOUND)
 public @interface AinferBottom {}

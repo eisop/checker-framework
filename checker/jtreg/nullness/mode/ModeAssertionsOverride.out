@@ -1,0 +1,2 @@
+ModeAssertionsOverride.java:21:9: compiler.err.proc.messager: [dereference.of.nullable] dereference of possibly-null reference o
+1 error

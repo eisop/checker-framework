@@ -5,11 +5,37 @@ import org.checkerframework.common.basetype.BaseTypeChecker;
 import javax.annotation.processing.SupportedOptions;
 
 /**
- * The Report Checker for semantic searches.
+ * The Report Checker performs semantic searches over a program, for example, to find all methods
+ * that override a specific method, all classes that inherit from a specific class, or all uses of
+ * {@code do-while} loops (and not also {@code while} loops!).
  *
- * <p>See the qualifiers for documentation.
+ * <p>The search is specified in two different ways.
  *
- * <p>Options: reportTreeKinds: comma-separated list of Tree.Kinds that should be reported.
+ * <p>The first way is to write a stub specification file using the annotations in {@code
+ * org.checkerframework.common.util.report.qual.*}. You can see examples in the Checker Framework
+ * repository at {@code framework/tests/report/reporttest.astub} and {@code
+ * framework/jtreg/StubParserEnum/AnnotationFileParserEnum.astub}.
+ *
+ * <p>The second way is the {@code -AreportTreeKinds} and {@code -AreportModifiers} options, which
+ * search for specific tree kinds or modifiers.
+ *
+ * <p>Some similar features are available from IDEs (e.g., show references), but this tool provides
+ * much more flexibility and a command-line tool.
+ *
+ * <p>Options:
+ *
+ * <ul>
+ *   <li><code>-AreportTreeKinds</code>: comma-separated list of <code>Tree.Kind</code>s that should
+ *       be reported
+ *   <li><code>-AreportModifiers</code>: comma-separated list of modifiers that should be reported
+ * </ul>
+ *
+ * @see org.checkerframework.common.util.count.AnnotationStatistics
+ * @see org.checkerframework.common.util.count.JavaCodeStatistics
  */
 @SupportedOptions({"reportTreeKinds", "reportModifiers"})
-public class ReportChecker extends BaseTypeChecker {}
+public class ReportChecker extends BaseTypeChecker {
+
+    /** Creates a ReportChecker. */
+    public ReportChecker() {}
+}

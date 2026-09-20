@@ -15,7 +15,9 @@ public class Issue2048 {
     class UseNbl<T> {
         void foo(Fooer<? extends T> fooer) {}
     }
+
     // :: error: (type.argument.type.incompatible)
+    // :: error: (type.arguments.not.inferred)
     Fooer<@Nullable Foo> nblFooer = new Fooer<>();
     Fooer<@NonNull Foo> nnFooer = new Fooer<>();
 

@@ -12,14 +12,24 @@ import com.sun.tools.classfile.Method;
 import com.sun.tools.classfile.RuntimeTypeAnnotations_attribute;
 import com.sun.tools.classfile.TypeAnnotation;
 
-import org.checkerframework.javacutil.Pair;
-
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+/**
+ * Utility class for extracting and comparing type annotations from a {@link ClassFile} using the
+ * legacy {@code com.sun.tools.classfile} API on JDK versions prior to 25.
+ *
+ * <p>For JDK 25 and later, see the counterpart utility {@code
+ * checker/jtreg/nullness/defaultsPersist25/ReferenceInfoUtil.java} which uses {@code
+ * java.lang.classfile}.
+ *
+ * @see Driver
+ * @see PersistUtil
+ */
 public class ReferenceInfoUtil {
 
+    /** Sentinel value for ignored attributes or indices. */
     public static final int IGNORE_VALUE = -321;
 
     /** If true, don't collect annotations on constructors. */
@@ -34,6 +44,13 @@ public class ReferenceInfoUtil {
         this.ignoreConstructors = ignoreConstructors;
     }
 
+    /**
+     * Extracts all type annotations from the given class file.
+     *
+     * @param cf the class file to inspect
+     * @param ignoreConstructors whether to ignore constructor methods
+     * @return list of type annotations found
+     */
     public static List<TypeAnnotation> extendedAnnotationsOf(
             ClassFile cf, boolean ignoreConstructors) {
         ReferenceInfoUtil riu = new ReferenceInfoUtil(ignoreConstructors);
@@ -42,7 +59,7 @@ public class ReferenceInfoUtil {
         return annos;
     }
 
-    /////////////////// Extract type annotations //////////////////
+    // /////////////////// Extract type annotations //////////////////
     private void findAnnotations(ClassFile cf, List<TypeAnnotation> annos) {
         findAnnotations(cf, Attribute.RuntimeVisibleTypeAnnotations, annos);
         findAnnotations(cf, Attribute.RuntimeInvisibleTypeAnnotations, annos);
@@ -58,9 +75,8 @@ public class ReferenceInfoUtil {
                 throw new Error(e);
             }
             // This method, `findAnnotations`, aims to extract annotations from one method.
-            // In JDK 16+, constructors are included in  ClassFile.methods(); in JDK 11, they are
-            // not.
-            // Therefore, this if statement is required in JDK 16+, and has no effect in JDK 11.
+            // In JDK 17, constructors are included in ClassFile.methods(); in JDK 11, they are not.
+            // Therefore, this if statement is required in JDK 17, and has no effect in JDK 11.
             if (ignoreConstructors && methodName.equals("<init>")) {
                 continue;
             }
@@ -137,7 +153,7 @@ public class ReferenceInfoUtil {
         }
     }
 
-    /////////////////////// Equality testing /////////////////////
+    // /////////////////////// Equality testing /////////////////////
     private static boolean areEquals(int a, int b) {
         return a == b || a == IGNORE_VALUE || b == IGNORE_VALUE;
     }
@@ -224,7 +240,7 @@ public class ReferenceInfoUtil {
     }
 
     public static boolean compare(
-            List<Pair<String, TypeAnnotation.Position>> expectedAnnos,
+            List<AnnoPosPair> expectedAnnos,
             List<TypeAnnotation> actualAnnos,
             ClassFile cf,
             String diagnostic)
@@ -236,7 +252,7 @@ public class ReferenceInfoUtil {
                     actualAnnos);
         }
 
-        for (Pair<String, TypeAnnotation.Position> e : expectedAnnos) {
+        for (AnnoPosPair e : expectedAnnos) {
             String aName = e.first;
             TypeAnnotation.Position expected = e.second;
             TypeAnnotation actual = findAnnotation(aName, expected, actualAnnos, cf);
@@ -256,24 +272,37 @@ public class ReferenceInfoUtil {
     }
 }
 
+/**
+ * Exception thrown when expected type annotations do not match actual annotations found in
+ * bytecode.
+ */
 class ComparisonException extends RuntimeException {
     private static final long serialVersionUID = -3930499712333815821L;
 
-    public final List<Pair<String, TypeAnnotation.Position>> expected;
+    /** The expected annotations and positions. */
+    public final List<AnnoPosPair> expected;
+
+    /** The actual type annotations found. */
     public final List<TypeAnnotation> found;
 
+    /**
+     * Constructs a ComparisonException with diagnostic details.
+     *
+     * @param message the detail message
+     * @param expected the expected annotations and positions
+     * @param found the actual annotations found
+     */
     public ComparisonException(
-            String message,
-            List<Pair<String, TypeAnnotation.Position>> expected,
-            List<TypeAnnotation> found) {
+            String message, List<AnnoPosPair> expected, List<TypeAnnotation> found) {
         super(message);
         this.expected = expected;
         this.found = found;
     }
 
+    @Override
     public String toString() {
         return String.format(
-                "%s%n  Expected (%d): %s%s  Found (%d): %s",
+                "%s%n  Expected (%d): %s%n  Found (%d): %s",
                 super.toString(), expected.size(), expected, found.size(), found);
     }
 }

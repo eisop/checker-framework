@@ -1,8 +1,8 @@
 package org.checkerframework.dataflow.cfg.block;
 
 import org.checkerframework.checker.initialization.qual.UnknownInitialization;
+import org.plumelib.util.ArraySet;
 
-import java.util.LinkedHashSet;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -19,13 +19,8 @@ public abstract class BlockImpl implements Block {
     private static final AtomicLong nextUid = new AtomicLong(0);
 
     /** The unique ID of this object. */
-    private final long uid = nextUid.getAndIncrement();
+    private final transient long uid = nextUid.getAndIncrement();
 
-    /**
-     * Returns the unique ID of this object.
-     *
-     * @return the unique ID of this object
-     */
     @Override
     public long getUid(@UnknownInitialization BlockImpl this) {
         return uid;
@@ -38,7 +33,8 @@ public abstract class BlockImpl implements Block {
      */
     protected BlockImpl(BlockType type) {
         this.type = type;
-        this.predecessors = new LinkedHashSet<>();
+        // Most blocks have few predecessors.
+        this.predecessors = new ArraySet<>(2);
     }
 
     @Override
@@ -50,7 +46,7 @@ public abstract class BlockImpl implements Block {
     public Set<Block> getPredecessors() {
         // Not "Collections.unmodifiableSet(predecessors)" which has nondeterministic iteration
         // order.
-        return new LinkedHashSet<>(predecessors);
+        return new ArraySet<>(predecessors);
     }
 
     public void addPredecessor(BlockImpl pred) {

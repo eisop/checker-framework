@@ -5,9 +5,6 @@ import com.sun.source.tree.Tree;
 
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-import java.util.Collection;
-import java.util.Collections;
-
 /**
  * A node for an string literal. For example:
  *
@@ -39,17 +36,15 @@ public class StringLiteralNode extends ValueLiteralNode {
 
     @Override
     public boolean equals(@Nullable Object obj) {
+        if (this == obj) {
+            return true;
+        }
         // test that obj is a StringLiteralNode
         if (!(obj instanceof StringLiteralNode)) {
             return false;
         }
         // super method compares values
         return super.equals(obj);
-    }
-
-    @Override
-    public Collection<Node> getOperands() {
-        return Collections.emptyList();
     }
 
     @Override

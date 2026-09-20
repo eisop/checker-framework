@@ -26,11 +26,15 @@
 %%HEVEA \newcommand{\code}[1]{\codesize{\texttt{#1}}}
 \def\<#1>{\code{#1}}
 
+% Don't use \ahref which makes no hyperlink; use \href or \ahrefforurl instead.
+% \ahrefloc is for internal links to a LaTeX label, but only works in HTML
+% (no hyperlink in PDF).
+
 % This can't handle a URL with an embedded "#" -- at least at UW CSE
 \newcommand{\myurl}[1]{{\codesize\url{#1}}}
 %HEVEA \def\myurl{\url}
 % A command that shows the URL in the printed manual.
-% make a URL visible in PDF the but just be attached to anchor text in HTML:
+% Make a URL visible in PDF the but just be attached to anchor text in HTML:
 %BEGIN LATEX
 \newcommand{\ahreforurl}[2]{#2 (\url{#1})}
 %END LATEX
@@ -146,7 +150,7 @@
 % qualifier name and includes parentheses around the parameters.
 \newcommand{\refqualclasswithparams}[3]{\href{../api/org/checkerframework/#1/#2.html}{\<@#2>}\<(\allowbreak #3)>}
 
-% Reference to Checker Framework Javadoc for a method or field.).
+% Reference to Checker Framework Javadoc for a method or field.
 % Arg 1: package name under org/checkerframework, using "/" as a separator,
 % with no leading or trailing "/". example: "checker/nullness/qual"
 % Arg 2: class name.
@@ -166,13 +170,13 @@
 % ``Class.field''.  The last argument is usually empty {}.
 \newcommand{\refenum}[4]{\href{../api/org/checkerframework/#1/#2.html\##3#4}{\<#3>}}
 
-% Reference to Sun Javadoc.
+% Reference to Oracle (previously Sun) Javadoc.
 % Arg 1: .html reference, without the .../api/ prefix
 % Arg 2: What will appear in the formatted manual.
 % Do not use \url in the body of any macro
-\newcommand{\sunjavadoc}[2]{\href{https://docs.oracle.com/en/java/javase/11/docs/api/#1}{\<#2>}}
+\newcommand{\sunjavadoc}[2]{\href{https://docs.oracle.com/en/java/javase/17/docs/api/#1}{\<#2>}}
 % Like \sunjavadoc, but for annotations and prepends "@".
-\newcommand{\sunjavadocanno}[2]{\href{https://docs.oracle.com/en/java/javase/11/docs/api/#1}{\<@#2>}}
+\newcommand{\sunjavadocanno}[2]{\href{https://docs.oracle.com/en/java/javase/17/docs/api/#1}{\<@#2>}}
 % Now, for Java EE (version 7 is the last version):
 \newcommand{\javaeejavadoc}[2]{\href{https://docs.oracle.com/javaee/7/api/#1}{\<#2>}}
 \newcommand{\javaeejavadocanno}[2]{\href{https://docs.oracle.com/javaee/7/api/#1}{\<@#2>}}
@@ -185,6 +189,7 @@
 %HEVEA \renewcommand{\refwithpageparen}[1]{\ref{#1}}
 % Use \chapterpageref to reference only chapters, not sections.
 \newcommand{\chapterpageref}[1]{Chapter~\refwithpage{#1}}
+\newcommand{\sectionpageref}[1]{Section~\refwithpage{#1}}
 
 
 \ifhevea

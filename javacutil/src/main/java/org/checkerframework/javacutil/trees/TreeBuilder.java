@@ -22,8 +22,11 @@ import com.sun.tools.javac.tree.JCTree.JCExpression;
 import com.sun.tools.javac.tree.TreeInfo;
 import com.sun.tools.javac.tree.TreeMaker;
 import com.sun.tools.javac.util.Context;
+import com.sun.tools.javac.util.Name;
 import com.sun.tools.javac.util.Names;
 
+import org.checkerframework.javacutil.BugInCF;
+import org.checkerframework.javacutil.InternalUtils;
 import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TypesUtils;
 import org.plumelib.util.CollectionsPlume;
@@ -48,14 +51,49 @@ import javax.lang.model.util.Types;
  * TreeMaker.
  */
 public class TreeBuilder {
+
+    /** The javac {@link Elements} object. */
     protected final Elements elements;
+
+    /** The javac {@link javax.lang.model.util.Types} object. */
     protected final Types modelTypes;
+
+    /** The internal javac {@link com.sun.tools.javac.code.Types} object. */
     protected final com.sun.tools.javac.code.Types javacTypes;
+
+    /** For constructing trees */
     protected final TreeMaker maker;
+
+    /** The javac {@link Names} object. */
     protected final Names names;
+
+    /** The javac {@link Symtab} object. */
     protected final Symtab symtab;
+
+    /** The javac {@link ProcessingEnvironment} */
     protected final ProcessingEnvironment env;
 
+    /**
+     * {@link Name} object for "close", used when building a tree for a call to {@code close()}.
+     *
+     * @see #buildCloseMethodAccess(ExpressionTree)
+     */
+    private final Name closeName;
+
+    /** {@link Name} object for {@code iterator}. */
+    private final Name iteratorName;
+
+    /** {@link Name} object for {@code hasNext}. */
+    private final Name hasNextName;
+
+    /** {@link Name} object for {@code next}. */
+    private final Name nextName;
+
+    /**
+     * Creates a new TreeBuilder.
+     *
+     * @param env the javac {@link ProcessingEnvironment}
+     */
     public TreeBuilder(ProcessingEnvironment env) {
         this.env = env;
         Context context = ((JavacProcessingEnvironment) env).getContext();
@@ -65,6 +103,10 @@ public class TreeBuilder {
         maker = TreeMaker.instance(context);
         names = Names.instance(context);
         symtab = Symtab.instance(context);
+        closeName = names.fromString("close");
+        iteratorName = names.fromString("iterator");
+        hasNextName = names.fromString("hasNext");
+        nextName = names.fromString("next");
     }
 
     /**
@@ -80,19 +122,8 @@ public class TreeBuilder {
 
         TypeElement exprElement = (TypeElement) exprType.asElement();
 
-        // Find the iterator() method of the iterable type
-        Symbol.MethodSymbol iteratorMethod = null;
-
-        for (ExecutableElement method :
-                ElementFilter.methodsIn(elements.getAllMembers(exprElement))) {
-            if (method.getParameters().isEmpty()
-                    && method.getSimpleName().contentEquals("iterator")) {
-                iteratorMethod = (Symbol.MethodSymbol) method;
-            }
-        }
-
-        assert iteratorMethod != null
-                : "@AssumeAssertion(nullness): no iterator method declared for expression type";
+        // Find the iterator() method of the Iterable type.
+        Symbol.MethodSymbol iteratorMethod = findMethodByName(exprElement, iteratorName);
 
         Type.MethodType methodType = (Type.MethodType) iteratorMethod.asType();
         Symbol.TypeSymbol methodClass = methodType.asElement();
@@ -109,10 +140,11 @@ public class TreeBuilder {
             // Remove captured type variable from a wildcard.
             if (elementType instanceof Type.CapturedType) {
                 elementType = ((Type.CapturedType) elementType).wildcard;
+                TypeElement iteratorElt = (TypeElement) modelTypes.asElement(iteratorType);
+                assert iteratorElt != null
+                        : "@AssumeAssertion(nullness): the iterator type always has an element";
 
-                iteratorType =
-                        modelTypes.getDeclaredType(
-                                (TypeElement) modelTypes.asElement(iteratorType), elementType);
+                iteratorType = modelTypes.getDeclaredType(iteratorElt, elementType);
             }
         }
 
@@ -125,12 +157,34 @@ public class TreeBuilder {
                         com.sun.tools.javac.util.List.nil(),
                         methodClass);
 
-        JCTree.JCFieldAccess iteratorAccess =
-                (JCTree.JCFieldAccess)
-                        maker.Select((JCTree.JCExpression) iterableExpr, iteratorMethod);
+        JCTree.JCFieldAccess iteratorAccess = TreeUtils.Select(maker, iterableExpr, iteratorMethod);
         iteratorAccess.setType(updatedMethodType);
 
         return iteratorAccess;
+    }
+
+    /**
+     * Build a {@link MemberSelectTree} for accessing the {@code close} method of an expression that
+     * implements {@link AutoCloseable}. This method is used when desugaring try-with-resources
+     * statements during CFG construction.
+     *
+     * @param autoCloseableExpr the expression
+     * @return the member select tree
+     */
+    public MemberSelectTree buildCloseMethodAccess(ExpressionTree autoCloseableExpr) {
+        DeclaredType exprType =
+                (DeclaredType) TypesUtils.upperBound(TreeUtils.typeOf(autoCloseableExpr));
+        assert exprType != null
+                : "expression must be of declared type AutoCloseable: " + autoCloseableExpr;
+
+        TypeElement exprElement = (TypeElement) exprType.asElement();
+
+        // Find the close() method of the AutoCloseable type.
+        Symbol.MethodSymbol closeMethod = findMethodByName(exprElement, closeName);
+
+        JCTree.JCFieldAccess closeAccess = TreeUtils.Select(maker, autoCloseableExpr, closeMethod);
+
+        return closeAccess;
     }
 
     /**
@@ -145,22 +199,10 @@ public class TreeBuilder {
 
         TypeElement exprElement = (TypeElement) exprType.asElement();
 
-        // Find the hasNext() method of the iterator type
-        Symbol.MethodSymbol hasNextMethod = null;
+        // Find the hasNext() method of the iterator type.
+        Symbol.MethodSymbol hasNextMethod = findMethodByName(exprElement, hasNextName);
 
-        for (ExecutableElement method :
-                ElementFilter.methodsIn(elements.getAllMembers(exprElement))) {
-            if (method.getParameters().isEmpty()
-                    && method.getSimpleName().contentEquals("hasNext")) {
-                hasNextMethod = (Symbol.MethodSymbol) method;
-            }
-        }
-
-        assert hasNextMethod != null : "no hasNext method declared for expression type";
-
-        JCTree.JCFieldAccess hasNextAccess =
-                (JCTree.JCFieldAccess)
-                        maker.Select((JCTree.JCExpression) iteratorExpr, hasNextMethod);
+        JCTree.JCFieldAccess hasNextAccess = TreeUtils.Select(maker, iteratorExpr, hasNextMethod);
         hasNextAccess.setType(hasNextMethod.asType());
 
         return hasNextAccess;
@@ -178,18 +220,8 @@ public class TreeBuilder {
 
         TypeElement exprElement = (TypeElement) exprType.asElement();
 
-        // Find the next() method of the iterator type
-        Symbol.MethodSymbol nextMethod = null;
-
-        for (ExecutableElement method :
-                ElementFilter.methodsIn(elements.getAllMembers(exprElement))) {
-            if (method.getParameters().isEmpty() && method.getSimpleName().contentEquals("next")) {
-                nextMethod = (Symbol.MethodSymbol) method;
-            }
-        }
-
-        assert nextMethod != null
-                : "@AssumeAssertion(nullness): no next method declared for expression type";
+        // Find the next() method of the iterator type.
+        Symbol.MethodSymbol nextMethod = findMethodByName(exprElement, nextName);
 
         Type.MethodType methodType = (Type.MethodType) nextMethod.asType();
         Symbol.TypeSymbol methodClass = methodType.asElement();
@@ -210,11 +242,37 @@ public class TreeBuilder {
                         com.sun.tools.javac.util.List.nil(),
                         methodClass);
 
-        JCTree.JCFieldAccess nextAccess =
-                (JCTree.JCFieldAccess) maker.Select((JCTree.JCExpression) iteratorExpr, nextMethod);
+        JCTree.JCFieldAccess nextAccess = TreeUtils.Select(maker, iteratorExpr, nextMethod);
         nextAccess.setType(updatedMethodType);
 
         return nextAccess;
+    }
+
+    /**
+     * Find the first non-static no-argument method with the given name declared by the given
+     * element or one of its supertypes. Throws an error if no such method is found.
+     *
+     * <p>We could use elements.getAllMembers(exprElement) to find the close method, but in rare
+     * cases calling that method crashes with a Symbol$CompletionFailure exception. See
+     * https://github.com/typetools/checker-framework/issues/6396. The code below directly searches
+     * all supertypes for the method and avoids the crash.
+     *
+     * @param element the element whose closure should be searched
+     * @param methodName the method name to search for
+     * @return the matching method, or null if none is found
+     */
+    private Symbol.MethodSymbol findMethodByName(Element element, Name methodName) {
+        for (Type supertype : javacTypes.closure(((Symbol) element).type)) {
+            for (Symbol symbol : supertype.tsym.members().getSymbolsByName(methodName)) {
+                if (symbol instanceof Symbol.MethodSymbol) {
+                    Symbol.MethodSymbol methodSymbol = (Symbol.MethodSymbol) symbol;
+                    if (!methodSymbol.isStatic() && methodSymbol.getParameters().isEmpty()) {
+                        return methodSymbol;
+                    }
+                }
+            }
+        }
+        throw new BugInCF("Element: " + element + " has no method " + methodName);
     }
 
     /**
@@ -224,9 +282,7 @@ public class TreeBuilder {
      * @return a MemberSelectTree to dereference the length of the array
      */
     public MemberSelectTree buildArrayLengthAccess(ExpressionTree expression) {
-
-        return (JCTree.JCFieldAccess)
-                maker.Select((JCTree.JCExpression) expression, symtab.lengthVar);
+        return TreeUtils.Select(maker, expression, symtab.lengthVar);
     }
 
     /**
@@ -406,8 +462,7 @@ public class TreeBuilder {
 
         Type.MethodType methodType = (Type.MethodType) valueOfMethod.asType();
 
-        JCTree.JCFieldAccess valueOfAccess =
-                (JCTree.JCFieldAccess) maker.Select((JCTree.JCExpression) expr, valueOfMethod);
+        JCTree.JCFieldAccess valueOfAccess = TreeUtils.Select(maker, expr, valueOfMethod);
         valueOfAccess.setType(methodType);
 
         return valueOfAccess;
@@ -456,7 +511,7 @@ public class TreeBuilder {
 
         for (ExecutableElement method :
                 ElementFilter.methodsIn(elements.getAllMembers(boxedElement))) {
-            if (method.getSimpleName().contentEquals(primValueName)
+            if (InternalUtils.sameName(method.getSimpleName(), primValueName)
                     && method.getParameters().isEmpty()) {
                 primValueMethod = (Symbol.MethodSymbol) method;
             }
@@ -467,8 +522,7 @@ public class TreeBuilder {
 
         Type.MethodType methodType = (Type.MethodType) primValueMethod.asType();
 
-        JCTree.JCFieldAccess primValueAccess =
-                (JCTree.JCFieldAccess) maker.Select((JCTree.JCExpression) expr, primValueMethod);
+        JCTree.JCFieldAccess primValueAccess = TreeUtils.Select(maker, expr, primValueMethod);
         primValueAccess.setType(methodType);
 
         return primValueAccess;
@@ -640,7 +694,7 @@ public class TreeBuilder {
      * Builds an AST Tree to perform a binary operation.
      *
      * @param type result type of the operation
-     * @param op AST Tree operator
+     * @param op an AST Tree operator
      * @param left the left operand tree
      * @param right the right operand tree
      * @return a Tree representing "left &lt; right"
@@ -662,6 +716,7 @@ public class TreeBuilder {
      * @return a NewArrayTree to create a new array with initializers
      */
     public NewArrayTree buildNewArray(TypeMirror componentType, List<ExpressionTree> elems) {
+        @SuppressWarnings("nullness:type.arguments.not.inferred") // Poly + inference bug.
         List<JCExpression> exprs = CollectionsPlume.mapList(JCExpression.class::cast, elems);
 
         JCTree.JCNewArray newArray =

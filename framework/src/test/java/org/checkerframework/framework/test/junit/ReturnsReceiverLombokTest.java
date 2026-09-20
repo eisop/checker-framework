@@ -18,12 +18,12 @@ public class ReturnsReceiverLombokTest extends CheckerFrameworkPerDirectoryTest 
                 testFiles,
                 ReturnsReceiverChecker.class,
                 "returnsreceiverdelomboked",
-                "-Anomsgtext",
                 "-nowarn",
                 "-AsuppressWarnings=type.anno.before.modifier");
     }
 
     @Override
+    @SuppressWarnings("JUnitMethodInvoked")
     public void run() {
         // Only run if delomboked codes have been created.
         if (!new File("tests/returnsreceiverdelomboked/").exists()) {

@@ -10,7 +10,6 @@ import org.checkerframework.framework.test.TypecheckResult;
 import org.junit.runners.Parameterized.Parameters;
 
 import java.io.File;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
@@ -29,8 +28,7 @@ public class NullnessGenericWildcardTest extends CheckerFrameworkPerDirectoryTes
                 "nullness",
                 // This test reads bytecode .class files created by NullnessGenericWildcardLibTest
                 "-cp",
-                "dist/checker.jar:tests/build/testclasses/",
-                "-Anomsgtext");
+                TestUtilities.adapt("dist/checker.jar:tests/build/testclasses/"));
     }
 
     @Parameters
@@ -41,7 +39,7 @@ public class NullnessGenericWildcardTest extends CheckerFrameworkPerDirectoryTes
     @Override
     public void run() {
         boolean shouldEmitDebugInfo = TestUtilities.getShouldEmitDebugInfo();
-        List<String> customizedOptions1 = customizeOptions(Arrays.asList("-Anomsgtext"));
+        List<String> customizedOptions1 = customizeOptions(Collections.emptyList());
         TestConfiguration config1 =
                 TestConfigurationBuilder.buildDefaultConfiguration(
                         "tests/nullness-genericwildcardlib",

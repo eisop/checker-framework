@@ -1,0 +1,2 @@
+- compiler.warn.proc.messager: stubs.jar!Stubs.astub: Parse problem: java.lang.AssertionError: A reference was unexpectedly null.
+1 warning

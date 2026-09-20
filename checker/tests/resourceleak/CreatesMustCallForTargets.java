@@ -6,10 +6,12 @@ import org.checkerframework.checker.mustcall.qual.*;
 
 import java.io.*;
 
-@MustCall("a") class CreatesMustCallForTargets {
+@InheritableMustCall("a")
+class CreatesMustCallForTargets {
     @Owning InputStream is1;
 
     @CreatesMustCallFor
+    // :: error: createsmustcallfor.target.unparseable
     // :: error: incompatible.creates.mustcall.for
     static void resetObj1(CreatesMustCallForTargets r) throws Exception {
         if (r.is1 == null) {
@@ -52,6 +54,7 @@ import java.io.*;
     }
 
     @CreatesMustCallFor("#2")
+    // :: error: createsmustcallfor.target.unparseable
     // :: error: incompatible.creates.mustcall.for
     void resetObj6(CreatesMustCallForTargets this, CreatesMustCallForTargets other)
             throws Exception {
@@ -71,5 +74,17 @@ import java.io.*;
     @EnsuresCalledMethods(value = "this.is1", methods = "close")
     void a() throws Exception {
         is1.close();
+    }
+
+    @CreatesMustCallFor("#1")
+    // :: error: creates.mustcall.for.invalid.target
+    static void testBadCreates(Object o) {}
+
+    static class BadCreatesField {
+        @Owning Object o;
+
+        @CreatesMustCallFor("this.o")
+        // :: error: creates.mustcall.for.invalid.target
+        void badCreatesOnField() {}
     }
 }

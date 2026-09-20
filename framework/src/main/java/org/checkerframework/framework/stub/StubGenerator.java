@@ -6,6 +6,7 @@ import com.sun.tools.javac.processing.JavacProcessingEnvironment;
 import com.sun.tools.javac.util.Context;
 import com.sun.tools.javac.util.Options;
 
+import org.checkerframework.checker.mustcall.qual.MustCallUnknown;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.SystemUtil;
@@ -83,7 +84,7 @@ public class StubGenerator {
         }
 
         String pkg = ElementUtils.getQualifiedName(ElementUtils.enclosingPackage(elt));
-        if (!"".equals(pkg)) {
+        if (!pkg.isEmpty()) {
             currentPackage = pkg;
             currentIndention = "    ";
             indent();
@@ -94,7 +95,7 @@ public class StubGenerator {
 
     /** Generate the stub file for all the classes within the provided package. */
     public void stubFromPackage(PackageElement packageElement) {
-        currentPackage = packageElement.getQualifiedName().toString();
+        currentPackage = ElementUtils.getQualifiedName(packageElement);
 
         indent();
         out.print("package ");
@@ -109,21 +110,24 @@ public class StubGenerator {
         }
     }
 
-    /** Generate the stub file for all the classes within the provided package. */
-    public void stubFromMethod(Element elt) {
+    /**
+     * Generate the stub file for all the classes within the package that contains {@code elt}.
+     *
+     * @param elt a method or constructor; generate stub files for its package
+     */
+    public void stubFromMethod(ExecutableElement elt) {
         if (!(elt.getKind() == ElementKind.CONSTRUCTOR || elt.getKind() == ElementKind.METHOD)) {
             return;
         }
 
         String newPackage = ElementUtils.getQualifiedName(ElementUtils.enclosingPackage(elt));
-        if (!newPackage.equals("")) {
+        if (!newPackage.isEmpty()) {
             currentPackage = newPackage;
             currentIndention = "    ";
             indent();
         }
-        ExecutableElement method = (ExecutableElement) elt;
 
-        printMethodDecl(method);
+        printMethodDecl(elt);
     }
 
     /** Generate the stub file for provided class. The generated file includes the package name. */
@@ -189,11 +193,19 @@ public class StubGenerator {
             }
         }
 
-        if (typeElement.getKind() == ElementKind.INTERFACE) {
+        // This could be a `switch` statement.
+        if (typeElement.getKind() == ElementKind.ANNOTATION_TYPE) {
+            out.print("@interface");
+        } else if (typeElement.getKind() == ElementKind.ENUM) {
+            out.print("enum");
+        } else if (typeElement.getKind() == ElementKind.INTERFACE) {
             out.print("interface");
+        } else if (ElementUtils.isRecordElement(typeElement)) {
+            out.print("record");
         } else if (typeElement.getKind() == ElementKind.CLASS) {
             out.print("class");
         } else {
+            // Shouldn't this throw an exception?
             return;
         }
 
@@ -219,7 +231,7 @@ public class StubGenerator {
 
         // implements
         if (!typeElement.getInterfaces().isEmpty()) {
-            final boolean isInterface = typeElement.getKind() == ElementKind.INTERFACE;
+            boolean isInterface = typeElement.getKind() == ElementKind.INTERFACE;
             out.print(isInterface ? " extends " : " implements ");
             List<String> ls =
                     CollectionsPlume.mapList(
@@ -274,9 +286,11 @@ public class StubGenerator {
      * Helper method that outputs the field declaration for the given field.
      *
      * <p>It indicates whether the field is {@code protected}.
+     *
+     * @param field the field to print
      */
     private void printFieldDecl(VariableElement field) {
-        if ("class".equals(field.getSimpleName().toString())) {
+        if (field.getSimpleName().contentEquals("class")) {
             error("Cannot write class literals in stub files.");
             return;
         }
@@ -383,7 +397,7 @@ public class StubGenerator {
      * @param lst a list to format
      * @return a string representation of the list, without surrounding square brackets
      */
-    private String formatList(List<?> lst) {
+    private String formatList(@MustCallUnknown List<? extends @MustCallUnknown Object> lst) {
         return StringsPlume.join(", ", lst);
     }
 
@@ -405,11 +419,11 @@ public class StubGenerator {
 
         while (tokenizer.hasMoreTokens()) {
             String token = tokenizer.nextToken();
-            if (token.length() == 1 || token.lastIndexOf('.') == -1) {
+            int index = token.length() == 1 ? -1 : token.lastIndexOf('.');
+            if (index == -1) {
                 sb.append(token);
             } else {
-                int index = token.lastIndexOf('.');
-                sb.append(token.substring(index + 1));
+                sb.append(token, index + 1, token.length());
             }
         }
         return sb.toString();
@@ -430,7 +444,7 @@ public class StubGenerator {
 
         Context context = new Context();
         Options options = Options.instance(context);
-        if (SystemUtil.getJreVersion() == 8) {
+        if (SystemUtil.jreVersion == 8) {
             options.put(Option.SOURCE, "8");
             options.put(Option.TARGET, "8");
         }

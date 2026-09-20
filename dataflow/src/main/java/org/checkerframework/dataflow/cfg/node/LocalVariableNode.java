@@ -5,13 +5,15 @@ import com.sun.source.tree.Tree;
 import com.sun.source.tree.VariableTree;
 
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.SideEffectFree;
+import org.checkerframework.javacutil.InternalUtils;
 import org.checkerframework.javacutil.TreeUtils;
 
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Objects;
 
-import javax.lang.model.element.Element;
+import javax.lang.model.element.Name;
+import javax.lang.model.element.VariableElement;
 
 /**
  * A node for a local variable or a parameter:
@@ -35,7 +37,7 @@ public class LocalVariableNode extends Node {
     /**
      * Create a new local variable node for the given tree.
      *
-     * @param tree thre tree for the local variable: a VariableTree or an IdentifierTree
+     * @param tree the tree for the local variable: a VariableTree or an IdentifierTree
      */
     public LocalVariableNode(Tree tree) {
         this(tree, null);
@@ -57,12 +59,17 @@ public class LocalVariableNode extends Node {
         this.receiver = receiver;
     }
 
-    public Element getElement() {
-        Element el;
+    /**
+     * Returns the element associated with this local variable.
+     *
+     * @return the element associated with this local variable
+     */
+    public VariableElement getElement() {
+        VariableElement el;
         if (tree instanceof IdentifierTree) {
             IdentifierTree itree = (IdentifierTree) tree;
             assert TreeUtils.isUseOfElement(itree) : "@AssumeAssertion(nullness): tree kind";
-            el = TreeUtils.elementFromUse(itree);
+            el = TreeUtils.variableElementFromUse(itree);
         } else {
             assert tree instanceof VariableTree;
             el = TreeUtils.elementFromDeclaration((VariableTree) tree);
@@ -99,19 +106,35 @@ public class LocalVariableNode extends Node {
 
     @Override
     public boolean equals(@Nullable Object obj) {
+        if (this == obj) {
+            return true;
+        }
         if (!(obj instanceof LocalVariableNode)) {
             return false;
         }
         LocalVariableNode other = (LocalVariableNode) obj;
-        return getName().equals(other.getName());
+        Name thisName =
+                (tree instanceof IdentifierTree)
+                        ? ((IdentifierTree) tree).getName()
+                        : ((VariableTree) tree).getName();
+        Name otherName =
+                (other.tree instanceof IdentifierTree)
+                        ? ((IdentifierTree) other.tree).getName()
+                        : ((VariableTree) other.tree).getName();
+        return InternalUtils.sameName(thisName, otherName);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(getName());
+        Name name =
+                (tree instanceof IdentifierTree)
+                        ? ((IdentifierTree) tree).getName()
+                        : ((VariableTree) tree).getName();
+        return name.hashCode();
     }
 
     @Override
+    @SideEffectFree
     public Collection<Node> getOperands() {
         return Collections.emptyList();
     }

@@ -7,7 +7,6 @@ import org.checkerframework.javacutil.AnnotationProvider;
 
 import java.util.Collections;
 import java.util.List;
-import java.util.Objects;
 import java.util.StringJoiner;
 
 import javax.lang.model.element.ElementKind;
@@ -19,8 +18,10 @@ public class MethodCall extends JavaExpression {
 
     /** The method being called. */
     protected final ExecutableElement method;
+
     /** The receiver argument. */
     protected final JavaExpression receiver;
+
     /** The arguments. */
     protected final List<JavaExpression> arguments;
 
@@ -70,16 +71,44 @@ public class MethodCall extends JavaExpression {
         return Collections.unmodifiableList(arguments);
     }
 
+    @SuppressWarnings("unchecked") // generic cast
     @Override
-    public boolean containsOfClass(Class<? extends JavaExpression> clazz) {
+    public <T extends JavaExpression> @Nullable T containedOfClass(Class<T> clazz) {
+
         if (getClass() == clazz) {
-            return true;
+            return (T) this;
         }
-        if (receiver.containsOfClass(clazz)) {
-            return true;
+
+        T result = receiver.containedOfClass(clazz);
+        if (result != null) {
+            return result;
         }
         for (JavaExpression p : arguments) {
-            if (p.containsOfClass(clazz)) {
+            result = p.containedOfClass(clazz);
+            if (result != null) {
+                return result;
+            }
+        }
+        return null;
+    }
+
+    @Override
+    public boolean isDeterministic(AnnotationProvider provider) {
+        return (PurityUtils.isDeterministic(provider, method) || provider.isDeterministic(method))
+                && listIsDeterministic(arguments, provider);
+    }
+
+    @Override
+    public boolean isAssignableByOtherCode() {
+        // TODO: The following comment is no longer accurate.  It should be removed and the
+        // implementation changed.
+        // There is no need to check that the method is deterministic, because a MethodCall is
+        // only created for deterministic methods.
+        if (receiver.isModifiableByOtherCode()) {
+            return true;
+        }
+        for (int i = 0, n = arguments.size(); i < n; ++i) {
+            if (arguments.get(i).isModifiableByOtherCode()) {
                 return true;
             }
         }
@@ -87,22 +116,8 @@ public class MethodCall extends JavaExpression {
     }
 
     @Override
-    public boolean isDeterministic(AnnotationProvider provider) {
-        return PurityUtils.isDeterministic(provider, method)
-                && listIsDeterministic(arguments, provider);
-    }
-
-    @Override
-    public boolean isUnassignableByOtherCode() {
-        // There is no need to check that the method is deterministic, because a MethodCall is
-        // only created for deterministic methods.
-        return receiver.isUnmodifiableByOtherCode()
-                && arguments.stream().allMatch(JavaExpression::isUnmodifiableByOtherCode);
-    }
-
-    @Override
-    public boolean isUnmodifiableByOtherCode() {
-        return isUnassignableByOtherCode();
+    public boolean isModifiableByOtherCode() {
+        return isAssignableByOtherCode();
     }
 
     @Override
@@ -145,20 +160,38 @@ public class MethodCall extends JavaExpression {
             return false;
         }
         if (method.getKind() == ElementKind.CONSTRUCTOR) {
+            // No two constructor instances are equal.
             return false;
         }
         MethodCall other = (MethodCall) obj;
+        boolean isComparingSuperWithThis =
+                (receiver instanceof SuperReference && other.receiver instanceof ThisReference)
+                        || (receiver instanceof ThisReference
+                                && other.receiver instanceof SuperReference);
         return method.equals(other.method)
-                && receiver.equals(other.receiver)
+                && (receiver.equals(other.receiver) || isComparingSuperWithThis)
                 && arguments.equals(other.arguments);
     }
 
+    /** Cache the hashCode. Recomputed if zero. */
+    private int hashCodeCache = 0;
+
     @Override
     public int hashCode() {
-        if (method.getKind() == ElementKind.CONSTRUCTOR) {
-            return super.hashCode();
+        if (hashCodeCache == 0) {
+            int h;
+            if (method.getKind() == ElementKind.CONSTRUCTOR) {
+                // No two constructor instances have the same hashcode.
+                h = System.identityHashCode(this);
+            } else {
+                h = 1;
+                h = 31 * h + (method != null ? method.hashCode() : 0);
+                h = 31 * h + (receiver != null ? receiver.hashCode() : 0);
+                h = 31 * h + (arguments != null ? arguments.hashCode() : 0);
+            }
+            hashCodeCache = h == 0 ? 1 : h;
         }
-        return Objects.hash(method, receiver, arguments);
+        return hashCodeCache;
     }
 
     @Override

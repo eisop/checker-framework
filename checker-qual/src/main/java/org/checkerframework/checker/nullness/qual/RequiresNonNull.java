@@ -56,7 +56,7 @@ import java.lang.annotation.Target;
  *
  * Do not use this annotation for formal parameters (instead, give them a {@code @NonNull} type,
  * which is the default and need not be written). The {@code @RequiresNonNull} annotation is
- * intended for other expressions, such as field accesses or method calls.
+ * intended for non-parameter expressions, such as field accesses or method calls.
  *
  * @checker_framework.manual #nullness-checker Nullness Checker
  */
@@ -86,7 +86,7 @@ public @interface RequiresNonNull {
     @Retention(RetentionPolicy.RUNTIME)
     @Target({ElementType.METHOD, ElementType.CONSTRUCTOR})
     @PreconditionAnnotation(qualifier = NonNull.class)
-    @interface List {
+    public static @interface List {
         /**
          * Returns the repeatable annotations.
          *

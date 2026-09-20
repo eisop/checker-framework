@@ -1,0 +1,189 @@
+name: CI tests
+
+on:
+  schedule:
+    - cron: '0 7 * * *'  # Runs daily at 07:00 UTC.
+  pull_request:
+  push:
+    branches: [ "master" ]
+
+# Cancel in-progress workflows on PR updates; never cancel master pushes.
+# https://docs.github.com/en/enterprise-cloud@latest/actions/writing-workflows/choosing-what-your-workflow-does/control-the-concurrency-of-workflows-and-jobs
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ !contains(github.ref, 'heads/master') }}
+
+# Default minimal permissions for all jobs; individual steps may opt-in to more.
+permissions:
+  contents: read
+
+env:
+  PRIMARY_JDK: "21"
+  USE_BAZEL_VERSION: "9.2.0"
+  # Pinned pre-release JDK build, from jdk.java.net. Renovate bumps JDK_EA_BUILD;
+  # JDK_EA_MAJOR changes by hand when the next feature release opens.
+  JDK_EA_MAJOR: "28"
+  JDK_EA_BUILD: "16"
+
+jobs:
+  # All Linux test suites across all supported JDKs in a single parallel matrix.
+  linux-tests:
+    name: ${{ matrix.script }} on JDK ${{ matrix.java.version }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          # --- Core tests on Primary JDK 21 ---
+          - {script: 'cftests-junit',               java: {version: '21', experimental: false}}
+          - {script: 'cftests-nonjunit',            java: {version: '21', experimental: false}}
+          # --- Downstream integration tests on Primary JDK 21 ---
+          - {script: 'typecheck-part1',             java: {version: '21', experimental: false}}
+          - {script: 'typecheck-part2',             java: {version: '21', experimental: false}}
+          - {script: 'guava',                       java: {version: '21', experimental: false}}
+          - {script: 'plume-lib',                   java: {version: '21', experimental: false}}
+          - {script: 'daikon-part1',                java: {version: '21', experimental: false}}
+          - {script: 'daikon-part2',                java: {version: '21', experimental: false}}
+          - {script: 'jspecify-conformance',        java: {version: '21', experimental: false}}
+          - {script: 'jspecify-reference-checker',  java: {version: '21', experimental: false}}
+          - {script: 'templatefora-checker',        java: {version: '21', experimental: false}}
+          - {script: 'misc',                        java: {version: '21', experimental: false}}
+          # --- JDK 8 ---
+          - {script: 'cftests-junit',               java: {version: '8',  experimental: false}}
+          - {script: 'cftests-nonjunit',            java: {version: '8',  experimental: false}}
+          - {script: 'typecheck-part1',             java: {version: '8',  experimental: false}}
+          - {script: 'typecheck-part2',             java: {version: '8',  experimental: false}}
+          - {script: 'guava',                       java: {version: '8',  experimental: false}}
+          # --- JDK 28 (experimental) ---
+          - {script: 'cftests-junit',               java: {version: '28', experimental: true}}
+          - {script: 'cftests-nonjunit',            java: {version: '28', experimental: true}}
+          - {script: 'cftests-junit-jdk21',         java: {version: '28', experimental: true}}
+          # --- JDK 27 ---
+          - {script: 'cftests-junit',               java: {version: '27', experimental: false}}
+          - {script: 'cftests-nonjunit',            java: {version: '27', experimental: false}}
+          - {script: 'cftests-junit-jdk21',         java: {version: '27', experimental: false}}
+          - {script: 'typecheck-part1',             java: {version: '27', experimental: false}}
+          - {script: 'typecheck-part2',             java: {version: '27', experimental: false}}
+          - {script: 'guava',                       java: {version: '27', experimental: false}}
+          - {script: 'plume-lib',                   java: {version: '27', experimental: false}}
+          - {script: 'misc',                        java: {version: '27', experimental: false}}
+          - {script: 'jspecify-conformance',        java: {version: '27', experimental: false}}
+          - {script: 'jspecify-reference-checker',  java: {version: '27', experimental: false}}
+          - {script: 'templatefora-checker',        java: {version: '27', experimental: false}}
+          # --- JDK 25 ---
+          - {script: 'cftests-junit',               java: {version: '25', experimental: false}}
+          - {script: 'cftests-nonjunit',            java: {version: '25', experimental: false}}
+          - {script: 'cftests-junit-jdk21',         java: {version: '25', experimental: false}}
+          # --- JDK 17 ---
+          - {script: 'cftests-junit',               java: {version: '17', experimental: false}}
+          - {script: 'cftests-nonjunit',            java: {version: '17', experimental: false}}
+          - {script: 'cftests-junit-jdk21',         java: {version: '17', experimental: false}}
+          - {script: 'cftests-ajavachecks',         java: {version: '17', experimental: false}}
+          - {script: 'daikon-part1',                java: {version: '17', experimental: false}}
+          - {script: 'daikon-part2',                java: {version: '17', experimental: false}}
+          # --- JDK 11 ---
+          - {script: 'cftests-junit',               java: {version: '11', experimental: false}}
+          - {script: 'cftests-nonjunit',            java: {version: '11', experimental: false}}
+          - {script: 'cftests-junit-jdk21',         java: {version: '11', experimental: false}}
+    continue-on-error: ${{ matrix.java.experimental }}
+    steps:
+      # `misc` runs `ci-diff` which needs full history; everything else is shallow.
+      - uses: actions/checkout@v7
+        if: ${{ matrix.script == 'misc' }}
+        with:
+          fetch-depth: 0
+      - uses: actions/checkout@v7
+        if: ${{ matrix.script != 'misc' }}
+        with:
+          fetch-depth: 1
+
+      - name: Set up test environment
+        uses: ./.github/actions/setup-test-env
+        with:
+          primary-jdk: ${{ env.PRIMARY_JDK }}
+          target-jdk: ${{ matrix.java.version }}
+          jdk-ea-major: ${{ env.JDK_EA_MAJOR }}
+          jdk-ea-build: ${{ env.JDK_EA_BUILD }}
+          script: ${{ matrix.script }}
+          cache-read-only: ${{ github.ref != 'refs/heads/master' && matrix.java.version != env.PRIMARY_JDK }}
+
+      - name: Run test script checker/bin-devel/test-${{ matrix.script }}
+        run: ./checker/bin-devel/test-${{ matrix.script }}.sh
+        env:
+          ORG_GRADLE_PROJECT_useJdkVersion: ${{ matrix.java.version }}
+          JAVA_VERSION: ${{ matrix.java.version }}
+
+  # Sanity tests on Windows and macOS.
+  otheros:
+    name: ${{ matrix.script }} on JDK ${{ matrix.java_version }} on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        os: ['windows-latest', 'macos-latest']
+        script: ['cftests-junit']
+        java_version: [21]
+    env:
+      JAVA_VERSION: ${{ matrix.java_version }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up JDK ${{ matrix.java_version }}
+        uses: actions/setup-java@v6.0.1
+        with:
+          java-version: ${{ matrix.java_version }}
+          distribution: 'zulu'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v6.3.0
+        with:
+          cache-read-only: ${{ github.ref != 'refs/heads/master' }}
+
+      - name: Install coreutils on macOS
+        if: ${{ matrix.os == 'macos-latest' }}
+        env:
+          HOMEBREW_NO_AUTO_UPDATE: "1"
+          HOMEBREW_NO_INSTALL_CLEANUP: "1"
+        run: brew install coreutils
+
+      - name: Install wget on Windows
+        if: ${{ matrix.os == 'windows-latest' }}
+        run: choco install wget --no-progress
+
+      - name: Run test script checker/bin-devel/test-${{ matrix.script }}
+        shell: bash
+        run: ./checker/bin-devel/test-${{ matrix.script }}.sh
+
+  # Build the jars that a release ships and attach them to the run, so that a
+  # branch can be tried out without building it.  Not gated on the test jobs:
+  # the jars of a branch whose tests fail are exactly the ones a bug report
+  # wants to attach.
+  dev-jars:
+    name: Development jars
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+
+      - name: Set up test environment
+        uses: ./.github/actions/setup-test-env
+        with:
+          primary-jdk: ${{ env.PRIMARY_JDK }}
+          target-jdk: ${{ env.PRIMARY_JDK }}
+          jdk-ea-major: ${{ env.JDK_EA_MAJOR }}
+          jdk-ea-build: ${{ env.JDK_EA_BUILD }}
+          cache-read-only: ${{ github.ref != 'refs/heads/master' }}
+
+      - name: Build the jars
+        run: ./gradlew assembleForJavac
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: checker-framework-jars
+          path: checker/dist/*.jar
+          if-no-files-found: error
+          retention-days: 30

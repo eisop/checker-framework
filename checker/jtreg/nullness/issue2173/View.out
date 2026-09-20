@@ -1,3 +1,4 @@
 - compiler.warn.proc.messager: (invalid.annotation.location.bytecode)
 - compiler.warn.proc.messager: (invalid.annotation.location.bytecode)
-2 warnings
+- compiler.warn.proc.messager: (invalid.annotation.location.bytecode)
+3 warnings

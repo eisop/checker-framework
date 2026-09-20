@@ -20,7 +20,7 @@ import java.lang.annotation.Target;
 @Documented
 @Retention(RetentionPolicy.RUNTIME)
 @Target({ElementType.TYPE_USE, ElementType.TYPE_PARAMETER})
-@TargetLocations({TypeUseLocation.EXPLICIT_LOWER_BOUND, TypeUseLocation.EXPLICIT_UPPER_BOUND})
+@TargetLocations({TypeUseLocation.UPPER_BOUND, TypeUseLocation.LOWER_BOUND})
 @SubtypeOf({
     ArrayLen.class,
     BoolVal.class,
@@ -28,6 +28,7 @@ import java.lang.annotation.Target;
     IntVal.class,
     StringVal.class,
     MatchesRegex.class,
+    DoesNotMatchRegex.class,
     ArrayLenRange.class,
     IntRange.class,
     IntRangeFromPositive.class,

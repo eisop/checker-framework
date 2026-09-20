@@ -1,7 +1,6 @@
 package org.checkerframework.checker.i18nformatter.qual;
 
 import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.framework.qual.AnnotatedFor;
 
 import java.util.Arrays;
 import java.util.Date;
@@ -22,7 +21,6 @@ import java.util.StringJoiner;
  *
  * @checker_framework.manual #i18n-formatter-checker Internationalization Format String Checker
  */
-@AnnotatedFor("nullness")
 public enum I18nConversionCategory {
 
     /**
@@ -65,7 +63,8 @@ public enum I18nConversionCategory {
     }
 
     /** Used by {@link #stringToI18nConversionCategory}. */
-    static I18nConversionCategory[] namedCategories = new I18nConversionCategory[] {DATE, NUMBER};
+    private static final I18nConversionCategory[] namedCategories =
+            new I18nConversionCategory[] {DATE, NUMBER};
 
     /**
      * Creates a conversion cagetogry from a string name.
@@ -103,6 +102,10 @@ public enum I18nConversionCategory {
         return intersect(a, b) == a;
     }
 
+    /** Conversion categories that need to be considered by {@link #intersect}. */
+    private static final I18nConversionCategory[] conversionCategoriesForIntersect =
+            new I18nConversionCategory[] {DATE, NUMBER};
+
     /**
      * Returns the intersection of the two given I18nConversionCategories.
      *
@@ -138,7 +141,7 @@ public enum I18nConversionCategory {
         // GENERAL
         Set<Class<?>> bs = arrayToSet(b.types);
         as.retainAll(bs); // intersection
-        for (I18nConversionCategory v : new I18nConversionCategory[] {DATE, NUMBER}) {
+        for (I18nConversionCategory v : conversionCategoriesForIntersect) {
             @SuppressWarnings(
                     "nullness:argument.type.incompatible") // in those values, `types` field is
             // non-null

@@ -7,6 +7,7 @@ import org.checkerframework.dataflow.cfg.node.LocalVariableNode;
 import org.checkerframework.dataflow.cfg.node.Node;
 import org.checkerframework.dataflow.cfg.visualize.CFGVisualizer;
 import org.checkerframework.dataflow.expression.JavaExpression;
+import org.plumelib.util.ArrayMap;
 import org.plumelib.util.CollectionsPlume;
 
 import java.util.LinkedHashMap;
@@ -28,19 +29,13 @@ public class ConstantPropagationStore implements Store<ConstantPropagationStore>
     }
 
     public Constant getInformation(Node n) {
-        if (contents.containsKey(n)) {
-            return contents.get(n);
-        }
-        return new Constant(Constant.Type.TOP);
+        Constant c = contents.get(n);
+        return c != null ? c : new Constant(Constant.Type.TOP);
     }
 
     public void mergeInformation(Node n, Constant val) {
-        Constant value;
-        if (contents.containsKey(n)) {
-            value = val.leastUpperBound(contents.get(n));
-        } else {
-            value = val;
-        }
+        Constant existing = contents.get(n);
+        Constant value = existing != null ? val.leastUpperBound(existing) : val;
         // TODO: remove (only two nodes supported atm)
         assert n instanceof IntegerLiteralNode || n instanceof LocalVariableNode;
         contents.put(n, value);
@@ -60,15 +55,16 @@ public class ConstantPropagationStore implements Store<ConstantPropagationStore>
     @Override
     public ConstantPropagationStore leastUpperBound(ConstantPropagationStore other) {
         Map<Node, Constant> newContents =
-                new LinkedHashMap<>(contents.size() + other.contents.size());
+                ArrayMap.newArrayMapOrLinkedHashMap(contents.size() + other.contents.size());
 
         // go through all of the information of the other class
         for (Map.Entry<Node, Constant> e : other.contents.entrySet()) {
             Node n = e.getKey();
             Constant otherVal = e.getValue();
-            if (contents.containsKey(n)) {
+            Constant thisVal = contents.get(n);
+            if (thisVal != null) {
                 // merge if both contain information about a variable
-                newContents.put(n, otherVal.leastUpperBound(contents.get(n)));
+                newContents.put(n, otherVal.leastUpperBound(thisVal));
             } else {
                 // add new information
                 newContents.put(n, otherVal);
@@ -94,8 +90,8 @@ public class ConstantPropagationStore implements Store<ConstantPropagationStore>
 
     @Override
     public boolean equals(@Nullable Object o) {
-        if (o == null) {
-            return false;
+        if (this == o) {
+            return true;
         }
         if (!(o instanceof ConstantPropagationStore)) {
             return false;
@@ -108,11 +104,8 @@ public class ConstantPropagationStore implements Store<ConstantPropagationStore>
             if (otherVal.isBottom()) {
                 continue; // no information
             }
-            if (contents.containsKey(n)) {
-                if (!otherVal.equals(contents.get(n))) {
-                    return false;
-                }
-            } else {
+            Constant thisVal = contents.get(n);
+            if (thisVal == null || !otherVal.equals(thisVal)) {
                 return false;
             }
         }
@@ -123,9 +116,7 @@ public class ConstantPropagationStore implements Store<ConstantPropagationStore>
             if (thisVal.isBottom()) {
                 continue; // no information
             }
-            if (other.contents.containsKey(n)) {
-                continue;
-            } else {
+            if (!other.contents.containsKey(n)) {
                 return false;
             }
         }
@@ -145,7 +136,8 @@ public class ConstantPropagationStore implements Store<ConstantPropagationStore>
 
     @Override
     public String toString() {
-        // only output local variable information
+        // Only output local variable information.
+        // This output is very terse, so a CFG containing it fits well in the manual.
         Map<Node, Constant> contentsLocalVars =
                 new LinkedHashMap<>(CollectionsPlume.mapCapacity(contents));
         for (Map.Entry<Node, Constant> e : contents.entrySet()) {
@@ -161,15 +153,8 @@ public class ConstantPropagationStore implements Store<ConstantPropagationStore>
         return true;
     }
 
-    /**
-     * {@inheritDoc}
-     *
-     * <p>{@code value} is {@code null} because {@link ConstantPropagationStore} doesn't support
-     * visualization.
-     */
     @Override
-    @SuppressWarnings("nullness")
     public String visualize(CFGVisualizer<?, ConstantPropagationStore, ?> viz) {
-        return viz.visualizeStoreKeyVal("constant propagation", null);
+        return viz.visualizeStoreKeyVal("constant propagation", toString());
     }
 }

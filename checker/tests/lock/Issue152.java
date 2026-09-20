@@ -29,6 +29,7 @@ public class Issue152 {
 
         class InnerClass {
             private final Object lock = new Object();
+
             // :: error: (assignment.type.incompatible)
             @GuardedBy("this.lock") Object field2 = field;
         }

@@ -1,10 +1,10 @@
 package org.checkerframework.dataflow.cfg.node;
 
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.SideEffectFree;
 
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Objects;
 
 import javax.lang.model.type.TypeMirror;
 
@@ -23,15 +23,19 @@ public abstract class ThisNode extends Node {
 
     @Override
     public boolean equals(@Nullable Object obj) {
+        if (this == obj) {
+            return true;
+        }
         return obj instanceof ThisNode;
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash("this");
+        return 3559101; // Objects.hash("this");
     }
 
     @Override
+    @SideEffectFree
     public Collection<Node> getOperands() {
         return Collections.emptyList();
     }

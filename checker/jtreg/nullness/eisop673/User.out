@@ -1,0 +1,4 @@
+User.java:13:29: compiler.err.proc.messager: [assignment.type.incompatible] incompatible types in assignment.
+found   : @Nullable String @Nullable []
+required: @NonNull String @Nullable []
+1 error

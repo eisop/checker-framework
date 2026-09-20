@@ -5,9 +5,6 @@ import com.sun.source.tree.Tree;
 
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-import java.util.Collection;
-import java.util.Collections;
-
 /**
  * A node for a short literal. For example:
  *
@@ -44,16 +41,14 @@ public class ShortLiteralNode extends ValueLiteralNode {
 
     @Override
     public boolean equals(@Nullable Object obj) {
+        if (this == obj) {
+            return true;
+        }
         // test that obj is a ShortLiteralNode
         if (!(obj instanceof ShortLiteralNode)) {
             return false;
         }
         // super method compares values
         return super.equals(obj);
-    }
-
-    @Override
-    public Collection<Node> getOperands() {
-        return Collections.emptyList();
     }
 }

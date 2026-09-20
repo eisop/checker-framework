@@ -13,7 +13,7 @@ import javax.lang.model.type.TypeMirror;
  * contains information valid when the previous boolean-valued expression was true, and the 'else'
  * store contains information valid when the expression was false.
  *
- * <p>{@link getRegularStore} returns the least upper bound of the two underlying stores.
+ * <p>{@link #getRegularStore} returns the least upper bound of the two underlying stores.
  *
  * @param <V> type of the abstract value that is tracked
  * @param <S> the store type used in the analysis
@@ -79,7 +79,7 @@ public class ConditionalTransferResult<V extends AbstractValue<V>, S extends Sto
      * @see #ConditionalTransferResult(AbstractValue, Store, Store, Map, boolean)
      */
     public ConditionalTransferResult(
-            V value, S thenStore, S elseStore, Map<TypeMirror, S> exceptionalStores) {
+            V value, S thenStore, S elseStore, @Nullable Map<TypeMirror, S> exceptionalStores) {
         this(value, thenStore, elseStore, exceptionalStores, false);
     }
 
@@ -118,7 +118,6 @@ public class ConditionalTransferResult<V extends AbstractValue<V>, S extends Sto
         this.storeChanged = storeChanged;
     }
 
-    /** The regular result store. */
     @Override
     public S getRegularStore() {
         return thenStore.leastUpperBound(elseStore);
@@ -153,5 +152,12 @@ public class ConditionalTransferResult<V extends AbstractValue<V>, S extends Sto
     @Override
     public boolean storeChanged() {
         return storeChanged;
+    }
+
+    @Override
+    public ConditionalTransferResult<V, S> withExceptionalStores(
+            Map<TypeMirror, S> exceptionalStores) {
+        return new ConditionalTransferResult<>(
+                resultValue, thenStore, elseStore, exceptionalStores, storeChanged);
     }
 }

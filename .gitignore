@@ -13,40 +13,38 @@ tags
 *.swp
 *.orig
 .DS_Store
+dot_files
+
 # Eclipse files
 .metadata
 .classpath
 .project
 .externalToolBuilders
 .settings
-dot_files
+**/*.factorypath
+
 # Intellij files
 .idea
 
+# VS Code files
+.vscode
+
 Makefile.user
 local.properties
-
-# ant tab completion cache file
-.ant-targets-build.xml
 
 # build files
 api
 build
 dist
 docs/tmpapi/
-stubparser/docs/api
-# Don't want to ignore .jar files in checker/lib/ nor in gradle/wrapper
-# *.jar
-checker/jdk/jdk*.jar
-checker/jdk/**/*.class
 *.pyc
 checker/build-temp
 checker/bin/.do-like-javac
 checker/bin/.scc/
+checker/bin-devel/.git-scripts
 checker/bin-devel/.html-tools
 checker/bin-devel/.plume-scripts
-checker/bin-devel/.run-google-java-format
-checker/bin-devel/dockerdir
+checker/bin-devel/dockerdir*
 checker/src/main/resources/git.properties
 # These tests are generated from those in checker/tests/calledmethods-lombok during the build.
 # They must be in the tests/ directory rather than the build/ directory so that
@@ -59,6 +57,8 @@ plume-bib
 manual.aux
 manual.blg
 manual.dvi
+manual.fdb_latexmk
+manual.fls
 manual.haux
 manual.html
 manual.htoc
@@ -79,23 +79,6 @@ manual003.gif
 manual003.png
 manual004.gif
 manual004.png
-docs/examples/**/*.class
-docs/examples/MavenExample/Out.txt
-docs/examples/MavenExample-framework-all/Out.txt
-docs/examples/errorprone/.gradle/
-docs/examples/errorprone/Out.txt
-docs/examples/lombok/.gradle/
-docs/examples/lombok/Out.txt
-docs/examples/lombok/lombok.config
-docs/manual/*.png
-docs/manual/*.svg
-docs/manual/contributors.txt
-docs/manual/figures/*.eps
-docs/manual/figures/*.pdf
-docs/manual/figures/*.png
-docs/manual/figures/signature-types-with-canonicalname.dia
-docs/manual/manual.html-e
-docs/tmpapi/
 
 # dataflow manual
 dataflow/manual/dataflow.aux
@@ -107,6 +90,34 @@ dataflow/manual/dataflow.pdf
 docs/tutorial/src/personalblog-demo/bin/net/eyde/personalblog/service/PersonalBlogService.class
 docs/tutorial/src/personalblog-demo/bin/net/eyde/personalblog/struts/action/ReadAction.class
 docs/tutorial/sourcefiles.zip
+docs/examples/**/*.class
+docs/examples/BazelExample/bazel-BazelExample
+docs/examples/BazelExample/bazel-bin
+docs/examples/BazelExample/bazel-out
+docs/examples/BazelExample/bazel-testlogs
+docs/examples/BazelExample/Out.txt
+docs/examples/MavenExample/Out.txt
+docs/examples/MavenExample-framework-all/Out.txt
+docs/examples/errorprone/.gradle/
+docs/examples/errorprone/Out.txt
+docs/examples/eisop-errorprone/.gradle/
+docs/examples/eisop-errorprone/Out.txt
+docs/examples/nullaway/.gradle/
+docs/examples/nullaway/Out.txt
+docs/examples/jspecify/.gradle/
+docs/examples/jspecify/Out.txt
+docs/examples/lombok/.gradle/
+docs/examples/lombok/Out.txt
+docs/examples/lombok/lombok.config
+docs/examples/publish-smoketest/.gradle/
+docs/manual/*.png
+docs/manual/*.svg
+docs/manual/contributors.txt
+docs/manual/figures/*.eps
+docs/manual/figures/*.pdf
+docs/manual/figures/*.png
+docs/manual/figures/signature-types-with-canonicalname.dia
+docs/manual/manual.html-e
 
 # release tmps
 tmp
@@ -117,19 +128,28 @@ target/
 *.iws
 *.iml
 /.gradle/
+# TODO: why this second gradle directory?
+/buildSrc/.gradle/
 
 ## Tests
 
 checker/tests/command-line/issue618/TwoCheckers.class
 checker/tests/command-line/issue618/out.txt
+checker/tests/command-line/issue1015/*.class
+checker/tests/command-line/issue1015/out.txt
 checker/tests/nullness-extra/*.class
+checker/tests/nullness-extra/cfgviz-nodevalues/*.class
+checker/tests/nullness-extra/cfgviz-nodevalues/Out.txt
 checker/tests/nullness-extra/compat/Out.txt
 checker/tests/nullness-extra/compat/javax/annotation/Nullable.class
 checker/tests/nullness-extra/compat/lib/Lib.class
+checker/tests/nullness-extra/issue265/bin/
 checker/tests/nullness-extra/issue3597/testpkg/Issue3597A.class
 checker/tests/nullness-extra/issue3597/testpkg/Issue3597B.class
 checker/tests/nullness-extra/issue502/Issue502.class
 checker/tests/nullness-extra/issue502/Out.txt
+checker/tests/nullness-extra/issue5174/*.class
+checker/tests/nullness-extra/issue5174/Out.txt
 checker/tests/nullness-extra/issue594/Out.txt
 checker/tests/nullness-extra/issue607/Issue607.class
 checker/tests/nullness-extra/issue607/Issue607Interface.class
@@ -144,19 +164,37 @@ checker/tests/nullness-temp/*.class
 checker/tests/nullness-temp/*.java
 checker/tests/nullness/generics/*.class
 
-dataflow/tests/issue3447/Out.txt
-dataflow/tests/issue3447/*.class
-dataflow/tests/live-variable/Out.txt
-dataflow/tests/live-variable/*.class
-
-checker/jtreg/multipleexecutions/Main.class
-
-# Source is copied from elsewhere.
-checker-qual-android/src
-
 # Some tests produce output into the tests/ directory instead of the build/ directory.
+checker/tests/ainfer-index/annotated/
+checker/tests/ainfer-index/inference-output/
 checker/tests/ainfer-nullness/annotated/
 checker/tests/ainfer-nullness/inference-output/
 checker/tests/ainfer-testchecker/annotated/
 checker/tests/ainfer-testchecker/inference-output/
+checker/tests/ainfer-resourceleak/annotated/
+checker/tests/ainfer-resourceleak/inference-output/
+framework/tests/annotationclassloader/Out.txt
 framework/tests/returnsreceiverdelomboked/
+
+dataflow/tests/busyexpr/Out.txt
+dataflow/tests/busyexpr/*.class
+dataflow/tests/cfgconstruction/*.class
+dataflow/tests/constant-propagation/Out.txt
+dataflow/tests/constant-propagation/*.class
+dataflow/tests/issue3447/Out.txt
+dataflow/tests/issue3447/*.class
+dataflow/tests/live-variable/Out.txt
+dataflow/tests/live-variable/*.class
+dataflow/tests/reachingdef/Out.txt
+dataflow/tests/reachingdef/*.class
+dataflow/tests/java22/unnamed-pattern/Out.txt
+dataflow/tests/java22/unnamed-pattern/*.class
+
+checker/jtreg/multipleexecutions/Main.class
+
+# Downloaded by the Makefile's shell-style-check target when checkbashisms
+# is not already on the PATH.
+/.checkbashisms
+
+# Source is copied from elsewhere.
+checker-qual-android/src

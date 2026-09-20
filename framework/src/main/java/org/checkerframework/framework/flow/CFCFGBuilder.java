@@ -16,12 +16,12 @@ import org.checkerframework.dataflow.cfg.builder.CFGTranslationPhaseOne;
 import org.checkerframework.dataflow.cfg.builder.CFGTranslationPhaseThree;
 import org.checkerframework.dataflow.cfg.builder.CFGTranslationPhaseTwo;
 import org.checkerframework.dataflow.cfg.builder.PhaseOneResult;
+import org.checkerframework.framework.source.AssumeAssertions;
 import org.checkerframework.framework.type.AnnotatedTypeFactory;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.GenericAnnotatedTypeFactory;
 import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.TreeUtils;
-import org.checkerframework.javacutil.UserError;
 
 import java.util.Collection;
 
@@ -45,20 +45,17 @@ public class CFCFGBuilder extends CFGBuilder {
             CompilationUnitTree root,
             UnderlyingAST underlyingAST,
             BaseTypeChecker checker,
-            AnnotatedTypeFactory factory,
+            AnnotatedTypeFactory atypeFactory,
             ProcessingEnvironment env) {
-        boolean assumeAssertionsEnabled = checker.hasOption("assumeAssertionsAreEnabled");
-        boolean assumeAssertionsDisabled = checker.hasOption("assumeAssertionsAreDisabled");
-        if (assumeAssertionsEnabled && assumeAssertionsDisabled) {
-            throw new UserError(
-                    "Assertions cannot be assumed to be enabled and disabled at the same time.");
-        }
+        AssumeAssertions assumeAssertions = checker.getAssumeAssertions();
+        boolean assumeAssertionsEnabled = assumeAssertions == AssumeAssertions.ENABLED;
+        boolean assumeAssertionsDisabled = assumeAssertions == AssumeAssertions.DISABLED;
 
         // Subcheckers with dataflow share control-flow graph structure to
         // allow a super-checker to query the stores of a subchecker.
-        if (factory instanceof GenericAnnotatedTypeFactory) {
+        if (atypeFactory instanceof GenericAnnotatedTypeFactory) {
             GenericAnnotatedTypeFactory<?, ?, ?, ?> asGATF =
-                    (GenericAnnotatedTypeFactory<?, ?, ?, ?>) factory;
+                    (GenericAnnotatedTypeFactory<?, ?, ?, ?>) atypeFactory;
             if (asGATF.hasOrIsSubchecker) {
                 ControlFlowGraph sharedCFG = asGATF.getSharedCFGForTree(underlyingAST.getCode());
                 if (sharedCFG != null) {
@@ -68,20 +65,25 @@ public class CFCFGBuilder extends CFGBuilder {
         }
 
         CFTreeBuilder builder = new CFTreeBuilder(env);
+        // Serve the body path from the checker's shared TreePathCacher (populated during visiting)
+        // instead of an uncached Trees.getPath full-tree search per body (the old hotspot at
+        // CFGTranslationPhaseOne.process / line 527).
+        TreePath bodyPath = checker.getTreePathCacher().getPath(root, underlyingAST.getCode());
+        assert bodyPath != null;
         PhaseOneResult phase1result =
                 new CFCFGTranslationPhaseOne(
                                 builder,
                                 checker,
-                                factory,
+                                atypeFactory,
                                 assumeAssertionsEnabled,
                                 assumeAssertionsDisabled,
                                 env)
-                        .process(root, underlyingAST);
+                        .process(bodyPath, underlyingAST);
         ControlFlowGraph phase2result = CFGTranslationPhaseTwo.process(phase1result);
         ControlFlowGraph phase3result = CFGTranslationPhaseThree.process(phase2result);
-        if (factory instanceof GenericAnnotatedTypeFactory) {
+        if (atypeFactory instanceof GenericAnnotatedTypeFactory) {
             GenericAnnotatedTypeFactory<?, ?, ?, ?> asGATF =
-                    (GenericAnnotatedTypeFactory<?, ?, ?, ?>) factory;
+                    (GenericAnnotatedTypeFactory<?, ?, ?, ?>) atypeFactory;
             if (asGATF.hasOrIsSubchecker) {
                 asGATF.addSharedCFGForTree(underlyingAST.getCode(), phase3result);
             }
@@ -129,18 +131,18 @@ public class CFCFGBuilder extends CFGBuilder {
         protected final BaseTypeChecker checker;
 
         /** Type factory to provide types used during CFG building. */
-        protected final AnnotatedTypeFactory factory;
+        protected final AnnotatedTypeFactory atypeFactory;
 
         public CFCFGTranslationPhaseOne(
                 CFTreeBuilder builder,
                 BaseTypeChecker checker,
-                AnnotatedTypeFactory factory,
+                AnnotatedTypeFactory atypeFactory,
                 boolean assumeAssertionsEnabled,
                 boolean assumeAssertionsDisabled,
                 ProcessingEnvironment env) {
-            super(builder, factory, assumeAssertionsEnabled, assumeAssertionsDisabled, env);
+            super(builder, atypeFactory, assumeAssertionsEnabled, assumeAssertionsDisabled, env);
             this.checker = checker;
-            this.factory = factory;
+            this.atypeFactory = atypeFactory;
         }
 
         @Override
@@ -165,7 +167,7 @@ public class CFCFGBuilder extends CFGBuilder {
             // path makes more sense, it has the risk of improperly changing the defaulting scope
             // of the artificial tree.
             TreePath artificialPath = new TreePath(getCurrentPath(), tree);
-            factory.setPathForArtificialTree(tree, artificialPath);
+            atypeFactory.setPathForArtificialTree(tree, artificialPath);
         }
 
         @Override
@@ -201,7 +203,7 @@ public class CFCFGBuilder extends CFGBuilder {
                 }
             }
 
-            // In all other cases cases, instead get the type of the expression. This case is
+            // In all other cases, instead get the type of the expression. This case is
             // also triggered when the type from the element is not an array, which can occur
             // if the declaration of the local is a generic, such as in
             // framework/tests/all-systems/java8inference/Issue1775.java.

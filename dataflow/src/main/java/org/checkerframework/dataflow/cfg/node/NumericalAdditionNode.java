@@ -25,7 +25,7 @@ public class NumericalAdditionNode extends BinaryOperationNode {
      */
     public NumericalAdditionNode(BinaryTree tree, Node left, Node right) {
         super(tree, left, right);
-        assert tree.getKind() == Tree.Kind.PLUS || tree.getKind() == Tree.Kind.PLUS_ASSIGNMENT;
+        assert tree.getKind() == Tree.Kind.PLUS;
     }
 
     @Override
@@ -40,6 +40,9 @@ public class NumericalAdditionNode extends BinaryOperationNode {
 
     @Override
     public boolean equals(@Nullable Object obj) {
+        if (this == obj) {
+            return true;
+        }
         if (!(obj instanceof NumericalAdditionNode)) {
             return false;
         }

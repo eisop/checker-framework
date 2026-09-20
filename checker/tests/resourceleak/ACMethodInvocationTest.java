@@ -1,13 +1,13 @@
 import org.checkerframework.checker.calledmethods.qual.*;
 import org.checkerframework.checker.mustcall.qual.*;
-import org.checkerframework.common.returnsreceiver.qual.*;
 
 class ACMethodInvocationTest {
 
-    @MustCall("a") class Foo {
+    @InheritableMustCall("a")
+    class Foo {
         void a() {}
 
-        @This Foo b() {
+        Foo b() {
             return this;
         }
 
@@ -25,19 +25,8 @@ class ACMethodInvocationTest {
         return f;
     }
 
-    @Owning
-    @CalledMethods({"b"}) Foo makeFooFinalize2() {
-        Foo f = new Foo();
-        f.b();
-        return f;
-    }
-
     void CallMethodsInSequence() {
         makeFoo().a();
-    }
-
-    void CallMethodsInSequence2() {
-        makeFoo().b().a();
     }
 
     void testFluentAPIWrong() {
@@ -52,11 +41,6 @@ class ACMethodInvocationTest {
 
     void invokeMethodWithCallA() {
         makeFooFinalize();
-    }
-
-    void invokeMethodWithCallBWrong() {
-        // :: error: required.method.not.called
-        makeFooFinalize2();
     }
 
     void invokeMethodAndCallCWrong() {

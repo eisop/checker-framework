@@ -25,15 +25,15 @@ public class JavaExpressionOptimizer extends JavaExpressionConverter {
      * Annotated type factory. If it is a {@code ValueAnnotatedTypeFactory}, then more optimizations
      * are possible.
      */
-    private final AnnotatedTypeFactory factory;
+    private final AnnotatedTypeFactory atypeFactory;
 
     /**
      * Creates a JavaExpressionOptimizer.
      *
-     * @param factory an annotated type factory
+     * @param atypeFactory an annotated type factory
      */
-    public JavaExpressionOptimizer(AnnotatedTypeFactory factory) {
-        this.factory = factory;
+    public JavaExpressionOptimizer(AnnotatedTypeFactory atypeFactory) {
+        this.atypeFactory = atypeFactory;
     }
 
     @Override
@@ -50,12 +50,40 @@ public class JavaExpressionOptimizer extends JavaExpressionConverter {
 
     @Override
     protected JavaExpression visitLocalVariable(LocalVariable localVarExpr, Void unused) {
-        if (factory instanceof ValueAnnotatedTypeFactory) {
+        if (atypeFactory instanceof ValueAnnotatedTypeFactory) {
             Element element = localVarExpr.getElement();
             Long exactValue =
-                    ValueCheckerUtils.getExactValue(element, (ValueAnnotatedTypeFactory) factory);
+                    ValueCheckerUtils.getExactValue(
+                            element, (ValueAnnotatedTypeFactory) atypeFactory);
             if (exactValue != null) {
-                return new ValueLiteral(localVarExpr.getType(), exactValue.intValue());
+                // The exact value is stored as a Long.  Narrow it back to the variable's
+                // declared primitive type before constructing the ValueLiteral; otherwise
+                // a 'long' variable would be replaced by a ValueLiteral whose Java type is
+                // long but whose runtime value is an Integer, which silently truncates
+                // values outside the int range and confuses consumers such as
+                // ValueLiteral.negate() that branch on the value's runtime class.
+                Object literalValue;
+                switch (localVarExpr.getType().getKind()) {
+                    case BYTE:
+                        literalValue = exactValue.byteValue();
+                        break;
+                    case SHORT:
+                        literalValue = exactValue.shortValue();
+                        break;
+                    case INT:
+                        literalValue = exactValue.intValue();
+                        break;
+                    case LONG:
+                        literalValue = exactValue;
+                        break;
+                    case CHAR:
+                        literalValue = (char) exactValue.longValue();
+                        break;
+                    default:
+                        // Don't optimize for boxed types, references, etc.
+                        return super.visitLocalVariable(localVarExpr, unused);
+                }
+                return new ValueLiteral(localVarExpr.getType(), literalValue);
             }
         }
         return super.visitLocalVariable(localVarExpr, unused);
@@ -71,7 +99,8 @@ public class JavaExpressionOptimizer extends JavaExpressionConverter {
             Object value = ((ValueLiteral) optReceiver).getValue();
             if (value instanceof String) {
                 return new ValueLiteral(
-                        factory.types.getPrimitiveType(TypeKind.INT), ((String) value).length());
+                        atypeFactory.types.getPrimitiveType(TypeKind.INT),
+                        ((String) value).length());
             }
         }
         return new MethodCall(
