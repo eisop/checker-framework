@@ -6,6 +6,7 @@ import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedDeclared
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedExecutableType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedIntersectionType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedTypeVariable;
+import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedTypeVariable.TypeVariableUsageKind;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedWildcardType;
 import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.ElementUtils;
@@ -358,11 +359,10 @@ public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
         protected void maybeCopyPrimaryAnnotations(
                 AnnotatedTypeMirror source, AnnotatedTypeMirror dest) {
             super.maybeCopyPrimaryAnnotations(source, dest);
-            // A wildcard has no primary annotation.  A type variable's belongs to the use
-            // rather than to the declaration, so adaptation leaves it alone.  An intersection's
-            // is recomputed from its bounds instead (see visitIntersection).  Any other kind is
-            // left as copied: the traversal this replaced threw BugInCF rather than adapting one,
-            // so none reaches here.
+            // A wildcard has no primary annotation.  A type variable's is adapted in
+            // visitTypeVariable instead.  An intersection's is recomputed from its bounds
+            // instead (see visitIntersection).  Any other kind is left as copied: the traversal
+            // this replaced threw BugInCF rather than adapting one, so none reaches here.
             TypeKind kind = source.getKind();
             if (kind.isPrimitive()
                     || kind == TypeKind.DECLARED
@@ -373,6 +373,41 @@ public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
                                 receiverAnnotation, extractAnnotationMirror(source));
                 dest.replaceAnnotation(resultAnnotation);
             }
+        }
+
+        /**
+         * {@inheritDoc}
+         *
+         * <p>A type variable's primary annotation belongs to the usage rather than to the
+         * declaration, so it is adapted here rather than in {@link #maybeCopyPrimaryAnnotations}:
+         * {@link AnnotatedTypeCopier#visitTypeVariable} copies the usage kind and the usage-site
+         * qualifiers from the original after building the copy, which would overwrite an adapted
+         * qualifier written any earlier.
+         *
+         * <p>A usage written {@code @Q E} carries a qualifier of its own, so {@code @Q} is adapted
+         * and the adapted qualifier recorded, and {@link TypeVariableSubstitutor} then keeps it in
+         * place of the type argument's. A usage written bare takes its qualifier from the type
+         * argument, so it is left alone.
+         */
+        @Override
+        public AnnotatedTypeMirror visitTypeVariable(
+                AnnotatedTypeVariable original,
+                IdentityHashMap<AnnotatedTypeMirror, AnnotatedTypeMirror> originalToCopy) {
+            // Adapt only when this copy is first created; a type that refers back to itself
+            // reaches this method again and must not be adapted twice.
+            boolean firstVisit = !originalToCopy.containsKey(original);
+            AnnotatedTypeMirror copy = super.visitTypeVariable(original, originalToCopy);
+            if (firstVisit
+                    && copy instanceof AnnotatedTypeVariable
+                    && original.getTypeVariableUsageKind() == TypeVariableUsageKind.REQUALIFYING) {
+                AnnotationMirror resultAnnotation =
+                        combineAnnotationWithAnnotation(
+                                receiverAnnotation, extractAnnotationMirror(original));
+                copy.replaceAnnotation(resultAnnotation);
+                ((AnnotatedTypeVariable) copy)
+                        .markAsRequalifyingTypeVariableUsage(resultAnnotation);
+            }
+            return copy;
         }
     }
 
@@ -453,6 +488,19 @@ public abstract class AbstractViewpointAdapter implements ViewpointAdapter {
         List<AnnotatedTypeMirror> tas = decltype.getTypeArguments();
         // return a copy, as we want to modify the type later.
         AnnotatedTypeMirror result = tas.get(foundindex).shallowCopy(true);
+        if (var.getTypeVariableUsageKind() == TypeVariableUsageKind.REQUALIFYING
+                && result.getKind() != TypeKind.TYPEVAR) {
+            // Requalifying replaces the argument's own head qualifier.  A type variable -- in
+            // particular a capture of a wildcard argument -- has no head qualifier to replace;
+            // writing one propagates into its bounds (fixupBoundAnnotations) and leaves a type
+            // whose shape no longer matches its declaration, which the parallel type scanners
+            // reached from adjustMethodReceiver then reject.
+            AnnotationMirrorSet requalifyingAnnotations =
+                    var.getRequalifyingTypeVariableUsageAnnotations();
+            if (!requalifyingAnnotations.isEmpty()) {
+                result.replaceAnnotations(requalifyingAnnotations);
+            }
+        }
         if (result.getKind() == TypeKind.WILDCARD) {
             AnnotatedWildcardType wildcard = (AnnotatedWildcardType) result;
             // When substituting an unbounded wildcard for a bounded type variable, the shallow
