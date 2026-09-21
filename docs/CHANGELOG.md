@@ -718,6 +718,13 @@ value-returning method that is passed where a functional interface whose method
 returns `void` is expected, so that the returned value is discarded.  It reported
 `type.argument.inference.crashed` on code that javac accepts.
 
+The Nullness Checker's `dereference.of.nullable` diagnostic is now reported at the
+member-select or `new` expression that performs the dereference, rather than at
+the start of the possibly-null receiver expression being dereferenced -- for
+example, in `firstObj.intList.add(1)` where `firstObj.intList` is possibly null,
+the marker now points at the access of `.add`, not at the start of `firstObj`.
+The message text is unchanged; only the reported source position moves.
+
 **Implementation details:**
 
 The jtreg tests that verify which annotations the Checker Framework writes into

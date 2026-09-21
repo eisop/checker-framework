@@ -533,7 +533,8 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
                 || tree.getExpression() instanceof ParameterizedTypeTree
                 // case 8. static member access
                 || ElementUtils.isStatic(e))) {
-            checkForNullability(tree.getExpression(), DEREFERENCE_OF_NULLABLE);
+            AnnotatedTypeMirror type = atypeFactory.getAnnotatedType(tree.getExpression());
+            checkForNullability(type, tree, DEREFERENCE_OF_NULLABLE, tree.getExpression());
         }
 
         return super.visitMemberSelect(tree, p);
@@ -1112,8 +1113,22 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
      */
     private boolean checkForNullability(
             AnnotatedTypeMirror type, Tree tree, @CompilerMessageKey String errMsg) {
+        return checkForNullability(type, tree, errMsg, tree);
+    }
+
+    /**
+     * Issues the error message if an expression with this type may be null.
+     *
+     * @param type annotated type
+     * @param tree the tree where the error is to reported
+     * @param errMsg the error message (must be {@link CompilerMessageKey})
+     * @param errTree the tree to be used in the error message
+     * @return whether or not the check succeeded
+     */
+    private boolean checkForNullability(
+            AnnotatedTypeMirror type, Tree tree, @CompilerMessageKey String errMsg, Tree errTree) {
         if (!type.hasEffectiveAnnotation(NONNULL)) {
-            checker.reportError(tree, errMsg, tree);
+            checker.reportError(tree, errMsg, errTree);
             return false;
         }
         return true;
@@ -1255,7 +1270,8 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
     public Void visitNewClass(NewClassTree tree, Void p) {
         ExpressionTree enclosingExpr = tree.getEnclosingExpression();
         if (enclosingExpr != null) {
-            checkForNullability(enclosingExpr, DEREFERENCE_OF_NULLABLE);
+            AnnotatedTypeMirror type = atypeFactory.getAnnotatedType(enclosingExpr);
+            checkForNullability(type, tree, DEREFERENCE_OF_NULLABLE, enclosingExpr);
         }
 
         AnnotatedTypeMirror.AnnotatedDeclaredType type = atypeFactory.getAnnotatedType(tree);
