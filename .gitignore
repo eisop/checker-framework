@@ -27,7 +27,9 @@ dot_files
 .idea
 
 # VS Code files
-.vscode
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
 
 Makefile.user
 local.properties
