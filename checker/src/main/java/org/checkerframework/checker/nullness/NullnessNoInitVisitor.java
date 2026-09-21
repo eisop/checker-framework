@@ -1121,7 +1121,9 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
 
     @Override
     protected void checkMethodInvocability(
-            AnnotatedExecutableType method, MethodInvocationTree tree) {
+            AnnotatedExecutableType method,
+            MethodInvocationTree tree,
+            @Nullable AnnotatedTypeMirror receiverType) {
         AnnotatedTypeMirror methodReceiverType = method.getReceiverType();
         if (methodReceiverType == null) {
             // Static methods don't have a receiver to check.
@@ -1131,7 +1133,8 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
         if (!TreeUtils.isSelfAccess(tree)) {
             // TODO: should all or some constructors be excluded?
             // method.getElement().getKind() != ElementKind.CONSTRUCTOR) {
-            AnnotatedTypeMirror rcv = atypeFactory.getReceiverType(tree);
+            AnnotatedTypeMirror rcv =
+                    receiverType != null ? receiverType : atypeFactory.getReceiverType(tree);
             AnnotationMirrorSet receiverAnnos = rcv.getAnnotations();
             AnnotatedTypeMirror methodReceiver = methodReceiverType.getErased();
             AnnotatedTypeMirror treeReceiver = methodReceiver.shallowCopy(false);
@@ -1144,7 +1147,7 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
                 return;
             }
         }
-        super.checkMethodInvocability(method, tree);
+        super.checkMethodInvocability(method, tree, receiverType);
     }
 
     /**

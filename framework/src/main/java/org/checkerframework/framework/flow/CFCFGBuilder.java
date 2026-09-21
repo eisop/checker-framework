@@ -7,6 +7,7 @@ import com.sun.source.tree.MethodInvocationTree;
 import com.sun.source.tree.Tree;
 import com.sun.source.tree.VariableTree;
 import com.sun.source.util.TreePath;
+import com.sun.tools.javac.tree.JCTree;
 
 import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.dataflow.cfg.ControlFlowGraph;
@@ -168,6 +169,13 @@ public class CFCFGBuilder extends CFGBuilder {
             // of the artificial tree.
             TreePath artificialPath = new TreePath(getCurrentPath(), tree);
             atypeFactory.setPathForArtificialTree(tree, artificialPath);
+            // Give the artificial tree the source position of the construct it was created for.
+            // TreeBuilder does not set one, so without this a diagnostic reported on an artificial
+            // tree points at position 0 rather than into the source.
+            Tree sourceTree = getCurrentPath().getLeaf();
+            if (tree instanceof JCTree && sourceTree instanceof JCTree) {
+                ((JCTree) tree).pos = ((JCTree) sourceTree).pos;
+            }
         }
 
         @Override

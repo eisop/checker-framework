@@ -1806,7 +1806,17 @@ public abstract class GenericAnnotatedTypeFactory<
             lambdaQueue.add(Pair.of(lambda, getStoreBefore(lambda)));
         }
 
-        postAnalyze(cfg);
+        // Set the visitor tree path for the analyzed code, as performAnalysis does.  Without it,
+        // a path lookup made from postAnalyze resolves against whatever path the visitor last
+        // set, fails, and AnnotatedTypeFactory.getPath caches that failure for the rest of the
+        // compilation unit.
+        TreePath prevPath = getVisitorTreePath();
+        setVisitorTreePath(checker.getTreePathCacher().getPath(this.getRoot(), ast.getCode()));
+        try {
+            postAnalyze(cfg);
+        } finally {
+            setVisitorTreePath(prevPath);
+        }
     }
 
     /**
