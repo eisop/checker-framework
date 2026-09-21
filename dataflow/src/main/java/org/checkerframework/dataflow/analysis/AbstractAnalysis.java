@@ -347,8 +347,9 @@ public abstract class AbstractAnalysis<
         // Signedness, Value and Interning tests the two values differ in their qualifiers often
         // enough to matter.  No wrong answer has been produced from this, but it is the reason
         // the value a query returns can depend on how much of the CFG has been analyzed.  See
-        // https://github.com/eisop/checker-framework/pull/208 for the analysis, the measurements,
-        // and a fix that was rejected for costing 1.41x on boxing-heavy code.
+        // https://github.com/eisop/checker-framework/issues/2127 for the analysis, the
+        // measurements, and a fix that was rejected for costing 1.41x on boxing-heavy code.  The
+        // two nodes are created by CFGTranslationPhaseOne.addToConvertedLookupMap.
         V result = getValue(getNodesForTree(t));
         if (result == null) {
             result = getValue(cfg.getTreeLookup().get(t));
