@@ -176,6 +176,13 @@ import javax.tools.Diagnostic;
     // Do not validate meta-annotation @TargetLocations
     "ignoreTargetLocations",
 
+    // Do not check dead (unreachable) code: literal-condition branches such as `if (false)`,
+    // and code that dataflow determines can never be reached (such as a catch block for an
+    // exception type the try block can never throw).
+    // org.checkerframework.common.basetype.BaseTypeVisitor.scan
+    // org.checkerframework.common.basetype.BaseTypeVisitor.visitIf
+    "ignoreDeadCode",
+
     // Treat checker errors as warnings
     // org.checkerframework.framework.source.SourceChecker.report
     "warns",

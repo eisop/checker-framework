@@ -16,6 +16,7 @@ import com.sun.source.tree.ConditionalExpressionTree;
 import com.sun.source.tree.EnhancedForLoopTree;
 import com.sun.source.tree.ExpressionTree;
 import com.sun.source.tree.IdentifierTree;
+import com.sun.source.tree.IfTree;
 import com.sun.source.tree.InstanceOfTree;
 import com.sun.source.tree.IntersectionTypeTree;
 import com.sun.source.tree.LambdaExpressionTree;
@@ -288,6 +289,9 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
     /** True if "-AcheckEnclosingExpr" was passed on the command line. */
     private final boolean checkEnclosingExpr;
 
+    /** True if "-AignoreDeadCode" was passed on the command line. */
+    private final boolean ignoreDeadCode;
+
     /** True if "-Alint=cast:redundant" was passed on the command line. */
     private final boolean lintCastRedundantEnabled;
 
@@ -353,6 +357,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         checkPurityAnnotations = checker.hasOption("checkPurityAnnotations") || suggestPureMethods;
         warnRedundantAnnotations = checker.hasOption("warnRedundantAnnotations");
         checkEnclosingExpr = checker.hasOption("checkEnclosingExpr");
+        ignoreDeadCode = checker.hasOption("ignoreDeadCode");
 
         boolean ajavaChecksOptions = checker.hasOption("ajavaChecks");
         if (ajavaChecksOptions) {
@@ -478,6 +483,12 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
     @Override
     public Void scan(@Nullable Tree tree, Void p) {
         if (tree == null) {
+            return null;
+        }
+        if (ignoreDeadCode
+                && tree instanceof ExpressionTree
+                && atypeFactory.isUnreachable((ExpressionTree) tree)) {
+            // Do not descend into, or check, dead code.
             return null;
         }
         if (getCurrentPath() != null) {
@@ -2915,6 +2926,31 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         this.commonAssignmentCheck(
                 cond, tree.getFalseExpression(), "conditional.type.incompatible");
         return super.visitConditionalExpression(tree, p);
+    }
+
+    /**
+     * If "-AignoreDeadCode" was passed on the command line and {@code tree}'s condition is a
+     * compile-time constant, skips checking the branch that can never execute.
+     *
+     * <p>Only {@code if} needs this treatment: a {@code while}/{@code for} loop whose condition is
+     * a compile-time constant {@code false} is already a compile-time error (an unreachable
+     * statement), so such a loop body cannot appear in valid Java source.
+     */
+    @Override
+    public Void visitIf(IfTree tree, Void p) {
+        if (ignoreDeadCode) {
+            ExpressionTree condition = tree.getCondition();
+            if (TreeUtils.isExprConstTrue(condition)) {
+                scan(condition, p);
+                return scan(tree.getThenStatement(), p);
+            } else if (TreeUtils.isExprConstFalse(condition)) {
+                scan(condition, p);
+                // `scan` returns null (without doing anything) if passed a null tree, which
+                // correctly handles an `if` with no `else`.
+                return scan(tree.getElseStatement(), p);
+            }
+        }
+        return super.visitIf(tree, p);
     }
 
     /**

@@ -623,6 +623,12 @@ Unsound checking: ignore some errors
 \item \<-AignoreTargetLocations>
   Disables validating the target locations of qualifiers based on
   `@TargetLocations` meta-annotations. This option is not enabled by default.
+\item \<-AignoreDeadCode>
+  Do not check dead (unreachable) code: literal-condition branches such as
+  \code{if (false)}, and code that dataflow determines can never be reached
+  (such as a catch block for an exception type the try block can never
+  throw). By default, the Checker Framework checks dead code too, since it
+  might become reachable after a future edit.
 \end{itemize}
 
 \label{unsound-by-default}
