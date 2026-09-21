@@ -22,6 +22,9 @@ public class NullnessIgnoreDeadCodeTest extends CheckerFrameworkPerDirectoryTest
                 "-AignoreDeadCode");
     }
 
+    /**
+     * @return the directories containing test files
+     */
     @Parameters
     public static String[] getTestDirs() {
         return new String[] {"nullness-ignoredeadcode"};
