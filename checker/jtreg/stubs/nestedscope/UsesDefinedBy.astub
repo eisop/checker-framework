@@ -1,0 +1,17 @@
+package nestedscope;
+
+import nestedscope.DefinedByExample;
+
+// DefinedByExample.Api.COMPILER's scope ("DefinedByExample.Api") is itself a FieldAccessExpr
+// (scope "DefinedByExample", name "Api"), not a plain name: real JDK sources write this same
+// shape as `@DefinedBy(DefinedBy.Api.COMPILER)` in
+// com.sun.tools.javac.file.JavacFileManager.setPathFactory(..), where the more common
+// `Api.COMPILER` form (used everywhere else `@DefinedBy` appears) is not used.
+// AnnotationFileParser.findVariableElement(FieldAccessExpr) resolves such a compound scope by
+// splitting at its first dot: it resolves the outer segment ("DefinedByExample", the annotation
+// actually imported) the way a plain scope is resolved, then looks up the remaining suffix
+// ("Api") as one of its nested types. This test pins that resolution.
+class UsesDefinedBy {
+    @DefinedByExample(DefinedByExample.Api.COMPILER)
+    void bar();
+}

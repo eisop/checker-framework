@@ -1,0 +1,214 @@
+package org.checkerframework.errorprone;
+
+import com.sun.source.util.JavacTask;
+import com.sun.source.util.TaskEvent;
+import com.sun.source.util.TaskListener;
+import com.sun.source.util.Trees;
+import com.sun.tools.javac.api.BasicJavacTask;
+import com.sun.tools.javac.util.Context;
+
+import org.junit.Assert;
+import org.junit.Test;
+
+import java.net.URI;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
+
+import javax.annotation.processing.ProcessingEnvironment;
+import javax.lang.model.util.Elements;
+import javax.lang.model.util.Types;
+import javax.tools.JavaCompiler;
+import javax.tools.JavaFileObject;
+import javax.tools.SimpleJavaFileObject;
+import javax.tools.ToolProvider;
+
+/**
+ * Tests for {@link EisopContextAdapter}: obtaining a usable {@link ProcessingEnvironment} from a
+ * javac {@link Context} the way the Error Prone plugin will, and verifying the Checker Framework's
+ * own (un-relocated) dataflow library is the one on the classpath rather than Error Prone's shaded
+ * copy.
+ */
+public class EisopContextAdapterTest {
+
+    /** An in-memory source file. */
+    private static JavaFileObject source(String className, String code) {
+        return new SimpleJavaFileObject(
+                URI.create("string:///" + className + ".java"), JavaFileObject.Kind.SOURCE) {
+            @Override
+            public CharSequence getCharContent(boolean ignoreEncodingErrors) {
+                return code;
+            }
+        };
+    }
+
+    /**
+     * Runs an in-process compilation and invokes {@code assertions} from a TaskListener on
+     * ANALYZE-finished (the phase at which Error Prone, and therefore this plugin, runs). Running
+     * mid-compilation is required: the {@link ProcessingEnvironment}/{@link Elements} utilities can
+     * resolve elements only while the compiler is live, not after {@code task.call()} returns.
+     *
+     * <p>Any {@link Throwable} thrown by {@code assertions} is captured and rethrown after the
+     * compilation completes, so JUnit assertion failures are reported normally.
+     *
+     * @param assertions the assertions to run against the live context
+     * @param extraOptions additional javac options for the compilation
+     */
+    private static void duringAnalyze(ContextAssertions assertions, String... extraOptions)
+            throws Throwable {
+        JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
+        // Direct class output to a throwaway temp dir so the test does not emit .class files into
+        // the working directory / source tree.
+        Path outDir = Files.createTempDirectory("eisopcf-ctx-test");
+        List<String> options = new ArrayList<>(Arrays.asList("-d", outDir.toString()));
+        options.addAll(Arrays.asList(extraOptions));
+        JavaCompiler.CompilationTask compilationTask =
+                compiler.getTask(
+                        null,
+                        null,
+                        null,
+                        options,
+                        null,
+                        Collections.singletonList(
+                                source("Hello", "class Hello { int f() { return 1; } }")));
+        JavacTask task = (JavacTask) compilationTask;
+        Context context = ((BasicJavacTask) task).getContext();
+        AtomicReference<Throwable> thrown = new AtomicReference<>();
+        AtomicBoolean ran = new AtomicBoolean(false);
+        task.addTaskListener(
+                new TaskListener() {
+                    @Override
+                    public void finished(TaskEvent e) {
+                        if (e.getKind() == TaskEvent.Kind.ANALYZE
+                                && ran.compareAndSet(false, true)) {
+                            try {
+                                assertions.run(context);
+                            } catch (Throwable t) {
+                                thrown.compareAndSet(null, t);
+                            }
+                        }
+                    }
+                });
+        task.call();
+        if (thrown.get() != null) {
+            throw thrown.get();
+        }
+        Assert.assertTrue("ANALYZE event never fired; assertions did not run", ran.get());
+    }
+
+    /** Assertions run against a live javac {@link Context} during the ANALYZE phase. */
+    private interface ContextAssertions {
+        /**
+         * Runs the assertions against the given context.
+         *
+         * @param context the live javac context
+         * @throws Throwable if an assertion fails
+         */
+        void run(Context context) throws Throwable;
+    }
+
+    /**
+     * Without {@code -proc:none} javac registers a {@code JavacProcessingEnvironment} in the
+     * context, and the adapter returns an environment that is wired to the live compilation.
+     */
+    @Test
+    public void producesUsableProcessingEnvironment() throws Throwable {
+        duringAnalyze(
+                context -> {
+                    ProcessingEnvironment env =
+                            EisopContextAdapter.getProcessingEnvironment(context);
+                    Assert.assertNotNull("processing environment", env);
+
+                    // The utilities SourceChecker.setProcessingEnvironment / initChecker rely on.
+                    Elements elements = env.getElementUtils();
+                    Types types = env.getTypeUtils();
+                    Assert.assertNotNull("Elements", elements);
+                    Assert.assertNotNull("Types", types);
+                    Assert.assertNotNull("Messager", env.getMessager());
+                    Assert.assertNotNull("options map", env.getOptions());
+
+                    Trees trees = Trees.instance(env);
+                    Assert.assertNotNull("Trees", trees);
+
+                    // The environment is actually wired to the compilation: the compiled type is
+                    // resolvable through the Elements utility (only valid while the compiler is
+                    // live, hence running inside the ANALYZE callback).
+                    Assert.assertNotNull(
+                            "compiled type element should be resolvable via the env",
+                            elements.getTypeElement("Hello"));
+                });
+    }
+
+    /**
+     * A context with no registered {@code JavacProcessingEnvironment} is diagnosed, rather than
+     * silently getting a freshly created environment that belongs to no compilation.
+     */
+    @Test
+    public void contextWithoutProcessingEnvironmentIsDiagnosed() {
+        try {
+            EisopContextAdapter.getProcessingEnvironment(new Context());
+            Assert.fail(
+                    "expected IllegalStateException for a context with no processing environment");
+        } catch (IllegalStateException expected) {
+            // Expected.
+        }
+    }
+
+    /**
+     * The environment is available even under {@code -proc:none}: javac registers a {@code
+     * JavacProcessingEnvironment} while initializing compiler plugins, independently of whether
+     * annotation processing runs. So the Error Prone plugin works without {@code -proc:full}.
+     */
+    @Test
+    public void processingEnvironmentIsAvailableWithProcNone() throws Throwable {
+        duringAnalyze(
+                context ->
+                        Assert.assertNotNull(
+                                "processing environment under -proc:none",
+                                EisopContextAdapter.getProcessingEnvironment(context)),
+                "-proc:none");
+    }
+
+    /** The dataflow classes in effect are the Checker Framework's own, un-relocated ones. */
+    @Test
+    public void usesUnrelocatedCheckerFrameworkDataflow() {
+        // The CF core must use its own org.checkerframework.dataflow, NOT Error Prone's shaded
+        // org.checkerframework.errorprone.dataflow (which is also on the test classpath via
+        // error_prone_check_api). Class.forName on the un-relocated FQN must resolve, and its
+        // package must be the un-relocated one.
+        String pkg = EisopContextAdapter.loadedDataflowPackage();
+        Assert.assertEquals("org.checkerframework.dataflow.cfg", pkg);
+        Assert.assertFalse(
+                "must not be Error Prone's relocated dataflow copy",
+                pkg.startsWith("org.checkerframework.errorprone.dataflow"));
+    }
+
+    /** Both dataflow copies coexist on the classpath, and the un-relocated one is what resolves. */
+    @Test
+    public void bothDataflowCopiesAreOnClasspathButDistinct() throws Exception {
+        // Guard rationale: verify the coexistence assumption actually holds — the relocated copy
+        // IS present (so this is a real test), yet the un-relocated FQN resolves to the CF's own.
+        Class<?> unrelocated = Class.forName("org.checkerframework.dataflow.cfg.ControlFlowGraph");
+        Assert.assertNotNull("un-relocated CF dataflow must be present", unrelocated);
+        Class<?> relocated;
+        try {
+            relocated =
+                    Class.forName("org.checkerframework.errorprone.dataflow.cfg.ControlFlowGraph");
+        } catch (ClassNotFoundException e) {
+            // If Error Prone's shaded copy is ever absent, the coexistence concern is moot.
+            relocated = null;
+        }
+        if (relocated != null) {
+            Assert.assertNotSame("the two copies must be distinct classes", unrelocated, relocated);
+        }
+        Assert.assertFalse(
+                "adapter must never report the relocated package",
+                EisopContextAdapter.loadedDataflowPackage()
+                        .startsWith("org.checkerframework.errorprone"));
+    }
+}

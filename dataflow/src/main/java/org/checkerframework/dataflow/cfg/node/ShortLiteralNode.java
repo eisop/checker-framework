@@ -41,6 +41,9 @@ public class ShortLiteralNode extends ValueLiteralNode {
 
     @Override
     public boolean equals(@Nullable Object obj) {
+        if (this == obj) {
+            return true;
+        }
         // test that obj is a ShortLiteralNode
         if (!(obj instanceof ShortLiteralNode)) {
             return false;

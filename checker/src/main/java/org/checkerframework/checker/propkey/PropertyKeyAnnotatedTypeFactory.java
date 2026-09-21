@@ -16,10 +16,11 @@ import org.plumelib.reflection.Signatures;
 import org.plumelib.util.CollectionsPlume;
 
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.io.InputStream;
 import java.lang.annotation.Annotation;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
@@ -177,9 +178,9 @@ public class PropertyKeyAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
                     } else {
                         // If the classloader didn't manage to load the file, try whether a
                         // FileInputStream works. For absolute paths this might help.
-                        try (InputStream fis = new FileInputStream(propfile)) {
+                        try (InputStream fis = Files.newInputStream(Paths.get(propfile))) {
                             prop.load(fis);
-                        } catch (FileNotFoundException e) {
+                        } catch (IOException e) {
                             checker.message(
                                     Diagnostic.Kind.WARNING,
                                     "Couldn't find the properties file: " + propfile);

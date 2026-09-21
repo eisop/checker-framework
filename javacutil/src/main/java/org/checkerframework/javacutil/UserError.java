@@ -14,7 +14,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 public class UserError extends RuntimeException {
 
     /**
-     * Constructs a new CheckerError with the specified detail message.
+     * Constructs a new UserError with the specified detail message.
      *
      * @param message the detail message
      */
@@ -26,7 +26,7 @@ public class UserError extends RuntimeException {
     }
 
     /**
-     * Constructs a new CheckerError with a detail message composed from the given arguments.
+     * Constructs a new UserError with a detail message composed from the given arguments.
      *
      * @param fmt the format string
      * @param args the arguments for the format string

@@ -2,7 +2,6 @@ package org.checkerframework.javacutil;
 
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.checker.nullness.qual.PolyNull;
-import org.plumelib.util.DeepCopyable;
 import org.plumelib.util.UtilPlume;
 
 import java.util.Collection;
@@ -83,7 +82,7 @@ public class CollectionUtils {
      * @deprecated use org.plumelib.util.CollectionsPlume.cloneElements
      */
     @Deprecated // 2023-06-02
-    @SuppressWarnings({"nullness", "signedness"}) // generics problem with clone
+    @SuppressWarnings("signedness") // generics problem with clone
     public static <K, V, M extends @Nullable Map<K, V>> @PolyNull M cloneElements(
             @PolyNull M orig) {
         return cloneElements(orig, true);
@@ -101,7 +100,7 @@ public class CollectionUtils {
      * @deprecated use org.plumelib.util.CollectionsPlume.cloneValues
      */
     @Deprecated // 2023-06-02
-    @SuppressWarnings({"nullness", "signedness"}) // generics problem with clone
+    @SuppressWarnings("signedness") // generics problem with clone
     public static <K, V, M extends @Nullable Map<K, V>> @PolyNull M cloneValues(@PolyNull M orig) {
         return cloneElements(orig, false);
     }

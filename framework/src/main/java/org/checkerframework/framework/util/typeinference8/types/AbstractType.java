@@ -3,6 +3,7 @@ package org.checkerframework.framework.util.typeinference8.types;
 import com.sun.tools.javac.code.Type;
 import com.sun.tools.javac.code.Type.WildcardType;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.framework.type.AnnotatedTypeFactory;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedArrayType;
@@ -14,11 +15,10 @@ import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedWildcard
 import org.checkerframework.framework.type.AnnotatedTypeParameterBounds;
 import org.checkerframework.framework.util.AnnotatedTypes;
 import org.checkerframework.framework.util.typeinference8.util.Java8InferenceContext;
+import org.checkerframework.javacutil.Pair;
 import org.checkerframework.javacutil.TypesUtils;
-import org.plumelib.util.IPair;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -155,11 +155,14 @@ public abstract class AbstractType {
     public abstract AnnotatedTypeMirror getAnnotatedType();
 
     /**
-     * Return a collection of all inference variables referenced by this type.
+     * Return a set of all inference variables referenced by this type.
      *
-     * @return a collection of all inference variables referenced by this type
+     * <p>The returned set might be mutable or immutable, and it might or might not be freshly
+     * allocated. Callers that need to mutate the result must copy it first.
+     *
+     * @return a set of all inference variables referenced by this type
      */
-    public abstract Collection<Variable> getInferenceVariables();
+    public abstract Set<Variable> getInferenceVariables();
 
     /**
      * Return a new type that is the same as this one except the variables in {@code instantiations}
@@ -253,7 +256,7 @@ public abstract class AbstractType {
      * function type. Otherwise, {@code functionType} is null. Initialized by {@link
      * #getFunctionType()}.
      */
-    private IPair<AnnotatedExecutableType, ExecutableType> functionType = null;
+    private Pair<AnnotatedExecutableType, ExecutableType> functionType = null;
 
     /**
      * If this {@link AbstractType} is a functional interface type, then its function type is
@@ -262,27 +265,32 @@ public abstract class AbstractType {
      * @return this {@link AbstractType} is a functional interface type, then its function type is
      *     returned; otherwise, returns null
      */
-    IPair<AnnotatedExecutableType, ExecutableType> getFunctionType() {
+    Pair<AnnotatedExecutableType, ExecutableType> getFunctionType() {
         if (functionType == null) {
             ExecutableElement element = TypesUtils.findFunction(getJavaType(), context.env);
             AnnotatedDeclaredType groundType =
                     makeGround((AnnotatedDeclaredType) getAnnotatedType(), typeFactory);
             AnnotatedExecutableType aet =
                     AnnotatedTypes.asMemberOf(context.modelTypes, typeFactory, groundType, element);
-            functionType = IPair.of(aet, aet.getUnderlyingType());
+            functionType = Pair.of(aet, aet.getUnderlyingType());
         }
         return functionType;
     }
 
     /**
-     * If this type is a functional interface, then this method returns the return type of the
-     * function type of that functional interface. Otherwise, returns null.
+     * If this type is a functional interface whose function type returns a value, then this method
+     * returns that return type. Otherwise, returns null: null is returned both when this type is
+     * not a functional interface and when its function type's result is void. A void result is
+     * signaled by null rather than by a type of kind {@link TypeKind#VOID} because an AbstractType
+     * never represents void, an invariant that {@link ProperType} asserts. The returned type is
+     * therefore never of kind {@link TypeKind#VOID}.
      *
-     * @return the return type of the function type of this type or null if one doesn't exist
+     * @return the return type of the function type of this type, or null if this type is not a
+     *     functional interface or its function type's result is void
      */
-    public AbstractType getFunctionTypeReturnType() {
+    public @Nullable AbstractType getFunctionTypeReturnType() {
         if (TypesUtils.isFunctionalInterface(getJavaType(), context.env)) {
-            IPair<AnnotatedExecutableType, ExecutableType> pair = getFunctionType();
+            Pair<AnnotatedExecutableType, ExecutableType> pair = getFunctionType();
             ExecutableType elementType = pair.second;
             TypeMirror returnTypeJava = elementType.getReturnType();
             if (returnTypeJava.getKind() == TypeKind.VOID) {
@@ -309,7 +317,7 @@ public abstract class AbstractType {
      */
     public List<AbstractType> getFunctionTypeParameterTypes() {
         if (TypesUtils.isFunctionalInterface(getJavaType(), context.env)) {
-            IPair<AnnotatedExecutableType, ExecutableType> pair = getFunctionType();
+            Pair<AnnotatedExecutableType, ExecutableType> pair = getFunctionType();
             List<? extends TypeMirror> paramsTypeMirror = pair.second.getParameterTypes();
             List<AbstractType> params = new ArrayList<>();
             Iterator<? extends TypeMirror> iter = paramsTypeMirror.iterator();
@@ -389,10 +397,13 @@ public abstract class AbstractType {
      */
     public AbstractType replaceTypeArgs(List<AbstractType> args) {
         DeclaredType declaredType = (DeclaredType) getJavaType();
-        TypeMirror[] newArgs = new TypeMirror[args.size()];
+        int n = args.size();
+        TypeMirror[] newArgs = new TypeMirror[n];
+        List<AnnotatedTypeMirror> argTypes = new ArrayList<>(n);
         int i = 0;
         for (AbstractType t : args) {
             newArgs[i++] = t.getJavaType();
+            argTypes.add(t.getAnnotatedType());
         }
         TypeMirror newTypeJava =
                 context.env
@@ -403,10 +414,6 @@ public abstract class AbstractType {
                 (AnnotatedDeclaredType)
                         AnnotatedTypeMirror.createType(
                                 newTypeJava, typeFactory, getAnnotatedType().isDeclaration());
-        List<AnnotatedTypeMirror> argTypes = new ArrayList<>();
-        for (AbstractType arg : args) {
-            argTypes.add(arg.getAnnotatedType());
-        }
         newType.setTypeArguments(argTypes);
         newType.replaceAnnotations(getAnnotatedType().getAnnotations());
         return create(newType, newTypeJava, ignoreAnnotations);

@@ -1,2 +1,4 @@
-UnneededSuppressionsTest.java:10:5: compiler.warn.proc.messager: [unneeded.suppression] warning suppression "nullness:return.type.incompatible" is not used by NullnessChecker
-1 warning
+UnneededSuppressionsTest.java:12:5: compiler.warn.proc.messager: [unneeded.suppression] warning suppression "nullness:return.type.incompatible" is not used by NullnessChecker
+UnneededSuppressionsTest.java:46:5: compiler.warn.proc.messager: [unneeded.suppression] warning suppression "nullness" is not used by NullnessChecker
+UnneededSuppressionsTest.java:52:5: compiler.warn.proc.messager: [unneeded.suppression] warning suppression "allcheckers" is not used by NullnessChecker
+3 warnings

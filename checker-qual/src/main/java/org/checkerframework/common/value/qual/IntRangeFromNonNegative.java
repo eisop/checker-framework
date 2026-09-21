@@ -28,6 +28,8 @@ import java.lang.annotation.Target;
  * @checker_framework.manual #constant-value-checker Constant Value Checker
  */
 @Documented
+// Do not store in class file: this is only an internal alias of an Index Checker qualifier, such as
+// @NonNegative, which is stored instead.
 @Retention(RetentionPolicy.SOURCE)
 @Target({})
 @SubtypeOf(UnknownVal.class)

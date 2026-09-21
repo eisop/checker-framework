@@ -40,14 +40,22 @@ public class BackwardAnalysisImpl<
 
     // TODO: Add widening support like what the forward analysis does.
 
-    /** Out stores after every basic block (assumed to be 'no information' if not present). */
-    protected final IdentityHashMap<Block, S> outStores = new IdentityHashMap<>();
+    /**
+     * Out stores after every basic block (assumed to be 'no information' if not present).
+     *
+     * <p>This field is intentionally not final; it should only be re-assigned by {@link
+     * #initFields}.
+     */
+    protected IdentityHashMap<Block, S> outStores = new IdentityHashMap<>();
 
     /**
      * Exception store of an exception block, propagated by exceptional successors of its exception
      * block, and merged with the normal {@link TransferResult}.
+     *
+     * <p>This field is intentionally not final; it should only be re-assigned by {@link
+     * #initFields}.
      */
-    protected final IdentityHashMap<ExceptionBlock, S> exceptionStores = new IdentityHashMap<>();
+    protected IdentityHashMap<ExceptionBlock, S> exceptionStores = new IdentityHashMap<>();
 
     /** The store right before the entry block. */
     protected @Nullable S storeAtEntry = null;
@@ -125,7 +133,7 @@ public class BackwardAnalysisImpl<
                                 FlowRule.EACH_TO_EACH,
                                 addToWorklistAgain);
                     }
-                    break;
+                    return;
                 }
             case EXCEPTION_BLOCK:
                 {
@@ -147,7 +155,7 @@ public class BackwardAnalysisImpl<
                     for (Block pred : eb.getPredecessors()) {
                         addStoreAfter(pred, node, mergedStore, addToWorklistAgain);
                     }
-                    break;
+                    return;
                 }
             case CONDITIONAL_BLOCK:
                 {
@@ -158,7 +166,7 @@ public class BackwardAnalysisImpl<
                     for (Block pred : cb.getPredecessors()) {
                         propagateStoresTo(pred, null, input, FlowRule.EACH_TO_EACH, false);
                     }
-                    break;
+                    return;
                 }
             case SPECIAL_BLOCK:
                 {
@@ -167,7 +175,7 @@ public class BackwardAnalysisImpl<
                     SpecialBlock sb = (SpecialBlock) b;
                     SpecialBlockType sType = sb.getSpecialType();
                     if (sType == SpecialBlockType.ENTRY) {
-                        // storage the store at entry
+                        // Record the store at entry.
                         storeAtEntry = outStores.get(sb);
                     } else {
                         assert sType == SpecialBlockType.EXIT
@@ -178,11 +186,12 @@ public class BackwardAnalysisImpl<
                             propagateStoresTo(pred, null, input, FlowRule.EACH_TO_EACH, false);
                         }
                     }
-                    break;
+                    return;
                 }
-            default:
-                throw new BugInCF("Unexpected block type: " + b.getType());
+                // No default: if a new BlockType is added, EP's MissingCasesInEnumSwitch fires
+                // and the build breaks under -Werror, forcing the developer to handle the new case.
         }
+        throw new BugInCF("Unexpected block type: " + b.getType());
     }
 
     @Override
@@ -198,8 +207,8 @@ public class BackwardAnalysisImpl<
     @Override
     protected void initFields(ControlFlowGraph cfg) {
         super.initFields(cfg);
-        outStores.clear();
-        exceptionStores.clear();
+        outStores = new IdentityHashMap<>();
+        exceptionStores = new IdentityHashMap<>();
         // storeAtEntry is null before analysis begin
         storeAtEntry = null;
     }
@@ -213,8 +222,8 @@ public class BackwardAnalysisImpl<
         if (worklist.depthFirstOrder.get(regularExitBlock) == null
                 && worklist.depthFirstOrder.get(exceptionExitBlock) == null) {
             throw new BugInCF(
-                    "regularExitBlock and exceptionExitBlock should never both be null at the same"
-                            + " time.");
+                    "regularExitBlock and exceptionExitBlock are both unreachable in the CFG;"
+                            + " at least one must be reachable to start a backward analysis.");
         }
         UnderlyingAST underlyingAST = cfg.getUnderlyingAST();
         List<ReturnNode> returnNodes = cfg.getReturnNodes();
@@ -358,8 +367,19 @@ public class BackwardAnalysisImpl<
             assert currentInput != null : "@AssumeAssertion(nullness): invariant";
             return currentInput.getRegularStore();
         }
+        setNodeValues(nodeValues);
         isRunning = true;
         try {
+            // Prepare cache (after the isRunning check to avoid creating empty cache entries when
+            // the analysis is already running)
+            IdentityHashMap<Node, TransferResult<V, S>> cache;
+            if (analysisCaches != null) {
+                cache =
+                        analysisCaches.computeIfAbsent(
+                                blockTransferInput, __ -> new IdentityHashMap<>());
+            } else {
+                cache = null;
+            }
             switch (block.getType()) {
                 case REGULAR_BLOCK:
                     {
@@ -375,10 +395,18 @@ public class BackwardAnalysisImpl<
                             if (n == node && preOrPost == Analysis.BeforeOrAfter.AFTER) {
                                 return store.getRegularStore();
                             }
-                            // Copy the store to avoid changing other blocks' transfer inputs in
-                            // {@link #inputs}
-                            TransferResult<V, S> transferResult =
-                                    callTransferFunction(n, store.copy());
+                            TransferResult<V, S> transferResult;
+                            TransferResult<V, S> cached = cache != null ? cache.get(n) : null;
+                            if (cached != null) {
+                                transferResult = cached;
+                            } else {
+                                // Copy the store to avoid changing other blocks' transfer
+                                // inputs in {@link #inputs}.
+                                transferResult = callTransferFunction(n, store.copy());
+                                if (cache != null) {
+                                    cache.put(n, transferResult);
+                                }
+                            }
                             if (n == node) {
                                 return transferResult.getRegularStore();
                             }
@@ -400,11 +428,19 @@ public class BackwardAnalysisImpl<
                             return blockTransferInput.getRegularStore();
                         }
                         setCurrentNode(node);
-                        // Copy the store to avoid changing other blocks' transfer inputs in {@link
-                        // #inputs}
-                        TransferResult<V, S> transferResult =
-                                callTransferFunction(node, blockTransferInput.copy());
-                        // Merge transfer result with the exception store of this exceptional block
+                        TransferResult<V, S> transferResult;
+                        TransferResult<V, S> cached = cache != null ? cache.get(node) : null;
+                        if (cached != null) {
+                            transferResult = cached;
+                        } else {
+                            // Copy the store to avoid changing other blocks' transfer inputs
+                            // in {@link #inputs}.
+                            transferResult = callTransferFunction(node, blockTransferInput.copy());
+                            if (cache != null) {
+                                cache.put(node, transferResult);
+                            }
+                        }
+                        // Merge transfer result with the exception store of this exceptional block.
                         S exceptionStore = exceptionStores.get(eb);
                         return exceptionStore == null
                                 ? transferResult.getRegularStore()

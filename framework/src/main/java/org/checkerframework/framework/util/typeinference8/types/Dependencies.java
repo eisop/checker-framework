@@ -1,10 +1,12 @@
 package org.checkerframework.framework.util.typeinference8.types;
 
+import java.util.ArrayDeque;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
-import java.util.List;
 import java.util.Map;
+import java.util.Queue;
 import java.util.Set;
 
 /**
@@ -50,45 +52,58 @@ public class Dependencies {
      * gamma and gamma depends on the resolution of beta."
      */
     public void calculateTransitiveDependencies() {
-        boolean changed = true;
-        while (changed) {
-            changed = false;
-            for (Map.Entry<Variable, LinkedHashSet<Variable>> entry : map.entrySet()) {
-                Variable alpha = entry.getKey();
-                LinkedHashSet<Variable> gammas = entry.getValue();
-                LinkedHashSet<Variable> betas = new LinkedHashSet<>();
-                for (Variable gamma : gammas) {
-                    if (gamma == alpha) {
-                        continue;
+        for (Map.Entry<Variable, LinkedHashSet<Variable>> entry : map.entrySet()) {
+            LinkedHashSet<Variable> reachable = entry.getValue();
+            Queue<Variable> queue = new ArrayDeque<>(reachable);
+
+            while (!queue.isEmpty()) {
+                Variable curr = queue.poll();
+                LinkedHashSet<Variable> nexts = map.get(curr);
+                if (nexts != null) {
+                    for (Variable next : nexts) {
+                        if (reachable.add(next)) {
+                            queue.add(next);
+                        }
                     }
-                    betas.addAll(map.get(gamma));
                 }
-                changed |= gammas.addAll(betas);
             }
         }
     }
 
     /**
-     * Returns the set of dependencies of {@code alpha}.
+     * Returns a non-modifiable view of the dependencies of {@code alpha}. The returned set is
+     * backed by the internal map; callers must not mutate it and must treat it as read-only.
      *
      * @param alpha a variable
-     * @return the set of dependencies of {@code alpha}
+     * @return a non-modifiable view of the dependencies of {@code alpha}
+     */
+    public Set<Variable> dependsOn(Variable alpha) {
+        Set<Variable> s = map.get(alpha);
+        return s == null ? Collections.emptySet() : Collections.unmodifiableSet(s);
+    }
+
+    /**
+     * Returns a fresh, mutable set of the dependencies of {@code alpha}. Use this only when the
+     * caller needs to mutate the returned set; otherwise use {@link #dependsOn(Variable)}.
+     *
+     * @param alpha a variable
+     * @return a fresh, mutable copy of the dependencies of {@code alpha}
      */
     public Set<Variable> get(Variable alpha) {
         return new LinkedHashSet<>(map.get(alpha));
     }
 
     /**
-     * Returns the set of dependencies for all variables in {@code variables}.
+     * Returns the set of dependencies for all variables in {@code variables}. The returned set is
+     * freshly allocated and mutable.
      *
-     * @param variables list of variables
+     * @param variables collection of variables
      * @return the set of dependencies for all variables in {@code variables}
      */
-    public Set<Variable> get(List<Variable> variables) {
+    public Set<Variable> get(Collection<? extends Variable> variables) {
         LinkedHashSet<Variable> set = new LinkedHashSet<>();
         for (Variable v : variables) {
-            Set<Variable> get = get(v);
-            set.addAll(get);
+            set.addAll(map.get(v));
         }
         return set;
     }

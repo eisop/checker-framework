@@ -168,11 +168,12 @@ public class AinferValidatePerDirectoryTest extends CheckerFrameworkWPIPerDirect
     }
 
     @Override
+    @SuppressWarnings("JUnitMethodInvoked")
     public void run() {
         // Only run if annotated files have been created.
         // See ainferTest task.
         if (generationTest != null
-                && !new File("tests/ainfer-" + CHECKER_SHORT_NAME + "/annotated/").exists()) {
+                && !Files.exists(Paths.get("tests", "ainfer-" + CHECKER_SHORT_NAME, "annotated"))) {
             throw new RuntimeException(generationTest + " must be run before this test.");
         }
         super.run();

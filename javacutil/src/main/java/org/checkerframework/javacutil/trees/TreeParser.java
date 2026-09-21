@@ -9,8 +9,8 @@ import com.sun.tools.javac.util.List;
 import com.sun.tools.javac.util.ListBuffer;
 import com.sun.tools.javac.util.Names;
 
+import org.checkerframework.javacutil.Pair;
 import org.checkerframework.javacutil.TreeUtils;
-import org.plumelib.util.IPair;
 
 import java.util.StringTokenizer;
 
@@ -70,9 +70,6 @@ public class TreeParser {
             return parseExpression(tokenizer, token).first;
         } catch (Exception e) {
             throw new ParseError(e);
-        } finally {
-            tokenizer = null;
-            token = null;
         }
     }
 
@@ -114,7 +111,7 @@ public class TreeParser {
      * @param token the first token
      * @return a pair of a parsed expression and the next token
      */
-    private IPair<JCExpression, String> parseExpression(StringTokenizer tokenizer, String token) {
+    private Pair<JCExpression, String> parseExpression(StringTokenizer tokenizer, String token) {
         JCExpression tree = fromToken(token);
 
         while (tokenizer.hasMoreTokens()) {
@@ -127,7 +124,7 @@ public class TreeParser {
                 token = nextToken(tokenizer);
                 ListBuffer<JCExpression> args = new ListBuffer<>();
                 while (!")".equals(token)) {
-                    IPair<JCExpression, String> p = parseExpression(tokenizer, token);
+                    Pair<JCExpression, String> p = parseExpression(tokenizer, token);
                     JCExpression arg = p.first;
                     token = p.second;
                     args.append(arg);
@@ -140,18 +137,18 @@ public class TreeParser {
                 tree = maker.Apply(List.nil(), tree, args.toList());
             } else if ("[".equals(token)) {
                 token = nextToken(tokenizer);
-                IPair<JCExpression, String> p = parseExpression(tokenizer, token);
+                Pair<JCExpression, String> p = parseExpression(tokenizer, token);
                 JCExpression index = p.first;
                 token = p.second;
                 assert "]".equals(token) : "Unexpected token: " + token;
                 tree = maker.Indexed(tree, index);
             } else {
-                return IPair.of(tree, token);
+                return Pair.of(tree, token);
             }
             assert tokenizer != null : "@AssumeAssertion(nullness): side effects";
         }
 
-        return IPair.of(tree, token);
+        return Pair.of(tree, token);
     }
 
     /** An internal error. */

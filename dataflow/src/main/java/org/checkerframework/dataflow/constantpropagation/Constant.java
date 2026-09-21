@@ -97,6 +97,9 @@ public class Constant implements AbstractValue<Constant> {
 
     @Override
     public boolean equals(@Nullable Object obj) {
+        if (this == obj) {
+            return true;
+        }
         if (!(obj instanceof Constant)) {
             return false;
         }
@@ -106,7 +109,10 @@ public class Constant implements AbstractValue<Constant> {
 
     @Override
     public int hashCode() {
-        return Objects.hash(type, value);
+        int h = 1;
+        h = 31 * h + (type != null ? type.hashCode() : 0);
+        h = 31 * h + (value != null ? value.hashCode() : 0);
+        return h;
     }
 
     @Override
@@ -119,8 +125,7 @@ public class Constant implements AbstractValue<Constant> {
             case CONSTANT:
                 assert isConstant() : "@AssumeAssertion(nullness)";
                 return value.toString();
-            default:
-                throw new BugInCF("Unexpected type: " + type);
         }
+        throw new BugInCF("Unexpected type: " + type);
     }
 }

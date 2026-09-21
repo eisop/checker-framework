@@ -55,12 +55,12 @@ import org.checkerframework.framework.util.StringToJavaExpression;
 import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.ElementUtils;
+import org.checkerframework.javacutil.Pair;
 import org.checkerframework.javacutil.TreePathUtil;
 import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TypeSystemError;
 import org.checkerframework.javacutil.TypesUtils;
 import org.plumelib.util.CollectionsPlume;
-import org.plumelib.util.IPair;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -827,7 +827,9 @@ public class MustCallConsistencyAnalyzer {
             return false;
         }
         if (enclosingTarget instanceof ThisReference && target instanceof ThisReference) {
-            return enclosingTarget.getType().toString().equals(target.getType().toString());
+            return checker.getProcessingEnvironment()
+                    .getTypeUtils()
+                    .isSameType(enclosingTarget.getType(), target.getType());
         } else {
             return enclosingTarget.equals(target);
         }
@@ -1540,8 +1542,8 @@ public class MustCallConsistencyAnalyzer {
                         formatMissingMustCallMethods(mcValues),
                         "field " + lhsElement.getSimpleName().toString(),
                         lhsElement.asType().toString(),
-                        "Field assignment outside method or declaration might overwrite field's"
-                                + " current value");
+                        "field assignment outside a method or declaration might overwrite the"
+                                + " field's current value");
                 return;
             }
         } else if (permitInitializationLeak && TreeUtils.isConstructor(enclosingMethodTree)) {
@@ -1667,7 +1669,7 @@ public class MustCallConsistencyAnalyzer {
                         formatMissingMustCallMethods(mcValues),
                         "field " + lhsElement.getSimpleName().toString(),
                         lhsElement.asType().toString(),
-                        " Non-final owning field might be overwritten");
+                        "non-final owning field might be overwritten");
             }
         }
     }
@@ -1902,15 +1904,15 @@ public class MustCallConsistencyAnalyzer {
      * @return set of pairs (b, t), where b is a successor block, and t is the type of exception for
      *     the CFG edge from block to b, or {@code null} if b is a non-exceptional successor
      */
-    private Set<IPair<Block, @Nullable TypeMirror>> getSuccessorsExceptIgnoredExceptions(
+    private Set<Pair<Block, @Nullable TypeMirror>> getSuccessorsExceptIgnoredExceptions(
             Block block) {
         if (block.getType() == Block.BlockType.EXCEPTION_BLOCK) {
             ExceptionBlock excBlock = (ExceptionBlock) block;
-            Set<IPair<Block, @Nullable TypeMirror>> result = new LinkedHashSet<>();
+            Set<Pair<Block, @Nullable TypeMirror>> result = new LinkedHashSet<>();
             // regular successor
             Block regularSucc = excBlock.getSuccessor();
             if (regularSucc != null) {
-                result.add(IPair.of(regularSucc, null));
+                result.add(Pair.of(regularSucc, null));
             }
             // non-ignored exception successors
             Map<TypeMirror, Set<Block>> exceptionalSuccessors = excBlock.getExceptionalSuccessors();
@@ -1918,15 +1920,15 @@ public class MustCallConsistencyAnalyzer {
                 TypeMirror exceptionType = entry.getKey();
                 if (!cmAtf.isIgnoredExceptionType(exceptionType)) {
                     for (Block exSucc : entry.getValue()) {
-                        result.add(IPair.of(exSucc, exceptionType));
+                        result.add(Pair.of(exSucc, exceptionType));
                     }
                 }
             }
             return result;
         } else {
-            Set<IPair<Block, @Nullable TypeMirror>> result = new LinkedHashSet<>();
+            Set<Pair<Block, @Nullable TypeMirror>> result = new LinkedHashSet<>();
             for (Block b : block.getSuccessors()) {
-                result.add(IPair.of(b, null));
+                result.add(Pair.of(b, null));
             }
             return result;
         }
@@ -1974,7 +1976,7 @@ public class MustCallConsistencyAnalyzer {
         // computes the set of Obligations that should be propagated to it and then adds it to the
         // worklist if any of its resource aliases are still in scope in the successor block. If
         // none are, then the loop performs a consistency check for that Obligation.
-        for (IPair<Block, @Nullable TypeMirror> successorAndExceptionType :
+        for (Pair<Block, @Nullable TypeMirror> successorAndExceptionType :
                 getSuccessorsExceptIgnoredExceptions(currentBlock)) {
 
             // A *mutable* set that eventually holds the set of dataflow facts to be propagated to
@@ -2045,9 +2047,9 @@ public class MustCallConsistencyAnalyzer {
                         // exit, but that doesn't seem to provide additional helpful
                         // information.
                         "regular method exit"
-                        : "possible exceptional exit due to "
+                        : "possible exceptional exit before the required method call, if "
                                 + ((ExceptionBlock) currentBlock).getNode().getTree()
-                                + " with exception type "
+                                + " throws an exception of type "
                                 + exceptionType;
         // Computed outside the Obligation loop for efficiency.
         AccumulationStore regularStoreOfSuccessor = cmAtf.getInput(successor).getRegularStore();
@@ -2478,7 +2480,7 @@ public class MustCallConsistencyAnalyzer {
      */
     private void incrementMustCallImpl(TypeMirror type) {
         // only count uses of JDK classes, since that's what the paper reported
-        if (!isJdkClass(TypesUtils.getTypeElement(type).getQualifiedName().toString())) {
+        if (!isJdkClass(ElementUtils.getQualifiedName(TypesUtils.getTypeElement(type)))) {
             return;
         }
         checker.numMustCall++;

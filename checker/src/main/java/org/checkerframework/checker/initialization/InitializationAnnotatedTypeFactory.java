@@ -29,9 +29,9 @@ import org.checkerframework.framework.type.GenericAnnotatedTypeFactory;
 import org.checkerframework.framework.util.AnnotatedTypes;
 import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.ElementUtils;
+import org.checkerframework.javacutil.Pair;
 import org.checkerframework.javacutil.TreePathUtil;
 import org.checkerframework.javacutil.TreeUtils;
-import org.plumelib.util.IPair;
 
 import java.lang.annotation.Annotation;
 import java.util.Collection;
@@ -112,7 +112,7 @@ public class InitializationAnnotatedTypeFactory extends InitializationParentAnno
     }
 
     @Override
-    public List<IPair<ReturnNode, TransferResult<CFValue, InitializationStore>>>
+    public List<Pair<ReturnNode, TransferResult<CFValue, InitializationStore>>>
             getReturnStatementStores(MethodTree methodTree) {
         return getFieldAccessFactory().getReturnStatementStores(methodTree);
     }
@@ -143,19 +143,24 @@ public class InitializationAnnotatedTypeFactory extends InitializationParentAnno
                             ((InitializationChecker) checker).getTargetCheckerClass());
             InitializationStore initStore = getStoreBefore(tree);
             CFAbstractStore<?, ?> targetStore = targetFactory.getStoreBefore(tree);
-            if (initStore != null
-                    && targetStore != null
-                    && getUninitializedFields(
-                                    initStore, targetStore, path, false, Collections.emptyList())
-                            .isEmpty()) {
-                if (classType.isFinal()) {
-                    annotation = INITIALIZED;
-                } else {
-                    annotation = createUnderInitializationAnnotation(classType);
-                }
-            } else if (initStore != null
-                    && getUninitializedFields(initStore, path, false, Collections.emptyList())
-                            .isEmpty()) {
+            boolean allInitialized;
+            if (initStore == null) {
+                allInitialized = false;
+            } else if (targetStore != null) {
+                allInitialized =
+                        getUninitializedFields(
+                                        initStore,
+                                        targetStore,
+                                        path,
+                                        false,
+                                        Collections.emptyList())
+                                .isEmpty();
+            } else {
+                allInitialized =
+                        getUninitializedFields(initStore, path, false, Collections.emptyList())
+                                .isEmpty();
+            }
+            if (allInitialized) {
                 if (classType.isFinal()) {
                     annotation = INITIALIZED;
                 } else {
@@ -219,7 +224,8 @@ public class InitializationAnnotatedTypeFactory extends InitializationParentAnno
 
         // Remove primitives
         if (!((InitializationChecker) checker).checkPrimitives()) {
-            uninitializedFields.removeIf(var -> getAnnotatedType(var).getKind().isPrimitive());
+            uninitializedFields.removeIf(
+                    var -> TreeUtils.elementFromDeclaration(var).asType().getKind().isPrimitive());
         }
 
         // Filter out fields which are initialized according to subchecker

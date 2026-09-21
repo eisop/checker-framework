@@ -64,9 +64,9 @@ public class ImmutableTestConfiguration implements TestConfiguration {
             List<@BinaryName String> processors,
             Map<String, @Nullable String> options,
             boolean shouldEmitDebugInfo) {
-        this.diagnosticFiles = Collections.unmodifiableList(diagnosticFiles);
+        this.diagnosticFiles = Collections.unmodifiableList(new ArrayList<>(diagnosticFiles));
         this.testSourceFiles = Collections.unmodifiableList(new ArrayList<>(testSourceFiles));
-        this.processors = new ArrayList<>(processors);
+        this.processors = Collections.unmodifiableList(new ArrayList<>(processors));
         this.options =
                 Collections.unmodifiableMap(new LinkedHashMap<String, @Nullable String>(options));
         this.shouldEmitDebugInfo = shouldEmitDebugInfo;
