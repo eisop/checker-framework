@@ -1,7 +1,7 @@
 AnnotatedForWithUse.java:28:36: compiler.err.proc.messager: [assignment.type.incompatible] incompatible types in assignment.
 found   : @Nullable Object
 required: @NonNull Object
-AnnotatedForWithUse.java:35:18: compiler.err.proc.messager: [dereference.of.nullable] dereference of possibly-null reference u.get()
+AnnotatedForWithUse.java:35:20: compiler.err.proc.messager: [dereference.of.nullable] dereference of possibly-null reference u.get()
 AnnotatedForWithUse.java:35:29: compiler.err.proc.messager: [method.invocation.invalid] call to toString() not allowed on the given receiver.
 found   : @UnknownInitialization Object
 required: @Initialized Object

@@ -3,12 +3,45 @@ Version 3.49.5-eisop2 (June ?, 2026)
 
 **User-visible changes:**
 
+A binary stub file is no longer packaged after the `.astub` file it was generated from is
+renamed or deleted.  The stale `.bin.gz` shipped in the jar and was read in preference to the
+text stub that no longer existed, so the removed annotations kept being applied.
+
+A checker that resolves a tree from `postAnalyze` no longer poisons the tree-path cache.
+`AnnotatedTypeFactory.getPath` caches a failed lookup, and `postAnalyze` ran with the visitor
+tree path of whatever the visitor last set rather than of the code being analyzed.
+
+A bad argument to a command-line option that the checker reads as it starts up is now
+reported as an ordinary compiler error.  Previously `-AwarnUnneededSuppressionsExceptions`
+without an argument, or with one that is not a regular expression, was reported as
+"An annotation processor threw an uncaught exception", followed by a stack trace.
+An error from a checker's `typeProcessingOver` is now reported the same way.
+
+A diagnostic reported on a tree that the CFG synthesized for a conversion now points at the
+construct the conversion came from, rather than at the first character of the file.
+
+The method invocations that the CFG synthesizes for boxing, unboxing, enhanced for loops and
+try-with-resources are now type-checked.  Previously a type system's declaration of
+`Integer.valueOf`, `Integer.intValue`, `Iterable.iterator` or `close` was enforced for an
+explicit call and ignored for the conversion that desugars to it, so a type system could not
+constrain which values may be converted.
+
+The Fenum Checker now preserves a fake enum across boxing and unboxing.  The wrapper classes'
+`valueOf` and `xxxValue` methods are annotated `@PolyFenum`, so a `@Fenum` value can be boxed
+and unboxed without laundering it into a different fake enum.
+
 Every continuous integration run now attaches the jars it built to the run, so
 the latest development version, or a proposed fix, can be tried out without
 building it.  See the "Development jars without building" section of the manual.
 
 The EISOP Checker Framework runs under JDK 27 and under JDK 28 b15 early access
 builds -- that is, it runs on version 27 and 28 JVMs.
+
+New command-line option `-AassumeAssertions=enabled|disabled|neither` states what to assume
+about whether assertions are enabled at run time. `neither`, the default, accounts for both
+cases, as before. It replaces `-AassumeAssertionsAreEnabled` and
+`-AassumeAssertionsAreDisabled`, which are deprecated: each is still honored, but passing one
+issues a warning that names its replacement.
 
 A checker can now examine a package declaration. `AbstractTypeProcessor` dropped the
 analysis event for a `package-info.java`, so no checker could ever visit one and a
@@ -283,6 +316,14 @@ the inferred type variable through `? extends`, as in
 `Function<? super Set<? extends K>, ?>`.  It reported
 `type.argument.inference.crashed` on code that javac accepts.
 
+Type argument inference no longer fails on a generic call returned by a lambda that is
+itself an argument to a generic method, as in `run(() -> arr(new String[0]))`.  Finding
+the qualifiers of the new array restarted inference of `arr(...)` while it was still being
+inferred as part of `run(...)`, and that second inference used `run`'s not-yet-inferred
+type variable as its target.  With default options the failure was silently discarded;
+with `-AconvertTypeArgInferenceCrashToWarning=false`, as the test harness passes, the
+Checker Framework crashed on code that javac accepts.
+
 The stubifier resolves a nested annotation named through its enclosing class, as
 the JDK's own `java.lang.invoke.VarHandle` writes `@MethodHandle.PolymorphicSignature`.
 Such a name is not loadable as written -- its binary name separates the nesting with
@@ -313,7 +354,9 @@ so writing one cannot turn off what a mode enables.  A checker declares its mode
 The Nullness Checker supports `-Amode=jspecify`, which makes it behave as JSpecify
 specifies: it checks only code in the scope of an `@AnnotatedFor`, treats `@NullMarked`
 as a defaulting annotation, and performs neither initialization checking nor map-key
-checking.
+checking.  It also assumes that every called method is pure and that assertions are
+enabled, as if `-AassumePure` and `-AassumeAssertions=enabled` were supplied; an
+`-AassumeAssertions` value written alongside the mode takes precedence.
 
 The Checker Framework now issues an `annotation.on.supertype` error when an annotation supported by
 the checker is written as a main annotation on the superclass or interface in an `extends` or
@@ -674,6 +717,18 @@ New command-line option `-AignoreDeadCode` skips checking dead (unreachable) cod
 branches such as `if (false)`, and code that dataflow determines can never be reached (such as a
 catch block for an exception type the try block can never throw). This option is not enabled by
 default, since dead code might become reachable after a future edit.
+
+Type argument inference no longer fails on an inexact method reference to a
+value-returning method that is passed where a functional interface whose method
+returns `void` is expected, so that the returned value is discarded.  It reported
+`type.argument.inference.crashed` on code that javac accepts.
+
+The Nullness Checker's `dereference.of.nullable` diagnostic is now reported at the
+member-select or `new` expression that performs the dereference, rather than at
+the start of the possibly-null receiver expression being dereferenced -- for
+example, in `firstObj.intList.add(1)` where `firstObj.intList` is possibly null,
+the marker now points at the access of `.add`, not at the start of `firstObj`.
+The message text is unchanged; only the reported source position moves.
 
 **Implementation details:**
 
@@ -1130,7 +1185,10 @@ eisop#2061,
 eisop#2064,
 eisop#2074,
 eisop#2081,
+eisop#2086,
 eisop#2089,
+eisop#2091,
+eisop#2105,
 typetools#399,
 typetools#2816,
 typetools#3203.
