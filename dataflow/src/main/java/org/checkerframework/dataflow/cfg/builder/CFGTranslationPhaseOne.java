@@ -741,6 +741,7 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
      */
     protected void addToConvertedLookupMap(Tree tree, Node node) {
         assert tree != null;
+        assert node != null;
         assert treeToCfgNodes.containsKey(tree);
         Set<Node> existing = treeToConvertedCfgNodes.get(tree);
         if (existing == null) {
@@ -4378,7 +4379,7 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
                                         exprType,
                                         uniqueName("tempPostfix"),
                                         TreePathUtil.findNearestEnclosingElement(getCurrentPath()),
-                                        tree.getExpression());
+                                        exprTree);
                         handleArtificialTree(tempVarDecl);
                         VariableDeclarationNode tempVarDeclNode =
                                 new VariableDeclarationNode(tempVarDecl);
