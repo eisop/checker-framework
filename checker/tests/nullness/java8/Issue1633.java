@@ -40,12 +40,14 @@ public class Issue1633 {
     }
 
     void foo41(Optional1633<String> o) {
-        @SuppressWarnings("return.type.incompatible") // https://tinyurl.com/cfissue/979
+        // This is a false postive because inference doesn't work with poly qualifiers.
+        // :: error: (return.type.incompatible)
         @Nullable String str3 = o.orElseGetPolyNull(() -> null);
     }
 
     void foo41nw(Optional1633<String> o) {
-        @SuppressWarnings("return.type.incompatible") // https://tinyurl.com/cfissue/979
+        // This is a false postive because inference doesn't work with poly qualifiers.
+        // :: error: (return.type.incompatible)
         @Nullable String str3 = o.orElseGetPolyNullNoWildcard(() -> null);
     }
 
@@ -98,7 +100,7 @@ public class Issue1633 {
     }
 
     public @Nullable T orElseGetNullableNoWildcard(Supplier<? extends @Nullable T> other) {
-        // The commented-out line fails to typecheck due to issue #979
+        // The commented-out line fails to typecheck.
         // return value != null ? value : other.get();
         if (value != null) {
             return value;
@@ -116,7 +118,7 @@ public class Issue1633 {
     }
 
     public @PolyNull T orElseGetPolyNullNoWildcard(Supplier<? extends @PolyNull T> other) {
-        // The commented-out line fails to typecheck due to issue #979
+        // The commented-out line fails to typecheck.
         // return value != null ? value : other.get();
         if (value != null) {
             return value;

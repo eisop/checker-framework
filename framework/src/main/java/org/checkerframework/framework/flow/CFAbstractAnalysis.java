@@ -3,7 +3,10 @@ package org.checkerframework.framework.flow;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.dataflow.analysis.ForwardAnalysisImpl;
+import org.checkerframework.dataflow.analysis.TransferInput;
+import org.checkerframework.dataflow.analysis.TransferResult;
 import org.checkerframework.dataflow.cfg.ControlFlowGraph;
+import org.checkerframework.dataflow.cfg.node.Node;
 import org.checkerframework.dataflow.expression.FieldAccess;
 import org.checkerframework.framework.source.SourceChecker;
 import org.checkerframework.framework.type.AnnotatedTypeFactory;
@@ -15,6 +18,7 @@ import org.checkerframework.framework.type.QualifierHierarchy;
 import org.checkerframework.framework.type.TypeHierarchy;
 import org.checkerframework.framework.util.dependenttypes.DependentTypesHelper;
 import org.checkerframework.javacutil.AnnotationMirrorSet;
+import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.TypesUtils;
 
 import java.util.ArrayList;
@@ -43,7 +47,7 @@ public abstract class CFAbstractAnalysis<
                 T extends CFAbstractTransfer<V, S, T>>
         extends ForwardAnalysisImpl<V, S, T> {
     /** The qualifier hierarchy for which to track annotations. */
-    protected final QualifierHierarchy qualifierHierarchy;
+    protected final QualifierHierarchy qualHierarchy;
 
     /** The type hierarchy. */
     protected final TypeHierarchy typeHierarchy;
@@ -110,6 +114,7 @@ public abstract class CFAbstractAnalysis<
      * @param factory an annotated type factory to introduce type and dataflow rules
      * @param maxCountBeforeWidening number of times a block can be analyzed before widening
      */
+    @SuppressWarnings("this-escape")
     protected CFAbstractAnalysis(
             BaseTypeChecker checker,
             GenericAnnotatedTypeFactory<V, S, T, ? extends CFAbstractAnalysis<V, S, T>> factory,
@@ -117,7 +122,7 @@ public abstract class CFAbstractAnalysis<
         super(maxCountBeforeWidening);
         env = checker.getProcessingEnvironment();
         types = env.getTypeUtils();
-        qualifierHierarchy = factory.getQualifierHierarchy();
+        qualHierarchy = factory.getQualifierHierarchy();
         typeHierarchy = factory.getTypeHierarchy();
         dependentTypesHelper = factory.getDependentTypesHelper();
         this.atypeFactory = factory;
@@ -215,11 +220,11 @@ public abstract class CFAbstractAnalysis<
             AnnotationMirrorSet annotations, TypeMirror underlyingType);
 
     /** Default implementation for {@link #createAbstractValue(AnnotationMirrorSet, TypeMirror)}. */
-    public CFValue defaultCreateAbstractValue(
+    public @Nullable CFValue defaultCreateAbstractValue(
             CFAbstractAnalysis<CFValue, ?, ?> analysis,
             AnnotationMirrorSet annotations,
             TypeMirror underlyingType) {
-        if (!CFAbstractValue.validateSet(annotations, underlyingType, qualifierHierarchy)) {
+        if (!CFAbstractValue.validateSet(annotations, underlyingType, atypeFactory)) {
             return null;
         }
         return new CFValue(analysis, annotations, underlyingType);
@@ -232,6 +237,17 @@ public abstract class CFAbstractAnalysis<
     public GenericAnnotatedTypeFactory<V, S, T, ? extends CFAbstractAnalysis<V, S, T>>
             getTypeFactory() {
         return atypeFactory;
+    }
+
+    @Override
+    protected TransferResult<V, S> callTransferFunction(Node node, TransferInput<V, S> input) {
+        TransferResult<V, S> result;
+        try {
+            result = super.callTransferFunction(node, input);
+        } catch (Exception e) {
+            throw new BugInCF(node.getTree(), e);
+        }
+        return result;
     }
 
     /**

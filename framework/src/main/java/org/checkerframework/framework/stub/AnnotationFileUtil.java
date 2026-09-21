@@ -74,9 +74,8 @@ public class AnnotationFileUtil {
                     return true;
                 case AJAVA:
                     return false;
-                default:
-                    throw new BugInCF("unhandled case " + this);
             }
+            throw new BugInCF("unhandled case " + this);
         }
 
         /**
@@ -93,9 +92,8 @@ public class AnnotationFileUtil {
                 case AJAVA_AS_STUB:
                 case AJAVA:
                     return false;
-                default:
-                    throw new BugInCF("unhandled case " + this);
             }
+            throw new BugInCF("unhandled case " + this);
         }
 
         /**
@@ -112,9 +110,8 @@ public class AnnotationFileUtil {
                 case AJAVA_AS_STUB:
                 case AJAVA:
                     return true;
-                default:
-                    throw new BugInCF("unhandled case " + this);
             }
+            throw new BugInCF("unhandled case " + this);
         }
     }
 
@@ -122,23 +119,23 @@ public class AnnotationFileUtil {
      * Finds the type declaration with the given class name in a StubUnit.
      *
      * @param className fully qualified name of the type declaration to find
-     * @param indexFile StubUnit to search
+     * @param indexFile a StubUnit to search
      * @return the declaration in {@code indexFile} with {@code className} if it exists, null
      *     otherwise.
      */
-    /*package-scope*/ static TypeDeclaration<?> findDeclaration(
+    /*package-private*/ static @Nullable TypeDeclaration<?> findDeclaration(
             String className, StubUnit indexFile) {
         int indexOfDot = className.lastIndexOf('.');
 
         if (indexOfDot == -1) {
             // classes not within a package needs to be the first in the index file
-            assert !indexFile.getCompilationUnits().isEmpty();
-            assert indexFile.getCompilationUnits().get(0).getPackageDeclaration() == null;
-            return findDeclaration(className, indexFile.getCompilationUnits().get(0));
+            CompilationUnit cu = indexFile.getCompilationUnits().get(0);
+            assert !cu.getPackageDeclaration().isPresent();
+            return findDeclaration(className, cu);
         }
 
-        final String packageName = className.substring(0, indexOfDot);
-        final String simpleName = className.substring(indexOfDot + 1);
+        String packageName = className.substring(0, indexOfDot);
+        String simpleName = className.substring(indexOfDot + 1);
 
         for (CompilationUnit cu : indexFile.getCompilationUnits()) {
             if (cu.getPackageDeclaration().isPresent()
@@ -154,12 +151,12 @@ public class AnnotationFileUtil {
         return null;
     }
 
-    /*package-scope*/ static TypeDeclaration<?> findDeclaration(
+    /*package-private*/ static TypeDeclaration<?> findDeclaration(
             TypeElement type, StubUnit indexFile) {
-        return findDeclaration(type.getQualifiedName().toString(), indexFile);
+        return findDeclaration(ElementUtils.getQualifiedName(type), indexFile);
     }
 
-    /*package-scope*/ static FieldDeclaration findDeclaration(
+    /*package-private*/ static @Nullable FieldDeclaration findDeclaration(
             VariableElement field, StubUnit indexFile) {
         TypeDeclaration<?> type =
                 findDeclaration((TypeElement) field.getEnclosingElement(), indexFile);
@@ -173,7 +170,7 @@ public class AnnotationFileUtil {
             }
             FieldDeclaration decl = (FieldDeclaration) member;
             for (VariableDeclarator var : decl.getVariables()) {
-                if (toString(var).equals(field.getSimpleName().toString())) {
+                if (field.getSimpleName().contentEquals(toString(var))) {
                     return decl;
                 }
             }
@@ -181,7 +178,7 @@ public class AnnotationFileUtil {
         return null;
     }
 
-    /*package-scope*/ static BodyDeclaration<?> findDeclaration(
+    /*package-private*/ static @Nullable BodyDeclaration<?> findDeclaration(
             ExecutableElement method, StubUnit indexFile) {
         TypeDeclaration<?> type =
                 findDeclaration((TypeElement) method.getEnclosingElement(), indexFile);
@@ -205,7 +202,7 @@ public class AnnotationFileUtil {
         return null;
     }
 
-    /*package-scope*/ static TypeDeclaration<?> findDeclaration(
+    /*package-private*/ static @Nullable TypeDeclaration<?> findDeclaration(
             String simpleName, CompilationUnit cu) {
         for (TypeDeclaration<?> type : cu.getTypes()) {
             if (simpleName.equals(type.getNameAsString())) {
@@ -216,29 +213,29 @@ public class AnnotationFileUtil {
         return null;
     }
 
-    /*package-scope*/ static String toString(MethodDeclaration method) {
+    /*package-private*/ static String toString(MethodDeclaration method) {
         return ElementPrinter.toString(method);
     }
 
-    /*package-scope*/ static String toString(ConstructorDeclaration constructor) {
+    /*package-private*/ static String toString(ConstructorDeclaration constructor) {
         return ElementPrinter.toString(constructor);
     }
 
-    /*package-scope*/ static String toString(VariableDeclarator field) {
+    /*package-private*/ static String toString(VariableDeclarator field) {
         return field.getNameAsString();
     }
 
-    /*package-scope*/ static String toString(FieldDeclaration field) {
+    /*package-private*/ static String toString(FieldDeclaration field) {
         assert field.getVariables().size() == 1;
         return toString(field.getVariables().get(0));
     }
 
-    /*package-scope*/ static String toString(VariableElement element) {
+    /*package-private*/ static String toString(VariableElement element) {
         assert element.getKind().isField();
         return element.getSimpleName().toString();
     }
 
-    /*package-scope*/ static String toString(Element element) {
+    /*package-private*/ static @Nullable String toString(Element element) {
         if (element instanceof ExecutableElement) {
             return toString((ExecutableElement) element);
         } else if (element instanceof VariableElement) {
@@ -257,14 +254,15 @@ public class AnnotationFileUtil {
      */
     @SuppressWarnings("signature") // string parsing
     public static Pair<@FullyQualifiedName String, String> partitionQualifiedName(String imported) {
-        @FullyQualifiedName String typeName = imported.substring(0, imported.lastIndexOf("."));
-        String name = imported.substring(imported.lastIndexOf(".") + 1);
+        int lastDot = imported.lastIndexOf('.');
+        @FullyQualifiedName String typeName = imported.substring(0, lastDot);
+        String name = imported.substring(lastDot + 1);
         Pair<String, String> typeParts = Pair.of(typeName, name);
         return typeParts;
     }
 
     private static final class ElementPrinter extends SimpleVoidVisitor<Void> {
-        public static String toString(Node n) {
+        static String toString(Node n) {
             ElementPrinter printer = new ElementPrinter();
             n.accept(printer, null);
             return printer.getOutput();
@@ -272,7 +270,7 @@ public class AnnotationFileUtil {
 
         private final StringBuilder sb = new StringBuilder();
 
-        public String getOutput() {
+        String getOutput() {
             return sb.toString();
         }
 
@@ -331,31 +329,30 @@ public class AnnotationFileUtil {
             switch (n.getType()) {
                 case BOOLEAN:
                     sb.append("boolean");
-                    break;
+                    return;
                 case BYTE:
                     sb.append("byte");
-                    break;
+                    return;
                 case CHAR:
                     sb.append("char");
-                    break;
+                    return;
                 case DOUBLE:
                     sb.append("double");
-                    break;
+                    return;
                 case FLOAT:
                     sb.append("float");
-                    break;
+                    return;
                 case INT:
                     sb.append("int");
-                    break;
+                    return;
                 case LONG:
                     sb.append("long");
-                    break;
+                    return;
                 case SHORT:
                     sb.append("short");
-                    break;
-                default:
-                    throw new BugInCF("AnnotationFileUtil: unknown type: " + n.getType());
+                    return;
             }
+            throw new BugInCF("AnnotationFileUtil: unknown type: " + n.getType());
         }
 
         @Override
@@ -378,34 +375,43 @@ public class AnnotationFileUtil {
     }
 
     /**
-     * Return annotation files found at a given file system location (does not look on classpath).
+     * Resolves a {@code -Astubs}-style location string to a file system {@link File}, trying it
+     * both as given and relative to the current working directory. Does not look on the classpath.
      *
      * @param location an annotation file (stub file or ajava file), a jarfile, or a directory. Look
      *     for it as an absolute file and relative to the current directory.
-     * @param fileType file type of files to collect
-     * @return annotation files with the given file type found in the file system (does not look on
-     *     classpath). Returns null if the file system location does not exist; the caller may wish
-     *     to issue a warning in that case.
+     * @return the resolved file, or null if neither location exists; the caller may wish to issue a
+     *     warning in that case
      */
-    public static @Nullable List<AnnotationFileResource> allAnnotationFiles(
-            String location, AnnotationFileType fileType) {
+    public static @Nullable File resolveAnnotationFileLocation(String location) {
         File file = new File(location);
         if (file.exists()) {
-            List<AnnotationFileResource> resources = new ArrayList<>();
-            addAnnotationFilesToList(file, resources, fileType);
-            return resources;
+            return file;
         }
 
         // The file doesn't exist.  Maybe it is relative to the current working directory, so try
         // that.
         file = new File(System.getProperty("user.dir"), location);
         if (file.exists()) {
-            List<AnnotationFileResource> resources = new ArrayList<>();
-            addAnnotationFilesToList(file, resources, fileType);
-            return resources;
+            return file;
         }
 
         return null;
+    }
+
+    /**
+     * Return annotation files found at a given file system location.
+     *
+     * @param location an annotation file (stub file or ajava file), a jarfile, or a directory, as
+     *     resolved by {@link #resolveAnnotationFileLocation}
+     * @param fileType file type of files to collect
+     * @return annotation files with the given file type found under {@code location}
+     */
+    public static List<AnnotationFileResource> allAnnotationFiles(
+            File location, AnnotationFileType fileType) {
+        List<AnnotationFileResource> resources = new ArrayList<>();
+        addAnnotationFilesToList(location, resources, fileType);
+        return resources;
     }
 
     /**
@@ -445,34 +451,35 @@ public class AnnotationFileUtil {
      * @param resources the list to add the found files to
      * @param fileType type of annotation files to add
      */
-    @SuppressWarnings("JdkObsolete") // JarFile.entries()
+    @SuppressWarnings({
+        "JdkObsolete", // JarFile.entries()
+        "nullness:argument", // inference failed in Arrays.sort
+        "builder:required.method.not.called" // ownership passed to list of
+        // JarEntryAnnotationFileResource, where `file` appears in every element of the list
+    })
     private static void addAnnotationFilesToList(
             File location, List<AnnotationFileResource> resources, AnnotationFileType fileType) {
         if (isAnnotationFile(location, fileType)) {
             resources.add(new FileAnnotationFileResource(location));
         } else if (isJar(location)) {
-            try (JarFile file = new JarFile(location)) {
-                Enumeration<JarEntry> entries = file.entries();
-                while (entries.hasMoreElements()) {
-                    JarEntry entry = entries.nextElement();
-                    if (isAnnotationFile(entry.getName(), fileType)) {
-                        resources.add(new JarEntryAnnotationFileResource(file, entry));
-                    }
-                }
+            JarFile file;
+            try {
+                file = new JarFile(location);
             } catch (IOException e) {
                 System.err.println("AnnotationFileUtil: could not process JAR file: " + location);
                 return;
             }
+            Enumeration<JarEntry> entries = file.entries();
+            while (entries.hasMoreElements()) {
+                JarEntry entry = entries.nextElement();
+                if (isAnnotationFile(entry.getName(), fileType)) {
+                    resources.add(new JarEntryAnnotationFileResource(file, entry));
+                }
+            }
+
         } else if (location.isDirectory()) {
             File[] directoryContents = location.listFiles();
-            Arrays.sort(
-                    directoryContents,
-                    new Comparator<File>() {
-                        @Override
-                        public int compare(File o1, File o2) {
-                            return o1.getName().compareTo(o2.getName());
-                        }
-                    });
+            Arrays.sort(directoryContents, Comparator.comparing(File::getName));
             for (File enclosed : directoryContents) {
                 addAnnotationFilesToList(enclosed, resources, fileType);
             }
@@ -493,8 +500,7 @@ public class AnnotationFileUtil {
             return false;
         }
         TypeElement enclosing = (TypeElement) elt.getEnclosingElement();
-        // Can't use RECORD enum constant as it's not available before JDK 16:
-        if (!enclosing.getKind().name().equals("RECORD")) {
+        if (!ElementUtils.isRecordElement(enclosing)) {
             return false;
         }
         List<? extends Element> recordComponents = ElementUtils.getRecordComponents(enclosing);

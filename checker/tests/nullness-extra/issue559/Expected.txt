@@ -3,6 +3,6 @@ Issue559.java:10: error: [argument.type.incompatible] incompatible types in argu
         o.orElse(null);
                  ^
   found   : null
-  required: @Initialized @NonNull String
+  required: @NonNull String
 1 error
 1 warning

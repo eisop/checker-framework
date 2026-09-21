@@ -52,7 +52,7 @@ public class FormatterLubGlbChecker extends FormatterChecker {
          *
          * @param checker checker
          */
-        public FormatterLubGlbAnnotatedTypeFactory(BaseTypeChecker checker) {
+        FormatterLubGlbAnnotatedTypeFactory(BaseTypeChecker checker) {
             super(checker);
             postInit();
         }
@@ -77,9 +77,9 @@ public class FormatterLubGlbChecker extends FormatterChecker {
      */
     private void glbAssert(
             AnnotationMirror arg1, AnnotationMirror arg2, AnnotationMirror expected) {
-        QualifierHierarchy qh =
+        QualifierHierarchy qualHierarchy =
                 ((BaseTypeVisitor<?>) visitor).getTypeFactory().getQualifierHierarchy();
-        AnnotationMirror result = qh.greatestLowerBound(arg1, arg2);
+        AnnotationMirror result = qualHierarchy.greatestLowerBoundQualifiersOnly(arg1, arg2);
         if (!AnnotationUtils.areSame(expected, result)) {
             throw new AssertionError(
                     String.format(
@@ -97,9 +97,9 @@ public class FormatterLubGlbChecker extends FormatterChecker {
      */
     private void lubAssert(
             AnnotationMirror arg1, AnnotationMirror arg2, AnnotationMirror expected) {
-        QualifierHierarchy qh =
+        QualifierHierarchy qualHierarchy =
                 ((BaseTypeVisitor<?>) visitor).getTypeFactory().getQualifierHierarchy();
-        AnnotationMirror result = qh.leastUpperBound(arg1, arg2);
+        AnnotationMirror result = qualHierarchy.leastUpperBoundQualifiersOnly(arg1, arg2);
         if (!AnnotationUtils.areSame(expected, result)) {
             throw new AssertionError(
                     String.format(

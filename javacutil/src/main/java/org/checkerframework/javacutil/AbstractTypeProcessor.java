@@ -1,6 +1,8 @@
 package org.checkerframework.javacutil;
 
 import com.sun.source.tree.ClassTree;
+import com.sun.source.tree.CompilationUnitTree;
+import com.sun.source.tree.PackageTree;
 import com.sun.source.util.JavacTask;
 import com.sun.source.util.TaskEvent;
 import com.sun.source.util.TaskListener;
@@ -12,6 +14,7 @@ import com.sun.tools.javac.processing.JavacProcessingEnvironment;
 import com.sun.tools.javac.util.Context;
 import com.sun.tools.javac.util.Log;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.dataflow.qual.SideEffectFree;
 
 import java.util.HashSet;
@@ -21,7 +24,10 @@ import javax.annotation.processing.AbstractProcessor;
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.annotation.processing.Processor;
 import javax.annotation.processing.RoundEnvironment;
+import javax.lang.model.element.Element;
+import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.Name;
+import javax.lang.model.element.PackageElement;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.util.ElementFilter;
 
@@ -58,6 +64,11 @@ import javax.lang.model.util.ElementFilter;
  * rest of classes are analyzed. The tool is also permitted to stop type processing immediately if
  * any errors are raised, without invoking {@link #typeProcessingOver}.
  *
+ * <p>The above describes the default, self-driven mode, in which this class registers its own
+ * {@link TaskListener}. A host that already owns the compilation {@code TaskListener} can instead
+ * call {@link #setExternallyDriven} and drive steps 4-5 itself; see {@link #typeProcessExternally}
+ * and {@link #typeProcessingOverExternally}.
+ *
  * <p>A subclass may override any of the methods in this class, as long as the general {@link
  * javax.annotation.processing.Processor Processor} contract is obeyed, with one notable exception.
  * {@link #process(Set, RoundEnvironment)} may not be overridden, as it is called during the
@@ -70,6 +81,14 @@ public abstract class AbstractTypeProcessor extends AbstractProcessor {
      * instantiations.
      */
     private final Set<Name> elements = new HashSet<>();
+
+    /**
+     * The fully-qualified names of the packages whose {@code package-info.java} is in this
+     * compilation, and whose declaration should therefore be processed. Kept separately from {@link
+     * #elements} because javac reports such a file's root element as a {@link PackageElement}, not
+     * a {@link TypeElement}, so {@link ElementFilter#typesIn} does not see it.
+     */
+    private final Set<Name> packageElements = new HashSet<>();
 
     /**
      * Method {@link #typeProcessingStart()} must be invoked exactly once, before any invocation of
@@ -86,18 +105,76 @@ public abstract class AbstractTypeProcessor extends AbstractProcessor {
     /** The TaskListener registered for completion of attribution. */
     private final AttributionTaskListener listener = new AttributionTaskListener();
 
+    /**
+     * Whether this processor is driven by an external host instead of by its own {@link
+     * AttributionTaskListener}.
+     *
+     * <p>When {@code false} (the default), {@link #init(ProcessingEnvironment)} registers the
+     * listener, which drives {@link #typeProcessingStart()}, {@link #typeProcess(TypeElement,
+     * TreePath)}, and {@link #typeProcessingOver()}. This is the standard standalone
+     * annotation-processor mode.
+     *
+     * <p>When {@code true}, no {@link TaskListener} is registered and a host drives that lifecycle,
+     * preferably through {@link #typeProcessExternally(TypeElement, TreePath)} and {@link
+     * #typeProcessingOverExternally()}, which handle the once-only bracketing. This is used when
+     * the Checker Framework runs as an Error Prone plugin, because Error Prone already owns the
+     * compilation {@link TaskListener}.
+     *
+     * @see #setExternallyDriven(boolean)
+     */
+    private boolean externallyDriven = false;
+
     /** Constructor for subclasses to call. */
     protected AbstractTypeProcessor() {}
 
     /**
+     * Sets whether this processor is driven by an external host rather than by its own {@link
+     * TaskListener}. Must be called before {@link #init(ProcessingEnvironment)}.
+     *
+     * <p>A host that embeds the Checker Framework (such as the Error Prone plugin bridge) calls
+     * this with {@code true} and then drives the type-processing lifecycle through {@link
+     * #typeProcessExternally(TypeElement, TreePath)} and {@link #typeProcessingOverExternally()}.
+     *
+     * @param externallyDriven true if a host will drive the type-processing lifecycle
+     * @see #externallyDriven
+     */
+    public void setExternallyDriven(boolean externallyDriven) {
+        if (processingEnv != null) {
+            throw new BugInCF(
+                    "setExternallyDriven must be called before init(ProcessingEnvironment);"
+                            + " init has already run, so the self-driven TaskListener may already"
+                            + " be registered.");
+        }
+        this.externallyDriven = externallyDriven;
+    }
+
+    /**
+     * Returns true if a host drives this processor's type-processing lifecycle.
+     *
+     * @return true if a host drives the type-processing lifecycle
+     * @see #setExternallyDriven(boolean)
+     */
+    protected final boolean isExternallyDriven() {
+        return externallyDriven;
+    }
+
+    /**
      * {@inheritDoc}
      *
-     * <p>Register a TaskListener that will get called after FLOW.
+     * <p>In the default (self-driven) mode, registers a {@link TaskListener} that will get called
+     * after FLOW. In externally-driven mode (see {@link #externallyDriven}), no {@link
+     * TaskListener} is registered; the host drives the type-processing lifecycle instead.
+     *
+     * <p>The {@code shouldStopPolicy} is bumped to at least {@code FLOW} in both modes. The bump is
+     * idempotent, so it is harmless if a host has already requested the same or a later stop
+     * policy.
      */
     @Override
     public synchronized void init(ProcessingEnvironment env) {
         super.init(env);
-        JavacTask.instance(env).addTaskListener(listener);
+        if (!externallyDriven) {
+            JavacTask.instance(env).addTaskListener(listener);
+        }
         Context ctx = ((JavacProcessingEnvironment) processingEnv).getContext();
         JavaCompiler compiler = JavaCompiler.instance(ctx);
         compiler.shouldStopPolicyIfNoError =
@@ -115,6 +192,9 @@ public abstract class AbstractTypeProcessor extends AbstractProcessor {
             Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
         for (TypeElement elem : ElementFilter.typesIn(roundEnv.getRootElements())) {
             elements.add(elem.getQualifiedName());
+        }
+        for (PackageElement elem : ElementFilter.packagesIn(roundEnv.getRootElements())) {
+            packageElements.add(elem.getQualifiedName());
         }
         return false;
     }
@@ -138,6 +218,94 @@ public abstract class AbstractTypeProcessor extends AbstractProcessor {
     public abstract void typeProcess(TypeElement element, TreePath tree);
 
     /**
+     * Processes a fully-analyzed package declaration, that is, the {@code package} clause of a
+     * {@code package-info.java} in this compilation.
+     *
+     * <p>The {@code @Target} of an annotation may include {@link ElementKind#PACKAGE}, so a
+     * declaration annotation and its contradictions can appear here exactly as they can on a class.
+     * A {@code package-info.java} declares no type, however, so {@link #typeProcess} is never
+     * invoked for one; this is the corresponding hook.
+     *
+     * <p>Does nothing by default. A subclass that has nothing to check on a package declaration
+     * need not override it.
+     *
+     * @param element the analyzed package
+     * @param tree the tree path to the package declaration, with the leaf being a {@link
+     *     PackageTree}
+     */
+    public void packageProcess(PackageElement element, TreePath tree) {}
+
+    /**
+     * Returns the path to {@code cu}'s package declaration if {@code cu} is a {@code
+     * package-info.java} -- a compilation unit that declares a package and no type -- and null
+     * otherwise.
+     *
+     * <p>The compilation unit is what identifies such a file, rather than the type the ANALYZE
+     * event carries. That type is not the same across versions: javac 21 reports {@code
+     * <package>.package-info}, whose enclosing element is the package being declared, while javac
+     * 11 and 17 report an anonymous type in the unnamed package, from which neither the package nor
+     * its annotations can be reached. {@code Trees.getPath} returns null for it on every version,
+     * so the path is built here in any case, with the {@link PackageTree} as its leaf to match
+     * {@link #typeProcess}, whose path's leaf is the analyzed class's own declaration.
+     *
+     * @param cu a compilation unit
+     * @return the path to {@code cu}'s package declaration, or null if {@code cu} declares a type
+     */
+    private @Nullable TreePath packageDeclarationPath(CompilationUnitTree cu) {
+        PackageTree pkgTree = cu.getPackage();
+        if (pkgTree == null || !cu.getTypeDecls().isEmpty()) {
+            return null;
+        }
+        return new TreePath(new TreePath(cu), pkgTree);
+    }
+
+    /**
+     * Invokes {@link #typeProcessingOver()} if every element this compilation registered has now
+     * been processed.
+     *
+     * <p>Both sets must be empty: a compilation that contains classes and a {@code
+     * package-info.java} may analyze the classes first, and ending type processing then would drop
+     * the package declaration that has not been dispatched yet.
+     */
+    private void maybeInvokeTypeProcessingOver() {
+        if (!hasInvokedTypeProcessingOver && elements.isEmpty() && packageElements.isEmpty()) {
+            invokeTypeProcessingOver();
+        }
+    }
+
+    /**
+     * Invokes {@link #typeProcessingOver()} and records that it has run, passing a throwable it
+     * threw to {@link #handleProcessingError}.
+     *
+     * <p>{@link #typeProcessingOver()} is overridable, and its overrides run before they call
+     * {@code super}, so wrapping the call is what puts an override's own work under the handler.
+     * Wrapping the body of an override's {@code super} call would not.
+     */
+    private void invokeTypeProcessingOver() {
+        try {
+            typeProcessingOver();
+        } catch (RuntimeException | Error t) {
+            handleProcessingError("typeProcessingOver", t);
+        }
+        hasInvokedTypeProcessingOver = true;
+    }
+
+    /**
+     * Handles a throwable thrown by {@link #typeProcessingOver()}. The default implementation
+     * rethrows it, so that it is reported as an uncaught annotation processor exception. A subclass
+     * that reports a throwable as a compiler diagnostic overrides this.
+     *
+     * @param methodName the name of the method that threw {@code t}
+     * @param t the throwable that {@code methodName} threw
+     */
+    protected void handleProcessingError(String methodName, Throwable t) {
+        if (t instanceof RuntimeException) {
+            throw (RuntimeException) t;
+        }
+        throw (Error) t;
+    }
+
+    /**
      * A method to be called once all the classes are processed.
      *
      * <p>Subclasses may override this method to do any aggregate analysis (e.g. generate report,
@@ -146,6 +314,67 @@ public abstract class AbstractTypeProcessor extends AbstractProcessor {
      * <p>Method {@link #getCompilerLog()} can be used to access the number of compiler errors.
      */
     public void typeProcessingOver() {}
+
+    /**
+     * Drives a single {@link #typeProcess(TypeElement, TreePath)} invocation on behalf of an
+     * external host (see {@link #externallyDriven}), handling the once-only {@link
+     * #typeProcessingStart()} bracketing.
+     *
+     * <p>Intended for hosts that own the compilation {@link TaskListener} (e.g. an Error Prone
+     * plugin) and therefore cannot rely on this processor's own {@link AttributionTaskListener}.
+     * The host must call {@link #typeProcessingOverExternally()} once, after the last class has
+     * been processed.
+     *
+     * <p>Unlike the self-driven path, this method does not consult the {@link #elements} set (which
+     * is only populated during the declaration annotation-processing round); the host is
+     * responsible for deciding which classes to process and when processing is over.
+     *
+     * @param element element of the analyzed class
+     * @param tree the tree path to the element, with the leaf being a {@link ClassTree}
+     */
+    public final void typeProcessExternally(TypeElement element, TreePath tree) {
+        if (!hasInvokedTypeProcessingStart) {
+            typeProcessingStart();
+            hasInvokedTypeProcessingStart = true;
+        }
+        typeProcess(element, tree);
+    }
+
+    /**
+     * Processes a package declaration on behalf of an external host (see {@link
+     * #externallyDriven}), handling the once-only {@link #typeProcessingStart()} invocation.
+     *
+     * <p>The counterpart of {@link #typeProcessExternally} for a {@code package-info.java}. A host
+     * needs it because the {@link TaskListener} that would otherwise dispatch the package
+     * declaration is not registered in externally-driven mode.
+     *
+     * @param element the package being processed
+     * @param tree the path to the package declaration, with the leaf being a {@link PackageTree}
+     */
+    public final void packageProcessExternally(PackageElement element, TreePath tree) {
+        if (!hasInvokedTypeProcessingStart) {
+            typeProcessingStart();
+            hasInvokedTypeProcessingStart = true;
+        }
+        packageProcess(element, tree);
+    }
+
+    /**
+     * Signals, on behalf of an external host (see {@link #externallyDriven}), that all classes have
+     * been processed. Invokes {@link #typeProcessingOver()} exactly once. Also invokes {@link
+     * #typeProcessingStart()} first if it has not yet run (e.g. if no classes were processed).
+     *
+     * @see #typeProcessExternally(TypeElement, TreePath)
+     */
+    public final void typeProcessingOverExternally() {
+        if (!hasInvokedTypeProcessingStart) {
+            typeProcessingStart();
+            hasInvokedTypeProcessingStart = true;
+        }
+        if (!hasInvokedTypeProcessingOver) {
+            invokeTypeProcessingOver();
+        }
+    }
 
     /**
      * Return the compiler log, which contains errors and warnings.
@@ -171,9 +400,8 @@ public abstract class AbstractTypeProcessor extends AbstractProcessor {
                 hasInvokedTypeProcessingStart = true;
             }
 
-            if (!hasInvokedTypeProcessingOver && elements.isEmpty()) {
-                typeProcessingOver();
-                hasInvokedTypeProcessingOver = true;
+            if (elements.isEmpty() && packageElements.isEmpty()) {
+                maybeInvokeTypeProcessingOver();
             }
 
             if (e.getTypeElement() == null) {
@@ -183,19 +411,34 @@ public abstract class AbstractTypeProcessor extends AbstractProcessor {
                 throw new BugInCF("event task without compilation unit");
             }
 
-            if (!elements.remove(e.getTypeElement().getQualifiedName())) {
+            TypeElement elem = e.getTypeElement();
+
+            // javac synthesizes a "<package>.package-info" type for a package-info.java that
+            // carries annotations, and fires ANALYZE for it.  That type was never a root element
+            // -- the root element was the PackageElement -- so it is absent from `elements` and
+            // the guard below would drop the event, leaving no way for any processor to reach a
+            // package declaration.  Dispatch it to packageProcess instead, keyed on the package
+            // this compilation actually contains.
+            TreePath pkgPath = packageDeclarationPath(e.getCompilationUnit());
+            if (pkgPath != null) {
+                Element pkgEle = Trees.instance(processingEnv).getElement(pkgPath);
+                if (pkgEle instanceof PackageElement
+                        && packageElements.remove(((PackageElement) pkgEle).getQualifiedName())) {
+                    packageProcess((PackageElement) pkgEle, pkgPath);
+                    maybeInvokeTypeProcessingOver();
+                    return;
+                }
+            }
+
+            if (!elements.remove(elem.getQualifiedName())) {
                 return;
             }
 
-            TypeElement elem = e.getTypeElement();
             TreePath p = Trees.instance(processingEnv).getPath(elem);
 
             typeProcess(elem, p);
 
-            if (!hasInvokedTypeProcessingOver && elements.isEmpty()) {
-                typeProcessingOver();
-                hasInvokedTypeProcessingOver = true;
-            }
+            maybeInvokeTypeProcessingOver();
         }
 
         @Override

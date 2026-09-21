@@ -39,6 +39,12 @@ import javax.lang.model.type.TypeMirror;
 public abstract class Node implements UniqueId {
 
     /**
+     * If true, print the owner of each field and {@code this}, to disambiguate shadowing. This
+     * field is intended for debugging.
+     */
+    public static final boolean disambiguateOwner = false;
+
+    /**
      * The basic block this node belongs to. If null, this object represents a method formal
      * parameter.
      *
@@ -71,13 +77,8 @@ public abstract class Node implements UniqueId {
     private static final AtomicLong nextUid = new AtomicLong(0);
 
     /** The unique ID of this object. */
-    private final long uid = nextUid.getAndIncrement();
+    private final transient long uid = nextUid.getAndIncrement();
 
-    /**
-     * Returns the unique ID of this object.
-     *
-     * @return the unique ID of this object
-     */
     @Override
     @Pure
     public long getUid(@UnknownInitialization Node this) {

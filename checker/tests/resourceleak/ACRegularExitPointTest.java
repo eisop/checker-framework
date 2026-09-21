@@ -1,6 +1,5 @@
 import org.checkerframework.checker.calledmethods.qual.*;
 import org.checkerframework.checker.mustcall.qual.*;
-import org.checkerframework.common.returnsreceiver.qual.*;
 
 import java.io.IOException;
 import java.util.function.Function;
@@ -11,7 +10,7 @@ class ACRegularExitPointTest {
     class Foo {
         void a() {}
 
-        @This Foo b() {
+        Foo b() {
             return this;
         }
 
@@ -38,15 +37,6 @@ class ACRegularExitPointTest {
     void makeFooFinalize() {
         Foo f = new Foo();
         f.a();
-    }
-
-    void makeFooFinalizeWrong() {
-        Foo m;
-        // :: error: required.method.not.called
-        m = new Foo();
-        // :: error: required.method.not.called
-        Foo f = new Foo();
-        f.b();
     }
 
     void testStoringInLocalWrong() {
@@ -110,13 +100,18 @@ class ACRegularExitPointTest {
 
         Foo f = makeFoo();
         f.a();
-        Function<Foo, @CalledMethods("a") Foo> innerfunc =
+        Function<@MustCall Foo, @CalledMethods("a") @MustCall Foo> innerfunc =
                 st -> {
                     // :: error: required.method.not.called
                     Foo fn1 = new Foo();
                     Foo fn2 = makeFoo();
                     fn2.a();
-                    return fn2;
+                    // The need for this cast is undesirable, but is a consequence of our approach
+                    // to generic types. In this case, this cast is clearly safe (a() has already
+                    // been called, so the obligation is satisfied on the returned value, as
+                    // intended).
+                    // :: warning: cast.unsafe
+                    return ((@MustCall Foo) fn2);
                 };
 
         innerfunc.apply(f);
@@ -130,32 +125,6 @@ class ACRegularExitPointTest {
             // :: error: required.method.not.called
             Foo f2 = new Foo();
         }
-    }
-
-    Foo ifElseWithReturnExit(boolean b, boolean c) {
-        // :: error: required.method.not.called
-        Foo f1 = makeFoo();
-        // :: error: required.method.not.called
-        Foo f3 = new Foo();
-        // :: error: required.method.not.called
-        Foo f4 = new Foo();
-
-        if (b) {
-            // :: error: required.method.not.called
-            Foo f2 = new Foo();
-            if (c) {
-                f4.a();
-            } else {
-                f4.b();
-            }
-            return f1;
-        } else {
-            // :: error: required.method.not.called
-            Foo f2 = new Foo();
-            f2 = new Foo();
-            f2.a();
-        }
-        return f3;
     }
 
     void ifElseWithDeclaration(boolean b) {
@@ -259,13 +228,6 @@ class ACRegularExitPointTest {
         } else {
 
         }
-    }
-
-    void ownershipTransfer() {
-        Foo f1 = new Foo();
-        Foo f2 = f1;
-        Foo f3 = f2.b();
-        f3.a();
     }
 
     void ownershipTransfer2() {

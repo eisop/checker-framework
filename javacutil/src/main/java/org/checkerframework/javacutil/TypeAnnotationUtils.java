@@ -9,6 +9,7 @@ import com.sun.tools.javac.code.TypeAnnotationPosition;
 import com.sun.tools.javac.processing.JavacProcessingEnvironment;
 import com.sun.tools.javac.util.Context;
 import com.sun.tools.javac.util.List;
+import com.sun.tools.javac.util.ListBuffer;
 import com.sun.tools.javac.util.Name;
 import com.sun.tools.javac.util.Pair;
 
@@ -147,7 +148,7 @@ public class TypeAnnotationUtils {
                 return false;
             }
             // This requires the array elements to be in the same order.  Is that the right thing?
-            for (int i = 0; i < list1.size(); i++) {
+            for (int i = 0; i < list1.size(); ++i) {
                 if (!attributeEquals(list1.get(i), list2.get(i), types)) {
                     return false;
                 }
@@ -245,14 +246,14 @@ public class TypeAnnotationUtils {
     public static Attribute.Compound createCompoundFromAnnotationMirror(
             AnnotationMirror am, ProcessingEnvironment env) {
         // Create a new Attribute to match the AnnotationMirror.
-        List<Pair<Symbol.MethodSymbol, Attribute>> values = List.nil();
+        ListBuffer<Pair<Symbol.MethodSymbol, Attribute>> values = new ListBuffer<>();
         for (Map.Entry<? extends ExecutableElement, ? extends AnnotationValue> entry :
                 am.getElementValues().entrySet()) {
             Attribute attribute =
                     attributeFromAnnotationValue(entry.getKey(), entry.getValue(), env);
-            values = values.append(new Pair<>((Symbol.MethodSymbol) entry.getKey(), attribute));
+            values.append(new Pair<>((Symbol.MethodSymbol) entry.getKey(), attribute));
         }
-        return new Attribute.Compound((Type.ClassType) am.getAnnotationType(), values);
+        return new Attribute.Compound((Type.ClassType) am.getAnnotationType(), values.toList());
     }
 
     /**
@@ -265,14 +266,15 @@ public class TypeAnnotationUtils {
     public static Attribute.TypeCompound createTypeCompoundFromAnnotationMirror(
             AnnotationMirror am, TypeAnnotationPosition tapos, ProcessingEnvironment env) {
         // Create a new Attribute to match the AnnotationMirror.
-        List<Pair<Symbol.MethodSymbol, Attribute>> values = List.nil();
+        ListBuffer<Pair<Symbol.MethodSymbol, Attribute>> values = new ListBuffer<>();
         for (Map.Entry<? extends ExecutableElement, ? extends AnnotationValue> entry :
                 am.getElementValues().entrySet()) {
             Attribute attribute =
                     attributeFromAnnotationValue(entry.getKey(), entry.getValue(), env);
-            values = values.append(new Pair<>((Symbol.MethodSymbol) entry.getKey(), attribute));
+            values.append(new Pair<>((Symbol.MethodSymbol) entry.getKey(), attribute));
         }
-        return new Attribute.TypeCompound((Type.ClassType) am.getAnnotationType(), values, tapos);
+        return new Attribute.TypeCompound(
+                (Type.ClassType) am.getAnnotationType(), values.toList(), tapos);
     }
 
     /**
@@ -295,7 +297,7 @@ public class TypeAnnotationUtils {
 
         private final ExecutableElement meth;
 
-        public AttributeCreator(ProcessingEnvironment env, ExecutableElement meth) {
+        AttributeCreator(ProcessingEnvironment env, ExecutableElement meth) {
             this.processingEnv = env;
             Context context = ((JavacProcessingEnvironment) env).getContext();
             this.elements = env.getElementUtils();
@@ -397,12 +399,13 @@ public class TypeAnnotationUtils {
         @Override
         public Attribute visitArray(java.util.List<? extends AnnotationValue> vals, Void p) {
             if (!vals.isEmpty()) {
-                List<Attribute> valAttrs = List.nil();
+                ListBuffer<Attribute> valAttrs = new ListBuffer<>();
                 for (AnnotationValue av : vals) {
-                    valAttrs = valAttrs.append(av.accept(this, p));
+                    valAttrs.append(av.accept(this, p));
                 }
-                ArrayType arrayType = modelTypes.getArrayType(valAttrs.get(0).type);
-                return new Attribute.Array((Type) arrayType, valAttrs);
+                List<Attribute> valAttrsList = valAttrs.toList();
+                ArrayType arrayType = modelTypes.getArrayType(valAttrsList.get(0).type);
+                return new Attribute.Array((Type) arrayType, valAttrsList);
             } else {
                 return new Attribute.Array((Type) meth.getReturnType(), List.nil());
             }
@@ -429,7 +432,7 @@ public class TypeAnnotationUtils {
      * @param pos the source tree position
      * @return a method return TypeAnnotationPosition
      */
-    public static TypeAnnotationPosition methodReturnTAPosition(final int pos) {
+    public static TypeAnnotationPosition methodReturnTAPosition(int pos) {
         return TypeAnnotationPosition.methodReturn(pos);
     }
 
@@ -439,7 +442,7 @@ public class TypeAnnotationUtils {
      * @param pos the source tree position
      * @return a method receiver TypeAnnotationPosition
      */
-    public static TypeAnnotationPosition methodReceiverTAPosition(final int pos) {
+    public static TypeAnnotationPosition methodReceiverTAPosition(int pos) {
         return TypeAnnotationPosition.methodReceiver(pos);
     }
 
@@ -450,7 +453,7 @@ public class TypeAnnotationUtils {
      * @param pos the source tree position
      * @return a method parameter TypeAnnotationPosition
      */
-    public static TypeAnnotationPosition methodParameterTAPosition(final int pidx, final int pos) {
+    public static TypeAnnotationPosition methodParameterTAPosition(int pidx, int pos) {
         return TypeAnnotationPosition.methodParameter(pidx, pos);
     }
 
@@ -461,7 +464,7 @@ public class TypeAnnotationUtils {
      * @param pos the source tree position
      * @return a method throws TypeAnnotationPosition
      */
-    public static TypeAnnotationPosition methodThrowsTAPosition(final int tidx, final int pos) {
+    public static TypeAnnotationPosition methodThrowsTAPosition(int tidx, int pos) {
         return TypeAnnotationPosition.methodThrows(
                 TypeAnnotationPosition.emptyPath, null, tidx, pos);
     }
@@ -472,7 +475,7 @@ public class TypeAnnotationUtils {
      * @param pos the source tree position
      * @return a field TypeAnnotationPosition
      */
-    public static TypeAnnotationPosition fieldTAPosition(final int pos) {
+    public static TypeAnnotationPosition fieldTAPosition(int pos) {
         return TypeAnnotationPosition.field(pos);
     }
 
@@ -483,7 +486,7 @@ public class TypeAnnotationUtils {
      * @param pos the source tree position
      * @return a class extends TypeAnnotationPosition
      */
-    public static TypeAnnotationPosition classExtendsTAPosition(final int implidx, final int pos) {
+    public static TypeAnnotationPosition classExtendsTAPosition(int implidx, int pos) {
         return TypeAnnotationPosition.classExtends(implidx, pos);
     }
 
@@ -494,7 +497,7 @@ public class TypeAnnotationUtils {
      * @param pos the source tree position
      * @return a type parameter TypeAnnotationPosition
      */
-    public static TypeAnnotationPosition typeParameterTAPosition(final int tpidx, final int pos) {
+    public static TypeAnnotationPosition typeParameterTAPosition(int tpidx, int pos) {
         return TypeAnnotationPosition.typeParameter(
                 TypeAnnotationPosition.emptyPath, null, tpidx, pos);
     }
@@ -506,8 +509,7 @@ public class TypeAnnotationUtils {
      * @param pos the source tree position
      * @return a method type parameter TypeAnnotationPosition
      */
-    public static TypeAnnotationPosition methodTypeParameterTAPosition(
-            final int tpidx, final int pos) {
+    public static TypeAnnotationPosition methodTypeParameterTAPosition(int tpidx, int pos) {
         return TypeAnnotationPosition.methodTypeParameter(
                 TypeAnnotationPosition.emptyPath, null, tpidx, pos);
     }
@@ -521,7 +523,7 @@ public class TypeAnnotationUtils {
      * @return a method parameter TypeAnnotationPosition
      */
     public static TypeAnnotationPosition typeParameterBoundTAPosition(
-            final int tpidx, final int bndidx, final int pos) {
+            int tpidx, int bndidx, int pos) {
         return TypeAnnotationPosition.typeParameterBound(
                 TypeAnnotationPosition.emptyPath, null, tpidx, bndidx, pos);
     }
@@ -535,7 +537,7 @@ public class TypeAnnotationUtils {
      * @return a method parameter TypeAnnotationPosition
      */
     public static TypeAnnotationPosition methodTypeParameterBoundTAPosition(
-            final int tpidx, final int bndidx, final int pos) {
+            int tpidx, int bndidx, int pos) {
         return TypeAnnotationPosition.methodTypeParameterBound(
                 TypeAnnotationPosition.emptyPath, null, tpidx, bndidx, pos);
     }
@@ -546,7 +548,7 @@ public class TypeAnnotationUtils {
      * @param tapos the input TypeAnnotationPosition
      * @return a copied TypeAnnotationPosition
      */
-    public static TypeAnnotationPosition copyTAPosition(final TypeAnnotationPosition tapos) {
+    public static TypeAnnotationPosition copyTAPosition(TypeAnnotationPosition tapos) {
         TypeAnnotationPosition res;
         switch (tapos.type) {
             case CAST:
@@ -672,8 +674,8 @@ public class TypeAnnotationUtils {
      * @param in the input type
      * @return the same underlying type, but without type annotations
      */
-    public static Type unannotatedType(final TypeMirror in) {
-        final Type impl = (Type) in;
+    public static Type unannotatedType(TypeMirror in) {
+        Type impl = (Type) in;
         if (impl.isPrimitive()) {
             // TODO: file an issue that stripMetadata doesn't work for primitives.
             // See eisop/checker-framework issue #21.

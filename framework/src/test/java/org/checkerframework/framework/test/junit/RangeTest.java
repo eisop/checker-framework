@@ -107,11 +107,11 @@ public class RangeTest {
                 }
             }
         }
-        ranges = rangesList.toArray(new Range[rangesList.size()]);
+        ranges = rangesList.toArray(new Range[0]);
     }
 
     /** The element is a member of the range. */
-    class RangeAndElement {
+    static class RangeAndElement {
         Range range;
         long element;
 
@@ -124,7 +124,7 @@ public class RangeTest {
         }
     }
 
-    class RangeAndTwoElements {
+    static class RangeAndTwoElements {
         Range range;
         long a;
         long b;
@@ -138,6 +138,7 @@ public class RangeTest {
         return new RangeAndElementIterator();
     }
 
+    @SuppressWarnings("IterableAndIterator") // TODO
     class RangeAndElementIterator implements Iterator<RangeAndElement>, Iterable<RangeAndElement> {
         // This is the index of the range that is currently being examined.
         // It is in [0..ranges.length].
@@ -191,6 +192,7 @@ public class RangeTest {
         }
     }
 
+    @SuppressWarnings("IterableAndIterator") // TODO
     class ValuesInRangeIterator implements Iterator<Long>, Iterable<Long> {
 
         Range range;
@@ -199,6 +201,7 @@ public class RangeTest {
         long nextValue;
         boolean nextValueValid = false;
 
+        @SuppressWarnings("StaticAssignmentInConstructor")
         public ValuesInRangeIterator(Range range) {
             this.range = range;
             Range.ignoreOverflow = false;
@@ -251,8 +254,8 @@ public class RangeTest {
                                 == (Math.abs(range.to) - 1) / Integer.MIN_VALUE) {
                     // filter out test data that would cause Range.intRange to return INT_EVERYTHING
                     int intValue = (int) value;
-                    assert range.contains(value) && result.contains(intValue)
-                                    || !range.contains(value) && !result.contains(intValue)
+                    assert (range.contains(value) && result.contains(intValue))
+                                    || (!range.contains(value) && !result.contains(intValue))
                             : String.format(
                                     "Range.intRange failure: %s => %s; witness = %s",
                                     range, result, intValue);
@@ -273,8 +276,8 @@ public class RangeTest {
                     // filter out test data that would cause Range.shortRange to return
                     // SHORT_EVERYTHING
                     short shortValue = (short) value;
-                    assert range.contains(value) && result.contains(shortValue)
-                                    || !range.contains(value) && !result.contains(shortValue)
+                    assert (range.contains(value) && result.contains(shortValue))
+                                    || (!range.contains(value) && !result.contains(shortValue))
                             : String.format(
                                     "Range.shortRange failure: %s => %s; witness = %s",
                                     range, result, shortValue);
@@ -297,8 +300,8 @@ public class RangeTest {
                     // CHAR_EVERYTHING
                     // char range interval is a right shift of the short range interval
                     char charValue = (char) value;
-                    assert range.contains(value) && result.contains(charValue)
-                                    || !range.contains(value) && !result.contains(charValue)
+                    assert (range.contains(value) && result.contains(charValue))
+                                    || (!range.contains(value) && !result.contains(charValue))
                             : String.format(
                                     "Range.byteRange failure: %s => %s; witness = %s",
                                     range, result, charValue);
@@ -319,8 +322,8 @@ public class RangeTest {
                     // filter out test data that would cause Range.ByteRange to return
                     // BYTE_EVERYTHING
                     byte byteValue = (byte) value;
-                    assert range.contains(value) && result.contains(byteValue)
-                                    || !range.contains(value) && !result.contains(byteValue)
+                    assert (range.contains(value) && result.contains(byteValue))
+                                    || (!range.contains(value) && !result.contains(byteValue))
                             : String.format(
                                     "Range.byteRange failure: %s => %s; witness = %s",
                                     range, result, byteValue);
@@ -369,7 +372,7 @@ public class RangeTest {
                 Range result = range1.intersect(range2);
                 for (long value : values) {
                     assert ((range1.contains(value) && range2.contains(value))
-                                    == (result.contains(value)))
+                                    == result.contains(value))
                             : String.format(
                                     "Range.intersect failure: %s %s => %s; witness = %s",
                                     range1, range2, result, value);
@@ -663,9 +666,9 @@ public class RangeTest {
             for (Range range2 : ranges) {
                 for (long value : values) {
                     Range result = range1.refineEqualTo(range2);
-                    assert (value < range2.from || value > range2.to
+                    assert (value < range2.from || value > range2.to)
                                     ? !result.contains(value)
-                                    : range1.contains(value) == result.contains(value))
+                                    : (range1.contains(value) == result.contains(value))
                             : String.format(
                                     "Range.refineEqualTo failure: %s %s %s; witness = %s",
                                     range1, range2, result, value);
@@ -674,6 +677,83 @@ public class RangeTest {
         }
     }
 
+    /** Refining '[c, c] != [c, c]' for a "normal" constant c should return NOTHING. */
+    @Test
+    public void testRefineNotEqualToSelfConstant() {
+        for (long c : new long[] {-1000, -1, 0, 1, 5, 1000}) {
+            Range r = Range.create(c, c);
+            Assert.assertEquals(
+                    "refining [" + c + "," + c + "] != itself should be NOTHING",
+                    Range.NOTHING,
+                    r.refineNotEqualTo(r));
+        }
+    }
+
+    /**
+     * Refining by a constant that matches a boundary of this range should remove only that boundary
+     * value.
+     */
+    @Test
+    public void testRefineNotEqualToBoundary() {
+        // Upper boundary excluded.
+        Assert.assertEquals(
+                Range.create(3, 4), Range.create(3, 5).refineNotEqualTo(Range.create(5, 5)));
+        // Lower boundary excluded.
+        Assert.assertEquals(
+                Range.create(4, 5), Range.create(3, 5).refineNotEqualTo(Range.create(3, 3)));
+    }
+
+    /**
+     * Refining by a non-boundary constant or by a non-constant range is intentionally conservative
+     * and returns this range unchanged.
+     */
+    @Test
+    public void testRefineNotEqualToConservative() {
+        Range r = Range.create(1, 10);
+        // Non-boundary constant: no refinement.
+        Assert.assertEquals(r, r.refineNotEqualTo(Range.create(5, 5)));
+        // Non-constant right operand: no refinement.
+        Assert.assertEquals(r, r.refineNotEqualTo(Range.create(3, 5)));
+        // Disjoint right operand: no refinement.
+        Assert.assertEquals(r, r.refineNotEqualTo(Range.create(100, 100)));
+    }
+
+    /** Refining '[Long.MIN_VALUE, Long.MIN_VALUE] != itself' must be NOTHING. */
+    @Test
+    public void testRefineNotEqualToSelfMinLong() {
+        Range r = Range.create(Long.MIN_VALUE, Long.MIN_VALUE);
+        Assert.assertEquals(Range.NOTHING, r.refineNotEqualTo(r));
+    }
+
+    /** Refining '[Long.MAX_VALUE, Long.MAX_VALUE] != itself' must be NOTHING. */
+    @Test
+    public void testRefineNotEqualToSelfMaxLong() {
+        Range r = Range.create(Long.MAX_VALUE, Long.MAX_VALUE);
+        Assert.assertEquals(Range.NOTHING, r.refineNotEqualTo(r));
+    }
+
+    /**
+     * Refining at the Long.MIN_VALUE boundary when 'this' is not constant must still trim normally
+     * and not get caught by the same-constant early return.
+     */
+    @Test
+    public void testRefineNotEqualToMinLongBoundary() {
+        Range r = Range.create(Long.MIN_VALUE, Long.MIN_VALUE + 5);
+        Range expected = Range.create(Long.MIN_VALUE + 1, Long.MIN_VALUE + 5);
+        Assert.assertEquals(
+                expected, r.refineNotEqualTo(Range.create(Long.MIN_VALUE, Long.MIN_VALUE)));
+    }
+
+    /** Symmetric boundary trimming at Long.MAX_VALUE. */
+    @Test
+    public void testRefineNotEqualToMaxLongBoundary() {
+        Range r = Range.create(Long.MAX_VALUE - 5, Long.MAX_VALUE);
+        Range expected = Range.create(Long.MAX_VALUE - 5, Long.MAX_VALUE - 1);
+        Assert.assertEquals(
+                expected, r.refineNotEqualTo(Range.create(Long.MAX_VALUE, Long.MAX_VALUE)));
+    }
+
+    /** Test long factory. */
     @Test
     public void testFactoryLongLong() {
         Assert.assertEquals((long) 1, Range.create(1, 2).from);

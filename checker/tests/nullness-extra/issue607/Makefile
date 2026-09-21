@@ -1,6 +1,6 @@
-.PHONY: all
+.PHONY: all clean
 
-all: clean
+all:
 	$(JAVAC) Issue607SuperClass.java Issue607Interface.java
 	$(JAVAC) -processor org.checkerframework.checker.nullness.NullnessChecker Issue607.java
 

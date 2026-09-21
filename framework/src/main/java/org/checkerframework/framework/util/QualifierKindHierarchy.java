@@ -29,8 +29,8 @@ import javax.lang.model.element.AnnotationMirror;
  * <p>This interface is used by {@link NoElementQualifierHierarchy} and {@link
  * ElementQualifierHierarchy} (but <em>not</em> {@link MostlyNoElementQualifierHierarchy}) to
  * implement methods that compare {@link javax.lang.model.element.AnnotationMirror}s, such as {@link
- * org.checkerframework.framework.type.QualifierHierarchy#isSubtype(AnnotationMirror,
- * AnnotationMirror)}.
+ * org.checkerframework.framework.type.QualifierHierarchy#isSubtypeShallow(AnnotationMirror,
+ * javax.lang.model.type.TypeMirror, AnnotationMirror, javax.lang.model.type.TypeMirror)}.
  *
  * @see DefaultQualifierKindHierarchy
  * @see org.checkerframework.framework.util.DefaultQualifierKindHierarchy.DefaultQualifierKind

@@ -25,6 +25,9 @@ public class ReachingDefinitionTransfer
                 TransferInput<UnusedAbstractValue, ReachingDefinitionStore>>
         implements ForwardTransferFunction<UnusedAbstractValue, ReachingDefinitionStore> {
 
+    /** Create a new ReachingDefinitionTransfer. */
+    public ReachingDefinitionTransfer() {}
+
     @Override
     public ReachingDefinitionStore initialStore(
             UnderlyingAST underlyingAST, @Nullable List<LocalVariableNode> parameters) {

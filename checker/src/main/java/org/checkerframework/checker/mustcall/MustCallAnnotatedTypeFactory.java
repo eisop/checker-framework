@@ -22,26 +22,33 @@ import org.checkerframework.dataflow.cfg.block.Block;
 import org.checkerframework.dataflow.cfg.node.LocalVariableNode;
 import org.checkerframework.dataflow.cfg.node.Node;
 import org.checkerframework.framework.flow.CFStore;
+import org.checkerframework.framework.type.AnnotatedTypeFactory;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedArrayType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedExecutableType;
+import org.checkerframework.framework.type.GenericAnnotatedTypeFactory;
 import org.checkerframework.framework.type.QualifierHierarchy;
 import org.checkerframework.framework.type.QualifierUpperBounds;
 import org.checkerframework.framework.type.SubtypeIsSubsetQualifierHierarchy;
+import org.checkerframework.framework.type.poly.DefaultQualifierPolymorphism;
+import org.checkerframework.framework.type.poly.QualifierPolymorphism;
 import org.checkerframework.framework.type.treeannotator.ListTreeAnnotator;
 import org.checkerframework.framework.type.treeannotator.TreeAnnotator;
 import org.checkerframework.framework.type.typeannotator.DefaultQualifierForUseTypeAnnotator;
 import org.checkerframework.framework.type.typeannotator.ListTypeAnnotator;
 import org.checkerframework.framework.type.typeannotator.TypeAnnotator;
 import org.checkerframework.javacutil.AnnotationBuilder;
+import org.checkerframework.javacutil.AnnotationMirrorMap;
 import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TypeSystemError;
+import org.checkerframework.javacutil.TypesUtils;
 
 import java.lang.annotation.Annotation;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.IdentityHashMap;
@@ -50,10 +57,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
+import javax.lang.model.element.TypeElement;
+import javax.lang.model.type.TypeMirror;
 
 /**
  * The annotated type factory for the Must Call Checker. Primarily responsible for the subtyping
@@ -116,12 +126,20 @@ public class MustCallAnnotatedTypeFactory extends BaseAnnotatedTypeFactory
     /** True if -AnoLightweightOwnership was passed on the command line. */
     private final boolean noLightweightOwnership;
 
+    /* NO-AFU
+     * True if -AenableWpiForRlc (see {@link ResourceLeakChecker#ENABLE_WPI_FOR_RLC}) was passed on
+     * the command line.
+     *
+    private final boolean enableWpiForRlc;
+    */
+
     /**
      * Creates a MustCallAnnotatedTypeFactory.
      *
      * @param checker the checker associated with this type factory
      */
-    public MustCallAnnotatedTypeFactory(final BaseTypeChecker checker) {
+    @SuppressWarnings("this-escape")
+    public MustCallAnnotatedTypeFactory(BaseTypeChecker checker) {
         super(checker);
         TOP = AnnotationBuilder.fromClass(elements, MustCallUnknown.class);
         BOTTOM = createMustCall(Collections.emptyList());
@@ -132,12 +150,13 @@ public class MustCallAnnotatedTypeFactory extends BaseAnnotatedTypeFactory
             addAliasedTypeAnnotation(MustCallAlias.class, POLY);
         }
         noLightweightOwnership = checker.hasOption(MustCallChecker.NO_LIGHTWEIGHT_OWNERSHIP);
+        // enableWpiForRlc = checker.hasOption(ResourceLeakChecker.ENABLE_WPI_FOR_RLC);
         this.postInit();
     }
 
     @Override
-    public void setRoot(@Nullable CompilationUnitTree root) {
-        super.setRoot(root);
+    public void setRoot(@Nullable CompilationUnitTree newRoot) {
+        super.setRoot(newRoot);
         // TODO: This should probably be guarded by isSafeToClearSharedCFG from
         // GenericAnnotatedTypeFactory, but this works here because we know the Must Call Checker is
         // always the first subchecker that's sharing tempvars.
@@ -191,7 +210,8 @@ public class MustCallAnnotatedTypeFactory extends BaseAnnotatedTypeFactory
 
     /** Treat non-owning method parameters as @MustCallUnknown (top) when the method is called. */
     @Override
-    public void methodFromUsePreSubstitution(ExpressionTree tree, AnnotatedExecutableType type) {
+    public void methodFromUsePreSubstitution(
+            ExpressionTree tree, AnnotatedExecutableType type, boolean resolvePolyQuals) {
         ExecutableElement declaration;
         if (tree instanceof MethodInvocationTree) {
             declaration = TreeUtils.elementFromUse((MethodInvocationTree) tree);
@@ -201,15 +221,82 @@ public class MustCallAnnotatedTypeFactory extends BaseAnnotatedTypeFactory
             throw new TypeSystemError("unexpected type of method tree: " + tree.getKind());
         }
         changeNonOwningParameterTypesToTop(declaration, type);
-        super.methodFromUsePreSubstitution(tree, type);
+        super.methodFromUsePreSubstitution(tree, type, resolvePolyQuals);
     }
 
     @Override
     protected void constructorFromUsePreSubstitution(
-            NewClassTree tree, AnnotatedExecutableType type) {
+            NewClassTree tree, AnnotatedExecutableType type, boolean resolvePolyQuals) {
         ExecutableElement declaration = TreeUtils.elementFromUse(tree);
         changeNonOwningParameterTypesToTop(declaration, type);
-        super.constructorFromUsePreSubstitution(tree, type);
+        super.constructorFromUsePreSubstitution(tree, type, resolvePolyQuals);
+    }
+
+    /**
+     * Class to implement the customized semantics of {@link MustCallAlias} (and {@link
+     * PolyMustCall}) annotations; see the {@link MustCallAlias} documentation for details.
+     */
+    private class MustCallQualifierPolymorphism extends DefaultQualifierPolymorphism {
+        /**
+         * Creates a {@link MustCallQualifierPolymorphism}.
+         *
+         * @param env the processing environment
+         * @param factory the factory for the current checker
+         */
+        MustCallQualifierPolymorphism(ProcessingEnvironment env, AnnotatedTypeFactory factory) {
+            super(env, factory);
+        }
+
+        @Override
+        protected void replace(
+                AnnotatedTypeMirror type, AnnotationMirrorMap<AnnotationMirror> replacements) {
+            AnnotationMirrorMap<AnnotationMirror> realReplacements = replacements;
+            AnnotationMirror extantPolyAnnoReplacement = null;
+            TypeElement typeElement = TypesUtils.getTypeElement(type.getUnderlyingType());
+            // only customize replacement for type elements
+            if (typeElement != null) {
+                assert replacements.size() == 1 && replacements.containsKey(POLY);
+                extantPolyAnnoReplacement = replacements.get(POLY);
+                if (AnnotationUtils.areSameByName(
+                        extantPolyAnnoReplacement, MustCall.class.getCanonicalName())) {
+                    List<String> extentReplacementVals =
+                            AnnotationUtils.getElementValueArray(
+                                    extantPolyAnnoReplacement,
+                                    getMustCallValueElement(),
+                                    String.class,
+                                    Collections.emptyList());
+                    // Replacement is only customized when the parameter type has a non-empty
+                    // must-call obligation.
+                    if (!extentReplacementVals.isEmpty()) {
+                        AnnotationMirror inheritableMustCall =
+                                getDeclAnnotation(typeElement, InheritableMustCall.class);
+                        if (inheritableMustCall != null) {
+                            List<String> inheritableMustCallVals =
+                                    AnnotationUtils.getElementValueArray(
+                                            inheritableMustCall,
+                                            inheritableMustCallValueElement,
+                                            String.class,
+                                            Collections.emptyList());
+                            if (!inheritableMustCallVals.equals(extentReplacementVals)) {
+                                // Use the must call values from the @InheritableMustCall annotation
+                                // instead. This allows for wrapper types to have a must-call method
+                                // with a different name than the must-call method for the wrapped
+                                // type.
+                                AnnotationMirror mustCall = createMustCall(inheritableMustCallVals);
+                                realReplacements = new AnnotationMirrorMap<>();
+                                realReplacements.put(POLY, mustCall);
+                            }
+                        }
+                    }
+                }
+            }
+            super.replace(type, realReplacements);
+        }
+    }
+
+    @Override
+    protected QualifierPolymorphism createQualifierPolymorphism() {
+        return new MustCallQualifierPolymorphism(processingEnv, this);
     }
 
     /**
@@ -223,6 +310,15 @@ public class MustCallAnnotatedTypeFactory extends BaseAnnotatedTypeFactory
      */
     private void changeNonOwningParameterTypesToTop(
             ExecutableElement declaration, AnnotatedExecutableType type) {
+        // Formal parameters without a declared owning annotation are disregarded by the RLC
+        // _analysis_, as their @MustCall obligation is set to Top in this method. However,
+        // this computation is not desirable for RLC _inference_ in unannotated programs,
+        // where a goal is to infer and add @Owning annotations to formal parameters.
+        /* NO-AFU
+        if (getWholeProgramInference() != null && !isWpiEnabledForRLC()) {
+          return;
+        }
+        */
         List<AnnotatedTypeMirror> parameterTypes = type.getParameterTypes();
         for (int i = 0; i < parameterTypes.size(); i++) {
             Element paramDecl = declaration.getParameters().get(i);
@@ -259,11 +355,21 @@ public class MustCallAnnotatedTypeFactory extends BaseAnnotatedTypeFactory
         return mustCallValueElement;
     }
 
+    /**
+     * Returns the {@link InheritableMustCall#value} element.
+     *
+     * @return the {@link InheritableMustCall#value} element
+     */
+    public ExecutableElement getInheritableMustCallValueElement() {
+        return inheritableMustCallValueElement;
+    }
+
     /** Support @InheritableMustCall meaning @MustCall on all subtype elements. */
-    class MustCallDefaultQualifierForUseTypeAnnotator extends DefaultQualifierForUseTypeAnnotator {
+    private class MustCallDefaultQualifierForUseTypeAnnotator
+            extends DefaultQualifierForUseTypeAnnotator {
 
         /** Creates a {@code MustCallDefaultQualifierForUseTypeAnnotator}. */
-        public MustCallDefaultQualifierForUseTypeAnnotator() {
+        MustCallDefaultQualifierForUseTypeAnnotator() {
             super(MustCallAnnotatedTypeFactory.this);
         }
 
@@ -292,13 +398,13 @@ public class MustCallAnnotatedTypeFactory extends BaseAnnotatedTypeFactory
     }
 
     /** Support @InheritableMustCall meaning @MustCall on all subtypes. */
-    class MustCallQualifierUpperBounds extends QualifierUpperBounds {
+    private class MustCallQualifierUpperBounds extends QualifierUpperBounds {
 
         /**
          * Creates a {@link QualifierUpperBounds} from the MustCall Checker the annotations that are
          * in the type hierarchy.
          */
-        public MustCallQualifierUpperBounds() {
+        MustCallQualifierUpperBounds() {
             super(MustCallAnnotatedTypeFactory.this);
         }
 
@@ -332,7 +438,7 @@ public class MustCallAnnotatedTypeFactory extends BaseAnnotatedTypeFactory
      * @param val the methods that should be called
      * @return an annotation indicating that the given methods should be called
      */
-    public AnnotationMirror createMustCall(final List<String> val) {
+    public AnnotationMirror createMustCall(List<String> val) {
         return mustCallAnnotations.computeIfAbsent(val, this::createMustCallImpl);
     }
 
@@ -346,7 +452,7 @@ public class MustCallAnnotatedTypeFactory extends BaseAnnotatedTypeFactory
      */
     private AnnotationMirror createMustCallImpl(List<String> methodList) {
         AnnotationBuilder builder = new AnnotationBuilder(processingEnv, MustCall.class);
-        String[] methodArray = methodList.toArray(new String[methodList.size()]);
+        String[] methodArray = methodList.toArray(new String[0]);
         Arrays.sort(methodArray);
         builder.setValue("value", methodArray);
         return builder.build();
@@ -354,8 +460,8 @@ public class MustCallAnnotatedTypeFactory extends BaseAnnotatedTypeFactory
 
     @Override
     protected QualifierHierarchy createQualifierHierarchy() {
-        return new SubtypeIsSubsetQualifierHierarchy(
-                this.getSupportedTypeQualifiers(), this.getProcessingEnv());
+        return new MustCallQualifierHierarchy(
+                this.getSupportedTypeQualifiers(), this.getProcessingEnv(), this);
     }
 
     /**
@@ -413,19 +519,27 @@ public class MustCallAnnotatedTypeFactory extends BaseAnnotatedTypeFactory
          *
          * @param mustCallAnnotatedTypeFactory the type factory
          */
-        public MustCallTreeAnnotator(MustCallAnnotatedTypeFactory mustCallAnnotatedTypeFactory) {
+        MustCallTreeAnnotator(MustCallAnnotatedTypeFactory mustCallAnnotatedTypeFactory) {
             super(mustCallAnnotatedTypeFactory);
         }
 
         @Override
         public Void visitIdentifier(IdentifierTree tree, AnnotatedTypeMirror type) {
             Element elt = TreeUtils.elementFromUse(tree);
-            if (elt.getKind() == ElementKind.PARAMETER
+            // The following changes are not desired for RLC _inference_ in unannotated programs,
+            // where a goal is to infer and add @Owning annotations to formal parameters.
+            // Therefore, if WPI is enabled, they should not be executed.
+            if ( // NO-AFU getWholeProgramInference() == null &&
+            elt.getKind() == ElementKind.PARAMETER
                     && (noLightweightOwnership || getDeclAnnotation(elt, Owning.class) == null)) {
-                type.replaceAnnotation(BOTTOM);
-            }
-            if (ElementUtils.isResourceVariable(elt)) {
-                type.replaceAnnotation(withoutClose(type.getAnnotationInHierarchy(TOP)));
+                if (!type.hasAnnotation(POLY)) {
+                    // Parameters that are not annotated with @Owning should be treated as bottom
+                    // (to suppress warnings about them). An exception is polymorphic parameters,
+                    // which might be @MustCallAlias (and so wouldn't be annotated with @Owning):
+                    // these are not modified, to support verification of @MustCallAlias
+                    // annotations.
+                    type.replaceAnnotation(BOTTOM);
+                }
             }
             return super.visitIdentifier(tree, type);
         }
@@ -439,5 +553,76 @@ public class MustCallAnnotatedTypeFactory extends BaseAnnotatedTypeFactory
      */
     public @Nullable LocalVariableNode getTempVar(Node node) {
         return tempVars.get(node.getTree());
+    }
+
+    /* NO-AFU
+     * Checks if WPI is enabled for the Resource Leak Checker inference. See {@link
+     * ResourceLeakChecker#ENABLE_WPI_FOR_RLC}.
+     *
+     * @return returns true if WPI is enabled for the Resource Leak Checker
+     *
+    protected boolean isWpiEnabledForRLC() {
+        return enableWpiForRlc;
+    }
+    */
+
+    /**
+     * Returns true if the given type should never have a must-call obligation.
+     *
+     * @param type the type to check
+     * @return true if the given type should never have a must-call obligation
+     */
+    public boolean shouldHaveNoMustCallObligation(TypeMirror type) {
+        return type.getKind().isPrimitive()
+                || TypesUtils.isClass(type)
+                || TypesUtils.isString(type);
+    }
+
+    /** Qualifier hierarchy for the Must Call Checker. */
+    private class MustCallQualifierHierarchy extends SubtypeIsSubsetQualifierHierarchy {
+
+        /**
+         * Creates a SubtypeIsSubsetQualifierHierarchy from the given classes.
+         *
+         * @param qualifierClasses classes of annotations that are the qualifiers for this hierarchy
+         * @param processingEnv processing environment
+         * @param atypeFactory the associated type factory
+         */
+        MustCallQualifierHierarchy(
+                Collection<Class<? extends Annotation>> qualifierClasses,
+                ProcessingEnvironment processingEnv,
+                GenericAnnotatedTypeFactory<?, ?, ?, ?> atypeFactory) {
+            super(qualifierClasses, processingEnv, atypeFactory);
+        }
+
+        @Override
+        public boolean isSubtypeShallow(
+                AnnotationMirror subQualifier,
+                TypeMirror subType,
+                AnnotationMirror superQualifier,
+                TypeMirror superType) {
+            if (shouldHaveNoMustCallObligation(subType)
+                    || shouldHaveNoMustCallObligation(superType)) {
+                return true;
+            }
+            return super.isSubtypeShallow(subQualifier, subType, superQualifier, superType);
+        }
+
+        @Override
+        public @Nullable AnnotationMirror leastUpperBoundShallow(
+                AnnotationMirror qualifier1,
+                TypeMirror tm1,
+                AnnotationMirror qualifier2,
+                TypeMirror tm2) {
+            boolean tm1NoMustCall = shouldHaveNoMustCallObligation(tm1);
+            boolean tm2NoMustCall = shouldHaveNoMustCallObligation(tm2);
+            if (tm1NoMustCall == tm2NoMustCall) {
+                return super.leastUpperBoundShallow(qualifier1, tm1, qualifier2, tm2);
+            } else if (tm1NoMustCall) {
+                return qualifier1;
+            } else { // if (tm2NoMustCall) {
+                return qualifier2;
+            }
+        }
     }
 }

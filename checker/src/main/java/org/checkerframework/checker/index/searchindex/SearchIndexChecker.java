@@ -3,9 +3,10 @@ package org.checkerframework.checker.index.searchindex;
 import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.common.value.ValueChecker;
 import org.checkerframework.framework.qual.RelevantJavaTypes;
+import org.checkerframework.framework.source.SourceChecker;
 import org.checkerframework.framework.source.SuppressWarningsPrefix;
 
-import java.util.LinkedHashSet;
+import java.util.Set;
 
 /**
  * An internal checker that assists the Index Checker in typing the results of calls to the JDK's
@@ -29,9 +30,8 @@ import java.util.LinkedHashSet;
 public class SearchIndexChecker extends BaseTypeChecker {
 
     @Override
-    protected LinkedHashSet<Class<? extends BaseTypeChecker>> getImmediateSubcheckerClasses() {
-        LinkedHashSet<Class<? extends BaseTypeChecker>> checkers =
-                super.getImmediateSubcheckerClasses();
+    protected Set<Class<? extends SourceChecker>> getImmediateSubcheckerClasses() {
+        Set<Class<? extends SourceChecker>> checkers = super.getImmediateSubcheckerClasses();
         checkers.add(ValueChecker.class);
         return checkers;
     }

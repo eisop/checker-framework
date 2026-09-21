@@ -3,8 +3,7 @@ import viewpointtest.quals.*;
 public class VPAExamples {
 
     static class RDContainer {
-        @ReceiverDependentQual
-        Object get() {
+        @ReceiverDependentQual Object get() {
             return null;
         }
 
@@ -30,7 +29,9 @@ public class VPAExamples {
         // :: error: (argument.type.incompatible)
         b.set(aObj);
         b.set(bObj);
+        // :: error: (argument.type.incompatible)
         top.set(aObj);
+        // :: error: (argument.type.incompatible)
         top.set(bObj);
     }
 }

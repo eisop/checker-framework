@@ -129,7 +129,8 @@ public interface Deque<E> extends Queue<E> {
     boolean contains(@Nullable Object o);
 }
 
-public interface List<E> extends Collection<E> {
+// No `extends Collection<E>` to be compatible with both Java above and below 21
+public interface List<E> {
     boolean contains(@Nullable Object o);
     boolean remove(@Nullable Object o);
     boolean containsAll(Collection<?> c);

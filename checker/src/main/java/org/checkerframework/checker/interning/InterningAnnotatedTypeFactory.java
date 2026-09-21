@@ -80,10 +80,11 @@ public class InterningAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
     final AnnotationMirrorSet INTERNED_SET = AnnotationMirrorSet.singleton(INTERNED);
 
     /**
-     * Creates a new {@link InterningAnnotatedTypeFactory} that operates on a particular AST.
+     * Creates a new {@link InterningAnnotatedTypeFactory}.
      *
      * @param checker the checker to use
      */
+    @SuppressWarnings("this-escape")
     public InterningAnnotatedTypeFactory(BaseTypeChecker checker) {
         super(checker);
 
@@ -121,7 +122,7 @@ public class InterningAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
             if (receiverType != null
                     // Intern method may be called on UnknownInterned object, so its receiver should
                     // not be annotated as @Interned.
-                    && typeFactory.getDeclAnnotation(methodElt, InternMethod.class) == null) {
+                    && atypeFactory.getDeclAnnotation(methodElt, InternMethod.class) == null) {
                 scanAndReduce(receiverType, p, null);
             }
             scanAndReduce(type.getParameterTypes(), p, null);
@@ -152,7 +153,8 @@ public class InterningAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
 
     @Override
     public void addComputedTypeAnnotations(Element element, AnnotatedTypeMirror type) {
-        if (!type.isAnnotatedInHierarchy(INTERNED) && ElementUtils.isCompileTimeConstant(element)) {
+        if (!type.hasAnnotationInHierarchy(INTERNED)
+                && ElementUtils.isCompileTimeConstant(element)) {
             type.addAnnotation(INTERNED);
         }
         super.addComputedTypeAnnotations(element, type);
@@ -225,11 +227,20 @@ public class InterningAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
             }
             return super.visitDeclared(t, p);
         }
+
+        @Override
+        public Void visitPrimitive(AnnotatedPrimitiveType t, Void p) {
+            // case 4: primitive types are interned
+            t.replaceAnnotation(INTERNED);
+            return super.visitPrimitive(t, p);
+        }
     }
 
     /**
      * Unbox type and replace any interning type annotations with @Interned since all primitives can
      * safely use ==. See case 4 in the class comments.
+     *
+     * <p>{@inheritDoc}
      */
     @Override
     public AnnotatedPrimitiveType getUnboxedType(AnnotatedDeclaredType type) {

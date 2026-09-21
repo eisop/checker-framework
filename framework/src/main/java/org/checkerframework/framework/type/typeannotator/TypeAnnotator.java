@@ -17,10 +17,16 @@ import javax.lang.model.element.Element;
  */
 public abstract class TypeAnnotator extends AnnotatedTypeScanner<Void, Void> {
 
-    protected final AnnotatedTypeFactory typeFactory;
+    /** The type factory. */
+    protected final AnnotatedTypeFactory atypeFactory;
 
-    protected TypeAnnotator(AnnotatedTypeFactory typeFactory) {
-        this.typeFactory = typeFactory;
+    /**
+     * Creates a new TypeAnnotator.
+     *
+     * @param atypeFactory the type factory
+     */
+    protected TypeAnnotator(AnnotatedTypeFactory atypeFactory) {
+        this.atypeFactory = atypeFactory;
     }
 
     /**

@@ -2,14 +2,14 @@ package org.checkerframework.checker.calledmethods;
 
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.common.accumulation.AccumulationChecker;
-import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.common.returnsreceiver.ReturnsReceiverChecker;
 import org.checkerframework.common.value.ValueChecker;
 import org.checkerframework.framework.qual.StubFiles;
+import org.checkerframework.framework.source.SourceChecker;
 import org.checkerframework.framework.source.SupportedOptions;
 import org.checkerframework.framework.source.SuppressWarningsPrefix;
 
-import java.util.LinkedHashSet;
+import java.util.Set;
 
 /**
  * The Called Methods Checker tracks the methods that have definitely been called on an object. One
@@ -74,7 +74,7 @@ public class CalledMethodsChecker extends AccumulationChecker {
      *
      * @return whether the -AdisableReturnsReceiver option was specified on the command line
      */
-    private boolean isReturnsReceiverDisabled() {
+    protected boolean isReturnsReceiverDisabled() {
         if (returnsReceiverDisabled == null) {
             returnsReceiverDisabled = hasOptionNoSubcheckers(DISABLE_RETURNS_RECEIVER);
         }
@@ -82,9 +82,8 @@ public class CalledMethodsChecker extends AccumulationChecker {
     }
 
     @Override
-    protected LinkedHashSet<Class<? extends BaseTypeChecker>> getImmediateSubcheckerClasses() {
-        LinkedHashSet<Class<? extends BaseTypeChecker>> checkers =
-                super.getImmediateSubcheckerClasses();
+    protected Set<Class<? extends SourceChecker>> getImmediateSubcheckerClasses() {
+        Set<Class<? extends SourceChecker>> checkers = super.getImmediateSubcheckerClasses();
         if (!isReturnsReceiverDisabled()) {
             checkers.add(ReturnsReceiverChecker.class);
         }

@@ -2,25 +2,23 @@
  * @test
  * @summary Test that defaulted types are stored in bytecode.
  *
+ * @requires jdk.version.major <= 24
  * @compile ../PersistUtil.java Driver.java ReferenceInfoUtil.java Fields.java
  * @run main Driver Fields
- * @ignore This fails for Java 11. See Issue 2816.
  */
-
-import static com.sun.tools.classfile.TypeAnnotation.TargetType.FIELD;
 
 public class Fields {
 
     @TADescriptions({
         @TADescription(
                 annotation = "org/checkerframework/checker/nullness/qual/NonNull",
-                type = FIELD),
+                type = "FIELD"),
         @TADescription(
                 annotation = "org/checkerframework/checker/initialization/qual/Initialized",
-                type = FIELD),
+                type = "FIELD"),
         @TADescription(
                 annotation = "org/checkerframework/checker/nullness/qual/UnknownKeyFor",
-                type = FIELD),
+                type = "FIELD"),
     })
     public String fieldDefault() {
         return "Object f = new Object();";
@@ -29,13 +27,13 @@ public class Fields {
     @TADescriptions({
         @TADescription(
                 annotation = "org/checkerframework/checker/nullness/qual/NonNull",
-                type = FIELD),
+                type = "FIELD"),
         @TADescription(
                 annotation = "org/checkerframework/checker/initialization/qual/Initialized",
-                type = FIELD),
+                type = "FIELD"),
         @TADescription(
                 annotation = "org/checkerframework/checker/nullness/qual/UnknownKeyFor",
-                type = FIELD),
+                type = "FIELD"),
     })
     public String fieldDefaultOneExplicit() {
         return "@NonNull Object f = new Object();";
@@ -44,13 +42,13 @@ public class Fields {
     @TADescriptions({
         @TADescription(
                 annotation = "org/checkerframework/checker/nullness/qual/Nullable",
-                type = FIELD),
+                type = "FIELD"),
         @TADescription(
                 annotation = "org/checkerframework/checker/initialization/qual/Initialized",
-                type = FIELD),
+                type = "FIELD"),
         @TADescription(
                 annotation = "org/checkerframework/checker/nullness/qual/UnknownKeyFor",
-                type = FIELD),
+                type = "FIELD"),
     })
     public String fieldWithDefaultQualifier() {
         return "@DefaultQualifier(Nullable.class)" + System.lineSeparator() + " Object f;";
@@ -59,24 +57,24 @@ public class Fields {
     @TADescriptions({
         @TADescription(
                 annotation = "org/checkerframework/checker/nullness/qual/NonNull",
-                type = FIELD),
+                type = "FIELD"),
         @TADescription(
                 annotation = "org/checkerframework/checker/initialization/qual/Initialized",
-                type = FIELD),
+                type = "FIELD"),
         @TADescription(
                 annotation = "org/checkerframework/checker/nullness/qual/UnknownKeyFor",
-                type = FIELD),
+                type = "FIELD"),
         @TADescription(
                 annotation = "org/checkerframework/checker/nullness/qual/NonNull",
-                type = FIELD,
+                type = "FIELD",
                 genericLocation = {0, 0}),
         @TADescription(
                 annotation = "org/checkerframework/checker/initialization/qual/Initialized",
-                type = FIELD,
+                type = "FIELD",
                 genericLocation = {0, 0}),
         @TADescription(
                 annotation = "org/checkerframework/checker/nullness/qual/UnknownKeyFor",
-                type = FIELD,
+                type = "FIELD",
                 genericLocation = {0, 0}),
     })
     public String fieldArray1() {
@@ -86,48 +84,48 @@ public class Fields {
     @TADescriptions({
         @TADescription(
                 annotation = "org/checkerframework/checker/nullness/qual/NonNull",
-                type = FIELD),
+                type = "FIELD"),
         @TADescription(
                 annotation = "org/checkerframework/checker/initialization/qual/Initialized",
-                type = FIELD),
+                type = "FIELD"),
         @TADescription(
                 annotation = "org/checkerframework/checker/nullness/qual/UnknownKeyFor",
-                type = FIELD),
+                type = "FIELD"),
         @TADescription(
                 annotation = "org/checkerframework/checker/nullness/qual/Nullable",
-                type = FIELD,
+                type = "FIELD",
                 genericLocation = {0, 0}),
         @TADescription(
                 annotation = "org/checkerframework/checker/initialization/qual/Initialized",
-                type = FIELD,
+                type = "FIELD",
                 genericLocation = {0, 0}),
         @TADescription(
                 annotation = "org/checkerframework/checker/nullness/qual/UnknownKeyFor",
-                type = FIELD,
+                type = "FIELD",
                 genericLocation = {0, 0}),
         @TADescription(
                 annotation = "org/checkerframework/checker/nullness/qual/NonNull",
-                type = FIELD,
+                type = "FIELD",
                 genericLocation = {0, 0, 0, 0}),
         @TADescription(
                 annotation = "org/checkerframework/checker/initialization/qual/Initialized",
-                type = FIELD,
+                type = "FIELD",
                 genericLocation = {0, 0, 0, 0}),
         @TADescription(
                 annotation = "org/checkerframework/checker/nullness/qual/UnknownKeyFor",
-                type = FIELD,
+                type = "FIELD",
                 genericLocation = {0, 0, 0, 0}),
         @TADescription(
                 annotation = "org/checkerframework/checker/nullness/qual/NonNull",
-                type = FIELD,
+                type = "FIELD",
                 genericLocation = {0, 0, 0, 0, 0, 0}),
         @TADescription(
                 annotation = "org/checkerframework/checker/initialization/qual/Initialized",
-                type = FIELD,
+                type = "FIELD",
                 genericLocation = {0, 0, 0, 0, 0, 0}),
         @TADescription(
                 annotation = "org/checkerframework/checker/nullness/qual/UnknownKeyFor",
-                type = FIELD,
+                type = "FIELD",
                 genericLocation = {0, 0, 0, 0, 0, 0}),
     })
     public String fieldArray2() {
@@ -138,40 +136,43 @@ public class Fields {
         // in front of the java.util.List
         @TADescription(
                 annotation = "org/checkerframework/checker/nullness/qual/NonNull",
-                type = FIELD),
+                type = "FIELD"),
         @TADescription(
                 annotation = "org/checkerframework/checker/initialization/qual/Initialized",
-                type = FIELD),
+                type = "FIELD"),
         @TADescription(
                 annotation = "org/checkerframework/checker/nullness/qual/UnknownKeyFor",
-                type = FIELD),
+                type = "FIELD"),
 
         // in front of Object //TODO: NEXT ANNO CHANGE TO NULLABLE WHEN WE GET JDK WORKING WITH THIS
         @TADescription(
                 annotation = "org/checkerframework/checker/nullness/qual/NonNull",
-                type = FIELD,
+                type = "FIELD",
                 genericLocation = {3, 0, 2, 0}),
         @TADescription(
                 annotation = "org/checkerframework/checker/initialization/qual/Initialized",
-                type = FIELD,
+                type = "FIELD",
                 genericLocation = {3, 0, 2, 0}),
         @TADescription(
                 annotation = "org/checkerframework/checker/nullness/qual/UnknownKeyFor",
-                type = FIELD,
+                type = "FIELD",
                 genericLocation = {3, 0, 2, 0}),
 
-        // in front of the wildcard (?)
+        // In front of the wildcard (?) itself, as opposed to its bound.  Each hierarchy's bottom
+        // qualifier appears here: the wildcard's own type is its lower bound, which defaults to
+        // the bottom.  For KeyFor, java.util's package-info defines KeyForBottom as the default
+        // qualifier for lower bounds, which propagates to the wildcard's lower bound.
         @TADescription(
                 annotation = "org/checkerframework/checker/nullness/qual/NonNull",
-                type = FIELD,
+                type = "FIELD",
                 genericLocation = {3, 0}),
         @TADescription(
                 annotation = "org/checkerframework/checker/initialization/qual/Initialized",
-                type = FIELD,
+                type = "FIELD",
                 genericLocation = {3, 0}),
         @TADescription(
-                annotation = "org/checkerframework/checker/nullness/qual/UnknownKeyFor",
-                type = FIELD,
+                annotation = "org/checkerframework/checker/nullness/qual/KeyForBottom",
+                type = "FIELD",
                 genericLocation = {3, 0}),
     })
     public String wildcards1() {
@@ -182,64 +183,67 @@ public class Fields {
         // in front of the first java.util.List
         @TADescription(
                 annotation = "org/checkerframework/checker/nullness/qual/NonNull",
-                type = FIELD),
+                type = "FIELD"),
         @TADescription(
                 annotation = "org/checkerframework/checker/initialization/qual/Initialized",
-                type = FIELD),
+                type = "FIELD"),
         @TADescription(
                 annotation = "org/checkerframework/checker/nullness/qual/UnknownKeyFor",
-                type = FIELD),
+                type = "FIELD"),
 
-        // in front of the wildcard (?)
+        // In front of the wildcard (?) itself, as opposed to its bound.  Each hierarchy's bottom
+        // qualifier appears here: the wildcard's own type is its lower bound, which defaults to
+        // the bottom.  For KeyFor, java.util's package-info defines KeyForBottom as the default
+        // qualifier for lower bounds, which propagates to the wildcard's lower bound.
         @TADescription(
                 annotation = "org/checkerframework/checker/nullness/qual/NonNull",
-                type = FIELD,
+                type = "FIELD",
                 genericLocation = {3, 0}),
         @TADescription(
                 annotation = "org/checkerframework/checker/initialization/qual/Initialized",
-                type = FIELD,
+                type = "FIELD",
                 genericLocation = {3, 0}),
         @TADescription(
-                annotation = "org/checkerframework/checker/nullness/qual/UnknownKeyFor",
-                type = FIELD,
+                annotation = "org/checkerframework/checker/nullness/qual/KeyForBottom",
+                type = "FIELD",
                 genericLocation = {3, 0}),
 
         // in front of the second java.util.List
         @TADescription(
                 annotation = "org/checkerframework/checker/nullness/qual/NonNull",
-                type = FIELD,
+                type = "FIELD",
                 genericLocation = {3, 0, 2, 0}),
         @TADescription(
                 annotation = "org/checkerframework/checker/initialization/qual/Initialized",
-                type = FIELD,
+                type = "FIELD",
                 genericLocation = {3, 0, 2, 0}),
         @TADescription(
                 annotation = "org/checkerframework/checker/nullness/qual/UnknownKeyFor",
-                type = FIELD,
+                type = "FIELD",
                 genericLocation = {3, 0, 2, 0}),
         @TADescription(
                 annotation = "org/checkerframework/checker/nullness/qual/NonNull",
-                type = FIELD,
+                type = "FIELD",
                 genericLocation = {3, 0, 2, 0, 3, 0}),
         @TADescription(
                 annotation = "org/checkerframework/checker/initialization/qual/Initialized",
-                type = FIELD,
+                type = "FIELD",
                 genericLocation = {3, 0, 2, 0, 3, 0}),
         @TADescription(
                 annotation = "org/checkerframework/checker/nullness/qual/UnknownKeyFor",
-                type = FIELD,
+                type = "FIELD",
                 genericLocation = {3, 0, 2, 0, 3, 0}),
         @TADescription(
                 annotation = "org/checkerframework/checker/nullness/qual/NonNull",
-                type = FIELD,
+                type = "FIELD",
                 genericLocation = {3, 0, 2, 0, 3, 0, 0, 0}),
         @TADescription(
                 annotation = "org/checkerframework/checker/initialization/qual/Initialized",
-                type = FIELD,
+                type = "FIELD",
                 genericLocation = {3, 0, 2, 0, 3, 0, 0, 0}),
         @TADescription(
                 annotation = "org/checkerframework/checker/nullness/qual/UnknownKeyFor",
-                type = FIELD,
+                type = "FIELD",
                 genericLocation = {3, 0, 2, 0, 3, 0, 0, 0}),
     })
     public String wildcards2() {

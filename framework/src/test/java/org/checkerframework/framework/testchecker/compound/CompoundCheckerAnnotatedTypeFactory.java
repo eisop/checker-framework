@@ -20,6 +20,7 @@ import java.util.Set;
 
 public class CompoundCheckerAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
 
+    @SuppressWarnings("this-escape")
     public CompoundCheckerAnnotatedTypeFactory(BaseTypeChecker checker) {
         super(checker);
         this.postInit();
@@ -48,7 +49,7 @@ public class CompoundCheckerAnnotatedTypeFactory extends BaseAnnotatedTypeFactor
                         @SuppressWarnings("unused")
                         AnnotatedTypeMirror aliasing = aliasingATF.getAnnotatedType(tree);
                         GenericAnnotatedTypeFactory<?, ?, ?, ?> valueATF =
-                                getTypeFactoryOfSubchecker(ValueChecker.class);
+                                getTypeFactoryOfSubcheckerOrNull(ValueChecker.class);
                         assert valueATF == null
                                 : "Should not be able to access the ValueChecker annotations.";
                         return super.defaultAction(tree, p);

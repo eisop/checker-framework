@@ -19,13 +19,8 @@ public abstract class BlockImpl implements Block {
     private static final AtomicLong nextUid = new AtomicLong(0);
 
     /** The unique ID of this object. */
-    private final long uid = nextUid.getAndIncrement();
+    private final transient long uid = nextUid.getAndIncrement();
 
-    /**
-     * Returns the unique ID of this object.
-     *
-     * @return the unique ID of this object
-     */
     @Override
     public long getUid(@UnknownInitialization BlockImpl this) {
         return uid;
@@ -38,7 +33,7 @@ public abstract class BlockImpl implements Block {
      */
     protected BlockImpl(BlockType type) {
         this.type = type;
-        // Most blocks have few predecessors
+        // Most blocks have few predecessors.
         this.predecessors = new ArraySet<>(2);
     }
 

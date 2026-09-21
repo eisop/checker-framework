@@ -3,9 +3,11 @@ package org.checkerframework.common.reflection;
 import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.common.basetype.BaseTypeVisitor;
 import org.checkerframework.common.value.ValueChecker;
+import org.checkerframework.framework.source.SourceChecker;
 import org.plumelib.util.CollectionsPlume;
 
 import java.util.LinkedHashSet;
+import java.util.Set;
 
 /**
  * The MethodVal Checker provides a sound estimate of the signature of Method objects.
@@ -19,10 +21,11 @@ public class MethodValChecker extends BaseTypeChecker {
     }
 
     @Override
-    protected LinkedHashSet<Class<? extends BaseTypeChecker>> getImmediateSubcheckerClasses() {
+    protected Set<Class<? extends SourceChecker>> getImmediateSubcheckerClasses() {
         // Don't call super otherwise MethodVal will be added as a subChecker
         // which creates a circular dependency.
-        LinkedHashSet<Class<? extends BaseTypeChecker>> subCheckers =
+        // Use the same Set implementation as super.
+        Set<Class<? extends SourceChecker>> subCheckers =
                 new LinkedHashSet<>(CollectionsPlume.mapCapacity(2));
         subCheckers.add(ValueChecker.class);
         subCheckers.add(ClassValChecker.class);

@@ -2,6 +2,7 @@ package org.checkerframework.framework.test.junit;
 
 import org.checkerframework.common.value.ValueChecker;
 import org.checkerframework.framework.test.CheckerFrameworkPerDirectoryTest;
+import org.checkerframework.framework.test.TestUtilities;
 import org.junit.runners.Parameterized.Parameters;
 
 import java.io.File;
@@ -24,7 +25,10 @@ public class ValueTest extends CheckerFrameworkPerDirectoryTest {
                 testFiles,
                 org.checkerframework.common.value.ValueChecker.class,
                 "value",
-                "-Astubs=tests/value/minints-stub.astub:tests/value/lowercase.astub",
+                // Ignore the test suite's usage of qualifiers in illegal locations.
+                "-AignoreTargetLocations",
+                TestUtilities.adapt(
+                        "-Astubs=tests/value/minints-stub.astub:tests/value/lowercase.astub"),
                 "-A" + ValueChecker.REPORT_EVAL_WARNS);
     }
 

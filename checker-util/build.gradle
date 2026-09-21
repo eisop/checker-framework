@@ -6,14 +6,14 @@ dependencies {
     api project(':checker-qual')
     // Don't add implementation dependencies; checker-util.jar should have no dependencies.
 
-    testImplementation group: 'junit', name: 'junit', version: '4.13.2'
+    testImplementation "junit:junit:${versions.junit}"
 }
 
 apply from: rootProject.file('gradle-mvn-push.gradle')
 
 /** Adds information to the publication for uploading to Maven repositories. */
 final checkerUtilPom(publication) {
-    sharedPublicationConfiguration(publication)
+    rootProject.sharedPublicationConfiguration(publication)
     publication.from components.java
     publication.pom {
         name = 'Checker Util'

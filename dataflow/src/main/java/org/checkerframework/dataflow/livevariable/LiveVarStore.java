@@ -91,6 +91,9 @@ public class LiveVarStore implements Store<LiveVarStore> {
 
     @Override
     public boolean equals(@Nullable Object obj) {
+        if (this == obj) {
+            return true;
+        }
         if (!(obj instanceof LiveVarStore)) {
             return false;
         }
@@ -111,7 +114,7 @@ public class LiveVarStore implements Store<LiveVarStore> {
     @Override
     public LiveVarStore leastUpperBound(LiveVarStore other) {
         Set<LiveVarNode> liveVarNodeSetLub =
-                ArraySet.newArraySetOrHashSet(
+                ArraySet.newArraySetOrLinkedHashSet(
                         this.liveVarNodeSet.size() + other.liveVarNodeSet.size());
         liveVarNodeSetLub.addAll(this.liveVarNodeSet);
         liveVarNodeSetLub.addAll(other.liveVarNodeSet);

@@ -8,3 +8,7 @@ that it won't crash a checker.
 ImporterManager.java.tmp is the source for the .class files in this folder;
 it uses the .tmp extension to ensure javac doesn't use the source file instead
 of the bytecode.
+View.out is the expected output. We are running the Nullness Checker, which in turn
+runs the KeyFor and NullnessNoInit Checkers as subcheckers. We thus have three
+warnings because every checker complains about the unexpected type argument
+annotation.

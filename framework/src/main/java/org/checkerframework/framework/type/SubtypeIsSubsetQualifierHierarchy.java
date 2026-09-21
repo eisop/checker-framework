@@ -10,6 +10,7 @@ import java.lang.annotation.Annotation;
 import java.util.Collection;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.AnnotationMirror;
@@ -33,11 +34,13 @@ public class SubtypeIsSubsetQualifierHierarchy extends MostlyNoElementQualifierH
      *
      * @param qualifierClasses classes of annotations that are the qualifiers for this hierarchy
      * @param processingEnv processing environment
+     * @param atypeFactory the associated type factory
      */
     public SubtypeIsSubsetQualifierHierarchy(
             Collection<Class<? extends Annotation>> qualifierClasses,
-            ProcessingEnvironment processingEnv) {
-        super(qualifierClasses, processingEnv.getElementUtils());
+            ProcessingEnvironment processingEnv,
+            GenericAnnotatedTypeFactory<?, ?, ?, ?> atypeFactory) {
+        super(qualifierClasses, processingEnv.getElementUtils(), atypeFactory);
         this.processingEnv = processingEnv;
     }
 
@@ -65,7 +68,7 @@ public class SubtypeIsSubsetQualifierHierarchy extends MostlyNoElementQualifierH
         if (qualifierKind1 == qualifierKind2) {
             List<String> a1Values = valuesStringList(a1);
             List<String> a2Values = valuesStringList(a2);
-            LinkedHashSet<String> set = new LinkedHashSet<>(a1Values);
+            Set<String> set = new LinkedHashSet<>(a1Values);
             set.addAll(a2Values);
             return createAnnotationMirrorWithValue(lubKind, set);
         } else if (lubKind == qualifierKind1) {
@@ -88,7 +91,7 @@ public class SubtypeIsSubsetQualifierHierarchy extends MostlyNoElementQualifierH
         if (qualifierKind1 == qualifierKind2) {
             List<String> a1Values = valuesStringList(a1);
             List<String> a2Values = valuesStringList(a2);
-            LinkedHashSet<String> set = new LinkedHashSet<>(a1Values);
+            Set<String> set = new LinkedHashSet<>(a1Values);
             set.retainAll(a2Values);
             return createAnnotationMirrorWithValue(glbKind, set);
         } else if (glbKind == qualifierKind1) {
@@ -123,7 +126,7 @@ public class SubtypeIsSubsetQualifierHierarchy extends MostlyNoElementQualifierH
      * @return an annotation of the given kind and values
      */
     private AnnotationMirror createAnnotationMirrorWithValue(
-            QualifierKind kind, LinkedHashSet<String> values) {
+            QualifierKind kind, Set<String> values) {
         AnnotationBuilder builder = new AnnotationBuilder(processingEnv, kind.getAnnotationClass());
         builder.setValue("value", values.toArray());
         return builder.build();

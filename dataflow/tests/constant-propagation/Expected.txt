@@ -26,7 +26,7 @@ a   [ LocalVariable ]    > 0
 5   [ IntegerLiteral ]    > 5
 (a > 5)   [ GreaterThan ]
 ~~~~~~~~~
-AnalysisResult#1
+AnalysisResult#0
 After:   constant propagation = {a=0}
 
 4:
@@ -42,11 +42,11 @@ TransferInput#12
 Before:   constant propagation = {a=0}
 ~~~~~~~~~
 b   [ LocalVariable ]
-a   [ LocalVariable ]
-b = a   [ Assignment ]
+a   [ LocalVariable ]    > 0
+b = a   [ Assignment ]    > 0
 expression statement b = a   [ ExpressionStatement ]
 ~~~~~~~~~
-AnalysisResult#3
+AnalysisResult#0
 After:   constant propagation = {a=0, b=0}
 
 10:
@@ -55,11 +55,11 @@ TransferInput#13
 Before:   constant propagation = {a=0}
 ~~~~~~~~~
 b   [ LocalVariable ]
-4   [ IntegerLiteral ]
-b = 4   [ Assignment ]
+4   [ IntegerLiteral ]    > 4
+b = 4   [ Assignment ]    > 4
 expression statement b = 4   [ ExpressionStatement ]
 ~~~~~~~~~
-AnalysisResult#5
+AnalysisResult#0
 After:   constant propagation = {a=0, b=4}
 
 11:
@@ -67,10 +67,10 @@ Process order: 6
 TransferInput#25
 Before:   constant propagation = {a=0, b=T}
 ~~~~~~~~~
-b   [ LocalVariable ]
+b   [ LocalVariable ]    > T
 return b   [ Return ]
 ~~~~~~~~~
-AnalysisResult#7
+AnalysisResult#0
 After:   constant propagation = {a=0, b=T}
 
 0:

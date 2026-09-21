@@ -74,7 +74,7 @@ public class RegularTransferResult<V extends AbstractValue<V>, S extends Store<S
      * @see #RegularTransferResult(AbstractValue, Store, Map, boolean)
      */
     public RegularTransferResult(
-            @Nullable V value, S resultStore, Map<TypeMirror, S> exceptionalStores) {
+            @Nullable V value, S resultStore, @Nullable Map<TypeMirror, S> exceptionalStores) {
         this(value, resultStore, exceptionalStores, false);
     }
 
@@ -111,7 +111,6 @@ public class RegularTransferResult<V extends AbstractValue<V>, S extends Store<S
         this.storeChanged = storeChanged;
     }
 
-    /** The regular result store. */
     @Override
     public S getRegularStore() {
         return store;
@@ -155,5 +154,10 @@ public class RegularTransferResult<V extends AbstractValue<V>, S extends Store<S
     @Override
     public boolean storeChanged() {
         return storeChanged;
+    }
+
+    @Override
+    public RegularTransferResult<V, S> withExceptionalStores(Map<TypeMirror, S> exceptionalStores) {
+        return new RegularTransferResult<>(resultValue, store, exceptionalStores, storeChanged);
     }
 }

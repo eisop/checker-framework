@@ -79,14 +79,15 @@ public class InferTypeArgsPolyChecker<OUTER_SCOPE_TV> {
            g.listo = new ArrayList<@NonNull String>();
            g.launder("", null);    // during this method call null would be added to g.listo
         */
-        // :: error: (type.argument.type.incompatible)
+        // :: error: (type.arguments.not.inferred)
         OUTER_SCOPE_TV osNaked2 = methodD(os1, os2, "");
 
-        // :: error: (type.argument.type.incompatible)
+        // :: error: (type.arguments.not.inferred)
         OUTER_SCOPE_TV osAnnoed = methodD(os2, os2, "");
 
-        // :: error: (type.argument.type.incompatible)
+        // :: error: (type.arguments.not.inferred)
         String str = methodD2(os2, os1, "");
+        // :: error: (type.arguments.not.inferred)
         OUTER_SCOPE_TV osNaked3 = methodD2(os1, os1, os2);
     }
 
@@ -108,12 +109,14 @@ public class InferTypeArgsPolyChecker<OUTER_SCOPE_TV> {
     }
 
     void contextF(
+            // :: error: (type.invalid.annotations.on.location)
             List<@H1Bot @H2Bot ? extends @H1Top @H2S1 String> l1,
             List<? super @H1S1 @H2S2 String> l2,
             List<@H1S1 @H2S2 ? extends @H1Top @H2Top String> l3) {
 
+        // :: error: (type.arguments.not.inferred)
         List<? super @H1Bot @H2Bot String> lstr1 = methodF(l1, l2);
-
+        // :: error: (type.arguments.not.inferred)
         List<? super @H1Top @H2S2 String> lstr2 = methodF(l3, l2);
     }
 

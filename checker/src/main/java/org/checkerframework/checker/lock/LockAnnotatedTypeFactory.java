@@ -45,6 +45,7 @@ import org.checkerframework.framework.util.dependenttypes.DependentTypesHelper;
 import org.checkerframework.javacutil.AnnotationBuilder;
 import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.ElementUtils;
+import org.checkerframework.javacutil.InternalUtils;
 import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TypeSystemError;
 import org.plumelib.util.CollectionsPlume;
@@ -102,6 +103,7 @@ public class LockAnnotatedTypeFactory
             AnnotationBuilder.fromClass(elements, GuardedByUnknown.class);
 
     /** The @{@link GuardedBy} annotation. */
+    @SuppressWarnings("this-escape")
     protected final AnnotationMirror GUARDEDBY =
             createGuardedByAnnotationMirror(new ArrayList<String>());
 
@@ -134,12 +136,13 @@ public class LockAnnotatedTypeFactory
             TreeUtils.getMethod(EnsuresLockHeldIf.class, "expression", 0, processingEnv);
 
     /** The net.jcip.annotations.GuardedBy annotation, or null if not on the classpath. */
-    protected final Class<? extends Annotation> jcipGuardedBy;
+    protected final @Nullable Class<? extends Annotation> jcipGuardedBy;
 
     /** The javax.annotation.concurrent.GuardedBy annotation, or null if not on the classpath. */
-    protected final Class<? extends Annotation> javaxGuardedBy;
+    protected final @Nullable Class<? extends Annotation> javaxGuardedBy;
 
     /** Create a new LockAnnotatedTypeFactory. */
+    @SuppressWarnings("this-escape")
     public LockAnnotatedTypeFactory(BaseTypeChecker checker) {
         super(checker, true);
 
@@ -157,7 +160,7 @@ public class LockAnnotatedTypeFactory
      * @return an annotation class or null
      */
     @SuppressWarnings("unchecked") // cast to generic type
-    private Class<? extends Annotation> classForNameOrNull(
+    private @Nullable Class<? extends Annotation> classForNameOrNull(
             @ClassGetName String annotationClassName) {
         try {
             return (Class<? extends Annotation>) Class.forName(annotationClassName);
@@ -305,7 +308,7 @@ public class LockAnnotatedTypeFactory
          */
         public LockQualifierHierarchy(
                 Collection<Class<? extends Annotation>> qualifierClasses, Elements elements) {
-            super(qualifierClasses, elements);
+            super(qualifierClasses, elements, LockAnnotatedTypeFactory.this);
             GUARDEDBYUNKNOWN_KIND = getQualifierKind(GUARDEDBYUNKNOWN);
             GUARDEDBY_KIND = getQualifierKind(GUARDEDBY);
             GUARDSATISFIED_KIND = getQualifierKind(GUARDSATISFIED);
@@ -523,7 +526,7 @@ public class LockAnnotatedTypeFactory
      *     annotation is present on the method
      * @return the side effect annotation that is present on the given method
      */
-    /*package-private*/ SideEffectAnnotation methodSideEffectAnnotation(
+    /*package-private*/ @Nullable SideEffectAnnotation methodSideEffectAnnotation(
             ExecutableElement methodElement, boolean issueErrorIfMoreThanOnePresent) {
         if (methodElement == null) {
             // When there is not enough information to determine the correct side effect annotation,
@@ -563,23 +566,22 @@ public class LockAnnotatedTypeFactory
     }
 
     /**
-     * Returns the index (that is, the {@code value} element) on the {@code @GuardSatisfied}
-     * annotation in the given AnnotatedTypeMirror. Assumes atm is non-null and contains a
-     * {@code @GuardSatisfied} annotation.
+     * Returns the index (that is, the {@code value} element) on the {@code @}{@link GuardSatisfied}
+     * annotation in the given AnnotatedTypeMirror.
      *
-     * @param atm an AnnotatedTypeMirror containing a GuardSatisfied annotation
-     * @return the index on the GuardSatisfied annotation
+     * @param atm an AnnotatedTypeMirror containing a {@link GuardSatisfied} annotation
+     * @return the index on the {@link GuardSatisfied} annotation
      */
     /*package-private*/ int getGuardSatisfiedIndex(AnnotatedTypeMirror atm) {
         return getGuardSatisfiedIndex(atm.getAnnotation(GuardSatisfied.class));
     }
 
     /**
-     * Returns the index (that is, the {@code value} element) on the given {@code @GuardSatisfied}
-     * annotation. Assumes am is non-null and is a GuardSatisfied annotation.
+     * Returns the index (that is, the {@code value} element) on the given {@code @}{@link
+     * GuardSatisfied} annotation.
      *
-     * @param am an AnnotationMirror for a GuardSatisfied annotation
-     * @return the index on the GuardSatisfied annotation
+     * @param am an AnnotationMirror for a {@link GuardSatisfied} annotation
+     * @return the index on the {@link GuardSatisfied} annotation
      */
     /*package-private*/ int getGuardSatisfiedIndex(AnnotationMirror am) {
         return AnnotationUtils.getElementValueInt(am, guardSatisfiedValueElement, -1);
@@ -587,10 +589,14 @@ public class LockAnnotatedTypeFactory
 
     @Override
     public ParameterizedExecutableType methodFromUse(
-            ExpressionTree tree, ExecutableElement methodElt, AnnotatedTypeMirror receiverType) {
-        ParameterizedExecutableType mType = super.methodFromUse(tree, methodElt, receiverType);
+            ExpressionTree tree,
+            ExecutableElement methodElt,
+            AnnotatedTypeMirror receiverType,
+            boolean inferTypeArgs) {
+        ParameterizedExecutableType mType =
+                super.methodFromUse(tree, methodElt, receiverType, inferTypeArgs);
 
-        if (tree.getKind() != Tree.Kind.METHOD_INVOCATION) {
+        if (!(tree instanceof MethodInvocationTree)) {
             return mType;
         }
 
@@ -673,7 +679,7 @@ public class LockAnnotatedTypeFactory
      */
     private boolean replaceAnnotationInGuardedByHierarchyIfGuardSatisfiedIndexMatches(
             AnnotatedTypeMirror methodReturnAtm,
-            AnnotatedTypeMirror atm,
+            @Nullable AnnotatedTypeMirror atm,
             int matchingGuardSatisfiedIndex,
             AnnotationMirror annotationInGuardedByHierarchy) {
         if (atm == null
@@ -700,13 +706,13 @@ public class LockAnnotatedTypeFactory
     }
 
     @Override
-    public void addComputedTypeAnnotations(Tree tree, AnnotatedTypeMirror type, boolean useFlow) {
-        if (tree.getKind() == Tree.Kind.VARIABLE) {
+    protected void addComputedTypeAnnotations(Tree tree, AnnotatedTypeMirror type) {
+        if (tree instanceof VariableTree) {
             translateJcipAndJavaxAnnotations(
                     TreeUtils.elementFromDeclaration((VariableTree) tree), type);
         }
 
-        super.addComputedTypeAnnotations(tree, type, useFlow);
+        super.addComputedTypeAnnotations(tree, type);
     }
 
     /**
@@ -746,9 +752,10 @@ public class LockAnnotatedTypeFactory
         Map<? extends ExecutableElement, ? extends AnnotationValue> valmap =
                 anno.getElementValues();
         Object value = null;
-        for (ExecutableElement elem : valmap.keySet()) {
-            if (elem.getSimpleName().contentEquals("value")) {
-                value = valmap.get(elem).getValue();
+        for (Map.Entry<? extends ExecutableElement, ? extends AnnotationValue> entry :
+                valmap.entrySet()) {
+            if (InternalUtils.isValueName(entry.getKey().getSimpleName())) {
+                value = entry.getValue().getValue();
                 break;
             }
         }

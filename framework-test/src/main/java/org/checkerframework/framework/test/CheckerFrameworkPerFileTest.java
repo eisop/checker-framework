@@ -47,7 +47,7 @@ import javax.annotation.processing.AbstractProcessor;
  * </ol>
  */
 @RunWith(PerFileSuite.class)
-public abstract class CheckerFrameworkPerFileTest {
+public abstract class CheckerFrameworkPerFileTest extends CheckerFrameworkRootedTest {
 
     /** The file containing test code, which will be type-checked. */
     protected final File testFile;
@@ -55,7 +55,10 @@ public abstract class CheckerFrameworkPerFileTest {
     /** The checker to use for tests. */
     protected final Class<?> checker;
 
-    /** The path, relative to currentDir/test to the directory containing test inputs. */
+    /**
+     * The path, relative to the test root directory (see {@link
+     * CheckerFrameworkRootedTest#resolveTestDirectory()}), to the directory containing test inputs.
+     */
     protected final String testDir;
 
     /** Extra options to pass to javac when running the checker. */
@@ -69,7 +72,7 @@ public abstract class CheckerFrameworkPerFileTest {
      *
      * @param testFile the file containing test code, which will be type-checked
      * @param checker the class for the checker to use
-     * @param testDir the path to the directory of test inputs
+     * @param testDir the path, relative to currentDir/tests, to the directory of test inputs
      * @param checkerOptions options to pass to the compiler when running tests
      */
     protected CheckerFrameworkPerFileTest(
@@ -77,9 +80,10 @@ public abstract class CheckerFrameworkPerFileTest {
             Class<? extends AbstractProcessor> checker,
             String testDir,
             String... checkerOptions) {
+        super();
         this.testFile = testFile;
         this.checker = checker;
-        this.testDir = "tests" + File.separator + testDir;
+        this.testDir = testDir;
         this.checkerOptions = new ArrayList<>(Arrays.asList(checkerOptions));
     }
 
@@ -90,9 +94,13 @@ public abstract class CheckerFrameworkPerFileTest {
                 customizeOptions(Collections.unmodifiableList(checkerOptions));
         TestConfiguration config =
                 TestConfigurationBuilder.buildDefaultConfiguration(
-                        testDir, testFile, checker, customizedOptions, shouldEmitDebugInfo);
+                        new File(resolveTestDirectory(), testDir).getPath(),
+                        testFile,
+                        checker,
+                        customizedOptions,
+                        shouldEmitDebugInfo);
         TypecheckResult testResult = new TypecheckExecutor().runTest(config);
-        TestUtilities.assertTestDidNotFail(testResult);
+        checkResult(testResult);
     }
 
     /**

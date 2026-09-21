@@ -1,0 +1,7 @@
+package java.util;
+
+import org.checkerframework.checker.nullness.qual.Nullable;
+
+public interface List<E> extends Bad<E> {
+  boolean contains(@Nullable Object o);
+}

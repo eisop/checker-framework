@@ -1,6 +1,7 @@
 package org.checkerframework.checker.test.junit;
 
 import org.checkerframework.framework.test.CheckerFrameworkPerDirectoryTest;
+import org.checkerframework.framework.test.TestUtilities;
 import org.junit.runners.Parameterized.Parameters;
 
 import java.io.File;
@@ -18,12 +19,12 @@ public class NullnessStubfileTest extends CheckerFrameworkPerDirectoryTest {
                 testFiles,
                 org.checkerframework.checker.nullness.NullnessChecker.class,
                 "nullness",
-                "-Astubs="
-                        + String.join(
-                                ":",
-                                "tests/nullness-stubfile/stubfile1.astub",
-                                "tests/nullness-stubfile/stubfile2.astub",
-                                "tests/nullness-stubfile/requireNonNull.astub"));
+                TestUtilities.adapt(
+                        "-Astubs=tests/nullness-stubfile/stubfile1.astub:"
+                                + "tests/nullness-stubfile/stubfile2.astub:"
+                                + "tests/nullness-stubfile/requireNonNull.astub:"
+                                + "tests/nullness-stubfile/fakeOverloadOverride.astub"),
+                "-AmergeStubsWithSource");
     }
 
     @Parameters

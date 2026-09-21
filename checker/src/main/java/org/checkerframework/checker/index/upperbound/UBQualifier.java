@@ -4,6 +4,7 @@ import org.checkerframework.checker.index.qual.LTEqLengthOf;
 import org.checkerframework.checker.index.qual.LTLengthOf;
 import org.checkerframework.checker.index.qual.LTOMLengthOf;
 import org.checkerframework.checker.index.qual.SubstringIndexFor;
+import org.checkerframework.checker.nullness.qual.KeyFor;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.dataflow.cfg.node.Node;
 import org.checkerframework.dataflow.qual.Pure;
@@ -17,6 +18,7 @@ import org.plumelib.util.CollectionsPlume;
 import java.lang.annotation.Annotation;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -58,7 +60,7 @@ public abstract class UBQualifier {
      *     optional offset)
      */
     public static UBQualifier createUBQualifier(
-            AnnotationMirror am, String offset, UpperBoundChecker ubChecker) {
+            AnnotationMirror am, @Nullable String offset, UpperBoundChecker ubChecker) {
         switch (AnnotationUtils.annotationName(am)) {
             case "org.checkerframework.checker.index.qual.UpperBoundUnknown":
                 return UpperBoundUnknownQualifier.UNKNOWN;
@@ -206,7 +208,7 @@ public abstract class UBQualifier {
      * @return a UBQualifier created from the @LTOMLengthOf annotation
      */
     private static UBQualifier parseLTOMLengthOf(
-            AnnotationMirror am, String extraOffset, UpperBoundChecker ubChecker) {
+            AnnotationMirror am, @Nullable String extraOffset, UpperBoundChecker ubChecker) {
         List<String> sequences =
                 AnnotationUtils.getElementValueArray(
                         am, ubChecker.ltOMLengthOfValueElement, String.class);
@@ -262,7 +264,7 @@ public abstract class UBQualifier {
      * @return an {@link UBQualifier} for the sequences with the given offsets
      */
     public static UBQualifier createUBQualifier(
-            List<String> sequences, List<String> offsets, String extraOffset) {
+            List<String> sequences, List<String> offsets, @Nullable String extraOffset) {
         assert !sequences.isEmpty();
 
         OffsetEquation extraEq;
@@ -429,8 +431,9 @@ public abstract class UBQualifier {
         private Map<String, Set<OffsetEquation>> copyMap() {
             Map<String, Set<OffsetEquation>> result =
                     new HashMap<>(CollectionsPlume.mapCapacity(map));
-            for (String sequenceName : map.keySet()) {
-                Set<OffsetEquation> oldEquations = map.get(sequenceName);
+            for (Map.Entry<String, Set<OffsetEquation>> entry : map.entrySet()) {
+                String sequenceName = entry.getKey();
+                Set<OffsetEquation> oldEquations = entry.getValue();
                 Set<OffsetEquation> newEquations =
                         new HashSet<>(CollectionsPlume.mapCapacity(oldEquations));
                 for (OffsetEquation offsetEquation : oldEquations) {
@@ -448,7 +451,7 @@ public abstract class UBQualifier {
          * @param i an integer
          * @return true if the given integer literal is a subtype of this
          */
-        /*package-protected*/ boolean literalIsSubtype(int i) {
+        /*package-private*/ boolean literalIsSubtype(int i) {
             for (Map.Entry<String, Set<OffsetEquation>> entry : map.entrySet()) {
                 for (OffsetEquation equation : entry.getValue()) {
                     if (!equation.isInt()) {
@@ -472,7 +475,7 @@ public abstract class UBQualifier {
          * @return the map representation of a {@link UBQualifier}, or null if there is an error
          */
         private static @Nullable Map<String, Set<OffsetEquation>> sequencesAndOffsetsToMap(
-                List<String> sequences, List<String> offsets, OffsetEquation extraEq) {
+                List<String> sequences, List<String> offsets, @Nullable OffsetEquation extraEq) {
 
             Map<String, Set<OffsetEquation>> map =
                     new HashMap<>(CollectionsPlume.mapCapacity(sequences));
@@ -503,13 +506,13 @@ public abstract class UBQualifier {
         /** A triple that is the return type of {@link #mapToSequencesAndOffsets}. */
         private static class SequencesOffsetsAndClass {
             /** List of sequences. */
-            public final List<String> sequences;
+            final List<String> sequences;
 
             /** List of offsets. */
-            public final List<String> offsets;
+            final List<String> offsets;
 
             /** The class of the annotation to be built. */
-            public final Class<? extends Annotation> annoClass;
+            final Class<? extends Annotation> annoClass;
 
             /**
              * Creates a new SequencesOffsetsAndClass.
@@ -518,7 +521,7 @@ public abstract class UBQualifier {
              * @param offsets list of offsets
              * @param annoClass the class of the annotation to be built
              */
-            public SequencesOffsetsAndClass(
+            SequencesOffsetsAndClass(
                     List<String> sequences,
                     List<String> offsets,
                     Class<? extends Annotation> annoClass) {
@@ -539,8 +542,8 @@ public abstract class UBQualifier {
          */
         private static SequencesOffsetsAndClass mapToSequencesAndOffsets(
                 Map<String, Set<OffsetEquation>> map, boolean buildSubstringIndexAnnotation) {
-            List<String> sortedSequences = new ArrayList<>(map.keySet());
-            Collections.sort(sortedSequences);
+            List<@KeyFor("map") String> sortedSequences = new ArrayList<>(map.keySet());
+            sortedSequences.sort(Comparator.naturalOrder());
             List<String> sequences = new ArrayList<>();
             List<String> offsets = new ArrayList<>();
             boolean isLTEq = true;
@@ -553,7 +556,7 @@ public abstract class UBQualifier {
                     isLTOM = isLTOM && eq.equals(OffsetEquation.ONE);
                     thisOffsets.add(eq.toString());
                 }
-                Collections.sort(thisOffsets);
+                thisOffsets.sort(Comparator.naturalOrder());
                 for (String offset : thisOffsets) {
                     sequences.add(sequence);
                     offsets.add(offset);
@@ -592,7 +595,7 @@ public abstract class UBQualifier {
          * @param extraEq offset to add to each element of offsets; may be null
          */
         private LessThanLengthOf(
-                List<String> sequences, List<String> offsets, OffsetEquation extraEq) {
+                List<String> sequences, List<String> offsets, @Nullable OffsetEquation extraEq) {
             this(sequencesAndOffsetsToMap(sequences, offsets, extraEq));
         }
 
@@ -952,10 +955,11 @@ public abstract class UBQualifier {
                 }
             }
             for (Pair<String, OffsetEquation> pair : remove) {
-                Set<OffsetEquation> offsets = lubMap.get(pair.first);
+                String sequence = pair.first;
+                Set<OffsetEquation> offsets = lubMap.get(sequence);
                 offsets.remove(pair.second);
                 if (offsets.isEmpty()) {
-                    lubMap.remove(pair.first);
+                    lubMap.remove(sequence);
                 }
             }
         }
@@ -1132,17 +1136,12 @@ public abstract class UBQualifier {
          * @param sequences access of the length of these sequences are removed
          * @return a copy of this qualifier with some offsets removed
          */
-        public UBQualifier removeSequenceLengthAccess(final List<String> sequences) {
+        public UBQualifier removeSequenceLengthAccess(List<String> sequences) {
             if (sequences.isEmpty()) {
                 return UpperBoundUnknownQualifier.UNKNOWN;
             }
             OffsetEquationFunction removeSequenceLengthsFunc =
-                    new OffsetEquationFunction() {
-                        @Override
-                        public OffsetEquation compute(OffsetEquation eq) {
-                            return eq.removeSequenceLengths(sequences);
-                        }
-                    };
+                    eq -> eq.removeSequenceLengths(sequences);
             return computeNewOffsets(removeSequenceLengthsFunc);
         }
 
@@ -1155,35 +1154,32 @@ public abstract class UBQualifier {
          * @param sequences access of the length of these sequences are removed
          * @return a copy of this qualifier with some offsets removed
          */
-        public UBQualifier removeSequenceLengthAccessAndNeg1(final List<String> sequences) {
+        public UBQualifier removeSequenceLengthAccessAndNeg1(List<String> sequences) {
             if (sequences.isEmpty()) {
                 return UpperBoundUnknownQualifier.UNKNOWN;
             }
             OffsetEquationFunction removeSequenceLenFunc =
-                    new OffsetEquationFunction() {
-                        @Override
-                        public OffsetEquation compute(OffsetEquation eq) {
-                            OffsetEquation newEq = eq.removeSequenceLengths(sequences);
-                            if (newEq == null) {
-                                return null;
-                            }
-                            if (newEq.getInt() == -1) {
-                                return newEq.copyAdd('+', OffsetEquation.ONE);
-                            }
-                            return newEq;
+                    eq -> {
+                        OffsetEquation newEq = eq.removeSequenceLengths(sequences);
+                        if (newEq == null) {
+                            return null;
                         }
+                        if (newEq.getInt() == -1) {
+                            return newEq.copyAdd('+', OffsetEquation.ONE);
+                        }
+                        return newEq;
                     };
             return computeNewOffsets(removeSequenceLenFunc);
         }
 
-        private UBQualifier addOffset(final OffsetEquation newOffset) {
-            OffsetEquationFunction addOffsetFunc =
-                    new OffsetEquationFunction() {
-                        @Override
-                        public OffsetEquation compute(OffsetEquation eq) {
-                            return eq.copyAdd('+', newOffset);
-                        }
-                    };
+        /**
+         * Returns a new qualifier, which is this qualifier plus the given offset.
+         *
+         * @param newOffset the offset to add to this
+         * @return a new qualifier, which is this qualifier plus the given offset
+         */
+        private UBQualifier addOffset(OffsetEquation newOffset) {
+            OffsetEquationFunction addOffsetFunc = eq -> eq.copyAdd('+', newOffset);
             return computeNewOffsets(addOffsetFunc);
         }
 
@@ -1202,16 +1198,7 @@ public abstract class UBQualifier {
             if (divisor == 1) {
                 return this;
             } else if (divisor > 1) {
-                OffsetEquationFunction divideFunc =
-                        new OffsetEquationFunction() {
-                            @Override
-                            public OffsetEquation compute(OffsetEquation eq) {
-                                if (eq.isNegativeOrZero()) {
-                                    return eq;
-                                }
-                                return null;
-                            }
-                        };
+                OffsetEquationFunction divideFunc = eq -> (eq.isNegativeOrZero() ? eq : null);
                 return computeNewOffsets(divideFunc);
             }
             return UpperBoundUnknownQualifier.UNKNOWN;
@@ -1293,7 +1280,7 @@ public abstract class UBQualifier {
              * @return the result of the computation or null if the passed equation should be
              *     removed
              */
-            OffsetEquation compute(OffsetEquation eq);
+            @Nullable OffsetEquation compute(OffsetEquation eq);
         }
 
         /**
@@ -1466,7 +1453,7 @@ public abstract class UBQualifier {
     /** The bottom qualifier for the upperbound type system. */
     private static class UpperBoundBottomQualifier extends UBQualifier {
         /** The canonical bottom qualifier for the upperbound type system. */
-        public static final UBQualifier BOTTOM = new UpperBoundBottomQualifier();
+        static final UBQualifier BOTTOM = new UpperBoundBottomQualifier();
 
         /** This class is a singleton. */
         private UpperBoundBottomQualifier() {}
@@ -1500,7 +1487,7 @@ public abstract class UBQualifier {
     /** The polymorphic qualifier. */
     private static class PolyQualifier extends UBQualifier {
         /** The canonical representative. */
-        public static final UBQualifier POLY = new PolyQualifier();
+        static final UBQualifier POLY = new PolyQualifier();
 
         /** This class is a singleton. */
         private PolyQualifier() {}

@@ -8,6 +8,7 @@ import org.checkerframework.dataflow.analysis.UnusedAbstractValue;
 import org.checkerframework.dataflow.cfg.UnderlyingAST;
 import org.checkerframework.dataflow.cfg.node.AbstractNodeVisitor;
 import org.checkerframework.dataflow.cfg.node.AssignmentNode;
+import org.checkerframework.dataflow.cfg.node.LocalVariableNode;
 import org.checkerframework.dataflow.cfg.node.MethodInvocationNode;
 import org.checkerframework.dataflow.cfg.node.Node;
 import org.checkerframework.dataflow.cfg.node.ObjectCreationNode;
@@ -22,6 +23,9 @@ public class LiveVarTransfer
                 TransferResult<UnusedAbstractValue, LiveVarStore>,
                 TransferInput<UnusedAbstractValue, LiveVarStore>>
         implements BackwardTransferFunction<UnusedAbstractValue, LiveVarStore> {
+
+    /** Creates a new LiveVarTransfer. */
+    public LiveVarTransfer() {}
 
     @Override
     @SideEffectFree
@@ -62,6 +66,10 @@ public class LiveVarTransfer
         for (Node arg : n.getArguments()) {
             store.addUseInExpression(arg);
         }
+        Node receiver = n.getTarget().getReceiver();
+        if (receiver != null) {
+            store.addUseInExpression(receiver);
+        }
         return transferResult;
     }
 
@@ -99,6 +107,9 @@ public class LiveVarTransfer
      * @param store the live variable store
      */
     private void processLiveVarInAssignment(Node variable, Node expression, LiveVarStore store) {
+        if (!(variable instanceof LocalVariableNode)) {
+            store.addUseInExpression(variable);
+        }
         store.killLiveVar(new LiveVarNode(variable));
         store.addUseInExpression(expression);
     }

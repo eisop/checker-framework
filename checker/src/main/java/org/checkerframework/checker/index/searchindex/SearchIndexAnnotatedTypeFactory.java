@@ -55,6 +55,7 @@ public class SearchIndexAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
      *
      * @param checker the type-checker associated with this
      */
+    @SuppressWarnings("this-escape")
     public SearchIndexAnnotatedTypeFactory(BaseTypeChecker checker) {
         super(checker);
 
@@ -111,13 +112,14 @@ public class SearchIndexAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
          * @param qualifierClasses classes of annotations that are the qualifiers
          * @param elements element utils
          */
-        public SearchIndexQualifierHierarchy(
+        SearchIndexQualifierHierarchy(
                 Set<Class<? extends Annotation>> qualifierClasses, Elements elements) {
-            super(qualifierClasses, elements);
+            super(qualifierClasses, elements, SearchIndexAnnotatedTypeFactory.this);
         }
 
         @Override
-        public AnnotationMirror greatestLowerBound(AnnotationMirror a1, AnnotationMirror a2) {
+        public AnnotationMirror greatestLowerBoundQualifiers(
+                AnnotationMirror a1, AnnotationMirror a2) {
             if (AnnotationUtils.areSame(a1, UNKNOWN)) {
                 return a2;
             }
@@ -130,10 +132,10 @@ public class SearchIndexAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
             if (AnnotationUtils.areSame(a2, BOTTOM)) {
                 return a2;
             }
-            if (isSubtype(a1, a2)) {
+            if (isSubtypeQualifiers(a1, a2)) {
                 return a1;
             }
-            if (isSubtype(a2, a1)) {
+            if (isSubtypeQualifiers(a2, a1)) {
                 return a2;
             }
             // If neither is a subtype of the other, then create an
@@ -143,8 +145,7 @@ public class SearchIndexAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
             Set<String> combinedSet = new HashSet<>(getValueElement(a1));
             combinedSet.addAll(getValueElement(a2));
             // The list is backed by the given array.
-            List<String> combinedList =
-                    Arrays.asList(combinedSet.toArray(new String[combinedSet.size()]));
+            List<String> combinedList = Arrays.asList(combinedSet.toArray(new String[0]));
 
             // NegativeIndexFor <: SearchIndexFor.
             if (areSameByClass(a1, NegativeIndexFor.class)
@@ -156,7 +157,8 @@ public class SearchIndexAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
         }
 
         @Override
-        public AnnotationMirror leastUpperBound(AnnotationMirror a1, AnnotationMirror a2) {
+        public AnnotationMirror leastUpperBoundQualifiers(
+                AnnotationMirror a1, AnnotationMirror a2) {
             if (AnnotationUtils.areSame(a1, UNKNOWN)) {
                 return a1;
             }
@@ -169,10 +171,10 @@ public class SearchIndexAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
             if (AnnotationUtils.areSame(a2, BOTTOM)) {
                 return a1;
             }
-            if (isSubtype(a1, a2)) {
+            if (isSubtypeQualifiers(a1, a2)) {
                 return a2;
             }
-            if (isSubtype(a2, a1)) {
+            if (isSubtypeQualifiers(a2, a1)) {
                 return a1;
             }
             // If neither is a subtype of the other, then create an
@@ -195,7 +197,7 @@ public class SearchIndexAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
         }
 
         @Override
-        public boolean isSubtype(AnnotationMirror subAnno, AnnotationMirror superAnno) {
+        public boolean isSubtypeQualifiers(AnnotationMirror subAnno, AnnotationMirror superAnno) {
             if (areSameByClass(superAnno, SearchIndexUnknown.class)) {
                 return true;
             }

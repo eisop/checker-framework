@@ -4,11 +4,11 @@ import com.sun.source.tree.IdentifierTree;
 
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.dataflow.qual.SideEffectFree;
+import org.checkerframework.javacutil.InternalUtils;
 import org.checkerframework.javacutil.TreeUtils;
 
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Objects;
 
 /**
  * A node for a reference to 'super'.
@@ -16,14 +16,23 @@ import java.util.Objects;
  * <pre>
  *   <em>super</em>
  * </pre>
+ *
+ * Its {@link #type} field is the type of the class in which "super" appears, <em>not</em> the type
+ * to which the "super" identifier resolves.
  */
 public class SuperNode extends Node {
 
+    /** The identifier tree for "super". */
     protected final IdentifierTree tree;
 
+    /**
+     * Creates a node for the given "super" identifier.
+     *
+     * @param t the identifier tree for "super"
+     */
     public SuperNode(IdentifierTree t) {
         super(TreeUtils.typeOf(t));
-        assert t.getName().contentEquals("super");
+        assert InternalUtils.isSuperName(t.getName());
         tree = t;
     }
 
@@ -39,17 +48,24 @@ public class SuperNode extends Node {
 
     @Override
     public String toString() {
-        return "super";
+        if (Node.disambiguateOwner) {
+            return "super{owner=" + type + "}";
+        } else {
+            return "super";
+        }
     }
 
     @Override
     public boolean equals(@Nullable Object obj) {
+        if (this == obj) {
+            return true;
+        }
         return obj instanceof SuperNode;
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash("super");
+        return 109801370; // Objects.hash("super");
     }
 
     @Override

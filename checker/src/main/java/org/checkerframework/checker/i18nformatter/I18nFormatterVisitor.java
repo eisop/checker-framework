@@ -14,6 +14,7 @@ import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.common.basetype.BaseTypeVisitor;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.javacutil.AnnotationUtils;
+import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.TreeUtils;
 
@@ -52,13 +53,13 @@ public class I18nFormatterVisitor extends BaseTypeVisitor<I18nFormatterAnnotated
         switch (type.value()) {
             case I18NINVALID:
                 tu.failure(type, "i18nformat.string.invalid", fc.getInvalidError());
-                break;
+                return;
             case I18NFORMATFOR:
                 if (!fc.isValidFormatForInvocation()) {
                     Result<FormatType> failureType = fc.getInvalidInvocationType();
                     tu.failure(failureType, "i18nformat.invalid.formatfor");
                 }
-                break;
+                return;
             case I18NFORMAT:
                 Result<InvocationType> invc = fc.getInvocationType();
                 I18nConversionCategory[] formatCats = fc.getFormatCategories();
@@ -68,9 +69,9 @@ public class I18nFormatterVisitor extends BaseTypeVisitor<I18nFormatterAnnotated
                         int paraml = paramTypes.length;
                         int formatl = formatCats.length;
 
-                        // For assignments, i18nformat.missing.arguments and
-                        // i18nformat.excess.arguments are
-                        // issued from commonAssignmentCheck.
+                        // For assignments, "i18nformat.missing.arguments" and
+                        // "i18nformat.excess.arguments" are
+                        // issued from commonAssignmentCheck().
                         if (paraml < formatl) {
                             tu.warning(invc, "i18nformat.missing.arguments", formatl, paraml);
                         }
@@ -92,7 +93,7 @@ public class I18nFormatterVisitor extends BaseTypeVisitor<I18nFormatterAnnotated
                                         ExecutableElement method =
                                                 TreeUtils.elementFromUse(fc.getTree());
                                         CharSequence methodName =
-                                                ElementUtils.getSimpleNameOrDescription(method);
+                                                ElementUtils.getSimpleDescription(method);
                                         tu.failure(
                                                 param,
                                                 "argument.type.incompatible",
@@ -103,9 +104,9 @@ public class I18nFormatterVisitor extends BaseTypeVisitor<I18nFormatterAnnotated
                                     }
                             }
                         }
-                        break;
+                        return;
                     case NULLARRAY:
-                        // fall-through
+                    // fall-through
                     case ARRAY:
                         for (I18nConversionCategory cat : formatCats) {
                             if (cat == I18nConversionCategory.UNUSED) {
@@ -113,29 +114,29 @@ public class I18nFormatterVisitor extends BaseTypeVisitor<I18nFormatterAnnotated
                             }
                         }
                         tu.warning(invc, "i18nformat.indirect.arguments");
-                        break;
-                    default:
-                        break;
+                        return;
                 }
-                break;
-            default:
-                break;
+                throw new BugInCF("Unhandled InvocationType: " + invc.value());
+                // No default: MissingCasesInEnumSwitch enforces exhaustiveness for FormatType.
         }
+        throw new BugInCF("Unhandled FormatType: " + type.value());
     }
 
     @Override
-    protected void commonAssignmentCheck(
+    protected boolean commonAssignmentCheck(
             AnnotatedTypeMirror varType,
             AnnotatedTypeMirror valueType,
             Tree valueTree,
             @CompilerMessageKey String errorKey,
             Object... extraArgs) {
+        boolean result = true;
+
         AnnotationMirror rhs = valueType.getAnnotationInHierarchy(atypeFactory.I18NUNKNOWNFORMAT);
         AnnotationMirror lhs = varType.getAnnotationInHierarchy(atypeFactory.I18NUNKNOWNFORMAT);
 
-        // i18nformat.missing.arguments and i18nformat.excess.arguments are issued here for
+        // "i18nformat.missing.arguments" and "i18nformat.excess.arguments" are issued here for
         // assignments.
-        // For method calls, they are issued in checkInvocationFormatFor.
+        // For method calls, they are issued in checkInvocationFormatFor().
         if (rhs != null
                 && lhs != null
                 && AnnotationUtils.areSameByName(
@@ -164,12 +165,20 @@ public class I18nFormatterVisitor extends BaseTypeVisitor<I18nFormatterAnnotated
                         "i18nformat.excess.arguments",
                         varType.toString(),
                         valueType.toString());
+                result = false;
             }
         }
 
-        // By calling super.commonAssignmentCheck last, any "i18nformat.excess.arguments" message
-        // issued for a given line of code will take precedence over the
-        // "assignment.type.incompatible" issued by super.commonAssignmentCheck.
-        super.commonAssignmentCheck(varType, valueType, valueTree, errorKey, extraArgs);
+        // TODO: What does "take precedence over" mean?  Both are issued, but the
+        // "i18nformat.excess.arguments" appears first in the output.  Is this meant to not call
+        // super.commonAssignmentCheck() if `result` is already false?
+        // By calling super.commonAssignmentCheck() last, any "i18nformat.excess.arguments"
+        // message issued for a given line of code will take precedence over the
+        // "assignment.type.incompatible"
+        // issued by super.commonAssignmentCheck().
+        result =
+                super.commonAssignmentCheck(varType, valueType, valueTree, errorKey, extraArgs)
+                        && result;
+        return result;
     }
 }

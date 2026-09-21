@@ -26,9 +26,10 @@ import org.checkerframework.javacutil.TypeSystemError;
 import org.plumelib.reflection.Signatures;
 
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Locale;
@@ -79,6 +80,7 @@ public class I18nFormatterAnnotatedTypeFactory extends BaseAnnotatedTypeFactory 
     protected final I18nFormatterTreeUtil treeUtil = new I18nFormatterTreeUtil(checker);
 
     /** Create a new I18nFormatterAnnotatedTypeFactory. */
+    @SuppressWarnings("this-escape")
     public I18nFormatterAnnotatedTypeFactory(BaseTypeChecker checker) {
         super(checker);
 
@@ -97,86 +99,67 @@ public class I18nFormatterAnnotatedTypeFactory extends BaseAnnotatedTypeFactory 
         Map<String, String> result = new HashMap<>();
 
         if (checker.hasOption("propfiles")) {
-            String names = checker.getOption("propfiles");
-            String[] namesArr = names.split(File.pathSeparator);
-
-            if (namesArr == null) {
-                System.err.println("Couldn't parse the properties files: <" + names + ">");
-            } else {
-                for (String name : namesArr) {
-                    try {
-                        Properties prop = new Properties();
-
-                        ClassLoader cl = this.getClass().getClassLoader();
-                        if (cl == null) {
-                            // The class loader is null if the system class loader was used.
-                            cl = ClassLoader.getSystemClassLoader();
+            for (String propfile : checker.getStringsOption("propfiles", File.pathSeparator)) {
+                Properties prop = new Properties();
+                ClassLoader cl = this.getClass().getClassLoader();
+                if (cl == null) {
+                    // The class loader is null if the system class loader was used.
+                    cl = ClassLoader.getSystemClassLoader();
+                }
+                try (InputStream in = cl.getResourceAsStream(propfile)) {
+                    if (in != null) {
+                        prop.load(in);
+                    } else {
+                        // If the classloader didn't manage to load the file, try whether a
+                        // FileInputStream works. For absolute paths this might help.
+                        try (InputStream fis = Files.newInputStream(Paths.get(propfile))) {
+                            prop.load(fis);
+                        } catch (IOException e) {
+                            System.err.println("Couldn't find the properties file: " + propfile);
+                            // report(null, "propertykeychecker.filenotfound", propfile);
+                            // return Collections.emptySet();
+                            continue;
                         }
-                        try (InputStream in = cl.getResourceAsStream(name)) {
-                            if (in != null) {
-                                prop.load(in);
-                            } else {
-                                // If the classloader didn't manage to load the file, try whether a
-                                // FileInputStream works. For absolute paths this might help.
-                                try (InputStream fis = new FileInputStream(name)) {
-                                    prop.load(fis);
-                                } catch (FileNotFoundException e) {
-                                    System.err.println(
-                                            "Couldn't find the properties file: " + name);
-                                    // report(null, "propertykeychecker.filenotfound", name);
-                                    // return Collections.emptySet();
-                                    continue;
-                                }
-                            }
-
-                            for (String key : prop.stringPropertyNames()) {
-                                result.put(key, prop.getProperty(key));
-                            }
-                        }
-                    } catch (Exception e) {
-                        // TODO: is there a nicer way to report messages, that are not connected to
-                        // an AST node?  One cannot use `report`, because it needs a node.
-                        System.err.println(
-                                "Exception in PropertyKeyChecker.keysOfPropertyFile while"
-                                        + " processing "
-                                        + name
-                                        + ": "
-                                        + e);
-                        e.printStackTrace();
                     }
+
+                    for (String key : prop.stringPropertyNames()) {
+                        result.put(key, prop.getProperty(key));
+                    }
+                } catch (Exception e) {
+                    // TODO: is there a nicer way to report messages, that are not connected to
+                    // an AST node?  One cannot use `report`, because it needs a node.
+                    System.err.println(
+                            "Exception in PropertyKeyChecker.keysOfPropertyFile while processing "
+                                    + propfile
+                                    + ": "
+                                    + e);
+                    e.printStackTrace();
                 }
             }
         }
 
         if (checker.hasOption("bundlenames")) {
-            String bundleNames = checker.getOption("bundlenames");
-            String[] namesArr = bundleNames.split(":");
+            for (String bundleName : checker.getStringsOption("bundlenames", ':')) {
+                if (!Signatures.isBinaryName(bundleName)) {
+                    System.err.println(
+                            "Malformed resource bundle: <"
+                                    + bundleName
+                                    + "> should be a binary name.");
+                    continue;
+                }
+                ResourceBundle bundle = ResourceBundle.getBundle(bundleName);
+                if (bundle == null) {
+                    System.err.println(
+                            "Couldn't find the resource bundle: <"
+                                    + bundleName
+                                    + "> for locale <"
+                                    + Locale.getDefault()
+                                    + ">.");
+                    continue;
+                }
 
-            if (namesArr == null) {
-                System.err.println("Couldn't parse the resource bundles: <" + bundleNames + ">");
-            } else {
-                for (String bundleName : namesArr) {
-                    if (!Signatures.isBinaryName(bundleName)) {
-                        System.err.println(
-                                "Malformed resource bundle: <"
-                                        + bundleName
-                                        + "> should be a binary name.");
-                        continue;
-                    }
-                    ResourceBundle bundle = ResourceBundle.getBundle(bundleName);
-                    if (bundle == null) {
-                        System.err.println(
-                                "Couldn't find the resource bundle: <"
-                                        + bundleName
-                                        + "> for locale <"
-                                        + Locale.getDefault()
-                                        + ">.");
-                        continue;
-                    }
-
-                    for (String key : bundle.keySet()) {
-                        result.put(key, bundle.getString(key));
-                    }
+                for (String key : bundle.keySet()) {
+                    result.put(key, bundle.getString(key));
                 }
             }
         }
@@ -196,18 +179,16 @@ public class I18nFormatterAnnotatedTypeFactory extends BaseAnnotatedTypeFactory 
     }
 
     private class I18nFormatterTreeAnnotator extends TreeAnnotator {
-        public I18nFormatterTreeAnnotator(AnnotatedTypeFactory atypeFactory) {
+        I18nFormatterTreeAnnotator(AnnotatedTypeFactory atypeFactory) {
             super(atypeFactory);
         }
 
         @Override
         public Void visitLiteral(LiteralTree tree, AnnotatedTypeMirror type) {
-            if (!type.isAnnotatedInHierarchy(I18NUNKNOWNFORMAT)) {
+            if (!type.hasAnnotationInHierarchy(I18NUNKNOWNFORMAT)) {
                 String format = null;
                 if (tree.getKind() == Tree.Kind.STRING_LITERAL) {
                     format = (String) tree.getValue();
-                } else if (tree.getKind() == Tree.Kind.CHAR_LITERAL) {
-                    format = Character.toString((Character) tree.getValue());
                 }
                 if (format != null) {
                     AnnotationMirror anno;
@@ -244,7 +225,10 @@ public class I18nFormatterAnnotatedTypeFactory extends BaseAnnotatedTypeFactory 
 
         /** Creates I18nFormatterQualifierHierarchy. */
         public I18nFormatterQualifierHierarchy() {
-            super(I18nFormatterAnnotatedTypeFactory.this.getSupportedTypeQualifiers(), elements);
+            super(
+                    I18nFormatterAnnotatedTypeFactory.this.getSupportedTypeQualifiers(),
+                    I18nFormatterAnnotatedTypeFactory.this.elements,
+                    I18nFormatterAnnotatedTypeFactory.this);
             this.I18NFORMAT_KIND = this.getQualifierKind(I18NFORMAT_NAME);
             this.I18NFORMATFOR_KIND = this.getQualifierKind(I18NFORMATFOR_NAME);
             this.I18NINVALIDFORMAT_KIND = this.getQualifierKind(I18NINVALIDFORMAT_NAME);
@@ -316,9 +300,12 @@ public class I18nFormatterAnnotatedTypeFactory extends BaseAnnotatedTypeFactory 
                             I18nConversionCategory.intersect(
                                     shorterArgTypesList[i], longerArgTypesList[i]);
                 }
-                for (int i = shorterArgTypesList.length; i < longerArgTypesList.length; ++i) {
-                    resultArgTypes[i] = longerArgTypesList[i];
-                }
+                System.arraycopy(
+                        longerArgTypesList,
+                        shorterArgTypesList.length,
+                        resultArgTypes,
+                        shorterArgTypesList.length,
+                        longerArgTypesList.length - shorterArgTypesList.length);
                 return treeUtil.categoriesToFormatAnnotation(resultArgTypes);
             } else if (qualifierKind1 == I18NINVALIDFORMAT_KIND
                     && qualifierKind2 == I18NINVALIDFORMAT_KIND) {

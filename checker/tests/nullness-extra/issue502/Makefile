@@ -1,6 +1,6 @@
-.PHONY: all
+.PHONY: all clean
 
-all: clean
+all:
 	$(JAVAC) -processor org.checkerframework.checker.nullness.NullnessChecker Issue502.java
 # TODO: This test is rather unstable, as Expected.txt relies on
 # @SideEffectFree being constant #12().

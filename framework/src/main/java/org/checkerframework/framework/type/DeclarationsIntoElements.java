@@ -40,7 +40,7 @@ public final class DeclarationsIntoElements {
     public static void store(
             ProcessingEnvironment env, AnnotatedTypeFactory atypeFactory, ClassTree tree) {
         for (Tree mem : tree.getMembers()) {
-            if (mem.getKind() == Tree.Kind.METHOD) {
+            if (mem instanceof MethodTree) {
                 storeMethod(env, atypeFactory, (MethodTree) mem);
             }
         }
@@ -50,7 +50,7 @@ public final class DeclarationsIntoElements {
      * Add inherited declaration annotations from overridden methods into the corresponding Elements
      * so they are written into bytecode.
      *
-     * @param env ProcessingEnvironment
+     * @param env the processing environment
      * @param atypeFactory the type factory
      * @param meth the MethodTree to add the annotations
      */

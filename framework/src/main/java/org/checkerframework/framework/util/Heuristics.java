@@ -24,7 +24,7 @@ import java.util.Arrays;
 public class Heuristics {
 
     /**
-     * Determines whether a tree has a particular set of direct parents, ignoring blocks and
+     * Returns true if a tree has a particular set of direct parents, ignoring blocks and
      * parentheses.
      *
      * <p>For example, to test whether an expression (specified by {@code path}) is immediately
@@ -54,7 +54,7 @@ public class Heuristics {
                 break;
             }
 
-            if (tree.getKind() == Tree.Kind.BLOCK || tree.getKind() == Tree.Kind.PARENTHESIZED) {
+            if (tree instanceof BlockTree || tree instanceof ParenthesizedTree) {
                 parentPath = parentPath.getParentPath();
                 continue;
             }
@@ -167,7 +167,7 @@ public class Heuristics {
 
     /**
      * {@code match()} returns true if called on a path whose leaf is within the "then" clause of an
-     * if whose conditon matches the matcher (supplied at object initialization). Also returns true
+     * if whose condition matches the matcher (supplied at object initialization). Also returns true
      * if the leaf is within the "else" of a negated condition that matches the supplied matcher.
      */
     public static class WithinTrueBranch extends Matcher {
@@ -186,7 +186,7 @@ public class Heuristics {
         public boolean match(TreePath path) {
             TreePath prev = path, p = path.getParentPath();
             while (p != null) {
-                if (p.getLeaf().getKind() == Tree.Kind.IF) {
+                if (p.getLeaf() instanceof IfTree) {
                     IfTree ifTree = (IfTree) p.getLeaf();
                     ExpressionTree cond = TreeUtils.withoutParens(ifTree.getCondition());
                     if (ifTree.getThenStatement() == prev.getLeaf()

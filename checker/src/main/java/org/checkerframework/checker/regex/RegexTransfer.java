@@ -1,7 +1,6 @@
 package org.checkerframework.checker.regex;
 
 import org.checkerframework.dataflow.analysis.ConditionalTransferResult;
-import org.checkerframework.dataflow.analysis.RegularTransferResult;
 import org.checkerframework.dataflow.analysis.TransferInput;
 import org.checkerframework.dataflow.analysis.TransferResult;
 import org.checkerframework.dataflow.cfg.node.ClassNameNode;
@@ -118,11 +117,7 @@ public class RegexTransfer extends CFTransfer {
                 groupCount = 0;
             }
             regexAnnotation = factory.createRegexAnnotation(groupCount);
-
-            CFValue newResultValue =
-                    analysis.createSingleAnnotationValue(
-                            regexAnnotation, result.getResultValue().getUnderlyingType());
-            return new RegularTransferResult<>(newResultValue, result.getRegularStore());
+            return recreateTransferResult(regexAnnotation, result);
         }
         return result;
     }
@@ -169,7 +164,7 @@ public class RegexTransfer extends CFTransfer {
      * @param possibleMatcher the Node that might be a call of Matcher.groupCount()
      * @param possibleConstant the Node that might be a constant
      * @param isAlsoEqual whether the comparison operation is strict or reflexive
-     * @param resultIn TransferResult
+     * @param resultIn the TransferResult
      * @return the possibly refined output TransferResult
      */
     private TransferResult<CFValue, CFStore> handleMatcherGroupCount(

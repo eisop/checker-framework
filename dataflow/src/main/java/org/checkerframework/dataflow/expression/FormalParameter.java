@@ -7,8 +7,6 @@ import org.checkerframework.javacutil.AnnotationProvider;
 import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.TypeAnnotationUtils;
 
-import java.util.Objects;
-
 import javax.lang.model.element.VariableElement;
 
 /**
@@ -38,6 +36,9 @@ public class FormalParameter extends JavaExpression {
 
     @Override
     public boolean equals(@Nullable Object obj) {
+        if (this == obj) {
+            return true;
+        }
         if (!(obj instanceof FormalParameter)) {
             return false;
         }
@@ -64,14 +65,21 @@ public class FormalParameter extends JavaExpression {
         return element;
     }
 
+    /** Cache the hashCode. Recomputed if zero. */
+    private int hashCodeCache = 0;
+
     @Override
     public int hashCode() {
-        VarSymbol vs = (VarSymbol) element;
-        return Objects.hash(
-                index,
-                vs.name.toString(),
-                TypeAnnotationUtils.unannotatedType(vs.type).toString(),
-                vs.owner.toString());
+        if (hashCodeCache == 0) {
+            VarSymbol vs = (VarSymbol) element;
+            int h = 1;
+            h = 31 * h + Integer.hashCode(index);
+            h = 31 * h + vs.name.toString().hashCode();
+            h = 31 * h + TypeAnnotationUtils.unannotatedType(vs.type).toString().hashCode();
+            h = 31 * h + vs.owner.toString().hashCode();
+            hashCodeCache = h == 0 ? 1 : h;
+        }
+        return hashCodeCache;
     }
 
     @Override
@@ -89,9 +97,10 @@ public class FormalParameter extends JavaExpression {
                 + "]";
     }
 
+    @SuppressWarnings("unchecked") // generic cast
     @Override
-    public boolean containsOfClass(Class<? extends JavaExpression> clazz) {
-        return getClass() == clazz;
+    public <T extends JavaExpression> @Nullable T containedOfClass(Class<T> clazz) {
+        return getClass() == clazz ? (T) this : null;
     }
 
     @Override
@@ -109,13 +118,13 @@ public class FormalParameter extends JavaExpression {
     }
 
     @Override
-    public boolean isUnassignableByOtherCode() {
-        return true;
+    public boolean isAssignableByOtherCode() {
+        return false;
     }
 
     @Override
-    public boolean isUnmodifiableByOtherCode() {
-        return true;
+    public boolean isModifiableByOtherCode() {
+        return false;
     }
 
     @Override

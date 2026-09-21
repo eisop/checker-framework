@@ -4,6 +4,8 @@ import org.checkerframework.javacutil.AnnotationMirrorSet;
 
 import javax.lang.model.type.TypeMirror;
 
+// TODO: CFAbstractValue is also a set of annotations and a TypeMirror.
+// This documentation does not clarify how this class is different.
 /**
  * The default abstract value used in the Checker Framework: a set of annotations and a TypeMirror.
  */

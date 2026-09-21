@@ -1,4 +1,4 @@
-package tests;
+package org.checkerframework.framework.test.junit;
 
 import org.checkerframework.framework.test.CheckerFrameworkPerDirectoryTest;
 import org.junit.runners.Parameterized;

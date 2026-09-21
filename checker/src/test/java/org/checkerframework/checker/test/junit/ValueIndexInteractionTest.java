@@ -18,7 +18,9 @@ public class ValueIndexInteractionTest extends CheckerFrameworkPerDirectoryTest 
         super(
                 testFiles,
                 org.checkerframework.common.value.ValueChecker.class,
-                "value-index-interaction");
+                "value-index-interaction",
+                // Ignore the test suite's usage of qualifiers in illegal locations.
+                "-AignoreTargetLocations");
     }
 
     @Parameters

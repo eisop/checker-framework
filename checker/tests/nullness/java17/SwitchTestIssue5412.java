@@ -27,12 +27,12 @@ class SwitchTestExhaustive {
                     case VAL1 -> "1";
                     case VAL2 -> "2";
                     case VAL3 -> "3";
-                        // The default case is dead code, so it would be possible for type-checking
-                        // to skip it and not issue this warning.  But giving the warning is also
-                        // good.
-                        // :: error: (switch.expression.type.incompatible)
+                    // The default case is dead code, so it would be possible for type-checking
+                    // to skip it and not issue this warning.  But giving the warning is also
+                    // good.
                     default -> null;
                 };
+        // :: error: (return.type.incompatible)
         return s;
     }
 
@@ -82,8 +82,8 @@ class SwitchTestExhaustive {
             case VAL3:
                 aString = "c";
                 break;
-                // The `default:` case is dead code, so it is acceptable for this method to compile
-                // without nullness errors.
+            // The `default:` case is dead code, so it is acceptable for this method to compile
+            // without nullness errors.
             default:
                 break;
         }
@@ -103,8 +103,8 @@ class SwitchTestExhaustive {
             case VAL3:
                 aString = "c";
                 break;
-                // The `default:` case is dead code, so it is acceptable for this method to compile
-                // without nullness errors.
+            // The `default:` case is dead code, so it is acceptable for this method to compile
+            // without nullness errors.
             default:
                 aString = null;
                 break;

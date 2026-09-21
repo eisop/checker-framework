@@ -8,8 +8,6 @@ import org.checkerframework.dataflow.cfg.node.UnaryOperationNode;
 import org.checkerframework.javacutil.AnnotationProvider;
 import org.checkerframework.javacutil.BugInCF;
 
-import java.util.Objects;
-
 import javax.lang.model.type.TypeMirror;
 
 /** JavaExpression for unary operations. */
@@ -62,12 +60,13 @@ public class UnaryOperation extends JavaExpression {
         return operand;
     }
 
+    @SuppressWarnings("unchecked") // generic cast
     @Override
-    public boolean containsOfClass(Class<? extends JavaExpression> clazz) {
+    public <T extends JavaExpression> @Nullable T containedOfClass(Class<T> clazz) {
         if (getClass() == clazz) {
-            return true;
+            return (T) this;
         }
-        return operand.containsOfClass(clazz);
+        return operand.containedOfClass(clazz);
     }
 
     @Override
@@ -76,13 +75,13 @@ public class UnaryOperation extends JavaExpression {
     }
 
     @Override
-    public boolean isUnassignableByOtherCode() {
-        return operand.isUnassignableByOtherCode();
+    public boolean isAssignableByOtherCode() {
+        return operand.isAssignableByOtherCode();
     }
 
     @Override
-    public boolean isUnmodifiableByOtherCode() {
-        return operand.isUnmodifiableByOtherCode();
+    public boolean isModifiableByOtherCode() {
+        return operand.isModifiableByOtherCode();
     }
 
     @Override
@@ -104,13 +103,25 @@ public class UnaryOperation extends JavaExpression {
         return operand.containsModifiableAliasOf(store, other);
     }
 
+    /** Cache the hashCode. Recomputed if zero. */
+    private int hashCodeCache = 0;
+
     @Override
     public int hashCode() {
-        return Objects.hash(operationKind, operand);
+        if (hashCodeCache == 0) {
+            int h = 1;
+            h = 31 * h + (operationKind != null ? operationKind.hashCode() : 0);
+            h = 31 * h + (operand != null ? operand.hashCode() : 0);
+            hashCodeCache = h == 0 ? 1 : h;
+        }
+        return hashCodeCache;
     }
 
     @Override
     public boolean equals(@Nullable Object other) {
+        if (this == other) {
+            return true;
+        }
         if (!(other instanceof UnaryOperation)) {
             return false;
         }

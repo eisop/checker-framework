@@ -27,6 +27,7 @@ import org.checkerframework.javacutil.BugInCF;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -381,8 +382,7 @@ public final class SceneToStubWriter {
      * @param javacType the javac representation of the type
      * @return the type as it would appear in Java source code, followed by a trailing space
      */
-    private static String formatType(
-            final @Nullable ATypeElement aType, final TypeMirror javacType) {
+    private static String formatType(@Nullable ATypeElement aType, TypeMirror javacType) {
         StringBuilder sb = new StringBuilder();
         formatType(sb, aType, javacType);
         return sb.toString();
@@ -397,7 +397,7 @@ public final class SceneToStubWriter {
      * @param javacType the javac representation of the type
      */
     private static void formatType(
-            StringBuilder sb, final @Nullable ATypeElement aType, final TypeMirror javacType) {
+            StringBuilder sb, @Nullable ATypeElement aType, TypeMirror javacType) {
         // TypeMirror#toString prints multiple annotations on a single type
         // separated by commas rather than by whitespace, as is required in source code.
         String basetypeToPrint = javacType.toString().replaceAll(",@", " @");
@@ -435,7 +435,7 @@ public final class SceneToStubWriter {
      */
     private static void formatType(
             StringBuilder sb,
-            final @Nullable ATypeElement aType,
+            @Nullable ATypeElement aType,
             @Nullable TypeMirror javacType,
             String basetypeToPrint) {
         // anonymous static classes shouldn't be printed with the "anonymous" tag that the AScene
@@ -585,7 +585,7 @@ public final class SceneToStubWriter {
      *
      * @param innermostTypeElt the innermost type element: either an inner class or an outer class
      *     without any inner classes that should be printed
-     * @param classNames the names of the containing classes, from outer to inner
+     * @param classNames the names of the enclosing classes, from outer to inner
      * @return an array of TypeElements whose entry at a given index represents the type named at
      *     that index in {@code classNames}
      */
@@ -653,6 +653,7 @@ public final class SceneToStubWriter {
     /**
      * Prints a method declaration in stub file format (i.e., without a method body).
      *
+     * @param className the class that contains the method, for diagnostics only
      * @param aMethod the method to print
      * @param simplename the simple name of the enclosing class, for receiver parameters and
      *     constructor names
@@ -660,7 +661,9 @@ public final class SceneToStubWriter {
      * @param atf the type factory, for computing preconditions and postconditions
      * @param indentLevel the indent string
      */
+    @SuppressWarnings("UnusedVariable")
     private static void printMethodDeclaration(
+            String className,
             AMethod aMethod,
             String simplename,
             PrintWriter printWriter,
@@ -726,18 +729,14 @@ public final class SceneToStubWriter {
         List<@BinaryName String> classes = new ArrayList<>(scene.getAScene().getClasses().keySet());
         Collections.sort(
                 classes,
-                new Comparator<@BinaryName String>() {
-                    @Override
-                    public int compare(@BinaryName String o1, @BinaryName String o2) {
-                        return ComparisonChain.start()
+                (o1, o2) ->
+                        ComparisonChain.start()
                                 .compare(
                                         packagePart(o1),
                                         packagePart(o2),
                                         Comparator.nullsFirst(Comparator.naturalOrder()))
                                 .compare(basenamePart(o1), basenamePart(o2))
-                                .result();
-                    }
-                });
+                                .result());
 
         boolean anyClassPrintable = false;
 
@@ -759,7 +758,7 @@ public final class SceneToStubWriter {
                             if (fileWriter != null || printWriter != null) {
                                 throw new Error("This can't happen");
                             }
-                            fileWriter = new FileWriter(filename);
+                            fileWriter = new FileWriter(filename, StandardCharsets.UTF_8);
                             printWriter = new PrintWriter(fileWriter);
                         } catch (IOException e) {
                             throw new BugInCF("error writing file during WPI: " + filename);
@@ -877,6 +876,7 @@ public final class SceneToStubWriter {
             printWriter.println();
             for (Map.Entry<String, AMethod> methodEntry : aClass.getMethods().entrySet()) {
                 printMethodDeclaration(
+                        aClass.className,
                         methodEntry.getValue(),
                         innermostClassname,
                         printWriter,

@@ -30,7 +30,6 @@ import javax.lang.model.util.Elements;
 /** Annotated type factory for the Aliasing Checker. */
 public class AliasingAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
 
-    /** Aliasing annotations. */
     /** The @{@link MaybeAliased} annotation. */
     protected final AnnotationMirror MAYBE_ALIASED =
             AnnotationBuilder.fromClass(elements, MaybeAliased.class);
@@ -47,6 +46,7 @@ public class AliasingAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
             AnnotationBuilder.fromClass(elements, MaybeLeaked.class);
 
     /** Create the type factory. */
+    @SuppressWarnings("this-escape")
     public AliasingAnnotatedTypeFactory(BaseTypeChecker checker) {
         super(checker);
         if (this.getClass() == AliasingAnnotatedTypeFactory.class) {
@@ -103,7 +103,7 @@ public class AliasingAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
          */
         protected AliasingQualifierHierarchy(
                 Collection<Class<? extends Annotation>> qualifierClasses, Elements elements) {
-            super(qualifierClasses, elements);
+            super(qualifierClasses, elements, AliasingAnnotatedTypeFactory.this);
         }
 
         /**
@@ -119,7 +119,7 @@ public class AliasingAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
         }
 
         @Override
-        public boolean isSubtype(AnnotationMirror subAnno, AnnotationMirror superAnno) {
+        public boolean isSubtypeQualifiers(AnnotationMirror subAnno, AnnotationMirror superAnno) {
             if (isLeakedQualifier(superAnno) && isLeakedQualifier(subAnno)) {
                 // @LeakedToResult and @NonLeaked were supposed to be non-type-qualifiers
                 // annotations.
@@ -128,7 +128,7 @@ public class AliasingAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
                 // type qualifiers but the warnings related to the hierarchy are ignored.
                 return true;
             }
-            return super.isSubtype(subAnno, superAnno);
+            return super.isSubtypeQualifiers(subAnno, superAnno);
         }
     }
 }

@@ -5,6 +5,7 @@ import org.checkerframework.framework.qual.QualifierArgument;
 
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
+import java.lang.annotation.Repeatable;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
@@ -23,6 +24,7 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.RUNTIME)
 @PreconditionAnnotation(qualifier = CalledMethods.class)
 @Target({ElementType.METHOD, ElementType.CONSTRUCTOR})
+@Repeatable(RequiresCalledMethods.List.class)
 public @interface RequiresCalledMethods {
     /**
      * The Java expressions that must have had methods called on them.
@@ -49,6 +51,7 @@ public @interface RequiresCalledMethods {
      */
     @Documented
     @Retention(RetentionPolicy.RUNTIME)
+    @PreconditionAnnotation(qualifier = CalledMethods.class)
     @Target({ElementType.METHOD, ElementType.CONSTRUCTOR})
     public static @interface List {
         /**

@@ -7,6 +7,7 @@ import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedDeclared
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedTypeVariable;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedWildcardType;
 import org.checkerframework.framework.util.AnnotatedTypes;
+import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.TypesUtils;
 import org.plumelib.util.StringsPlume;
@@ -27,10 +28,11 @@ import javax.lang.model.type.TypeKind;
  * <p>At the moment, the only function PropagationTypeAnnotator provides, is the propagation of
  * generic type parameter annotations to unannotated wildcards with missing bounds annotations.
  *
+ * <p>PropagationTypeAnnotator traverses trees deeply by default.
+ *
  * @see
  *     #visitWildcard(org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedWildcardType,
  *     Object)
- *     <p>PropagationTypeAnnotator traverses trees deeply by default.
  */
 public class PropagationTypeAnnotator extends TypeAnnotator {
 
@@ -90,11 +92,10 @@ public class PropagationTypeAnnotator extends TypeAnnotator {
             // Copy annotations from the declaration to the wildcards.
             AnnotatedDeclaredType declaration =
                     (AnnotatedDeclaredType)
-                            typeFactory.fromElement(declaredType.getUnderlyingType().asElement());
+                            atypeFactory.fromElement(declaredType.getUnderlyingType().asElement());
             List<AnnotatedTypeMirror> typeArgs = declaredType.getTypeArguments();
             for (int i = 0; i < typeArgs.size(); i++) {
-                if (typeArgs.get(i).getKind() != TypeKind.WILDCARD
-                        || !((AnnotatedWildcardType) typeArgs.get(i)).isUninferredTypeArgument()) {
+                if (!AnnotatedTypes.isTypeArgOfRawType(typeArgs.get(i))) {
                     // Sometimes the framework infers a more precise type argument, so just use it.
                     continue;
                 }
@@ -122,10 +123,18 @@ public class PropagationTypeAnnotator extends TypeAnnotator {
      */
     @Override
     public Void visitWildcard(AnnotatedWildcardType wildcard, Void aVoid) {
-        if (visitedNodes.containsKey(wildcard) || pause) {
+        if (hasVisited(wildcard) || pause) {
             return null;
         }
-        visitedNodes.put(wildcard, null);
+        markVisited(wildcard, null);
+
+        // visitDeclared already copies annotations from the declaration to synthetic wildcard type
+        // arguments of raw types. If this visitor scans those wildcards' bounds, it may visit a
+        // nested wildcard that is not itself a type argument of the raw parent, so there is no
+        // corresponding type parameter from which to propagate annotations.
+        if (AnnotatedTypes.isTypeArgOfRawType(wildcard)) {
+            return null;
+        }
 
         Element typeParamElement = TypesUtils.wildcardToTypeParam(wildcard.getUnderlyingType());
         if (typeParamElement == null && !parents.isEmpty()) {
@@ -135,11 +144,10 @@ public class PropagationTypeAnnotator extends TypeAnnotator {
         if (typeParamElement != null) {
             pause = true;
             AnnotatedTypeVariable typeParam =
-                    (AnnotatedTypeVariable) typeFactory.getAnnotatedType(typeParamElement);
+                    (AnnotatedTypeVariable) atypeFactory.getAnnotatedType(typeParamElement);
             pause = false;
 
-            final Set<? extends AnnotationMirror> tops =
-                    typeFactory.getQualifierHierarchy().getTopAnnotations();
+            AnnotationMirrorSet tops = atypeFactory.getQualifierHierarchy().getTopAnnotations();
 
             if (AnnotatedTypes.hasNoExplicitBound(wildcard)) {
                 propagateExtendsBound(wildcard, typeParam, tops);
@@ -180,9 +188,9 @@ public class PropagationTypeAnnotator extends TypeAnnotator {
      * wildcard bound.
      */
     private void applyAnnosFromBound(
-            final AnnotatedTypeMirror wildcardBound,
-            final AnnotatedTypeMirror typeParamBound,
-            final Set<? extends AnnotationMirror> tops) {
+            AnnotatedTypeMirror wildcardBound,
+            AnnotatedTypeMirror typeParamBound,
+            Set<? extends AnnotationMirror> tops) {
         // Type variables do not need primary annotations.
         // The type variable will have annotations placed on its
         // bounds via its declaration or defaulting rules
@@ -191,9 +199,9 @@ public class PropagationTypeAnnotator extends TypeAnnotator {
             return;
         }
 
-        for (final AnnotationMirror top : tops) {
+        for (AnnotationMirror top : tops) {
             if (wildcardBound.getAnnotationInHierarchy(top) == null) {
-                final AnnotationMirror typeParamAnno = typeParamBound.getAnnotationInHierarchy(top);
+                AnnotationMirror typeParamAnno = typeParamBound.getAnnotationInHierarchy(top);
                 if (typeParamAnno == null) {
                     throw new BugInCF(
                             StringsPlume.joinLines(
@@ -216,10 +224,10 @@ public class PropagationTypeAnnotator extends TypeAnnotator {
      * @return the type parameter in {@code declaredType} that corresponds to {@code typeArg}
      */
     private Element getTypeParameterElement(
-            final @FindDistinct AnnotatedTypeMirror typeArg,
-            final AnnotatedDeclaredType declaredType) {
-        for (int i = 0; i < declaredType.getTypeArguments().size(); i++) {
-            if (declaredType.getTypeArguments().get(i) == typeArg) {
+            @FindDistinct AnnotatedTypeMirror typeArg, AnnotatedDeclaredType declaredType) {
+        List<AnnotatedTypeMirror> typeArgs = declaredType.getTypeArguments();
+        for (int i = 0; i < typeArgs.size(); i++) {
+            if (typeArgs.get(i) == typeArg) {
                 TypeElement typeElement =
                         TypesUtils.getTypeElement(declaredType.getUnderlyingType());
                 return typeElement.getTypeParameters().get(i);

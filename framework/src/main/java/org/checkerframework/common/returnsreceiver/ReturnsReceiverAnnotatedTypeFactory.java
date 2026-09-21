@@ -32,6 +32,7 @@ public class ReturnsReceiverAnnotatedTypeFactory extends BaseAnnotatedTypeFactor
      *
      * @param checker the type-checker associated with this factory
      */
+    @SuppressWarnings("this-escape")
     public ReturnsReceiverAnnotatedTypeFactory(BaseTypeChecker checker) {
         super(checker);
         THIS_ANNOTATION = AnnotationBuilder.fromClass(elements, This.class);
@@ -58,7 +59,7 @@ public class ReturnsReceiverAnnotatedTypeFactory extends BaseAnnotatedTypeFactor
          * @param typeFactory the {@link AnnotatedTypeFactory} associated with this {@link
          *     TypeAnnotator}
          */
-        public ReturnsReceiverTypeAnnotator(AnnotatedTypeFactory typeFactory) {
+        ReturnsReceiverTypeAnnotator(AnnotatedTypeFactory typeFactory) {
             super(typeFactory);
         }
 
@@ -75,9 +76,7 @@ public class ReturnsReceiverAnnotatedTypeFactory extends BaseAnnotatedTypeFactor
             // If any FluentAPIGenerator indicates the method returns this,
             // add an @This annotation on the return type.
             if (FluentAPIGenerator.check(t)) {
-                if (!returnType.isAnnotatedInHierarchy(THIS_ANNOTATION)) {
-                    returnType.addAnnotation(THIS_ANNOTATION);
-                }
+                returnType.addMissingAnnotation(THIS_ANNOTATION);
             }
 
             // If return type is annotated with @This, add @This annotation to the receiver type.
@@ -86,8 +85,8 @@ public class ReturnsReceiverAnnotatedTypeFactory extends BaseAnnotatedTypeFactor
             AnnotationMirror retAnnotation = returnType.getAnnotationInHierarchy(THIS_ANNOTATION);
             if (retAnnotation != null && AnnotationUtils.areSame(retAnnotation, THIS_ANNOTATION)) {
                 AnnotatedTypeMirror.AnnotatedDeclaredType receiverType = t.getReceiverType();
-                if (receiverType != null && !receiverType.isAnnotatedInHierarchy(THIS_ANNOTATION)) {
-                    receiverType.addAnnotation(THIS_ANNOTATION);
+                if (receiverType != null) {
+                    receiverType.addMissingAnnotation(THIS_ANNOTATION);
                 }
             }
             return super.visitExecutable(t, p);

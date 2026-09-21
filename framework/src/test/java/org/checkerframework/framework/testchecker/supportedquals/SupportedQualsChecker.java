@@ -27,7 +27,7 @@ public class SupportedQualsChecker extends BaseTypeChecker {
         };
     }
 
-    class SupportedQualsAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
+    static class SupportedQualsAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
         public SupportedQualsAnnotatedTypeFactory(BaseTypeChecker checker) {
             super(checker);
             postInit();

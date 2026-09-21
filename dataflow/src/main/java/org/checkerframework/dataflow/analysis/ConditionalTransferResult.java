@@ -79,7 +79,7 @@ public class ConditionalTransferResult<V extends AbstractValue<V>, S extends Sto
      * @see #ConditionalTransferResult(AbstractValue, Store, Store, Map, boolean)
      */
     public ConditionalTransferResult(
-            V value, S thenStore, S elseStore, Map<TypeMirror, S> exceptionalStores) {
+            V value, S thenStore, S elseStore, @Nullable Map<TypeMirror, S> exceptionalStores) {
         this(value, thenStore, elseStore, exceptionalStores, false);
     }
 
@@ -118,7 +118,6 @@ public class ConditionalTransferResult<V extends AbstractValue<V>, S extends Sto
         this.storeChanged = storeChanged;
     }
 
-    /** The regular result store. */
     @Override
     public S getRegularStore() {
         return thenStore.leastUpperBound(elseStore);
@@ -153,5 +152,12 @@ public class ConditionalTransferResult<V extends AbstractValue<V>, S extends Sto
     @Override
     public boolean storeChanged() {
         return storeChanged;
+    }
+
+    @Override
+    public ConditionalTransferResult<V, S> withExceptionalStores(
+            Map<TypeMirror, S> exceptionalStores) {
+        return new ConditionalTransferResult<>(
+                resultValue, thenStore, elseStore, exceptionalStores, storeChanged);
     }
 }

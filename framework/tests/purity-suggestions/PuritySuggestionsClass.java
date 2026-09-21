@@ -1,5 +1,6 @@
 import org.checkerframework.dataflow.qual.Deterministic;
 import org.checkerframework.dataflow.qual.Pure;
+import org.checkerframework.dataflow.qual.SideEffectFree;
 
 // various tests for the checker to automatically suggest pure methods (most methods have been
 // copied from Purity.java)
@@ -8,13 +9,14 @@ public class PuritySuggestionsClass {
 
     String f1, f2, f3;
     String[] a;
+    static String staticString;
 
     // class with a (potentially) non-pure constructor
     private static class NonPureClass {
         String t;
 
         public NonPureClass() {
-            t = "";
+            staticString = "";
         }
     }
 
@@ -22,6 +24,16 @@ public class PuritySuggestionsClass {
     private static class PureClass {
         // :: warning: (purity.more.sideeffectfree)
         public PureClass() {}
+    }
+
+    // class with a pure constructor
+    private static class PureClass2 {
+        String t;
+
+        // :: warning: (purity.more.sideeffectfree)
+        public PureClass2() {
+            t = "";
+        }
     }
 
     // :: warning: (purity.more.sideeffectfree)
@@ -158,6 +170,13 @@ public class PuritySuggestionsClass {
 
     String t12() {
         NonPureClass p = new NonPureClass();
+        return "";
+    }
+
+    @SideEffectFree
+    @Deterministic
+    // :: warning: (purity.effectively.pure)
+    String shouldBeMarkedPure() {
         return "";
     }
 }

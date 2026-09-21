@@ -7,34 +7,40 @@ import com.sun.source.tree.ExpressionTree;
 import com.sun.source.tree.MethodInvocationTree;
 import com.sun.source.tree.MethodTree;
 import com.sun.source.tree.NewArrayTree;
+import com.sun.source.tree.ReturnTree;
 import com.sun.source.tree.Tree;
-import com.sun.source.tree.Tree.Kind;
 import com.sun.source.tree.TypeCastTree;
 import com.sun.source.tree.UnaryTree;
+import com.sun.source.tree.VariableTree;
 import com.sun.source.util.TreePath;
 
 import org.checkerframework.framework.type.AnnotatedTypeFactory;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedArrayType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedExecutableType;
+import org.checkerframework.framework.type.GenericAnnotatedTypeFactory;
 import org.checkerframework.framework.type.QualifierHierarchy;
 import org.checkerframework.javacutil.AnnotationMirrorSet;
-import org.checkerframework.javacutil.CollectionUtils;
 import org.checkerframework.javacutil.Pair;
 import org.checkerframework.javacutil.TreePathUtil;
 import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TypeKindUtils;
+import org.plumelib.util.CollectionsPlume;
 
 import java.util.Map;
 import java.util.Set;
 
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.type.TypeKind;
+import javax.lang.model.type.TypeMirror;
 
 /**
  * {@link PropagationTreeAnnotator} adds qualifiers to types where the resulting type is a function
- * of an input type, e.g. the result of a binary operation is a LUB of the type of expressions in
- * the binary operation.
+ * of an input type.
+ *
+ * <p>By default, it applies LUBs, e.g., the result of a binary operation is a LUB of the type of
+ * expressions in the binary operation, and likewise for compound operations. It also handles unary
+ * expressions, array creation, and casts.
  *
  * <p>{@link PropagationTreeAnnotator} is generally run first by {@link ListTreeAnnotator} since the
  * trees it handles are not usually targets of {@code @DefaultFor}.
@@ -70,28 +76,33 @@ public class PropagationTreeAnnotator extends TreeAnnotator {
      * infinite recursion and this cache is used to improve performance.
      */
     private final Map<MethodInvocationTree, AnnotatedExecutableType> methodInvocationToType =
-            CollectionUtils.createLRUCache(300);
+            CollectionsPlume.createLruCache(300);
 
     @Override
-    public Void visitNewArray(NewArrayTree tree, AnnotatedTypeMirror type) {
-        assert type.getKind() == TypeKind.ARRAY
+    public Void visitNewArray(NewArrayTree arrayTree, AnnotatedTypeMirror arrayType) {
+        assert arrayType.getKind() == TypeKind.ARRAY
                 : "PropagationTreeAnnotator.visitNewArray: should be an array type";
 
-        AnnotatedTypeMirror componentType = ((AnnotatedArrayType) type).getComponentType();
+        AnnotatedTypeMirror componentType = ((AnnotatedArrayType) arrayType).getComponentType();
+        TypeMirror componentTM = componentType.getUnderlyingType();
 
         // prev is the lub of the initializers if they exist, otherwise the current component type.
         Set<? extends AnnotationMirror> prev = null;
-        if (tree.getInitializers() != null && !tree.getInitializers().isEmpty()) {
+        if (arrayTree.getInitializers() != null && !arrayTree.getInitializers().isEmpty()) {
             // We have initializers, either with or without an array type.
 
             // TODO (issue #599): This only works at the top level.  It should work at all levels of
             // the array.
-            for (ExpressionTree init : tree.getInitializers()) {
+            for (ExpressionTree init : arrayTree.getInitializers()) {
                 AnnotatedTypeMirror initType = atypeFactory.getAnnotatedType(init);
                 // initType might be a typeVariable, so use effectiveAnnotations.
                 AnnotationMirrorSet annos = initType.getEffectiveAnnotations();
 
-                prev = (prev == null) ? annos : qualHierarchy.leastUpperBounds(prev, annos);
+                prev =
+                        (prev == null)
+                                ? annos
+                                : qualHierarchy.leastUpperBoundsShallow(
+                                        prev, componentTM, annos, initType.getUnderlyingType());
             }
         } else {
             prev = componentType.getAnnotations();
@@ -100,33 +111,38 @@ public class PropagationTreeAnnotator extends TreeAnnotator {
         assert prev != null
                 : "PropagationTreeAnnotator.visitNewArray: violated assumption about qualifiers";
 
-        TreePath path = atypeFactory.getPath(tree);
+        TreePath path = atypeFactory.getPath(arrayTree);
         AnnotatedTypeMirror contextType = null;
         if (path != null && path.getParentPath() != null) {
             Tree parentTree = path.getParentPath().getLeaf();
-            if (parentTree.getKind() == Kind.ASSIGNMENT) {
+            if (parentTree instanceof AssignmentTree) {
                 Tree var = ((AssignmentTree) parentTree).getVariable();
                 contextType = atypeFactory.getAnnotatedType(var);
-            } else if (parentTree.getKind() == Kind.VARIABLE) {
-                contextType = atypeFactory.getAnnotatedType(parentTree);
+            } else if (parentTree instanceof VariableTree) {
+                if (!TreeUtils.isVariableTreeDeclaredUsingVar((VariableTree) parentTree)) {
+                    contextType = atypeFactory.getAnnotatedType(parentTree);
+                }
             } else if (parentTree instanceof CompoundAssignmentTree) {
                 Tree var = ((CompoundAssignmentTree) parentTree).getVariable();
                 contextType = atypeFactory.getAnnotatedType(var);
-            } else if (parentTree.getKind() == Kind.RETURN) {
+            } else if (parentTree instanceof ReturnTree) {
                 Tree methodTree = TreePathUtil.enclosingMethodOrLambda(path.getParentPath());
-                if (methodTree.getKind() == Kind.METHOD) {
+                if (methodTree instanceof MethodTree) {
                     AnnotatedExecutableType methodType =
                             atypeFactory.getAnnotatedType((MethodTree) methodTree);
                     contextType = methodType.getReturnType();
                 }
-            } else if (parentTree.getKind() == Kind.METHOD_INVOCATION && useAssignmentContext) {
+            } else if (parentTree instanceof MethodInvocationTree && useAssignmentContext) {
                 MethodInvocationTree methodInvocationTree = (MethodInvocationTree) parentTree;
                 useAssignmentContext = false;
                 AnnotatedExecutableType m;
                 try {
-                    if (atypeFactory.shouldCache
-                            && methodInvocationToType.containsKey(methodInvocationTree)) {
-                        m = methodInvocationToType.get(methodInvocationTree);
+                    AnnotatedExecutableType cached =
+                            atypeFactory.shouldCache
+                                    ? methodInvocationToType.get(methodInvocationTree)
+                                    : null;
+                    if (cached != null) {
+                        m = cached;
                     } else {
                         m = atypeFactory.methodFromUse(methodInvocationTree).executableType;
                         if (atypeFactory.shouldCache) {
@@ -144,7 +160,7 @@ public class PropagationTreeAnnotator extends TreeAnnotator {
                 // for-loop.
                 for (int i = 0; i < parametersCount; i++) {
                     @SuppressWarnings("interning") // Tree must be exactly the same.
-                    boolean foundArgument = methodInvocationTree.getArguments().get(i) == tree;
+                    boolean foundArgument = methodInvocationTree.getArguments().get(i) == arrayTree;
                     if (foundArgument) {
                         contextType = m.getParameterTypes().get(i);
                         break;
@@ -172,12 +188,15 @@ public class PropagationTreeAnnotator extends TreeAnnotator {
             // Defaulting wasn't performed yet, so prev might have fewer qualifiers than
             // contextComponentType, which would cause a failure.
             // TODO: better solution?
+            TypeMirror contextCTM = contextComponentType.getUnderlyingType();
             boolean prevIsSubtype = true;
             for (AnnotationMirror am : prev) {
-                if (contextComponentType.isAnnotatedInHierarchy(am)
-                        && !this.qualHierarchy.isSubtype(
-                                am, contextComponentType.getAnnotationInHierarchy(am))) {
+                AnnotationMirror contextAm = contextComponentType.getAnnotationInHierarchy(am);
+                if (contextAm != null
+                        && !this.qualHierarchy.isSubtypeShallow(
+                                am, contextCTM, contextAm, contextCTM)) {
                     prevIsSubtype = false;
+                    break;
                 }
             }
             // TODO: checking conformance of component kinds is a basic sanity check
@@ -213,10 +232,14 @@ public class PropagationTreeAnnotator extends TreeAnnotator {
 
         Pair<AnnotatedTypeMirror, AnnotatedTypeMirror> argTypes =
                 atypeFactory.compoundAssignmentTreeArgTypes(tree);
+        AnnotatedTypeMirror rhs = argTypes.first;
+        AnnotatedTypeMirror lhs = argTypes.second;
         Set<? extends AnnotationMirror> lubs =
-                qualHierarchy.leastUpperBounds(
-                        argTypes.first.getEffectiveAnnotations(),
-                        argTypes.second.getEffectiveAnnotations());
+                qualHierarchy.leastUpperBoundsShallow(
+                        rhs.getEffectiveAnnotations(),
+                        rhs.getUnderlyingType(),
+                        lhs.getEffectiveAnnotations(),
+                        lhs.getUnderlyingType());
         type.addMissingAnnotations(lubs);
 
         return null;
@@ -232,12 +255,20 @@ public class PropagationTreeAnnotator extends TreeAnnotator {
             return null;
         }
 
+        if (!((GenericAnnotatedTypeFactory) atypeFactory).isRelevant(type)) {
+            return null;
+        }
+
         Pair<AnnotatedTypeMirror, AnnotatedTypeMirror> argTypes =
                 atypeFactory.binaryTreeArgTypes(tree);
+        AnnotatedTypeMirror type1 = argTypes.first;
+        AnnotatedTypeMirror type2 = argTypes.second;
         Set<? extends AnnotationMirror> lubs =
-                qualHierarchy.leastUpperBounds(
-                        argTypes.first.getEffectiveAnnotations(),
-                        argTypes.second.getEffectiveAnnotations());
+                qualHierarchy.leastUpperBoundsShallow(
+                        type1.getEffectiveAnnotations(),
+                        type1.getUnderlyingType(),
+                        type2.getEffectiveAnnotations(),
+                        type2.getUnderlyingType());
 
         if (TreeUtils.isBinaryComparison(tree)) {
             // When we have binary comparison, the result type (boolean) can be different
@@ -245,7 +276,13 @@ public class PropagationTreeAnnotator extends TreeAnnotator {
             // lubs.
             lubs = atypeFactory.getAnnotationOrTypeDeclarationBound(type.getUnderlyingType(), lubs);
         }
+
+        log(
+                "%s PTA.visitBinary(%s, %s)%n  argTypes=%s%n  lubs=%s%n",
+                atypeFactory.getClass().getSimpleName(), tree, type, argTypes, lubs);
+
         type.addMissingAnnotations(lubs);
+        log("PTA.visitBinary(%s, ...): final type = %s%n", tree, type);
 
         return null;
     }
@@ -278,9 +315,14 @@ public class PropagationTreeAnnotator extends TreeAnnotator {
 
     @Override
     public Void visitTypeCast(TypeCastTree tree, AnnotatedTypeMirror type) {
+        if (!((GenericAnnotatedTypeFactory) atypeFactory).isRelevant(type)) {
+            return null;
+        }
+
         if (hasPrimaryAnnotationInAllHierarchies(type)) {
             // If the type is already has a primary annotation in all hierarchies, then the
             // propagated annotations won't be applied.  So don't compute them.
+            log("PTA.visitTypeCast(%s, %s): hasPrimaryAnnotationInAllHierarchies%n", tree, type);
             return null;
         }
 
@@ -294,6 +336,9 @@ public class PropagationTreeAnnotator extends TreeAnnotator {
         } else {
             // Use effective annotations from the expression, to get upper bound of type variables.
             AnnotationMirrorSet expressionAnnos = exprType.getEffectiveAnnotations();
+            log(
+                    "PTA.visitTypeCast(%s, %s): getEffectiveAnnotations(%s) = %s%n",
+                    tree, type, exprType, expressionAnnos);
 
             TypeKind castKind = type.getPrimitiveKind();
             if (castKind != null) {
@@ -306,8 +351,9 @@ public class PropagationTreeAnnotator extends TreeAnnotator {
                                             expressionAnnos, exprKind, castKind);
                             break;
                         case NARROWING:
-                            atypeFactory.getNarrowedAnnotations(
-                                    expressionAnnos, exprKind, castKind);
+                            expressionAnnos =
+                                    atypeFactory.getNarrowedAnnotations(
+                                            expressionAnnos, exprKind, castKind);
                             break;
                         case SAME:
                             // Nothing to do
@@ -325,14 +371,19 @@ public class PropagationTreeAnnotator extends TreeAnnotator {
         return null;
     }
 
+    /**
+     * Determine whether the given type has a primary annotation in all hierarchies.
+     *
+     * @param type the type to test
+     * @return whether the given type has a primary annotation in all hierarchies
+     */
     private boolean hasPrimaryAnnotationInAllHierarchies(AnnotatedTypeMirror type) {
-        boolean annotated = true;
         for (AnnotationMirror top : qualHierarchy.getTopAnnotations()) {
             if (type.getEffectiveAnnotationInHierarchy(top) == null) {
-                annotated = false;
+                return false;
             }
         }
-        return annotated;
+        return true;
     }
 
     /**
@@ -345,8 +396,10 @@ public class PropagationTreeAnnotator extends TreeAnnotator {
      * @param annos annotations to add to type
      */
     private void addAnnoOrBound(AnnotatedTypeMirror type, Set<? extends AnnotationMirror> annos) {
+        log("addAnnoOrBound(%s, %s)%n", type, annos);
         AnnotationMirrorSet annosToAdd =
                 atypeFactory.getAnnotationOrTypeDeclarationBound(type.getUnderlyingType(), annos);
         type.addMissingAnnotations(annosToAdd);
+        log("addAnnoOrBound#2(%s, %s)%n", type, annos);
     }
 }

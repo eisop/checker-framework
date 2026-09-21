@@ -24,6 +24,7 @@ import javax.lang.model.element.AnnotationMirror;
 
 public class I18nAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
 
+    @SuppressWarnings("this-escape")
     public I18nAnnotatedTypeFactory(BaseTypeChecker checker) {
         super(checker);
         this.postInit();
@@ -45,7 +46,7 @@ public class I18nAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
         private final AnnotationMirror LOCALIZED =
                 AnnotationBuilder.fromClass(elements, Localized.class);
 
-        public I18nTreeAnnotator(AnnotatedTypeFactory atypeFactory) {
+        I18nTreeAnnotator(AnnotatedTypeFactory atypeFactory) {
             super(atypeFactory);
         }
 
@@ -63,7 +64,7 @@ public class I18nAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
 
         @Override
         public Void visitLiteral(LiteralTree tree, AnnotatedTypeMirror type) {
-            if (!type.isAnnotatedInHierarchy(LOCALIZED)) {
+            if (!type.hasAnnotationInHierarchy(LOCALIZED)) {
                 if (tree.getKind() == Tree.Kind.STRING_LITERAL && tree.getValue().equals("")) {
                     type.addAnnotation(LOCALIZED);
                 }

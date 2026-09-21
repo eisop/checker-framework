@@ -15,11 +15,12 @@ import org.checkerframework.checker.signature.qual.FullyQualifiedName;
 import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.common.value.ValueChecker;
 import org.checkerframework.framework.qual.RelevantJavaTypes;
+import org.checkerframework.framework.source.SourceChecker;
 import org.checkerframework.framework.source.SuppressWarningsPrefix;
 import org.checkerframework.javacutil.TreeUtils;
 
 import java.util.HashSet;
-import java.util.LinkedHashSet;
+import java.util.Set;
 
 import javax.lang.model.element.ExecutableElement;
 
@@ -107,9 +108,8 @@ public class UpperBoundChecker extends BaseTypeChecker {
     }
 
     @Override
-    protected LinkedHashSet<Class<? extends BaseTypeChecker>> getImmediateSubcheckerClasses() {
-        LinkedHashSet<Class<? extends BaseTypeChecker>> checkers =
-                super.getImmediateSubcheckerClasses();
+    protected Set<Class<? extends SourceChecker>> getImmediateSubcheckerClasses() {
+        Set<Class<? extends SourceChecker>> checkers = super.getImmediateSubcheckerClasses();
         checkers.add(SubstringIndexChecker.class);
         checkers.add(SearchIndexChecker.class);
         checkers.add(SameLenChecker.class);

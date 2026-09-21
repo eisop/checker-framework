@@ -20,6 +20,7 @@ import org.checkerframework.dataflow.expression.FormalParameter;
 import org.checkerframework.dataflow.expression.JavaExpression;
 import org.checkerframework.dataflow.expression.JavaExpressionConverter;
 import org.checkerframework.dataflow.expression.LocalVariable;
+import org.checkerframework.dataflow.expression.SuperReference;
 import org.checkerframework.dataflow.expression.ThisReference;
 import org.checkerframework.dataflow.expression.Unknown;
 import org.checkerframework.framework.source.SourceChecker;
@@ -28,6 +29,7 @@ import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedDeclaredType;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedExecutableType;
 import org.checkerframework.framework.type.AnnotatedTypeParameterBounds;
+import org.checkerframework.framework.type.QualifierHierarchy;
 import org.checkerframework.framework.type.treeannotator.TreeAnnotator;
 import org.checkerframework.framework.type.visitor.AnnotatedTypeScanner;
 import org.checkerframework.framework.type.visitor.DoubleAnnotatedTypeScanner;
@@ -84,9 +86,9 @@ import javax.lang.model.type.TypeMirror;
  *             field f may appear in an expression string as "f" or "this.f"; this class
  *             standardizes both strings to "this.f". All dependent type annotations must be
  *             standardized so that the implementation of {@link
- *             org.checkerframework.framework.type.QualifierHierarchy#isSubtype(AnnotationMirror,
- *             AnnotationMirror)} can assume that two expressions are equivalent if their string
- *             representations are {@code equals()}.
+ *             org.checkerframework.framework.type.QualifierHierarchy#isSubtypeShallow(AnnotationMirror,
+ *             TypeMirror, AnnotationMirror, TypeMirror)} can assume that two expressions are
+ *             equivalent if their string representations are {@code equals()}.
  *         <li>Viewpoint-adaption: converts an expression to some use site. For example, in method
  *             bodies, formal parameter references such as "#2" are converted to the name of the
  *             formal parameter. Another example, is at method call site, "this" is converted to the
@@ -111,7 +113,7 @@ import javax.lang.model.type.TypeMirror;
 public class DependentTypesHelper {
 
     /** AnnotatedTypeFactory */
-    protected final AnnotatedTypeFactory factory;
+    protected final AnnotatedTypeFactory atypeFactory;
 
     /**
      * Maps from an annotation name, the fully-qualified name of its class, to its elements that are
@@ -124,6 +126,12 @@ public class DependentTypesHelper {
             new ExpressionErrorCollector();
 
     /**
+     * This scans the annotated type and replaces any dependent type annotation that has a parse
+     * error with the top annotation in the hierarchy.
+     */
+    protected final ErrorAnnoReplacer errorAnnoReplacer;
+
+    /**
      * A scanner that applies a function to each {@link AnnotationMirror} and replaces it in the
      * given {@code AnnotatedTypeMirror}. (This side-effects the {@code AnnotatedTypeMirror}.)
      */
@@ -133,30 +141,41 @@ public class DependentTypesHelper {
      * Copies annotations that might have been viewpoint adapted from the visited type (the first
      * formal parameter of {@code ViewpointAdaptedCopier#visit}) to the second formal parameter.
      */
-    private final ViewpointAdaptedCopier viewpointAdaptedCopier = new ViewpointAdaptedCopier();
+    protected final ViewpointAdaptedCopier viewpointAdaptedCopier = new ViewpointAdaptedCopier();
 
     /** The type mirror for java.lang.Object. */
     protected final TypeMirror objectTM;
 
     /**
+     * Snapshot of {@link #annoToElements}'s key set, used by {@link ViewpointAdaptedCopier#scan} to
+     * iterate dependent annotation names without allocating a fresh {@code keySet} iterator at
+     * every visited type node. Initialized in the constructor after {@link #annoToElements} is
+     * fully populated. Empty (length 0) when there are no dependent annotations.
+     */
+    private final String[] dependentAnnoNames;
+
+    /**
      * Creates a {@code DependentTypesHelper}.
      *
-     * @param factory annotated type factory
+     * @param atypeFactory annotated type factory
      */
-    public DependentTypesHelper(AnnotatedTypeFactory factory) {
-        this.factory = factory;
-
+    public DependentTypesHelper(AnnotatedTypeFactory atypeFactory) {
+        this.atypeFactory = atypeFactory;
+        this.errorAnnoReplacer = new ErrorAnnoReplacer(atypeFactory.getQualifierHierarchy());
         this.annoToElements = new HashMap<>();
-        for (Class<? extends Annotation> expressionAnno : factory.getSupportedTypeQualifiers()) {
+        for (Class<? extends Annotation> expressionAnno :
+                atypeFactory.getSupportedTypeQualifiers()) {
             List<ExecutableElement> elementList =
-                    getExpressionElements(expressionAnno, factory.getProcessingEnv());
+                    getExpressionElements(expressionAnno, atypeFactory.getProcessingEnv());
             if (!elementList.isEmpty()) {
                 annoToElements.put(expressionAnno.getCanonicalName(), elementList);
             }
         }
+        this.dependentAnnoNames = annoToElements.keySet().toArray(new String[0]);
 
         this.objectTM =
-                TypesUtils.typeFromClass(Object.class, factory.types, factory.getElementUtils());
+                TypesUtils.typeFromClass(
+                        Object.class, atypeFactory.types, atypeFactory.getElementUtils());
     }
 
     /**
@@ -199,7 +218,7 @@ public class DependentTypesHelper {
     /**
      * Returns the elements of the annotation that are Java expressions.
      *
-     * @param am AnnotationMirror
+     * @param am an annotation
      * @return the elements of the annotation that are Java expressions
      */
     private List<ExecutableElement> getListOfExpressionElements(AnnotationMirror am) {
@@ -214,12 +233,12 @@ public class DependentTypesHelper {
      */
     public TreeAnnotator createDependentTypesTreeAnnotator() {
         assert hasDependentAnnotations();
-        return new DependentTypesTreeAnnotator(factory, this);
+        return new DependentTypesTreeAnnotator(atypeFactory, this);
     }
 
-    ///
-    /// Methods that convert annotations
-    ///
+    //
+    // Methods that convert annotations
+    //
 
     /** If true, log information about where lambdas are created. */
     // This variable is only set here; edit the source code to modify it.
@@ -242,7 +261,7 @@ public class DependentTypesHelper {
         StringToJavaExpression stringToJavaExpr =
                 stringExpr ->
                         StringToJavaExpression.atTypeDecl(
-                                stringExpr, typeUse, factory.getChecker());
+                                stringExpr, typeUse, atypeFactory.getChecker());
         if (debugStringToJavaExpression) {
             System.out.printf(
                     "atParameterizedTypeUse(%s, %s) created %s%n",
@@ -322,7 +341,7 @@ public class DependentTypesHelper {
 
         // The annotations on `declaredMethodType` will be copied to `methodType`.
         AnnotatedExecutableType declaredMethodType =
-                (AnnotatedExecutableType) factory.getAnnotatedType(methodElt);
+                (AnnotatedExecutableType) atypeFactory.getAnnotatedType(methodElt);
         if (!hasDependentType(declaredMethodType)) {
             return;
         }
@@ -332,7 +351,9 @@ public class DependentTypesHelper {
             stringToJavaExpr =
                     stringExpr ->
                             StringToJavaExpression.atMethodInvocation(
-                                    stringExpr, (MethodInvocationTree) tree, factory.getChecker());
+                                    stringExpr,
+                                    (MethodInvocationTree) tree,
+                                    atypeFactory.getChecker());
             if (debugStringToJavaExpression) {
                 System.out.printf(
                         "atInvocation(%s, %s) 1 created %s%n",
@@ -342,7 +363,7 @@ public class DependentTypesHelper {
             stringToJavaExpr =
                     stringExpr ->
                             StringToJavaExpression.atConstructorInvocation(
-                                    stringExpr, (NewClassTree) tree, factory.getChecker());
+                                    stringExpr, (NewClassTree) tree, atypeFactory.getChecker());
             if (debugStringToJavaExpression) {
                 System.out.printf(
                         "atInvocation(%s, %s) 2 created %s%n",
@@ -370,7 +391,7 @@ public class DependentTypesHelper {
         StringToJavaExpression stringToJavaExpr =
                 stringExpr ->
                         StringToJavaExpression.atFieldAccess(
-                                stringExpr, fieldAccess, factory.getChecker());
+                                stringExpr, fieldAccess, atypeFactory.getChecker());
         if (debugStringToJavaExpression) {
             System.out.printf(
                     "atFieldAccess(%s, %s) created %s%n",
@@ -395,7 +416,7 @@ public class DependentTypesHelper {
         StringToJavaExpression stringToJavaExpr =
                 stringExpr ->
                         StringToJavaExpression.atMethodBody(
-                                stringExpr, methodDeclTree, factory.getChecker());
+                                stringExpr, methodDeclTree, atypeFactory.getChecker());
         if (debugStringToJavaExpression) {
             System.out.printf(
                     "atMethodBody(%s, %s) 1 created %s%n",
@@ -418,7 +439,7 @@ public class DependentTypesHelper {
         StringToJavaExpression stringToJavaExpr =
                 stringExpr ->
                         StringToJavaExpression.atTypeDecl(
-                                stringExpr, typeElt, factory.getChecker());
+                                stringExpr, typeElt, atypeFactory.getChecker());
         if (debugStringToJavaExpression) {
             System.out.printf("atTypeDecl(%s, %s) created %s%n", type, typeElt, stringToJavaExpr);
         }
@@ -443,7 +464,7 @@ public class DependentTypesHelper {
             return;
         }
 
-        TreePath pathToVariableDecl = factory.getPath(declarationTree);
+        TreePath pathToVariableDecl = atypeFactory.getPath(declarationTree);
         assert pathToVariableDecl != null;
 
         if (variableElt instanceof DetachedVarSymbol) {
@@ -485,12 +506,12 @@ public class DependentTypesHelper {
                 }
                 Tree enclTree = pathTillEnclTree.getLeaf();
 
-                if (enclTree.getKind() == Tree.Kind.METHOD) {
+                if (enclTree instanceof MethodTree) {
                     MethodTree methodDeclTree = (MethodTree) enclTree;
                     StringToJavaExpression stringToJavaExpr =
                             stringExpr ->
                                     StringToJavaExpression.atMethodBody(
-                                            stringExpr, methodDeclTree, factory.getChecker());
+                                            stringExpr, methodDeclTree, atypeFactory.getChecker());
                     if (debugStringToJavaExpression) {
                         System.out.printf(
                                 "atVariableDeclaration(%s, %s, %s) 1 created %s%n",
@@ -509,7 +530,7 @@ public class DependentTypesHelper {
                                             stringExpr,
                                             (LambdaExpressionTree) enclTree,
                                             pathToVariableDecl.getParentPath(),
-                                            factory.getChecker());
+                                            atypeFactory.getChecker());
                     if (debugStringToJavaExpression) {
                         System.out.printf(
                                 "atVariableDeclaration(%s, %s, %s) 2 created %s%n",
@@ -528,7 +549,7 @@ public class DependentTypesHelper {
                 StringToJavaExpression stringToJavaExprVar =
                         stringExpr ->
                                 StringToJavaExpression.atPath(
-                                        stringExpr, pathToVariableDecl, factory.getChecker());
+                                        stringExpr, pathToVariableDecl, atypeFactory.getChecker());
                 if (debugStringToJavaExpression) {
                     System.out.printf(
                             "atVariableDeclaration(%s, %s, %s) 3 created %s%n",
@@ -545,7 +566,7 @@ public class DependentTypesHelper {
                 StringToJavaExpression stringToJavaExprField =
                         stringExpr ->
                                 StringToJavaExpression.atFieldDecl(
-                                        stringExpr, variableElt, factory.getChecker());
+                                        stringExpr, variableElt, atypeFactory.getChecker());
                 if (debugStringToJavaExpression) {
                     System.out.printf(
                             "atVariableDeclaration(%s, %s, %s) 4 created %s%n",
@@ -581,12 +602,13 @@ public class DependentTypesHelper {
             return;
         }
 
-        TreePath path = factory.getPath(expressionTree);
+        TreePath path = atypeFactory.getPath(expressionTree);
         if (path == null) {
             return;
         }
         StringToJavaExpression stringToJavaExpr =
-                stringExpr -> StringToJavaExpression.atPath(stringExpr, path, factory.getChecker());
+                stringExpr ->
+                        StringToJavaExpression.atPath(stringExpr, path, atypeFactory.getChecker());
         if (debugStringToJavaExpression) {
             System.out.printf(
                     "atExpression(%s, %s) created %s%n",
@@ -614,7 +636,7 @@ public class DependentTypesHelper {
             case LOCAL_VARIABLE:
             case RESOURCE_VARIABLE:
             case EXCEPTION_PARAMETER:
-                Tree declarationTree = factory.declarationFromElement(elt);
+                Tree declarationTree = atypeFactory.declarationFromElement(elt);
                 if (declarationTree == null) {
                     if (elt.getKind() == ElementKind.PARAMETER) {
                         // The tree might be null when
@@ -643,7 +665,10 @@ public class DependentTypesHelper {
 
     /** Thrown when a non-parameter local variable is found. */
     @SuppressWarnings("serial")
-    private static class FoundLocalException extends RuntimeException {}
+    private static class FoundLocalVarException extends RuntimeException {
+        /** Creates a FoundLocalVarException. */
+        FoundLocalVarException() {}
+    }
 
     /**
      * Viewpoint-adapt all dependent type annotations to the method declaration, {@code
@@ -664,7 +689,7 @@ public class DependentTypesHelper {
             return;
         }
 
-        TreePath pathToMethodDecl = factory.getPath(methodDeclTree);
+        TreePath pathToMethodDecl = atypeFactory.getPath(methodDeclTree);
         ExecutableElement methodElement = TreeUtils.elementFromDeclaration(methodDeclTree);
         List<FormalParameter> parameters = JavaExpression.getFormalParameters(methodElement);
         List<JavaExpression> paramsAsLocals =
@@ -676,7 +701,7 @@ public class DependentTypesHelper {
                     try {
                         javaExpr =
                                 StringToJavaExpression.atPath(
-                                        expression, pathToMethodDecl, factory.getChecker());
+                                        expression, pathToMethodDecl, atypeFactory.getChecker());
                     } catch (JavaExpressionParseException ex) {
                         return null;
                     }
@@ -687,14 +712,14 @@ public class DependentTypesHelper {
                                         LocalVariable localVarExpr, Void unused) {
                                     int index = paramsAsLocals.indexOf(localVarExpr);
                                     if (index == -1) {
-                                        throw new FoundLocalException();
+                                        throw new FoundLocalVarException();
                                     }
                                     return parameters.get(index);
                                 }
                             };
                     try {
                         return jec.convert(javaExpr);
-                    } catch (FoundLocalException ex) {
+                    } catch (FoundLocalVarException ex) {
                         return null;
                     }
                 };
@@ -738,12 +763,13 @@ public class DependentTypesHelper {
         List<JavaExpression> argsAsExprs =
                 CollectionsPlume.mapList(LocalVariable::fromNode, arguments);
         JavaExpression receiverAsExpr = receiver == null ? null : LocalVariable.fromNode(receiver);
-        TreePath path = factory.getPath(invocationTree);
+        TreePath path = atypeFactory.getPath(invocationTree);
 
         StringToJavaExpression stringToJavaExpr =
                 stringExpr -> {
                     JavaExpression expr =
-                            StringToJavaExpression.atPath(stringExpr, path, factory.getChecker());
+                            StringToJavaExpression.atPath(
+                                    stringExpr, path, atypeFactory.getChecker());
                     JavaExpressionConverter jec =
                             new JavaExpressionConverter() {
                                 @Override
@@ -770,19 +796,25 @@ public class DependentTypesHelper {
                                 @Override
                                 public JavaExpression visitLocalVariable(
                                         LocalVariable local, Void unused) {
-                                    throw new FoundLocalException();
+                                    throw new FoundLocalVarException();
                                 }
 
                                 @Override
                                 public JavaExpression visitThisReference(
                                         ThisReference thisRef, Void unused) {
-                                    throw new FoundLocalException();
+                                    throw new FoundLocalVarException();
+                                }
+
+                                @Override
+                                public JavaExpression visitSuperReference(
+                                        SuperReference superRef, Void unused) {
+                                    throw new FoundLocalVarException();
                                 }
                             };
 
                     try {
                         return jec.convert(expr);
-                    } catch (FoundLocalException ex) {
+                    } catch (FoundLocalVarException ex) {
                         return null;
                     }
                 };
@@ -915,7 +947,8 @@ public class DependentTypesHelper {
             Map<ExecutableElement, List<JavaExpression>> elementMap) {
         AnnotationBuilder builder =
                 new AnnotationBuilder(
-                        factory.getProcessingEnv(), AnnotationUtils.annotationName(originalAnno));
+                        atypeFactory.getProcessingEnv(),
+                        AnnotationUtils.annotationName(originalAnno));
         builder.copyElementValuesFromAnnotation(originalAnno, elementMap.keySet());
         for (Map.Entry<ExecutableElement, List<JavaExpression>> entry : elementMap.entrySet()) {
             List<String> strings =
@@ -989,10 +1022,10 @@ public class DependentTypesHelper {
         public Void visitTypeVariable(
                 AnnotatedTypeMirror.AnnotatedTypeVariable type,
                 Function<AnnotationMirror, AnnotationMirror> func) {
-            if (visitedNodes.containsKey(type)) {
-                return visitedNodes.get(type);
+            if (hasVisited(type)) {
+                return null;
             }
-            visitedNodes.put(type, null);
+            markVisited(type, null);
 
             // If the type variable has a primary annotation, then it is viewpoint-adapted before
             // this method is called.  The viewpoint-adapted primary annotation was already copied
@@ -1003,38 +1036,46 @@ public class DependentTypesHelper {
             type.getLowerBound().removeAnnotations(primarys);
             Void r = scan(type.getLowerBound(), func);
             type.getLowerBound().addAnnotations(primarys);
-            visitedNodes.put(type, r);
+            markVisited(type, r);
 
             type.getUpperBound().removeAnnotations(primarys);
             r = scanAndReduce(type.getUpperBound(), func, r);
             type.getUpperBound().addAnnotations(primarys);
-            visitedNodes.put(type, r);
+            markVisited(type, r);
             return r;
         }
 
         @Override
         protected Void scan(
                 AnnotatedTypeMirror type, Function<AnnotationMirror, AnnotationMirror> func) {
-            for (AnnotationMirror anno : new AnnotationMirrorSet(type.getAnnotations())) {
-                AnnotationMirror newAnno = func.apply(anno);
-                if (newAnno != null) {
-                    // This code must remove and then add, rather than call `replace`, because a
-                    // type may have multiple annotations with the same class, but different
-                    // elements.  (This is a bug; see
-                    // https://github.com/typetools/checker-framework/issues/4451 .)
-                    // AnnotatedTypeMirror#replace only removes one annotation that is in the same
-                    // hierarchy as the passed argument.
-                    type.removeAnnotation(anno);
-                    type.addAnnotation(newAnno);
+            if (hasVisited(type)) {
+                return null;
+            }
+            AnnotationMirrorSet primary = type.getAnnotations();
+            if (!primary.isEmpty()) {
+                // Snapshot into a fresh set so the loop below can mutate
+                // type.getAnnotations() safely via removeAnnotation/addAnnotation.
+                for (AnnotationMirror anno : new AnnotationMirrorSet(primary)) {
+                    AnnotationMirror newAnno = func.apply(anno);
+                    if (newAnno != null) {
+                        // This code must remove and then add, rather than call `replace`, because
+                        // a type may have multiple annotations with the same class, but different
+                        // elements.  (This is a bug; see
+                        // https://github.com/typetools/checker-framework/issues/4451 .)
+                        // AnnotatedTypeMirror#replace only removes one annotation that is in the
+                        // same hierarchy as the passed argument.
+                        type.removeAnnotation(anno);
+                        type.addAnnotation(newAnno);
+                    }
                 }
             }
             return super.scan(type, func);
         }
     }
 
-    ///
-    /// Methods that check and report errors
-    ///
+    //
+    // Methods that check and report errors
+    //
 
     /**
      * Reports an expression.unparsable.type.invalid error for each Java expression in the given
@@ -1054,10 +1095,10 @@ public class DependentTypesHelper {
         }
 
         // Report the error at the type rather than at the variable.
-        if (errorTree.getKind() == Tree.Kind.VARIABLE) {
+        if (errorTree instanceof VariableTree) {
             Tree typeTree = ((VariableTree) errorTree).getType();
             // Don't report the error at the type if the type is not present in source code.
-            if (((JCTree) typeTree).getPreferredPosition() != -1) {
+            if (typeTree != null && ((JCTree) typeTree).getPreferredPosition() != -1) {
                 ModifiersTree modifiers = ((VariableTree) errorTree).getModifiers();
                 errorTree = typeTree;
                 for (AnnotationTree annoTree : modifiers.getAnnotations()) {
@@ -1083,7 +1124,7 @@ public class DependentTypesHelper {
      * @param errors the errors to report
      */
     protected void reportErrors(Tree errorTree, List<DependentTypesError> errors) {
-        SourceChecker checker = factory.getChecker();
+        SourceChecker checker = atypeFactory.getChecker();
         for (DependentTypesError dte : errors) {
             checker.reportError(errorTree, "expression.unparsable.type.invalid", dte.format());
         }
@@ -1099,7 +1140,7 @@ public class DependentTypesHelper {
     private List<DependentTypesError> errorElements(AnnotationMirror am) {
         assert hasDependentAnnotations();
 
-        List<DependentTypesError> errors = new ArrayList<>();
+        List<DependentTypesError> errors = null;
 
         for (ExecutableElement element : getListOfExpressionElements(am)) {
             // It's always an array, not a single value, because @JavaExpression may only be written
@@ -1109,11 +1150,36 @@ public class DependentTypesHelper {
                             am, element, String.class, Collections.emptyList());
             for (String v : value) {
                 if (DependentTypesError.isExpressionError(v)) {
+                    if (errors == null) {
+                        errors = new ArrayList<>();
+                    }
                     errors.add(DependentTypesError.unparse(v));
                 }
             }
         }
-        return errors;
+        return errors == null ? Collections.emptyList() : errors;
+    }
+
+    /**
+     * Returns true if any Java expression element of the given annotation is an expression error
+     * string. Like {@link #errorElements} but allocates no list and short-circuits.
+     *
+     * @param am an annotation
+     * @return true if at least one expression element is an error string
+     */
+    private boolean hasErrorElement(AnnotationMirror am) {
+        assert hasDependentAnnotations();
+        for (ExecutableElement element : getListOfExpressionElements(am)) {
+            List<String> value =
+                    AnnotationUtils.getElementValueArray(
+                            am, element, String.class, Collections.emptyList());
+            for (String v : value) {
+                if (DependentTypesError.isExpressionError(v)) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     /**
@@ -1132,7 +1198,7 @@ public class DependentTypesHelper {
         if (errors.isEmpty()) {
             return;
         }
-        SourceChecker checker = factory.getChecker();
+        SourceChecker checker = atypeFactory.getChecker();
         for (DependentTypesError error : errors) {
             checker.reportError(errorTree, "flowexpr.parse.error", error);
         }
@@ -1175,7 +1241,7 @@ public class DependentTypesHelper {
         checkTypeVariablesForErrorExpressions(methodDeclTree, type);
         // Check return type
         if (type.getReturnType().getKind() != TypeKind.VOID) {
-            AnnotatedTypeMirror returnType = factory.getMethodReturnType(methodDeclTree);
+            AnnotatedTypeMirror returnType = atypeFactory.getMethodReturnType(methodDeclTree);
             Tree treeForError =
                     TreeUtils.isConstructor(methodDeclTree)
                             ? methodDeclTree
@@ -1198,7 +1264,7 @@ public class DependentTypesHelper {
             StringToJavaExpression stringToJavaExpr =
                     stringExpr ->
                             StringToJavaExpression.atMethodBody(
-                                    stringExpr, tree, factory.getChecker());
+                                    stringExpr, tree, atypeFactory.getChecker());
             if (debugStringToJavaExpression) {
                 System.out.printf(
                         "checkTypeVariablesForErrorExpressions(%s, %s) created %s%n",
@@ -1236,16 +1302,54 @@ public class DependentTypesHelper {
         private ExpressionErrorCollector() {
             super(
                     (AnnotatedTypeMirror type, Void aVoid) -> {
-                        List<DependentTypesError> errors = new ArrayList<>();
+                        List<DependentTypesError> errors = null;
                         for (AnnotationMirror am : type.getAnnotations()) {
                             if (isExpressionAnno(am)) {
-                                errors.addAll(errorElements(am));
+                                List<DependentTypesError> annoErrors = errorElements(am);
+                                if (!annoErrors.isEmpty()) {
+                                    if (errors == null) {
+                                        errors = new ArrayList<>();
+                                    }
+                                    errors.addAll(annoErrors);
+                                }
                             }
                         }
-                        return errors;
+                        return errors == null ? Collections.emptyList() : errors;
                     },
                     DependentTypesHelper::concatenate,
                     Collections.emptyList());
+        }
+    }
+
+    /**
+     * Replaces a dependent type annotation with a parser error with the top qualifier in the
+     * hierarchy.
+     */
+    protected class ErrorAnnoReplacer extends SimpleAnnotatedTypeScanner<Void, Void> {
+
+        /**
+         * Create an ErrorAnnoReplacer.
+         *
+         * @param qh the qualifier hierarchy
+         */
+        private ErrorAnnoReplacer(QualifierHierarchy qh) {
+            super(
+                    (AnnotatedTypeMirror type, Void aVoid) -> {
+                        AnnotationMirrorSet replacementAnnos = null;
+                        for (AnnotationMirror am : type.getAnnotations()) {
+                            if (isExpressionAnno(am) && hasErrorElement(am)) {
+                                if (replacementAnnos == null) {
+                                    replacementAnnos = new AnnotationMirrorSet();
+                                }
+                                replacementAnnos.add(qh.getTopAnnotation(am));
+                            }
+                        }
+
+                        if (replacementAnnos != null) {
+                            type.replaceAnnotations(replacementAnnos);
+                        }
+                        return null;
+                    });
         }
     }
 
@@ -1277,14 +1381,18 @@ public class DependentTypesHelper {
      * the visited type to the second formal parameter except for annotations on types that have
      * been substituted.
      */
-    private class ViewpointAdaptedCopier extends DoubleAnnotatedTypeScanner<Void> {
+    protected class ViewpointAdaptedCopier extends DoubleAnnotatedTypeScanner<Void> {
+
+        /** Create a ViewpointAdaptedCopier. */
+        private ViewpointAdaptedCopier() {}
+
         @Override
         protected Void scan(AnnotatedTypeMirror from, AnnotatedTypeMirror to) {
             if (from == null || to == null) {
                 return null;
             }
             AnnotationMirrorSet replacements = new AnnotationMirrorSet();
-            for (String vpa : annoToElements.keySet()) {
+            for (String vpa : dependentAnnoNames) {
                 AnnotationMirror anno = from.getAnnotation(vpa);
                 if (anno != null) {
                     // Only replace annotations that might have been changed.
@@ -1292,6 +1400,7 @@ public class DependentTypesHelper {
                 }
             }
             to.replaceAnnotations(replacements);
+
             if (from.getKind() != to.getKind()
                     || (from.getKind() == TypeKind.TYPEVAR
                             && TypesUtils.isCapturedTypeVariable(to.getUnderlyingType()))) {
@@ -1328,7 +1437,7 @@ public class DependentTypesHelper {
      * @param atm a type
      * @return true if {@code atm} has any dependent type annotations
      */
-    private boolean hasDependentType(AnnotatedTypeMirror atm) {
+    protected boolean hasDependentType(AnnotatedTypeMirror atm) {
         if (atm == null) {
             return false;
         }
@@ -1341,6 +1450,7 @@ public class DependentTypesHelper {
     }
 
     /** Returns true if the passed AnnotatedTypeMirror has any dependent type annotations. */
+    @SuppressWarnings("this-escape")
     private final AnnotatedTypeScanner<Boolean, Void> hasDependentTypeScanner =
             new SimpleAnnotatedTypeScanner<>(
                     (type, __) -> {

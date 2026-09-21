@@ -12,7 +12,7 @@ public class Issue2370 {
                 .flatMap(actionStream -> actionStream);
     }
 
-    private <T> Stream<T> toStream(final Collection<T> obj) {
+    private <F> Stream<F> toStream(final Collection<F> obj) {
         return Optional.ofNullable(obj)
                 .map(Stream::of)
                 .orElseGet(Stream::empty)

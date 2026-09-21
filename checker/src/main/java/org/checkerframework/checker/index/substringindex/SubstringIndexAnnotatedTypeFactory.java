@@ -42,6 +42,7 @@ public class SubstringIndexAnnotatedTypeFactory extends BaseAnnotatedTypeFactory
      *
      * @param checker the associated checker
      */
+    @SuppressWarnings("this-escape")
     public SubstringIndexAnnotatedTypeFactory(BaseTypeChecker checker) {
         super(checker);
 
@@ -80,8 +81,8 @@ public class SubstringIndexAnnotatedTypeFactory extends BaseAnnotatedTypeFactory
 
     /**
      * The Substring Index qualifier hierarchy. The hierarchy consists of a top element {@link
-     * UNKNOWN} of type {@link SubstringIndexUnknown}, bottom element {@link BOTTOM} of type {@link
-     * SubstringIndexBottom}, and elements of type {@link SubstringIndexFor} that follow the
+     * #UNKNOWN} of type {@link SubstringIndexUnknown}, bottom element {@link #BOTTOM} of type
+     * {@link SubstringIndexBottom}, and elements of type {@link SubstringIndexFor} that follow the
      * subtyping relation of {@link UBQualifier}.
      */
     private final class SubstringIndexQualifierHierarchy extends ElementQualifierHierarchy {
@@ -92,13 +93,14 @@ public class SubstringIndexAnnotatedTypeFactory extends BaseAnnotatedTypeFactory
          * @param qualifierClasses classes of annotations that are the qualifiers
          * @param elements element utils
          */
-        public SubstringIndexQualifierHierarchy(
+        SubstringIndexQualifierHierarchy(
                 Set<Class<? extends Annotation>> qualifierClasses, Elements elements) {
-            super(qualifierClasses, elements);
+            super(qualifierClasses, elements, SubstringIndexAnnotatedTypeFactory.this);
         }
 
         @Override
-        public AnnotationMirror greatestLowerBound(AnnotationMirror a1, AnnotationMirror a2) {
+        public AnnotationMirror greatestLowerBoundQualifiers(
+                AnnotationMirror a1, AnnotationMirror a2) {
             if (AnnotationUtils.areSame(a1, UNKNOWN)) {
                 return a2;
             }
@@ -122,7 +124,8 @@ public class SubstringIndexAnnotatedTypeFactory extends BaseAnnotatedTypeFactory
         }
 
         @Override
-        public AnnotationMirror leastUpperBound(AnnotationMirror a1, AnnotationMirror a2) {
+        public AnnotationMirror leastUpperBoundQualifiers(
+                AnnotationMirror a1, AnnotationMirror a2) {
             if (AnnotationUtils.areSame(a1, UNKNOWN)) {
                 return a1;
             }
@@ -146,7 +149,7 @@ public class SubstringIndexAnnotatedTypeFactory extends BaseAnnotatedTypeFactory
         }
 
         @Override
-        public boolean isSubtype(AnnotationMirror subAnno, AnnotationMirror superAnno) {
+        public boolean isSubtypeQualifiers(AnnotationMirror subAnno, AnnotationMirror superAnno) {
             if (areSameByClass(superAnno, SubstringIndexUnknown.class)) {
                 return true;
             }

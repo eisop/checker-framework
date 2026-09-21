@@ -64,9 +64,7 @@ public class TestConfigurationBuilder {
                         .addOption("-g")
                         .addOption("-Xlint:unchecked")
                         .addOption("-Xlint:deprecation")
-                        .addOption("-XDrawDiagnostics") // use short javac diagnostics
                         .addOption("-ApermitMissingJdk")
-                        .addOption("-Anocheckjdk") // temporary, for backward compatibility
                         .addOption("-AnoJreVersionCheck");
 
         // -Anomsgtext is needed to ensure expected errors can be matched, which is the
@@ -106,8 +104,7 @@ public class TestConfigurationBuilder {
      *     compiler, and file manager used by Checker Framework tests
      */
     @SuppressWarnings(
-            "signature:argument.type.incompatible" // for non-array non-primitive class, getName():
-    // @BinaryName
+            "signature:cast.unsafe" // for non-array non-primitive class, getName(): @BinaryName
     )
     public static TestConfiguration buildDefaultConfiguration(
             String testSourcePath,
@@ -119,7 +116,7 @@ public class TestConfigurationBuilder {
                 testSourcePath,
                 Arrays.asList(testFile),
                 Collections.emptyList(),
-                Arrays.asList(processor.getName()),
+                Arrays.asList((@BinaryName String) processor.getName()),
                 options,
                 shouldEmitDebugInfo);
     }
@@ -225,6 +222,7 @@ public class TestConfigurationBuilder {
      *
      * @param initialConfig initial configuration for the newly-created builder
      */
+    @SuppressWarnings("this-escape")
     public TestConfigurationBuilder(TestConfiguration initialConfig) {
         this.diagnosticFiles = new ArrayList<>(initialConfig.getDiagnosticFiles());
         this.testSourceFiles = new ArrayList<>(initialConfig.getTestSourceFiles());
@@ -260,7 +258,7 @@ public class TestConfigurationBuilder {
             errors.add("No processors were specified!");
         }
 
-        final Map<String, @Nullable String> optionMap = options.getOptions();
+        Map<String, @Nullable String> optionMap = options.getOptions();
         if (!optionMap.containsKey("-d") || optionMap.get("-d") == null) {
             errors.add("No output directory was specified.");
         }
@@ -324,7 +322,9 @@ public class TestConfigurationBuilder {
      * @return the current object {@code this}
      */
     public TestConfigurationBuilder addDiagnosticFiles(Iterable<File> diagnostics) {
-        this.diagnosticFiles = catListAndIterable(diagnosticFiles, diagnostics);
+        for (File f : diagnostics) {
+            this.diagnosticFiles.add(f);
+        }
         return this;
     }
 
@@ -357,7 +357,9 @@ public class TestConfigurationBuilder {
      * @return the current object {@code this}
      */
     public TestConfigurationBuilder addSourceFiles(Iterable<File> sourceFiles) {
-        this.testSourceFiles = catListAndIterable(testSourceFiles, sourceFiles);
+        for (File f : sourceFiles) {
+            this.testSourceFiles.add(f);
+        }
         return this;
     }
 
@@ -427,7 +429,7 @@ public class TestConfigurationBuilder {
      * @param options options to add to {@code this}
      * @return the current object {@code this}
      */
-    @SuppressWarnings("nullness:return.type.incompatible") // need @PolyInitialized annotation
+    @SuppressWarnings("initialization:return.type.incompatible") // need @PolyInitialized annotation
     @RequiresNonNull("this.options")
     public TestConfigurationBuilder addOptions(
             @UnknownInitialization(TestConfigurationBuilder.class) TestConfigurationBuilder this,
@@ -549,7 +551,7 @@ public class TestConfigurationBuilder {
 
         throw new BugInCF(
                 "Attempted to build invalid test configuration:%n" + "Errors:%n%s%n%s%n",
-                String.join("%n", errors), this);
+                String.join(System.lineSeparator(), errors), this);
     }
 
     /**
@@ -569,25 +571,6 @@ public class TestConfigurationBuilder {
                 "processors=" + String.join(", ", processors),
                 "options=" + String.join(", ", options.getOptionsAsList()),
                 "shouldEmitDebugInfo=" + shouldEmitDebugInfo);
-    }
-
-    /**
-     * Returns a list that first has the items from parameter list then the items from iterable.
-     *
-     * @param <T> the type of the elements in the resulting list
-     * @param list a list
-     * @param iterable an iterable
-     * @return a list that first has the items from parameter list then the items from iterable
-     */
-    private static <T> List<T> catListAndIterable(
-            final List<? extends T> list, final Iterable<? extends T> iterable) {
-        final List<T> newList = new ArrayList<>(list);
-
-        for (T iterObject : iterable) {
-            newList.add(iterObject);
-        }
-
-        return newList;
     }
 
     /** The output directory for tests. */

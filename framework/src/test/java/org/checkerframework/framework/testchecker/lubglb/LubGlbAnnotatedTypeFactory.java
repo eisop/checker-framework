@@ -17,6 +17,7 @@ import java.util.Set;
 
 public class LubGlbAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
 
+    @SuppressWarnings("this-escape")
     public LubGlbAnnotatedTypeFactory(BaseTypeChecker checker) {
         super(checker);
         this.postInit();

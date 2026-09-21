@@ -4,6 +4,7 @@ import com.sun.source.tree.ExpressionTree;
 import com.sun.source.tree.MethodInvocationTree;
 import com.sun.source.tree.NewClassTree;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.checker.signature.qual.CanonicalNameOrEmpty;
 import org.checkerframework.checker.signature.qual.ClassGetName;
 import org.checkerframework.common.basetype.BaseTypeChecker;
@@ -76,8 +77,10 @@ public class ReflectiveEvaluator {
      * @return all possible values that the method may return, or null if the method could not be
      *     evaluated
      */
-    public List<?> evaluateMethodCall(
-            List<List<?>> allArgValues, List<?> receiverValues, MethodInvocationTree tree) {
+    public @Nullable List<?> evaluateMethodCall(
+            @Nullable List<List<?>> allArgValues,
+            @Nullable List<?> receiverValues,
+            MethodInvocationTree tree) {
         Method method = getMethodObject(tree);
         if (method == null) {
             return null;
@@ -173,11 +176,11 @@ public class ReflectiveEvaluator {
         }
         Object[] newArgs = new Object[numberOfParameters];
         Object[] varArgsArray;
-        int numOfVarArgs = arguments.length - numberOfParameters + 1;
-        if (numOfVarArgs > 0) {
+        int numOfVarargs = arguments.length - numberOfParameters + 1;
+        if (numOfVarargs > 0) {
             System.arraycopy(arguments, 0, newArgs, 0, numberOfParameters - 1);
-            varArgsArray = new Object[numOfVarArgs];
-            System.arraycopy(arguments, numberOfParameters - 1, varArgsArray, 0, numOfVarArgs);
+            varArgsArray = new Object[numOfVarargs];
+            System.arraycopy(arguments, numberOfParameters - 1, varArgsArray, 0, numOfVarargs);
         } else {
             System.arraycopy(arguments, 0, newArgs, 0, numberOfParameters - 1);
             varArgsArray = emptyObjectArray;
@@ -193,8 +196,8 @@ public class ReflectiveEvaluator {
      * @param tree a method invocation tree
      * @return the Method object corresponding to the method invocation tree
      */
-    private Method getMethodObject(MethodInvocationTree tree) {
-        final ExecutableElement ele = TreeUtils.elementFromUse(tree);
+    private @Nullable Method getMethodObject(MethodInvocationTree tree) {
+        ExecutableElement ele = TreeUtils.elementFromUse(tree);
         List<Class<?>> paramClasses = null;
         try {
             @CanonicalNameOrEmpty String className =
@@ -245,10 +248,8 @@ public class ReflectiveEvaluator {
      *
      * @param ele a method or constructor
      * @return the classes of the given method's formal parameters
-     * @throws ClassNotFoundException if the class cannot be found
      */
-    private List<Class<?>> getParameterClasses(ExecutableElement ele)
-            throws ClassNotFoundException {
+    private List<Class<?>> getParameterClasses(ExecutableElement ele) {
         return CollectionsPlume.mapList(
                 (Element e) -> TypesUtils.getClassFromType(ElementUtils.getType(e)),
                 ele.getParameters());
@@ -261,38 +262,29 @@ public class ReflectiveEvaluator {
      * @param whichArg pass {@code allArgValues.size() - 1}
      * @return all combinations of the elements of the given lists
      */
-    @SuppressWarnings("mustcall") // I cannot type cartesianProduct() for @MustCall
     private List<Object[]> cartesianProduct(List<List<?>> allArgValues, int whichArg) {
+        // Recurse once, then iterate to produce all combinations.
         List<?> argValues = allArgValues.get(whichArg);
-        List<Object[]> tuples = new ArrayList<>(argValues.size());
-
+        if (whichArg == 0) {
+            int width = allArgValues.size();
+            List<Object[]> tuples = new ArrayList<>(argValues.size());
+            for (Object value : argValues) {
+                Object[] tuple = new Object[width];
+                tuple[0] = value;
+                tuples.add(tuple);
+            }
+            return tuples;
+        }
+        List<Object[]> base = cartesianProduct(allArgValues, whichArg - 1);
+        List<Object[]> tuples = new ArrayList<>(base.size() * argValues.size());
         for (Object value : argValues) {
-            if (whichArg == 0) {
-                Object[] objects = new Object[allArgValues.size()];
-                objects[0] = value;
-                tuples.add(objects);
-            } else {
-                List<Object[]> lastTuples = cartesianProduct(allArgValues, whichArg - 1);
-                List<Object[]> copies = copy(lastTuples);
-                for (Object[] copy : copies) {
-                    copy[whichArg] = value;
-                }
-                tuples.addAll(copies);
+            for (Object[] baseTuple : base) {
+                Object[] copy = Arrays.copyOf(baseTuple, baseTuple.length);
+                copy[whichArg] = value;
+                tuples.add(copy);
             }
         }
         return tuples;
-    }
-
-    /**
-     * Returns a depth-2 copy of the given list. In the returned value, the list and the arrays in
-     * it are new, but the elements of the arrays are shared with the argument.
-     *
-     * @param lastTuples a list of arrays
-     * @return a depth-2 copy of the given list
-     */
-    private List<Object[]> copy(List<Object[]> lastTuples) {
-        return CollectionsPlume.mapList(
-                (Object[] list) -> Arrays.copyOf(list, list.length), lastTuples);
     }
 
     /**
@@ -305,7 +297,7 @@ public class ReflectiveEvaluator {
      *     IdentifierTree and is used for diagnostics.
      * @return the value of the static field access, or null if it cannot be determined
      */
-    public Object evaluateStaticFieldAccess(
+    public @Nullable Object evaluateStaticFieldAccess(
             @ClassGetName String classname, String fieldName, ExpressionTree tree) {
         try {
             Class<?> recClass = Class.forName(classname);
@@ -332,8 +324,8 @@ public class ReflectiveEvaluator {
         }
     }
 
-    public List<?> evaluteConstructorCall(
-            ArrayList<List<?>> argValues, NewClassTree tree, TypeMirror typeToCreate) {
+    public @Nullable List<?> evaluteConstructorCall(
+            List<List<?>> argValues, NewClassTree tree, TypeMirror typeToCreate) {
         Constructor<?> constructor;
         try {
             // get the constructor
@@ -376,8 +368,16 @@ public class ReflectiveEvaluator {
         return results;
     }
 
+    /**
+     * Returns the constructor object for the given {@code tree} and {@code typeToCreate}.
+     *
+     * @param tree a {@code new} expression
+     * @param typeToCreate the type to create
+     * @return the constructor object
+     * @throws NoSuchMethodException if the constructor cannot be found
+     */
     private Constructor<?> getConstructorObject(NewClassTree tree, TypeMirror typeToCreate)
-            throws ClassNotFoundException, NoSuchMethodException {
+            throws NoSuchMethodException {
         ExecutableElement ele = TreeUtils.elementFromUse(tree);
         List<Class<?>> paramClasses = getParameterClasses(ele);
         Class<?> recClass = boxPrimitives(TypesUtils.getClassFromType(typeToCreate));

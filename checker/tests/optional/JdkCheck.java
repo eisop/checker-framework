@@ -22,12 +22,10 @@ public class JdkCheck {
     }
 
     String orElseThrowTest2(Optional<String> mos, Supplier<RuntimeException> exceptionSupplier) {
-        // :: error: (method.invocation.invalid)
         return mos.orElseThrow(exceptionSupplier);
     }
 
     String orElseThrowTestFlow(Optional<String> mos, Supplier<RuntimeException> exceptionSupplier) {
-        // :: error: (method.invocation.invalid)
         mos.orElseThrow(exceptionSupplier);
         return mos.get();
     }

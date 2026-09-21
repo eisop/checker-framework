@@ -2,13 +2,16 @@ package org.checkerframework.checker.guieffect;
 
 import com.sun.source.tree.ConditionalExpressionTree;
 import com.sun.source.tree.ExpressionTree;
+import com.sun.source.tree.IdentifierTree;
 import com.sun.source.tree.LambdaExpressionTree;
 import com.sun.source.tree.MemberSelectTree;
 import com.sun.source.tree.MethodInvocationTree;
 import com.sun.source.tree.MethodTree;
+import com.sun.source.tree.NewClassTree;
 import com.sun.source.tree.ParenthesizedTree;
 import com.sun.source.tree.Tree;
 
+import org.checkerframework.checker.guieffect.Effect.EffectRange;
 import org.checkerframework.checker.guieffect.qual.AlwaysSafe;
 import org.checkerframework.checker.guieffect.qual.PolyUI;
 import org.checkerframework.checker.guieffect.qual.PolyUIEffect;
@@ -19,6 +22,7 @@ import org.checkerframework.checker.guieffect.qual.UI;
 import org.checkerframework.checker.guieffect.qual.UIEffect;
 import org.checkerframework.checker.guieffect.qual.UIPackage;
 import org.checkerframework.checker.guieffect.qual.UIType;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.common.basetype.BaseAnnotatedTypeFactory;
 import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
@@ -26,6 +30,7 @@ import org.checkerframework.framework.type.treeannotator.ListTreeAnnotator;
 import org.checkerframework.framework.type.treeannotator.TreeAnnotator;
 import org.checkerframework.framework.util.AnnotatedTypes;
 import org.checkerframework.javacutil.AnnotationBuilder;
+import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TypeSystemError;
@@ -71,6 +76,17 @@ public class GuiEffectTypeFactory extends BaseAnnotatedTypeFactory {
      */
     protected final Set<TypeElement> uiAnonClasses = new HashSet<>();
 
+    /** The @{@link AlwaysSafe} annotation. */
+    protected final AnnotationMirror ALWAYSSAFE =
+            AnnotationBuilder.fromClass(elements, AlwaysSafe.class);
+
+    /** The @{@link PolyUI} annotation. */
+    protected final AnnotationMirror POLYUI = AnnotationBuilder.fromClass(elements, PolyUI.class);
+
+    /** The @{@link UI} annotation. */
+    protected final AnnotationMirror UI = AnnotationBuilder.fromClass(elements, UI.class);
+
+    @SuppressWarnings("this-escape")
     public GuiEffectTypeFactory(BaseTypeChecker checker, boolean spew) {
         // use true to enable flow inference, false to disable it
         super(checker, false);
@@ -111,7 +127,7 @@ public class GuiEffectTypeFactory extends BaseAnnotatedTypeFactory {
 
         // Anon inner classes should not inherit the package annotation, since
         // they're so often used for closures to run async on background threads.
-        if (isAnonymousType(cls)) {
+        if (ElementUtils.isAnonymous(cls)) {
             // However, we need to look into Anonymous class effect inference
             if (uiAnonClasses.contains(cls)) {
                 return true;
@@ -144,11 +160,6 @@ public class GuiEffectTypeFactory extends BaseAnnotatedTypeFactory {
         }
 
         return false;
-    }
-
-    // TODO: is there a framework method for this?
-    private static boolean isAnonymousType(TypeElement elem) {
-        return elem.getSimpleName().length() == 0;
     }
 
     /**
@@ -230,7 +241,7 @@ public class GuiEffectTypeFactory extends BaseAnnotatedTypeFactory {
         // Anonymous inner types should just get the effect of the parent by default, rather than
         // annotating every instance. Unless it's implementing a polymorphic supertype, in which
         // case we still want the developer to be explicit.
-        if (isAnonymousType(targetClassElt)) {
+        if (ElementUtils.isAnonymous(targetClassElt)) {
             boolean canInheritParentEffects = true; // Refine this for polymorphic parents
             DeclaredType directSuper = (DeclaredType) targetClassElt.getSuperclass();
             TypeElement superElt = (TypeElement) directSuper.asElement();
@@ -249,7 +260,7 @@ public class GuiEffectTypeFactory extends BaseAnnotatedTypeFactory {
             }
 
             if (canInheritParentEffects) {
-                Effect.EffectRange r = findInheritedEffectRange(targetClassElt, methodElt);
+                EffectRange r = findInheritedEffectRange(targetClassElt, methodElt);
                 return (r != null ? Effect.min(r.min, r.max) : new Effect(SafeEffect.class));
             }
         }
@@ -274,10 +285,11 @@ public class GuiEffectTypeFactory extends BaseAnnotatedTypeFactory {
         Effect targetEffect = getDeclaredEffect(methodElt);
         if (targetEffect.isPoly()) {
             AnnotatedTypeMirror srcType = null;
-            if (tree.getMethodSelect().getKind() == Tree.Kind.MEMBER_SELECT) {
-                ExpressionTree src = ((MemberSelectTree) tree.getMethodSelect()).getExpression();
+            ExpressionTree methodSelect = tree.getMethodSelect();
+            if (methodSelect instanceof MemberSelectTree) {
+                ExpressionTree src = ((MemberSelectTree) methodSelect).getExpression();
                 srcType = getAnnotatedType(src);
-            } else if (tree.getMethodSelect().getKind() == Tree.Kind.IDENTIFIER) {
+            } else if (methodSelect instanceof IdentifierTree) {
                 // Tree.Kind.IDENTIFIER, e.g. a direct call like "super()"
                 if (callerReceiver == null) {
                     // Not enought information provided to instantiate this type-polymorphic effects
@@ -334,9 +346,9 @@ public class GuiEffectTypeFactory extends BaseAnnotatedTypeFactory {
      * @return whether it is a lambda expression or new class marked as UI by inference
      */
     public boolean isDirectlyMarkedUIThroughInference(Tree tree) {
-        if (tree.getKind() == Tree.Kind.LAMBDA_EXPRESSION) {
+        if (tree instanceof LambdaExpressionTree) {
             return uiLambdas.contains((LambdaExpressionTree) tree);
-        } else if (tree.getKind() == Tree.Kind.NEW_CLASS) {
+        } else if (tree instanceof NewClassTree) {
             AnnotatedTypeMirror typeMirror = super.getAnnotatedType(tree);
             if (typeMirror.getKind() == TypeKind.DECLARED) {
                 return uiAnonClasses.contains(
@@ -356,10 +368,10 @@ public class GuiEffectTypeFactory extends BaseAnnotatedTypeFactory {
         // containing such class/lambda
         if (isDirectlyMarkedUIThroughInference(tree)) {
             typeMirror.replaceAnnotation(AnnotationBuilder.fromClass(elements, UI.class));
-        } else if (tree.getKind() == Tree.Kind.PARENTHESIZED) {
+        } else if (tree instanceof ParenthesizedTree) {
             ParenthesizedTree parenthesizedTree = (ParenthesizedTree) tree;
             return this.getAnnotatedType(parenthesizedTree.getExpression());
-        } else if (tree.getKind() == Tree.Kind.CONDITIONAL_EXPRESSION) {
+        } else if (tree instanceof ConditionalExpressionTree) {
             ConditionalExpressionTree cet = (ConditionalExpressionTree) tree;
             boolean isTrueOperandUI =
                     (cet.getTrueExpression() != null
@@ -379,7 +391,7 @@ public class GuiEffectTypeFactory extends BaseAnnotatedTypeFactory {
     }
 
     // Only the visitMethod call should pass true for warnings
-    public Effect.EffectRange findInheritedEffectRange(
+    public EffectRange findInheritedEffectRange(
             TypeElement declaringType, ExecutableElement overridingMethod) {
         return findInheritedEffectRange(declaringType, overridingMethod, false, null);
     }
@@ -401,9 +413,9 @@ public class GuiEffectTypeFactory extends BaseAnnotatedTypeFactory {
      * @param overridingMethod the method override itself
      * @param issueConflictWarning whether or not to issue warnings
      * @param errorTree the method declaration AST node; used for reporting errors
-     * @return the min and max inherited effects
+     * @return the min and max inherited effects, or null if none were discovered
      */
-    public Effect.EffectRange findInheritedEffectRange(
+    public @Nullable EffectRange findInheritedEffectRange(
             TypeElement declaringType,
             ExecutableElement overridingMethod,
             boolean issueConflictWarning,
@@ -474,7 +486,7 @@ public class GuiEffectTypeFactory extends BaseAnnotatedTypeFactory {
                     //   "new @UI Runnable {...}"
                     // parses as @UI on an anon class decl extending Runnable
                     boolean isAnonInstantiation =
-                            isAnonymousType(declaringType)
+                            ElementUtils.isAnonymous(declaringType)
                                     && (fromElement(declaringType).hasAnnotation(UI.class)
                                             || uiAnonClasses.contains(declaringType));
                     if (!isAnonInstantiation && !overriddenType.hasAnnotation(UI.class)) {
@@ -533,12 +545,12 @@ public class GuiEffectTypeFactory extends BaseAnnotatedTypeFactory {
         if (min == null && max == null) {
             return null;
         } else {
-            return new Effect.EffectRange(min, max);
+            return new EffectRange(min, max);
         }
     }
 
     @Override
-    protected Set<? extends AnnotationMirror> getDefaultTypeDeclarationBounds() {
+    protected AnnotationMirrorSet getDefaultTypeDeclarationBounds() {
         return qualHierarchy.getBottomAnnotations();
     }
 
@@ -570,7 +582,7 @@ public class GuiEffectTypeFactory extends BaseAnnotatedTypeFactory {
      *     instantiation of an UI-polymorphic superclass.
      */
     public void constrainAnonymousClassToUI(TypeElement classElt) {
-        assert TypesUtils.isAnonymous(classElt.asType());
+        assert ElementUtils.isAnonymous(classElt);
         uiAnonClasses.add(classElt);
     }
 
@@ -618,15 +630,11 @@ public class GuiEffectTypeFactory extends BaseAnnotatedTypeFactory {
 
             // STEP 2: Fix up the method receiver annotation
             AnnotatedTypeMirror.AnnotatedDeclaredType receiverType = methType.getReceiverType();
-            if (receiverType != null
-                    && !receiverType.isAnnotatedInHierarchy(
-                            AnnotationBuilder.fromClass(elements, UI.class))) {
+            if (receiverType != null && !receiverType.hasAnnotationInHierarchy(UI)) {
                 receiverType.addAnnotation(
                         isPolymorphicType(cls)
-                                ? PolyUI.class
-                                : fromElement(cls).hasAnnotation(UI.class)
-                                        ? UI.class
-                                        : AlwaysSafe.class);
+                                ? POLYUI
+                                : fromElement(cls).hasAnnotation(UI.class) ? UI : ALWAYSSAFE);
             }
             return super.visitMethod(tree, type);
         }

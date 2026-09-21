@@ -6,7 +6,8 @@
 public class TypeVarReturnAnnotated {
 
     public static <T extends TypeVarReturnAnnotated>
-            @org.checkerframework.checker.initialization.qual.FBCBottom @org.checkerframework.checker.nullness.qual.Nullable T extract() {
+            @org.checkerframework.checker.initialization.qual.FBCBottom @org.checkerframework.checker.nullness.qual.Nullable T
+                    extract() {
         return null;
     }
 }

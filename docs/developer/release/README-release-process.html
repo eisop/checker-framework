@@ -60,7 +60,16 @@ The process takes around 2 hours (including manual steps) when all goes accordin
     <ul>
       <li><a href="#step_by_step">Step by Step</a></li>
       <li><a href="#continuous-integration">Continuous integration tests</a></li>
-      <li><a href="#snapshot_release">Snapshot release</a></li>
+      <li><a href="#maven_local">Deploy to local Maven repository</a></li>
+      <li><a href="#snapshot_release">Snapshot release</a>
+        <ul>
+          <li><a href="#using_snapshot_release">Using a snapshot release</a>
+            <ul>
+              <li><a href="#using_snapshot_release_gradle_groovy">Gradle Groovy (<code>build.gradle</code> file)</a></li>
+              <li><a href="#using_snapshot_release_gradle_kotlin">Gradle Kotlin (<code>build.gradle.kts</code> file)</a></li>
+              <li><a href="#using_snapshot_release_maven">Maven (<code>pom.xml</code> file)</a></li>
+            </ul></li>
+        </ul></li>
       <li><a href="#pre_release_checklist">Pre-release Checklist</a></li>
       <li><a href="#release_process_overview">Release Process Overview</a>
         <ul>
@@ -178,6 +187,16 @@ TreeAnnotator
       <code>TODO<br/></code>
   </li>
   <li>
+      <strong>Note: JDK version for the Maven-publish step.</strong>
+      The <code>framework-errorprone</code> subproject (the Checker Framework as an
+      Error Prone plugin) is part of the build only when the build JDK is 21 or newer
+      (it is gated in <code>settings.gradle</code>).  The Maven-publish step
+      (<code>./gradlew publish</code>, below) therefore
+      must run on <b>JDK 21 or later</b>; otherwise that artifact is silently excluded
+      and not published.  No per-artifact change is needed, since <code>publish</code>
+      picks up every subproject that has a publishing block.
+  </li>
+  <li>
       <strong>In a user-specific temporary directory, clone/update the Checker Framework repository (it contains the release scripts).</strong><br/>
       <!-- This isn't a <pre> block because that formats differently than commands. -->
       <code>mkdir -p /tmp/$USER/cf-release<br/></code>
@@ -196,7 +215,7 @@ TreeAnnotator
       to be built but more work still needs to be done.  Just pass &quot;all&quot; for now.
   </li>
   <li>
-      <strong>Run release_push</strong> to run a few tests and move release artifacts from the development website to the live site and to Maven Central <br/>
+      <strong>Run release_push</strong> to run a few tests and move release artifacts from the development website to the live site<br/>
       <code>python3 release_push.py release</code><br/><br/>
       <div class="alert alert-danger">
         <strong>Note:</strong> The &quot;<strong>release</strong>&quot; argument states that you intend
@@ -207,6 +226,15 @@ TreeAnnotator
       If you get an obscure error about permissions, try running the release_push script several times
       in a row. This will sometimes update the repository permissions such that the script can proceed
       further each time.
+  </li>
+  <li>
+      <strong>Publish to Maven Central.</strong>  The release scripts do not do this.  In a
+      checkout of the release commit, on JDK 21 or later, run<br/>
+      <code>./gradlew publish -Prelease=true --no-parallel</code><br/><br/>
+      Then log in to
+      <a href="https://central.sonatype.com/publishing/deployments">https://central.sonatype.com/publishing/deployments</a>
+      and publish the deployment.  See
+      <a href="../maven-central-publishing.md">Maven Central publishing</a> for details.
   </li>
   <li> <strong>Update list of qualifiers in Project Lombok.</strong>
     Follow the instructions in <a href="https://github.com/projectlombok/lombok/blob/master/src/core/lombok/core/handlers/HandlerUtil.java#L108">HandlerUtil.java</a>.
@@ -229,29 +257,46 @@ TreeAnnotator
 
   <p>
     The following continuous integration tests should all pass before you make changes that you need to test.  If not, notify the
-    relevant team members.
+    relevant team members.  Refresh this page to see the latest status.
   </p>
 
-<ol>
-  <li>The following Continuous Integration builds should be passing (refresh this page to see the latest status):
   <ul>
     <li>Annotation File Utilities: <a href="https://dev.azure.com/eisop/annotation-tools/_build/latest?definitionId=2&branchName=master"><img src="https://dev.azure.com/eisop/annotation-tools/_apis/build/status/eisop.annotation-tools?branchName=master" alt="Azure Pipelines eisop/annotation-tools status"/></a></li>
     <li>Checker Framework: <a href="https://dev.azure.com/eisop/checker-framework/_build/latest?definitionId=2&branchName=master"><img src="https://dev.azure.com/eisop/checker-framework/_apis/build/status/eisop.checker-framework?branchName=master" alt="Azure Pipelines eisop/checker-framework status"/></a></li>
     <li>checker-framework.demos: <a href="https://travis-ci.org/eisop/checker-framework.demos/branches"><img src="https://travis-ci.org/eisop/checker-framework.demos.svg?branch=master" alt="Travis eisop/checker-framework.demos status"/></a></li>
     <li>Daikon: <a href="https://dev.azure.com/eisop-codespecs/daikon/_build/latest?definitionId=1&branchName=master"><img src="https://dev.azure.com/codespecs/daikon/_apis/build/status/codespecs.daikon?branchName=master" alt="codespecs/daikon Azure Pipelines status"></a></li>
-    <li>guava-typecheck: <a href="https://travis-ci.org/typetests/guava-typecheck/branches"><img src="https://travis-ci.org/typetests/guava-typecheck.svg?branch=master" alt="Travis typetests/guava-typecheck status"/></a></li>
   </ul>
-  </li>
-  <li> Check that <a href="https://travis-ci.org/typetests/daikon-typecheck/builds">a daikon-typecheck Travis job</a> was triggered by the last commit of the Checker Framework before the code freeze.
-  </li>
-</ol>
+
+  <h2 id="maven_local">Deploy to local Maven repository</h2>
+  <p>
+    To deploy to a <b>local</b> Maven repository, run <code>./gradlew
+    PublishToMavenLocal</code> in <code>checker-framework</code>.
+  </p>
+
+  <p>
+    Then, update your project's buildfile.  For Maven,
+    just <a href="https://checkerframework.org/manual/#maven-locally-built">update
+    the Checker Framework version number</a>.  For Gradle,
+    also <a href="https://github.com/kelloggm/checkerframework-gradle-plugin#specifying-a-checker-framework-version">add <code>repositories
+    { mavenLocal() }</code></a>.
+  </p>
+
+  <p>
+    Often, the version number in <code>checker-framework/build.gradle</code>
+    (in <code>allprojects { version ... }</code>) will end
+    in <code>-SNAPSHOT</code>, but this is not a requirement.  Regardless of the
+    version number, beware that you may get different results than on other
+    computers that have not deployed the same commit of the Checker Framework to
+    their local Maven repository.
+  </p>
+
 
   <h2 id="snapshot_release">Snapshot release</h2>
-  <p>This section explains how to release the Maven artifacts to the Maven Central snapshot repository.</p>
+  <p>To release the Maven artifacts to the Maven Central <b>snapshot</b> repository:</p>
   <ol>
     <li>
-      Ensure that <code>~/.gradle/gradle.properties</code> includes your <code>SONATYPE_NEXUS_USERNAME</code>
-      and <code>SONATYPE_NEXUS_PASSWORD</code>.
+      Ensure that <code>~/.gradle/gradle.properties</code> includes your user token in <code>SONATYPE_NEXUS_USERNAME</code>
+      and your user token key in <code>SONATYPE_NEXUS_PASSWORD</code>.
     </li>
     <li>
       Ensure that the version number in <code>checker-framework/build.gradle</code> (in <code>allprojects { version ... }</code>) ends in <code>-SNAPSHOT</code>.
@@ -259,27 +304,60 @@ TreeAnnotator
     <li>
       Run <code>./gradlew publish</code> in <code>checker-framework</code>.
     </li>
-    <li>
-      In the <code>build.gradle</code> file of a project that you want
-      to use the snapshot version of the Checker Framework:
-      <pre>
+  </ol>
+
+  <h3 id="using_snapshot_release">Using a snapshot release</h3>
+
+  <h4 id="using_snapshot_release_gradle_groovy">Gradle Groovy (<code>build.gradle</code> file)</h4>
+
+  In the <code>build.gradle</code> file of a project that you want
+  to use the snapshot version of the Checker Framework:
+  <pre>
 repositories {
   ...
-  maven { url 'https://oss.sonatype.org/content/repositories/snapshots/' }
+  maven { url 'https://central.sonatype.com/repository/maven-snapshots/' }
 }
 
-ext.checkerFrameworkVersion = '3.28.1-SNAPSHOT'
+ext.checkerFrameworkVersion = '3.42.0-eisop5-SNAPSHOT'
 dependencies {
   compileOnly "io.github.eisop:checker-qual:${checkerFrameworkVersion}"
   testCompileOnly "io.github.eisop:checker-qual:${checkerFrameworkVersion}"
+  checkerFramework "io.github.eisop:checker-qual:${checkerFrameworkVersion}"
   checkerFramework "io.github.eisop:checker:${checkerFrameworkVersion}"
 }
 configurations.all {
   resolutionStrategy.cacheChangingModulesFor 0, 'seconds'
+}</pre>
+
+  <h4 id="using_snapshot_release_gradle_kotlin">Gradle Kotlin (<code>build.gradle.kts</code> file)</h4>
+
+  In the <code>build.gradle.kts</code> file of a project that you want
+  to use the snapshot version of the Checker Framework:
+
+  <pre>
+val checkerFrameworkVersion = "3.42.0-eisop5-SNAPSHOT"
+dependencies {
+   compileOnly("io.github.eisop:checker-qual:${checkerFrameworkVersion}")
+   testCompileOnly("io.github.eisop:checker-qual:${checkerFrameworkVersion}")
+   checkerFramework("io.github.eisop:checker-qual:${checkerFrameworkVersion}")
+   checkerFramework("io.github.eisop:checker:${checkerFrameworkVersion}")
 }
-      </pre>
-    </li>
-  </ol>
+configurations.all({
+   resolutionStrategy.cacheChangingModulesFor(0, "seconds")
+})</pre>
+
+  <h4 id="using_snapshot_release_maven">Maven (<code>pom.xml</code> file)</h4>
+
+  In the <code>pom.xml</code> file of a project that you want
+  to use the snapshot version of the Checker Framework:
+
+  <pre>
+    &lt;repository&gt;
+      &lt;id&gt;snapshots-repo&lt;/id&gt;
+      &lt;url&gt;https://central.sonatype.com/repository/maven-snapshots&lt;/url&gt;
+      &lt;releases&gt;&lt;enabled&gt;false&lt;/enabled&gt;&lt;/releases&gt;
+      &lt;snapshots&gt;&lt;enabled&gt;true&lt;/enabled&gt;&lt;/snapshots&gt;
+    &lt;/repository&gt;</pre>
 
   <h2 id="pre_release_checklist">Pre-release Checklist</h2>
   <p>If you have not performed a release before you must follow these steps.</p>
@@ -294,12 +372,13 @@ configurations.all {
     </tr>
     <tr>
       <td>2.</td>
-      <td><strong>Import the Checker Framework signing key for PGP</strong><br/>
-        SSH into tern and run the following command:<br/>
-        <code>gpg --allow-secret-key-import --import /projects/swlab1/checker-framework/hosting-info/release-private.key<br/><br/></code>
-        Note:  The password for this key is located in the file<br/>
-        <code>/projects/swlab1/checker-framework/hosting-info/release-private.password<br/></code>
-        and is used by the release_push script to sign Maven artifacts.<br/>
+      <td><strong>Set up a PGP signing key</strong><br/>
+        Maven Central requires signed artifacts, but does not pin a key to a namespace: each
+        maintainer signs with their own.  Have a GPG key whose public half is published to a
+        keyserver Central queries (<code>keys.openpgp.org</code> or <code>keyserver.ubuntu.com</code>),
+        and name it in <code>~/.gradle/gradle.properties</code>:<br/>
+        <pre>signing.gnupg.keyName=your_key_id_or_email</pre>
+        See <a href="../maven-central-publishing.md">Maven Central publishing</a>.<br/>
       </td>
     <tr>
       <td>3.</td>
@@ -318,13 +397,13 @@ configurations.all {
     </tr>
     <tr>
       <td>4.</td>
-      <td><strong>Add your account information to gradle/build.properties in your home directory.</strong><br/>
+      <td><strong>Add your user token information to gradle/build.properties in your home directory.</strong><br/>
+        Follow the <a href="https://central.sonatype.org/publish/generate-token/">instructions</a> to generate a user token.
         Create a <code>~/.gradle/gradle.properties</code> file with the following:
         <pre>
-SONATYPE_NEXUS_USERNAME=your_user_name
-SONATYPE_NEXUS_PASSWORD=your_password</pre>
-        using the information you just created for your Sonatype Account on tern or other
-        network host.  Since the file contains your password, make it non-readable:  <code>chmod og-rw ~/.gradle/gradle.properties</code>
+SONATYPE_NEXUS_USERNAME=your_tokenuser
+SONATYPE_NEXUS_PASSWORD=your_tokenkey</pre>
+ Since the file contains your password, make it non-readable:  <code>chmod og-rw ~/.gradle/gradle.properties</code>
       </td>
     </tr>
     <tr>
@@ -387,7 +466,7 @@ git config --global user.email you@example.com</pre>
         <td></td>
         <td colspan="2">build</td>
         <td>Contains repositories for:
-          annotation-tools, checker-framework, plume-bib, plume-scripts, stubparser<br/>
+          annotation-tools, checker-framework, git-scripts, plume-bib, plume-scripts<br/>
           These repositories are used to build the Checker Framework and its dependencies.
         </td>
       </tr>
@@ -395,12 +474,12 @@ git config --global user.email you@example.com</pre>
         <td></td>
         <td colspan="2">interm</td>
         <td>Contains repositories for:
-          annotation-tools, checker-framework, plume-bib, plume-scripts, stubparser<br/>
+          annotation-tools, checker-framework, git-scripts, plume-bib, plume-scripts<br/>
           The repositories in build are clones of repositories in interm.  The repositories
           in interm are clones of the GitHub repositories.  This is so that
           we can test and push the release to the interm repositories then check the
           release before we have made any irreversible changes.  Then, when the release
-          is validated, all we do is run &quot;git push&quot; or &quot;hg push&quot; on all of the repos in interm.
+          is validated, all we do is run &quot;git push&quot; on all of the repos in interm.
         </td>
       </tr>
       <tr>
@@ -480,7 +559,6 @@ git config --global user.email you@example.com</pre>
           is correct through scripts and manual steps.  When the user is satisfied the website
           is correct it deploys the website to the live website:
           <a href="https://checkerframework.org/">https://checkerframework.org/</a>.
-          It also pushes Maven artifacts to Maven central.
           This script is thoroughly documented in code comments located in its <code>main()</code> function.
         </td>
       </tr>
@@ -586,12 +664,11 @@ git config --global user.email you@example.com</pre>
     </ul>
 
   <h2 id="backing_out">Backing Out an Uncommitted Release</h2>
-  <p>At the time of this writing, there are 2 steps that cannot be reverted.</p>
-  <ol>
-    <li>The push from the interm repositories to the GitHub (release) repositories</li>
-    <li>The release of the staged Maven artifacts</li>
-  </ol>
-  <p> If you have executed either of these steps and then realized there is a breaking error, you should do another
+  <p>At the time of this writing, one step of these scripts cannot be reverted:
+    the push from the interm repositories to the GitHub (release) repositories.
+    (Publishing to Maven Central is also irreversible, but it is not done by
+    these scripts; see <a href="../maven-central-publishing.md">Maven Central publishing</a>.)</p>
+  <p> If you have executed either of those and then realized there is a breaking error, you should do another
     release.  The release script will allow you to do a point release like &quot;1.8.0.1&quot; when a version
     &quot;1.8.0&quot; already exists.<br/>
     <br/>
@@ -601,12 +678,10 @@ git config --global user.email you@example.com</pre>
   </p>
   <h3 id="backing_out_steps">Manual Steps to Back Out a Release</h3>
   <ul>
-    <li><strong>Drop the artifacts from Central</strong><br/>
-      You may have staged and then closed the artifacts in the Sonatype Central repository.  Drop (do NOT release)
-      these artifacts.  See
-      <a href="https://docs.sonatype.org/display/Repository/Sonatype+OSS+Maven+Repository+Usage+Guide#SonatypeOSSMavenRepositoryUsageGuide-DroppingaStagingRepository%28i.e.WhattoDoifYourStagingRepositoryHasErrors%29">
-        the Sonatype OSS Repository Usage Guidelines.
-      </a>
+    <li><strong>Drop the deployment from Central</strong><br/>
+      If you have already run <code>./gradlew publish -Prelease=true</code> but have not released the
+      deployment, drop it (do NOT publish it) at
+      <a href="https://central.sonatype.com/publishing/deployments">https://central.sonatype.com/publishing/deployments</a>.
     </li>
     <!-- <li><strong>Drop the Maven Artifacts from our Maven repo *** currently unneeded ***</strong>
       <p class="alert alert-warning"><strong>Note:</strong> The procedure below is NOT recommended
@@ -723,7 +798,7 @@ git config --global user.email you@example.com</pre>
 
 <!--  LocalWords:  serif px pre CCC JDK AFS PAG mkdir cd svn co EFEFEF ul li Changelog stubparser JavaParser GenericAnnotatedTypeFactory CFTransfer CFAbstractTransfer CFAbstractAnalysis CFAnalysis CFAbstractStore CFStore CFAbstractValue CFValue BaseTypeVisitor BaseTypeChecker SourceChecker MultigraphQualifierHierarchy AbstractQualifierPolymorphism AnnotationUtils TreeAnnotator TODO typetools
  -->
-<!--  LocalWords:  xml ver dev yyyyMMDD URL url diff hg buildfile kelloggm checkerframework gradle
+<!--  LocalWords:  xml ver dev yyyyMMDD URL url diff buildfile kelloggm checkerframework gradle
  -->
 <!--  LocalWords:  HandlerUtil macOS typecheck www Sonatype typetests html5validator config interm
  -->

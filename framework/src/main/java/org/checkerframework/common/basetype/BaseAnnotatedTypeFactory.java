@@ -1,5 +1,6 @@
 package org.checkerframework.common.basetype;
 
+import org.checkerframework.dataflow.cfg.ControlFlowGraph;
 import org.checkerframework.framework.flow.CFAnalysis;
 import org.checkerframework.framework.flow.CFStore;
 import org.checkerframework.framework.flow.CFTransfer;
@@ -13,6 +14,7 @@ import org.checkerframework.framework.type.GenericAnnotatedTypeFactory;
 public class BaseAnnotatedTypeFactory
         extends GenericAnnotatedTypeFactory<CFValue, CFStore, CFTransfer, CFAnalysis> {
 
+    @SuppressWarnings("this-escape")
     public BaseAnnotatedTypeFactory(BaseTypeChecker checker, boolean useFlow) {
         super(checker, useFlow);
 
@@ -29,5 +31,11 @@ public class BaseAnnotatedTypeFactory
     @Override
     protected CFAnalysis createFlowAnalysis() {
         return new CFAnalysis(checker, this);
+    }
+
+    @Override
+    protected void postAnalyze(ControlFlowGraph cfg) {
+        super.postAnalyze(cfg);
+        checker.getVisitor().checkSyntheticMethodInvocations(cfg);
     }
 }

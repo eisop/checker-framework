@@ -65,6 +65,8 @@ import java.util.regex.Pattern;
  * at <a
  * href="https://github.com/plume-lib/require-javadoc#readme">https://github.com/plume-lib/require-javadoc#readme</a>.
  */
+@SuppressWarnings("all") // many-initializedfields runs checkers that raise errors.
+// Remove once that test minimized this file.
 public class RequireJavadoc {
 
     /** Matches name of file or directory where no problems should be reported. */
@@ -415,7 +417,7 @@ public class RequireJavadoc {
          * method.
          *
          * @param md the method to check
-         * @return the PropertyKind for the given method, or null
+         * @return the PropertyKind for the given method
          */
         static PropertyKind fromMethodDeclaration(MethodDeclaration md) {
             String methodName = md.getNameAsString();

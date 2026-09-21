@@ -18,12 +18,15 @@ import java.lang.annotation.Target;
  * <p>A type annotation indicating that the run-time value might or might not be a valid i18n format
  * string.
  *
+ * <p>It is usually not necessary to write this annotation in source code. It is an implementation
+ * detail of the checker.
+ *
  * @checker_framework.manual #i18n-formatter-checker Internationalization Format String Checker
  */
 @Documented
 @Retention(RetentionPolicy.RUNTIME)
 @Target({ElementType.TYPE_USE, ElementType.TYPE_PARAMETER})
-@TargetLocations({TypeUseLocation.EXPLICIT_LOWER_BOUND, TypeUseLocation.EXPLICIT_UPPER_BOUND})
+@TargetLocations({TypeUseLocation.ALL})
 @InvisibleQualifier
 @SubtypeOf({})
 @DefaultQualifierInHierarchy
