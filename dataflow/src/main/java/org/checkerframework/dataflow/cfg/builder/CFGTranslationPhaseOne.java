@@ -736,11 +736,20 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
      * pre-conversion lookup map. This method is used to update the Tree-Node mapping with
      * conversion nodes.
      *
+     * <p>This is where a tree comes to have two nodes, and so two dataflow values: the one it had
+     * before the conversion and the one the conversion produces. Every conversion does it --
+     * boxing, unboxing, widening, narrowing, string conversion. Which of the two a later query for
+     * the tree receives depends on how much of the CFG has been analyzed, which is harmless for a
+     * type system that preserves the qualifier across the conversion and is not otherwise. See
+     * {@link org.checkerframework.dataflow.analysis.AbstractAnalysis#getValue(Tree)} and
+     * https://github.com/eisop/checker-framework/issues/2127.
+     *
      * @param tree the tree used as a key in the map
      * @param node the node to add to the lookup map
      */
     protected void addToConvertedLookupMap(Tree tree, Node node) {
         assert tree != null;
+        assert node != null;
         assert treeToCfgNodes.containsKey(tree);
         Set<Node> existing = treeToConvertedCfgNodes.get(tree);
         if (existing == null) {
@@ -978,8 +987,10 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
                             Collections.singletonList(node),
                             getCurrentPath());
             boxed.setInSource(false);
-            // Add Throwable to account for unchecked exceptions
+            // The argument tree now has both its own value and the boxed one; see
+            // addToConvertedLookupMap.
             addToConvertedLookupMap(node.getTree(), boxed);
+            // Add Throwable to account for unchecked exceptions.
             insertNodeWithExceptionsAfter(boxed, uncheckedExceptionTypes, valueOfAccess);
             return boxed;
         } else {
@@ -1016,8 +1027,11 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
                             getCurrentPath());
             unboxed.setInSource(false);
 
-            // Add Throwable to account for unchecked exceptions
+            // The receiver tree now has both its own value and the unboxed one; see
+            // addToConvertedLookupMap.  The Interning Checker is a type system for which the two
+            // differ: the unboxed primitive is @Interned and the boxed value is not.
             addToConvertedLookupMap(node.getTree(), unboxed);
+            // Add Throwable to account for unchecked exceptions.
             insertNodeWithExceptionsAfter(unboxed, uncheckedExceptionTypes, primValueAccess);
             return unboxed;
         } else {
@@ -4378,7 +4392,7 @@ public class CFGTranslationPhaseOne extends TreeScanner<Node, Void> {
                                         exprType,
                                         uniqueName("tempPostfix"),
                                         TreePathUtil.findNearestEnclosingElement(getCurrentPath()),
-                                        tree.getExpression());
+                                        exprTree);
                         handleArtificialTree(tempVarDecl);
                         VariableDeclarationNode tempVarDeclNode =
                                 new VariableDeclarationNode(tempVarDecl);
