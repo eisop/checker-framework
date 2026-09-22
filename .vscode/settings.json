@@ -1,0 +1,21 @@
+{
+  "java.configuration.updateBuildConfiguration": "automatic",
+  "java.import.gradle.enabled": true,
+  "files.trimTrailingWhitespace": true,
+  "files.insertFinalNewline": true,
+  "search.exclude": {
+    "**/build": true,
+    "**/.gradle": true,
+    "**/dist": true,
+    "docs/api": true,
+    "docs/manual/*.aux": true,
+    "docs/manual/*.pdf": true
+  },
+  "files.watcherExclude": {
+    "**/.git/objects/**": true,
+    "**/.git/subtree-cache/**": true,
+    "**/.gradle/**": true,
+    "**/build/**": true,
+    "**/dist/**": true
+  }
+}

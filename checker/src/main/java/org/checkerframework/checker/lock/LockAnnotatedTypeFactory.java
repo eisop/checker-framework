@@ -45,6 +45,7 @@ import org.checkerframework.framework.util.dependenttypes.DependentTypesHelper;
 import org.checkerframework.javacutil.AnnotationBuilder;
 import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.ElementUtils;
+import org.checkerframework.javacutil.InternalUtils;
 import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TypeSystemError;
 import org.plumelib.util.CollectionsPlume;
@@ -751,9 +752,10 @@ public class LockAnnotatedTypeFactory
         Map<? extends ExecutableElement, ? extends AnnotationValue> valmap =
                 anno.getElementValues();
         Object value = null;
-        for (ExecutableElement elem : valmap.keySet()) {
-            if (elem.getSimpleName().contentEquals("value")) {
-                value = valmap.get(elem).getValue();
+        for (Map.Entry<? extends ExecutableElement, ? extends AnnotationValue> entry :
+                valmap.entrySet()) {
+            if (InternalUtils.isValueName(entry.getKey().getSimpleName())) {
+                value = entry.getValue().getValue();
                 break;
             }
         }

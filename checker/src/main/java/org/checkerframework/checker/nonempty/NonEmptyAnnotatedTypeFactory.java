@@ -47,7 +47,7 @@ public class NonEmptyAnnotatedTypeFactory extends BaseAnnotatedTypeFactory {
          *
          * @param aTypeFactory the type factory for this tree annotator
          */
-        public NonEmptyTreeAnnotator(AnnotatedTypeFactory aTypeFactory) {
+        NonEmptyTreeAnnotator(AnnotatedTypeFactory aTypeFactory) {
             super(aTypeFactory);
         }
 

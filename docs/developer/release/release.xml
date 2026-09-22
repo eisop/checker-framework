@@ -12,6 +12,33 @@
         <format property="release.date" pattern="d MMM yyyy"/>
     </tstamp>
 
+    <!-- Ant's <replaceregexp> only prints "The following file is missing" for a path that
+         does not exist and still reports BUILD SUCCESSFUL, so a file that moves or is deleted
+         silently stops being updated.  Assert up front that every file exists. -->
+    <macrodef name="require-file">
+        <attribute name="file"/>
+        <sequential>
+            <fail message="file to update does not exist: @{file}">
+                <condition><not><available file="@{file}"/></not></condition>
+            </fail>
+        </sequential>
+    </macrodef>
+
+    <!-- The same silent-skip problem applies to the marker comments the <update> macro keys
+         off: if a marker is renamed or dropped from a page, the rewrite matches nothing and
+         the release still succeeds with a stale version on the page.  Assert those too. -->
+    <macrodef name="require-marker">
+        <attribute name="file"/>
+        <attribute name="marker"/>
+        <sequential>
+            <fail message="marker not found in @{file}: @{marker}">
+                <condition>
+                    <not><resourcecontains resource="@{file}" substring="@{marker}"/></not>
+                </condition>
+            </fail>
+        </sequential>
+    </macrodef>
+
     <!-- For updating version numbers in files -->
     <macrodef name="update">
         <attribute name="file"/>
@@ -35,15 +62,28 @@
 
         <property name="cf.docs"             value="${checker}/../docs"                      />
         <property name="checker.manual"      value="${cf.docs}/manual"                       />
-        <property name="cf.docs.examples"    value="${cf.docs}/examples"                     />
-        <property name="checker.tutorial"    value="${cf.docs}/tutorial"                     />
-        <property name="checker.release"     value="${checker}/../release"                   />
         <property name="checkerWebPage"      value="${cf.docs}/checker-framework-webpage.html" />
-        <property name="checkerQuickStartPage" value="${checker.manual}/checker-framework-quick-start.html" />
+        <property name="checkerQuickStartPage" value="${cf.docs}/checker-framework-quick-start.html" />
         <property name="release.version.regexp" value="\d\.\d+\.\d+(\.\d)?(-eisop\d)?" />
+
+        <!-- Every file this target rewrites.  Keep in sync with the rules below. -->
+        <require-file file="${checkerWebPage}"/>
+        <require-file file="${checkerQuickStartPage}"/>
+        <require-file file="${checker.manual}/introduction.tex"/>
+        <require-file file="${checker.manual}/external-tools.tex"/>
+        <require-file file="${checker.manual}/manual.tex"/>
+
+        <!-- Marker comments the <update> rules below key off.  afu.date.* comes from the AFU
+             build.properties loaded just below, so it is checked after that load. -->
+        <require-marker file="${checkerWebPage}" marker="${checkers.zip.ver.0}"/>
+        <require-marker file="${checkerWebPage}" marker="${afu.zip.ver.0}"/>
+        <require-marker file="${checkerWebPage}" marker="${checkers.date.0}"/>
+        <require-marker file="${checkerQuickStartPage}" marker="${checkers.zip.ver.0}"/>
 
         <!-- for afu.date.0 and afu.date.1 -->
         <loadproperties srcFile="${afu.properties}"/>
+
+        <require-marker file="${checkerWebPage}" marker="${afu.date.0}"/>
 
         <replaceregexp file="${checkerWebPage}" byline="true"
                        match="checker-framework-${release.version.regexp}" replace="checker-framework-${release.ver}"/>
@@ -58,18 +98,6 @@
         <update file="${checkerWebPage}"
                 start="${afu.zip.ver.0}" end="${afu.zip.ver.1}"
                 with="annotation-tools-${afu.version}.zip"/>
-
-        <update file="${checkerWebPage}"
-                start="${checkers.ver.0}" end="${checkers.ver.1}"
-                with="${release.ver}, ${release.date}"/>
-
-        <update file="${cf.docs}/manual/checkerframework.gradle"
-                start="${gradle.ver.0}" end="${gradle.ver.1}"
-                with="${release.ver}"/>
-
-        <update file="${checkerWebPage}"
-                start="${compiler.ver.0}" end="${compiler.ver.1}"
-                with="${release.ver}, ${release.date}"/>
 
         <update file="${checkerWebPage}"
                 start="${checkers.date.0}" end="${checkers.date.1}"
@@ -119,12 +147,6 @@
                        match="eisopVersion: '${release.version.regexp}'"
                        replace="eisopVersion: '${release.ver}'"/>
 
-        <replaceregexp file="${checker}/../build-common.properties" byline="true"
-                       match="build.version = ${release.version.regexp}" replace="build.version = ${release.ver}"/>
-
-        <update file="${checker}/build.properties"
-                start="build.version = " with="${release.ver}"/>
-
         <update file="${checker.manual}/manual.tex"
                 start="${release.info.0}" end="${release.info.1}"
                 with="${release.ver} (${release.date})"/>
@@ -133,23 +155,11 @@
                 start="${release.ver.0}" end="${release.ver.1}"
                 with="${release.ver}"/>
 
-        <!-- examples -->
-        <update file="${cf.docs.examples}/MavenExample/pom.xml"
-                start="${checkers.ver.0}" end="${checkers.ver.1}"
-                with="${release.ver}"/>
-
-        <replaceregexp file="${cf.docs.examples}/errorprone/build.gradle" byline="true"
-                       match="eisopVersion: '${release.version.regexp}'"
-                       replace="eisopVersion: '${release.ver}'"/>
-
-        <!-- Do not replace version in BazelExample, as the files also contain checksums. Instead, run `pin` again.
-        <replaceregexp file="${cf.docs.examples}/BazelExample/maven_install.json" byline="true"
-                       match="${old.release.ver}"
-                       replace="${release.ver}"/>
-        <replaceregexp file="${cf.docs.examples}/BazelExample/MODULE.bazel" byline="true"
-                       match="${release.version.regexp}"
-                       replace="${release.ver}"/>
-        -->
+        <!-- docs/examples is deliberately not touched here.  Renovate bumps the Checker
+             Framework version in those builds once the release is on Maven Central; see
+             .github/renovate.json.  Doing it in both places would fight: Renovate rewrites
+             a pom property in place and drops any marker comments around it.  BazelExample
+             is a further exception, as its files also carry checksums; re-run `pin`. -->
 
     </target>
 
@@ -183,6 +193,19 @@
 
             <zipfileset dir="${checkerframework}" prefix="checker-framework-${version}"
                         includes="checker/bin/javac" filemode="755"/>
+
+            <!-- The front page references the favicon next to itself; it lives under docs/logo,
+                 so give it the name and location the page expects. -->
+            <zipfileset dir="${checkerframework}"
+                        includes="docs/logo/Checkmark/CFCheckmark_favicon.png"
+                        fullpath="checker-framework-${version}/docs/favicon-checkerframework.png"/>
+
+            <!-- release_build.py runs `make` in dataflow/manual, so dataflow.pdf exists by now.
+                 Place it under docs/manual/ so the website generator, which lifts that whole
+                 directory, surfaces it at cf/manual/checker-framework-dataflow-manual.pdf. -->
+            <zipfileset dir="${checkerframework}"
+                        includes="dataflow/manual/dataflow.pdf"
+                        fullpath="checker-framework-${version}/docs/manual/checker-framework-dataflow-manual.pdf"/>
 
             <zipfileset dir="${checkerframework}"
                         includes="docs/logo/Logo/CFLogo.png" fullpath="checker-framework-${version}/docs/manual/CFLogo.png"/>
@@ -308,10 +331,12 @@
             </fileset>
         </copy>
 
-        <!-- examples -->
-        <update file="${dest.dir}/MavenExample/pom.xml"
-                start="${checkers.ver.0}" end="${checkers.ver.1}"
-                with="${version}"/>
+        <!-- Match the pom property itself rather than marker comments around its value:
+             Renovate rewrites this property in place and drops any such markers, and a
+             silently-failed rewrite here would sanity-check the previous release. -->
+        <replaceregexp file="${dest.dir}/MavenExample/pom.xml" byline="true"
+                       match="&lt;checkerFrameworkVersion&gt;.*&lt;/checkerFrameworkVersion&gt;"
+                       replace="&lt;checkerFrameworkVersion&gt;${version}&lt;/checkerFrameworkVersion&gt;"/>
     </target>
 
     <!-- Run from parent directory as: ant -e -file release/release.xml pylint -->

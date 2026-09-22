@@ -172,7 +172,7 @@ public class ToIndexFileConverter extends GenericVisitorAdapter<Void, AElement> 
                     convert(new AScene(scene), in, out);
                 }
             }
-        } catch (Throwable e) {
+        } catch (Exception e) {
             e.printStackTrace();
             System.exit(1);
         }

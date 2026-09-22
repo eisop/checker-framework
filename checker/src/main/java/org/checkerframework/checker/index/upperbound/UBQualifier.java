@@ -11,13 +11,14 @@ import org.checkerframework.dataflow.qual.Pure;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.javacutil.AnnotationBuilder;
 import org.checkerframework.javacutil.AnnotationUtils;
+import org.checkerframework.javacutil.Pair;
 import org.checkerframework.javacutil.TypeSystemError;
 import org.plumelib.util.CollectionsPlume;
-import org.plumelib.util.IPair;
 
 import java.lang.annotation.Annotation;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -430,8 +431,9 @@ public abstract class UBQualifier {
         private Map<String, Set<OffsetEquation>> copyMap() {
             Map<String, Set<OffsetEquation>> result =
                     new HashMap<>(CollectionsPlume.mapCapacity(map));
-            for (String sequenceName : map.keySet()) {
-                Set<OffsetEquation> oldEquations = map.get(sequenceName);
+            for (Map.Entry<String, Set<OffsetEquation>> entry : map.entrySet()) {
+                String sequenceName = entry.getKey();
+                Set<OffsetEquation> oldEquations = entry.getValue();
                 Set<OffsetEquation> newEquations =
                         new HashSet<>(CollectionsPlume.mapCapacity(oldEquations));
                 for (OffsetEquation offsetEquation : oldEquations) {
@@ -504,13 +506,13 @@ public abstract class UBQualifier {
         /** A triple that is the return type of {@link #mapToSequencesAndOffsets}. */
         private static class SequencesOffsetsAndClass {
             /** List of sequences. */
-            public final List<String> sequences;
+            final List<String> sequences;
 
             /** List of offsets. */
-            public final List<String> offsets;
+            final List<String> offsets;
 
             /** The class of the annotation to be built. */
-            public final Class<? extends Annotation> annoClass;
+            final Class<? extends Annotation> annoClass;
 
             /**
              * Creates a new SequencesOffsetsAndClass.
@@ -519,7 +521,7 @@ public abstract class UBQualifier {
              * @param offsets list of offsets
              * @param annoClass the class of the annotation to be built
              */
-            public SequencesOffsetsAndClass(
+            SequencesOffsetsAndClass(
                     List<String> sequences,
                     List<String> offsets,
                     Class<? extends Annotation> annoClass) {
@@ -541,7 +543,7 @@ public abstract class UBQualifier {
         private static SequencesOffsetsAndClass mapToSequencesAndOffsets(
                 Map<String, Set<OffsetEquation>> map, boolean buildSubstringIndexAnnotation) {
             List<@KeyFor("map") String> sortedSequences = new ArrayList<>(map.keySet());
-            Collections.sort(sortedSequences);
+            sortedSequences.sort(Comparator.naturalOrder());
             List<String> sequences = new ArrayList<>();
             List<String> offsets = new ArrayList<>();
             boolean isLTEq = true;
@@ -554,7 +556,7 @@ public abstract class UBQualifier {
                     isLTOM = isLTOM && eq.equals(OffsetEquation.ONE);
                     thisOffsets.add(eq.toString());
                 }
-                Collections.sort(thisOffsets);
+                thisOffsets.sort(Comparator.naturalOrder());
                 for (String offset : thisOffsets) {
                     sequences.add(sequence);
                     offsets.add(offset);
@@ -928,7 +930,7 @@ public abstract class UBQualifier {
                     || !containsSame(other.map.keySet(), lubMap.keySet())) {
                 return;
             }
-            List<IPair<String, OffsetEquation>> remove = new ArrayList<>();
+            List<Pair<String, OffsetEquation>> remove = new ArrayList<>();
             for (Map.Entry<String, Set<OffsetEquation>> entry : lubMap.entrySet()) {
                 String sequence = entry.getKey();
                 Set<OffsetEquation> lubOffsets = entry.getValue();
@@ -943,7 +945,7 @@ public abstract class UBQualifier {
                         int thisInt = OffsetEquation.getIntOffsetEquation(thisOffsets).getInt();
                         int otherInt = OffsetEquation.getIntOffsetEquation(otherOffsets).getInt();
                         if (thisInt != otherInt) {
-                            remove.add(IPair.of(sequence, lubEq));
+                            remove.add(Pair.of(sequence, lubEq));
                         }
                     } else if (thisOffsets.contains(lubEq) && otherOffsets.contains(lubEq)) {
                         //  continue;
@@ -952,7 +954,7 @@ public abstract class UBQualifier {
                     }
                 }
             }
-            for (IPair<String, OffsetEquation> pair : remove) {
+            for (Pair<String, OffsetEquation> pair : remove) {
                 String sequence = pair.first;
                 Set<OffsetEquation> offsets = lubMap.get(sequence);
                 offsets.remove(pair.second);
@@ -1451,7 +1453,7 @@ public abstract class UBQualifier {
     /** The bottom qualifier for the upperbound type system. */
     private static class UpperBoundBottomQualifier extends UBQualifier {
         /** The canonical bottom qualifier for the upperbound type system. */
-        public static final UBQualifier BOTTOM = new UpperBoundBottomQualifier();
+        static final UBQualifier BOTTOM = new UpperBoundBottomQualifier();
 
         /** This class is a singleton. */
         private UpperBoundBottomQualifier() {}
@@ -1485,7 +1487,7 @@ public abstract class UBQualifier {
     /** The polymorphic qualifier. */
     private static class PolyQualifier extends UBQualifier {
         /** The canonical representative. */
-        public static final UBQualifier POLY = new PolyQualifier();
+        static final UBQualifier POLY = new PolyQualifier();
 
         /** This class is a singleton. */
         private PolyQualifier() {}

@@ -22,7 +22,10 @@ import java.lang.annotation.Target;
  * modified, which annuls the effect of flow-sensitive type refinement and prevents the pluggable
  * type-checker from making conclusions that are obvious to a programmer.
  *
- * <p>Also see {@link Pure}, which means both side-effect-free and {@link Deterministic}.
+ * <p>Being side-effect-free does not imply that two invocations of the method return the same
+ * value. Also see {@link Pure}, which means both side-effect-free and {@link Deterministic}, and
+ * which lets a pluggable type-checker assume that repeated invocations with the same arguments
+ * return the same value, so long as no other side effect intervenes.
  *
  * <p><b>Analysis:</b> The Checker Framework performs a conservative analysis to verify a
  * {@code @SideEffectFree} annotation. The Checker Framework issues a warning if the method uses any

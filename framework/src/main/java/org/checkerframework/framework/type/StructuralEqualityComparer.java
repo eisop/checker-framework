@@ -110,17 +110,40 @@ public class StructuralEqualityComparer extends AbstractAtmComboVisitor<Boolean,
      * @return true if type1 and type2 have the same set of annotations
      */
     protected boolean arePrimaryAnnosEqual(AnnotatedTypeMirror type1, AnnotatedTypeMirror type2) {
-        if (currentTop != null) {
-            AnnotationMirror anno1 = type1.getAnnotationInHierarchy(currentTop);
-            AnnotationMirror anno2 = type2.getAnnotationInHierarchy(currentTop);
-            TypeMirror typeMirror1 = type1.underlyingType;
-            TypeMirror typeMirror2 = type2.underlyingType;
-            QualifierHierarchy qh = type1.atypeFactory.getQualifierHierarchy();
-            return qh.isSubtypeShallow(anno1, typeMirror1, anno2, typeMirror2)
-                    && qh.isSubtypeShallow(anno2, typeMirror2, anno1, typeMirror1);
-        } else {
+        if (currentTop == null) {
             throw new BugInCF("currentTop null");
         }
+        return arePrimaryAnnosEqual(
+                type1.getAnnotationInHierarchy(currentTop),
+                type2.getAnnotationInHierarchy(currentTop),
+                type1,
+                type2);
+    }
+
+    /**
+     * Returns true if {@code anno1} (on {@code type1}) and {@code anno2} (on {@code type2}) are
+     * equal, i.e. each is a shallow subtype of the other. This overload takes the annotations to
+     * compare explicitly rather than reading them from the types, so a subclass can compare
+     * normalized/canonicalized annotations <em>without mutating</em> the types (see {@code
+     * ValueAnnotatedTypeFactory}); a mutating comparator cannot be used on the shared, frozen types
+     * returned by the annotated-type caches.
+     *
+     * @param anno1 the annotation on {@code type1} to compare, or null
+     * @param anno2 the annotation on {@code type2} to compare, or null
+     * @param type1 the first type (used for its underlying type and factory)
+     * @param type2 the second type
+     * @return true if {@code anno1} and {@code anno2} are equal
+     */
+    protected boolean arePrimaryAnnosEqual(
+            AnnotationMirror anno1,
+            AnnotationMirror anno2,
+            AnnotatedTypeMirror type1,
+            AnnotatedTypeMirror type2) {
+        TypeMirror typeMirror1 = type1.underlyingType;
+        TypeMirror typeMirror2 = type2.underlyingType;
+        QualifierHierarchy qh = type1.atypeFactory.getQualifierHierarchy();
+        return qh.isSubtypeShallow(anno1, typeMirror1, anno2, typeMirror2)
+                && qh.isSubtypeShallow(anno2, typeMirror2, anno1, typeMirror1);
     }
 
     /**
@@ -231,7 +254,7 @@ public class StructuralEqualityComparer extends AbstractAtmComboVisitor<Boolean,
         List<AnnotatedTypeMirror> capturedType1Args = capturedType1.getTypeArguments();
         List<AnnotatedTypeMirror> capturedType2Args = capturedType2.getTypeArguments();
         boolean result = true;
-        for (int i = 0; i < type1.getTypeArguments().size(); i++) {
+        for (int i = 0, n = type1Args.size(); i < n; ++i) {
             AnnotatedTypeMirror type1Arg = type1Args.get(i);
             AnnotatedTypeMirror type2Arg = type2Args.get(i);
             Boolean pastResultTA = visitHistory.get(type1Arg, type2Arg, currentTop);

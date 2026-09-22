@@ -63,6 +63,9 @@ public class LockStore extends CFAbstractStore<CFValue, LockStore> {
 
     @Override
     public LockStore leastUpperBound(LockStore other) {
+        if (this.equals(other)) {
+            return this.copy();
+        }
         LockStore newStore = super.leastUpperBound(other);
 
         // Least upper bound of a boolean

@@ -1,6 +1,7 @@
 package org.checkerframework.framework.type;
 
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.javacutil.Pair;
 
 import javax.lang.model.element.AnnotationMirror;
 
@@ -13,14 +14,14 @@ public class StructuralEqualityVisitHistory {
 
     /**
      * Types in this history are structurally equal. (Use {@link SubtypeVisitHistory} because it
-     * implements a {@code Map<IPair<AnnotatedTypeMirror, AnnotatedTypeMirror>,
+     * implements a {@code Map<Pair<AnnotatedTypeMirror, AnnotatedTypeMirror>,
      * AnnotationMirrorSet>})
      */
     private final SubtypeVisitHistory trueHistory;
 
     /**
      * Types in this history are not structurally equal. (Use {@link SubtypeVisitHistory} because it
-     * implements a {@code Map<IPair<AnnotatedTypeMirror, AnnotatedTypeMirror>,
+     * implements a {@code Map<Pair<AnnotatedTypeMirror, AnnotatedTypeMirror>,
      * AnnotationMirrorSet>})
      */
     private final SubtypeVisitHistory falseHistory;
@@ -29,6 +30,15 @@ public class StructuralEqualityVisitHistory {
     public StructuralEqualityVisitHistory() {
         this.trueHistory = new SubtypeVisitHistory();
         this.falseHistory = new SubtypeVisitHistory();
+    }
+
+    /**
+     * Removes all entries from both inner histories. Called between top-level subtype checks to
+     * bound memory.
+     */
+    public void clear() {
+        trueHistory.clear();
+        falseHistory.clear();
     }
 
     /**
@@ -46,12 +56,15 @@ public class StructuralEqualityVisitHistory {
             AnnotatedTypeMirror type2,
             AnnotationMirror hierarchy,
             boolean result) {
+        // Share one key across both true- and false-history operations to avoid allocating two
+        // equal Pairs per call.
+        Pair<AnnotatedTypeMirror, AnnotatedTypeMirror> key = Pair.of(type1, type2);
         if (result) {
-            trueHistory.put(type1, type2, hierarchy, true);
-            falseHistory.remove(type1, type2, hierarchy);
+            trueHistory.putKey(key, hierarchy);
+            falseHistory.removeKey(key, hierarchy);
         } else {
-            falseHistory.put(type1, type2, hierarchy, true);
-            trueHistory.remove(type1, type2, hierarchy);
+            falseHistory.putKey(key, hierarchy);
+            trueHistory.removeKey(key, hierarchy);
         }
     }
 
@@ -68,9 +81,10 @@ public class StructuralEqualityVisitHistory {
      */
     public @Nullable Boolean get(
             AnnotatedTypeMirror type1, AnnotatedTypeMirror type2, AnnotationMirror hierarchy) {
-        if (falseHistory.contains(type1, type2, hierarchy)) {
+        Pair<AnnotatedTypeMirror, AnnotatedTypeMirror> key = Pair.of(type1, type2);
+        if (falseHistory.containsKey(key, hierarchy)) {
             return false;
-        } else if (trueHistory.contains(type1, type2, hierarchy)) {
+        } else if (trueHistory.containsKey(key, hierarchy)) {
             return true;
         }
         return null;
@@ -87,7 +101,8 @@ public class StructuralEqualityVisitHistory {
      */
     public void remove(
             AnnotatedTypeMirror type1, AnnotatedTypeMirror type2, AnnotationMirror hierarchy) {
-        falseHistory.remove(type1, type2, hierarchy);
-        trueHistory.remove(type1, type2, hierarchy);
+        Pair<AnnotatedTypeMirror, AnnotatedTypeMirror> key = Pair.of(type1, type2);
+        falseHistory.removeKey(key, hierarchy);
+        trueHistory.removeKey(key, hierarchy);
     }
 }

@@ -14,11 +14,9 @@ import java.util.Objects;
  *
  * @param <V1> the type of the first element of the pair
  * @param <V2> the type of the second element of the pair
- * @deprecated use org.plumelib.util.IPair
  */
-@Deprecated // 2023-06-02
 // TODO: as class is immutable, use @Covariant annotation.
-public class Pair<V1, V2> {
+public final class Pair<V1, V2> {
     /** The first element of the pair. */
     public final V1 first;
 
@@ -48,7 +46,6 @@ public class Pair<V1, V2> {
      * @return a copy of {@code orig}, with all elements cloned
      */
     // This method is static so that the pair element types can be constrained to be Cloneable.
-    @SuppressWarnings("nullness") // generics problem with deepCopy()
     public static <T1 extends Cloneable, T2 extends Cloneable> Pair<T1, T2> cloneElements(
             Pair<T1, T2> orig) {
 
@@ -68,7 +65,6 @@ public class Pair<V1, V2> {
      * @param orig a pair
      * @return a deep copy of {@code orig}
      */
-    @SuppressWarnings("nullness") // generics problem with deepCopy()
     // This method is static so that the pair element types can be constrained to be DeepCopyable.
     public static <T1 extends DeepCopyable<T1>, T2 extends DeepCopyable<T2>> Pair<T1, T2> deepCopy(
             Pair<T1, T2> orig) {
@@ -86,7 +82,6 @@ public class Pair<V1, V2> {
      * @param orig a pair
      * @return a copy of {@code orig}, where the first element is a deep copy
      */
-    @SuppressWarnings("nullness") // generics problem with deepCopy()
     public static <T1 extends DeepCopyable<T1>, T2> Pair<T1, T2> deepCopyFirst(Pair<T1, T2> orig) {
         return of(DeepCopyable.deepCopyOrNull(orig.first), orig.second);
     }
@@ -101,7 +96,6 @@ public class Pair<V1, V2> {
      * @param orig a pair
      * @return a copy of {@code orig}, where the second element is a deep copy
      */
-    @SuppressWarnings("nullness") // generics problem with deepCopy()
     public static <T1, T2 extends DeepCopyable<T2>> Pair<T1, T2> deepCopySecond(Pair<T1, T2> orig) {
         return of(orig.first, DeepCopyable.deepCopyOrNull(orig.second));
     }
@@ -115,9 +109,7 @@ public class Pair<V1, V2> {
         if (!(obj instanceof Pair)) {
             return false;
         }
-        // generics are not checked at run time!
-        @SuppressWarnings("unchecked")
-        Pair<V1, V2> other = (Pair<V1, V2>) obj;
+        Pair<?, ?> other = (Pair<?, ?>) obj;
         return Objects.equals(this.first, other.first) && Objects.equals(this.second, other.second);
     }
 
@@ -127,10 +119,15 @@ public class Pair<V1, V2> {
     @Pure
     @Override
     public int hashCode() {
-        if (hashCode == -1) {
-            hashCode = Objects.hash(first, second);
+        int h = hashCode;
+        if (h == -1) {
+            int computed = 1;
+            computed = 31 * computed + (first != null ? first.hashCode() : 0);
+            computed = 31 * computed + (second != null ? second.hashCode() : 0);
+            h = (computed == -1 ? 0 : computed);
+            hashCode = h;
         }
-        return hashCode;
+        return h;
     }
 
     @SideEffectFree

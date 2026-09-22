@@ -13,7 +13,6 @@ import org.checkerframework.javacutil.AnnotationMirrorMap;
 import org.checkerframework.javacutil.TypesUtils;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -129,14 +128,19 @@ public class InferenceType extends AbstractType {
             return new ProperType(type, typeMirror, qualifierVars, context, ignoreAnnotations);
         }
 
-        if (typeMirror.getKind() == TypeKind.TYPEVAR && map.containsKey(type.getUnderlyingType())) {
-            return new UseOfVariable(
-                    (AnnotatedTypeVariable) type,
-                    map.get(type.getUnderlyingType()),
-                    qualifierVars,
-                    context,
-                    ignoreAnnotations);
-        } else if (AnnotatedContainsInferenceVariable.hasAnyTypeVariable(map.keySet(), type)) {
+        if (typeMirror.getKind() == TypeKind.TYPEVAR) {
+            TypeVariable underlying = (TypeVariable) type.getUnderlyingType();
+            Variable mapped = map.get(underlying);
+            if (mapped != null) {
+                return new UseOfVariable(
+                        (AnnotatedTypeVariable) type,
+                        mapped,
+                        qualifierVars,
+                        context,
+                        ignoreAnnotations);
+            }
+        }
+        if (AnnotatedContainsInferenceVariable.hasAnyTypeVariable(map.keySet(), type)) {
             return new InferenceType(
                     type, typeMirror, map, qualifierVars, context, ignoreAnnotations);
         } else {
@@ -169,15 +173,19 @@ public class InferenceType extends AbstractType {
             return new ProperType(type, typeMirror, qualifierVars, context, ignoreAnnotations);
         }
 
-        if (typeMirror.getKind() == TypeKind.TYPEVAR && map.containsKey(type.getUnderlyingType())) {
-            return new UseOfVariable(
-                    (AnnotatedTypeVariable) type,
-                    map.get(type.getUnderlyingType()),
-                    qualifierVars,
-                    context,
-                    ignoreAnnotations);
-        } else if (AnnotatedContainsInferenceVariable.hasAnyTypeVariable(
-                map.getNotInstantiated(), type)) {
+        if (typeMirror.getKind() == TypeKind.TYPEVAR) {
+            TypeVariable underlying = (TypeVariable) type.getUnderlyingType();
+            Variable mapped = map.get(underlying);
+            if (mapped != null) {
+                return new UseOfVariable(
+                        (AnnotatedTypeVariable) type,
+                        mapped,
+                        qualifierVars,
+                        context,
+                        ignoreAnnotations);
+            }
+        }
+        if (AnnotatedContainsInferenceVariable.hasAnyTypeVariable(map.getNotInstantiated(), type)) {
             return new InferenceType(
                     type, typeMirror, map, qualifierVars, context, ignoreAnnotations);
         } else {
@@ -246,11 +254,17 @@ public class InferenceType extends AbstractType {
         return context.modelTypes.isSameType(typeMirror, variable.typeMirror);
     }
 
+    /** Cached hash code to prevent repeated recomputation of complex deep-hashes. */
+    private int cachedHashCode = 0;
+
     @Override
     public int hashCode() {
-        int result = type.hashCode();
-        result = 31 * result + Kind.INFERENCE_TYPE.hashCode();
-        return result;
+        if (cachedHashCode == 0) {
+            int result = type.hashCode();
+            result = 31 * result + Kind.INFERENCE_TYPE.hashCode();
+            cachedHashCode = result == 0 ? 1 : result;
+        }
+        return cachedHashCode;
     }
 
     @Override
@@ -271,10 +285,10 @@ public class InferenceType extends AbstractType {
     /**
      * Returns all inference variables mentioned in this type.
      *
-     * @return all inference variables mentioned in this type
+     * @return a fresh, mutable set containing all inference variables mentioned in this type
      */
     @Override
-    public Collection<Variable> getInferenceVariables() {
+    public Set<Variable> getInferenceVariables() {
         LinkedHashSet<Variable> variables = new LinkedHashSet<>();
         for (TypeVariable typeVar :
                 ContainsInferenceVariable.getMentionedTypeVariables(map.keySet(), typeMirror)) {
@@ -285,6 +299,15 @@ public class InferenceType extends AbstractType {
 
     @Override
     public AbstractType applyInstantiations() {
+        // Charge this against the inference problem's budget. The substitution below deep-copies
+        // and re-substitutes into `type`'s full structure via TypeVarSubstitutor -- unlike the
+        // per-bound-list count VariableBounds#doApplyInstantiationsToBounds charges, this cost
+        // scales with the SIZE of the type structure being substituted into, not just the number
+        // of bounds. For deeply mutually-dependent inference variables (e.g. many mutually
+        // F-bounded type parameters), repeated substitution can build an exponentially larger
+        // structure each time with no work otherwise counted against the budget.
+        context.recordIncorporationWork(map.size());
+
         List<TypeVariable> typeVariables = new ArrayList<>();
         List<TypeMirror> arguments = new ArrayList<>();
         List<Variable> instantiations = new ArrayList<>();
@@ -305,15 +328,29 @@ public class InferenceType extends AbstractType {
 
         Map<TypeVariable, AnnotatedTypeMirror> mapping = new LinkedHashMap<>();
 
+        // The substitution below replaces every use of an instantiated variable by a deep copy of
+        // that variable's instantiation, so its cost is proportional to the SIZE of those
+        // instantiations, not to how many there are. That distinction matters: with mutually
+        // F-bounded type parameters, the instantiation of the i'th variable embeds a copy of the
+        // instantiation of each earlier one, so the structures double in size with each variable
+        // resolved and the substitution's cost is exponential in the length of the F-bound chain
+        // while `map.size()` -- charged above and by the other call sites -- stays linear in it.
+        // Charging the instantiation sizes here is what lets the budget abandon such a chain; see
+        // fbound in .claude/skills/cf-performance/gen-shapes.py.
+        int substitutionWork = 0;
         for (Variable alpha : instantiations) {
             AnnotatedTypeMirror instantiation =
                     alpha.getBounds().getInstantiation().getAnnotatedType();
             context.typeFactory.initializeAtm(instantiation);
             mapping.put(alpha.getJavaType(), instantiation);
+            substitutionWork += context.typeSize(instantiation);
         }
         if (map.isEmpty()) {
             return this;
         }
+        // Charge before substituting, so that a substitution over an already-huge structure is
+        // abandoned rather than merely detected after the fact.
+        context.recordIncorporationWork(substitutionWork);
 
         AnnotatedTypeMirror newType = typeFactory.getTypeVarSubstitutor().substitute(mapping, type);
         return createIgnoreInstantiated(

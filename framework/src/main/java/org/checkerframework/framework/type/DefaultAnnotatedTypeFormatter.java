@@ -16,6 +16,7 @@ import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedWildcard
 import org.checkerframework.framework.type.visitor.AnnotatedTypeVisitor;
 import org.checkerframework.framework.util.AnnotationFormatter;
 import org.checkerframework.framework.util.DefaultAnnotationFormatter;
+import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.TypeAnnotationUtils;
 import org.checkerframework.javacutil.TypesUtils;
 import org.plumelib.util.WeakIdentityHashMap;
@@ -140,13 +141,13 @@ public class DefaultAnnotatedTypeFormatter implements AnnotatedTypeFormatter {
         protected final boolean defaultInvisiblesSetting;
 
         /**
-         * For a given call to format, this setting specifies whether or not to printInvisibles. If
-         * a user did not specify a printInvisible parameter in the call to format then this value
-         * will equal DefaultAnnotatedTypeFormatter.defaultInvisibleSettings for this object
+         * For a given call to format, this setting specifies whether or not to printInvisibles.
+         * Unless the call to format requested verbose printing, this value equals {@link
+         * #defaultInvisiblesSetting} for this object.
          */
         protected boolean currentPrintInvisibleSetting;
 
-        /** Default value of currentPrintVerboseGenerics. */
+        /** Default value of {@link #currentPrintVerboseGenerics}. */
         protected final boolean defaultPrintVerboseGenerics;
 
         /**
@@ -173,14 +174,21 @@ public class DefaultAnnotatedTypeFormatter implements AnnotatedTypeFormatter {
             this.defaultPrintVerboseGenerics = printVerboseGenerics;
             this.currentPrintVerboseGenerics = printVerboseGenerics;
             this.defaultInvisiblesSetting = defaultInvisiblesSetting;
-            this.currentPrintInvisibleSetting = false;
+            this.currentPrintInvisibleSetting = defaultInvisiblesSetting;
             this.currentlyPrintingRaw = false;
         }
 
-        /** Set the current verbose settings to use while printing. */
+        /**
+         * Sets the current verbose settings to use while printing. The settings are never less
+         * verbose than this visitor's defaults, so passing false is equivalent to {@link
+         * #resetPrintVerboseSettings()}.
+         *
+         * @param printVerbose if true, print invisible qualifiers and verbose generics regardless
+         *     of this visitor's defaults
+         */
         protected void setVerboseSettings(boolean printVerbose) {
-            this.currentPrintInvisibleSetting = printVerbose;
-            this.currentPrintVerboseGenerics = printVerbose;
+            this.currentPrintInvisibleSetting = printVerbose || defaultInvisiblesSetting;
+            this.currentPrintVerboseGenerics = printVerbose || defaultPrintVerboseGenerics;
         }
 
         /** Set verbose settings to the default. */
@@ -215,7 +223,7 @@ public class DefaultAnnotatedTypeFormatter implements AnnotatedTypeFormatter {
             } else {
                 sb.append(
                         annoFormatter.formatAnnotationString(
-                                field.getAnnotations(), currentPrintInvisibleSetting));
+                                field.getAnnotationsField(), currentPrintInvisibleSetting));
                 sb.append("NullType");
             }
         }
@@ -244,15 +252,13 @@ public class DefaultAnnotatedTypeFormatter implements AnnotatedTypeFormatter {
                 sb.append('.');
             }
             Element typeElt = type.getUnderlyingType().asElement();
-            String smpl = typeElt.getSimpleName().toString();
-            if (smpl.isEmpty()) {
-                // For anonymous classes smpl is empty - toString
-                // of the element is more useful.
-                smpl = typeElt.toString();
-            }
+            String smpl =
+                    ElementUtils.isAnonymous(typeElt)
+                            ? typeElt.toString()
+                            : typeElt.getSimpleName().toString();
             sb.append(
                     annoFormatter.formatAnnotationString(
-                            type.getAnnotations(), currentPrintInvisibleSetting));
+                            type.getAnnotationsField(), currentPrintInvisibleSetting));
             sb.append(smpl);
 
             boolean oldPrintingRaw = currentlyPrintingRaw;
@@ -386,11 +392,11 @@ public class DefaultAnnotatedTypeFormatter implements AnnotatedTypeFormatter {
             AnnotatedTypeMirror component;
             while (true) {
                 component = array.componentType;
-                if (!array.getAnnotations().isEmpty()) {
+                if (!array.getAnnotationsField().isEmpty()) {
                     sb.append(' ');
                     sb.append(
                             annoFormatter.formatAnnotationString(
-                                    array.getAnnotations(), currentPrintInvisibleSetting));
+                                    array.getAnnotationsField(), currentPrintInvisibleSetting));
                 }
                 sb.append("[]");
                 if (!(component instanceof AnnotatedArrayType)) {
@@ -469,7 +475,7 @@ public class DefaultAnnotatedTypeFormatter implements AnnotatedTypeFormatter {
         @Override
         public String visitNull(AnnotatedNullType type, Set<AnnotatedTypeMirror> visiting) {
             return annoFormatter.formatAnnotationString(
-                            type.getAnnotations(), currentPrintInvisibleSetting)
+                            type.getAnnotationsField(), currentPrintInvisibleSetting)
                     + "NullType";
         }
 
@@ -512,7 +518,7 @@ public class DefaultAnnotatedTypeFormatter implements AnnotatedTypeFormatter {
         @SideEffectFree
         protected String formatFlatType(AnnotatedTypeMirror flatType) {
             return annoFormatter.formatAnnotationString(
-                            flatType.getAnnotations(), currentPrintInvisibleSetting)
+                            flatType.getAnnotationsField(), currentPrintInvisibleSetting)
                     + TypeAnnotationUtils.unannotatedType((Type) flatType.getUnderlyingType());
         }
     }

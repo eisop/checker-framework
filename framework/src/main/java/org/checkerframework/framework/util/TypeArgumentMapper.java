@@ -1,7 +1,7 @@
 package org.checkerframework.framework.util;
 
 import org.checkerframework.checker.nullness.qual.Nullable;
-import org.plumelib.util.IPair;
+import org.checkerframework.javacutil.Pair;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -67,12 +67,12 @@ public class TypeArgumentMapper {
      * Returns a mapping from subtype's type parameter indices to the indices of corresponding type
      * parameters in supertype.
      */
-    public static Set<IPair<Integer, Integer>> mapTypeArgumentIndices(
+    public static Set<Pair<Integer, Integer>> mapTypeArgumentIndices(
             TypeElement subtype, TypeElement supertype, Types types) {
-        Set<IPair<Integer, Integer>> result = new HashSet<>();
+        Set<Pair<Integer, Integer>> result = new HashSet<>();
         if (subtype.equals(supertype)) {
             for (int i = 0; i < subtype.getTypeParameters().size(); i++) {
-                result.add(IPair.of(Integer.valueOf(i), Integer.valueOf(i)));
+                result.add(Pair.of(Integer.valueOf(i), Integer.valueOf(i)));
             }
 
         } else {
@@ -89,7 +89,7 @@ public class TypeArgumentMapper {
                 if (correspondingSuperArgs != null) {
                     for (TypeParameterElement supertypeParam :
                             subToSuperElements.get(subtypeParam)) {
-                        result.add(IPair.of(subtypeIndex, supertypeIndexes.get(supertypeParam)));
+                        result.add(Pair.of(subtypeIndex, supertypeIndexes.get(supertypeParam)));
                     }
                 }
             }
@@ -201,7 +201,7 @@ public class TypeArgumentMapper {
         for (TypeParameterElement oldElement : elements) {
             Set<TypeParameterElement> substitutions = map.get(oldElement);
             if (substitutions != null) {
-                result.addAll(flattenPath(elements, map));
+                result.addAll(flattenPath(substitutions, map));
             } else {
                 result.add(oldElement);
             }
@@ -335,8 +335,8 @@ public class TypeArgumentMapper {
      * That is, B can be viewed as an object of type A with an type argument of type parameter Tb
      */
     private static class TypeRecord {
-        public final TypeElement element;
-        public final DeclaredType type;
+        final TypeElement element;
+        final DeclaredType type;
 
         TypeRecord(TypeElement element, DeclaredType type) {
             this.element = element;

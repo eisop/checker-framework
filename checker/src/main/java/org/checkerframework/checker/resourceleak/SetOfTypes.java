@@ -5,6 +5,7 @@ import com.sun.tools.javac.code.Type;
 
 import org.checkerframework.checker.signature.qual.CanonicalName;
 import org.checkerframework.dataflow.qual.Pure;
+import org.checkerframework.javacutil.ElementUtils;
 
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.Types;
@@ -69,7 +70,7 @@ public interface SetOfTypes {
     @Pure
     static SetOfTypes anyOfTheseNames(ImmutableSet<@CanonicalName String> names) {
         return (typeUtils, u) ->
-                u instanceof Type && names.contains(((Type) u).tsym.getQualifiedName().toString());
+                u instanceof Type && names.contains(ElementUtils.getQualifiedName(((Type) u).tsym));
     }
 
     /**
