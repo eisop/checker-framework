@@ -3661,6 +3661,12 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      * @return a sorted set of SuppressWarnings prefixes
      */
     protected final NavigableSet<String> getStandardSuppressWarningsPrefixes() {
+        // Called on every checker diagnostic, so this allocates and (for a checker with upstream
+        // checkers) re-derives a prefix per call. Every override mutates the set this returns (see
+        // getSuppressWarningsPrefixes()'s "modifiable" contract), so it cannot simply be cached and
+        // returned as-is; caching it would need the getSupportedLintOptions()/
+        // createSupportedLintOptions() split used elsewhere in this class: a cached, immutable
+        // public getter plus a protected create... method that overrides extend instead of mutate.
         NavigableSet<String> prefixes = new TreeSet<>();
         if (useAllcheckersPrefix) {
             prefixes.add(SUPPRESS_ALL_PREFIX);
