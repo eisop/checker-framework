@@ -163,8 +163,14 @@ import javax.tools.Diagnostic;
     // Unsoundly assume getter methods have no side effects and are deterministic.
     "assumePureGetters",
 
-    // Whether to assume that assertions are enabled or disabled
-    // org.checkerframework.framework.flow.CFCFGBuilder.CFCFGBuilder
+    // Whether to assume that assertions are enabled at run time: "enabled", "disabled", or
+    // "neither" (the default), in which case both cases are accounted for.
+    // org.checkerframework.framework.source.SourceChecker.getAssumeAssertions
+    "assumeAssertions",
+
+    // Deprecated aliases for "assumeAssertions=enabled" and "assumeAssertions=disabled".  Passing
+    // one warns and is honored; they will be removed in a future release.
+    // org.checkerframework.framework.source.SourceChecker.validateAssumeAssertionsOption
     "assumeAssertionsAreEnabled",
     "assumeAssertionsAreDisabled",
 
@@ -175,6 +181,13 @@ import javax.tools.Diagnostic;
 
     // Do not validate meta-annotation @TargetLocations
     "ignoreTargetLocations",
+
+    // Do not check dead (unreachable) code: literal-condition branches such as `if (false)`,
+    // and code that dataflow determines can never be reached (such as a catch block for an
+    // exception type the try block can never throw).
+    // org.checkerframework.common.basetype.BaseTypeVisitor.scan
+    // org.checkerframework.common.basetype.BaseTypeVisitor.visitIf
+    "ignoreDeadCode",
 
     // Treat checker errors as warnings
     // org.checkerframework.framework.source.SourceChecker.report
@@ -665,6 +678,15 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     /** The supported values for the {@code -Amode} option. */
     private @MonotonicNonNull Set<String> supportedModes;
 
+    /**
+     * True if {@link #init} reported an error. This checker is not initialized, so it must not
+     * process anything; the error it reported already fails the compilation.
+     */
+    private boolean initFailed = false;
+
+    /** The value of {@code -AassumeAssertions}, set by {@link #getAssumeAssertions()}. */
+    private @MonotonicNonNull AssumeAssertions assumeAssertions;
+
     /** The enabled lint options. Is set in {@link #initChecker}. */
     private Set<String> activeLints;
 
@@ -792,6 +814,23 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
         // Sets processing enviroment and other related fields.
         setProcessingEnvironment(unwrappedEnv);
 
+        // Everything that can fail because of what the user wrote on the command line runs here,
+        // where an error is reported as a compiler error.  javac calls init() itself, so an
+        // exception thrown out of it is reported as "An annotation processor threw an uncaught
+        // exception", with a stack trace, rather than as a diagnostic.
+        try {
+            initOptions();
+        } catch (RuntimeException | Error t) {
+            initFailed = true;
+            logThrowable("SourceChecker.init", t, null);
+        }
+    }
+
+    /**
+     * Reads the command-line options that {@link #init} acts on. Called by {@link #init}, which
+     * reports a {@link UserError} thrown here as a compiler error.
+     */
+    private void initOptions() {
         // Keep in sync with check in checker-framework/build.gradle .
         int jreVersion = SystemUtil.jreVersion;
         List<Integer> supportedJres = Arrays.asList(8, 11, 17, 21, 25, 27, 28);
@@ -977,8 +1016,69 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      */
     public Map<String, String> getOptionsNoSubcheckers() {
         Map<String, String> options = createActiveOptions(processingEnv.getOptions());
+        // Before the mode's options are added, so that a deprecated option written on the command
+        // line suppresses an "assumeAssertions" that the mode would otherwise add.
+        normalizeDeprecatedAssumeAssertionsOptions(options);
         addModeOptions(options);
         return options;
+    }
+
+    /**
+     * If exactly one deprecated {@code -AassumeAssertionsAreEnabled} or {@code
+     * -AassumeAssertionsAreDisabled} option was supplied and no {@code -AassumeAssertions} option
+     * was, adds the {@code -AassumeAssertions} value that the deprecated option selects, so that
+     * the two spellings behave identically. The deprecated option is left in place, so that {@link
+     * #validateAssumeAssertionsOption} can warn about it.
+     *
+     * <p>This runs before the options of {@code -Amode} are added, so a deprecated option written
+     * on the command line takes precedence over a mode, exactly as {@code -AassumeAssertions} does.
+     * It only maps one spelling to the other and never throws. {@link #getOptionsNoSubcheckers} is
+     * recomputed on every call, so this runs many times per compilation, whereas {@link
+     * #validateAssumeAssertionsOption} runs once from {@link #initChecker} and is where every way
+     * these options can be inconsistent is reported.
+     *
+     * @param activeOptions the active options, to which an {@code -AassumeAssertions} value is
+     *     added
+     */
+    private void normalizeDeprecatedAssumeAssertionsOptions(Map<String, String> activeOptions) {
+        if (activeOptions.containsKey("assumeAssertions")) {
+            return;
+        }
+        boolean enabled = activeOptions.containsKey("assumeAssertionsAreEnabled");
+        boolean disabled = activeOptions.containsKey("assumeAssertionsAreDisabled");
+        if (enabled == disabled) {
+            // Neither was supplied, or both were, which validateAssumeAssertionsOption reports.
+            return;
+        }
+        activeOptions.put(
+                "assumeAssertions",
+                assumeAssertionsValue(
+                        enabled ? AssumeAssertions.ENABLED : AssumeAssertions.DISABLED));
+    }
+
+    /**
+     * Returns the {@code -AassumeAssertions} value that {@code assumeAssertions} is written as.
+     *
+     * @param assumeAssertions what to assume about whether assertions are enabled at run time
+     * @return the {@code -AassumeAssertions} value that {@code assumeAssertions} is written as
+     */
+    private static String assumeAssertionsValue(AssumeAssertions assumeAssertions) {
+        return assumeAssertions.name().toLowerCase(Locale.ROOT);
+    }
+
+    /**
+     * Returns the {@link AssumeAssertions} that {@code value} names, or null if it names none.
+     *
+     * @param value a value of the {@code -AassumeAssertions} option, or null
+     * @return the {@link AssumeAssertions} that {@code value} names, or null if it names none
+     */
+    private static @Nullable AssumeAssertions assumeAssertionsForValue(@Nullable String value) {
+        for (AssumeAssertions candidate : AssumeAssertions.values()) {
+            if (assumeAssertionsValue(candidate).equals(value)) {
+                return candidate;
+            }
+        }
+        return null;
     }
 
     /**
@@ -1177,6 +1277,9 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      */
     @Override
     public void typeProcessingStart() {
+        if (initFailed) {
+            return;
+        }
         try {
             super.typeProcessingStart();
             initChecker();
@@ -1197,14 +1300,8 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
                         Diagnostic.Kind.NOTE, "Checker Framework " + getCheckerVersion());
                 printedVersion = true;
             }
-        } catch (UserError ce) {
-            logUserError(ce);
-        } catch (TypeSystemError ce) {
-            logTypeSystemError(ce);
-        } catch (BugInCF ce) {
-            logBugInCF(ce);
-        } catch (Throwable t) {
-            logBugInCF(wrapThrowableAsBugInCF("SourceChecker.typeProcessingStart", t, null));
+        } catch (RuntimeException | Error t) {
+            logThrowable("SourceChecker.typeProcessingStart", t, null);
         }
     }
 
@@ -1236,6 +1333,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
         Map<String, String> options = getOptions();
         if (parentChecker == null) {
             validateMode(options);
+            validateAssumeAssertionsOption(options);
         }
 
         // Initialize all checkers and share supported lint options.
@@ -1421,6 +1519,10 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      */
     @Override
     public void typeProcess(TypeElement e, TreePath p) {
+        if (initFailed) {
+            // typeProcessingStart did not run, so this checker has no visitor.
+            return;
+        }
         if (messageStore != null && parentChecker == null) {
             messageStore.clear();
         }
@@ -1615,14 +1717,8 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
         try {
             visitor.visit(p);
             warnUnneededSuppressions();
-        } catch (UserError ce) {
-            logUserError(ce);
-        } catch (TypeSystemError ce) {
-            logTypeSystemError(ce);
-        } catch (BugInCF ce) {
-            logBugInCF(ce);
-        } catch (Throwable t) {
-            logBugInCF(wrapThrowableAsBugInCF("SourceChecker.visitDeclaration", t, p));
+        } catch (RuntimeException | Error t) {
+            logThrowable("SourceChecker.visitDeclaration", t, p);
         } finally {
             // Also add possibly deferred diagnostics, which will get published back in
             // AbstractTypeProcessor.
@@ -2642,6 +2738,98 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
                             "Unsupported mode %s for %s; supported modes: %s.",
                             mode, getClass().getSimpleName(), new TreeSet<>(modes)));
         }
+    }
+
+    /**
+     * Throws a {@link UserError} if the {@code -AassumeAssertions} command-line option has an
+     * invalid value, or if the deprecated options that it replaced were supplied inconsistently.
+     * Issues a warning if a deprecated option was supplied.
+     *
+     * @param activeOptions the active options
+     */
+    private void validateAssumeAssertionsOption(Map<String, String> activeOptions) {
+        boolean enabled = activeOptions.containsKey("assumeAssertionsAreEnabled");
+        boolean disabled = activeOptions.containsKey("assumeAssertionsAreDisabled");
+        if (enabled && disabled) {
+            throw new UserError(
+                    "Assertions cannot be assumed to be enabled and disabled at the same time.");
+        }
+        // Parses and caches the value, throwing a UserError if it is invalid.
+        AssumeAssertions value = getAssumeAssertions();
+        if (!enabled && !disabled) {
+            return;
+        }
+        AssumeAssertions deprecated =
+                enabled ? AssumeAssertions.ENABLED : AssumeAssertions.DISABLED;
+        String deprecatedOption =
+                enabled ? "assumeAssertionsAreEnabled" : "assumeAssertionsAreDisabled";
+        if (value != deprecated) {
+            // normalizeDeprecatedAssumeAssertionsOptions left an -AassumeAssertions value that was
+            // written on the command line in place.
+            throw new UserError(
+                    String.format(
+                            "The -AassumeAssertions=%s option contradicts the deprecated -A%s"
+                                    + " option.",
+                            assumeAssertionsValue(value), deprecatedOption));
+        }
+        warnDeprecatedAssumeAssertionsOption(deprecatedOption, assumeAssertionsValue(deprecated));
+    }
+
+    /**
+     * Issues a warning that {@code option} is deprecated in favor of {@code
+     * -AassumeAssertions=value}, which is what it is treated as.
+     *
+     * @param option the deprecated option that was supplied, without its {@code -A} prefix
+     * @param value the {@code -AassumeAssertions} value that {@code option} is treated as
+     */
+    private void warnDeprecatedAssumeAssertionsOption(String option, String value) {
+        message(
+                Diagnostic.Kind.WARNING,
+                "The -A%s option is deprecated and will be removed;"
+                        + " it is treated as -AassumeAssertions=%s.",
+                option,
+                value);
+    }
+
+    /**
+     * Returns what to assume about whether assertions are enabled at run time, as selected by the
+     * {@code -AassumeAssertions} command-line option.
+     *
+     * @return what to assume about whether assertions are enabled at run time
+     */
+    public final AssumeAssertions getAssumeAssertions() {
+        if (assumeAssertions == null) {
+            assumeAssertions = parseAssumeAssertions();
+        }
+        return assumeAssertions;
+    }
+
+    /**
+     * Computes the result of {@link #getAssumeAssertions()} from the {@code -AassumeAssertions}
+     * command-line option. A deprecated option that it replaced has already been normalized into
+     * that option by {@link #normalizeDeprecatedAssumeAssertionsOptions}.
+     *
+     * @return what to assume about whether assertions are enabled at run time
+     */
+    private AssumeAssertions parseAssumeAssertions() {
+        if (!hasOption("assumeAssertions")) {
+            return AssumeAssertions.NEITHER;
+        }
+        String value = getOption("assumeAssertions");
+        if (value == null || value.isEmpty()) {
+            throw new UserError(
+                    "The -AassumeAssertions option requires a value: enabled, disabled, or"
+                            + " neither.");
+        }
+        AssumeAssertions result = assumeAssertionsForValue(value);
+        if (result == null) {
+            throw new UserError(
+                    String.format(
+                            "The -AassumeAssertions option must be enabled, disabled, or neither,"
+                                    + " but is \"%s\".",
+                            value));
+        }
+        return result;
     }
 
     @Override
@@ -3850,6 +4038,38 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
         }
 
         printMessage(msg.toString());
+    }
+
+    /**
+     * Reports {@code t}, thrown by {@code methodName}, as a compiler diagnostic rather than letting
+     * it propagate out of the annotation processor.
+     *
+     * @param methodName the name of the method that threw {@code t}
+     * @param t the throwable that {@code methodName} threw
+     * @param p the path to the tree being processed, or null if none is being processed
+     */
+    private void logThrowable(String methodName, Throwable t, @Nullable TreePath p) {
+        if (t instanceof UserError) {
+            logUserError((UserError) t);
+        } else if (t instanceof TypeSystemError) {
+            logTypeSystemError((TypeSystemError) t);
+        } else if (t instanceof BugInCF) {
+            logBugInCF((BugInCF) t);
+        } else {
+            logBugInCF(wrapThrowableAsBugInCF(methodName, t, p));
+        }
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Reports the throwable as a compiler diagnostic. {@link #typeProcessingOver()} is
+     * overridable, and five checkers override it, so {@link AbstractTypeProcessor} wrapping the
+     * call is what puts their work under this handler.
+     */
+    @Override
+    protected void handleProcessingError(String methodName, Throwable t) {
+        logThrowable("SourceChecker." + methodName, t, null);
     }
 
     /**

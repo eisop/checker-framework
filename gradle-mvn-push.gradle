@@ -34,4 +34,16 @@ tasks.withType(Sign).configureEach {
     onlyIf {
         !isSnapshot && project.hasProperty("release")
     }
+    doFirst {
+        // Any maintainer may sign a release, each with their own key, so no key is hardcoded.
+        // Require the key to be named explicitly: otherwise gpg falls back to whichever secret
+        // key happens to be its default, which may not be one Maven Central can verify.
+        if (!project.hasProperty('signing.gnupg.keyName')) {
+            throw new GradleException(
+                'signing.gnupg.keyName is not set, so gpg would sign with its default key.\n' +
+                'Set it to your own key, either in ~/.gradle/gradle.properties or as\n' +
+                '-Psigning.gnupg.keyName=<key id or email>.\n' +
+                'See docs/developer/maven-central-publishing.md.')
+        }
+    }
 }

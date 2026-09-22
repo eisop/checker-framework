@@ -29,11 +29,11 @@ import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.ElementUtils;
 import org.checkerframework.javacutil.InternalUtils;
+import org.checkerframework.javacutil.Pair;
 import org.checkerframework.javacutil.SystemUtil;
 import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TypesUtils;
 import org.plumelib.util.CollectionsPlume;
-import org.plumelib.util.IPair;
 import org.plumelib.util.StringsPlume;
 
 import java.util.ArrayDeque;
@@ -197,7 +197,7 @@ public class AnnotatedTypes {
             return;
         }
 
-        Set<IPair<Integer, Integer>> typeArgMap =
+        Set<Pair<Integer, Integer>> typeArgMap =
                 TypeArgumentMapper.mapTypeArgumentIndices(
                         (TypeElement) declaredSubtype.getUnderlyingType().asElement(),
                         (TypeElement) declaredAsSuper.getUnderlyingType().asElement(),
@@ -207,7 +207,7 @@ public class AnnotatedTypes {
             return;
         }
 
-        List<IPair<Integer, Integer>> orderedByDestination = new ArrayList<>(typeArgMap);
+        List<Pair<Integer, Integer>> orderedByDestination = new ArrayList<>(typeArgMap);
         orderedByDestination.sort(Comparator.comparingInt(o -> o.second));
 
         if (typeArgMap.size() == ((AnnotatedDeclaredType) supertype).getTypeArguments().size()) {

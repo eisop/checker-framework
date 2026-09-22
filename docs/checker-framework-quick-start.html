@@ -1,4 +1,15 @@
 <!DOCTYPE html>
+<!--
+This page ships in the release zip and the website generator serves it both as
+/cf/quick-start.html, for the newest release, and as /cf/<release>/quick-start.html.
+Its links are therefore mixed, for the same reason as the front page's: relative
+for what exists beside it at both depths (manual/manual.html, tutorial/),
+absolute for site singletons (the zip download).  See the comment at the top of
+checker-framework-webpage.html before changing any of them.
+
+release.xml's update-checker-framework-versions stamps the version in, keying
+off the marker comment below.  Do not remove the marker.
+-->
 <html>
 <head>
   <title>Checker Framework quick start guide</title>
@@ -15,30 +26,30 @@ pluggable type-checking.  More resources are given at the end.
 
 <p>
 A pluggable type-checker, or &ldquo;checker&rdquo; for short, prevents certain run-time errors.  For example, it can prove that your code never suffers a
-NullPointerException.  Choose which checker you want to run from the <a href="https://eisop.github.io/cf/manual/#introduction">list
+NullPointerException.  Choose which checker you want to run from the <a href="manual/manual.html#introduction">list
 of checkers</a>.
 </p>
 
 <p>
-To <a href="https://eisop.github.io/cf/manual/#installation">install the Checker Framework</a>, download and unzip
+To <a href="manual/manual.html#installation">install the Checker Framework</a>, download and unzip
 the Checker Framework distribution:
-<a href="checker-framework-2.1.7.zip"><!-- checker-framework-zip-version -->checker-framework-2.1.7.zip<!-- /checker-framework-zip-version --></a>.<br/>
+<a href="/cf/checker-framework-3.49.5-eisop1.zip"><!-- checker-framework-zip-version -->checker-framework-3.49.5-eisop1.zip<!-- /checker-framework-zip-version --></a>.<br/>
 Or, the
 <a href="http://eisop.uwaterloo.ca/live/">Checker Framework Live Demo</a>
 webpage lets you try the Checker Framework without installing it.
 </p>
 
 <p>
-To <a href="https://eisop.github.io/cf/manual/#running">run a checker</a>, supply the <code>-processor</code> command-line argument:
+To <a href="manual/manual.html#running">run a checker</a>, supply the <code>-processor</code> command-line argument:
 </p>
 
 <pre>
-  $CHECKERFRAMEWORK/bin/checker/javac -processor nullness MyFile1.java MyFile2.java
+  $CHECKERFRAMEWORK/checker/bin/javac -processor nullness MyFile1.java MyFile2.java
 </pre>
 
 <p>
 You write annotations in your code.  Then, the checker
-<a href="https://eisop.github.io/cf/manual/#checker-guarantees">verifies
+<a href="manual/manual.html#checker-guarantees">verifies
 two facts:</a> (1) the annotations you wrote are correct (they are consistent with your source code), and (2) your program will not suffer certain exceptions or errors at run time.
 </p>
 
@@ -56,7 +67,7 @@ ordinary Java type <code>String</code> includes <code>"hello"</code>,
 <code>""</code>, but does not include <code>null</code>.
 <br/>
 You write a type annotation right before a use of a type (on the same
-line), <a href="https://eisop.github.io/cf/manual/#writing-annotations">as in</a>:
+line), <a href="manual/manual.html#writing-annotations">as in</a>:
 <pre>
   @NonNull String s;
   List&lt;@Positive Integer&gt; l;
@@ -81,14 +92,14 @@ annotates.  For example, to indicate that a method has no side effects:
 
 <p>
 For the most part, you only need to write annotations on method signatures and fields.
-Most annotations within method bodies are <a href="https://eisop.github.io/cf/manual/#type-refinement">inferred for you automatically</a>.
+Most annotations within method bodies are <a href="manual/manual.html#type-refinement">inferred for you automatically</a>.
 Furthermore, each checker applies certain defaults to further reduce your
 annotation burden; for example, using the
-<a href="https://eisop.github.io/cf/manual/#nullness-checker">Nullness
+<a href="manual/manual.html#nullness-checker">Nullness
   Checker</a>, you do not need to write <code>@NonNull</code>, only
   <code>@Nullable</code> which appears less often.
 See the manual for more
-<a href="https://eisop.github.io/cf/manual/#tips-about-writing-annotations">tips
+<a href="manual/manual.html#tips-about-writing-annotations">tips
   about writing annotations</a>.
 </p>
 
@@ -96,12 +107,12 @@ See the manual for more
 To learn more, you can read:
 </p>
 <ul>
-  <li><a href="https://eisop.github.io/cf/tutorial/">Checker Framework tutorial</a>
+  <li><a href="tutorial/">Checker Framework tutorial</a>
   </li>
   <li><a href="https://github.com/glts/safer-spring-petclinic/wiki">Nullness Checker tutorial</a> (external site, setup information is out of date)</li>
-  <li><a href="https://eisop.github.io/cf/manual/#faq">Checker Framework frequently asked questions (FAQs)</a>
+  <li><a href="manual/manual.html#faq">Checker Framework frequently asked questions (FAQs)</a>
   </li>
-  <li><a href="https://eisop.github.io/cf/manual/">Checker Framework manual</a>
+  <li><a href="manual/manual.html">Checker Framework manual</a>
   </li>
 </ul>
 

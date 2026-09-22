@@ -42,7 +42,6 @@ import java.util.List;
 import java.util.Set;
 
 import javax.lang.model.type.ExecutableType;
-import javax.lang.model.type.TypeKind;
 
 /**
  * Performs invocation type inference as described in <a
@@ -211,7 +210,7 @@ public class InvocationTypeInference {
                 createB2MethodRef(compileTimeDecl, target.getFunctionTypeParameterTypes(), map);
         AbstractType r = target.getFunctionTypeReturnType();
         BoundSet b3;
-        if (r == null || r.getTypeKind() == TypeKind.VOID) {
+        if (r == null) {
             b3 = b2;
         } else {
             b3 = createB3(b2, invocation, compileTimeDecl, r, map);

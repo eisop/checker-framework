@@ -2301,6 +2301,38 @@ public final class TreeUtils {
         return false;
     }
 
+    /**
+     * Determine whether an expression {@link ExpressionTree} has the constant value false,
+     * according to the compiler logic.
+     *
+     * @param tree the expression to be checked
+     * @return true if {@code tree} has the constant value false
+     */
+    public static boolean isExprConstFalse(ExpressionTree tree) {
+        assert tree instanceof JCExpression;
+        if (((JCExpression) tree).type.isFalse()) {
+            return true;
+        }
+        tree = TreeUtils.withoutParens(tree);
+        if (tree instanceof JCTree.JCBinary) {
+            JCBinary binTree = (JCBinary) tree;
+            JCExpression ltree = binTree.lhs;
+            JCExpression rtree = binTree.rhs;
+            switch (binTree.getTag()) {
+                case AND:
+                    // Short-circuit evaluation: `A && B` is always false if either operand is
+                    // always false, regardless of the other operand's value.
+                    return isExprConstFalse(ltree) || isExprConstFalse(rtree);
+                case OR:
+                    // `A || B` is always false only if both operands are always false.
+                    return isExprConstFalse(ltree) && isExprConstFalse(rtree);
+                default:
+                    break;
+            }
+        }
+        return false;
+    }
+
     /** Pattern matching one or more whitespace characters; used by {@link #toStringOneLine}. */
     private static final Pattern WHITESPACE_PATTERN = Pattern.compile("\\s+");
 

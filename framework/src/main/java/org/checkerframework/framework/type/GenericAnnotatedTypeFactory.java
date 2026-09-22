@@ -91,6 +91,7 @@ import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.ElementUtils;
+import org.checkerframework.javacutil.Pair;
 import org.checkerframework.javacutil.TreePathUtil;
 import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TypeSystemError;
@@ -98,7 +99,6 @@ import org.checkerframework.javacutil.TypesUtils;
 import org.checkerframework.javacutil.UserError;
 import org.plumelib.reflection.Signatures;
 import org.plumelib.util.CollectionsPlume;
-import org.plumelib.util.IPair;
 import org.plumelib.util.SystemPlume;
 
 import java.lang.annotation.Annotation;
@@ -218,6 +218,9 @@ public abstract class GenericAnnotatedTypeFactory<
 
     /** Is this type factory configured to use flow-sensitive type refinement? */
     private final boolean everUseFlow;
+
+    /** True if "-AignoreDeadCode" was passed on the command line. */
+    private final boolean ignoreDeadCode;
 
     /**
      * Should the local variable default annotation be applied to type variables?
@@ -367,6 +370,7 @@ public abstract class GenericAnnotatedTypeFactory<
 
         this.cfgVisualizer = createCFGVisualizer();
         this.handleCFGViz = checker.hasOption("flowdotdir") || checker.hasOption("cfgviz");
+        this.ignoreDeadCode = checker.hasOption("ignoreDeadCode");
 
         if (shouldCache) {
             int cacheSize = getCacheSize();
@@ -494,7 +498,7 @@ public abstract class GenericAnnotatedTypeFactory<
 
         super.setRoot(root);
         this.scannedClasses = new IdentityHashMap<>();
-        // this.reachableNodes.clear();
+        this.reachableNodes.clear();
         this.flowResult = null;
         this.finalLocalValuesByDeclarer.clear();
         this.regularExitStores = new IdentityHashMap<>();
@@ -1065,11 +1069,11 @@ public abstract class GenericAnnotatedTypeFactory<
      * @return the JavaExpression and offset for the given expression
      * @throws JavaExpressionParseException thrown if the expression cannot be parsed
      */
-    public IPair<JavaExpression, String> getExpressionAndOffsetFromJavaExpressionString(
+    public Pair<JavaExpression, String> getExpressionAndOffsetFromJavaExpressionString(
             String expression, TreePath currentPath) throws JavaExpressionParseException {
-        IPair<String, String> p = getExpressionAndOffset(expression);
+        Pair<String, String> p = getExpressionAndOffset(expression);
         JavaExpression r = parseJavaExpressionString(p.first, currentPath);
-        return IPair.of(r, p.second);
+        return Pair.of(r, p.second);
     }
 
     /**
@@ -1098,15 +1102,16 @@ public abstract class GenericAnnotatedTypeFactory<
         return value != null ? value.getAnnotations().iterator().next() : null;
     }
 
-    /*
+    /**
      * Returns true if the {@code exprTree} is unreachable. This is a conservative estimate and may
-     * return {@code false} even though the {@code exprTree} is unreachable.
+     * return {@code false} even though the {@code exprTree} is unreachable. Only meaningful when
+     * "-AignoreDeadCode" was passed on the command line; otherwise always returns {@code false}.
      *
      * @param exprTree an expression tree
      * @return true if the {@code exprTree} is unreachable
-     *
+     */
     public boolean isUnreachable(ExpressionTree exprTree) {
-        if (!everUseFlow) {
+        if (!everUseFlow || !ignoreDeadCode) {
             return false;
         }
         Set<Node> nodes = getNodesForTree(exprTree);
@@ -1123,7 +1128,6 @@ public abstract class GenericAnnotatedTypeFactory<
         // None of the corresponding nodes is reachable, so this tree is dead.
         return true;
     }
-    */
 
     /**
      * Track the state of org.checkerframework.dataflow analysis scanning for each class tree in the
@@ -1144,15 +1148,16 @@ public abstract class GenericAnnotatedTypeFactory<
      */
     protected IdentityHashMap<ClassTree, ScanState> scannedClasses = new IdentityHashMap<>();
 
-    /*
+    /**
      * A set of trees whose corresponding nodes are reachable. This is not an exhaustive set of
      * reachable trees. Use {@link #isUnreachable(ExpressionTree)} instead of this set directly.
+     * Only populated when "-AignoreDeadCode" was passed on the command line.
      *
      * <p>This cannot be a set of Nodes, because two LocalVariableNodes are equal if they have the
      * same name but represent different uses of the variable. So instead of storing Nodes, it
      * stores the result of {@code Node#getTree}.
      */
-    // private final Set<Tree> reachableNodes = new HashSet<>();
+    private final Set<Tree> reachableNodes = new HashSet<>();
 
     /**
      * The merged result of all the analyses performed in the current compilation unit. Invariant:
@@ -1189,7 +1194,7 @@ public abstract class GenericAnnotatedTypeFactory<
      * <p>This field is intentionally not final; it should only be re-assigned by {@link
      * #performFlowAnalysis}.
      */
-    protected IdentityHashMap<MethodTree, List<IPair<ReturnNode, TransferResult<Value, Store>>>>
+    protected IdentityHashMap<MethodTree, List<Pair<ReturnNode, TransferResult<Value, Store>>>>
             returnStatementStores;
 
     /**
@@ -1233,7 +1238,7 @@ public abstract class GenericAnnotatedTypeFactory<
      * @return a list of all return statements of {@code method} paired with their corresponding
      *     {@link TransferResult} or an empty list if {@code method} has no return statements
      */
-    public List<IPair<ReturnNode, TransferResult<Value, Store>>> getReturnStatementStores(
+    public List<Pair<ReturnNode, TransferResult<Value, Store>>> getReturnStatementStores(
             MethodTree methodTree) {
         assert returnStatementStores.containsKey(methodTree);
         return returnStatementStores.get(methodTree);
@@ -1457,14 +1462,14 @@ public abstract class GenericAnnotatedTypeFactory<
         }
 
         // class trees and their initial stores
-        Queue<IPair<ClassTree, Store>> classQueue = new ArrayDeque<>();
+        Queue<Pair<ClassTree, Store>> classQueue = new ArrayDeque<>();
         List<FieldInitialValue<Value>> fieldValues = new ArrayList<>();
 
         // No captured store for top-level classes.
-        classQueue.add(IPair.of(classTree, null));
+        classQueue.add(Pair.of(classTree, null));
 
         while (!classQueue.isEmpty()) {
-            IPair<ClassTree, Store> qel = classQueue.remove();
+            Pair<ClassTree, Store> qel = classQueue.remove();
             ClassTree ct = qel.first;
             Store capturedStore = qel.second;
             scannedClasses.put(ct, ScanState.IN_PROGRESS);
@@ -1479,7 +1484,7 @@ public abstract class GenericAnnotatedTypeFactory<
             initializationStore = capturedStore;
 
             // The store is null if the lambda is unreachable.
-            Queue<IPair<LambdaExpressionTree, @Nullable Store>> lambdaQueue = new ArrayDeque<>();
+            Queue<Pair<LambdaExpressionTree, @Nullable Store>> lambdaQueue = new ArrayDeque<>();
 
             // Queue up classes (for top-level `while` loop) and methods (for within this `try`
             // construct); analyze top-level blocks and variable initializers as they are
@@ -1501,7 +1506,7 @@ public abstract class GenericAnnotatedTypeFactory<
                         case ENUM:
                             // Visit inner and nested class trees.
                             // TODO: Use no store for them? What can be captured?
-                            classQueue.add(IPair.of((ClassTree) m, capturedStore));
+                            classQueue.add(Pair.of((ClassTree) m, capturedStore));
                             break;
                         case METHOD:
                             MethodTree mt = (MethodTree) m;
@@ -1591,7 +1596,7 @@ public abstract class GenericAnnotatedTypeFactory<
                 }
 
                 while (!lambdaQueue.isEmpty()) {
-                    IPair<LambdaExpressionTree, @Nullable Store> lambdaPair = lambdaQueue.poll();
+                    Pair<LambdaExpressionTree, @Nullable Store> lambdaPair = lambdaQueue.poll();
                     MethodTree mt =
                             (MethodTree)
                                     TreePathUtil.enclosingOfKind(
@@ -1668,8 +1673,8 @@ public abstract class GenericAnnotatedTypeFactory<
      * @see #postAnalyze(org.checkerframework.dataflow.cfg.ControlFlowGraph)
      */
     protected void analyze(
-            Queue<IPair<ClassTree, Store>> classQueue,
-            Queue<IPair<LambdaExpressionTree, Store>> lambdaQueue,
+            Queue<Pair<ClassTree, Store>> classQueue,
+            Queue<Pair<LambdaExpressionTree, Store>> lambdaQueue,
             UnderlyingAST ast,
             List<FieldInitialValue<Value>> fieldValues,
             ClassTree currentClass,
@@ -1699,15 +1704,15 @@ public abstract class GenericAnnotatedTypeFactory<
         }
         ControlFlowGraph cfg =
                 CFCFGBuilder.build(this.getRoot(), ast, checker, this, processingEnv);
-        /*
-             cfg.getAllNodes(this::isIgnoredExceptionType)
-                     .forEach(
-                             node -> {
-                                 if (node.getTree() != null) {
-                                     reachableNodes.add(node.getTree());
-                                 }
-                             });
-        */
+        if (ignoreDeadCode) {
+            cfg.getAllNodes(this::isIgnoredExceptionType)
+                    .forEach(
+                            node -> {
+                                if (node.getTree() != null) {
+                                    reachableNodes.add(node.getTree());
+                                }
+                            });
+        }
         if (isInitializationCode) {
             Store initStore = !isStatic ? initializationStore : initializationStaticStore;
             if (initStore != null) {
@@ -1799,14 +1804,24 @@ public abstract class GenericAnnotatedTypeFactory<
 
         // add classes declared in CFG
         for (ClassTree cls : cfg.getDeclaredClasses()) {
-            classQueue.add(IPair.of(cls, getStoreBefore(cls)));
+            classQueue.add(Pair.of(cls, getStoreBefore(cls)));
         }
         // add lambdas declared in CFG
         for (LambdaExpressionTree lambda : cfg.getDeclaredLambdas()) {
-            lambdaQueue.add(IPair.of(lambda, getStoreBefore(lambda)));
+            lambdaQueue.add(Pair.of(lambda, getStoreBefore(lambda)));
         }
 
-        postAnalyze(cfg);
+        // Set the visitor tree path for the analyzed code, as performAnalysis does.  Without it,
+        // a path lookup made from postAnalyze resolves against whatever path the visitor last
+        // set, fails, and AnnotatedTypeFactory.getPath caches that failure for the rest of the
+        // compilation unit.
+        TreePath prevPath = getVisitorTreePath();
+        setVisitorTreePath(checker.getTreePathCacher().getPath(this.getRoot(), ast.getCode()));
+        try {
+            postAnalyze(cfg);
+        } finally {
+            setVisitorTreePath(prevPath);
+        }
     }
 
     /**
