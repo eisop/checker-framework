@@ -1,6 +1,9 @@
 package org.checkerframework.framework.util.typeinference8.constraint;
 
+import org.checkerframework.framework.util.typeinference8.types.Variable;
 import org.checkerframework.framework.util.typeinference8.util.Java8InferenceContext;
+
+import java.util.Set;
 
 /**
  * A constraint. See <a
@@ -27,6 +30,28 @@ public interface Constraint extends ReductionResult {
      * @return the result of reducing this constraint
      */
     ReductionResult reduce(Java8InferenceContext context);
+
+    /**
+     * Returns the input variables of this constraint: the inference variables that must be resolved
+     * before this constraint may be reduced.
+     *
+     * <p>For lambda, method reference, and additional-argument constraints, input variables are
+     * roughly the inference variables mentioned by the target function type's parameter types. For
+     * conditional expression constraints and switch expression constraints, input variables are the
+     * union of the input variables of their subexpressions. For all other constraints, no input
+     * variables exist.
+     *
+     * <p>Defined in <a
+     * href="https://docs.oracle.com/javase/specs/jls/se11/html/jls-18.html#jls-18.5.2.2">JLS
+     * section 18.5.2.2</a>. ({@link Kind#ADDITIONAL_ARG} constraints are this implementation's own
+     * addition, not a JLS-defined constraint kind, but they need the same ordering treatment: see
+     * {@link AdditionalArgument}.)
+     *
+     * <p>Callers that need to mutate the result should make a defensive copy first.
+     *
+     * @return the input variables of this constraint
+     */
+    Set<Variable> getInputVariables();
 
     /** A kind of Constraint. */
     enum Kind {

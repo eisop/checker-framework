@@ -70,6 +70,7 @@ public class AdditionalArgument implements Constraint {
      *
      * @return the input variables of this constraint that have not yet been resolved
      */
+    @Override
     public Set<Variable> getInputVariables() {
         if (inputVariables.isEmpty()) {
             return inputVariables;
