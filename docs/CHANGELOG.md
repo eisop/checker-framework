@@ -332,6 +332,15 @@ type variable as its target.  With default options the failure was silently disc
 with `-AconvertTypeArgInferenceCrashToWarning=false`, as the test harness passes, the
 Checker Framework crashed on code that javac accepts.
 
+The Checker Framework no longer crashes with "AsSuperVisitor: type is not an erased subtype
+of supertype" when an implicitly typed lambda that is an argument to a generic method invokes
+a generic method on its parameter, as in `of(list, l -> l.toArray(new String[0]))`.
+Type argument inference computed the type of `l` before inferring the type argument that the
+type of `l` depends on, so `l` got the uninferred type variable as its type, and that type was
+cached and used after inference, too.  Depending on the code, the result was this crash, a
+spurious `lambda.param.type.incompatible` error, or a spurious
+`type.argument.inference.crashed` error.
+
 The stubifier resolves a nested annotation named through its enclosing class, as
 the JDK's own `java.lang.invoke.VarHandle` writes `@MethodHandle.PolymorphicSignature`.
 Such a name is not loadable as written -- its binary name separates the nesting with
@@ -1194,6 +1203,7 @@ eisop#2061,
 eisop#2064,
 eisop#2074,
 eisop#2081,
+eisop#2084,
 eisop#2086,
 eisop#2089,
 eisop#2091,

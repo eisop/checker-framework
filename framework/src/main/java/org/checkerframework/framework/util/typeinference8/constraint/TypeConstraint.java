@@ -117,23 +117,6 @@ public abstract class TypeConstraint implements Constraint {
     }
 
     /**
-     * For lambda and method references constraints, input variables are roughly the inference
-     * variables mentioned by they function type's parameter types and return types. For conditional
-     * expression constraints and switch expression constraints, input variables are the union of
-     * the input variables of its subexpressions. For all other constraints, no input variables
-     * exist.
-     *
-     * <p>Defined in <a
-     * href="https://docs.oracle.com/javase/specs/jls/se11/html/jls-18.html#jls-18.5.2.2">JLS
-     * section 18.5.2.2</a>
-     *
-     * <p>Callers that need to mutate the result should make a defensive copy first.
-     *
-     * @return input variables for this constraint
-     */
-    public abstract Set<Variable> getInputVariables();
-
-    /**
      * "The output variables of [expression] constraints are all inference variables mentioned by
      * the type on the right-hand side of the constraint, T, that are not input variables."
      *
