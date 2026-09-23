@@ -757,6 +757,11 @@ example, in `firstObj.intList.add(1)` where `firstObj.intList` is possibly null,
 the marker now points at the access of `.add`, not at the start of `firstObj`.
 The message text is unchanged; only the reported source position moves.
 
+The Checker Framework no longer crashes on a wildcard type argument for an F-bounded type
+parameter, such as `Node<? extends Sub>` for `class Node<T extends Node<T>>` and
+`class Sub extends Node<Sub>`, or `Enum<? extends TimeUnit>`.  Capture conversion now gives
+the captured type variable the same upper bound that javac computes.
+
 Type-checking a class with many fields under the Initialization Checker (and any checker
 built on it, such as the Nullness Checker) is no longer quadratic in the number of fields
 that are declared with an initializer or assigned in a constructor. Determining whether the
@@ -1211,6 +1216,7 @@ eisop#2009,
 eisop#2020,
 eisop#2021,
 eisop#2032,
+eisop#2034,
 eisop#2037,
 eisop#2047,
 eisop#2048,
