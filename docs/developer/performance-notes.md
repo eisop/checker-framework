@@ -1958,6 +1958,52 @@ The option was made opt-in via `-PajavaChecks` / `-DajavaChecks` (reflected in `
 JDK 17 running `checker/bin-devel/test-cftests-ajavachecks.sh`) preserves full consistency testing
 without paying the parsing and traversal overhead on routine or multi-JDK test runs.
 
+### Initialization Checker: uninitialized-field checks quadratic in field count (September 2026, PR #2137)
+
+Determining whether the enclosing receiver of a field declaration's initializer, or of a
+constructor field assignment, is still under initialization rescanned every field of the class on
+each such site: `InitializationParentAnnotatedTypeFactory#getSelfType` →
+`setSelfTypeInInitializationCode` → `areAllFieldsInitializedOnly(enclosingClass)` and
+`getUninitializedFields(store, ...).isEmpty()`, both O(fields). `getSelfType` runs once per field
+declaration with an initializer (a call site the same PR's fix for eisop#1217 added) and once per
+constructor field assignment (pre-existing, confirmed present on plain master without that fix).
+For a class with N such sites, this is N calls × O(N) work = O(N²).
+
+`areAllFieldsInitializedOnly` depends only on a class's field declarations, not on any dataflow
+store, so it is now cached (`IdentityHashMap<ClassTree, Boolean>`, cleared per compilation unit in
+a new `setRoot` override, matching how `GenericAnnotatedTypeFactory` clears its own per-tree
+caches there). `getUninitializedFields(...).isEmpty()` is genuinely store-dependent and cannot
+simply be cached per class — and a size comparison against `InitializationStore.initializedFields`
+is not sound either, since that set also holds static fields, superclass fields assigned through
+`this`, and fields added from method postconditions, so its size does not equal the class's own
+instance-field count. Instead, a new `getInstanceFields(ClassTree)` caches the class's non-static
+field list once, and a new `hasUninitializedInstanceFields` helper (in both this factory and its
+`InitializationAnnotatedTypeFactory` subclass) answers the emptiness question with an early-exit
+scan from the last-declared field backwards — fields are typically initialized in declaration
+order, so the last-declared one is likeliest to still be uninitialized — instead of building the
+full list `getUninitializedFields` returns for its other (list-consuming) callers, which are
+unchanged.
+
+Wall-clock on a synthetic class (`checker/bin/javac -processor nullness`, median of 3):
+
+| N (fields) | shape | before | after | speedup |
+| --- | --- | --- | --- | --- |
+| 4000 | declarations with initializers | 26.16 s | 10.94 s | 2.4x |
+| 4000 | constructor field assignments   | 26.08 s | 11.83 s | 2.2x |
+
+Growth per doubling of N flattens from ~3.0x/~2.8x (super-linear) to ~2.0x (roughly linear) for
+both shapes — the signature of the quadratic being gone, not just a constant-factor win.
+
+Confirmed unaffected: `checker/tests/initialization/Issue1217.java`, and every file in
+`checker/tests/initialization/` (61 files), produce byte-identical output before and after.
+
+Two related items were found but deliberately left for separate follow-up rather than addressed
+here: other, likely-linear-but-uninvestigated `CFAbstractStore`/`InitializationStore`
+copy-on-write costs that only begin to dominate the profile past this N (eisop#2143), and the new
+jtreg stress tests `Issue1438d`/`Issue1438e` (added earlier in the same PR, in the style of
+`Issue1438`/`Issue1438b`/`Issue1438c`) not being tight enough at their N=1000 scale to themselves
+catch a regression back to quadratic behavior (eisop#2144).
+
 ---
 
 
