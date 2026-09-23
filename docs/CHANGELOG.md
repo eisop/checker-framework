@@ -149,6 +149,12 @@ with the `@DefaultQualifier` annotations written on the same declaration and wit
 defaults of enclosing elements, instead of replacing them or being lost depending on the
 order in which defaults were first queried.
 
+When `@DefaultQualifier` on the classpath lacks the `applyToSubpackages` element (for example,
+when resolved from upstream typetools `checker-qual` rather than EISOP's fork), the framework
+now degrades gracefully: it issues a note diagnostic once per checker instance explaining that
+package defaults will apply to subpackages unconditionally, and continues type-checking without
+crashing.
+
 The Nullness Checker now treats JSpecify's `@NullMarked` as an alias for
 `@AnnotatedFor` scoped to nullness checking alone (not initialization or `@KeyFor`
 checking, which JSpecify does not define and which `-Amode=jspecify` already excludes),
@@ -1185,8 +1191,10 @@ eisop#1015,
 eisop#1059,
 eisop#1060,
 eisop#1074,
+eisop#1107,
 eisop#1198,
 eisop#1217,
+eisop#1243,
 eisop#1244,
 eisop#1292,
 eisop#1299,
