@@ -1,17 +1,18 @@
-// test case for issue 720
+// Test case for issue 720 and issue 1217: viewpoint adaptation of @NotOnlyInitialized fields
 // https://github.com/eisop/checker-framework/issues/720
+// https://github.com/eisop/checker-framework/issues/1217
 
 import org.checkerframework.checker.initialization.qual.Initialized;
 import org.checkerframework.checker.initialization.qual.NotOnlyInitialized;
 import org.checkerframework.checker.initialization.qual.UnderInitialization;
 import org.checkerframework.checker.initialization.qual.UnknownInitialization;
 
-class Issue720 {
+class NotOnlyInitializedAdaptation {
     @NotOnlyInitialized Object f = new Object();
     final @NotOnlyInitialized Object finalF = new Object();
     Object normal = new Object();
 
-    void fieldAccess1(@UnderInitialization Issue720 this) {
+    void fieldAccess1(@UnderInitialization NotOnlyInitializedAdaptation this) {
         // @NotOnlyInitialized should be correctly adapted to @UnknownInitialization
         // by @UnderInitialization.
         // :: error: (dereference.of.nullable) :: error: (method.invocation.invalid)
@@ -22,7 +23,7 @@ class Issue720 {
         @Initialized Object i = f;
     }
 
-    void fieldAccess2(@UnknownInitialization Issue720 this) {
+    void fieldAccess2(@UnknownInitialization NotOnlyInitializedAdaptation this) {
         // @NotOnlyInitialized should be correctly adapted to @UnknownInitialization
         // by @UnknownInitialization.
         // :: error: (dereference.of.nullable) :: error: (method.invocation.invalid)
@@ -35,7 +36,8 @@ class Issue720 {
 
     void fieldAccess3() {
         // @NotOnlyInitialized should be correctly adapted to @Initialized by @Initialized.
-        // This is the only way to enter then branch in the issue. The correct adaption ensures the
+        // This is the only way to enter then branch in the issue. The correct adaptation ensures
+        // the
         // correct use of @NotOnlyInitialized.
         f.hashCode();
 
@@ -52,7 +54,7 @@ class Issue720 {
         @Initialized Object i = f;
     }
 
-    void fieldRefinementAcrossMethodCalls(@UnderInitialization Issue720 this) {
+    void fieldRefinementAcrossMethodCalls(@UnderInitialization NotOnlyInitializedAdaptation this) {
         // Assign an @Initialized object to f: in the store, f is now @Initialized.
         this.f = new Object();
         // Calling a method clears mutable field values from the store.
@@ -73,12 +75,15 @@ class Issue720 {
         this.finalF.hashCode();
     }
 
+    @NotOnlyInitialized NotOnlyInitializedAdaptation noiField;
+
     void testFieldWrites(
-            @UnderInitialization Issue720 underInitReceiver,
-            @UnderInitialization Object underInitVal) {
+            @Initialized NotOnlyInitializedAdaptation initReceiver,
+            @UnderInitialization NotOnlyInitializedAdaptation underInitReceiver,
+            @UnderInitialization NotOnlyInitializedAdaptation underInitVal) {
         // Storing under-initialization value into @NotOnlyInitialized field on under-initialization
         // receiver is allowed:
-        underInitReceiver.f = underInitVal;
+        underInitReceiver.noiField = underInitVal;
 
         // Storing under-initialization value into normal field is rejected:
         // :: error: (assignment.type.incompatible)
@@ -87,20 +92,20 @@ class Issue720 {
         // Storing under-initialization value into @NotOnlyInitialized field on @Initialized
         // receiver is forbidden:
         // :: error: (initialization.invalid.field.write.initialized)
-        this.f = underInitVal;
+        initReceiver.noiField = underInitVal;
     }
 
     void sideEffect() {}
 
-    void sideEffectUnderInit(@UnderInitialization Issue720 this) {}
+    void sideEffectUnderInit(@UnderInitialization NotOnlyInitializedAdaptation this) {}
 
-    // False positive (#1217): The initializer should be consistent with constructor.
-    // The LHS should be adapted to @UnknownInitialization instead of Initialized.
-    // :: error: (assignment.type.incompatible)
+    // Issue 1217: The LHS is adapted to @UnknownInitialization (consistent with constructor),
+    // allowing this assignment without false positive.
     @NotOnlyInitialized Object g = this;
     @NotOnlyInitialized Object h;
 
-    Issue720() {
+    NotOnlyInitializedAdaptation() {
         h = this;
+        noiField = this;
     }
 }
