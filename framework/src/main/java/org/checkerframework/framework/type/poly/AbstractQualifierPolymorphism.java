@@ -212,6 +212,9 @@ public abstract class AbstractQualifierPolymorphism implements QualifierPolymorp
 
         if ((instantiationMapping != null && !instantiationMapping.isEmpty())
                 || TreeUtils.isCallToVarargsMethodWithZeroVarargsActuals(tree)) {
+            if (instantiationMapping == null) {
+                instantiationMapping = new AnnotationMirrorMap<>();
+            }
             replacer.visit(type, instantiationMapping);
         } else {
             completer.visit(type);
