@@ -99,8 +99,9 @@ class NotOnlyInitializedAdaptation {
 
     void sideEffectUnderInit(@UnderInitialization NotOnlyInitializedAdaptation this) {}
 
-    // Issue 1217: The LHS is adapted to @UnknownInitialization (consistent with constructor),
-    // allowing this assignment without false positive.
+    // False positive (#1217): The initializer should be consistent with constructor.
+    // The LHS should be adapted to @UnknownInitialization instead of Initialized.
+    // :: error: (assignment.type.incompatible)
     @NotOnlyInitialized Object g = this;
     @NotOnlyInitialized Object h;
 

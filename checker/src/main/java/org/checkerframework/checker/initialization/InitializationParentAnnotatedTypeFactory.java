@@ -221,31 +221,6 @@ public abstract class InitializationParentAnnotatedTypeFactory
     }
 
     @Override
-    public AnnotatedTypeMirror getAnnotatedTypeLhs(Tree lhsTree) {
-        AnnotatedTypeMirror res = super.getAnnotatedTypeLhs(lhsTree);
-        if (lhsTree instanceof VariableTree) {
-            VariableTree varTree = (VariableTree) lhsTree;
-            VariableElement field = TreeUtils.elementFromDeclaration(varTree);
-            if (field.getKind().isField() && !ElementUtils.isStatic(field)) {
-                Tree receiverContext =
-                        varTree.getInitializer() != null ? varTree.getInitializer() : varTree;
-                AnnotatedTypeMirror receiverType = getSelfType(receiverContext);
-                if (receiverType != null
-                        && (isUnknownInitialization(receiverType)
-                                || isUnderInitialization(receiverType))) {
-                    Collection<? extends AnnotationMirror> declaredFieldAnnotations =
-                            getDeclAnnotations(field);
-                    AnnotatedTypeMirror fieldAnnotations = getAnnotatedType(field);
-                    res = res.deepCopy();
-                    computeFieldAccessInitializationType(
-                            res, declaredFieldAnnotations, receiverType, fieldAnnotations);
-                }
-            }
-        }
-        return res;
-    }
-
-    @Override
     protected Set<Class<? extends Annotation>> createSupportedTypeQualifiers() {
         Set<Class<? extends Annotation>> result = new HashSet<>();
         result.add(UnknownInitialization.class);
