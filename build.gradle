@@ -1517,6 +1517,13 @@ subprojects {
             // system property reaches it.
             systemProperties += ['cf.typeinference.worklist.strict': 'true']
 
+            // AnnotatedTypeFactory#annotateCapturedTypeVar recomputes the captured type variable's
+            // upper bound in javac's own argument order when the framework's own order disagrees
+            // with javac's bound (see eisop#2034). In production it silently keeps that recomputed
+            // bound even if it still does not match javac's bound. Run this project's own tests in
+            // strict mode instead, so a remaining mismatch is a loud CI failure.
+            systemProperties += ['cf.captureconversion.strict': 'true']
+
             // Always re-run tests.  This must live at the test task level.
             outputs.upToDateWhen { false }
 
