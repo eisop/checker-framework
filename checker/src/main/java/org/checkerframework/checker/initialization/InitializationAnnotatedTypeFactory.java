@@ -35,7 +35,6 @@ import org.checkerframework.javacutil.TreeUtils;
 
 import java.lang.annotation.Annotation;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 
@@ -143,18 +142,12 @@ public class InitializationAnnotatedTypeFactory extends InitializationParentAnno
                             ((InitializationChecker) checker).getTargetCheckerClass());
             InitializationStore initStore = getStoreBefore(tree);
             CFAbstractStore<?, ?> targetStore = targetFactory.getStoreBefore(tree);
-            boolean allInitialized;
-            // The two non-null cases are equivalent to, but cheaper than, testing whether
-            // getUninitializedFields(initStore, [targetStore,] path, false,
-            // Collections.emptyList()) is empty.
-            if (initStore == null) {
-                allInitialized = false;
-            } else if (targetStore != null) {
-                allInitialized =
-                        !hasUninitializedInstanceFields(initStore, targetStore, enclosingClass);
-            } else {
-                allInitialized = !hasUninitializedInstanceFields(initStore, enclosingClass);
-            }
+            // Equivalent to, but cheaper than, testing whether getUninitializedFields(initStore,
+            // [targetStore,] path, false, Collections.emptyList()) is empty.
+            boolean allInitialized =
+                    initStore != null
+                            && !hasUninitializedInstanceFields(
+                                    initStore, targetStore, enclosingClass);
             if (allInitialized) {
                 if (classType.isFinal()) {
                     annotation = INITIALIZED;
@@ -207,58 +200,35 @@ public class InitializationAnnotatedTypeFactory extends InitializationParentAnno
         List<VariableTree> uninitializedFields =
                 super.getUninitializedFields(initStore, path, isStatic, receiverAnnotations);
 
-        GenericAnnotatedTypeFactory<?, ?, ?, ?> factory = getTargetFactory();
-
-        // Remove primitives
-        if (!((InitializationChecker) checker).checkPrimitives()) {
-            uninitializedFields.removeIf(
-                    var -> TreeUtils.elementFromDeclaration(var).asType().getKind().isPrimitive());
-        }
-
-        // Filter out fields which are initialized according to subchecker
-        uninitializedFields.removeIf(var -> isInitializedInTargetStore(factory, targetStore, var));
+        uninitializedFields.removeIf(
+                var ->
+                        isFieldInitialized(
+                                initStore,
+                                targetStore,
+                                var,
+                                TreeUtils.elementFromDeclaration(var)));
 
         return uninitializedFields;
     }
 
-    /**
-     * Returns true if some instance field of {@code classTree} is not initialized in the given
-     * stores. This is equivalent to {@code !getUninitializedFields(initStore, targetStore, path,
-     * false, Collections.emptyList()).isEmpty()} for a {@code path} whose enclosing class is {@code
-     * classTree}, but does not build the list and stops at the first uninitialized field.
-     *
-     * <p>Like {@link #hasUninitializedInstanceFields(InitializationStore, ClassTree)}, this
-     * examines the fields from the last-declared one backwards, and it consults the (comparatively
-     * expensive) target store only for fields that the initialization store and the primitive check
-     * do not already show to be initialized.
-     *
-     * @param initStore a store for the initialization checker
-     * @param targetStore a store for the target checker corresponding to initStore
-     * @param classTree the class whose instance fields to check
-     * @return true if some instance field of {@code classTree} is not initialized
-     */
-    private boolean hasUninitializedInstanceFields(
-            InitializationStore initStore, CFAbstractStore<?, ?> targetStore, ClassTree classTree) {
-        GenericAnnotatedTypeFactory<?, ?, ?, ?> factory = getTargetFactory();
-        boolean checkPrimitives = ((InitializationChecker) checker).checkPrimitives();
-        List<VariableTree> fields = getInstanceFields(classTree);
-        for (int i = fields.size() - 1; i >= 0; i--) {
-            VariableTree var = fields.get(i);
-            if (isUnused(var, Collections.emptyList())) {
-                continue; // don't consider unused fields
-            }
-            VariableElement varElement = TreeUtils.elementFromDeclaration(var);
-            if (initStore.isFieldInitialized(varElement)) {
-                continue;
-            }
-            if (!checkPrimitives && varElement.asType().getKind().isPrimitive()) {
-                continue;
-            }
-            if (!isInitializedInTargetStore(factory, targetStore, var)) {
-                return true;
-            }
+    @Override
+    protected boolean isFieldInitialized(
+            InitializationStore store,
+            @Nullable CFAbstractStore<?, ?> targetStore,
+            VariableTree field,
+            VariableElement elem) {
+        if (store.isFieldInitialized(elem)) {
+            return true;
         }
-        return false;
+        if (targetStore == null) {
+            return false;
+        }
+        if (!((InitializationChecker) checker).checkPrimitives()
+                && elem.asType().getKind().isPrimitive()) {
+            return true;
+        }
+        GenericAnnotatedTypeFactory<?, ?, ?, ?> factory = getTargetFactory();
+        return isInitializedInTargetStore(factory, targetStore, field, elem);
     }
 
     /**
@@ -285,15 +255,16 @@ public class InitializationAnnotatedTypeFactory extends InitializationParentAnno
      * @param factory the target checker's type factory
      * @param targetStore a store for the target checker
      * @param var a field declaration
+     * @param varElement element for {@code var}
      * @return true if {@code var} is initialized according to {@code targetStore}
      * @see #isInitialized(GenericAnnotatedTypeFactory, CFAbstractValue, VariableElement)
      */
     private boolean isInitializedInTargetStore(
             GenericAnnotatedTypeFactory<?, ?, ?, ?> factory,
             CFAbstractStore<?, ?> targetStore,
-            VariableTree var) {
+            VariableTree var,
+            VariableElement varElement) {
         ClassTree enclosingClass = TreePathUtil.enclosingClass(getPath(var));
-        VariableElement varElement = TreeUtils.elementFromDeclaration(var);
         Node receiver;
         if (ElementUtils.isStatic(varElement)) {
             receiver = new ClassNameNode(enclosingClass);
