@@ -734,6 +734,9 @@ public class InferenceFactory {
      * Returns the type of the method or constructor invocation adapted to its arguments. This type
      * may include inference variables.
      *
+     * <p>For a method invocation, the polymorphic qualifiers of the method are resolved as
+     * described in {@link #resolvePolyQualifiers(MethodInvocationTree, InvocationType)}.
+     *
      * @param invocation method or constructor invocation
      * @return the type of the method or constructor invocation adapted to its arguments
      */
@@ -749,11 +752,76 @@ public class InferenceFactory {
                     typeFactory.constructorFromUseWithoutTypeArgInference((NewClassTree) invocation)
                             .executableType;
         }
-        return new InvocationType(
-                executableType,
-                getTypeOfMethodAdaptedToUse(invocation, context),
-                invocation,
-                context);
+        ExecutableType javaType = getTypeOfMethodAdaptedToUse(invocation, context);
+        InvocationType invocationType =
+                new InvocationType(executableType, javaType, invocation, context);
+        if (invocation instanceof MethodInvocationTree
+                && resolvePolyQualifiers((MethodInvocationTree) invocation, invocationType)) {
+            // The annotated type has been side-effected, so recompute the qualifier variables that
+            // InvocationType creates for its polymorphic qualifiers.
+            return new InvocationType(executableType, javaType, invocation, context);
+        }
+        return invocationType;
+    }
+
+    /**
+     * Resolves the polymorphic qualifiers of {@code invocationType}, the type of {@code
+     * methodInvocation} before type-argument inference, against the receiver and the arguments of
+     * {@code methodInvocation}. The annotated type of {@code invocationType} is side-effected.
+     *
+     * <p>This is the same resolution that {@link AnnotatedTypeFactory#methodFromUse} performs when
+     * it computes the type of {@code methodInvocation} itself. {@link
+     * AnnotatedTypeFactory#methodFromUseWithoutTypeArgInference} does not perform it, so without
+     * this method a polymorphic qualifier on the return type of a method invocation nested in the
+     * current inference problem (for example, {@code list.stream().map(f)} as an argument or a
+     * lambda's returned expression) reaches the solver as if it were a concrete qualifier and
+     * becomes part of the inferred type arguments of the enclosing invocation.
+     *
+     * <p>Resolution is skipped if an argument whose formal parameter type contains a polymorphic
+     * qualifier is a poly expression: the type of such an argument depends on the inference problem
+     * that is being solved, so it cannot yet be used to instantiate a polymorphic qualifier. The
+     * receiver of a method invocation is never a poly expression.
+     *
+     * <p>Before resolving, this method creates the inference variables of {@code methodInvocation}
+     * (see {@link #createThetaForInvocation}), which marks the inference of {@code
+     * methodInvocation} as part of the current inference problem. Computing the type of an argument
+     * may require the type of {@code methodInvocation} -- for example, a new array argument takes
+     * its component qualifiers from its formal parameter type -- and {@link
+     * org.checkerframework.framework.util.typeinference8.DefaultTypeArgumentInference} must then
+     * not start a separate inference problem for {@code methodInvocation}.
+     *
+     * @param methodInvocation a method invocation
+     * @param invocationType the type of {@code methodInvocation} before type-argument inference;
+     *     its annotated type is side-effected
+     * @return true if the polymorphic qualifiers were resolved, false if {@code invocationType} was
+     *     not changed
+     */
+    private boolean resolvePolyQualifiers(
+            MethodInvocationTree methodInvocation, InvocationType invocationType) {
+        if (!(typeFactory instanceof GenericAnnotatedTypeFactory)) {
+            return false;
+        }
+        QualifierPolymorphism poly =
+                ((GenericAnnotatedTypeFactory<?, ?, ?, ?>) typeFactory).getQualifierPolymorphism();
+        AnnotatedExecutableType methodType = invocationType.getAnnotatedType();
+        if (!poly.hasPolymorphicQualifiers(methodType)) {
+            return false;
+        }
+        List<? extends ExpressionTree> args = methodInvocation.getArguments();
+        List<AnnotatedTypeMirror> params = methodType.getParameterTypes();
+        for (int i = 0; i < args.size(); i++) {
+            // In a variable-arity invocation, the last formal parameter, an array type, is the
+            // formal parameter of each trailing argument.  (AnnotatedTypes.adaptParameters is not
+            // used because it may compute the type of an argument, which might be a poly
+            // expression.)
+            AnnotatedTypeMirror param = params.get(Math.min(i, params.size() - 1));
+            if (TreeUtils.isPolyExpression(args.get(i)) && poly.hasPolymorphicQualifiers(param)) {
+                return false;
+            }
+        }
+        createThetaForInvocation(methodInvocation, invocationType, context);
+        poly.resolve(methodInvocation, methodType);
+        return true;
     }
 
     /**
