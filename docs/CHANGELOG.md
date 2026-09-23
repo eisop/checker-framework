@@ -747,6 +747,13 @@ example, in `firstObj.intList.add(1)` where `firstObj.intList` is possibly null,
 the marker now points at the access of `.add`, not at the start of `firstObj`.
 The message text is unchanged; only the reported source position moves.
 
+Type-checking a class with many fields under the Initialization Checker (and any checker
+built on it, such as the Nullness Checker) is no longer quadratic in the number of fields
+that are declared with an initializer or assigned in a constructor. Determining whether the
+enclosing receiver is still under initialization used to rescan every field of the class on
+each such declaration or assignment; it is now cached or answered with an early-exit scan.
+A class with 4000 such fields now type-checks in about 11 seconds instead of about 26.
+
 **Implementation details:**
 
 The jtreg tests that verify which annotations the Checker Framework writes into

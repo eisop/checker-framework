@@ -2,6 +2,7 @@ package org.checkerframework.checker.initialization;
 
 import com.sun.source.tree.BinaryTree;
 import com.sun.source.tree.ClassTree;
+import com.sun.source.tree.CompilationUnitTree;
 import com.sun.source.tree.ExpressionTree;
 import com.sun.source.tree.LiteralTree;
 import com.sun.source.tree.MemberReferenceTree;
@@ -57,6 +58,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -127,6 +129,21 @@ public abstract class InitializationParentAnnotatedTypeFactory
             CollectionsPlume.createLruCache(getCacheSize());
 
     /**
+     * Cache for {@link #areAllFieldsInitializedOnly(ClassTree)}, whose result depends only on the
+     * field declarations of the class. Cleared for each compilation unit in {@link
+     * #setRoot(CompilationUnitTree)}.
+     */
+    private final IdentityHashMap<ClassTree, Boolean> allFieldsInitializedOnlyCache =
+            new IdentityHashMap<>();
+
+    /**
+     * Cache for {@link #getInstanceFields(ClassTree)}. Cleared for each compilation unit in {@link
+     * #setRoot(CompilationUnitTree)}.
+     */
+    private final IdentityHashMap<ClassTree, List<VariableTree>> instanceFieldsCache =
+            new IdentityHashMap<>();
+
+    /**
      * Create a new InitializationParentAnnotatedTypeFactory.
      *
      * <p>Don't forget to call {@link #postInit()} in the concrete subclass.
@@ -154,6 +171,13 @@ public abstract class InitializationParentAnnotatedTypeFactory
                 TreeUtils.getMethod(UnknownInitialization.class, "value", 0, processingEnv);
 
         assumeInitialized = checker.hasOption("assumeInitialized");
+    }
+
+    @Override
+    public void setRoot(@Nullable CompilationUnitTree root) {
+        super.setRoot(root);
+        allFieldsInitializedOnlyCache.clear();
+        instanceFieldsCache.clear();
     }
 
     @Override
@@ -409,9 +433,9 @@ public abstract class InitializationParentAnnotatedTypeFactory
         //    there might still be subclasses that need initialization.
         if (areAllFieldsInitializedOnly(enclosingClass)) {
             InitializationStore store = getStoreBefore(tree);
-            if (store != null
-                    && getUninitializedFields(store, path, false, Collections.emptyList())
-                            .isEmpty()) {
+            // Equivalent to, but cheaper than,
+            // getUninitializedFields(store, path, false, Collections.emptyList()).isEmpty().
+            if (store != null && !hasUninitializedInstanceFields(store, enclosingClass)) {
                 if (classType.isFinal()) {
                     annotation = INITIALIZED;
                 } else {
@@ -488,10 +512,25 @@ public abstract class InitializationParentAnnotatedTypeFactory
     /**
      * Are all fields initialized-only?
      *
+     * <p>The result depends only on the field declarations of {@code classTree}, so it is cached:
+     * this method is called for every {@link #getSelfType(Tree)} query in initialization code, and
+     * recomputing it would make checking a class quadratic in its number of fields.
+     *
      * @param classTree the class to query
      * @return true if all fields are initialized-only
      */
     protected boolean areAllFieldsInitializedOnly(ClassTree classTree) {
+        return allFieldsInitializedOnlyCache.computeIfAbsent(
+                classTree, this::computeAreAllFieldsInitializedOnly);
+    }
+
+    /**
+     * Computes {@link #areAllFieldsInitializedOnly(ClassTree)}, without caching.
+     *
+     * @param classTree the class to query
+     * @return true if all fields are initialized-only
+     */
+    private boolean computeAreAllFieldsInitializedOnly(ClassTree classTree) {
         for (Tree member : classTree.getMembers()) {
             if (!(member instanceof VariableTree)) {
                 continue;
@@ -508,6 +547,57 @@ public abstract class InitializationParentAnnotatedTypeFactory
             }
         }
         return true;
+    }
+
+    /**
+     * Returns the non-static fields declared in {@code classTree}, in declaration order. The result
+     * is cached and must not be modified.
+     *
+     * @param classTree a class
+     * @return the non-static fields declared in {@code classTree}
+     */
+    List<VariableTree> getInstanceFields(ClassTree classTree) {
+        return instanceFieldsCache.computeIfAbsent(
+                classTree,
+                ct -> {
+                    List<VariableTree> result = new ArrayList<>();
+                    for (VariableTree field : TreeUtils.fieldsFromClassTree(ct)) {
+                        if (!ElementUtils.isStatic(TreeUtils.elementFromDeclaration(field))) {
+                            result.add(field);
+                        }
+                    }
+                    return result;
+                });
+    }
+
+    /**
+     * Returns true if some instance field of {@code classTree} is not initialized in {@code store}.
+     * This is equivalent to {@code !getUninitializedFields(store, path, false,
+     * Collections.emptyList()).isEmpty()} for a {@code path} whose enclosing class is {@code
+     * classTree}, but does not build the list and stops at the first uninitialized field.
+     *
+     * <p>The fields are examined from the last-declared one backwards: fields are commonly
+     * initialized in declaration order, so while a constructor or field initializer is still
+     * running, the last-declared field is the one most likely to be uninitialized. This keeps the
+     * cost of a query in initialization code independent of the number of fields in the common
+     * case, rather than linear in it.
+     *
+     * @param store a store
+     * @param classTree the class whose instance fields to check
+     * @return true if some instance field of {@code classTree} is not initialized in {@code store}
+     */
+    boolean hasUninitializedInstanceFields(InitializationStore store, ClassTree classTree) {
+        List<VariableTree> fields = getInstanceFields(classTree);
+        for (int i = fields.size() - 1; i >= 0; i--) {
+            VariableTree field = fields.get(i);
+            if (isUnused(field, Collections.emptyList())) {
+                continue; // don't consider unused fields
+            }
+            if (!store.isFieldInitialized(TreeUtils.elementFromDeclaration(field))) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
