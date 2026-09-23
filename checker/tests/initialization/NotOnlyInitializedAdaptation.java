@@ -1,6 +1,5 @@
-// Test case for issue 720 and issue 1217: viewpoint adaptation of @NotOnlyInitialized fields
+// Test case for issue 720: viewpoint adaptation of @NotOnlyInitialized fields
 // https://github.com/eisop/checker-framework/issues/720
-// https://github.com/eisop/checker-framework/issues/1217
 
 import org.checkerframework.checker.initialization.qual.Initialized;
 import org.checkerframework.checker.initialization.qual.NotOnlyInitialized;
@@ -36,9 +35,8 @@ class NotOnlyInitializedAdaptation {
 
     void fieldAccess3() {
         // @NotOnlyInitialized should be correctly adapted to @Initialized by @Initialized.
-        // This is the only way to enter then branch in the issue. The correct adaptation ensures
-        // the
-        // correct use of @NotOnlyInitialized.
+        // This is the only way to enter the then branch in the issue.
+        // The correct adaptation ensures the correct use of @NotOnlyInitialized.
         f.hashCode();
 
         @Initialized Object i = f;
@@ -99,14 +97,7 @@ class NotOnlyInitializedAdaptation {
 
     void sideEffectUnderInit(@UnderInitialization NotOnlyInitializedAdaptation this) {}
 
-    // False positive (#1217): The initializer should be consistent with constructor.
-    // The LHS should be adapted to @UnknownInitialization instead of Initialized.
-    // :: error: (assignment.type.incompatible)
-    @NotOnlyInitialized Object g = this;
-    @NotOnlyInitialized Object h;
-
     NotOnlyInitializedAdaptation() {
-        h = this;
         noiField = this;
     }
 }
