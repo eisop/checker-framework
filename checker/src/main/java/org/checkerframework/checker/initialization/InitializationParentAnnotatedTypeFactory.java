@@ -220,6 +220,28 @@ public abstract class InitializationParentAnnotatedTypeFactory
         }
     }
 
+    /**
+     * Adapts the type of a field declaration's initializer target to the enclosing (possibly
+     * under-initialization) receiver, just as {@link #postAsMemberOf} already does for an explicit
+     * or implicit field access such as {@code this.f = ...} or {@code f = ...}.
+     *
+     * <p>Only a {@link VariableTree} (a field declaration, e.g. {@code Object f = this;}) needs
+     * this special case. Every other left-hand-side tree kind that {@link
+     * GenericAnnotatedTypeFactory#getAnnotatedTypeLhs(Tree)} handles (an {@code IdentifierTree} or
+     * {@code MemberSelectTree} referring to a field) is a genuine member-access expression, so its
+     * type already comes from {@link #getAnnotatedType(Tree)}, which resolves the field "as a
+     * member of" the receiver via {@link
+     * org.checkerframework.framework.util.AnnotatedTypes#asMemberOf} and therefore already goes
+     * through {@link #postAsMemberOf}. A field declaration's initializer, however, is not a
+     * member-access expression -- it has no receiver subtree to resolve -- so {@code
+     * asMemberOf}/{@code postAsMemberOf} is never invoked for it, and without this override the
+     * initializer would be checked against the field's plain declared type instead of the
+     * receiver-adapted one.
+     *
+     * @param lhsTree left-hand side of an assignment
+     * @return the type of {@code lhsTree}, adapted to the enclosing receiver when {@code lhsTree}
+     *     is a non-static field declaration
+     */
     @Override
     public AnnotatedTypeMirror getAnnotatedTypeLhs(Tree lhsTree) {
         AnnotatedTypeMirror res = super.getAnnotatedTypeLhs(lhsTree);
