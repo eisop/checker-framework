@@ -235,6 +235,19 @@ public abstract class AbstractQualifierPolymorphism implements QualifierPolymorp
      */
     private AnnotationMirrorMap<AnnotationMirror> collectFromArguments(
             List<? extends ExpressionTree> args, AnnotatedExecutableType type, Tree invocation) {
+        if (args.isEmpty()) {
+            return null;
+        }
+        boolean hasPolyParam = false;
+        for (AnnotatedTypeMirror param : type.getParameterTypes()) {
+            if (hasPolymorphicQualifiers(param)) {
+                hasPolyParam = true;
+                break;
+            }
+        }
+        if (!hasPolyParam) {
+            return null;
+        }
         List<AnnotatedTypeMirror> parameters =
                 AnnotatedTypes.adaptParameters(atypeFactory, type, args, invocation);
         if (parameters.size() != args.size()) {
