@@ -803,23 +803,21 @@ public class InferenceFactory {
      * @param methodInvocation a method invocation
      * @param methodType the type of {@code methodInvocation} before type-argument inference; its
      *     annotated type is side-effected
-     * @return true if the polymorphic qualifiers were resolved, false if {@code methodType} was not
-     *     changed
      */
-    private boolean resolvePolyQualifiers(
+    private void resolvePolyQualifiers(
             MethodInvocationTree methodInvocation, AnnotatedExecutableType methodType) {
         if (!(typeFactory instanceof GenericAnnotatedTypeFactory)) {
-            return false;
+            return;
         }
         QualifierPolymorphism poly =
                 ((GenericAnnotatedTypeFactory<?, ?, ?, ?>) typeFactory).getQualifierPolymorphism();
         if (!poly.hasPolymorphicQualifiers(methodType)) {
-            return false;
+            return;
         }
         List<? extends ExpressionTree> args = methodInvocation.getArguments();
         List<AnnotatedTypeMirror> params = methodType.getParameterTypes();
         if (params.isEmpty() && !args.isEmpty()) {
-            return false;
+            return;
         }
         boolean isVarargs = TreeUtils.isVarargsCall(methodInvocation);
         for (int i = 0; i < args.size(); i++) {
@@ -834,12 +832,11 @@ public class InferenceFactory {
             if (param != null
                     && TreeUtils.isPolyExpression(args.get(i))
                     && poly.hasPolymorphicQualifiers(param)) {
-                return false;
+                return;
             }
         }
         createThetaForInvocation(methodInvocation, methodType.getTypeVariables(), context);
         poly.resolve(methodInvocation, methodType);
-        return true;
     }
 
     /**
