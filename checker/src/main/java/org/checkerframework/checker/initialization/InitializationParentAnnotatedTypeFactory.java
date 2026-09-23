@@ -171,12 +171,26 @@ public abstract class InitializationParentAnnotatedTypeFactory
             if (!isUnknownInitialization(owner) && !isUnderInitialization(owner)) {
                 return;
             }
-            Collection<? extends AnnotationMirror> declaredFieldAnnotations =
-                    getDeclAnnotations(element);
-            AnnotatedTypeMirror fieldAnnotations = getAnnotatedType(element);
-            computeFieldAccessInitializationType(
-                    type, declaredFieldAnnotations, owner, fieldAnnotations);
+            adaptFieldAccessInitializationType(type, owner, element);
         }
+    }
+
+    /**
+     * Fetches the declared and inferred annotations for {@code field} and adapts {@code type} to
+     * {@code owner} via {@link #computeFieldAccessInitializationType}. Shared by {@link
+     * #postAsMemberOf} (for an explicit or implicit field access) and {@link
+     * #getAnnotatedTypeLhs(Tree)} (for a field declaration's initializer target).
+     *
+     * @param type type of the field access or declaration; is side-effected by this method
+     * @param owner the receiver's initialization type
+     * @param field the field element
+     */
+    private void adaptFieldAccessInitializationType(
+            AnnotatedTypeMirror type, AnnotatedTypeMirror owner, Element field) {
+        Collection<? extends AnnotationMirror> declaredFieldAnnotations = getDeclAnnotations(field);
+        AnnotatedTypeMirror fieldAnnotations = getAnnotatedType(field);
+        computeFieldAccessInitializationType(
+                type, declaredFieldAnnotations, owner, fieldAnnotations);
     }
 
     /**
@@ -255,12 +269,8 @@ public abstract class InitializationParentAnnotatedTypeFactory
                 if (receiverType != null
                         && (isUnknownInitialization(receiverType)
                                 || isUnderInitialization(receiverType))) {
-                    Collection<? extends AnnotationMirror> declaredFieldAnnotations =
-                            getDeclAnnotations(field);
-                    AnnotatedTypeMirror fieldAnnotations = getAnnotatedType(field);
                     res = res.deepCopy();
-                    computeFieldAccessInitializationType(
-                            res, declaredFieldAnnotations, receiverType, fieldAnnotations);
+                    adaptFieldAccessInitializationType(res, receiverType, field);
                 }
             }
         }
