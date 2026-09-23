@@ -341,6 +341,16 @@ cached and used after inference, too.  Depending on the code, the result was thi
 spurious `lambda.param.type.incompatible` error, or a spurious
 `type.argument.inference.crashed` error.
 
+Type-argument inference now resolves the polymorphic qualifiers of a generic method invocation
+that is nested in the inference of an enclosing invocation, such as an argument or a lambda's
+returned expression.  Previously a polymorphic qualifier on the nested invocation's return type
+became part of an inferred type argument of the enclosing invocation, so for example
+`id(list.stream().map(String::length))` under the NonEmpty Checker, or a `@PolyNull` method in
+the same position under the Nullness Checker, reported a spurious `return.type.incompatible`,
+`argument.type.incompatible`, or `type.arguments.not.inferred` error.  The qualifiers are still
+not resolved when the argument that instantiates them is itself a poly expression, such as
+`id(wrap(id(o), 1))` for a method `wrap(@PolyNull Object, U)`.
+
 The stubifier resolves a nested annotation named through its enclosing class, as
 the JDK's own `java.lang.invoke.VarHandle` writes `@MethodHandle.PolymorphicSignature`.
 Such a name is not loadable as written -- its binary name separates the nesting with
@@ -757,6 +767,13 @@ method reference whose target, or whose receiver, is a functional interface type
 type argument for an F-bounded type parameter, such as `NodeSupplier<? extends Sub>` for
 `interface NodeSupplier<T extends Node<T>>`.  The ground target type now matches javac's.
 
+Type-checking a class with many fields under the Initialization Checker (and any checker
+built on it, such as the Nullness Checker) is no longer quadratic in the number of fields
+that are declared with an initializer or assigned in a constructor. Determining whether the
+enclosing receiver is still under initialization used to rescan every field of the class on
+each such declaration or assignment; it is now cached or answered with an early-exit scan.
+A class with 4000 such fields now type-checks in about 11 seconds instead of about 26.
+
 **Implementation details:**
 
 The jtreg tests that verify which annotations the Checker Framework writes into
@@ -1160,6 +1177,7 @@ eisop#386,
 eisop#433,
 eisop#622,
 eisop#627,
+eisop#720,
 eisop#737,
 eisop#778,
 eisop#786,
@@ -1173,6 +1191,7 @@ eisop#1059,
 eisop#1060,
 eisop#1074,
 eisop#1198,
+eisop#1217,
 eisop#1244,
 eisop#1292,
 eisop#1299,
@@ -1219,6 +1238,7 @@ eisop#2086,
 eisop#2089,
 eisop#2091,
 eisop#2105,
+eisop#2135,
 eisop#2140,
 typetools#399,
 typetools#2816,
