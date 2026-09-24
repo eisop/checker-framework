@@ -1,6 +1,5 @@
 package org.checkerframework.checker.lock.qual;
 
-import org.checkerframework.framework.qual.ProgrammaticDefaultLocations;
 import org.checkerframework.framework.qual.SubtypeOf;
 import org.checkerframework.framework.qual.TargetLocations;
 import org.checkerframework.framework.qual.TypeUseLocation;
@@ -24,6 +23,5 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.RUNTIME)
 @Target({ElementType.TYPE_USE, ElementType.TYPE_PARAMETER})
 @TargetLocations({TypeUseLocation.LOWER_BOUND, TypeUseLocation.UPPER_BOUND})
-@ProgrammaticDefaultLocations
 @SubtypeOf({NewObject.class})
 public @interface GuardedByBottom {}

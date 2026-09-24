@@ -374,6 +374,11 @@ public class QualifierDefaults {
      * locations are checked. Otherwise, falls back to {@link #permittedAtLocation(AnnotationMirror,
      * TypeUseLocation)}.
      *
+     * <p>A qualifier may explicitly specify its allowed programmatic default locations via {@link
+     * ProgrammaticDefaultLocations}. If omitted, top and bottom qualifiers in the qualifier
+     * hierarchy are permitted at all locations for programmatic defaults (as the canonical bounds
+     * of the lattice), while other qualifiers fall back to {@link #permittedAtLocation}.
+     *
      * @param anno the annotation mirror to check
      * @param location the location
      * @return true if {@code anno} may be used as a programmatic default at {@code location}
@@ -385,6 +390,10 @@ public class QualifierDefaults {
                 qualElt.getAnnotation(ProgrammaticDefaultLocations.class);
         if (progLocations != null) {
             return matchesTargetLocations(progLocations.value(), location);
+        }
+        QualifierHierarchy qualHierarchy = this.atypeFactory.getQualifierHierarchy();
+        if (qualHierarchy != null && (qualHierarchy.isTop(anno) || qualHierarchy.isBottom(anno))) {
+            return true;
         }
         return permittedAtLocation(anno, location);
     }

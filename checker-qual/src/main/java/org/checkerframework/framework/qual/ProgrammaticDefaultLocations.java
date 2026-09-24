@@ -18,9 +18,10 @@ import java.lang.annotation.Target;
  * <p>If used as a marker annotation without arguments (the default), the qualifier is permitted as
  * a programmatic default at all type-use locations ({@link TypeUseLocation#ALL}).
  *
- * <p>If a qualifier has no {@code @ProgrammaticDefaultLocations} annotation, programmatic defaults
- * are permitted only at the locations allowed by its {@link TargetLocations} meta-annotation (or
- * all locations if {@link TargetLocations} is also omitted).
+ * <p>If a qualifier has no {@code @ProgrammaticDefaultLocations} annotation, top and bottom
+ * qualifiers in a qualifier hierarchy are permitted as programmatic defaults at all locations by
+ * default. Other qualifiers are permitted only at the locations allowed by their {@link
+ * TargetLocations} meta-annotation (or all locations if {@link TargetLocations} is also omitted).
  */
 @Documented
 @Retention(RetentionPolicy.RUNTIME)
