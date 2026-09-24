@@ -64,6 +64,12 @@ public class ElementDefaultAnnotatedTypeFactory extends BaseAnnotatedTypeFactory
     public static final String DISALLOWED_ELEMENT_OPTION = "disallowedElementDefault";
 
     /**
+     * Command-line option that makes this factory register programmatic defaults for a qualifier
+     * carrying @ProgrammaticDefaultLocations for a location not permitted by its @TargetLocations.
+     */
+    public static final String PROGRAMMATIC_ALLOWED_OPTION = "programmaticAllowedDefault";
+
+    /**
      * Creates a new ElementDefaultAnnotatedTypeFactory.
      *
      * @param checker the checker
@@ -117,6 +123,15 @@ public class ElementDefaultAnnotatedTypeFactory extends BaseAnnotatedTypeFactory
             AnnotationMirror restricted =
                     AnnotationBuilder.fromClass(elements, ElementDefaultRestrictedBottom.class);
             defs.addElementDefault(before, restricted, TypeUseLocation.RETURN);
+        }
+
+        if (checker.hasOption(PROGRAMMATIC_ALLOWED_OPTION)) {
+            AnnotationMirror progAllowed =
+                    AnnotationBuilder.fromClass(
+                            elements, ElementDefaultProgrammaticAllowedBottom.class);
+            defs.addCheckedCodeDefault(progAllowed, TypeUseLocation.RETURN);
+            defs.addUncheckedCodeDefault(progAllowed, TypeUseLocation.RETURN);
+            defs.addElementDefault(before, progAllowed, TypeUseLocation.RETURN);
         }
 
         // OrderAfterClass: the defaults of the class *and* of one of its members are queried, and
@@ -206,6 +221,7 @@ public class ElementDefaultAnnotatedTypeFactory extends BaseAnnotatedTypeFactory
                 Arrays.asList(
                         ElementDefaultTop.class,
                         ElementDefaultBottom.class,
-                        ElementDefaultRestrictedBottom.class));
+                        ElementDefaultRestrictedBottom.class,
+                        ElementDefaultProgrammaticAllowedBottom.class));
     }
 }

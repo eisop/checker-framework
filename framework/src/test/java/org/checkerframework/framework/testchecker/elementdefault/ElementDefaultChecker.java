@@ -21,6 +21,7 @@ import org.checkerframework.framework.source.SupportedOptions;
     ElementDefaultAnnotatedTypeFactory.CONFLICT_OPTION,
     ElementDefaultAnnotatedTypeFactory.DISALLOWED_CHECKED_OPTION,
     ElementDefaultAnnotatedTypeFactory.DISALLOWED_UNCHECKED_OPTION,
-    ElementDefaultAnnotatedTypeFactory.DISALLOWED_ELEMENT_OPTION
+    ElementDefaultAnnotatedTypeFactory.DISALLOWED_ELEMENT_OPTION,
+    ElementDefaultAnnotatedTypeFactory.PROGRAMMATIC_ALLOWED_OPTION
 })
 public final class ElementDefaultChecker extends BaseTypeChecker {}

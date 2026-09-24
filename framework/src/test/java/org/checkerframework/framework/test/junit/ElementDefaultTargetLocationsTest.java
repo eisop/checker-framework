@@ -60,4 +60,29 @@ public class ElementDefaultTargetLocationsTest {
     public void disallowedElementDefaultIsATypeSystemError() {
         runWithOption(ElementDefaultAnnotatedTypeFactory.DISALLOWED_ELEMENT_OPTION);
     }
+
+    @Test
+    public void programmaticAllowedDefaultSucceeds() {
+        TestConfiguration config =
+                TestConfigurationBuilder.buildDefaultConfiguration(
+                        "tests/elementdefault",
+                        TestUtilities.findNestedJavaTestFiles("elementdefault"),
+                        Collections.singletonList(ElementDefaultChecker.class.getName()),
+                        Arrays.asList(
+                                "-A"
+                                        + ElementDefaultAnnotatedTypeFactory
+                                                .PROGRAMMATIC_ALLOWED_OPTION,
+                                "-AnoPrintErrorStack"),
+                        false);
+        CompilationResult result = new TypecheckExecutor().compile(config);
+
+        StringBuilder output = new StringBuilder(result.getJavacOutput());
+        result.getDiagnostics().forEach(d -> output.append(d.getMessage(null)).append('\n'));
+        String outputString = output.toString();
+
+        Assert.assertFalse(
+                "Programmatic default with @ProgrammaticDefaultLocations should not fail with prohibited location, but got: "
+                        + outputString,
+                outputString.contains("is not permitted at location"));
+    }
 }

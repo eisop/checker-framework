@@ -19,6 +19,7 @@ import com.sun.source.util.TreePath;
 import org.checkerframework.checker.interning.qual.FindDistinct;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.framework.qual.DefaultQualifier;
+import org.checkerframework.framework.qual.ProgrammaticDefaultLocations;
 import org.checkerframework.framework.qual.TargetLocations;
 import org.checkerframework.framework.qual.TypeUseLocation;
 import org.checkerframework.framework.type.AnnotatedTypeFactory;
@@ -361,7 +362,44 @@ public class QualifierDefaults {
         if (targetLocations == null) {
             return true;
         }
-        for (TypeUseLocation permitted : targetLocations.value()) {
+        return matchesTargetLocations(targetLocations.value(), location);
+    }
+
+    /**
+     * Returns true if {@code anno} may be applied at {@code location} as a programmatic default
+     * (e.g., via {@link #addCheckedCodeDefault}, {@link #addUncheckedCodeDefault}, or {@link
+     * #addElementDefault}).
+     *
+     * <p>If {@code anno} carries a {@link ProgrammaticDefaultLocations} meta-annotation, its
+     * locations are checked. Otherwise, falls back to {@link #permittedAtLocation(AnnotationMirror,
+     * TypeUseLocation)}.
+     *
+     * @param anno the annotation mirror to check
+     * @param location the location
+     * @return true if {@code anno} may be used as a programmatic default at {@code location}
+     */
+    public boolean permittedAtProgrammaticLocation(
+            AnnotationMirror anno, TypeUseLocation location) {
+        Element qualElt = anno.getAnnotationType().asElement();
+        ProgrammaticDefaultLocations progLocations =
+                qualElt.getAnnotation(ProgrammaticDefaultLocations.class);
+        if (progLocations != null) {
+            return matchesTargetLocations(progLocations.value(), location);
+        }
+        return permittedAtLocation(anno, location);
+    }
+
+    /**
+     * Returns true if {@code location} matches any of {@code permittedLocations}, taking into
+     * account location hierarchies (such as UPPER_BOUND and LOWER_BOUND).
+     *
+     * @param permittedLocations the permitted locations
+     * @param location the location to test
+     * @return true if permitted
+     */
+    private boolean matchesTargetLocations(
+            TypeUseLocation[] permittedLocations, TypeUseLocation location) {
+        for (TypeUseLocation permitted : permittedLocations) {
             if (permitted == location || permitted == TypeUseLocation.ALL) {
                 return true;
             }
@@ -424,9 +462,9 @@ public class QualifierDefaults {
             AnnotationMirror absoluteDefaultAnno,
             TypeUseLocation location,
             boolean applyToSubpackages) {
-        if (!permittedAtLocation(absoluteDefaultAnno, location)) {
+        if (!permittedAtProgrammaticLocation(absoluteDefaultAnno, location)) {
             throw new TypeSystemError(
-                    "The default qualifier %s is not permitted at location %s by its @TargetLocations meta-annotation.",
+                    "The default qualifier %s is not permitted at location %s by its @TargetLocations or @ProgrammaticDefaultLocations meta-annotation.",
                     absoluteDefaultAnno, location);
         }
         checkDuplicates(checkedCodeDefaults, absoluteDefaultAnno, location);
@@ -457,9 +495,9 @@ public class QualifierDefaults {
             AnnotationMirror uncheckedDefaultAnno,
             TypeUseLocation location,
             boolean applyToSubpackages) {
-        if (!permittedAtLocation(uncheckedDefaultAnno, location)) {
+        if (!permittedAtProgrammaticLocation(uncheckedDefaultAnno, location)) {
             throw new TypeSystemError(
-                    "The unchecked code default qualifier %s is not permitted at location %s by its @TargetLocations meta-annotation.",
+                    "The unchecked code default qualifier %s is not permitted at location %s by its @TargetLocations or @ProgrammaticDefaultLocations meta-annotation.",
                     uncheckedDefaultAnno, location);
         }
         checkDuplicates(uncheckedCodeDefaults, uncheckedDefaultAnno, location);
@@ -539,9 +577,9 @@ public class QualifierDefaults {
      */
     public void addElementDefault(
             Element elem, AnnotationMirror elementDefaultAnno, TypeUseLocation location) {
-        if (!permittedAtLocation(elementDefaultAnno, location)) {
+        if (!permittedAtProgrammaticLocation(elementDefaultAnno, location)) {
             throw new TypeSystemError(
-                    "The default qualifier %s on %s %s is not permitted at location %s by its @TargetLocations meta-annotation.",
+                    "The default qualifier %s on %s %s is not permitted at location %s by its @TargetLocations or @ProgrammaticDefaultLocations meta-annotation.",
                     elementDefaultAnno, elem.getKind(), elem, location);
         }
         if (atypeFactory.getRoot() != null) {

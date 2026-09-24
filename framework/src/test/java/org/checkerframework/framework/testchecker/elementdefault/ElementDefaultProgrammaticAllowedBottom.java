@@ -1,4 +1,4 @@
-package org.checkerframework.checker.lock.qual;
+package org.checkerframework.framework.testchecker.elementdefault;
 
 import org.checkerframework.framework.qual.ProgrammaticDefaultLocations;
 import org.checkerframework.framework.qual.SubtypeOf;
@@ -12,18 +12,13 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * The bottom type in the GuardedBy type system. Programmers should rarely write this type.
- *
- * <p>If a variable {@code x} has type {@code @GuardedByBottom}, then the value referred to by
- * {@code x} is {@code null} (or dead code) and can never be dereferenced.
- *
- * @checker_framework.manual #lock-checker Lock Checker
- * @checker_framework.manual #bottom-type the bottom type
+ * A qualifier with restricted @TargetLocations, but with @ProgrammaticDefaultLocations allowing all
+ * locations for programmatic defaults.
  */
 @Documented
 @Retention(RetentionPolicy.RUNTIME)
 @Target({ElementType.TYPE_USE, ElementType.TYPE_PARAMETER})
-@TargetLocations({TypeUseLocation.LOWER_BOUND, TypeUseLocation.UPPER_BOUND})
+@TargetLocations({TypeUseLocation.PARAMETER, TypeUseLocation.EXPLICIT_LOWER_BOUND})
 @ProgrammaticDefaultLocations
-@SubtypeOf({NewObject.class})
-public @interface GuardedByBottom {}
+@SubtypeOf(ElementDefaultRestrictedBottom.class)
+public @interface ElementDefaultProgrammaticAllowedBottom {}

@@ -2,8 +2,8 @@ import org.checkerframework.checker.nullness.qual.KeyForBottom;
 import org.checkerframework.framework.qual.DefaultQualifier;
 import org.checkerframework.framework.qual.TypeUseLocation;
 
-// KeyForBottom is only permitted at LOWER_BOUND, UPPER_BOUND, and PARAMETER.
-// Setting it as default for RETURN, FIELD, or LOCAL_VARIABLE is prohibited.
+// KeyForBottom is only permitted at LOWER_BOUND and UPPER_BOUND in source code.
+// Setting it as default in source for RETURN, FIELD, LOCAL_VARIABLE, or PARAMETER is prohibited.
 public class DefaultQualifierProhibitedLocation {
 
     // :: error: (default.qualifier.prohibited.location)
@@ -22,7 +22,13 @@ public class DefaultQualifierProhibitedLocation {
     })
     void testList() {}
 
-    // PARAMETER is permitted: no error
+    // PARAMETER is prohibited for written @DefaultQualifier (even with
+    // @ProgrammaticDefaultLocations)
+    // :: error: (default.qualifier.prohibited.location)
     @DefaultQualifier(value = KeyForBottom.class, locations = TypeUseLocation.PARAMETER)
     void testParam(Object x) {}
+
+    // LOWER_BOUND is permitted in source: no error
+    @DefaultQualifier(value = KeyForBottom.class, locations = TypeUseLocation.LOWER_BOUND)
+    void testLowerBound() {}
 }
