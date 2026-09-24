@@ -1992,9 +1992,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
 
         atypeFactory.getDependentTypesHelper().checkTypeForErrorExpressions(variableType, tree);
         Element varElt = TreeUtils.elementFromDeclaration(tree);
-        if (varElt != null) {
-            atypeFactory.getQualifierDefaults().checkWrittenDefaults(varElt);
-        }
+        atypeFactory.getQualifierDefaults().checkWrittenDefaults(varElt);
         if (varElt.getKind() == ElementKind.ENUM_CONSTANT) {
             commonAssignmentCheck(
                     tree, tree.getInitializer(), "enum.declaration.type.incompatible");
