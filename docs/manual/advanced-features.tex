@@ -328,6 +328,17 @@ the \<applyToSubpackages> element to false, as in
 % This is slightly at odds with Java's treatment of packages of different
 % names as essentially unrelated, but is more intuitive and useful.
 
+Locations specified in \refqualclass{framework/qual}{DefaultQualifier} must be
+permitted by the qualifier's \refqualclass{framework/qual}{TargetLocations}
+meta-annotation.  If \code{@DefaultQualifier} specifies a location prohibited
+by the qualifier's \code{@TargetLocations} (or if \code{locations} is omitted
+and the qualifier cannot be applied to all locations), the Checker Framework
+issues a compile-time error.  For example, bottom qualifiers typically
+restrict their target locations to lower and upper bounds (preventing
+programmers from writing them explicitly on parameters, return types, or
+fields); therefore, attempting to set a bottom qualifier as a default on
+those locations via \code{@DefaultQualifier} is an error.
+
 
 %% Don't even bother to bring this up; it will just sow confusion without
 %% being helpful.
@@ -1691,4 +1702,4 @@ class @Marsupial-Animal {
 % LocalWords:  Signedness MonotonicNonNull UpperBoundFor enableassertions
 % LocalWords:  getTypeDeclarationBounds identityHashCode disableassertions
 % LocalWords:  AinvocationPreservesArgumentNullness RequiresPresent
-% LocalWords:  EnsuresPresent EnsuresPresentIf
+% LocalWords:  EnsuresPresent EnsuresPresentIf TargetLocations
