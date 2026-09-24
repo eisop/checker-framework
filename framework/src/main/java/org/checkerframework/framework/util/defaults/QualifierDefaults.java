@@ -1,7 +1,5 @@
 package org.checkerframework.framework.util.defaults;
 
-import com.sun.source.tree.AnnotationTree;
-import com.sun.source.tree.AssignmentTree;
 import com.sun.source.tree.ClassTree;
 import com.sun.source.tree.ExpressionTree;
 import com.sun.source.tree.IdentifierTree;
@@ -9,8 +7,6 @@ import com.sun.source.tree.MemberSelectTree;
 import com.sun.source.tree.MethodInvocationTree;
 import com.sun.source.tree.MethodTree;
 import com.sun.source.tree.ModifiersTree;
-import com.sun.source.tree.NewArrayTree;
-import com.sun.source.tree.PackageTree;
 import com.sun.source.tree.Tree;
 import com.sun.source.tree.TypeParameterTree;
 import com.sun.source.tree.VariableTree;
@@ -787,47 +783,8 @@ public class QualifierDefaults {
         if (declTree == null) {
             return null;
         }
-        List<? extends AnnotationTree> annoTrees;
-        if (declTree instanceof ClassTree) {
-            annoTrees = ((ClassTree) declTree).getModifiers().getAnnotations();
-        } else if (declTree instanceof MethodTree) {
-            annoTrees = ((MethodTree) declTree).getModifiers().getAnnotations();
-        } else if (declTree instanceof VariableTree) {
-            annoTrees = ((VariableTree) declTree).getModifiers().getAnnotations();
-        } else if (declTree instanceof PackageTree) {
-            annoTrees = ((PackageTree) declTree).getAnnotations();
-        } else {
-            annoTrees = Collections.emptyList();
-        }
-        for (AnnotationTree annoTree : annoTrees) {
-            AnnotationMirror mirror = TreeUtils.annotationFromAnnotationTree(annoTree);
-            if (AnnotationUtils.areSame(mirror, dq)) {
-                return annoTree;
-            }
-            if (AnnotationUtils.areSameByName(
-                    mirror, "org.checkerframework.framework.qual.DefaultQualifier.List")) {
-                for (ExpressionTree arg : annoTree.getArguments()) {
-                    if (arg instanceof AssignmentTree) {
-                        AssignmentTree assign = (AssignmentTree) arg;
-                        ExpressionTree expr = assign.getExpression();
-                        if (expr instanceof NewArrayTree) {
-                            NewArrayTree nat = (NewArrayTree) expr;
-                            for (ExpressionTree elem : nat.getInitializers()) {
-                                if (elem instanceof AnnotationTree) {
-                                    AnnotationTree subAnnoTree = (AnnotationTree) elem;
-                                    if (AnnotationUtils.areSame(
-                                            TreeUtils.annotationFromAnnotationTree(subAnnoTree),
-                                            dq)) {
-                                        return subAnnoTree;
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        return declTree;
+        Tree annoTree = TreeUtils.findAnnotationTree(declTree, dq);
+        return annoTree != null ? annoTree : declTree;
     }
 
     /**
