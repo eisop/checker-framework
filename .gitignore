@@ -104,8 +104,6 @@ docs/examples/errorprone/.gradle/
 docs/examples/errorprone/Out.txt
 docs/examples/eisop-errorprone/.gradle/
 docs/examples/eisop-errorprone/Out.txt
-docs/examples/typetools-checker-qual/.gradle/
-docs/examples/typetools-checker-qual/Out.txt
 docs/examples/nullaway/.gradle/
 docs/examples/nullaway/Out.txt
 docs/examples/jspecify/.gradle/
@@ -114,6 +112,8 @@ docs/examples/lombok/.gradle/
 docs/examples/lombok/Out.txt
 docs/examples/lombok/lombok.config
 docs/examples/publish-smoketest/.gradle/
+docs/examples/typetools-checker-qual/.gradle/
+docs/examples/typetools-checker-qual/Out.txt
 docs/manual/*.png
 docs/manual/*.svg
 docs/manual/contributors.txt

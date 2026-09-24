@@ -149,11 +149,6 @@ with the `@DefaultQualifier` annotations written on the same declaration and wit
 defaults of enclosing elements, instead of replacing them or being lost depending on the
 order in which defaults were first queried.
 
-When `@DefaultQualifier` on the classpath lacks the `applyToSubpackages` element (for example,
-when resolved from upstream typetools `checker-qual` rather than EISOP's fork), the framework
-now degrades gracefully: it issues a note diagnostic once per checker instance explaining that
-package defaults will apply to subpackages unconditionally, and continues type-checking without
-crashing.
 
 The Nullness Checker now treats JSpecify's `@NullMarked` as an alias for
 `@AnnotatedFor` scoped to nullness checking alone (not initialization or `@KeyFor`
@@ -377,6 +372,12 @@ an annotation written on a package also applies to that package's subpackages,
 and defaults to `true`, so existing code is unaffected. Setting it to false limits
 only that annotation; an applicable annotation on an enclosing package still
 applies.
+
+When `@DefaultQualifier` on the classpath lacks the `applyToSubpackages` element (for example,
+when resolved from upstream typetools `checker-qual` rather than EISOP's fork), the framework
+now degrades gracefully: it issues a note diagnostic once per checker instance explaining that
+package defaults will apply to subpackages unconditionally, and continues type-checking without
+crashing.
 
 The new `-Amode=<mode>` option turns on a checker-defined group of options.  A mode
 only sets an option the user did not, so an option written on the command line keeps
