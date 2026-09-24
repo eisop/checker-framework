@@ -3,6 +3,11 @@ Version 3.49.5-eisop2 (June ?, 2026)
 
 **User-visible changes:**
 
+Field types in a method's initial dataflow store are now viewpoint-adapted to
+the method's receiver. When an initialized receiver's viewpoint adapts an instance
+field's declared type, the initial store now contains the adapted field type
+instead of the unadapted declared type.
+
 A binary stub file is no longer packaged after the `.astub` file it was generated from is
 renamed or deleted.  The stale `.bin.gz` shipped in the jar and was read in preference to the
 text stub that no longer existed, so the removed annotations kept being applied.

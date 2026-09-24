@@ -61,6 +61,7 @@ import org.checkerframework.framework.flow.CFAbstractAnalysis.FieldInitialValue;
 import org.checkerframework.framework.type.AnnotatedTypeFactory;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
 import org.checkerframework.framework.type.GenericAnnotatedTypeFactory;
+import org.checkerframework.framework.util.AnnotatedTypes;
 import org.checkerframework.framework.util.Contract;
 import org.checkerframework.framework.util.Contract.ConditionalPostcondition;
 import org.checkerframework.framework.util.Contract.Postcondition;
@@ -562,6 +563,10 @@ public abstract class CFAbstractTransfer<
         TypeElement classEle = TreeUtils.elementFromDeclaration(classTree);
         boolean isInitializedReceiver =
                 !isConstructor && !isNotFullyInitializedReceiver(methodTree);
+        AnnotatedTypeMirror receiverType =
+                (isInitializedReceiver && !isStaticMethod && methodTree.getBody() != null)
+                        ? analysis.getTypeFactory().getSelfType(methodTree.getBody())
+                        : null;
         for (FieldInitialValue<V> fieldInitialValue : analysis.getFieldInitialValues()) {
             VariableElement varEle = fieldInitialValue.fieldDecl.getField();
             boolean isStaticField = ElementUtils.isStatic(varEle);
@@ -581,17 +586,37 @@ public abstract class CFAbstractTransfer<
                 continue;
             }
 
-            // Maybe insert the declared type.
-            // varEle.getEnclosingElement().equals(classEle) ensures the field belongs to the
-            // current class.
+            // If the field belongs to another class, don't add it to the store.
+            if (!varEle.getEnclosingElement().equals(classEle)) {
+                continue;
+            }
+
+            // Maybe insert the declared or adapted field type.
             if (isConstructor) {
-                if (fieldInitialValue.initializer != null
-                        && varEle.getEnclosingElement().equals(classEle)) {
-                    store.insertValue(fieldInitialValue.fieldDecl, fieldInitialValue.declared);
+                if (fieldInitialValue.initializer != null) {
+                    store.insertValue(
+                            fieldInitialValue.fieldDecl,
+                            analysis.createAbstractValue(fieldInitialValue.declared));
                 }
             } else if (isInitializedReceiver) {
-                if (varEle.getEnclosingElement().equals(classEle)) {
-                    store.insertValue(fieldInitialValue.fieldDecl, fieldInitialValue.declared);
+                V value;
+                if (!isStaticField && receiverType != null) {
+                    AnnotatedTypeMirror adaptedType =
+                            AnnotatedTypes.asMemberOf(
+                                    analysis.getTypes(),
+                                    analysis.getTypeFactory(),
+                                    receiverType,
+                                    varEle,
+                                    fieldInitialValue.declared);
+                    value = analysis.createAbstractValue(adaptedType);
+                    if (value == null) {
+                        value = analysis.createAbstractValue(fieldInitialValue.declared);
+                    }
+                } else {
+                    value = analysis.createAbstractValue(fieldInitialValue.declared);
+                }
+                if (value != null) {
+                    store.insertValue(fieldInitialValue.fieldDecl, value);
                 }
             }
         }

@@ -14,6 +14,7 @@ import javax.lang.model.element.AnnotationMirror;
 import viewpointtest.quals.A;
 import viewpointtest.quals.B;
 import viewpointtest.quals.Bottom;
+import viewpointtest.quals.C;
 import viewpointtest.quals.Lost;
 import viewpointtest.quals.PolyVP;
 import viewpointtest.quals.ReceiverDependentQual;
@@ -44,6 +45,7 @@ public class ViewpointTestAnnotatedTypeFactory extends BaseAnnotatedTypeFactory 
         return getBundledTypeQualifiers(
                 A.class,
                 B.class,
+                C.class,
                 Bottom.class,
                 PolyVP.class,
                 ReceiverDependentQual.class,
