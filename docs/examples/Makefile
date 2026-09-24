@@ -18,6 +18,7 @@ compile:
 	$(MAKE) -C jspecify
 	$(MAKE) -C publish-smoketest
 	$(MAKE) -C eisop-errorprone
+	$(MAKE) -C typetools-checker-qual
 
 # TODO: type check the different files with the right checker;
 #   some tests expect errors, compare against expected errors.
@@ -35,3 +36,4 @@ clean:
 	$(MAKE) -C jspecify clean
 	$(MAKE) -C publish-smoketest clean
 	$(MAKE) -C eisop-errorprone clean
+	$(MAKE) -C typetools-checker-qual clean

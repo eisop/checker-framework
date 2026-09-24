@@ -1,0 +1,53 @@
+// ///////////////////////////////////////////////////////////////////////////
+// Example demonstrating compatibility when using EISOP checker with
+// upstream typetools checker-qual on the compile classpath.
+//
+
+plugins {
+    id 'java'
+    id 'org.checkerframework' version '1.0.2'
+}
+
+ext {
+    versions = [
+        eisopVersion: '3.49.5-eisop1',
+        typetoolsQualVersion: '3.49.1',
+    ]
+}
+
+boolean useLocal = findProperty('cfVersion') == 'local'
+def cfRoot = rootProject.file('../../..')
+
+dependencies {
+    // Crucial: compileClasspath uses typetools checker-qual, NOT EISOP's checker-qual.
+    // Typetools checker-qual does not have the EISOP-specific applyToSubpackages attribute on @DefaultQualifier.
+    compileOnly "org.checkerframework:checker-qual:${versions.typetoolsQualVersion}"
+    testCompileOnly "org.checkerframework:checker-qual:${versions.typetoolsQualVersion}"
+
+    if (useLocal) {
+        checkerFramework files("${cfRoot}/checker/dist/checker.jar")
+    } else {
+        checkerFramework "io.github.eisop:checker:${versions.eisopVersion}"
+    }
+}
+
+repositories {
+    mavenCentral()
+}
+
+checkerFramework {
+    version = "dependencies"
+    checkers = [
+        'org.checkerframework.checker.interning.InterningChecker',
+    ]
+    extraJavacArgs = ['-Aversion']
+}
+
+compileJava {
+    // The org.checkerframework plugin automatically injects checker-qual.jar from
+    // CHECKERFRAMEWORK/checker/dist when -PcfVersion=local is used.
+    // To genuinely test that typetools:checker-qual is used, remove EISOP's checker-qual.jar:
+    classpath = classpath.filter { File f ->
+        !f.absolutePath.contains("checker/dist/checker-qual.jar")
+    }
+}
