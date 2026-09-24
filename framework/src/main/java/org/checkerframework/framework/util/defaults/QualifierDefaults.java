@@ -1,5 +1,7 @@
 package org.checkerframework.framework.util.defaults;
 
+import com.sun.source.tree.AnnotationTree;
+import com.sun.source.tree.AssignmentTree;
 import com.sun.source.tree.ClassTree;
 import com.sun.source.tree.ExpressionTree;
 import com.sun.source.tree.IdentifierTree;
@@ -7,6 +9,8 @@ import com.sun.source.tree.MemberSelectTree;
 import com.sun.source.tree.MethodInvocationTree;
 import com.sun.source.tree.MethodTree;
 import com.sun.source.tree.ModifiersTree;
+import com.sun.source.tree.NewArrayTree;
+import com.sun.source.tree.PackageTree;
 import com.sun.source.tree.Tree;
 import com.sun.source.tree.TypeParameterTree;
 import com.sun.source.tree.VariableTree;
@@ -15,6 +19,7 @@ import com.sun.source.util.TreePath;
 import org.checkerframework.checker.interning.qual.FindDistinct;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.framework.qual.DefaultQualifier;
+import org.checkerframework.framework.qual.TargetLocations;
 import org.checkerframework.framework.qual.TypeUseLocation;
 import org.checkerframework.framework.type.AnnotatedTypeFactory;
 import org.checkerframework.framework.type.AnnotatedTypeMirror;
@@ -312,6 +317,9 @@ public class QualifierDefaults {
 
     /** Add standard unchecked defaults that do not conflict with previously added defaults. */
     public void addUncheckedStandardDefaults() {
+        if (!useConservativeDefaultsSource && !useConservativeDefaultsBytecode) {
+            return;
+        }
         QualifierHierarchy qualHierarchy = this.atypeFactory.getQualifierHierarchy();
         AnnotationMirrorSet tops = qualHierarchy.getTopAnnotations();
         AnnotationMirrorSet bottoms = qualHierarchy.getBottomAnnotations();
@@ -333,6 +341,48 @@ public class QualifierDefaults {
                 }
             }
         }
+    }
+
+    /**
+     * Does {@code anno}'s {@link TargetLocations} meta-annotation permit it at {@code location}?
+     *
+     * <p>A qualifier can restrict where it may be written via {@link TargetLocations}. Defaulting a
+     * qualifier onto a prohibited location causes type validation errors on code the user did not
+     * write.
+     *
+     * @param anno a qualifier
+     * @param location a type use location
+     * @return true if {@code anno} may be applied at {@code location}
+     */
+    public boolean permittedAtLocation(AnnotationMirror anno, TypeUseLocation location) {
+        Element qualElt = anno.getAnnotationType().asElement();
+        TargetLocations targetLocations = qualElt.getAnnotation(TargetLocations.class);
+        // No @TargetLocations means the qualifier may be written on any type use.
+        if (targetLocations == null) {
+            return true;
+        }
+        for (TypeUseLocation permitted : targetLocations.value()) {
+            if (permitted == location || permitted == TypeUseLocation.ALL) {
+                return true;
+            }
+            if (permitted == TypeUseLocation.UPPER_BOUND
+                    && (location == TypeUseLocation.EXPLICIT_UPPER_BOUND
+                            || location == TypeUseLocation.IMPLICIT_UPPER_BOUND
+                            || location == TypeUseLocation.EXPLICIT_TYPE_PARAMETER_UPPER_BOUND
+                            || location == TypeUseLocation.IMPLICIT_TYPE_PARAMETER_UPPER_BOUND
+                            || location == TypeUseLocation.EXPLICIT_WILDCARD_UPPER_BOUND
+                            || location == TypeUseLocation.IMPLICIT_WILDCARD_UPPER_BOUND
+                            || location == TypeUseLocation.IMPLICIT_WILDCARD_UPPER_BOUND_NO_SUPER
+                            || location == TypeUseLocation.IMPLICIT_WILDCARD_UPPER_BOUND_SUPER)) {
+                return true;
+            }
+            if (permitted == TypeUseLocation.LOWER_BOUND
+                    && (location == TypeUseLocation.EXPLICIT_LOWER_BOUND
+                            || location == TypeUseLocation.IMPLICIT_LOWER_BOUND)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /** Add standard CLIMB defaults that do not conflict with previously added defaults. */
@@ -374,6 +424,11 @@ public class QualifierDefaults {
             AnnotationMirror absoluteDefaultAnno,
             TypeUseLocation location,
             boolean applyToSubpackages) {
+        if (!permittedAtLocation(absoluteDefaultAnno, location)) {
+            throw new TypeSystemError(
+                    "The default qualifier %s is not permitted at location %s by its @TargetLocations meta-annotation.",
+                    absoluteDefaultAnno, location);
+        }
         checkDuplicates(checkedCodeDefaults, absoluteDefaultAnno, location);
         checkedCodeDefaults.add(new Default(absoluteDefaultAnno, location, applyToSubpackages));
         invalidateFusedDefaults();
@@ -402,6 +457,11 @@ public class QualifierDefaults {
             AnnotationMirror uncheckedDefaultAnno,
             TypeUseLocation location,
             boolean applyToSubpackages) {
+        if (!permittedAtLocation(uncheckedDefaultAnno, location)) {
+            throw new TypeSystemError(
+                    "The unchecked code default qualifier %s is not permitted at location %s by its @TargetLocations meta-annotation.",
+                    uncheckedDefaultAnno, location);
+        }
         checkDuplicates(uncheckedCodeDefaults, uncheckedDefaultAnno, location);
         checkIsValidUncheckedCodeLocation(uncheckedDefaultAnno, location);
 
@@ -479,6 +539,11 @@ public class QualifierDefaults {
      */
     public void addElementDefault(
             Element elem, AnnotationMirror elementDefaultAnno, TypeUseLocation location) {
+        if (!permittedAtLocation(elementDefaultAnno, location)) {
+            throw new TypeSystemError(
+                    "The default qualifier %s on %s %s is not permitted at location %s by its @TargetLocations meta-annotation.",
+                    elementDefaultAnno, elem.getKind(), elem, location);
+        }
         if (atypeFactory.getRoot() != null) {
             // getRoot() is null while the type factory is being constructed and initialized
             // (including while annotation files are parsed) and becomes non-null when the first
@@ -604,6 +669,118 @@ public class QualifierDefaults {
                     .getChecker()
                     .reportWarning(elt, "conflicting.defaults", elt, newDefault, conflicting);
         }
+    }
+
+    /**
+     * Checks written @DefaultQualifier annotations on {@code elt} for conflicting defaults and for
+     * locations prohibited by the qualifier's {@link TargetLocations} meta-annotation.
+     *
+     * @param elt a declaration in source
+     */
+    public void checkWrittenDefaults(Element elt) {
+        checkTargetLocations(elt);
+        checkConflictingDefaults(elt);
+    }
+
+    /**
+     * Reports an error for each written @DefaultQualifier annotation on {@code elt} that specifies
+     * a {@link TypeUseLocation} prohibited by the qualifier's {@link TargetLocations}
+     * meta-annotation.
+     *
+     * @param elt an element that may carry @DefaultQualifier annotations
+     */
+    public void checkTargetLocations(Element elt) {
+        List<AnnotationMirror> dqAnnos = atypeFactory.getDefaultQualifierAnnotations(elt);
+        if (dqAnnos.isEmpty()) {
+            return;
+        }
+        for (AnnotationMirror dq : dqAnnos) {
+            @SuppressWarnings("unchecked")
+            Name cls = AnnotationUtils.getElementValueClassName(dq, defaultQualifierValueElement);
+            AnnotationMirror anno = AnnotationBuilder.fromName(elements, cls);
+            if (anno == null) {
+                continue;
+            }
+            anno = atypeFactory.asSupportedQualifier(anno);
+            if (anno == null) {
+                continue;
+            }
+            TypeUseLocation[] locations =
+                    AnnotationUtils.getElementValueEnumArray(
+                            dq,
+                            defaultQualifierLocationsElement,
+                            TypeUseLocation.class,
+                            defaultQualifierValueDefault);
+            for (TypeUseLocation loc : locations) {
+                if (!permittedAtLocation(anno, loc)) {
+                    Tree annoTree = findAnnotationTree(elt, dq);
+                    Object reportTarget = annoTree != null ? annoTree : elt;
+                    atypeFactory
+                            .getChecker()
+                            .reportError(
+                                    reportTarget,
+                                    "default.qualifier.prohibited.location",
+                                    anno,
+                                    loc);
+                }
+            }
+        }
+    }
+
+    /**
+     * Finds the {@link Tree} corresponding to {@code dq} on the declaration of {@code elt}, or null
+     * if not found or if {@code elt} does not originate from source code.
+     *
+     * @param elt the element
+     * @param dq the default qualifier annotation mirror
+     * @return the tree for the annotation, or null
+     */
+    private @Nullable Tree findAnnotationTree(Element elt, AnnotationMirror dq) {
+        Tree declTree = atypeFactory.declarationFromElement(elt);
+        if (declTree == null) {
+            return null;
+        }
+        List<? extends AnnotationTree> annoTrees;
+        if (declTree instanceof ClassTree) {
+            annoTrees = ((ClassTree) declTree).getModifiers().getAnnotations();
+        } else if (declTree instanceof MethodTree) {
+            annoTrees = ((MethodTree) declTree).getModifiers().getAnnotations();
+        } else if (declTree instanceof VariableTree) {
+            annoTrees = ((VariableTree) declTree).getModifiers().getAnnotations();
+        } else if (declTree instanceof PackageTree) {
+            annoTrees = ((PackageTree) declTree).getAnnotations();
+        } else {
+            annoTrees = Collections.emptyList();
+        }
+        for (AnnotationTree annoTree : annoTrees) {
+            AnnotationMirror mirror = TreeUtils.annotationFromAnnotationTree(annoTree);
+            if (AnnotationUtils.areSame(mirror, dq)) {
+                return annoTree;
+            }
+            if (AnnotationUtils.areSameByName(
+                    mirror, "org.checkerframework.framework.qual.DefaultQualifier.List")) {
+                for (ExpressionTree arg : annoTree.getArguments()) {
+                    if (arg instanceof AssignmentTree) {
+                        AssignmentTree assign = (AssignmentTree) arg;
+                        ExpressionTree expr = assign.getExpression();
+                        if (expr instanceof NewArrayTree) {
+                            NewArrayTree nat = (NewArrayTree) expr;
+                            for (ExpressionTree elem : nat.getInitializers()) {
+                                if (elem instanceof AnnotationTree) {
+                                    AnnotationTree subAnnoTree = (AnnotationTree) elem;
+                                    if (AnnotationUtils.areSame(
+                                            TreeUtils.annotationFromAnnotationTree(subAnnoTree),
+                                            dq)) {
+                                        return subAnnoTree;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        return declTree;
     }
 
     /**
@@ -872,7 +1049,9 @@ public class QualifierDefaults {
 
         DefaultSet ret = new DefaultSet();
         for (TypeUseLocation loc : locations) {
-            ret.add(new Default(anno, loc, applyToSubpackages));
+            if (permittedAtLocation(anno, loc)) {
+                ret.add(new Default(anno, loc, applyToSubpackages));
+            }
         }
         return ret;
     }

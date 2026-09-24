@@ -24,6 +24,7 @@ import java.lang.annotation.Target;
 @TargetLocations({
     TypeUseLocation.LOWER_BOUND,
     TypeUseLocation.UPPER_BOUND,
+    TypeUseLocation.PARAMETER,
 })
 @SubtypeOf({SignedPositive.class})
 public @interface SignednessBottom {}
