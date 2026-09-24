@@ -648,8 +648,9 @@ interpreted as:
 \end{Verbatim}
 
 Optimistic defaults reduce false positives but are unsound: they trust unchecked code to accept
-all inputs and return values satisfying every requirement.  They do not suppress warnings.  A kind
-of code (\code{source} or \code{bytecode}) cannot use both optimistic and conservative defaults.
+all inputs and return values satisfying every requirement.  When enabled for source code,
+they suppress warnings in unannotated code, like conservative defaults.  A kind of code
+(\code{source} or \code{bytecode}) cannot use both optimistic and conservative defaults.
 
 Fields are the one location where neither choice is right, because a single default
 cannot suit both reads and writes.  The conservative top qualifier accepts every write

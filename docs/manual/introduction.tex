@@ -665,7 +665,7 @@ More sound (strict) checking: enable errors that are disabled by default
 \item \<-AcheckEnclosingExpr>
   Enables type checking for enclosing expression types of inner class instantiations.
 \item \<-AuseOptimisticDefaultsForUncheckedCode>
-  Enables optimistic defaults in unchecked code, but does not suppress type-checking warnings.
+  Enables optimistic defaults, and suppresses all type-checking warnings in unchecked source code.
   Takes arguments ``source,bytecode''; prefix an argument with ``-'' to disable it.
   Outside a relevant \refqualclass{framework/qual}{AnnotatedFor} scope, parameters default to
   top and returns and fields default to bottom.  Upper bounds default to top and lower bounds

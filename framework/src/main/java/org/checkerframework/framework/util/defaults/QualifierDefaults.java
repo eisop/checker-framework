@@ -453,8 +453,8 @@ public class QualifierDefaults {
 
     /**
      * Adds a mode's default for unchecked code for each of the given qualifiers at each of the
-     * given locations. Skips a location that already has a default in the qualifier's hierarchy
-     * and, in the optimistic mode, a location that the qualifier's {@link TargetLocations} forbids.
+     * given locations. Skips a location that already has a default in the qualifier's hierarchy and
+     * a location that the qualifier's {@link TargetLocations} forbids.
      *
      * @param mode the unchecked defaulting mode
      * @param qualifiers qualifiers to add as defaults
@@ -467,8 +467,7 @@ public class QualifierDefaults {
         DefaultSet defaults = defaultsFor(mode);
         for (TypeUseLocation location : locations) {
             for (AnnotationMirror qualifier : qualifiers) {
-                if (mode == UncheckedDefaultsMode.OPTIMISTIC
-                        && !permittedAtLocation(qualifier, location)) {
+                if (!permittedAtLocation(qualifier, location)) {
                     continue;
                 }
                 if (conflictsWithExistingDefaults(defaults, qualifier, location)) {
@@ -482,10 +481,9 @@ public class QualifierDefaults {
     /**
      * Does {@code anno}'s {@link TargetLocations} meta-annotation permit it at {@code location}?
      *
-     * <p>The optimistic defaults put bottom qualifiers where the conservative ones put top, and
-     * vice versa. A qualifier can restrict where it may be written -- {@code @KeyForBottom} and
-     * {@code @FBCBottom}, for instance, are not permitted on a {@code RETURN} or {@code FIELD} --
-     * and defaulting one onto a prohibited location makes {@link
+     * <p>A qualifier can restrict where it may be written -- {@code @KeyForBottom} and
+     * {@code @FBCBottom}, for instance, are not permitted on a {@code RETURN}, {@code FIELD}, or
+     * {@code PARAMETER} -- and defaulting one onto a prohibited location makes {@link
      * org.checkerframework.common.basetype.BaseTypeValidator} report {@code
      * type.invalid.annotations.on.location} on code the user did not write. Skip those pairs; the
      * qualifier hierarchy's other defaults still apply there.

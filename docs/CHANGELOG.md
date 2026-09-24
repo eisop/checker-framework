@@ -803,6 +803,9 @@ the members that name the conservative set say so: `STANDARD_UNCHECKED_DEFAULTS_
 At most one mode's defaults are applied to a given element.
 `QualifierDefaults.applyOptimisticDefaults(Element)` and `SourceChecker.useOptimisticDefault(String)`
 are the optimistic analogues of `applyConservativeDefaults` and `useConservativeDefault`.
+Both conservative and optimistic unchecked defaults filter qualifiers by their `@TargetLocations`
+meta-annotation to avoid defaulting a qualifier onto a prohibited location (such as `@KeyForBottom`
+or `@FBCBottom` on method parameters).
 
 The jtreg tests that verify which annotations the Checker Framework writes into
 bytecode now run on JDK 25 and later. They used `com.sun.tools.classfile`, which
