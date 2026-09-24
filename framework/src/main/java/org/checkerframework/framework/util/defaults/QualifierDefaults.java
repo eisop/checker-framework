@@ -719,12 +719,12 @@ public class QualifierDefaults {
     }
 
     /**
-     * Checks written @DefaultQualifier annotations on {@code elt} for conflicting defaults and for
+     * Checks @DefaultQualifier annotations on {@code elt} for conflicting defaults and for
      * locations prohibited by the qualifier's {@link TargetLocations} meta-annotation.
      *
      * @param elt a declaration in source
      */
-    public void checkWrittenDefaults(Element elt) {
+    public void checkDefaultQualifiers(Element elt) {
         checkTargetLocations(elt);
         checkConflictingDefaults(elt);
     }
