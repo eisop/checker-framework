@@ -23,6 +23,12 @@ public class ElementDefaultTargetLocationsTest {
     /** Creates a new ElementDefaultTargetLocationsTest. */
     public ElementDefaultTargetLocationsTest() {}
 
+    /**
+     * Compiles the elementdefault tests with {@code option} passed to the checker and asserts that
+     * compilation fails with an error about prohibited location.
+     *
+     * @param option the option to pass to the checker
+     */
     private void runWithOption(String option) {
         TestConfiguration config =
                 TestConfigurationBuilder.buildDefaultConfiguration(
@@ -46,21 +52,37 @@ public class ElementDefaultTargetLocationsTest {
                         "is not permitted at location RETURN by its @TargetLocations"));
     }
 
+    /**
+     * Tests that registering a checked code default for a location prohibited by @TargetLocations
+     * is reported as a type-system error.
+     */
     @Test
     public void disallowedCheckedDefaultIsATypeSystemError() {
         runWithOption(ElementDefaultAnnotatedTypeFactory.DISALLOWED_CHECKED_OPTION);
     }
 
+    /**
+     * Tests that registering an unchecked code default for a location prohibited
+     * by @TargetLocations is reported as a type-system error.
+     */
     @Test
     public void disallowedUncheckedDefaultIsATypeSystemError() {
         runWithOption(ElementDefaultAnnotatedTypeFactory.DISALLOWED_UNCHECKED_OPTION);
     }
 
+    /**
+     * Tests that registering an element default for a location prohibited by @TargetLocations is
+     * reported as a type-system error.
+     */
     @Test
     public void disallowedElementDefaultIsATypeSystemError() {
         runWithOption(ElementDefaultAnnotatedTypeFactory.DISALLOWED_ELEMENT_OPTION);
     }
 
+    /**
+     * Tests that registering programmatic defaults on locations allowed
+     * by @ProgrammaticDefaultLocations succeeds without prohibited location errors.
+     */
     @Test
     public void programmaticAllowedDefaultSucceeds() {
         TestConfiguration config =
