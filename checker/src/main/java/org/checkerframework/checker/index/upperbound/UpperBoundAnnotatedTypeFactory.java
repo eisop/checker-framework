@@ -67,9 +67,9 @@ import org.checkerframework.framework.util.dependenttypes.DependentTypesHelper;
 import org.checkerframework.javacutil.AnnotationBuilder;
 import org.checkerframework.javacutil.AnnotationMirrorSet;
 import org.checkerframework.javacutil.AnnotationUtils;
+import org.checkerframework.javacutil.Pair;
 import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TypeSystemError;
-import org.plumelib.util.IPair;
 
 import java.lang.annotation.Annotation;
 import java.util.ArrayList;
@@ -1007,7 +1007,7 @@ public class UpperBoundAnnotatedTypeFactory extends BaseAnnotatedTypeFactoryForI
             Tree tree, TreePath treePath, List<String> lessThanExpressions) {
         UBQualifier ubQualifier = null;
         for (String expression : lessThanExpressions) {
-            IPair<JavaExpression, String> exprAndOffset;
+            Pair<JavaExpression, String> exprAndOffset;
             try {
                 exprAndOffset =
                         getExpressionAndOffsetFromJavaExpressionString(expression, treePath);

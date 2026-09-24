@@ -42,6 +42,7 @@ import org.checkerframework.framework.util.typeinference8.util.Java8InferenceCon
 import org.checkerframework.framework.util.typeinference8.util.Theta;
 import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.ElementUtils;
+import org.checkerframework.javacutil.Pair;
 import org.checkerframework.javacutil.SwitchExpressionScanner;
 import org.checkerframework.javacutil.SwitchExpressionScanner.FunctionalSwitchExpressionScanner;
 import org.checkerframework.javacutil.TreePathUtil;
@@ -49,7 +50,6 @@ import org.checkerframework.javacutil.TreeUtils;
 import org.checkerframework.javacutil.TreeUtils.MemberReferenceKind;
 import org.checkerframework.javacutil.TypeAnnotationUtils;
 import org.checkerframework.javacutil.TypesUtils;
-import org.plumelib.util.IPair;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -539,6 +539,23 @@ public class InferenceFactory {
      */
     public Theta createThetaForInvocation(
             ExpressionTree invocation, InvocationType methodType, Java8InferenceContext context) {
+        return createThetaForInvocation(
+                invocation, methodType.getAnnotatedTypeVariables(), context);
+    }
+
+    /**
+     * Creates or returns the cached mapping of the type variables of an invocation to inference
+     * variables.
+     *
+     * @param invocation method or constructor invocation
+     * @param typeVariables type variables of the invoked method or constructor
+     * @param context inference context
+     * @return a mapping of the type variables to inference variables
+     */
+    public Theta createThetaForInvocation(
+            ExpressionTree invocation,
+            List<? extends AnnotatedTypeVariable> typeVariables,
+            Java8InferenceContext context) {
         Theta cached = context.maps.get(invocation);
         if (cached != null) {
             return cached;
@@ -547,7 +564,7 @@ public class InferenceFactory {
 
         // Create inference variables for the type parameters to methodType
 
-        for (AnnotatedTypeVariable pl : methodType.getAnnotatedTypeVariables()) {
+        for (AnnotatedTypeVariable pl : typeVariables) {
             @SuppressWarnings("interning:interned.object.creation")
             Variable al =
                     new @Interned Variable(pl, pl.getUnderlyingType(), invocation, context, map);
@@ -734,6 +751,9 @@ public class InferenceFactory {
      * Returns the type of the method or constructor invocation adapted to its arguments. This type
      * may include inference variables.
      *
+     * <p>For a method invocation, the polymorphic qualifiers of the method are resolved as
+     * described in {@link #resolvePolyQualifiers(MethodInvocationTree, AnnotatedExecutableType)}.
+     *
      * @param invocation method or constructor invocation
      * @return the type of the method or constructor invocation adapted to its arguments
      */
@@ -744,16 +764,79 @@ public class InferenceFactory {
                     typeFactory.methodFromUseWithoutTypeArgInference(
                                     (MethodInvocationTree) invocation)
                             .executableType;
+            resolvePolyQualifiers((MethodInvocationTree) invocation, executableType);
         } else {
             executableType =
                     typeFactory.constructorFromUseWithoutTypeArgInference((NewClassTree) invocation)
                             .executableType;
         }
-        return new InvocationType(
-                executableType,
-                getTypeOfMethodAdaptedToUse(invocation, context),
-                invocation,
-                context);
+        ExecutableType javaType = getTypeOfMethodAdaptedToUse(invocation, context);
+        return new InvocationType(executableType, javaType, invocation, context);
+    }
+
+    /**
+     * Resolves the polymorphic qualifiers of {@code methodType}, the type of {@code
+     * methodInvocation} before type-argument inference, against the receiver and the arguments of
+     * {@code methodInvocation}. The annotated type {@code methodType} is side-effected.
+     *
+     * <p>This is the same resolution that {@link AnnotatedTypeFactory#methodFromUse} performs when
+     * it computes the type of {@code methodInvocation} itself. {@link
+     * AnnotatedTypeFactory#methodFromUseWithoutTypeArgInference} does not perform it, so without
+     * this method a polymorphic qualifier on the return type of a method invocation nested in the
+     * current inference problem (for example, {@code list.stream().map(f)} as an argument or a
+     * lambda's returned expression) reaches the solver as if it were a concrete qualifier and
+     * becomes part of the inferred type arguments of the enclosing invocation.
+     *
+     * <p>Resolution is skipped if an argument whose formal parameter type contains a polymorphic
+     * qualifier is a poly expression: the type of such an argument depends on the inference problem
+     * that is being solved, so it cannot yet be used to instantiate a polymorphic qualifier. The
+     * receiver of a method invocation is never a poly expression.
+     *
+     * <p>Before resolving, this method creates the inference variables of {@code methodInvocation}
+     * (see {@link #createThetaForInvocation}), which marks the inference of {@code
+     * methodInvocation} as part of the current inference problem. Computing the type of an argument
+     * may require the type of {@code methodInvocation} -- for example, a new array argument takes
+     * its component qualifiers from its formal parameter type -- and {@link
+     * org.checkerframework.framework.util.typeinference8.DefaultTypeArgumentInference} must then
+     * not start a separate inference problem for {@code methodInvocation}.
+     *
+     * @param methodInvocation a method invocation
+     * @param methodType the type of {@code methodInvocation} before type-argument inference; its
+     *     annotated type is side-effected
+     */
+    private void resolvePolyQualifiers(
+            MethodInvocationTree methodInvocation, AnnotatedExecutableType methodType) {
+        if (!(typeFactory instanceof GenericAnnotatedTypeFactory)) {
+            return;
+        }
+        QualifierPolymorphism poly =
+                ((GenericAnnotatedTypeFactory<?, ?, ?, ?>) typeFactory).getQualifierPolymorphism();
+        if (!poly.hasPolymorphicQualifiers(methodType)) {
+            return;
+        }
+        List<? extends ExpressionTree> args = methodInvocation.getArguments();
+        List<AnnotatedTypeMirror> params = methodType.getParameterTypes();
+        if (params.isEmpty() && !args.isEmpty()) {
+            return;
+        }
+        boolean isVarargs = TreeUtils.isVarargsCall(methodInvocation);
+        for (int i = 0; i < args.size(); i++) {
+            // In a variable-arity invocation, the last formal parameter, an array type, is the
+            // formal parameter of each trailing argument.  (AnnotatedTypes.adaptParameters is not
+            // used because it may compute the type of an argument, which might be a poly
+            // expression.)
+            AnnotatedTypeMirror param =
+                    isVarargs
+                            ? params.get(Math.min(i, params.size() - 1))
+                            : (i < params.size() ? params.get(i) : null);
+            if (param != null
+                    && TreeUtils.isPolyExpression(args.get(i))
+                    && poly.hasPolymorphicQualifiers(param)) {
+                return;
+            }
+        }
+        createThetaForInvocation(methodInvocation, methodType.getTypeVariables(), context);
+        poly.resolve(methodInvocation, methodType);
     }
 
     /**
@@ -900,8 +983,7 @@ public class InferenceFactory {
      * @return the pair of {@code a} as the least upper bound of {@code a} and {@code b} and *
      *     {@code b} as the least upper bound of {@code a} and {@code b}
      */
-    public IPair<AbstractType, AbstractType> getParameterizedSupers(
-            AbstractType a, AbstractType b) {
+    public Pair<AbstractType, AbstractType> getParameterizedSupers(AbstractType a, AbstractType b) {
         TypeMirror aTypeMirror = a.getJavaType();
         TypeMirror bTypeMirror = b.getJavaType();
         // com.sun.tools.javac.comp.Infer#getParameterizedSupers
@@ -913,7 +995,7 @@ public class InferenceFactory {
         Type asSuperOfA = context.types.asSuper((Type) aTypeMirror, ((Type) lubResult).asElement());
         Type asSuperOfB = context.types.asSuper((Type) bTypeMirror, ((Type) lubResult).asElement());
 
-        return IPair.of(a.asSuper(asSuperOfA), b.asSuper(asSuperOfB));
+        return Pair.of(a.asSuper(asSuperOfA), b.asSuper(asSuperOfB));
     }
 
     /**

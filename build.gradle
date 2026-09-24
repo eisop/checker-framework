@@ -235,6 +235,12 @@ allprojects { currentProj ->
     eclipse.classpath {
         defaultOutputDir = file("build/default")
         file.whenMerged { cp ->
+            // Remove bare 'src/main' source folder entries that cause Eclipse nesting errors.
+            // See https://github.com/eisop/checker-framework/issues/2130 for a permanent cleanup.
+            cp.entries.removeAll { e ->
+                e instanceof org.gradle.plugins.ide.eclipse.model.SourceFolder && e.path == 'src/main'
+            }
+
             cp.entries.forEach { cpe ->
                 if (cpe instanceof org.gradle.plugins.ide.eclipse.model.SourceFolder) {
                     cpe.output = cpe.output.replace "bin/", "build/classes/java/"
@@ -1160,6 +1166,17 @@ subprojects {
             args(binaryStubFilesDir.get().asFile.absolutePath,
                     file('src/main/java').absolutePath,
                     file('src/main/resources').absolutePath)
+
+            // The generator only writes binary stubs; it never removes one. Gradle does not
+            // clean a task's output directory either, so after an .astub file is renamed or
+            // deleted its .bin.gz stays behind, is packaged into the jar, and is read in
+            // preference to the text stub that no longer exists. Empty the directory first, so
+            // that what it holds is exactly what the current .astub files produce.
+            def injectedFiles = project.objects.newInstance(InjectedFileOps)
+            def staleOutputDir = binaryStubFilesDir.get().asFile
+            doFirst {
+                injectedFiles.fs.delete { delete(staleOutputDir) }
+            }
         }
         sourceSets.main.resources.srcDir(binaryStubFilesDir)
         tasks.named('processResources').configure { dependsOn 'generateBinaryStubFiles' }
@@ -1318,7 +1335,7 @@ subprojects {
                 [
                     // to avoid having to annotate JavaParser
                     '-AassumePureGetters',
-                    '-AassumeAssertionsAreEnabled',
+                    '-AassumeAssertions=enabled',
                 ])
         rootProject.createCheckTypeTask(project.name,'Purity',
                 'org.checkerframework.framework.util.PurityChecker')
@@ -1499,6 +1516,13 @@ subprojects {
             // checker runs in-process in the test JVM (TypecheckExecutor uses ToolProvider), so this
             // system property reaches it.
             systemProperties += ['cf.typeinference.worklist.strict': 'true']
+
+            // AnnotatedTypeFactory#annotateCapturedTypeVar recomputes the captured type variable's
+            // upper bound in javac's own argument order when the framework's own order disagrees
+            // with javac's bound (see eisop#2034). In production it silently keeps that recomputed
+            // bound even if it still does not match javac's bound. Run this project's own tests in
+            // strict mode instead, so a remaining mismatch is a loud CI failure.
+            systemProperties += ['cf.captureconversion.strict': 'true']
 
             // Always re-run tests.  This must live at the test task level.
             outputs.upToDateWhen { false }
@@ -1755,6 +1779,10 @@ final createCheckRelocatedStringsTask(Project project, List jarTasks) {
         }
     }
 }
+
+// Helper task to ensure no relocated shadowed types leak into public/protected API of shaded jars
+apply from: rootProject.file('gradle/check-public-api.gradle')
+
 
 /**
  * Registers a task that fails if a task configuration closure configures project-wide state.

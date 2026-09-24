@@ -29,13 +29,12 @@ import org.checkerframework.framework.type.GenericAnnotatedTypeFactory;
 import org.checkerframework.framework.util.AnnotatedTypes;
 import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.ElementUtils;
+import org.checkerframework.javacutil.Pair;
 import org.checkerframework.javacutil.TreePathUtil;
 import org.checkerframework.javacutil.TreeUtils;
-import org.plumelib.util.IPair;
 
 import java.lang.annotation.Annotation;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 
@@ -112,7 +111,7 @@ public class InitializationAnnotatedTypeFactory extends InitializationParentAnno
     }
 
     @Override
-    public List<IPair<ReturnNode, TransferResult<CFValue, InitializationStore>>>
+    public List<Pair<ReturnNode, TransferResult<CFValue, InitializationStore>>>
             getReturnStatementStores(MethodTree methodTree) {
         return getFieldAccessFactory().getReturnStatementStores(methodTree);
     }
@@ -143,23 +142,12 @@ public class InitializationAnnotatedTypeFactory extends InitializationParentAnno
                             ((InitializationChecker) checker).getTargetCheckerClass());
             InitializationStore initStore = getStoreBefore(tree);
             CFAbstractStore<?, ?> targetStore = targetFactory.getStoreBefore(tree);
-            boolean allInitialized;
-            if (initStore == null) {
-                allInitialized = false;
-            } else if (targetStore != null) {
-                allInitialized =
-                        getUninitializedFields(
-                                        initStore,
-                                        targetStore,
-                                        path,
-                                        false,
-                                        Collections.emptyList())
-                                .isEmpty();
-            } else {
-                allInitialized =
-                        getUninitializedFields(initStore, path, false, Collections.emptyList())
-                                .isEmpty();
-            }
+            // Equivalent to, but cheaper than, testing whether getUninitializedFields(initStore,
+            // [targetStore,] path, false, Collections.emptyList()) is empty.
+            boolean allInitialized =
+                    initStore != null
+                            && !hasUninitializedInstanceFields(
+                                    initStore, targetStore, enclosingClass);
             if (allInitialized) {
                 if (classType.isFinal()) {
                     annotation = INITIALIZED;
@@ -212,41 +200,81 @@ public class InitializationAnnotatedTypeFactory extends InitializationParentAnno
         List<VariableTree> uninitializedFields =
                 super.getUninitializedFields(initStore, path, isStatic, receiverAnnotations);
 
+        uninitializedFields.removeIf(
+                var ->
+                        isFieldInitialized(
+                                initStore,
+                                targetStore,
+                                var,
+                                TreeUtils.elementFromDeclaration(var)));
+
+        return uninitializedFields;
+    }
+
+    @Override
+    protected boolean isFieldInitialized(
+            InitializationStore store,
+            @Nullable CFAbstractStore<?, ?> targetStore,
+            VariableTree field,
+            VariableElement elem) {
+        if (store.isFieldInitialized(elem)) {
+            return true;
+        }
+        if (targetStore == null) {
+            return false;
+        }
+        if (!((InitializationChecker) checker).checkPrimitives()
+                && elem.asType().getKind().isPrimitive()) {
+            return true;
+        }
+        GenericAnnotatedTypeFactory<?, ?, ?, ?> factory = getTargetFactory();
+        return isInitializedInTargetStore(factory, targetStore, field, elem);
+    }
+
+    /**
+     * Returns the type factory of the target checker.
+     *
+     * @return the type factory of the target checker
+     * @throws BugInCF if the target checker's type factory cannot be found
+     */
+    private GenericAnnotatedTypeFactory<?, ?, ?, ?> getTargetFactory() {
         GenericAnnotatedTypeFactory<?, ?, ?, ?> factory =
                 checker.getTypeFactoryOfSubcheckerOrNull(
                         ((InitializationChecker) checker).getTargetCheckerClass());
-
         if (factory == null) {
             throw new BugInCF(
                     "Did not find target type factory for checker "
                             + ((InitializationChecker) checker).getTargetCheckerClass());
         }
+        return factory;
+    }
 
-        // Remove primitives
-        if (!((InitializationChecker) checker).checkPrimitives()) {
-            uninitializedFields.removeIf(
-                    var -> TreeUtils.elementFromDeclaration(var).asType().getKind().isPrimitive());
+    /**
+     * Returns true if the field {@code var} is initialized according to the target checker's store.
+     *
+     * @param factory the target checker's type factory
+     * @param targetStore a store for the target checker
+     * @param var a field declaration
+     * @param varElement element for {@code var}
+     * @return true if {@code var} is initialized according to {@code targetStore}
+     * @see #isInitialized(GenericAnnotatedTypeFactory, CFAbstractValue, VariableElement)
+     */
+    private boolean isInitializedInTargetStore(
+            GenericAnnotatedTypeFactory<?, ?, ?, ?> factory,
+            CFAbstractStore<?, ?> targetStore,
+            VariableTree var,
+            VariableElement varElement) {
+        ClassTree enclosingClass = TreePathUtil.enclosingClass(getPath(var));
+        Node receiver;
+        if (ElementUtils.isStatic(varElement)) {
+            receiver = new ClassNameNode(enclosingClass);
+        } else {
+            receiver =
+                    new ImplicitThisNode(TreeUtils.elementFromDeclaration(enclosingClass).asType());
         }
-
-        // Filter out fields which are initialized according to subchecker
-        uninitializedFields.removeIf(
-                var -> {
-                    ClassTree enclosingClass = TreePathUtil.enclosingClass(getPath(var));
-                    VariableElement varElement = TreeUtils.elementFromDeclaration(var);
-                    Node receiver;
-                    if (ElementUtils.isStatic(varElement)) {
-                        receiver = new ClassNameNode(enclosingClass);
-                    } else {
-                        receiver =
-                                new ImplicitThisNode(
-                                        TreeUtils.elementFromDeclaration(enclosingClass).asType());
-                    }
-                    FieldAccessNode fa = new FieldAccessNode(var, varElement, receiver);
-                    CFAbstractValue<?> value = targetStore.getValue(fa);
-                    return isInitialized(factory, value, varElement);
-                });
-
-        return uninitializedFields;
+        FieldAccessNode fa = new FieldAccessNode(var, varElement, receiver);
+        CFAbstractValue<?> value = targetStore.getValue(fa);
+        return isInitialized(factory, value, varElement);
     }
 
     /**

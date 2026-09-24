@@ -2,7 +2,6 @@ package org.checkerframework.javacutil;
 
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.checker.nullness.qual.PolyNull;
-import org.plumelib.util.DeepCopyable;
 import org.plumelib.util.UtilPlume;
 
 import java.util.Collection;

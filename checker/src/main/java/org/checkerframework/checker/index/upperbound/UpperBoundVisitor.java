@@ -31,9 +31,9 @@ import org.checkerframework.framework.util.JavaExpressionParseUtil.JavaExpressio
 import org.checkerframework.framework.util.StringToJavaExpression;
 import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.ElementUtils;
+import org.checkerframework.javacutil.Pair;
 import org.checkerframework.javacutil.TreePathUtil;
 import org.checkerframework.javacutil.TreeUtils;
-import org.plumelib.util.IPair;
 
 import java.util.Collections;
 import java.util.List;
@@ -355,16 +355,16 @@ public class UpperBoundVisitor extends BaseTypeVisitor<UpperBoundAnnotatedTypeFa
      * <p>This is useful for expressions like "n+1", for which {@link #parseJavaExpressionString}
      * returns null because the whole expression is not a receiver.
      */
-    static @Nullable IPair<JavaExpression, String> getExpressionAndOffsetFromJavaExpressionString(
+    static @Nullable Pair<JavaExpression, String> getExpressionAndOffsetFromJavaExpressionString(
             String s, UpperBoundAnnotatedTypeFactory atypeFactory, TreePath currentPath) {
 
-        IPair<String, String> p = AnnotatedTypeFactory.getExpressionAndOffset(s);
+        Pair<String, String> p = AnnotatedTypeFactory.getExpressionAndOffset(s);
 
         JavaExpression je = parseJavaExpressionString(p.first, atypeFactory, currentPath);
         if (je == null) {
             return null;
         }
-        return IPair.of(je, p.second);
+        return Pair.of(je, p.second);
     }
 
     /**

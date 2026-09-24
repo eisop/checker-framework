@@ -220,10 +220,17 @@ command-line option.)
   \code{-Amode=jspecify} to behave as JSpecify specifies would otherwise have no way
   to know that some of what they wrote was being interpreted by the checker's own
   rules instead of JSpecify's.
+  It also assumes that every called method is pure
+  (Section~\ref{purity-suppress-warnings}) and that assertions are enabled
+  (Section~\ref{type-refinement-assertions}).
   This is a shorthand for \code{-AonlyAnnotatedFor -AassumeInitialized
-  -AassumeKeyFor -AjspecifyUnrecognizedLocations}.  Each of those is an on/off flag with
-  no negative form, so there is currently no way to enable this mode but turn one of
-  them back off.
+  -AassumeKeyFor -AjspecifyUnrecognizedLocations -AassumePure
+  -AassumeAssertions=enabled}.  All but the last are on/off flags with no negative form,
+  so there is currently no way to enable this mode but turn one of them back off.
+  \code{-AassumeAssertions} takes a value, so writing one together with
+  \code{-Amode=jspecify} overrides what the mode assumes; for example,
+  \code{-AassumeAssertions=neither} restores the default treatment of \code{assert}
+  statements (Section~\ref{type-refinement-assertions}).
 
 \item
   \label{nullness-jspecifyNullMarkedAlias}%

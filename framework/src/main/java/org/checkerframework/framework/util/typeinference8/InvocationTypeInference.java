@@ -9,6 +9,7 @@ import com.sun.source.tree.NewClassTree;
 import com.sun.source.tree.Tree;
 import com.sun.source.util.TreePath;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.framework.source.SourceChecker;
 import org.checkerframework.framework.type.AnnotatedTypeFactory;
 import org.checkerframework.framework.type.AnnotatedTypeMirror.AnnotatedExecutableType;
@@ -38,11 +39,12 @@ import org.checkerframework.javacutil.TreeUtils;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
 import javax.lang.model.type.ExecutableType;
-import javax.lang.model.type.TypeKind;
 
 /**
  * Performs invocation type inference as described in <a
@@ -211,7 +213,7 @@ public class InvocationTypeInference {
                 createB2MethodRef(compileTimeDecl, target.getFunctionTypeParameterTypes(), map);
         AbstractType r = target.getFunctionTypeReturnType();
         BoundSet b3;
-        if (r == null || r.getTypeKind() == TypeKind.VOID) {
+        if (r == null) {
             b3 = b2;
         } else {
             b3 = createB3(b2, invocation, compileTimeDecl, r, map);
@@ -513,8 +515,9 @@ public class InvocationTypeInference {
             case LAMBDA_EXPRESSION:
                 c.add(new CheckedExceptionConstraint(ei, fi, map));
                 LambdaExpressionTree lambda = (LambdaExpressionTree) ei;
+                Set<Variable> lambdaInputs = getLambdaParameterInputVariables(lambda, fi);
                 for (ExpressionTree expression : TreeUtils.getReturnedExpressions(lambda)) {
-                    c.addAll(createAdditionalArgConstraintsNoLambda(expression));
+                    c.addAll(createAdditionalArgConstraintsNoLambda(expression, fi, lambdaInputs));
                 }
                 break;
             case METHOD_INVOCATION:
@@ -549,55 +552,126 @@ public class InvocationTypeInference {
     }
 
     /**
+     * Returns the inference variables that must be resolved before the parameters of {@code
+     * lambda}, whose target type is {@code target}, have their final types. These are the input
+     * variables that the parameter types contribute to the constraint {@code <lambda -> target>}
+     * (see <a
+     * href="https://docs.oracle.com/javase/specs/jls/se11/html/jls-18.html#jls-18.5.2.2">JLS
+     * 18.5.2.2</a>). If {@code lambda} is implicitly typed, they are {@code target} itself if it is
+     * an inference variable, and otherwise the inference variables mentioned by the parameter types
+     * of the function type of {@code target}. The parameters of an explicitly typed lambda have
+     * their declared types, so there are none for it.
+     *
+     * @param lambda a lambda expression
+     * @param target the target type of {@code lambda}, or null if it is not known
+     * @return the inference variables that must be resolved before the parameters of {@code lambda}
+     *     have their final types
+     */
+    private static Set<Variable> getLambdaParameterInputVariables(
+            LambdaExpressionTree lambda, @Nullable AbstractType target) {
+        if (target == null || target.isProper() || !TreeUtils.isImplicitlyTypedLambda(lambda)) {
+            return Collections.emptySet();
+        }
+        if (target.isUseOfVariable()) {
+            return Collections.singleton(((UseOfVariable) target).getVariable());
+        }
+        List<AbstractType> params = target.getFunctionTypeParameterTypes();
+        if (params == null) {
+            // target is not a function type.
+            return Collections.emptySet();
+        }
+        Set<Variable> inputs = new LinkedHashSet<>();
+        for (AbstractType param : params) {
+            inputs.addAll(param.getInferenceVariables());
+        }
+        return inputs;
+    }
+
+    /**
      * Recursively search for method invocations and new class trees. If any are found, the
      * additional variables, bounds, and constraints are returned. This method is called by {@link
      * #createAdditionalArgConstraints(ExpressionTree, AbstractType, Theta)} when that method
      * encounters a lambda. This method is different because it does not add checked exception
      * constraints for lambdas or method references.
      *
+     * <p>{@code expression} is a result expression of a lambda (possibly nested in other lambdas),
+     * so it may use the parameters of those lambdas. If the types of those parameters depend on
+     * inference variables that are not yet resolved, {@code lambdaInputs} is not empty and the
+     * additional constraints for a method invocation or new class tree must not be created now:
+     * creating them requires the type of the invocation's receiver and arguments, and the type of a
+     * lambda parameter computed now would be its type before inference. (Worse, the type factory
+     * would cache that type and use it after inference, too.) So instead an {@link
+     * AdditionalArgument} is returned whose input variables are {@code lambdaInputs}; it creates
+     * the constraints when it is reduced, which happens after those variables are resolved.
+     *
      * @param expression expression to search
+     * @param lambdaTarget the target type of the lambda of which {@code expression} is a result
+     *     expression, or null if it is not known
+     * @param lambdaInputs the inference variables that must be resolved before the parameters of
+     *     the lambdas enclosing {@code expression} have their final types
      * @return additional constraints
      */
-    private ConstraintSet createAdditionalArgConstraintsNoLambda(ExpressionTree expression) {
+    private ConstraintSet createAdditionalArgConstraintsNoLambda(
+            ExpressionTree expression,
+            @Nullable AbstractType lambdaTarget,
+            Set<Variable> lambdaInputs) {
         ConstraintSet c = new ConstraintSet();
 
         switch (expression.getKind()) {
             case LAMBDA_EXPRESSION:
                 LambdaExpressionTree lambda = (LambdaExpressionTree) expression;
+                // lambda is returned by the enclosing lambda, so its target type is the return
+                // type of the enclosing lambda's function type. The body of lambda may use the
+                // parameters of both lambdas.
+                AbstractType target =
+                        lambdaTarget == null ? null : lambdaTarget.getFunctionTypeReturnType();
+                Set<Variable> inputs = getLambdaParameterInputVariables(lambda, target);
+                if (inputs.isEmpty()) {
+                    inputs = lambdaInputs;
+                } else if (!lambdaInputs.isEmpty()) {
+                    inputs = new LinkedHashSet<>(inputs);
+                    inputs.addAll(lambdaInputs);
+                }
                 for (ExpressionTree returnedExpression : TreeUtils.getReturnedExpressions(lambda)) {
-                    c.addAll(createAdditionalArgConstraintsNoLambda(returnedExpression));
+                    c.addAll(
+                            createAdditionalArgConstraintsNoLambda(
+                                    returnedExpression, target, inputs));
                 }
                 break;
             case METHOD_INVOCATION:
             case NEW_CLASS:
                 if (TreeUtils.isPolyExpression(expression)) {
-                    try {
+                    if (lambdaInputs.isEmpty()) {
                         c.addAll(new AdditionalArgument(expression).reduce(context));
-                    } catch (Exception e) {
-                        // Sometimes in order to create the additional argument constraint, other
-                        // inference variables must be resolved first. This happens when a lambda
-                        // parameter is used in the additional argument constraint.
-                        // See framework/tests/all-systems/SimpleLambdaParameter.java
-                        c.add(new AdditionalArgument(expression));
+                    } else {
+                        // See framework/tests/all-systems/SimpleLambdaParameter.java and
+                        // framework/tests/all-systems/java8inference/Issue2084.java.
+                        c.add(new AdditionalArgument(expression, lambdaInputs));
                     }
                 }
                 break;
             case PARENTHESIZED:
                 c.addAll(
                         createAdditionalArgConstraintsNoLambda(
-                                TreeUtils.withoutParens(expression)));
+                                TreeUtils.withoutParens(expression), lambdaTarget, lambdaInputs));
                 break;
             case CONDITIONAL_EXPRESSION:
                 ConditionalExpressionTree conditional = (ConditionalExpressionTree) expression;
-                c.addAll(createAdditionalArgConstraintsNoLambda(conditional.getTrueExpression()));
-                c.addAll(createAdditionalArgConstraintsNoLambda(conditional.getFalseExpression()));
+                c.addAll(
+                        createAdditionalArgConstraintsNoLambda(
+                                conditional.getTrueExpression(), lambdaTarget, lambdaInputs));
+                c.addAll(
+                        createAdditionalArgConstraintsNoLambda(
+                                conditional.getFalseExpression(), lambdaTarget, lambdaInputs));
                 break;
             default:
                 if (TreeUtils.isSwitchExpression(expression)) {
                     SwitchExpressionScanner<Void, Void> scanner =
                             new FunctionalSwitchExpressionScanner<>(
                                     (ExpressionTree tree, Void unused) -> {
-                                        c.addAll(createAdditionalArgConstraintsNoLambda(tree));
+                                        c.addAll(
+                                                createAdditionalArgConstraintsNoLambda(
+                                                        tree, lambdaTarget, lambdaInputs));
                                         return null;
                                     },
                                     (c1, c2) -> null);

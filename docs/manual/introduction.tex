@@ -199,7 +199,8 @@ distribution.  The Checker Framework release contains everything that you
 need, both to run checkers and to write your own checkers.
 \item
 Alternately, you can build the latest development version from source
-(Section~\refwithpage{build-source}).
+(Section~\refwithpage{build-source}), or download jars that continuous
+integration built from it (Section~\refwithpage{development-jars}).
 \end{itemize}
 
 
@@ -426,6 +427,8 @@ IntelliJ IDEA (Section~\ref{intellij}),
 NetBeans (Section~\ref{netbeans}),
 and
 tIDE (Section~\ref{tide});
+the javac Diagnostics Wrapper for post-processing a checker's output
+(Section~\ref{javac-diagnostics-wrapper});
 and about customizing other IDEs and build tools.
 
 The checker is run on only the Java files that javac compiles.
@@ -486,7 +489,7 @@ This special syntax only works for ``\<checker.jar>''.
 % .)
 
 The annotated libraries that are provided as class files appear in
-\href{https://search.maven.org/search?q=org.checkerframework.annotatedlib}{the
+\href{https://central.sonatype.com/search?q=org.checkerframework.annotatedlib}{the
   \<org.checkerframework.annotatedlib> group in the Maven Central Repository}.
 The annotated library has \emph{identical} behavior to the upstream,
 unannotated version; the source code is identical other than added
@@ -506,7 +509,7 @@ To use an annotated library:
 \begin{itemize}
 \item
 If your project stores \<.jar> files locally, then
-\href{https://search.maven.org/search?q=org.checkerframework.annotatedlib}{download
+\href{https://central.sonatype.com/search?q=org.checkerframework.annotatedlib}{download
   the \<.jar> file from the Maven Central Repository}.
 
 \item
@@ -606,9 +609,10 @@ Unsound checking: ignore some errors
   both; or that every getter method is pure.
   See Section~\ref{purity-suppress-warnings} and
   Section~\ref{type-refinement-purity}.
-\item \<-AassumeAssertionsAreEnabled>, \<-AassumeAssertionsAreDisabled>
+\item \<-AassumeAssertions=enabled|disabled|neither>
   Whether to assume that assertions (Java \<assert> statements) are enabled
-  or disabled; see Section~\ref{type-refinement-assertions}.
+  or disabled.  The default, \<neither>, accounts for both cases; see
+  Section~\ref{type-refinement-assertions}.
 \item \<-AignoreRangeOverflow>
   Ignore the possibility of overflow for range annotations such as
   \<@IntRange>; see Section~\ref{value-checker-overflow}.
@@ -622,6 +626,12 @@ Unsound checking: ignore some errors
 \item \<-AignoreTargetLocations>
   Disables validating the target locations of qualifiers based on
   `@TargetLocations` meta-annotations. This option is not enabled by default.
+\item \<-AignoreDeadCode>
+  Do not check dead (unreachable) code: literal-condition branches such as
+  \code{if (false)}, and code that dataflow determines can never be reached
+  (such as a catch block for an exception type the try block can never
+  throw). By default, the Checker Framework checks dead code too, since it
+  might become reachable after a future edit.
 \end{itemize}
 
 \label{unsound-by-default}
@@ -1770,7 +1780,7 @@ or suppress warnings.
 % LocalWords:  bootclasspath AonlyUses AskipDefs AonlyDefs AcheckPurityAnnotations
 % LocalWords:  AsuppressWarnings AassumeSideEffectFree Adetailedmsgtext m2
 % LocalWords:  AignoreRawTypeArguments AsuggestPureMethods ApermitMissingJdk
-% LocalWords:  AassumeAssertionsAreEnabled AassumeAssertionsAreDisabled
+% LocalWords:  AassumeAssertions
 % LocalWords:  AconcurrentSemantics AstubWarnIfNotFound AnoPrintErrorStack
 % LocalWords:  AprintAllQualifiers Aignorejdkastub AstubDebug Aflowdotdir
 % LocalWords:  AresourceStats jls r78 JDKs i18n AignoreRangeOverflow L129

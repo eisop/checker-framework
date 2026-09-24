@@ -17,8 +17,6 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 
-import javax.lang.model.type.TypeKind;
-
 /**
  * &lt;LambdaExpression &rarr;throws T&gt;: The checked exceptions thrown by the body of the
  * LambdaExpression are declared by the throws clause of the function type derived from T.
@@ -79,7 +77,7 @@ public class CheckedExceptionConstraint extends TypeConstraint {
                     }
                 }
                 AbstractType R = this.T.getFunctionTypeReturnType();
-                if (R == null || R.getTypeKind() == TypeKind.NONE) {
+                if (R == null) {
                     return inputs;
                 }
                 inputs = addAllLazily(inputs, R.getInferenceVariables());
@@ -101,7 +99,7 @@ public class CheckedExceptionConstraint extends TypeConstraint {
                     inputs = addAllLazily(inputs, param.getInferenceVariables());
                 }
                 AbstractType R = this.T.getFunctionTypeReturnType();
-                if (R == null || R.getTypeKind() == TypeKind.NONE) {
+                if (R == null) {
                     return inputs;
                 }
                 inputs = addAllLazily(inputs, R.getInferenceVariables());

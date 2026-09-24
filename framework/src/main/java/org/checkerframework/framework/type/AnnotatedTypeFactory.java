@@ -86,6 +86,7 @@ import org.checkerframework.javacutil.AnnotationProvider;
 import org.checkerframework.javacutil.AnnotationUtils;
 import org.checkerframework.javacutil.BugInCF;
 import org.checkerframework.javacutil.ElementUtils;
+import org.checkerframework.javacutil.Pair;
 import org.checkerframework.javacutil.SystemUtil;
 import org.checkerframework.javacutil.TreePathUtil;
 import org.checkerframework.javacutil.TreeUtils;
@@ -95,7 +96,6 @@ import org.checkerframework.javacutil.TypesUtils;
 import org.checkerframework.javacutil.UserError;
 import org.checkerframework.javacutil.trees.DetachedVarSymbol;
 import org.plumelib.util.CollectionsPlume;
-import org.plumelib.util.IPair;
 import org.plumelib.util.StringsPlume;
 
 import java.io.BufferedReader;
@@ -799,7 +799,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             // from parseAliasesFromString rather than silently being ignored.
             String[] annos = aliasesOption.split(";", -1);
             for (String alias : annos) {
-                IPair<Class<? extends Annotation>, @FullyQualifiedName String[]> aliasPair =
+                Pair<Class<? extends Annotation>, @FullyQualifiedName String[]> aliasPair =
                         parseAliasesFromString(alias);
                 Class<? extends Annotation> canonical = aliasPair.first;
                 checkAliasedTypeAnnoIsTypeQualifier(canonical);
@@ -834,7 +834,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
             // from parseAliasesFromString rather than silently being ignored.
             String[] annos = aliasesOption.split(";", -1);
             for (String alias : annos) {
-                IPair<Class<? extends Annotation>, @FullyQualifiedName String[]> aliasPair =
+                Pair<Class<? extends Annotation>, @FullyQualifiedName String[]> aliasPair =
                         parseAliasesFromString(alias);
                 AnnotationMirror anno = AnnotationBuilder.fromClass(elements, aliasPair.first);
                 for (String a : aliasPair.second) {
@@ -997,7 +997,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      */
     // signature is suppressed because there is no way to reason about parsed strings
     @SuppressWarnings({"unchecked", "signature"})
-    private IPair<Class<? extends Annotation>, @FullyQualifiedName String[]> parseAliasesFromString(
+    private Pair<Class<? extends Annotation>, @FullyQualifiedName String[]> parseAliasesFromString(
             String alias) {
         // Use limit -1 so a trailing ":" or "," produces an empty token caught by the validation
         // below, rather than being silently dropped and causing a confusing ClassNotFoundException.
@@ -1024,7 +1024,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
                 throw new UserError(String.format("Empty alias found in argument: %s", alias));
             }
         }
-        return IPair.of(canonical, aliases);
+        return Pair.of(canonical, aliases);
     }
 
     /**
@@ -4389,7 +4389,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * @param tree a binary tree
      * @return the types of the two arguments
      */
-    public IPair<AnnotatedTypeMirror, AnnotatedTypeMirror> binaryTreeArgTypes(BinaryTree tree) {
+    public Pair<AnnotatedTypeMirror, AnnotatedTypeMirror> binaryTreeArgTypes(BinaryTree tree) {
         return binaryTreeArgTypes(
                 TreeUtils.typeOf(tree),
                 getAnnotatedType(tree.getLeftOperand()),
@@ -4404,7 +4404,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * @param tree a compound assignment tree
      * @return the types of the two arguments
      */
-    public IPair<AnnotatedTypeMirror, AnnotatedTypeMirror> compoundAssignmentTreeArgTypes(
+    public Pair<AnnotatedTypeMirror, AnnotatedTypeMirror> compoundAssignmentTreeArgTypes(
             CompoundAssignmentTree tree) {
         return binaryTreeArgTypes(
                 TreeUtils.typeOf(tree.getVariable()),
@@ -4427,7 +4427,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * @param right the type of the right argument of a binary operation
      * @return the types of the two arguments
      */
-    protected IPair<AnnotatedTypeMirror, AnnotatedTypeMirror> binaryTreeArgTypes(
+    protected Pair<AnnotatedTypeMirror, AnnotatedTypeMirror> binaryTreeArgTypes(
             TypeMirror resultType, AnnotatedTypeMirror left, AnnotatedTypeMirror right) {
         TypeKind widenedNumericType =
                 TypeKindUtils.widenedNumericType(
@@ -4444,7 +4444,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
                     (rightUnboxed.getKind() == widenedNumericType
                             ? rightUnboxed
                             : getWidenedPrimitive(rightUnboxed, widenedNumericTypeMirror));
-            return IPair.of(leftWidened, rightWidened);
+            return Pair.of(leftWidened, rightWidened);
         } else if (TypesUtils.isString(resultType)) {
             // the result of a binary operation is String iff it's string concatenation
             AnnotatedTypeMirror leftStringConverted = left;
@@ -4464,10 +4464,10 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
                                 resultType, right.getEffectiveAnnotations());
                 rightStringConverted.addAnnotations(annos);
             }
-            return IPair.of(leftStringConverted, rightStringConverted);
+            return Pair.of(leftStringConverted, rightStringConverted);
         }
 
-        return IPair.of(left, right);
+        return Pair.of(left, right);
     }
 
     /**
@@ -5656,9 +5656,9 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      *     at {@code element}, and {@code metaAnno} is the annotation mirror (of type {@code
      *     metaAnnotationClass}) used to meta-annotate the declaration of {@code anno}
      */
-    public List<IPair<AnnotationMirror, AnnotationMirror>> getDeclAnnotationWithMetaAnnotation(
+    public List<Pair<AnnotationMirror, AnnotationMirror>> getDeclAnnotationWithMetaAnnotation(
             Element element, Class<? extends Annotation> metaAnnotationClass) {
-        List<IPair<AnnotationMirror, AnnotationMirror>> result = new ArrayList<>();
+        List<Pair<AnnotationMirror, AnnotationMirror>> result = new ArrayList<>();
         AnnotationMirrorSet annotationMirrors = getDeclAnnotations(element);
 
         for (AnnotationMirror candidate : annotationMirrors) {
@@ -5689,10 +5689,10 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
                                 AnnotationUtils.getElementValueArray(
                                         candidate, "value", AnnotationMirror.class, false);
                         for (AnnotationMirror wrappedCandidate : wrappedCandidates) {
-                            result.add(IPair.of(wrappedCandidate, ma));
+                            result.add(Pair.of(wrappedCandidate, ma));
                         }
                     } else {
-                        result.add(IPair.of(candidate, ma));
+                        result.add(Pair.of(candidate, ma));
                     }
                 }
             }
@@ -5752,7 +5752,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      *     at {@code element}, and {@code metaAnno} is the annotation mirror used to annotate {@code
      *     anno}.
      */
-    public List<IPair<AnnotationMirror, AnnotationMirror>> getAnnotationWithMetaAnnotation(
+    public List<Pair<AnnotationMirror, AnnotationMirror>> getAnnotationWithMetaAnnotation(
             Element element, Class<? extends Annotation> metaAnnotationClass) {
         AnnotationMirrorSet annotationMirrors = new AnnotationMirrorSet();
         // Consider real annotations.
@@ -5760,7 +5760,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         // Consider declaration annotations
         annotationMirrors.addAll(getDeclAnnotations(element));
 
-        List<IPair<AnnotationMirror, AnnotationMirror>> result = new ArrayList<>();
+        List<Pair<AnnotationMirror, AnnotationMirror>> result = new ArrayList<>();
 
         // Go through all annotations found.
         for (AnnotationMirror annotation : annotationMirrors) {
@@ -5768,7 +5768,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
                     annotation.getAnnotationType().asElement().getAnnotationMirrors();
             for (AnnotationMirror a : annotationsOnAnnotation) {
                 if (areSameByClass(a, metaAnnotationClass)) {
-                    result.add(IPair.of(annotation, a));
+                    result.add(Pair.of(annotation, a));
                 }
             }
         }
@@ -6064,7 +6064,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * @return the functional interface and the function type that this method reference or lambda
      *     targets
      */
-    public IPair<AnnotatedTypeMirror, AnnotatedExecutableType> getFnInterfaceFromTree(Tree tree) {
+    public Pair<AnnotatedTypeMirror, AnnotatedExecutableType> getFnInterfaceFromTree(Tree tree) {
         // Functional interface
         // This is the target type of `tree`.
         AnnotatedTypeMirror functionalInterfaceType = getFunctionalInterfaceType(tree);
@@ -6081,7 +6081,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         // Function type
         AnnotatedExecutableType functionType =
                 AnnotatedTypes.asMemberOf(types, this, functionalInterfaceType, fnElement);
-        return IPair.of(functionalInterfaceType, functionType);
+        return Pair.of(functionalInterfaceType, functionType);
     }
 
     /**
@@ -6732,6 +6732,16 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
                     (type, other) -> type.getUnderlyingType() == other, Boolean::logicalOr, false);
 
     /**
+     * Whether to throw if, after recomputing the captured type variable's upper bound in javac's
+     * own argument order, the result's underlying type still does not match javac's own upper bound
+     * for that captured type variable. Off by default, so that an unanticipated mismatch is a
+     * possibly-wrong bound rather than a new crash in the wild; this project's own test tasks set
+     * {@code -Dcf.captureconversion.strict} so CI catches any such mismatch.
+     */
+    private static final boolean STRICT_CAPTURE_CONVERSION_CHECK =
+            System.getProperty("cf.captureconversion.strict") != null;
+
+    /**
      * Set the annotated bounds for fresh type variable {@code capturedTypeVar}, so that it is the
      * capture of {@code wildcard}. Also, sets {@code capturedTypeVar} primary annotation if the
      * annotation on the bounds is identical.
@@ -6759,24 +6769,36 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         AnnotatedTypeMirror typeVarUpperBound =
                 typeVarSubstitutor.substitute(
                         typeVarToAnnotatedTypeArg, typeVariable.getUpperBound());
+        // javac has already computed the underlying upper bound of the captured type variable
+        // as glb(B, S theta) in Types#capture.  javac's glb is not symmetric: when both arguments
+        // have supertypes that are different parameterizations of the same generic class, only the
+        // parameterization from the first argument is kept.  For example, for
+        // `class Node<T extends Node<T>>` and `class Sub extends Node<Sub>`, the capture of
+        // `Node<? extends Sub>` is `Node<CAP#1>` where CAP#1 has upper bound
+        // glb(Sub, Node<CAP#1>) = Sub, whereas glb(Node<CAP#1>, Sub) does not exist.  Similarly,
+        // with interfaces the reversed glb is an intersection type although javac's bound is not.
+        // (See framework/tests/all-systems/EisopIssue2034.java, Issue4890.java,
+        // Issue4890Interfaces.java, and Issue4877.java.)
+        //
+        // When the underlying types of the two bounds are the same, annotatedGLB keeps the type
+        // arguments of its first argument, so pass the type parameter's bound first, which is what
+        // determines the annotations of such type arguments.  If the resulting underlying type is
+        // not javac's upper bound, then the order of the arguments mattered for the underlying
+        // type, so recompute the glb in the order that javac uses.
         AnnotatedTypeMirror upperBound =
                 AnnotatedTypes.annotatedGLB(this, typeVarUpperBound, wildcard.getExtendsBound());
-        if (upperBound.getKind() == TypeKind.INTERSECTION
-                && capturedTypeVar.getUpperBound().getKind() != TypeKind.INTERSECTION) {
-            // There is a bug in javac such that the upper bound of the captured type variable is
-            // not the greatest lower bound. So the
-            // captureTypeVar.getUnderlyingType().getUpperBound() may not
-            // be the same type as upperbound.getUnderlyingType().  See
-            // framework/tests/all-systems/Issue4890Interfaces.java,
-            // framework/tests/all-systems/Issue4890.java and
-            // framework/tests/all-systems/Issue4877.java.
-            // (I think this is https://bugs.openjdk.org/browse/JDK-8039222.)
-            for (AnnotatedTypeMirror bound : ((AnnotatedIntersectionType) upperBound).getBounds()) {
-                if (types.isSameType(
-                        bound.underlyingType,
-                        capturedTypeVar.getUpperBound().getUnderlyingType())) {
-                    upperBound = bound;
-                }
+        TypeMirror javacUpperBound = capturedTypeVar.getUpperBound().getUnderlyingType();
+        if (!types.isSameType(upperBound.getUnderlyingType(), javacUpperBound)) {
+            upperBound =
+                    AnnotatedTypes.annotatedGLB(
+                            this, wildcard.getExtendsBound(), typeVarUpperBound);
+            if (STRICT_CAPTURE_CONVERSION_CHECK
+                    && !types.isSameType(upperBound.getUnderlyingType(), javacUpperBound)) {
+                throw new BugInCF(
+                        "annotateCapturedTypeVar: recomputing the glb in javac's own argument"
+                                + " order still does not match javac's upper bound for the"
+                                + " captured type variable.%n  recomputed: %s%n  javac's: %s",
+                        upperBound, javacUpperBound);
             }
         }
 
@@ -6952,7 +6974,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
     // TODO: generalize.  There is no reason this couldn't handle arbitrary addition and subtraction
     // expressions, given the Index Checker's support for OffsetEquation.  That might even make its
     // implementation simpler.
-    public static IPair<String, String> getExpressionAndOffset(String expression) {
+    public static Pair<String, String> getExpressionAndOffset(String expression) {
         String expr = expression;
         String offset = "0";
 
@@ -6981,7 +7003,7 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
         expr = expr.intern();
         offset = offset.intern();
 
-        return IPair.of(expr, offset);
+        return Pair.of(expr, offset);
     }
 
     /**
