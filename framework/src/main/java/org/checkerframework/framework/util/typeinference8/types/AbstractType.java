@@ -331,25 +331,48 @@ public abstract class AbstractType {
     }
 
     /**
-     * Make {@code type} ground, which is basically changing any wildcards to their bounds. <a
-     * href="https://docs.oracle.com/javase/specs/jls/se11/html/jls-15.html#jls-15.27.3">JLS section
-     * 15.27.3</a>
+     * Returns the non-wildcard parameterization of {@code type}, as defined in <a
+     * href="https://docs.oracle.com/javase/specs/jls/se21/html/jls-9.html#jls-9.9">JLS 9.9</a>.
+     * This is the ground target type of a lambda expression or a method reference whose target type
+     * is a wildcard-parameterized functional interface type (<a
+     * href="https://docs.oracle.com/javase/specs/jls/se21/html/jls-15.html#jls-15.27.3">JLS
+     * 15.27.3</a>, <a
+     * href="https://docs.oracle.com/javase/specs/jls/se21/html/jls-15.html#jls-15.13.2">JLS
+     * 15.13.2</a>).
+     *
+     * <p>Each wildcard type argument {@code Ai} of {@code type}, whose corresponding type parameter
+     * {@code Pi} has declared bound {@code Bi}, is replaced as follows:
+     *
+     * <ul>
+     *   <li>If {@code Bi} mentions a type parameter of the generic class of {@code type}, including
+     *       {@code Pi} itself (as in the F-bounded {@code interface I<T extends Comparable<T>>}),
+     *       then JLS 9.9 leaves the non-wildcard parameterization undefined. This method then does
+     *       what javac does in {@code com.sun.tools.javac.code.Types#removeWildcards}: it uses the
+     *       bound of the wildcard, that is, its extends bound for {@code ?} and {@code ? extends
+     *       Ui} and its super bound for {@code ? super Li}. The declared bound {@code Bi} cannot be
+     *       used here, because it mentions type parameters of the generic class that are not in
+     *       scope at the use.
+     *   <li>Otherwise, {@code ?} and {@code ? extends Ui} are replaced by {@code glb(Bi, Ui)} and
+     *       {@code ? super Li} by {@code Li}. The arguments of the glb are in the same order as in
+     *       javac, which matters because javac's glb is not symmetric; see {@link
+     *       AnnotatedTypes#annotatedGLB}.
+     * </ul>
+     *
+     * <p>The type arguments of a raw type are always handled by the second case. (javac does not
+     * compute a non-wildcard parameterization of a raw type at all.)
      *
      * @param type a type to ground
      * @param typeFactory type factory
-     * @return the ground type
+     * @return the non-wildcard parameterization of {@code type}
      */
-    // TODO: This method is named make ground, but is actually implements non-wildcard
-    // parameterization as defined in
-    // https://docs.oracle.com/javase/specs/jls/se11/html/jls-9.html#jls-9.9
-    // https://docs.oracle.com/javase/specs/jls/se19/html/jls-15.html#jls-15.13.2
     static AnnotatedDeclaredType makeGround(
             AnnotatedDeclaredType type, AnnotatedTypeFactory typeFactory) {
         Element e = type.getUnderlyingType().asElement();
         AnnotatedDeclaredType decl = typeFactory.getAnnotatedType((TypeElement) e);
         Iterator<AnnotatedTypeMirror> bounds = decl.getTypeArguments().iterator();
+        com.sun.tools.javac.util.List<Type> typeParameters =
+                ((Type) decl.getUnderlyingType()).getTypeArguments();
 
-        //    typeFactory.getTypeVarSubstitutor().substitute()
         Map<TypeVariable, AnnotatedTypeMirror> typeVarToTypeArg = new HashMap<>();
         for (AnnotatedTypeMirror pn : type.getTypeArguments()) {
             AnnotatedTypeVariable typeVariable = (AnnotatedTypeVariable) bounds.next();
@@ -358,18 +381,22 @@ public abstract class AbstractType {
                 continue;
             }
             AnnotatedWildcardType wildcardType = (AnnotatedWildcardType) pn;
-            if (wildcardType.getSuperBound().getKind() == TypeKind.NULL) {
-                // › If Ai is a upper-bounded wildcard ? extends Ui, then Ti = glb(Ui, Bi)
-                typeVarToTypeArg.put(
-                        typeVariable.getUnderlyingType(),
+            boolean isSuperWildcard = wildcardType.getSuperBound().getKind() != TypeKind.NULL;
+            AnnotatedTypeMirror typeArg;
+            if (isSuperWildcard) {
+                typeArg = wildcardType.getSuperBound();
+            } else if (!wildcardType.isTypeArgOfRawType()
+                    && ((Type) typeVariable.getUnderlyingType().getUpperBound())
+                            .containsAny(typeParameters)) {
+                typeArg = wildcardType.getExtendsBound();
+            } else {
+                typeArg =
                         AnnotatedTypes.annotatedGLB(
                                 typeFactory,
                                 typeVariable.getUpperBound(),
-                                wildcardType.getExtendsBound()));
-            } else {
-                typeVarToTypeArg.put(
-                        typeVariable.getUnderlyingType(), wildcardType.getSuperBound());
+                                wildcardType.getExtendsBound());
             }
+            typeVarToTypeArg.put(typeVariable.getUnderlyingType(), typeArg);
         }
         return (AnnotatedDeclaredType)
                 typeFactory.getTypeVarSubstitutor().substitute(typeVarToTypeArg, decl.asUse());

@@ -769,6 +769,11 @@ parameter, such as `Node<? extends Sub>` for `class Node<T extends Node<T>>` and
 `class Sub extends Node<Sub>`, or `Enum<? extends TimeUnit>`.  Capture conversion now gives
 the captured type variable the same upper bound that javac computes.
 
+Type argument inference no longer reports `type.argument.inference.crashed` for a lambda or
+method reference whose target, or whose receiver, is a functional interface type with a wildcard
+type argument for an F-bounded type parameter, such as `NodeSupplier<? extends Sub>` for
+`interface NodeSupplier<T extends Node<T>>`.  The ground target type now matches javac's.
+
 Type-checking a class with many fields under the Initialization Checker (and any checker
 built on it, such as the Nullness Checker) is no longer quadratic in the number of fields
 that are declared with an initializer or assigned in a constructor. Determining whether the
@@ -1243,6 +1248,7 @@ eisop#2089,
 eisop#2091,
 eisop#2105,
 eisop#2135,
+eisop#2140,
 typetools#399,
 typetools#2816,
 typetools#3203.
