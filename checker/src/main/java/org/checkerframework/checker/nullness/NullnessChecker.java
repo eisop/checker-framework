@@ -6,11 +6,10 @@ import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.framework.qual.StubFiles;
 import org.checkerframework.framework.source.SupportedLintOptions;
 import org.checkerframework.framework.source.SupportedModes;
+import org.checkerframework.framework.source.SupportedOptions;
 
 import java.util.Map;
 import java.util.NavigableSet;
-
-import javax.annotation.processing.SupportedOptions;
 
 /**
  * An implementation of the nullness type-system, parameterized by an initialization type-system for

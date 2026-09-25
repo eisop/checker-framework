@@ -1286,8 +1286,40 @@ Optional Checker (Chapter~\ref{optional-checker}), override
 
 in the \refclass{checker/optional}{OptionalChecker} class.
 
-% TODO: describe -ANullnessChecker_option=value mechanism.
-% For the implementation, see SourceChecker#OPTION_SEPARATOR.
+\subsubsectionAndLabel{Checker-Specific Options}{creating-providing-command-line-options-checker-specific}
+
+To direct a command-line option to a specific checker when multiple checkers are run together,
+prefix the option name with the checker's simple or canonical class name followed by an underscore
+``\<\_>''.
+For example:
+\begin{Verbatim}
+    -ANullnessChecker_lint=redundantNullComparison
+\end{Verbatim}
+
+\noindent
+Options prefixed with an enclosing checker's name automatically apply to all of its subcheckers
+(for example, options prefixed with \code{NullnessChecker_} apply to \code{NullnessNoInitSubchecker}).
+A subchecker can override a parent option with a more specific prefix
+(e.g., \code{-ANullnessNoInitSubchecker_lint=-redundantNullComparison}),
+and checker-prefixed options always take precedence over contradictory unprefixed options.
+
+Subcheckers automatically recognize options declared by their parent checkers.
+For example, if an enclosing checker declares:
+\begin{Verbatim}
+@SupportedOptions({"myOption"})
+public class MyParentChecker extends BaseTypeChecker { ... }
+\end{Verbatim}
+
+\noindent
+any subchecker can query \code{checker.hasOption("myOption")} or \code{checker.getOption("myOption")}
+directly without needing to inspect its parent checker.
+The framework automatically resolves the value with the proper specificity precedence:
+\begin{Verbatim}
+    -AMySubchecker_myOption=val1    (highest precedence)
+    -AMyParentChecker_myOption=val2
+    -AmyOption=val3                 (lowest precedence)
+\end{Verbatim}
+
 
 
 \sectionAndLabel{Visitor: Type rules}{creating-extending-visitor}

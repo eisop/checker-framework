@@ -913,6 +913,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     /** Set the parent checker of the current checker. */
     protected void setParentChecker(SourceChecker parentChecker) {
         this.parentChecker = parentChecker;
+        this.supportedOptions = null;
     }
 
     /**
@@ -3039,9 +3040,37 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
                 if (so != null) {
                     options.addAll(expandCFOptions(clazzPrefixes, so.value()));
                 }
+                javax.annotation.processing.SupportedOptions jso =
+                        clazz.getAnnotation(javax.annotation.processing.SupportedOptions.class);
+                if (jso != null) {
+                    options.addAll(expandCFOptions(clazzPrefixes, jso.value()));
+                }
                 clazz = clazz.getSuperclass();
             } while (clazz != null
                     && !clazz.getName().equals(AbstractTypeProcessor.class.getCanonicalName()));
+
+            // Subcheckers also support options declared by enclosing parent checkers.
+            SourceChecker parent = this.parentChecker;
+            while (parent != null) {
+                Class<?> parentClazz = parent.getClass();
+                do {
+                    SupportedOptions so = parentClazz.getAnnotation(SupportedOptions.class);
+                    if (so != null) {
+                        options.addAll(expandCFOptions(clazzPrefixes, so.value()));
+                    }
+                    javax.annotation.processing.SupportedOptions jso =
+                            parentClazz.getAnnotation(
+                                    javax.annotation.processing.SupportedOptions.class);
+                    if (jso != null) {
+                        options.addAll(expandCFOptions(clazzPrefixes, jso.value()));
+                    }
+                    parentClazz = parentClazz.getSuperclass();
+                } while (parentClazz != null
+                        && !parentClazz
+                                .getName()
+                                .equals(AbstractTypeProcessor.class.getCanonicalName()));
+                parent = parent.parentChecker;
+            }
 
             for (SourceChecker checker : getSubcheckers()) {
                 options.addAll(checker.getSupportedOptions());
