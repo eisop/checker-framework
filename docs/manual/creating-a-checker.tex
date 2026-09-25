@@ -762,6 +762,17 @@ The default qualifier applies to most, but not all, unannotated types, Section~\
 other defaulting rules are automatically added to every checker. Also, Section~\ref{defaults}
 describes other meta-annotations used to specify default annotations.
 
+When specifying defaults procedurally via methods such as
+\refmethod{framework/util/defaults}{QualifierDefaults}{addCheckedCodeDefault}{},
+\refmethod{framework/util/defaults}{QualifierDefaults}{addUncheckedCodeDefault}{}, or
+\refmethod{framework/util/defaults}{QualifierDefaults}{addElementDefault}{},
+the target location must be permitted for the qualifier:
+\begin{itemize}
+\item Top and bottom qualifiers in a qualifier hierarchy are permitted as programmatic defaults at all locations by default (as the canonical bounds of the lattice), even if their \refqualclass{framework/qual}{TargetLocations} restricts explicit user use.
+\item Other (intermediate) qualifiers must be permitted at the target location by their \refqualclass{framework/qual}{TargetLocations} meta-annotation, or they must be meta-annotated with \refqualclass{framework/qual}{ProgrammaticDefaultLocations} to explicitly permit programmatic defaulting at those locations.
+\end{itemize}
+If a programmatic default is registered for a location that is not permitted, the Checker Framework throws a \code{TypeSystemError}.
+
 \subsectionAndLabel{Relevant Java types}{creating-relevant-java-types}
 
 Sometimes, a checker is only relevant to certain Java types.
@@ -893,6 +904,10 @@ meta-annotated with:
 \end{Verbatim}
 
 Furthermore, by convention the name of such a qualifier ends with ``\<Bottom>''.
+
+Restricting a qualifier with \refqualclass{framework/qual}{TargetLocations} prevents users from writing the qualifier explicitly at other locations in source code (and prevents user-written \refqualclass{framework/qual}{DefaultQualifier} from targeting them).
+However, it does not prevent the type system or framework from using the top or bottom qualifier for programmatic defaults (such as conservative defaults for unchecked code or optimistic defaults), because top and bottom qualifiers are inherently permitted for programmatic defaults.
+If you define an intermediate qualifier that should be restricted from explicit use by users but permitted as a programmatic default, meta-annotate it with \refqualclass{framework/qual}{ProgrammaticDefaultLocations}.
 
 The hierarchy shown in Figure~\ref{fig-initialization-hierarchy} lacks
 a bottom qualifier, but the actual implementation does contain a (non-user-visible) bottom qualifier.
@@ -2880,7 +2895,7 @@ without warnings or errors.
 %%  LocalWords:  MyChecker's subchecker plugins ElementType myClass myflag
 %%  LocalWords:  CheckerFrameworkTest GenericAnnotatedTypeFactory MyClass
 %%  LocalWords:  addCheckedCodeDefaults RelevantJavaTypes TargetLocations
-%%  LocalWords:  TypeUseLocation createExpressionAnnoHelper fromNode expr
+%%  LocalWords:  ProgrammaticDefaultLocations TypeUseLocation createExpressionAnnoHelper fromNode expr
 %%  LocalWords:  ExpressionAnnotationHelper JavaExpressions CFTransfer LSP
 %%  LocalWords:  AnnotationProvider FooTransfer createFlowTransferFunction
 %%  LocalWords:  SupportedLintOptions myoption StubFiles scriptfile outdir

@@ -3,6 +3,20 @@ Version 3.49.5-eisop2 (June ?, 2026)
 
 **User-visible changes:**
 
+Specifying a location in `@DefaultQualifier` that is prohibited by the qualifier's
+`@TargetLocations` meta-annotation is now reported as a compiler error
+(`default.qualifier.prohibited.location`). Previously, such invalid defaults were
+accepted, allowing qualifiers to be defaulted onto locations where users could not
+write them explicitly (such as defaulting bottom qualifiers onto parameters or return types).
+
+New meta-annotation `@ProgrammaticDefaultLocations` in `org.checkerframework.framework.qual`
+allows type system designers to permit qualifiers to be used as programmatic defaults
+at specific locations even when prohibited from explicit use by programmers via `@TargetLocations`.
+Top and bottom qualifiers in a qualifier hierarchy are permitted as programmatic defaults
+at all locations by default. Programmatic defaults (`addCheckedCodeDefault`,
+`addUncheckedCodeDefault`, `addElementDefault`) specifying a location prohibited by
+`@ProgrammaticDefaultLocations` or `@TargetLocations` now throw a `TypeSystemError`.
+
 A binary stub file is no longer packaged after the `.astub` file it was generated from is
 renamed or deleted.  The stale `.bin.gz` shipped in the jar and was read in preference to the
 text stub that no longer existed, so the removed annotations kept being applied.
