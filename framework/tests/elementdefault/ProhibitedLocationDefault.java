@@ -8,22 +8,22 @@ import org.checkerframework.framework.testchecker.elementdefault.ElementDefaultR
  * Tests that @DefaultQualifier specifying a location prohibited by the qualifier's @TargetLocations
  * meta-annotation reports a compiler error.
  */
-// :: error: (default.qualifier.prohibited.location)
 @DefaultQualifier(value = ElementDefaultRestrictedBottom.class, locations = TypeUseLocation.RETURN)
+// :: error: (default.qualifier.prohibited.location)
 public class ProhibitedLocationDefault {
 
-    // :: error: (default.qualifier.prohibited.location)
     @DefaultQualifier(
             value = ElementDefaultRestrictedBottom.class,
             locations = TypeUseLocation.FIELD)
+    // :: error: (default.qualifier.prohibited.location)
     Object field;
 
     @DefaultQualifier.List({
-        // :: error: (default.qualifier.prohibited.location)
         @DefaultQualifier(
                 value = ElementDefaultRestrictedBottom.class,
                 locations = TypeUseLocation.LOCAL_VARIABLE)
     })
+    // :: error: (default.qualifier.prohibited.location)
     void testList() {}
 
     // PARAMETER is permitted by @TargetLocations({PARAMETER, EXPLICIT_LOWER_BOUND}), so no error
