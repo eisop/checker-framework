@@ -87,6 +87,18 @@ public abstract class QualifierHierarchy {
     }
 
     /**
+     * Returns true if the given qualifier is one of the bottom annotations for this qualifier
+     * hierarchy.
+     *
+     * @param qualifier any qualifier from one of the qualifier hierarchies represented by this
+     * @return true if the given qualifier is one of the bottom annotations for this qualifier
+     *     hierarchy
+     */
+    public boolean isBottom(AnnotationMirror qualifier) {
+        return AnnotationUtils.containsSame(getBottomAnnotations(), qualifier);
+    }
+
+    /**
      * Return the top qualifier for the given qualifier, that is, the qualifier that is a supertype
      * of {@code qualifier} but no further supertypes exist.
      *

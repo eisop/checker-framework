@@ -729,7 +729,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
      */
     public void processPackageTree(PackageTree tree, PackageElement elt) {
         checkConflictingAnnotatedFor(tree, elt);
-        atypeFactory.getQualifierDefaults().checkConflictingDefaults(elt);
+        atypeFactory.getQualifierDefaults().checkDefaultQualifiers(elt);
         checkQualifierParameterOnDeclaration(tree, elt);
     }
 
@@ -772,7 +772,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         TypeElement classElt = TreeUtils.elementFromDeclaration(classTree);
         checkConflictingAnnotatedFor(classTree, classElt);
         if (classElt != null) {
-            atypeFactory.getQualifierDefaults().checkConflictingDefaults(classElt);
+            atypeFactory.getQualifierDefaults().checkDefaultQualifiers(classElt);
         }
         checkFieldInvariantDeclarations(classTree);
         if (!TreeUtils.hasExplicitConstructor(classTree)) {
@@ -1316,7 +1316,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
         ExecutableElement methodElt = TreeUtils.elementFromDeclaration(tree);
         checkConflictingAnnotatedFor(tree, methodElt);
         if (methodElt != null) {
-            atypeFactory.getQualifierDefaults().checkConflictingDefaults(methodElt);
+            atypeFactory.getQualifierDefaults().checkDefaultQualifiers(methodElt);
         }
         // boilerplate
         long startMillis = System.currentTimeMillis();
@@ -1992,6 +1992,7 @@ public class BaseTypeVisitor<Factory extends GenericAnnotatedTypeFactory<?, ?, ?
 
         atypeFactory.getDependentTypesHelper().checkTypeForErrorExpressions(variableType, tree);
         Element varElt = TreeUtils.elementFromDeclaration(tree);
+        atypeFactory.getQualifierDefaults().checkDefaultQualifiers(varElt);
         if (varElt.getKind() == ElementKind.ENUM_CONSTANT) {
             commonAssignmentCheck(
                     tree, tree.getInitializer(), "enum.declaration.type.incompatible");

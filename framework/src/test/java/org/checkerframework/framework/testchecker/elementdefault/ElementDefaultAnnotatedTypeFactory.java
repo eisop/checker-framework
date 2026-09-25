@@ -46,6 +46,30 @@ public class ElementDefaultAnnotatedTypeFactory extends BaseAnnotatedTypeFactory
     public static final String CONFLICT_OPTION = "conflictingElementDefault";
 
     /**
+     * Command-line option that makes this factory register a checked code default for a location
+     * prohibited by the qualifier's @TargetLocations meta-annotation.
+     */
+    public static final String DISALLOWED_CHECKED_OPTION = "disallowedCheckedDefault";
+
+    /**
+     * Command-line option that makes this factory register an unchecked code default for a location
+     * prohibited by the qualifier's @TargetLocations meta-annotation.
+     */
+    public static final String DISALLOWED_UNCHECKED_OPTION = "disallowedUncheckedDefault";
+
+    /**
+     * Command-line option that makes this factory register an element default for a location
+     * prohibited by the qualifier's @TargetLocations meta-annotation.
+     */
+    public static final String DISALLOWED_ELEMENT_OPTION = "disallowedElementDefault";
+
+    /**
+     * Command-line option that makes this factory register programmatic defaults for a qualifier
+     * carrying @ProgrammaticDefaultLocations for a location not permitted by its @TargetLocations.
+     */
+    public static final String PROGRAMMATIC_ALLOWED_OPTION = "programmaticAllowedDefault";
+
+    /**
      * Creates a new ElementDefaultAnnotatedTypeFactory.
      *
      * @param checker the checker
@@ -81,6 +105,33 @@ public class ElementDefaultAnnotatedTypeFactory extends BaseAnnotatedTypeFactory
             // that rather than silently picking one; ElementDefaultConflictTest checks that it
             // does.
             defs.addElementDefault(before, top, TypeUseLocation.RETURN);
+        }
+
+        if (checker.hasOption(DISALLOWED_CHECKED_OPTION)) {
+            AnnotationMirror restricted =
+                    AnnotationBuilder.fromClass(elements, ElementDefaultRestrictedBottom.class);
+            defs.addCheckedCodeDefault(restricted, TypeUseLocation.RETURN);
+        }
+
+        if (checker.hasOption(DISALLOWED_UNCHECKED_OPTION)) {
+            AnnotationMirror restricted =
+                    AnnotationBuilder.fromClass(elements, ElementDefaultRestrictedBottom.class);
+            defs.addConservativeUncheckedCodeDefault(restricted, TypeUseLocation.RETURN);
+        }
+
+        if (checker.hasOption(DISALLOWED_ELEMENT_OPTION)) {
+            AnnotationMirror restricted =
+                    AnnotationBuilder.fromClass(elements, ElementDefaultRestrictedBottom.class);
+            defs.addElementDefault(before, restricted, TypeUseLocation.RETURN);
+        }
+
+        if (checker.hasOption(PROGRAMMATIC_ALLOWED_OPTION)) {
+            AnnotationMirror progAllowed =
+                    AnnotationBuilder.fromClass(
+                            elements, ElementDefaultProgrammaticAllowedBottom.class);
+            defs.addCheckedCodeDefault(progAllowed, TypeUseLocation.RETURN);
+            defs.addConservativeUncheckedCodeDefault(progAllowed, TypeUseLocation.RETURN);
+            defs.addElementDefault(before, progAllowed, TypeUseLocation.RETURN);
         }
 
         // OrderAfterClass: the defaults of the class *and* of one of its members are queried, and
@@ -166,6 +217,11 @@ public class ElementDefaultAnnotatedTypeFactory extends BaseAnnotatedTypeFactory
 
     @Override
     protected Set<Class<? extends Annotation>> createSupportedTypeQualifiers() {
-        return new HashSet<>(Arrays.asList(ElementDefaultTop.class, ElementDefaultBottom.class));
+        return new HashSet<>(
+                Arrays.asList(
+                        ElementDefaultTop.class,
+                        ElementDefaultBottom.class,
+                        ElementDefaultRestrictedBottom.class,
+                        ElementDefaultProgrammaticAllowedBottom.class));
     }
 }

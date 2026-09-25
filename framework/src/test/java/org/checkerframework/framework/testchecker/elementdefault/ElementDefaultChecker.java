@@ -18,6 +18,10 @@ import org.checkerframework.framework.source.SupportedOptions;
  */
 @SupportedOptions({
     ElementDefaultAnnotatedTypeFactory.LATE_OPTION,
-    ElementDefaultAnnotatedTypeFactory.CONFLICT_OPTION
+    ElementDefaultAnnotatedTypeFactory.CONFLICT_OPTION,
+    ElementDefaultAnnotatedTypeFactory.DISALLOWED_CHECKED_OPTION,
+    ElementDefaultAnnotatedTypeFactory.DISALLOWED_UNCHECKED_OPTION,
+    ElementDefaultAnnotatedTypeFactory.DISALLOWED_ELEMENT_OPTION,
+    ElementDefaultAnnotatedTypeFactory.PROGRAMMATIC_ALLOWED_OPTION
 })
 public final class ElementDefaultChecker extends BaseTypeChecker {}
