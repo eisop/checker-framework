@@ -3,6 +3,9 @@ UnannotatedForWithUse.java:35:25: compiler.err.proc.messager: [method.invocation
 found   : @UnknownInitialization Object
 required: @Initialized Object
 UnannotatedForWithUse.java:39:15: compiler.err.proc.messager: [argument.type.incompatible] incompatible argument for parameter of of Excluded.set.
+found   : @UnknownKeyFor NullType
+required: @KeyForBottom Object
+UnannotatedForWithUse.java:39:15: compiler.err.proc.messager: [argument.type.incompatible] incompatible argument for parameter of of Excluded.set.
 found   : @Nullable NullType
 required: @NonNull Object
-3 errors
+4 errors
