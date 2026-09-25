@@ -802,6 +802,11 @@ enclosing receiver is still under initialization used to rescan every field of t
 each such declaration or assignment; it is now cached or answered with an early-exit scan.
 A class with 4000 such fields now type-checks in about 11 seconds instead of about 26.
 
+The Checker Framework no longer crashes when a class on the classpath has a supertype whose
+type argument's class file is absent from the classpath, such as `class Sub extends
+Base<Missing>` with no `Missing.class`.  javac accepts such code, because it never needs the
+absent class.  The Checker Framework now issues a `class.not.completed` warning instead.
+
 **Implementation details:**
 
 `QualifierDefaults` now keeps a second set of unchecked-code defaults, the permissive ones, so
@@ -1285,12 +1290,14 @@ eisop#2084,
 eisop#2086,
 eisop#2089,
 eisop#2091,
+eisop#2094,
 eisop#2105,
 eisop#2135,
 eisop#2140,
 typetools#399,
 typetools#2816,
-typetools#3203.
+typetools#3203,
+typetools#8055.
 
 
 Version 3.49.5-eisop1 (April 26, 2026)
