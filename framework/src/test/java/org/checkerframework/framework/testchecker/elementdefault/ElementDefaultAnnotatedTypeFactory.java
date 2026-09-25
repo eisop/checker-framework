@@ -116,7 +116,7 @@ public class ElementDefaultAnnotatedTypeFactory extends BaseAnnotatedTypeFactory
         if (checker.hasOption(DISALLOWED_UNCHECKED_OPTION)) {
             AnnotationMirror restricted =
                     AnnotationBuilder.fromClass(elements, ElementDefaultRestrictedBottom.class);
-            defs.addUncheckedCodeDefault(restricted, TypeUseLocation.RETURN);
+            defs.addConservativeUncheckedCodeDefault(restricted, TypeUseLocation.RETURN);
         }
 
         if (checker.hasOption(DISALLOWED_ELEMENT_OPTION)) {
@@ -130,7 +130,7 @@ public class ElementDefaultAnnotatedTypeFactory extends BaseAnnotatedTypeFactory
                     AnnotationBuilder.fromClass(
                             elements, ElementDefaultProgrammaticAllowedBottom.class);
             defs.addCheckedCodeDefault(progAllowed, TypeUseLocation.RETURN);
-            defs.addUncheckedCodeDefault(progAllowed, TypeUseLocation.RETURN);
+            defs.addConservativeUncheckedCodeDefault(progAllowed, TypeUseLocation.RETURN);
             defs.addElementDefault(before, progAllowed, TypeUseLocation.RETURN);
         }
 

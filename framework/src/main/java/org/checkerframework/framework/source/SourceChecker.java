@@ -235,6 +235,13 @@ import javax.tools.Diagnostic;
     // org.checkerframework.framework.source.SourceChecker.useConservativeDefault
     "useConservativeDefaultsForUncheckedCode",
 
+    // Whether to use permissive defaults for bytecode and/or source code.
+    // This option takes the same arguments as "useConservativeDefaultsForUncheckedCode", and like
+    // it, applies only outside the scope of an @AnnotatedFor and suppresses warnings in unannotated
+    // source code. A given kind of code cannot be defaulted both permissively and
+    // conservatively.
+    "usePermissiveDefaultsForUncheckedCode",
+
     // Whether to assume sound concurrent semantics or
     // simplified sequential semantics
     // org.checkerframework.framework.flow.CFAbstractTransfer.sequentialSemantics
@@ -757,6 +764,11 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      * passed.
      */
     private boolean useConservativeDefaultsSource;
+
+    /**
+     * True if the -AusePermissiveDefaultsForUncheckedCode=source command-line argument was passed.
+     */
+    private boolean usePermissiveDefaultsSource;
 
     /**
      * The full list of subcheckers that need to be run prior to this one, in the order they need to
@@ -1336,6 +1348,8 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
             validateAssumeAssertionsOption(options);
         }
 
+        checkPermissiveAndConservativeDefaults();
+
         // Initialize all checkers and share supported lint options.
         for (SourceChecker checker : getSubcheckers()) {
             // Each checker should "support" all possible lint options - otherwise
@@ -1375,6 +1389,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
         warnUnneededSuppressions = hasOption("warnUnneededSuppressions");
         dumpOnErrors = hasOption("dumpOnErrors");
         useConservativeDefaultsSource = useConservativeDefault("source");
+        usePermissiveDefaultsSource = usePermissiveDefault("source");
         onlyAnnotatedFor = hasOption("onlyAnnotatedFor");
     }
 
@@ -3314,14 +3329,15 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      * <p>This overload also accounts for source-position-based suppression from unchecked code: if
      * no matching {@code @SuppressWarnings} is found, then warnings outside a relevant {@link
      * AnnotatedFor} scope are suppressed when {@code
-     * -AuseConservativeDefaultsForUncheckedCode=source} or {@code -AonlyAnnotatedFor} is in effect.
+     * -AuseConservativeDefaultsForUncheckedCode=source}, {@code
+     * -AusePermissiveDefaultsForUncheckedCode=source}, or {@code -AonlyAnnotatedFor} is in effect.
      *
      * @param path the TreePath that might be a source of, or related to, a warning
      * @param errKey the error key the checker is emitting
      * @return true if no warning should be emitted for the given path, either because it is
      *     contained by a declaration with an appropriately-valued {@code @SuppressWarnings}
      *     annotation, because it is suppressed by command-line arguments, or because it is outside
-     *     an {@link AnnotatedFor} scope when source-based conservative defaults are enabled; false
+     *     an {@link AnnotatedFor} scope when source-based unchecked defaults are enabled; false
      *     otherwise
      */
     public boolean shouldSuppressWarnings(TreePath path, String errKey) {
@@ -3377,7 +3393,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
         // Fast path: both branches below return false when neither flag is set, so the
         // @AnnotatedFor scope resolution -- a walk that reads declaration annotations off every
         // enclosing element -- would be discarded. This method runs for every reported diagnostic.
-        if (!useConservativeDefaultsSource && !onlyAnnotatedFor) {
+        if (!useConservativeDefaultsSource && !usePermissiveDefaultsSource && !onlyAnnotatedFor) {
             return false;
         }
 
@@ -3391,30 +3407,106 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     }
 
     /**
-     * Should conservative defaults be used for the kind of unchecked code indicated by the
-     * parameter?
+     * Determine whether conservative defaults should be used for the kind of unchecked code
+     * indicated by the command line arguments.
      *
      * @param kindOfCode source or bytecode
      * @return whether conservative defaults should be used
      */
     public boolean useConservativeDefault(String kindOfCode) {
-        boolean useUncheckedDefaultsForSource = false;
-        boolean useUncheckedDefaultsForByteCode = false;
-        for (String arg : this.getStringsOption("useConservativeDefaultsForUncheckedCode", ',')) {
-            boolean value = arg.indexOf("-") != 0;
-            arg = value ? arg : arg.substring(1);
-            if (arg.equals(kindOfCode)) {
-                return value;
+        // Preserve the legacy behavior of ignoring unrecognized conservative-default values.
+        return useUncheckedDefault("useConservativeDefaultsForUncheckedCode", kindOfCode, false);
+    }
+
+    /**
+     * Determine whether permissive defaults should be used for the kind of unchecked code indicated
+     * by the command line arguments.
+     *
+     * @param kindOfCode source or bytecode
+     * @return whether permissive defaults should be used
+     */
+    public boolean usePermissiveDefault(String kindOfCode) {
+        return useUncheckedDefault("usePermissiveDefaultsForUncheckedCode", kindOfCode, true);
+    }
+
+    /**
+     * Throws a {@link UserError} if a kind of code is to be defaulted both permissively and
+     * conservatively. The two are opposites, so applying both is always a mistake.
+     */
+    private void checkPermissiveAndConservativeDefaults() {
+        for (String kindOfCode : new String[] {"source", "bytecode"}) {
+            if (usePermissiveDefault(kindOfCode) && useConservativeDefault(kindOfCode)) {
+                throw new UserError(
+                        "Both -AusePermissiveDefaultsForUncheckedCode and"
+                                + " -AuseConservativeDefaultsForUncheckedCode were supplied for "
+                                + kindOfCode
+                                + "; a kind of code can be defaulted only one way.");
             }
         }
-        if (kindOfCode.equals("source")) {
-            return useUncheckedDefaultsForSource;
-        } else if (kindOfCode.equals("bytecode")) {
-            return useUncheckedDefaultsForByteCode;
-        } else {
-            throw new UserError(
-                    "SourceChecker: unexpected argument to useConservativeDefault: " + kindOfCode);
+    }
+
+    /**
+     * Returns whether an unchecked-code defaulting option enables defaults for a kind of code.
+     *
+     * @param optionName the option to parse
+     * @param kindOfCode source or bytecode
+     * @param validateValues whether to reject malformed and contradictory option values
+     * @return whether the option enables defaults for the kind of code
+     */
+    private boolean useUncheckedDefault(
+            String optionName, String kindOfCode, boolean validateValues) {
+        if (!kindOfCode.equals("source") && !kindOfCode.equals("bytecode")) {
+            throw new UserError("SourceChecker: unexpected kind of code: " + kindOfCode);
         }
+        if (!hasOption(optionName)) {
+            return false;
+        }
+
+        String optionValue = getOption(optionName);
+        if (optionValue == null) {
+            if (validateValues) {
+                throw new UserError("Option -A" + optionName + " requires a value.");
+            }
+            return false;
+        }
+
+        boolean found = false;
+        boolean result = false;
+        for (String rawArg : optionValue.split(",", -1)) {
+            if (rawArg.isEmpty()) {
+                if (validateValues) {
+                    throw new UserError("Option -A" + optionName + " contains an empty value.");
+                }
+                continue;
+            }
+            boolean value = rawArg.charAt(0) != '-';
+            String arg = value ? rawArg : rawArg.substring(1);
+            if (!arg.equals("source") && !arg.equals("bytecode")) {
+                if (validateValues) {
+                    throw new UserError(
+                            "Invalid value \""
+                                    + rawArg
+                                    + "\" for -A"
+                                    + optionName
+                                    + "; expected source, -source, bytecode, or -bytecode.");
+                }
+                continue;
+            }
+            if (arg.equals(kindOfCode)) {
+                if (!found) {
+                    found = true;
+                    result = value;
+                } else if (result != value && validateValues) {
+                    throw new UserError(
+                            "Option -A"
+                                    + optionName
+                                    + " contains conflicting values for "
+                                    + kindOfCode
+                                    + ".");
+                }
+            }
+        }
+        return result;
     }
 
     /**
@@ -3431,14 +3523,15 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      * <p>This overload also accounts for source-position-based suppression from unchecked code: if
      * no matching {@code @SuppressWarnings} is found, then warnings outside a relevant {@link
      * AnnotatedFor} scope are suppressed when {@code
-     * -AuseConservativeDefaultsForUncheckedCode=source} or {@code -AonlyAnnotatedFor} is in effect.
+     * -AuseConservativeDefaultsForUncheckedCode=source}, {@code
+     * -AusePermissiveDefaultsForUncheckedCode=source}, or {@code -AonlyAnnotatedFor} is in effect.
      *
      * @param elt the Element that might be a source of, or related to, a warning
      * @param errKey the error key the checker is emitting
      * @return true if no warning should be emitted for the given Element, either because it is
      *     contained by a declaration with an appropriately-valued {@code @SuppressWarnings}
      *     annotation, because it is suppressed by command-line arguments, or because it is outside
-     *     an {@link AnnotatedFor} scope when source-based conservative defaults are enabled; false
+     *     an {@link AnnotatedFor} scope when source-based unchecked defaults are enabled; false
      *     otherwise
      */
     public boolean shouldSuppressWarnings(Element elt, String errKey) {
@@ -3462,7 +3555,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
         }
 
         // Fast path, as in the TreePath overload above.
-        if (!useConservativeDefaultsSource && !onlyAnnotatedFor) {
+        if (!useConservativeDefaultsSource && !usePermissiveDefaultsSource && !onlyAnnotatedFor) {
             return false;
         }
 
