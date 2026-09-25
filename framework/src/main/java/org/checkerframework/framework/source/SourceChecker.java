@@ -2643,8 +2643,11 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
         }
 
         Map<String, String> activeOpts = new HashMap<>(CollectionsPlume.mapCapacity(options));
+        Map<String, Integer> optPriority = new HashMap<>(CollectionsPlume.mapCapacity(options));
 
-        forEveryOption:
+        final int PRIORITY_UNPREFIXED = 1;
+        final int PRIORITY_THIS_CHECKER = 1000;
+
         for (Map.Entry<String, String> opt : options.entrySet()) {
             String key = opt.getKey();
             String value = opt.getValue();
@@ -2656,8 +2659,11 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
 
             switch (split.length) {
                 case 1:
-                    // No separator, option always active.
-                    activeOpts.put(key, value);
+                    // No separator, option always active (base priority).
+                    if (PRIORITY_UNPREFIXED >= optPriority.getOrDefault(key, 0)) {
+                        activeOpts.put(key, value);
+                        optPriority.put(key, PRIORITY_UNPREFIXED);
+                    }
                     break;
                 case 2:
                     if (split[1].isEmpty()) {
@@ -2667,20 +2673,40 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
                         break;
                     }
 
-                    Class<?> clazz = this.getClass();
+                    String optionName = split[1];
+                    String prefix = split[0];
 
-                    do {
-                        if (clazz.getCanonicalName().equals(split[0])
-                                || clazz.getSimpleName().equals(split[0])) {
-                            // Valid class-option pair.
-                            activeOpts.put(split[1], value);
-                            continue forEveryOption;
+                    if (matchesCheckerOrSuperclass(this, prefix)) {
+                        if (PRIORITY_THIS_CHECKER >= optPriority.getOrDefault(optionName, 0)) {
+                            activeOpts.put(optionName, value);
+                            optPriority.put(optionName, PRIORITY_THIS_CHECKER);
                         }
+                        break;
+                    }
 
-                        clazz = clazz.getSuperclass();
-                    } while (clazz != null
-                            && !clazz.getName()
-                                    .equals(AbstractTypeProcessor.class.getCanonicalName()));
+                    // Check enclosing/parent checkers (e.g., NullnessChecker for
+                    // NullnessNoInitSubchecker, or an AggregateChecker for its subcheckers).
+                    // Options targeted to an enclosing checker apply to its subcheckers unless
+                    // overridden by a more specific option.
+                    int distance = 1;
+                    boolean matchedParent = false;
+                    for (SourceChecker parent = this.parentChecker;
+                            parent != null;
+                            parent = parent.parentChecker, distance++) {
+                        if (matchesCheckerOrSuperclass(parent, prefix)) {
+                            int parentPriority = PRIORITY_THIS_CHECKER - distance;
+                            if (parentPriority >= optPriority.getOrDefault(optionName, 0)) {
+                                activeOpts.put(optionName, value);
+                                optPriority.put(optionName, parentPriority);
+                            }
+                            matchedParent = true;
+                            break;
+                        }
+                    }
+                    if (matchedParent) {
+                        break;
+                    }
+
                     // Didn't find a matching class. Option might be for another processor. Add
                     // option anyways. javac will warn if no processor supports the option.
                     activeOpts.put(key, value);
@@ -2690,9 +2716,28 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
                     // anyways. javac will warn if no processor supports the option.
                     activeOpts.put(key, value);
             }
-            // Don't add code here, there is a `continue` in the switch above.
         }
         return activeOpts;
+    }
+
+    /**
+     * Returns true if {@code checker}'s class or any of its superclasses (up to {@link
+     * AbstractTypeProcessor}) matches {@code prefix} by simple or canonical name.
+     *
+     * @param checker the checker to check
+     * @param prefix the class name prefix to match
+     * @return true if there is a match
+     */
+    private static boolean matchesCheckerOrSuperclass(SourceChecker checker, String prefix) {
+        Class<?> clazz = checker.getClass();
+        do {
+            if (clazz.getCanonicalName().equals(prefix) || clazz.getSimpleName().equals(prefix)) {
+                return true;
+            }
+            clazz = clazz.getSuperclass();
+        } while (clazz != null
+                && !clazz.getName().equals(AbstractTypeProcessor.class.getCanonicalName()));
+        return false;
     }
 
     /**
