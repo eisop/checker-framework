@@ -1,4 +1,4 @@
-package optimisticdefaultslib;
+package permissivedefaultslib;
 
 public class Lib<T> {
     public static Object getObject() {

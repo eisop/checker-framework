@@ -3,12 +3,12 @@ Version 3.49.5-eisop2 (June ?, 2026)
 
 **User-visible changes:**
 
-The new command-line option `-AuseOptimisticDefaultsForUncheckedCode` takes `source` and/or
-`bytecode` arguments, like `-AuseConservativeDefaultsForUncheckedCode`, but applies optimistic
+The new command-line option `-AusePermissiveDefaultsForUncheckedCode` takes `source` and/or
+`bytecode` arguments, like `-AuseConservativeDefaultsForUncheckedCode`, but applies permissive
 defaults to code outside the scope of an `@AnnotatedFor`: top for method parameters and upper
 bounds, bottom for method returns, fields, and lower bounds.  It also suppresses type-checking
 warnings in unannotated source code, like `-AuseConservativeDefaultsForUncheckedCode=source`.
-A given kind of code cannot be defaulted both optimistically and conservatively.
+A given kind of code cannot be defaulted both permissively and conservatively.
 
 Specifying a location in `@DefaultQualifier` that is prohibited by the qualifier's
 `@TargetLocations` meta-annotation is now reported as a compiler error
@@ -804,20 +804,20 @@ A class with 4000 such fields now type-checks in about 11 seconds instead of abo
 
 **Implementation details:**
 
-`QualifierDefaults` now keeps a second set of unchecked-code defaults, the optimistic ones, so
+`QualifierDefaults` now keeps a second set of unchecked-code defaults, the permissive ones, so
 the members that name the conservative set say so: `STANDARD_UNCHECKED_DEFAULTS_TOP` and
 `STANDARD_UNCHECKED_DEFAULTS_BOTTOM` are now `CONSERVATIVE_UNCHECKED_DEFAULTS_TOP` and
 `CONSERVATIVE_UNCHECKED_DEFAULTS_BOTTOM`, and `addUncheckedCodeDefault` and
 `addUncheckedCodeDefaults` are now `addConservativeUncheckedCodeDefault` and
-`addConservativeUncheckedCodeDefaults`. The optimistic counterparts are
-`OPTIMISTIC_UNCHECKED_DEFAULTS_TOP`, `OPTIMISTIC_UNCHECKED_DEFAULTS_BOTTOM`, and
-`addOptimisticUncheckedCodeDefault`. The new `addConservativeDefaultsForUncheckedCode` and
-`addOptimisticDefaultsForUncheckedCode` add each mode's built-in defaults, and
+`addConservativeUncheckedCodeDefaults`. The permissive counterparts are
+`PERMISSIVE_UNCHECKED_DEFAULTS_TOP`, `PERMISSIVE_UNCHECKED_DEFAULTS_BOTTOM`, and
+`addPermissiveUncheckedCodeDefault`. The new `addConservativeDefaultsForUncheckedCode` and
+`addPermissiveDefaultsForUncheckedCode` add each mode's built-in defaults, and
 `addUncheckedStandardDefaults` now calls each of them only if its command-line option is enabled.
 At most one mode's defaults are applied to a given element.
-`QualifierDefaults.applyOptimisticDefaults(Element)` and `SourceChecker.useOptimisticDefault(String)`
-are the optimistic analogues of `applyConservativeDefaults` and `useConservativeDefault`.
-Both conservative and optimistic unchecked defaults filter qualifiers by their `@TargetLocations`
+`QualifierDefaults.applyPermissiveDefaults(Element)` and `SourceChecker.usePermissiveDefault(String)`
+are the permissive analogues of `applyConservativeDefaults` and `useConservativeDefault`.
+Both conservative and permissive unchecked defaults filter qualifiers by their `@TargetLocations`
 meta-annotation to avoid defaulting a qualifier onto a prohibited location (such as `@KeyForBottom`
 or `@FBCBottom` on method parameters).
 

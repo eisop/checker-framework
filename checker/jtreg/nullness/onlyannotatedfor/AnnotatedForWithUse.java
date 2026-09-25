@@ -6,7 +6,7 @@
  * @compile/fail/ref=AnnotatedForWithUseOnlyAnnotatedFor.out -XDrawDiagnostics -Xlint:unchecked -processor org.checkerframework.checker.nullness.NullnessChecker -AonlyAnnotatedFor AnnotatedForWithUse.java
  * @compile/fail/ref=AnnotatedForWithUseJSpecifyMode.out -XDrawDiagnostics -Xlint:unchecked -processor org.checkerframework.checker.nullness.NullnessChecker -Amode=jspecify AnnotatedForWithUse.java
  * @compile/fail/ref=AnnotatedForWithUseConservativeDefault.out -XDrawDiagnostics -Xlint:unchecked -processor org.checkerframework.checker.nullness.NullnessChecker -AuseConservativeDefaultsForUncheckedCode=source AnnotatedForWithUse.java
- * @compile/fail/ref=AnnotatedForWithUseOptimisticDefault.out -XDrawDiagnostics -Xlint:unchecked -processor org.checkerframework.checker.nullness.NullnessChecker -AuseOptimisticDefaultsForUncheckedCode=source AnnotatedForWithUse.java
+ * @compile/fail/ref=AnnotatedForWithUsePermissiveDefault.out -XDrawDiagnostics -Xlint:unchecked -processor org.checkerframework.checker.nullness.NullnessChecker -AusePermissiveDefaultsForUncheckedCode=source AnnotatedForWithUse.java
  */
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.framework.qual.AnnotatedFor;
@@ -29,7 +29,7 @@ public class AnnotatedForWithUse {
             @NonNull Object obj = u.o;
             // 1: Err, 2: Err, 3: Err, 4: OK (unsound), 5: Err
             // Case 4 (conservative defaults) is unsound: protects reads, not writes.
-            // Case 5 (optimistic defaults) defaults field write to NonNull.
+            // Case 5 (permissive defaults) defaults field write to NonNull.
             // See https://github.com/eisop/checker-framework/issues/1358 .
             u.o = null;
             // 1: OK, 2: OK, 3: OK, 4: Err, 5: OK

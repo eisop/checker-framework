@@ -117,8 +117,8 @@ public class QualifierDefaults {
     /** Conservative defaults for unchecked code. */
     private final DefaultSet conservativeUncheckedCodeDefaults = new DefaultSet();
 
-    /** Optimistic defaults for unchecked code. */
-    private final DefaultSet optimisticUncheckedCodeDefaults = new DefaultSet();
+    /** Permissive defaults for unchecked code. */
+    private final DefaultSet permissiveUncheckedCodeDefaults = new DefaultSet();
 
     /**
      * Which set of unchecked-code defaults to fold in behind a scope's own defaults. A null mode
@@ -128,8 +128,8 @@ public class QualifierDefaults {
     private enum UncheckedDefaultsMode {
         /** Unchecked code, defaulted conservatively. */
         CONSERVATIVE,
-        /** Unchecked code, defaulted optimistically. */
-        OPTIMISTIC
+        /** Unchecked code, defaulted permissively. */
+        PERMISSIVE
     }
 
     /**
@@ -148,10 +148,10 @@ public class QualifierDefaults {
 
     /**
      * Cached fused default list for the common case of an empty scope {@link DefaultSet},
-     * optimistic (unchecked + checked code defaults). Lazily built; reset whenever a default
+     * permissive (unchecked + checked code defaults). Lazily built; reset whenever a default
      * changes.
      */
-    private @Nullable List<Default> fusedEmptyOptimistic = null;
+    private @Nullable List<Default> fusedEmptyPermissive = null;
 
     /**
      * Memoized fused default lists for non-empty scope {@link DefaultSet}s, checked code
@@ -168,10 +168,10 @@ public class QualifierDefaults {
             new IdentityHashMap<>();
 
     /**
-     * Memoized fused default lists for non-empty scope {@link DefaultSet}s, optimistic, keyed by
+     * Memoized fused default lists for non-empty scope {@link DefaultSet}s, permissive, keyed by
      * {@code DefaultSet} identity. See {@link #fusedDefaultsFor}.
      */
-    private final IdentityHashMap<DefaultSet, List<Default>> fusedOptimisticCache =
+    private final IdentityHashMap<DefaultSet, List<Default>> fusedPermissiveCache =
             new IdentityHashMap<>();
 
     /**
@@ -269,30 +269,30 @@ public class QualifierDefaults {
                     Arrays.asList(TypeUseLocation.PARAMETER, TypeUseLocation.LOWER_BOUND));
 
     /**
-     * Optimistic unchecked default locations that should be top. These are the mirror image of
+     * Permissive unchecked default locations that should be top. These are the mirror image of
      * {@link #CONSERVATIVE_UNCHECKED_DEFAULTS_TOP}: a call into unchecked code may pass anything,
      * so its parameters are assumed to accept anything.
      */
-    public static final List<TypeUseLocation> OPTIMISTIC_UNCHECKED_DEFAULTS_TOP =
+    public static final List<TypeUseLocation> PERMISSIVE_UNCHECKED_DEFAULTS_TOP =
             Collections.unmodifiableList(
                     Arrays.asList(TypeUseLocation.PARAMETER, TypeUseLocation.UPPER_BOUND));
 
     /**
-     * Optimistic unchecked default locations that should be bottom. A value obtained from unchecked
+     * Permissive unchecked default locations that should be bottom. A value obtained from unchecked
      * code is assumed to satisfy any requirement, so no error is issued at its use.
      */
-    public static final List<TypeUseLocation> OPTIMISTIC_UNCHECKED_DEFAULTS_BOTTOM =
+    public static final List<TypeUseLocation> PERMISSIVE_UNCHECKED_DEFAULTS_BOTTOM =
             Collections.unmodifiableList(
                     Arrays.asList(
                             TypeUseLocation.RETURN,
                             TypeUseLocation.FIELD,
                             TypeUseLocation.LOWER_BOUND));
 
-    /** True if optimistic defaults should be used in unannotated source code. */
-    private final boolean useOptimisticDefaultsSource;
+    /** True if permissive defaults should be used in unannotated source code. */
+    private final boolean usePermissiveDefaultsSource;
 
-    /** True if optimistic defaults should be used for unannotated bytecode. */
-    private final boolean useOptimisticDefaultsBytecode;
+    /** True if permissive defaults should be used for unannotated bytecode. */
+    private final boolean usePermissiveDefaultsBytecode;
 
     /** True if conservative defaults should be used in unannotated source code. */
     private final boolean useConservativeDefaultsSource;
@@ -321,9 +321,9 @@ public class QualifierDefaults {
                 atypeFactory.getChecker().useConservativeDefault("bytecode");
         this.useConservativeDefaultsSource =
                 atypeFactory.getChecker().useConservativeDefault("source");
-        this.useOptimisticDefaultsSource = atypeFactory.getChecker().useOptimisticDefault("source");
-        this.useOptimisticDefaultsBytecode =
-                atypeFactory.getChecker().useOptimisticDefault("bytecode");
+        this.usePermissiveDefaultsSource = atypeFactory.getChecker().usePermissiveDefault("source");
+        this.usePermissiveDefaultsBytecode =
+                atypeFactory.getChecker().usePermissiveDefault("bytecode");
         ProcessingEnvironment processingEnv = atypeFactory.getProcessingEnv();
         this.defaultQualifierValueElement =
                 TreeUtils.getMethod(DefaultQualifier.class, "value", 0, processingEnv);
@@ -352,12 +352,12 @@ public class QualifierDefaults {
                 StringsPlume.joinLines(checkedCodeDefaults),
                 "Conservative unchecked code defaults: ",
                 StringsPlume.joinLines(conservativeUncheckedCodeDefaults),
-                "Optimistic unchecked code defaults: ",
-                StringsPlume.joinLines(optimisticUncheckedCodeDefaults),
+                "Permissive unchecked code defaults: ",
+                StringsPlume.joinLines(permissiveUncheckedCodeDefaults),
                 "useConservativeDefaultsSource: " + useConservativeDefaultsSource,
                 "useConservativeDefaultsBytecode: " + useConservativeDefaultsBytecode,
-                "useOptimisticDefaultsSource: " + useOptimisticDefaultsSource,
-                "useOptimisticDefaultsBytecode: " + useOptimisticDefaultsBytecode);
+                "usePermissiveDefaultsSource: " + usePermissiveDefaultsSource,
+                "usePermissiveDefaultsBytecode: " + usePermissiveDefaultsBytecode);
     }
 
     /**
@@ -384,22 +384,22 @@ public class QualifierDefaults {
         switch (mode) {
             case CONSERVATIVE:
                 return conservativeUncheckedCodeDefaults;
-            case OPTIMISTIC:
-                return optimisticUncheckedCodeDefaults;
+            case PERMISSIVE:
+                return permissiveUncheckedCodeDefaults;
         }
         throw new BugInCF("Unhandled unchecked defaults mode: " + mode);
     }
 
     /**
      * Adds the defaults for unchecked code of each mode the command-line options enable: {@link
-     * #addConservativeDefaultsForUncheckedCode} and {@link #addOptimisticDefaultsForUncheckedCode}.
+     * #addConservativeDefaultsForUncheckedCode} and {@link #addPermissiveDefaultsForUncheckedCode}.
      */
     public void addUncheckedStandardDefaults() {
         if (useConservativeDefaultsSource || useConservativeDefaultsBytecode) {
             addConservativeDefaultsForUncheckedCode();
         }
-        if (useOptimisticDefaultsSource || useOptimisticDefaultsBytecode) {
-            addOptimisticDefaultsForUncheckedCode();
+        if (usePermissiveDefaultsSource || usePermissiveDefaultsBytecode) {
+            addPermissiveDefaultsForUncheckedCode();
         }
     }
 
@@ -419,18 +419,18 @@ public class QualifierDefaults {
     }
 
     /**
-     * Adds the optimistic defaults for unchecked code, which {@code
-     * -AuseOptimisticDefaultsForUncheckedCode} (e.g., with {@code source} or {@code bytecode})
-     * enables: the top qualifier at {@link #OPTIMISTIC_UNCHECKED_DEFAULTS_TOP} and the bottom
-     * qualifier at {@link #OPTIMISTIC_UNCHECKED_DEFAULTS_BOTTOM}, at each location the checker has
-     * not already given an optimistic default. To add a checker-specific default instead, use
-     * {@link #addOptimisticUncheckedCodeDefault}.
+     * Adds the permissive defaults for unchecked code, which {@code
+     * -AusePermissiveDefaultsForUncheckedCode} (e.g., with {@code source} or {@code bytecode})
+     * enables: the top qualifier at {@link #PERMISSIVE_UNCHECKED_DEFAULTS_TOP} and the bottom
+     * qualifier at {@link #PERMISSIVE_UNCHECKED_DEFAULTS_BOTTOM}, at each location the checker has
+     * not already given a permissive default. To add a checker-specific default instead, use {@link
+     * #addPermissiveUncheckedCodeDefault}.
      */
-    public void addOptimisticDefaultsForUncheckedCode() {
+    public void addPermissiveDefaultsForUncheckedCode() {
         addDefaultsForUncheckedCode(
-                UncheckedDefaultsMode.OPTIMISTIC,
-                OPTIMISTIC_UNCHECKED_DEFAULTS_TOP,
-                OPTIMISTIC_UNCHECKED_DEFAULTS_BOTTOM);
+                UncheckedDefaultsMode.PERMISSIVE,
+                PERMISSIVE_UNCHECKED_DEFAULTS_TOP,
+                PERMISSIVE_UNCHECKED_DEFAULTS_BOTTOM);
     }
 
     /**
@@ -660,33 +660,33 @@ public class QualifierDefaults {
     }
 
     /**
-     * Add an optimistic default annotation for unchecked elements.
+     * Add a permissive default annotation for unchecked elements.
      *
      * @param uncheckedDefaultAnno the default annotation mirror
      * @param location the type use location
      * @param applyToSubpackages whether the default should be inherited by subpackages
      */
-    public void addOptimisticUncheckedCodeDefault(
+    public void addPermissiveUncheckedCodeDefault(
             AnnotationMirror uncheckedDefaultAnno,
             TypeUseLocation location,
             boolean applyToSubpackages) {
         addUncheckedCodeDefault(
-                UncheckedDefaultsMode.OPTIMISTIC,
+                UncheckedDefaultsMode.PERMISSIVE,
                 uncheckedDefaultAnno,
                 location,
                 applyToSubpackages);
     }
 
     /**
-     * Add an optimistic default annotation for unchecked elements that also applies to subpackages,
+     * Add a permissive default annotation for unchecked elements that also applies to subpackages,
      * if applicable.
      *
      * @param uncheckedDefaultAnno the default annotation mirror
      * @param location the type use location
      */
-    public void addOptimisticUncheckedCodeDefault(
+    public void addPermissiveUncheckedCodeDefault(
             AnnotationMirror uncheckedDefaultAnno, TypeUseLocation location) {
-        addOptimisticUncheckedCodeDefault(uncheckedDefaultAnno, location, true);
+        addPermissiveUncheckedCodeDefault(uncheckedDefaultAnno, location, true);
     }
 
     /**
@@ -729,15 +729,15 @@ public class QualifierDefaults {
     }
 
     /**
-     * Adds an optimistic default annotation for unchecked elements, at each of the given locations.
+     * Adds a permissive default annotation for unchecked elements, at each of the given locations.
      *
      * @param absoluteDefaultAnno the default annotation mirror
      * @param locations the type use locations to apply the default to
      */
-    public void addOptimisticUncheckedCodeDefaults(
+    public void addPermissiveUncheckedCodeDefaults(
             AnnotationMirror absoluteDefaultAnno, TypeUseLocation[] locations) {
         for (TypeUseLocation location : locations) {
-            addOptimisticUncheckedCodeDefault(absoluteDefaultAnno, location);
+            addPermissiveUncheckedCodeDefault(absoluteDefaultAnno, location);
         }
     }
 
@@ -749,7 +749,7 @@ public class QualifierDefaults {
      * @param location the type use location
      * @param applyToSubpackages whether the default should be inherited by subpackages
      * @deprecated Use {@link #addConservativeUncheckedCodeDefault(AnnotationMirror,
-     *     TypeUseLocation, boolean)} or {@link #addOptimisticUncheckedCodeDefault(AnnotationMirror,
+     *     TypeUseLocation, boolean)} or {@link #addPermissiveUncheckedCodeDefault(AnnotationMirror,
      *     TypeUseLocation, boolean)}.
      */
     @Deprecated
@@ -767,7 +767,7 @@ public class QualifierDefaults {
      * @param uncheckedDefaultAnno the default annotation mirror
      * @param location the type use location
      * @deprecated Use {@link #addConservativeUncheckedCodeDefault(AnnotationMirror,
-     *     TypeUseLocation)} or {@link #addOptimisticUncheckedCodeDefault(AnnotationMirror,
+     *     TypeUseLocation)} or {@link #addPermissiveUncheckedCodeDefault(AnnotationMirror,
      *     TypeUseLocation)}.
      */
     @Deprecated
@@ -783,7 +783,7 @@ public class QualifierDefaults {
      * @param absoluteDefaultAnno the default annotation mirror
      * @param locations the type use locations to apply the default to
      * @deprecated Use {@link #addConservativeUncheckedCodeDefaults(AnnotationMirror,
-     *     TypeUseLocation[])} or {@link #addOptimisticUncheckedCodeDefaults(AnnotationMirror,
+     *     TypeUseLocation[])} or {@link #addPermissiveUncheckedCodeDefaults(AnnotationMirror,
      *     TypeUseLocation[])}.
      */
     @Deprecated
@@ -1517,18 +1517,18 @@ public class QualifierDefaults {
     }
 
     /**
-     * Given an element, returns whether the optimistic default should be applied for it. Handles
+     * Given an element, returns whether the permissive default should be applied for it. Handles
      * elements from bytecode or source code.
      *
      * <p>At most one of this and {@link #applyConservativeDefaults} returns true for an element: a
-     * kind of code cannot be defaulted both optimistically and conservatively, which {@link
+     * kind of code cannot be defaulted both permissively and conservatively, which {@link
      * org.checkerframework.framework.source.SourceChecker} rejects at startup.
      *
-     * @param annotationScope the element that the optimistic default might apply to
-     * @return whether the optimistic default applies to the given element
+     * @param annotationScope the element that the permissive default might apply to
+     * @return whether the permissive default applies to the given element
      */
-    public boolean applyOptimisticDefaults(Element annotationScope) {
-        return applyUncheckedDefaults(annotationScope, UncheckedDefaultsMode.OPTIMISTIC);
+    public boolean applyPermissiveDefaults(Element annotationScope) {
+        return applyUncheckedDefaults(annotationScope, UncheckedDefaultsMode.PERMISSIVE);
     }
 
     /**
@@ -1557,11 +1557,11 @@ public class QualifierDefaults {
         boolean useBytecode =
                 mode == UncheckedDefaultsMode.CONSERVATIVE
                         ? useConservativeDefaultsBytecode
-                        : useOptimisticDefaultsBytecode;
+                        : usePermissiveDefaultsBytecode;
         boolean useSource =
                 mode == UncheckedDefaultsMode.CONSERVATIVE
                         ? useConservativeDefaultsSource
-                        : useOptimisticDefaultsSource;
+                        : usePermissiveDefaultsSource;
 
         if ((!useBytecode && !useSource) || defaultsFor(mode).isEmpty()) {
             return false;
@@ -1613,16 +1613,16 @@ public class QualifierDefaults {
         }
         fusedEmptyChecked = null;
         fusedEmptyConservative = null;
-        fusedEmptyOptimistic = null;
+        fusedEmptyPermissive = null;
         fusedCheckedCache.clear();
         fusedConservativeCache.clear();
-        fusedOptimisticCache.clear();
+        fusedPermissiveCache.clear();
         fusedDefaultsCached = false;
     }
 
     /**
      * Returns the defaults to apply, in precedence order, for the given scope {@code DefaultSet}:
-     * the in-scope defaults, then (per {@code mode}) the conservative or optimistic unchecked-code
+     * the in-scope defaults, then (per {@code mode}) the conservative or permissive unchecked-code
      * defaults, then the checked-code defaults, with checked/unchecked {@code TYPE_VARIABLE_USE}
      * defaults dropped when the scope already has one.
      *
@@ -1666,11 +1666,11 @@ public class QualifierDefaults {
                         fusedEmptyConservative = buildFusedDefaults(defaults, mode);
                     }
                     return fusedEmptyConservative;
-                case OPTIMISTIC:
-                    if (fusedEmptyOptimistic == null) {
-                        fusedEmptyOptimistic = buildFusedDefaults(defaults, mode);
+                case PERMISSIVE:
+                    if (fusedEmptyPermissive == null) {
+                        fusedEmptyPermissive = buildFusedDefaults(defaults, mode);
                     }
-                    return fusedEmptyOptimistic;
+                    return fusedEmptyPermissive;
             }
             throw new BugInCF("Unhandled unchecked defaults mode: " + mode);
         }
@@ -1682,8 +1682,8 @@ public class QualifierDefaults {
                 case CONSERVATIVE:
                     cache = fusedConservativeCache;
                     break;
-                case OPTIMISTIC:
-                    cache = fusedOptimisticCache;
+                case PERMISSIVE:
+                    cache = fusedPermissiveCache;
                     break;
                 default:
                     throw new BugInCF("Unhandled unchecked defaults mode: " + mode);
@@ -1758,8 +1758,8 @@ public class QualifierDefaults {
         UncheckedDefaultsMode mode;
         if (applyConservativeDefaults(annotationScope)) {
             mode = UncheckedDefaultsMode.CONSERVATIVE;
-        } else if (applyOptimisticDefaults(annotationScope)) {
-            mode = UncheckedDefaultsMode.OPTIMISTIC;
+        } else if (applyPermissiveDefaults(annotationScope)) {
+            mode = UncheckedDefaultsMode.PERMISSIVE;
         } else {
             // Checked code: fold in no unchecked-code defaults.
             mode = null;

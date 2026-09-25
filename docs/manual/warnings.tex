@@ -738,8 +738,8 @@ An explicit \code{@SuppressWarnings} annotation can suppress warnings in
 For example, use \code{@AnnotatedFor("nullness")} for the Nullness Checker.
 This flag only suppresses warnings, compared to
 \code{-AuseConservativeDefaultsForUncheckedCode=source} and
-\code{-AuseOptimisticDefaultsForUncheckedCode=source},
-which also apply conservative or optimistic defaults for code outside the scope of an \code{@AnnotatedFor} annotation.
+\code{-AusePermissiveDefaultsForUncheckedCode=source},
+which also apply conservative or permissive defaults for code outside the scope of an \code{@AnnotatedFor} annotation.
 \href{https://github.com/uber/NullAway}{NullAway} has a similar flag: \code{-XepOpt:NullAway:OnlyNullMarked=true}
 configures NullAway to only issue errors for code inside the scope of \code{@NullMarked} annotations.
 The Nullness Checker treats JSpecify's \code{@NullMarked} as an alias for
