@@ -6,26 +6,26 @@ import org.checkerframework.framework.qual.TypeUseLocation;
 // Setting it as default in source for RETURN, FIELD, LOCAL_VARIABLE, or PARAMETER is prohibited.
 public class DefaultQualifierProhibitedLocation {
 
-    // :: error: (default.qualifier.prohibited.location)
     @DefaultQualifier(value = KeyForBottom.class, locations = TypeUseLocation.RETURN)
+    // :: error: (default.qualifier.prohibited.location)
     void testReturn() {}
 
-    // :: error: (default.qualifier.prohibited.location)
     @DefaultQualifier(value = KeyForBottom.class, locations = TypeUseLocation.FIELD)
+    // :: error: (default.qualifier.prohibited.location)
     static class TestField {
         Object f = new Object();
     }
 
     @DefaultQualifier.List({
-        // :: error: (default.qualifier.prohibited.location)
         @DefaultQualifier(value = KeyForBottom.class, locations = TypeUseLocation.LOCAL_VARIABLE)
     })
+    // :: error: (default.qualifier.prohibited.location)
     void testList() {}
 
     // PARAMETER is prohibited for written @DefaultQualifier (even with
     // @ProgrammaticDefaultLocations)
-    // :: error: (default.qualifier.prohibited.location)
     @DefaultQualifier(value = KeyForBottom.class, locations = TypeUseLocation.PARAMETER)
+    // :: error: (default.qualifier.prohibited.location)
     void testParam(Object x) {}
 
     // LOWER_BOUND is permitted in source: no error

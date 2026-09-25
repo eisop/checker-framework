@@ -24,8 +24,6 @@ import com.sun.source.tree.MemberReferenceTree.ReferenceMode;
 import com.sun.source.tree.MemberSelectTree;
 import com.sun.source.tree.MethodInvocationTree;
 import com.sun.source.tree.MethodTree;
-import com.sun.source.tree.ModifiersTree;
-import com.sun.source.tree.ModuleTree;
 import com.sun.source.tree.NewArrayTree;
 import com.sun.source.tree.NewClassTree;
 import com.sun.source.tree.PackageTree;
@@ -1938,95 +1936,6 @@ public final class TreeUtils {
      */
     public static List<? extends AnnotationMirror> annotationsFromTree(TypeParameterTree tree) {
         return annotationsFromTypeAnnotationTrees(((JCTypeParameter) tree).annotations);
-    }
-
-    /**
-     * Returns the annotations written on a declaration tree.
-     *
-     * @param tree a declaration tree (ClassTree, MethodTree, VariableTree, PackageTree, ModuleTree,
-     *     or TypeParameterTree)
-     * @return the annotations on {@code tree}
-     * @throws BugInCF if {@code tree} is not a declaration tree that can have annotations
-     */
-    public static List<? extends AnnotationTree> getAnnotations(Tree tree) {
-        if (tree instanceof ClassTree) {
-            ModifiersTree mods = ((ClassTree) tree).getModifiers();
-            return mods != null ? mods.getAnnotations() : Collections.emptyList();
-        } else if (tree instanceof MethodTree) {
-            ModifiersTree mods = ((MethodTree) tree).getModifiers();
-            return mods != null ? mods.getAnnotations() : Collections.emptyList();
-        } else if (tree instanceof VariableTree) {
-            ModifiersTree mods = ((VariableTree) tree).getModifiers();
-            return mods != null ? mods.getAnnotations() : Collections.emptyList();
-        } else if (tree instanceof PackageTree) {
-            return ((PackageTree) tree).getAnnotations();
-        } else if (tree instanceof ModuleTree) {
-            return ((ModuleTree) tree).getAnnotations();
-        } else if (tree instanceof TypeParameterTree) {
-            return ((TypeParameterTree) tree).getAnnotations();
-        }
-        throw new BugInCF(
-                "TreeUtils.getAnnotations: unexpected tree kind %s [%s]",
-                tree.getKind(), tree.getClass());
-    }
-
-    /**
-     * Returns any repeated/nested {@link AnnotationTree}s inside a container annotation.
-     *
-     * @param container the container annotation tree
-     * @return list of nested annotation trees
-     */
-    public static List<AnnotationTree> getRepeatedAnnotationTrees(AnnotationTree container) {
-        List<AnnotationTree> result = new ArrayList<>();
-        for (ExpressionTree arg : container.getArguments()) {
-            ExpressionTree expr =
-                    (arg instanceof AssignmentTree) ? ((AssignmentTree) arg).getExpression() : arg;
-            if (expr instanceof NewArrayTree) {
-                for (ExpressionTree elem : ((NewArrayTree) expr).getInitializers()) {
-                    if (elem instanceof AnnotationTree) {
-                        result.add((AnnotationTree) elem);
-                    }
-                }
-            } else if (expr instanceof AnnotationTree) {
-                result.add((AnnotationTree) expr);
-            }
-        }
-        return result;
-    }
-
-    /**
-     * Finds the {@link AnnotationTree} corresponding to {@code target} within {@code annoTrees},
-     * searching both top-level annotations and repeated annotations inside containers.
-     *
-     * @param annoTrees list of annotation trees to search
-     * @param target the annotation mirror to match
-     * @return matching annotation tree, or null if not found
-     */
-    public static @Nullable AnnotationTree findAnnotationTree(
-            List<? extends AnnotationTree> annoTrees, AnnotationMirror target) {
-        for (AnnotationTree annoTree : annoTrees) {
-            if (AnnotationUtils.areSame(annotationFromAnnotationTree(annoTree), target)) {
-                return annoTree;
-            }
-            for (AnnotationTree subAnno : getRepeatedAnnotationTrees(annoTree)) {
-                if (AnnotationUtils.areSame(annotationFromAnnotationTree(subAnno), target)) {
-                    return subAnno;
-                }
-            }
-        }
-        return null;
-    }
-
-    /**
-     * Finds the {@link AnnotationTree} corresponding to {@code target} on declaration {@code tree},
-     * searching both top-level annotations and repeated annotations inside containers.
-     *
-     * @param tree the declaration tree
-     * @param target the annotation mirror to match
-     * @return matching annotation tree, or null if not found
-     */
-    public static @Nullable AnnotationTree findAnnotationTree(Tree tree, AnnotationMirror target) {
-        return findAnnotationTree(getAnnotations(tree), target);
     }
 
     /**

@@ -756,35 +756,12 @@ public class QualifierDefaults {
                             defaultQualifierValueDefault);
             for (TypeUseLocation loc : locations) {
                 if (!permittedAtLocation(anno, loc)) {
-                    Tree annoTree = findAnnotationTree(elt, dq);
-                    Object reportTarget = annoTree != null ? annoTree : elt;
                     atypeFactory
                             .getChecker()
-                            .reportError(
-                                    reportTarget,
-                                    "default.qualifier.prohibited.location",
-                                    anno,
-                                    loc);
+                            .reportError(elt, "default.qualifier.prohibited.location", anno, loc);
                 }
             }
         }
-    }
-
-    /**
-     * Finds the {@link Tree} corresponding to {@code dq} on the declaration of {@code elt}, or null
-     * if not found or if {@code elt} does not originate from source code.
-     *
-     * @param elt the element
-     * @param dq the default qualifier annotation mirror
-     * @return the tree for the annotation, or null
-     */
-    private @Nullable Tree findAnnotationTree(Element elt, AnnotationMirror dq) {
-        Tree declTree = atypeFactory.declarationFromElement(elt);
-        if (declTree == null) {
-            return null;
-        }
-        Tree annoTree = TreeUtils.findAnnotationTree(declTree, dq);
-        return annoTree != null ? annoTree : declTree;
     }
 
     /**
