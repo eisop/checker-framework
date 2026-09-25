@@ -910,7 +910,11 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
         this.types = processingEnv.getTypeUtils();
     }
 
-    /** Set the parent checker of the current checker. */
+    /**
+     * Set the parent checker of the current checker.
+     *
+     * @param parentChecker the parent checker
+     */
     protected void setParentChecker(SourceChecker parentChecker) {
         this.parentChecker = parentChecker;
         this.supportedOptions = null;
