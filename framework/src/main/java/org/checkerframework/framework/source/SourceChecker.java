@@ -3414,8 +3414,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      * @return whether conservative defaults should be used
      */
     public boolean useConservativeDefault(String kindOfCode) {
-        // Preserve the legacy behavior of ignoring unrecognized conservative-default values.
-        return useUncheckedDefault("useConservativeDefaultsForUncheckedCode", kindOfCode, false);
+        return useUncheckedDefault("useConservativeDefaultsForUncheckedCode", kindOfCode);
     }
 
     /**
@@ -3426,7 +3425,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      * @return whether permissive defaults should be used
      */
     public boolean usePermissiveDefault(String kindOfCode) {
-        return useUncheckedDefault("usePermissiveDefaultsForUncheckedCode", kindOfCode, true);
+        return useUncheckedDefault("usePermissiveDefaultsForUncheckedCode", kindOfCode);
     }
 
     /**
@@ -3450,11 +3449,9 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      *
      * @param optionName the option to parse
      * @param kindOfCode source or bytecode
-     * @param validateValues whether to reject malformed and contradictory option values
      * @return whether the option enables defaults for the kind of code
      */
-    private boolean useUncheckedDefault(
-            String optionName, String kindOfCode, boolean validateValues) {
+    private boolean useUncheckedDefault(String optionName, String kindOfCode) {
         if (!kindOfCode.equals("source") && !kindOfCode.equals("bytecode")) {
             throw new UserError("SourceChecker: unexpected kind of code: " + kindOfCode);
         }
@@ -3464,39 +3461,30 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
 
         String optionValue = getOption(optionName);
         if (optionValue == null) {
-            if (validateValues) {
-                throw new UserError("Option -A" + optionName + " requires a value.");
-            }
-            return false;
+            throw new UserError("Option -A" + optionName + " requires a value.");
         }
 
         boolean found = false;
         boolean result = false;
         for (String rawArg : optionValue.split(",", -1)) {
             if (rawArg.isEmpty()) {
-                if (validateValues) {
-                    throw new UserError("Option -A" + optionName + " contains an empty value.");
-                }
-                continue;
+                throw new UserError("Option -A" + optionName + " contains an empty value.");
             }
             boolean value = rawArg.charAt(0) != '-';
             String arg = value ? rawArg : rawArg.substring(1);
             if (!arg.equals("source") && !arg.equals("bytecode")) {
-                if (validateValues) {
-                    throw new UserError(
-                            "Invalid value \""
-                                    + rawArg
-                                    + "\" for -A"
-                                    + optionName
-                                    + "; expected source, -source, bytecode, or -bytecode.");
-                }
-                continue;
+                throw new UserError(
+                        "Invalid value \""
+                                + rawArg
+                                + "\" for -A"
+                                + optionName
+                                + "; expected source, -source, bytecode, or -bytecode.");
             }
             if (arg.equals(kindOfCode)) {
                 if (!found) {
                     found = true;
                     result = value;
-                } else if (result != value && validateValues) {
+                } else if (result != value) {
                     throw new UserError(
                             "Option -A"
                                     + optionName
