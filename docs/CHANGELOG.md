@@ -411,7 +411,14 @@ specifies: it checks only code in the scope of an `@AnnotatedFor`, treats `@Null
 as a defaulting annotation, and performs neither initialization checking nor map-key
 checking.  It also assumes that every called method is pure and that assertions are
 enabled, as if `-AassumePure` and `-AassumeAssertions=enabled` were supplied; an
-`-AassumeAssertions` value written alongside the mode takes precedence.
+`-AassumeAssertions` value written alongside the mode takes precedence.  Code outside such a
+scope has JSpecify's unspecified nullness, which JSpecify lets each tool treat anywhere from
+strictly to leniently (see the
+["multiple worlds" discussion](https://jspecify.dev/docs/spec/#multiple-worlds) in the JSpecify
+specification).  The mode currently interprets it leniently, with permissive defaults, as if
+`-AusePermissiveDefaultsForUncheckedCode=source,bytecode` were supplied.  To use other defaults
+for unchecked code, write `-AusePermissiveDefaultsForUncheckedCode=-source,-bytecode` for the
+ordinary defaults, or `-AuseConservativeDefaultsForUncheckedCode` for conservative ones.
 
 The Checker Framework now issues an `annotation.on.supertype` error when an annotation supported by
 the checker is written as a main annotation on the superclass or interface in an `extends` or

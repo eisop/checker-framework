@@ -126,7 +126,13 @@ public class NullnessChecker extends InitializationChecker {
      * <p>{@link #MODE_JSPECIFY} restricts checking to code in the scope of an
      * {@code @AnnotatedFor}, treats {@code @NullMarked} as a defaulting annotation, and turns off
      * the initialization and map-key checks, none of which JSpecify specifies. It also assumes that
-     * every called method is pure and that assertions are enabled.
+     * every called method is pure and that assertions are enabled. Code outside such a scope has
+     * what JSpecify calls unspecified nullness, which JSpecify lets each tool treat anywhere from
+     * strictly to leniently; see the <a
+     * href="https://jspecify.dev/docs/spec/#multiple-worlds">"multiple worlds" discussion</a> in
+     * the JSpecify specification. The mode currently interprets it leniently, with permissive
+     * defaults for both source code and bytecode, unless the command line chooses conservative
+     * defaults.
      */
     @Override
     protected void addOptionsForMode(String mode, Map<String, String> activeOptions) {
@@ -141,6 +147,15 @@ public class NullnessChecker extends InitializationChecker {
                 activeOptions.putIfAbsent("jspecifyUnrecognizedLocations", null);
                 activeOptions.putIfAbsent("assumePure", null);
                 activeOptions.putIfAbsent("assumeAssertions", "enabled");
+                // Conservative defaults written on the command line replace the mode's permissive
+                // ones, which would otherwise conflict with them. Match by suffix, because a
+                // subchecker keeps the checker-name prefix of an option such as
+                // -ANullnessChecker_useConservativeDefaultsForUncheckedCode.
+                if (activeOptions.keySet().stream()
+                        .noneMatch(k -> k.endsWith("useConservativeDefaultsForUncheckedCode"))) {
+                    activeOptions.putIfAbsent(
+                            "usePermissiveDefaultsForUncheckedCode", "source,bytecode");
+                }
                 break;
             default:
                 break;

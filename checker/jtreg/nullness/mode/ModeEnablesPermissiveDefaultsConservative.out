@@ -1,0 +1,5 @@
+ModeEnablesPermissiveDefaults.java:24:23: compiler.err.proc.messager: [argument.type.incompatible] incompatible argument for parameter arg0 of Lib.setObject.
+found   : @Nullable NullType
+required: @NonNull Object
+ModeEnablesPermissiveDefaults.java:26:24: compiler.err.proc.messager: [dereference.of.nullable] dereference of possibly-null reference Lib.getObject()
+2 errors
