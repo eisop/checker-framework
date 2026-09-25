@@ -223,14 +223,26 @@ command-line option.)
   It also assumes that every called method is pure
   (Section~\ref{purity-suppress-warnings}) and that assertions are enabled
   (Section~\ref{type-refinement-assertions}).
+  Code outside the scope of a \code{@NullMarked} or \code{@AnnotatedFor} has what
+  JSpecify calls unspecified nullness.  JSpecify leaves it to each tool how to treat
+  unspecified nullness, from strict to lenient (see the
+  \href{https://jspecify.dev/docs/spec/#multiple-worlds}{``multiple worlds'' discussion}
+  in the JSpecify specification).  The mode currently interprets it leniently, with
+  permissive defaults (Section~\ref{defaults-classfile}) for both source code and bytecode.
   This is a shorthand for \code{-AonlyAnnotatedFor -AassumeInitialized
   -AassumeKeyFor -AjspecifyUnrecognizedLocations -AassumePure
-  -AassumeAssertions=enabled}.  All but the last are on/off flags with no negative form,
-  so there is currently no way to enable this mode but turn one of them back off.
-  \code{-AassumeAssertions} takes a value, so writing one together with
+  -AassumeAssertions=enabled
+  -AusePermissiveDefaultsForUncheckedCode=source,bytecode}.  The first five are on/off
+  flags with no negative form, so there is currently no way to enable this mode but turn
+  one of them back off.
+  The last two take a value, so writing one together with
   \code{-Amode=jspecify} overrides what the mode assumes; for example,
   \code{-AassumeAssertions=neither} restores the default treatment of \code{assert}
-  statements (Section~\ref{type-refinement-assertions}).
+  statements (Section~\ref{type-refinement-assertions}), and
+  \code{-AusePermissiveDefaultsForUncheckedCode=-source,-bytecode} restores the ordinary
+  defaults for unchecked code.  To use conservative defaults for unchecked code instead,
+  write \code{-AuseConservativeDefaultsForUncheckedCode}, which replaces the mode's
+  permissive defaults.
 
 \item
   \label{nullness-jspecifyNullMarkedAlias}%

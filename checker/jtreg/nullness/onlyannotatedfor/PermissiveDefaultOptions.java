@@ -8,6 +8,7 @@
  * @compile/fail/ref=AnnotatedForWithUsePermissiveDefaultOnlyAnnotatedFor.out -XDrawDiagnostics -Xlint:unchecked -processor org.checkerframework.checker.nullness.NullnessChecker -AusePermissiveDefaultsForUncheckedCode=source -AonlyAnnotatedFor AnnotatedForWithUse.java
  * @compile/fail/ref=ConflictingDefaultModesSource.out -XDrawDiagnostics -processor org.checkerframework.checker.nullness.NullnessChecker -AusePermissiveDefaultsForUncheckedCode=source -AuseConservativeDefaultsForUncheckedCode=source PermissiveDefaultOptions.java
  * @compile -XDrawDiagnostics -processor org.checkerframework.checker.nullness.NullnessChecker -AusePermissiveDefaultsForUncheckedCode=source UnannotatedForWithUse.java
+ * @compile/fail/ref=AnnotatedForWithUseJSpecifyModeConservative.out -XDrawDiagnostics -Xlint:unchecked -processor org.checkerframework.checker.nullness.NullnessChecker -Amode=jspecify -AuseConservativeDefaultsForUncheckedCode=source AnnotatedForWithUse.java
  */
 
 public class PermissiveDefaultOptions {}
