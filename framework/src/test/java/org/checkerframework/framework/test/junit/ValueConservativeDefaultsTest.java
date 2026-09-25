@@ -8,12 +8,12 @@ import java.io.File;
 import java.util.List;
 
 /** Tests conservative defaults for the constant value propagation type system. */
-public class ValueUncheckedDefaultsTest extends CheckerFrameworkPerDirectoryTest {
+public class ValueConservativeDefaultsTest extends CheckerFrameworkPerDirectoryTest {
 
     /**
      * @param testFiles the files containing test code, which will be type-checked
      */
-    public ValueUncheckedDefaultsTest(List<File> testFiles) {
+    public ValueConservativeDefaultsTest(List<File> testFiles) {
         super(
                 testFiles,
                 ValueChecker.class,
@@ -24,8 +24,13 @@ public class ValueUncheckedDefaultsTest extends CheckerFrameworkPerDirectoryTest
                 "-A" + ValueChecker.REPORT_EVAL_WARNS);
     }
 
+    /**
+     * Returns the test directories to type-check.
+     *
+     * @return the test directories to type-check
+     */
     @Parameters
     public static String[] getTestDirs() {
-        return new String[] {"value-unchecked-defaults"};
+        return new String[] {"value-conservative-defaults"};
     }
 }
