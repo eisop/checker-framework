@@ -156,15 +156,13 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
                 result = new AnnotatedArrayType((ArrayType) type, atypeFactory);
                 break;
             case DECLARED:
+            // An ERROR type is a class whose class file is not on the classpath.  javac reported no
+            // error, because it completes such a symbol lazily and never needs it, so treat the
+            // type like any other declared type.  See eisop issue 2094 and typetools issue 8055.
+            case ERROR:
                 result =
                         new AnnotatedDeclaredType((DeclaredType) type, atypeFactory, isDeclaration);
                 break;
-            case ERROR:
-                throw new ErrorTypeKindException(
-                        "AnnotatedTypeMirror.createType: input is not compilable. Found error type:"
-                                + " "
-                                + type);
-
             case EXECUTABLE:
                 result = new AnnotatedExecutableType((ExecutableType) type, atypeFactory);
                 break;
@@ -1347,10 +1345,14 @@ public abstract class AnnotatedTypeMirror implements DeepCopyable<AnnotatedTypeM
                 }
             } else if (isDeclaration()) {
                 for (TypeMirror javaTypeArg : javaTypeArgs) {
-                    AnnotatedTypeVariable tv =
-                            (AnnotatedTypeVariable)
-                                    AnnotatedTypeMirror.createType(javaTypeArg, atypeFactory, true);
-                    typeArgs.add(tv);
+                    AnnotatedTypeMirror typeArg =
+                            AnnotatedTypeMirror.createType(javaTypeArg, atypeFactory, true);
+                    if (!(typeArg instanceof AnnotatedTypeVariable)) {
+                        throw new BugInCF(
+                                "Type argument %s of declaration %s has kind %s, not TYPEVAR.",
+                                javaTypeArg, t, javaTypeArg.getKind());
+                    }
+                    typeArgs.add(typeArg);
                 }
             } else {
                 // Lazily resolve typeParameters; only needed if a wildcard type argument is
