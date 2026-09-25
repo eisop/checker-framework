@@ -405,11 +405,11 @@ public class QualifierDefaults {
 
     /**
      * Adds the conservative defaults for unchecked code, which {@code
-     * -AuseConservativeDefaultsForUncheckedCode} enables: the top qualifier at {@link
-     * #CONSERVATIVE_UNCHECKED_DEFAULTS_TOP} and the bottom qualifier at {@link
-     * #CONSERVATIVE_UNCHECKED_DEFAULTS_BOTTOM}, at each location the checker has not already given
-     * a conservative default. To add a checker-specific default instead, use {@link
-     * #addConservativeUncheckedCodeDefault}.
+     * -AuseConservativeDefaultsForUncheckedCode} (e.g., with {@code source} or {@code bytecode})
+     * enables: the top qualifier at {@link #CONSERVATIVE_UNCHECKED_DEFAULTS_TOP} and the bottom
+     * qualifier at {@link #CONSERVATIVE_UNCHECKED_DEFAULTS_BOTTOM}, at each location the checker
+     * has not already given a conservative default. To add a checker-specific default instead, use
+     * {@link #addConservativeUncheckedCodeDefault}.
      */
     public void addConservativeDefaultsForUncheckedCode() {
         addDefaultsForUncheckedCode(
@@ -420,11 +420,11 @@ public class QualifierDefaults {
 
     /**
      * Adds the optimistic defaults for unchecked code, which {@code
-     * -AuseOptimisticDefaultsForUncheckedCode} enables: the top qualifier at {@link
-     * #OPTIMISTIC_UNCHECKED_DEFAULTS_TOP} and the bottom qualifier at {@link
-     * #OPTIMISTIC_UNCHECKED_DEFAULTS_BOTTOM}, at each location the checker has not already given an
-     * optimistic default. To add a checker-specific default instead, use {@link
-     * #addOptimisticUncheckedCodeDefault}.
+     * -AuseOptimisticDefaultsForUncheckedCode} (e.g., with {@code source} or {@code bytecode})
+     * enables: the top qualifier at {@link #OPTIMISTIC_UNCHECKED_DEFAULTS_TOP} and the bottom
+     * qualifier at {@link #OPTIMISTIC_UNCHECKED_DEFAULTS_BOTTOM}, at each location the checker has
+     * not already given an optimistic default. To add a checker-specific default instead, use
+     * {@link #addOptimisticUncheckedCodeDefault}.
      */
     public void addOptimisticDefaultsForUncheckedCode() {
         addDefaultsForUncheckedCode(
