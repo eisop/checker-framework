@@ -20,14 +20,12 @@ public class ValueUncheckedDefaultsTest extends CheckerFrameworkPerDirectoryTest
                 "value",
                 // Ignore the test suite's usage of qualifiers in illegal locations.
                 "-AignoreTargetLocations",
-                "-AuseConservativeDefaultsForUncheckedCode=btyecode",
+                "-AuseConservativeDefaultsForUncheckedCode=bytecode",
                 "-A" + ValueChecker.REPORT_EVAL_WARNS);
     }
 
     @Parameters
     public static String[] getTestDirs() {
-        // The defaults for unchecked code should be the same as checked code, so use the same
-        // tests.
-        return new String[] {"value", "all-systems"};
+        return new String[] {"value-unchecked-defaults"};
     }
 }
