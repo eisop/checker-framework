@@ -6,6 +6,7 @@ import org.checkerframework.checker.signature.qual.ClassGetName;
 import org.checkerframework.dataflow.cfg.visualize.CFGVisualizer;
 import org.checkerframework.framework.qual.SubtypeOf;
 import org.checkerframework.framework.source.SourceChecker;
+import org.checkerframework.framework.source.SupportedLintOptions;
 import org.checkerframework.framework.type.AnnotatedTypeFactory;
 import org.checkerframework.framework.type.GenericAnnotatedTypeFactory;
 import org.checkerframework.framework.type.QualifierHierarchy;
@@ -72,6 +73,7 @@ import javax.lang.model.element.PackageElement;
  *
  * @checker_framework.manual #creating-compiler-interface The checker class
  */
+@SupportedLintOptions({"cast", "cast:redundant", "cast:unsafe", "instanceof", "instanceof:unsafe"})
 public abstract class BaseTypeChecker extends SourceChecker {
 
     /**
