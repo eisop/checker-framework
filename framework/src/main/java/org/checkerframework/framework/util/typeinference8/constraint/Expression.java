@@ -258,6 +258,7 @@ public class Expression extends TypeConstraint {
         // determine the method reference's invocation type when targeting the return type of the
         // function type, as defined in 18.5.2. B3 may contain new inference variables, as well as
         // dependencies between these new variables and the inference variables in T.
+        boolean thetaWasCached = context.maps.containsKey(memRef);
         Theta map =
                 context.inferenceTypeFactory.createThetaForMethodReference(
                         memRef, compileTimeDecl, context);
@@ -267,6 +268,15 @@ public class Expression extends TypeConstraint {
                     context.inference.createB2MethodRef(
                             compileTimeDecl, T.getFunctionTypeParameterTypes(), map);
             return context.inference.createB3(b2, memRef, compileTimeDecl, r, map);
+        }
+        if (!thetaWasCached) {
+            // The variables in map are not part of this inference problem, but every cached map
+            // is resolved with it (see BoundSet#getDependencies). Nothing constrains them here, so
+            // they would be resolved to their bounds: for Merged::name with a raw Merged<X>, X
+            // would be Object instead of the type argument of the function type's parameter.
+            // Remove the map so the method reference is inferred on its own, against its
+            // instantiated target type.
+            context.maps.remove(memRef);
         }
 
         // https://docs.oracle.com/javase/specs/jls/se8/html/jls-18.html#jls-18.2.1-300-D-B-C
