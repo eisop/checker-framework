@@ -20,4 +20,8 @@ import org.checkerframework.framework.source.SuppressWarningsPrefix;
     // Must Call Checker).
     "mustcallnocreatesmustcallfor"
 })
-public class MustCallNoCreatesMustCallForChecker extends MustCallChecker {}
+public class MustCallNoCreatesMustCallForChecker extends MustCallChecker {
+
+    /** Default constructor for MustCallNoCreatesMustCallForChecker. */
+    public MustCallNoCreatesMustCallForChecker() {}
+}

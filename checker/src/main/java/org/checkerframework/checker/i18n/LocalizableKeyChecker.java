@@ -23,4 +23,8 @@ import java.util.ResourceBundle;
  *       {@link Locale} in the compilation system.
  * </ol>
  */
-public class LocalizableKeyChecker extends PropertyKeyChecker {}
+public class LocalizableKeyChecker extends PropertyKeyChecker {
+
+    /** Default constructor for LocalizableKeyChecker. */
+    public LocalizableKeyChecker() {}
+}
