@@ -516,8 +516,35 @@ Whenever you compile a class using the Checker Framework, including when
 using the \<-AuseConservativeDefaultsForUncheckedCode=source,bytecode> command-line
 argument, the resulting \<.class> files are fully-annotated; each type use
 in the \<.class> file has an explicit type qualifier for any checker that
-is run.
+is run.  Section~\ref{AnoBytecodeStorage} explains how to suppress this.
 \end{sloppypar}
+
+
+\subsectionAndLabel{The \<-AnoBytecodeStorage> command-line argument}{AnoBytecodeStorage}
+
+Command-line argument \<-AnoBytecodeStorage> suppresses the storage described
+above:  the \<.class> file then contains only the annotations that appear in
+the source code, not the qualifiers the checker inferred by defaulting.  Use
+it when the defaults of the compilation that writes the \<.class> file should
+not be baked into it.
+
+There are two reasons to want this.  First, the stored qualifiers are read by
+other tools, which may reject them:  a stored \<@NonNull> on a class type
+parameter makes the Kotlin compiler treat the type parameter as non-nullable,
+and \<javac> 25 reports ``cannot attach type annotations'' when a type
+mentioned by a stored annotation is not on the classpath, though \<javac> 21
+accepts the same class file.  Second, the stored qualifiers are the writing
+compilation's, so a later compilation cannot apply its own.
+
+The \<.class> file of a class compiled with \<-AnoBytecodeStorage> is
+partially annotated, like that of a library compiled without running a
+checker, and a later compilation applies its own defaults to the type uses
+that carry no annotation.  Because \<@AnnotatedFor> and \<@UnannotatedFor>
+are stored in the class file (Section~\ref{compiling-libraries}), that later
+compilation can still tell which classes were annotated:  a class that is not
+in the scope of a relevant \<@AnnotatedFor> is defaulted conservatively under
+\<-AuseConservativeDefaultsForUncheckedCode=bytecode>, which yields more
+warnings than the annotations that would have been stored.
 
 
 \sectionAndLabel{Using stub classes}{stub}

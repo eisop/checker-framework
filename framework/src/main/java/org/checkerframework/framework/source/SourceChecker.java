@@ -235,10 +235,6 @@ import javax.tools.Diagnostic;
     // org.checkerframework.framework.source.SourceChecker.useConservativeDefault
     "useConservativeDefaultsForUncheckedCode",
 
-    // Whether to store defaulted annotations in bytecode.
-    // org.checkerframework.framework.type.AnnotatedTypeFactory.postProcessClassTree
-    "noBytecodeStorage",
-
     // Whether to use permissive defaults for bytecode and/or source code.
     // This option takes the same arguments as "useConservativeDefaultsForUncheckedCode", and like
     // it, applies only outside the scope of an @AnnotatedFor and suppresses warnings in unannotated
@@ -364,6 +360,11 @@ import javax.tools.Diagnostic;
     // directly in source code, such as during whole-program inference. The annotations in the
     // stub files will be glb'd with those in the source code before local inference begins.
     "mergeStubsWithSource",
+
+    // Whether to write only the annotations that appear in the source code into the .class file,
+    // rather than also writing the qualifiers that the checker inferred by defaulting.
+    // org.checkerframework.framework.type.AnnotatedTypeFactory.postProcessClassTree
+    "noBytecodeStorage",
 
     // Already listed above, but worth noting again in this section:
     // "useConservativeDefaultsForUncheckedCode"
