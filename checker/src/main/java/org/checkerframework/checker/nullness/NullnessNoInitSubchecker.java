@@ -41,7 +41,15 @@ import java.util.Set;
 @SupportedLintOptions({
     NullnessChecker.LINT_NOINITFORMONOTONICNONNULL,
     NullnessChecker.LINT_REDUNDANTNULLCOMPARISON,
+    // Temporary option to forbid non-null array component types, which is allowed by default.
+    // Forbidding is sound and will eventually be the default.
+    // Allowing is unsound, as described in Section 3.3.4, "Nullness and arrays":
+    //     https://eisop.github.io/cf/manual/#nullness-arrays
+    // It is the default temporarily, until we improve the analysis to reduce false positives or we
+    // learn what advice to give programmers about avoid false positive warnings.
+    // See issue #986: https://github.com/typetools/checker-framework/issues/986
     "soundArrayCreationNullness",
+    // Old name for soundArrayCreationNullness, for backward compatibility; remove in January 2021.
     "forbidnonnullarraycomponents",
     NullnessChecker.LINT_TRUSTARRAYLENZERO,
     NullnessChecker.LINT_PERMITCLEARPROPERTY,
