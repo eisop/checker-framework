@@ -3898,7 +3898,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
             // Subcheckers also inherit SuppressWarnings prefixes from enclosing parent checkers.
             SourceChecker parent = this.parentChecker;
             while (parent != null) {
-                Set<String> parentDeclared = getDeclaredPrefixesForClass(parent.getClass());
+                Set<String> parentDeclared = parent.getDeclaredSuppressWarningsPrefixes();
                 if (!parentDeclared.isEmpty()) {
                     prefixes.addAll(parentDeclared);
                 } else {
@@ -3917,24 +3917,6 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
             standardSuppressWarningsPrefixes = Collections.unmodifiableNavigableSet(prefixes);
         }
         return new TreeSet<>(standardSuppressWarningsPrefixes);
-    }
-
-    /**
-     * Returns the prefixes declared directly on the given class via {@link SuppressWarningsPrefix}.
-     *
-     * @param clazz the class to inspect
-     * @return the prefixes declared directly on the class
-     */
-    private static Set<String> getDeclaredPrefixesForClass(Class<?> clazz) {
-        SuppressWarningsPrefix anno = clazz.getDeclaredAnnotation(SuppressWarningsPrefix.class);
-        if (anno != null) {
-            Set<String> set = new TreeSet<>();
-            for (String p : anno.value()) {
-                set.add(p.toLowerCase(Locale.ROOT));
-            }
-            return set;
-        }
-        return Collections.emptySet();
     }
 
     /**

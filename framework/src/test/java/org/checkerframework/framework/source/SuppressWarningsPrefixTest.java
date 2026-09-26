@@ -100,6 +100,35 @@ public class SuppressWarningsPrefixTest {
         }
     }
 
+    /** Grandparent checker with explicit prefix. */
+    @SuppressWarningsPrefix({"grandprefix"})
+    public static class GrandparentPrefixChecker extends SourceChecker {
+        /** Default constructor. */
+        public GrandparentPrefixChecker() {}
+
+        @Override
+        protected SourceVisitor<?, ?> createSourceVisitor() {
+            return new DummySourceVisitor(this);
+        }
+    }
+
+    /** Unannotated parent checker extending GrandparentPrefixChecker. */
+    public static class UnannotatedParentChecker extends GrandparentPrefixChecker {
+        /**
+         * Creates an UnannotatedParentChecker with given subcheckers.
+         *
+         * @param subcheckers the subcheckers
+         */
+        public UnannotatedParentChecker(List<SourceChecker> subcheckers) {
+            this.subcheckers = subcheckers;
+        }
+
+        @Override
+        public List<SourceChecker> getSubcheckers() {
+            return subcheckers;
+        }
+    }
+
     /** Tests that a subclass inherits prefixes declared on superclasses in the hierarchy. */
     @Test
     public void testSuperclassPrefixInheritance() {
@@ -163,5 +192,24 @@ public class SuppressWarningsPrefixTest {
         NavigableSet<String> withParentPrefixes = child.getSuppressWarningsPrefixes();
         Assert.assertTrue(withParentPrefixes.contains("childprefix"));
         Assert.assertTrue(withParentPrefixes.contains("parentprefix"));
+    }
+
+    /** Tests that a subchecker inherits prefixes declared on superclasses of its parent checker. */
+    @Test
+    public void testParentSuperclassPrefixPropagation() {
+        EnclosedChildChecker child = new EnclosedChildChecker();
+        UnannotatedParentChecker parent =
+                new UnannotatedParentChecker(Collections.singletonList(child));
+        child.setParentChecker(parent);
+
+        NavigableSet<String> childPrefixes = child.getSuppressWarningsPrefixes();
+        Assert.assertTrue(childPrefixes.contains("childprefix"));
+        Assert.assertTrue(childPrefixes.contains("grandprefix"));
+        Assert.assertTrue(childPrefixes.contains(SourceChecker.SUPPRESS_ALL_PREFIX));
+
+        Assert.assertTrue(
+                parent.getSuppressWarningsPrefixesOfSubcheckers().contains("childprefix"));
+        Assert.assertTrue(
+                parent.getSuppressWarningsPrefixesOfSubcheckers().contains("grandprefix"));
     }
 }
