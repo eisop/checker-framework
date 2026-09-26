@@ -126,7 +126,10 @@ public class NullnessChecker extends InitializationChecker {
      * <p>{@link #MODE_JSPECIFY} restricts checking to code in the scope of an
      * {@code @AnnotatedFor}, treats {@code @NullMarked} as a defaulting annotation, and turns off
      * the initialization and map-key checks, none of which JSpecify specifies. It also assumes that
-     * every called method is pure and that assertions are enabled.
+     * every called method is pure and that assertions are enabled. Finally, it writes only
+     * source-code annotations into the {@code .class} file: the qualifiers this checker infers by
+     * defaulting are not part of the JSpecify specification of the code, and storing them breaks
+     * downstream tools.
      */
     @Override
     protected void addOptionsForMode(String mode, Map<String, String> activeOptions) {
@@ -140,6 +143,7 @@ public class NullnessChecker extends InitializationChecker {
                 activeOptions.putIfAbsent("assumeKeyFor", null);
                 activeOptions.putIfAbsent("jspecifyUnrecognizedLocations", null);
                 activeOptions.putIfAbsent("assumePure", null);
+                activeOptions.putIfAbsent("noBytecodeStorage", null);
                 activeOptions.putIfAbsent("assumeAssertions", "enabled");
                 break;
             default:

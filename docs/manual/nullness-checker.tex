@@ -223,9 +223,13 @@ command-line option.)
   It also assumes that every called method is pure
   (Section~\ref{purity-suppress-warnings}) and that assertions are enabled
   (Section~\ref{type-refinement-assertions}).
+  Finally, it writes only source-code annotations into the \<.class> file
+  (Section~\ref{AnoBytecodeStorage}):  the qualifiers the checker infers by
+  defaulting are not part of the JSpecify specification of the code, and storing
+  them breaks downstream tools.
   This is a shorthand for \code{-AonlyAnnotatedFor -AassumeInitialized
   -AassumeKeyFor -AjspecifyUnrecognizedLocations -AassumePure
-  -AassumeAssertions=enabled}.  All but the last are on/off flags with no negative form,
+  -AnoBytecodeStorage -AassumeAssertions=enabled}.  All but the last are on/off flags with no negative form,
   so there is currently no way to enable this mode but turn one of them back off.
   \code{-AassumeAssertions} takes a value, so writing one together with
   \code{-Amode=jspecify} overrides what the mode assumes; for example,

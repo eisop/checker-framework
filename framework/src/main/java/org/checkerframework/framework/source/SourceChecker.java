@@ -361,6 +361,11 @@ import javax.tools.Diagnostic;
     // stub files will be glb'd with those in the source code before local inference begins.
     "mergeStubsWithSource",
 
+    // Whether to write only the annotations that appear in the source code into the .class file,
+    // rather than also writing the qualifiers that the checker inferred by defaulting.
+    // org.checkerframework.framework.type.AnnotatedTypeFactory.postProcessClassTree
+    "noBytecodeStorage",
+
     // Already listed above, but worth noting again in this section:
     // "useConservativeDefaultsForUncheckedCode"
 

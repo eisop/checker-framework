@@ -1986,12 +1986,17 @@ public class AnnotatedTypeFactory implements AnnotationProvider {
      * type checked.
      *
      * <p>The default implementation uses this to store the defaulted AnnotatedTypeMirrors and
-     * inherited declaration annotations back into the corresponding Elements. Subclasses might want
-     * to override this method if storing defaulted types is not desirable.
+     * inherited declaration annotations back into the corresponding Elements, unless the {@code
+     * -AnoBytecodeStorage} command-line option was supplied. Subclasses might want to override this
+     * method if storing defaulted types is not desirable.
+     *
+     * @param tree the ClassTree that has been processed
      */
     public void postProcessClassTree(ClassTree tree) {
-        TypesIntoElements.store(processingEnv, this, tree);
-        DeclarationsIntoElements.store(processingEnv, this, tree);
+        if (!checker.hasOption("noBytecodeStorage")) {
+            TypesIntoElements.store(processingEnv, this, tree);
+            DeclarationsIntoElements.store(processingEnv, this, tree);
+        }
 
         if (typeInformationPresenter != null) {
             typeInformationPresenter.process(tree, getPath(tree));
