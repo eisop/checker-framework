@@ -80,11 +80,13 @@ public class NullnessNoInitSubchecker extends BaseTypeChecker {
 
     @Override
     public boolean shouldSkipDefs(ClassTree tree) {
-        return super.shouldSkipDefs(tree) || parentChecker.shouldSkipDefs(tree);
+        return super.shouldSkipDefs(tree)
+                || (parentChecker != null && parentChecker.shouldSkipDefs(tree));
     }
 
     @Override
     public boolean shouldSkipDefs(MethodTree tree) {
-        return super.shouldSkipDefs(tree) || parentChecker.shouldSkipDefs(tree);
+        return super.shouldSkipDefs(tree)
+                || (parentChecker != null && parentChecker.shouldSkipDefs(tree));
     }
 }

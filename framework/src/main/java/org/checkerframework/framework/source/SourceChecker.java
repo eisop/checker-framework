@@ -1667,12 +1667,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
         if (!warnedAboutGarbageCollection) {
             String gcUsageMessage = SystemPlume.gcUsageMessage(.25, 60);
             if (gcUsageMessage != null) {
-                boolean noWarnMemoryConstraints =
-                        (processingEnv != null
-                                && processingEnv.getOptions() != null
-                                && processingEnv
-                                        .getOptions()
-                                        .containsKey("noWarnMemoryConstraints"));
+                boolean noWarnMemoryConstraints = hasOption("noWarnMemoryConstraints");
                 Diagnostic.Kind kind =
                         noWarnMemoryConstraints ? Diagnostic.Kind.NOTE : Diagnostic.Kind.WARNING;
                 messager.printMessage(kind, gcUsageMessage);
@@ -1862,12 +1857,10 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
         String defaultFormat = "(" + messageKey + ")";
         String prefix;
         String fmtString;
-        if (this.processingEnv.getOptions() != null /*nnbug*/
-                && this.processingEnv.getOptions().containsKey("nomsgtext")) {
+        if (hasOption("nomsgtext")) {
             prefix = defaultFormat;
             fmtString = null;
-        } else if (this.processingEnv.getOptions() != null /*nnbug*/
-                && this.processingEnv.getOptions().containsKey("detailedmsgtext")) {
+        } else if (hasOption("detailedmsgtext")) {
             // The -Adetailedmsgtext command-line option was given, so output
             // a stylized error message for easy parsing by a tool.
             prefix = detailedMsgTextPrefix(source, defaultFormat, args);
@@ -3164,24 +3157,27 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     }
 
     /**
-     * Returns the options passed to this checker and its immediate parent checker.
+     * Returns the options passed to this checker and all its ancestor parent checkers.
      *
-     * @return the options passed to this checker and its immediate parent checker
+     * @return the options passed to this checker and all its ancestor parent checkers
      */
     private Map<String, String> getAllOptions() {
         if (parentChecker == null) {
             return getOptions();
         }
         Map<String, String> allOptions = new HashMap<>(this.getOptions());
-        parentChecker
-                .getOptions()
-                .forEach(
-                        (parentOptKey, parentOptVal) -> {
-                            if (parentOptVal != null) {
-                                allOptions.merge(
-                                        parentOptKey, parentOptVal, this::combineOptionValues);
-                            }
-                        });
+        for (SourceChecker parent = this.parentChecker;
+                parent != null;
+                parent = parent.parentChecker) {
+            parent.getOptions()
+                    .forEach(
+                            (parentOptKey, parentOptVal) -> {
+                                if (parentOptVal != null) {
+                                    allOptions.merge(
+                                            parentOptKey, parentOptVal, this::combineOptionValues);
+                                }
+                            });
+        }
         return Collections.unmodifiableMap(allOptions);
     }
 
@@ -4134,10 +4130,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
                 message = ce.getMessage();
             }
             msg.add(message);
-            boolean noPrintErrorStack =
-                    (processingEnv != null
-                            && processingEnv.getOptions() != null
-                            && processingEnv.getOptions().containsKey("noPrintErrorStack"));
+            boolean noPrintErrorStack = hasOption("noPrintErrorStack");
 
             msg.add("; " + culprit);
             if (noPrintErrorStack) {
