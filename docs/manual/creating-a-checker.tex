@@ -1325,6 +1325,7 @@ Option declarations are shared bidirectionally between compound checkers and the
 \begin{itemize}
   \item \textbf{Subchecker options inherited by parent checkers:} Any option declared by a subchecker via \code{@SupportedOptions} or \code{@SupportedLintOptions} is automatically recognized by enclosing parent checkers, and parent checkers automatically synthesize parent-prefixed forms (for example, \code{-AMyParentChecker\_mySubcheckerOption}). You do not need to repeat subchecker options on enclosing checkers.
   \item \textbf{Parent checker options inherited by subcheckers:} Subcheckers automatically recognize options declared on enclosing checkers and can query them directly.
+  \item \textbf{SuppressWarnings prefixes inherited by subcheckers:} Subcheckers automatically recognize \code{@SuppressWarnings} prefixes declared on enclosing parent checkers (via \code{@SuppressWarningsPrefix} or class names). A warning emitted by a subchecker can therefore be suppressed using the parent checker's prefix.
   \item \textbf{Standalone execution:} Declaring options on the subchecker that queries them ensures that the subchecker can also be executed standalone as an independent annotation processor without throwing unrecognized option errors.
 \end{itemize}
 

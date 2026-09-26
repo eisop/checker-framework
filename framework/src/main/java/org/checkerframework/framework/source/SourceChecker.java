@@ -729,6 +729,15 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     protected @MonotonicNonNull Set<String> declaredOptions = null;
 
     /**
+     * The raw SuppressWarnings prefixes declared directly on this checker's class hierarchy via
+     * {@link SuppressWarningsPrefix}.
+     */
+    protected @MonotonicNonNull Set<String> declaredSuppressWarningsPrefixes = null;
+
+    /** The cached standard SuppressWarnings prefixes for this checker. */
+    protected @MonotonicNonNull NavigableSet<String> standardSuppressWarningsPrefixes = null;
+
+    /**
      * The string that separates the checker name from the option name in a "-A" command-line
      * argument. This string may only consist of valid Java identifier part characters, because it
      * will be used within the key of an option.
@@ -929,6 +938,8 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     protected void setParentChecker(SourceChecker parentChecker) {
         this.parentChecker = parentChecker;
         this.supportedOptions = null;
+        this.standardSuppressWarningsPrefixes = null;
+        this.upstreamCheckerNames = null;
     }
 
     /**
@@ -3871,31 +3882,82 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      * @return a sorted set of SuppressWarnings prefixes
      */
     protected final NavigableSet<String> getStandardSuppressWarningsPrefixes() {
-        // Called on every checker diagnostic, so this allocates and (for a checker with upstream
-        // checkers) re-derives a prefix per call. Every override mutates the set this returns (see
-        // getSuppressWarningsPrefixes()'s "modifiable" contract), so it cannot simply be cached and
-        // returned as-is; caching it would need the getSupportedLintOptions()/
-        // createSupportedLintOptions() split used elsewhere in this class: a cached, immutable
-        // public getter plus a protected create... method that overrides extend instead of mutate.
-        NavigableSet<String> prefixes = new TreeSet<>();
-        if (useAllcheckersPrefix) {
-            prefixes.add(SUPPRESS_ALL_PREFIX);
-        }
-        SuppressWarningsPrefix prefixMetaAnno =
-                this.getClass().getAnnotation(SuppressWarningsPrefix.class);
-        if (prefixMetaAnno != null) {
-            for (String prefix : prefixMetaAnno.value()) {
-                prefixes.add(prefix);
+        if (standardSuppressWarningsPrefixes == null) {
+            NavigableSet<String> prefixes = new TreeSet<>();
+            if (useAllcheckersPrefix) {
+                prefixes.add(SUPPRESS_ALL_PREFIX);
             }
-            return prefixes;
-        }
 
-        // No @SuppressWarningsPrefixes annotation, by default infer keys from upstream checker
-        // names.
-        for (String checkerName : getUpstreamCheckerNames()) {
-            prefixes.add(getDefaultSuppressWarningsPrefix(checkerName));
+            Set<String> declared = getDeclaredSuppressWarningsPrefixes();
+            if (!declared.isEmpty()) {
+                prefixes.addAll(declared);
+            } else {
+                prefixes.add(getDefaultSuppressWarningsPrefix(this.getClass().getSimpleName()));
+            }
+
+            // Subcheckers also inherit SuppressWarnings prefixes from enclosing parent checkers.
+            SourceChecker parent = this.parentChecker;
+            while (parent != null) {
+                Set<String> parentDeclared = getDeclaredPrefixesForClass(parent.getClass());
+                if (!parentDeclared.isEmpty()) {
+                    prefixes.addAll(parentDeclared);
+                } else {
+                    prefixes.add(
+                            getDefaultSuppressWarningsPrefix(parent.getClass().getSimpleName()));
+                }
+                parent = parent.parentChecker;
+            }
+
+            // Upstream checker names may include additional classes added by overrides of
+            // getUpstreamCheckerNames().
+            for (String checkerName : getUpstreamCheckerNames()) {
+                prefixes.add(getDefaultSuppressWarningsPrefix(checkerName));
+            }
+
+            standardSuppressWarningsPrefixes = Collections.unmodifiableNavigableSet(prefixes);
         }
-        return prefixes;
+        return new TreeSet<>(standardSuppressWarningsPrefixes);
+    }
+
+    /**
+     * Returns the prefixes declared directly on the given class via {@link SuppressWarningsPrefix}.
+     *
+     * @param clazz the class to inspect
+     * @return the prefixes declared directly on the class
+     */
+    private static Set<String> getDeclaredPrefixesForClass(Class<?> clazz) {
+        SuppressWarningsPrefix anno = clazz.getDeclaredAnnotation(SuppressWarningsPrefix.class);
+        if (anno != null) {
+            Set<String> set = new TreeSet<>();
+            for (String p : anno.value()) {
+                set.add(p.toLowerCase(Locale.ROOT));
+            }
+            return set;
+        }
+        return Collections.emptySet();
+    }
+
+    /**
+     * Returns the raw SuppressWarnings prefixes declared directly on this checker's class and its
+     * superclasses via {@link SuppressWarningsPrefix}.
+     *
+     * @return the raw SuppressWarnings prefixes declared on this checker's class hierarchy
+     */
+    protected Set<String> getDeclaredSuppressWarningsPrefixes() {
+        if (declaredSuppressWarningsPrefixes == null) {
+            Set<String> declared = new TreeSet<>();
+            for (Class<?> clazz : getClassHierarchy()) {
+                SuppressWarningsPrefix prefixMetaAnno =
+                        clazz.getDeclaredAnnotation(SuppressWarningsPrefix.class);
+                if (prefixMetaAnno != null) {
+                    for (String prefix : prefixMetaAnno.value()) {
+                        declared.add(prefix.toLowerCase(Locale.ROOT));
+                    }
+                }
+            }
+            declaredSuppressWarningsPrefixes = Collections.unmodifiableSet(declared);
+        }
+        return declaredSuppressWarningsPrefixes;
     }
 
     /**
