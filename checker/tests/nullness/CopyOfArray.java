@@ -1,6 +1,8 @@
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 import java.util.Arrays;
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 public class CopyOfArray {
     protected void makeCopy(Object[] args, int i) {
@@ -81,5 +83,39 @@ public class CopyOfArray {
         // :: error: (assignment.type.incompatible)
         T[] copyInexact1 = Arrays.copyOf(args, i);
         @Nullable T[] copyInexact2 = Arrays.copyOf(args, i);
+    }
+
+    <T extends @Nullable Object> void testNullableTypeVar(T[] args) {
+        T[] copyExact = Arrays.copyOf(args, args.length);
+    }
+
+    // Test case for https://github.com/eisop/checker-framework/issues/2155
+    static List<?>[] testNewType(Object[] args, int i) {
+        List<?>[] copyExact = Arrays.copyOf(args, args.length, List[].class);
+        // :: warning: (arrays.copyof.size.mismatch)
+        // :: error: (assignment.type.incompatible)
+        List<?>[] copyInexact1 = Arrays.copyOf(args, i, List[].class);
+        @Nullable List<?>[] copyInexact2 = Arrays.copyOf(args, i, List[].class);
+        return Arrays.copyOf(args, args.length, List[].class);
+    }
+
+    static CompletableFuture<?>[] testNewTypeFuture(Object[] args) {
+        return Arrays.copyOf(args, args.length, CompletableFuture[].class);
+    }
+
+    void testNewTypeNullableElements(@Nullable Object[] args) {
+        // :: error: (assignment.type.incompatible)
+        List<?>[] copyExact1 = Arrays.copyOf(args, args.length, List[].class);
+        @Nullable List<?>[] copyExact2 = Arrays.copyOf(args, args.length, List[].class);
+    }
+
+    <U extends Object> void testNewTypeTypeVar(U[] args) {
+        List<?>[] copyExact = Arrays.copyOf(args, args.length, List[].class);
+    }
+
+    <U extends @Nullable Object> void testNewTypeNullableTypeVar(U[] args) {
+        // :: error: (assignment.type.incompatible)
+        List<?>[] copyExact1 = Arrays.copyOf(args, args.length, List[].class);
+        @Nullable List<?>[] copyExact2 = Arrays.copyOf(args, args.length, List[].class);
     }
 }
