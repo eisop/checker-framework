@@ -121,7 +121,7 @@ public class RLCCalledMethodsAnnotatedTypeFactory extends CalledMethodsAnnotated
     public RLCCalledMethodsAnnotatedTypeFactory(BaseTypeChecker checker) {
         super(checker);
         this.rlc = ResourceLeakUtils.getResourceLeakChecker(checker);
-        this.noResourceAliases = rlc.hasOption(MustCallChecker.NO_RESOURCE_ALIASES);
+        this.noResourceAliases = checker.hasOption(MustCallChecker.NO_RESOURCE_ALIASES);
         if (this.getClass() == RLCCalledMethodsAnnotatedTypeFactory.class) {
             this.postInit();
         }
@@ -394,7 +394,7 @@ public class RLCCalledMethodsAnnotatedTypeFactory extends CalledMethodsAnnotated
      */
     public boolean canCreateObligations() {
         // Precomputing this call to `hasOption` causes a NullPointerException, so leave it as is.
-        return !rlc.hasOption(MustCallChecker.NO_CREATES_MUSTCALLFOR);
+        return !checker.hasOption(MustCallChecker.NO_CREATES_MUSTCALLFOR);
     }
 
     @Override

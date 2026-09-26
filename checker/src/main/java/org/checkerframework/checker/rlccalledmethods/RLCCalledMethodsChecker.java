@@ -65,7 +65,7 @@ public class RLCCalledMethodsChecker extends CalledMethodsChecker {
      */
     @Override
     protected boolean isReturnsReceiverDisabled() {
-        return !getResourceLeakChecker().hasOption(ResourceLeakChecker.ENABLE_RETURNS_RECEIVER)
+        return !hasOptionNoSubcheckers(ResourceLeakChecker.ENABLE_RETURNS_RECEIVER)
                 || super.isReturnsReceiverDisabled();
     }
 
