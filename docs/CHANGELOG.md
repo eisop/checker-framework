@@ -795,6 +795,10 @@ method reference whose target, or whose receiver, is a functional interface type
 type argument for an F-bounded type parameter, such as `NodeSupplier<? extends Sub>` for
 `interface NodeSupplier<T extends Node<T>>`.  The ground target type now matches javac's.
 
+Type argument inference no longer crashes on a block lambda whose body declares an anonymous or
+local class with a `return` statement.  That `return` was treated as a result expression of the
+lambda.
+
 Type-checking a class with many fields under the Initialization Checker (and any checker
 built on it, such as the Nullness Checker) is no longer quadratic in the number of fields
 that are declared with an initializer or assigned in a constructor. Determining whether the
@@ -1288,6 +1292,7 @@ eisop#2091,
 eisop#2105,
 eisop#2135,
 eisop#2140,
+eisop#2160,
 typetools#399,
 typetools#2816,
 typetools#3203.
