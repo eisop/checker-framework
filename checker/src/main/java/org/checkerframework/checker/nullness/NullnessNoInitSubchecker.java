@@ -78,7 +78,6 @@ public class NullnessNoInitSubchecker extends BaseTypeChecker {
                 activeOptions.putIfAbsent("onlyAnnotatedFor", null);
                 // Already the default; named here so the mode states the behavior it relies on.
                 activeOptions.putIfAbsent("jspecifyNullMarkedAlias", "true");
-                activeOptions.putIfAbsent("assumeInitialized", null);
                 activeOptions.putIfAbsent("assumeKeyFor", null);
                 activeOptions.putIfAbsent("jspecifyUnrecognizedLocations", null);
                 activeOptions.putIfAbsent("assumePure", null);

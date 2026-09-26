@@ -246,17 +246,6 @@ public abstract class BaseTypeChecker extends SourceChecker {
         }
     }
 
-    @Override
-    protected Set<String> createSupportedLintOptions() {
-        Set<String> lintSet = super.createSupportedLintOptions();
-        lintSet.add("cast");
-        lintSet.add("cast:redundant");
-        lintSet.add("cast:unsafe");
-        lintSet.add("instanceof");
-        lintSet.add("instanceof:unsafe");
-        return lintSet;
-    }
-
     /** A cache for {@link #getUltimateParentChecker}. */
     protected @MonotonicNonNull BaseTypeChecker ultimateParentChecker;
 
