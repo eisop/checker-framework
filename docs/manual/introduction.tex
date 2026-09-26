@@ -575,11 +575,16 @@ For example, you can use:
 \end{Verbatim}
 
 \noindent
-to pass different lint options to the Nullness and GUI Effect Checkers when run together.
+to pass different lint options to the Nullness and GUI Effect Checkers.  A
+downside when running independent checkers together is that, in this example, the Nullness Checker will issue a
+``The following options were not recognized by any processor'' warning
+about the second option and the GUI Effect Checker will issue a
+``The following options were not recognized by any processor'' warning
+about the first option.
 
-When a checker has subcheckers (such as the Nullness Checker running \code{NullnessNoInitSubchecker}
-and \code{KeyForSubchecker}), options prefixed with the parent checker's name automatically apply
-to all subcheckers. A subchecker can override the parent option with a more specific prefix:
+However, when a checker has subcheckers (such as the Nullness Checker running \code{NullnessNoInitSubchecker}
+and \code{KeyForSubchecker}), no such warning occurs: options prefixed with the parent checker's name automatically apply
+to all subcheckers. A subchecker can also override the parent option with a more specific prefix:
 \begin{Verbatim}
     -ANullnessChecker_lint=redundantNullComparison
     -ANullnessNoInitSubchecker_lint=-redundantNullComparison

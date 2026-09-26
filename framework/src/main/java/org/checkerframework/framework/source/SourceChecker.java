@@ -3050,16 +3050,19 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
             SourceChecker parent = this.parentChecker;
             while (parent != null) {
                 Class<?> parentClazz = parent.getClass();
+                List<Class<?>> parentClazzPrefixes = new ArrayList<>();
                 do {
+                    parentClazzPrefixes.add(parentClazz);
+
                     SupportedOptions so = parentClazz.getAnnotation(SupportedOptions.class);
                     if (so != null) {
-                        options.addAll(expandCFOptions(clazzPrefixes, so.value()));
+                        options.addAll(expandCFOptions(parentClazzPrefixes, so.value()));
                     }
                     javax.annotation.processing.SupportedOptions jso =
                             parentClazz.getAnnotation(
                                     javax.annotation.processing.SupportedOptions.class);
                     if (jso != null) {
-                        options.addAll(expandCFOptions(clazzPrefixes, jso.value()));
+                        options.addAll(expandCFOptions(parentClazzPrefixes, jso.value()));
                     }
                     parentClazz = parentClazz.getSuperclass();
                 } while (parentClazz != null
