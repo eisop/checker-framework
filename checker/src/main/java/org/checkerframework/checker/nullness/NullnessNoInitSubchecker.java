@@ -10,6 +10,8 @@ import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.common.basetype.BaseTypeVisitor;
 import org.checkerframework.framework.qual.StubFiles;
 import org.checkerframework.framework.source.SourceChecker;
+import org.checkerframework.framework.source.SupportedLintOptions;
+import org.checkerframework.framework.source.SupportedOptions;
 
 import java.util.NavigableSet;
 import java.util.Set;
@@ -36,6 +38,21 @@ import java.util.Set;
  *       only, warnings from the Initialization and KeyFor Checkers are not suppressed
  * </ul>
  */
+@SupportedLintOptions({
+    NullnessChecker.LINT_NOINITFORMONOTONICNONNULL,
+    NullnessChecker.LINT_REDUNDANTNULLCOMPARISON,
+    "soundArrayCreationNullness",
+    "forbidnonnullarraycomponents",
+    NullnessChecker.LINT_TRUSTARRAYLENZERO,
+    NullnessChecker.LINT_PERMITCLEARPROPERTY,
+    NullnessChecker.LINT_MONOTONICNONNULLONSTATIC,
+})
+@SupportedOptions({
+    "assumeKeyFor",
+    "jspecifyNullMarkedAlias",
+    "jspecifyUnrecognizedLocations",
+    "conservativeArgumentNullnessAfterInvocation"
+})
 @StubFiles({"junit-assertions.astub"})
 public class NullnessNoInitSubchecker extends BaseTypeChecker {
 

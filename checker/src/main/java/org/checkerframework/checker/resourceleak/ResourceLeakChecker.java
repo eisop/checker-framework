@@ -44,9 +44,6 @@ import javax.tools.Diagnostic;
     "permitInitializationLeak",
     ResourceLeakChecker.COUNT_MUST_CALL,
     ResourceLeakChecker.IGNORED_EXCEPTIONS,
-    MustCallChecker.NO_CREATES_MUSTCALLFOR,
-    MustCallChecker.NO_LIGHTWEIGHT_OWNERSHIP,
-    MustCallChecker.NO_RESOURCE_ALIASES,
     // NO-AFU    ResourceLeakChecker.ENABLE_WPI_FOR_RLC,
     ResourceLeakChecker.ENABLE_RETURNS_RECEIVER
 })

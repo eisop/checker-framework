@@ -1320,6 +1320,14 @@ The framework automatically resolves the value with the proper specificity prece
     -AmyOption=val3                 (lowest precedence)
 \end{Verbatim}
 
+\paragraphAndLabel{Option declarations in compound checkers and subcheckers}{creating-compound-checker-option-declarations}
+Option declarations are shared bidirectionally between compound checkers and their subcheckers:
+\begin{itemize}
+  \item \textbf{Subchecker options inherited by parent checkers:} Any option declared by a subchecker via \code{@SupportedOptions} or \code{@SupportedLintOptions} is automatically recognized by enclosing parent checkers, and parent checkers automatically synthesize parent-prefixed forms (for example, \code{-AMyParentChecker\_mySubcheckerOption}). You do not need to repeat subchecker options on enclosing checkers.
+  \item \textbf{Parent checker options inherited by subcheckers:} Subcheckers automatically recognize options declared on enclosing checkers and can query them directly.
+  \item \textbf{Standalone execution:} Declaring options on the subchecker that queries them ensures that the subchecker can also be executed standalone as an independent annotation processor without throwing unrecognized option errors.
+\end{itemize}
+
 
 
 \sectionAndLabel{Visitor: Type rules}{creating-extending-visitor}

@@ -1,7 +1,6 @@
 package org.checkerframework.checker.mustcall;
 
 import org.checkerframework.framework.qual.StubFiles;
-import org.checkerframework.framework.source.SupportedOptions;
 import org.checkerframework.framework.source.SuppressWarningsPrefix;
 
 /**
@@ -21,5 +20,4 @@ import org.checkerframework.framework.source.SuppressWarningsPrefix;
     // Must Call Checker).
     "mustcallnocreatesmustcallfor"
 })
-@SupportedOptions({MustCallChecker.NO_CREATES_MUSTCALLFOR})
 public class MustCallNoCreatesMustCallForChecker extends MustCallChecker {}
