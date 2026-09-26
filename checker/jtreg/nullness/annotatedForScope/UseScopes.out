@@ -1,4 +1,5 @@
-UseScopes.java:31:52: compiler.err.proc.messager: (assignment.type.incompatible)
-UseScopes.java:40:46: compiler.err.proc.messager: (assignment.type.incompatible)
-UseScopes.java:43:45: compiler.err.proc.messager: (assignment.type.incompatible)
-3 errors
+UseScopes.java:32:52: compiler.err.proc.messager: (assignment.type.incompatible)
+UseScopes.java:41:46: compiler.err.proc.messager: (assignment.type.incompatible)
+UseScopes.java:44:45: compiler.err.proc.messager: (assignment.type.incompatible)
+UseScopes.java:51:56: compiler.err.proc.messager: (assignment.type.incompatible)
+4 errors

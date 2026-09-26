@@ -1,7 +1,8 @@
 /*
  * @test
  * @summary Test that the search for an applicable AnnotatedFor annotation walks the enclosing
- *          elements of a bytecode element: method, nested class, outer class, and package.
+ *          elements of a bytecode element: method, nested class, outer class, and package,
+ *          and that a nested UnannotatedFor opts back out of an enclosing AnnotatedFor.
  *          The library is compiled by plain javac, without the Checker Framework, which is how
  *          a partially-annotated library is normally built.
  *
@@ -44,5 +45,9 @@ public class UseScopes {
 
         // AnnotatedFor on the enclosing package, read from package-info.class.
         @NonNull Object g = InPkg.get();
+
+        // UnannotatedFor on a nested class opts back out of the enclosing class's AnnotatedFor.
+        // The nearest of the two markers wins, and both are read from the class file.
+        @NonNull Object h = AnnotatedOuter.OptedOut.get();
     }
 }

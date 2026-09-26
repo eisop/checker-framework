@@ -10,8 +10,10 @@ downstream tools -- a stored `@NonNull` on a class type parameter makes the
 Kotlin compiler treat it as non-nullable, and `javac` 25 reports "cannot
 attach type annotations" when a type named by a stored annotation is off the
 classpath -- and they bake the writing compilation's defaults into the
-library.  See the manual's "The -AnoBytecodeStorage command-line argument"
-section.
+library.  `-Amode=jspecify` now implies this option, because the qualifiers
+the checker infers by defaulting are not part of the JSpecify specification
+of the code.  See the manual's "The -AnoBytecodeStorage command-line
+argument" section.
 
 The new command-line option `-AusePermissiveDefaultsForUncheckedCode` takes `source` and/or
 `bytecode` arguments, like `-AuseConservativeDefaultsForUncheckedCode`, but applies permissive
@@ -1250,6 +1252,7 @@ eisop#1198,
 eisop#1217,
 eisop#1243,
 eisop#1244,
+eisop#1291,
 eisop#1292,
 eisop#1299,
 eisop#1315,

@@ -1,12 +1,16 @@
 /*
  * @test
  * @summary Test that -AnoBytecodeStorage writes only source-code annotations into the .class file,
- *          and that AnnotatedFor is still read from bytecode.
+ *          that AnnotatedFor is still read from bytecode, and that -Amode=jspecify implies
+ *          -AnoBytecodeStorage.
  *
  * @compile -XDrawDiagnostics -processor org.checkerframework.checker.nullness.NullnessChecker -Anomsgtext ../noBytecodeStorageLib/Lib.java ../noBytecodeStorageLib/Unannotated.java
  * @compile/fail/ref=WithStorage.out -XDrawDiagnostics -processor org.checkerframework.checker.nullness.NullnessChecker -Anomsgtext -AuseConservativeDefaultsForUncheckedCode=bytecode UseLib.java
  *
  * @compile -XDrawDiagnostics -processor org.checkerframework.checker.nullness.NullnessChecker -Anomsgtext -AnoBytecodeStorage ../noBytecodeStorageLib/Lib.java ../noBytecodeStorageLib/Unannotated.java
+ * @compile/fail/ref=NoStorage.out -XDrawDiagnostics -processor org.checkerframework.checker.nullness.NullnessChecker -Anomsgtext -AuseConservativeDefaultsForUncheckedCode=bytecode UseLib.java
+ *
+ * @compile -XDrawDiagnostics -processor org.checkerframework.checker.nullness.NullnessChecker -Anomsgtext -Amode=jspecify ../noBytecodeStorageLib/Lib.java ../noBytecodeStorageLib/Unannotated.java
  * @compile/fail/ref=NoStorage.out -XDrawDiagnostics -processor org.checkerframework.checker.nullness.NullnessChecker -Anomsgtext -AuseConservativeDefaultsForUncheckedCode=bytecode UseLib.java
  */
 
