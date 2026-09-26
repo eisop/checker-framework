@@ -718,6 +718,17 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     protected @MonotonicNonNull Set<String> supportedOptions = null;
 
     /**
+     * The class hierarchy from this checker's runtime class up to {@link AbstractTypeProcessor}.
+     */
+    protected @MonotonicNonNull List<Class<?>> classHierarchy = null;
+
+    /**
+     * The raw (unprefixed) options declared directly on this checker's class hierarchy via {@link
+     * SupportedOptions} or {@link javax.annotation.processing.SupportedOptions}.
+     */
+    protected @MonotonicNonNull Set<String> declaredOptions = null;
+
+    /**
      * The string that separates the checker name from the option name in a "-A" command-line
      * argument. This string may only consist of valid Java identifier part characters, because it
      * will be used within the key of an option.
@@ -3027,31 +3038,14 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
             // For the Checker Framework annotation
             // {@link org.checkerframework.framework.source.SupportedOptions}
             // we additionally add
-            Class<?> clazz = this.getClass();
-            List<Class<?>> clazzPrefixes = new ArrayList<>();
-
-            do {
-                clazzPrefixes.add(clazz);
-                clazz = clazz.getSuperclass();
-            } while (clazz != null
-                    && !clazz.getName().equals(AbstractTypeProcessor.class.getCanonicalName()));
-
+            List<Class<?>> clazzPrefixes = getClassHierarchy();
             options.addAll(expandCFOptions(clazzPrefixes, getDeclaredOptions()));
 
             // Subcheckers also support options declared by enclosing parent checkers.
             SourceChecker parent = this.parentChecker;
             while (parent != null) {
-                Class<?> parentClazz = parent.getClass();
-                List<Class<?>> parentClazzPrefixes = new ArrayList<>();
-                do {
-                    parentClazzPrefixes.add(parentClazz);
-                    parentClazz = parentClazz.getSuperclass();
-                } while (parentClazz != null
-                        && !parentClazz
-                                .getName()
-                                .equals(AbstractTypeProcessor.class.getCanonicalName()));
-
-                options.addAll(expandCFOptions(parentClazzPrefixes, parent.getDeclaredOptions()));
+                options.addAll(
+                        expandCFOptions(parent.getClassHierarchy(), parent.getDeclaredOptions()));
                 parent = parent.parentChecker;
             }
 
@@ -3069,6 +3063,26 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     }
 
     /**
+     * Returns the class hierarchy of this checker, starting from its runtime class up to (but not
+     * including) {@link AbstractTypeProcessor}.
+     *
+     * @return the class hierarchy of this checker
+     */
+    protected List<Class<?>> getClassHierarchy() {
+        if (classHierarchy == null) {
+            List<Class<?>> hierarchy = new ArrayList<>();
+            Class<?> clazz = this.getClass();
+            do {
+                hierarchy.add(clazz);
+                clazz = clazz.getSuperclass();
+            } while (clazz != null
+                    && !clazz.getName().equals(AbstractTypeProcessor.class.getCanonicalName()));
+            classHierarchy = Collections.unmodifiableList(hierarchy);
+        }
+        return classHierarchy;
+    }
+
+    /**
      * Returns the raw (unprefixed) option names declared directly on this checker's class and its
      * superclasses via {@link SupportedOptions} or {@link
      * javax.annotation.processing.SupportedOptions}.
@@ -3076,22 +3090,22 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      * @return the raw options declared on this checker's class hierarchy
      */
     protected Set<String> getDeclaredOptions() {
-        Set<String> declared = new HashSet<>();
-        Class<?> clazz = this.getClass();
-        do {
-            SupportedOptions so = clazz.getAnnotation(SupportedOptions.class);
-            if (so != null) {
-                Collections.addAll(declared, so.value());
+        if (declaredOptions == null) {
+            Set<String> declared = new HashSet<>();
+            for (Class<?> clazz : getClassHierarchy()) {
+                SupportedOptions so = clazz.getAnnotation(SupportedOptions.class);
+                if (so != null) {
+                    Collections.addAll(declared, so.value());
+                }
+                javax.annotation.processing.SupportedOptions jso =
+                        clazz.getAnnotation(javax.annotation.processing.SupportedOptions.class);
+                if (jso != null) {
+                    Collections.addAll(declared, jso.value());
+                }
             }
-            javax.annotation.processing.SupportedOptions jso =
-                    clazz.getAnnotation(javax.annotation.processing.SupportedOptions.class);
-            if (jso != null) {
-                Collections.addAll(declared, jso.value());
-            }
-            clazz = clazz.getSuperclass();
-        } while (clazz != null
-                && !clazz.getName().equals(AbstractTypeProcessor.class.getCanonicalName()));
-        return declared;
+            declaredOptions = Collections.unmodifiableSet(declared);
+        }
+        return declaredOptions;
     }
 
     /**
