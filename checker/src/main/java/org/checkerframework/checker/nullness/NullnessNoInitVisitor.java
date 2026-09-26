@@ -191,8 +191,7 @@ public class NullnessNoInitVisitor extends BaseTypeVisitor<NullnessNoInitAnnotat
                 checker.getLintOption(
                         NullnessChecker.LINT_MONOTONICNONNULLONSTATIC,
                         NullnessChecker.LINT_DEFAULT_MONOTONICNONNULLONSTATIC);
-        jspecifyUnrecognizedLocations =
-                checker.getUltimateParentChecker().hasOption("jspecifyUnrecognizedLocations");
+        jspecifyUnrecognizedLocations = checker.hasOption("jspecifyUnrecognizedLocations");
     }
 
     @Override

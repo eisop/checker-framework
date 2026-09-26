@@ -15,6 +15,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.checker.signature.qual.FullyQualifiedName;
 import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.framework.source.SourceChecker;
+import org.checkerframework.framework.source.SupportedOptions;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -53,8 +54,8 @@ import java.util.Set;
  *   <li>The target checker must override all necessary methods in the target checker's type factory
  *       to take the type information from the InitializationFieldAccessSubchecker into account. You
  *       can look at {@link NullnessNoInitAnnotatedTypeFactory} for examples.
- *   <li>Any subclass of the {@code InitializationChecker} should support the command-line option
- *       {@code -AassumeInitialized} via {@code @SupportedOptions({"assumeInitialized"})}, so
+ *   <li>Subclasses of the {@code InitializationChecker} automatically inherit the command-line
+ *       option {@code -AassumeInitialized} via {@code @SupportedOptions({"assumeInitialized"})}, so
  *       initialization checking can be turned off. This gives users of, e.g., the {@link
  *       NullnessChecker} an easy way to turn off initialization checking without having to directly
  *       call the {@link NullnessNoInitSubchecker}.
@@ -70,6 +71,7 @@ import java.util.Set;
  *
  * @checker_framework.manual #initialization-checker Initialization Checker
  */
+@SupportedOptions({"assumeInitialized"})
 public abstract class InitializationChecker extends BaseTypeChecker {
 
     /** Default constructor for InitializationChecker. */
