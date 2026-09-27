@@ -2171,6 +2171,9 @@ You can also supply \<.astub> files in that directory for other libraries.
 You should list those other libraries in a
 \refqualclass{framework/qual}{StubFiles} annotation on the checker's main
 class, so that they will also be automatically used.
+A checker inherits the stub files of its superclasses unless it declares its own
+\refqualclass{framework/qual}{StubFiles} annotation. Furthermore, compound checkers
+and their subcheckers share stub files bidirectionally.
 
 When a stub file should be used by multiple checkers (for example, if it
 contains purity annotations that are needed by multiple distinct checkers),

@@ -32,6 +32,7 @@ import org.checkerframework.checker.signature.qual.FullyQualifiedName;
 import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.common.reflection.MethodValChecker;
 import org.checkerframework.framework.qual.AnnotatedFor;
+import org.checkerframework.framework.qual.StubFiles;
 import org.checkerframework.framework.type.AnnotatedTypeFactory;
 import org.checkerframework.framework.util.OptionConfiguration;
 import org.checkerframework.framework.util.TreePathCacher;
@@ -729,6 +730,14 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     protected @MonotonicNonNull Set<String> declaredOptions = null;
 
     /**
+     * The raw stub files declared directly on this checker's class hierarchy via {@link StubFiles}.
+     */
+    protected @MonotonicNonNull List<String> declaredStubFiles = null;
+
+    /** The list of all stub files supported by this checker and its compound checker hierarchy. */
+    protected @MonotonicNonNull List<String> stubFiles = null;
+
+    /**
      * The string that separates the checker name from the option name in a "-A" command-line
      * argument. This string may only consist of valid Java identifier part characters, because it
      * will be used within the key of an option.
@@ -929,6 +938,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     protected void setParentChecker(SourceChecker parentChecker) {
         this.parentChecker = parentChecker;
         this.supportedOptions = null;
+        this.stubFiles = null;
     }
 
     /**
@@ -1043,6 +1053,9 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      * @return the active options for this checker, not including those passed only to subcheckers
      */
     public Map<String, String> getOptionsNoSubcheckers() {
+        if (processingEnv == null) {
+            return Collections.emptyMap();
+        }
         Map<String, String> options = createActiveOptions(processingEnv.getOptions());
         // Before the mode's options are added, so that a deprecated option written on the command
         // line suppresses an "assumeAssertions" that the mode would otherwise add.
@@ -1129,6 +1142,65 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      */
     public List<String> getExtraStubFiles() {
         return Collections.emptyList();
+    }
+
+    /**
+     * Returns the list of stub files to be parsed for this checker, including those declared via
+     * {@link StubFiles}, {@link #getExtraStubFiles()}, and those from parent checkers and
+     * subcheckers.
+     *
+     * @return the list of stub files for this checker
+     */
+    public List<String> getStubFiles() {
+        if (stubFiles == null) {
+            stubFiles = Collections.unmodifiableList(new ArrayList<>(createStubFiles()));
+        }
+        return stubFiles;
+    }
+
+    /**
+     * Computes the list of stub files for this checker, its parent checkers, and its subcheckers.
+     *
+     * @return the collection of stub files for this checker
+     */
+    protected Collection<String> createStubFiles() {
+        Set<String> result = new LinkedHashSet<>(getDeclaredStubFiles());
+        result.addAll(getExtraStubFiles());
+
+        SourceChecker parent = this.parentChecker;
+        while (parent != null) {
+            result.addAll(parent.getDeclaredStubFiles());
+            result.addAll(parent.getExtraStubFiles());
+            parent = parent.parentChecker;
+        }
+
+        for (SourceChecker checker : getSubcheckers()) {
+            result.addAll(checker.createStubFiles());
+        }
+
+        return result;
+    }
+
+    /**
+     * Returns the raw stub files declared directly on this checker's class hierarchy via {@link
+     * StubFiles}. If this checker does not declare {@link StubFiles}, it inherits the stub files
+     * declared by the nearest superclass that does.
+     *
+     * @return the raw stub files declared on this checker's class hierarchy
+     */
+    protected List<String> getDeclaredStubFiles() {
+        if (declaredStubFiles == null) {
+            List<String> list = new ArrayList<>();
+            for (Class<?> clazz : getClassHierarchy()) {
+                StubFiles stubFilesAnno = clazz.getDeclaredAnnotation(StubFiles.class);
+                if (stubFilesAnno != null) {
+                    Collections.addAll(list, stubFilesAnno.value());
+                    break;
+                }
+            }
+            declaredStubFiles = Collections.unmodifiableList(list);
+        }
+        return declaredStubFiles;
     }
 
     /**
@@ -3068,7 +3140,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      *
      * @return the class hierarchy of this checker
      */
-    protected List<Class<?>> getClassHierarchy() {
+    public List<Class<?>> getClassHierarchy() {
         if (classHierarchy == null) {
             List<Class<?>> hierarchy = new ArrayList<>();
             Class<?> clazz = this.getClass();
