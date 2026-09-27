@@ -14,7 +14,7 @@ import java.lang.annotation.Target;
  * may appear on any type.
  *
  * <p>In order for this annotation to have an effect, it must be placed on the declaration of a
- * class that extends {@link org.checkerframework.framework.source.SourceChecker}. {@link
+ * class that extends {@code org.checkerframework.framework.source.SourceChecker}. {@code
  * org.checkerframework.framework.source.SourceChecker#getRelevantJavaTypes} collects these
  * annotations from the checker's class hierarchy, so a subclass inherits and combines the relevant
  * Java types of its superclasses.
