@@ -780,6 +780,8 @@ The \refqualclass{framework/qual}{RelevantJavaTypes}
 annotation on the checker class indicates that its qualifiers may only be
 written on those types and no others.  All irrelevant types are defaulted to
 the top annotation and this annotation cannot be changed.
+A checker subclass automatically inherits and combines
+\code{@RelevantJavaTypes} annotations declared on any of its superclasses.
 
 If a type is relevant, so are all its supertypes including \<Object>.
 The reason for this is to prevent qualifiers from being lost via an
@@ -1286,8 +1288,49 @@ Optional Checker (Chapter~\ref{optional-checker}), override
 
 in the \refclass{checker/optional}{OptionalChecker} class.
 
-% TODO: describe -ANullnessChecker_option=value mechanism.
-% For the implementation, see SourceChecker#OPTION_SEPARATOR.
+\subsubsectionAndLabel{Checker-Specific Options}{creating-providing-command-line-options-checker-specific}
+
+To direct a command-line option to a specific checker when multiple checkers are run together,
+prefix the option name with the checker's simple or canonical class name followed by an underscore
+``\<\_>''.
+For example:
+\begin{Verbatim}
+    -ANullnessChecker_lint=redundantNullComparison
+\end{Verbatim}
+
+\noindent
+Options prefixed with an enclosing checker's name automatically apply to all of its subcheckers
+(for example, options prefixed with \code{NullnessChecker\_} apply to \code{NullnessNoInitSubchecker}).
+A subchecker can override a parent option with a more specific prefix
+(e.g., \code{-ANullnessNoInitSubchecker\_lint=-redundantNullComparison}),
+and checker-prefixed options always take precedence over contradictory unprefixed options.
+
+Subcheckers automatically recognize options declared by their parent checkers.
+For example, if an enclosing checker declares:
+\begin{Verbatim}
+@SupportedOptions({"myOption"})
+public class MyParentChecker extends BaseTypeChecker { ... }
+\end{Verbatim}
+
+\noindent
+any subchecker can query \code{checker.hasOption("myOption")} or \code{checker.getOption("myOption")}
+directly without needing to inspect its parent checker.
+The framework automatically resolves the value with the proper specificity precedence:
+\begin{Verbatim}
+    -AMySubchecker_myOption=val1    (highest precedence)
+    -AMyParentChecker_myOption=val2
+    -AmyOption=val3                 (lowest precedence)
+\end{Verbatim}
+
+\paragraphAndLabel{Option and mode declarations in compound checkers and subcheckers}{creating-compound-checker-option-declarations}
+Option, lint option, and mode declarations are shared bidirectionally between compound checkers and their subcheckers:
+\begin{itemize}
+  \item \textbf{Subchecker options and modes inherited by parent checkers:} Any option or mode declared by a subchecker via \code{@SupportedOptions}, \code{@SupportedLintOptions}, or \code{@SupportedModes} is automatically recognized by enclosing parent checkers, and parent checkers automatically synthesize parent-prefixed forms for regular options (for example, \code{-AMyParentChecker\_mySubcheckerOption}). You do not need to repeat subchecker options or modes on enclosing checkers.
+  \item \textbf{Parent checker options and modes inherited by subcheckers:} Subcheckers automatically recognize options, lint options, and modes declared on enclosing checkers and can query them directly.
+  \item \textbf{SuppressWarnings prefixes inherited by subcheckers:} Subcheckers automatically recognize \code{@SuppressWarnings} prefixes declared on enclosing parent checkers (via \code{@SuppressWarningsPrefix} or class names). A warning emitted by a subchecker can therefore be suppressed using the parent checker's prefix.
+  \item \textbf{Standalone execution:} Declaring options, lint options, and modes on the subchecker that queries or implements them ensures that the subchecker can also be executed standalone as an independent annotation processor without throwing unrecognized option or mode errors.
+\end{itemize}
+
 
 
 \sectionAndLabel{Visitor: Type rules}{creating-extending-visitor}
@@ -2131,6 +2174,9 @@ You can also supply \<.astub> files in that directory for other libraries.
 You should list those other libraries in a
 \refqualclass{framework/qual}{StubFiles} annotation on the checker's main
 class, so that they will also be automatically used.
+A checker inherits the stub files of its superclasses unless it declares its own
+\refqualclass{framework/qual}{StubFiles} annotation. Furthermore, compound checkers
+and their subcheckers share stub files bidirectionally.
 
 When a stub file should be used by multiple checkers (for example, if it
 contains purity annotations that are needed by multiple distinct checkers),

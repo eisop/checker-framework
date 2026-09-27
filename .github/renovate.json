@@ -56,6 +56,11 @@
       "description": "We want specifically version 3.3.2, which caused a crash before",
       "matchPackageNames": ["org.apache.spark:spark-sql_2.12"],
       "enabled": false
+    },
+    {
+      "description": "Never update com.google.errorprone:javac; Renovate proposes 9-dev-r4023-3 as an update to our pinned 9+181-r4173-1, but that is not a version we want.",
+      "matchPackageNames": ["com.google.errorprone:javac"],
+      "enabled": false
     }
   ],
   "customManagers": [
@@ -80,13 +85,15 @@
     },
     {
       "customType": "regex",
-      "description": "Update JDK_EA_BUILD in GitHub Actions",
+      "description": "Update JDK_EA_BUILD in GitHub Actions. The commitMessage overrides make the PR title show the full jdk-<major>+<build> tag: the default title would otherwise show only the bare build number (e.g. 'to v17'), which reads as a JDK major-version bump instead of an EA build bump.",
       "managerFilePatterns": ["/^\\.github/workflows/ci\\.yml$/"],
       "matchStrings": ["JDK_EA_MAJOR:\\s+\"(?<major>\\d+)\"[\\s\\S]*?JDK_EA_BUILD:\\s+\"(?<currentValue>\\d+)\""],
       "datasourceTemplate": "github-tags",
       "depNameTemplate": "openjdk/jdk",
       "versioningTemplate": "loose",
-      "extractVersionTemplate": "^jdk-{{{major}}}\\+(?<version>\\d+)$"
+      "extractVersionTemplate": "^jdk-{{{major}}}\\+(?<version>\\d+)$",
+      "commitMessageTopic": "openjdk/jdk EA build",
+      "commitMessageExtra": "to jdk-{{{major}}}+{{{newValue}}}"
     },
     {
       "customType": "regex",
