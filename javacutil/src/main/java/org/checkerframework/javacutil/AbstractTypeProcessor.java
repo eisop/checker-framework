@@ -269,9 +269,40 @@ public abstract class AbstractTypeProcessor extends AbstractProcessor {
      */
     private void maybeInvokeTypeProcessingOver() {
         if (!hasInvokedTypeProcessingOver && elements.isEmpty() && packageElements.isEmpty()) {
-            typeProcessingOver();
-            hasInvokedTypeProcessingOver = true;
+            invokeTypeProcessingOver();
         }
+    }
+
+    /**
+     * Invokes {@link #typeProcessingOver()} and records that it has run, passing a throwable it
+     * threw to {@link #handleProcessingError}.
+     *
+     * <p>{@link #typeProcessingOver()} is overridable, and its overrides run before they call
+     * {@code super}, so wrapping the call is what puts an override's own work under the handler.
+     * Wrapping the body of an override's {@code super} call would not.
+     */
+    private void invokeTypeProcessingOver() {
+        try {
+            typeProcessingOver();
+        } catch (RuntimeException | Error t) {
+            handleProcessingError("typeProcessingOver", t);
+        }
+        hasInvokedTypeProcessingOver = true;
+    }
+
+    /**
+     * Handles a throwable thrown by {@link #typeProcessingOver()}. The default implementation
+     * rethrows it, so that it is reported as an uncaught annotation processor exception. A subclass
+     * that reports a throwable as a compiler diagnostic overrides this.
+     *
+     * @param methodName the name of the method that threw {@code t}
+     * @param t the throwable that {@code methodName} threw
+     */
+    protected void handleProcessingError(String methodName, Throwable t) {
+        if (t instanceof RuntimeException) {
+            throw (RuntimeException) t;
+        }
+        throw (Error) t;
     }
 
     /**
@@ -341,8 +372,7 @@ public abstract class AbstractTypeProcessor extends AbstractProcessor {
             hasInvokedTypeProcessingStart = true;
         }
         if (!hasInvokedTypeProcessingOver) {
-            typeProcessingOver();
-            hasInvokedTypeProcessingOver = true;
+            invokeTypeProcessingOver();
         }
     }
 

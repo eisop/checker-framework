@@ -246,9 +246,9 @@ public class ConstraintSet implements ReductionResult {
         for (Constraint constraint : c.list) {
             if (constraint.getKind() == Kind.EXPRESSION
                     || constraint.getKind() == Kind.LAMBDA_EXCEPTION
-                    || constraint.getKind() == Kind.METHOD_REF_EXCEPTION) {
-                Set<Variable> inputsOfSingleConstraint =
-                        ((TypeConstraint) constraint).getInputVariables();
+                    || constraint.getKind() == Kind.METHOD_REF_EXCEPTION
+                    || constraint.getKind() == Kind.ADDITIONAL_ARG) {
+                Set<Variable> inputsOfSingleConstraint = constraint.getInputVariables();
                 boolean foundInfluence = false;
                 inputLoop:
                 for (Variable in : inputsOfSingleConstraint) {
@@ -357,11 +357,7 @@ public class ConstraintSet implements ReductionResult {
         // addAllLazily does not mutate its first argument.
         Set<Variable> vars = Collections.emptySet();
         for (Constraint constraint : list) {
-            if (constraint instanceof TypeConstraint) {
-                vars =
-                        TypeConstraint.addAllLazily(
-                                vars, ((TypeConstraint) constraint).getInputVariables());
-            }
+            vars = TypeConstraint.addAllLazily(vars, constraint.getInputVariables());
         }
         return vars;
     }

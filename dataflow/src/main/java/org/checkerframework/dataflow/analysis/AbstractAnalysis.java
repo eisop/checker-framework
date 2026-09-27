@@ -333,6 +333,23 @@ public abstract class AbstractAnalysis<
         if (t == currentTree || cfg == null) {
             return null;
         }
+        // A conversion makes one tree map to two nodes: the pre-conversion node, in treeLookup,
+        // and the post-conversion node, in convertedTreeLookup.  For `boolean x = boxed` the tree
+        // `boxed` maps both to the Boolean and to the result of the synthetic
+        // `boxed.booleanValue()`.  getNodesForTree prefers the post-conversion node, so that the
+        // type of the expression is the converted one; the fallback below supplies the
+        // pre-conversion value in the window before the conversion node has been evaluated.
+        //
+        // Which of the two a caller wants depends on the caller, and this method cannot tell.  A
+        // type system that preserves the qualifier across the conversion does not care, because
+        // the two values then agree.  One that changes it does: the Interning Checker makes the
+        // unboxed primitive @Interned and leaves the boxed value @UnknownInterned, and across the
+        // Signedness, Value and Interning tests the two values differ in their qualifiers often
+        // enough to matter.  No wrong answer has been produced from this, but it is the reason
+        // the value a query returns can depend on how much of the CFG has been analyzed.  See
+        // https://github.com/eisop/checker-framework/issues/2127 for the analysis, the
+        // measurements, and a fix that was rejected for costing 1.41x on boxing-heavy code.  The
+        // two nodes are created by CFGTranslationPhaseOne.addToConvertedLookupMap.
         V result = getValue(getNodesForTree(t));
         if (result == null) {
             result = getValue(cfg.getTreeLookup().get(t));

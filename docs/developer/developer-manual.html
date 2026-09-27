@@ -276,9 +276,17 @@ If your IDE cannot find <code>com.sun.source.*</code> packages, try changing the
 </p>
 
 <p>
-For VS Code and Eclipse, run <code>./gradlew eclipseClasspath</code> before running
+For VS Code and Eclipse, run <code>./gradlew eclipse</code> before running
 the IDE for the first time.
 This ensures generated files are not put in the standard <code>../bin/</code> directories.
+If you switch branches or update Gradle dependencies, run
+<code>./gradlew cleanEclipse eclipse</code> to reset and regenerate the IDE configuration.
+</p>
+
+<p>
+For VS Code users, install the recommended "Extension Pack for Java"
+(<code>vscjava.vscode-java-pack</code>). Recommended workspace settings and extension
+recommendations are provided in the <code>.vscode/</code> directory.
 </p>
 
 

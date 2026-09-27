@@ -219,6 +219,9 @@ public abstract class GenericAnnotatedTypeFactory<
     /** Is this type factory configured to use flow-sensitive type refinement? */
     private final boolean everUseFlow;
 
+    /** True if "-AignoreDeadCode" was passed on the command line. */
+    private final boolean ignoreDeadCode;
+
     /**
      * Should the local variable default annotation be applied to type variables?
      *
@@ -367,6 +370,7 @@ public abstract class GenericAnnotatedTypeFactory<
 
         this.cfgVisualizer = createCFGVisualizer();
         this.handleCFGViz = checker.hasOption("flowdotdir") || checker.hasOption("cfgviz");
+        this.ignoreDeadCode = checker.hasOption("ignoreDeadCode");
 
         if (shouldCache) {
             int cacheSize = getCacheSize();
@@ -377,17 +381,15 @@ public abstract class GenericAnnotatedTypeFactory<
             initializerCache = null;
         }
 
-        RelevantJavaTypes relevantJavaTypesAnno =
-                checker.getClass().getAnnotation(RelevantJavaTypes.class);
-        if (relevantJavaTypesAnno == null) {
+        Set<Class<?>> classes = checker.getRelevantJavaTypes();
+        if (classes == null) {
             this.relevantJavaTypes = null;
             this.arraysAreRelevant = true;
         } else {
             Types types = getChecker().getTypeUtils();
             Elements elements = getElementUtils();
-            Class<?>[] classes = relevantJavaTypesAnno.value();
             Set<TypeMirror> relevantJavaTypesTemp =
-                    new HashSet<>(CollectionsPlume.mapCapacity(classes.length));
+                    new HashSet<>(CollectionsPlume.mapCapacity(classes.size()));
             boolean arraysAreRelevantTemp = false;
             for (Class<?> clazz : classes) {
                 if (clazz == Object[].class) {
@@ -494,7 +496,7 @@ public abstract class GenericAnnotatedTypeFactory<
 
         super.setRoot(root);
         this.scannedClasses = new IdentityHashMap<>();
-        // this.reachableNodes.clear();
+        this.reachableNodes.clear();
         this.flowResult = null;
         this.finalLocalValuesByDeclarer.clear();
         this.regularExitStores = new IdentityHashMap<>();
@@ -902,7 +904,8 @@ public abstract class GenericAnnotatedTypeFactory<
     }
 
     /**
-     * Adds standard unchecked defaults that do not conflict with previously added defaults.
+     * Adds the defaults for unchecked code of each mode the command-line options enable. Subclasses
+     * may override this method to customize unchecked-code defaults.
      *
      * @param defs {@link QualifierDefaults} object to which defaults are added
      */
@@ -1098,15 +1101,16 @@ public abstract class GenericAnnotatedTypeFactory<
         return value != null ? value.getAnnotations().iterator().next() : null;
     }
 
-    /*
+    /**
      * Returns true if the {@code exprTree} is unreachable. This is a conservative estimate and may
-     * return {@code false} even though the {@code exprTree} is unreachable.
+     * return {@code false} even though the {@code exprTree} is unreachable. Only meaningful when
+     * "-AignoreDeadCode" was passed on the command line; otherwise always returns {@code false}.
      *
      * @param exprTree an expression tree
      * @return true if the {@code exprTree} is unreachable
-     *
+     */
     public boolean isUnreachable(ExpressionTree exprTree) {
-        if (!everUseFlow) {
+        if (!everUseFlow || !ignoreDeadCode) {
             return false;
         }
         Set<Node> nodes = getNodesForTree(exprTree);
@@ -1123,7 +1127,6 @@ public abstract class GenericAnnotatedTypeFactory<
         // None of the corresponding nodes is reachable, so this tree is dead.
         return true;
     }
-    */
 
     /**
      * Track the state of org.checkerframework.dataflow analysis scanning for each class tree in the
@@ -1144,15 +1147,16 @@ public abstract class GenericAnnotatedTypeFactory<
      */
     protected IdentityHashMap<ClassTree, ScanState> scannedClasses = new IdentityHashMap<>();
 
-    /*
+    /**
      * A set of trees whose corresponding nodes are reachable. This is not an exhaustive set of
      * reachable trees. Use {@link #isUnreachable(ExpressionTree)} instead of this set directly.
+     * Only populated when "-AignoreDeadCode" was passed on the command line.
      *
      * <p>This cannot be a set of Nodes, because two LocalVariableNodes are equal if they have the
      * same name but represent different uses of the variable. So instead of storing Nodes, it
      * stores the result of {@code Node#getTree}.
      */
-    // private final Set<Tree> reachableNodes = new HashSet<>();
+    private final Set<Tree> reachableNodes = new HashSet<>();
 
     /**
      * The merged result of all the analyses performed in the current compilation unit. Invariant:
@@ -1699,15 +1703,15 @@ public abstract class GenericAnnotatedTypeFactory<
         }
         ControlFlowGraph cfg =
                 CFCFGBuilder.build(this.getRoot(), ast, checker, this, processingEnv);
-        /*
-             cfg.getAllNodes(this::isIgnoredExceptionType)
-                     .forEach(
-                             node -> {
-                                 if (node.getTree() != null) {
-                                     reachableNodes.add(node.getTree());
-                                 }
-                             });
-        */
+        if (ignoreDeadCode) {
+            cfg.getAllNodes(this::isIgnoredExceptionType)
+                    .forEach(
+                            node -> {
+                                if (node.getTree() != null) {
+                                    reachableNodes.add(node.getTree());
+                                }
+                            });
+        }
         if (isInitializationCode) {
             Store initStore = !isStatic ? initializationStore : initializationStaticStore;
             if (initStore != null) {
@@ -1806,7 +1810,17 @@ public abstract class GenericAnnotatedTypeFactory<
             lambdaQueue.add(Pair.of(lambda, getStoreBefore(lambda)));
         }
 
-        postAnalyze(cfg);
+        // Set the visitor tree path for the analyzed code, as performAnalysis does.  Without it,
+        // a path lookup made from postAnalyze resolves against whatever path the visitor last
+        // set, fails, and AnnotatedTypeFactory.getPath caches that failure for the rest of the
+        // compilation unit.
+        TreePath prevPath = getVisitorTreePath();
+        setVisitorTreePath(checker.getTreePathCacher().getPath(this.getRoot(), ast.getCode()));
+        try {
+            postAnalyze(cfg);
+        } finally {
+            setVisitorTreePath(prevPath);
+        }
     }
 
     /**

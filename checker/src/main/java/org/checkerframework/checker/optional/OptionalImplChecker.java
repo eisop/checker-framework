@@ -7,7 +7,6 @@ import org.checkerframework.framework.qual.StubFiles;
 import org.checkerframework.framework.source.SourceChecker;
 import org.checkerframework.framework.source.SupportedOptions;
 
-import java.util.NavigableSet;
 import java.util.Optional;
 import java.util.Set;
 
@@ -31,13 +30,5 @@ public class OptionalImplChecker extends BaseTypeChecker {
         Set<Class<? extends SourceChecker>> subcheckers = super.getImmediateSubcheckerClasses();
         subcheckers.add(AliasingChecker.class);
         return subcheckers;
-    }
-
-    /** Use "optional", rather than "optionalimpl", as the {@link SuppressWarnings} prefix. */
-    @Override
-    public NavigableSet<String> getSuppressWarningsPrefixes() {
-        NavigableSet<String> prefixes = super.getSuppressWarningsPrefixes();
-        prefixes.add("optional");
-        return prefixes;
     }
 }

@@ -2,6 +2,7 @@ package org.checkerframework.checker.initialization;
 
 import com.sun.source.tree.BinaryTree;
 import com.sun.source.tree.ClassTree;
+import com.sun.source.tree.CompilationUnitTree;
 import com.sun.source.tree.ExpressionTree;
 import com.sun.source.tree.LiteralTree;
 import com.sun.source.tree.MemberReferenceTree;
@@ -57,6 +58,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -127,6 +129,28 @@ public abstract class InitializationParentAnnotatedTypeFactory
             CollectionsPlume.createLruCache(getCacheSize());
 
     /**
+     * Cache for {@link #areAllFieldsInitializedOnly(ClassTree)}, whose result depends only on the
+     * field declarations of the class. Cleared for each compilation unit in {@link
+     * #setRoot(CompilationUnitTree)}.
+     */
+    private final IdentityHashMap<ClassTree, Boolean> allFieldsInitializedOnlyCache =
+            new IdentityHashMap<>();
+
+    /**
+     * Cache for {@link #getInstanceFields(ClassTree)}. Cleared for each compilation unit in {@link
+     * #setRoot(CompilationUnitTree)}.
+     */
+    private final IdentityHashMap<ClassTree, List<VariableTree>> instanceFieldsCache =
+            new IdentityHashMap<>();
+
+    /**
+     * Cache for {@link #getStaticFields(ClassTree)}. Cleared for each compilation unit in {@link
+     * #setRoot(CompilationUnitTree)}.
+     */
+    private final IdentityHashMap<ClassTree, List<VariableTree>> staticFieldsCache =
+            new IdentityHashMap<>();
+
+    /**
      * Create a new InitializationParentAnnotatedTypeFactory.
      *
      * <p>Don't forget to call {@link #postInit()} in the concrete subclass.
@@ -157,6 +181,14 @@ public abstract class InitializationParentAnnotatedTypeFactory
     }
 
     @Override
+    public void setRoot(@Nullable CompilationUnitTree root) {
+        super.setRoot(root);
+        allFieldsInitializedOnlyCache.clear();
+        instanceFieldsCache.clear();
+        staticFieldsCache.clear();
+    }
+
+    @Override
     public void postAsMemberOf(
             AnnotatedTypeMirror type, AnnotatedTypeMirror owner, Element element) {
         super.postAsMemberOf(type, owner, element);
@@ -171,12 +203,26 @@ public abstract class InitializationParentAnnotatedTypeFactory
             if (!isUnknownInitialization(owner) && !isUnderInitialization(owner)) {
                 return;
             }
-            Collection<? extends AnnotationMirror> declaredFieldAnnotations =
-                    getDeclAnnotations(element);
-            AnnotatedTypeMirror fieldAnnotations = getAnnotatedType(element);
-            computeFieldAccessInitializationType(
-                    type, declaredFieldAnnotations, owner, fieldAnnotations);
+            adaptFieldAccessInitializationType(type, owner, element);
         }
+    }
+
+    /**
+     * Fetches the declared and inferred annotations for {@code field} and adapts {@code type} to
+     * {@code owner} via {@link #computeFieldAccessInitializationType}. Shared by {@link
+     * #postAsMemberOf} (for an explicit or implicit field access) and {@link
+     * #getAnnotatedTypeLhs(Tree)} (for a field declaration's initializer target).
+     *
+     * @param type type of the field access or declaration; is side-effected by this method
+     * @param owner the receiver's initialization type
+     * @param field the field element
+     */
+    private void adaptFieldAccessInitializationType(
+            AnnotatedTypeMirror type, AnnotatedTypeMirror owner, Element field) {
+        Collection<? extends AnnotationMirror> declaredFieldAnnotations = getDeclAnnotations(field);
+        AnnotatedTypeMirror fieldAnnotations = getAnnotatedType(field);
+        computeFieldAccessInitializationType(
+                type, declaredFieldAnnotations, owner, fieldAnnotations);
     }
 
     /**
@@ -218,6 +264,49 @@ public abstract class InitializationParentAnnotatedTypeFactory
                 type.replaceAnnotation(INITIALIZED);
             }
         }
+    }
+
+    /**
+     * Adapts the type of a field declaration's initializer target to the enclosing (possibly
+     * under-initialization) receiver, just as {@link #postAsMemberOf} already does for an explicit
+     * or implicit field access such as {@code this.f = ...} or {@code f = ...}.
+     *
+     * <p>Only a {@link VariableTree} (a field declaration, e.g. {@code Object f = this;}) needs
+     * this special case. Every other left-hand-side tree kind that {@link
+     * GenericAnnotatedTypeFactory#getAnnotatedTypeLhs(Tree)} handles (an {@code IdentifierTree} or
+     * {@code MemberSelectTree} referring to a field) is a genuine member-access expression, so its
+     * type already comes from {@link #getAnnotatedType(Tree)}, which resolves the field "as a
+     * member of" the receiver via {@link
+     * org.checkerframework.framework.util.AnnotatedTypes#asMemberOf} and therefore already goes
+     * through {@link #postAsMemberOf}. A field declaration's initializer, however, is not a
+     * member-access expression -- it has no receiver subtree to resolve -- so {@code
+     * asMemberOf}/{@code postAsMemberOf} is never invoked for it, and without this override the
+     * initializer would be checked against the field's plain declared type instead of the
+     * receiver-adapted one.
+     *
+     * @param lhsTree left-hand side of an assignment
+     * @return the type of {@code lhsTree}, adapted to the enclosing receiver when {@code lhsTree}
+     *     is a non-static field declaration
+     */
+    @Override
+    public AnnotatedTypeMirror getAnnotatedTypeLhs(Tree lhsTree) {
+        AnnotatedTypeMirror res = super.getAnnotatedTypeLhs(lhsTree);
+        if (lhsTree instanceof VariableTree) {
+            VariableTree varTree = (VariableTree) lhsTree;
+            VariableElement field = TreeUtils.elementFromDeclaration(varTree);
+            if (field.getKind().isField() && !ElementUtils.isStatic(field)) {
+                Tree receiverContext =
+                        varTree.getInitializer() != null ? varTree.getInitializer() : varTree;
+                AnnotatedTypeMirror receiverType = getSelfType(receiverContext);
+                if (receiverType != null
+                        && (isUnknownInitialization(receiverType)
+                                || isUnderInitialization(receiverType))) {
+                    res = res.deepCopy();
+                    adaptFieldAccessInitializationType(res, receiverType, field);
+                }
+            }
+        }
+        return res;
     }
 
     @Override
@@ -352,9 +441,9 @@ public abstract class InitializationParentAnnotatedTypeFactory
         //    there might still be subclasses that need initialization.
         if (areAllFieldsInitializedOnly(enclosingClass)) {
             InitializationStore store = getStoreBefore(tree);
-            if (store != null
-                    && getUninitializedFields(store, path, false, Collections.emptyList())
-                            .isEmpty()) {
+            // Equivalent to, but cheaper than,
+            // getUninitializedFields(store, path, false, Collections.emptyList()).isEmpty().
+            if (store != null && !hasUninitializedInstanceFields(store, enclosingClass)) {
                 if (classType.isFinal()) {
                     annotation = INITIALIZED;
                 } else {
@@ -431,10 +520,25 @@ public abstract class InitializationParentAnnotatedTypeFactory
     /**
      * Are all fields initialized-only?
      *
+     * <p>The result depends only on the field declarations of {@code classTree}, so it is cached:
+     * this method is called for every {@link #getSelfType(Tree)} query in initialization code, and
+     * recomputing it would make checking a class quadratic in its number of fields.
+     *
      * @param classTree the class to query
      * @return true if all fields are initialized-only
      */
     protected boolean areAllFieldsInitializedOnly(ClassTree classTree) {
+        return allFieldsInitializedOnlyCache.computeIfAbsent(
+                classTree, this::computeAreAllFieldsInitializedOnly);
+    }
+
+    /**
+     * Computes {@link #areAllFieldsInitializedOnly(ClassTree)}, without caching.
+     *
+     * @param classTree the class to query
+     * @return true if all fields are initialized-only
+     */
+    private boolean computeAreAllFieldsInitializedOnly(ClassTree classTree) {
         for (Tree member : classTree.getMembers()) {
             if (!(member instanceof VariableTree)) {
                 continue;
@@ -451,6 +555,126 @@ public abstract class InitializationParentAnnotatedTypeFactory
             }
         }
         return true;
+    }
+
+    /**
+     * Returns the non-static fields declared in {@code classTree}, in declaration order. The result
+     * is cached and must not be modified.
+     *
+     * @param classTree a class
+     * @return the non-static fields declared in {@code classTree}
+     */
+    List<VariableTree> getInstanceFields(ClassTree classTree) {
+        return instanceFieldsCache.computeIfAbsent(
+                classTree,
+                ct -> {
+                    List<VariableTree> result = new ArrayList<>();
+                    for (VariableTree field : TreeUtils.fieldsFromClassTree(ct)) {
+                        if (!ElementUtils.isStatic(TreeUtils.elementFromDeclaration(field))) {
+                            result.add(field);
+                        }
+                    }
+                    return result;
+                });
+    }
+
+    /**
+     * Returns the static fields declared in {@code classTree}, in declaration order. The result is
+     * cached and must not be modified.
+     *
+     * @param classTree a class
+     * @return the static fields declared in {@code classTree}
+     */
+    List<VariableTree> getStaticFields(ClassTree classTree) {
+        return staticFieldsCache.computeIfAbsent(
+                classTree,
+                ct -> {
+                    List<VariableTree> result = new ArrayList<>();
+                    for (VariableTree field : TreeUtils.fieldsFromClassTree(ct)) {
+                        if (ElementUtils.isStatic(TreeUtils.elementFromDeclaration(field))) {
+                            result.add(field);
+                        }
+                    }
+                    return result;
+                });
+    }
+
+    /**
+     * Returns the fields declared in {@code classTree}, filtered by {@code isStatic}, in
+     * declaration order. The result is cached and must not be modified.
+     *
+     * @param classTree a class
+     * @param isStatic whether to return static fields or instance fields
+     * @return the fields declared in {@code classTree} with the given static modifier
+     */
+    List<VariableTree> getFields(ClassTree classTree, boolean isStatic) {
+        return isStatic ? getStaticFields(classTree) : getInstanceFields(classTree);
+    }
+
+    /**
+     * Returns true if some instance field of {@code classTree} is not initialized in {@code store}.
+     * This is equivalent to {@code !getUninitializedFields(store, path, false,
+     * Collections.emptyList()).isEmpty()} for a {@code path} whose enclosing class is {@code
+     * classTree}, but does not build the list and stops at the first uninitialized field.
+     *
+     * <p>The fields are examined from the last-declared one backwards: fields are commonly
+     * initialized in declaration order, so while a constructor or field initializer is still
+     * running, the last-declared field is the one most likely to be uninitialized. This keeps the
+     * cost of a query in initialization code independent of the number of fields in the common
+     * case, rather than linear in it.
+     *
+     * @param store a store
+     * @param classTree the class whose instance fields to check
+     * @return true if some instance field of {@code classTree} is not initialized in {@code store}
+     */
+    boolean hasUninitializedInstanceFields(InitializationStore store, ClassTree classTree) {
+        return hasUninitializedInstanceFields(store, null, classTree);
+    }
+
+    /**
+     * Returns true if some instance field of {@code classTree} is not initialized according to
+     * {@code store} and optional {@code targetStore}.
+     *
+     * @param store a store
+     * @param targetStore optional target checker store
+     * @param classTree the class whose instance fields to check
+     * @return true if some instance field of {@code classTree} is not initialized
+     */
+    boolean hasUninitializedInstanceFields(
+            InitializationStore store,
+            @Nullable CFAbstractStore<?, ?> targetStore,
+            ClassTree classTree) {
+        List<VariableTree> fields = getInstanceFields(classTree);
+        for (int i = fields.size() - 1; i >= 0; i--) {
+            VariableTree field = fields.get(i);
+            if (isUnused(field, Collections.emptyList())) {
+                continue; // don't consider unused fields
+            }
+            VariableElement elem = TreeUtils.elementFromDeclaration(field);
+            if (!isFieldInitialized(store, targetStore, field, elem)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Determines whether {@code field} is initialized according to {@code store} and {@code
+     * targetStore}. The default implementation checks {@code store.isFieldInitialized(elem)}.
+     * Subclasses may override this to take a target checker into account.
+     *
+     * @param store a store for the initialization checker
+     * @param targetStore optional store for the target checker
+     * @param field the field declaration
+     * @param elem element for {@code field}
+     * @return true if {@code field} is initialized
+     */
+    protected boolean isFieldInitialized(
+            InitializationStore store,
+            @Nullable CFAbstractStore<?, ?> targetStore,
+            VariableTree field,
+            VariableElement elem) {
+        return store.isFieldInitialized(elem);
     }
 
     /**
@@ -476,17 +700,15 @@ public abstract class InitializationParentAnnotatedTypeFactory
             boolean isStatic,
             Collection<? extends AnnotationMirror> receiverAnnotations) {
         ClassTree currentClass = TreePathUtil.enclosingClass(path);
-        List<VariableTree> fields = TreeUtils.fieldsFromClassTree(currentClass);
+        List<VariableTree> fields = getFields(currentClass, isStatic);
         List<VariableTree> uninit = new ArrayList<>();
         for (VariableTree field : fields) {
             if (isUnused(field, receiverAnnotations)) {
                 continue; // don't consider unused fields
             }
             VariableElement fieldElem = TreeUtils.elementFromDeclaration(field);
-            if (ElementUtils.isStatic(fieldElem) == isStatic) {
-                if (!store.isFieldInitialized(fieldElem)) {
-                    uninit.add(field);
-                }
+            if (!store.isFieldInitialized(fieldElem)) {
+                uninit.add(field);
             }
         }
         return uninit;

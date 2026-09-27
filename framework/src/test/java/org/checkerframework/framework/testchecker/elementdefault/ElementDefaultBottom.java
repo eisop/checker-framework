@@ -15,5 +15,5 @@ import java.lang.annotation.Target;
 @Documented
 @Retention(RetentionPolicy.RUNTIME)
 @Target({ElementType.TYPE_USE, ElementType.TYPE_PARAMETER})
-@SubtypeOf(ElementDefaultTop.class)
+@SubtypeOf(ElementDefaultProgrammaticAllowedBottom.class)
 public @interface ElementDefaultBottom {}

@@ -81,7 +81,9 @@ public class GuiEffectVisitor extends BaseTypeVisitor<GuiEffectTypeFactory> {
     //       for any UI instantiations, safe otherwise
     @Override
     protected void checkMethodInvocability(
-            AnnotatedExecutableType method, MethodInvocationTree tree) {
+            AnnotatedExecutableType method,
+            MethodInvocationTree tree,
+            @Nullable AnnotatedTypeMirror receiverType) {
         // The inherited version of this complains about invoking methods of @UI instantiations of
         // classes, which by default are annotated @AlwaysSafe, which for data type qualifiers is
         // reasonable, but it not what we want, since we want .

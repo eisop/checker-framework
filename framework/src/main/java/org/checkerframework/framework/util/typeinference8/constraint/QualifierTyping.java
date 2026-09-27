@@ -4,9 +4,13 @@ import org.checkerframework.framework.util.typeinference8.types.AbstractQualifie
 import org.checkerframework.framework.util.typeinference8.types.AbstractType;
 import org.checkerframework.framework.util.typeinference8.types.Qualifier;
 import org.checkerframework.framework.util.typeinference8.types.QualifierVar;
+import org.checkerframework.framework.util.typeinference8.types.Variable;
 import org.checkerframework.framework.util.typeinference8.types.VariableBounds.BoundKind;
 import org.checkerframework.framework.util.typeinference8.util.Java8InferenceContext;
 import org.checkerframework.javacutil.BugInCF;
+
+import java.util.Collections;
+import java.util.Set;
 
 import javax.lang.model.element.AnnotationMirror;
 
@@ -62,6 +66,21 @@ public class QualifierTyping implements Constraint {
     @Override
     public Kind getKind() {
         return kind;
+    }
+
+    /**
+     * Returns the empty set: a qualifier constraint relates two qualifiers ({@code Q <: R} or
+     * {@code Q = R}) directly, not the type of a poly expression (a lambda, a method reference, a
+     * conditional expression, or a switch expression) whose type depends on a target type that may
+     * still be unresolved. JLS 18.5.2.2's input variables exist only to order the reduction of
+     * those poly-expression-typing constraints relative to the target types they depend on, so that
+     * notion does not apply to a qualifier constraint: it can always be reduced immediately.
+     *
+     * @return the empty set
+     */
+    @Override
+    public Set<Variable> getInputVariables() {
+        return Collections.emptySet();
     }
 
     @Override
