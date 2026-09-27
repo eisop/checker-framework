@@ -32,6 +32,7 @@ import org.checkerframework.checker.signature.qual.FullyQualifiedName;
 import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.common.reflection.MethodValChecker;
 import org.checkerframework.framework.qual.AnnotatedFor;
+import org.checkerframework.framework.qual.RelevantJavaTypes;
 import org.checkerframework.framework.qual.StubFiles;
 import org.checkerframework.framework.type.AnnotatedTypeFactory;
 import org.checkerframework.framework.util.OptionConfiguration;
@@ -759,6 +760,15 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     protected @MonotonicNonNull Set<String> declaredModes = null;
 
     /**
+     * The cached relevant Java types classes for this checker. Null if no {@link RelevantJavaTypes}
+     * annotation is present on this checker's class hierarchy.
+     */
+    protected @Nullable Set<Class<?>> relevantJavaTypes = null;
+
+    /** Whether {@link #relevantJavaTypes} has been initialized. */
+    private boolean relevantJavaTypesInitialized = false;
+
+    /**
      * The string that separates the checker name from the option name in a "-A" command-line
      * argument. This string may only consist of valid Java identifier part characters, because it
      * will be used within the key of an option.
@@ -964,6 +974,8 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
         this.standardSuppressWarningsPrefixes = null;
         this.upstreamCheckerNames = null;
         this.stubFiles = null;
+        this.relevantJavaTypes = null;
+        this.relevantJavaTypesInitialized = false;
     }
 
     /**
@@ -3236,6 +3248,41 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
             all.addAll(sub.getAllDeclaredOptions());
         }
         return all;
+    }
+
+    /**
+     * Returns the set of Java classes specified by {@link RelevantJavaTypes} on this checker's
+     * class hierarchy, or null if no {@link RelevantJavaTypes} annotation is present.
+     *
+     * @return the set of relevant Java classes, or null if unrestricted
+     */
+    public @Nullable Set<Class<?>> getRelevantJavaTypes() {
+        if (!relevantJavaTypesInitialized) {
+            relevantJavaTypes = createRelevantJavaTypes();
+            relevantJavaTypesInitialized = true;
+        }
+        return relevantJavaTypes;
+    }
+
+    /**
+     * Computes the set of Java classes specified by {@link RelevantJavaTypes} on this checker's
+     * class hierarchy. Subclasses can override this method to customize or extend the relevant Java
+     * types programmatically.
+     *
+     * @return the set of relevant Java classes, or null if unrestricted
+     */
+    protected @Nullable Set<Class<?>> createRelevantJavaTypes() {
+        Set<Class<?>> classes = null;
+        for (Class<?> clazz : getClassHierarchy()) {
+            RelevantJavaTypes anno = clazz.getDeclaredAnnotation(RelevantJavaTypes.class);
+            if (anno != null) {
+                if (classes == null) {
+                    classes = new LinkedHashSet<>();
+                }
+                Collections.addAll(classes, anno.value());
+            }
+        }
+        return classes == null ? null : Collections.unmodifiableSet(classes);
     }
 
     /**
