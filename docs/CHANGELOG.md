@@ -10,6 +10,20 @@ bounds, bottom for method returns, fields, and lower bounds.  It also suppresses
 warnings in unannotated source code, like `-AuseConservativeDefaultsForUncheckedCode=source`.
 A given kind of code cannot be defaulted both permissively and conservatively.
 
+Command-line options prefixed with a checker name (such as `-ANullnessChecker_lint=...` or
+`-ANullnessChecker_useConservativeDefaultsForUncheckedCode=...`) are now inherited by that
+checker's subcheckers (such as `NullnessNoInitSubchecker`). More specific options take precedence:
+a subchecker-specific option overrides a parent-checker option, and a checker-prefixed option
+overrides an unprefixed option.
+
+A checker subclass now inherits `@StubFiles` from its nearest annotated superclass if not
+explicitly overridden. In compound checkers, stub files are shared bidirectionally: parent
+checkers include stub files declared by their subcheckers, and subcheckers automatically
+inherit stub files declared by their enclosing parent checkers.
+
+A checker subclass now automatically inherits and combines `@RelevantJavaTypes` annotations
+declared across its superclasses in the checker class hierarchy.
+
 Specifying a location in `@DefaultQualifier` that is prohibited by the qualifier's
 `@TargetLocations` meta-annotation is now reported as a compiler error
 (`default.qualifier.prohibited.location`). Previously, such invalid defaults were

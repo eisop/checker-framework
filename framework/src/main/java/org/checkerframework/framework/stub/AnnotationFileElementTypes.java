@@ -7,7 +7,6 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.checker.signature.qual.CanonicalNameOrEmpty;
 import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.framework.qual.FromStubFile;
-import org.checkerframework.framework.qual.StubFiles;
 import org.checkerframework.framework.source.SourceChecker;
 import org.checkerframework.framework.stub.AnnotationFileParser.AnnotationFileAnnotations;
 import org.checkerframework.framework.stub.AnnotationFileParser.RecordComponentStub;
@@ -50,7 +49,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
@@ -1555,16 +1553,9 @@ public class AnnotationFileElementTypes {
                 }
             }
 
-            // 3. Stub files listed in @StubFiles annotation on the checker
-            StubFiles stubFilesAnnotation = checker.getClass().getAnnotation(StubFiles.class);
-            if (stubFilesAnnotation != null) {
-                parseAnnotationFiles(
-                        Arrays.asList(stubFilesAnnotation.value()),
-                        AnnotationFileType.BUILTIN_STUB);
-            }
-
-            // 4. Stub files returned by the `getExtraStubFiles()` method
-            parseAnnotationFiles(checker.getExtraStubFiles(), AnnotationFileType.BUILTIN_STUB);
+            // 3. Stub files declared on the checker, its superclasses, its parent/subcheckers,
+            // or returned by getExtraStubFiles()
+            parseAnnotationFiles(checker.getStubFiles(), AnnotationFileType.BUILTIN_STUB);
 
             // 5. Stub files provided via -Astubs command-line option
             String stubsOption = checker.getOption("stubs");
@@ -1763,12 +1754,13 @@ public class AnnotationFileElementTypes {
                     path = path.substring("checker.jar".length());
                 }
                 boolean issueWarning;
+                Class<?> resourceClass = findResourceClass(checker, path);
                 URL builtinBinURL =
                         fileType == AnnotationFileType.BUILTIN_STUB
-                                ? checker.getClass().getResource(path + BinaryStubData.BIN_SUFFIX)
+                                ? resourceClass.getResource(path + BinaryStubData.BIN_SUFFIX)
                                 : null;
-                URL textResourceURL = checker.getClass().getResource(path);
-                if (textResourceURL == null) {
+                URL textResourceURL = resourceClass.getResource(path);
+                if (textResourceURL == null && builtinBinURL == null) {
                     issueWarning = true;
                 } else if (builtinBinURL != null
                         && loadBuiltinBinaryStub(builtinBinURL, textResourceURL, path)) {
@@ -1777,7 +1769,7 @@ public class AnnotationFileElementTypes {
                     issueWarning = false;
                 } else {
                     // Fall back to text parsing: only now does the text stream need to be opened.
-                    try (InputStream in = checker.getClass().getResourceAsStream(path)) {
+                    try (InputStream in = resourceClass.getResourceAsStream(path)) {
                         if (in != null) {
                             if (fileType == AnnotationFileType.BUILTIN_STUB) {
                                 // A stub file the checker itself ships is expected to have been
@@ -1806,22 +1798,9 @@ public class AnnotationFileElementTypes {
 
                 if (issueWarning) {
                     // Didn't find the file.  Possibly issue a warning.
-
-                    // When using a compound checker, the target file may be found by the
-                    // current checker's parent checkers. Also check this to avoid a false
-                    // warning. Currently, only the original checker will try to parse the
-                    // target file, the parent checkers are only used to reduce false
-                    // warnings.
                     SourceChecker currentChecker = checker;
                     boolean findByParentCheckers = false;
                     while (currentChecker != null) {
-                        URL normalResource = currentChecker.getClass().getResource(path);
-                        if (normalResource != null) {
-                            // If the parent checker supports the stub file, there is no need
-                            // for a warning.
-                            findByParentCheckers = true;
-                            break;
-                        }
                         // See whether the stub file is mis-placed and issue a helpful warning.
                         URL topLevelResource = currentChecker.getClass().getResource("/" + path);
                         if (topLevelResource != null) {
@@ -1866,6 +1845,42 @@ public class AnnotationFileElementTypes {
                 }
             }
         }
+    }
+
+    /**
+     * Finds a class in the checker hierarchy (current checker, parent checkers, or subcheckers)
+     * that can locate the given stub file resource.
+     *
+     * @param checker the source checker
+     * @param path the resource path
+     * @return the class that can locate the resource, or {@code checker.getClass()} if not found
+     */
+    private Class<?> findResourceClass(SourceChecker checker, String path) {
+        for (Class<?> clazz : checker.getClassHierarchy()) {
+            if (clazz.getResource(path) != null
+                    || clazz.getResource(path + BinaryStubData.BIN_SUFFIX) != null) {
+                return clazz;
+            }
+        }
+        for (SourceChecker parent = checker.getParentChecker();
+                parent != null;
+                parent = parent.getParentChecker()) {
+            for (Class<?> clazz : parent.getClassHierarchy()) {
+                if (clazz.getResource(path) != null
+                        || clazz.getResource(path + BinaryStubData.BIN_SUFFIX) != null) {
+                    return clazz;
+                }
+            }
+        }
+        for (SourceChecker sub : checker.getSubcheckers()) {
+            for (Class<?> clazz : sub.getClassHierarchy()) {
+                if (clazz.getResource(path) != null
+                        || clazz.getResource(path + BinaryStubData.BIN_SUFFIX) != null) {
+                    return clazz;
+                }
+            }
+        }
+        return checker.getClass();
     }
 
     /**
