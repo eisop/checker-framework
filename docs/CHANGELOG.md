@@ -823,6 +823,12 @@ enclosing receiver is still under initialization used to rescan every field of t
 each such declaration or assignment; it is now cached or answered with an early-exit scan.
 A class with 4000 such fields now type-checks in about 11 seconds instead of about 26.
 
+The Checker Framework no longer crashes on a method reference whose receiver is a raw type,
+such as `Merged::name` for `interface Merged<X>`, passed to a generic method, as in
+`unique(Merged::name)`.  The type argument of the raw type was inferred as its upper bound
+rather than from the functional interface.  The receiver check then crashed, or reported a
+false `methodref.receiver.invalid` error.
+
 The Checker Framework no longer crashes when a class on the classpath has a supertype whose
 type argument's class file is absent from the classpath, such as `class Sub extends
 Base<Missing>` with no `Missing.class`.  javac accepts such code, because it never needs the
@@ -1315,6 +1321,7 @@ eisop#2094,
 eisop#2105,
 eisop#2135,
 eisop#2140,
+eisop#2156,
 typetools#399,
 typetools#2816,
 typetools#3203,
