@@ -1325,6 +1325,7 @@ Option, lint option, and mode declarations are shared bidirectionally between co
 \begin{itemize}
   \item \textbf{Subchecker options and modes inherited by parent checkers:} Any option or mode declared by a subchecker via \code{@SupportedOptions}, \code{@SupportedLintOptions}, or \code{@SupportedModes} is automatically recognized by enclosing parent checkers, and parent checkers automatically synthesize parent-prefixed forms for regular options (for example, \code{-AMyParentChecker\_mySubcheckerOption}). You do not need to repeat subchecker options or modes on enclosing checkers.
   \item \textbf{Parent checker options and modes inherited by subcheckers:} Subcheckers automatically recognize options, lint options, and modes declared on enclosing checkers and can query them directly.
+  \item \textbf{SuppressWarnings prefixes inherited by subcheckers:} Subcheckers automatically recognize \code{@SuppressWarnings} prefixes declared on enclosing parent checkers (via \code{@SuppressWarningsPrefix} or class names). A warning emitted by a subchecker can therefore be suppressed using the parent checker's prefix.
   \item \textbf{Standalone execution:} Declaring options, lint options, and modes on the subchecker that queries or implements them ensures that the subchecker can also be executed standalone as an independent annotation processor without throwing unrecognized option or mode errors.
 \end{itemize}
 

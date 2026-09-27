@@ -1,6 +1,7 @@
 package org.checkerframework.checker.index;
 
 import org.checkerframework.checker.index.upperbound.UpperBoundChecker;
+import org.checkerframework.framework.source.SuppressWarningsPrefix;
 
 /**
  * A type checker for preventing out-of-bounds accesses on fixed-length sequences, such as arrays
@@ -77,6 +78,7 @@ import org.checkerframework.checker.index.upperbound.UpperBoundChecker;
  * @checker_framework.manual #index-checker Index Checker
  */
 // @RelevantJavaTypes annotations appear on other checkers.
+@SuppressWarningsPrefix({"index"})
 public class IndexChecker extends UpperBoundChecker {
 
     /** Creates the Index Checker. */
