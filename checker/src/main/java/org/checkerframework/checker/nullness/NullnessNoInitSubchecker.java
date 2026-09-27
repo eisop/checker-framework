@@ -83,9 +83,7 @@ public class NullnessNoInitSubchecker extends BaseTypeChecker {
                 activeOptions.putIfAbsent("assumePure", null);
                 activeOptions.putIfAbsent("assumeAssertions", "enabled");
                 // Conservative defaults written on the command line replace the mode's permissive
-                // ones, which would otherwise conflict with them. Match by suffix, because a
-                // subchecker keeps the checker-name prefix of an option such as
-                // -ANullnessChecker_useConservativeDefaultsForUncheckedCode.
+                // ones, which would otherwise conflict with them.
                 if (activeOptions.keySet().stream()
                         .noneMatch(k -> k.endsWith("useConservativeDefaultsForUncheckedCode"))) {
                     activeOptions.putIfAbsent(
