@@ -381,17 +381,15 @@ public abstract class GenericAnnotatedTypeFactory<
             initializerCache = null;
         }
 
-        RelevantJavaTypes relevantJavaTypesAnno =
-                checker.getClass().getAnnotation(RelevantJavaTypes.class);
-        if (relevantJavaTypesAnno == null) {
+        Set<Class<?>> classes = checker.getRelevantJavaTypes();
+        if (classes == null) {
             this.relevantJavaTypes = null;
             this.arraysAreRelevant = true;
         } else {
             Types types = getChecker().getTypeUtils();
             Elements elements = getElementUtils();
-            Class<?>[] classes = relevantJavaTypesAnno.value();
             Set<TypeMirror> relevantJavaTypesTemp =
-                    new HashSet<>(CollectionsPlume.mapCapacity(classes.length));
+                    new HashSet<>(CollectionsPlume.mapCapacity(classes.size()));
             boolean arraysAreRelevantTemp = false;
             for (Class<?> clazz : classes) {
                 if (clazz == Object[].class) {

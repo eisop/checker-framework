@@ -32,6 +32,8 @@ import org.checkerframework.checker.signature.qual.FullyQualifiedName;
 import org.checkerframework.common.basetype.BaseTypeChecker;
 import org.checkerframework.common.reflection.MethodValChecker;
 import org.checkerframework.framework.qual.AnnotatedFor;
+import org.checkerframework.framework.qual.RelevantJavaTypes;
+import org.checkerframework.framework.qual.StubFiles;
 import org.checkerframework.framework.type.AnnotatedTypeFactory;
 import org.checkerframework.framework.util.OptionConfiguration;
 import org.checkerframework.framework.util.TreePathCacher;
@@ -718,6 +720,55 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     protected @MonotonicNonNull Set<String> supportedOptions = null;
 
     /**
+     * The class hierarchy from this checker's runtime class up to {@link AbstractTypeProcessor}.
+     */
+    protected @MonotonicNonNull List<Class<?>> classHierarchy = null;
+
+    /**
+     * The raw (unprefixed) options declared directly on this checker's class hierarchy via {@link
+     * SupportedOptions} or {@link javax.annotation.processing.SupportedOptions}.
+     */
+    protected @MonotonicNonNull Set<String> declaredOptions = null;
+
+    /**
+     * The raw stub files declared directly on this checker's class hierarchy via {@link StubFiles}.
+     */
+    protected @MonotonicNonNull List<String> declaredStubFiles = null;
+
+    /** The list of all stub files supported by this checker and its compound checker hierarchy. */
+    protected @MonotonicNonNull List<String> stubFiles = null;
+
+    /**
+     * The raw SuppressWarnings prefixes declared directly on this checker's class hierarchy via
+     * {@link SuppressWarningsPrefix}.
+     */
+    protected @MonotonicNonNull Set<String> declaredSuppressWarningsPrefixes = null;
+
+    /** The cached standard SuppressWarnings prefixes for this checker. */
+    protected @MonotonicNonNull NavigableSet<String> standardSuppressWarningsPrefixes = null;
+
+    /**
+     * The raw lint options declared directly on this checker's class hierarchy via {@link
+     * SupportedLintOptions}.
+     */
+    protected @MonotonicNonNull Set<String> declaredLintOptions = null;
+
+    /**
+     * The raw mode names declared directly on this checker's class hierarchy via {@link
+     * SupportedModes}.
+     */
+    protected @MonotonicNonNull Set<String> declaredModes = null;
+
+    /**
+     * The cached relevant Java types classes for this checker. Null if no {@link RelevantJavaTypes}
+     * annotation is present on this checker's class hierarchy.
+     */
+    protected @Nullable Set<Class<?>> relevantJavaTypes = null;
+
+    /** Whether {@link #relevantJavaTypes} has been initialized. */
+    private boolean relevantJavaTypesInitialized = false;
+
+    /**
      * The string that separates the checker name from the option name in a "-A" command-line
      * argument. This string may only consist of valid Java identifier part characters, because it
      * will be used within the key of an option.
@@ -910,9 +961,21 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
         this.types = processingEnv.getTypeUtils();
     }
 
-    /** Set the parent checker of the current checker. */
+    /**
+     * Set the parent checker of the current checker.
+     *
+     * @param parentChecker the parent checker
+     */
     protected void setParentChecker(SourceChecker parentChecker) {
         this.parentChecker = parentChecker;
+        this.supportedOptions = null;
+        this.supportedLints = null;
+        this.supportedModes = null;
+        this.standardSuppressWarningsPrefixes = null;
+        this.upstreamCheckerNames = null;
+        this.stubFiles = null;
+        this.relevantJavaTypes = null;
+        this.relevantJavaTypesInitialized = false;
     }
 
     /**
@@ -1027,6 +1090,9 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      * @return the active options for this checker, not including those passed only to subcheckers
      */
     public Map<String, String> getOptionsNoSubcheckers() {
+        if (processingEnv == null) {
+            return Collections.emptyMap();
+        }
         Map<String, String> options = createActiveOptions(processingEnv.getOptions());
         // Before the mode's options are added, so that a deprecated option written on the command
         // line suppresses an "assumeAssertions" that the mode would otherwise add.
@@ -1113,6 +1179,65 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      */
     public List<String> getExtraStubFiles() {
         return Collections.emptyList();
+    }
+
+    /**
+     * Returns the list of stub files to be parsed for this checker, including those declared via
+     * {@link StubFiles}, {@link #getExtraStubFiles()}, and those from parent checkers and
+     * subcheckers.
+     *
+     * @return the list of stub files for this checker
+     */
+    public List<String> getStubFiles() {
+        if (stubFiles == null) {
+            stubFiles = Collections.unmodifiableList(new ArrayList<>(createStubFiles()));
+        }
+        return stubFiles;
+    }
+
+    /**
+     * Computes the list of stub files for this checker, its parent checkers, and its subcheckers.
+     *
+     * @return the collection of stub files for this checker
+     */
+    protected Collection<String> createStubFiles() {
+        Set<String> result = new LinkedHashSet<>(getDeclaredStubFiles());
+        result.addAll(getExtraStubFiles());
+
+        SourceChecker parent = this.parentChecker;
+        while (parent != null) {
+            result.addAll(parent.getDeclaredStubFiles());
+            result.addAll(parent.getExtraStubFiles());
+            parent = parent.parentChecker;
+        }
+
+        for (SourceChecker checker : getSubcheckers()) {
+            result.addAll(checker.createStubFiles());
+        }
+
+        return result;
+    }
+
+    /**
+     * Returns the raw stub files declared directly on this checker's class hierarchy via {@link
+     * StubFiles}. If this checker does not declare {@link StubFiles}, it inherits the stub files
+     * declared by the nearest superclass that does.
+     *
+     * @return the raw stub files declared on this checker's class hierarchy
+     */
+    protected List<String> getDeclaredStubFiles() {
+        if (declaredStubFiles == null) {
+            List<String> list = new ArrayList<>();
+            for (Class<?> clazz : getClassHierarchy()) {
+                StubFiles stubFilesAnno = clazz.getDeclaredAnnotation(StubFiles.class);
+                if (stubFilesAnno != null) {
+                    Collections.addAll(list, stubFilesAnno.value());
+                    break;
+                }
+            }
+            declaredStubFiles = Collections.unmodifiableList(list);
+        }
+        return declaredStubFiles;
     }
 
     /**
@@ -1662,12 +1787,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
         if (!warnedAboutGarbageCollection) {
             String gcUsageMessage = SystemPlume.gcUsageMessage(.25, 60);
             if (gcUsageMessage != null) {
-                boolean noWarnMemoryConstraints =
-                        (processingEnv != null
-                                && processingEnv.getOptions() != null
-                                && processingEnv
-                                        .getOptions()
-                                        .containsKey("noWarnMemoryConstraints"));
+                boolean noWarnMemoryConstraints = hasOption("noWarnMemoryConstraints");
                 Diagnostic.Kind kind =
                         noWarnMemoryConstraints ? Diagnostic.Kind.NOTE : Diagnostic.Kind.WARNING;
                 messager.printMessage(kind, gcUsageMessage);
@@ -1857,12 +1977,10 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
         String defaultFormat = "(" + messageKey + ")";
         String prefix;
         String fmtString;
-        if (this.processingEnv.getOptions() != null /*nnbug*/
-                && this.processingEnv.getOptions().containsKey("nomsgtext")) {
+        if (hasOption("nomsgtext")) {
             prefix = defaultFormat;
             fmtString = null;
-        } else if (this.processingEnv.getOptions() != null /*nnbug*/
-                && this.processingEnv.getOptions().containsKey("detailedmsgtext")) {
+        } else if (hasOption("detailedmsgtext")) {
             // The -Adetailedmsgtext command-line option was given, so output
             // a stylized error message for easy parsing by a tool.
             prefix = detailedMsgTextPrefix(source, defaultFormat, args);
@@ -2550,7 +2668,13 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      * @return the set of supported lint options for this checker and its subcheckers
      */
     protected Set<String> createSupportedLintOptions() {
-        Set<String> lintSet = getLintOptionsFromAnnotation();
+        Set<String> lintSet = new HashSet<>(getDeclaredLintOptions());
+
+        SourceChecker parent = this.parentChecker;
+        while (parent != null) {
+            lintSet.addAll(parent.getDeclaredLintOptions());
+            parent = parent.parentChecker;
+        }
 
         for (SourceChecker checker : getSubcheckers()) {
             lintSet.addAll(checker.createSupportedLintOptions());
@@ -2559,24 +2683,23 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     }
 
     /**
-     * Get the lint options from the {@link SupportedLintOptions} annotation on this class.
+     * Returns the raw lint options declared directly on this checker's class and its superclasses
+     * via {@link SupportedLintOptions}.
      *
-     * @return the lint options from the {@link SupportedLintOptions} annotation
+     * @return the raw lint options declared on this checker's class hierarchy
      */
-    private Set<String> getLintOptionsFromAnnotation() {
-        SupportedLintOptions sl = this.getClass().getAnnotation(SupportedLintOptions.class);
-
-        if (sl == null) {
-            return new HashSet<>();
+    protected Set<String> getDeclaredLintOptions() {
+        if (declaredLintOptions == null) {
+            Set<String> lintSet = new HashSet<>();
+            for (Class<?> clazz : getClassHierarchy()) {
+                SupportedLintOptions sl = clazz.getDeclaredAnnotation(SupportedLintOptions.class);
+                if (sl != null) {
+                    Collections.addAll(lintSet, sl.value());
+                }
+            }
+            declaredLintOptions = Collections.unmodifiableSet(lintSet);
         }
-
-        @Nullable String @Nullable [] slValue = sl.value();
-        assert slValue != null;
-
-        @Nullable String[] lintArray = slValue;
-        Set<String> lintSet = new HashSet<>(lintArray.length);
-        Collections.addAll(lintSet, lintArray);
-        return lintSet;
+        return declaredLintOptions;
     }
 
     /**
@@ -2603,28 +2726,43 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
 
     /**
      * Computes the result of {@link #getSupportedModes}, from the {@link SupportedModes}
-     * annotations on this checker's class hierarchy and from its subcheckers.
+     * annotations on this checker's class hierarchy, its parent checkers, and from its subcheckers.
      *
      * @return the supported mode names
      */
     protected Set<String> createSupportedModes() {
-        Set<String> result = new HashSet<>();
-        // Walk the hierarchy rather than relying on @Inherited, which yields only the nearest
-        // annotation: a subclass that declares its own modes still supports its superclass's,
-        // because its addOptionsForMode calls super.
-        for (Class<?> clazz = getClass();
-                clazz != null && SourceChecker.class.isAssignableFrom(clazz);
-                clazz = clazz.getSuperclass()) {
-            SupportedModes annotation = clazz.getDeclaredAnnotation(SupportedModes.class);
-            if (annotation != null) {
-                Collections.addAll(result, annotation.value());
-            }
+        Set<String> result = new HashSet<>(getDeclaredModes());
+
+        SourceChecker parent = this.parentChecker;
+        while (parent != null) {
+            result.addAll(parent.getDeclaredModes());
+            parent = parent.parentChecker;
         }
 
         for (SourceChecker checker : getSubcheckers()) {
             result.addAll(checker.createSupportedModes());
         }
         return result;
+    }
+
+    /**
+     * Returns the raw mode names declared directly on this checker's class and its superclasses via
+     * {@link SupportedModes}.
+     *
+     * @return the raw modes declared on this checker's class hierarchy
+     */
+    protected Set<String> getDeclaredModes() {
+        if (declaredModes == null) {
+            Set<String> result = new HashSet<>();
+            for (Class<?> clazz : getClassHierarchy()) {
+                SupportedModes annotation = clazz.getDeclaredAnnotation(SupportedModes.class);
+                if (annotation != null) {
+                    Collections.addAll(result, annotation.value());
+                }
+            }
+            declaredModes = Collections.unmodifiableSet(result);
+        }
+        return declaredModes;
     }
 
     // ///////////////////////////////////////////////////////////////////////////
@@ -2643,8 +2781,11 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
         }
 
         Map<String, String> activeOpts = new HashMap<>(CollectionsPlume.mapCapacity(options));
+        Map<String, Integer> optPriority = new HashMap<>(CollectionsPlume.mapCapacity(options));
 
-        forEveryOption:
+        final int PRIORITY_UNPREFIXED = 1;
+        final int PRIORITY_THIS_CHECKER = 1000;
+
         for (Map.Entry<String, String> opt : options.entrySet()) {
             String key = opt.getKey();
             String value = opt.getValue();
@@ -2656,8 +2797,11 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
 
             switch (split.length) {
                 case 1:
-                    // No separator, option always active.
-                    activeOpts.put(key, value);
+                    // No separator, option always active (base priority).
+                    if (PRIORITY_UNPREFIXED >= optPriority.getOrDefault(key, 0)) {
+                        activeOpts.put(key, value);
+                        optPriority.put(key, PRIORITY_UNPREFIXED);
+                    }
                     break;
                 case 2:
                     if (split[1].isEmpty()) {
@@ -2667,20 +2811,40 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
                         break;
                     }
 
-                    Class<?> clazz = this.getClass();
+                    String optionName = split[1];
+                    String prefix = split[0];
 
-                    do {
-                        if (clazz.getCanonicalName().equals(split[0])
-                                || clazz.getSimpleName().equals(split[0])) {
-                            // Valid class-option pair.
-                            activeOpts.put(split[1], value);
-                            continue forEveryOption;
+                    if (matchesCheckerOrSuperclass(this, prefix)) {
+                        if (PRIORITY_THIS_CHECKER >= optPriority.getOrDefault(optionName, 0)) {
+                            activeOpts.put(optionName, value);
+                            optPriority.put(optionName, PRIORITY_THIS_CHECKER);
                         }
+                        break;
+                    }
 
-                        clazz = clazz.getSuperclass();
-                    } while (clazz != null
-                            && !clazz.getName()
-                                    .equals(AbstractTypeProcessor.class.getCanonicalName()));
+                    // Check enclosing/parent checkers (e.g., NullnessChecker for
+                    // NullnessNoInitSubchecker, or an AggregateChecker for its subcheckers).
+                    // Options targeted to an enclosing checker apply to its subcheckers unless
+                    // overridden by a more specific option.
+                    int distance = 1;
+                    boolean matchedParent = false;
+                    for (SourceChecker parent = this.parentChecker;
+                            parent != null;
+                            parent = parent.parentChecker, distance++) {
+                        if (matchesCheckerOrSuperclass(parent, prefix)) {
+                            int parentPriority = PRIORITY_THIS_CHECKER - distance;
+                            if (parentPriority >= optPriority.getOrDefault(optionName, 0)) {
+                                activeOpts.put(optionName, value);
+                                optPriority.put(optionName, parentPriority);
+                            }
+                            matchedParent = true;
+                            break;
+                        }
+                    }
+                    if (matchedParent) {
+                        break;
+                    }
+
                     // Didn't find a matching class. Option might be for another processor. Add
                     // option anyways. javac will warn if no processor supports the option.
                     activeOpts.put(key, value);
@@ -2690,9 +2854,28 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
                     // anyways. javac will warn if no processor supports the option.
                     activeOpts.put(key, value);
             }
-            // Don't add code here, there is a `continue` in the switch above.
         }
         return activeOpts;
+    }
+
+    /**
+     * Returns true if {@code checker}'s class or any of its superclasses (up to {@link
+     * AbstractTypeProcessor}) matches {@code prefix} by simple or canonical name.
+     *
+     * @param checker the checker to check
+     * @param prefix the class name prefix to match
+     * @return true if there is a match
+     */
+    private static boolean matchesCheckerOrSuperclass(SourceChecker checker, String prefix) {
+        Class<?> clazz = checker.getClass();
+        do {
+            if (clazz.getCanonicalName().equals(prefix) || clazz.getSimpleName().equals(prefix)) {
+                return true;
+            }
+            clazz = clazz.getSuperclass();
+        } while (clazz != null
+                && !clazz.getName().equals(AbstractTypeProcessor.class.getCanonicalName()));
+        return false;
     }
 
     /**
@@ -2984,28 +3167,122 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
             // For the Checker Framework annotation
             // {@link org.checkerframework.framework.source.SupportedOptions}
             // we additionally add
-            Class<?> clazz = this.getClass();
-            List<Class<?>> clazzPrefixes = new ArrayList<>();
+            List<Class<?>> clazzPrefixes = getClassHierarchy();
+            options.addAll(expandCFOptions(clazzPrefixes, getDeclaredOptions()));
 
-            do {
-                clazzPrefixes.add(clazz);
+            // Subcheckers also support options declared by enclosing parent checkers.
+            SourceChecker parent = this.parentChecker;
+            while (parent != null) {
+                options.addAll(
+                        expandCFOptions(parent.getClassHierarchy(), parent.getDeclaredOptions()));
+                parent = parent.parentChecker;
+            }
 
-                SupportedOptions so = clazz.getAnnotation(SupportedOptions.class);
-                if (so != null) {
-                    options.addAll(expandCFOptions(clazzPrefixes, so.value()));
-                }
-                clazz = clazz.getSuperclass();
-            } while (clazz != null
-                    && !clazz.getName().equals(AbstractTypeProcessor.class.getCanonicalName()));
-
+            // Options from subcheckers: support subchecker options directly and also
+            // automatically prefixed with this parent checker's class hierarchy.
             for (SourceChecker checker : getSubcheckers()) {
                 options.addAll(checker.getSupportedOptions());
+                options.addAll(expandCFOptions(clazzPrefixes, checker.getAllDeclaredOptions()));
             }
 
             supportedOptions = Collections.unmodifiableSet(options);
         }
 
         return supportedOptions;
+    }
+
+    /**
+     * Returns the class hierarchy of this checker, starting from its runtime class up to (but not
+     * including) {@link AbstractTypeProcessor}.
+     *
+     * @return the class hierarchy of this checker
+     */
+    public List<Class<?>> getClassHierarchy() {
+        if (classHierarchy == null) {
+            List<Class<?>> hierarchy = new ArrayList<>();
+            Class<?> clazz = this.getClass();
+            do {
+                hierarchy.add(clazz);
+                clazz = clazz.getSuperclass();
+            } while (clazz != null
+                    && !clazz.getName().equals(AbstractTypeProcessor.class.getCanonicalName()));
+            classHierarchy = Collections.unmodifiableList(hierarchy);
+        }
+        return classHierarchy;
+    }
+
+    /**
+     * Returns the raw (unprefixed) option names declared directly on this checker's class and its
+     * superclasses via {@link SupportedOptions} or {@link
+     * javax.annotation.processing.SupportedOptions}.
+     *
+     * @return the raw options declared on this checker's class hierarchy
+     */
+    protected Set<String> getDeclaredOptions() {
+        if (declaredOptions == null) {
+            Set<String> declared = new HashSet<>();
+            for (Class<?> clazz : getClassHierarchy()) {
+                SupportedOptions so = clazz.getAnnotation(SupportedOptions.class);
+                if (so != null) {
+                    Collections.addAll(declared, so.value());
+                }
+                javax.annotation.processing.SupportedOptions jso =
+                        clazz.getAnnotation(javax.annotation.processing.SupportedOptions.class);
+                if (jso != null) {
+                    Collections.addAll(declared, jso.value());
+                }
+            }
+            declaredOptions = Collections.unmodifiableSet(declared);
+        }
+        return declaredOptions;
+    }
+
+    /**
+     * Returns the raw (unprefixed) option names declared by this checker and all its subcheckers.
+     *
+     * @return all declared options across this checker and its subcheckers
+     */
+    protected Set<String> getAllDeclaredOptions() {
+        Set<String> all = new HashSet<>(getDeclaredOptions());
+        for (SourceChecker sub : getSubcheckers()) {
+            all.addAll(sub.getAllDeclaredOptions());
+        }
+        return all;
+    }
+
+    /**
+     * Returns the set of Java classes specified by {@link RelevantJavaTypes} on this checker's
+     * class hierarchy, or null if no {@link RelevantJavaTypes} annotation is present.
+     *
+     * @return the set of relevant Java classes, or null if unrestricted
+     */
+    public @Nullable Set<Class<?>> getRelevantJavaTypes() {
+        if (!relevantJavaTypesInitialized) {
+            relevantJavaTypes = createRelevantJavaTypes();
+            relevantJavaTypesInitialized = true;
+        }
+        return relevantJavaTypes;
+    }
+
+    /**
+     * Computes the set of Java classes specified by {@link RelevantJavaTypes} on this checker's
+     * class hierarchy. Subclasses can override this method to customize or extend the relevant Java
+     * types programmatically.
+     *
+     * @return the set of relevant Java classes, or null if unrestricted
+     */
+    protected @Nullable Set<Class<?>> createRelevantJavaTypes() {
+        Set<Class<?>> classes = null;
+        for (Class<?> clazz : getClassHierarchy()) {
+            RelevantJavaTypes anno = clazz.getDeclaredAnnotation(RelevantJavaTypes.class);
+            if (anno != null) {
+                if (classes == null) {
+                    classes = new LinkedHashSet<>();
+                }
+                Collections.addAll(classes, anno.value());
+            }
+        }
+        return classes == null ? null : Collections.unmodifiableSet(classes);
     }
 
     /**
@@ -3018,9 +3295,22 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      */
     protected Collection<String> expandCFOptions(
             List<? extends Class<?>> clazzPrefixes, String[] options) {
+        return expandCFOptions(clazzPrefixes, Arrays.asList(options));
+    }
+
+    /**
+     * Generate the possible command-line option names by prefixing each class name from {@code
+     * classPrefixes} to {@code options}, separated by {@link #OPTION_SEPARATOR}.
+     *
+     * @param clazzPrefixes the classes to prefix
+     * @param options the option names
+     * @return the possible combinations that should be supported
+     */
+    protected Collection<String> expandCFOptions(
+            List<? extends Class<?>> clazzPrefixes, Collection<String> options) {
         Set<String> res =
                 new HashSet<>(
-                        CollectionsPlume.mapCapacity(options.length * (1 + clazzPrefixes.size())));
+                        CollectionsPlume.mapCapacity(options.size() * (1 + clazzPrefixes.size())));
         for (String option : options) {
             res.add(option);
             for (Class<?> clazz : clazzPrefixes) {
@@ -3086,24 +3376,27 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     }
 
     /**
-     * Returns the options passed to this checker and its immediate parent checker.
+     * Returns the options passed to this checker and all its ancestor parent checkers.
      *
-     * @return the options passed to this checker and its immediate parent checker
+     * @return the options passed to this checker and all its ancestor parent checkers
      */
     private Map<String, String> getAllOptions() {
         if (parentChecker == null) {
             return getOptions();
         }
         Map<String, String> allOptions = new HashMap<>(this.getOptions());
-        parentChecker
-                .getOptions()
-                .forEach(
-                        (parentOptKey, parentOptVal) -> {
-                            if (parentOptVal != null) {
-                                allOptions.merge(
-                                        parentOptKey, parentOptVal, this::combineOptionValues);
-                            }
-                        });
+        for (SourceChecker parent = this.parentChecker;
+                parent != null;
+                parent = parent.parentChecker) {
+            parent.getOptions()
+                    .forEach(
+                            (parentOptKey, parentOptVal) -> {
+                                if (parentOptVal != null) {
+                                    allOptions.merge(
+                                            parentOptKey, parentOptVal, this::combineOptionValues);
+                                }
+                            });
+        }
         return Collections.unmodifiableMap(allOptions);
     }
 
@@ -3742,31 +4035,67 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      * @return a sorted set of SuppressWarnings prefixes
      */
     protected final NavigableSet<String> getStandardSuppressWarningsPrefixes() {
-        // Called on every checker diagnostic, so this allocates and (for a checker with upstream
-        // checkers) re-derives a prefix per call. Every override mutates the set this returns (see
-        // getSuppressWarningsPrefixes()'s "modifiable" contract), so it cannot simply be cached and
-        // returned as-is; caching it would need the getSupportedLintOptions()/
-        // createSupportedLintOptions() split used elsewhere in this class: a cached, immutable
-        // public getter plus a protected create... method that overrides extend instead of mutate.
-        NavigableSet<String> prefixes = new TreeSet<>();
-        if (useAllcheckersPrefix) {
-            prefixes.add(SUPPRESS_ALL_PREFIX);
-        }
-        SuppressWarningsPrefix prefixMetaAnno =
-                this.getClass().getAnnotation(SuppressWarningsPrefix.class);
-        if (prefixMetaAnno != null) {
-            for (String prefix : prefixMetaAnno.value()) {
-                prefixes.add(prefix);
+        if (standardSuppressWarningsPrefixes == null) {
+            NavigableSet<String> prefixes = new TreeSet<>();
+            if (useAllcheckersPrefix) {
+                prefixes.add(SUPPRESS_ALL_PREFIX);
             }
-            return prefixes;
-        }
 
-        // No @SuppressWarningsPrefixes annotation, by default infer keys from upstream checker
-        // names.
-        for (String checkerName : getUpstreamCheckerNames()) {
-            prefixes.add(getDefaultSuppressWarningsPrefix(checkerName));
+            Set<String> declared = getDeclaredSuppressWarningsPrefixes();
+            if (!declared.isEmpty()) {
+                prefixes.addAll(declared);
+            } else {
+                prefixes.add(getDefaultSuppressWarningsPrefix(this.getClass().getSimpleName()));
+            }
+
+            // Subcheckers also inherit SuppressWarnings prefixes from enclosing parent checkers.
+            SourceChecker parent = this.parentChecker;
+            while (parent != null) {
+                SuppressWarningsPrefix parentAnno =
+                        parent.getClass().getAnnotation(SuppressWarningsPrefix.class);
+                if (parentAnno != null) {
+                    for (String prefix : parentAnno.value()) {
+                        prefixes.add(prefix.toLowerCase(Locale.ROOT));
+                    }
+                } else {
+                    prefixes.add(
+                            getDefaultSuppressWarningsPrefix(parent.getClass().getSimpleName()));
+                }
+                parent = parent.parentChecker;
+            }
+
+            // Upstream checker names may include additional classes added by overrides of
+            // getUpstreamCheckerNames().
+            for (String checkerName : getUpstreamCheckerNames()) {
+                prefixes.add(getDefaultSuppressWarningsPrefix(checkerName));
+            }
+
+            standardSuppressWarningsPrefixes = Collections.unmodifiableNavigableSet(prefixes);
         }
-        return prefixes;
+        return new TreeSet<>(standardSuppressWarningsPrefixes);
+    }
+
+    /**
+     * Returns the raw SuppressWarnings prefixes declared directly on this checker's class and its
+     * superclasses via {@link SuppressWarningsPrefix}.
+     *
+     * @return the raw SuppressWarnings prefixes declared on this checker's class hierarchy
+     */
+    protected Set<String> getDeclaredSuppressWarningsPrefixes() {
+        if (declaredSuppressWarningsPrefixes == null) {
+            Set<String> declared = new TreeSet<>();
+            for (Class<?> clazz : getClassHierarchy()) {
+                SuppressWarningsPrefix prefixMetaAnno =
+                        clazz.getDeclaredAnnotation(SuppressWarningsPrefix.class);
+                if (prefixMetaAnno != null) {
+                    for (String prefix : prefixMetaAnno.value()) {
+                        declared.add(prefix.toLowerCase(Locale.ROOT));
+                    }
+                }
+            }
+            declaredSuppressWarningsPrefixes = Collections.unmodifiableSet(declared);
+        }
+        return declaredSuppressWarningsPrefixes;
     }
 
     /**
@@ -4056,10 +4385,7 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
                 message = ce.getMessage();
             }
             msg.add(message);
-            boolean noPrintErrorStack =
-                    (processingEnv != null
-                            && processingEnv.getOptions() != null
-                            && processingEnv.getOptions().containsKey("noPrintErrorStack"));
+            boolean noPrintErrorStack = hasOption("noPrintErrorStack");
 
             msg.add("; " + culprit);
             if (noPrintErrorStack) {
