@@ -11,8 +11,10 @@ import org.checkerframework.common.basetype.BaseTypeVisitor;
 import org.checkerframework.framework.qual.StubFiles;
 import org.checkerframework.framework.source.SourceChecker;
 import org.checkerframework.framework.source.SupportedLintOptions;
+import org.checkerframework.framework.source.SupportedModes;
 import org.checkerframework.framework.source.SupportedOptions;
 
+import java.util.Map;
 import java.util.NavigableSet;
 import java.util.Set;
 
@@ -61,11 +63,30 @@ import java.util.Set;
     "jspecifyUnrecognizedLocations",
     "conservativeArgumentNullnessAfterInvocation"
 })
-@StubFiles({"junit-assertions.astub"})
+@SupportedModes(NullnessChecker.MODE_JSPECIFY)
+@StubFiles({"junit-assertions.astub", "log4j.astub"})
 public class NullnessNoInitSubchecker extends BaseTypeChecker {
 
     /** Default constructor for NonNullChecker. */
     public NullnessNoInitSubchecker() {}
+
+    @Override
+    protected void addOptionsForMode(String mode, Map<String, String> activeOptions) {
+        super.addOptionsForMode(mode, activeOptions);
+        switch (mode) {
+            case NullnessChecker.MODE_JSPECIFY:
+                activeOptions.putIfAbsent("onlyAnnotatedFor", null);
+                // Already the default; named here so the mode states the behavior it relies on.
+                activeOptions.putIfAbsent("jspecifyNullMarkedAlias", "true");
+                activeOptions.putIfAbsent("assumeKeyFor", null);
+                activeOptions.putIfAbsent("jspecifyUnrecognizedLocations", null);
+                activeOptions.putIfAbsent("assumePure", null);
+                activeOptions.putIfAbsent("assumeAssertions", "enabled");
+                break;
+            default:
+                break;
+        }
+    }
 
     @Override
     public NullnessNoInitAnnotatedTypeFactory getTypeFactory() {

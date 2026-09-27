@@ -1321,12 +1321,13 @@ The framework automatically resolves the value with the proper specificity prece
     -AmyOption=val3                 (lowest precedence)
 \end{Verbatim}
 
-\paragraphAndLabel{Option declarations in compound checkers and subcheckers}{creating-compound-checker-option-declarations}
-Option declarations are shared bidirectionally between compound checkers and their subcheckers:
+\paragraphAndLabel{Option and mode declarations in compound checkers and subcheckers}{creating-compound-checker-option-declarations}
+Option, lint option, and mode declarations are shared bidirectionally between compound checkers and their subcheckers:
 \begin{itemize}
-  \item \textbf{Subchecker options inherited by parent checkers:} Any option declared by a subchecker via \code{@SupportedOptions} or \code{@SupportedLintOptions} is automatically recognized by enclosing parent checkers, and parent checkers automatically synthesize parent-prefixed forms (for example, \code{-AMyParentChecker\_mySubcheckerOption}). You do not need to repeat subchecker options on enclosing checkers.
-  \item \textbf{Parent checker options inherited by subcheckers:} Subcheckers automatically recognize options declared on enclosing checkers and can query them directly.
-  \item \textbf{Standalone execution:} Declaring options on the subchecker that queries them ensures that the subchecker can also be executed standalone as an independent annotation processor without throwing unrecognized option errors.
+  \item \textbf{Subchecker options and modes inherited by parent checkers:} Any option or mode declared by a subchecker via \code{@SupportedOptions}, \code{@SupportedLintOptions}, or \code{@SupportedModes} is automatically recognized by enclosing parent checkers, and parent checkers automatically synthesize parent-prefixed forms for regular options (for example, \code{-AMyParentChecker\_mySubcheckerOption}). You do not need to repeat subchecker options or modes on enclosing checkers.
+  \item \textbf{Parent checker options and modes inherited by subcheckers:} Subcheckers automatically recognize options, lint options, and modes declared on enclosing checkers and can query them directly.
+  \item \textbf{SuppressWarnings prefixes inherited by subcheckers:} Subcheckers automatically recognize \code{@SuppressWarnings} prefixes declared on enclosing parent checkers (via \code{@SuppressWarningsPrefix} or class names). A warning emitted by a subchecker can therefore be suppressed using the parent checker's prefix.
+  \item \textbf{Standalone execution:} Declaring options, lint options, and modes on the subchecker that queries or implements them ensures that the subchecker can also be executed standalone as an independent annotation processor without throwing unrecognized option or mode errors.
 \end{itemize}
 
 
@@ -2172,6 +2173,9 @@ You can also supply \<.astub> files in that directory for other libraries.
 You should list those other libraries in a
 \refqualclass{framework/qual}{StubFiles} annotation on the checker's main
 class, so that they will also be automatically used.
+A checker inherits the stub files of its superclasses unless it declares its own
+\refqualclass{framework/qual}{StubFiles} annotation. Furthermore, compound checkers
+and their subcheckers share stub files bidirectionally.
 
 When a stub file should be used by multiple checkers (for example, if it
 contains purity annotations that are needed by multiple distinct checkers),
