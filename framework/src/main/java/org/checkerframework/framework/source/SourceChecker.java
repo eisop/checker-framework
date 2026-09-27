@@ -729,6 +729,18 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     protected @MonotonicNonNull Set<String> declaredOptions = null;
 
     /**
+     * The raw lint options declared directly on this checker's class hierarchy via {@link
+     * SupportedLintOptions}.
+     */
+    protected @MonotonicNonNull Set<String> declaredLintOptions = null;
+
+    /**
+     * The raw mode names declared directly on this checker's class hierarchy via {@link
+     * SupportedModes}.
+     */
+    protected @MonotonicNonNull Set<String> declaredModes = null;
+
+    /**
      * The string that separates the checker name from the option name in a "-A" command-line
      * argument. This string may only consist of valid Java identifier part characters, because it
      * will be used within the key of an option.
@@ -929,6 +941,8 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     protected void setParentChecker(SourceChecker parentChecker) {
         this.parentChecker = parentChecker;
         this.supportedOptions = null;
+        this.supportedLints = null;
+        this.supportedModes = null;
     }
 
     /**
@@ -2559,7 +2573,13 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      * @return the set of supported lint options for this checker and its subcheckers
      */
     protected Set<String> createSupportedLintOptions() {
-        Set<String> lintSet = getLintOptionsFromAnnotation();
+        Set<String> lintSet = new HashSet<>(getDeclaredLintOptions());
+
+        SourceChecker parent = this.parentChecker;
+        while (parent != null) {
+            lintSet.addAll(parent.getDeclaredLintOptions());
+            parent = parent.parentChecker;
+        }
 
         for (SourceChecker checker : getSubcheckers()) {
             lintSet.addAll(checker.createSupportedLintOptions());
@@ -2568,24 +2588,23 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     }
 
     /**
-     * Get the lint options from the {@link SupportedLintOptions} annotation on this class.
+     * Returns the raw lint options declared directly on this checker's class and its superclasses
+     * via {@link SupportedLintOptions}.
      *
-     * @return the lint options from the {@link SupportedLintOptions} annotation
+     * @return the raw lint options declared on this checker's class hierarchy
      */
-    private Set<String> getLintOptionsFromAnnotation() {
-        SupportedLintOptions sl = this.getClass().getAnnotation(SupportedLintOptions.class);
-
-        if (sl == null) {
-            return new HashSet<>();
+    protected Set<String> getDeclaredLintOptions() {
+        if (declaredLintOptions == null) {
+            Set<String> lintSet = new HashSet<>();
+            for (Class<?> clazz : getClassHierarchy()) {
+                SupportedLintOptions sl = clazz.getDeclaredAnnotation(SupportedLintOptions.class);
+                if (sl != null) {
+                    Collections.addAll(lintSet, sl.value());
+                }
+            }
+            declaredLintOptions = Collections.unmodifiableSet(lintSet);
         }
-
-        @Nullable String @Nullable [] slValue = sl.value();
-        assert slValue != null;
-
-        @Nullable String[] lintArray = slValue;
-        Set<String> lintSet = new HashSet<>(lintArray.length);
-        Collections.addAll(lintSet, lintArray);
-        return lintSet;
+        return declaredLintOptions;
     }
 
     /**
@@ -2612,28 +2631,43 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
 
     /**
      * Computes the result of {@link #getSupportedModes}, from the {@link SupportedModes}
-     * annotations on this checker's class hierarchy and from its subcheckers.
+     * annotations on this checker's class hierarchy, its parent checkers, and from its subcheckers.
      *
      * @return the supported mode names
      */
     protected Set<String> createSupportedModes() {
-        Set<String> result = new HashSet<>();
-        // Walk the hierarchy rather than relying on @Inherited, which yields only the nearest
-        // annotation: a subclass that declares its own modes still supports its superclass's,
-        // because its addOptionsForMode calls super.
-        for (Class<?> clazz = getClass();
-                clazz != null && SourceChecker.class.isAssignableFrom(clazz);
-                clazz = clazz.getSuperclass()) {
-            SupportedModes annotation = clazz.getDeclaredAnnotation(SupportedModes.class);
-            if (annotation != null) {
-                Collections.addAll(result, annotation.value());
-            }
+        Set<String> result = new HashSet<>(getDeclaredModes());
+
+        SourceChecker parent = this.parentChecker;
+        while (parent != null) {
+            result.addAll(parent.getDeclaredModes());
+            parent = parent.parentChecker;
         }
 
         for (SourceChecker checker : getSubcheckers()) {
             result.addAll(checker.createSupportedModes());
         }
         return result;
+    }
+
+    /**
+     * Returns the raw mode names declared directly on this checker's class and its superclasses via
+     * {@link SupportedModes}.
+     *
+     * @return the raw modes declared on this checker's class hierarchy
+     */
+    protected Set<String> getDeclaredModes() {
+        if (declaredModes == null) {
+            Set<String> result = new HashSet<>();
+            for (Class<?> clazz : getClassHierarchy()) {
+                SupportedModes annotation = clazz.getDeclaredAnnotation(SupportedModes.class);
+                if (annotation != null) {
+                    Collections.addAll(result, annotation.value());
+                }
+            }
+            declaredModes = Collections.unmodifiableSet(result);
+        }
+        return declaredModes;
     }
 
     // ///////////////////////////////////////////////////////////////////////////
