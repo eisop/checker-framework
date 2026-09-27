@@ -129,6 +129,24 @@ public class SuppressWarningsPrefixTest {
         }
     }
 
+    /** Parent checker that explicitly overrides its superclass prefix. */
+    @SuppressWarningsPrefix({"overriddenparent"})
+    public static class OverridingParentChecker extends GrandparentPrefixChecker {
+        /**
+         * Creates an OverridingParentChecker with given subcheckers.
+         *
+         * @param subcheckers the subcheckers
+         */
+        public OverridingParentChecker(List<SourceChecker> subcheckers) {
+            this.subcheckers = subcheckers;
+        }
+
+        @Override
+        public List<SourceChecker> getSubcheckers() {
+            return subcheckers;
+        }
+    }
+
     /** Tests that a subclass inherits prefixes declared on superclasses in the hierarchy. */
     @Test
     public void testSuperclassPrefixInheritance() {
@@ -211,5 +229,29 @@ public class SuppressWarningsPrefixTest {
                 parent.getSuppressWarningsPrefixesOfSubcheckers().contains("childprefix"));
         Assert.assertTrue(
                 parent.getSuppressWarningsPrefixesOfSubcheckers().contains("grandprefix"));
+    }
+
+    /**
+     * Tests that when a parent checker declares its own @SuppressWarningsPrefix, it overrides
+     * prefixes from its superclasses for propagation to subcheckers, avoiding prefix bleed.
+     */
+    @Test
+    public void testParentPrefixOverridingSuperclassForSubcheckers() {
+        EnclosedChildChecker child = new EnclosedChildChecker();
+        OverridingParentChecker parent =
+                new OverridingParentChecker(Collections.singletonList(child));
+        child.setParentChecker(parent);
+
+        // Parent checker itself inherits both its own and its superclasses' prefixes
+        NavigableSet<String> parentPrefixes = parent.getSuppressWarningsPrefixes();
+        Assert.assertTrue(parentPrefixes.contains("overriddenparent"));
+        Assert.assertTrue(parentPrefixes.contains("grandprefix"));
+
+        // Subchecker inherits parent's declared prefix, but not the parent's superclass prefix
+        NavigableSet<String> childPrefixes = child.getSuppressWarningsPrefixes();
+        Assert.assertTrue(childPrefixes.contains("childprefix"));
+        Assert.assertTrue(childPrefixes.contains("overriddenparent"));
+        Assert.assertFalse(childPrefixes.contains("grandprefix"));
+        Assert.assertTrue(childPrefixes.contains(SourceChecker.SUPPRESS_ALL_PREFIX));
     }
 }
