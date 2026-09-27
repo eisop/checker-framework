@@ -823,6 +823,13 @@ enclosing receiver is still under initialization used to rescan every field of t
 each such declaration or assignment; it is now cached or answered with an early-exit scan.
 A class with 4000 such fields now type-checks in about 11 seconds instead of about 26.
 
+The Nullness Checker no longer crashes with "AsSuperVisitor: type is not an erased subtype of
+supertype" on a call to `Arrays.copyOf(original, original.length, newType)`, such as
+`Arrays.copyOf(objects, objects.length, List[].class)` returned as a `List<?>[]`.  Refining the
+result to an array of non-null elements replaced its component type with that of `original`,
+turning the `List[]` result into an `Object[]`.  When the two component types differ, only the
+nullness of the component type is refined now.
+
 The Checker Framework no longer crashes on a method reference whose receiver is a raw type,
 such as `Merged::name` for `interface Merged<X>`, passed to a generic method, as in
 `unique(Merged::name)`.  The type argument of the raw type was inferred as its upper bound
@@ -1321,6 +1328,7 @@ eisop#2094,
 eisop#2105,
 eisop#2135,
 eisop#2140,
+eisop#2155,
 eisop#2156,
 typetools#399,
 typetools#2816,

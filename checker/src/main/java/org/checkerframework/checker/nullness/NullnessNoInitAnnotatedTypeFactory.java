@@ -866,8 +866,20 @@ public class NullnessNoInitAnnotatedTypeFactory
                         AnnotatedArrayType arrayArgType =
                                 (AnnotatedArrayType) getAnnotatedType(arrayArg);
                         AnnotatedTypeMirror arrayArgComponentType = arrayArgType.getComponentType();
-                        ((AnnotatedArrayType) type)
-                                .setComponentType(arrayArgComponentType.deepCopy());
+                        AnnotatedArrayType resultType = (AnnotatedArrayType) type;
+                        AnnotatedTypeMirror resultComponentType = resultType.getComponentType();
+                        if (types.isSameType(
+                                arrayArgComponentType.getUnderlyingType(),
+                                resultComponentType.getUnderlyingType())) {
+                            resultType.setComponentType(arrayArgComponentType.deepCopy());
+                        } else {
+                            // The result's component type differs from the copied array's, as
+                            // for a three-argument copyOf whose Class argument names another
+                            // type, so only the nullness of the copied elements carries over.
+                            resultComponentType.replaceAnnotation(
+                                    arrayArgComponentType.getEffectiveAnnotationInHierarchy(
+                                            NULLABLE));
+                        }
                     }
                 }
             }
