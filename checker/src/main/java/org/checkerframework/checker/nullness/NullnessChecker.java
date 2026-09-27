@@ -50,7 +50,13 @@ public class NullnessChecker extends InitializationChecker {
      * <p>{@link #MODE_JSPECIFY} restricts checking to code in the scope of an
      * {@code @AnnotatedFor}, treats {@code @NullMarked} as a defaulting annotation, and turns off
      * the initialization and map-key checks, none of which JSpecify specifies. It also assumes that
-     * every called method is pure and that assertions are enabled.
+     * every called method is pure and that assertions are enabled. Code outside such a scope has
+     * what JSpecify calls unspecified nullness, which JSpecify lets each tool treat anywhere from
+     * strictly to leniently; see the <a
+     * href="https://jspecify.dev/docs/spec/#multiple-worlds">"multiple worlds" discussion</a> in
+     * the JSpecify specification. The mode currently interprets it leniently, with permissive
+     * defaults for both source code and bytecode, unless the command line chooses conservative
+     * defaults.
      */
     public static final String MODE_JSPECIFY = "jspecify";
 
