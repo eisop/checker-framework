@@ -738,6 +738,27 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     protected @MonotonicNonNull List<String> stubFiles = null;
 
     /**
+     * The raw SuppressWarnings prefixes declared directly on this checker's class hierarchy via
+     * {@link SuppressWarningsPrefix}.
+     */
+    protected @MonotonicNonNull Set<String> declaredSuppressWarningsPrefixes = null;
+
+    /** The cached standard SuppressWarnings prefixes for this checker. */
+    protected @MonotonicNonNull NavigableSet<String> standardSuppressWarningsPrefixes = null;
+
+    /**
+     * The raw lint options declared directly on this checker's class hierarchy via {@link
+     * SupportedLintOptions}.
+     */
+    protected @MonotonicNonNull Set<String> declaredLintOptions = null;
+
+    /**
+     * The raw mode names declared directly on this checker's class hierarchy via {@link
+     * SupportedModes}.
+     */
+    protected @MonotonicNonNull Set<String> declaredModes = null;
+
+    /**
      * The string that separates the checker name from the option name in a "-A" command-line
      * argument. This string may only consist of valid Java identifier part characters, because it
      * will be used within the key of an option.
@@ -938,6 +959,10 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     protected void setParentChecker(SourceChecker parentChecker) {
         this.parentChecker = parentChecker;
         this.supportedOptions = null;
+        this.supportedLints = null;
+        this.supportedModes = null;
+        this.standardSuppressWarningsPrefixes = null;
+        this.upstreamCheckerNames = null;
         this.stubFiles = null;
     }
 
@@ -2631,7 +2656,13 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      * @return the set of supported lint options for this checker and its subcheckers
      */
     protected Set<String> createSupportedLintOptions() {
-        Set<String> lintSet = getLintOptionsFromAnnotation();
+        Set<String> lintSet = new HashSet<>(getDeclaredLintOptions());
+
+        SourceChecker parent = this.parentChecker;
+        while (parent != null) {
+            lintSet.addAll(parent.getDeclaredLintOptions());
+            parent = parent.parentChecker;
+        }
 
         for (SourceChecker checker : getSubcheckers()) {
             lintSet.addAll(checker.createSupportedLintOptions());
@@ -2640,24 +2671,23 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
     }
 
     /**
-     * Get the lint options from the {@link SupportedLintOptions} annotation on this class.
+     * Returns the raw lint options declared directly on this checker's class and its superclasses
+     * via {@link SupportedLintOptions}.
      *
-     * @return the lint options from the {@link SupportedLintOptions} annotation
+     * @return the raw lint options declared on this checker's class hierarchy
      */
-    private Set<String> getLintOptionsFromAnnotation() {
-        SupportedLintOptions sl = this.getClass().getAnnotation(SupportedLintOptions.class);
-
-        if (sl == null) {
-            return new HashSet<>();
+    protected Set<String> getDeclaredLintOptions() {
+        if (declaredLintOptions == null) {
+            Set<String> lintSet = new HashSet<>();
+            for (Class<?> clazz : getClassHierarchy()) {
+                SupportedLintOptions sl = clazz.getDeclaredAnnotation(SupportedLintOptions.class);
+                if (sl != null) {
+                    Collections.addAll(lintSet, sl.value());
+                }
+            }
+            declaredLintOptions = Collections.unmodifiableSet(lintSet);
         }
-
-        @Nullable String @Nullable [] slValue = sl.value();
-        assert slValue != null;
-
-        @Nullable String[] lintArray = slValue;
-        Set<String> lintSet = new HashSet<>(lintArray.length);
-        Collections.addAll(lintSet, lintArray);
-        return lintSet;
+        return declaredLintOptions;
     }
 
     /**
@@ -2684,28 +2714,43 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
 
     /**
      * Computes the result of {@link #getSupportedModes}, from the {@link SupportedModes}
-     * annotations on this checker's class hierarchy and from its subcheckers.
+     * annotations on this checker's class hierarchy, its parent checkers, and from its subcheckers.
      *
      * @return the supported mode names
      */
     protected Set<String> createSupportedModes() {
-        Set<String> result = new HashSet<>();
-        // Walk the hierarchy rather than relying on @Inherited, which yields only the nearest
-        // annotation: a subclass that declares its own modes still supports its superclass's,
-        // because its addOptionsForMode calls super.
-        for (Class<?> clazz = getClass();
-                clazz != null && SourceChecker.class.isAssignableFrom(clazz);
-                clazz = clazz.getSuperclass()) {
-            SupportedModes annotation = clazz.getDeclaredAnnotation(SupportedModes.class);
-            if (annotation != null) {
-                Collections.addAll(result, annotation.value());
-            }
+        Set<String> result = new HashSet<>(getDeclaredModes());
+
+        SourceChecker parent = this.parentChecker;
+        while (parent != null) {
+            result.addAll(parent.getDeclaredModes());
+            parent = parent.parentChecker;
         }
 
         for (SourceChecker checker : getSubcheckers()) {
             result.addAll(checker.createSupportedModes());
         }
         return result;
+    }
+
+    /**
+     * Returns the raw mode names declared directly on this checker's class and its superclasses via
+     * {@link SupportedModes}.
+     *
+     * @return the raw modes declared on this checker's class hierarchy
+     */
+    protected Set<String> getDeclaredModes() {
+        if (declaredModes == null) {
+            Set<String> result = new HashSet<>();
+            for (Class<?> clazz : getClassHierarchy()) {
+                SupportedModes annotation = clazz.getDeclaredAnnotation(SupportedModes.class);
+                if (annotation != null) {
+                    Collections.addAll(result, annotation.value());
+                }
+            }
+            declaredModes = Collections.unmodifiableSet(result);
+        }
+        return declaredModes;
     }
 
     // ///////////////////////////////////////////////////////////////////////////
@@ -3943,31 +3988,67 @@ public abstract class SourceChecker extends AbstractTypeProcessor implements Opt
      * @return a sorted set of SuppressWarnings prefixes
      */
     protected final NavigableSet<String> getStandardSuppressWarningsPrefixes() {
-        // Called on every checker diagnostic, so this allocates and (for a checker with upstream
-        // checkers) re-derives a prefix per call. Every override mutates the set this returns (see
-        // getSuppressWarningsPrefixes()'s "modifiable" contract), so it cannot simply be cached and
-        // returned as-is; caching it would need the getSupportedLintOptions()/
-        // createSupportedLintOptions() split used elsewhere in this class: a cached, immutable
-        // public getter plus a protected create... method that overrides extend instead of mutate.
-        NavigableSet<String> prefixes = new TreeSet<>();
-        if (useAllcheckersPrefix) {
-            prefixes.add(SUPPRESS_ALL_PREFIX);
-        }
-        SuppressWarningsPrefix prefixMetaAnno =
-                this.getClass().getAnnotation(SuppressWarningsPrefix.class);
-        if (prefixMetaAnno != null) {
-            for (String prefix : prefixMetaAnno.value()) {
-                prefixes.add(prefix);
+        if (standardSuppressWarningsPrefixes == null) {
+            NavigableSet<String> prefixes = new TreeSet<>();
+            if (useAllcheckersPrefix) {
+                prefixes.add(SUPPRESS_ALL_PREFIX);
             }
-            return prefixes;
-        }
 
-        // No @SuppressWarningsPrefixes annotation, by default infer keys from upstream checker
-        // names.
-        for (String checkerName : getUpstreamCheckerNames()) {
-            prefixes.add(getDefaultSuppressWarningsPrefix(checkerName));
+            Set<String> declared = getDeclaredSuppressWarningsPrefixes();
+            if (!declared.isEmpty()) {
+                prefixes.addAll(declared);
+            } else {
+                prefixes.add(getDefaultSuppressWarningsPrefix(this.getClass().getSimpleName()));
+            }
+
+            // Subcheckers also inherit SuppressWarnings prefixes from enclosing parent checkers.
+            SourceChecker parent = this.parentChecker;
+            while (parent != null) {
+                SuppressWarningsPrefix parentAnno =
+                        parent.getClass().getAnnotation(SuppressWarningsPrefix.class);
+                if (parentAnno != null) {
+                    for (String prefix : parentAnno.value()) {
+                        prefixes.add(prefix.toLowerCase(Locale.ROOT));
+                    }
+                } else {
+                    prefixes.add(
+                            getDefaultSuppressWarningsPrefix(parent.getClass().getSimpleName()));
+                }
+                parent = parent.parentChecker;
+            }
+
+            // Upstream checker names may include additional classes added by overrides of
+            // getUpstreamCheckerNames().
+            for (String checkerName : getUpstreamCheckerNames()) {
+                prefixes.add(getDefaultSuppressWarningsPrefix(checkerName));
+            }
+
+            standardSuppressWarningsPrefixes = Collections.unmodifiableNavigableSet(prefixes);
         }
-        return prefixes;
+        return new TreeSet<>(standardSuppressWarningsPrefixes);
+    }
+
+    /**
+     * Returns the raw SuppressWarnings prefixes declared directly on this checker's class and its
+     * superclasses via {@link SuppressWarningsPrefix}.
+     *
+     * @return the raw SuppressWarnings prefixes declared on this checker's class hierarchy
+     */
+    protected Set<String> getDeclaredSuppressWarningsPrefixes() {
+        if (declaredSuppressWarningsPrefixes == null) {
+            Set<String> declared = new TreeSet<>();
+            for (Class<?> clazz : getClassHierarchy()) {
+                SuppressWarningsPrefix prefixMetaAnno =
+                        clazz.getDeclaredAnnotation(SuppressWarningsPrefix.class);
+                if (prefixMetaAnno != null) {
+                    for (String prefix : prefixMetaAnno.value()) {
+                        declared.add(prefix.toLowerCase(Locale.ROOT));
+                    }
+                }
+            }
+            declaredSuppressWarningsPrefixes = Collections.unmodifiableSet(declared);
+        }
+        return declaredSuppressWarningsPrefixes;
     }
 
     /**
