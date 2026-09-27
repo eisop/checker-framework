@@ -16,6 +16,11 @@ public class StubFilesTest {
 
     /** Dummy SourceVisitor for testing. */
     private static class DummySourceVisitor extends SourceVisitor<Void, Void> {
+        /**
+         * Creates a dummy source visitor.
+         *
+         * @param checker the source checker
+         */
         DummySourceVisitor(SourceChecker checker) {
             super(checker);
         }
