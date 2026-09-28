@@ -151,42 +151,32 @@ wrapper classes' `valueOf` and `xxxValue` methods are annotated `@PolyFenum`,
 so an `@Fenum` value can be boxed and unboxed without laundering it into a
 different fake enum.
 
-New command-line option `-AignoreDeadCode` skips checking dead (unreachable) code: literal-condition
-branches such as `if (false)`, and code that dataflow determines can never be reached (such as a
-catch block for an exception type the try block can never throw). This option is not enabled by
-default, since dead code might become reachable after a future edit.
+Command-line option additions and changes:
+- `-AignoreDeadCode`: skips checking dead (unreachable) code, such as
+  literal-condition branches (`if (false)`) or catch blocks for unthrown exceptions.
+- `-AassumeAssertions=enabled|disabled|neither` (default `neither`): replaces the
+  deprecated `-AassumeAssertionsAreEnabled`/`AreDisabled`.
+- `-AaliasedTypeAnnos`: reports a `UserError` if a canonical annotation is not a
+  type annotation or its alias is already in the hierarchy; safely skips
+  unsupported qualifiers across compound checkers.
+- `-AwarnBytecodeConflicts`: reports conflicting `@DefaultQualifier` pairs on
+  bytecode elements as warnings rather than errors. In source code, conflicting
+  defaults issue a `conflicting.defaults` error (with aliases like `@NullMarked`
+  participating in source order), and defaults prohibited by `@TargetLocations`
+  issue `default.qualifier.prohibited.location`.
+- Checker-prefixed options (e.g. `-ANullnessChecker_lint=...`): now inherited by
+  subcheckers, with more specific options taking precedence.
+- Option argument validation: invalid arguments to options read during startup
+  (e.g. a malformed `-AwarnUnneededSuppressionsExceptions` regex) are reported as
+  compiler errors instead of uncaught exception stack traces.
 
-New command-line option `-AassumeAssertions=enabled|disabled|neither`
-(default `neither`) replaces the deprecated
-`-AassumeAssertionsAreEnabled`/`AreDisabled`, each still honored with a
-warning naming its replacement.
-
-Two `@DefaultQualifier` annotations on the same declaration/hierarchy that
-disagree are now a `conflicting.defaults` error (the later one is ignored),
-and an alias for `@DefaultQualifier` (e.g. `@NullMarked`) participates at its
-own source position: whichever comes first wins. In bytecode, conflicting
-defaults are reported as warnings under `-AwarnBytecodeConflicts`. Specifying
-a `@DefaultQualifier` location prohibited by the qualifier's `@TargetLocations`
-is now a `default.qualifier.prohibited.location` error.
-
-The `-AaliasedTypeAnnos` command-line option now reports a `UserError` if its
-canonical annotation is not a type annotation, or if its alias is already a
-qualifier in the hierarchy. Unsupported canonical qualifiers are skipped so
-global aliases do not break compound checkers.
-
-A checker-prefixed command-line option (e.g. `-ANullnessChecker_lint=...`)
-is now inherited by that checker's subcheckers, with a subchecker-specific
-or checker-prefixed option taking precedence over a more general one.
-A checker subclass also inherits `@StubFiles` from its nearest annotated
+Checker subclass and subchecker inheritance:
+A checker subclass now inherits `@StubFiles` from its nearest annotated
 superclass (with stub files shared bidirectionally in compound checkers),
 and combines `@RelevantJavaTypes` declared across its superclasses.
 A checker without a `@SuppressWarningsPrefix` now accepts the default prefix
 of every checker running it as a subchecker (e.g. `@SuppressWarnings("index")`
 suppresses Constant Value Checker errors under the Index Checker).
-
-A bad command-line-option argument (e.g. an invalid
-`-AwarnUnneededSuppressionsExceptions` regex) is now reported as an ordinary
-compiler error instead of an uncaught-exception stack trace.
 
 The method invocations the CFG synthesizes for boxing, unboxing,
 enhanced-for, and try-with-resources are now type-checked too, and diagnostics
