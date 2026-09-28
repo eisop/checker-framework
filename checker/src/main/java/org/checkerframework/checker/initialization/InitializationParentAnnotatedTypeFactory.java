@@ -991,10 +991,25 @@ public abstract class InitializationParentAnnotatedTypeFactory
             if (TreeUtils.isConstructor(tree)) {
                 assert p instanceof AnnotatedExecutableType;
                 AnnotatedExecutableType exeType = (AnnotatedExecutableType) p;
-                DeclaredType underlyingType =
-                        (DeclaredType) exeType.getReturnType().getUnderlyingType();
+                AnnotatedDeclaredType returnType = (AnnotatedDeclaredType) exeType.getReturnType();
+                DeclaredType underlyingType = returnType.getUnderlyingType();
                 AnnotationMirror a = getUnderInitializationAnnotationOfSuperType(underlyingType);
-                exeType.getReturnType().replaceAnnotation(a);
+                returnType.replaceAnnotation(a);
+
+                // The return type of an inner class constructor does not capture the explicit
+                // annotation of the enclosing receiver parameter (e.g. Outer Outer.this).
+                // If the enclosing receiver's type is specified, annotate the return type's
+                // enclosing type with that qualifier.
+                AnnotatedDeclaredType returnEnclosingType = returnType.getEnclosingType();
+                if (returnEnclosingType != null) {
+                    AnnotatedDeclaredType receiverType = exeType.getReceiverType();
+                    if (receiverType != null) {
+                        AnnotationMirror enclAnno = receiverType.getAnnotationInHierarchy(a);
+                        if (enclAnno != null) {
+                            returnEnclosingType.replaceAnnotation(enclAnno);
+                        }
+                    }
+                }
             }
             return result;
         }
