@@ -5,8 +5,6 @@ import org.checkerframework.checker.propkey.PropertyKeyChecker;
 import java.util.Locale;
 import java.util.ResourceBundle;
 
-import javax.annotation.processing.SupportedOptions;
-
 /**
  * A type-checker that checks that only valid localizable keys are used when using localizing
  * methods (e.g. {@link ResourceBundle#getString(String)}).
@@ -25,5 +23,8 @@ import javax.annotation.processing.SupportedOptions;
  *       {@link Locale} in the compilation system.
  * </ol>
  */
-@SupportedOptions({"propfiles", "bundlenames"})
-public class LocalizableKeyChecker extends PropertyKeyChecker {}
+public class LocalizableKeyChecker extends PropertyKeyChecker {
+
+    /** Default constructor for LocalizableKeyChecker. */
+    public LocalizableKeyChecker() {}
+}

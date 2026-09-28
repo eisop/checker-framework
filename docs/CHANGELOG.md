@@ -22,6 +22,20 @@ bounds, bottom for method returns, fields, and lower bounds.  It also suppresses
 warnings in unannotated source code, like `-AuseConservativeDefaultsForUncheckedCode=source`.
 A given kind of code cannot be defaulted both permissively and conservatively.
 
+Command-line options prefixed with a checker name (such as `-ANullnessChecker_lint=...` or
+`-ANullnessChecker_useConservativeDefaultsForUncheckedCode=...`) are now inherited by that
+checker's subcheckers (such as `NullnessNoInitSubchecker`). More specific options take precedence:
+a subchecker-specific option overrides a parent-checker option, and a checker-prefixed option
+overrides an unprefixed option.
+
+A checker subclass now inherits `@StubFiles` from its nearest annotated superclass if not
+explicitly overridden. In compound checkers, stub files are shared bidirectionally: parent
+checkers include stub files declared by their subcheckers, and subcheckers automatically
+inherit stub files declared by their enclosing parent checkers.
+
+A checker subclass now automatically inherits and combines `@RelevantJavaTypes` annotations
+declared across its superclasses in the checker class hierarchy.
+
 Specifying a location in `@DefaultQualifier` that is prohibited by the qualifier's
 `@TargetLocations` meta-annotation is now reported as a compiler error
 (`default.qualifier.prohibited.location`). Previously, such invalid defaults were
@@ -423,7 +437,14 @@ specifies: it checks only code in the scope of an `@AnnotatedFor`, treats `@Null
 as a defaulting annotation, and performs neither initialization checking nor map-key
 checking.  It also assumes that every called method is pure and that assertions are
 enabled, as if `-AassumePure` and `-AassumeAssertions=enabled` were supplied; an
-`-AassumeAssertions` value written alongside the mode takes precedence.
+`-AassumeAssertions` value written alongside the mode takes precedence.  Code outside such a
+scope has JSpecify's unspecified nullness, which JSpecify lets each tool treat anywhere from
+strictly to leniently (see the
+["multiple worlds" discussion](https://jspecify.dev/docs/spec/#multiple-worlds) in the JSpecify
+specification).  The mode currently interprets it leniently, with permissive defaults, as if
+`-AusePermissiveDefaultsForUncheckedCode=source,bytecode` were supplied.  To use other defaults
+for unchecked code, write `-AusePermissiveDefaultsForUncheckedCode=-source,-bytecode` for the
+ordinary defaults, or `-AuseConservativeDefaultsForUncheckedCode` for conservative ones.
 
 The Checker Framework now issues an `annotation.on.supertype` error when an annotation supported by
 the checker is written as a main annotation on the superclass or interface in an `extends` or
@@ -813,6 +834,24 @@ that are declared with an initializer or assigned in a constructor. Determining 
 enclosing receiver is still under initialization used to rescan every field of the class on
 each such declaration or assignment; it is now cached or answered with an early-exit scan.
 A class with 4000 such fields now type-checks in about 11 seconds instead of about 26.
+
+The Nullness Checker no longer crashes with "AsSuperVisitor: type is not an erased subtype of
+supertype" on a call to `Arrays.copyOf(original, original.length, newType)`, such as
+`Arrays.copyOf(objects, objects.length, List[].class)` returned as a `List<?>[]`.  Refining the
+result to an array of non-null elements replaced its component type with that of `original`,
+turning the `List[]` result into an `Object[]`.  When the two component types differ, only the
+nullness of the component type is refined now.
+
+The Checker Framework no longer crashes on a method reference whose receiver is a raw type,
+such as `Merged::name` for `interface Merged<X>`, passed to a generic method, as in
+`unique(Merged::name)`.  The type argument of the raw type was inferred as its upper bound
+rather than from the functional interface.  The receiver check then crashed, or reported a
+false `methodref.receiver.invalid` error.
+
+The Checker Framework no longer crashes when a class on the classpath has a supertype whose
+type argument's class file is absent from the classpath, such as `class Sub extends
+Base<Missing>` with no `Missing.class`.  javac accepts such code, because it never needs the
+absent class.  The Checker Framework now issues a `class.not.completed` warning instead.
 
 **Implementation details:**
 
@@ -1226,6 +1265,18 @@ Other improvements and bug fixes:
   annotation class.
 - Fixed a bug where a type annotation written on the first alternative of a
   multi-catch clause was silently dropped.
+- Type argument inference no longer adds the upper bound of a captured type
+  variable as an extra lower bound when reducing a subtyping constraint, as
+  required by JLS 18.2.3. The extra bound inferred types that differ from
+  javac's and caused a crash for a lambda over a wildcard array list such as
+  `new ArrayList<>(List<? extends int[]>).forEach((int[] b) -> {})`.
+  When the type an inference variable resolves to lacks a required qualifier,
+  as for `pick(null, t)` with `t` of type `T`, resolution now instantiates the
+  variable to a requalified copy of that type, such as `@Nullable T`, instead
+  of writing the qualifier onto the type's lower bound, which produced a type
+  that no source can express. Diagnostics can now show a captured type
+  variable, such as `capture#01 extends @Nullable String`, where they
+  previously showed its bound, such as `@Nullable String`.
 
 **Closed issues:**
 
@@ -1294,16 +1345,21 @@ eisop#2061,
 eisop#2064,
 eisop#2074,
 eisop#2081,
+eisop#2083,
 eisop#2084,
 eisop#2086,
 eisop#2089,
 eisop#2091,
+eisop#2094,
 eisop#2105,
 eisop#2135,
 eisop#2140,
+eisop#2155,
+eisop#2156,
 typetools#399,
 typetools#2816,
-typetools#3203.
+typetools#3203,
+typetools#8055.
 
 
 Version 3.49.5-eisop1 (April 26, 2026)

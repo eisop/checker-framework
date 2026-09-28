@@ -88,11 +88,8 @@ public class CalledMethodsChecker extends AccumulationChecker {
             checkers.add(ReturnsReceiverChecker.class);
         }
         // BaseTypeChecker#hasOption calls this method (so that all subcheckers' options are
-        // considered), so the processingEnvironment must be checked for options directly.
-        if (this.processingEnv.getOptions().containsKey(USE_VALUE_CHECKER)
-                || this.processingEnv
-                        .getOptions()
-                        .containsKey(this.getClass().getSimpleName() + "_" + USE_VALUE_CHECKER)) {
+        // considered), so use hasOptionNoSubcheckers to prevent infinite recursion.
+        if (hasOptionNoSubcheckers(USE_VALUE_CHECKER)) {
             checkers.add(ValueChecker.class);
         }
         return checkers;
