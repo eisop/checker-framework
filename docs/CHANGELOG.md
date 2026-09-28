@@ -246,29 +246,22 @@ explicit call to the same method.
 
 **Implementation details:**
 
-`QualifierDefaults` now keeps a second set of unchecked-code defaults, the permissive ones, so
-the members that name the conservative set say so: `STANDARD_UNCHECKED_DEFAULTS_TOP` and
-`STANDARD_UNCHECKED_DEFAULTS_BOTTOM` are now `CONSERVATIVE_UNCHECKED_DEFAULTS_TOP` and
-`CONSERVATIVE_UNCHECKED_DEFAULTS_BOTTOM`, and `addUncheckedCodeDefault` and
-`addUncheckedCodeDefaults` are now `addConservativeUncheckedCodeDefault` and
-`addConservativeUncheckedCodeDefaults`. The permissive counterparts are
-`PERMISSIVE_UNCHECKED_DEFAULTS_TOP`, `PERMISSIVE_UNCHECKED_DEFAULTS_BOTTOM`, and
-`addPermissiveUncheckedCodeDefault`. The new `addConservativeDefaultsForUncheckedCode` and
-`addPermissiveDefaultsForUncheckedCode` add each mode's built-in defaults, and
-`addUncheckedStandardDefaults` now calls each of them only if its command-line option is enabled.
-At most one mode's defaults are applied to a given element.
-`QualifierDefaults.applyPermissiveDefaults(Element)` and `SourceChecker.usePermissiveDefault(String)`
-are the permissive analogues of `applyConservativeDefaults` and `useConservativeDefault`.
-Both conservative and permissive unchecked defaults filter qualifiers by their `@TargetLocations`
-meta-annotation to avoid defaulting a qualifier onto a prohibited location (such as `@KeyForBottom`
-or `@FBCBottom` on method parameters).
+A checker declares its own `-Amode` values with `@SupportedModes`, defining
+each by overriding `SourceChecker.addOptionsForMode`; a mode only sets an
+option the user hasn't, and since most options have no negative form, one
+can't be turned back off by a mode.
 
-The jtreg tests that verify which annotations the Checker Framework writes into
-bytecode now run on JDK 25 and later. They used `com.sun.tools.classfile`, which
-JDK 25 removed; there are now parallel suites written against the `java.lang.classfile`
-API standardized in JDK 24, selected by a `@requires jdk.version.major` guard, so each
-JDK runs exactly one of the two. The `com.sun.tools.classfile` suites remain for JDK 24
-and earlier.
+`QualifierDefaults` now keeps a second set of unchecked-code defaults, the
+permissive ones, alongside the renamed conservative set
+(`STANDARD_UNCHECKED_DEFAULTS_TOP`/`BOTTOM` are now
+`CONSERVATIVE_UNCHECKED_DEFAULTS_TOP`/`BOTTOM`, and `addUncheckedCodeDefault(s)`
+are now `addConservativeUncheckedCodeDefault(s)`); the permissive counterparts
+are `PERMISSIVE_UNCHECKED_DEFAULTS_TOP`/`BOTTOM` and
+`addPermissiveUncheckedCodeDefault`. `QualifierDefaults.applyPermissiveDefaults`
+and `SourceChecker.usePermissiveDefault` are the permissive analogues of the
+existing conservative methods. At most one mode's defaults apply to a given
+element, and both filter qualifiers by `@TargetLocations` to avoid a
+prohibited location.
 
 `SourceChecker.printOrStoreMessage` no longer has the two `protected` overloads
 that took no suggested fixes (the four-argument form, and the five-argument form
@@ -296,6 +289,12 @@ naming that declaration, rather than a `BugInCF` asking the user to report a fra
 `AnnotatedTypeFactory.getRoot()` is now `public` rather than `protected`, so that code
 outside the factory can ask whether type checking has begun; an override of it in a
 subclass must be widened to `public` too.
+
+New meta-annotation `@ProgrammaticDefaultLocations` lets a type system permit
+qualifiers to be used as programmatic defaults (`addCheckedCodeDefault`,
+`addUncheckedCodeDefault`, `addElementDefault`) at a location otherwise
+prohibited by `@TargetLocations`; top and bottom qualifiers are always
+permitted. A prohibited default now throws `TypeSystemError`.
 
 `AnnotatedIntersectionType.summarizeBounds` computes the summary described
 above, reading each bound's qualifier, explicit or defaulted, uniformly,
@@ -367,117 +366,44 @@ smear a primary onto their components at all, so they have no equivalent
 gap.
 
 `BaseTypeValidator.checkExplicitSuperBoundWildcards` now delegates its
-JDK-8054309 collapsed-wildcard-bound comparison to a new overridable
-`areCollapsedWildcardBoundsEqual` method, instead of inlining a bidirectional
-`isSubtypeShallowEffective` check. That bidirectional check only means "same
-qualifier" in an antisymmetric qualifier hierarchy; a checker whose hierarchy
-is not antisymmetric (e.g. an "unspecified" qualifier that is deliberately a
-mutual subtype of everything) needs a different equality test and previously
-had to override the entire ~40-line method to get one. No behavior change for
-CF's own (antisymmetric) checkers.
+JDK-8054309 collapsed-wildcard-bound comparison to an overridable
+`areCollapsedWildcardBoundsEqual` method, for a checker whose qualifier
+hierarchy isn't antisymmetric (no behavior change for CF's own checkers).
 
-`BaseTypeVisitor.OverrideChecker.checkParameters` now delegates its per-parameter
-override compatibility check to a new overridable `isParameterOverrideValid` method,
-instead of inlining the subtype test and type-variable containment fallback. That
-default check is contravariant (the overridden parameter must be a subtype of the
-overriding parameter, the standard override rule in CF's type systems). A checker
-whose type rules require parameter <em>invariance</em> for overrides (both directions
-must be subtypes, as in JSpecify's override rules) can now override just this method
-to change the directionality, rather than duplicating the entire `checkParameters`
-and `checkParametersMsg` loop-and-error-reporting logic.
+`BaseTypeVisitor.OverrideChecker` delegates its parameter, return-type, and
+type-parameter-bound comparisons to new overridable hooks --
+`isParameterOverrideValid`, `isReturnOverrideValid`, and
+`isTypeParameterBoundOverrideValid` -- instead of inlining them, so a checker
+with different override rules (e.g. JSpecify's parameter invariance) can
+override just one method instead of duplicating the whole loop.
 
-`BaseTypeVisitor.OverrideChecker.checkReturn` now delegates its comparison to
-a new overridable `isReturnOverrideValid` method, the return-type analogue of
-`isParameterOverrideValid` above.
+`checkOverride` now also compares each overriding type parameter's bound
+range against the overridden one's via `isTypeParameterBoundOverrideValid`,
+reporting a mismatch as `override.typaram.invalid`. This is a real soundness
+fix (eisop#1965): the bound was previously only checked if the type
+parameter appeared in a parameter or return type, not if it was only used
+nested in the signature or not at all. It can also newly reject an override
+that was sound only by virtue of where the type parameter is used (e.g.
+narrowing a bare return type's bound); give the overriding declaration the
+overridden bound, or suppress the warning. A bound that mentions another
+type parameter of the same method (an F-bound) is now compared without the
+JLS 8.4.2 mismatch this caused before. `isReturnOverrideValid`'s
+type-variable containment fallback now requires the same containment
+direction as the other two hooks, fixing an unsoundness where
+`<T extends @Nullable Object> T get(T p)` could be overridden to return
+`@Nullable T` and hand a caller's `@NonNull` request a null.
 
-`BaseTypeVisitor.OverrideChecker.checkOverride` now also runs
-`checkTypeParameterBounds`, comparing each of the overriding method's own
-type parameters against the corresponding type parameter of the overridden
-method via a new `isTypeParameterBoundOverrideValid` hook. A mismatch is
-reported through a new `override.typaram.invalid` diagnostic, showing each
-side's full declared bound (upper and lower, since -- unlike ordinary Java --
-a Checker Framework type parameter can declare a meaningful lower bound too,
-via the annotation written directly on the type variable).
-
-The default `isTypeParameterBoundOverrideValid` requires the overriding type
-parameter's bound range to contain the overridden one's: the overridden upper
-bound must be a subtype of the overriding upper bound, and the overriding
-lower bound must be a subtype of the overridden lower bound. This holds
-regardless of whether, or where, the type parameter is used in the method's
-parameter or return types -- including a type parameter that occurs only
-nested in the signature, or not at all, neither of which the parameter/return
-checks above ever see. This is a real soundness fix: a checker whose qualifier
-hierarchy attaches enforceable meaning to a type-parameter bound (e.g.
-Nullness) now rejects an override whose bound no longer contains the
-overridden one, closing a gap where a caller of the overridden method's
-declared signature could instantiate the type parameter with a value the
-override's own body, type-checked against its own (looser) bound, does not
-actually handle correctly (eisop#1965).
-
-Because the rule is position-independent, it can also newly reject an
-override that is sound only by virtue of where the type parameter is used:
-narrowing the upper bound of a type parameter that occurs only as a bare
-return type, as in overriding `<T extends @Nullable Object> T produce()` with
-`<T extends @NonNull Object> T produce()`, is now an
-`override.typaram.invalid` error. Give the overriding declaration the
-overridden bound, or suppress the warning.
-
-A second, unrelated source of false positives is a bound that mentions a
-type variable of the same method -- an F-bound such as
-`<T extends Comparable<T>>`, or one type parameter's bound naming another.
-The two declarations' bounds are compared structurally, without first
-adapting the overridden method's bound to the overriding method's type
-variables (as JLS 8.4.2 does), so the comparison pits one method's type
-variable against the other's in an invariant type-argument position and
-fails whichever direction the qualifier moved. Identical bounds on both
-sides are unaffected; the same workaround applies.
-
-`isReturnOverrideValid`'s type-variable containment fallback
-(`BaseTypeVisitor.testTypevarContainment`) now uses the same containment
-direction as `isParameterOverrideValid` and
-`isTypeParameterBoundOverrideValid`: the overriding occurrence's bound range
-must contain the overridden one's. Previously the return-position fallback
-required the reverse. That was unsound for an occurrence requalified with a
-looser qualifier -- overriding `<T extends @Nullable Object> T get(T p)` with
-`<T extends @Nullable Object> @Nullable T get(T p)` was accepted, so a caller
-writing `s.<@NonNull String>get("x")` could receive null -- and it was a false
-positive for a bare occurrence whose type parameter soundly widens its upper
-bound. This occurrence-level fallback stays necessary even given the
-declaration-level check above, because an occurrence can be requalified with
-its own explicit annotation, which `isTypeParameterBoundOverrideValid`, which
-only ever looks at the type parameter's declaration, never sees.
-
-`TypeFromTypeTreeVisitor` now restores the declared bounds of type-variable
-type arguments that appear in the enclosing type of a nested type (e.g. the
-implicit `Outer<XXX>` enclosing `Super` in `class Sub extends Super`, or the
-explicit one in `class Sub extends Outer<XXX>.Super`). Previously such
-enclosing type variables carried defaulted bounds rather than the bounds
-written on their declaration (partial fix for eisop#737). This has no effect on
-the final supertype on the built-in lattices (later substitution already
-corrected it), but the intermediate type is now faithful, which matters for
-type systems with stricter substitution.
-
-`BaseTypeValidator` now checks the type arguments of an explicitly-written
-enclosing type against the enclosing type parameters' declared bounds, so
-`Outer<@NonNull String>.Inner` is rejected when `@NonNull String` violates
-`Outer`'s type-parameter bound, matching the existing behavior for the
-non-enclosing `Outer<@NonNull String>` (further work on eisop#737).
-Previously an enclosing type's arguments were never validated. This covers a
-method's return type (e.g. `Outer<@NonNull String>.Inner returnType()`) and a
-`new` expression's instantiated type (e.g. `new Outer<@NonNull String>.Inner()`)
-in addition to fields, parameters, and other ordinary type-use positions.
-
-`TypeFromTypeTreeVisitor` now restores the annotations written on the type
-arguments of an explicitly-written enclosing type of a qualified type, so a
-qualified type used in an extends/implements clause (`class Sub extends
-Outer<@Nullable String>.Sup`) or a local-variable declaration
-(`Outer<@Nullable String>.Inner x`) now carries the written enclosing-argument
-qualifier, and an out-of-bound argument in those positions is rejected. This
-completes the fix for eisop#737. Previously the written qualifier was dropped
-during tree-to-type conversion, so the validator never saw it: for a field or
-method parameter the element-based annotation recovery restored it, but a
-local-variable element does not retain it and an extends/implements clause has
-no element, so those two positions were silently accepted.
+Fixes for eisop#737 (an enclosing type's type arguments were not validated
+or annotated like other type-use positions): `TypeFromTypeTreeVisitor` now
+restores the declared bounds of an enclosing type's type-variable
+arguments, and the annotations explicitly written on them, instead of
+dropping both during tree-to-type conversion; `BaseTypeValidator` now checks
+an explicit enclosing type's arguments against the declared bounds, so e.g.
+`Outer<@NonNull String>.Inner` is rejected the same way
+`Outer<@NonNull String>` already was. This covers a local variable, an
+extends/implements clause, and a method/constructor's declared or
+instantiated type, in addition to fields and parameters (which already
+recovered the annotation from the element).
 
 `SourceChecker.reportError` and `SourceChecker.reportWarning` now accept a null
 source, for a message that has no source position. Such a message is reported
@@ -485,46 +411,20 @@ against the compilation as a whole, and is suppressed only by
 `-AsuppressWarnings`. Previously such a message had to bypass the message-key
 mechanism entirely, and so could not be suppressed at all.
 
-A differential test (`NullnessBinaryStubDiffTest`, option
-`-AbinaryStubDiffCheck`) verifies that the binary and text paths load identical
-annotations for every JDK class and every built-in stub file.
-
 Fixed a `NullPointerException` in `AnnotationFileParser`'s handling of
 unbounded wildcards (e.g. `Class<?>`) under `--release 8`, which had silently
 aborted parsing of the remaining methods in the enclosing stub file.
 
-Fixed `AnnotationFileParser` to resolve a declaration annotation's field-access
-value (e.g. `RetentionPolicy.RUNTIME`) when its receiver type is reachable only
-through a wildcard type import (`import java.lang.annotation.*;`), matching
-the binary stub writer. This had silently dropped such annotations, including
-the `@Retention`/`@Target` meta-annotations that the annotated JDK's own
-`java.lang.Override`, `Deprecated`, and `SuppressWarnings` declarations write
-on themselves.
-
-Fixed `AnnotationFileParser` to resolve a declaration annotation's field-access
-value whose scope is itself a field access (e.g. `DefinedBy.Api.COMPILER`,
-whose scope is `DefinedBy.Api`), not just a plain name (`Api.COMPILER`). This
-had silently dropped such annotations, including
-`com.sun.tools.javac.file.JavacFileManager.setPathFactory(..)`'s
-`@DefinedBy(DefinedBy.Api.COMPILER)` in the annotated JDK, the one place that
-writes this form instead of the more common `Api.COMPILER`.
-
-Fixed `AnnotationFileParser` to process a nested annotation type declaration
-(e.g. `Outer.Nested`) the same way it already processed a nested class,
-interface, enum, or record. Previously, the whole declaration was silently
-ignored, including any declaration annotations written on it, such as the
-`@Retention`/`@Target` meta-annotations that the annotated JDK's own
-`com.sun.tools.javac.api.ClientCodeWrapper.Trusted` and
-`java.lang.invoke.LambdaForm.Compiled` write on themselves.
-
-Fixed `AnnotationFileParser` to report a type-parameter-count mismatch on a
-class, interface, enum, or record declaration using just its name, instead of
-pretty-printing the declaration's entire body (every member) into the warning
-message. The full-body dump was both hard to read and expensive to construct
-for a large class; a method or constructor declaration, which has no body in
-an annotation file, is unaffected.
-
-Enabled the Gradle configuration cache, speeding up build times.
+Fixed `AnnotationFileParser` silently dropping several categories of
+declaration annotations in the annotated JDK's own stubs: a field-access
+value reached only through a wildcard import (breaking
+`Override`/`Deprecated`/`SuppressWarnings`'s own `@Retention`/`@Target`), a
+field-access value whose scope is itself a field access
+(`DefinedBy.Api.COMPILER`), and a nested annotation type declaration (e.g.
+`ClientCodeWrapper.Trusted`) -- the last was ignored outright, including its
+own declaration annotations. Also fixed: a type-parameter-count-mismatch
+warning pretty-printed a class's entire body into the message instead of
+just its name.
 
 Added the `-AinferenceWorkBudget=N` command-line option to bound Java
 type-argument-inference work, averting hangs on deeply nested (e.g.,
@@ -602,10 +502,6 @@ Performance optimizations:
 - `AnnotatedTypeFactory.isFromByteCode(Element)` now caches its result per
   element, avoiding a repeated `Path.toUri()` call (URI construction and
   parsing) on every conservative-defaults check.
-- Made the `-AajavaChecks` test consistency check opt-in via the `ajavaChecks` property (e.g.
-  `-PajavaChecks`) instead of unconditionally running on every directory test. On Java < 21
-  (where JavaParser parsing and AST traversal run), this speeds up test suites by ~20% to ~38%.
-  Consistency testing is now performed in a dedicated CI job (`cftests-ajavachecks` on JDK 17).
 
 Other improvements and bug fixes:
 - `TreeUtils` has a new `inferredTypeArguments(ExpressionTree)` method to
@@ -734,12 +630,6 @@ Other improvements and bug fixes:
   other than the outermost one (a type argument, array component, or bound): an
   explicit annotation there was dropped, and an unannotated position there wrongly
   inherited the overridden method's own annotation instead of the checker's default.
-- Fixed a typo (`@SafeEFfect`) in the Guieffect Checker's `org-eclipse.astub` that
-  made `CompareEditorInput.getMessage()` inherit `@UIEffect` instead of being
-  `@SafeEffect`.
-- Fixed `permit-nullness-assertion-exception.astub`'s missing `EnsuresNonNullIf`
-  import, which caused two spurious warnings for every user of
-  `-Astubs=permit-nullness-assertion-exception.astub`.
 - A checker may now override `BaseTypeVisitor.shouldStripInvalidLocationQualifiers`
   (default `false`) to strip a qualifier disallowed on a type-variable/wildcard
   bound by `@TargetLocations` after reporting it, instead of the meaningless
