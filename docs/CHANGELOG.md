@@ -25,18 +25,17 @@ with a warning (`text.parsing.jdk`, `text.parsing.jdk.class`, `text.parsing.stub
 files with `BinaryStubFileGenerator`; see the manual's "Using a binary
 (pre-parsed) stub file" section.
 
-The EISOP Checker Framework runs under JDK 27 and under JDK 28 b15 early access
-builds -- that is, it runs on version 27 and 28 JVMs.
+Runs under JDK 27 and JDK 28 b15 early access builds -- that is, on version 27
+and 28 JVMs.
 
-The Checker Framework can now run as an Error Prone plugin (the `eisopcf` check), as an
-alternative to running it as a standalone annotation processor. It is published as
-`io.github.eisop:framework-errorprone` and requires JDK 21 or later. See the manual's
-"Error Prone" section.
+Can now run as an Error Prone plugin (the `eisopcf` check), as an alternative to
+running as a standalone annotation processor. It is published as
+`io.github.eisop:framework-errorprone` and requires JDK 21 or later. See the
+manual's "Error Prone" section.
 
-The EISOP Checker Framework checks subtyping for a receiver's type arguments when
-invoking a method. The annotations on the type arguments of a method receiver
-(e.g., `void test(Box<@NonNull T> this)`) were previously ignored during
-type-checking.
+Checks subtyping for a receiver's type arguments when invoking a method. The
+annotations on the type arguments of a method receiver (e.g.,
+`void test(Box<@NonNull T> this)`) were previously ignored during type-checking.
 
 `-AcheckCastElementType` now also requires array components to be
 invariant, in array casts and `instanceof` binding patterns, closing an
@@ -50,11 +49,10 @@ first bound's qualifier now wins and is written onto every bound
 `AnnotatedTypeFactory#combineIntersectionBoundAnnotationsInHierarchy` for a
 different (e.g. order-independent) summary.
 
-The Checker Framework now issues an `annotation.on.supertype` error for a
-main annotation on a superclass/interface in `extends`/`implements`
-(type-argument annotations remain permitted); override
-`BaseTypeVisitor#checkAnnotationOnSupertype` to permit it, as the Tainting
-Checker does.
+Issues an `annotation.on.supertype` error for a main annotation on a
+superclass or interface in `extends`/`implements` (type-argument annotations
+remain permitted); override `BaseTypeVisitor#checkAnnotationOnSupertype` to
+permit it, as the Tainting Checker does.
 
 The Initialization Checker (and checkers built on it, such as the Nullness
 Checker) now respects an explicit receiver annotation on an inner class
@@ -421,10 +419,10 @@ Other improvements and bug fixes:
   never suppressing details configured in the formatter.
 - `@AnnotatedFor` scope checking is unified and cached in
   `SourceChecker.isElementAnnotatedForThisCheckerOrUpstreamChecker`.
-- The Nullness Checker no longer crashes (`AsSuperVisitor`) on `Arrays.copyOf` when
-  component types differ.
-- The Checker Framework no longer crashes on method references with raw receivers
-  passed to generic methods, or when classes have supertypes with missing type-argument classes.
+- `Arrays.copyOf` no longer crashes (`AsSuperVisitor`) under the Nullness Checker
+  when component types differ.
+- No longer crashes on method references with raw receivers passed to generic
+  methods, or when classes have supertypes with missing type-argument classes.
 - `BinaryStubFileGenerator` accepts a single file, a directory (or `--bundle`), or a jar.
   `-AmergeStubsWithSource`, `-AstubWarnIfNotFound`, and `-AstubDebug` disable the binary path.
 
