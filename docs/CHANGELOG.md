@@ -201,79 +201,6 @@ point at the offending source construct rather than the beginning of the file.
 
 **Implementation details:**
 
-A checker declares its own `-Amode` values with `@SupportedModes`, defining
-each by overriding `SourceChecker.addOptionsForMode`; a mode only sets an
-option the user has not written explicitly.
-
-`QualifierDefaults` now maintains permissive unchecked-code defaults
-alongside conservative ones (`addConservativeUncheckedCodeDefault(s)`,
-`addPermissiveUncheckedCodeDefault(s)`, `CONSERVATIVE_UNCHECKED_DEFAULTS_*`,
-`PERMISSIVE_UNCHECKED_DEFAULTS_*`). `applyPermissiveDefaults` and
-`SourceChecker.usePermissiveDefault` provide the permissive counterparts to
-existing conservative methods.
-
-`SourceChecker.printOrStoreMessage` routes all diagnostics through private,
-fix-carrying overloads; host-side interception is now done by installing a
-`DiagnosticSink`.
-
-Code walking the package chain for annotations gates steps on
-`applyToSubpackages` via `AnnotationUtils.appliesToSubpackages` and
-`AnnotatedTypeFactory.doesAnnotatedForApplyToSubpackages`.
-
-`QualifierDefaults.addElementDefault` is now an initialization-time API: calling
-it once type checking has begun throws a `TypeSystemError`. A registered default
-conflicting with a written `@DefaultQualifier` throws a `TypeSystemError`
-naming the declaration rather than a `BugInCF`. `AnnotatedTypeFactory.getRoot()`
-is widened from `protected` to `public`.
-
-New meta-annotation `@ProgrammaticDefaultLocations` lets a type system permit
-qualifiers as programmatic defaults (`addCheckedCodeDefault`,
-`addUncheckedCodeDefault`, `addElementDefault`) at locations prohibited by
-`@TargetLocations`; top and bottom qualifiers are always permitted.
-
-`AnnotatedIntersectionType.summarizeBounds` computes bound summaries, folding
-`AnnotatedTypeFactory#combineIntersectionBoundAnnotationsInHierarchy` over
-conflicts. `AnnotatedIntersectionType.clearAnnotations()`,
-`AnnotatedWildcardType.clearAnnotations()`, and
-`AnnotatedTypeVariable.clearAnnotations()` now also clear bounds' annotations,
-matching `addAnnotation`/`removeAnnotation`. `AnnotatedTypes.glbSubtype` now uses
-`shallowCopy(false)` so bounds retain their qualifiers during capture conversion.
-
-Added `IntersectionGlbChecker`/`IntersectionGlbAnnotatedTypeFactory`, a test
-checker that overrides the combining hook to compute greatest lower bounds.
-`QualifierHierarchy.isSubtypeQualifiers`, `leastUpperBoundQualifiers`, and
-`greatestLowerBoundQualifiers` document that an override of any one must stay
-consistent with the others.
-
-`BaseTypeVisitor.OverrideChecker` delegates parameter, return-type, and
-type-parameter-bound comparisons to overridable hooks (`isParameterOverrideValid`,
-`isReturnOverrideValid`, `isTypeParameterBoundOverrideValid`). `checkOverride`
-now compares overriding type-parameter bound ranges against overridden bounds
-via `isTypeParameterBoundOverrideValid` (reporting `override.typaram.invalid`),
-closing a soundness hole (eisop#1965). `isReturnOverrideValid`'s type-variable
-containment fallback now requires the same containment direction as the other hooks.
-
-Enclosing type argument fixes (eisop#737): `TypeFromTypeTreeVisitor` restores
-declared bounds and explicit annotations of an enclosing type's type-variable
-arguments instead of dropping them; `BaseTypeValidator` checks an explicit
-enclosing type's arguments against declared bounds (e.g. `Outer<@NonNull String>.Inner`).
-
-`SourceChecker.reportError` and `SourceChecker.reportWarning` accept a null source
-for positionless messages reported against the compilation as a whole and
-suppressed via `-AsuppressWarnings`.
-
-`AnnotationFileParser` fixes: resolves declaration annotation field accesses reached
-through wildcard imports or nested field accesses; processes nested annotation
-type declarations; handles unbounded wildcards under `--release 8`; and reports
-type-parameter count mismatches using only the declaration name rather than its entire body.
-
-Type-argument and target-location validation hooks extracted:
-`BaseTypeValidator.checkCapturedWildcardBounds`,
-`BaseTypeVisitor.shouldCheckTypeArgument`,
-`BaseTypeVisitor.reportTypeArgumentInferenceFailure`,
-`BaseTypeValidator.areCollapsedWildcardBoundsEqual`, and consolidated target-location
-validation and bound-stripping logic in `BaseTypeValidator`.
-
 Performance optimizations:
 - Capped Java type argument inference work via `-AinferenceWorkBudget=N` (default
   10,000, bounding both JLS 18.3 incorporation and 18.4 resolution) and optimized
@@ -324,31 +251,63 @@ Other improvements and bug fixes:
 - `TypeVariableSubstitutor.substitute` and `substituteTypeVariable` now take a
   boolean indicating whether type arguments were inferred by the type checker,
   letting checkers distinguish inferred from written arguments without manual state saving.
-- Fixed a latent aliasing bug in `AnnotatedTypeCopier` for executable types.
-- Fixed an `IndexOutOfBoundsException` for lambdas in varargs.
-- Fixed `BinaryOperation.hashCode()` to agree with `equals()` for commutative operators.
-- Clarified `OptionalImplVisitor`'s `else`-branch check and removed a stale comment.
-- `JavaStubifier`'s "cannot load annotation" failure names the source file, and gains
-  a `--skipUnloadableAnnotations` flag to warn and continue instead of aborting.
-- Fixed a crash in `AnnotatedTypeMirror#hasExplicitAnnotation(Class)` when querying
-  types without matching annotations.
-- Fixed a bug where a type annotation written on the first alternative of a
-  multi-catch clause was silently dropped.
+- `BaseTypeVisitor.OverrideChecker` delegates parameter, return-type, and
+  type-parameter-bound comparisons to overridable hooks (`isParameterOverrideValid`,
+  `isReturnOverrideValid`, `isTypeParameterBoundOverrideValid`). `checkOverride`
+  now compares overriding type-parameter bound ranges against overridden bounds
+  via `isTypeParameterBoundOverrideValid` (reporting `override.typaram.invalid`),
+  closing a soundness hole (eisop#1965).
+- Enclosing type argument fixes (eisop#737): `TypeFromTypeTreeVisitor` restores
+  declared bounds and explicit annotations of an enclosing type's type-variable
+  arguments instead of dropping them; `BaseTypeValidator` checks an explicit
+  enclosing type's arguments against declared bounds (e.g. `Outer<@NonNull String>.Inner`).
+- `AnnotatedIntersectionType.summarizeBounds` computes bound summaries, folding
+  `AnnotatedTypeFactory#combineIntersectionBoundAnnotationsInHierarchy` over
+  conflicts. `AnnotatedIntersectionType`, `AnnotatedWildcardType`, and
+  `AnnotatedTypeVariable.clearAnnotations()` now also clear bounds' annotations,
+  matching `addAnnotation`/`removeAnnotation`. `AnnotatedTypes.glbSubtype` uses
+  `shallowCopy(false)` so bounds retain qualifiers during capture conversion.
+- Added `IntersectionGlbChecker`/`IntersectionGlbAnnotatedTypeFactory` test
+  checker. `QualifierHierarchy.isSubtypeQualifiers`, `leastUpperBoundQualifiers`,
+  and `greatestLowerBoundQualifiers` document that an override of any one must
+  stay consistent with the others.
+- `QualifierDefaults` now maintains permissive unchecked-code defaults alongside
+  conservative ones (`addConservativeUncheckedCodeDefault(s)`,
+  `addPermissiveUncheckedCodeDefault(s)`, `CONSERVATIVE_UNCHECKED_DEFAULTS_*`,
+  `PERMISSIVE_UNCHECKED_DEFAULTS_*`).
+- `QualifierDefaults.addElementDefault` is now an initialization-time API throwing
+  `TypeSystemError` once type checking has begun; registered defaults combine with
+  `@DefaultQualifier` and enclosing-element defaults instead of replacing them.
+  `AnnotatedTypeFactory.getRoot()` is widened from `protected` to `public`.
+- New meta-annotation `@ProgrammaticDefaultLocations` lets a type system permit
+  qualifiers as programmatic defaults at locations prohibited by `@TargetLocations`.
+- Checkers declare custom `-Amode` values via `@SupportedModes` and
+  `SourceChecker.addOptionsForMode`.
+- `SourceChecker.printOrStoreMessage` routes diagnostics through private overloads;
+  host-side interception is now done via `DiagnosticSink`. `SourceChecker.reportError`
+  and `reportWarning` accept a null source for positionless messages suppressed
+  via `-AsuppressWarnings`.
+- Code walking the package chain for annotations gates steps on `applyToSubpackages`
+  via `AnnotationUtils.appliesToSubpackages` and
+  `AnnotatedTypeFactory.doesAnnotatedForApplyToSubpackages`.
+- `AnnotationFileParser` fixes: resolves declaration annotation field accesses
+  reached through wildcard imports or nested field accesses; processes nested
+  annotation type declarations; handles unbounded wildcards under `--release 8`;
+  reports type-parameter count mismatches using only the declaration name; preferred
+  exact-match fake overrides; and fixed stale parameter/receiver types and
+  return-type scoping in fake overrides.
+- Extracted overridable validation and inference hooks:
+  `BaseTypeValidator.checkCapturedWildcardBounds`,
+  `BaseTypeVisitor.shouldCheckTypeArgument`,
+  `BaseTypeVisitor.reportTypeArgumentInferenceFailure`,
+  `BaseTypeValidator.areCollapsedWildcardBoundsEqual`, and consolidated
+  target-location validation and bound-stripping logic in `BaseTypeValidator`.
+  Checkers may override `BaseTypeVisitor.shouldStripInvalidLocationQualifiers` to
+  strip disallowed qualifiers after reporting them.
 - Type argument inference no longer adds the upper bound of a captured type
   variable as an extra lower bound when reducing a subtyping constraint (JLS 18.2.3),
   and instantiates variables to requalified copies rather than writing qualifiers
   onto lower bounds. Diagnostics can now display captured type variables directly.
-- Fixed a bug where `@DefaultQualifier` on a package could be lost for deeper
-  subpackages when an intervening package had a non-subpackage default.
-- A default registered with `QualifierDefaults.addElementDefault` now combines
-  with `@DefaultQualifier` and enclosing-element defaults instead of replacing them.
-- Annotations read from the source tree resolve aliases first, recognizing written
-  aliases across diagnostics, constructor references, and whole-program inference.
-- `AnnotatedTypeMirror#getExplicitAnnotations` returns aliases in canonical form,
-  and `AnnotatedTypeFactory` gains `asSupportedQualifier`, `isSupportedQualifierOrAlias`,
-  and `canonicalAnnotationOrWritten`.
-- `AnnotatedTypeFactory#addAliasedTypeAnnotation` fails fast with `TypeSystemError`
-  if the canonical annotation is unsupported or the alias is already in the hierarchy.
 - Type argument inference no longer crashes on: `? super` wildcards whose arguments
   mention the inferred variable through `? extends`; generic calls returned by lambdas
   in generic method arguments; implicitly typed lambdas invoking generic methods on
@@ -357,34 +316,49 @@ Other improvements and bug fixes:
 - Type argument inference now resolves polymorphic qualifiers of nested generic
   invocations, and resolves method reference polymorphic qualifiers against target
   function types before building inference constraints.
-- The stubifier resolves nested annotations named through enclosing classes
-  (e.g. `@MethodHandle.PolymorphicSignature`).
 - Viewpoint adaptation no longer crashes on raw uses of F-bounded classes.
   `ViewpointAdapter` gains `viewpointAdaptTypeDeclarationBounds`, and
   `AbstractViewpointAdapter` adds abstract `extractAnnotationMirror(AnnotationMirrorSet)`.
-- `AnnotationFileUtil.allAnnotationFiles(String, ...)` was replaced by
-  `resolveAnnotationFileLocation(String)` plus `allAnnotationFiles(File, ...)`.
-- Checkers shipping their own annotated JDK no longer load `checker.jar`'s binary JDK on top.
-- Fixed `-AwarnUnneededSuppressions` failing to report an unneeded `@SuppressWarnings`
-  whose value is exactly a checker prefix.
-- Fixed four stub-parser fake override bugs (generic parameter matching under JDK 11/21,
-  exact-match overload preference, varargs element types, and partially-scoped names),
-  and fixed stale parameter/receiver types and return-type scoping in fake overrides.
-- Fixed a missing `EnsuresNonNullIf` import in `permit-nullness-assertion-exception.astub`
-  that caused spurious warnings.
-- Checkers may override `BaseTypeVisitor.shouldStripInvalidLocationQualifiers` to strip
-  disallowed qualifiers from type-variable/wildcard bounds after reporting them.
-- Fixed a format crash (`MissingFormatArgumentException`) in the Optional Checker's
-  `prefer.map.and.orelse` warning for patterns without `else` branches.
-- Fixed capture conversion dropping primary qualifiers from type-parameter bounds
-  that are type-variable uses (`<A, U extends @Q A>`).
-- Fixed defects in restoring dataflow-refined captured type variable bounds when
-  dataflow stops refining them, and when wildcards have bare type-variable bounds.
 - `-AcheckCastElementType` fixes: downcasts and casts between unrelated types no longer
   crash (`AsSuperVisitor`); casts with incomparable types are reported as unverifiable
   instead of crashing; array null literal casts (`(Object[]) null`) and upcasts with
   differing type-argument counts are no longer reported as unverifiable; and primitive
   casts are unaffected.
+- `BinaryStubFileGenerator` accepts a single file, a directory (or `--bundle`), or a jar.
+  `-AmergeStubsWithSource`, `-AstubWarnIfNotFound`, and `-AstubDebug` disable the binary path.
+- Fixed a latent aliasing bug in `AnnotatedTypeCopier` for executable types.
+- Fixed an `IndexOutOfBoundsException` for lambdas in varargs.
+- Fixed `BinaryOperation.hashCode()` to agree with `equals()` for commutative operators.
+- Clarified `OptionalImplVisitor`'s `else`-branch check and removed a stale comment.
+- Fixed a format crash (`MissingFormatArgumentException`) in the Optional Checker's
+  `prefer.map.and.orelse` warning for patterns without `else` branches.
+- `JavaStubifier`'s "cannot load annotation" failure names the source file, and gains
+  a `--skipUnloadableAnnotations` flag to warn and continue instead of aborting.
+- Fixed a crash in `AnnotatedTypeMirror#hasExplicitAnnotation(Class)` when querying
+  types without matching annotations.
+- Fixed a bug where a type annotation written on the first alternative of a
+  multi-catch clause was silently dropped.
+- Fixed a bug where `@DefaultQualifier` on a package could be lost for deeper
+  subpackages when an intervening package had a non-subpackage default.
+- Annotations read from the source tree resolve aliases first;
+  `AnnotatedTypeMirror#getExplicitAnnotations` returns aliases in canonical form;
+  and `AnnotatedTypeFactory` gains `asSupportedQualifier`, `isSupportedQualifierOrAlias`,
+  and `canonicalAnnotationOrWritten`.
+- `AnnotatedTypeFactory#addAliasedTypeAnnotation` fails fast with `TypeSystemError`
+  if the canonical annotation is unsupported or the alias is already in the hierarchy.
+- The stubifier resolves nested annotations named through enclosing classes
+  (e.g. `@MethodHandle.PolymorphicSignature`).
+- `AnnotationFileUtil.allAnnotationFiles(String, ...)` was replaced by
+  `resolveAnnotationFileLocation(String)` plus `allAnnotationFiles(File, ...)`.
+- Checkers shipping their own annotated JDK no longer load `checker.jar`'s binary JDK on top.
+- Fixed `-AwarnUnneededSuppressions` failing to report an unneeded `@SuppressWarnings`
+  whose value is exactly a checker prefix.
+- Fixed a missing `EnsuresNonNullIf` import in `permit-nullness-assertion-exception.astub`
+  that caused spurious warnings.
+- Fixed capture conversion dropping primary qualifiers from type-parameter bounds
+  that are type-variable uses (`<A, U extends @Q A>`).
+- Fixed defects in restoring dataflow-refined captured type variable bounds when
+  dataflow stops refining them, and when wildcards have bare type-variable bounds.
 - `AnnotatedTypeMirror.toString(false)` now returns the same string as `toString()`,
   never suppressing details configured in the formatter.
 - `@AnnotatedFor` scope checking is unified and cached in
@@ -393,8 +367,6 @@ Other improvements and bug fixes:
   when component types differ.
 - No longer crashes on method references with raw receivers passed to generic
   methods, or when classes have supertypes with missing type-argument classes.
-- `BinaryStubFileGenerator` accepts a single file, a directory (or `--bundle`), or a jar.
-  `-AmergeStubsWithSource`, `-AstubWarnIfNotFound`, and `-AstubDebug` disable the binary path.
 
 **Closed issues:**
 
