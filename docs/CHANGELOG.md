@@ -3,6 +3,184 @@ Version 3.49.5-eisop2 (June ?, 2026)
 
 **User-visible changes:**
 
+Performance improvements relative to the 3.49.5-eisop1 release:
+- `allNullnessTests`: 1m24s vs. 2m16s
+- `checkNullness`: 1m28s vs. 3m40s
+- `checkInterning`: 0m35s vs. 1m13s
+- `test`: 7m15s vs. 12m40s (lots of build overhead)
+
+Several optimizations also reduce GC pressure and remove superlinear behavior,
+improving performance for large (e.g. auto-generated) files. Type-checking a
+class with many fields under the Initialization Checker (and any checker
+built on it, such as the Nullness Checker) is no longer quadratic in the
+number of fields with an initializer or constructor assignment: a class with
+4000 such fields now type-checks in about 11 seconds instead of about 26.
+
+The annotated JDK, and every built-in checker stub file, are now additionally
+distributed as pre-parsed binary files, so checker startup no longer
+text-parses them; this also removes JavaParser from checker initialization
+entirely. The text stubs remain in `checker.jar` as a fallback (expected to be
+dropped in a future release, shrinking `checker.jar` by about 1.5 MB), and any
+stub that cannot be represented in binary form falls back to text parsing.
+
+A stub file supplied with `-Astubs` may also have a binary form, generated
+with `org.checkerframework.framework.stubifier.BinaryStubFileGenerator`. See
+the manual's "Using a binary (pre-parsed) stub file" section for how to
+generate one and which command-line options disable the binary path.
+
+The Checker Framework warns when it falls back to text-parsing the annotated
+JDK or a checker's stub file; suppress with `-AsuppressWarnings=text.parsing`
+(see the manual for the more specific keys).
+
+The EISOP Checker Framework runs under JDK 27 and under JDK 28 b15 early access
+builds -- that is, it runs on version 27 and 28 JVMs.
+
+`-AcheckCastElementType` is documented as requiring that "parameterized type
+arguments and array elements are the same" in a cast, but only the type-argument
+half was implemented. Array components are now required to be invariant too, in
+array casts and in `instanceof` binding patterns. This closes an unsoundness:
+array components are mutable and their qualifiers are not reified, so a cast
+cannot check them and two differently-qualified references can alias one array,
+allowing a value to be written through one and read back at the other's
+qualifier. `instanceof` binding patterns are now checked under this option at
+all; the Nullness Checker verifies their component types and type arguments
+while accounting for the runtime null check that `instanceof` itself performs.
+
+The EISOP Checker Framework checks subtyping for a receiver's type arguments when
+invoking a method. The annotations on the type arguments of a method receiver
+(e.g., `void test(Box<@NonNull T> this)`) were previously ignored during
+type-checking.
+
+When the bounds of an intersection type (for example, the bound
+`<T extends @NonNull Object & @Nullable Serializable>`) carry conflicting
+qualifiers in the same hierarchy, the intersection's qualifier for that
+hierarchy is the qualifier of the first bound in source order, and every other
+bound's differing qualifier gets an `explicit.annotation.ignored` warning if
+it was written explicitly. That summary is then written back onto every bound
+(homogenization), so all bounds of the intersection carry the same qualifier
+per hierarchy. Homogenization is sound for value-property qualifiers and can
+be strictly more precise than keeping each bound's own qualifier, because a
+hierarchy that only one bound constrains is propagated to the others rather
+than defaulted away. First-bound-wins holds uniformly no matter how the first
+bound's qualifier arose: written explicitly, filled by an ordinary location
+default, or filled by a type-based default such as `@DefaultQualifierForUse`.
+This result is deterministic for a given compilation, but it depends on the
+source order of the bounds. A checker that wants an order-independent
+summary can override
+`AnnotatedTypeFactory#combineIntersectionBoundAnnotationsInHierarchy` to
+return, for example, the greatest lower bound; the hook is consulted whenever
+any two bounds' qualifiers conflict in a hierarchy, whether either qualifier
+is written or defaulted.
+
+The Checker Framework now issues an `annotation.on.supertype` error when an annotation supported by
+the checker is written as a main annotation on the superclass or interface in an `extends` or
+`implements` clause. Annotations on the supertype's type arguments remain permitted. A checker
+that permits main annotations on supertypes, such as the Tainting Checker, can override
+`BaseTypeVisitor#checkAnnotationOnSupertype(Tree)`.
+
+The Nullness Checker no longer recognizes `org.jspecify.nullness.NonNull`,
+`org.jspecify.nullness.Nullable`, or `org.jspecify.nullness.NullMarked` -- JSpecify's
+original, pre-1.0 package, deprecated since 2022. Use the corresponding
+`org.jspecify.annotations` annotation, which JSpecify moved to years ago and which the
+checker has recognized the whole time. The Checker also no longer recognizes
+`org.jspecify.nullness.NullnessUnspecified`, which has no such replacement: JSpecify's
+1.0 release dropped it outright, and `org.jspecify.annotations` has only `NonNull`,
+`Nullable`, `NullMarked`, and `NullUnmarked`.
+
+The Nullness Checker supports `-Amode=jspecify`, which makes it behave as JSpecify
+specifies: it checks only code in the scope of an `@AnnotatedFor`, treats `@NullMarked`
+as a defaulting annotation, and performs neither initialization checking nor map-key
+checking.  It also assumes that every called method is pure and that assertions are
+enabled, as if `-AassumePure` and `-AassumeAssertions=enabled` were supplied; an
+`-AassumeAssertions` value written alongside the mode takes precedence.  Code outside such a
+scope has JSpecify's unspecified nullness, which JSpecify lets each tool treat anywhere from
+strictly to leniently (see the
+["multiple worlds" discussion](https://jspecify.dev/docs/spec/#multiple-worlds) in the JSpecify
+specification).  The mode currently interprets it leniently, with permissive defaults, as if
+`-AusePermissiveDefaultsForUncheckedCode=source,bytecode` were supplied.  To use other defaults
+for unchecked code, write `-AusePermissiveDefaultsForUncheckedCode=-source,-bytecode` for the
+ordinary defaults, or `-AuseConservativeDefaultsForUncheckedCode` for conservative ones.
+
+The new `-Amode=<mode>` option turns on a checker-defined group of options.  A mode
+only sets an option the user did not, so an option written on the command line keeps
+the value given there.  Note that most options are on/off flags with no negative form,
+so writing one cannot turn off what a mode enables.  A checker declares its modes with
+`@SupportedModes` and defines them by overriding `SourceChecker.addOptionsForMode`.
+
+The Nullness Checker's new `-AjspecifyUnrecognizedLocations` command-line option (also enabled by
+`-Amode=jspecify`) reports an error for a nullness annotation written where JSpecify gives it no
+meaning: a class declaration, a wildcard, a type parameter, a pattern, a type argument of a
+receiver parameter's type, or the root type of a local variable, a resource variable, a cast, or a
+method reference. Each location has its own `jspecify.unrecognized.location.*` diagnostic key. The
+option is off by default because five of these locations -- a class declaration, a wildcard, and
+the root type of a local variable, a cast, and a method reference -- are meaningful to the Checker
+Framework itself.
+
+The Nullness Checker now treats JSpecify's `@NullMarked` as an alias for
+`@AnnotatedFor` scoped to nullness checking alone (not initialization or `@KeyFor`
+checking, which JSpecify does not define and which `-Amode=jspecify` already excludes),
+with `applyToSubpackages = false`, in addition to the existing `@DefaultQualifier` alias.
+Nullness-checking code under a `@NullMarked` element is therefore type-checked under
+`-AonlyAnnotatedFor` and `-AuseConservativeDefaultsForUncheckedCode=source` instead of
+being skipped. Because `@NullMarked` is retained in class files, this also applies to
+bytecode: a dependency compiled with `@NullMarked` is no longer treated as unchecked
+code under `-AuseConservativeDefaultsForUncheckedCode=bytecode`. A written
+`@AnnotatedFor("initialization")` or `@AnnotatedFor("keyfor")` still composes normally
+alongside `@NullMarked` (see below). `applyToSubpackages = false` matches JSpecify,
+which specifies that a `@NullMarked` package does not cover its subpackages, and
+matches the `@DefaultQualifier` alias. As before, `-AjspecifyNullMarkedAlias=false`
+disables all `@NullMarked` aliasing, now including this new alias.
+
+The Nullness Checker now also treats JSpecify's `@NullUnmarked` as the inverse of
+`@NullMarked`, in both of the ways `@NullMarked` is recognized. It undoes the
+enclosing `@NullMarked`'s `@NonNull` upper-bound default within its scope -- without
+which a type variable of a `@NullUnmarked` method was still bounded by `@NonNull`
+-- and it aliases to `@UnannotatedFor`, with the same checker name and the same
+`applyToSubpackages = false` as the `@NullMarked` aliases, so it subtracts its
+scope from an enclosing `@NullMarked` under `-AonlyAnnotatedFor` and
+`-AuseConservativeDefaultsForUncheckedCode=source`. Like `@NullMarked`, it is
+retained in class files, so this applies to bytecode too: a `@NullUnmarked`
+member of a `@NullMarked` dependency is again given conservative defaults under
+`-AuseConservativeDefaultsForUncheckedCode=bytecode`.
+
+Two new `nullness.on.*` errors are issued unconditionally, not just under
+`-AjspecifyUnrecognizedLocations`, because in both locations no legitimate use is possible, not
+merely one JSpecify does not recognize: `nullness.on.throws`, for a nullness annotation on a
+thrown type, as in `void m() throws @Nullable Exception` (JLS 14.18: `throw null` throws a
+`NullPointerException` instead, so a thrown object is never null); and
+`nullness.on.annotation.member`, for one on any component of an annotation interface member's
+return type, as in `@Nullable String value();` (JLS 9.7.1: an annotation element's value must be a
+constant expression, and `null` is never one, for any element type, so no usage can ever supply
+one). Unlike `nullness.on.exception.parameter`'s catch side, neither location declares a variable
+that a later reassignment could give a legitimate reason to annotate, so both are errors rather
+than warnings.
+
+`instanceof` now distinguishes a nullness annotation on the root of the tested type, or of a
+pattern variable's type (including inside a deconstruction pattern), from one on a component, such
+as an array's element type. A root annotation is still reported by `instanceof.nullable` or
+`instanceof.nonnull.redundant`. A component annotation is reported by the new `instanceof.component`
+when no pattern variable is bound, and otherwise -- since the checker uses it to refine the bound
+variable -- only under `-AjspecifyUnrecognizedLocations`, as `jspecify.unrecognized.location.pattern`.
+
+An `@AnnotatedFor` annotation written on an element now composes with any alias for
+`@AnnotatedFor` on that same element, rather than the written annotation hiding the alias.
+For example, `@AnnotatedFor("index") @NullMarked` is checked by both the Index Checker and
+the Nullness Checker. This composition is not something `@AnnotatedFor` being `@Repeatable`
+(below) could provide by itself: `@Repeatable` only lets javac collapse multiple literal
+instances of the same annotation type, and an alias produces an instance that was never
+written.
+
+`@AnnotatedFor` is now `@Repeatable`, so it may be written more than once at the same
+location. This lets different type systems be given different `applyToSubpackages`
+settings on one package, which its single `value()` array could not express on its own:
+```java
+@AnnotatedFor(value = "nullness", applyToSubpackages = false)
+@AnnotatedFor(value = "index", applyToSubpackages = true)
+package mypackage;
+```
+Listing multiple checker names in one `@AnnotatedFor`, as before, remains the right choice
+when they should share one `applyToSubpackages` setting.
+
 The new command-line option `-AusePermissiveDefaultsForUncheckedCode` takes `source` and/or
 `bytecode` arguments, like `-AuseConservativeDefaultsForUncheckedCode`, but applies permissive
 defaults to code outside the scope of an `@AnnotatedFor`: top for method parameters and upper
@@ -10,19 +188,72 @@ bounds, bottom for method returns, fields, and lower bounds.  It also suppresses
 warnings in unannotated source code, like `-AuseConservativeDefaultsForUncheckedCode=source`.
 A given kind of code cannot be defaulted both permissively and conservatively.
 
-Command-line options prefixed with a checker name (such as `-ANullnessChecker_lint=...` or
-`-ANullnessChecker_useConservativeDefaultsForUncheckedCode=...`) are now inherited by that
-checker's subcheckers (such as `NullnessNoInitSubchecker`). More specific options take precedence:
-a subchecker-specific option overrides a parent-checker option, and a checker-prefixed option
-overrides an unprefixed option.
+A conflicting `@DefaultQualifier` pair on an element read from bytecode is no longer an
+error. It is reported as a warning under the new `-AwarnBytecodeConflicts`, and not at all
+without it. Such a declaration is in a library the user cannot edit, and which bytecode
+elements get examined depends on what the compilation happens to touch, so the coverage was
+never complete enough to rely on.
 
-A checker subclass now inherits `@StubFiles` from its nearest annotated superclass if not
-explicitly overridden. In compound checkers, stub files are shared bidirectionally: parent
-checkers include stub files declared by their subcheckers, and subcheckers automatically
-inherit stub files declared by their enclosing parent checkers.
+The `-AinferenceWorkBudget` work budget now also counts JLS 18.4 variable
+resolution and substitution back into a type's structure, not just JLS 18.3
+bound incorporation. A generic invocation resolving many mutually dependent
+inference variables together -- for example, many mutually F-bounded type
+parameters resolved by one wildcarded generic invocation, the shape of
+Guava's `MapMakerInternalMap<K, V, E extends InternalEntry<K, V, E>, S
+extends Segment<K, V, E, S>>` -- could take many seconds or effectively hang
+the compiler with none of that work counted against the budget, so the
+budget never aborted it.
 
-A checker subclass now automatically inherits and combines `@RelevantJavaTypes` annotations
-declared across its superclasses in the checker class hierarchy.
+Substituting a resolved instantiation back into a type's structure is now
+charged against `-AinferenceWorkBudget` for the *size* of the instantiations
+substituted, not only for how many there are. With mutually F-bounded type
+parameters each instantiation embeds a copy of every earlier one, so the
+instantiations double in size with each variable resolved while their number
+grows only linearly; counting only the number let such a chain run for
+minutes before the budget noticed. On a chain of 12 mutually F-bounded type
+parameters this cuts a 40-repetition compile from 200 GB of allocation to
+9.8 GB; the largest charge measured on real code is 1941 units (Guava, with
+the Nullness Checker), against the default budget of 10000.
+
+New command-line option `-AignoreDeadCode` skips checking dead (unreachable) code: literal-condition
+branches such as `if (false)`, and code that dataflow determines can never be reached (such as a
+catch block for an exception type the try block can never throw). This option is not enabled by
+default, since dead code might become reachable after a future edit.
+
+Added a new lint option, `-Alint=monotonicNonNullOnStatic`, under which the
+Nullness Checker issues a `monotonic.on.static` warning when `@MonotonicNonNull`
+is written on a `static` field, which the manual documents as a code smell.  The
+option is off by default because such a field functions correctly.
+
+New command-line option `-AassumeAssertions=enabled|disabled|neither` states what to assume
+about whether assertions are enabled at run time. `neither`, the default, accounts for both
+cases, as before. It replaces `-AassumeAssertionsAreEnabled` and
+`-AassumeAssertionsAreDisabled`, which are deprecated: each is still honored, but passing one
+issues a warning that names its replacement.
+
+The `-AaliasedTypeAnnos` command-line option now reports a `UserError` if its canonical
+annotation is not a type annotation, or if its alias is itself a qualifier of the type system
+being run. A canonical qualifier that the running type system does not support is skipped
+rather than reported: the option is global, so each type factory in a checker hierarchy also
+receives the aliases written for the others.
+
+Two `@DefaultQualifier` annotations on the same declaration that set the same
+`TypeUseLocation` in the same qualifier hierarchy to different qualifiers are now reported
+as a `conflicting.defaults` error, and the one written later in the source is ignored.
+Previously both were kept and which one took effect depended on the order of their
+annotation class names. Two that name the same qualifier are redundant, not conflicting,
+and remain legal.
+
+An annotation that a checker registers as an alias for `@DefaultQualifier`, such as
+JSpecify's `@NullMarked` for the Nullness Checker, now participates at its own position in
+the source, alongside the `@DefaultQualifier` annotations written on the same declaration.
+Two consequences. An alias is no longer dropped when a `@DefaultQualifier` is also written
+on the declaration; previously the written annotation hid it entirely, so on
+`@NullMarked @DefaultQualifier(value = Nullable.class, locations = FIELD)` the `@NullMarked`
+default for upper bounds was silently lost. And when an alias and a written
+`@DefaultQualifier` do conflict, source order decides: whichever appears first wins, so
+reordering the two annotations changes the result. Previously the alias always won against
+two or more written `@DefaultQualifier` annotations, and always lost against one.
 
 Specifying a location in `@DefaultQualifier` that is prohibited by the qualifier's
 `@TargetLocations` meta-annotation is now reported as a compiler error
@@ -38,77 +269,18 @@ at all locations by default. Programmatic defaults (`addCheckedCodeDefault`,
 `addUncheckedCodeDefault`, `addElementDefault`) specifying a location prohibited by
 `@ProgrammaticDefaultLocations` or `@TargetLocations` now throw a `TypeSystemError`.
 
-A binary stub file is no longer packaged after the `.astub` file it was generated from is
-renamed or deleted.  The stale `.bin.gz` shipped in the jar and was read in preference to the
-text stub that no longer existed, so the removed annotations kept being applied.
+When `@DefaultQualifier` on the classpath lacks the `applyToSubpackages` element (for example,
+when resolved from upstream typetools `checker-qual` rather than EISOP's fork), the framework
+now degrades gracefully: it issues a note diagnostic once per checker instance explaining that
+package defaults will apply to subpackages unconditionally, and continues type-checking without
+crashing.
 
-A checker that resolves a tree from `postAnalyze` no longer poisons the tree-path cache.
-`AnnotatedTypeFactory.getPath` caches a failed lookup, and `postAnalyze` ran with the visitor
-tree path of whatever the visitor last set rather than of the code being analyzed.
-
-A bad argument to a command-line option that the checker reads as it starts up is now
-reported as an ordinary compiler error.  Previously `-AwarnUnneededSuppressionsExceptions`
-without an argument, or with one that is not a regular expression, was reported as
-"An annotation processor threw an uncaught exception", followed by a stack trace.
-An error from a checker's `typeProcessingOver` is now reported the same way.
-
-A diagnostic reported on a tree that the CFG synthesized for a conversion now points at the
-construct the conversion came from, rather than at the first character of the file.
-
-The method invocations that the CFG synthesizes for boxing, unboxing, enhanced for loops and
-try-with-resources are now type-checked.  Previously a type system's declaration of
-`Integer.valueOf`, `Integer.intValue`, `Iterable.iterator` or `close` was enforced for an
-explicit call and ignored for the conversion that desugars to it, so a type system could not
-constrain which values may be converted.
-
-The Fenum Checker now preserves a fake enum across boxing and unboxing.  The wrapper classes'
-`valueOf` and `xxxValue` methods are annotated `@PolyFenum`, so a `@Fenum` value can be boxed
-and unboxed without laundering it into a different fake enum.
-
-Every continuous integration run now attaches the jars it built to the run, so
-the latest development version, or a proposed fix, can be tried out without
-building it.  See the "Development jars without building" section of the manual.
-
-The EISOP Checker Framework runs under JDK 27 and under JDK 28 b15 early access
-builds -- that is, it runs on version 27 and 28 JVMs.
-
-New command-line option `-AassumeAssertions=enabled|disabled|neither` states what to assume
-about whether assertions are enabled at run time. `neither`, the default, accounts for both
-cases, as before. It replaces `-AassumeAssertionsAreEnabled` and
-`-AassumeAssertionsAreDisabled`, which are deprecated: each is still honored, but passing one
-issues a warning that names its replacement.
-
-A checker can now examine a package declaration. `AbstractTypeProcessor` dropped the
-analysis event for a `package-info.java`, so no checker could ever visit one and a
-declaration annotation written on a `package` clause went unchecked. Three checks that
-apply to a package therefore did not run there, and now do:
-
-- A conflicting `@AnnotatedFor`/`@UnannotatedFor` pair on a package was reported only when
-  some class in that package was also compiled, because the check had to be reached
-  through one.
-- A conflicting `@DefaultQualifier` pair on a package was likewise reported only then, and
-  for the same reason: the diagnostic fell out of resolving the package's defaults, which
-  nothing does when no class in the package is compiled.
-- A conflicting `@HasQualifierParameter`/`@NoQualifierParameter` pair on a package, and a
-  `@HasQualifierParameter` whose argument is not a top qualifier, were never checked at
-  all. Both annotations' `@Target` includes `PACKAGE`.
-
-A conflicting `@DefaultQualifier` pair on an element read from bytecode is no longer an
-error. It is reported as a warning under the new `-AwarnBytecodeConflicts`, and not at all
-without it. Such a declaration is in a library the user cannot edit, and which bytecode
-elements get examined depends on what the compilation happens to touch, so the coverage was
-never complete enough to rely on.
-
-`-AcheckCastElementType` is documented as requiring that "parameterized type
-arguments and array elements are the same" in a cast, but only the type-argument
-half was implemented. Array components are now required to be invariant too, in
-array casts and in `instanceof` binding patterns. This closes an unsoundness:
-array components are mutable and their qualifiers are not reified, so a cast
-cannot check them and two differently-qualified references can alias one array,
-allowing a value to be written through one and read back at the other's
-qualifier. `instanceof` binding patterns are now checked under this option at
-all; the Nullness Checker verifies their component types and type arguments
-while accounting for the runtime null check that `instanceof` itself performs.
+`AnnotatedFor`, `HasQualifierParameter`, and `ReportUse` gain the
+`applyToSubpackages` element that `DefaultQualifier` already had. It says whether
+an annotation written on a package also applies to that package's subpackages,
+and defaults to `true`, so existing code is unaffected. Setting it to false limits
+only that annotation; an applicable annotation on an enclosing package still
+applies.
 
 Writing both an `@AnnotatedFor` and an `@UnannotatedFor` that name the same checker
 on one declaration is now a `conflicting.annotatedfor` warning: the two contradict
@@ -134,6 +306,12 @@ also applies to separately compiled subpackages, unless it sets
 which classes the authors have annotated for a type system; the annotation
 does not record whether a checker was run.
 
+Command-line options prefixed with a checker name (such as `-ANullnessChecker_lint=...` or
+`-ANullnessChecker_useConservativeDefaultsForUncheckedCode=...`) are now inherited by that
+checker's subcheckers (such as `NullnessNoInitSubchecker`). More specific options take precedence:
+a subchecker-specific option overrides a parent-checker option, and a checker-prefixed option
+overrides an unprefixed option.
+
 A checker without a `@SuppressWarningsPrefix` annotation now accepts as a
 `@SuppressWarnings` prefix the default prefix of every checker that runs it as a
 subchecker, in addition to the prefix derived from its own class name. These are the
@@ -142,67 +320,28 @@ which `@AnnotatedFor` annotations apply to it. For example, `@SuppressWarnings("
 now suppresses Constant Value Checker errors reported while running the Index Checker,
 and `@SuppressWarnings("nonempty")` now also suppresses Optional Checker errors.
 
-The Nullness Checker now also treats JSpecify's `@NullUnmarked` as the inverse of
-`@NullMarked`, in both of the ways `@NullMarked` is recognized. It undoes the
-enclosing `@NullMarked`'s `@NonNull` upper-bound default within its scope -- without
-which a type variable of a `@NullUnmarked` method was still bounded by `@NonNull`
--- and it aliases to `@UnannotatedFor`, with the same checker name and the same
-`applyToSubpackages = false` as the `@NullMarked` aliases, so it subtracts its
-scope from an enclosing `@NullMarked` under `-AonlyAnnotatedFor` and
-`-AuseConservativeDefaultsForUncheckedCode=source`. Like `@NullMarked`, it is
-retained in class files, so this applies to bytecode too: a `@NullUnmarked`
-member of a `@NullMarked` dependency is again given conservative defaults under
-`-AuseConservativeDefaultsForUncheckedCode=bytecode`.
+A checker subclass now inherits `@StubFiles` from its nearest annotated superclass if not
+explicitly overridden. In compound checkers, stub files are shared bidirectionally: parent
+checkers include stub files declared by their subcheckers, and subcheckers automatically
+inherit stub files declared by their enclosing parent checkers.
 
-Two `@DefaultQualifier` annotations on the same declaration that set the same
-`TypeUseLocation` in the same qualifier hierarchy to different qualifiers are now reported
-as a `conflicting.defaults` error, and the one written later in the source is ignored.
-Previously both were kept and which one took effect depended on the order of their
-annotation class names. Two that name the same qualifier are redundant, not conflicting,
-and remain legal.
+A checker subclass now automatically inherits and combines `@RelevantJavaTypes` annotations
+declared across its superclasses in the checker class hierarchy.
 
-An annotation that a checker registers as an alias for `@DefaultQualifier`, such as
-JSpecify's `@NullMarked` for the Nullness Checker, now participates at its own position in
-the source, alongside the `@DefaultQualifier` annotations written on the same declaration.
-Two consequences. An alias is no longer dropped when a `@DefaultQualifier` is also written
-on the declaration; previously the written annotation hid it entirely, so on
-`@NullMarked @DefaultQualifier(value = Nullable.class, locations = FIELD)` the `@NullMarked`
-default for upper bounds was silently lost. And when an alias and a written
-`@DefaultQualifier` do conflict, source order decides: whichever appears first wins, so
-reordering the two annotations changes the result. Previously the alias always won against
-two or more written `@DefaultQualifier` annotations, and always lost against one.
+A checker can now examine a package declaration. `AbstractTypeProcessor` dropped the
+analysis event for a `package-info.java`, so no checker could ever visit one and a
+declaration annotation written on a `package` clause went unchecked. Three checks that
+apply to a package therefore did not run there, and now do:
 
-The Nullness Checker now treats JSpecify's `@NullMarked` as an alias for
-`@AnnotatedFor` scoped to nullness checking alone (not initialization or `@KeyFor`
-checking, which JSpecify does not define and which `-Amode=jspecify` already excludes),
-with `applyToSubpackages = false`, in addition to the existing `@DefaultQualifier` alias.
-Nullness-checking code under a `@NullMarked` element is therefore type-checked under
-`-AonlyAnnotatedFor` and `-AuseConservativeDefaultsForUncheckedCode=source` instead of
-being skipped. Because `@NullMarked` is retained in class files, this also applies to
-bytecode: a dependency compiled with `@NullMarked` is no longer treated as unchecked
-code under `-AuseConservativeDefaultsForUncheckedCode=bytecode`. A written
-`@AnnotatedFor("initialization")` or `@AnnotatedFor("keyfor")` still composes normally
-alongside `@NullMarked` (see below). `applyToSubpackages = false` matches JSpecify,
-which specifies that a `@NullMarked` package does not cover its subpackages, and
-matches the `@DefaultQualifier` alias. As before, `-AjspecifyNullMarkedAlias=false`
-disables all `@NullMarked` aliasing, now including this new alias.
-
-An `@AnnotatedFor` annotation written on an element now composes with any alias for
-`@AnnotatedFor` on that same element, rather than the written annotation hiding the alias.
-For example, `@AnnotatedFor("index") @NullMarked` is checked by both the Index Checker and
-the Nullness Checker. This composition is not something `@AnnotatedFor` being `@Repeatable`
-(below) could provide by itself: `@Repeatable` only lets javac collapse multiple literal
-instances of the same annotation type, and an alias produces an instance that was never
-written.
-
-The Nullness Checker no longer recognizes `org.jspecify.nullness.NonNull`,
-`org.jspecify.nullness.Nullable`, or `org.jspecify.nullness.NullMarked` -- JSpecify's
-original, pre-1.0 package, deprecated since 2022. Use the corresponding
-`org.jspecify.annotations` annotation, which JSpecify moved to years ago and which the
-checker has recognized the whole time. The Checker also no longer recognizes
-`org.jspecify.nullness.NullnessUnspecified`, which has no such replacement: JSpecify's
-1.0 release dropped it outright, and `org.jspecify.annotations` has only `NonNull`,
-`Nullable`, `NullMarked`, and `NullUnmarked`.
+- A conflicting `@AnnotatedFor`/`@UnannotatedFor` pair on a package was reported only when
+  some class in that package was also compiled, because the check had to be reached
+  through one.
+- A conflicting `@DefaultQualifier` pair on a package was likewise reported only then, and
+  for the same reason: the diagnostic fell out of resolving the package's defaults, which
+  nothing does when no class in the package is compiled.
+- A conflicting `@HasQualifierParameter`/`@NoQualifierParameter` pair on a package, and a
+  `@HasQualifierParameter` whose argument is not a top qualifier, were never checked at
+  all. Both annotations' `@Target` includes `PACKAGE`.
 
 When the Initialization Checker rejects a method call on a partially-initialized receiver, it
 now reports `initialization.method.invocation.invalid`, which names the fields that are still
@@ -223,50 +362,42 @@ when `@A` is the interface's declaration bound. An anonymous class implementing 
 interface has no declared constructor, so the warning was previously issued whether or
 not the annotation matched the bound.
 
-The Nullness Checker's new `-AjspecifyUnrecognizedLocations` command-line option (also enabled by
-`-Amode=jspecify`) reports an error for a nullness annotation written where JSpecify gives it no
-meaning: a class declaration, a wildcard, a type parameter, a pattern, a type argument of a
-receiver parameter's type, or the root type of a local variable, a resource variable, a cast, or a
-method reference. Each location has its own `jspecify.unrecognized.location.*` diagnostic key. The
-option is off by default because five of these locations -- a class declaration, a wildcard, and
-the root type of a local variable, a cast, and a method reference -- are meaningful to the Checker
-Framework itself.
+A checker that viewpoint-adapts can now extend or implement a type whose declaration bound is
+receiver-dependent: the supertype's bound is adapted to the subtype's before the two are compared.
+`@A class Y extends X {}` was previously rejected when `X`'s bound was receiver-dependent.
 
-Two new `nullness.on.*` errors are issued unconditionally, not just under
-`-AjspecifyUnrecognizedLocations`, because in both locations no legitimate use is possible, not
-merely one JSpecify does not recognize: `nullness.on.throws`, for a nullness annotation on a
-thrown type, as in `void m() throws @Nullable Exception` (JLS 14.18: `throw null` throws a
-`NullPointerException` instead, so a thrown object is never null); and
-`nullness.on.annotation.member`, for one on any component of an annotation interface member's
-return type, as in `@Nullable String value();` (JLS 9.7.1: an annotation element's value must be a
-constant expression, and `null` is never one, for any element type, so no usage can ever supply
-one). Unlike `nullness.on.exception.parameter`'s catch side, neither location declares a variable
-that a later reassignment could give a legitimate reason to annotate, so both are errors rather
-than warnings.
+The Nullness Checker now refines `Queue.poll()`, `Queue.peek()`,
+`Deque.pollFirst()`, `Deque.pollLast()`, `Deque.peekFirst()`, and
+`Deque.peekLast()` to `@NonNull` after a false `isEmpty()` check for queues
+and deques with `@NonNull` element types.
 
-`instanceof` now distinguishes a nullness annotation on the root of the tested type, or of a
-pattern variable's type (including inside a deconstruction pattern), from one on a component, such
-as an array's element type. A root annotation is still reported by `instanceof.nullable` or
-`instanceof.nonnull.redundant`. A component annotation is reported by the new `instanceof.component`
-when no pattern variable is bound, and otherwise -- since the checker uses it to refine the bound
-variable -- only under `-AjspecifyUnrecognizedLocations`, as `jspecify.unrecognized.location.pattern`.
+The Nullness Checker now checks if `Arrays.copyOf` is called with a
+side-effecting array expression, avoiding unsound behavior. It now also issues
+a warning message explaining why `copyOf` used a `@Nullable` return type,
+making errors with `copyOf` easier to fix.
 
-The `-AaliasedTypeAnnos` command-line option now reports a `UserError` if its canonical
-annotation is not a type annotation, or if its alias is itself a qualifier of the type system
-being run. A canonical qualifier that the running type system does not support is skipped
-rather than reported: the option is global, so each type factory in a checker hierarchy also
-receives the aliases written for the others.
+The Nullness Checker's `dereference.of.nullable` diagnostic is now reported at the
+member-select or `new` expression that performs the dereference, rather than at
+the start of the possibly-null receiver expression being dereferenced -- for
+example, in `firstObj.intList.add(1)` where `firstObj.intList` is possibly null,
+the marker now points at the access of `.add`, not at the start of `firstObj`.
+The message text is unchanged; only the reported source position moves.
 
-`@AnnotatedFor` is now `@Repeatable`, so it may be written more than once at the same
-location. This lets different type systems be given different `applyToSubpackages`
-settings on one package, which its single `value()` array could not express on its own:
-```java
-@AnnotatedFor(value = "nullness", applyToSubpackages = false)
-@AnnotatedFor(value = "index", applyToSubpackages = true)
-package mypackage;
-```
-Listing multiple checker names in one `@AnnotatedFor`, as before, remains the right choice
-when they should share one `applyToSubpackages` setting.
+The opt-in `sometimes-nullable.astub` now covers signature-polymorphic methods,
+where whether null is legal depends on the field or parameter type the handle was
+created for: the 19 `VarHandle` access modes a reference-typed field supports, and
+`MethodHandle`'s `invoke`, `invokeExact`, `invokeWithArguments` and `bindTo`
+arguments. `VarHandle`'s `getAndAdd` and `getAndBitwise` families are excluded,
+being defined only for numeric and bitwise types.
+
+A binary stub file is no longer packaged after the `.astub` file it was generated from is
+renamed or deleted.  The stale `.bin.gz` shipped in the jar and was read in preference to the
+text stub that no longer existed, so the removed annotations kept being applied.
+
+The Checker Framework can now run as an Error Prone plugin (the `eisopcf` check), as an
+alternative to running it as a standalone annotation processor.  It is published as
+`io.github.eisop:framework-errorprone` and requires JDK 21 or later.  See the manual's
+"Error Prone" section.
 
 Two new Maven Central artifacts support writing a custom checker without
 depending on the whole `checker` artifact: `io.github.eisop:framework`, which
@@ -308,163 +439,32 @@ The shaded jars no longer contain a `module-info.class` or jsr305's
 Recognition of `javax.annotation.Nullable`, `@Nonnull` and `@CheckForNull` in
 user code is unaffected.
 
-The Checker Framework can now run as an Error Prone plugin (the `eisopcf` check), as an
-alternative to running it as a standalone annotation processor.  It is published as
-`io.github.eisop:framework-errorprone` and requires JDK 21 or later.  See the manual's
-"Error Prone" section.
+Every continuous integration run now attaches the jars it built to the run, so
+the latest development version, or a proposed fix, can be tried out without
+building it.  See the "Development jars without building" section of the manual.
 
-The opt-in `sometimes-nullable.astub` now covers signature-polymorphic methods,
-where whether null is legal depends on the field or parameter type the handle was
-created for: the 19 `VarHandle` access modes a reference-typed field supports, and
-`MethodHandle`'s `invoke`, `invokeExact`, `invokeWithArguments` and `bindTo`
-arguments. `VarHandle`'s `getAndAdd` and `getAndBitwise` families are excluded,
-being defined only for numeric and bitwise types.
+A checker that resolves a tree from `postAnalyze` no longer poisons the tree-path cache.
+`AnnotatedTypeFactory.getPath` caches a failed lookup, and `postAnalyze` ran with the visitor
+tree path of whatever the visitor last set rather than of the code being analyzed.
 
-`AnnotatedFor`, `HasQualifierParameter`, and `ReportUse` gain the
-`applyToSubpackages` element that `DefaultQualifier` already had. It says whether
-an annotation written on a package also applies to that package's subpackages,
-and defaults to `true`, so existing code is unaffected. Setting it to false limits
-only that annotation; an applicable annotation on an enclosing package still
-applies.
+A bad argument to a command-line option that the checker reads as it starts up is now
+reported as an ordinary compiler error.  Previously `-AwarnUnneededSuppressionsExceptions`
+without an argument, or with one that is not a regular expression, was reported as
+"An annotation processor threw an uncaught exception", followed by a stack trace.
+An error from a checker's `typeProcessingOver` is now reported the same way.
 
-When `@DefaultQualifier` on the classpath lacks the `applyToSubpackages` element (for example,
-when resolved from upstream typetools `checker-qual` rather than EISOP's fork), the framework
-now degrades gracefully: it issues a note diagnostic once per checker instance explaining that
-package defaults will apply to subpackages unconditionally, and continues type-checking without
-crashing.
+A diagnostic reported on a tree that the CFG synthesized for a conversion now points at the
+construct the conversion came from, rather than at the first character of the file.
 
-The new `-Amode=<mode>` option turns on a checker-defined group of options.  A mode
-only sets an option the user did not, so an option written on the command line keeps
-the value given there.  Note that most options are on/off flags with no negative form,
-so writing one cannot turn off what a mode enables.  A checker declares its modes with
-`@SupportedModes` and defines them by overriding `SourceChecker.addOptionsForMode`.
+The method invocations that the CFG synthesizes for boxing, unboxing, enhanced for loops and
+try-with-resources are now type-checked.  Previously a type system's declaration of
+`Integer.valueOf`, `Integer.intValue`, `Iterable.iterator` or `close` was enforced for an
+explicit call and ignored for the conversion that desugars to it, so a type system could not
+constrain which values may be converted.
 
-The Nullness Checker supports `-Amode=jspecify`, which makes it behave as JSpecify
-specifies: it checks only code in the scope of an `@AnnotatedFor`, treats `@NullMarked`
-as a defaulting annotation, and performs neither initialization checking nor map-key
-checking.  It also assumes that every called method is pure and that assertions are
-enabled, as if `-AassumePure` and `-AassumeAssertions=enabled` were supplied; an
-`-AassumeAssertions` value written alongside the mode takes precedence.  Code outside such a
-scope has JSpecify's unspecified nullness, which JSpecify lets each tool treat anywhere from
-strictly to leniently (see the
-["multiple worlds" discussion](https://jspecify.dev/docs/spec/#multiple-worlds) in the JSpecify
-specification).  The mode currently interprets it leniently, with permissive defaults, as if
-`-AusePermissiveDefaultsForUncheckedCode=source,bytecode` were supplied.  To use other defaults
-for unchecked code, write `-AusePermissiveDefaultsForUncheckedCode=-source,-bytecode` for the
-ordinary defaults, or `-AuseConservativeDefaultsForUncheckedCode` for conservative ones.
-
-The Checker Framework now issues an `annotation.on.supertype` error when an annotation supported by
-the checker is written as a main annotation on the superclass or interface in an `extends` or
-`implements` clause. Annotations on the supertype's type arguments remain permitted. A checker
-that permits main annotations on supertypes, such as the Tainting Checker, can override
-`BaseTypeVisitor#checkAnnotationOnSupertype(Tree)`.
-
-A checker that viewpoint-adapts can now extend or implement a type whose declaration bound is
-receiver-dependent: the supertype's bound is adapted to the subtype's before the two are compared.
-`@A class Y extends X {}` was previously rejected when `X`'s bound was receiver-dependent.
-
-The Nullness Checker now refines `Queue.poll()`, `Queue.peek()`,
-`Deque.pollFirst()`, `Deque.pollLast()`, `Deque.peekFirst()`, and
-`Deque.peekLast()` to `@NonNull` after a false `isEmpty()` check for queues
-and deques with `@NonNull` element types.
-
-Performance improvements relative to the 3.49.5-eisop1 release:
-- `allNullnessTests`: 1m24s vs. 2m16s
-- `checkNullness`: 1m28s vs. 3m40s
-- `checkInterning`: 0m35s vs. 1m13s
-- `test`: 7m15s vs. 12m40s (lots of build overhead)
-
-Several optimizations also reduce GC pressure and remove superlinear behavior,
-improving performance for large (e.g. auto-generated) files. Type-checking a
-class with many fields under the Initialization Checker (and any checker
-built on it, such as the Nullness Checker) is no longer quadratic in the
-number of fields with an initializer or constructor assignment: a class with
-4000 such fields now type-checks in about 11 seconds instead of about 26.
-
-The annotated JDK, and every built-in checker stub file, are now additionally
-distributed as pre-parsed binary files, so checker startup no longer
-text-parses them; this also removes JavaParser from checker initialization
-entirely. The text stubs remain in `checker.jar` as a fallback (expected to be
-dropped in a future release, shrinking `checker.jar` by about 1.5 MB), and any
-stub that cannot be represented in binary form falls back to text parsing.
-
-A stub file supplied with `-Astubs` may also have a binary form, generated
-with `org.checkerframework.framework.stubifier.BinaryStubFileGenerator`. See
-the manual's "Using a binary (pre-parsed) stub file" section for how to
-generate one and which command-line options disable the binary path.
-
-The Checker Framework warns when it falls back to text-parsing the annotated
-JDK or a checker's stub file; suppress with `-AsuppressWarnings=text.parsing`
-(see the manual for the more specific keys).
-
-The Nullness Checker now checks if `Arrays.copyOf` is called with a
-side-effecting array expression, avoiding unsound behavior. It now also issues
-a warning message explaining why `copyOf` used a `@Nullable` return type,
-making errors with `copyOf` easier to fix.
-
-When the bounds of an intersection type (for example, the bound
-`<T extends @NonNull Object & @Nullable Serializable>`) carry conflicting
-qualifiers in the same hierarchy, the intersection's qualifier for that
-hierarchy is the qualifier of the first bound in source order, and every other
-bound's differing qualifier gets an `explicit.annotation.ignored` warning if
-it was written explicitly. That summary is then written back onto every bound
-(homogenization), so all bounds of the intersection carry the same qualifier
-per hierarchy. Homogenization is sound for value-property qualifiers and can
-be strictly more precise than keeping each bound's own qualifier, because a
-hierarchy that only one bound constrains is propagated to the others rather
-than defaulted away. First-bound-wins holds uniformly no matter how the first
-bound's qualifier arose: written explicitly, filled by an ordinary location
-default, or filled by a type-based default such as `@DefaultQualifierForUse`.
-This result is deterministic for a given compilation, but it depends on the
-source order of the bounds. A checker that wants an order-independent
-summary can override
-`AnnotatedTypeFactory#combineIntersectionBoundAnnotationsInHierarchy` to
-return, for example, the greatest lower bound; the hook is consulted whenever
-any two bounds' qualifiers conflict in a hierarchy, whether either qualifier
-is written or defaulted.
-
-Added a new lint option, `-Alint=monotonicNonNullOnStatic`, under which the
-Nullness Checker issues a `monotonic.on.static` warning when `@MonotonicNonNull`
-is written on a `static` field, which the manual documents as a code smell.  The
-option is off by default because such a field functions correctly.
-
-The EISOP Checker Framework checks subtyping for a receiver's type arguments when
-invoking a method. The annotations on the type arguments of a method receiver
-(e.g., `void test(Box<@NonNull T> this)`) were previously ignored during
-type-checking.
-
-The `-AinferenceWorkBudget` work budget now also counts JLS 18.4 variable
-resolution and substitution back into a type's structure, not just JLS 18.3
-bound incorporation. A generic invocation resolving many mutually dependent
-inference variables together -- for example, many mutually F-bounded type
-parameters resolved by one wildcarded generic invocation, the shape of
-Guava's `MapMakerInternalMap<K, V, E extends InternalEntry<K, V, E>, S
-extends Segment<K, V, E, S>>` -- could take many seconds or effectively hang
-the compiler with none of that work counted against the budget, so the
-budget never aborted it.
-
-Substituting a resolved instantiation back into a type's structure is now
-charged against `-AinferenceWorkBudget` for the *size* of the instantiations
-substituted, not only for how many there are. With mutually F-bounded type
-parameters each instantiation embeds a copy of every earlier one, so the
-instantiations double in size with each variable resolved while their number
-grows only linearly; counting only the number let such a chain run for
-minutes before the budget noticed. On a chain of 12 mutually F-bounded type
-parameters this cuts a 40-repetition compile from 200 GB of allocation to
-9.8 GB; the largest charge measured on real code is 1941 units (Guava, with
-the Nullness Checker), against the default budget of 10000.
-
-New command-line option `-AignoreDeadCode` skips checking dead (unreachable) code: literal-condition
-branches such as `if (false)`, and code that dataflow determines can never be reached (such as a
-catch block for an exception type the try block can never throw). This option is not enabled by
-default, since dead code might become reachable after a future edit.
-
-The Nullness Checker's `dereference.of.nullable` diagnostic is now reported at the
-member-select or `new` expression that performs the dereference, rather than at
-the start of the possibly-null receiver expression being dereferenced -- for
-example, in `firstObj.intList.add(1)` where `firstObj.intList` is possibly null,
-the marker now points at the access of `.add`, not at the start of `firstObj`.
-The message text is unchanged; only the reported source position moves.
+The Fenum Checker now preserves a fake enum across boxing and unboxing.  The wrapper classes'
+`valueOf` and `xxxValue` methods are annotated `@PolyFenum`, so a `@Fenum` value can be boxed
+and unboxed without laundering it into a different fake enum.
 
 **Implementation details:**
 
