@@ -33,6 +33,23 @@ running as a standalone annotation processor. It is published as
 `io.github.eisop:framework-errorprone` and requires JDK 21 or later. See the
 manual's "Error Prone" section.
 
+Two new Maven Central artifacts support writing a custom checker without
+depending on the whole `checker` artifact: `io.github.eisop:framework` and
+`io.github.eisop:framework-all` (the same dependencies bundled and
+relocated). See the manual's "Declaring dependencies for a custom checker"
+section.
+
+Several packaging bugs, all rooted in a qualifier class duplicated on the
+classpath or a jar depending on classes it also bundles, are fixed: the
+published artifacts no longer transitively pull in
+`org.checkerframework:checker-qual`; Gradle consumers of
+`io.github.eisop:checker` now resolve the same jar Maven consumers get,
+instead of a redundant `-all.jar`; five annotation names that ShadowJar had
+rewritten (breaking Lombok's/codehaus's `@NotNull`/`@Nullable` and
+`@org.plumelib.options.Option` recognition) are fixed; and the shaded jars
+are ~2 MB smaller and no longer bundle a stray `module-info.class` or jsr305
+classes.
+
 Checks subtyping for a receiver's type arguments when invoking a method. The
 annotations on the type arguments of a method receiver (e.g.,
 `void test(Box<@NonNull T> this)`) were previously ignored during type-checking.
@@ -181,23 +198,6 @@ suppresses Constant Value Checker errors under the Index Checker).
 The method invocations the CFG synthesizes for boxing, unboxing,
 enhanced-for, and try-with-resources are now type-checked too, and diagnostics
 point at the offending source construct rather than the beginning of the file.
-
-Two new Maven Central artifacts support writing a custom checker without
-depending on the whole `checker` artifact: `io.github.eisop:framework` and
-`io.github.eisop:framework-all` (the same dependencies bundled and
-relocated). See the manual's "Declaring dependencies for a custom checker"
-section.
-
-Several packaging bugs, all rooted in a qualifier class duplicated on the
-classpath or a jar depending on classes it also bundles, are fixed: the
-published artifacts no longer transitively pull in
-`org.checkerframework:checker-qual`; Gradle consumers of
-`io.github.eisop:checker` now resolve the same jar Maven consumers get,
-instead of a redundant `-all.jar`; five annotation names that ShadowJar had
-rewritten (breaking Lombok's/codehaus's `@NotNull`/`@Nullable` and
-`@org.plumelib.options.Option` recognition) are fixed; and the shaded jars
-are ~2 MB smaller and no longer bundle a stray `module-info.class` or jsr305
-classes.
 
 **Implementation details:**
 
