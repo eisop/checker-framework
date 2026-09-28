@@ -161,12 +161,6 @@ New command-line option `-AassumeAssertions=enabled|disabled|neither`
 `-AassumeAssertionsAreEnabled`/`AreDisabled`, each still honored with a
 warning naming its replacement.
 
-The `-AinferenceWorkBudget` work budget now also counts JLS 18.4 variable
-resolution/substitution, not just JLS 18.3 bound incorporation, and charges
-substitution by the *size* of what's substituted rather than just how many
--- both needed to catch a chain of mutually F-bounded type parameters that
-could otherwise exhaust memory or hang the compiler.
-
 Two `@DefaultQualifier` annotations on the same declaration/hierarchy that
 disagree are now a `conflicting.defaults` error (the later one is ignored),
 and an alias for `@DefaultQualifier` (e.g. `@NullMarked`) participates at its
@@ -291,7 +285,8 @@ Type-argument and target-location validation hooks extracted:
 validation and bound-stripping logic in `BaseTypeValidator`.
 
 Performance optimizations:
-- Capped Java type argument inference bound-incorporation work and optimized
+- Capped Java type argument inference work via `-AinferenceWorkBudget=N` (default
+  10,000, bounding both JLS 18.3 incorporation and 18.4 resolution) and optimized
   the fixpoint algorithm to short-circuit and re-scan fewer variables.
 - Optimized `TreePath` resolution in `CFCFGBuilder` and warning reporting by
   caching paths and using tight starting bounds, removing quadratic overheads.
