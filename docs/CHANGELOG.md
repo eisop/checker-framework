@@ -78,26 +78,21 @@ JSpecify support in the Nullness Checker:
   apply under `-AuseConservativeDefaultsForUncheckedCode` and compose with
   written `@AnnotatedFor`. Disable with `-AjspecifyNullMarkedAlias=false`.
 
-New `-AusePermissiveDefaultsForUncheckedCode` (takes `source`/`bytecode`,
-like the conservative variant) applies permissive defaults and suppresses
-warnings outside `@AnnotatedFor` scope.
-
-New `@UnannotatedFor` excludes a package, class, method, or constructor from
-an enclosing `@AnnotatedFor`'s scope for the given checkers (a nested
-`@AnnotatedFor` takes effect again). Like `@AnnotatedFor`, it's repeatable
-and has `applyToSubpackages`. Writing both for the same checker on one
-declaration issues `conflicting.annotatedfor`.
-
-`@AnnotatedFor` is now `@Repeatable`, so different type systems can be given
-different `applyToSubpackages` settings on one package.
-
-`@AnnotatedFor`/`@UnannotatedFor` now have `RUNTIME` retention, so they're
-stored in class files and respected under
-`-AuseConservativeDefaultsForUncheckedCode=bytecode`.
-
-Package declarations (`package-info.java`) are now analyzed, so conflicting
-`@AnnotatedFor`/`@UnannotatedFor` pairs, conflicting `@DefaultQualifier`
-pairs, and invalid `@HasQualifierParameter` uses are now detected there.
+`@AnnotatedFor`/`@UnannotatedFor` improvements:
+- New `-AusePermissiveDefaultsForUncheckedCode` (takes `source`/`bytecode`,
+  like the conservative variant) applies permissive defaults and suppresses
+  warnings outside `@AnnotatedFor` scope.
+- New `@UnannotatedFor` excludes a package, class, method, or constructor from
+  an enclosing `@AnnotatedFor`'s scope for the given checkers (a nested
+  `@AnnotatedFor` takes effect again). Like `@AnnotatedFor`, it's repeatable
+  and has `applyToSubpackages`. Writing both for the same checker on one
+  declaration issues `conflicting.annotatedfor`.
+- `@AnnotatedFor` is now `@Repeatable`, so different type systems can be given
+  different `applyToSubpackages` settings on one package.
+- Both now have `RUNTIME` retention, so they're stored in class files and
+  respected under `-AuseConservativeDefaultsForUncheckedCode=bytecode`.
+- Package declarations (`package-info.java`) are now analyzed, so conflicting
+  pairs and invalid `@HasQualifierParameter` uses are detected there.
 
 Nullness Checker improvements:
 - Refines `Queue.poll()`/`peek()` and `Deque.pollFirst()`/`pollLast()`/`peekFirst()`/`peekLast()`
