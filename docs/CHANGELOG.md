@@ -54,12 +54,6 @@ superclass or interface in `extends`/`implements` (type-argument annotations
 remain permitted); override `BaseTypeVisitor#checkAnnotationOnSupertype` to
 permit it, as the Tainting Checker does.
 
-The Initialization Checker (and checkers built on it, such as the Nullness
-Checker) now respects an explicit receiver annotation on an inner class
-constructor, such as `Inner(@UnknownInitialization Outer Outer.this)`, annotating
-the return type's enclosing instance accordingly instead of defaulting it to
-`@Initialized`.
-
 Anonymous class creation is now checked more consistently: a type-use
 annotation on the class expression (`new @A AClass() {}`) is validated
 against the extended class's declaration bound on Java 8-11 too, not just
@@ -74,30 +68,23 @@ A checker that viewpoint-adapts can now extend/implement a type whose
 declaration bound is receiver-dependent, adapting the supertype's bound to
 the subtype's first.
 
-The Nullness Checker no longer recognizes JSpecify's pre-1.0
-`org.jspecify.nullness` package (deprecated since 2022) -- use
-`org.jspecify.annotations` instead. `NullnessUnspecified` has no
-replacement; JSpecify 1.0 dropped it outright.
-
-The new `-Amode=<mode>` option turns on a checker-defined group of options
-(an option written explicitly on the command line still wins). The Nullness
-Checker supports `-Amode=jspecify`, which makes it behave as JSpecify
-specifies: checks only `@AnnotatedFor` scope, treats `@NullMarked` as a
-defaulting annotation, skips initialization/map-key checking, and assumes
-purity and enabled assertions. Unscoped code gets JSpecify's unspecified
-nullness, currently treated leniently (permissive defaults); see the manual
-for other unchecked-code policies.
-
-The Nullness Checker now treats JSpecify's `@NullMarked` as an alias for
-`@AnnotatedFor` scoped to nullness checking (in addition to the existing
-`@DefaultQualifier` alias), and `@NullUnmarked` as its inverse, undoing
-`@NullMarked`'s upper-bound default and aliasing to `@UnannotatedFor` within
-its scope. Both apply under `-AuseConservativeDefaultsForUncheckedCode=source`
-or `bytecode` (they're retained in class files) and compose with a written
-`@AnnotatedFor("initialization")`/`("keyfor")`.
-`-AjspecifyNullMarkedAlias=false` disables all of this aliasing. A written
-`@AnnotatedFor` also composes with an alias for `@AnnotatedFor` on the same
-element (e.g. `@AnnotatedFor("index") @NullMarked`), so both checkers check it.
+JSpecify support in the Nullness Checker:
+- No longer recognizes JSpecify's pre-1.0 `org.jspecify.nullness` package
+  (deprecated since 2022) -- use `org.jspecify.annotations` instead
+  (`NullnessUnspecified` was dropped by JSpecify 1.0).
+- Supports `-Amode=jspecify` (under the new `-Amode=<mode>` option group
+  mechanism), making it behave as JSpecify specifies: checks only `@AnnotatedFor`
+  scope, treats `@NullMarked` as a defaulting annotation, skips
+  initialization/map-key checking, assumes purity and enabled assertions, and
+  applies permissive defaults to unscoped code.
+- Treats JSpecify's `@NullMarked` as an alias for `@AnnotatedFor` scoped to
+  nullness checking (in addition to `@DefaultQualifier`), and `@NullUnmarked` as its
+  inverse, undoing `@NullMarked`'s upper-bound default and aliasing to
+  `@UnannotatedFor` within its scope. Both apply under
+  `-AuseConservativeDefaultsForUncheckedCode` (source or bytecode) and compose with
+  written `@AnnotatedFor` annotations. `-AjspecifyNullMarkedAlias=false` disables
+  this aliasing. A written `@AnnotatedFor` also composes with an alias on the same
+  element (e.g. `@AnnotatedFor("index") @NullMarked`).
 
 New command-line option `-AusePermissiveDefaultsForUncheckedCode` (like
 `-AuseConservativeDefaultsForUncheckedCode`, taking `source`/`bytecode`)
@@ -133,33 +120,31 @@ checks that require visiting a package now actually run there: conflicting
 `@AnnotatedFor`/`@UnannotatedFor` pairs, conflicting `@DefaultQualifier` pairs,
 and invalid `@HasQualifierParameter` uses.
 
-The Nullness Checker now refines `Queue.poll()`, `Queue.peek()`,
-`Deque.pollFirst()`, `Deque.pollLast()`, `Deque.peekFirst()`, and
-`Deque.peekLast()` to `@NonNull` after a false `isEmpty()` check for queues
-and deques with `@NonNull` element types.
+Nullness Checker improvements:
+- Refines `Queue.poll()`, `Queue.peek()`, `Deque.pollFirst()`, `Deque.pollLast()`,
+  `Deque.peekFirst()`, and `Deque.peekLast()` to `@NonNull` after a false
+  `isEmpty()` check for queues and deques with `@NonNull` element types.
+- Checks if `Arrays.copyOf` is called with a side-effecting array expression,
+  avoiding unsound behavior, and issues a warning message explaining why `copyOf`
+  used a `@Nullable` return type.
+- Added lint option `-Alint=monotonicNonNullOnStatic` to warn (`monotonic.on.static`)
+  when `@MonotonicNonNull` is written on a `static` field.
+- Issues two new errors unconditionally: `nullness.on.throws` (e.g.
+  `void m() throws @Nullable Exception`) and `nullness.on.annotation.member`
+  (e.g. `@Nullable String value();`).
+- `instanceof` now distinguishes a nullness annotation on the tested type's root
+  from one on a component, reporting the latter as `instanceof.component`.
+- New option `-AjspecifyUnrecognizedLocations` (also enabled by `-Amode=jspecify`)
+  reports an error for nullness annotations where JSpecify gives them no meaning
+  (wildcards, type parameters, patterns, casts, etc.).
 
-The Nullness Checker now checks if `Arrays.copyOf` is called with a
-side-effecting array expression, avoiding unsound behavior. It now also issues
-a warning message explaining why `copyOf` used a `@Nullable` return type,
-making errors with `copyOf` easier to fix.
-
-Added a new lint option, `-Alint=monotonicNonNullOnStatic`, under which the
-Nullness Checker issues a `monotonic.on.static` warning when `@MonotonicNonNull`
-is written on a `static` field, which the manual documents as a code smell. The
-option is off by default because such a field functions correctly.
-
-The Nullness Checker issues two new errors unconditionally since no legitimate
-use exists: `nullness.on.throws` (e.g. `void m() throws @Nullable Exception`)
-and `nullness.on.annotation.member` (e.g. `@Nullable String value();`).
-`instanceof` now distinguishes a nullness annotation on the tested type's root
-from one on a component, reporting the latter as `instanceof.component`.
-The new `-AjspecifyUnrecognizedLocations` option (also enabled by `-Amode=jspecify`)
-reports an error for nullness annotations where JSpecify gives them no meaning
-(wildcards, type parameters, patterns, casts, etc.).
-
-When the Initialization Checker rejects a method call on a partially-initialized receiver, it
-now reports `initialization.method.invocation.invalid`, which names the fields that are still
-uninitialized at the call, instead of the framework's `method.invocation.invalid`.
+Initialization Checker improvements:
+- Respects an explicit receiver annotation on an inner class constructor, such as
+  `Inner(@UnknownInitialization Outer Outer.this)`, annotating the return type's
+  enclosing instance accordingly instead of defaulting it to `@Initialized`.
+- When rejecting a method call on a partially-initialized receiver, reports
+  `initialization.method.invocation.invalid` naming the fields that are still
+  uninitialized at the call, instead of the generic `method.invocation.invalid`.
 
 The Fenum Checker now preserves a fake enum across boxing and unboxing: the
 wrapper classes' `valueOf` and `xxxValue` methods are annotated `@PolyFenum`,
