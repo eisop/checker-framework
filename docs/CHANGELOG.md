@@ -3,120 +3,90 @@ Version 3.49.5-eisop2 (June ?, 2026)
 
 **User-visible changes:**
 
-Performance improvements relative to the 3.49.5-eisop1 release:
+Performance improvements over 3.49.5-eisop1:
 - `allNullnessTests`: 1m24s vs. 2m16s
 - `checkNullness`: 1m28s vs. 3m40s
 - `checkInterning`: 0m35s vs. 1m13s
 - `test`: 7m15s vs. 12m40s (lots of build overhead)
 
-Several optimizations also reduce GC pressure and remove superlinear behavior,
-improving performance for large (e.g. auto-generated) files. Type-checking a
-class with many fields under the Initialization Checker (and any checker
-built on it, such as the Nullness Checker) is no longer quadratic in the
-number of fields with an initializer or constructor assignment: a class with
-4000 such fields now type-checks in about 11 seconds instead of about 26.
+Several optimizations also reduce GC pressure and superlinear behavior for
+large (e.g. auto-generated) files. Type-checking a class with many fields
+under the Initialization Checker (and any checker built on it, such as the
+Nullness Checker) is no longer quadratic in the number of fields: a class
+with 4000 fields now type-checks in ~11 seconds instead of ~26.
 
-The annotated JDK and every built-in checker stub file are now also
-distributed as pre-parsed binary files, removing JavaParser from checker
-startup entirely. A missing or stale binary stub falls back to text parsing
-with a warning (`text.parsing.jdk`, `text.parsing.jdk.class`, `text.parsing.stub`,
-`text.parsing.command.line.stub`, or `stale.binary.stub`), suppressible via
-`-AsuppressWarnings=text.parsing`. Generate binary stubs for custom `-Astubs`
-files with `BinaryStubFileGenerator`; see the manual's "Using a binary
-(pre-parsed) stub file" section.
+The annotated JDK and built-in stub files are now distributed as pre-parsed
+binary files, removing JavaParser from checker startup. A missing or stale
+binary stub falls back to text parsing with a warning (suppressible via
+`-AsuppressWarnings=text.parsing`). Generate binary stubs for custom
+`-Astubs` files with `BinaryStubFileGenerator`; see the manual's "Using a
+binary (pre-parsed) stub file" section.
 
-Runs under JDK 27 and JDK 28 b15 early access builds -- that is, on version 27
-and 28 JVMs.
+Runs under JDK 27 and JDK 28 b15 early-access builds.
 
-Can now run as an Error Prone plugin (the `eisopcf` check), as an alternative to
-running as a standalone annotation processor. It is published as
-`io.github.eisop:framework-errorprone` and requires JDK 21 or later. See the
-manual's "Error Prone" section.
+Can now run as an Error Prone plugin (`eisopcf` check), published as
+`io.github.eisop:framework-errorprone` (requires JDK 21+). See the manual's
+"Error Prone" section.
 
-Two new Maven Central artifacts support writing a custom checker without
-depending on the whole `checker` artifact: `io.github.eisop:framework` and
-`io.github.eisop:framework-all` (the same dependencies bundled and
-relocated). See the manual's "Declaring dependencies for a custom checker"
-section.
+New Maven Central artifacts `io.github.eisop:framework` and
+`io.github.eisop:framework-all` (bundled and relocated) let you write a
+custom checker without depending on `checker`. See the manual's "Declaring
+dependencies for a custom checker" section.
 
-Several packaging bugs, all rooted in a qualifier class duplicated on the
-classpath or a jar depending on classes it also bundles, are fixed: the
-published artifacts no longer transitively pull in
+Packaging fixes: published artifacts no longer transitively pull in
 `org.checkerframework:checker-qual`; Gradle consumers of
-`io.github.eisop:checker` now resolve the same jar Maven consumers get,
-instead of a redundant `-all.jar`; five annotation names that ShadowJar had
-rewritten (breaking Lombok's/codehaus's `@NotNull`/`@Nullable` and
-`@org.plumelib.options.Option` recognition) are fixed; and the shaded jars
-are ~2 MB smaller and no longer bundle a stray `module-info.class` or jsr305
-classes.
+`io.github.eisop:checker` now get the same jar Maven consumers get;
+annotation names that ShadowJar had rewritten (breaking
+Lombok/codehaus `@NotNull`/`@Nullable` and `@org.plumelib.options.Option`)
+are fixed; and shaded jars are ~2 MB smaller, no longer bundling a stray
+`module-info.class` or jsr305 classes.
 
-Checks subtyping for a receiver's type arguments when invoking a method. The
-annotations on the type arguments of a method receiver (e.g.,
-`void test(Box<@NonNull T> this)`) were previously ignored during type-checking.
+Receiver type-argument subtyping is now checked: annotations on a method
+receiver's type arguments (e.g., `void test(Box<@NonNull T> this)`) were
+previously ignored.
 
-`-AcheckCastElementType` now also requires array components to be
-invariant, in array casts and `instanceof` binding patterns, closing an
-unsoundness: array components are mutable and their qualifiers are not
-reified, so two differently-qualified references could alias one array.
+`-AcheckCastElementType` now requires array components to be invariant in
+array casts and `instanceof` binding patterns, closing an unsoundness:
+array components are mutable and qualifiers are not reified.
 
-When an intersection type's bounds carry conflicting qualifiers in the same
-hierarchy (e.g. `<T extends @NonNull Object & @Nullable Serializable>`), the
-first bound's qualifier now wins and is written onto every bound
-(homogenization); override
-`AnnotatedTypeFactory#combineIntersectionBoundAnnotationsInHierarchy` for a
-different (e.g. order-independent) summary.
+When an intersection type's bounds carry conflicting qualifiers
+(e.g. `<T extends @NonNull Object & @Nullable Serializable>`), the first
+bound's qualifier now wins (homogenization); override
+`AnnotatedTypeFactory#combineIntersectionBoundAnnotationsInHierarchy` to
+customize.
 
-Issues an `annotation.on.supertype` error for a main annotation on a
-superclass or interface in `extends`/`implements` (type-argument annotations
-remain permitted); override `BaseTypeVisitor#checkAnnotationOnSupertype` to
-permit it, as the Tainting Checker does.
+Issues `annotation.on.supertype` for a main annotation on a superclass or
+interface in `extends`/`implements` (type-argument annotations remain
+permitted); override `BaseTypeVisitor#checkAnnotationOnSupertype` to allow it.
 
-Anonymous class creation is now checked more consistently: a type-use
-annotation on the class expression (`new @A AClass() {}`) is validated
-against the extended class's declaration bound on Java 8-11 too, not just
-12+; an unannotated creation (`new AClass() {}`) is now defaulted using the
-supertype's declaration bound and `@DefaultQualifierForUse` qualifiers
-instead of ignoring them; and `new @A AIface() {}` no longer reports
-`cast.unsafe.constructor.invocation` when `@A` matches the interface's
-declaration bound (an anonymous class implementing an interface has no
-declared constructor to warn about).
-
-A checker that viewpoint-adapts can now extend/implement a type whose
-declaration bound is receiver-dependent, adapting the supertype's bound to
-the subtype's first.
+Anonymous class creation is now checked more consistently: `new @A AClass() {}`
+validates against the superclass's declaration bound on Java 8-11 too (not
+just 12+); `new AClass() {}` is defaulted using the supertype's declaration
+bound and `@DefaultQualifierForUse`; and `new @A AIface() {}` no longer
+reports `cast.unsafe.constructor.invocation` when `@A` matches the
+interface's declaration bound.
 
 JSpecify support in the Nullness Checker:
-- No longer recognizes JSpecify's pre-1.0 `org.jspecify.nullness` package
-  (deprecated since 2022) -- use `org.jspecify.annotations` instead
-  (`NullnessUnspecified` was dropped by JSpecify 1.0).
-- Supports `-Amode=jspecify` (under the new `-Amode=<mode>` option group
-  mechanism), making it behave as JSpecify specifies: checks only `@AnnotatedFor`
-  scope, treats `@NullMarked` as a defaulting annotation, skips
-  initialization/map-key checking, assumes purity and enabled assertions, and
-  applies permissive defaults to unscoped code.
-- Treats JSpecify's `@NullMarked` as an alias for `@AnnotatedFor` scoped to
-  nullness checking (in addition to `@DefaultQualifier`), and `@NullUnmarked` as its
-  inverse, undoing `@NullMarked`'s upper-bound default and aliasing to
-  `@UnannotatedFor` within its scope. Both apply under
-  `-AuseConservativeDefaultsForUncheckedCode` (source or bytecode) and compose with
-  written `@AnnotatedFor` annotations. `-AjspecifyNullMarkedAlias=false` disables
-  this aliasing. A written `@AnnotatedFor` also composes with an alias on the same
-  element (e.g. `@AnnotatedFor("index") @NullMarked`).
+- Dropped JSpecify's pre-1.0 `org.jspecify.nullness` package -- use
+  `org.jspecify.annotations` instead.
+- New `-Amode=jspecify` makes the Nullness Checker behave as JSpecify
+  specifies: checks only `@AnnotatedFor` scope, treats `@NullMarked` as a
+  defaulting annotation, skips initialization/map-key checking, assumes purity
+  and enabled assertions, and applies permissive defaults to unscoped code.
+- `@NullMarked` aliases `@AnnotatedFor` scoped to nullness (plus
+  `@DefaultQualifier`), and `@NullUnmarked` aliases `@UnannotatedFor`. Both
+  apply under `-AuseConservativeDefaultsForUncheckedCode` and compose with
+  written `@AnnotatedFor`. Disable with `-AjspecifyNullMarkedAlias=false`.
 
-New command-line option `-AusePermissiveDefaultsForUncheckedCode` (like
-`-AuseConservativeDefaultsForUncheckedCode`, taking `source`/`bytecode`)
-applies permissive defaults and suppresses warnings outside an
-`@AnnotatedFor`'s scope; a given kind of code can't use both.
+New `-AusePermissiveDefaultsForUncheckedCode` (takes `source`/`bytecode`,
+like the conservative variant) applies permissive defaults and suppresses
+warnings outside `@AnnotatedFor` scope.
 
-New declaration annotation `@UnannotatedFor` excludes a package, class,
-method, or constructor from an enclosing `@AnnotatedFor`'s scope for the
-given checkers, defaulted and suppressed as if no `@AnnotatedFor` were
-present (a nested `@AnnotatedFor` takes effect again); like `@AnnotatedFor`,
-it's repeatable and has an `applyToSubpackages` element (as do
-`HasQualifierParameter` and `ReportUse`, now too). It has no effect unless
-`-AuseConservativeDefaultsForUncheckedCode=source` or `-AonlyAnnotatedFor` is
-supplied. Writing both `@AnnotatedFor` and `@UnannotatedFor` for the same
-checker on one declaration issues a `conflicting.annotatedfor` warning.
+New `@UnannotatedFor` excludes a package, class, method, or constructor from
+an enclosing `@AnnotatedFor`'s scope for the given checkers (a nested
+`@AnnotatedFor` takes effect again). Like `@AnnotatedFor`, it's repeatable
+and has `applyToSubpackages`. Writing both for the same checker on one
+declaration issues `conflicting.annotatedfor`.
 
 `@AnnotatedFor` is now `@Repeatable`, so different type systems can be given
 different `applyToSubpackages` settings on one package:
@@ -127,246 +97,175 @@ package mypackage;
 ```
 
 `@AnnotatedFor`/`@UnannotatedFor` now have `RUNTIME` retention, so they're
-stored in class files: a class compiled with `@AnnotatedFor` is no longer
-unchecked code under `-AuseConservativeDefaultsForUncheckedCode=bytecode`,
-and a dependency's `@UnannotatedFor` now excludes its scope too.
+stored in class files and respected under
+`-AuseConservativeDefaultsForUncheckedCode=bytecode`.
 
-A checker can now examine a package declaration (`AbstractTypeProcessor`
-previously dropped the analysis event for `package-info.java`), so three
-checks that require visiting a package now actually run there: conflicting
-`@AnnotatedFor`/`@UnannotatedFor` pairs, conflicting `@DefaultQualifier` pairs,
-and invalid `@HasQualifierParameter` uses.
+Package declarations (`package-info.java`) are now analyzed, so conflicting
+`@AnnotatedFor`/`@UnannotatedFor` pairs, conflicting `@DefaultQualifier`
+pairs, and invalid `@HasQualifierParameter` uses are now detected there.
 
 Nullness Checker improvements:
-- Refines `Queue.poll()`, `Queue.peek()`, `Deque.pollFirst()`, `Deque.pollLast()`,
-  `Deque.peekFirst()`, and `Deque.peekLast()` to `@NonNull` after a false
-  `isEmpty()` check for queues and deques with `@NonNull` element types.
-- Checks if `Arrays.copyOf` is called with a side-effecting array expression,
-  avoiding unsound behavior, and issues a warning message explaining why `copyOf`
-  used a `@Nullable` return type.
-- Added lint option `-Alint=monotonicNonNullOnStatic` to warn (`monotonic.on.static`)
-  when `@MonotonicNonNull` is written on a `static` field.
-- Issues two new errors unconditionally: `nullness.on.throws` (e.g.
-  `void m() throws @Nullable Exception`) and `nullness.on.annotation.member`
-  (e.g. `@Nullable String value();`).
-- `instanceof` now distinguishes a nullness annotation on the tested type's root
-  from one on a component, reporting the latter as `instanceof.component`.
-- New option `-AjspecifyUnrecognizedLocations` (also enabled by `-Amode=jspecify`)
-  reports an error for nullness annotations where JSpecify gives them no meaning
-  (wildcards, type parameters, patterns, casts, etc.).
+- Refines `Queue.poll()`/`peek()` and `Deque.pollFirst()`/`pollLast()`/`peekFirst()`/`peekLast()`
+  to `@NonNull` after a false `isEmpty()` check.
+- Warns when `Arrays.copyOf` is called with a side-effecting array expression
+  (unsound behavior) and explains the `@Nullable` return type.
+- New lint `-Alint=monotonicNonNullOnStatic` warns when `@MonotonicNonNull` is
+  on a `static` field.
+- New errors: `nullness.on.throws` and `nullness.on.annotation.member`.
+- `instanceof` reports `instanceof.component` for annotations on a component
+  rather than the root type.
+- New `-AjspecifyUnrecognizedLocations` (also enabled by `-Amode=jspecify`)
+  errors on nullness annotations where JSpecify gives them no meaning.
 
 Initialization Checker improvements:
-- Respects an explicit receiver annotation on an inner class constructor, such as
-  `Inner(@UnknownInitialization Outer Outer.this)`, annotating the return type's
-  enclosing instance accordingly instead of defaulting it to `@Initialized`.
-- When rejecting a method call on a partially-initialized receiver, reports
-  `initialization.method.invocation.invalid` naming the fields that are still
-  uninitialized at the call, instead of the generic `method.invocation.invalid`.
+- Respects an explicit receiver annotation on an inner class constructor
+  (e.g. `Inner(@UnknownInitialization Outer Outer.this)`), instead of
+  defaulting the enclosing instance to `@Initialized`.
+- Reports `initialization.method.invocation.invalid` naming the still-uninitialized
+  fields, instead of the generic `method.invocation.invalid`.
 
-The Fenum Checker now preserves a fake enum across boxing and unboxing: the
-wrapper classes' `valueOf` and `xxxValue` methods are annotated `@PolyFenum`,
-so an `@Fenum` value can be boxed and unboxed without laundering it into a
-different fake enum.
+The Fenum Checker preserves a fake enum across boxing/unboxing via
+`@PolyFenum` on wrapper `valueOf` and `xxxValue` methods.
 
 Command-line option additions and changes:
-- `-AignoreDeadCode`: skips checking dead (unreachable) code, such as
-  literal-condition branches (`if (false)`) or catch blocks for unthrown exceptions.
-- `-AassumeAssertions=enabled|disabled|neither` (default `neither`): replaces the
-  deprecated `-AassumeAssertionsAreEnabled`/`AreDisabled`.
-- `-AaliasedTypeAnnos`: reports a `UserError` if a canonical annotation is not a
-  type annotation or its alias is already in the hierarchy; safely skips
-  unsupported qualifiers across compound checkers.
+- `-AignoreDeadCode`: skips checking unreachable code (e.g. `if (false)`
+  branches, catch blocks for unthrown exceptions).
+- `-AassumeAssertions=enabled|disabled|neither` (default `neither`): replaces
+  the deprecated `-AassumeAssertionsAreEnabled`/`AreDisabled`.
+- `-AaliasedTypeAnnos`: errors if a canonical annotation is not a type
+  annotation or its alias is already in the hierarchy.
 - `-AwarnBytecodeConflicts`: reports conflicting `@DefaultQualifier` pairs on
-  bytecode elements as warnings rather than errors. In source code, conflicting
-  defaults issue a `conflicting.defaults` error (with aliases like `@NullMarked`
-  participating in source order), and defaults prohibited by `@TargetLocations`
-  issue `default.qualifier.prohibited.location`.
-- Checker-prefixed options (e.g. `-ANullnessChecker_lint=...`): now inherited by
-  subcheckers, with more specific options taking precedence.
-- Option argument validation: invalid arguments to options read during startup
-  (e.g. a malformed `-AwarnUnneededSuppressionsExceptions` regex) are reported as
-  compiler errors instead of uncaught exception stack traces.
+  bytecode as warnings. In source, conflicting defaults issue
+  `conflicting.defaults` and prohibited locations issue
+  `default.qualifier.prohibited.location`.
+- Checker-prefixed options (e.g. `-ANullnessChecker_lint=...`) are inherited
+  by subcheckers; more specific options take precedence.
+- Invalid option arguments (e.g. malformed regex) now produce compiler errors
+  instead of stack traces.
 
-Checker subclass and subchecker inheritance:
-A checker subclass now inherits `@StubFiles` from its nearest annotated
-superclass (with stub files shared bidirectionally in compound checkers),
-and combines `@RelevantJavaTypes` declared across its superclasses.
-A checker without a `@SuppressWarningsPrefix` now accepts the default prefix
-of every checker running it as a subchecker (e.g. `@SuppressWarnings("index")`
-suppresses Constant Value Checker errors under the Index Checker).
+Checker subclass and subchecker inheritance: a checker subclass inherits
+`@StubFiles` from its nearest annotated superclass (shared bidirectionally
+in compound checkers) and combines `@RelevantJavaTypes` across superclasses.
+A checker without `@SuppressWarningsPrefix` accepts the default prefix of
+every checker running it as a subchecker.
 
-The method invocations the CFG synthesizes for boxing, unboxing,
-enhanced-for, and try-with-resources are now type-checked too, and diagnostics
-point at the offending source construct rather than the beginning of the file.
+CFG-synthesized method invocations (boxing, unboxing, enhanced-for,
+try-with-resources) are now type-checked, with diagnostics pointing at the
+source construct.
 
 **Implementation details:**
 
 Performance optimizations:
-- Capped Java type argument inference work via `-AinferenceWorkBudget=N` (default
-  10,000, bounding both JLS 18.3 incorporation and 18.4 resolution) and optimized
-  the fixpoint algorithm to short-circuit and re-scan fewer variables.
-- Optimized `TreePath` resolution in `CFCFGBuilder` and warning reporting by
-  caching paths and using tight starting bounds, removing quadratic overheads.
+- Capped type argument inference work via `-AinferenceWorkBudget=N` (default
+  10,000) and optimized the fixpoint algorithm.
+- Cached `TreePath` resolution in `CFCFGBuilder` and warning reporting,
+  removing quadratic overheads.
 - `AnnotatedTypeFactory.declarationFromElement` leverages the visitor's
-  current path and caches declarations, significantly improving performance on large files.
-- Optimized applying default qualifiers to traverse types once and memoize
-  the precedence-ordered default list, cutting defaulting time roughly 30%
-  on generics-heavy code.
-- The annotated-JDK stub AST is now parsed once per JVM and shared across
+  current path and caches declarations.
+- Defaulting traverses types once and memoizes the precedence-ordered default
+  list (~30% faster on generics-heavy code).
+- The annotated-JDK stub AST is parsed once per JVM and shared across
   compilations.
-- Greatly reduced allocations by reusing several `AnnotatedTypeScanner`s
-  and lowering default visitor map capacities (`VISITED_NODES_INITIAL_CAPACITY`).
-- Eliminated `Iterator` allocation when iterating `AnnotationMirrorSet`, and added
-  a new `get(int)` method for index access.
-- Avoided defensive deep copies via new `freeze()` and `isFrozen()` methods on
-  `AnnotatedTypeMirror`. `getAnnotatedType(Tree)` and a new
-  `getElementAnnotations(Element)` method now return shared frozen types.
-- Eliminated cache thrashing by replacing the 2048-entry LRU caches in
-  `AnnotatedTypeFactory` with per-compilation-unit `IdentityHashMap`s.
-- Avoided UTF-8 decoding costs by comparing `Name` objects by identity
-  (via new `InternalUtils` helpers) instead of using `String.contentEquals()`.
-- Reduced `String` overhead by updating `AnnotationFileParser` and others
-  to return `IdentityHashMap<Name, TypeElement>`. **API change**: Callers
-  must update their declared types accordingly.
-- Deferred `toString()` costs for suppressed errors in `BaseTypeVisitor.FoundRequired`
-  by storing `Object` instead of `String`. **API change**: Callers reading into a
-  `String` variable must call `.toString()` explicitly.
-- `AnnotatedTypeScanner.visitedNodes` is now lazily allocated.
-- Made `StructuralEqualityComparer.arePrimaryAnnosEqual` non-mutating, enabling
-  comparison of shared immutable types.
-- Optimized the Value Checker and annotation construction: `AnnotationBuilder`
-  gained a `TypeElement`-taking constructor and a fast path that avoids an
-  `Elements.getTypeElement` lookup per annotation value; final local values are
-  indexed by declaring element instead of scanned per method (quadratic in
-  methods per class); `ValueQualifierHierarchy` uses cached `value()` elements.
-  Wall clock on constant-heavy 1500-method classes improved ~18%.
-- `TreeUtils.sameTree()`: use a visitor instead of an expensive `toString()`.
-- `AnnotatedTypeFactory.isFromByteCode(Element)` now caches its result per
-  element, avoiding a repeated `Path.toUri()` call (URI construction and
-  parsing) on every conservative-defaults check.
+- Reduced allocations by reusing `AnnotatedTypeScanner`s and lowering default
+  map capacities.
+- Eliminated `Iterator` allocation in `AnnotationMirrorSet`; added `get(int)`.
+- New `freeze()`/`isFrozen()` on `AnnotatedTypeMirror` avoids defensive deep
+  copies; `getAnnotatedType(Tree)` and new `getElementAnnotations(Element)`
+  return shared frozen types.
+- Replaced 2048-entry LRU caches with per-compilation-unit `IdentityHashMap`s.
+- Compare `Name` objects by identity (new `InternalUtils` helpers) instead of
+  `String.contentEquals()`.
+- `AnnotationFileParser` and others return `IdentityHashMap<Name, TypeElement>`.
+  **API change**: callers must update declared types.
+- `BaseTypeVisitor.FoundRequired` stores `Object` instead of `String`, deferring
+  `toString()`. **API change**: callers must call `.toString()` explicitly.
+- `AnnotatedTypeScanner.visitedNodes` lazily allocated.
+- `StructuralEqualityComparer.arePrimaryAnnosEqual` is non-mutating.
+- Optimized Value Checker: `AnnotationBuilder` gained a `TypeElement` constructor;
+  final locals indexed by declaring element; `ValueQualifierHierarchy` caches
+  `value()` elements (~18% faster on constant-heavy classes).
+- `TreeUtils.sameTree()` uses a visitor instead of `toString()`.
+- `AnnotatedTypeFactory.isFromByteCode(Element)` caches per element.
 
 Other improvements and bug fixes:
-- `TreeUtils` has a new `inferredTypeArguments(ExpressionTree)` method to
-  recover Java type variables inferred by javac.
-- `TypeVariableSubstitutor.substitute` and `substituteTypeVariable` now take a
-  boolean indicating whether type arguments were inferred by the type checker,
-  letting checkers distinguish inferred from written arguments without manual state saving.
-- `BaseTypeVisitor.OverrideChecker` delegates parameter, return-type, and
-  type-parameter-bound comparisons to overridable hooks (`isParameterOverrideValid`,
-  `isReturnOverrideValid`, `isTypeParameterBoundOverrideValid`). `checkOverride`
-  now compares overriding type-parameter bound ranges against overridden bounds
-  via `isTypeParameterBoundOverrideValid` (reporting `override.typaram.invalid`),
-  closing a soundness hole (eisop#1965).
+- New `TreeUtils.inferredTypeArguments(ExpressionTree)` recovers javac-inferred
+  type variables.
+- `TypeVariableSubstitutor.substitute`/`substituteTypeVariable` take a boolean
+  for inferred-vs-written type arguments.
+- `OverrideChecker` delegates comparisons to overridable hooks
+  (`isParameterOverrideValid`, `isReturnOverrideValid`,
+  `isTypeParameterBoundOverrideValid`); the latter reports
+  `override.typaram.invalid`, closing a soundness hole (eisop#1965).
 - Enclosing type argument fixes (eisop#737): `TypeFromTypeTreeVisitor` restores
-  declared bounds and explicit annotations of an enclosing type's type-variable
-  arguments instead of dropping them; `BaseTypeValidator` checks an explicit
-  enclosing type's arguments against declared bounds (e.g. `Outer<@NonNull String>.Inner`).
-- `AnnotatedIntersectionType.summarizeBounds` computes bound summaries, folding
-  `AnnotatedTypeFactory#combineIntersectionBoundAnnotationsInHierarchy` over
-  conflicts. `AnnotatedIntersectionType`, `AnnotatedWildcardType`, and
-  `AnnotatedTypeVariable.clearAnnotations()` now also clear bounds' annotations,
-  matching `addAnnotation`/`removeAnnotation`. `AnnotatedTypes.glbSubtype` uses
-  `shallowCopy(false)` so bounds retain qualifiers during capture conversion.
-- Added `IntersectionGlbChecker`/`IntersectionGlbAnnotatedTypeFactory` test
-  checker. `QualifierHierarchy.isSubtypeQualifiers`, `leastUpperBoundQualifiers`,
-  and `greatestLowerBoundQualifiers` document that an override of any one must
-  stay consistent with the others.
-- `QualifierDefaults` now maintains permissive unchecked-code defaults alongside
-  conservative ones (`addConservativeUncheckedCodeDefault(s)`,
-  `addPermissiveUncheckedCodeDefault(s)`, `CONSERVATIVE_UNCHECKED_DEFAULTS_*`,
-  `PERMISSIVE_UNCHECKED_DEFAULTS_*`).
-- `QualifierDefaults.addElementDefault` is now an initialization-time API throwing
-  `TypeSystemError` once type checking has begun; registered defaults combine with
-  `@DefaultQualifier` and enclosing-element defaults instead of replacing them.
-  `AnnotatedTypeFactory.getRoot()` is widened from `protected` to `public`.
-- New meta-annotation `@ProgrammaticDefaultLocations` lets a type system permit
-  qualifiers as programmatic defaults at locations prohibited by `@TargetLocations`.
-- Checkers declare custom `-Amode` values via `@SupportedModes` and
-  `SourceChecker.addOptionsForMode`.
-- `SourceChecker.printOrStoreMessage` routes diagnostics through private overloads;
-  host-side interception is now done via `DiagnosticSink`. `SourceChecker.reportError`
-  and `reportWarning` accept a null source for positionless messages suppressed
-  via `-AsuppressWarnings`.
-- Code walking the package chain for annotations gates steps on `applyToSubpackages`
-  via `AnnotationUtils.appliesToSubpackages` and
-  `AnnotatedTypeFactory.doesAnnotatedForApplyToSubpackages`.
-- `AnnotationFileParser` fixes: resolves declaration annotation field accesses
-  reached through wildcard imports or nested field accesses; processes nested
-  annotation type declarations; handles unbounded wildcards under `--release 8`;
-  reports type-parameter count mismatches using only the declaration name; preferred
-  exact-match fake overrides; and fixed stale parameter/receiver types and
-  return-type scoping in fake overrides.
-- Extracted overridable validation and inference hooks:
-  `BaseTypeValidator.checkCapturedWildcardBounds`,
-  `BaseTypeVisitor.shouldCheckTypeArgument`,
-  `BaseTypeVisitor.reportTypeArgumentInferenceFailure`,
-  `BaseTypeValidator.areCollapsedWildcardBoundsEqual`, and consolidated
-  target-location validation and bound-stripping logic in `BaseTypeValidator`.
-  Checkers may override `BaseTypeVisitor.shouldStripInvalidLocationQualifiers` to
-  strip disallowed qualifiers after reporting them.
-- Type argument inference no longer adds the upper bound of a captured type
-  variable as an extra lower bound when reducing a subtyping constraint (JLS 18.2.3),
-  and instantiates variables to requalified copies rather than writing qualifiers
-  onto lower bounds. Diagnostics can now display captured type variables directly.
-- Type argument inference no longer crashes on: `? super` wildcards whose arguments
-  mention the inferred variable through `? extends`; generic calls returned by lambdas
-  in generic method arguments; implicitly typed lambdas invoking generic methods on
-  parameters; inexact method references to `void` targets; or wildcards for F-bounded
-  type parameters (`Node<? extends Sub>`).
-- Type argument inference now resolves polymorphic qualifiers of nested generic
-  invocations, and resolves method reference polymorphic qualifiers against target
-  function types before building inference constraints.
-- Viewpoint adaptation no longer crashes on raw uses of F-bounded classes.
-  `ViewpointAdapter` gains `viewpointAdaptTypeDeclarationBounds`, and
-  `AbstractViewpointAdapter` adds abstract `extractAnnotationMirror(AnnotationMirrorSet)`.
-- `-AcheckCastElementType` fixes: downcasts and casts between unrelated types no longer
-  crash (`AsSuperVisitor`); casts with incomparable types are reported as unverifiable
-  instead of crashing; array null literal casts (`(Object[]) null`) and upcasts with
-  differing type-argument counts are no longer reported as unverifiable; and primitive
-  casts are unaffected.
-- `BinaryStubFileGenerator` accepts a single file, a directory (or `--bundle`), or a jar.
-  `-AmergeStubsWithSource`, `-AstubWarnIfNotFound`, and `-AstubDebug` disable the binary path.
-- Fixed a latent aliasing bug in `AnnotatedTypeCopier` for executable types.
-- Fixed an `IndexOutOfBoundsException` for lambdas in varargs.
-- Fixed `BinaryOperation.hashCode()` to agree with `equals()` for commutative operators.
-- Clarified `OptionalImplVisitor`'s `else`-branch check and removed a stale comment.
-- Fixed a format crash (`MissingFormatArgumentException`) in the Optional Checker's
-  `prefer.map.and.orelse` warning for patterns without `else` branches.
-- `JavaStubifier`'s "cannot load annotation" failure names the source file, and gains
-  a `--skipUnloadableAnnotations` flag to warn and continue instead of aborting.
-- Fixed a crash in `AnnotatedTypeMirror#hasExplicitAnnotation(Class)` when querying
-  types without matching annotations.
-- Fixed a bug where a type annotation written on the first alternative of a
-  multi-catch clause was silently dropped.
-- Fixed a bug where `@DefaultQualifier` on a package could be lost for deeper
-  subpackages when an intervening package had a non-subpackage default.
-- Annotations read from the source tree resolve aliases first;
-  `AnnotatedTypeMirror#getExplicitAnnotations` returns aliases in canonical form;
-  and `AnnotatedTypeFactory` gains `asSupportedQualifier`, `isSupportedQualifierOrAlias`,
-  and `canonicalAnnotationOrWritten`.
-- `AnnotatedTypeFactory#addAliasedTypeAnnotation` fails fast with `TypeSystemError`
-  if the canonical annotation is unsupported or the alias is already in the hierarchy.
-- The stubifier resolves nested annotations named through enclosing classes
-  (e.g. `@MethodHandle.PolymorphicSignature`).
-- `AnnotationFileUtil.allAnnotationFiles(String, ...)` was replaced by
-  `resolveAnnotationFileLocation(String)` plus `allAnnotationFiles(File, ...)`.
-- Checkers shipping their own annotated JDK no longer load `checker.jar`'s binary JDK on top.
-- Fixed `-AwarnUnneededSuppressions` failing to report an unneeded `@SuppressWarnings`
-  whose value is exactly a checker prefix.
-- Fixed a missing `EnsuresNonNullIf` import in `permit-nullness-assertion-exception.astub`
-  that caused spurious warnings.
-- Fixed capture conversion dropping primary qualifiers from type-parameter bounds
-  that are type-variable uses (`<A, U extends @Q A>`).
-- Fixed defects in restoring dataflow-refined captured type variable bounds when
-  dataflow stops refining them, and when wildcards have bare type-variable bounds.
-- `AnnotatedTypeMirror.toString(false)` now returns the same string as `toString()`,
-  never suppressing details configured in the formatter.
-- `@AnnotatedFor` scope checking is unified and cached in
-  `SourceChecker.isElementAnnotatedForThisCheckerOrUpstreamChecker`.
-- `Arrays.copyOf` no longer crashes (`AsSuperVisitor`) under the Nullness Checker
-  when component types differ.
-- No longer crashes on method references with raw receivers passed to generic
-  methods, or when classes have supertypes with missing type-argument classes.
+  declared bounds; `BaseTypeValidator` checks enclosing type arguments against
+  declared bounds.
+- `AnnotatedIntersectionType.summarizeBounds` computes bound summaries.
+  `clearAnnotations()` on intersection, wildcard, and type-variable types now
+  also clears bounds. `AnnotatedTypes.glbSubtype` uses `shallowCopy(false)`.
+- New `IntersectionGlbChecker` test checker. `QualifierHierarchy` methods
+  document consistency requirements across overrides.
+- `QualifierDefaults` maintains permissive unchecked-code defaults alongside
+  conservative ones.
+- `QualifierDefaults.addElementDefault` throws `TypeSystemError` after type
+  checking begins; registered defaults combine instead of replacing.
+  `AnnotatedTypeFactory.getRoot()` is now `public`.
+- New `@ProgrammaticDefaultLocations` permits qualifiers as programmatic defaults
+  at locations prohibited by `@TargetLocations`.
+- Custom `-Amode` values via `@SupportedModes` and `addOptionsForMode`.
+- Diagnostics route through `DiagnosticSink`; `reportError`/`reportWarning`
+  accept null source for positionless messages.
+- Package-chain annotation walking gates on `applyToSubpackages`.
+- `AnnotationFileParser` fixes: wildcard imports, nested declarations, `--release 8`
+  wildcards, type-parameter mismatches, fake override scoping.
+- Extracted overridable hooks: `checkCapturedWildcardBounds`,
+  `shouldCheckTypeArgument`, `reportTypeArgumentInferenceFailure`,
+  `areCollapsedWildcardBoundsEqual`, `shouldStripInvalidLocationQualifiers`.
+- Type argument inference: no longer adds upper bound as extra lower bound
+  (JLS 18.2.3); instantiates to requalified copies; displays captured type
+  variables directly.
+- Type argument inference crash fixes: `? super`/`? extends` interactions,
+  lambda-returned generic calls, implicitly typed lambdas, inexact method
+  references, F-bounded wildcards.
+- Type argument inference resolves polymorphic qualifiers in nested generic
+  invocations and method references.
+- Viewpoint adaptation no longer crashes on raw F-bounded classes; new
+  `viewpointAdaptTypeDeclarationBounds` and `extractAnnotationMirror` hooks.
+  Viewpoint-adapting checkers can now extend types with receiver-dependent bounds.
+- `-AcheckCastElementType` fixes: no longer crashes on downcasts, incomparable
+  types, null literal casts, or differing type-argument counts.
+- `BinaryStubFileGenerator` accepts a file, directory (`--bundle`), or jar.
+  `-AmergeStubsWithSource`, `-AstubWarnIfNotFound`, `-AstubDebug` disable the
+  binary path.
+- Fixed aliasing bug in `AnnotatedTypeCopier` for executable types.
+- Fixed `IndexOutOfBoundsException` for lambdas in varargs.
+- Fixed `BinaryOperation.hashCode()` for commutative operators.
+- Fixed `OptionalImplVisitor` `else`-branch check.
+- Fixed format crash in Optional Checker's `prefer.map.and.orelse` warning.
+- `JavaStubifier` names the source file on failure; new
+  `--skipUnloadableAnnotations` flag.
+- Fixed crash in `AnnotatedTypeMirror#hasExplicitAnnotation(Class)`.
+- Fixed multi-catch dropping a type annotation on the first alternative.
+- Fixed `@DefaultQualifier` on a package lost for deeper subpackages.
+- Source-tree annotations resolve aliases first;
+  `getExplicitAnnotations` returns canonical form; new
+  `asSupportedQualifier`, `isSupportedQualifierOrAlias`,
+  `canonicalAnnotationOrWritten`.
+- `addAliasedTypeAnnotation` fails fast if canonical is unsupported or alias
+  is in the hierarchy.
+- Stubifier resolves nested annotations through enclosing classes.
+- `AnnotationFileUtil.allAnnotationFiles(String, ...)` replaced by
+  `resolveAnnotationFileLocation` plus `allAnnotationFiles(File, ...)`.
+- Custom annotated JDKs no longer load `checker.jar`'s binary JDK on top.
+- Fixed `-AwarnUnneededSuppressions` for values matching a checker prefix.
+- Fixed missing `EnsuresNonNullIf` import in
+  `permit-nullness-assertion-exception.astub`.
+- Fixed capture conversion dropping qualifiers from type-variable bounds.
+- Fixed restoring dataflow-refined captured type variable bounds.
+- `AnnotatedTypeMirror.toString(false)` now matches `toString()`.
+- `@AnnotatedFor` scope checking unified and cached.
+- `Arrays.copyOf` no longer crashes when component types differ.
+- No longer crashes on method references with raw receivers or supertypes
+  with missing type-argument classes.
 
 **Closed issues:**
 
