@@ -89,12 +89,7 @@ and has `applyToSubpackages`. Writing both for the same checker on one
 declaration issues `conflicting.annotatedfor`.
 
 `@AnnotatedFor` is now `@Repeatable`, so different type systems can be given
-different `applyToSubpackages` settings on one package:
-```java
-@AnnotatedFor(value = "nullness", applyToSubpackages = false)
-@AnnotatedFor(value = "index", applyToSubpackages = true)
-package mypackage;
-```
+different `applyToSubpackages` settings on one package.
 
 `@AnnotatedFor`/`@UnannotatedFor` now have `RUNTIME` retention, so they're
 stored in class files and respected under
@@ -143,12 +138,6 @@ Command-line option additions and changes:
 - Invalid option arguments (e.g. malformed regex) now produce compiler errors
   instead of stack traces.
 
-Checker subclass and subchecker inheritance: a checker subclass inherits
-`@StubFiles` from its nearest annotated superclass (shared bidirectionally
-in compound checkers) and combines `@RelevantJavaTypes` across superclasses.
-A checker without `@SuppressWarningsPrefix` accepts the default prefix of
-every checker running it as a subchecker.
-
 CFG-synthesized method invocations (boxing, unboxing, enhanced-for,
 try-with-resources) are now type-checked, with diagnostics pointing at the
 source construct.
@@ -188,6 +177,10 @@ Performance optimizations:
 - `AnnotatedTypeFactory.isFromByteCode(Element)` caches per element.
 
 Other improvements and bug fixes:
+- Checker subclass inheritance: inherits `@StubFiles` from nearest annotated
+  superclass (shared bidirectionally in compound checkers), combines
+  `@RelevantJavaTypes` across superclasses, and accepts the default
+  `@SuppressWarningsPrefix` of every parent checker.
 - New `TreeUtils.inferredTypeArguments(ExpressionTree)` recovers javac-inferred
   type variables.
 - `TypeVariableSubstitutor.substitute`/`substituteTypeVariable` take a boolean
