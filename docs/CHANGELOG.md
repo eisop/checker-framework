@@ -368,73 +368,34 @@ The Nullness Checker now refines `Queue.poll()`, `Queue.peek()`,
 `Deque.peekLast()` to `@NonNull` after a false `isEmpty()` check for queues
 and deques with `@NonNull` element types.
 
-Further performance improvements relative to the 3.49.5-eisop1 release:
+Performance improvements relative to the 3.49.5-eisop1 release:
 - `allNullnessTests`: 1m24s vs. 2m16s
 - `checkNullness`: 1m28s vs. 3m40s
 - `checkInterning`: 0m35s vs. 1m13s
 - `test`: 7m15s vs. 12m40s (lots of build overhead)
 
 Several optimizations also reduce GC pressure and remove superlinear behavior,
-improving performance for large (e.g. auto-generated) files.
+improving performance for large (e.g. auto-generated) files. Type-checking a
+class with many fields under the Initialization Checker (and any checker
+built on it, such as the Nullness Checker) is no longer quadratic in the
+number of fields with an initializer or constructor assignment: a class with
+4000 such fields now type-checks in about 11 seconds instead of about 26.
 
-The annotated JDK is now distributed additionally as a pre-parsed binary file
-(`annotated-jdk.bin.gz`), so checker startup no longer text-parses the JDK
-stubs. The text stubs remain in `checker.jar` as a fallback; they are expected
-to be dropped in a future release, shrinking `checker.jar` by about 1.5 MB.
+The annotated JDK, and every built-in checker stub file, are now additionally
+distributed as pre-parsed binary files, so checker startup no longer
+text-parses them; this also removes JavaParser from checker initialization
+entirely. The text stubs remain in `checker.jar` as a fallback (expected to be
+dropped in a future release, shrinking `checker.jar` by about 1.5 MB), and any
+stub that cannot be represented in binary form falls back to text parsing.
 
-The built-in checker stub files (`jdk.astub`, `jdkN.astub`, and `@StubFiles`
-resources) are likewise pre-parsed into sibling `.astub.bin.gz` resources at
-build time and loaded from the binary form at checker startup, removing
-JavaParser from checker initialization entirely. A stub file that cannot be
-represented in binary form falls back to text parsing.
+A stub file supplied with `-Astubs` may also have a binary form, generated
+with `org.checkerframework.framework.stubifier.BinaryStubFileGenerator`. See
+the manual's "Using a binary (pre-parsed) stub file" section for how to
+generate one and which command-line options disable the binary path.
 
-A stub file supplied with `-Astubs` may now also have a binary form, read
-instead of text-parsing it. Generate one with
-`org.checkerframework.framework.stubifier.BinaryStubFileGenerator`, the same
-tool used for a checker's built-in stub files: point it at a single `.astub`
-file or a directory of them to write a sibling `.astub.bin.gz` for each, or
-pass `--bundle` to combine a whole directory into one binary file written
-beside it. A `.jar` file is supported too (`-Astubs` already treats a `.jar`
-as equivalent to every `.astub` file it contains): running the generator on
-it adds a sibling `.astub.bin.gz` entry beside each `.astub` entry, inside
-the same `.jar`, in place; there is no bundle mode for a `.jar`, since it is
-already one file regardless of how many entries it has. The binary form
-embeds a fingerprint of the source file (or entry) it was generated from; if
-the content no longer matches, it is text-parsed instead and a
-`stale.binary.stub` warning says so. Certain command-line options
-(`-AmergeStubsWithSource`, the `-AstubWarnIfNotFound` family, `-AstubDebug`)
-disable the binary path for `-Astubs` files entirely, since each changes what
-text parsing itself does or reports in a way the binary form cannot
-reproduce. See the manual's "Using a binary (pre-parsed) stub file" section
-for details.
-
-Declaration annotations and record component types in stub files are no longer
-merged into classes being compiled from source unless `-AmergeStubsWithSource`
-is supplied, matching the behavior for other type annotations. The stub parser
-now warns when a stub file provides annotations for a class compiled from source
-without `-AmergeStubsWithSource`.
-
-The Checker Framework now warns when it text-parses the annotated JDK, or a
-stub file that a checker ships, instead of reading that file's binary stub.
-Generate a missing binary stub by running `JavaStubifier` on the annotated
-JDK's `annotated-jdk` directory, or `BinaryStubFileGenerator` on a checker's
-`.astub` files. `.ajava` files are text-parsed as before, without a warning.
-A `-Astubs` directory or `.jar` with an incomplete binary stub setup (some,
-but not all, of its `.astub` files or entries read from a binary form) is
-also warned about, suppressible with
-`-AsuppressWarnings=text.parsing.command.line.stub`; a `-Astubs` location
-with no binary form at all is not, since that is the ordinary case.
-
-These warnings have no source position, so `@SuppressWarnings` cannot suppress
-them. Suppress them with `-AsuppressWarnings=text.parsing`, or individually
-with `-AsuppressWarnings=text.parsing.jdk` (the annotated JDK has no binary
-stub), `-AsuppressWarnings=text.parsing.jdk.class` (a JDK class is missing from
-the binary stub), `-AsuppressWarnings=text.parsing.stub` (a checker's stub
-file has no binary stub), or
-`-AsuppressWarnings=text.parsing.command.line.stub` (a `-Astubs` directory's
-or `.jar`'s binary stub setup is incomplete). A stale `-Astubs` binary stub
-is a separate warning, also with no source position:
-`-AsuppressWarnings=stale.binary.stub`.
+The Checker Framework warns when it falls back to text-parsing the annotated
+JDK or a checker's stub file; suppress with `-AsuppressWarnings=text.parsing`
+(see the manual for the more specific keys).
 
 The Nullness Checker now checks if `Arrays.copyOf` is called with a
 side-effecting array expression, avoiding unsound behavior. It now also issues
@@ -504,13 +465,6 @@ the start of the possibly-null receiver expression being dereferenced -- for
 example, in `firstObj.intList.add(1)` where `firstObj.intList` is possibly null,
 the marker now points at the access of `.add`, not at the start of `firstObj`.
 The message text is unchanged; only the reported source position moves.
-
-Type-checking a class with many fields under the Initialization Checker (and any checker
-built on it, such as the Nullness Checker) is no longer quadratic in the number of fields
-that are declared with an initializer or assigned in a constructor. Determining whether the
-enclosing receiver is still under initialization used to rescan every field of the class on
-each such declaration or assignment; it is now cached or answered with an early-exit scan.
-A class with 4000 such fields now type-checks in about 11 seconds instead of about 26.
 
 **Implementation details:**
 
@@ -1094,6 +1048,20 @@ Other improvements and bug fixes:
   Checker) now respects an explicit receiver annotation on an inner class
   constructor, such as `Inner(@UnknownInitialization Outer Outer.this)`, instead of
   defaulting the enclosing instance to `@Initialized`.
+- `BinaryStubFileGenerator` accepts a single `.astub` file, a directory of
+  them (writing a sibling `.astub.bin.gz` for each, or one combined file via
+  `--bundle`), or a `.jar` (adding a sibling `.astub.bin.gz` entry beside each
+  `.astub` entry, in place). The binary form embeds a fingerprint of its
+  source; a mismatch falls back to text parsing with a `stale.binary.stub`
+  warning. `-AmergeStubsWithSource`, the `-AstubWarnIfNotFound` family, and
+  `-AstubDebug` disable the binary path for `-Astubs` files entirely, since
+  each changes what text parsing itself reports.
+- The text-parsing fallback warnings have no source position, so
+  `@SuppressWarnings` cannot suppress them. Besides the blanket
+  `-AsuppressWarnings=text.parsing`, the specific keys are `text.parsing.jdk`,
+  `text.parsing.jdk.class`, `text.parsing.stub`, and
+  `text.parsing.command.line.stub`; a stale `-Astubs` binary stub is the
+  separate `stale.binary.stub`.
 
 **Closed issues:**
 
