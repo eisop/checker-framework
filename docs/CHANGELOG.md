@@ -51,26 +51,15 @@ invoking a method. The annotations on the type arguments of a method receiver
 (e.g., `void test(Box<@NonNull T> this)`) were previously ignored during
 type-checking.
 
-When the bounds of an intersection type (for example, the bound
-`<T extends @NonNull Object & @Nullable Serializable>`) carry conflicting
-qualifiers in the same hierarchy, the intersection's qualifier for that
-hierarchy is the qualifier of the first bound in source order, and every other
-bound's differing qualifier gets an `explicit.annotation.ignored` warning if
-it was written explicitly. That summary is then written back onto every bound
-(homogenization), so all bounds of the intersection carry the same qualifier
-per hierarchy. Homogenization is sound for value-property qualifiers and can
-be strictly more precise than keeping each bound's own qualifier, because a
-hierarchy that only one bound constrains is propagated to the others rather
-than defaulted away. First-bound-wins holds uniformly no matter how the first
-bound's qualifier arose: written explicitly, filled by an ordinary location
-default, or filled by a type-based default such as `@DefaultQualifierForUse`.
-This result is deterministic for a given compilation, but it depends on the
-source order of the bounds. A checker that wants an order-independent
-summary can override
-`AnnotatedTypeFactory#combineIntersectionBoundAnnotationsInHierarchy` to
-return, for example, the greatest lower bound; the hook is consulted whenever
-any two bounds' qualifiers conflict in a hierarchy, whether either qualifier
-is written or defaulted.
+When the bounds of an intersection type carry conflicting qualifiers in the
+same hierarchy (e.g. `<T extends @NonNull Object & @Nullable Serializable>`),
+the intersection's qualifier for that hierarchy is now the first bound's in
+source order, and every other bound's differing explicit qualifier gets an
+`explicit.annotation.ignored` warning; that summary is then written back onto
+every bound (homogenization), so all bounds carry the same qualifier per
+hierarchy. A checker that wants an order-independent summary instead (e.g.
+the greatest lower bound) can override
+`AnnotatedTypeFactory#combineIntersectionBoundAnnotationsInHierarchy`.
 
 The Checker Framework now issues an `annotation.on.supertype` error when an annotation supported by
 the checker is written as a main annotation on the superclass or interface in an `extends` or
@@ -87,19 +76,14 @@ checker has recognized the whole time. The Checker also no longer recognizes
 1.0 release dropped it outright, and `org.jspecify.annotations` has only `NonNull`,
 `Nullable`, `NullMarked`, and `NullUnmarked`.
 
-The Nullness Checker supports `-Amode=jspecify`, which makes it behave as JSpecify
-specifies: it checks only code in the scope of an `@AnnotatedFor`, treats `@NullMarked`
-as a defaulting annotation, and performs neither initialization checking nor map-key
-checking.  It also assumes that every called method is pure and that assertions are
-enabled, as if `-AassumePure` and `-AassumeAssertions=enabled` were supplied; an
-`-AassumeAssertions` value written alongside the mode takes precedence.  Code outside such a
-scope has JSpecify's unspecified nullness, which JSpecify lets each tool treat anywhere from
-strictly to leniently (see the
-["multiple worlds" discussion](https://jspecify.dev/docs/spec/#multiple-worlds) in the JSpecify
-specification).  The mode currently interprets it leniently, with permissive defaults, as if
-`-AusePermissiveDefaultsForUncheckedCode=source,bytecode` were supplied.  To use other defaults
-for unchecked code, write `-AusePermissiveDefaultsForUncheckedCode=-source,-bytecode` for the
-ordinary defaults, or `-AuseConservativeDefaultsForUncheckedCode` for conservative ones.
+The Nullness Checker supports `-Amode=jspecify`, which makes it behave as
+JSpecify specifies: it checks only code in the scope of an `@AnnotatedFor`,
+treats `@NullMarked` as a defaulting annotation, performs neither
+initialization nor map-key checking, and assumes every called method is pure
+and assertions are enabled. Code outside an `@AnnotatedFor` scope gets
+JSpecify's unspecified nullness, which the mode currently treats leniently
+(permissive defaults); see the manual for how to choose a different
+unchecked-code policy.
 
 The new `-Amode=<mode>` option turns on a checker-defined group of options.  A mode
 only sets an option the user did not, so an option written on the command line keeps
@@ -107,53 +91,38 @@ the value given there.  Note that most options are on/off flags with no negative
 so writing one cannot turn off what a mode enables.  A checker declares its modes with
 `@SupportedModes` and defines them by overriding `SourceChecker.addOptionsForMode`.
 
-The Nullness Checker's new `-AjspecifyUnrecognizedLocations` command-line option (also enabled by
-`-Amode=jspecify`) reports an error for a nullness annotation written where JSpecify gives it no
-meaning: a class declaration, a wildcard, a type parameter, a pattern, a type argument of a
-receiver parameter's type, or the root type of a local variable, a resource variable, a cast, or a
-method reference. Each location has its own `jspecify.unrecognized.location.*` diagnostic key. The
-option is off by default because five of these locations -- a class declaration, a wildcard, and
-the root type of a local variable, a cast, and a method reference -- are meaningful to the Checker
-Framework itself.
+The Nullness Checker's new `-AjspecifyUnrecognizedLocations` option (also
+enabled by `-Amode=jspecify`) reports an error for a nullness annotation
+written where JSpecify gives it no meaning -- a wildcard, a type parameter, a
+pattern, a cast, a method reference, and a few others -- each with its own
+`jspecify.unrecognized.location.*` key. It is off by default because five of
+these locations are meaningful to the Checker Framework itself.
 
 The Nullness Checker now treats JSpecify's `@NullMarked` as an alias for
-`@AnnotatedFor` scoped to nullness checking alone (not initialization or `@KeyFor`
-checking, which JSpecify does not define and which `-Amode=jspecify` already excludes),
-with `applyToSubpackages = false`, in addition to the existing `@DefaultQualifier` alias.
-Nullness-checking code under a `@NullMarked` element is therefore type-checked under
-`-AonlyAnnotatedFor` and `-AuseConservativeDefaultsForUncheckedCode=source` instead of
-being skipped. Because `@NullMarked` is retained in class files, this also applies to
-bytecode: a dependency compiled with `@NullMarked` is no longer treated as unchecked
-code under `-AuseConservativeDefaultsForUncheckedCode=bytecode`. A written
-`@AnnotatedFor("initialization")` or `@AnnotatedFor("keyfor")` still composes normally
-alongside `@NullMarked` (see below). `applyToSubpackages = false` matches JSpecify,
-which specifies that a `@NullMarked` package does not cover its subpackages, and
-matches the `@DefaultQualifier` alias. As before, `-AjspecifyNullMarkedAlias=false`
+`@AnnotatedFor` scoped to nullness checking alone, with
+`applyToSubpackages = false`, in addition to the existing `@DefaultQualifier`
+alias. Nullness-checking code under a `@NullMarked` element is therefore
+type-checked under `-AonlyAnnotatedFor` and
+`-AuseConservativeDefaultsForUncheckedCode=source` instead of being skipped,
+including in bytecode (a `@NullMarked` dependency is no longer unchecked code
+under `-AuseConservativeDefaultsForUncheckedCode=bytecode`). A written
+`@AnnotatedFor("initialization")` or `@AnnotatedFor("keyfor")` still composes
+alongside `@NullMarked` (see below). `-AjspecifyNullMarkedAlias=false`
 disables all `@NullMarked` aliasing, now including this new alias.
 
-The Nullness Checker now also treats JSpecify's `@NullUnmarked` as the inverse of
-`@NullMarked`, in both of the ways `@NullMarked` is recognized. It undoes the
-enclosing `@NullMarked`'s `@NonNull` upper-bound default within its scope -- without
-which a type variable of a `@NullUnmarked` method was still bounded by `@NonNull`
--- and it aliases to `@UnannotatedFor`, with the same checker name and the same
-`applyToSubpackages = false` as the `@NullMarked` aliases, so it subtracts its
-scope from an enclosing `@NullMarked` under `-AonlyAnnotatedFor` and
-`-AuseConservativeDefaultsForUncheckedCode=source`. Like `@NullMarked`, it is
-retained in class files, so this applies to bytecode too: a `@NullUnmarked`
-member of a `@NullMarked` dependency is again given conservative defaults under
-`-AuseConservativeDefaultsForUncheckedCode=bytecode`.
+The Nullness Checker now also treats JSpecify's `@NullUnmarked` as the
+inverse of `@NullMarked`: it undoes the enclosing `@NullMarked`'s `@NonNull`
+upper-bound default within its scope, and aliases to `@UnannotatedFor` (same
+checker name, same `applyToSubpackages = false`), subtracting its scope from
+an enclosing `@NullMarked` under both source and bytecode conservative
+defaults.
 
 Two new `nullness.on.*` errors are issued unconditionally, not just under
-`-AjspecifyUnrecognizedLocations`, because in both locations no legitimate use is possible, not
-merely one JSpecify does not recognize: `nullness.on.throws`, for a nullness annotation on a
-thrown type, as in `void m() throws @Nullable Exception` (JLS 14.18: `throw null` throws a
-`NullPointerException` instead, so a thrown object is never null); and
-`nullness.on.annotation.member`, for one on any component of an annotation interface member's
-return type, as in `@Nullable String value();` (JLS 9.7.1: an annotation element's value must be a
-constant expression, and `null` is never one, for any element type, so no usage can ever supply
-one). Unlike `nullness.on.exception.parameter`'s catch side, neither location declares a variable
-that a later reassignment could give a legitimate reason to annotate, so both are errors rather
-than warnings.
+`-AjspecifyUnrecognizedLocations`, since no legitimate use is possible at
+either location: `nullness.on.throws` (a nullness annotation on a thrown
+type, e.g. `void m() throws @Nullable Exception`) and
+`nullness.on.annotation.member` (one on an annotation interface member's
+return type, e.g. `@Nullable String value();`).
 
 `instanceof` now distinguishes a nullness annotation on the root of the tested type, or of a
 pattern variable's type (including inside a deconstruction pattern), from one on a component, such
@@ -244,16 +213,13 @@ Previously both were kept and which one took effect depended on the order of the
 annotation class names. Two that name the same qualifier are redundant, not conflicting,
 and remain legal.
 
-An annotation that a checker registers as an alias for `@DefaultQualifier`, such as
-JSpecify's `@NullMarked` for the Nullness Checker, now participates at its own position in
-the source, alongside the `@DefaultQualifier` annotations written on the same declaration.
-Two consequences. An alias is no longer dropped when a `@DefaultQualifier` is also written
-on the declaration; previously the written annotation hid it entirely, so on
-`@NullMarked @DefaultQualifier(value = Nullable.class, locations = FIELD)` the `@NullMarked`
-default for upper bounds was silently lost. And when an alias and a written
-`@DefaultQualifier` do conflict, source order decides: whichever appears first wins, so
-reordering the two annotations changes the result. Previously the alias always won against
-two or more written `@DefaultQualifier` annotations, and always lost against one.
+An alias for `@DefaultQualifier` (e.g. JSpecify's `@NullMarked`) now
+participates at its own position in the source, alongside written
+`@DefaultQualifier` annotations on the same declaration: it is no longer
+dropped when a `@DefaultQualifier` is also written, and when the two
+conflict, whichever appears first in source order wins (previously the alias
+always won against two or more written annotations, and always lost against
+one).
 
 Specifying a location in `@DefaultQualifier` that is prohibited by the qualifier's
 `@TargetLocations` meta-annotation is now reported as a compiler error
@@ -296,15 +262,12 @@ suppressed, as if no enclosing `@AnnotatedFor` were present; a nested
 supplied.
 
 `@AnnotatedFor` and `@UnannotatedFor` now have `RUNTIME` retention instead of
-`SOURCE` retention, so they are stored in class files and available via
-reflection at run time. Under `-AuseConservativeDefaultsForUncheckedCode=bytecode`,
-a class compiled with a relevant `@AnnotatedFor` is no longer treated as
-unchecked code, and an `@UnannotatedFor` in a dependency now excludes its
-scope. A package annotation in a `package-info.class` on the classpath now
-also applies to separately compiled subpackages, unless it sets
-`applyToSubpackages = false`. Run-time tools can read `@AnnotatedFor` to see
-which classes the authors have annotated for a type system; the annotation
-does not record whether a checker was run.
+`SOURCE`, so they are stored in class files and readable via reflection.
+Under `-AuseConservativeDefaultsForUncheckedCode=bytecode`, a class compiled
+with a relevant `@AnnotatedFor` is no longer treated as unchecked code, an
+`@UnannotatedFor` in a dependency now excludes its scope, and a package
+annotation on the classpath applies to separately compiled subpackages
+unless `applyToSubpackages = false`.
 
 Command-line options prefixed with a checker name (such as `-ANullnessChecker_lint=...` or
 `-ANullnessChecker_useConservativeDefaultsForUncheckedCode=...`) are now inherited by that
@@ -328,39 +291,31 @@ inherit stub files declared by their enclosing parent checkers.
 A checker subclass now automatically inherits and combines `@RelevantJavaTypes` annotations
 declared across its superclasses in the checker class hierarchy.
 
-A checker can now examine a package declaration. `AbstractTypeProcessor` dropped the
-analysis event for a `package-info.java`, so no checker could ever visit one and a
-declaration annotation written on a `package` clause went unchecked. Three checks that
-apply to a package therefore did not run there, and now do:
+A checker can now examine a package declaration (`AbstractTypeProcessor`
+previously dropped the analysis event for `package-info.java`), so three
+checks that require visiting a package now actually run there:
 
-- A conflicting `@AnnotatedFor`/`@UnannotatedFor` pair on a package was reported only when
-  some class in that package was also compiled, because the check had to be reached
-  through one.
-- A conflicting `@DefaultQualifier` pair on a package was likewise reported only then, and
-  for the same reason: the diagnostic fell out of resolving the package's defaults, which
-  nothing does when no class in the package is compiled.
-- A conflicting `@HasQualifierParameter`/`@NoQualifierParameter` pair on a package, and a
-  `@HasQualifierParameter` whose argument is not a top qualifier, were never checked at
-  all. Both annotations' `@Target` includes `PACKAGE`.
+- a conflicting `@AnnotatedFor`/`@UnannotatedFor` pair on the package,
+- a conflicting `@DefaultQualifier` pair on the package, and
+- a conflicting `@HasQualifierParameter`/`@NoQualifierParameter` pair, or a
+  `@HasQualifierParameter` whose argument is not a top qualifier.
+
+Previously each was reported only when some class in the package was also
+compiled, or (for the last two) never at all.
 
 When the Initialization Checker rejects a method call on a partially-initialized receiver, it
 now reports `initialization.method.invocation.invalid`, which names the fields that are still
 uninitialized at the call, instead of the framework's `method.invocation.invalid`.
 
-A type-use annotation written on an anonymous class creation expression, as in
-`new @A AClass() {}`, is now validated against the declaration bound of the class being extended
-on Java 8 through 11 as well. Previously this was checked only on Java 12 and later, so the same
-source checked differently depending on the compiler.
-
-An unannotated anonymous class creation expression, as in `new AClass() {}`, now
-takes the declaration bound and the `@DefaultQualifierForUse` qualifiers of the class
-or interface being instantiated. Previously it was defaulted without reference to that
-supertype, which for most type systems meant the top qualifier.
-
-Relatedly, `new @A AIface() {}` no longer reports `cast.unsafe.constructor.invocation`
-when `@A` is the interface's declaration bound. An anonymous class implementing an
-interface has no declared constructor, so the warning was previously issued whether or
-not the annotation matched the bound.
+Anonymous class creation is now checked more consistently: a type-use
+annotation on the class expression (`new @A AClass() {}`) is validated
+against the extended class's declaration bound on Java 8-11 too, not just
+12+; an unannotated creation (`new AClass() {}`) is now defaulted using the
+supertype's declaration bound and `@DefaultQualifierForUse` qualifiers
+instead of ignoring them; and `new @A AIface() {}` no longer reports
+`cast.unsafe.constructor.invocation` when `@A` matches the interface's
+declaration bound (an anonymous class implementing an interface has no
+declared constructor to warn about).
 
 A checker that viewpoint-adapts can now extend or implement a type whose declaration bound is
 receiver-dependent: the supertype's bound is adapted to the subtype's before the two are compared.
@@ -400,44 +355,25 @@ alternative to running it as a standalone annotation processor.  It is published
 "Error Prone" section.
 
 Two new Maven Central artifacts support writing a custom checker without
-depending on the whole `checker` artifact: `io.github.eisop:framework`, which
-declares its dependencies in its POM, and `io.github.eisop:framework-all`,
-which bundles them (relocated) into a single jar. `io.github.eisop:framework-test`
-now declares its dependency on `framework` and so can be used outside this
-repository. See the "Declaring dependencies for a custom checker" section of
-the manual.
+depending on the whole `checker` artifact: `io.github.eisop:framework` and
+`io.github.eisop:framework-all` (the same dependencies bundled and relocated
+into one jar); `io.github.eisop:framework-test` now declares its dependency
+on `framework` and can be used outside this repository. See the manual's
+"Declaring dependencies for a custom checker" section.
 
-The `framework`, `javacutil` and `dataflow` artifacts no longer publish an
-unusable shadow (`-all.jar`) variant in their Gradle module metadata.
-
-The published artifacts no longer pull in `org.checkerframework:checker-qual`
-transitively (through Guava and plume-util), which previously put a second
-definition of every qualifier on the classpath alongside
-`io.github.eisop:checker-qual`.
-
-Gradle consumers of `io.github.eisop:checker` now resolve `checker-VERSION.jar`,
-the same artifact Maven consumers get from the POM. They previously resolved
-`checker-VERSION-all.jar`, which bundles checker-qual and checker-util while
-also depending on them, so every qualifier class appeared on the classpath
-twice. `checker-VERSION-all.jar` is still published as a classified artifact.
-Accordingly, `checker` now declares checker-qual and checker-util at `compile`
-scope rather than `runtime`, matching the jar it actually ships.
-
-Fixed five annotation names that ShadowJar rewrote when building `checker.jar`,
-so they never matched the annotations they name. The Nullness Checker now again
-recognizes `org.codehaus.commons.nullanalysis.NotNull` and `.Nullable` as
-aliases, the Called Methods Checker recognizes Lombok's
-`com.google.firebase.database.annotations.NotNull` and
-`org.codehaus.commons.nullanalysis.NotNull`, and whole-program inference again
-honors `@org.plumelib.options.Option`.
-
-The published `checker` artifact is about 2 MB smaller: it is now minimized, like
-the other shaded jars.
-
-The shaded jars no longer contain a `module-info.class` or jsr305's
-`javax.annotation` classes, neither of which described or belonged to them.
-Recognition of `javax.annotation.Nullable`, `@Nonnull` and `@CheckForNull` in
-user code is unaffected.
+Several packaging bugs are fixed, all rooted in a qualifier class ending up
+duplicated on the classpath, or a jar depending on classes it also bundles.
+The published artifacts no longer transitively pull in
+`org.checkerframework:checker-qual` (via Guava/plume-util) alongside
+`io.github.eisop:checker-qual`; Gradle consumers of `io.github.eisop:checker`
+now resolve the same `checker-VERSION.jar` that Maven consumers get, instead
+of the redundant `-all.jar`; and `framework`/`javacutil`/`dataflow` no longer
+publish an unusable shadow-jar variant in their Gradle module metadata. Five
+annotation names that ShadowJar had rewritten -- breaking recognition of
+Lombok's and codehaus's `@NotNull`/`@Nullable` aliases and
+`@org.plumelib.options.Option` -- are fixed. The shaded jars are about 2 MB
+smaller (now minimized) and no longer bundle a stray `module-info.class` or
+jsr305's `javax.annotation` classes.
 
 Every continuous integration run now attaches the jars it built to the run, so
 the latest development version, or a proposed fix, can be tried out without
