@@ -935,298 +935,165 @@ Other improvements and bug fixes:
   that no source can express. Diagnostics can now show a captured type
   variable, such as `capture#01 extends @Nullable String`, where they
   previously showed its bound, such as `@Nullable String`.
-- Fixed a bug where a `@DefaultQualifier` on a package could be lost for deeper subpackages.
-  This happened when an intervening package shadowed it -- set a default for the same
-  location and qualifier hierarchy -- and that shadowing default did not itself apply to
-  subpackages. The intervening package's own default correctly stayed limited to that
-  package, but the outer default, which nothing deeper actually shadowed, incorrectly
-  stopped propagating too.
-- A default that a checker registers with `QualifierDefaults.addElementDefault` now combines
-  with the `@DefaultQualifier` annotations written on the same declaration and with the
-  defaults of enclosing elements, instead of replacing them or being lost depending on the
-  order in which defaults were first queried.
-- A check that reads an annotation from the source tree now resolves aliases first, so a written
-  alias such as `org.jspecify.annotations.Nullable` or `@IndexFor` is treated as the qualifier it
-  stands for. The `annotation.on.supertype`, `instanceof.nullable`, `instanceof.nonnull.redundant`,
-  `invalid.polymorphic.qualifier`, `explicit.annotation.ignored`, and `anno.on.irrelevant`
-  diagnostics were previously issued only for a checker's own annotation. So is the type of a
-  constructor reference (`Foo::new`): an explicit annotation on the constructor's own declared type,
-  written as an alias, is now recognized the same way its canonical form would be.
-- `AnnotatedTypeMirror#getExplicitAnnotations` now returns an alias in its canonical form, rather
-  than as written: every caller compares the result against a canonical qualifier, so returning the
-  written form only meant every such caller had to remember to canonicalize it, and most did not.
-  This fixes `redundant.anno`, `unique.location.forbidden`, `immutable.type.guardedby`, and
-  `initialization.invalid.field.type`/`.constructor.return.type`, none of which resolved an alias
-  before, for the same reason. A Whole Program Inference run also now correctly declines to
-  overwrite a type the user explicitly annotated with an alias, rather than treating the (until now,
-  alias-blind) explicit-annotation set as empty and overwriting it.
-- `AnnotatedTypeFactory` has three new public methods for writing this kind of alias-aware check:
-  `asSupportedQualifier(AnnotationMirror)`, which returns an annotation as written or its canonical
-  form, whichever is a supported qualifier (or null if neither is);
-  `isSupportedQualifierOrAlias(AnnotationMirror)`, the boolean form of the same question; and
-  `canonicalAnnotationOrWritten(AnnotationMirror)`, which returns the canonical form of an
-  annotation as written if it is an alias, and the annotation itself otherwise (regardless of
-  whether either form is actually a supported qualifier).
-- `AnnotatedTypeFactory#addAliasedTypeAnnotation` now validates that the canonical annotation is
-  a supported qualifier of the checker and that the alias is not already in the type hierarchy,
-  failing immediately with `TypeSystemError` rather than silently ignoring the alias.
-- Type argument inference no longer fails on a `? super` wildcard whose argument mentions
-  the inferred type variable through `? extends`, as in
-  `Function<? super Set<? extends K>, ?>`.  It reported
-  `type.argument.inference.crashed` on code that javac accepts.
-- Type argument inference no longer fails on a generic call returned by a lambda that is
-  itself an argument to a generic method, as in `run(() -> arr(new String[0]))`.  Finding
-  the qualifiers of the new array restarted inference of `arr(...)` while it was still being
-  inferred as part of `run(...)`, and that second inference used `run`'s not-yet-inferred
-  type variable as its target.  With default options the failure was silently discarded;
-  with `-AconvertTypeArgInferenceCrashToWarning=false`, as the test harness passes, the
-  Checker Framework crashed on code that javac accepts.
-- The Checker Framework no longer crashes with "AsSuperVisitor: type is not an erased subtype
-  of supertype" when an implicitly typed lambda that is an argument to a generic method invokes
-  a generic method on its parameter, as in `of(list, l -> l.toArray(new String[0]))`.
-  Type argument inference computed the type of `l` before inferring the type argument that the
-  type of `l` depends on, so `l` got the uninferred type variable as its type, and that type was
-  cached and used after inference, too.  Depending on the code, the result was this crash, a
-  spurious `lambda.param.type.incompatible` error, or a spurious
-  `type.argument.inference.crashed` error.
-- Type-argument inference now resolves the polymorphic qualifiers of a generic method invocation
-  that is nested in the inference of an enclosing invocation, such as an argument or a lambda's
-  returned expression.  Previously a polymorphic qualifier on the nested invocation's return type
-  became part of an inferred type argument of the enclosing invocation, so for example
-  `id(list.stream().map(String::length))` under the NonEmpty Checker, or a `@PolyNull` method in
-  the same position under the Nullness Checker, reported a spurious `return.type.incompatible`,
-  `argument.type.incompatible`, or `type.arguments.not.inferred` error.  The qualifiers are still
-  not resolved when the argument that instantiates them is itself a poly expression, such as
-  `id(wrap(id(o), 1))` for a method `wrap(@PolyNull Object, U)`.
-- The stubifier resolves a nested annotation named through its enclosing class, as
-  the JDK's own `java.lang.invoke.VarHandle` writes `@MethodHandle.PolymorphicSignature`.
-  Such a name is not loadable as written -- its binary name separates the nesting with
-  `$` -- so the stubifier could not read the annotation's `@Target` and failed the whole
-  file. That made every class using a signature-polymorphic method impossible to
-  annotate; `VarHandle` and `MethodHandle` are the two in the JDK.
+- Fixed a bug where a `@DefaultQualifier` on a package could be lost for a deeper
+  subpackage when an intervening package's own default shadowed it without covering
+  subpackages itself.
+- A default registered with `QualifierDefaults.addElementDefault` now combines with
+  `@DefaultQualifier` and enclosing-element defaults instead of replacing or losing
+  them depending on query order.
+- An annotation read from the source tree now resolves aliases first, so a written
+  alias such as `org.jspecify.annotations.Nullable` is recognized by
+  `annotation.on.supertype`, `instanceof.nullable`, `instanceof.nonnull.redundant`,
+  `invalid.polymorphic.qualifier`, `explicit.annotation.ignored`, and
+  `anno.on.irrelevant`, and in a constructor reference's type -- previously only a
+  checker's own (canonical) annotation was.
+- `AnnotatedTypeMirror#getExplicitAnnotations` now returns an alias in canonical
+  form, fixing `redundant.anno`, `unique.location.forbidden`,
+  `immutable.type.guardedby`, and the two `initialization.invalid.*` diagnostics,
+  and whole-program inference's handling of an alias-annotated type, none of which
+  resolved an alias before.
+- `AnnotatedTypeFactory` gains `asSupportedQualifier`, `isSupportedQualifierOrAlias`,
+  and `canonicalAnnotationOrWritten` for writing this kind of alias-aware check.
+- `AnnotatedTypeFactory#addAliasedTypeAnnotation` now fails fast with
+  `TypeSystemError` if the canonical annotation isn't a supported qualifier or the
+  alias is already in the type hierarchy, instead of silently ignoring the alias.
+- Type argument inference no longer crashes (`type.argument.inference.crashed`) on a
+  `? super` wildcard whose argument mentions the inferred type variable through
+  `? extends`, as in `Function<? super Set<? extends K>, ?>`.
+- Type argument inference no longer crashes on a generic call returned by a lambda
+  that is itself an argument to a generic method, as in
+  `run(() -> arr(new String[0]))`: inferring the array's qualifiers had restarted
+  `arr(...)`'s inference against `run`'s not-yet-inferred type variable.
+- Fixed a crash ("AsSuperVisitor: type is not an erased subtype of supertype") when
+  an implicitly typed lambda argument invokes a generic method on its parameter, as
+  in `of(list, l -> l.toArray(new String[0]))`: `l`'s type was computed, and
+  cached, before the type argument it depends on was inferred.
+- Type-argument inference now resolves the polymorphic qualifiers of a generic
+  invocation nested in an enclosing invocation's inference (an argument or a
+  lambda's return), fixing spurious errors such as
+  `id(list.stream().map(String::length))` under the NonEmpty Checker.
+- The stubifier now resolves a nested annotation named through its enclosing class
+  (as the JDK's own `@MethodHandle.PolymorphicSignature` is written), instead of
+  failing the whole file; `VarHandle` and `MethodHandle` were the affected JDK
+  classes.
 - A checker that viewpoint-adapts no longer crashes on a raw use of an F-bounded
-  class such as `class Rec<T extends Rec<T>>`, whose type graph points back at
-  itself. `AbstractViewpointAdapter` now adapts and substitutes with
-  `AnnotatedTypeCopier`, which copies each type once, instead of with its own
-  recursion, which never reached the end of such a graph.
-- `ViewpointAdapter` gains `viewpointAdaptTypeDeclarationBounds`, and `AbstractViewpointAdapter` a new
-  abstract `extractAnnotationMirror(AnnotationMirrorSet)` that every subclass must implement. It is
-  the counterpart of the existing `extractAnnotationMirror(AnnotatedTypeMirror)`.
-- `AnnotationFileUtil.allAnnotationFiles(String, AnnotationFileType)` (public
-  API in `framework`) was replaced by `resolveAnnotationFileLocation(String)`
-  plus `allAnnotationFiles(File, AnnotationFileType)`, needed to look for a
-  binary form beside a `-Astubs` location before falling back to a text-file
-  walk. A third-party checker that called the old overload directly must
+  class such as `class Rec<T extends Rec<T>>`; `AbstractViewpointAdapter` now
+  adapts via `AnnotatedTypeCopier` instead of its own non-terminating recursion.
+- `ViewpointAdapter` gains `viewpointAdaptTypeDeclarationBounds`, and
+  `AbstractViewpointAdapter` a new abstract `extractAnnotationMirror(AnnotationMirrorSet)`
+  that every subclass must implement.
+- `AnnotationFileUtil.allAnnotationFiles(String, AnnotationFileType)` was replaced by
+  `resolveAnnotationFileLocation(String)` plus
+  `allAnnotationFiles(File, AnnotationFileType)`, needed to look for a binary stub
+  before falling back to text. A third-party checker calling the old overload must
   switch to the two new methods.
 - A checker that ships its own annotated JDK (as the JSpecify reference checker
   does) no longer also loads `checker.jar`'s binary annotated JDK on top of it.
 - Fixed `-AwarnUnneededSuppressions` failing to report an unneeded
-  `@SuppressWarnings` whose value is exactly a checker prefix (such as
-  `"nullness"`, `"allcheckers"`, or `"all"`). Such a suppression suppresses every
-  warning of the checker, and it was incorrectly suppressing the
-  `unneeded.suppression` warning about itself. To suppress that warning
-  deliberately, write the message key explicitly, as in
-  `@SuppressWarnings("nullness:unneeded.suppression")`.
+  `@SuppressWarnings` whose value is exactly a checker prefix (e.g. `"nullness"`),
+  which was incorrectly suppressing the `unneeded.suppression` warning about itself.
 - Fixed four bugs in how `AnnotationFileParser` matches a fake override to the
-  method it overrides. Each made a stub declaration bind to the wrong method, or
-  to none at all, silently changing or dropping the annotations it provides:
-
-  - Generic-parameter matching dropped annotated-JDK annotations from
-    `TreeMap.computeIfPresent()`, `computeIfAbsent()`, `compute()`, and `merge()`
-    under JDK 11 and 21.
-  - An overload whose parameter types match the stub declaration exactly is now
-    preferred, so a fake override `f(String)` no longer binds to a coexisting
-    type-variable overload `<T> f(T)` that happens to be visited first.
-  - A varargs stub parameter (`X...`) was compared by its element type, so it
-    could bind to an unrelated one-argument overload `f(X)`.
-  - A parameter type written with a partial scope (`HTML.Tag` for
-    `javax.swing.text.html.HTML.Tag`) matched neither the fully-qualified nor the
-    simple name, so the fake override was dropped; such a name is now matched as
-    a suffix of the fully-qualified name.
-- Fixed a bug where `AnnotatedTypeFactory.getAnnotatedType(Element)` could cache
-  an incomplete type for an element visited reentrantly while an annotation file
-  was still being parsed (e.g., via a fake override's `getAnnotatedType`
-  lookup on the overridden method, when that method's own declaring class had
-  not been processed yet), permanently poisoning that element's type for the
-  rest of the compilation. The cache write is now skipped while parsing is in
-  progress, matching the guard `fromElement` already had.
+  method it overrides, each of which silently bound to the wrong method or to none
+  at all: generic-parameter matching that dropped `TreeMap` annotations under
+  JDK 11/21, an exact-match overload not being preferred over a coexisting
+  type-variable overload, a varargs parameter compared by element type, and a
+  partially-scoped parameter type (`HTML.Tag`) matching neither the fully- nor
+  simple-qualified name.
+- Fixed `AnnotatedTypeFactory.getAnnotatedType(Element)` caching an incomplete type
+  for an element visited reentrantly while an annotation file was still being
+  parsed, permanently poisoning that element's type; the cache write is now skipped
+  while parsing is in progress.
 - Fixed a fake override's parameter types, receiver type, and declaration
-  annotations going stale when the overridden method's own declaring class is
-  processed later in the same stub file or JDK class group (e.g., a fake
-  override in `TreeMap.NavigableSubMap` targeting a `java.util.Map` default
-  method declared later). The stored snapshot is now refreshed against a
-  complete `getAnnotatedType(overridden)` the first time it is used, which is
-  always after parsing has finished; the return type, which a fake override
-  always determines from its own declaration, is unaffected. Both the text and
-  binary stub paths shared this hazard and are both fixed by this change.
-- Fixed a fake override's return type being applied incorrectly at any
-  position other than the outermost (primary) one -- a type argument, array
-  component type, or type-variable/wildcard bound. An explicit annotation
-  there (e.g. a declared return type `List<@Foo String>`) was silently
-  dropped, and an unannotated position there incorrectly inherited whatever
-  annotation the overridden method itself declared, instead of resetting to
-  the checker's default the way a fake override's primary annotation already
-  correctly did.
+  annotations going stale when the overridden method's declaring class is processed
+  later in the same stub file or JDK class group; the stored snapshot is now
+  refreshed against the complete overridden type the first time it's used.
+- Fixed a fake override's return type being applied incorrectly at any position
+  other than the outermost one (a type argument, array component, or bound): an
+  explicit annotation there was dropped, and an unannotated position there wrongly
+  inherited the overridden method's own annotation instead of the checker's default.
 - Fixed a typo (`@SafeEFfect`) in the Guieffect Checker's `org-eclipse.astub` that
-  made `CompareEditorInput.getMessage()` inherit the enclosing `@UIType`'s
-  `@UIEffect` default rather than being `@SafeEffect`.
+  made `CompareEditorInput.getMessage()` inherit `@UIEffect` instead of being
+  `@SafeEffect`.
 - Fixed `permit-nullness-assertion-exception.astub`'s missing `EnsuresNonNullIf`
-  import, which caused two spurious warnings for every user passing
+  import, which caused two spurious warnings for every user of
   `-Astubs=permit-nullness-assertion-exception.astub`.
 - A checker may now override `BaseTypeVisitor.shouldStripInvalidLocationQualifiers`
-  (default `false`) to make a qualifier that appears on a type-variable or wildcard
-  bound not permitted by its `@TargetLocations` inert: after the
-  `type.invalid.annotations.on.location` error is issued, the qualifier is removed
-  from the bound and the bound is re-defaulted, so the meaningless qualifier no
-  longer produces a `bound.type.incompatible` cascade. Behavior is unchanged for
-  checkers that do not opt in. For type-variable or wildcard bounds, a checker whose
-  own validity check is tree-based rather than `@TargetLocations`-based (for
-  example, one that must distinguish an annotation a user explicitly wrote from
-  the same qualifier arriving through ordinary defaulting) can additionally
-  override `BaseTypeValidator.additionalAnnotationsToStripFromTypeVariableBound` or
-  `BaseTypeValidator.additionalAnnotationsToStripFromWildcardBound` to strip
-  further annotations of its own choosing.
-- Fixed a crash (`MissingFormatArgumentException` wrapped in `BugInCF`) in the
-  Optional Checker's `prefer.map.and.orelse` warning for `if (VAR.isPresent())
-  { TYPE x = METHOD(VAR.get()); }` with no `else` branch, which supplied only 2
-  of the message's 3 arguments. `-Anomsgtext`, which every JUnit test uses, had
-  masked the bug by skipping message formatting entirely.
-- Fixed capture conversion dropping a primary qualifier from a type-parameter
-  bound that is itself a type-variable use. For a parameter declared
-  `<A, U extends @Q A>`, capturing a wildcard argument for `U` now applies `@Q`
-  to the substituted bound `A theta` (per JLS 5.1.10) instead of discarding it,
-  so the captured type variable's upper bound is no longer computed too low.
-  Previously the missing qualifier could silently suppress an
-  `assignment.type.incompatible` error.
-- Type-argument inference now resolves the polymorphic qualifiers of a method
-  reference's compile-time declaration against the parameter types of the target
-  function type, before it builds the inference constraints. Previously a
-  polymorphic qualifier reached the solver as if it were a concrete qualifier, so
-  a call whose type argument is inferred, such as `s.map(obj::polyMethod)`,
-  reported a spurious `type.arguments.not.inferred` ("unsatisfiable constraint:
-  `@PolyNull Lib <: @NonNull Lib`"), even though the same call written as a lambda
-  (`s.map(o -> obj.polyMethod(o))`) or with an explicit type argument
-  (`s.<Lib>map(obj::polyMethod)`) was accepted. This is the resolution that the
-  method reference's override check already performed, but only after inference
-  had finished. The same resolution now also applies when the method reference
-  itself, rather than an enclosing invocation, is the expression whose type
-  arguments are being inferred, such as an unbound reference passed to
-  `Map.computeIfAbsent`, and when the compile-time declaration is used to build a
-  checked-exception constraint, which infers the exception type argument of a
-  functional interface whose method declares a generic `throws` clause.
-- Fixed two related defects in how a captured type variable's dataflow-refined
-  primary annotation is removed when dataflow determines it does not refine the
-  type further (e.g., the loop variable of `for (T x : someIterableOfCaptures)`,
-  or a `var` local initialized by reading from a captured wildcard type).
-  `DefaultInferredTypesApplier` reconstructed the bounds to restore from the
-  type variable's *declaration*, which is wrong for a captured type variable:
-  its bounds come from capture conversion (JLS 5.1.10) rather than being
-  declared, and a synthetic capture element has no declaration-shaped
-  annotations to re-read at all. Separately, `QualifierDefaults` applied a type
-  variable's own primary default (such as the `LOCAL_VARIABLE` default) before
-  defaulting its bounds, so a bound's own default annotation could be
-  overwritten by the primary default before it was ever computed, leaving
-  nothing correct available to restore later. `QualifierDefaults` now always
-  defaults a type variable's bounds before applying its own primary annotation,
-  and `DefaultInferredTypesApplier` reconstructs a captured type variable's
-  bounds from the capture's own underlying type instead of the type parameter's
-  (in general unrelated) declaration. Both defects were latent for the built-in
-  checkers -- no diagnostic in this repository's own test suite depends on
-  them -- but are user-visible for a checker whose per-position defaulting
-  differs from a synthetic capture element's, such as one distinguishing
-  `@NullMarked` from unannotated code.
-- That reconstruction still re-defaulted against the capture's own synthetic
-  element in one case where it need not have: a captured type variable whose
-  captured wildcard's own bound is itself a bare type-variable use
-  (e.g. `? extends V` with no further constraint on `V`). There, the capture's
-  upper bound is exactly `V`'s own bound, so `DefaultInferredTypesApplier` now
-  reads `V`'s own, already-fully-defaulted declaration directly instead of
-  re-defaulting against the synthetic element, avoiding the same "no source"
-  defaulting mismatch for this position too. That fix initially installed the
-  annotation from `V`'s own upper bound (e.g. `Object`'s) onto the capture,
-  one level too deep; it now installs `V`'s own annotation, which is typically
-  absent for a bare, unannotated type-variable use.
-- Fixed a crash (`AsSuperVisitor: type is not an erased subtype of supertype`)
-  when `-AcheckCastElementType` checked a cast whose cast type is not a supertype
-  of the type of the cast expression: a downcast such as `(ArrayList<String>)
-  list`, or a cast between unrelated types such as two interfaces. The check
-  asked the type hierarchy whether the expression's type is a subtype of the cast
-  type, which only holds for an upcast. For a downcast, the cast type is now
-  viewed as the expression's type, so that the type arguments the two types have
-  in common are compared. For a cast between unrelated types, nothing is known
-  about the cast type's type arguments, so the cast is reported as not statically
-  verifiable, as a cast to a type with a different number of type arguments
-  already was.
-- A cast whose types the type hierarchy cannot compare no longer crashes
-  `-AcheckCastElementType` either; it is reported as not statically verifiable.
-  For example, `(List<Number>) list`, where `list` has type `List<T>`, makes the
-  type hierarchy compare the type argument `Number` with the type variable `T`,
-  a combination for which `StructuralEqualityComparer` has no case. A cast is the
-  only place where the type hierarchy is asked about types that Java's own
-  subtyping does not relate.
-- `-AcheckCastElementType` no longer reports a cast of the null literal to an
-  array type, such as `(Object[]) null`, as not statically verifiable. The null
-  literal has no elements to check, and the cast cannot fail at run time.
+  (default `false`) to strip a qualifier disallowed on a type-variable/wildcard
+  bound by `@TargetLocations` after reporting it, instead of the meaningless
+  qualifier cascading into a `bound.type.incompatible` error.
+  `BaseTypeValidator.additionalAnnotationsToStripFromTypeVariableBound`/`...WildcardBound`
+  let a tree-based validity check strip further annotations of its own.
+- Fixed a crash (`MissingFormatArgumentException`) in the Optional Checker's
+  `prefer.map.and.orelse` warning for an `isPresent()`/`get()` pattern with no
+  `else` branch, which supplied only 2 of the message's 3 arguments; masked by
+  `-Anomsgtext`, which every JUnit test uses.
+- Fixed capture conversion dropping a primary qualifier from a type-parameter bound
+  that is itself a type-variable use (e.g. `<A, U extends @Q A>`), which could
+  silently suppress an `assignment.type.incompatible` error.
+- Type-argument inference now resolves a method reference's polymorphic qualifiers
+  against the target function type before building inference constraints, fixing
+  spurious `type.arguments.not.inferred` errors on calls like `s.map(obj::polyMethod)`
+  that were accepted when written as a lambda or with an explicit type argument.
+- Fixed two related defects in removing a captured type variable's dataflow-refined
+  primary annotation once dataflow stops refining it further (e.g. the loop
+  variable of `for (T x : someIterableOfCaptures)`): `DefaultInferredTypesApplier`
+  rebuilt the bounds from the type parameter's declaration rather than the
+  capture's own, and `QualifierDefaults` could apply a type variable's primary
+  default before its bounds were defaulted. Both were latent for the built-in
+  checkers but affect a checker whose per-position defaulting differs from a
+  synthetic capture element's.
+- A related case -- a captured type variable whose captured wildcard's own bound is
+  a bare type-variable use (e.g. `? extends V`) -- now reads `V`'s own
+  already-defaulted declaration directly instead of re-defaulting against the
+  synthetic capture element.
+- Fixed a crash ("AsSuperVisitor: type is not an erased subtype of supertype") in
+  `-AcheckCastElementType` for a downcast (`(ArrayList<String>) list`) or a cast
+  between unrelated types; a downcast is now checked against its own type viewed as
+  the expression's type.
+- `-AcheckCastElementType` no longer crashes when the type hierarchy cannot compare
+  the cast's types (e.g. `(List<Number>) list` where `list` has type `List<T>`);
+  such a cast is reported as not statically verifiable instead.
+- `-AcheckCastElementType` no longer reports a cast of the null literal to an array
+  type (`(Object[]) null`) as not statically verifiable.
 - `-AcheckCastElementType` no longer reports an upcast to a type with a different
-  number of type arguments as not statically verifiable. For example,
-  `(Iterable<String>) list`, where `list` has a type that extends
-  `ArrayList<String>` and declares no type parameter of its own, was reported
-  unconditionally. The type hierarchy views the expression's type as the cast
-  type's class and compares all of the type arguments, so an upcast's type
-  arguments are checked whether or not the two types declare the same number of
-  them. A downcast or a cross-cast to a type with a different number of type
-  arguments is reported as before.
-- `-AcheckCastElementType` no longer changes the result for a cast between two
-  primitive types, which have neither type arguments nor array elements. Such a
-  cast is a widening or narrowing primitive conversion, which the option's
-  element-type checks treated as a reference upcast or downcast; the Signedness
-  Checker reported `(char) x`, where `x` has type `@Signed int`, as not
-  statically verifiable.
-- `AnnotatedTypeMirror.toString(false)` returns the same string as
-  `AnnotatedTypeMirror.toString()`. Verbose printing now only adds detail: it
-  never suppresses a detail that the type factory's `AnnotatedTypeFormatter` is
-  configured to print. Previously, `toString(false)` forced invisible qualifiers
-  and verbose generics off, overriding `-AprintAllQualifiers`,
-  `-AprintVerboseGenerics`, and a checker-supplied formatter default; for
-  instance, a Units Checker type printed through `toString(false)` lost its
-  `@UnknownUnits` qualifier, which `toString()` prints.
-- Determining whether an element is in the scope of an `@AnnotatedFor` was
-  implemented twice, once for warning suppression and once for conservative
-  defaults, and only the latter was cached. Both now use the new
-  `SourceChecker.isElementAnnotatedForThisCheckerOrUpstreamChecker(Element)`,
-  which `BaseTypeChecker` implements with a cache.
-- Type argument inference no longer fails on an inexact method reference to a
-  value-returning method that is passed where a functional interface whose method
-  returns `void` is expected, so that the returned value is discarded.  It reported
-  `type.argument.inference.crashed` on code that javac accepts.
-- The Checker Framework no longer crashes on a wildcard type argument for an F-bounded type
-  parameter, such as `Node<? extends Sub>` for `class Node<T extends Node<T>>` and
-  `class Sub extends Node<Sub>`, or `Enum<? extends TimeUnit>`.  Capture conversion now gives
-  the captured type variable the same upper bound that javac computes.
-- Type argument inference no longer reports `type.argument.inference.crashed` for a lambda or
-  method reference whose target, or whose receiver, is a functional interface type with a wildcard
-  type argument for an F-bounded type parameter, such as `NodeSupplier<? extends Sub>` for
-  `interface NodeSupplier<T extends Node<T>>`.  The ground target type now matches javac's.
-- The Nullness Checker no longer crashes with "AsSuperVisitor: type is not an erased subtype of
-  supertype" on a call to `Arrays.copyOf(original, original.length, newType)`, such as
-  `Arrays.copyOf(objects, objects.length, List[].class)` returned as a `List<?>[]`.  Refining the
-  result to an array of non-null elements replaced its component type with that of `original`,
-  turning the `List[]` result into an `Object[]`.  When the two component types differ, only the
+  number of type arguments as not statically verifiable (e.g. `(Iterable<String>) list`
+  for a `list` extending `ArrayList<String>`); a downcast or cross-cast with a
+  differing count is still reported.
+- `-AcheckCastElementType` no longer affects a cast between two primitive types,
+  which the option's element-type checks had wrongly treated as a reference
+  upcast/downcast.
+- `AnnotatedTypeMirror.toString(false)` no longer forces invisible qualifiers and
+  verbose generics off; it now returns the same string as `toString()`, since
+  verbose printing should only ever add detail, never suppress what a checker's
+  `AnnotatedTypeFormatter` is configured to print.
+- The scope check for `@AnnotatedFor` (used by both warning suppression and
+  conservative defaults) was implemented twice with only one cached; both now use
+  the new, cached `SourceChecker.isElementAnnotatedForThisCheckerOrUpstreamChecker(Element)`.
+- Type argument inference no longer crashes on an inexact method reference to a
+  value-returning method passed where a `void`-returning functional interface is
+  expected.
+- The Checker Framework no longer crashes on a wildcard type argument for an
+  F-bounded type parameter, such as `Node<? extends Sub>` for
+  `class Node<T extends Node<T>>`; capture conversion now gives the captured type
+  variable javac's own upper bound.
+- Type argument inference no longer crashes on a lambda or method reference whose
+  target or receiver is a functional interface with a wildcard type argument for an
+  F-bounded type parameter, such as `NodeSupplier<? extends Sub>`.
+- The Nullness Checker no longer crashes ("AsSuperVisitor...") on
+  `Arrays.copyOf(original, original.length, newType)` when the two component types
+  differ, such as `Arrays.copyOf(objects, objects.length, List[].class)`; only the
   nullness of the component type is refined now.
-- The Checker Framework no longer crashes on a method reference whose receiver is a raw type,
-  such as `Merged::name` for `interface Merged<X>`, passed to a generic method, as in
-  `unique(Merged::name)`.  The type argument of the raw type was inferred as its upper bound
-  rather than from the functional interface.  The receiver check then crashed, or reported a
-  false `methodref.receiver.invalid` error.
-- The Checker Framework no longer crashes when a class on the classpath has a supertype whose
-  type argument's class file is absent from the classpath, such as `class Sub extends
-  Base<Missing>` with no `Missing.class`.  javac accepts such code, because it never needs the
-  absent class.  The Checker Framework now issues a `class.not.completed` warning instead.
-- The Initialization Checker (and checkers built on it, such as the Nullness Checker) now
-  respects an explicit receiver parameter annotation on an inner class constructor, such as
-  `Inner(@UnknownInitialization Outer Outer.this)`.  Previously, the constructor return type's
-  enclosing instance defaulted to `@Initialized`, so accesses to `Outer.this` inside the inner
-  constructor body treated the outer instance as fully initialized.
+- The Checker Framework no longer crashes, or reports a false
+  `methodref.receiver.invalid`, on a method reference whose receiver is a raw type
+  passed to a generic method, such as `unique(Merged::name)`.
+- The Checker Framework no longer crashes when a class on the classpath has a
+  supertype whose type argument's class file is absent, such as
+  `class Sub extends Base<Missing>` with no `Missing.class`; it now issues a
+  `class.not.completed` warning.
+- The Initialization Checker (and checkers built on it, such as the Nullness
+  Checker) now respects an explicit receiver annotation on an inner class
+  constructor, such as `Inner(@UnknownInitialization Outer Outer.this)`, instead of
+  defaulting the enclosing instance to `@Initialized`.
 
 **Closed issues:**
 
