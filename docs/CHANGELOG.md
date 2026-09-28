@@ -841,6 +841,12 @@ type argument's class file is absent from the classpath, such as `class Sub exte
 Base<Missing>` with no `Missing.class`.  javac accepts such code, because it never needs the
 absent class.  The Checker Framework now issues a `class.not.completed` warning instead.
 
+The Initialization Checker (and checkers built on it, such as the Nullness Checker) now
+respects an explicit receiver parameter annotation on an inner class constructor, such as
+`Inner(@UnknownInitialization Outer Outer.this)`.  Previously, the constructor return type's
+enclosing instance defaulted to `@Initialized`, so accesses to `Outer.this` inside the inner
+constructor body treated the outer instance as fully initialized.
+
 **Implementation details:**
 
 `QualifierDefaults` now keeps a second set of unchecked-code defaults, the permissive ones, so
@@ -1270,6 +1276,7 @@ Other improvements and bug fixes:
 
 eisop#104,
 eisop#386,
+eisop#412,
 eisop#433,
 eisop#622,
 eisop#627,
