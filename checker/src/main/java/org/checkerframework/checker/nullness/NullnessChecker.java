@@ -41,7 +41,7 @@ import java.util.NavigableSet;
  * @checker_framework.manual #nullness-checker Nullness Checker
  */
 @SupportedModes(NullnessChecker.MODE_JSPECIFY)
-@StubFiles({"junit-assertions.astub", "log4j.astub"})
+@StubFiles({"junit-assertions.astub", "log4j.astub", "spring.astub"})
 public class NullnessChecker extends InitializationChecker {
 
     /**

@@ -3,6 +3,12 @@ Version 3.49.5-eisop2 (June ?, 2026)
 
 **User-visible changes:**
 
+The Nullness Checker now ships `spring.astub`, giving the Spring Framework utility methods
+that callers use as null guards (`ObjectUtils.isEmpty`, `CollectionUtils.isEmpty`,
+`StringUtils.hasLength`, `StringUtils.hasText`, and `Assert.notNull`/`Assert.hasText`) the
+postconditions that Spring declares with its own `@Contract`, which the Nullness Checker does
+not read.  Code guarded by one of these methods is no longer reported.
+
 Performance improvements over 3.49.5-eisop1:
 - `allNullnessTests`: 1m24s vs. 2m16s
 - `checkNullness`: 1m28s vs. 3m40s
